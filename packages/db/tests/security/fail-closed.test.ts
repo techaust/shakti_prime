@@ -82,7 +82,7 @@ describe('entity scope on entities', () => {
         select (select count(*) from roles)::int as roles,
                (select count(*) from permissions)::int as permissions,
                (select count(*) from role_permissions)::int as role_permissions,
-               (select count(*) from principals)::int as principals
+               (select count(*) from principals where kind = 'agent')::int as principals
       `)) as unknown as Record<string, number>[];
         return r[0];
       },
@@ -127,6 +127,9 @@ describe('write policies', () => {
       asPrincipal(principalFor('executive', [1]), ({ tx }) =>
         tx.execute(sql`update entities set id = 9 where id = 1`),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error && e.cause instanceof Error && /row-level security/.test(e.cause.message),
+    );
   });
 });

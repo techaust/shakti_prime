@@ -20,14 +20,14 @@ alter table entities enable row level security;
 alter table entities force row level security;
 --> statement-breakpoint
 create policy entities_read on entities for select
-  using (id = any ((select app.entity_ids())));
+  using (id = any ((select app.entity_ids())::int[]));
 --> statement-breakpoint
 create policy entities_insert on entities for insert
   with check ((select app.has_perm('admin.entities.write:all')));
 --> statement-breakpoint
 create policy entities_update on entities for update
-  using (id = any ((select app.entity_ids())) and (select app.has_perm('admin.entities.write:all')))
-  with check (id = any ((select app.entity_ids())) and (select app.has_perm('admin.entities.write:all')));
+  using (id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')))
+  with check (id = any ((select app.entity_ids())::int[]) and (select app.has_perm('admin.entities.write:all')));
 --> statement-breakpoint
 
 -- principals

@@ -56,16 +56,16 @@ create function app.has_perm(p text) returns boolean language sql stable as $$
 alter table opportunities enable row level security;
 alter table opportunities force row level security;
 create policy entity_read on opportunities for select
-  using (entity_id = any ((select app.entity_ids())));
+  using (entity_id = any ((select app.entity_ids())::int[]));
 create policy entity_write on opportunities for insert with check
-  (entity_id = any ((select app.entity_ids())));
+  (entity_id = any ((select app.entity_ids())::int[]));
 create policy entity_update on opportunities for update
-  using (entity_id = any ((select app.entity_ids())))
-  with check (entity_id = any ((select app.entity_ids())));
+  using (entity_id = any ((select app.entity_ids())::int[]))
+  with check (entity_id = any ((select app.entity_ids())::int[]));
 
 -- ownership scope example (own / team / entity)
 create policy owner_scope on opportunities for select using (
-  entity_id = any ((select app.entity_ids())) and (
+  entity_id = any ((select app.entity_ids())::int[]) and (
     (select app.has_perm('crm.lead.read:entity'))
     or ((select app.has_perm('crm.lead.read:team')) and team_id = current_setting('app.team_id', true)::uuid)
     or ((select app.has_perm('crm.lead.read:own')) and owner_id = current_setting('app.user_id', true)::uuid)
@@ -73,7 +73,7 @@ create policy owner_scope on opportunities for select using (
 
 -- restricted table policy (cost permission required in addition to entity)
 create policy cost_gate on item_costs for select using (
-  entity_id = any ((select app.entity_ids())) and (select app.has_perm('finance.cost.read:entity')));
+  entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('finance.cost.read:entity')));
 ```
 Rules:
 - The subselect form makes the setting an initplan, evaluated once per query.
