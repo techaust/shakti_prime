@@ -70,6 +70,51 @@ describe('ownership scope on accounts and contacts (crm.account.read)', () => {
     );
   });
 
+  it('a shared customer is seen by each entity through its own relationship (ADR 0008)', async () => {
+    // account 0 belongs to A in entity 1 and to D in entity 2; B and the entity-2 Executive differ.
+    expect(await visibleIds(fx.principals.d, 'accounts')).toEqual(
+      sorted([...fx.accounts.d, fx.accounts.a[0] ?? '']),
+    );
+    expect(await visibleIds(fx.principals.d, 'contacts')).toEqual(
+      sorted([...fx.contacts.d, fx.contacts.a[0] ?? '']),
+    );
+    expect(await visibleIds(fx.principals.b, 'accounts')).toEqual(sorted(fx.accounts.b));
+    expect(await visibleIds(principalFor('executive', [2]), 'accounts')).toEqual(
+      sorted([...fx.accounts.d, fx.accounts.a[0] ?? '']),
+    );
+    // D updates the shared account through the entity-2 relationship; B cannot touch it at all.
+    const rename = (p: Principal) =>
+      asPrincipal(p, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`update accounts set name = name where id = ${fx.accounts.a[0] ?? ''} returning id`,
+        )) as unknown as { id: string }[];
+        return rows.length;
+      });
+    expect(await rename(fx.principals.d)).toBe(1);
+    expect(await rename(fx.principals.b)).toBe(0);
+  });
+
+  it('a contact with no account link and an account with no relationship are visible to nobody', async () => {
+    const orphanContact = '01990000-0000-7000-8000-0000000fee01';
+    const orphanAccount = '01990000-0000-7000-8000-0000000fee02';
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into contacts (id, name, created_by) values (${orphanContact}, 'orphan', ${fx.principals.a.id})
+        on conflict (id) do nothing`,
+    );
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into accounts (id, type, name, created_by) values (${orphanAccount}, 'farm', 'orphan', ${fx.principals.a.id})
+        on conflict (id) do nothing`,
+    );
+    for (const p of [fx.principals.a, fx.principals.gm, principalFor('executive')]) {
+      expect(await visibleIds(p, 'contacts')).not.toContain(orphanContact);
+      expect(await visibleIds(p, 'accounts')).not.toContain(orphanAccount);
+    }
+  });
+
   it('a role without crm.account.read sees no accounts even inside the entity', async () => {
     expect(await countAs(principalFor('hr_admin', [1]), 'accounts')).toBe(0);
     expect(await countAs(principalFor('hr_admin', [1]), 'opportunities')).toBe(0);
@@ -118,8 +163,8 @@ describe('child writes follow the parent write scope, not its read scope', () =>
     );
     const insertPhone = (contactId: string, suffix: string) =>
       asPrincipal(reader, ({ tx }) =>
-        tx.execute(sql`insert into contact_phones (id, entity_id, contact_id, e164, is_primary, created_by)
-          values (${`01990000-0000-7000-8000-0000000ff0${suffix}`}, 1, ${contactId}, ${`+9198111${suffix}0000`.slice(0, 13)}, false, ${reader.id})`),
+        tx.execute(sql`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
+          values (${`01990000-0000-7000-8000-0000000ff0${suffix}`}, ${contactId}, ${`+9198111${suffix}0000`.slice(0, 13)}, false, ${reader.id})`),
       );
     expect(await countAs(reader, 'contacts')).toBeGreaterThan(0);
     await expect(insertPhone(fx.contacts.b[0] ?? '', '01')).rejects.toSatisfy(
@@ -138,24 +183,69 @@ describe('child writes follow the parent write scope, not its read scope', () =>
   });
 });
 
-describe('a child row belongs to its parent entity', () => {
-  it('a phone for an entity-1 contact cannot carry entity 2, even for the table owner', async () => {
+describe('an opportunity sits only in an entity its account deals with', () => {
+  const insertOpp = (id: string, entityId: number, accountId: string, siteId: string | null) =>
+    asMigrator(
+      (
+        m,
+      ) => m`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, created_by)
+        values (${id}, ${entityId}, ${accountId}, ${siteId},
+                (select id from pipelines limit 1), (select id from pipeline_stages limit 1),
+                ${fx.principals.a.id}, ${fx.principals.a.id})`,
+    );
+
+  it('the trigger refuses a missing relationship and a site of another account, even for the table owner', async () => {
+    // account 1 deals with entity 1 only
     await expect(
-      asMigrator(
-        (m) => m`insert into contact_phones (id, entity_id, contact_id, e164, created_by)
-          values (${'01990000-0000-7000-8000-0000000ffe01'}, 2, ${fx.contacts.a[0] ?? ''}, '+919811100001', ${fx.principals.a.id})`,
-      ),
-    ).rejects.toThrow(/contact_phones_contact_entity_fk/);
+      insertOpp('01990000-0000-7000-8000-0000000ffe02', 2, fx.accounts.a[1] ?? '', null),
+    ).rejects.toThrow(/no relationship with entity 2/);
+    // account 0 deals with entity 2 as well, so this one is accepted
+    await insertOpp('01990000-0000-7000-8000-0000000ffe03', 2, fx.accounts.a[0] ?? '', null);
+    await asMigrator(
+      (m) => m`delete from opportunities where id = ${'01990000-0000-7000-8000-0000000ffe03'}`,
+    );
+    // a site of account B on an opportunity of account A
+    const [siteB] = await asMigrator(
+      (m) =>
+        m<
+          { id: string }[]
+        >`select id from customer_sites where account_id = ${fx.accounts.b[0] ?? ''}`,
+    );
     await expect(
-      asMigrator(
-        (
-          m,
-        ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by)
-          values (${'01990000-0000-7000-8000-0000000ffe02'}, 2, ${fx.accounts.a[0] ?? ''},
-                  (select id from pipelines limit 1), (select id from pipeline_stages limit 1),
-                  ${fx.principals.a.id}, ${fx.principals.a.id})`,
+      insertOpp(
+        '01990000-0000-7000-8000-0000000ffe04',
+        1,
+        fx.accounts.a[0] ?? '',
+        siteB?.id ?? null,
       ),
-    ).rejects.toThrow(/opportunities_account_entity_fk/);
+    ).rejects.toThrow(/does not belong to account/);
+  });
+
+  it('attach_account_entity adds the caller entity to a customer they cannot see yet', async () => {
+    // C (entity 1, own scope) cannot see account D's customer; attaching needs crm.lead.write in scope
+    const target = fx.accounts.d[0] ?? '';
+    expect(await visibleIds(fx.principals.c, 'accounts')).not.toContain(target);
+    const attach = (p: Principal, account: string, entityId: number) =>
+      asPrincipal(p, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select app.attach_account_entity(${account}::uuid, ${entityId}::smallint) as ok`,
+        )) as unknown as { ok: boolean }[];
+        return rows[0]?.ok;
+      });
+    expect(await attach(fx.principals.c, target, 1)).toBe(true);
+    expect(await visibleIds(fx.principals.c, 'accounts')).toContain(target);
+    expect(await attach(fx.principals.c, '01990000-0000-7000-8000-0000000fee99', 1)).toBe(false);
+    const causeIncludes = (text: string) => (e: unknown) =>
+      e instanceof Error && e.cause instanceof Error && e.cause.message.includes(text);
+    await expect(attach(fx.principals.c, target, 2)).rejects.toSatisfy(
+      causeIncludes('outside the request scope'),
+    );
+    await expect(attach(principalFor('hr_admin', [1]), target, 1)).rejects.toSatisfy(
+      causeIncludes('crm.lead.write'),
+    );
+    await asMigrator(
+      (m) => m`delete from account_entities where account_id = ${target} and entity_id = 1`,
+    );
   });
 });
 

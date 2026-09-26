@@ -72,6 +72,7 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`delete from opportunities where id::text like ${`${P}%`}`;
       await tx`delete from customer_sites where id::text like ${`${P}%`}`;
       await tx`delete from account_contacts where account_id::text like ${`${P}%`}`;
+      await tx`delete from account_entities where account_id::text like ${`${P}%`}`;
       await tx`delete from contact_phones where id::text like ${`${P}%`}`;
       await tx`delete from accounts where id::text like ${`${P}%`}`;
       await tx`delete from contacts where id::text like ${`${P}%`}`;
@@ -93,24 +94,30 @@ export async function crmFixture(): Promise<CrmFixture> {
         const consentId = id(base + 5);
         const oppId = id(base + 6);
         const e164 = `+9198000${(10000 + s.n).toString()}`;
-        await tx`insert into contacts (id, entity_id, name, owner_id, team_id, created_by)
-          values (${contactId}, ${s.entityId}, ${`fixture contact ${s.n}`}, ${s.principalId}, ${s.teamId}, ${s.principalId})`;
-        await tx`insert into contact_phones (id, entity_id, contact_id, e164, is_primary, is_whatsapp, created_by)
-          values (${phoneId}, ${s.entityId}, ${contactId}, ${e164}, true, true, ${s.principalId})`;
-        await tx`insert into accounts (id, entity_id, type, name, owner_id, team_id, created_by)
-          values (${accountId}, ${s.entityId}, 'farm', ${`fixture account ${s.n}`}, ${s.principalId}, ${s.teamId}, ${s.principalId})`;
-        await tx`insert into account_contacts (entity_id, account_id, contact_id, role, created_by)
-          values (${s.entityId}, ${accountId}, ${contactId}, 'owner', ${s.principalId})`;
-        await tx`insert into customer_sites (id, entity_id, account_id, type, village, created_by)
-          values (${siteId}, ${s.entityId}, ${accountId}, 'borewell', ${`fixture village ${s.n}`}, ${s.principalId})`;
-        await tx`insert into consents (id, entity_id, contact_id, channel, purpose, source, text_version, given_at, created_by)
-          values (${consentId}, ${s.entityId}, ${contactId}, 'whatsapp', 'service', 'walk_in_form', 'v1', now(), ${s.principalId})`;
+        const membershipId = id(base + 7);
+        await tx`insert into contacts (id, name, created_by)
+          values (${contactId}, ${`fixture contact ${s.n}`}, ${s.principalId})`;
+        await tx`insert into contact_phones (id, contact_id, e164, is_primary, is_whatsapp, created_by)
+          values (${phoneId}, ${contactId}, ${e164}, true, true, ${s.principalId})`;
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${accountId}, 'farm', ${`fixture account ${s.n}`}, ${s.principalId})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+          values (${membershipId}, ${accountId}, ${s.entityId}, ${s.principalId}, ${s.teamId}, ${s.principalId})`;
+        await tx`insert into account_contacts (account_id, contact_id, role, created_by)
+          values (${accountId}, ${contactId}, 'owner', ${s.principalId})`;
+        await tx`insert into customer_sites (id, account_id, type, village, created_by)
+          values (${siteId}, ${accountId}, 'borewell', ${`fixture village ${s.n}`}, ${s.principalId})`;
+        await tx`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+          values (${consentId}, ${contactId}, 'whatsapp', 'service', 'walk_in_form', 'v1', now(), ${s.principalId})`;
         await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
           values (${oppId}, ${s.entityId}, ${accountId}, ${siteId}, ${pipeline.id}, ${firstStage}, ${s.principalId}, ${s.teamId}, ${s.principalId})`;
         leads[s.owner].push(oppId);
         accounts[s.owner].push(accountId);
         contacts[s.owner].push(contactId);
       }
+      // The shared customer: account 0 (owned by A in entity 1) also deals with entity 2, owned by D.
+      await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+        values (${id(0x0f01)}, ${accounts.a[0] ?? ''}, 2, ${pid.d}, ${teams.t3}, ${pid.d})`;
     });
   });
 

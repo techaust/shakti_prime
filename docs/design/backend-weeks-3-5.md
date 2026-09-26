@@ -5,6 +5,7 @@ Date: 2026-09-27. Status: design for approval; nothing here is built yet. Govern
 Decisions taken with the client on 2026-09-27:
 - **Mixed roles in "All entities" view:** the narrowest role wins. The request carries only the grants every one of the user's roles holds; the user switches to a single entity to use a wider role there.
 - **Imports permission:** new key `imports.write`, Executive `all`, General Manager `entity` (SECURITY §3.2 row added).
+- **Shared customer master:** one contact and account record for the group, with `account_entities` holding the relationship and its owner per entity (ADR 0008, built 2026-09-27). An accounts import creates one relationship per row's entity and folds a repeated customer into one record.
 
 ## 1. Scope by week
 

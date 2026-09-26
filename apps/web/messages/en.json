@@ -38,7 +38,8 @@
     "user_missing": "We couldn't find this team member. The list may have changed.",
     "user_offboarded": "This person has left. Invite them again to give access.",
     "self_suspend": "You can't suspend your own access. Ask another Executive.",
-    "session_missing": "This sign-in has already ended."
+    "session_missing": "This sign-in has already ended.",
+    "account_missing": "We couldn't find this customer. Search again or create a new customer."
   },
   "auth": {
     "signIn": {

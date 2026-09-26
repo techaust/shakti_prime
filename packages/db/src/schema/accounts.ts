@@ -1,7 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
-  foreignKey,
   index,
   jsonb,
   numeric,
@@ -9,6 +8,7 @@ import {
   primaryKey,
   smallint,
   text,
+  timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -19,21 +19,20 @@ import { priceTiers } from './pricing';
 import { principals } from './principals';
 import { teams } from './teams';
 
-/** A household, farm, business, dealer or referral partner (docs/BLUEPRINT.md §6.2). Scope root. */
+/**
+ * A household, farm, business, dealer or referral partner (docs/BLUEPRINT.md §6.2). One record
+ * for the group (ADR 0008): the entities it deals with, and who owns the relationship in each,
+ * live in `account_entities`.
+ */
 export const accounts = pgTable(
   'accounts',
   {
     id: uuid('id').primaryKey(),
-    entityId: smallint('entity_id')
-      .notNull()
-      .references(() => entities.id),
     type: text('type').notNull(),
     name: text('name').notNull(),
     nameHi: text('name_hi'),
     gstin: text('gstin'),
     tierId: uuid('tier_id').references(() => priceTiers.id),
-    ownerId: uuid('owner_id').references(() => principals.id),
-    teamId: uuid('team_id').references(() => teams.id),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -48,10 +47,35 @@ export const accounts = pgTable(
       sql`${t.gstin} is null or ${t.gstin} ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'`,
     ),
     index('accounts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
-    index('accounts_entity_owner_idx').on(t.entityId, t.ownerId),
-    index('accounts_entity_team_idx').on(t.entityId, t.teamId),
     index('accounts_tier_idx').on(t.tierId),
-    unique('accounts_id_entity_unique').on(t.id, t.entityId),
+  ],
+);
+
+/**
+ * The relationship of an account with one selling entity: the scope root for `crm.account.*`.
+ * Own, team and entity scope apply to this row, so each entity's staff see the shared customer
+ * through their own relationship. An opportunity may only sit in an entity that has a row here.
+ */
+export const accountEntities = pgTable(
+  'account_entities',
+  {
+    id: uuid('id').primaryKey(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    entityId: smallint('entity_id')
+      .notNull()
+      .references(() => entities.id),
+    ownerId: uuid('owner_id').references(() => principals.id),
+    teamId: uuid('team_id').references(() => teams.id),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+    ...actorsRequired,
+  },
+  (t) => [
+    unique('account_entities_account_entity_key').on(t.accountId, t.entityId),
+    index('account_entities_entity_owner_idx').on(t.entityId, t.ownerId),
+    index('account_entities_entity_team_idx').on(t.entityId, t.teamId),
   ],
 );
 
@@ -59,9 +83,6 @@ export const accounts = pgTable(
 export const accountContacts = pgTable(
   'account_contacts',
   {
-    entityId: smallint('entity_id')
-      .notNull()
-      .references(() => entities.id),
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -75,16 +96,6 @@ export const accountContacts = pgTable(
   (t) => [
     primaryKey({ columns: [t.accountId, t.contactId] }),
     index('account_contacts_contact_idx').on(t.contactId),
-    foreignKey({
-      name: 'account_contacts_account_entity_fk',
-      columns: [t.accountId, t.entityId],
-      foreignColumns: [accounts.id, accounts.entityId],
-    }),
-    foreignKey({
-      name: 'account_contacts_contact_entity_fk',
-      columns: [t.contactId, t.entityId],
-      foreignColumns: [contacts.id, contacts.entityId],
-    }),
     check(
       'account_contacts_role_check',
       sql`${t.role} in ('owner', 'family', 'manager', 'accountant', 'other')`,
@@ -97,9 +108,6 @@ export const customerSites = pgTable(
   'customer_sites',
   {
     id: uuid('id').primaryKey(),
-    entityId: smallint('entity_id')
-      .notNull()
-      .references(() => entities.id),
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id),
@@ -121,11 +129,5 @@ export const customerSites = pgTable(
     check('customer_sites_pin_check', sql`${t.pin} is null or ${t.pin} ~ '^[1-9][0-9]{5}$'`),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
-    unique('customer_sites_id_entity_unique').on(t.id, t.entityId),
-    foreignKey({
-      name: 'customer_sites_account_entity_fk',
-      columns: [t.accountId, t.entityId],
-      foreignColumns: [accounts.id, accounts.entityId],
-    }),
   ],
 );

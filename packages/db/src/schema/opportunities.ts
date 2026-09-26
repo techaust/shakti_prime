@@ -1,7 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
-  foreignKey,
   index,
   integer,
   jsonb,
@@ -21,7 +20,8 @@ import { teams } from './teams';
 
 /**
  * A sale on a pipeline for an account and site (docs/BLUEPRINT.md §6.2). Scope root for
- * `crm.lead.*`. `state` is written only by the opportunity state machine (Phase 1).
+ * `crm.lead.*`. `state` is written only by the opportunity state machine (Phase 1). The trigger
+ * `app.ensure_account_entity()` refuses an entity that has no `account_entities` row (ADR 0008).
  */
 export const opportunities = pgTable(
   'opportunities',
@@ -62,15 +62,5 @@ export const opportunities = pgTable(
     index('opportunities_pipeline_stage_idx').on(t.pipelineId, t.stageId),
     index('opportunities_site_idx').on(t.siteId),
     index('opportunities_source_idx').on(t.sourceId),
-    foreignKey({
-      name: 'opportunities_account_entity_fk',
-      columns: [t.accountId, t.entityId],
-      foreignColumns: [accounts.id, accounts.entityId],
-    }),
-    foreignKey({
-      name: 'opportunities_site_entity_fk',
-      columns: [t.siteId, t.entityId],
-      foreignColumns: [customerSites.id, customerSites.entityId],
-    }),
   ],
 );

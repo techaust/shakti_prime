@@ -15,7 +15,7 @@ This document is the architecture and product blueprint. Implementation begins a
 | Hosting | Supabase Postgres (Mumbai) + Vercel (functions in `bom1`, Mumbai); AWS S3 (ap-south-1) |
 | Scale | 100+ users, 2,000+ leads/day, 2 physical sites (Jaipur godown/office + EPC factory) |
 | Segments | Farmers (solar/AC pumps), residential rooftop (PM Surya Ghar), commercial/industrial EPC, dealers/wholesale |
-| Entities | Shared staff across all four companies; every record is tagged to its selling entity |
+| Entities | Shared staff across all four companies; every transaction (lead, quote, order, document) is tagged to its selling entity; customers are one record for the group with a relationship per entity (ADR 0008) |
 | UI | One unified Shakti Prime interface; the entity name, logo and letterhead appear on customer documents |
 | Devices | Responsive web app for all roles (desktop, Android, iOS browsers); native Android app for field staff |
 | Pricing | Fixed prices from Price Master **tiers** (Retail, Dealer, Commercial); no discounting |
@@ -151,7 +151,7 @@ This document is the architecture and product blueprint. Implementation begins a
 ### 6.2 Customer identity
 Phone numbers are often shared within families, and one farmer can have several borewells or fields. The model is:
 - **Contact:** a person, with phones (E.164) and email.
-- **Account:** a household, farm, business, dealer or referral partner. It links to contacts through roles.
+- **Account:** a household, farm, business, dealer or referral partner. It links to contacts through roles. Contacts and accounts are shared by the four entities; `account_entities` records which entities an account deals with and who owns the relationship in each, and that row is what own/team/entity scope applies to (ADR 0008).
 - **Site:** a physical location (borewell, rooftop, factory) with geography and technical data.
 - **Opportunity:** a sale on a pipeline and entity, for an account and site.
 

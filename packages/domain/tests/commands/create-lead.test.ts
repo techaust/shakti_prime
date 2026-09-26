@@ -144,6 +144,91 @@ describe('crm.lead.create', () => {
     expect(await seenBy(gm)).toBe(true);
   });
 
+  it('attaches a second lead in another entity to the same customer (ADR 0008)', async () => {
+    const cc1 = await createTestPrincipal('tele_caller_cc', [1], { teamId });
+    const first = await asPrincipal(cc1, (context) =>
+      runCommand(
+        createLead,
+        { context },
+        { ...input, contact: { name: 'Shared customer', phone: '9876700100' } },
+      ),
+    );
+    const accountId = first.account.id;
+
+    // the entity-2 caller cannot see the customer yet, and a made-up account answers not_found
+    const cc2 = await createTestPrincipal('tele_caller_cc', [2], {
+      teamId: await createTestTeam(2, 'entity two team'),
+    });
+    await expect(
+      asPrincipal(cc2, (context) =>
+        runCommand(
+          createLead,
+          { context },
+          { entityId: 2, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'account_missing' } });
+    await expect(
+      asPrincipal(cc2, (context) =>
+        runCommand(createLead, { context }, { entityId: 2, pipelineKey: 'farmer_pumps' }),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+
+    const onEmit = vi.fn();
+    const second = await asPrincipal(cc2, (context) =>
+      runCommand(
+        createLead,
+        { context, onEmit },
+        {
+          entityId: 2,
+          pipelineKey: 'farmer_pumps',
+          existingAccountId: accountId,
+          site: { type: 'rooftop', village: 'Shared village' },
+        },
+      ),
+    );
+    expect(second.account.id).toBe(accountId);
+    expect(second.contact).toEqual(first.contact);
+    expect(second.entityId).toBe(2);
+    expect(second.ownerId).toBe(cc2.id);
+    expect(second.siteId).not.toBeNull();
+    expect(onEmit).toHaveBeenCalledWith([
+      expect.objectContaining({ type: 'crm.lead.created', entityId: 2 }),
+    ]);
+
+    // each caller sees the customer through their own relationship, and only their own lead
+    const leadsOf = async (p: typeof cc1) =>
+      (await asPrincipal(p, (ctx) => listLeads(ctx))).items
+        .filter((l) => l.account.id === accountId)
+        .map((l) => l.id);
+    expect(await leadsOf(cc1)).toEqual([first.id]);
+    expect(await leadsOf(cc2)).toEqual([second.id]);
+    const [rows] = await asMigrator(
+      (m) =>
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from account_entities where account_id = ${accountId}`,
+    );
+    expect(rows?.n).toBe(2);
+
+    // attaching again is idempotent for the relationship
+    const third = await asPrincipal(cc2, (context) =>
+      runCommand(
+        createLead,
+        { context },
+        { entityId: 2, pipelineKey: 'farmer_pumps', existingAccountId: accountId },
+      ),
+    );
+    expect(third.account.id).toBe(accountId);
+    const [again] = await asMigrator(
+      (m) =>
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from account_entities where account_id = ${accountId}`,
+    );
+    expect(again?.n).toBe(2);
+  });
+
   it('pages through leads written in one transaction, which share updated_at to the microsecond', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     const created = await asPrincipal(cc, async (context) => {

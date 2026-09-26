@@ -7,16 +7,21 @@ import {
   SiteTypeSchema,
 } from '../../crm/enums';
 import { PhoneInputSchema } from '../../crm/phone';
-import { EntityIdSchema } from '../../ids';
+import { EntityIdSchema, IdSchema } from '../../ids';
 import { LocaleSchema } from '../../principal';
 
 const Name = z.string().trim().min(2).max(120);
 
-/** Walk-in form, manual entry and imports all create a lead through this input (CRM-01). */
+/**
+ * Walk-in form, manual entry and imports all create a lead through this input (CRM-01). With
+ * `existingAccountId` the lead attaches to a customer the group already knows (ADR 0008): the
+ * caller's entity is added to that account and the contact and account blocks are not needed.
+ */
 export const CreateLeadInput = z
   .object({
     entityId: EntityIdSchema,
     pipelineKey: z.string().trim().min(1).max(40),
+    existingAccountId: IdSchema.optional(),
     contact: z
       .object({
         name: Name,
@@ -24,13 +29,15 @@ export const CreateLeadInput = z
         phone: PhoneInputSchema,
         preferredLanguage: LocaleSchema.default('hi'),
       })
-      .strict(),
+      .strict()
+      .optional(),
     account: z
       .object({
         type: AccountTypeSchema,
         name: Name.optional(),
       })
-      .strict(),
+      .strict()
+      .optional(),
     site: z
       .object({
         type: SiteTypeSchema,
@@ -54,6 +61,11 @@ export const CreateLeadInput = z
       .optional(),
     sourceCode: z.string().trim().min(1).max(40).optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (v) =>
+      v.existingAccountId !== undefined || (v.contact !== undefined && v.account !== undefined),
+    { message: 'contact and account are required for a new customer', path: ['contact'] },
+  );
 
 export type CreateLeadInput = z.infer<typeof CreateLeadInput>;

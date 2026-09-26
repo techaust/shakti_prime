@@ -90,7 +90,12 @@ create policy cost_gate on item_costs for select using (
 create policy accounts_read on accounts for select using (
   entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.account.read', owner_id, team_id));
 
--- child of a root: visible when the parent row is visible; the EXISTS runs under the parent's policies
+-- shared customer master (ADR 0008): accounts and contacts carry no entity; the relationship row is the root
+create policy accounts_read on accounts for select using (app.account_in_scope(id, 'crm.account.read'));
+create policy accounts_insert on accounts for insert with check ((select app.has_perm('crm.account.write:own')));
+create policy contact_phones_read on contact_phones for select using (app.contact_in_scope(contact_id, 'crm.account.read'));
+
+-- child of an entity-scoped root: visible when the parent row is visible; the EXISTS runs under the parent's policies
 create policy customer_sites_read on customer_sites for select using (
   entity_id = any ((select app.entity_ids())::int[])
   and exists (select 1 from accounts a where a.id = customer_sites.account_id));
@@ -146,12 +151,13 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.2 CRM
 | Table | Key columns |
 |---|---|
-| `contacts` | `entity_id`, `name`, `name_hi`, `search_roman`, `email`, `preferred_language`, `owner_id`, `team_id` (scope root) |
+| `contacts` | `name`, `name_hi`, `search_roman`, `email`, `preferred_language`; shared by all entities, visible through the accounts it is linked to (ADR 0008) |
 | `contact_phones` | `contact_id`, `e164`, `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd` |
-| `accounts` | `entity_id`, `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code`, `owner_id`, `team_id` (scope root) |
+| `accounts` | `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code`; one record for the group (ADR 0008) |
+| `account_entities` | `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()` |
 | `account_contacts` | `account_id`, `contact_id`, `role` |
 | `customer_sites` | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `pin`, `state_code` (place of supply), `geo`, `technical_json` |
-| `opportunities` | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state`, `locked_until` |
+| `opportunities` | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state`, `locked_until`; the trigger `app.ensure_account_entity()` refuses an entity with no `account_entities` row for the account, and a site of another account |
 | `pipelines`, `pipeline_stages` | `stage_exit_rules_json` |
 | `activities` (partitioned by month) | `entity_id`, `opportunity_id`, `account_id`, `type`, `actor_principal_id`, `payload_json` |
 | `tasks` | `assignee_id`, `due_at`, `state` |

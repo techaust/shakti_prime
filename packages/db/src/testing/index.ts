@@ -166,6 +166,7 @@ export const ENTITY_TABLES = [
   'contacts',
   'contact_phones',
   'accounts',
+  'account_entities',
   'account_contacts',
   'customer_sites',
   'opportunities',

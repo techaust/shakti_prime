@@ -1,17 +1,7 @@
 import { sql } from 'drizzle-orm';
-import {
-  check,
-  foreignKey,
-  index,
-  pgTable,
-  smallint,
-  text,
-  timestamp,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { check, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { actorsRequired, timestamps } from './columns';
 import { contacts } from './contacts';
-import { entities } from './entities';
 
 /**
  * Consent per channel, purpose and source with a timestamp (CRM-10, DPDP). Never deleted;
@@ -22,9 +12,6 @@ export const consents = pgTable(
   'consents',
   {
     id: uuid('id').primaryKey(),
-    entityId: smallint('entity_id')
-      .notNull()
-      .references(() => entities.id),
     contactId: uuid('contact_id')
       .notNull()
       .references(() => contacts.id),
@@ -45,10 +32,5 @@ export const consents = pgTable(
       sql`${t.source} in ('web_form', 'whatsapp_opt_in', 'walk_in_form', 'verbal', 'import')`,
     ),
     index('consents_contact_idx').on(t.contactId, t.channel, t.purpose),
-    foreignKey({
-      name: 'consents_contact_entity_fk',
-      columns: [t.contactId, t.entityId],
-      foreignColumns: [contacts.id, contacts.entityId],
-    }),
   ],
 );

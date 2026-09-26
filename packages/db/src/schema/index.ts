@@ -5,7 +5,7 @@ export { teams } from './teams';
 export { leadSources } from './lead-sources';
 export { pipelines, pipelineStages } from './pipelines';
 export { contacts, contactPhones } from './contacts';
-export { accounts, accountContacts, customerSites } from './accounts';
+export { accounts, accountEntities, accountContacts, customerSites } from './accounts';
 export { opportunities } from './opportunities';
 export { consents } from './consents';
 export { items, pumpCurves, itemCosts } from './items';
