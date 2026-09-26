@@ -51,6 +51,14 @@ create function app.entity_ids() returns int[] language sql stable as $$
               then null else current_setting('app.entity_ids', true)::int[] end $$;
 create function app.has_perm(p text) returns boolean language sql stable as $$
   select position(',' || p || ',' in ',' || coalesce(current_setting('app.permissions', true), '') || ',') > 0 $$;
+create function app.team_id() returns uuid language sql stable as $$
+  select case when coalesce(current_setting('app.team_id', true), '') = ''
+              then null else current_setting('app.team_id', true)::uuid end $$;
+-- own / team / entity in one place: entity (or wider), team for the row's team, own for the row's owner
+create function app.scope_ok(perm text, row_owner uuid, row_team uuid) returns boolean language sql stable as $$
+  select app.has_perm(perm || ':entity')
+      or (app.has_perm(perm || ':team') and row_team is not null and row_team = app.team_id())
+      or (app.has_perm(perm || ':own') and row_owner is not null and row_owner = app.user_id()) $$;
 
 -- standard entity policy (fails closed: null entity_ids ⇒ no rows)
 alter table opportunities enable row level security;
@@ -74,6 +82,15 @@ create policy owner_scope on opportunities for select using (
 -- restricted table policy (cost permission required in addition to entity)
 create policy cost_gate on item_costs for select using (
   entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('finance.cost.read:entity')));
+
+-- scope root with the helper (accounts, contacts and opportunities carry owner_id and team_id)
+create policy accounts_read on accounts for select using (
+  entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.account.read', owner_id, team_id));
+
+-- child of a root: visible when the parent row is visible; the EXISTS runs under the parent's policies
+create policy customer_sites_read on customer_sites for select using (
+  entity_id = any ((select app.entity_ids())::int[])
+  and exists (select 1 from accounts a where a.id = customer_sites.account_id));
 ```
 Rules:
 - The subselect form makes the setting an initplan, evaluated once per query.
@@ -114,9 +131,9 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.2 CRM
 | Table | Key columns |
 |---|---|
-| `contacts` | `entity_id`, `name`, `name_hi`, `search_roman`, `email`, `preferred_language` |
+| `contacts` | `entity_id`, `name`, `name_hi`, `search_roman`, `email`, `preferred_language`, `owner_id`, `team_id` (scope root) |
 | `contact_phones` | `contact_id`, `e164`, `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd` |
-| `accounts` | `entity_id`, `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin` |
+| `accounts` | `entity_id`, `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `owner_id`, `team_id` (scope root) |
 | `account_contacts` | `account_id`, `contact_id`, `role` |
 | `customer_sites` | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `pin`, `geo`, `technical_json` |
 | `opportunities` | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state`, `locked_until` |
