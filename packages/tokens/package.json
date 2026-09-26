@@ -1,0 +1,23 @@
+{
+  "name": "@shakti/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design tokens from DESIGN.md for web (CSS variables, Tailwind) and Android (typed object)",
+  "type": "module",
+  "exports": {
+    ".": "./src/tokens.ts",
+    "./tokens.css": "./src/tokens.css",
+    "./tailwind.css": "./src/tailwind.css"
+  },
+  "scripts": {
+    "build": "tsx scripts/build-css.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}
