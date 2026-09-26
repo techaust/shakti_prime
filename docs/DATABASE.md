@@ -116,7 +116,7 @@ Rules:
 | `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
 
 ## 5. Append-only tables
-`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`.
+`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`. The one exception is delivery bookkeeping (`outbox_events`, `webhook_inbox`): a separate role holds a column-level `update` on the delivery columns and the trigger allows only those columns to change.
 
 ## 6. Table catalogue
 Key columns only; every table also has the standard columns from §2.
@@ -128,8 +128,11 @@ Key columns only; every table also has the standard columns from §2.
 | `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
 | `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
 | `principals` | `id`, `kind` (`user`, `agent`, `voice_session`), `display_name` |
-| `users` | `principal_id`, `email`, `phone`, `password_hash`, `totp_secret` (encrypted), `locale`, `theme`, `status` |
-| `sessions` | Better Auth sessions with `device`, `ip`, `expires_at`, `idle_expires_at` |
+| `users` | `principal_id`, `email`, `phone`, `password_hash`, `totp_secret` (encrypted), `locale`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`) |
+| `sessions` | Better Auth sessions with `device`, `ip`, `totp_verified_at`, `expires_at`, `idle_expires_at`, `revoked_at` |
+| `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
+| `totp_recovery_codes` | `user_id`, `code_hash`, `used_at` |
+| `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `status`, `response_json`, `expires_at`; 7-day retention |
 | `roles`, `permissions`, `role_permissions` | `role_permissions(role_id, permission_key, scope)` |
 | `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id` |
 | `teams` | `entity_id null`, `name`, `lead_user_id` |
@@ -141,9 +144,9 @@ Key columns only; every table also has the standard columns from §2.
 |---|---|
 | `contacts` | `entity_id`, `name`, `name_hi`, `search_roman`, `email`, `preferred_language`, `owner_id`, `team_id` (scope root) |
 | `contact_phones` | `contact_id`, `e164`, `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd` |
-| `accounts` | `entity_id`, `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `owner_id`, `team_id` (scope root) |
+| `accounts` | `entity_id`, `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code`, `owner_id`, `team_id` (scope root) |
 | `account_contacts` | `account_id`, `contact_id`, `role` |
-| `customer_sites` | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `pin`, `geo`, `technical_json` |
+| `customer_sites` | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `pin`, `state_code` (place of supply), `geo`, `technical_json` |
 | `opportunities` | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state`, `locked_until` |
 | `pipelines`, `pipeline_stages` | `stage_exit_rules_json` |
 | `activities` (partitioned by month) | `entity_id`, `opportunity_id`, `account_id`, `type`, `actor_principal_id`, `payload_json` |
@@ -175,8 +178,8 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.4 Sales
 | Table | Key columns |
 |---|---|
-| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `pdf_file_id`, `accepted_via` |
-| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `cgst`, `sgst`, `igst`, `line_total` |
+| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` |
+| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` |
 | `quote_versions` | `quote_id`, `version`, `snapshot_json` |
 | `sales_orders` | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` |
 | `sales_order_lines` | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` |
@@ -251,7 +254,7 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.10 Platform
 | Table | Key columns |
 |---|---|
-| `outbox_events` (append-only) | `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts` |
+| `outbox_events` (append-only) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`; the last four are updated only by the `outbox_publisher` role |
 | `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
 | `audit_logs` (partitioned, append-only) | `entity_id`, `actor_principal_id`, `command`, `aggregate`, `before_json`, `after_json`, `ip`, `device`, `request_id` |
 | `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |

@@ -12,7 +12,7 @@ Blueprint reference: §4, §10. The BOS has two entry surfaces: **server actions
 | IDs | UUIDv7 strings |
 | Time | ISO 8601 UTC in payloads; the client renders IST |
 | Money | Strings with two decimals (`"12345.50"`) to avoid float drift; currency always INR |
-| Idempotency | `Idempotency-Key` header (UUID) required on every mutating call from the field app and the connector; keys are stored in Redis for 48 h and replay the original response |
+| Idempotency | `Idempotency-Key` header (UUID) required on every mutating call from the field app and the connector; keys are stored in `idempotency_keys` for 7 days (Redis in front) and replay the original response; a repeat with a different body answers `conflict` |
 | Pagination | Cursor: `?cursor=<opaque>&limit=<1..200>`; responses carry `nextCursor` |
 | Rate limits | Per token via Upstash Redis; `429` with `Retry-After`; defaults 600 req/min per user token, 60 req/min per ingest key |
 | Errors | One envelope: `{ "error": { "code": "forbidden", "message": "…", "details": {...}, "requestId": "…" } }`; codes from `packages/contracts/errors` |

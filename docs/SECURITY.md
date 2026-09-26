@@ -78,6 +78,7 @@ Roles are permission templates that Executives can edit. A permission is `module
 | `voice.use` | all | all | – | – | – | – | – | – | – | – | – |
 | `reports.export` | all | entity | team | – | – | – | entity | entity | – | entity | all |
 | `audit.read` | all | entity | – | – | – | – | – | – | – | entity | – |
+| `imports.write` | all | entity | – | – | – | – | – | – | – | – | – |
 | `admin.users.write` / `.roles.write` / `.entities.write` / `.integrations.write` / `.flags.write` | all | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle.
