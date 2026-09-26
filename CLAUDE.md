@@ -31,6 +31,7 @@ The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is t
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, week plan for Phase 0, exit-gate checklists, parallel workstreams. |
 | [DESIGN.md](DESIGN.md) | Design tokens, typography, component patterns, theme behaviour. |
 | [docs/KICKOFF-PROMPT.md](docs/KICKOFF-PROMPT.md) | First message for a fresh session. |
+| [docs/design/](docs/design/) and [docs/reviews/](docs/reviews/) | Backend designs for upcoming weeks and dated review notes; read the design before building the week it covers. |
 
 Read order for any task: this file → the relevant blueprint section → the module document → the code.
 
