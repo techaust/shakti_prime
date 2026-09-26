@@ -39,7 +39,14 @@
     "user_offboarded": "This person has left. Invite them again to give access.",
     "self_suspend": "You can't suspend your own access. Ask another Executive.",
     "session_missing": "This sign-in has already ended.",
-    "account_missing": "We couldn't find this customer. Search again or create a new customer."
+    "account_missing": "We couldn't find this customer. Search again or create a new customer.",
+    "self_role_change": "You can't change your own roles. Ask another Executive.",
+    "user_roles_outside_scope": "This person also works in a company you are not viewing. Switch to all companies and try again.",
+    "no_access": "Your account has no access at the moment. Ask your manager.",
+    "backup_code_incorrect": "That backup code didn't work. Check it and try again, or use a code from your app.",
+    "code_attempts_exhausted": "Too many wrong codes. Sign in again and try with a fresh code.",
+    "code_session_expired": "This sign-in took too long. Please sign in again.",
+    "request_refused": "We couldn't do that just now. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -72,7 +79,10 @@
       "codeLabel": "6-digit code from the app",
       "verify": "Confirm",
       "verifyTitle": "Enter the code from your authenticator app",
-      "verifyIntro": "Open the app on your phone and type the 6-digit code shown for Shakti Prime."
+      "verifyIntro": "Open the app on your phone and type the 6-digit code shown for Shakti Prime.",
+      "useBackupCode": "Use a backup code",
+      "useAppCode": "Use the app code",
+      "backupCodeLabel": "One of your backup codes"
     },
     "home": {
       "title": "Welcome",

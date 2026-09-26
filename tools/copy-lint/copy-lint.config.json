@@ -2,7 +2,10 @@
   "catalogues": [{ "dir": "apps/web/messages", "locales": ["en", "hi"] }],
   "templateDirs": ["packages/contracts/src/templates"],
   "limits": [
-    { "keyPattern": "\\.button\\.", "max": 24 },
+    {
+      "keyPattern": "\\.(submit|verify|start|switch|signOut|goSignIn|useBackupCode|useAppCode)$",
+      "max": 24
+    },
     { "keyPattern": "\\.title$", "max": 60 },
     { "keyPattern": "^app\\.name$", "max": 30 }
   ]

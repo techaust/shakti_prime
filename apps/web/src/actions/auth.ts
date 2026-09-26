@@ -114,6 +114,27 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
   } catch (e) {
     return { error: errorKey(toDomainError(e)) };
   }
+  await finishEnrolment(before, issued);
+  redirect('/home');
+}
+
+/** Sign-in with one of the backup codes kept at enrolment, when the phone is not at hand. */
+export async function verifyBackupCode(_prev: FormState, formData: FormData): Promise<FormState> {
+  try {
+    await auth.api.verifyBackupCode({
+      body: { code: field(formData, 'code').trim() },
+      headers: await headers(),
+    });
+  } catch (e) {
+    return { error: errorKey(toDomainError(e)) };
+  }
+  redirect('/home');
+}
+
+async function finishEnrolment(
+  before: Awaited<ReturnType<typeof currentSession>>,
+  issued: Headers,
+): Promise<void> {
   if (before && !before.access.twoFactorEnabled) {
     // Enrolment is a privilege change: every other sign-in of this user ends (docs/SECURITY.md §2).
     // The enrolment itself re-issued the session; its token is in the cookie just set.
@@ -124,16 +145,19 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
     );
     await forgetPrincipal(before.session.userId);
   }
-  redirect('/home');
 }
 
-export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function changePassword(
+  _prev: SetPasswordState,
+  formData: FormData,
+): Promise<SetPasswordState> {
   const next = field(formData, 'newPassword');
   if (next !== field(formData, 'confirm')) return { error: 'password_mismatch' };
   if (!PasswordSchema.safeParse(next).success) {
     return { error: next.length < 12 ? 'password_too_short' : 'password_too_long' };
   }
   const session = await currentSession();
+  if (!session || session.blocked !== undefined) return { error: 'unauthorized' };
   try {
     await auth.api.changePassword({
       body: {
@@ -146,8 +170,8 @@ export async function changePassword(_prev: FormState, formData: FormData): Prom
   } catch (e) {
     return { error: errorKey(toDomainError(e)) };
   }
-  if (session) await forgetPrincipal(session.session.userId);
-  return {};
+  await forgetPrincipal(session.session.userId);
+  return { done: true };
 }
 
 /** The entity switcher: an entity the user holds a role in, or "All companies". */

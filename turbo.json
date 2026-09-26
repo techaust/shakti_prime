@@ -26,7 +26,8 @@
         "BETTER_AUTH_URL",
         "TURNSTILE_SECRET_KEY",
         "UPSTASH_REDIS_REST_URL",
-        "UPSTASH_REDIS_REST_TOKEN"
+        "UPSTASH_REDIS_REST_TOKEN",
+        "MAILER"
       ]
     },
     "db:generate": {

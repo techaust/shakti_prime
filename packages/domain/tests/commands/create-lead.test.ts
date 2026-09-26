@@ -211,15 +211,27 @@ describe('crm.lead.create', () => {
     );
     expect(rows?.n).toBe(2);
 
-    // attaching again is idempotent for the relationship
+    // attaching again is idempotent for the relationship, and a consent given now is recorded
     const third = await asPrincipal(cc2, (context) =>
       runCommand(
         createLead,
         { context },
-        { entityId: 2, pipelineKey: 'farmer_pumps', existingAccountId: accountId },
+        {
+          entityId: 2,
+          pipelineKey: 'farmer_pumps',
+          existingAccountId: accountId,
+          consent: { channel: 'call', purpose: 'promotional', source: 'verbal', textVersion: 'v2' },
+        },
       ),
     );
     expect(third.account.id).toBe(accountId);
+    const [consent] = await asMigrator(
+      (m) =>
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from consents where contact_id = ${first.contact.id} and text_version = 'v2'`,
+    );
+    expect(consent?.n).toBe(1);
     const [again] = await asMigrator(
       (m) =>
         m<

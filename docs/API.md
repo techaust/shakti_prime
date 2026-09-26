@@ -91,7 +91,7 @@ Pipeline for every webhook: verify signature → insert `webhook_inbox` (unique 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | none | Liveness |
-| GET | `/health/ready` | none | DB, Redis, QStash checks |
+| GET | `/health/ready` | none | DB check today; Redis and QStash join in week 3 |
 | GET | `/admin/integrations` | session (admin.integrations.write) | Integration Health: webhook inbox stats, DLQ, connector heartbeat, WhatsApp quality and tier, AI spend |
 | POST | `/admin/integrations/replay` | session | Replay a dead-lettered event |
 

@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 export default async function HomePage() {
   const session = await currentSession();
   if (!session) redirect('/sign-in');
+  if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
   if (!session.principal) redirect('/two-factor');
   const principal = session.principal;
   const t = await getTranslations('auth.home');

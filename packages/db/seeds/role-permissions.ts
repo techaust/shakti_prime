@@ -231,6 +231,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     hr_admin: 'all',
   },
   'audit.read': { ...EXEC, general_manager: 'entity', accounts: 'entity' },
+  'imports.write': { ...EXEC, general_manager: 'entity' },
   'admin.users.write': { ...EXEC },
   'admin.roles.write': { ...EXEC },
   'admin.entities.write': { ...EXEC },

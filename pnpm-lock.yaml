@@ -247,9 +247,6 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
-      zod:
-        specifier: ^4.6.5
-        version: 4.6.5
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.3.3
@@ -303,6 +300,9 @@ importers:
       '@shakti/contracts':
         specifier: workspace:*
         version: link:../contracts
+      dotenv:
+        specifier: ^18.0.4
+        version: 18.0.4
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@upstash/redis@1.39.0)(kysely@0.29.6)(postgres@3.4.9)
@@ -313,9 +313,6 @@ importers:
       '@types/node':
         specifier: ^24.10.0
         version: 24.13.6
-      dotenv:
-        specifier: ^18.0.4
-        version: 18.0.4
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11

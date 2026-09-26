@@ -5,8 +5,11 @@ import { getTranslations } from 'next-intl/server';
 export const dynamic = 'force-dynamic';
 
 /** Readiness: dependency checks. Redis and QStash join in week 3 (docs/API.md §3.7). */
+const REQUEST_ID = /^[\w.-]{1,128}$/;
+
 export async function GET(request: Request): Promise<Response> {
-  const requestId = request.headers.get('x-request-id') ?? newId();
+  const given = request.headers.get('x-request-id');
+  const requestId = given !== null && REQUEST_ID.test(given) ? given : newId();
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const database = await checkDatabaseReady();
   const time = new Date().toISOString();

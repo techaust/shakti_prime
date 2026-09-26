@@ -178,19 +178,20 @@ export const createLead = defineCommand({
         createdBy: actor,
       });
       phone = contactInput.phone;
+    }
 
-      if (input.consent !== undefined) {
-        await ctx.tx.insert(schema.consents).values({
-          id: newId(),
-          contactId: contact.id,
-          channel: input.consent.channel,
-          purpose: input.consent.purpose,
-          source: input.consent.source,
-          textVersion: input.consent.textVersion,
-          givenAt: ctx.now,
-          createdBy: actor,
-        });
-      }
+    // A consent given now is evidence whether the customer is new or known (DPDP, DLT 160-series).
+    if (input.consent !== undefined) {
+      await ctx.tx.insert(schema.consents).values({
+        id: newId(),
+        contactId: contact.id,
+        channel: input.consent.channel,
+        purpose: input.consent.purpose,
+        source: input.consent.source,
+        textVersion: input.consent.textVersion,
+        givenAt: ctx.now,
+        createdBy: actor,
+      });
     }
 
     let siteId: string | null = null;

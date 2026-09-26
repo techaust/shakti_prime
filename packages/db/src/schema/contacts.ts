@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { actorsRequired, archivable, timestamps } from './columns';
 
 /**
@@ -46,6 +56,10 @@ export const contactPhones = pgTable(
   (t) => [
     check('contact_phones_e164_check', sql`${t.e164} ~ '^\\+[1-9]\\d{6,14}$'`),
     unique('contact_phones_contact_e164_unique').on(t.contactId, t.e164),
+    // One primary number per contact: the lead list and the existing-customer path join on it.
+    uniqueIndex('contact_phones_primary_unique')
+      .on(t.contactId)
+      .where(sql`${t.isPrimary}`),
     index('contact_phones_e164_idx').on(t.e164),
   ],
 );

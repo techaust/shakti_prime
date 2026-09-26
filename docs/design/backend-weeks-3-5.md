@@ -1,6 +1,6 @@
 # Backend design: Phase 0 weeks 3 to 5
 
-Date: 2026-09-27. Status: design for approval; nothing here is built yet. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
+Date: 2026-09-27. Status: the parts marked built (slice 1, ADR 0008) are built and reviewed; the remaining slices are the design for approval. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
 
 Decisions taken with the client on 2026-09-27:
 - **Mixed roles in "All entities" view:** the narrowest role wins. The request carries only the grants every one of the user's roles holds; the user switches to a single entity to use a wider role there.
@@ -178,7 +178,7 @@ Exposure is per entity (`dealer_outstanding` is keyed by account and entity). Un
 
 ## 9. Command list for weeks 3 to 5
 
-Week 3: the twelve auth and admin commands in §2.6; `audit.query`; `outbox.publish` (worker); `integrations.dlq.replay`.
+Week 3: the nine auth and admin commands in §2.6 (five built in slice 1, four in slice 1b); `audit.query`; `outbox.publish` (worker); `integrations.dlq.replay`.
 Week 5: `tax.rate.set`, `tax.composite.set` (Accounts); `crm.opportunity.stage.move`, `crm.opportunity.assign`, `crm.opportunity.nurture`, `crm.opportunity.reopen`, `crm.opportunity.win`, `crm.opportunity.lose`; `sales.quote.create`, `sales.quote.send`, `sales.quote.accept`, `sales.quote.requote`, `sales.quote.withdraw`; `sales.order.create`, `sales.order.confirm`, `sales.order.cancel`; `imports.job.create`, `imports.job.map`, `imports.job.preview`, `imports.job.commit`, `imports.job.rollback`.
 
 Every command follows the existing pattern: strict input and DTO in contracts, `defineCommand`, registry entry, tests for denied, wrong entity and happy path, server action.

@@ -106,15 +106,17 @@ export function intersectGrants(entities: readonly EntityGrants[]): PermissionGr
 export type ResolveOutcome =
   | { kind: 'principal'; principal: Principal; access: UserAccess }
   | { kind: 'totp_required'; access: UserAccess }
-  | { kind: 'inactive'; status: string }
-  | { kind: 'no_access' }
+  | { kind: 'inactive'; status: string; access: UserAccess }
+  | { kind: 'no_access'; access: UserAccess }
+  /** The requested entity is not one the user holds a role in (a stale switcher cookie). */
+  | { kind: 'entity_not_held'; access: UserAccess }
   | { kind: 'unknown' };
 
 /**
  * Builds the principal of a signed-in user (design §2.3). Single-entity mode takes that row's
  * role, grants and team; all-entities mode takes every entity, the intersection of grants, the
- * role with the fewest grants for display, and no team. Roles that must use an authenticator
- * app resolve to `totp_required` until enrolment is done.
+ * role with the fewest grants for display, and the team only when one entity is held. Roles
+ * that must use an authenticator app resolve to `totp_required` until enrolment is done.
  */
 export function resolvePrincipalFromGrants(
   userId: string,
@@ -123,8 +125,8 @@ export function resolvePrincipalFromGrants(
 ): ResolveOutcome {
   const access = groupUserGrants(rows);
   if (!access) return { kind: 'unknown' };
-  if (access.status !== 'active') return { kind: 'inactive', status: access.status };
-  if (access.entities.length === 0) return { kind: 'no_access' };
+  if (access.status !== 'active') return { kind: 'inactive', status: access.status, access };
+  if (access.entities.length === 0) return { kind: 'no_access', access };
   if (requiresTotp(access.entities.map((e) => e.roleKey)) && !access.twoFactorEnabled) {
     return { kind: 'totp_required', access };
   }
@@ -133,9 +135,11 @@ export function resolvePrincipalFromGrants(
     activeEntityId === undefined
       ? undefined
       : access.entities.find((e) => e.entityId === activeEntityId);
+  if (activeEntityId !== undefined && !active) return { kind: 'entity_not_held', access };
   const selected = active ? [active] : access.entities;
+  const team = selected.length === 1 ? selected[0]?.teamId : undefined;
   const display = [...selected].sort((a, b) => a.grants.length - b.grants.length)[0] ?? selected[0];
-  if (!display) return { kind: 'no_access' };
+  if (!display) return { kind: 'no_access', access };
   const principal: Principal = {
     id: userId,
     kind: 'user',
@@ -143,7 +147,7 @@ export function resolvePrincipalFromGrants(
     entityIds: selected.map((e) => e.entityId),
     permissions: intersectGrants(selected),
     locale: access.locale,
-    ...(active?.teamId ? { teamId: active.teamId } : {}),
+    ...(team ? { teamId: team } : {}),
   };
   return { kind: 'principal', principal, access };
 }

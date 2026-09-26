@@ -111,11 +111,18 @@ describe('resolvePrincipalFromGrants', () => {
     expect(outcome.principal.teamId).toBeUndefined();
   });
 
-  it('an entity outside the user’s access falls back to all entities', () => {
+  it('an entity outside the user’s access is reported, not silently widened', () => {
     const outcome = resolvePrincipalFromGrants(userId, rows, 9);
+    expect(outcome.kind).toBe('entity_not_held');
+  });
+
+  it('a user with one entity keeps their team in all-entities mode', () => {
+    const one = rows.filter((r) => r.entityId === 2);
+    const outcome = resolvePrincipalFromGrants(userId, one);
     expect(outcome.kind).toBe('principal');
     if (outcome.kind !== 'principal') return;
-    expect(outcome.principal.entityIds).toEqual([1, 2]);
+    expect(outcome.principal.entityIds).toEqual([2]);
+    expect(outcome.principal.teamId).toBe(teamId);
   });
 
   it('requires an authenticator for Executive, GM and Accounts until enrolled', () => {
@@ -134,7 +141,7 @@ describe('resolvePrincipalFromGrants', () => {
         userId,
         rows.map((r) => ({ ...r, status: 'suspended' })),
       ),
-    ).toEqual({
+    ).toMatchObject({
       kind: 'inactive',
       status: 'suspended',
     });
@@ -143,7 +150,7 @@ describe('resolvePrincipalFromGrants', () => {
         userId,
         rows.map((r) => ({ ...r, status: 'invited' })),
       ),
-    ).toEqual({
+    ).toMatchObject({
       kind: 'inactive',
       status: 'invited',
     });
@@ -162,7 +169,7 @@ describe('resolvePrincipalFromGrants', () => {
         scope: null,
       },
     ];
-    expect(resolvePrincipalFromGrants(userId, noRoles)).toEqual({ kind: 'no_access' });
+    expect(resolvePrincipalFromGrants(userId, noRoles)).toMatchObject({ kind: 'no_access' });
     expect(groupUserGrants(noRoles)?.entities).toEqual([]);
   });
 });

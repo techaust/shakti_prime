@@ -21,7 +21,7 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 ## 2. Identity and authentication
 - **Passwords:** Argon2id (m = 64 MiB, t = 3, p = 1); minimum 12 characters; breached-password check.
 - **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms; exponential lockout per IP and per account in Redis.
-- **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token.
+- **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. A revoked or expired session is refused on every auth route and in-process call, not only in `currentPrincipal()`; no device is ever remembered past the second factor. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token. The session cookie is `__Host-` prefixed in production. Per-address request caps bound the password-hashing and mail-sending endpoints on top of the sign-in lockout.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, `__Host-` prefix.
 - **2FA:** TOTP required for Executive, GM and Accounts; recovery codes; recovery email via SES only.
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.
@@ -134,7 +134,7 @@ No agent principal holds `procurement.rate.read`, `finance.cost.read`, `document
 - Uploads: pre-signed URLs with type and size limits; malware scan before `ready`; images re-encoded; PDFs sanitised.
 - Secrets only in Vercel, EAS and the connector's encrypted local store; none in the repo, `tooling.json` or `.mcp.json`.
 - Logging: structured JSON; request IDs; no phone numbers, Aadhaar digits, bank details or message bodies; log redaction tested.
-- Supply chain: Renovate, `pnpm audit`, CodeQL, secret scanning; pinned lockfile; provenance-checked releases for the connector.
+- Supply chain: Dependabot (weekly, grouped), `pnpm audit --audit-level=high` and a gitleaks secret scan over the history in CI; CodeQL once the repository has GitHub Advanced Security; pinned lockfile; provenance-checked releases for the connector.
 - Staging holds synthetic data only.
 
 ## 9. Infrastructure security

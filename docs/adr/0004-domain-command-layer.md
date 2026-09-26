@@ -13,7 +13,7 @@ Every mutation is a **typed domain command** in `packages/domain`, and nothing e
 - State transitions go through `packages/domain/state-machines`; commands call `transition(machine, record, event, ctx)` and never set a status column directly.
 - Prices, tax, sizing, availability and credit checks are pure functions in `packages/domain`; UI and agents never do this arithmetic.
 - Side effects are events appended to `outbox_events` through `ctx.emit()` in the same transaction (ADR 0005).
-- The registry of commands is the complete list of what the system can do. Server actions, route handlers, agent tools, the voice agent and the import committer call commands by name. An ESLint rule forbids importing the raw database client outside `packages/db` and `packages/domain`.
+- The registry of commands is the complete list of what the system can do. Server actions, route handlers, agent tools, the voice agent and the import committer call commands by name. An ESLint rule forbids importing the raw database client outside `packages/db`; `packages/domain` receives the transaction through the command context.
 - Cost fields appear only in DTOs of commands whose permission is `finance.cost.read` or `procurement.rate.read`; no agent principal holds either.
 
 ## Consequences

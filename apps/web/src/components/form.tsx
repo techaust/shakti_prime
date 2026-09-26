@@ -14,11 +14,20 @@ export function Field({ label, id, children }: { label: string; id: string; chil
   );
 }
 
-export function TextInput(props: ComponentProps<'input'>) {
+/** The id every form's error message carries, so inputs can point at it. */
+export const FORM_ERROR_ID = 'form-error';
+
+export function TextInput({
+  className = '',
+  invalid = false,
+  ...props
+}: ComponentProps<'input'> & { invalid?: boolean }) {
   return (
     <input
       {...props}
-      className="bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3"
+      aria-invalid={invalid || undefined}
+      aria-describedby={invalid ? FORM_ERROR_ID : undefined}
+      className={`bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3 ${className}`}
     />
   );
 }
@@ -26,8 +35,10 @@ export function TextInput(props: ComponentProps<'input'>) {
 export function Button({
   children,
   variant = 'primary',
+  pending = false,
+  className = '',
   ...props
-}: ComponentProps<'button'> & { variant?: 'primary' | 'secondary' }) {
+}: ComponentProps<'button'> & { variant?: 'primary' | 'secondary'; pending?: boolean }) {
   const look =
     variant === 'primary'
       ? 'bg-accent text-accent-fg hover:bg-accent-hover'
@@ -35,7 +46,9 @@ export function Button({
   return (
     <button
       {...props}
-      className={`h-9 rounded-[var(--radius-md)] px-4 font-medium disabled:opacity-60 ${look}`}
+      disabled={pending || props.disabled}
+      aria-busy={pending || undefined}
+      className={`h-9 rounded-[var(--radius-md)] px-4 font-medium disabled:opacity-60 ${look} ${className}`}
     >
       {children}
     </button>
@@ -48,7 +61,7 @@ export function FormError({ errorKey }: { errorKey: string | undefined }) {
   if (errorKey === undefined) return null;
   const known = t.has(errorKey) ? errorKey : 'internal';
   return (
-    <p role="alert" className="text-danger text-sm">
+    <p id={FORM_ERROR_ID} role="alert" className="text-danger text-sm">
       {t(known)}
     </p>
   );

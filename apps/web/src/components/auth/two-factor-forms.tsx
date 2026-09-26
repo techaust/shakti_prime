@@ -1,9 +1,11 @@
 'use client';
 
+import { colors } from '@shakti/tokens';
 import { useTranslations } from 'next-intl';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import {
   beginTwoFactor,
+  verifyBackupCode,
   verifyTwoFactor,
   type FormState,
   type TwoFactorState,
@@ -11,9 +13,19 @@ import {
 import { Button, Field, FormError, TextInput } from '../form';
 
 /** Code entry, used both at sign-in and to confirm a fresh enrolment. */
-export function VerifyCodeForm() {
+export function VerifyCodeForm({ allowBackupCode = false }: { allowBackupCode?: boolean }) {
   const t = useTranslations('auth.twoFactor');
   const [state, action, pending] = useActionState<FormState, FormData>(verifyTwoFactor, {});
+  const [useBackup, setUseBackup] = useState(false);
+  if (useBackup) {
+    return (
+      <BackupCodeForm
+        onBack={() => {
+          setUseBackup(false);
+        }}
+      />
+    );
+  }
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field label={t('codeLabel')} id="code">
@@ -23,13 +35,55 @@ export function VerifyCodeForm() {
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9 ]{6,7}"
+          invalid={state.error !== undefined}
           required
         />
       </Field>
       <FormError errorKey={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" pending={pending}>
         {t('verify')}
       </Button>
+      {allowBackupCode ? (
+        <button
+          type="button"
+          className="text-accent-text self-start text-sm underline"
+          onClick={() => {
+            setUseBackup(true);
+          }}
+        >
+          {t('useBackupCode')}
+        </button>
+      ) : null}
+    </form>
+  );
+}
+
+/** One of the backup codes kept at enrolment; each works once. */
+function BackupCodeForm({ onBack }: { onBack: () => void }) {
+  const t = useTranslations('auth.twoFactor');
+  const [state, action, pending] = useActionState<FormState, FormData>(verifyBackupCode, {});
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <Field label={t('backupCodeLabel')} id="code">
+        <TextInput
+          id="code"
+          name="code"
+          autoComplete="off"
+          invalid={state.error !== undefined}
+          required
+        />
+      </Field>
+      <FormError errorKey={state.error} />
+      <Button type="submit" pending={pending}>
+        {t('verify')}
+      </Button>
+      <button
+        type="button"
+        className="text-accent-text self-start text-sm underline"
+        onClick={onBack}
+      >
+        {t('useAppCode')}
+      </button>
     </form>
   );
 }
@@ -47,11 +101,12 @@ export function EnrolForm() {
             name="password"
             type="password"
             autoComplete="current-password"
+            invalid={state.error !== undefined}
             required
           />
         </Field>
         <FormError errorKey={state.error} />
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" pending={pending}>
           {t('start')}
         </Button>
       </form>
@@ -65,10 +120,12 @@ export function EnrolForm() {
         {/* eslint-disable-next-line @next/next/no-img-element -- a data URL generated per enrolment */}
         <img
           src={state.qrDataUrl}
-          alt=""
+          alt={t('scanTitle')}
           width={220}
           height={220}
-          className="rounded-[var(--radius-md)] bg-white p-2 self-start"
+          // A QR code scans only on a light background, whatever the theme (DESIGN.md §7).
+          style={{ backgroundColor: colors.surface.light }}
+          className="self-start rounded-[var(--radius-md)] p-2"
         />
         <p className="text-sm">
           <span className="text-text-muted">{t('secretLabel')}: </span>

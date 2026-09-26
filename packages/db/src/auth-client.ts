@@ -4,14 +4,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { requireEnv } from './env';
-import {
-  authAccounts,
-  authVerifications,
-  sessions,
-  userEntityRoles,
-  users,
-  userTwoFactor,
-} from './schema/identity';
+import { authAccounts, authVerifications, sessions, users, userTwoFactor } from './schema/identity';
 
 /** Keys are the Better Auth model names the adapter looks up (`user.modelName` and friends). */
 export const authSchema = {
@@ -20,7 +13,6 @@ export const authSchema = {
   auth_accounts: authAccounts,
   auth_verifications: authVerifications,
   user_two_factor: userTwoFactor,
-  user_entity_roles: userEntityRoles,
 } as const;
 
 let pool: ReturnType<typeof postgres> | undefined;

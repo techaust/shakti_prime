@@ -49,7 +49,8 @@ export async function withRequestContext<T>(
         set_config('app.role', ${principal.roleKey}, true),
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
         set_config('app.team_id', ${principal.teamId ?? ''}, true),
-        set_config('app.request_id', ${requestId}, true)
+        set_config('app.request_id', ${requestId}, true),
+        set_config('DateStyle', 'ISO, YMD', true)
     `);
     return fn({ principal, entityIds: requested, requestId, tx });
   });

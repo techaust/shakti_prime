@@ -154,6 +154,72 @@ describe('admin.user.invite', () => {
 });
 
 describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
+  it('role.set, suspend and reactivate are denied for a General Manager', async () => {
+    const gm = await createTestPrincipal('general_manager', [1]);
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    await expect(
+      asPrincipal(gm, (context) =>
+        runCommand(
+          setUserRoles,
+          { context },
+          { userId: user.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      asPrincipal(gm, (context) => runCommand(suspendUser, { context }, { userId: user.id })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      asPrincipal(gm, (context) => runCommand(reactivateUser, { context }, { userId: user.id })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('role.set refuses a scope that does not cover every entity the user holds, and self changes', async () => {
+    const exec1 = await createTestPrincipal('executive', [1]);
+    const user = await createTestUser([
+      { entityId: 1, roleKey: 'tele_caller_cc' },
+      { entityId: 2, roleKey: 'accounts' },
+    ]);
+    // Narrowed to entity 1, the Executive would silently drop the entity-2 role: refused instead.
+    await expect(
+      asPrincipal(exec1, (context) =>
+        runCommand(
+          setUserRoles,
+          { context },
+          { userId: user.id, entityRoles: [{ entityId: 1, roleKey: 'store_manager' }] },
+        ),
+      ),
+    ).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'user_roles_outside_scope', entityIds: [2] },
+    });
+    const untouched = await loadUserGrants(user.id);
+    expect(new Set(untouched.map((r) => r.entityId))).toEqual(new Set([1, 2]));
+
+    // Naming an entity outside the scope in the new list is refused the same way as invite.
+    const local = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
+    await expect(
+      asPrincipal(exec1, (context) =>
+        runCommand(
+          setUserRoles,
+          { context },
+          { userId: local.id, entityRoles: [{ entityId: 2, roleKey: 'accounts' }] },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'entity_outside_scope' } });
+
+    const exec = await createTestPrincipal('executive');
+    await expect(
+      asPrincipal(exec, (context) =>
+        runCommand(
+          setUserRoles,
+          { context },
+          { userId: exec.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'self_role_change' } });
+  });
+
   it('replaces the roles, revokes every live session and the next resolution sees the new grants', async () => {
     const exec = await createTestPrincipal('executive');
     const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
@@ -219,7 +285,7 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     );
     expect(suspended.status).toBe('suspended');
     expect(await revokedIds(user.id)).toEqual([s1]);
-    expect(resolvePrincipalFromGrants(user.id, await loadUserGrants(user.id))).toEqual({
+    expect(resolvePrincipalFromGrants(user.id, await loadUserGrants(user.id))).toMatchObject({
       kind: 'inactive',
       status: 'suspended',
     });

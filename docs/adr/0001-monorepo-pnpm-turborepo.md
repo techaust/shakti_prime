@@ -9,8 +9,8 @@ Shakti Prime BOS is one product delivered as four runtimes (web app, Android fie
 One repository managed with **pnpm workspaces** and **Turborepo**.
 
 - Workspaces: `apps/web`, `apps/field`, `apps/tally-connector`, `apps/voice-agent`, `packages/domain`, `packages/db`, `packages/contracts`, `packages/ui`, `packages/tokens`.
-- Dependency direction is one-way: `apps/*` → `packages/*`. `packages/domain` depends only on `packages/contracts` and `packages/db` types and never imports Next.js, React or Expo. `packages/contracts` depends only on Zod.
-- Turborepo pipelines: `build`, `lint`, `typecheck`, `test`, `test:security`, `test:e2e`, `db:migrate`, `db:seed`, with remote caching on Vercel.
+- Dependency direction is one-way: `apps/*` → `packages/*`. `packages/domain` depends only on `packages/contracts` and the `packages/db` schema and types (never its client) and never imports Next.js, React or Expo. `packages/contracts` depends only on Zod and the UUIDv7 generator.
+- Turborepo pipelines: `build`, `typecheck`, `test`, `test:security`; lint, format and copy lint run at the root; `test:e2e` joins in Phase 1; remote caching once the Vercel project exists.
 - One TypeScript strict base config, one ESLint config and one Prettier config at the root, extended by every workspace.
 - A pinned `pnpm-lock.yaml`; `packageManager` field in the root `package.json` so Corepack selects the same pnpm version everywhere.
 

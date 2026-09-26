@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "contact_phones_primary_unique" ON "contact_phones" USING btree ("contact_id") WHERE "contact_phones"."is_primary";

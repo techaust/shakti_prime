@@ -65,7 +65,11 @@ const SQLSTATE_CODES: Record<string, DomainError['code']> = {
  * A handler that hits a database error answers with a domain code and a plain reason; the SQL
  * text stays out of the response. `DomainError`s pass through untouched.
  */
-export function translateDatabaseError(e: unknown, commandName: string): unknown {
+export function translateDatabaseError(
+  e: unknown,
+  commandName: string,
+  constraintReasons: Readonly<Record<string, string>> = {},
+): unknown {
   if (e instanceof DomainError) return e;
   const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
   if (!(cause instanceof Error)) return e;
@@ -76,8 +80,9 @@ export function translateDatabaseError(e: unknown, commandName: string): unknown
       ? cause.constraint_name
       : undefined;
   const code = SQLSTATE_CODES[sqlstate] ?? 'internal';
+  const named = constraint === undefined ? undefined : constraintReasons[constraint];
   return new DomainError(code, `${commandName} hit database error ${sqlstate}`, {
-    reason: code === 'conflict' ? 'concurrent_change' : 'database_rejected',
+    reason: named ?? (code === 'conflict' ? 'concurrent_change' : 'database_rejected'),
     sqlstate,
     ...(constraint === undefined ? {} : { constraint }),
   });
@@ -121,7 +126,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   try {
     result = await command.handler(ctx, parsed.data);
   } catch (e) {
-    throw translateDatabaseError(e, command.name);
+    throw translateDatabaseError(e, command.name, command.constraintReasons);
   }
   const output = command.output.safeParse(result);
   if (!output.success) {

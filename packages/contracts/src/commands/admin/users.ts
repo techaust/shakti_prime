@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailSchema, SessionRevokeReasonSchema } from '../../auth/enums';
+import { EmailSchema } from '../../auth/enums';
 import { E164Schema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
 import { LocaleSchema } from '../../principal';
@@ -64,11 +64,11 @@ export const ReactivateUserInput = z
   .strict();
 export type ReactivateUserInput = z.infer<typeof ReactivateUserInput>;
 
-/** `admin.session.revoke`: forces one session out. */
+/** `admin.session.revoke`: forces one session out. The system reasons are never set by hand. */
 export const RevokeSessionInput = z
   .object({
     sessionId: IdSchema,
-    reason: SessionRevokeReasonSchema.default('admin'),
+    reason: z.literal('admin').default('admin'),
   })
   .strict();
 export type RevokeSessionInput = z.infer<typeof RevokeSessionInput>;

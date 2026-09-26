@@ -183,6 +183,95 @@ describe('child writes follow the parent write scope, not its read scope', () =>
   });
 });
 
+describe('the link tables cannot widen scope by a direct write (review 3)', () => {
+  const rlsRefused = (e: unknown) =>
+    e instanceof Error &&
+    e.cause instanceof Error &&
+    e.cause.message.includes('row-level security');
+
+  it('a relationship row for an account the caller does not see is refused', async () => {
+    // C (entity 1, own scope) does not see D's customer in entity 2; naming its id is not enough.
+    const target = fx.accounts.d[0] ?? '';
+    expect(await visibleIds(fx.principals.c, 'accounts')).not.toContain(target);
+    await expect(
+      asPrincipal(fx.principals.c, ({ tx }) =>
+        tx.execute(sql`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+          values ('01990000-0000-7000-8000-0000000fe001', ${target}, 1, ${fx.principals.c.id}, ${fx.teams.t2}, ${fx.principals.c.id})`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+    expect(await visibleIds(fx.principals.c, 'accounts')).not.toContain(target);
+  });
+
+  it('a first relationship for a new account and a second for a visible account are allowed', async () => {
+    const fresh = '01990000-0000-7000-8000-0000000fe010';
+    await asPrincipal(fx.principals.c, async ({ tx }) => {
+      await tx.execute(sql`insert into accounts (id, type, name, created_by)
+        values (${fresh}, 'farm', 'fixture fresh account', ${fx.principals.c.id})`);
+      await tx.execute(sql`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+        values ('01990000-0000-7000-8000-0000000fe011', ${fresh}, 1, ${fx.principals.c.id}, ${fx.teams.t2}, ${fx.principals.c.id})`);
+    });
+    expect(await visibleIds(fx.principals.c, 'accounts')).toContain(fresh);
+    // An Executive who sees the account may relate it to a second entity under another owner.
+    await expect(
+      asPrincipal(principalFor('executive', [1, 2]), ({ tx }) =>
+        tx.execute(sql`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+          values ('01990000-0000-7000-8000-0000000fe012', ${fresh}, 2, ${fx.principals.d.id}, ${fx.teams.t3}, ${fx.principals.d.id})`),
+      ),
+    ).resolves.toBeDefined();
+    await asMigrator(async (m) => {
+      await m`delete from account_entities where account_id = ${fresh}`;
+      await m`delete from accounts where id = ${fresh}`;
+    });
+  });
+
+  it("a contact of another entity's customer cannot be linked to the caller's own account", async () => {
+    const foreignContact = fx.contacts.d[0] ?? '';
+    expect(await visibleIds(fx.principals.a, 'contacts')).not.toContain(foreignContact);
+    await expect(
+      asPrincipal(fx.principals.a, ({ tx }) =>
+        tx.execute(sql`insert into account_contacts (account_id, contact_id, role, created_by)
+          values (${fx.accounts.a[1] ?? ''}, ${foreignContact}, 'family', ${fx.principals.a.id})`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+    expect(await visibleIds(fx.principals.a, 'contacts')).not.toContain(foreignContact);
+    expect(await visibleIds(fx.principals.a, 'contact_phones')).not.toContain(
+      '01990000-0000-7000-8000-0000000f1042',
+    );
+  });
+
+  it('a contact the caller may write, or a brand-new contact, can be linked', async () => {
+    const newContact = '01990000-0000-7000-8000-0000000fe020';
+    await asPrincipal(fx.principals.a, async ({ tx }) => {
+      await tx.execute(sql`insert into contacts (id, name, created_by)
+        values (${newContact}, 'fixture new contact', ${fx.principals.a.id})`);
+      await tx.execute(sql`insert into account_contacts (account_id, contact_id, role, created_by)
+        values (${fx.accounts.a[1] ?? ''}, ${newContact}, 'family', ${fx.principals.a.id})`);
+      // A's own contact 0 may also be linked to A's second account.
+      await tx.execute(sql`insert into account_contacts (account_id, contact_id, role, created_by)
+        values (${fx.accounts.a[1] ?? ''}, ${fx.contacts.a[0] ?? ''}, 'manager', ${fx.principals.a.id})`);
+    });
+    expect(await visibleIds(fx.principals.a, 'contacts')).toContain(newContact);
+    await asMigrator(async (m) => {
+      await m`delete from account_contacts where contact_id = ${newContact} or (account_id = ${fx.accounts.a[1] ?? ''} and role = 'manager')`;
+      await m`delete from contacts where id = ${newContact}`;
+    });
+  });
+
+  it('a contact has one primary phone', async () => {
+    await expect(
+      asPrincipal(fx.principals.a, ({ tx }) =>
+        tx.execute(sql`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
+          values ('01990000-0000-7000-8000-0000000fe030', ${fx.contacts.a[0] ?? ''}, '+919811100999', true, ${fx.principals.a.id})`),
+      ),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('contact_phones_primary_unique'),
+    );
+  });
+});
+
 describe('an opportunity sits only in an entity its account deals with', () => {
   const insertOpp = (id: string, entityId: number, accountId: string, siteId: string | null) =>
     asMigrator(

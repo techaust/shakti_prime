@@ -12,6 +12,8 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   input: I;
   /** A strict DTO. Anything the handler returns beyond it is an error, never a leak. */
   output: O;
+  /** Catalogue reasons for unique or check constraints the handler may race against. */
+  constraintReasons?: Readonly<Record<string, string>>;
   handler: (ctx: CommandContext, input: z.output<I>) => Promise<z.input<O>>;
 }
 

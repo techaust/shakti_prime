@@ -27,6 +27,8 @@ export interface ResolvedSession {
   /** Present when the user may act; absent while the authenticator app is still to be enrolled. */
   principal: Principal | undefined;
   access: UserAccess;
+  /** Set when the session is live but the user may not act at all (the screens sign them out). */
+  blocked?: 'inactive' | 'no_access';
 }
 
 interface Deps {
@@ -41,7 +43,8 @@ interface Deps {
  * undefined. `last_seen_at` is written at most once a minute.
  */
 export async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
-  const result = await deps.auth.api.getSession({ headers });
+  // A session the app has ended is refused by the auth routes themselves (create-auth.ts).
+  const result = await deps.auth.api.getSession({ headers }).catch(() => null);
   if (!result) return undefined;
   const s = authSchema.sessions;
   const [row] = await authDb()
@@ -101,13 +104,17 @@ export async function resolveSessionPrincipal(
     if (principal.success) return { session, principal: principal.data, access: parsed.access };
   }
 
-  const outcome = resolvePrincipalFromGrants(
-    session.userId,
-    await loadUserGrants(session.userId),
-    activeEntityId,
-  );
+  const rows = await loadUserGrants(session.userId);
+  let outcome = resolvePrincipalFromGrants(session.userId, rows, activeEntityId);
+  // A switcher cookie naming an entity the user no longer holds falls back to all companies.
+  if (outcome.kind === 'entity_not_held') {
+    outcome = resolvePrincipalFromGrants(session.userId, rows, undefined);
+  }
   if (outcome.kind === 'totp_required') {
     return { session, principal: undefined, access: outcome.access };
+  }
+  if (outcome.kind === 'inactive' || outcome.kind === 'no_access') {
+    return { session, principal: undefined, access: outcome.access, blocked: outcome.kind };
   }
   if (outcome.kind !== 'principal') return undefined;
   await deps.keyValue.set(
@@ -120,7 +127,7 @@ export async function resolveSessionPrincipal(
 
 /** The principal, or the `totp_required` error the actions surface to the code screen. */
 export function requirePrincipal(resolved: ResolvedSession | undefined): Principal | undefined {
-  if (!resolved) return undefined;
+  if (!resolved || resolved.blocked !== undefined) return undefined;
   if (!resolved.principal) {
     throw new DomainError('unauthorized', 'authenticator app enrolment required', {
       reason: 'totp_required',

@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
 export default async function TwoFactorPage() {
   const session = await currentSession();
   const t = await getTranslations('auth.twoFactor');
+  if (session?.blocked !== undefined) redirect('/sign-in?reason=no_access');
   if (session?.principal) redirect('/home');
   if (session) {
     return (
@@ -23,7 +24,7 @@ export default async function TwoFactorPage() {
   }
   return (
     <Card title={t('verifyTitle')} intro={t('verifyIntro')}>
-      <VerifyCodeForm />
+      <VerifyCodeForm allowBackupCode />
     </Card>
   );
 }

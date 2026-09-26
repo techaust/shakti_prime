@@ -200,4 +200,23 @@ describe('the application role and the identity tables', () => {
       'two_factor_enabled',
     ]);
   });
+
+  it('app.user_grants() drops a role held in an archived entity', async () => {
+    const archived = 99;
+    await asMigrator(
+      (m) => m`insert into entities (id, code, legal_name, brand_name, state_code, archived_at)
+        values (${archived}, 'ZZ', 'fixture archived entity', 'Archived', '27', now())
+        on conflict (id) do update set archived_at = now()`,
+    );
+    const user = await createTestUser([
+      { entityId: 1, roleKey: 'accounts' },
+      { entityId: archived, roleKey: 'accounts' },
+    ]);
+    const rows = await withoutContext(sql`select * from app.user_grants(${user.id}::uuid)`);
+    expect(new Set(rows.map((r) => r.entity_id))).toEqual(new Set([1]));
+    await asMigrator(async (m) => {
+      await m`delete from user_entity_roles where entity_id = ${archived}`;
+      await m`delete from entities where id = ${archived}`;
+    });
+  });
 });

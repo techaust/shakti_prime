@@ -1,6 +1,6 @@
 // Idempotent seed of org and reference data as the table owner (docs/DATABASE.md §9). Safe to re-run.
 import { ROLE_KEYS } from '@shakti/contracts';
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { requireEnv } from '../src/env';
@@ -29,18 +29,12 @@ export async function runSeeds(): Promise<void> {
   const db = drizzle(client);
   try {
     await db.transaction(async (tx) => {
+      // Entity master data is edited in Admin (org.entity.update) after the first seed; a re-run
+      // adds a missing entity and never overwrites one.
       await tx
         .insert(entities)
         .values(ENTITY_SEED.map((e) => ({ ...e })))
-        .onConflictDoUpdate({
-          target: entities.id,
-          set: {
-            code: sql`excluded.code`,
-            legalName: sql`excluded.legal_name`,
-            brandName: sql`excluded.brand_name`,
-            stateCode: sql`excluded.state_code`,
-          },
-        });
+        .onConflictDoNothing({ target: entities.id });
 
       await tx
         .insert(permissions)
@@ -63,7 +57,9 @@ export async function runSeeds(): Promise<void> {
           },
         });
 
-      // The matrix is authoritative: rows not in it are removed for system roles.
+      // The matrix is authoritative for the system roles: their rows are replaced as a set.
+      // Roles created in Admin (admin.roles.write) keep their grants.
+      const systemRoleIds = ROLE_KEYS.map((key) => roleId(key));
       const grants = ROLE_KEYS.flatMap((key) =>
         grantsForRole(key).map((g) => ({
           roleId: roleId(key),
@@ -71,7 +67,7 @@ export async function runSeeds(): Promise<void> {
           scope: g.scope,
         })),
       );
-      await tx.delete(rolePermissions);
+      await tx.delete(rolePermissions).where(inArray(rolePermissions.roleId, systemRoleIds));
       await tx.insert(rolePermissions).values(grants);
 
       await tx

@@ -40,7 +40,7 @@ packages/ui           web components (shadcn/ui based)
 packages/tokens       design tokens (CSS variables + JS export) for web and Android
 docs/                 blueprint, module docs, ADRs
 ```
-Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and `packages/db` types only, never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod.
+Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator.
 
 ## 4. Language and style
 - TypeScript strict everywhere; no `any`, no non-null assertions without a comment explaining why.
@@ -48,7 +48,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Files: `kebab-case.ts`. React components: `PascalCase.tsx`. Database identifiers: `snake_case`. Enum values: `snake_case` strings.
 - Formatting and linting: Prettier + ESLint with the repo config. CI fails on warnings.
 - Comments explain *why*, not *what*. No commented-out code.
-- Errors are typed: `DomainError` with a stable `code` from `packages/contracts/errors`.
+- Errors are typed: `DomainError` with a stable `code` from `packages/contracts/src/errors.ts`.
 - Dates: store UTC `timestamptz`, format with the shared `formatIst()` helpers. Money: `numeric(14,2)` in the DB, `Money` value object in code, lakh/crore formatting in UI.
 
 ## 4a. Product copy
@@ -98,14 +98,14 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`) and the security suite (`packages/db/tests`). CI runs unit, security suite and contract tests on every PR; E2E on main and release branches.
+Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main` and every PR; E2E joins on main and release branches in Phase 1.
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
 - PR description: what, why, how verified, migration notes, screenshots for UI, checklist below.
 - PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in both catalogues in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
-- Never commit secrets, `.env*` files, production data or recordings. Secret scanning runs in CI.
+- Never commit secrets, `.env*` files, production data or recordings. A gitleaks secret scan over the history and `pnpm audit` run in CI.
 
 ## 9. Security habits
 - Never use the Supabase service role in application code.

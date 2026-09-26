@@ -56,6 +56,7 @@ export const PERMISSION_KEYS = [
   'voice.use',
   'reports.export',
   'audit.read',
+  'imports.write',
   'admin.users.write',
   'admin.roles.write',
   'admin.entities.write',

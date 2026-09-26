@@ -16,6 +16,8 @@ export const inviteUser = defineCommand({
   minScope: 'all',
   input: InviteUserInput,
   output: UserDto,
+  // Two invites racing for one email: the second loses on the unique key, with the same answer.
+  constraintReasons: { users_email_unique: 'invite_email_taken' },
   async handler(ctx, input) {
     const [taken] = await ctx.tx
       .select({ id: schema.users.id })

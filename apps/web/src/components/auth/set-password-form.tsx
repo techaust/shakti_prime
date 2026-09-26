@@ -29,6 +29,7 @@ export function SetPasswordForm({ token }: { token: string }) {
           type="password"
           autoComplete="new-password"
           minLength={12}
+          invalid={state.error !== undefined}
           required
         />
       </Field>
@@ -42,7 +43,7 @@ export function SetPasswordForm({ token }: { token: string }) {
         />
       </Field>
       <FormError errorKey={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" pending={pending}>
         {t('submit')}
       </Button>
     </form>

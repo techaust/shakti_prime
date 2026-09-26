@@ -36,6 +36,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     price_change_log: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
+    users: { i: true, u: false },
   };
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
@@ -46,6 +47,32 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
              has_table_privilege('app_user', ${table}, 'DELETE') as d
     `);
     expect(row).toEqual({ s: true, d: false, ...(NARROWER[table] ?? { i: true, u: true }) });
+  });
+
+  it('updates users through profile and status columns only; sign-in state stays with the auth module', async () => {
+    const [row] = await withoutContext<{
+      name: boolean;
+      status: boolean;
+      email: boolean;
+      verified: boolean;
+      totp: boolean;
+      login: boolean;
+    }>(sql`
+      select has_column_privilege('app_user', 'users', 'name', 'UPDATE') as name,
+             has_column_privilege('app_user', 'users', 'status', 'UPDATE') as status,
+             has_column_privilege('app_user', 'users', 'email', 'UPDATE') as email,
+             has_column_privilege('app_user', 'users', 'email_verified', 'UPDATE') as verified,
+             has_column_privilege('app_user', 'users', 'two_factor_enabled', 'UPDATE') as totp,
+             has_column_privilege('app_user', 'users', 'last_login_at', 'UPDATE') as login
+    `);
+    expect(row).toEqual({
+      name: true,
+      status: true,
+      email: false,
+      verified: false,
+      totp: false,
+      login: false,
+    });
   });
 
   it('holds column privileges only on sessions and none on the other auth tables', async () => {

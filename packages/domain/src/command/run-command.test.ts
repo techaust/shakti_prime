@@ -2,7 +2,7 @@ import { newId } from '@shakti/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from './define-command';
-import { checkPermission, runCommand } from './run-command';
+import { checkPermission, runCommand, translateDatabaseError } from './run-command';
 import { fakeContext as context, type Principal } from './test-support';
 
 function principal(overrides: Partial<Principal> = {}): Principal {
@@ -96,6 +96,20 @@ describe('runCommand', () => {
       }),
     );
     expect(onEmit).toHaveBeenCalledWith([expect.objectContaining({ type: 'test.happened' })]);
+  });
+
+  it('names a catalogue reason for a constraint the command declares', () => {
+    const pg = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint_name: 'users_email_unique',
+    });
+    const wrapped = new Error('query failed', { cause: pg });
+    const named = translateDatabaseError(wrapped, 'admin.user.invite', {
+      users_email_unique: 'invite_email_taken',
+    });
+    expect(named).toMatchObject({ code: 'conflict', details: { reason: 'invite_email_taken' } });
+    const plain = translateDatabaseError(wrapped, 'admin.user.invite');
+    expect(plain).toMatchObject({ code: 'conflict', details: { reason: 'concurrent_change' } });
   });
 
   it('refuses data outside the declared DTO instead of leaking it', async () => {

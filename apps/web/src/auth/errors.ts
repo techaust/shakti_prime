@@ -2,7 +2,7 @@ import { DomainError } from '@shakti/contracts';
 import { APIError } from 'better-auth/api';
 
 /** Better Auth error codes → catalogue reasons (`errors.*`). Anything else is the generic sentence. */
-const REASONS: Record<string, { code: DomainError['code']; reason: string }> = {
+export const REASONS: Record<string, { code: DomainError['code']; reason: string }> = {
   BOT_CHECK_FAILED: { code: 'validation_failed', reason: 'bot_check_failed' },
   ACCOUNT_LOCKED: { code: 'rate_limited', reason: 'account_locked' },
   INVALID_EMAIL_OR_PASSWORD: { code: 'unauthorized', reason: 'sign_in_failed' },
@@ -13,9 +13,17 @@ const REASONS: Record<string, { code: DomainError['code']; reason: string }> = {
   PASSWORD_COMPROMISED: { code: 'validation_failed', reason: 'password_breached' },
   INVALID_TOKEN: { code: 'validation_failed', reason: 'link_expired' },
   INVALID_CODE: { code: 'validation_failed', reason: 'code_incorrect' },
+  INVALID_BACKUP_CODE: { code: 'validation_failed', reason: 'backup_code_incorrect' },
   TOTP_ALREADY_ENABLED: { code: 'conflict', reason: 'authenticator_already_set' },
   TOTP_NOT_ENABLED: { code: 'validation_failed', reason: 'authenticator_missing' },
-  TWO_FACTOR_LOCKED: { code: 'rate_limited', reason: 'account_locked' },
+  TWO_FACTOR_NOT_ENABLED: { code: 'validation_failed', reason: 'authenticator_missing' },
+  BACKUP_CODES_NOT_ENABLED: { code: 'validation_failed', reason: 'authenticator_missing' },
+  ACCOUNT_TEMPORARILY_LOCKED: { code: 'rate_limited', reason: 'account_locked' },
+  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: { code: 'unauthorized', reason: 'code_attempts_exhausted' },
+  INVALID_TWO_FACTOR_COOKIE: { code: 'unauthorized', reason: 'code_session_expired' },
+  TRUSTED_DEVICE_OFF: { code: 'validation_failed', reason: 'request_refused' },
+  INVALID_ORIGIN: { code: 'validation_failed', reason: 'request_refused' },
+  MISSING_OR_NULL_ORIGIN: { code: 'validation_failed', reason: 'request_refused' },
   UNAUTHORIZED: { code: 'unauthorized', reason: 'unauthorized' },
   SESSION_EXPIRED: { code: 'unauthorized', reason: 'unauthorized' },
 };

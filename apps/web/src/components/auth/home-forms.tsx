@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
-import { changePassword, signOut, switchEntity, type FormState } from '../../actions/auth';
+import { changePassword, signOut, switchEntity, type SetPasswordState } from '../../actions/auth';
 import { Button, Field, FormError, TextInput } from '../form';
 
 export function SignOutButton() {
@@ -51,7 +51,15 @@ export function EntitySwitcher({
 
 export function ChangePasswordForm() {
   const t = useTranslations('auth.changePassword');
-  const [state, action, pending] = useActionState<FormState, FormData>(changePassword, {});
+  const [state, action, pending] = useActionState<SetPasswordState, FormData>(changePassword, {});
+  const invalid = state.error !== undefined;
+  if (state.done === true) {
+    return (
+      <p role="status" className="text-text-muted">
+        {t('done')}
+      </p>
+    );
+  }
   return (
     <form action={action} className="flex flex-col gap-4">
       <h2 className="font-semibold">{t('title')}</h2>
@@ -61,6 +69,7 @@ export function ChangePasswordForm() {
           name="currentPassword"
           type="password"
           autoComplete="current-password"
+          invalid={invalid}
           required
         />
       </Field>
@@ -84,7 +93,7 @@ export function ChangePasswordForm() {
         />
       </Field>
       <FormError errorKey={state.error} />
-      <Button type="submit" variant="secondary" disabled={pending}>
+      <Button type="submit" variant="secondary" pending={pending}>
         {t('submit')}
       </Button>
     </form>

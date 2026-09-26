@@ -95,6 +95,22 @@ export default tseslint.config(
         { allowConstantLoopConditions: true },
       ],
       'no-restricted-imports': ['error', rawClientImport],
+      // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+        },
+        {
+          selector: 'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+        },
+        {
+          selector: 'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+        },
+      ],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },

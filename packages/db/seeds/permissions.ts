@@ -56,6 +56,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'voice.use': 'Talk to Shakti',
   'reports.export': 'Export reports',
   'audit.read': 'See the audit trail',
+  'imports.write': 'Import leads, customers and items from files',
   'admin.users.write': 'Manage users',
   'admin.roles.write': 'Manage roles',
   'admin.entities.write': 'Manage entities',

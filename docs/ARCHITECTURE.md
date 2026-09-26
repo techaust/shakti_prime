@@ -49,7 +49,7 @@ Blueprint reference: §3–§6, §9.3, §10, §12. This document describes how t
 
 ## 3. Monorepo and dependency rules
 ```
-apps/web ─┬─► packages/domain ─► packages/contracts, packages/db (types)
+apps/web ─┬─► packages/domain ─► packages/contracts, packages/db (schema and types, never the client)
 apps/field ─┤   packages/ui ─► packages/tokens
 apps/voice-agent ─┴─► packages/contracts
 apps/tally-connector ─► packages/contracts
@@ -57,10 +57,10 @@ apps/tally-connector ─► packages/contracts
 - `packages/domain` has no framework imports. It is testable with Vitest against a real Postgres.
 - `packages/contracts` is the only shared surface between apps; it holds Zod schemas, DTO types, error codes and event names.
 - `packages/db` owns schema, migrations, RLS SQL, seeds and the `withRequestContext()` helper.
-- Turborepo tasks: `build`, `lint`, `typecheck`, `test`, `test:security`, `test:e2e`, `db:migrate`, `db:seed`.
+- Turborepo tasks: `build`, `typecheck`, `test`, `test:security` (`lint`, `format:check` and `copy-lint` run at the root; `db:*` scripts call the db workspace directly; `test:e2e` arrives with Playwright in Phase 1).
 
 ## 4. Request lifecycle (web)
-1. **Edge:** Vercel routes the request; `middleware.ts` reads the Better Auth session cookie and the theme cookie, applies CSP nonces and locale.
+1. **Edge:** Vercel routes the request; the proxy (`proxy.ts`, week 4 with the app shell) reads the Better Auth session cookie and the theme cookie and applies CSP nonces and locale. Until then `next.config.ts` sets the security headers and the `(bos)` layout redirects a request without a usable session.
 2. **Server action or route handler** validates the input with the Zod contract from `packages/contracts`.
 3. **`withRequestContext(principal, entityScope, fn)`** opens a transaction and calls `set_config` for `app.user_id`, `app.entity_ids`, `app.role`, `app.permissions`, `app.request_id` (all transaction-local).
 4. **Command** runs inside the transaction: permission guard → state machine → business logic → writes → `ctx.emit()` appends `outbox_events` rows in the same transaction.
@@ -70,13 +70,13 @@ apps/tally-connector ─► packages/contracts
 Every read also runs inside `withRequestContext()`, so RLS applies to reads and writes alike. There is no code path that touches the database with a connection that has no context.
 
 ## 5. Domain command layer
-- **Definition:** `defineCommand({ name, permission, input, output, handler })`. The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
+- **Definition:** `defineCommand({ name, permission, minScope?, input, output, constraintReasons?, handler })`. The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
 - **Context:** `{ principal, entityIds, activeEntityId, tx, emit, now, requestId, locale }`. `principal` is a user, an agent service principal or a voice session acting as a user.
-- **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')` and are audited.
+- **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')`; from week 3 slice 2 they are audited as `outcome = denied`.
 - **State machines:** `packages/domain/state-machines/*` define states, transitions, guards, side effects and permitted actors for opportunity, quote, sales order, dispatch, project flows, subsidy gates, loan, warranty claim, document filing, expense claim, Playbook directive and Tally voucher. Commands call `transition(machine, record, event, ctx)`.
 - **Calculators:** TDH, kW sizing, kit availability, credit check, job-cost roll-up, incentive rules and the tax engine are pure functions with fixture-based tests.
 - **DTOs:** each command declares an output schema. Cost fields exist only in DTOs of commands whose permission is `finance.cost.read` or `procurement.rate.read`.
-- **Audit:** the command runner writes `audit_logs` (actor, before/after, IP, device, request ID) for every mutating command.
+- **Audit:** the command runner calls an audit hook (command, actor, entities, input, request ID) for every successful mutating command today; week 3 slice 2 persists it to `audit_logs` with before/after, IP, device and denied and failed outcomes.
 
 ## 6. Events and workers
 - **Outbox:** `outbox_events(id, sequence, entity_id, type, aggregate_type, aggregate_id, payload_json, created_at, published_at, attempts, last_error, dead_lettered_at)` written in the command's transaction; delivery columns are updated only by the `outbox_publisher` role.
@@ -130,7 +130,7 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 - **Feature flags:** `feature_flags` table with per-entity and per-role overrides, read through one helper.
 - **Observability:** Sentry in every app; structured JSON logs with request ID, no PII; metrics for queue depth, DLQ size, connector heartbeat, WhatsApp quality, AI spend; uptime checks on the public site, the BOS and the ingest API.
 - **Environments:** `dev`, `staging`, `prod` as separate Supabase projects and Vercel environments; Supabase branching for pull-request previews; staging holds synthetic data only.
-- **Deployments:** GitHub Actions run lint, typecheck, unit, security suite and contract tests; Vercel deploys previews per PR and production from `main`; migrations run in a pre-deploy step with expand/contract; the field app ships via EAS with staged rollouts.
+- **Deployments:** GitHub Actions run lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite (contract tests join with the first `/api/v1` routes); Vercel deploys previews per PR and production from `main`; migrations run in a pre-deploy step with expand/contract; the field app ships via EAS with staged rollouts.
 
 ## 13. Architecture decision records
 ADRs live in `docs/adr/` as `NNNN-title.md` (context, decision, consequences). Phase 0 records:
@@ -143,7 +143,7 @@ ADRs live in `docs/adr/` as `NNNN-title.md` (context, decision, consequences). P
 7. Deterministic tax engine with effective-dated rates and composite-supply valuation. Drafted: [ADR 0007](adr/0007-deterministic-tax-engine.md).
 8. One customer record for the group with a relationship per selling entity. Accepted: [ADR 0008](adr/0008-shared-customer-master.md).
 9. Chromium-rendered HTML for PDFs and print.
-9. LiveKit Cloud with a TypeScript agent worker for live voice.
-10. Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector.
-11. Expo with WatermelonDB for the offline field app.
-12. Read-only Tally connector with AlterID reads and deletion tombstones.
+10. LiveKit Cloud with a TypeScript agent worker for live voice.
+11. Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector.
+12. Expo with WatermelonDB for the offline field app.
+13. Read-only Tally connector with AlterID reads and deletion tombstones.
