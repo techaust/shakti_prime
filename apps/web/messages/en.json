@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "Shakti Prime",
+    "tagline": "One place to run Shakti's leads, sales, stock, projects and payments."
+  },
+  "errors": {
+    "validation_failed": "Some details are missing or incorrect. Please check and try again.",
+    "unauthorized": "Please sign in to continue.",
+    "forbidden": "You don't have access to this. Ask your manager if you need it.",
+    "not_found": "We couldn't find this. It may have been removed.",
+    "conflict": "This changed while you were working on it. Refresh the page and try again.",
+    "rate_limited": "Too many attempts in a short time. Please wait a minute and try again.",
+    "integration_unavailable": "Something went wrong on our side. Please try again in a minute.",
+    "internal": "Something went wrong on our side. Please try again in a minute."
+  }
+}
