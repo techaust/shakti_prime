@@ -42,6 +42,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/node_modules/**',
+      '**/.claude/skills/**',
       '**/.next/**',
       '**/dist/**',
       '**/.turbo/**',

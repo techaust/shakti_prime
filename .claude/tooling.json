@@ -44,6 +44,13 @@
       "signIn": "GitHub sign-in"
     },
     {
+      "name": "backend-design",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"Backend Design\" (by sheitabrk)",
+      "signIn": null
+    },
+    {
       "name": "vercel",
       "type": "mcp",
       "phase": 0,
