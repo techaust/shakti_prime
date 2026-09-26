@@ -1,0 +1,26 @@
+{
+  "name": "@shakti/domain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Domain commands, command runner, state machines and calculators. No framework imports.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:security": "vitest run --config vitest.security.config.ts"
+  },
+  "dependencies": {
+    "@shakti/contracts": "workspace:*",
+    "@shakti/db": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}
