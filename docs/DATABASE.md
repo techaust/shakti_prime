@@ -3,7 +3,7 @@
 Blueprint reference: §6. This document fixes the conventions every table follows, the RLS templates, the table catalogue with key columns, and the migration workflow. The full ERD and data dictionary are a Phase 0 deliverable built from this document. `docs/BLUEPRINT.md` governs on any conflict.
 
 ## 1. Platform
-Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `pg_cron`, `pgcrypto`. One database, three projects (dev, staging, prod). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
+Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `pg_cron`, `pgcrypto`. One database, three projects (dev, staging, prod). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
 
 ## 2. Conventions
 | Concern | Rule |
@@ -42,6 +42,8 @@ Agent principals and voice sessions are application-level principals, not databa
 - `app.permissions`: comma-separated permission keys with scope suffixes, e.g. `crm.lead.read:entity,sales.quote.create:own`; a grant is written with every narrower scope as well, so `finance.cost.read:all` also yields `:entity`, `:team` and `:own` and a policy can check the scope it needs;
 - `app.team_id`: for team-scoped permissions;
 - `app.request_id`.
+
+Two more helpers in schema `app`: `app.raise_append_only()` is the trigger function of every append-only table, and `app.next_document_no(entity_id, doc_type, fy, prefix)` (`security definer`, executable by `app_user`) issues the next gapless number of a series after re-checking `app.entity_ids()`, so `document_sequences` takes no direct writes from the application role.
 
 ### 4.2 Policy templates
 ```sql
@@ -125,7 +127,7 @@ Key columns only; every table also has the standard columns from §2.
 | `roles`, `permissions`, `role_permissions` | `role_permissions(role_id, permission_key, scope)` |
 | `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id` |
 | `teams` | `entity_id null`, `name`, `lead_user_id` |
-| `document_sequences` | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no` |
+| `document_sequences` | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()` |
 | `business_calendar` | `date`, `is_holiday`, `entity_id null` |
 
 ### 6.2 CRM
@@ -154,15 +156,15 @@ Key columns only; every table also has the standard columns from §2.
 | Table | Key columns |
 |---|---|
 | `items` | `sku`, `name`, `name_hi`, `category`, `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref`, `specs_json` |
-| `item_costs` (restricted) | `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of` |
-| `pump_curves` | `item_id`, `head_m`, `flow_lph` points, `min_head`, `max_head` |
+| `item_costs` (restricted) | `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs |
+| `pump_curves` | `item_id`, `head_m`, `flow_lph`, one point per row; head bounds are derived by the sizing calculator |
 | `kits`, `kit_components` | `kit_id`, `item_id`, `qty` |
 | `price_tiers` | `code` (`retail`, `dealer`, `commercial`) |
 | `price_lists` | `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to`, `approved_by` |
 | `price_list_items` | `price_list_id`, `item_id` or `kit_id`, `price` |
 | `price_change_log` (append-only) | `price_list_item_id`, `old_price`, `new_price`, `changed_by` |
-| `tax_rates` | `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref` |
-| `composite_supply_rules` | `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to` |
+| `tax_rates` | `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item |
+| `composite_supply_rules` | `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment |
 
 ### 6.4 Sales
 | Table | Key columns |

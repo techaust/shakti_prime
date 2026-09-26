@@ -50,6 +50,7 @@ Roles are permission templates that Executives can edit. A permission is `module
 | `sales.credit.release` | all | – | – | – | – | – | – | – | – | – | – |
 | `pricing.read` | all | entity | entity | entity | entity | entity | entity | entity | – | entity | – |
 | `pricing.write` | all | – | – | – | – | – | – | – | – | – | – |
+| `catalogue.write` | all | entity | – | – | – | – | entity | – | – | – | – |
 | `tax.rates.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `inventory.stock.read` | all | entity | – | – | entity | entity | entity | entity | own | entity | – |
 | `inventory.stock.move` / `.adjust` | all | – | – | – | – | – | entity | – | own (move) | – | – |
