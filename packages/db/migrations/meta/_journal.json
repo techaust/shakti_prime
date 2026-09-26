@@ -22,6 +22,27 @@
       "when": 1790442726747,
       "tag": "0002_org_core_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790448332404,
+      "tag": "0003_crm_extensions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790448333663,
+      "tag": "0004_crm_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790448334789,
+      "tag": "0005_crm_core_rls",
+      "breakpoints": true
     }
   ]
 }

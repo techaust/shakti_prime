@@ -6,6 +6,7 @@ import {
   asPrincipal,
   closeDb,
   countRows,
+  ENTITY_TABLES,
   principalFor,
   RLS_TABLES,
   withoutContext,
@@ -27,7 +28,7 @@ describe('RLS fails closed', () => {
         const rows = (await tx.execute(countRows(table))) as unknown as { n: number }[];
         return rows[0]?.n;
       });
-      if (table === 'entities') expect(n).toBe(0);
+      if ((ENTITY_TABLES as readonly string[]).includes(table)) expect(n).toBe(0);
       else expect(n).toBeGreaterThan(0);
     },
   );

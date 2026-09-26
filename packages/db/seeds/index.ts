@@ -1,12 +1,23 @@
-// Idempotent seed of org data as the table owner (docs/DATABASE.md §9). Safe to re-run.
+// Idempotent seed of org and reference data as the table owner (docs/DATABASE.md §9). Safe to re-run.
 import { ROLE_KEYS } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { requireEnv } from '../src/env';
-import { entities, permissions, principals, rolePermissions, roles } from '../src/schema/index';
+import {
+  entities,
+  leadSources,
+  permissions,
+  pipelines,
+  pipelineStages,
+  principals,
+  rolePermissions,
+  roles,
+} from '../src/schema/index';
 import { ENTITY_SEED } from './entities';
+import { LEAD_SOURCE_SEED } from './lead-sources';
 import { PERMISSION_SEED } from './permissions';
+import { PIPELINE_SEED, STAGE_SEED } from './pipelines';
 import { AGENT_PRINCIPAL_SEED } from './principals';
 import { grantsForRole } from './role-permissions';
 import { ROLE_SEED, roleId } from './roles';
@@ -73,6 +84,46 @@ export async function runSeeds(): Promise<void> {
         .onConflictDoUpdate({
           target: principals.id,
           set: { displayName: sql`excluded.display_name`, kind: 'agent' },
+        });
+
+      await tx
+        .insert(pipelines)
+        .values(PIPELINE_SEED.map((p) => ({ ...p })))
+        .onConflictDoUpdate({
+          target: pipelines.id,
+          set: {
+            key: sql`excluded.key`,
+            name: sql`excluded.name`,
+            nameHi: sql`excluded.name_hi`,
+            segment: sql`excluded.segment`,
+          },
+        });
+
+      await tx
+        .insert(pipelineStages)
+        .values(STAGE_SEED.map((s) => ({ ...s })))
+        .onConflictDoUpdate({
+          target: pipelineStages.id,
+          set: {
+            key: sql`excluded.key`,
+            name: sql`excluded.name`,
+            nameHi: sql`excluded.name_hi`,
+            position: sql`excluded.position`,
+            kind: sql`excluded.kind`,
+          },
+        });
+
+      await tx
+        .insert(leadSources)
+        .values(LEAD_SOURCE_SEED.map((s) => ({ ...s })))
+        .onConflictDoUpdate({
+          target: leadSources.id,
+          set: {
+            code: sql`excluded.code`,
+            channel: sql`excluded.channel`,
+            name: sql`excluded.name`,
+            nameHi: sql`excluded.name_hi`,
+          },
         });
     });
   } finally {

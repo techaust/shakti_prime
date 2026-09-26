@@ -9,11 +9,18 @@ export const timestamps = {
 };
 
 /**
- * Actor columns. Nullable on org tables because seeded rows have no principal; business tables
- * from the CRM onward declare them `notNull()`.
+ * Actor columns for org and reference tables, nullable because seeded rows have no principal.
  */
 export const actors = {
   createdBy: uuid('created_by').references((): AnyPgColumn => principals.id),
+  updatedBy: uuid('updated_by').references((): AnyPgColumn => principals.id),
+};
+
+/** Actor columns for business tables: every row is written by a command run as a principal. */
+export const actorsRequired = {
+  createdBy: uuid('created_by')
+    .notNull()
+    .references((): AnyPgColumn => principals.id),
   updatedBy: uuid('updated_by').references((): AnyPgColumn => principals.id),
 };
 
