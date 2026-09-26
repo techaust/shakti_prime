@@ -129,7 +129,9 @@ describe('write policies', () => {
       ),
     ).rejects.toSatisfy(
       (e: unknown) =>
-        e instanceof Error && e.cause instanceof Error && /row-level security/.test(e.cause.message),
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('row-level security'),
     );
   });
 });
