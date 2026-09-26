@@ -4,7 +4,15 @@ import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { toLeadDto } from './lead-dto';
 
-const CursorSchema = z.object({ updatedAt: z.iso.datetime(), id: IdSchema }).strict();
+/** `updatedAt` is the Postgres text form of the timestamp so no microsecond is lost. */
+const CursorSchema = z
+  .object({
+    updatedAt: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/),
+    id: IdSchema,
+  })
+  .strict();
 
 export interface ListLeadsOptions {
   cursor?: string;
@@ -16,26 +24,26 @@ export interface LeadPage {
   nextCursor: string | null;
 }
 
-function decodeCursor(cursor: string): { updatedAt: Date; id: string } {
+function decodeCursor(cursor: string): { updatedAt: string; id: string } {
   try {
     const parsed = CursorSchema.parse(
       JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')),
     );
-    return { updatedAt: new Date(parsed.updatedAt), id: parsed.id };
+    return { updatedAt: parsed.updatedAt, id: parsed.id };
   } catch {
     throw new DomainError('validation_failed', 'cursor is not valid', { cursor });
   }
 }
 
-function encodeCursor(updatedAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ updatedAt: updatedAt.toISOString(), id }), 'utf8').toString(
-    'base64url',
-  );
+function encodeCursor(updatedAt: string, id: string): string {
+  return Buffer.from(JSON.stringify({ updatedAt, id }), 'utf8').toString('base64url');
 }
 
 /**
  * Leads visible to the caller, newest change first, keyset-paginated by `(updated_at, id)`
- * (docs/DATABASE.md §7). RLS decides the rows; this query only shapes them.
+ * (docs/DATABASE.md §7). RLS decides the rows; this query only shapes them. The cursor carries
+ * the timestamp as Postgres text: rows written in one transaction share `now()` to the
+ * microsecond, and a millisecond cursor would skip them at a page boundary.
  */
 export async function listLeads(
   ctx: Pick<RequestContext, 'tx'>,
@@ -55,6 +63,7 @@ export async function listLeads(
       account: { id: a.id, type: a.type, name: a.name },
       contact: { id: c.id, name: c.name },
       phone: p.e164,
+      updatedAtText: sql<string>`${o.updatedAt}::text`,
     })
     .from(o)
     .innerJoin(a, eq(a.id, o.accountId))
@@ -67,8 +76,8 @@ export async function listLeads(
         after === undefined
           ? undefined
           : or(
-              lt(o.updatedAt, after.updatedAt),
-              and(eq(o.updatedAt, after.updatedAt), lt(o.id, after.id)),
+              lt(o.updatedAt, sql`${after.updatedAt}::timestamptz`),
+              and(eq(o.updatedAt, sql`${after.updatedAt}::timestamptz`), lt(o.id, after.id)),
             ),
       ),
     )
@@ -81,7 +90,7 @@ export async function listLeads(
     items: page.map((r) => toLeadDto(r.opportunity, r.account, r.contact, r.phone)),
     nextCursor:
       rows.length > limit && last !== undefined
-        ? encodeCursor(last.opportunity.updatedAt, last.opportunity.id)
+        ? encodeCursor(last.updatedAtText, last.opportunity.id)
         : null,
   };
 }

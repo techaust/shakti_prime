@@ -23,6 +23,10 @@ async function ensureRoles(sql: postgres.Sql, appUserPassword: string): Promise<
   `);
   const escaped = appUserPassword.replaceAll("'", "''");
   await sql.unsafe(`alter role app_user with password '${escaped}' nobypassrls`);
+  // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
+  await sql.unsafe(`alter role app_user set statement_timeout = '30s'`);
+  await sql.unsafe(`alter role app_user set lock_timeout = '10s'`);
+  await sql.unsafe(`alter role app_user set idle_in_transaction_session_timeout = '30s'`);
 }
 
 export async function runMigrations(): Promise<void> {

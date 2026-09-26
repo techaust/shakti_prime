@@ -64,6 +64,20 @@
       "when": 1790450002182,
       "tag": "0008_catalogue_core_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790452502922,
+      "tag": "0009_review_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790452504411,
+      "tag": "0010_review_child_write_scope",
+      "breakpoints": true
     }
   ]
 }

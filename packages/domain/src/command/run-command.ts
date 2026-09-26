@@ -46,6 +46,43 @@ export function checkPermission(
   }
 }
 
+/** SQLSTATE classes a handler may hit; anything else is an internal error, never a leak. */
+const SQLSTATE_CODES: Record<string, DomainError['code']> = {
+  '23505': 'conflict', // unique_violation
+  '40001': 'conflict', // serialization_failure
+  '40P01': 'conflict', // deadlock_detected
+  '55P03': 'conflict', // lock_not_available
+  '23503': 'validation_failed', // foreign_key_violation
+  '23514': 'validation_failed', // check_violation
+  '23502': 'validation_failed', // not_null_violation
+  '22P02': 'validation_failed', // invalid_text_representation
+  '22003': 'validation_failed', // numeric_value_out_of_range
+  '23P01': 'validation_failed', // exclusion_violation
+  '42501': 'forbidden', // insufficient_privilege (RLS with check, security definer refusals)
+};
+
+/**
+ * A handler that hits a database error answers with a domain code and a plain reason; the SQL
+ * text stays out of the response. `DomainError`s pass through untouched.
+ */
+export function translateDatabaseError(e: unknown, commandName: string): unknown {
+  if (e instanceof DomainError) return e;
+  const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
+  if (!(cause instanceof Error)) return e;
+  const sqlstate = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined;
+  if (sqlstate === undefined) return e;
+  const constraint =
+    'constraint_name' in cause && typeof cause.constraint_name === 'string'
+      ? cause.constraint_name
+      : undefined;
+  const code = SQLSTATE_CODES[sqlstate] ?? 'internal';
+  return new DomainError(code, `${commandName} hit database error ${sqlstate}`, {
+    reason: code === 'conflict' ? 'concurrent_change' : 'database_rejected',
+    sqlstate,
+    ...(constraint === undefined ? {} : { constraint }),
+  });
+}
+
 /**
  * Runs one command inside an existing request context: validate → guard → handler → strict DTO →
  * audit. Denied calls throw `forbidden` before the handler runs.
@@ -80,7 +117,12 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     locale: options.locale ?? context.principal.locale,
   };
 
-  const result = await command.handler(ctx, parsed.data);
+  let result: z.input<O>;
+  try {
+    result = await command.handler(ctx, parsed.data);
+  } catch (e) {
+    throw translateDatabaseError(e, command.name);
+  }
   const output = command.output.safeParse(result);
   if (!output.success) {
     throw new DomainError('internal', `${command.name} returned data outside its DTO`, {

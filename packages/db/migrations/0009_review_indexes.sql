@@ -1,0 +1,2 @@
+CREATE INDEX "opportunities_entity_owner_idx" ON "opportunities" USING btree ("entity_id","owner_id");--> statement-breakpoint
+CREATE INDEX "opportunities_entity_team_idx" ON "opportunities" USING btree ("entity_id","team_id");

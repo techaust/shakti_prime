@@ -55,6 +55,8 @@ export const opportunities = pgTable(
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),
     index('opportunities_account_idx').on(t.accountId),
+    index('opportunities_entity_owner_idx').on(t.entityId, t.ownerId),
+    index('opportunities_entity_team_idx').on(t.entityId, t.teamId),
     index('opportunities_keyset_idx').on(t.updatedAt, t.id),
   ],
 );

@@ -39,6 +39,15 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row).toEqual({ s: true, ...(NARROWER[table] ?? { i: true, u: true }), d: false });
   });
 
+  it('has request timeouts so a stuck transaction cannot hold locks open', async () => {
+    const [row] = await withoutContext<{ s: string; l: string; i: string }>(sql`
+      select current_setting('statement_timeout') as s,
+             current_setting('lock_timeout') as l,
+             current_setting('idle_in_transaction_session_timeout') as i
+    `);
+    expect(row).toEqual({ s: '30s', l: '10s', i: '30s' });
+  });
+
   it('readonly_reporter may only select', async () => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; d: boolean; bypass: boolean }>(sql`
       select has_table_privilege('readonly_reporter', 'entities', 'SELECT') as s,

@@ -2,6 +2,7 @@ import type { Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  asMigrator,
   asPrincipal,
   closeDb,
   countAs,
@@ -99,6 +100,41 @@ describe('child tables follow their parent', () => {
       return rows[0]?.n;
     });
     expect(n).toBe(2);
+  });
+});
+
+describe('child writes follow the parent write scope, not its read scope', () => {
+  it("a caller who can read a colleague's contact but not update it cannot add a phone to it", async () => {
+    const reader = principalFor('tele_caller_cc', [1], {
+      teamId: fx.teams.t1,
+      permissions: [
+        { key: 'crm.account.read', scope: 'entity' },
+        { key: 'crm.account.write', scope: 'own' },
+      ],
+    });
+    await asMigrator(
+      (m) =>
+        m`insert into principals (id, kind, display_name) values (${reader.id}, 'user', 'reader') on conflict do nothing`,
+    );
+    const insertPhone = (contactId: string, suffix: string) =>
+      asPrincipal(reader, ({ tx }) =>
+        tx.execute(sql`insert into contact_phones (id, entity_id, contact_id, e164, is_primary, created_by)
+          values (${`01990000-0000-7000-8000-0000000ff0${suffix}`}, 1, ${contactId}, ${`+9198111${suffix}0000`.slice(0, 13)}, false, ${reader.id})`),
+      );
+    expect(await countAs(reader, 'contacts')).toBeGreaterThan(0);
+    await expect(insertPhone(fx.contacts.b[0] ?? '', '01')).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('row-level security'),
+    );
+    await expect(
+      asPrincipal(reader, ({ tx }) =>
+        tx.execute(
+          sql`update customer_sites set village = village where account_id = ${fx.accounts.b[0] ?? ''} returning id`,
+        ),
+      ),
+    ).resolves.toHaveLength(0);
   });
 });
 

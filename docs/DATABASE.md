@@ -26,7 +26,7 @@ Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `
 | Role | Used by | Rights |
 |---|---|---|
 | `postgres` (Supabase owner) | Migrations only | Owns tables |
-| `app_user` | All application connections | `SELECT/INSERT/UPDATE` per table; `UPDATE/DELETE` revoked on append-only tables; no `BYPASSRLS`; not the table owner |
+| `app_user` | All application connections | `SELECT/INSERT/UPDATE` per table; `UPDATE/DELETE` revoked on append-only tables; no `BYPASSRLS`; not the table owner; role settings `statement_timeout 30s`, `lock_timeout 10s`, `idle_in_transaction_session_timeout 30s` |
 | `readonly_reporter` | Materialised-view refresh and exports | `SELECT` only, RLS applies |
 | Service role | Never in request paths | Reserved for Supabase dashboard operations |
 
@@ -93,6 +93,12 @@ create policy accounts_read on accounts for select using (
 create policy customer_sites_read on customer_sites for select using (
   entity_id = any ((select app.entity_ids())::int[])
   and exists (select 1 from accounts a where a.id = customer_sites.account_id));
+
+-- child writes: the parent must be inside the caller's *write* scope (the EXISTS alone only proves it is readable)
+create policy customer_sites_insert on customer_sites for insert with check (
+  entity_id = any ((select app.entity_ids())::int[])
+  and exists (select 1 from accounts a where a.id = customer_sites.account_id
+              and app.scope_ok('crm.account.write', a.owner_id, a.team_id)));
 ```
 Rules:
 - The subselect form makes the setting an initplan, evaluated once per query.
@@ -257,7 +263,7 @@ Key columns only; every table also has the standard columns from §2.
 ## 7. Partitioning, indexes, retention
 - **Monthly partitions:** `activities`, `whatsapp_messages`, `audit_logs`; pg_cron creates next month's partition on the 25th and detaches partitions past retention.
 - **Indexes:** `contact_phones(e164)`; trigram on `contacts.name`, `contacts.search_roman`, `customer_sites.village`; `opportunities(entity_id, stage_id, owner_id, updated_at desc)`; `outbox_events(published_at) where published_at is null`; `webhook_inbox(provider, provider_event_id)` unique; `tally_vouchers(guid)` unique; `serials(serial_no)` unique; HNSW on `knowledge_chunks.embedding`.
-- **Keyset pagination** on every list by `(updated_at, id)`.
+- **Keyset pagination** on every list by `(updated_at, id)`; the cursor carries the timestamp as Postgres text, never a millisecond `Date`, because rows written in one transaction share `now()` to the microsecond.
 - **Materialised views** for dashboards (`mv_pipeline_by_stage`, `mv_collections_ageing`, `mv_stock_health`, `mv_project_margins` restricted) refreshed by pg_cron every 5 minutes.
 - **Retention jobs** (pg_cron, logged in `retention_runs`) implement blueprint §7.9: delete call audio after 12 months, delete WhatsApp media after 3 years, anonymise unqualified leads after 24 months, archive financial and audit rows after 8 years.
 

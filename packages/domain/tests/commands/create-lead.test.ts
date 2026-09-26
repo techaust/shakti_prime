@@ -125,6 +125,34 @@ describe('crm.lead.create', () => {
     expect(await seenBy(gm)).toBe(true);
   });
 
+  it('pages through leads written in one transaction, which share updated_at to the microsecond', async () => {
+    const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
+    const created = await asPrincipal(cc, async (context) => {
+      const ids: string[] = [];
+      for (const n of [1, 2, 3]) {
+        const lead = await runCommand(
+          createLead,
+          { context },
+          { ...input, contact: { name: `Lead batch contact ${n}`, phone: `9876600${n}00` } },
+        );
+        ids.push(lead.id);
+      }
+      return ids;
+    });
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await asPrincipal(cc, (ctx) =>
+        listLeads(ctx, { limit: 1, ...(cursor === undefined ? {} : { cursor }) }),
+      );
+      seen.push(...page.items.map((l) => l.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+    expect(seen).toHaveLength(3);
+    expect(new Set(seen).size).toBe(3);
+    for (const id of created) expect(seen).toContain(id);
+  });
+
   it('lists leads newest first with a working keyset cursor', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     for (const n of [1, 2, 3]) {
