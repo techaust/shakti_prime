@@ -7,7 +7,7 @@ Shakti Prime BOS is the business operating system for the Shakti group. Four sel
 
 The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is the source of truth for scope, stack, data model and phase order. Read the relevant section before building a module.
 
-**Status:** pre-implementation; Phase 0 (foundations) is next. No application code, package manifests or scripts exist yet. Add build/test/lint commands to this file once the monorepo is scaffolded.
+**Status:** Phase 0 in progress (ROADMAP §2, week 2). The monorepo scaffold, design tokens, contracts, the org core schema with RLS, the command runner and the health routes are in place. Commands: `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm test:security` (needs the Postgres from `compose.yaml`), `pnpm copy-lint`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm --filter web dev`. Setup steps are in `README.md`.
 
 ## Documentation map
 | Document | Use it for |

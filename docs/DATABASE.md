@@ -3,7 +3,7 @@
 Blueprint reference: §6. This document fixes the conventions every table follows, the RLS templates, the table catalogue with key columns, and the migration workflow. The full ERD and data dictionary are a Phase 0 deliverable built from this document. `docs/BLUEPRINT.md` governs on any conflict.
 
 ## 1. Platform
-Supabase Postgres 16 (Mumbai), extensions `pgvector`, `pg_trgm`, `pg_cron`, `pgcrypto`. One database, three projects (dev, staging, prod). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
+Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `pg_cron`, `pgcrypto`. One database, three projects (dev, staging, prod). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
 
 ## 2. Conventions
 | Concern | Rule |
@@ -39,7 +39,7 @@ Agent principals and voice sessions are application-level principals, not databa
 - `app.user_id`: principal UUID;
 - `app.entity_ids`: `{1,2}` style array literal of the principal's allowed entities for this request (all allowed, or the single active entity);
 - `app.role`: role key;
-- `app.permissions`: comma-separated permission keys with scope suffixes, e.g. `crm.lead.read:entity,sales.quote.create:own`;
+- `app.permissions`: comma-separated permission keys with scope suffixes, e.g. `crm.lead.read:entity,sales.quote.create:own`; a grant is written with every narrower scope as well, so `finance.cost.read:all` also yields `:entity`, `:team` and `:own` and a policy can check the scope it needs;
 - `app.team_id`: for team-scoped permissions;
 - `app.request_id`.
 
@@ -50,7 +50,7 @@ create function app.entity_ids() returns int[] language sql stable as $$
   select case when coalesce(current_setting('app.entity_ids', true), '') = ''
               then null else current_setting('app.entity_ids', true)::int[] end $$;
 create function app.has_perm(p text) returns boolean language sql stable as $$
-  select position(p || ':' in ',' || coalesce(current_setting('app.permissions', true), '') || ',') > 0 $$;
+  select position(',' || p || ',' in ',' || coalesce(current_setting('app.permissions', true), '') || ',') > 0 $$;
 
 -- standard entity policy (fails closed: null entity_ids ⇒ no rows)
 alter table opportunities enable row level security;

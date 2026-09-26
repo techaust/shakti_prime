@@ -43,7 +43,7 @@ Blueprint reference: §3–§6, §9.3, §10, §12. This document describes how t
 | `apps/field` | Expo Android app | Google Play (EAS Build/Update) |
 | `apps/voice-agent` | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
 | `apps/tally-connector` | Node Windows service | Client PC beside Tally |
-| Database | Postgres 16 with RLS, pgvector, pg_trgm, pg_cron, partitions | Supabase Mumbai (dev, staging, prod projects) |
+| Database | Postgres 17 with RLS, pgvector, pg_trgm, pg_cron, partitions | Supabase Mumbai (dev, staging, prod projects) |
 | Queue and cache | QStash, Workflow, Redis | Upstash (nearest region to Mumbai) |
 | Object storage | S3 with KMS, lifecycle rules, backup bucket | AWS ap-south-1 |
 

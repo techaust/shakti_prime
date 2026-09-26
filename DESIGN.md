@@ -105,7 +105,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 7. Theme behaviour
 - Default **System**; override **Light / Dark** from the profile menu, stored on the user profile and mirrored in a cookie for server rendering.
-- `next-themes` with `attribute="class"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`; inline pre-paint script prevents a flash.
+- `next-themes` with `attribute="data-theme"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`; inline pre-paint script prevents a flash.
 - `color-scheme` is set on `:root` so native controls match. `<meta name="theme-color">` per scheme.
 - Logos: light and dark variants per entity. Photos and maps get a 6% dim overlay in dark mode.
 - The Android app reads the phone setting via `useColorScheme` and honours the same override from the profile.

@@ -6,7 +6,7 @@
 Four selling entities with separate GSTINs share one team, so the system is one database with entity-tagged rows rather than one tenant per company. Users can see several entities; supplier rates, costs and margins must be invisible to most roles even when they can see the rest of the record. The users are in Jaipur, so latency to the database matters, and a single developer needs managed operations.
 
 ## Decision
-**Supabase Postgres 16 in the Mumbai region** is the system of record, with **row-level security as the isolation boundary** for entity scope and cost data.
+**Supabase Postgres 17 in the Mumbai region** is the system of record, with **row-level security as the isolation boundary** for entity scope and cost data.
 
 - Three Supabase projects: `dev`, `staging`, `prod`; Supabase branching for pull-request previews. Vercel functions are pinned to `bom1` beside it.
 - Every business table carries `entity_id`, has RLS enabled and **forced**, and uses the fail-closed policy template from `docs/DATABASE.md` §4.2: policies read `current_setting('app.entity_ids', true)` inside a subselect and deny when the setting is null or empty.

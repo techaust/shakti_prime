@@ -119,7 +119,7 @@ This document is the architecture and product blueprint. Implementation begins a
 | Web | Next.js (latest stable), React 19, TypeScript strict; Vercel region `bom1` |
 | UI | Tailwind CSS v4, shadcn/ui (Radix), lucide, TanStack Table, React Hook Form + Zod, dnd-kit, Recharts, cmdk (⌘K), next-intl (English/Hindi), next-themes, calendar/scheduler component + MapLibre |
 | Android app | Expo (React Native) with a development build, NativeWind styled from `packages/tokens`, WatermelonDB on expo-sqlite as the offline store, background S3 uploads, FCM, minimum-version update gate |
-| Database | Supabase Postgres 16+: RLS, pgvector, pg_trgm, native monthly partitions, pg_cron |
+| Database | Supabase Postgres 17: RLS, pgvector, pg_trgm, native monthly partitions, pg_cron |
 | ORM / migrations | Drizzle ORM + drizzle-kit; RLS policies as versioned SQL migrations; expand/contract strategy |
 | Auth | Better Auth: Argon2id, DB sessions, TOTP 2FA for Executive/GM/Accounts, Cloudflare Turnstile, Redis rate limits |
 | Jobs / workflows | Upstash QStash + Upstash Workflow (durable multi-step, multi-day flows), dead-letter queue |
@@ -530,7 +530,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
   - The choice is saved to the user profile (so it follows them across devices) and mirrored in a cookie for server rendering.
   - Choosing "System" returns control to the device.
 - **No flash of the wrong theme:**
-  - An inline pre-paint script via next-themes (`attribute="class"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`).
+  - An inline pre-paint script via next-themes (`attribute="data-theme"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`).
   - The CSS `color-scheme` property, so native controls, scrollbars and date pickers match.
   - A per-scheme `<meta name="theme-color">`.
 - **Tokens:** every colour is a semantic CSS variable (`--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, status colours) with light and dark values. Components never hard-code colours.
