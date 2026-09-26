@@ -7,6 +7,23 @@ export { commands, getCommand } from './command/registry';
 export { updateEntity } from './commands/org/update-entity';
 export { createLead } from './commands/crm/create-lead';
 export { setPrice } from './commands/pricing/set-price';
+export { inviteUser } from './commands/admin/invite-user';
+export { setUserRoles } from './commands/admin/set-user-roles';
+export { suspendUser, reactivateUser } from './commands/admin/user-status';
+export { revokeSession } from './commands/admin/revoke-session';
+export { loadUserDto } from './queries/admin/user-dto';
+export {
+  groupUserGrants,
+  intersectGrants,
+  resolvePrincipalFromGrants,
+} from './auth/resolve-principal';
+export type { EntityGrants, ResolveOutcome, UserAccess } from './auth/resolve-principal';
+export { createLockout, lockoutDelaySeconds, LOCKOUT_FREE_ATTEMPTS } from './auth/lockout';
+export type { Lockout } from './auth/lockout';
+export { memoryKeyValue } from './ports/key-value';
+export type { KeyValue } from './ports/key-value';
+export { consoleMailer, memoryMailer } from './ports/mailer';
+export type { Mailer, MailMessage } from './ports/mailer';
 export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';
 export { listLeads, countLeads } from './queries/crm/list-leads';

@@ -304,13 +304,14 @@ describe('document numbering', () => {
 
   it('requires the permission that creates the document type', async () => {
     const cc = principalFor('tele_caller_cc', [1]);
-    await expect(draw(cc, 1, '2098-00')).rejects.toSatisfy(
+    const fy = `${String(2100 + Math.floor(Math.random() * 800))}-02`;
+    await expect(draw(cc, 1, fy)).rejects.toSatisfy(
       (e: unknown) =>
         e instanceof Error &&
         e.cause instanceof Error &&
         e.cause.message.includes('permission finance.proforma.write:own required'),
     );
-    expect(await draw(principalFor('accounts', [1]), 1, '2098-00')).toBe(1);
+    expect(await draw(principalFor('accounts', [1]), 1, fy)).toBe(1);
   });
 
   it('refuses an entity outside the scope and any call without a context', async () => {

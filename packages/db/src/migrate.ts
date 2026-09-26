@@ -8,13 +8,24 @@ import { requireEnv } from './env';
 
 const migrationsFolder = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
 
-/** `app_user` and `readonly_reporter` are cluster roles, so they are created here, not in SQL files. */
-async function ensureRoles(sql: postgres.Sql, appUserPassword: string): Promise<void> {
+/**
+ * `app_user`, `auth_service` and `readonly_reporter` are cluster roles, so they are created here,
+ * not in SQL files. `auth_service` is the auth module's connection: it may touch the identity
+ * tables only (docs/DATABASE.md §3).
+ */
+async function ensureRoles(
+  sql: postgres.Sql,
+  appUserPassword: string,
+  authServicePassword: string,
+): Promise<void> {
   await sql.unsafe(`
     do $$
     begin
       if not exists (select 1 from pg_roles where rolname = 'app_user') then
         create role app_user login nosuperuser nocreatedb nocreaterole nobypassrls;
+      end if;
+      if not exists (select 1 from pg_roles where rolname = 'auth_service') then
+        create role auth_service login nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'readonly_reporter') then
         create role readonly_reporter nologin nosuperuser nocreatedb nocreaterole nobypassrls;
@@ -27,12 +38,17 @@ async function ensureRoles(sql: postgres.Sql, appUserPassword: string): Promise<
   await sql.unsafe(`alter role app_user set statement_timeout = '30s'`);
   await sql.unsafe(`alter role app_user set lock_timeout = '10s'`);
   await sql.unsafe(`alter role app_user set idle_in_transaction_session_timeout = '30s'`);
+  const authEscaped = authServicePassword.replaceAll("'", "''");
+  await sql.unsafe(`alter role auth_service with password '${authEscaped}' nobypassrls`);
+  await sql.unsafe(`alter role auth_service set statement_timeout = '30s'`);
+  await sql.unsafe(`alter role auth_service set lock_timeout = '10s'`);
+  await sql.unsafe(`alter role auth_service set idle_in_transaction_session_timeout = '30s'`);
 }
 
 export async function runMigrations(): Promise<void> {
   const sql = postgres(requireEnv('DATABASE_URL_MIGRATOR'), { max: 1, prepare: false });
   try {
-    await ensureRoles(sql, requireEnv('APP_USER_PASSWORD'));
+    await ensureRoles(sql, requireEnv('APP_USER_PASSWORD'), requireEnv('AUTH_SERVICE_PASSWORD'));
     await migrate(drizzle(sql), { migrationsFolder });
   } finally {
     await sql.end();

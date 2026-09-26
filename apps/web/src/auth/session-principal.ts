@@ -1,0 +1,162 @@
+import {
+  DomainError,
+  PrincipalSchema,
+  SESSION_ABSOLUTE_SECONDS,
+  type Principal,
+  type SessionRevokeReason,
+} from '@shakti/contracts';
+import { loadUserGrants } from '@shakti/db';
+import { authDb, authSchema } from '@shakti/db/auth';
+import { resolvePrincipalFromGrants, type KeyValue, type UserAccess } from '@shakti/domain';
+import { and, eq, isNull, ne } from 'drizzle-orm';
+import type { Auth } from './create-auth';
+
+/** How often `last_seen_at` is written, and how long a resolved principal is cached. */
+const LAST_SEEN_BUMP_SECONDS = 60;
+const PRINCIPAL_CACHE_SECONDS = 60;
+const VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+export interface SessionInfo {
+  sessionId: string;
+  userId: string;
+  createdAt: Date;
+}
+
+export interface ResolvedSession {
+  session: SessionInfo;
+  /** Present when the user may act; absent while the authenticator app is still to be enrolled. */
+  principal: Principal | undefined;
+  access: UserAccess;
+}
+
+interface Deps {
+  auth: Auth;
+  keyValue: KeyValue;
+  now: () => Date;
+}
+
+/**
+ * Loads the Better Auth session behind the request and applies the app's own rules: a revoked
+ * row, a row past the 7-day absolute limit (docs/SECURITY.md §2) or an unknown session answers
+ * undefined. `last_seen_at` is written at most once a minute.
+ */
+export async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
+  const result = await deps.auth.api.getSession({ headers });
+  if (!result) return undefined;
+  const s = authSchema.sessions;
+  const [row] = await authDb()
+    .select({
+      id: s.id,
+      userId: s.userId,
+      createdAt: s.createdAt,
+      revokedAt: s.revokedAt,
+      lastSeenAt: s.lastSeenAt,
+    })
+    .from(s)
+    .where(eq(s.id, result.session.id))
+    .limit(1);
+  if (row?.revokedAt !== null) return undefined;
+  const now = deps.now();
+  if (now.getTime() - row.createdAt.getTime() > SESSION_ABSOLUTE_SECONDS * 1000) {
+    await authDb()
+      .update(s)
+      .set({ revokedAt: now, revokedReason: 'absolute_expiry' })
+      .where(and(eq(s.id, row.id), isNull(s.revokedAt)));
+    return undefined;
+  }
+  if (!row.lastSeenAt || now.getTime() - row.lastSeenAt.getTime() > LAST_SEEN_BUMP_SECONDS * 1000) {
+    await authDb().update(s).set({ lastSeenAt: now }).where(eq(s.id, row.id));
+  }
+  return { sessionId: row.id, userId: row.userId, createdAt: row.createdAt };
+}
+
+const versionKey = (userId: string) => `principal-version:${userId}`;
+const cacheKey = (sessionId: string, entity: number | undefined, version: string) =>
+  `principal:${sessionId}:${entity ?? 'all'}:${version}`;
+
+/** Drops every cached principal of a user: called after a role, status or session change. */
+export async function invalidatePrincipal(keyValue: KeyValue, userId: string): Promise<void> {
+  await keyValue.incr(versionKey(userId), VERSION_TTL_SECONDS);
+}
+
+/**
+ * Resolves the caller of a server action (docs/design/backend-weeks-3-5.md §2.3). Throws
+ * `unauthorized` with reason `totp_required` when the role demands an authenticator app that is
+ * not enrolled yet; answers undefined when there is no usable session.
+ */
+export async function resolveSessionPrincipal(
+  headers: Headers,
+  activeEntityId: number | undefined,
+  deps: Deps,
+): Promise<ResolvedSession | undefined> {
+  const session = await loadSession(headers, deps);
+  if (!session) return undefined;
+
+  const version = (await deps.keyValue.get(versionKey(session.userId))) ?? '0';
+  const key = cacheKey(session.sessionId, activeEntityId, version);
+  const cached = await deps.keyValue.get(key);
+  if (cached !== null) {
+    const parsed = JSON.parse(cached) as { principal: unknown; access: UserAccess };
+    const principal = PrincipalSchema.safeParse(parsed.principal);
+    if (principal.success) return { session, principal: principal.data, access: parsed.access };
+  }
+
+  const outcome = resolvePrincipalFromGrants(
+    session.userId,
+    await loadUserGrants(session.userId),
+    activeEntityId,
+  );
+  if (outcome.kind === 'totp_required') {
+    return { session, principal: undefined, access: outcome.access };
+  }
+  if (outcome.kind !== 'principal') return undefined;
+  await deps.keyValue.set(
+    key,
+    JSON.stringify({ principal: outcome.principal, access: outcome.access }),
+    PRINCIPAL_CACHE_SECONDS,
+  );
+  return { session, principal: outcome.principal, access: outcome.access };
+}
+
+/** The principal, or the `totp_required` error the actions surface to the code screen. */
+export function requirePrincipal(resolved: ResolvedSession | undefined): Principal | undefined {
+  if (!resolved) return undefined;
+  if (!resolved.principal) {
+    throw new DomainError('unauthorized', 'authenticator app enrolment required', {
+      reason: 'totp_required',
+    });
+  }
+  return resolved.principal;
+}
+
+/**
+ * The session token named by a response's session cookie. Better Auth re-issues the session on
+ * enrolment, so the request's own cookie is stale by then; the fresh token is in `set-cookie`.
+ */
+export function sessionTokenFromSetCookie(headers: Headers): string | undefined {
+  for (const cookie of headers.getSetCookie()) {
+    const pair = cookie.split(';')[0] ?? '';
+    const at = pair.indexOf('=');
+    if (at === -1) continue;
+    const name = pair.slice(0, at).trim();
+    const value = pair.slice(at + 1).trim();
+    if (!name.includes('session') || value === '') continue;
+    const token = decodeURIComponent(value).split('.')[0];
+    if (token !== undefined && token !== '') return token;
+  }
+  return undefined;
+}
+
+/** Ends every other sign-in of a user after a privilege change (enrolment, password change). */
+export async function revokeOtherSessions(
+  userId: string,
+  keepToken: string | undefined,
+  reason: SessionRevokeReason,
+): Promise<void> {
+  const s = authSchema.sessions;
+  const where =
+    keepToken === undefined
+      ? and(eq(s.userId, userId), isNull(s.revokedAt))
+      : and(eq(s.userId, userId), isNull(s.revokedAt), ne(s.token, keepToken));
+  await authDb().update(s).set({ revokedAt: new Date(), revokedReason: reason }).where(where);
+}

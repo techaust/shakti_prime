@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const config: NextConfig = {
   typedRoutes: true,
   transpilePackages: ['@shakti/contracts', '@shakti/db', '@shakti/domain', '@shakti/tokens'],
-  serverExternalPackages: ['postgres'],
+  serverExternalPackages: ['postgres', '@node-rs/argon2'],
   poweredByHeader: false,
 };
 

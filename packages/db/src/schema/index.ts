@@ -13,3 +13,11 @@ export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';
 export { taxRates, compositeSupplyRules } from './tax';
 export { documentSequences } from './document-sequences';
+export {
+  users,
+  sessions,
+  authAccounts,
+  authVerifications,
+  userTwoFactor,
+  userEntityRoles,
+} from './identity';

@@ -92,6 +92,20 @@
       "when": 1790455449687,
       "tag": "0012_review2_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790459415869,
+      "tag": "0013_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790459450646,
+      "tag": "0014_identity_rls",
+      "breakpoints": true
     }
   ]
 }

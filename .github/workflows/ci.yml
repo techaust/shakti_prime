@@ -76,6 +76,12 @@ jobs:
       DATABASE_URL: postgres://app_user:app_user_ci@localhost:5432/postgres
       DATABASE_URL_MIGRATOR: postgres://postgres:postgres_ci@localhost:5432/postgres
       APP_USER_PASSWORD: app_user_ci
+      DATABASE_URL_AUTH: postgres://auth_service:auth_service_ci@localhost:5432/postgres
+      AUTH_SERVICE_PASSWORD: auth_service_ci
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

@@ -21,6 +21,15 @@ const rawClientImport = {
       message:
         'The testing helpers open owner and context-free connections. They are for tests only.',
     },
+    {
+      name: '@shakti/db/auth',
+      message:
+        'The auth_service connection belongs to the auth module (apps/web/src/auth) and its tests.',
+    },
+    {
+      name: '@shakti/db/bootstrap',
+      message: 'The bootstrap writes as the table owner. Scripts only.',
+    },
   ],
   patterns: [
     {
@@ -30,6 +39,10 @@ const rawClientImport = {
         '**/db/src/client.ts',
         '**/db/src/testing',
         '**/db/src/testing/*',
+        '**/db/src/auth-client',
+        '**/db/src/auth-client.ts',
+        '**/db/src/bootstrap',
+        '**/db/src/bootstrap.ts',
       ],
       message:
         'Use withRequestContext() from @shakti/db. The raw client and the testing helpers are restricted to packages/db/src and test files.',
@@ -99,6 +112,34 @@ export default tseslint.config(
     files: ['packages/domain/**/*.ts', 'packages/contracts/**/*.ts'],
     ignores: ['**/tests/**', '**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
+  },
+  {
+    // The auth module is the one caller of the auth_service connection (docs/DATABASE.md §3).
+    files: ['apps/web/src/auth/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: rawClientImport.paths.filter((p) => p.name !== '@shakti/db/auth'),
+          patterns: rawClientImport.patterns,
+        },
+      ],
+    },
+  },
+  {
+    // Command-line scripts may bootstrap the first user and build an auth instance.
+    files: ['apps/web/scripts/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: rawClientImport.paths.filter(
+            (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/bootstrap',
+          ),
+          patterns: rawClientImport.patterns,
+        },
+      ],
+    },
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],

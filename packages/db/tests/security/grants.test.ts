@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { closeDb, RLS_TABLES, withoutContext } from '../../src/testing/index';
+import { AUTH_TABLES, closeDb, RLS_TABLES, withoutContext } from '../../src/testing/index';
 
 afterAll(closeDb);
 
@@ -12,21 +12,30 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row).toEqual({ rolsuper: false, rolbypassrls: false });
   });
 
-  it.each(RLS_TABLES)('does not own %s and the table forces RLS', async (table) => {
-    const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
+  it.each([...RLS_TABLES, ...AUTH_TABLES])(
+    'does not own %s and the table forces RLS',
+    async (table) => {
+      const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
       select pg_get_userbyid(c.relowner) as owner, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relname = ${table}
     `);
-    expect(row?.owner).not.toBe('app_user');
-    expect(row?.enabled).toBe(true);
-    expect(row?.forced).toBe(true);
-  });
+      expect(row?.owner).not.toBe('app_user');
+      expect(row?.enabled).toBe(true);
+      expect(row?.forced).toBe(true);
+    },
+  );
 
-  /** Append-only ledgers take no update; series counters are written only by app.next_document_no(). */
-  const NARROWER: Partial<Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean }>> = {
+  /**
+   * Append-only ledgers take no update; series counters are written only by app.next_document_no();
+   * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
+   */
+  const NARROWER: Partial<
+    Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
+  > = {
     price_change_log: { i: true, u: false },
     document_sequences: { i: false, u: false },
+    user_entity_roles: { i: true, u: true, d: true },
   };
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
@@ -36,7 +45,31 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
              has_table_privilege('app_user', ${table}, 'UPDATE') as u,
              has_table_privilege('app_user', ${table}, 'DELETE') as d
     `);
-    expect(row).toEqual({ s: true, ...(NARROWER[table] ?? { i: true, u: true }), d: false });
+    expect(row).toEqual({ s: true, d: false, ...(NARROWER[table] ?? { i: true, u: true }) });
+  });
+
+  it('holds column privileges only on sessions and none on the other auth tables', async () => {
+    const [row] = await withoutContext<{
+      s: boolean;
+      cs: boolean;
+      cu: boolean;
+      tok: boolean;
+      d: boolean;
+    }>(sql`
+      select has_table_privilege('app_user', 'sessions', 'SELECT') as s,
+             has_any_column_privilege('app_user', 'sessions', 'SELECT') as cs,
+             has_any_column_privilege('app_user', 'sessions', 'UPDATE') as cu,
+             has_column_privilege('app_user', 'sessions', 'token', 'SELECT') as tok,
+             has_table_privilege('app_user', 'sessions', 'DELETE') as d
+    `);
+    expect(row).toEqual({ s: false, cs: true, cu: true, tok: false, d: false });
+    for (const table of ['auth_accounts', 'auth_verifications', 'user_two_factor']) {
+      const [priv] = await withoutContext<{ any: boolean; reporter: boolean }>(sql`
+        select has_any_column_privilege('app_user', ${table}, 'SELECT') as any,
+               has_any_column_privilege('readonly_reporter', ${table}, 'SELECT') as reporter
+      `);
+      expect(priv, table).toEqual({ any: false, reporter: false });
+    }
   });
 
   it('has request timeouts so a stuck transaction cannot hold locks open', async () => {

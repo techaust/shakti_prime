@@ -7,6 +7,7 @@ import postgres from 'postgres';
 import { ALL_ENTITY_IDS } from '../../seeds/entities';
 import { runSeeds } from '../../seeds/index';
 import { grantsForRole } from '../../seeds/role-permissions';
+import { roleId } from '../../seeds/roles';
 import { rawDb } from '../client';
 import { withRequestContext, type RequestContext } from '../context';
 import { requireEnv } from '../env';
@@ -20,7 +21,12 @@ export { AGENT_MATRIX, STAFF_MATRIX, grantsForRole } from '../../seeds/role-perm
 export { PIPELINE_SEED, STAGE_SEED, stageId } from '../../seeds/pipelines';
 export { LEAD_SOURCE_SEED } from '../../seeds/lead-sources';
 export { PRICE_TIER_SEED, tierId } from '../../seeds/price-tiers';
-export { catalogueFixture, CATALOGUE_FIXTURE_PREFIX } from './catalogue-fixture';
+export {
+  catalogueFixture,
+  CATALOGUE_FIXTURE_PREFIX,
+  identityFixture,
+  IDENTITY_FIXTURE_USER_ID,
+} from './catalogue-fixture';
 export type { CatalogueFixture } from './catalogue-fixture';
 
 /** Migrate and seed. Idempotent, so every suite's globalSetup can call it. */
@@ -86,6 +92,33 @@ export async function createTestPrincipal(
   return principal;
 }
 
+/** A staff user for identity tests: principal, `users` row and one role per entity. */
+export interface TestUser {
+  id: string;
+  email: string;
+  entityRoles: { entityId: number; roleKey: RoleKey; teamId?: string }[];
+}
+
+export async function createTestUser(
+  entityRoles: TestUser['entityRoles'],
+  options: { status?: string; twoFactorEnabled?: boolean; name?: string } = {},
+): Promise<TestUser> {
+  const id = newId();
+  const email = `user-${id.slice(-12)}@shakti.test`;
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await tx`insert into principals (id, kind, display_name) values (${id}, 'user', ${options.name ?? 'test user'})`;
+      await tx`insert into users (id, name, email, status, two_factor_enabled)
+        values (${id}, ${options.name ?? 'test user'}, ${email}, ${options.status ?? 'active'}, ${options.twoFactorEnabled ?? false})`;
+      for (const r of entityRoles) {
+        await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id)
+          values (${newId()}, ${id}, ${r.entityId}, ${roleId(r.roleKey)}, ${r.teamId ?? null})`;
+      }
+    }),
+  );
+  return { id, email, entityRoles };
+}
+
 /** Run inside a request context. */
 export function asPrincipal<T>(
   principal: Principal,
@@ -122,6 +155,8 @@ export const SHARED_TABLES = [
   'price_change_log',
   'tax_rates',
   'composite_supply_rules',
+  'users',
+  'user_entity_roles',
 ] as const;
 
 /** Tables scoped by `app.entity_ids` (and, for CRM roots and children, by ownership). */
@@ -137,6 +172,18 @@ export const ENTITY_TABLES = [
   'consents',
   'item_costs',
   'document_sequences',
+] as const;
+
+/**
+ * Tables owned by the auth module (docs/DATABASE.md §3): `auth_service` has full access, `app_user`
+ * has column-level access to `sessions` and none to the rest. They sit outside the generic loops
+ * and are asserted in identity-scope.test.ts.
+ */
+export const AUTH_TABLES = [
+  'sessions',
+  'auth_accounts',
+  'auth_verifications',
+  'user_two_factor',
 ] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */

@@ -19,7 +19,7 @@ pnpm + Turborepo monorepo.
 
 1. Node 24 and Corepack: `corepack enable` (pnpm is pinned in `package.json`).
 2. Docker Desktop, then `docker compose up -d` for local Postgres on port 54322.
-3. `cp .env.example .env`
+3. `cp .env.example .env` (local Postgres, the auth module's connection, Better Auth, Cloudflare's Turnstile test keys; Upstash left empty uses an in-memory store)
 4. `pnpm install`
 5. `pnpm db:migrate` then `pnpm db:seed`
 

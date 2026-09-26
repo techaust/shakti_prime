@@ -27,7 +27,8 @@ Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `
 |---|---|---|
 | `postgres` (Supabase owner) | Migrations only | Owns tables |
 | `app_user` | All application connections | `SELECT/INSERT/UPDATE` per table; `UPDATE/DELETE` revoked on append-only tables; no `BYPASSRLS`; not the table owner; role settings `statement_timeout 30s`, `lock_timeout 10s`, `idle_in_transaction_session_timeout 30s` |
-| `readonly_reporter` | Materialised-view refresh and exports | `SELECT` only, RLS applies |
+| `auth_service` | The auth module only (Better Auth's adapter and session bookkeeping in `apps/web/src/auth`) | Full access to `sessions`, `auth_accounts`, `auth_verifications`, `user_two_factor`; `SELECT/UPDATE` on `users`; nothing on any business table; no `BYPASSRLS`; the same three timeouts as `app_user` |
+| `readonly_reporter` | Materialised-view refresh and exports | `SELECT` only, RLS applies; no access to the auth module's tables |
 | Service role | Never in request paths | Reserved for Supabase dashboard operations |
 
 Agent principals and voice sessions are application-level principals, not database roles. They connect as `app_user` with their own request context.
@@ -113,6 +114,7 @@ Rules:
 | `vendor_quotes`, `po_lines.unit_rate`, `po_lines.amount`, `goods_receipt_lines.unit_rate`, `tally_purchase_vouchers` | `procurement.rate.read` |
 | `stock_movements.unit_cost` | `finance.cost.read`; the column lives in a side table `stock_movement_costs` so the ledger itself is readable by inventory roles |
 | `identity_documents`, KYC files | `documents.sensitive.read`; views audited |
+| `sessions.token`, `auth_accounts`, `auth_verifications`, `user_two_factor` | `auth_service` only; no grant to `app_user` or `readonly_reporter` |
 | `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
 
 ## 5. Append-only tables
@@ -128,13 +130,15 @@ Key columns only; every table also has the standard columns from §2.
 | `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
 | `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
 | `principals` | `id`, `kind` (`user`, `agent`, `voice_session`), `display_name` |
-| `users` | `principal_id`, `email`, `phone`, `password_hash`, `totp_secret` (encrypted), `locale`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`) |
-| `sessions` | Better Auth sessions with `device`, `ip`, `totp_verified_at`, `expires_at`, `idle_expires_at`, `revoked_at` |
+| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `locale`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
+| `auth_accounts` | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
+| `auth_verifications` | Better Auth verification store for set-password and reset links; `auth_service` only |
+| `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only |
+| `sessions` | Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason` |
 | `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
-| `totp_recovery_codes` | `user_id`, `code_hash`, `used_at` |
 | `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `status`, `response_json`, `expires_at`; 7-day retention |
 | `roles`, `permissions`, `role_permissions` | `role_permissions(role_id, permission_key, scope)` |
-| `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id` |
+| `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; replaced as a set by `admin.user.role.set`, the one table with a delete grant for `app_user` |
 | `teams` | `entity_id null`, `name`, `lead_user_id` |
 | `document_sequences` | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()` |
 | `business_calendar` | `date`, `is_holiday`, `entity_id null` |

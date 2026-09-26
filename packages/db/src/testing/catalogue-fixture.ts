@@ -92,3 +92,27 @@ export async function catalogueFixture(): Promise<CatalogueFixture> {
 
   return fx;
 }
+
+/** A fixed staff user with one role so `users` and `user_entity_roles` are readable in the loops. */
+export const IDENTITY_FIXTURE_USER_ID = '01990000-0000-7000-8000-0000000a0001';
+
+export async function identityFixture(): Promise<void> {
+  const userId = IDENTITY_FIXTURE_USER_ID;
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      // Remove a previous run, whichever id it carried.
+      await tx`delete from sessions where user_id in (select id from users where email = 'fixture.user@shakti.test')`;
+      await tx`delete from user_entity_roles where user_id in (select id from users where email = 'fixture.user@shakti.test')`;
+      await tx`delete from users where email = 'fixture.user@shakti.test'`;
+      await tx`delete from principals where display_name = 'fixture user' and kind = 'user'`;
+      await tx`insert into principals (id, kind, display_name) values (${userId}, 'user', 'fixture user')
+        on conflict (id) do nothing`;
+      await tx`insert into users (id, name, email, status, two_factor_enabled)
+        values (${userId}, 'fixture user', 'fixture.user@shakti.test', 'active', true)
+        on conflict (id) do nothing`;
+      await tx`insert into user_entity_roles (id, user_id, entity_id, role_id)
+        values (${'01990000-0000-7000-8000-0000000a0002'}, ${userId}, 1, (select id from roles where key = 'accounts'))
+        on conflict (id) do nothing`;
+    }),
+  );
+}

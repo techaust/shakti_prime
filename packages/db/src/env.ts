@@ -8,7 +8,12 @@ if (existsSync(rootEnv)) config({ path: rootEnv, quiet: true });
 else if (existsSync(resolve(process.cwd(), '.env'))) config({ quiet: true });
 
 export function requireEnv(
-  name: 'DATABASE_URL' | 'DATABASE_URL_MIGRATOR' | 'APP_USER_PASSWORD',
+  name:
+    | 'DATABASE_URL'
+    | 'DATABASE_URL_MIGRATOR'
+    | 'DATABASE_URL_AUTH'
+    | 'APP_USER_PASSWORD'
+    | 'AUTH_SERVICE_PASSWORD',
 ): string {
   const value = process.env[name];
   if (value === undefined || value === '') {

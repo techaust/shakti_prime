@@ -21,7 +21,7 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 ## 2. Identity and authentication
 - **Passwords:** Argon2id (m = 64 MiB, t = 3, p = 1); minimum 12 characters; breached-password check.
 - **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms; exponential lockout per IP and per account in Redis.
-- **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions.
+- **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, `__Host-` prefix.
 - **2FA:** TOTP required for Executive, GM and Accounts; recovery codes; recovery email via SES only.
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.

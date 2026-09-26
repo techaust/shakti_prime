@@ -17,6 +17,97 @@
     "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number.",
     "price_list_missing": "This price list is not available. Choose another list or ask an Executive.",
     "price_list_closed": "This price list has ended and can no longer be changed. Start a new price list instead.",
-    "price_item_missing": "This item is not active, so it cannot be priced. Check the item list."
+    "price_item_missing": "This item is not active, so it cannot be priced. Check the item list.",
+    "sign_in_failed": "We couldn't sign you in with that email and password. Please check both and try again.",
+    "password_incorrect": "That password is not right. Please try again.",
+    "password_too_short": "Your password needs at least 12 characters. A short sentence works well.",
+    "password_too_long": "Your password is too long. Keep it under 128 characters.",
+    "password_breached": "This password has appeared in a known leak, so it isn't safe. Please choose a different one.",
+    "password_mismatch": "The two passwords don't match. Please type them again.",
+    "link_expired": "This link has expired or was already used. Ask your manager to send a new one.",
+    "code_incorrect": "That code didn't work. Open your authenticator app and enter the latest code.",
+    "authenticator_already_set": "Your authenticator app is already set up. Sign in with a code from it.",
+    "authenticator_missing": "Your authenticator app is not set up yet. Set it up first.",
+    "account_locked": "Too many attempts. Please wait a while before trying again.",
+    "bot_check_failed": "We couldn't confirm you're a person. Refresh the page and try again.",
+    "totp_required": "Your role needs an authenticator app. Set it up to continue.",
+    "entity_outside_scope": "You can only give access to companies you manage.",
+    "invite_email_taken": "Someone already has this email. Check the team list.",
+    "role_missing": "This role is not available. Choose one from the list.",
+    "team_missing": "This team belongs to another company. Choose a team from the same company.",
+    "user_missing": "We couldn't find this team member. The list may have changed.",
+    "user_offboarded": "This person has left. Invite them again to give access.",
+    "self_suspend": "You can't suspend your own access. Ask another Executive.",
+    "session_missing": "This sign-in has already ended."
+  },
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "intro": "Use the email and password your manager set up for you.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "working": "Signing in…"
+    },
+    "setPassword": {
+      "title": "Choose your password",
+      "intro": "This password is yours alone. Use at least 12 characters; a short sentence is easy to remember and hard to guess.",
+      "password": "New password",
+      "confirm": "Type it again",
+      "submit": "Save password",
+      "done": "Your password is saved. You can sign in now.",
+      "goSignIn": "Go to sign in"
+    },
+    "twoFactor": {
+      "enrolTitle": "Set up your authenticator app",
+      "enrolIntro": "Your role needs a second check at sign-in. Install an authenticator app such as Google Authenticator or Microsoft Authenticator on your phone, then confirm your password to begin.",
+      "password": "Your password",
+      "start": "Begin setup",
+      "scanTitle": "Scan this with your authenticator app",
+      "scanIntro": "Open the app, choose “Add account” and scan the square. If the camera doesn't work, type the key below by hand.",
+      "secretLabel": "Key to type by hand",
+      "backupTitle": "Keep these backup codes safe",
+      "backupIntro": "Each code works once, if your phone is ever lost. Write them down or save them somewhere private.",
+      "codeLabel": "6-digit code from the app",
+      "verify": "Confirm",
+      "verifyTitle": "Enter the code from your authenticator app",
+      "verifyIntro": "Open the app on your phone and type the 6-digit code shown for Shakti Prime."
+    },
+    "home": {
+      "title": "Welcome",
+      "signedInAs": "Signed in as {name}",
+      "role": "Role: {role}",
+      "companies": "Companies you can see",
+      "allCompanies": "All companies",
+      "signOut": "Sign out",
+      "switch": "Switch"
+    },
+    "changePassword": {
+      "title": "Change your password",
+      "current": "Current password",
+      "next": "New password",
+      "confirm": "Type the new password again",
+      "submit": "Change password",
+      "done": "Your password is changed. Other devices are signed out."
+    }
+  },
+  "mail": {
+    "setPassword": {
+      "subject": "Your Shakti Prime sign-in",
+      "body": "Hello {name},\n\nYour Shakti Prime access is ready. Open this link to choose your password:\n{url}\n\nThe link works for one day. If you didn't expect this email, you can ignore it.\n\nShakti Prime"
+    }
+  },
+  "roles": {
+    "executive": "Executive",
+    "general_manager": "General Manager",
+    "sales_team_lead": "Sales Team Lead",
+    "tele_caller_cc": "Tele-Caller (Cold Calling)",
+    "tele_caller_lc": "Tele-Caller (Lead Calling)",
+    "store_manager": "Store Manager",
+    "inventory_manager": "Inventory Manager",
+    "project_manager": "Project Manager",
+    "field_engineer": "Field Engineer",
+    "accounts": "Accounts",
+    "hr_admin": "HR Admin"
   }
 }
