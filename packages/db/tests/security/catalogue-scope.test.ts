@@ -298,7 +298,7 @@ describe('document numbering', () => {
     const fy = `${String(2100 + Math.floor(Math.random() * 800))}-01`;
     const numbers = await Promise.all(Array.from({ length: 10 }, () => draw(exec, 1, fy)));
     // Distinct and consecutive; the series may have been started by an earlier run on this database.
-    const ascending = [...numbers].sort((a, b) => a - b);
+    const ascending = numbers.map((n) => n ?? Number.NaN).sort((a, b) => a - b);
     expect(new Set(ascending).size).toBe(10);
     expect((ascending[9] ?? 0) - (ascending[0] ?? 0)).toBe(9);
   });
