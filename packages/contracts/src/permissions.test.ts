@@ -6,7 +6,7 @@ import {
   impliedScopes,
   PERMISSION_KEYS,
   serializeGrants,
-} from './permissions.js';
+} from './permissions';
 
 describe('permission catalogue', () => {
   it('has unique keys in module.resource.action form', () => {

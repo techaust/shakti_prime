@@ -1,6 +1,6 @@
 // Generates the CSS delivered to the web app (DESIGN.md §8). Pure functions so the
 // stale-file test can compare the committed output with a fresh render.
-import { aliases, colors, scale, shadows, type Theme } from './tokens.js';
+import { aliases, colors, scale, shadows, type Theme } from './tokens';
 
 const HEADER = '/* Generated from packages/tokens/src/tokens.ts. Do not edit by hand. */\n';
 

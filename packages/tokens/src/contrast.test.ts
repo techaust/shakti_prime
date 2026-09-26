@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, luminance } from './contrast.js';
-import { resolve, type Theme } from './tokens.js';
+import { contrastRatio, luminance } from './contrast';
+import { resolve, type Theme } from './tokens';
 
 const AA_TEXT = 4.5;
 const AA_UI = 3;

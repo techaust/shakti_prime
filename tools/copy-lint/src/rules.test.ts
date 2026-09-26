@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkCatalogues, checkParity, checkString, flatten } from './rules.js';
+import { checkCatalogues, checkParity, checkString, flatten } from './rules';
 
 describe('flatten', () => {
   it('produces dotted keys', () => {

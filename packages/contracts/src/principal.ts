@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { EntityIdSchema, IdSchema } from './ids.js';
-import { PermissionGrantSchema } from './permissions.js';
-import { RoleKeySchema } from './roles.js';
+import { EntityIdSchema, IdSchema } from './ids';
+import { PermissionGrantSchema } from './permissions';
+import { RoleKeySchema } from './roles';
 
 export const PrincipalKindSchema = z.enum(['user', 'agent', 'voice_session']);
 export type PrincipalKind = z.infer<typeof PrincipalKindSchema>;

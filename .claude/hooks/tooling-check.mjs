@@ -1,6 +1,6 @@
 // SessionStart hook: reports Claude Code tooling status for the current project phase.
 // Read-only and non-blocking; any failure prints a short note and exits 0.
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 

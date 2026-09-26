@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EntityIdSchema, IdSchema, newId } from './ids.js';
+import { EntityIdSchema, IdSchema, newId } from './ids';
 
 describe('newId', () => {
   it('produces a UUID with version 7 and the RFC variant', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DomainError, ERROR_CODES, ErrorCodeSchema, isDomainError } from './errors.js';
+import { DomainError, ERROR_CODES, ErrorCodeSchema, isDomainError } from './errors';
 
 describe('DomainError', () => {
   it('carries a stable code and an HTTP status', () => {

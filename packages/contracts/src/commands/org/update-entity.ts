@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EntityIdSchema } from '../../ids.js';
+import { EntityIdSchema } from '../../ids';
 
 /** Fields an Executive may change on an entity from Admin › Entities. */
 export const UpdateEntityInput = z

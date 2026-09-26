@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EntityIdSchema } from '../ids.js';
+import { EntityIdSchema } from '../ids';
 
 /** A selling entity as returned to callers. Strict: undeclared columns never leave the command. */
 export const EntityDto = z
