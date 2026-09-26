@@ -14,6 +14,9 @@
     "internal": "Something went wrong on our side. Please try again in a minute.",
     "lead_pipeline_missing": "This pipeline is not set up yet. Ask an Executive to add it.",
     "lead_source_unknown": "This lead source is not in the list. Choose one from the list.",
-    "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number."
+    "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number.",
+    "price_list_missing": "This price list is not available. Choose another list or ask an Executive.",
+    "price_list_closed": "This price list has ended and can no longer be changed. Start a new price list instead.",
+    "price_item_missing": "This item is not active, so it cannot be priced. Check the item list."
   }
 }
