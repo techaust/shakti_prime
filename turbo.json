@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "src/tokens.css", "src/tailwind.css"],
-      "env": ["NEXT_PUBLIC_*", "VERCEL_*"]
+      "env": ["NEXT_PUBLIC_*", "VERCEL_*", "TURNSTILE_SITE_KEY"]
     },
     "typecheck": {
       "dependsOn": ["^build"]
@@ -16,14 +16,25 @@
     "test:security": {
       "dependsOn": ["^build"],
       "cache": false,
-      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATOR", "APP_USER_PASSWORD"]
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATOR",
+        "DATABASE_URL_AUTH",
+        "APP_USER_PASSWORD",
+        "AUTH_SERVICE_PASSWORD",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "TURNSTILE_SECRET_KEY",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN"
+      ]
     },
     "db:generate": {
       "cache": false
     },
     "db:migrate": {
       "cache": false,
-      "env": ["DATABASE_URL_MIGRATOR", "APP_USER_PASSWORD"]
+      "env": ["DATABASE_URL_MIGRATOR", "APP_USER_PASSWORD", "AUTH_SERVICE_PASSWORD"]
     },
     "db:seed": {
       "cache": false,

@@ -297,9 +297,10 @@ describe('document numbering', () => {
     const exec = principalFor('executive', [1]);
     const fy = `${String(2100 + Math.floor(Math.random() * 800))}-01`;
     const numbers = await Promise.all(Array.from({ length: 10 }, () => draw(exec, 1, fy)));
-    expect(sorted(numbers.map(String))).toEqual(
-      sorted(Array.from({ length: 10 }, (_, i) => String(i + 1))),
-    );
+    // Distinct and consecutive; the series may have been started by an earlier run on this database.
+    const ascending = [...numbers].sort((a, b) => a - b);
+    expect(new Set(ascending).size).toBe(10);
+    expect((ascending[9] ?? 0) - (ascending[0] ?? 0)).toBe(9);
   });
 
   it('requires the permission that creates the document type', async () => {
