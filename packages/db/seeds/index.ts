@@ -10,6 +10,7 @@ import {
   permissions,
   pipelines,
   pipelineStages,
+  priceTiers,
   principals,
   rolePermissions,
   roles,
@@ -18,6 +19,7 @@ import { ENTITY_SEED } from './entities';
 import { LEAD_SOURCE_SEED } from './lead-sources';
 import { PERMISSION_SEED } from './permissions';
 import { PIPELINE_SEED, STAGE_SEED } from './pipelines';
+import { PRICE_TIER_SEED } from './price-tiers';
 import { AGENT_PRINCIPAL_SEED } from './principals';
 import { grantsForRole } from './role-permissions';
 import { ROLE_SEED, roleId } from './roles';
@@ -121,6 +123,18 @@ export async function runSeeds(): Promise<void> {
           set: {
             code: sql`excluded.code`,
             channel: sql`excluded.channel`,
+            name: sql`excluded.name`,
+            nameHi: sql`excluded.name_hi`,
+          },
+        });
+
+      await tx
+        .insert(priceTiers)
+        .values(PRICE_TIER_SEED.map((t) => ({ ...t })))
+        .onConflictDoUpdate({
+          target: priceTiers.id,
+          set: {
+            code: sql`excluded.code`,
             name: sql`excluded.name`,
             nameHi: sql`excluded.name_hi`,
           },

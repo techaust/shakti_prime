@@ -12,7 +12,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:security": "turbo run test:security",
+    "test:security": "turbo run test:security --concurrency=1",
     "db:generate": "pnpm --filter @shakti/db db:generate",
     "db:migrate": "pnpm --filter @shakti/db db:migrate",
     "db:seed": "pnpm --filter @shakti/db db:seed",

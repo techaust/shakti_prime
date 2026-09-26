@@ -8,3 +8,8 @@ export { contacts, contactPhones } from './contacts';
 export { accounts, accountContacts, customerSites } from './accounts';
 export { opportunities } from './opportunities';
 export { consents } from './consents';
+export { items, pumpCurves, itemCosts } from './items';
+export { kits, kitComponents } from './kits';
+export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';
+export { taxRates, compositeSupplyRules } from './tax';
+export { documentSequences } from './document-sequences';

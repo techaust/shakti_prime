@@ -110,6 +110,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     accounts: 'entity',
   },
   'pricing.write': { ...EXEC },
+  'catalogue.write': { ...EXEC, general_manager: 'entity', inventory_manager: 'entity' },
   'tax.rates.write': { ...EXEC, accounts: 'entity' },
   'inventory.stock.read': {
     ...EXEC,

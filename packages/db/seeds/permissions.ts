@@ -18,6 +18,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'sales.credit.release': 'Release a dealer credit hold',
   'pricing.read': 'See price lists',
   'pricing.write': 'Change price lists',
+  'catalogue.write': 'Maintain the item list',
   'tax.rates.write': 'Maintain GST rates',
   'inventory.stock.read': 'See stock',
   'inventory.stock.move': 'Move stock',

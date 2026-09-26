@@ -23,6 +23,12 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row?.forced).toBe(true);
   });
 
+  /** Append-only ledgers take no update; series counters are written only by app.next_document_no(). */
+  const NARROWER: Partial<Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean }>> = {
+    price_change_log: { i: true, u: false },
+    document_sequences: { i: false, u: false },
+  };
+
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`
       select has_table_privilege('app_user', ${table}, 'SELECT') as s,
@@ -30,7 +36,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
              has_table_privilege('app_user', ${table}, 'UPDATE') as u,
              has_table_privilege('app_user', ${table}, 'DELETE') as d
     `);
-    expect(row).toEqual({ s: true, i: true, u: true, d: false });
+    expect(row).toEqual({ s: true, ...(NARROWER[table] ?? { i: true, u: true }), d: false });
   });
 
   it('readonly_reporter may only select', async () => {

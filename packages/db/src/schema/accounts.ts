@@ -13,6 +13,7 @@ import {
 import { actorsRequired, archivable, timestamps } from './columns';
 import { contacts } from './contacts';
 import { entities } from './entities';
+import { priceTiers } from './pricing';
 import { principals } from './principals';
 import { teams } from './teams';
 
@@ -28,6 +29,7 @@ export const accounts = pgTable(
     name: text('name').notNull(),
     nameHi: text('name_hi'),
     gstin: text('gstin'),
+    tierId: uuid('tier_id').references(() => priceTiers.id),
     ownerId: uuid('owner_id').references(() => principals.id),
     teamId: uuid('team_id').references(() => teams.id),
     ...archivable,

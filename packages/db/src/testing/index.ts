@@ -19,6 +19,9 @@ export { ROLE_SEED, roleId } from '../../seeds/roles';
 export { AGENT_MATRIX, STAFF_MATRIX, grantsForRole } from '../../seeds/role-permissions';
 export { PIPELINE_SEED, STAGE_SEED, stageId } from '../../seeds/pipelines';
 export { LEAD_SOURCE_SEED } from '../../seeds/lead-sources';
+export { PRICE_TIER_SEED, tierId } from '../../seeds/price-tiers';
+export { catalogueFixture, CATALOGUE_FIXTURE_PREFIX } from './catalogue-fixture';
+export type { CatalogueFixture } from './catalogue-fixture';
 
 /** Migrate and seed. Idempotent, so every suite's globalSetup can call it. */
 export async function prepareDatabase(): Promise<void> {
@@ -97,7 +100,10 @@ export async function withoutContext<T = Record<string, unknown>>(query: SQL): P
   return result as unknown as T[];
 }
 
-/** Tables readable with any context (shared reference data). Hidden without a context. */
+/**
+ * Tables readable with a context (shared reference data), hidden without one. Price tables need
+ * `pricing.read`, which every seller role and the sizing agent hold.
+ */
 export const SHARED_TABLES = [
   'principals',
   'roles',
@@ -106,6 +112,16 @@ export const SHARED_TABLES = [
   'pipelines',
   'pipeline_stages',
   'lead_sources',
+  'items',
+  'pump_curves',
+  'kits',
+  'kit_components',
+  'price_tiers',
+  'price_lists',
+  'price_list_items',
+  'price_change_log',
+  'tax_rates',
+  'composite_supply_rules',
 ] as const;
 
 /** Tables scoped by `app.entity_ids` (and, for CRM roots and children, by ownership). */
@@ -119,6 +135,8 @@ export const ENTITY_TABLES = [
   'customer_sites',
   'opportunities',
   'consents',
+  'item_costs',
+  'document_sequences',
 ] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */

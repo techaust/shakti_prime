@@ -65,6 +65,15 @@ describe.each(COST_PERMISSIONS)('%s', (permission) => {
   });
 });
 
+describe('catalogue.write', () => {
+  it.each(STAFF_ROLE_KEYS)('%s holds it only if listed', async (roleKey) => {
+    const holds = (await seededGrants(roleKey)).some((g) => g.key === 'catalogue.write');
+    expect(holds).toBe(
+      (['executive', 'general_manager', 'inventory_manager'] as StaffRoleKey[]).includes(roleKey),
+    );
+  });
+});
+
 describe('the General Manager', () => {
   it('sees operations but neither supplier rates nor costs', async () => {
     const keys = (await seededGrants('general_manager')).map((g) => g.key);
