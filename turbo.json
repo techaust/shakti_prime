@@ -1,0 +1,33 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["CI", "NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "src/tokens.css", "src/tailwind.css"],
+      "env": ["NEXT_PUBLIC_*", "VERCEL_*"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:security": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": ["DATABASE_URL", "DATABASE_URL_MIGRATOR", "APP_USER_PASSWORD"]
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false,
+      "env": ["DATABASE_URL_MIGRATOR", "APP_USER_PASSWORD"]
+    },
+    "db:seed": {
+      "cache": false,
+      "env": ["DATABASE_URL_MIGRATOR"]
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# Local Postgres for development and the security suite.
+# The Supabase image carries the same extensions and roles as the hosted Mumbai projects.
+services:
+  postgres:
+    image: supabase/postgres:17.6.1.177
+    container_name: shakti-postgres
+    ports:
+      - '54322:5432'
+    environment:
+      POSTGRES_PASSWORD: postgres_local
+    volumes:
+      - shakti-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  shakti-postgres:
