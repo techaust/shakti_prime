@@ -1,0 +1,34 @@
+{
+  "name": "@shakti/db",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Drizzle schema, migrations, RLS SQL, withRequestContext() and the security suite",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./schema": "./src/schema/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/migrate.ts",
+    "db:seed": "tsx seeds/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:security": "vitest run --config vitest.security.config.ts"
+  },
+  "dependencies": {
+    "@shakti/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "dotenv": "^18.0.4",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}
