@@ -11,6 +11,9 @@
     "conflict": "This changed while you were working on it. Refresh the page and try again.",
     "rate_limited": "Too many attempts in a short time. Please wait a minute and try again.",
     "integration_unavailable": "Something went wrong on our side. Please try again in a minute.",
-    "internal": "Something went wrong on our side. Please try again in a minute."
+    "internal": "Something went wrong on our side. Please try again in a minute.",
+    "lead_pipeline_missing": "This pipeline is not set up yet. Ask an Executive to add it.",
+    "lead_source_unknown": "This lead source is not in the list. Choose one from the list.",
+    "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number."
   }
 }
