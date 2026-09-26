@@ -5,7 +5,7 @@ services:
     image: supabase/postgres:17.6.1.177
     container_name: shakti-postgres
     ports:
-      - '54322:5432'
+      - '127.0.0.1:54322:5432'
     environment:
       POSTGRES_PASSWORD: postgres_local
     volumes:

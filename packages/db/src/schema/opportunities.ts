@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -58,5 +59,18 @@ export const opportunities = pgTable(
     index('opportunities_entity_owner_idx').on(t.entityId, t.ownerId),
     index('opportunities_entity_team_idx').on(t.entityId, t.teamId),
     index('opportunities_keyset_idx').on(t.updatedAt, t.id),
+    index('opportunities_pipeline_stage_idx').on(t.pipelineId, t.stageId),
+    index('opportunities_site_idx').on(t.siteId),
+    index('opportunities_source_idx').on(t.sourceId),
+    foreignKey({
+      name: 'opportunities_account_entity_fk',
+      columns: [t.accountId, t.entityId],
+      foreignColumns: [accounts.id, accounts.entityId],
+    }),
+    foreignKey({
+      name: 'opportunities_site_entity_fk',
+      columns: [t.siteId, t.entityId],
+      foreignColumns: [customerSites.id, customerSites.entityId],
+    }),
   ],
 );

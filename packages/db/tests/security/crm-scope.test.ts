@@ -138,6 +138,27 @@ describe('child writes follow the parent write scope, not its read scope', () =>
   });
 });
 
+describe('a child row belongs to its parent entity', () => {
+  it('a phone for an entity-1 contact cannot carry entity 2, even for the table owner', async () => {
+    await expect(
+      asMigrator(
+        (m) => m`insert into contact_phones (id, entity_id, contact_id, e164, created_by)
+          values (${'01990000-0000-7000-8000-0000000ffe01'}, 2, ${fx.contacts.a[0] ?? ''}, '+919811100001', ${fx.principals.a.id})`,
+      ),
+    ).rejects.toThrow(/contact_phones_contact_entity_fk/);
+    await expect(
+      asMigrator(
+        (
+          m,
+        ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by)
+          values (${'01990000-0000-7000-8000-0000000ffe02'}, 2, ${fx.accounts.a[0] ?? ''},
+                  (select id from pipelines limit 1), (select id from pipeline_stages limit 1),
+                  ${fx.principals.a.id}, ${fx.principals.a.id})`,
+      ),
+    ).rejects.toThrow(/opportunities_account_entity_fk/);
+  });
+});
+
 describe('shared reference tables', () => {
   it.each(SHARED_TABLES)('%s is readable by any caller with a context', async (table) => {
     expect(await countAs(fx.principals.d, table)).toBeGreaterThan(0);

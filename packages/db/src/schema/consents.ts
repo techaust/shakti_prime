@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { check, index, pgTable, smallint, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  check,
+  foreignKey,
+  index,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { actorsRequired, timestamps } from './columns';
 import { contacts } from './contacts';
 import { entities } from './entities';
@@ -36,5 +45,10 @@ export const consents = pgTable(
       sql`${t.source} in ('web_form', 'whatsapp_opt_in', 'walk_in_form', 'verbal', 'import')`,
     ),
     index('consents_contact_idx').on(t.contactId, t.channel, t.purpose),
+    foreignKey({
+      name: 'consents_contact_entity_fk',
+      columns: [t.contactId, t.entityId],
+      foreignColumns: [contacts.id, contacts.entityId],
+    }),
   ],
 );

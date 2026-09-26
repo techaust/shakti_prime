@@ -1,6 +1,6 @@
 import { CreateLeadInput, DomainError, LeadDto, newId } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 
@@ -25,7 +25,13 @@ export const createLead = defineCommand({
     const [pipeline] = await ctx.tx
       .select({ id: schema.pipelines.id })
       .from(schema.pipelines)
-      .where(and(eq(schema.pipelines.key, input.pipelineKey), eq(schema.pipelines.isActive, true)))
+      .where(
+        and(
+          eq(schema.pipelines.key, input.pipelineKey),
+          eq(schema.pipelines.isActive, true),
+          or(isNull(schema.pipelines.entityId), eq(schema.pipelines.entityId, input.entityId)),
+        ),
+      )
       .limit(1);
     const [stage] = pipeline
       ? await ctx.tx

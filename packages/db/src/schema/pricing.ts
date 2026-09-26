@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   numeric,
   pgTable,
@@ -75,22 +76,28 @@ export const priceListItems = pgTable(
   (t) => [
     unique('price_list_items_list_item_unique').on(t.priceListId, t.itemId),
     unique('price_list_items_list_kit_unique').on(t.priceListId, t.kitId),
+    index('price_list_items_item_idx').on(t.itemId),
+    index('price_list_items_kit_idx').on(t.kitId),
     check('price_list_items_target_check', sql`(${t.itemId} is null) <> (${t.kitId} is null)`),
     check('price_list_items_price_check', sql`${t.price} >= 0`),
   ],
 );
 
 /** Append-only price history (docs/DATABASE.md §5). No update columns by design. */
-export const priceChangeLog = pgTable('price_change_log', {
-  id: uuid('id').primaryKey(),
-  priceListItemId: uuid('price_list_item_id')
-    .notNull()
-    .references(() => priceListItems.id),
-  oldPrice: numeric('old_price', { precision: 14, scale: 2 }),
-  newPrice: numeric('new_price', { precision: 14, scale: 2 }).notNull(),
-  reason: text('reason'),
-  changedBy: uuid('changed_by')
-    .notNull()
-    .references(() => principals.id),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const priceChangeLog = pgTable(
+  'price_change_log',
+  {
+    id: uuid('id').primaryKey(),
+    priceListItemId: uuid('price_list_item_id')
+      .notNull()
+      .references(() => priceListItems.id),
+    oldPrice: numeric('old_price', { precision: 14, scale: 2 }),
+    newPrice: numeric('new_price', { precision: 14, scale: 2 }).notNull(),
+    reason: text('reason'),
+    changedBy: uuid('changed_by')
+      .notNull()
+      .references(() => principals.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('price_change_log_item_idx').on(t.priceListItemId, t.createdAt)],
+);

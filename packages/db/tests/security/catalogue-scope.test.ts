@@ -302,6 +302,17 @@ describe('document numbering', () => {
     );
   });
 
+  it('requires the permission that creates the document type', async () => {
+    const cc = principalFor('tele_caller_cc', [1]);
+    await expect(draw(cc, 1, '2098-00')).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('permission finance.proforma.write:own required'),
+    );
+    expect(await draw(principalFor('accounts', [1]), 1, '2098-00')).toBe(1);
+  });
+
   it('refuses an entity outside the scope and any call without a context', async () => {
     const outsideScope = (e: unknown) =>
       e instanceof Error &&

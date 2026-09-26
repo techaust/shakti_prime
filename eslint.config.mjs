@@ -16,12 +16,23 @@ const rawClientImport = {
       message:
         'Use withRequestContext() from @shakti/db. The raw client is restricted to packages/db/src.',
     },
+    {
+      name: '@shakti/db/testing',
+      message:
+        'The testing helpers open owner and context-free connections. They are for tests only.',
+    },
   ],
   patterns: [
     {
-      group: ['**/db/src/client', '**/db/src/client.js', '**/db/src/client.ts'],
+      group: [
+        '**/db/src/client',
+        '**/db/src/client.js',
+        '**/db/src/client.ts',
+        '**/db/src/testing',
+        '**/db/src/testing/*',
+      ],
       message:
-        'Use withRequestContext() from @shakti/db. The raw client is restricted to packages/db/src.',
+        'Use withRequestContext() from @shakti/db. The raw client and the testing helpers are restricted to packages/db/src and test files.',
     },
   ],
 };
@@ -75,11 +86,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ['packages/db/src/**/*.ts', 'packages/db/seeds/**/*.ts', 'packages/db/tests/**/*.ts'],
+    files: [
+      'packages/db/src/**/*.ts',
+      'packages/db/seeds/**/*.ts',
+      'packages/db/tests/**/*.ts',
+      '**/tests/**/*.ts',
+      '**/*.test.ts',
+    ],
     rules: { 'no-restricted-imports': 'off' },
   },
   {
     files: ['packages/domain/**/*.ts', 'packages/contracts/**/*.ts'],
+    ignores: ['**/tests/**', '**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
   },
   {

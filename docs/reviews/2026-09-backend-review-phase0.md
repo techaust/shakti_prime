@@ -28,3 +28,21 @@ Date: 2026-09-27. Scope: `packages/db` (schema, migrations 0000 to 0008, `withRe
 ## Result
 
 All checks green after the fixes: lint, format, typecheck, unit tests, copy lint, security suite (290 db, 26 domain, 1 web), CI on `main`.
+
+## Part 2: tool-assisted pass (2026-09-27, after the Phase 0 plugins were enabled)
+
+Reviewers: the Security Guidance commit reviewer over the whole `main` history, and the Supabase Postgres best-practice rules (RLS, privileges, foreign-key indexes, constraints, locking, pooling, pagination) over migrations 0000 to 0010 and the helpers. The security reviewer reported no finding above its exploitability bar and three low findings; the best-practice pass found unindexed foreign keys. Everything actionable was fixed.
+
+| # | Finding | Fix | Proof |
+|---|---|---|---|
+| F | The default privilege from migration 0000 gave `readonly_reporter` execute on every later function in schema `app`, so the reporting role could call the security-definer `app.next_document_no()` and consume gapless numbers; the revoke in 0006 only removed PUBLIC. Any principal with a request context, including agents, could also burn a series. | Migration 0012: defaults now grant execute to `app_user` only, the reporter keeps the read helpers by explicit grant, the numbering function is revoked from the reporter, and it requires the permission that creates the document type (`sales.quote.create`, `sales.order.create`, `finance.proforma.write`, `inventory.dispatch.write`, `procurement.po.write`). | `grants.test.ts` asserts the function privileges; `catalogue-scope.test.ts` shows a caller without the permission is refused and Accounts numbers a proforma. |
+| G | The lint fence blocked the raw client but not `@shakti/db/testing`, which re-exports the owner connection and the context-free helper. A route could have imported an RLS-bypassing connection and passed CI. | `@shakti/db/testing` and its paths are restricted everywhere except `packages/db` and test files. | `pnpm lint` green with the fence in place; the domain and web tests still import it. |
+| H | The local Postgres published its port on every interface with a fixed superuser password. | `compose.yaml` binds to `127.0.0.1`. | Manual. |
+| I | Child rows carried their own `entity_id` with nothing tying it to the parent's, so a multi-entity caller could attach an entity-2 phone, consent, site, contact link or opportunity to an entity-1 parent. Reads stayed correct because the parent policy gates them; integrity did not. | Migration 0011: `(id, entity_id)` unique keys on `contacts`, `accounts` and `customer_sites`, and composite foreign keys from every child. | `crm-scope.test.ts`: the table owner itself cannot insert a mismatched phone or opportunity. |
+| J | `crm.lead.create` resolved the pipeline by key alone, so an entity-1 lead could land in an entity-2 pipeline when both were in scope. | The lookup accepts shared pipelines or the lead's own entity. | `create-lead.test.ts`: an entity-2 pipeline answers `lead_pipeline_missing` for an entity-1 lead. |
+| K | Server actions parsed the input before checking the session, so an unauthenticated caller received validation feedback. | The session check runs first in all three actions. | Code order. |
+| L | Foreign keys without a leading index on join or filter columns: `opportunities` (pipeline, stage, site, source), `contacts` and `accounts` (team), `accounts.tier_id`, `account_contacts.contact_id`, `kit_components.item_id`, `price_list_items` (item, kit), `price_change_log.price_list_item_id`, `teams.entity_id`. | Migration 0011 adds them. | Generated migration reviewed. |
+
+Accepted from this pass: actor columns (`created_by`, `updated_by`, `approved_by`, `changed_by`, `lead_principal_id`) and single-column `entity_id` foreign keys stay unindexed (never filtered on their own; `entity_id` has four values and leads the composite indexes where it matters). `details.sqlstate` and `details.constraint` on database errors are internal names; the week 3 API error handler maps `details.reason` to the catalogue and drops the raw fields from the wire. `item_costs` writes keyed on `finance.cost.read` remain documented Phase 3 debt.
+
+Result after part 2: security suite 321 tests (293 db, 27 domain, 1 web), all other checks green, CI green.

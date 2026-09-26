@@ -48,6 +48,15 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row).toEqual({ s: '30s', l: '10s', i: '30s' });
   });
 
+  it('only the application role may issue document numbers', async () => {
+    const [row] = await withoutContext<{ app: boolean; reporter: boolean; pub: boolean }>(sql`
+      select has_function_privilege('app_user', 'app.next_document_no(smallint,text,text,text)', 'execute') as app,
+             has_function_privilege('readonly_reporter', 'app.next_document_no(smallint,text,text,text)', 'execute') as reporter,
+             has_function_privilege('public', 'app.next_document_no(smallint,text,text,text)', 'execute') as pub
+    `);
+    expect(row).toEqual({ app: true, reporter: false, pub: false });
+  });
+
   it('readonly_reporter may only select', async () => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; d: boolean; bypass: boolean }>(sql`
       select has_table_privilege('readonly_reporter', 'entities', 'SELECT') as s,

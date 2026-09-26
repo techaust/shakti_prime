@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   jsonb,
   numeric,
@@ -8,6 +9,7 @@ import {
   primaryKey,
   smallint,
   text,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { actorsRequired, archivable, timestamps } from './columns';
@@ -47,6 +49,9 @@ export const accounts = pgTable(
     ),
     index('accounts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('accounts_entity_owner_idx').on(t.entityId, t.ownerId),
+    index('accounts_entity_team_idx').on(t.entityId, t.teamId),
+    index('accounts_tier_idx').on(t.tierId),
+    unique('accounts_id_entity_unique').on(t.id, t.entityId),
   ],
 );
 
@@ -69,6 +74,17 @@ export const accountContacts = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.accountId, t.contactId] }),
+    index('account_contacts_contact_idx').on(t.contactId),
+    foreignKey({
+      name: 'account_contacts_account_entity_fk',
+      columns: [t.accountId, t.entityId],
+      foreignColumns: [accounts.id, accounts.entityId],
+    }),
+    foreignKey({
+      name: 'account_contacts_contact_entity_fk',
+      columns: [t.contactId, t.entityId],
+      foreignColumns: [contacts.id, contacts.entityId],
+    }),
     check(
       'account_contacts_role_check',
       sql`${t.role} in ('owner', 'family', 'manager', 'accountant', 'other')`,
@@ -105,5 +121,11 @@ export const customerSites = pgTable(
     check('customer_sites_pin_check', sql`${t.pin} is null or ${t.pin} ~ '^[1-9][0-9]{5}$'`),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
+    unique('customer_sites_id_entity_unique').on(t.id, t.entityId),
+    foreignKey({
+      name: 'customer_sites_account_entity_fk',
+      columns: [t.accountId, t.entityId],
+      foreignColumns: [accounts.id, accounts.entityId],
+    }),
   ],
 );

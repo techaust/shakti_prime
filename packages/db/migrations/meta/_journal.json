@@ -78,6 +78,20 @@
       "when": 1790452504411,
       "tag": "0010_review_child_write_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790455448207,
+      "tag": "0011_review2_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790455449687,
+      "tag": "0012_review2_privileges",
+      "breakpoints": true
     }
   ]
 }

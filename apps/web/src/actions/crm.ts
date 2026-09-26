@@ -7,9 +7,9 @@ import { currentPrincipal } from '../auth/current-principal';
 
 /** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. */
 export async function createLead(rawInput: unknown): Promise<LeadDto> {
-  const input = CreateLeadInput.parse(rawInput);
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
+  const input = CreateLeadInput.parse(rawInput);
   return withRequestContext(principal, { entityIds: [input.entityId] }, (context) =>
     runCommand(createLeadCommand, { context }, input),
   );

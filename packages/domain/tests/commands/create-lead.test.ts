@@ -1,10 +1,12 @@
 import {
+  asMigrator,
   asPrincipal,
   closeDb,
   createTestPrincipal,
   createTestTeam,
   stageId,
 } from '@shakti/db/testing';
+import { newId } from '@shakti/contracts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
@@ -46,6 +48,23 @@ describe('crm.lead.create', () => {
     await expect(
       asPrincipal(cc, (context) => runCommand(createLead, { context }, input)),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('refuses a pipeline that belongs to another entity', async () => {
+    const key = `entity2-${newId().slice(-8)}`;
+    await asMigrator(
+      (m) => m`insert into pipelines (id, entity_id, key, name, name_hi, segment)
+        values (${newId()}, 2, ${key}, 'entity two pipeline', 'entity two pipeline hi', 'farmer_pumps')`,
+    );
+    const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
+    await expect(
+      asPrincipal(cc, (context) =>
+        runCommand(createLead, { context }, { ...input, pipelineKey: key }),
+      ),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'lead_pipeline_missing' },
+    });
   });
 
   it('rejects an unknown pipeline, source or phone with validation_failed', async () => {

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  foreignKey,
   index,
   pgTable,
   smallint,
@@ -39,6 +40,8 @@ export const contacts = pgTable(
     index('contacts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('contacts_search_roman_trgm_idx').using('gin', t.searchRoman.op('gin_trgm_ops')),
     index('contacts_entity_owner_idx').on(t.entityId, t.ownerId),
+    index('contacts_entity_team_idx').on(t.entityId, t.teamId),
+    unique('contacts_id_entity_unique').on(t.id, t.entityId),
   ],
 );
 
@@ -65,5 +68,10 @@ export const contactPhones = pgTable(
     check('contact_phones_e164_check', sql`${t.e164} ~ '^\\+[1-9]\\d{6,14}$'`),
     unique('contact_phones_contact_e164_unique').on(t.contactId, t.e164),
     index('contact_phones_e164_idx').on(t.e164),
+    foreignKey({
+      name: 'contact_phones_contact_entity_fk',
+      columns: [t.contactId, t.entityId],
+      foreignColumns: [contacts.id, contacts.entityId],
+    }),
   ],
 );

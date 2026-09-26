@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, numeric, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, numeric, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { actors, archivable, timestamps } from './columns';
 import { items } from './items';
 
@@ -31,6 +31,7 @@ export const kitComponents = pgTable(
   },
   (t) => [
     unique('kit_components_kit_item_unique').on(t.kitId, t.itemId),
+    index('kit_components_item_idx').on(t.itemId),
     check('kit_components_qty_check', sql`${t.qty} > 0`),
   ],
 );
