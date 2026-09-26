@@ -1,0 +1,97 @@
+{
+  "currentPhase": 0,
+  "tools": [
+    {
+      "name": "supabase",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"supabase\" (by Supabase)",
+      "signIn": "Supabase sign-in or personal access token"
+    },
+    {
+      "name": "context7",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"context7\" (by Upstash)",
+      "signIn": "Optional CONTEXT7_API_KEY for higher rate limits"
+    },
+    {
+      "name": "frontend-design",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"frontend-design\" (by Anthropic)",
+      "signIn": null
+    },
+    {
+      "name": "security-guidance",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"Security Guidance\" (by Anthropic)",
+      "signIn": null
+    },
+    {
+      "name": "upstash",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"Upstash Redis\" (by Upstash)",
+      "signIn": "Upstash account email + API key"
+    },
+    {
+      "name": "github",
+      "type": "plugin",
+      "phase": 0,
+      "install": "Anthropic plugin directory: \"github\" (by GitHub)",
+      "signIn": "GitHub sign-in"
+    },
+    {
+      "name": "vercel",
+      "type": "mcp",
+      "phase": 0,
+      "install": "claude mcp add --transport http vercel https://mcp.vercel.com --scope project",
+      "signIn": "Vercel sign-in (OAuth) on first use"
+    },
+    {
+      "name": "shadcn",
+      "type": "mcp",
+      "phase": 0,
+      "install": "npx shadcn@latest mcp init --client claude",
+      "signIn": null
+    },
+    {
+      "name": "vercel-agent-skills",
+      "type": "skills",
+      "phase": 0,
+      "detect": "^(vercel-|web-design-guidelines)",
+      "install": "npx skills add vercel-labs/agent-skills -a claude-code",
+      "signIn": null
+    },
+    {
+      "name": "playwright",
+      "type": "plugin",
+      "phase": 1,
+      "install": "Anthropic plugin directory: \"playwright\" (by Microsoft)",
+      "signIn": null
+    },
+    {
+      "name": "sentry",
+      "type": "plugin",
+      "phase": 1,
+      "install": "Anthropic plugin directory: \"sentry\" (by Sentry)",
+      "signIn": "Sentry sign-in"
+    },
+    {
+      "name": "aws-core",
+      "type": "plugin",
+      "phase": 1,
+      "install": "Anthropic plugin directory: \"aws-core\" (by Amazon Web Services)",
+      "signIn": "AWS credentials (least-privilege IAM user)"
+    },
+    {
+      "name": "expo",
+      "type": "plugin",
+      "phase": 4,
+      "install": "Anthropic plugin directory: \"expo\" (by Expo)",
+      "signIn": "Expo account"
+    }
+  ]
+}

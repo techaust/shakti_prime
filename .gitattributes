@@ -1,0 +1,21 @@
+# Normalise line endings to LF in the repository; Windows checkouts keep LF too,
+# so lockfiles, migrations and snapshots never differ by platform.
+* text=auto eol=lf
+
+# Windows-specific files keep CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.keystore binary

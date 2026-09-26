@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.sentryclirc
+*.pem
+*.p8
+*.p12
+*.jks
+*.keystore
+*.mobileprovision
+
+# Expo and React Native
+.expo/
+.expo-shared/
+expo-env.d.ts
+web-build/
+apps/field/android/
+apps/field/ios/
+*.orig.*
+
+# Vercel and Supabase local state
+.vercel/
+supabase/.branches/
+supabase/.temp/
+
+# Test artefacts
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+.vitest/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-*.log*
+
+# Recordings, dumps and exported data never enter the repo
+*.wav
+*.mp3
+*.m4a
+*.dump
+*.sql.gz
+*.csv
+*.xlsx
+!packages/db/seeds/**/*.csv
+!**/fixtures/**/*.csv
+
+# OS and editors
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Claude Code local state
+.claude/settings.local.json
