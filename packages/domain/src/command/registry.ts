@@ -1,10 +1,12 @@
 import { DomainError } from '@shakti/contracts';
+import { createLead } from '../commands/crm/create-lead';
 import { updateEntity } from '../commands/org/update-entity';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
 export const commands = {
   [updateEntity.name]: updateEntity,
+  [createLead.name]: createLead,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {
