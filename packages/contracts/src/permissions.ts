@@ -18,6 +18,7 @@ export const PERMISSION_KEYS = [
   'sales.credit.release',
   'pricing.read',
   'pricing.write',
+  'catalogue.write',
   'tax.rates.write',
   'inventory.stock.read',
   'inventory.stock.move',
