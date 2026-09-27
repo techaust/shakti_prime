@@ -1,11 +1,39 @@
 import { DomainError, ReactivateUserInput, SuspendUserInput, UserDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
+import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { loadUserDto } from '../../queries/admin/user-dto';
-import { revokeUserSessions } from './shared';
+import {
+  assertAnExecutiveRemains,
+  assertUserInScope,
+  lockExecutiveChanges,
+  revokeUserSessions,
+} from './shared';
 
-/** `admin.user.suspend`: sign-in stops and every session is revoked. Reversible. */
+/** The target's status, after checking it exists and lies inside the request scope. */
+async function targetStatus(ctx: CommandContext, userId: string): Promise<string> {
+  const [user] = await ctx.tx
+    .select({ status: schema.users.status })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+  if (!user) {
+    throw new DomainError('not_found', 'user is not visible', { reason: 'user_missing' });
+  }
+  await assertUserInScope(ctx, userId);
+  if (user.status === 'offboarded') {
+    throw new DomainError('conflict', 'an offboarded user cannot change status', {
+      reason: 'user_offboarded',
+    });
+  }
+  return user.status;
+}
+
+/**
+ * `admin.user.suspend`: sign-in stops and every session is revoked. Reversible. Suspending a user
+ * who is already suspended answers their current record, so a repeated click is harmless.
+ */
 export const suspendUser = defineCommand({
   name: 'admin.user.suspend',
   permission: 'admin.users.write',
@@ -18,18 +46,15 @@ export const suspendUser = defineCommand({
         reason: 'self_suspend',
       });
     }
-    const [row] = await ctx.tx
+    const executivesBefore = await lockExecutiveChanges(ctx);
+    if ((await targetStatus(ctx, input.userId)) === 'suspended') {
+      return loadUserDto(ctx.tx, input.userId);
+    }
+    await ctx.tx
       .update(schema.users)
       .set({ status: 'suspended', updatedBy: ctx.principal.id })
-      .where(
-        and(eq(schema.users.id, input.userId), inArray(schema.users.status, ['invited', 'active'])),
-      )
-      .returning({ id: schema.users.id });
-    if (!row) {
-      throw new DomainError('not_found', 'no active or invited user to suspend', {
-        reason: 'user_missing',
-      });
-    }
+      .where(eq(schema.users.id, input.userId));
+    await assertAnExecutiveRemains(ctx, executivesBefore);
     const revoked = await revokeUserSessions(ctx, input.userId, 'suspended');
     const dto = await loadUserDto(ctx.tx, input.userId);
     for (const r of dto.entityRoles) {
@@ -45,7 +70,7 @@ export const suspendUser = defineCommand({
   },
 });
 
-/** `admin.user.reactivate`: a suspended user may sign in again. */
+/** `admin.user.reactivate`: a suspended user may sign in again. Anyone else is answered as is. */
 export const reactivateUser = defineCommand({
   name: 'admin.user.reactivate',
   permission: 'admin.users.write',
@@ -53,16 +78,13 @@ export const reactivateUser = defineCommand({
   input: ReactivateUserInput,
   output: UserDto,
   async handler(ctx, input) {
-    const [row] = await ctx.tx
+    if ((await targetStatus(ctx, input.userId)) !== 'suspended') {
+      return loadUserDto(ctx.tx, input.userId);
+    }
+    await ctx.tx
       .update(schema.users)
       .set({ status: 'active', updatedBy: ctx.principal.id })
-      .where(and(eq(schema.users.id, input.userId), eq(schema.users.status, 'suspended')))
-      .returning({ id: schema.users.id });
-    if (!row) {
-      throw new DomainError('not_found', 'no suspended user to reactivate', {
-        reason: 'user_missing',
-      });
-    }
+      .where(eq(schema.users.id, input.userId));
     const dto = await loadUserDto(ctx.tx, input.userId);
     for (const r of dto.entityRoles) {
       ctx.emit({

@@ -172,9 +172,11 @@ describe('price lists (pricing.read / pricing.write)', () => {
     expect(await visibleIds(field, 'price_change_log')).toEqual([]);
   });
 
-  it('only the Executive changes a price', async () => {
+  it('only the Executive changes a price, and a shared list only when acting for every company', async () => {
     const statement = sql`update price_list_items set price = price where id = ${fx.priceListItems.sharedPump} returning id`;
-    expect(await updated(principalFor('executive', [1]), statement)).toBe(1);
+    expect(await updated(principalFor('executive', [1, 2, 3, 4]), statement)).toBe(1);
+    // an Executive role acting for one company does not reach a list that prices all of them (AUDIT H2)
+    expect(await updated(principalFor('executive', [1]), statement)).toBe(0);
     expect(await updated(principalFor('general_manager', [1]), statement)).toBe(0);
     expect(await updated(principalFor('accounts', [1]), statement)).toBe(0);
   });

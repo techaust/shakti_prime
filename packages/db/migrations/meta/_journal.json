@@ -134,6 +134,13 @@
       "when": 1790465315893,
       "tag": "0018_review3_customer_link_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790486701143,
+      "tag": "0019_audit_shared_price_scope",
+      "breakpoints": true
     }
   ]
 }

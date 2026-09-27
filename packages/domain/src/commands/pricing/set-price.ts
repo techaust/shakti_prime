@@ -1,6 +1,6 @@
 import { DomainError, newId, PriceListItemDto, SetPriceInput } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { istCalendarDate } from '../../numbering/financial-year';
 
@@ -39,6 +39,18 @@ export const setPrice = defineCommand({
       (list.effectiveTo !== null && list.effectiveTo < istCalendarDate(ctx.now))
     ) {
       throw new DomainError('conflict', 'price list is closed', { reason: 'price_list_closed' });
+    }
+    // A shared list prices every company, so only a request acting for every company may change
+    // it (AUDIT H2); the database policy enforces the same rule.
+    if (list.entityId === null) {
+      const covered = (await ctx.tx.execute(
+        sql`select app.request_covers_group() as ok`,
+      )) as unknown as { ok: boolean }[];
+      if (covered[0]?.ok !== true) {
+        throw new DomainError('forbidden', 'a shared price list needs every company in scope', {
+          reason: 'price_list_group_scope',
+        });
+      }
     }
     const eventEntityId = list.entityId ?? ctx.entityIds[0];
     if (eventEntityId === undefined) {

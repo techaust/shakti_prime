@@ -8,6 +8,7 @@ import {
   createTestTeam,
   createTestUser,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { resolvePrincipalFromGrants } from '../../src/auth/resolve-principal';
 import { runCommand } from '../../src/command/run-command';
@@ -289,14 +290,23 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
       kind: 'inactive',
       status: 'suspended',
     });
+    // a repeated suspend (a double click) answers the current record and revokes nothing more
+    const again = await asPrincipal(exec, (context) =>
+      runCommand(suspendUser, { context }, { userId: user.id }),
+    );
+    expect(again.status).toBe('suspended');
     await expect(
-      asPrincipal(exec, (context) => runCommand(suspendUser, { context }, { userId: user.id })),
+      asPrincipal(exec, (context) => runCommand(suspendUser, { context }, { userId: newId() })),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'user_missing' } });
 
     const back = await asPrincipal(exec, (context) =>
       runCommand(reactivateUser, { context }, { userId: user.id }),
     );
     expect(back.status).toBe('active');
+    const backAgain = await asPrincipal(exec, (context) =>
+      runCommand(reactivateUser, { context }, { userId: user.id }),
+    );
+    expect(backAgain.status).toBe('active');
     expect(resolvePrincipalFromGrants(user.id, await loadUserGrants(user.id)).kind).toBe(
       'principal',
     );
@@ -321,5 +331,72 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     await expect(
       asPrincipal(gm, (context) => runCommand(revokeSession, { context }, { sessionId: s2 })),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('admin commands stay inside the request scope (AUDIT H2)', () => {
+  it('an Executive acting for one company cannot suspend, reactivate or sign out someone who also works in another', async () => {
+    const exec1 = await createTestPrincipal('executive', [1]);
+    const both = await createTestUser([
+      { entityId: 1, roleKey: 'tele_caller_cc' },
+      { entityId: 2, roleKey: 'tele_caller_cc' },
+    ]);
+    const session = await addSession(both.id);
+    const outside = { code: 'conflict', details: { reason: 'user_roles_outside_scope' } };
+
+    await expect(
+      asPrincipal(exec1, (context) => runCommand(suspendUser, { context }, { userId: both.id })),
+    ).rejects.toMatchObject(outside);
+    await expect(
+      asPrincipal(exec1, (context) =>
+        runCommand(revokeSession, { context }, { sessionId: session }),
+      ),
+    ).rejects.toMatchObject(outside);
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${both.id}`);
+    await expect(
+      asPrincipal(exec1, (context) => runCommand(reactivateUser, { context }, { userId: both.id })),
+    ).rejects.toMatchObject(outside);
+    expect(await revokedIds(both.id)).toEqual([]);
+
+    // someone who works only in that company is in scope
+    const onlyOne = await createTestUser([{ entityId: 1, roleKey: 'field_engineer' }]);
+    const suspended = await asPrincipal(exec1, (context) =>
+      runCommand(suspendUser, { context }, { userId: onlyOne.id }),
+    );
+    expect(suspended.status).toBe('suspended');
+  });
+
+  it('refuses a suspension or demotion that would leave no active Executive (AUDIT L7)', async () => {
+    const exec = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    // In one transaction, suspend every other active Executive, then act on the last one. The
+    // refusal rolls the whole transaction back, so the shared database is untouched.
+    const suspendOthers = sql`update users set status = 'suspended'
+      where status = 'active' and id <> ${target.id} and id in (
+        select uer.user_id from user_entity_roles uer
+        join roles r on r.id = uer.role_id where r.key = 'executive')`;
+    const lastExecutive = { code: 'conflict', details: { reason: 'last_executive' } };
+
+    await expect(
+      asPrincipal(exec, async (context) => {
+        await context.tx.execute(suspendOthers);
+        return runCommand(suspendUser, { context }, { userId: target.id });
+      }),
+    ).rejects.toMatchObject(lastExecutive);
+    await expect(
+      asPrincipal(exec, async (context) => {
+        await context.tx.execute(suspendOthers);
+        return runCommand(
+          setUserRoles,
+          { context },
+          { userId: target.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
+        );
+      }),
+    ).rejects.toMatchObject(lastExecutive);
+
+    const [row] = await asMigrator(
+      (m) => m<{ status: string }[]>`select status from users where id = ${target.id}`,
+    );
+    expect(row?.status).toBe('active');
   });
 });

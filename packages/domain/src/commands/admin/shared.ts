@@ -5,7 +5,7 @@ import {
   type SessionRevokeReason,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 
 /**
@@ -59,6 +59,62 @@ export async function resolveEntityRoles(
     resolved.push({ entityId: r.entityId, roleId, teamId: r.teamId ?? null });
   }
   return resolved;
+}
+
+/**
+ * Refuses a target who holds a role in an entity outside the request scope. Users and their
+ * sessions belong to no single entity, so acting on one reaches every company they work in; an
+ * admin role held in one company must not reach the others (fix P, AUDIT H2).
+ */
+export async function assertUserInScope(ctx: CommandContext, userId: string): Promise<void> {
+  const held = await ctx.tx
+    .select({ entityId: schema.userEntityRoles.entityId })
+    .from(schema.userEntityRoles)
+    .where(eq(schema.userEntityRoles.userId, userId));
+  const outside = [...new Set(held.map((r) => r.entityId))].filter(
+    (id) => !ctx.entityIds.includes(id),
+  );
+  if (outside.length > 0) {
+    throw new DomainError('conflict', 'user holds roles outside the request scope', {
+      reason: 'user_roles_outside_scope',
+      entityIds: outside,
+    });
+  }
+}
+
+async function countActiveExecutives(ctx: CommandContext): Promise<number> {
+  const [row] = await ctx.tx
+    .select({ count: sql<number>`count(distinct ${schema.users.id})::int` })
+    .from(schema.users)
+    .innerJoin(schema.userEntityRoles, eq(schema.userEntityRoles.userId, schema.users.id))
+    .innerJoin(schema.roles, eq(schema.roles.id, schema.userEntityRoles.roleId))
+    .where(and(eq(schema.users.status, 'active'), eq(schema.roles.key, 'executive')));
+  return row?.count ?? 0;
+}
+
+/**
+ * Serialises every change that can remove an Executive, so two Executives acting on each other
+ * at once cannot both succeed (AUDIT L7). Held until the transaction ends. Answers how many
+ * active Executives there are before the change.
+ */
+export async function lockExecutiveChanges(ctx: CommandContext): Promise<number> {
+  await ctx.tx.execute(sql`select pg_advisory_xact_lock(hashtext('admin.executives'))`);
+  return countActiveExecutives(ctx);
+}
+
+/**
+ * Refuses a change that took the group from at least one active Executive to none. A change that
+ * touches no Executive passes, whatever the count, so a new system is never stuck.
+ */
+export async function assertAnExecutiveRemains(
+  ctx: CommandContext,
+  executivesBefore: number,
+): Promise<void> {
+  if (executivesBefore > 0 && (await countActiveExecutives(ctx)) === 0) {
+    throw new DomainError('conflict', 'the change would leave no active Executive', {
+      reason: 'last_executive',
+    });
+  }
 }
 
 /** Marks every live session of a user revoked; returns the ids so the caller can drop caches. */

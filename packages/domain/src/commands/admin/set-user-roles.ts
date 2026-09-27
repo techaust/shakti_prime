@@ -3,15 +3,22 @@ import { schema } from '@shakti/db';
 import { eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { loadUserDto } from '../../queries/admin/user-dto';
-import { insertEntityRoles, resolveEntityRoles, revokeUserSessions } from './shared';
+import {
+  assertAnExecutiveRemains,
+  assertUserInScope,
+  insertEntityRoles,
+  lockExecutiveChanges,
+  resolveEntityRoles,
+  revokeUserSessions,
+} from './shared';
 
 /**
  * `admin.user.role.set`: replaces the user's access list and signs them out everywhere, so the
  * next request resolves the new grants (docs/SECURITY.md §2, rotation on privilege change).
  * The list is replaced as a whole, so the caller's request scope must cover every entity the
  * user holds today; a caller narrowed to one company is told to switch to all companies first.
- * Nobody edits their own roles: the caller is then always another active Executive, which also
- * guarantees an Executive remains after any change.
+ * Nobody edits their own roles. Changes that could remove an Executive are serialised and refused
+ * when none would remain, since two Executives could otherwise demote each other at once.
  */
 export const setUserRoles = defineCommand({
   name: 'admin.user.role.set',
@@ -38,23 +45,15 @@ export const setUserRoles = defineCommand({
         reason: 'user_offboarded',
       });
     }
-    const held = await ctx.tx
-      .select({ entityId: schema.userEntityRoles.entityId })
-      .from(schema.userEntityRoles)
-      .where(eq(schema.userEntityRoles.userId, input.userId));
-    const outside = held.map((r) => r.entityId).filter((id) => !ctx.entityIds.includes(id));
-    if (outside.length > 0) {
-      throw new DomainError('conflict', 'user holds roles outside the request scope', {
-        reason: 'user_roles_outside_scope',
-        entityIds: outside,
-      });
-    }
+    await assertUserInScope(ctx, input.userId);
     const rows = await resolveEntityRoles(ctx, input.entityRoles);
 
+    const executivesBefore = await lockExecutiveChanges(ctx);
     await ctx.tx
       .delete(schema.userEntityRoles)
       .where(eq(schema.userEntityRoles.userId, input.userId));
     await insertEntityRoles(ctx, input.userId, rows);
+    await assertAnExecutiveRemains(ctx, executivesBefore);
     await ctx.tx
       .update(schema.users)
       .set({ updatedBy: ctx.principal.id })
