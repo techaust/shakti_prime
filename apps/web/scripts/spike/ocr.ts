@@ -56,14 +56,16 @@ type Mode = 'unknown_slot' | 'known_slot';
 
 /**
  * Whether any QR code on `image` can be decoded, looking harder than a single pass: the whole
- * image, a smaller and a larger copy, and the four quarters enlarged. Independent of the
- * masker's own scan except for the decoder. The payload is only tested for the hidden digits
- * and dropped; it is never printed or kept.
+ * image (dark and light codes), a smaller and a larger copy, and the four quarters enlarged.
+ * Independent of the masker's own scan except for the decoder. The payload is only tested for
+ * being empty and for the hidden digits, then dropped; it is never printed or kept. A decode
+ * with an empty payload (jsQR now and then "finds" a version 1 code in the corner of a cover
+ * box and text) holds nothing and is counted apart as `emptyOnly`.
  */
 async function decodableQr(
   image: Buffer,
   hidden: string[],
-): Promise<{ readable: boolean; holdsHidden: boolean }> {
+): Promise<{ readable: boolean; holdsHidden: boolean; emptyOnly: boolean }> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()
@@ -85,8 +87,8 @@ async function decodableQr(
   ] as const) {
     views.push({ left, top, w: width - hw, h: height - hh, scale: 2 });
   }
-  const result = { readable: false, holdsHidden: false };
-  for (const v of views) {
+  const result = { readable: false, holdsHidden: false, emptyOnly: false };
+  for (const [index, v] of views.entries()) {
     const pixels = await sharp(data, { raw: { width, height, channels: 4 } })
       .extract({ left: v.left, top: v.top, width: v.w, height: v.h })
       .resize(Math.round(v.w * v.scale))
@@ -97,16 +99,20 @@ async function decodableQr(
       new Uint8ClampedArray(pixels.data.buffer, pixels.data.byteOffset, pixels.data.length),
       pixels.info.width,
       pixels.info.height,
-      { inversionAttempts: 'attemptBoth' },
+      // Light codes on the whole image only: the generated codes are dark, and trying both
+      // ways on every view doubles the time of the check.
+      { inversionAttempts: index === 0 ? 'attemptBoth' : 'dontInvert' },
     );
     pixels.data.fill(0);
     if (code) {
-      result.readable = true;
+      if (code.binaryData.length === 0) result.emptyOnly = true;
+      else result.readable = true;
       if (hidden.some((h) => code.data.includes(h))) result.holdsHidden = true;
       code.binaryData.fill(0);
     }
   }
   data.fill(0);
+  if (result.readable) result.emptyOnly = false;
   return result;
 }
 
@@ -170,6 +176,8 @@ interface Row {
   qrReadableAfter: boolean;
   /** A decoded code on the masked image held the hidden digits. */
   qrLeak: boolean;
+  /** Only an empty decode (no payload) was found on the masked image. */
+  qrEmptyDecodeAfter: boolean;
   passes: number;
   totalMs: number;
   qrMs: number;
@@ -221,6 +229,7 @@ async function runOne(
     qrEstimated: 0,
     qrReadableAfter: false,
     qrLeak: false,
+    qrEmptyDecodeAfter: false,
     passes: outcome.timings.passes,
     totalMs: Math.round(outcome.timings.totalMs),
     qrMs: Math.round(outcome.timings.qrMs),
@@ -265,6 +274,7 @@ async function runOne(
   const qrAfter = await decodableQr(outcome.image, hidden);
   row.qrReadableAfter = qrAfter.readable;
   row.qrLeak = qrAfter.holdsHidden;
+  row.qrEmptyDecodeAfter = qrAfter.emptyOnly;
   // A masked image that still shows a hidden number or a readable QR code is counted, never
   // written: only images that passed every check reach the disk.
   if (!row.leakInText && !row.leakOnReread && !row.qrReadableAfter) {
@@ -334,6 +344,7 @@ function summarize(rows: Row[]) {
       coverBoxesOnDocumentsWithoutQr: sum((r) => (r.qrPlaced ? 0 : r.qrBoxes)),
       decodableAfterMasking: rows.filter((r) => r.qrReadableAfter).map((r) => r.id),
       hiddenDigitsDecodableAfterMasking: rows.filter((r) => r.qrLeak).map((r) => r.id),
+      emptyDecodesAfterMasking: rows.filter((r) => r.qrEmptyDecodeAfter).map((r) => r.id),
       timeAddedPerImageMs: {
         mean: Math.round(sum((r) => r.qrMs) / rows.length),
         p50: percentile(qrTimes, 50),
@@ -403,7 +414,7 @@ async function main() {
       const row = await runOne(doc, mode, masker, checker);
       results[mode].push(row);
       console.log(
-        `${mode.padEnd(12)} ${row.id} ${row.kind.padEnd(13)} ${row.hard ? 'hard' : '    '} ${row.status.padEnd(12)} aadhaar ${row.aadhaarFound}/${row.aadhaarExpected} bank ${row.bankFound}/${row.bankExpected} extra ${row.unexpectedSpans} leak ${row.leakInText || row.leakOnReread ? 'YES' : 'no'} qr ${row.qrPlaced ? `${row.qrReadableBefore ? 'readable' : 'unreadable'} covered ${row.qrCoveredShare === undefined ? '-' : row.qrCoveredShare.toFixed(3)}` : 'none'} boxes ${row.qrBoxes} after ${row.qrReadableAfter ? 'READABLE' : 'no'}${row.cause ? ` (${row.cause})` : ''} ${row.qrMs}/${row.totalMs} ms`,
+        `${mode.padEnd(12)} ${row.id} ${row.kind.padEnd(13)} ${row.hard ? 'hard' : '    '} ${row.status.padEnd(12)} aadhaar ${row.aadhaarFound}/${row.aadhaarExpected} bank ${row.bankFound}/${row.bankExpected} extra ${row.unexpectedSpans} leak ${row.leakInText || row.leakOnReread ? 'YES' : 'no'} qr ${row.qrPlaced ? `${row.qrReadableBefore ? 'readable' : 'unreadable'} covered ${row.qrCoveredShare === undefined ? '-' : row.qrCoveredShare.toFixed(3)}` : 'none'} boxes ${row.qrBoxes} after ${row.qrReadableAfter ? 'READABLE' : row.qrEmptyDecodeAfter ? 'empty decode' : 'no'}${row.cause ? ` (${row.cause})` : ''} ${row.qrMs}/${row.totalMs} ms`,
       );
     }
   }
