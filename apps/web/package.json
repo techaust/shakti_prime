@@ -17,7 +17,9 @@
     "invite-executive": "tsx scripts/invite-executive.ts",
     "qstash-schedule": "tsx scripts/qstash-schedule.ts",
     "spike:print": "tsx scripts/spike/print.ts",
-    "spike:ocr": "tsx scripts/spike/ocr.ts"
+    "spike:ocr": "tsx scripts/spike/ocr.ts",
+    "realtime-keys": "tsx scripts/realtime-keys.ts",
+    "realtime-spike": "tsx scripts/realtime-spike.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
@@ -30,6 +32,7 @@
     "@upstash/redis": "^1.39.0",
     "better-auth": "^1.7.6",
     "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12",
     "lucide-react": "^1.48.0",
     "next": "^16.3.6",
     "next-intl": "^4.14.7",

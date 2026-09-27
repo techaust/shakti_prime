@@ -15,6 +15,7 @@ How the BOS reaches staging and production: the database, its secrets, the first
    - `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`: real keys for the environment's hostname, never Cloudflare's test keys;
    - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`;
    - `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` (and `QSTASH_URL` when the QStash region is not the default);
+   - `BOS_JWT_CURRENT_KEY` (and `BOS_JWT_NEXT_KEY` during a rotation) once Realtime is switched on: a private key from `pnpm --silent --filter web realtime-keys`, never stored anywhere else; without it `/api/v1/realtime/token` and `/.well-known/jwks.json` answer unavailable and nothing else changes;
    - `MAILER=log` on staging. Production needs the mail provider first: it refuses to start with `log`.
 
    A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()`), and `/api/v1/health/ready` reports which dependency is down.
@@ -41,4 +42,5 @@ It prints the set-password link to the terminal of the person running it; the li
 ## 5. Rotating a secret
 - **Database passwords:** set the new values in the GitHub environment, run `pnpm db:migrate -- --rotate-passwords` with them, then update `DATABASE_URL`, `DATABASE_URL_AUTH` and `DATABASE_URL_OUTBOX` in Vercel and redeploy.
 - **QStash signing keys:** roll them in the Upstash console; the publisher route accepts the current and the next key, so update both variables in Vercel and redeploy after each roll.
+- **BOS signing keys (`BOS_JWT_CURRENT_KEY`, `BOS_JWT_NEXT_KEY`, every 6 months, ADR 0003):** make a key with `pnpm --silent --filter web realtime-keys` straight into Vercel as `BOS_JWT_NEXT_KEY` and redeploy; after at least 10 minutes (the key list's cache and Supabase's), swap the two values so the new key signs and the old one stays published, and redeploy; after another 30 minutes (the longest token life twice over), clear `BOS_JWT_NEXT_KEY` and redeploy. The steps and their checks are in `docs/spikes/realtime.md` §5.
 - **`BETTER_AUTH_SECRET`:** never replace it outright; it also encrypts stored authenticator secrets. Follow SECURITY §10.
