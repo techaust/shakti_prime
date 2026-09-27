@@ -137,6 +137,12 @@ export function renderTailwindCss(): string {
   lines.push('  --spacing-row-compact: var(--row-compact);');
   lines.push('  --container-form: var(--content-form);');
   lines.push('  --container-detail: var(--content-detail);');
+  // The type roles as text sizes (`text-h1`, `text-caption`), each with its line height and weight.
+  for (const role of Object.keys(scale.font)) {
+    lines.push(`  --text-${role}: var(--font-${role}-size);`);
+    lines.push(`  --text-${role}--line-height: var(--font-${role}-line);`);
+    lines.push(`  --text-${role}--font-weight: var(--font-${role}-weight);`);
+  }
   lines.push('}', '');
   lines.push(':root {');
   const shadcn = SHADCN_ALIASES;

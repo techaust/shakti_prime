@@ -1,0 +1,37 @@
+/* Imported by the app's global stylesheet after the tokens: Tailwind scans these components for
+   their classes, and the overlay, dialog and sheet motion uses the token durations (DESIGN.md §4).
+   The global reduced-motion rule shortens every animation for people who ask for it. */
+@source './';
+
+@theme inline {
+  --animate-overlay-in: ui-fade-in var(--motion-panel) ease-out;
+  --animate-dialog-in: ui-dialog-in var(--motion-dialog) ease-out;
+  --animate-sheet-in-right: ui-sheet-in-right var(--motion-panel) ease-out;
+  --animate-sheet-in-left: ui-sheet-in-left var(--motion-panel) ease-out;
+}
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    /* Tailwind v4 centres with the separate `translate` property, which this composes with. */
+    transform: translateY(0.5rem) scale(0.98);
+  }
+}
+
+@keyframes ui-sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}

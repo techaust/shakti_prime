@@ -71,6 +71,33 @@
   --spacing-row-compact: var(--row-compact);
   --container-form: var(--content-form);
   --container-detail: var(--content-detail);
+  --text-display: var(--font-display-size);
+  --text-display--line-height: var(--font-display-line);
+  --text-display--font-weight: var(--font-display-weight);
+  --text-h1: var(--font-h1-size);
+  --text-h1--line-height: var(--font-h1-line);
+  --text-h1--font-weight: var(--font-h1-weight);
+  --text-h2: var(--font-h2-size);
+  --text-h2--line-height: var(--font-h2-line);
+  --text-h2--font-weight: var(--font-h2-weight);
+  --text-h3: var(--font-h3-size);
+  --text-h3--line-height: var(--font-h3-line);
+  --text-h3--font-weight: var(--font-h3-weight);
+  --text-body: var(--font-body-size);
+  --text-body--line-height: var(--font-body-line);
+  --text-body--font-weight: var(--font-body-weight);
+  --text-body-dense: var(--font-body-dense-size);
+  --text-body-dense--line-height: var(--font-body-dense-line);
+  --text-body-dense--font-weight: var(--font-body-dense-weight);
+  --text-body-phone: var(--font-body-phone-size);
+  --text-body-phone--line-height: var(--font-body-phone-line);
+  --text-body-phone--font-weight: var(--font-body-phone-weight);
+  --text-caption: var(--font-caption-size);
+  --text-caption--line-height: var(--font-caption-line);
+  --text-caption--font-weight: var(--font-caption-weight);
+  --text-numeric: var(--font-numeric-size);
+  --text-numeric--line-height: var(--font-numeric-line);
+  --text-numeric--font-weight: var(--font-numeric-weight);
 }
 
 :root {

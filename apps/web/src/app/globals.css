@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '@shakti/tokens/tokens.css';
 @import '@shakti/tokens/tailwind.css';
+@import '@shakti/ui/styles.css';
 
 /* The root keeps the browser's text size, so a user's own setting is respected and every rem
    (Tailwind spacing, control heights) keeps its designed size (DESIGN.md §3). */
