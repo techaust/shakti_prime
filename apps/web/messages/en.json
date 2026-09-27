@@ -897,11 +897,11 @@
       "chosen": "{name}, {size}",
       "submit": "Read the file",
       "cancel": "Cancel",
-      "done": "We read {rows} rows from {file}."
+      "done": "{count, plural, one {We read {shown} row from {file}.} other {We read {shown} rows from {file}.}}"
     },
     "job": {
       "title": "Import of {file}",
-      "meta": "{company}, {rows} rows, started {date}",
+      "meta": "{company}, {count, plural, one {{shown} row} other {{shown} rows}}, started {date}",
       "back": "All imports"
     },
     "map": {
@@ -973,8 +973,8 @@
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",
       "remap": "Change the columns",
-      "commit": "Add {count} leads",
-      "commitHelper": "{count} rows that need correcting or are repeated are left out."
+      "commit": "{count, plural, one {Add {shown} lead} other {Add {shown} leads}}",
+      "commitHelper": "{count, plural, one {{shown} row that needs correcting or is repeated is left out.} other {{shown} rows that need correcting or are repeated are left out.}}"
     },
     "progress": {
       "title": "Adding the leads",
@@ -991,7 +991,7 @@
     },
     "done": {
       "title": "Leads added",
-      "intro": "{count} leads were added from this file.",
+      "intro": "{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}",
       "rolledBackTitle": "Import undone",
       "rolledBackIntro": "The leads from this file were taken back. The customers stay in your customer list.",
       "viewLeads": "See the leads",
@@ -1000,7 +1000,7 @@
     },
     "rollbackDialog": {
       "title": "Undo this import?",
-      "intro": "This takes back the {count} leads this file added. The customers stay in your customer list, because other leads may belong to them. You can't reverse this.",
+      "intro": "{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.",
       "submit": "Undo import",
       "done": "The leads from {file} were taken back."
     },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkCatalogues, checkParity, checkString, flatten } from './rules';
+import { checkCatalogues, checkParity, checkString, flatten, messageVariants } from './rules';
 
 describe('flatten', () => {
   it('produces dotted keys', () => {
@@ -55,6 +55,18 @@ describe('checkString', () => {
   it('flags empty strings and exclamation marks', () => {
     expect(checkString('k', '  ', 'en').map((i) => i.reason)).toContain('empty string');
     expect(checkString('k', 'Saved!', 'en').map((i) => i.reason)).toContain('exclamation mark');
+  });
+
+  it('measures each wording of a plural message, not the pattern', () => {
+    const plural = '{count, plural, one {Add {shown} lead} other {Add {shown} leads}}';
+    expect(messageVariants(plural)).toEqual(['Add {shown} lead', 'Add {shown} leads']);
+    const limits = [{ keyPattern: '\\.commit$', max: 24 }];
+    expect(checkString('imports.check.commit', plural, 'en', limits)).toEqual([]);
+    const tooLong = '{count, plural, one {x} other {This label is far too long to fit}}';
+    expect(checkString('imports.check.commit', tooLong, 'en', limits)).toEqual([
+      { key: 'imports.check.commit', locale: 'en', reason: 'longer than 24 characters' },
+    ]);
+    expect(messageVariants('No choice here {shown}')).toEqual(['No choice here {shown}']);
   });
 
   it('enforces length limits by key pattern', () => {

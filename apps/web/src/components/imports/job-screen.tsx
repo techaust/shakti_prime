@@ -61,7 +61,8 @@ export function JobScreen({
           <p className="text-text-muted text-sm">
             {t('job.meta', {
               company,
-              rows: formatCount(job.totalRows),
+              count: job.totalRows,
+              shown: formatCount(job.totalRows),
               date: formatDateTime(job.createdAt),
             })}
           </p>

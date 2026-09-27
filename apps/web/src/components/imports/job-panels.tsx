@@ -144,7 +144,9 @@ export function CommitPanel({
       {job.validRows === 0 ? (
         <p className="text-danger text-sm">{errors('import_nothing_to_commit')}</p>
       ) : left > 0 ? (
-        <p className="text-text-muted text-sm">{t('commitHelper', { count: formatCount(left) })}</p>
+        <p className="text-text-muted text-sm">
+          {t('commitHelper', { count: left, shown: formatCount(left) })}
+        </p>
       ) : null}
       <FailureMessage failure={failure} />
       <Actions>
@@ -158,7 +160,7 @@ export function CommitPanel({
               run({ entityId: job.entityId, jobId: job.id }, onDone);
             }}
           >
-            {t('commit', { count: formatCount(job.validRows) })}
+            {t('commit', { count: job.validRows, shown: formatCount(job.validRows) })}
           </Button>
         )}
       </Actions>
@@ -302,7 +304,7 @@ export function OutcomePanel({
     ) : job.state === 'rolled_back' ? (
       t('done.rolledBackIntro')
     ) : (
-      t('done.intro', { count: formatCount(job.committedRows) })
+      t('done.intro', { count: job.committedRows, shown: formatCount(job.committedRows) })
     );
 
   return (
@@ -405,7 +407,7 @@ function RollbackForm({
       <DialogHeader>
         <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription>
-          {t('intro', { count: formatCount(job.committedRows) })}
+          {t('intro', { count: job.committedRows, shown: formatCount(job.committedRows) })}
         </DialogDescription>
       </DialogHeader>
       <FailureMessage failure={failure} />

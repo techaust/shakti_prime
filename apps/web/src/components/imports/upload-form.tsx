@@ -85,7 +85,9 @@ export function UploadForm({
     setProblem(found);
     if (found !== undefined) return;
     run(form, (job) => {
-      toast.success(t('done', { rows: formatCount(job.totalRows), file: job.file.name }));
+      toast.success(
+        t('done', { count: job.totalRows, shown: formatCount(job.totalRows), file: job.file.name }),
+      );
       router.push(jobHref(job));
     });
   }
