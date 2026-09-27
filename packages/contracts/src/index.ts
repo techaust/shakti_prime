@@ -9,6 +9,7 @@ export * from './crm/enums';
 export * from './crm/phone';
 export * from './catalogue/enums';
 export * from './numbering/document-no';
+export * from './tax/engine';
 export * from './dto/entity';
 export * from './dto/lead';
 export * from './dto/item';

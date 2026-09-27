@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MoneySchema } from '../catalogue/enums';
+import { MoneySchema, SignedMoneySchema } from '../catalogue/enums';
 import { DateOnlySchema, SemverSchema } from './common';
 import { EntityCodeSchema } from './ingest';
 
@@ -65,9 +65,6 @@ export const AlterIdSchema = z.number().int().min(0);
 
 /** GSTIN: state code, PAN, entity number, `Z`, check character. */
 export const GstinSchema = z.string().regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/);
-
-/** A signed amount with two decimals; Tally's debit and credit sides differ in sign. */
-export const SignedMoneySchema = z.string().regex(/^-?\d{1,12}\.\d{2}$/);
 
 /** Voucher types the BOS reads. Purchase and debit notes land in the restricted table. */
 export const TALLY_VOUCHER_TYPES = [
