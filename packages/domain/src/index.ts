@@ -81,3 +81,16 @@ export type {
   LineMask,
   MaskedText,
 } from './privacy/identity-numbers';
+export { WORKSHOP_DEFAULTS } from './workshop-defaults';
+export type { WorkshopDefaults } from './workshop-defaults';
+export { divideHalfUp, fromPaise, moneyFromPaise, toPaise, toScaled } from './money/paise';
+export {
+  computeDocument,
+  computeLine,
+  compositeSplit,
+  effectiveOn,
+  placeOfSupply,
+  resolveCompositeRule,
+  resolveRate,
+} from './tax';
+export type { CompositeParts, CompositeQuery, LineInput, RateQuery, SupplyParties } from './tax';
