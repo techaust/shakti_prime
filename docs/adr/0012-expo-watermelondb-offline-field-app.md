@@ -1,6 +1,6 @@
 # ADR 0012 — Expo with WatermelonDB for the offline field app
 
-**Status:** Proposed (2026-09-27; confirmed when the Phase 3 field app build starts, with the mobile token work of week 3 slice 1b part 3) · **Blueprint:** §5, §8.7, §16 · **Architecture:** §10 · **API:** §3.1, §3.2 · **Design:** docs/design/backend-weeks-3-5.md §2.4 · **ADR:** 0003, 0006
+**Status:** Proposed (2026-09-27; confirmed when the field app build starts in Phase 4, ROADMAP §6, with the mobile token work of week 3 slice 1b part 3) · **Blueprint:** §5, §8.7, §16 · **Architecture:** §10 · **API:** §3.1, §3.2 · **Design:** docs/design/backend-weeks-3-5.md §2.4 · **ADR:** 0003, 0006
 
 ## Context
 Field engineers survey sites, install pumps and rooftop systems, record QC, material, attendance and expenses in villages with weak or no signal, sometimes for several days. The app must work fully offline for at least **5 days**, keep photos and signatures safe until they upload, and never let two people's edits silently overwrite each other. The team is one developer working in TypeScript and React; only Android is needed.
@@ -20,6 +20,6 @@ Field engineers survey sites, install pumps and rooftop systems, record QC, mate
 ## Consequences
 - The whole stack stays TypeScript; `@shakti/contracts` validates sync payloads on both ends.
 - WatermelonDB's lazy loading keeps large working sets fast on low-end Android phones; its schema migrations ship with each app release and are tested against the previous version's database.
-- The sync protocol is ours to maintain: collection DTOs and the per-field merge rules are contracted per module as each Phase 3 screen is built.
+- The sync protocol is ours to maintain: collection DTOs and the per-field merge rules are contracted per module as each Phase 4 screen is built.
 - An engineer offline longer than the refresh window signs in again before pushing; local data stays on the device until then.
 - A second developer for the Android app (blueprint §18, risk 1) can work against the contracts without touching the web app.
