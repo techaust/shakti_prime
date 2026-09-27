@@ -4,13 +4,18 @@
 // is wiped as soon as the code is located and is never kept, compared or logged.
 //
 // Pure: works on pixels in memory. Two ways of locating a code:
-// 1. Decoding it with jsQR, on the whole photo and a smaller copy of a large one; when finder
-//    marks are still left after that, on nine overlapping tiles as well (enlarged on a small
-//    photo), so a small code in a corner is found too. Each located code is painted out of the
-//    working copy and the pass repeats, so a second code on the same photo is found.
+// 1. Decoding it with jsQR: first on the photo, or on a copy at most 1000 px long when it is
+//    large; then, wherever finder marks (dark on light or light on dark) are still left, on the
+//    whole photo at full size and on each overlapping tile that holds a mark (enlarged on a
+//    small photo), so a small code in a corner is found too. Each located code is painted out
+//    of the working copy and the pass repeats, so a second code on the same photo is found.
 // 2. Finding the three square finder marks of a code jsQR could not decode (blurred, torn,
 //    partly shaded). Three marks at the corners of a square locate the code as well; a finder
 //    mark that belongs to no such square is counted as `uncovered`, since a code may be there.
+//
+// The full-size and tile passes run only where finder marks are left because jsQR is slow on a
+// large photo full of text (seconds a pass) and finds nothing there; the finder scan sees marks
+// from about 1.3 px a module, and the first pass reads a clean code on a smaller copy.
 import jsQR from 'jsqr';
 import type { Box } from './plan-masks';
 
@@ -184,21 +189,18 @@ interface Pass {
   invert: boolean;
 }
 
-/** The whole photo, and a smaller copy of a large one (a big, soft code reads better small). */
-function wholePasses(width: number, height: number): Pass[] {
-  const whole = { x0: 0, y0: 0, x1: width, y1: height };
-  const longest = Math.max(width, height);
-  const passes: Pass[] = [{ crop: whole, scale: 1, invert: true }];
-  if (longest > 1300) passes.push({ crop: whole, scale: 1000 / longest, invert: false });
-  return passes;
-}
+// A photo at most this long is read at full size from the start, and its tiles enlarged.
+const SMALL_PHOTO_PX = 1300;
+// The longest side of the first, quick copy of a larger photo.
+const QUICK_COPY_PX = 1000;
 
 /**
  * Nine tiles, each half the photo a side and overlapping by half, enlarged on a small photo:
- * a small code in a corner is found here when the whole photo does not show it.
+ * a small code in a corner is found here when the whole photo does not show it. A code up to a
+ * quarter of the photo a side lies wholly inside a tile that holds any point of it.
  */
 function tilePasses(width: number, height: number): Pass[] {
-  const scale = Math.max(width, height) < 1300 ? 2 : 1;
+  const scale = Math.max(width, height) <= SMALL_PHOTO_PX ? 2 : 1;
   const tw = Math.ceil(width / 2);
   const th = Math.ceil(height / 2);
   const passes: Pass[] = [];
@@ -446,36 +448,68 @@ export function groupFinderMarks(marks: readonly FinderMark[]): {
   return { codes, loose: [...free] };
 }
 
+/** Finder marks of dark-on-light codes and, on an inverted copy, of light-on-dark ones. */
+function findAllMarks(gray: Gray): { dark: FinderMark[]; light: FinderMark[] } {
+  const dark = findFinderMarks(gray);
+  const inverted = new Uint8ClampedArray(gray.data.length);
+  for (let i = 0; i < inverted.length; i++) inverted[i] = 255 - at(gray.data, i);
+  const light = findFinderMarks({ data: inverted, width: gray.width, height: gray.height });
+  inverted.fill(0);
+  return { dark, light };
+}
+
+function inside(point: Point, box: Box): boolean {
+  return point.x >= box.x0 && point.x < box.x1 && point.y >= box.y0 && point.y < box.y1;
+}
+
 /**
  * Every QR code on the photo, as rectangles to cover. `image` is read, not changed; every
  * working copy is zeroed before this returns.
  */
 export function scanQrCodes(image: Raster): QrScan {
+  const { width, height } = image;
   const work = toGray(image);
-  const bounds = { width: image.width, height: image.height };
+  const bounds = { width, height };
+  const whole = { x0: 0, y0: 0, x1: width, y1: height };
+  const longest = Math.max(width, height);
+  const small = longest <= SMALL_PHOTO_PX;
   const boxes: Box[] = [];
   let decoded = 0;
-  for (const pass of wholePasses(image.width, image.height)) {
-    decoded += decodeCodes(work, pass, boxes);
-  }
-  // Finder marks left on the photo mean a code the whole-photo passes did not decode: look for
-  // it tile by tile, then look for marks again. A photo with none is spared the tiles (they
-  // cost two to five seconds a photo): the finder scan sees marks from about 1.3 px a module,
-  // and the whole-photo decode reads a clean code smaller than that.
-  let marks = findFinderMarks(work);
-  if (marks.length > 0) {
-    for (const pass of tilePasses(image.width, image.height)) {
-      decoded += decodeCodes(work, pass, boxes);
+
+  // 1. The photo, or a quick copy of a large one: a clean code of any usual size reads here.
+  decoded += decodeCodes(
+    work,
+    { crop: whole, scale: small ? 1 : QUICK_COPY_PX / longest, invert: true },
+    boxes,
+  );
+
+  // 2. Finder marks left on the photo mean a code not decoded yet: read the whole photo at full
+  //    size and every tile holding a mark, then look for marks again.
+  let marks = findAllMarks(work);
+  let left = [...marks.dark, ...marks.light];
+  if (left.length > 0) {
+    if (!small) decoded += decodeCodes(work, { crop: whole, scale: 1, invert: true }, boxes);
+    for (const pass of tilePasses(width, height)) {
+      if (left.some((m) => inside(m, pass.crop))) decoded += decodeCodes(work, pass, boxes);
     }
-    marks = findFinderMarks(work);
+    marks = findAllMarks(work);
+    left = [...marks.dark, ...marks.light];
   }
 
-  const { codes, loose } = groupFinderMarks(marks);
+  // 3. Three marks at the corners of a square place a code jsQR could not read; a mark in no
+  //    such square is left uncovered and counted.
   work.data.fill(0);
-  for (const code of codes) {
-    const pitch = (code.corner.pitch + code.b.pitch + code.c.pitch) / 3;
-    const { corners, dimension } = cornersFromFinders(code.corner, code.b, code.c, pitch);
-    boxes.push(qrCoverBox(corners, dimension, bounds));
+  let estimated = 0;
+  let uncovered = 0;
+  for (const group of [marks.dark, marks.light]) {
+    const { codes, loose } = groupFinderMarks(group);
+    for (const code of codes) {
+      const pitch = (code.corner.pitch + code.b.pitch + code.c.pitch) / 3;
+      const { corners, dimension } = cornersFromFinders(code.corner, code.b, code.c, pitch);
+      boxes.push(qrCoverBox(corners, dimension, bounds));
+    }
+    estimated += codes.length;
+    uncovered += loose.length;
   }
-  return { boxes, decoded, estimated: codes.length, uncovered: loose.length };
+  return { boxes, decoded, estimated, uncovered };
 }

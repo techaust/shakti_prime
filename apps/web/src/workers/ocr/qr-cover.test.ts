@@ -250,6 +250,30 @@ describe('scanQrCodes', () => {
     ).toBeNull();
   });
 
+  it('covers a small code on a large photo', () => {
+    const image = blank(1400, 360);
+    for (let i = 0; i < 12; i++) fillRect(image, 40 + i * 90, 40, 70, 12, 30);
+    const code = drawQr(image, 'made-up small record', 1250, 250, 2);
+    const scan = scanQrCodes(image);
+    expect(scan.boxes.some((b) => contains(b, code, 8))).toBe(true);
+    cover(image, scan.boxes);
+    expect(
+      jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' }),
+    ).toBeNull();
+  });
+
+  it('counts light finder marks on a dark ground that belong to no code', () => {
+    const image = blank(320, 260, 20);
+    for (const x of [60, 60 + 18 * 6]) {
+      fillRect(image, x, 60, 42, 42, 245);
+      fillRect(image, x + 6, 66, 30, 30, 20);
+      fillRect(image, x + 12, 72, 18, 18, 245);
+    }
+    const scan = scanQrCodes(image);
+    expect(scan.boxes).toEqual([]);
+    expect(scan.uncovered).toBe(2);
+  });
+
   it('leaves the photo it is given unchanged', () => {
     const image = blank(200, 200);
     drawQr(image, 'made-up record', 40, 40, 4);
