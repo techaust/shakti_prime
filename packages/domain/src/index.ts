@@ -94,3 +94,43 @@ export {
   resolveRate,
 } from './tax';
 export type { CompositeParts, CompositeQuery, LineInput, RateQuery, SupplyParties } from './tax';
+export { creditCheck } from './sales/credit-check';
+export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
+export {
+  allOf,
+  defineMachine,
+  findTransition,
+  reasonGiven,
+  transition,
+} from './state-machines/define-machine';
+export type {
+  Actor,
+  AnyMachine,
+  Effect,
+  Guard,
+  GuardFailure,
+  Machine,
+  MachineRecord,
+  MachineSpec,
+  TransitionContext,
+  TransitionResult,
+  TransitionSpec,
+} from './state-machines/define-machine';
+export { MACHINE_REASONS, MACHINES } from './state-machines/registry';
+export { opportunityMachine } from './state-machines/machines/opportunity';
+export type { OpportunityParams, OpportunityRecord } from './state-machines/machines/opportunity';
+export { quoteMachine, quoteValidUntil } from './state-machines/machines/quote';
+export type { QuoteParams, QuoteRecord } from './state-machines/machines/quote';
+export { salesOrderMachine } from './state-machines/machines/sales-order';
+export type { SalesOrderParams, SalesOrderRecord } from './state-machines/machines/sales-order';
+export { dispatchMachine, needsEwayBill } from './state-machines/machines/dispatch';
+export type { DispatchParams, DispatchRecord } from './state-machines/machines/dispatch';
+export { projectStandardMachine } from './state-machines/machines/project-standard';
+export { projectSuryaGharMachine } from './state-machines/machines/project-surya-ghar';
+export { subsidyGateMachine } from './state-machines/machines/subsidy-gate';
+export { customerLoanMachine } from './state-machines/machines/customer-loan';
+export { warrantyClaimMachine } from './state-machines/machines/warranty-claim';
+export { documentFilingMachine } from './state-machines/machines/document-filing';
+export { expenseClaimMachine } from './state-machines/machines/expense-claim';
+export { playbookDirectiveMachine } from './state-machines/machines/playbook-directive';
+export { tallyVoucherMachine } from './state-machines/machines/tally-voucher';
