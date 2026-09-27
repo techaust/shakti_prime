@@ -1,5 +1,7 @@
 import type { Principal } from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
+import type { z } from 'zod';
+import type { Command } from './define-command';
 
 /**
  * An event a command wants delivered after commit. The runner checks it against the event
@@ -38,4 +40,19 @@ export interface CommandContext {
   audit: (change: AuditChange) => void;
   now: Date;
   requestId: string;
+  /**
+   * Runs another command as the same caller inside this transaction, with its own guard, DTO,
+   * audit rows and events; `tx` narrows it to a savepoint the handler opened. Imports commit
+   * their rows through here, so a lead from a file is made exactly as one typed in.
+   */
+  run: <I extends z.ZodType, O extends z.ZodType>(
+    command: Command<I, O>,
+    input: unknown,
+    options?: NestedRunOptions,
+  ) => Promise<z.output<O>>;
+}
+
+export interface NestedRunOptions {
+  idempotencyKey?: string;
+  tx?: RequestTx;
 }

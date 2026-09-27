@@ -474,3 +474,74 @@ describe('runCommand with an idempotency key', () => {
     expect(store.rows.size).toBe(0);
   });
 });
+
+describe('commands inside commands and audit summaries', () => {
+  const outer = defineCommand({
+    name: 'test.outer',
+    permission: 'crm.lead.read',
+    input: z.object({ values: z.array(z.string()), failAt: z.number().optional() }).strict(),
+    output: z.object({ count: z.number() }).strict(),
+    auditInput: (input) => ({ values: input.values.length }),
+    async handler(ctx, input) {
+      for (const [i, value] of input.values.entries()) {
+        await ctx.run(echo, i === input.failAt ? { value: i } : { value }, {
+          idempotencyKey: newId(),
+        });
+      }
+      return { count: input.values.length };
+    },
+  });
+
+  it('runs the inner command with its own guard, audit row and key, in the same sinks', async () => {
+    const audit = memoryAuditSink();
+    const store = memoryIdempotencyStore();
+    const result = await runCommand(
+      outer,
+      { context: context(principal()), audit, outbox: memoryOutboxSink(), idempotency: store },
+      { values: ['a', 'b'] },
+    );
+    expect(result).toEqual({ count: 2 });
+    expect(audit.records.map((r) => r.command)).toEqual(['test.echo', 'test.echo', 'test.outer']);
+    expect(store.rows.size).toBe(2);
+    // The outer row records the summary, never the values themselves.
+    expect(audit.records[2]?.input).toEqual({ values: 2 });
+    expect(audit.records[0]?.input).toEqual({ value: 'a' });
+  });
+
+  it('tags an inner failure with the outer command’s stage and input', async () => {
+    const error: unknown = await runCommand(
+      outer,
+      {
+        context: context(principal()),
+        audit: memoryAuditSink(),
+        outbox: memoryOutboxSink(),
+        idempotency: memoryIdempotencyStore(),
+      },
+      { values: ['a', 'b'], failAt: 1 },
+    ).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'validation_failed' });
+    expect(failureOf(error)).toEqual({
+      stage: 'handler',
+      input: { values: ['a', 'b'], failAt: 1 },
+    });
+  });
+
+  it('refuses the inner command when the caller lacks its permission', async () => {
+    const guarded = defineCommand({
+      ...outer,
+      name: 'test.outer_guarded',
+      permission: 'crm.lead.read',
+      async handler(ctx) {
+        await ctx.run({ ...echo, permission: 'finance.cost.read' }, { value: 'x' });
+        return { count: 0 };
+      },
+    });
+    await expect(
+      runCommand(
+        guarded,
+        { context: context(principal()), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        { values: [] },
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});

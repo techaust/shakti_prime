@@ -82,7 +82,15 @@ export function auditBase(
   };
 }
 
-/** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
+/** The input as an audit row records it: the command's summary when it has one, redacted. */
+export function auditedInput<I extends z.ZodType, O extends z.ZodType>(
+  command: Pick<Command<I, O>, 'auditInput'>,
+  input: z.output<I>,
+): unknown {
+  return redactForAudit(command.auditInput === undefined ? input : command.auditInput(input));
+}
+
+/** Pure permission guard:the principal must hold the permission at `minScope` or wider. */
 export function checkPermission(
   principal: Principal,
   permission: PermissionKey,
@@ -265,6 +273,29 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     },
     now,
     requestId: context.requestId,
+    run: async (inner, innerInput, nested = {}) => {
+      try {
+        return await runCommand(
+          inner,
+          {
+            context: { ...context, tx: nested.tx ?? context.tx },
+            now,
+            audit: options.audit,
+            outbox: options.outbox,
+            ...(options.client === undefined ? {} : { client: options.client }),
+            ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
+            ...(nested.idempotencyKey === undefined
+              ? {}
+              : { idempotencyKey: nested.idempotencyKey }),
+          },
+          innerInput,
+        );
+      } catch (e) {
+        // The outer command records its own stage and input, never the inner one's.
+        if (typeof e === 'object' && e !== null) failures.delete(e);
+        throw e;
+      }
+    },
   };
 
   let result: z.input<O>;
@@ -290,7 +321,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
 
   // One row per changed aggregate, or one row for the call when the handler named none.
   const base = auditBase(context.principal, command.name, context.requestId, options.client);
-  const input = redactForAudit(parsed.data);
+  const input = auditedInput(command, parsed.data);
   const rows: Partial<AuditChange>[] = changes.length > 0 ? changes : [{}];
   const records: AuditRecord[] = rows.map((change) => ({
     ...base,
