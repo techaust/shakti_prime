@@ -343,7 +343,7 @@
     "done": "{name} is updated."
   },
   "priceMaster": {
-    "title": "Price Master",
+    "title": "Price lists",
     "intro": "Selling prices on each price list. Quotes take their prices from here, and every change is logged.",
     "list": "Price list",
     "listOption": "{tier} · {company} · version {version}",

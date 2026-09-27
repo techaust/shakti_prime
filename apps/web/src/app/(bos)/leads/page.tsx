@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { leadFormOptions, listLeads } from '../../../actions/crm';
 import { LeadsScreen } from '../../../components/leads/leads-screen';
 import { FailureMessage } from '../../../components/screens/failure';
-import { Screen } from '../../../components/screens/screen';
+import { Page } from '../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../screens/access';
 import { firstFailure } from '../../../screens/result';
 
@@ -22,9 +22,9 @@ export default async function LeadsPage() {
   const canAdd = can('crm.lead.write', 'own') && can('crm.account.write', 'own');
   const [page, options] = await Promise.all([listLeads({ limit: 50 }), leadFormOptions()]);
   return (
-    <Screen
+    <Page
       title={t('title')}
-      intro={t('intro')}
+      description={t('intro')}
       actions={
         canAdd ? (
           <Button asChild>
@@ -44,6 +44,6 @@ export default async function LeadsPage() {
       ) : (
         <FailureMessage failure={firstFailure(page, options)} />
       )}
-    </Screen>
+    </Page>
   );
 }

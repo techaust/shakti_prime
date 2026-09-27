@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { listUsers } from '../../../../actions/admin';
 import { FailureMessage } from '../../../../components/screens/failure';
-import { Screen } from '../../../../components/screens/screen';
+import { Page } from '../../../../components/shell/page';
 import { UsersScreen } from '../../../../components/users/users-screen';
 import { companyNames, screenAccess } from '../../../../screens/access';
 import { firstFailure } from '../../../../screens/result';
@@ -27,7 +27,7 @@ export default async function TeamMembersPage() {
     .filter((e) => principal.entityIds.includes(e.entityId))
     .map((e) => ({ id: e.entityId, name: e.entityName }));
   return (
-    <Screen title={t('title')} intro={t('intro')}>
+    <Page title={t('title')} description={t('intro')}>
       {page.ok ? (
         <UsersScreen
           initial={page.data}
@@ -39,6 +39,6 @@ export default async function TeamMembersPage() {
       ) : (
         <FailureMessage failure={firstFailure(page)} />
       )}
-    </Screen>
+    </Page>
   );
 }

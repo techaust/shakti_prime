@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { listPriceLists, listPrices } from '../../../actions/pricing';
 import { PriceMasterScreen } from '../../../components/pricing/price-master-screen';
 import { FailureMessage } from '../../../components/screens/failure';
-import { Screen } from '../../../components/screens/screen';
+import { Page } from '../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../screens/access';
 import { firstFailure } from '../../../screens/result';
 
@@ -24,9 +24,9 @@ export default async function PriceMasterPage() {
   const lists = await listPriceLists();
   if (!lists.ok) {
     return (
-      <Screen title={t('title')} intro={t('intro')}>
+      <Page title={t('title')} description={t('intro')}>
         <FailureMessage failure={firstFailure(lists)} />
-      </Screen>
+      </Page>
     );
   }
   const first = lists.data.find((l) => l.open) ?? lists.data[0];
@@ -35,15 +35,15 @@ export default async function PriceMasterPage() {
     const prices = await listPrices({ priceListId: first.id, limit: 50 });
     if (!prices.ok) {
       return (
-        <Screen title={t('title')} intro={t('intro')}>
+        <Page title={t('title')} description={t('intro')}>
           <FailureMessage failure={firstFailure(prices)} />
-        </Screen>
+        </Page>
       );
     }
     initialPage = prices.data;
   }
   return (
-    <Screen title={t('title')} intro={t('intro')}>
+    <Page title={t('title')} description={t('intro')}>
       <PriceMasterScreen
         lists={lists.data}
         companies={companyNames(access)}
@@ -51,6 +51,6 @@ export default async function PriceMasterPage() {
         initialPage={initialPage}
         canSetPrices={can('pricing.write', 'all')}
       />
-    </Screen>
+    </Page>
   );
 }

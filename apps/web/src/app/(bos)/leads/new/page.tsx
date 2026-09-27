@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { leadFormOptions } from '../../../../actions/crm';
 import { NewLeadForm } from '../../../../components/leads/new-lead-form';
 import { FailureMessage } from '../../../../components/screens/failure';
-import { Screen } from '../../../../components/screens/screen';
+import { Page } from '../../../../components/shell/page';
 import { screenAccess } from '../../../../screens/access';
 import { firstFailure } from '../../../../screens/result';
 
@@ -32,7 +32,7 @@ export default async function NewLeadPage() {
     .map((e) => ({ id: e.entityId, name: e.entityName }));
   const options = await leadFormOptions();
   return (
-    <Screen title={t('title')} intro={t('intro')} width="form">
+    <Page title={t('title')} description={t('intro')} width="form">
       {!options.ok ? (
         <FailureMessage failure={firstFailure(options)} />
       ) : companies.length === 0 ? (
@@ -44,6 +44,6 @@ export default async function NewLeadPage() {
           sources={options.data.sources}
         />
       )}
-    </Screen>
+    </Page>
   );
 }

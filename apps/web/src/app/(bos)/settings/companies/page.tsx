@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { listEntities } from '../../../../actions/org';
 import { CompaniesScreen } from '../../../../components/companies/companies-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
-import { Screen } from '../../../../components/screens/screen';
+import { Page } from '../../../../components/shell/page';
 import { screenAccess } from '../../../../screens/access';
 import { firstFailure } from '../../../../screens/result';
 
@@ -19,12 +19,12 @@ export default async function CompaniesPage() {
   const t = await getTranslations('companies');
   const companies = await listEntities();
   return (
-    <Screen title={t('title')} intro={t('intro')} width="detail">
+    <Page title={t('title')} description={t('intro')} width="detail">
       {companies.ok ? (
         <CompaniesScreen initial={companies.data} canEdit={can('admin.entities.write', 'all')} />
       ) : (
         <FailureMessage failure={firstFailure(companies)} />
       )}
-    </Screen>
+    </Page>
   );
 }
