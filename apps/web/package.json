@@ -15,7 +15,9 @@
     "test": "vitest run",
     "test:security": "vitest run --config vitest.security.config.ts",
     "invite-executive": "tsx scripts/invite-executive.ts",
-    "qstash-schedule": "tsx scripts/qstash-schedule.ts"
+    "qstash-schedule": "tsx scripts/qstash-schedule.ts",
+    "spike:print": "tsx scripts/spike/print.ts",
+    "spike:ocr": "tsx scripts/spike/ocr.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
