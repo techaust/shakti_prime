@@ -48,6 +48,7 @@ export const IDS = {
   channel: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1b',
   serialA: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1c',
   serialB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1d',
+  importJob: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1e',
   device: '6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f',
   connector: '2b7e1516-28ae-4d2a-9f15-1b3c4d5e6f70',
   commandA: '9c1d2e3f-4a5b-4c6d-9e8f-0a1b2c3d4e51',
@@ -648,6 +649,10 @@ export const API_FIXTURES: Record<
   },
   'workers.outbox.publish': {
     response: { claimed: 12, published: 3, skipped: 9, failed: 0, deadLettered: 0 },
+  },
+  'workers.imports.commit': {
+    request: { jobId: IDS.importJob, entityId: 1, userId: IDS.user },
+    response: { jobId: IDS.importJob, state: 'committed', batches: 2, committedRows: 740 },
   },
   'workers.outbox.event': {
     params: { type: 'crm.lead.created' },
