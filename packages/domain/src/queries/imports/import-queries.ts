@@ -2,6 +2,7 @@ import {
   DomainError,
   IdSchema,
   ImportJobPage,
+  ImportMappingSchema,
   ImportRowDto,
   ImportRowPage,
   ImportTemplateDto,
@@ -15,12 +16,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
-import {
-  assertEntityInScope,
-  loadJob,
-  parseStoredMapping,
-  toImportJobDto,
-} from '../../commands/imports/shared';
+import { assertEntityInScope, loadJob, toImportJobDto } from '../../commands/imports/shared';
 
 type QueryContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -178,7 +174,12 @@ export async function listImportJobs(
   });
 }
 
-/** The saved mappings of one kind in one entity, by name. */
+/**
+ * The saved mappings of one kind in one entity, by name. A template whose stored mapping no longer
+ * fits the contract is left out rather than failing the whole list: the choice of templates is a
+ * convenience, and one unreadable row must not stop an import (the commands still refuse to apply
+ * it through `parseStoredMapping`).
+ */
 export async function listImportTemplates(
   ctx: QueryContext,
   input: ListImportTemplatesInput,
@@ -190,14 +191,18 @@ export async function listImportTemplates(
     .from(t)
     .where(and(eq(t.entityId, input.entityId), eq(t.kind, input.kind)))
     .orderBy(asc(t.name));
-  return rows.map((row) =>
-    ImportTemplateDto.parse({
-      id: row.id,
-      entityId: row.entityId,
-      kind: row.kind,
-      name: row.name,
-      mapping: parseStoredMapping(row.mappingJson),
-      updatedAt: row.updatedAt.toISOString(),
-    }),
-  );
+  return rows.flatMap((row) => {
+    const mapping = ImportMappingSchema.safeParse(row.mappingJson);
+    if (!mapping.success) return [];
+    return [
+      ImportTemplateDto.parse({
+        id: row.id,
+        entityId: row.entityId,
+        kind: row.kind,
+        name: row.name,
+        mapping: mapping.data,
+        updatedAt: row.updatedAt.toISOString(),
+      }),
+    ];
+  });
 }

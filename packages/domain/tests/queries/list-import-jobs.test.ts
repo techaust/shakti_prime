@@ -1,5 +1,11 @@
 import { newId, type ImportJobDto, type Principal } from '@shakti/contracts';
-import { asPrincipal, closeDb, createTestPrincipal, principalFor } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { z } from 'zod';
@@ -12,7 +18,11 @@ import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
 import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { listImportJobs, listImportRows } from '../../src/queries/imports/import-queries';
+import {
+  listImportJobs,
+  listImportRows,
+  listImportTemplates,
+} from '../../src/queries/imports/import-queries';
 
 afterAll(closeDb);
 vi.setConfig({ testTimeout: 60_000 });
@@ -167,5 +177,30 @@ describe('listImportRows', () => {
       { accountId: existing.account.id, contactId: existing.contact?.id },
     ]);
     expect(page.customers).toEqual({ [existing.account.id]: customerName });
+  });
+});
+
+describe('listImportTemplates', () => {
+  it('lists the readable templates and leaves out one whose stored mapping no longer fits', async () => {
+    const executive = await createTestPrincipal('executive');
+    const tag = newId().slice(-8);
+    const mapping = {
+      columns: { contactName: 'Name', phone: 'Mobile', village: 'Village' },
+      defaults: { pipelineKey: 'farmer_pumps', accountType: 'farm', siteType: 'borewell' },
+    };
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
+        values (${newId()}, 1, 'leads', ${`Readable ${tag}`}, ${m.json(mapping)}, ${executive.id}),
+               (${newId()}, 1, 'leads', ${`Unreadable ${tag}`}, '{}'::jsonb, ${executive.id})`,
+    );
+    const names = (
+      await asPrincipal(executive, (ctx) =>
+        listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
+      )
+    ).map((t) => t.name);
+    expect(names).toContain(`Readable ${tag}`);
+    expect(names).not.toContain(`Unreadable ${tag}`);
   });
 });
