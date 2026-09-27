@@ -54,7 +54,7 @@ Shakti Prime is the single business operating system for the four Shakti group e
 - **CRM-10 Consent.** Consent per channel and purpose with source and timestamp; opt-out honoured across humans and agents. *AC:* an opted-out contact cannot be messaged or dialled by any path.
 
 ### 4.2 Tele-calling (TEL)
-- **TEL-01 CC queue** ordered by score, callback due and SLA, with click-to-dial, script cards, one-key dispositions, automatic re-attempts and nurture. *AC:* a caller can work a lead without touching the mouse.
+- **TEL-01 CC queue** ordered by score, callback due and SLA, with click-to-dial, script cards, one-key dispositions, automatic re-attempts and nurture. Script cards are in Roman-script Hinglish, or English for a customer whose language preference is English. *AC:* a caller can work a lead without touching the mouse.
 - **TEL-02 Handover.** "Qualified" assigns an LC by weighted round-robin (presence, capacity, language and segment skills) and locks ownership for a configurable period. *AC:* assignment within 10 s; the Sales Team Lead can reassign.
 - **TEL-03 LC workspace** with board, WhatsApp thread and Co-pilot, sizing calculators, quote builder and next-best-action on one screen.
 - **TEL-04 Telephony compliance.** Calls go out on the entity's 140-series (promotional) or 160-series (service) number according to consent; TRAI hours and DND scrubbing enforced; recording notice on every call. *AC:* a dial outside 9 AM–9 PM or to a DND number without consent is blocked with the reason.
@@ -90,7 +90,7 @@ Shakti Prime is the single business operating system for the four Shakti group e
 - **PRJ-07 CMC register** with yearly GM reminder and status report.
 
 ### 4.6 Customer WhatsApp communication (WA)
-- **WA-01 Milestone templates** in Hindi and English for quote sent, order confirmed, dispatched, visit booked, installed, payment due with UPI, handover.
+- **WA-01 Milestone templates** in English for quote sent, order confirmed, dispatched, visit booked, installed, payment due with UPI, handover.
 - **WA-02 Document collection.** Requests for missing documents; incoming files malware-scanned, masked, classified and filed against the right requirement; low-confidence classifications confirmed by a person. *AC:* a file is only ever filed against the sending customer.
 - **WA-03 STATUS self-service** returning an instant order and project summary.
 - **WA-04 Channel rules.** 24-hour window, approved templates, opt-out, per-entity number, portfolio messaging-limit awareness with service messages prioritised.
@@ -118,7 +118,7 @@ Shakti Prime is the single business operating system for the four Shakti group e
 ### 4.10 Dashboards, reports, search, notifications (RPT)
 - **RPT-01** Role home pages as in blueprint §8.10; the Executive page shows margins only through report queries under the viewer's permissions.
 - **RPT-02** Report library with audited, permission-gated exports.
-- **RPT-03** ⌘K search across phone, name, village, document numbers and serials, transliteration-aware.
+- **RPT-03** ⌘K search across phone, name, village, document numbers and serials, tolerant of spelling variants of Indian names.
 - **RPT-04** Notification centre, browser push and FCM with preferences and quiet hours; SLA breaches escalate to the GM.
 
 ### 4.11 Migration and imports (IMP)
@@ -143,8 +143,8 @@ Shakti Prime is the single business operating system for the four Shakti group e
 | Privacy | DPDP Act 2023 and Rules 2025; Aadhaar never stored; masking before LLM calls; retention schedule in blueprint §7.9 |
 | Telecom | DLT registration; 140/160-series numbers; TRAI hours; DND; WhatsApp policy |
 | Tax | Effective-dated GST rates; place-of-supply split; solar 70:30 composite supply; rupee rounding; e-way bill gate |
-| Localisation | Hindi and English UI; Devanagari everywhere including PDFs; lakh/crore, DD-MM-YYYY, IST |
-| Product copy | Plain language for non-technical users in both languages; no technical words, codes or internal names shown to users; no placeholder, sample or dummy text anywhere a user can see; every string final and product-specific; copy lint in CI; copy review in UAT per role (`DESIGN.md` §11) |
+| Localisation | English UI, messages, emails and documents; Roman-script Hinglish for caller scripts, voice agent speech and training videos, chosen per customer for calls (`DESIGN.md` §11.5); lakh/crore, DD-MM-YYYY, IST |
+| Product copy | Plain language for non-technical users, in English on every screen and document; no technical words, codes or internal names shown to users; no placeholder, sample or dummy text anywhere a user can see; every string final and product-specific; copy lint in CI; copy review in UAT per role (`DESIGN.md` §11) |
 | Accessibility | WCAG AA in both themes; keyboard-first caller screens |
 | Offline | Field app fully usable offline for multiple days |
 | Observability | Sentry, structured logs without PII, integration health page, spend dashboards |

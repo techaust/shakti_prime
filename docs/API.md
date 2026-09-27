@@ -17,7 +17,7 @@ Blueprint reference: §4, §10. The BOS has two entry surfaces: **server actions
 | Rate limits | Per token via Upstash Redis; `429` with `Retry-After`; defaults 600 req/min per user token, 60 req/min per ingest key |
 | Errors | One envelope: `{ "error": { "code": "forbidden", "message": "…", "details": {...}, "requestId": "…" } }`; codes from `packages/contracts/errors` |
 | Request ID | `X-Request-Id` accepted or generated; echoed in the response and logs |
-| Localisation | `Accept-Language: hi` or `en` for messages in error envelopes |
+| Localisation | Messages in error envelopes are English; `Accept-Language` is not negotiated |
 
 ### Error codes
 `validation_failed` (400), `unauthorized` (401), `forbidden` (403), `not_found` (404), `conflict` (409, state machine or idempotency conflict), `rate_limited` (429), `integration_unavailable` (503), `internal` (500).

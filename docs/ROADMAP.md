@@ -28,7 +28,7 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 | 3 | Better Auth with Argon2id, sessions, TOTP, Turnstile, lockouts; Realtime JWT spike; audit logging; outbox and QStash publisher; command runner and first commands |
 | 4 | `packages/tokens`, `packages/ui` base, app shell, theme behaviour, `/design` preview page; wireframe review with real users |
 | 5 | Import framework (upload → mapping → preview → commit → rollback); tax engine with tests; state-machine specs for opportunity, quote, sales order |
-| 6 | Integration spikes: Tally AlterID read + deletion detection + push; Exotel click-to-dial on 140/160 numbers; WhatsApp sandbox send/receive; LiveKit + speech-vendor latency; Chromium Devanagari PDF; OCR masking on real document photos |
+| 6 | Integration spikes: Tally AlterID read + deletion detection + push; Exotel click-to-dial on 140/160 numbers; WhatsApp sandbox send/receive; LiveKit + speech-vendor latency and Roman-Hinglish pronunciation; Chromium A4 PDF and QR label rendering; OCR masking on real document photos |
 | 7–8 | Remaining state-machine specs, API contracts for mobile/connector/webhooks/ingest, vendor quotes, ADRs 7–12, contingency |
 
 **Exit gate checklist:**
@@ -87,7 +87,7 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 
 ## 11. Rollout and change management
 - Pilot groups per module: 2 callers → full calling team; 2–3 engineers → all field staff.
-- Role-wise training: short live sessions, Hindi/English videos, a one-page guide per role.
+- Role-wise training: short live sessions and videos in Hinglish, a one-page guide per role in English.
 - UAT checklist and sign-off per role before each go-live; in-app feedback with weekly triage for 8 weeks.
 - Feature flags for risky releases; expand/contract migrations; Sunday-night maintenance windows.
 - Phase exit updates `currentPhase` in `.claude/tooling.json` and the tooling check runs before the next phase begins.
