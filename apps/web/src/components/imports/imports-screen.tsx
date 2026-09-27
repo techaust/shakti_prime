@@ -45,8 +45,10 @@ export function ImportsScreen({
       id: 'file',
       header: t('columns.file'),
       primary: true,
+      // A file name has no spaces to wrap at: keep the column readable and break only if needed.
+      className: 'min-w-48',
       cell: (j) => (
-        <Link href={jobHref(j)} className="text-accent-text break-all hover:underline">
+        <Link href={jobHref(j)} className="text-accent-text wrap-anywhere hover:underline">
           {j.file.name}
         </Link>
       ),
