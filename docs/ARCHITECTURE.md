@@ -60,7 +60,7 @@ apps/tally-connector ─► packages/contracts
 - Turborepo tasks: `build`, `typecheck`, `test`, `test:security` (`lint`, `format:check` and `copy-lint` run at the root; `db:*` scripts call the db workspace directly; `test:e2e` arrives with Playwright in Phase 1).
 
 ## 4. Request lifecycle (web)
-1. **Edge:** Vercel routes the request; the proxy (`proxy.ts`, week 4 with the app shell) reads the Better Auth session cookie and the theme cookie and applies CSP nonces and locale. Until then `next.config.ts` sets the security headers and the `(bos)` layout redirects a request without a usable session.
+1. **Edge:** Vercel routes the request; the proxy (`proxy.ts`, week 4 with the app shell) reads the Better Auth session cookie and the theme cookie and applies CSP nonces. Until then `next.config.ts` sets the security headers and the `(bos)` layout redirects a request without a usable session.
 2. **Server action or route handler** validates the input with the Zod contract from `packages/contracts`.
 3. **`withRequestContext(principal, entityScope, fn)`** opens a transaction and calls `set_config` for `app.user_id`, `app.entity_ids`, `app.role`, `app.permissions`, `app.request_id` (all transaction-local).
 4. **Command** runs inside the transaction: permission guard → state machine → business logic → writes → `ctx.emit()` appends `outbox_events` rows in the same transaction.
@@ -71,7 +71,7 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 
 ## 5. Domain command layer
 - **Definition:** `defineCommand({ name, permission, minScope?, input, output, constraintReasons?, handler })`. The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
-- **Context:** `{ principal, entityIds, activeEntityId, tx, emit, now, requestId, locale }`. `principal` is a user, an agent service principal or a voice session acting as a user.
+- **Context:** `{ principal, entityIds, activeEntityId, tx, emit, now, requestId }`. `principal` is a user, an agent service principal or a voice session acting as a user.
 - **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')`; from week 3 slice 2 they are audited as `outcome = denied`.
 - **State machines:** `packages/domain/state-machines/*` define states, transitions, guards, side effects and permitted actors for opportunity, quote, sales order, dispatch, project flows, subsidy gates, loan, warranty claim, document filing, expense claim, Playbook directive and Tally voucher. Commands call `transition(machine, record, event, ctx)`.
 - **Calculators:** TDH, kW sizing, kit availability, credit check, job-cost roll-up, incentive rules and the tax engine are pure functions with fixture-based tests.
@@ -106,7 +106,7 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 - **Upload:** the client requests a pre-signed PUT (15 min, content-type and size constrained). The object key is written to `files` with `status = pending`.
 - **Scan and mask:** a worker downloads the object, runs the malware scan and, for customer documents, OCR masking (Aadhaar and bank numbers). The masked object replaces the original; the original is deleted. Only then does `status` become `ready`.
 - **Read:** pre-signed GET for 15 minutes; views of sensitive documents are audited.
-- **Print and PDF:** HTML templates in `apps/web/src/print/*` rendered by headless Chromium in a worker with Noto Sans Devanagari embedded; output stored in S3 and linked to the record. The same templates serve the on-screen print view.
+- **Print and PDF:** HTML templates in `apps/web/src/print/*` rendered by headless Chromium in a worker with Inter embedded; output stored in S3 and linked to the record. The same templates serve the on-screen print view.
 
 ## 10. Field app sync
 - Records created offline get client-generated UUIDv7 IDs, so uploads are idempotent.
@@ -147,3 +147,4 @@ ADRs live in `docs/adr/` as `NNNN-title.md` (context, decision, consequences). P
 11. Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector.
 12. Expo with WatermelonDB for the offline field app.
 13. Read-only Tally connector with AlterID reads and deletion tombstones.
+14. English interface, with Roman-script Hinglish only for caller scripts, voice agent speech and training. Accepted: [ADR 0014](adr/0014-english-interface-hinglish-speech.md).

@@ -64,7 +64,7 @@ This document is the architecture and product blueprint. Implementation begins a
 
 **Reports:** Executive P&L, ad ROI and source attribution, role dashboards, report library with exports.
 
-**Platform:** public Shakti Prime website (the four entity websites post enquiries through the signed ingest API), Hindi/English interface, ⌘K global search, in-app help and training videos.
+**Platform:** public Shakti Prime website with a staff sign-in entry (the four entity websites post enquiries through the signed ingest API), English interface with Hinglish for caller scripts, voice and training (§11.1), ⌘K global search, in-app help and training videos.
 
 **AI:**
 - Intake & Triage, WhatsApp Concierge, Caller Co-pilot, Sizing & Quote, Project Orchestrator, Chief of Staff;
@@ -117,7 +117,7 @@ This document is the architecture and product blueprint. Implementation begins a
 |---|---|
 | Monorepo | pnpm + Turborepo: `apps/web`, `apps/field` (Expo), `apps/tally-connector`, `apps/voice-agent`, `packages/domain` (commands, state machines, calculators, tax engine), `packages/db` (Drizzle schema, migrations, RLS SQL), `packages/ui` (web components), `packages/tokens` (design tokens shared by web and Android), `packages/contracts` (shared Zod API schemas) |
 | Web | Next.js (latest stable), React 19, TypeScript strict; Vercel region `bom1` |
-| UI | Tailwind CSS v4, shadcn/ui (Radix), lucide, TanStack Table, React Hook Form + Zod, dnd-kit, Recharts, cmdk (⌘K), next-intl (English/Hindi), next-themes, calendar/scheduler component + MapLibre |
+| UI | Tailwind CSS v4, shadcn/ui (Radix), lucide, TanStack Table, React Hook Form + Zod, dnd-kit, Recharts, cmdk (⌘K), next-intl (one English catalogue), next-themes, calendar/scheduler component + MapLibre |
 | Android app | Expo (React Native) with a development build, NativeWind styled from `packages/tokens`, WatermelonDB on expo-sqlite as the offline store, background S3 uploads, FCM, minimum-version update gate |
 | Database | Supabase Postgres 17: RLS, pgvector, pg_trgm, native monthly partitions, pg_cron |
 | ORM / migrations | Drizzle ORM + drizzle-kit; RLS policies as versioned SQL migrations; expand/contract strategy |
@@ -126,11 +126,11 @@ This document is the architecture and product blueprint. Implementation begins a
 | Cache / locks | Upstash Redis |
 | Realtime | Supabase Realtime (private broadcast channels). The BOS signs short-lived ES256 JWTs with its own key pair and is registered in Supabase as a third-party auth provider (OIDC discovery on `shaktiprime.com`), so Realtime authorization policies see the user id and entity ids; the token never grants Data API access |
 | Files | S3 ap-south-1, SSE-KMS, 15-minute pre-signed URLs; type and size validation; malware scan for externally sourced files |
-| PDFs and print | HTML templates rendered by headless Chromium in workers, with Noto Sans Devanagari embedded; the same templates drive print views and labels |
+| PDFs and print | HTML templates rendered by headless Chromium in workers, in English with Inter embedded; the same templates drive print views and labels |
 | Document masking | Server-side OCR (tesseract.js in workers) detects Aadhaar and bank account numbers; images and extracted text are masked before storage and before any LLM call |
 | Tax engine | Pure functions in `packages/domain`: effective-dated GST rates per HSN, place-of-supply split, solar composite-supply (70:30) valuation, rupee rounding |
 | AI | `@anthropic-ai/sdk` behind a provider wrapper; Claude Haiku 4.5 + Sonnet 5; Voyage embeddings |
-| Speech (STT + TTS) | One vendor selected by benchmark (lead candidate: Sarvam AI for Hindi/Hinglish), behind a swappable adapter |
+| Speech (STT + TTS) | One vendor selected by benchmark (lead candidate: Sarvam AI), behind a swappable adapter. It must understand Hindi, Hinglish and Rajasthani-accented speech, and speak Roman-script Hinglish naturally; the adapter may convert a line to Devanagari internally for pronunciation, never shown or stored |
 | Live voice | LiveKit Cloud (WebRTC, India region) + LiveKit Agents worker (TypeScript) deployed with LiveKit Cloud Agents hosting from a CI-built image; AWS ECS Fargate in ap-south-1 if Mumbai placement is not offered |
 | Transactional email | Amazon SES, for password reset, 2FA recovery and security alerts only |
 | Customer OTP | WhatsApp authentication templates |
@@ -302,7 +302,7 @@ Retention runs as scheduled, logged jobs. Final periods are confirmed with the C
 - **Referral partners:** attribution and commission accruals.
 
 ### 8.2 Tele-calling workspace
-- **CC queue:** prioritised by score, callback due and SLA. Click-to-dial, script cards, one-key dispositions, automatic re-attempts, then nurture.
+- **CC queue:** prioritised by score, callback due and SLA. Click-to-dial, script cards (Hinglish, or English for a customer who prefers it), one-key dispositions, automatic re-attempts, then nurture.
 - **Handover:** "Qualified" moves the lead to an LC by weighted round-robin (presence, capacity, language/segment skills). Ownership is locked for a configurable period.
 - **LC workspace:** board, WhatsApp thread with the Co-pilot, sizing calculators, quote builder and next-best-action on one screen.
 - Inbound screen-pop. Caller seats and Exotel channels are configuration settings.
@@ -360,7 +360,7 @@ Retention runs as scheduled, logged jobs. Final periods are confirmed with the C
 - **CMC register:** CMC start/end per PM Surya Ghar installation, a yearly reminder to the GM, and a CMC status report.
 
 ### 8.6 Customer communication on WhatsApp
-- **Milestone messages** (approved templates, Hindi/English): quote sent, order confirmed, dispatched, engineer visit booked (name + date, with a reminder the day before), installed, payment due (UPI link/QR), handover kit.
+- **Milestone messages** (approved templates, English): quote sent, order confirmed, dispatched, engineer visit booked (name + date, with a reminder the day before), installed, payment due (UPI link/QR), handover kit.
 - **Document collection:**
   - The Concierge or Project Orchestrator requests missing documents.
   - Incoming photos and PDFs are malware-scanned, passed through the masking step (§7.5), classified by Claude vision (electricity bill, Aadhaar, property papers, etc.) and filed into the vault against the right requirement.
@@ -459,7 +459,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 | # | Agent | Responsibilities | Model |
 |---|---|---|---|
 | 1 | **Intake & Triage** | Dedupe suggestions, entity/pipeline inference, enrichment, scoring, assignment | Haiku 4.5 |
-| 2 | **WhatsApp Concierge** | AI disclosure; first touch < 60 s; bilingual qualification (depth, HP, K-number, roof area, bill photo); slot booking; STATUS replies; document collection; handoff to a person on request, low confidence, complaint or legal topic | Sonnet 5 |
+| 2 | **WhatsApp Concierge** | AI disclosure; first touch < 60 s; qualification (depth, HP, K-number, roof area, bill photo), understanding English, Hindi and Hinglish messages and replying in English; slot booking; STATUS replies; document collection; handoff to a person on request, low confidence, complaint or legal topic | Sonnet 5 |
 | 3 | **Caller Co-pilot** | Pre-call briefs; post-call summaries and field extraction; suggested dispositions; follow-up scheduling; nurture cadences and quote-expiry nudges | Haiku 4.5 (Sonnet 5 for briefs) |
 | 4 | **Sizing & Quote** | Deterministic calculators + stock availability → quote at tier prices | Sonnet 5 |
 | 5 | **Project Orchestrator** | Survey and job creation, schedule suggestions, document chasing, gate tracking, SLA alerts | Sonnet 5 |
@@ -501,8 +501,9 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 
 ### 11.1 Experience principles
 - A calm, modern interface that is dense where the work needs it.
-- Keyboard-first caller screens; ⌘K everywhere; skeleton loading; WCAG AA; fully responsive; English/Hindi.
-- **Plain-language copy.** Every word a user reads or hears is written for non-technical staff and customers, in plain English and natural Hindi. No technical terms, error codes or internal names reach a user, and no placeholder or sample text ships anywhere; every string is final and product-specific, held in the message catalogues and checked by a copy lint in CI (`DESIGN.md` §11).
+- Keyboard-first caller screens; ⌘K everywhere; skeleton loading; WCAG AA; fully responsive.
+- **One language on screen.** Every screen, message, email and document is in English. Hinglish, written in Roman script, is used only where people speak to customers: tele-caller scripts and Co-pilot lines, the voice agent's speech, and training videos. A customer's language preference (Hinglish by default, or English) picks the language of their calls only (`DESIGN.md` §11.5).
+- **Plain-language copy.** Every word a user reads or hears is written for non-technical staff and customers, in plain English, or plain spoken Hinglish in the channels above. No technical terms, error codes or internal names reach a user, and no placeholder or sample text ships anywhere; every string is final and product-specific, held in the message catalogues and checked by a copy lint in CI (`DESIGN.md` §11).
 - **App shell:** a sidebar filtered by permissions; a top bar with the entity switcher, search, notifications, Agent Inbox, the "Talk to Shakti" mic (Executive/GM) and the profile menu.
 - **Screens:**
   - role home pages;
@@ -512,15 +513,15 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
   - Finance (proformas, milestones, reconciliation, job costing, expenses); HR (attendance, leave, targets, incentives);
   - Knowledge (Vault, Playbook review, Ask the Business); Agents (autonomy, traces, evals, spend);
   - Admin (users, roles, entities, integrations, audit, imports, feature flags, costs);
-  - the public website.
+  - the public website: a landing page at the root of the domain with a "Staff sign in" button.
 
 ### 11.2 DESIGN.md
-- **Foundation:** the Linear design language (VoltAgent awesome-design-md, getdesign.md/linear.app/design-md), for its precision, information density, restraint and single-accent discipline.
+- **Foundation:** Linear's default app design, for its precision, information density, restraint and single-accent discipline. Like Linear, the light and dark themes are generated from three inputs (a base colour, the accent and a contrast level) in the LCH colour space.
 - **Shakti Prime adaptations:**
   1. System-aware light and dark themes, designed as equals.
-  2. A distinct Shakti Prime accent (solar amber/saffron); no third-party brand identity.
+  2. Linear's default indigo (`#5E6AD2`) as the single accent.
   3. Larger touch targets and higher contrast for mobile and field use.
-  4. Devanagari-capable type: Inter + Noto Sans Devanagari.
+  4. Inter throughout, self-hosted, with its display optical size for headings.
   5. Status colour tokens for pipeline stages, SLAs and stock health, plus data-grid, Kanban and form patterns.
 - `DESIGN.md` lives at the repo root, and its tokens map to Tailwind v4 + shadcn/ui CSS variables. A companion preview page shows every component in both themes.
 
@@ -541,10 +542,10 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 
 ### 11.4 Local conventions & performance
 - Lakh/crore number formatting, ₹ with paise, DD-MM-YYYY dates, IST.
-- Devanagari rendering, and transliteration-aware search ("Ramesh" ↔ "रमेश").
+- Name search tolerant of spelling variants of Indian names ("Ramesh", "Rmesh", "Ramesh Kumar"), through trigram matching.
 - Performance budget for low-end Android over 3G/4G: JS budget per route, image optimisation, Lighthouse checks in CI.
-- Print templates: shared HTML templates for QR/barcode labels, A4 challans, job cards and all PDFs, rendered by headless Chromium with Devanagari shaping verified by snapshot tests.
-- In-app help: contextual tips, short Hindi/English walkthroughs per role, and a "What's new" panel.
+- Print templates: shared HTML templates for QR/barcode labels, A4 challans, job cards and all PDFs, rendered by headless Chromium and verified by snapshot tests.
+- In-app help: contextual tips and short walkthroughs per role in English, and a "What's new" panel; the role training videos are in Hinglish (§15).
 
 ## 12. Reliability & operations
 - **Environments:** dev, staging and prod as separate Supabase projects; Supabase branching for previews.
@@ -623,7 +624,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 
 ## 15. Rollout & change management
 - **Pilot groups per module:** 2 callers → full calling team; 2–3 engineers → all field staff.
-- **Role-wise training:** short live sessions, Hindi/English videos and a one-page guide per role.
+- **Role-wise training:** short live sessions and videos in Hinglish, and a one-page guide per role in English.
 - UAT checklist and sign-off per role before each go-live.
 - In-app feedback button, with weekly issue triage for the first 8 weeks.
 - Android app: staged rollouts via EAS; forced update for breaking API changes; versioned `/api/v1`.
@@ -660,7 +661,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
   - runaway agent spend; unsupported technical claims;
   - voice sessions on poor networks (push-to-talk/text fallback).
 - **Data formats:**
-  - Unicode Hindi names with transliterated search;
+  - spelling variants of Indian names in search; customer messages written in Devanagari, understood by the agents and shown as received;
   - inter- vs intra-state GST; paise rounding; financial-year numbering per entity.
 
 ## 17. Verification strategy
@@ -676,7 +677,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 - **Prompt-injection test set** for the Concierge (data-exfiltration attempts, price manipulation, unauthorised promises). Every case must fail safely.
 - **Playwright E2E per role:** lead → qualify → round-robin → quote → sales order → reservation → schedule → survey (app) → dispatch with e-way bill → install → JIR → Tally invoice reconciled → payment → job-cost margin, plus a dealer credit-block path.
 - **Contract tests:** recorded Meta, Exotel and Tally payloads, including duplicates, out-of-order events and Tally deletions.
-- **Print and PDF:** snapshot tests of Hindi and English quotes, proformas, challans and labels in both scripts.
+- **Print and PDF:** snapshot tests of quotes, proformas, challans and labels.
 - **Load tests:** 10k leads/day, 100 concurrent users, 50k-row imports.
 - **AI evals** per agent; shadow comparison reports; spend-cap tests.
 - **Voice:** p50 latency < 1.5 s, STT accuracy on real samples, cost-masking by role, network-drop fallback.
@@ -688,7 +689,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | 1 | Scope size for a single developer | High / High | Strict phase gates; MVP first; 20% contingency in every phase; a second developer for the Android app; protect quality over scope |
 | 2 | Tally behaviour differs from expectations (Buyer Order No., XML limits, company setup) | Medium / High | Tally discovery visit and connector spike in Phase 0; manual linking queue |
 | 3 | WhatsApp verification or template approval delays | Medium / High | Start immediately; template variants; WhatsApp Business app as an interim channel |
-| 4 | Speech accuracy on Marwari/Hinglish | Medium / Medium | Benchmark before committing; correctable transcripts; text fallback |
+| 4 | Speech accuracy on Marwari/Hinglish, and natural pronunciation of Roman-script Hinglish | Medium / Medium | Benchmark both before committing; correctable transcripts; text fallback |
 | 5 | AI cost above estimate | Medium / Medium | Shadow-mode cost measurement, per-agent caps, Haiku by default, selective transcription |
 | 6 | Incorrect or harmful AI response to a customer | Medium / High | Narrow tools, output filters, Playbook-only claims, human handoff, staged autonomy |
 | 7 | Low staff adoption | Medium / High | Role-shaped UX, pilots, training, leadership mandate, retiring legacy sheets at cutover |
@@ -710,7 +711,7 @@ Completed and signed off before feature development begins:
 5. **Clickable wireframes** of core screens per role, reviewed with 1–2 real users per role.
 6. **`DESIGN.md` and light/dark preview page.**
 7. **ADRs** for the key stack decisions.
-8. **Integration spikes:** Tally read by AlterID + deletion detection + push; Exotel click-to-dial on 140/160-series numbers; WhatsApp send/receive (sandbox); LiveKit + speech-vendor latency test; Supabase Realtime with BOS-signed JWTs; Chromium PDF rendering of Devanagari templates; OCR masking of Aadhaar numbers on real document photos.
+8. **Integration spikes:** Tally read by AlterID + deletion detection + push; Exotel click-to-dial on 140/160-series numbers; WhatsApp send/receive (sandbox); LiveKit + speech-vendor latency and Roman-Hinglish pronunciation test; Supabase Realtime with BOS-signed JWTs; Chromium rendering of A4 PDFs and QR labels; OCR masking of Aadhaar numbers on real document photos.
 9. **Test strategy and security-suite skeleton.**
 10. **Vendor quotes** confirming the §13 cost figures.
 11. **Claude Code tooling setup** (§20): `CLAUDE.md`, `.claude/tooling.json`, the SessionStart tooling-check hook, and the Phase 0 tools installed and verified.

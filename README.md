@@ -33,7 +33,7 @@ pnpm + Turborepo monorepo.
 | `pnpm typecheck`        | `tsc --noEmit` per workspace                                        |
 | `pnpm test`             | Unit tests (Vitest) per workspace                                   |
 | `pnpm test:security`    | Security suite and command tests against real Postgres              |
-| `pnpm copy-lint`        | Banned words, placeholder text and language parity in catalogues    |
+| `pnpm copy-lint`        | Banned words, placeholder text and Devanagari in the catalogue      |
 | `pnpm db:generate`      | Drizzle migration from the schema                                   |
 | `pnpm db:migrate`       | Apply migrations (add `--rotate-passwords` to reset role passwords) |
 | `pnpm db:seed`          | Seed org and reference data; safe to re-run                         |

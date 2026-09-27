@@ -14,7 +14,7 @@ How we work:
 - Follow AGENTS.md for conventions and the definition of done. Every new table ships with RLS, grants and a security-suite test. Every calculator, state machine and command ships with unit tests.
 - Report honestly: say what you ran, what passed, what you did not verify. Never report the security suite as verified without running it against the local Postgres.
 - Never install plugins, MCP servers or dependencies without asking. Never write to the database outside a domain command. Never put a colour, price or tax calculation in UI code.
-- All user-facing text follows DESIGN.md §11: plain English and natural Hindi for non-technical users, no technical words or codes on screen, no placeholder or sample text anywhere, every string final and in both message catalogues.
+- All user-facing text follows DESIGN.md §11: plain English for non-technical users on every screen, message and document (Roman-script Hinglish only for caller scripts, voice agent speech and training), no technical words or codes on screen, no placeholder or sample text anywhere, every string final and in the English message catalogue.
 
 Your first task: run the tooling check, tell me what is missing for the current phase, then continue from the item named as Next in CLAUDE.md. Propose the plan for that item and wait for my approval before creating files.
 

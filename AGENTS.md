@@ -52,12 +52,13 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Dates: store UTC `timestamptz`, format with the shared `formatIst()` helpers. Money: `numeric(14,2)` in the DB, `Money` value object in code, lakh/crore formatting in UI.
 
 ## 4a. Product copy
-Everything a user can read is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, voice replies. The rule, in full in `DESIGN.md` §11:
-- **Plain language.** Written for tele-callers, engineers, store staff, accountants and farmers, not developers. Short sentences, everyday words, one idea per message. Hindi copy is natural Hindi, not a word-for-word translation.
+Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `DESIGN.md` §11:
+- **Plain language.** Written for tele-callers, engineers, store staff, accountants and farmers, not developers. Short sentences, everyday words, one idea per message.
+- **English on every surface.** Screens, messages, emails and documents are English. Roman-script Hinglish is used only for caller scripts, voice agent speech and training (`DESIGN.md` §11.5); no Devanagari in any catalogue, template or print file.
 - **No technical words.** Never show: error codes, HTTP statuses, stack traces, table or column names, "null", "undefined", "payload", "sync", "cache", "token", "webhook", "API", "RLS", "entity_id", "DTO", "invalid input", "exception", "timeout" or vendor names. Say what happened and what to do next: "We couldn't save this quote. Check your connection and try again."
 - **Final, not dummy.** No "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example text" or invented names, phones or amounts in any string, template, seed shown to users, screenshot or PDF. Every string is the wording the product ships with.
-- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogues (`apps/web/messages/en.json`, `hi.json`) and the field app catalogues; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email live in `packages/contracts/templates` with both languages.
-- **Checked in CI.** A copy lint fails the build when a catalogue, template or print file contains a banned technical word or placeholder text, or when a string exists in one language and not the other.
+- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogue (`apps/web/messages/en.json`) and the field app catalogue; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email live in `packages/contracts/templates` in English; caller scripts and voice prompts live beside them in `hinglish` and `en` variants.
+- **Checked in CI.** A copy lint fails the build when the catalogue, a template, a caller script, a voice prompt or a print file contains a banned technical word, placeholder text or a Devanagari character.
 
 ## 5. Domain commands
 Every mutation is a command in `packages/domain`:
@@ -104,7 +105,7 @@ Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
 - PR description: what, why, how verified, migration notes, screenshots for UI, checklist below.
-- PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in both catalogues in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
+- PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in the English catalogue in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
 - Never commit secrets, `.env*` files, production data or recordings. A gitleaks secret scan over the history and `pnpm audit` run in CI.
 
 ## 9. Security habits
@@ -115,7 +116,7 @@ Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase
 - New external calls go through a provider wrapper with timeouts, retries and budgets.
 
 ## 10. Definition of done
-A task is done when: the code path works end to end; the tests in §7 pass locally and in CI; migrations apply cleanly on a fresh database and on a copy of staging; the security suite is green; every user-facing string is final plain-language copy in both languages and the copy lint passes; docs and contracts reflect the change; the summary states what was verified and what was not.
+A task is done when: the code path works end to end; the tests in §7 pass locally and in CI; migrations apply cleanly on a fresh database and on a copy of staging; the security suite is green; every user-facing string is final plain-language copy (English on screen, Hinglish only in the spoken channels) and the copy lint passes; docs and contracts reflect the change; the summary states what was verified and what was not.
 
 ## 11. Never
 - Write to the database outside a domain command.

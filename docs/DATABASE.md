@@ -19,7 +19,8 @@ Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `
 | Enums | `text` columns with a `check` constraint listing allowed values; values are `snake_case`; state columns are written only by state machines |
 | JSON | `jsonb` only for provider payloads, dynamic checklists and survey answers; never for money or state |
 | Phones | `contact_phones.e164 text` with a check on `^\+[1-9]\d{6,14}$` |
-| Search | `pg_trgm` GIN indexes on names and villages; a `search_roman` column holds the romanised form for transliteration search |
+| Names | One `name` column in English or Roman script; no per-language name columns (ADR 0014) |
+| Search | `pg_trgm` GIN indexes on names and villages, tolerant of spelling variants |
 | Vectors | `vector(1024)` for Voyage embeddings with an HNSW index; iterative scan enabled for filtered queries |
 
 ## 3. Roles and connections
@@ -135,7 +136,7 @@ Key columns only; every table also has the standard columns from §2.
 | `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
 | `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
 | `principals` | `id`, `kind` (`user`, `agent`, `voice_session`), `display_name` |
-| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `locale`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
+| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
 | `auth_accounts` | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
 | `auth_verifications` | Better Auth verification store for set-password and reset links; `auth_service` only |
 | `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only |
@@ -151,7 +152,7 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.2 CRM
 | Table | Key columns |
 |---|---|
-| `contacts` | `name`, `name_hi`, `search_roman`, `email`, `preferred_language`; shared by all entities, visible through the accounts it is linked to (ADR 0008) |
+| `contacts` | `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008) |
 | `contact_phones` | `contact_id`, `e164`, `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd` |
 | `accounts` | `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`; one record for the group (ADR 0008); `billing_state_code` arrives with the tax engine in week 5 |
 | `account_entities` | `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`; a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write`. `account_contacts` follows the same rule for contacts (review 3) |
@@ -174,7 +175,7 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.3 Catalogue, pricing and tax
 | Table | Key columns |
 |---|---|
-| `items` | `sku`, `name`, `name_hi`, `category`, `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref`, `specs_json` |
+| `items` | `sku`, `name`, `category`, `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref`, `specs_json` |
 | `item_costs` (restricted) | `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs |
 | `pump_curves` | `item_id`, `head_m`, `flow_lph`, one point per row; head bounds are derived by the sizing calculator |
 | `kits`, `kit_components` | `kit_id`, `item_id`, `qty` |
@@ -275,7 +276,7 @@ Key columns only; every table also has the standard columns from §2.
 
 ## 7. Partitioning, indexes, retention
 - **Monthly partitions:** `activities`, `whatsapp_messages`, `audit_logs`; pg_cron creates next month's partition on the 25th and detaches partitions past retention.
-- **Indexes:** `contact_phones(e164)`; trigram on `contacts.name`, `contacts.search_roman`, `customer_sites.village`; `opportunities(entity_id, stage_id, owner_id, updated_at desc)`; `outbox_events(published_at) where published_at is null`; `webhook_inbox(provider, provider_event_id)` unique; `tally_vouchers(guid)` unique; `serials(serial_no)` unique; HNSW on `knowledge_chunks.embedding`.
+- **Indexes:** `contact_phones(e164)`; trigram on `contacts.name`, `customer_sites.village`; `opportunities(entity_id, stage_id, owner_id, updated_at desc)`; `outbox_events(published_at) where published_at is null`; `webhook_inbox(provider, provider_event_id)` unique; `tally_vouchers(guid)` unique; `serials(serial_no)` unique; HNSW on `knowledge_chunks.embedding`.
 - **Keyset pagination** on every list by `(updated_at, id)`; the cursor carries the timestamp as Postgres text, never a millisecond `Date`, because rows written in one transaction share `now()` to the microsecond.
 - **Materialised views** for dashboards (`mv_pipeline_by_stage`, `mv_collections_ageing`, `mv_stock_health`, `mv_project_margins` restricted) refreshed by pg_cron every 5 minutes.
 - **Retention jobs** (pg_cron, logged in `retention_runs`) implement blueprint §7.9: delete call audio after 12 months, delete WhatsApp media after 3 years, anonymise unqualified leads after 24 months, archive financial and audit rows after 8 years.
