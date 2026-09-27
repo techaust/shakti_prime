@@ -54,13 +54,63 @@ const hiddenPart = (number: string, kind: 'aadhaar' | 'bank') =>
 
 type Mode = 'unknown_slot' | 'known_slot';
 
+interface CheckView {
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+  scale: number;
+  /** Contrast stretched and sharpened after enlarging, as a determined reader would. */
+  enhance: boolean;
+}
+
+/** The view's pixels as RGBA for jsQR. */
+async function viewPixels(
+  data: Buffer,
+  width: number,
+  height: number,
+  v: CheckView,
+): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
+  const base = sharp(data, { raw: { width, height, channels: 4 } })
+    .extract({ left: v.left, top: v.top, width: v.w, height: v.h })
+    .resize(Math.round(v.w * v.scale), undefined, { kernel: 'lanczos3' });
+  if (!v.enhance) {
+    const px = await base.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    return {
+      rgba: new Uint8ClampedArray(px.data.buffer, px.data.byteOffset, px.data.length),
+      width: px.info.width,
+      height: px.info.height,
+    };
+  }
+  const px = await base
+    .grayscale()
+    .normalise()
+    .sharpen({ sigma: 2, m1: 2, m2: 4 })
+    .extractChannel(0)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const n = px.info.width * px.info.height;
+  const rgba = new Uint8ClampedArray(n * 4);
+  for (let i = 0; i < n; i++) {
+    const g = px.data[i] ?? 0;
+    rgba[i * 4] = g;
+    rgba[i * 4 + 1] = g;
+    rgba[i * 4 + 2] = g;
+    rgba[i * 4 + 3] = 255;
+  }
+  px.data.fill(0);
+  return { rgba, width: px.info.width, height: px.info.height };
+}
+
 /**
  * Whether any QR code on `image` can be decoded, looking harder than a single pass: the whole
- * image (dark and light codes), a smaller and a larger copy, and the four quarters enlarged.
- * Independent of the masker's own scan except for the decoder. The payload is only tested for
- * being empty and for the hidden digits, then dropped; it is never printed or kept. A decode
- * with an empty payload (jsQR now and then "finds" a version 1 code in the corner of a cover
- * box and text) holds nothing and is counted apart as `emptyOnly`.
+ * image (dark and light codes), a smaller and a larger copy, and the four quarters enlarged;
+ * on an image up to 1300 px, also nine overlapping tiles enlarged three times, contrast
+ * stretched and sharpened (a blurred code on a small photo reads that way when it reads no
+ * other). Independent of the masker's own scan except for the decoder. The payload is only
+ * tested for being empty and for the hidden digits, then dropped; it is never printed or
+ * kept. A decode with an empty payload (jsQR now and then "finds" a version 1 code in the
+ * corner of a cover box and text) holds nothing and is counted apart as `emptyOnly`.
  */
 async function decodableQr(
   image: Buffer,
@@ -72,10 +122,11 @@ async function decodableQr(
     .toBuffer({ resolveWithObject: true });
   const { width, height } = info;
   const longest = Math.max(width, height);
-  const views: { left: number; top: number; w: number; h: number; scale: number }[] = [
-    { left: 0, top: 0, w: width, h: height, scale: 1 },
-    { left: 0, top: 0, w: width, h: height, scale: 800 / longest },
-    { left: 0, top: 0, w: width, h: height, scale: longest < 1800 ? 2 : 1.3 },
+  const whole = { left: 0, top: 0, w: width, h: height, enhance: false };
+  const views: CheckView[] = [
+    { ...whole, scale: 1 },
+    { ...whole, scale: 800 / longest },
+    { ...whole, scale: longest < 1800 ? 2 : 1.3 },
   ];
   const hw = Math.floor(width / 2);
   const hh = Math.floor(height / 2);
@@ -85,25 +136,31 @@ async function decodableQr(
     [0, hh],
     [hw, hh],
   ] as const) {
-    views.push({ left, top, w: width - hw, h: height - hh, scale: 2 });
+    views.push({ left, top, w: width - hw, h: height - hh, scale: 2, enhance: false });
+  }
+  if (longest <= 1300) {
+    const tw = Math.ceil(width / 2);
+    const th = Math.ceil(height / 2);
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const left = Math.min(width - tw, Math.round((col * width) / 4));
+        const top = Math.min(height - th, Math.round((row * height) / 4));
+        views.push({ left, top, w: tw, h: th, scale: 3, enhance: true });
+      }
+    }
   }
   const result = { readable: false, holdsHidden: false, emptyOnly: false };
   for (const [index, v] of views.entries()) {
-    const pixels = await sharp(data, { raw: { width, height, channels: 4 } })
-      .extract({ left: v.left, top: v.top, width: v.w, height: v.h })
-      .resize(Math.round(v.w * v.scale))
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    const pixels = await viewPixels(data, width, height, v);
     const code = jsQR(
-      new Uint8ClampedArray(pixels.data.buffer, pixels.data.byteOffset, pixels.data.length),
-      pixels.info.width,
-      pixels.info.height,
+      pixels.rgba,
+      pixels.width,
+      pixels.height,
       // Light codes on the whole image only: the generated codes are dark, and trying both
       // ways on every view doubles the time of the check.
       { inversionAttempts: index === 0 ? 'attemptBoth' : 'dontInvert' },
     );
-    pixels.data.fill(0);
+    pixels.rgba.fill(0);
     if (code) {
       if (code.binaryData.length === 0) result.emptyOnly = true;
       else result.readable = true;
