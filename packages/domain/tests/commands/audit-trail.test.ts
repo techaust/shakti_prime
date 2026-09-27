@@ -5,12 +5,18 @@ import {
   createTestPrincipal,
   createTestUser,
   principalFor,
+  roleId,
+  tierId,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeCommand } from '../../src/command/execute';
 import { inviteUser } from '../../src/commands/admin/invite-user';
+import { revokeSession } from '../../src/commands/admin/revoke-session';
+import { setUserRoles } from '../../src/commands/admin/set-user-roles';
+import { reactivateUser, suspendUser } from '../../src/commands/admin/user-status';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { updateEntity } from '../../src/commands/org/update-entity';
+import { setPrice } from '../../src/commands/pricing/set-price';
 import { setTheme } from '../../src/commands/profile/set-theme';
 import { memoryLogger } from '../../src/ports/logger';
 
@@ -243,5 +249,168 @@ describe('the audit row of a call that does not commit', () => {
       expect.objectContaining({ level: 'error', event: 'audit.write_failed' }),
     ]);
     expect(await rowsOf(requestId)).toEqual([]);
+  });
+});
+
+/** A live session row for a user, as the auth module would write it. */
+async function addSession(userId: string): Promise<string> {
+  const id = newId();
+  await asMigrator(
+    (m) => m`insert into sessions (id, user_id, token, expires_at)
+      values (${id}, ${userId}, ${`tok-${id}`}, now() + interval '12 hours')`,
+  );
+  return id;
+}
+
+describe('the before and after of every admin and pricing command', () => {
+  it('admin.user.role.set records the access list it replaced and the one it set', async () => {
+    const exec = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
+    await addSession(target.id);
+    const requestId = newId();
+    await executeCommand(exec, { requestId }, setUserRoles, {
+      userId: target.id,
+      entityRoles: [{ entityId: 1, roleKey: 'store_manager' }],
+    });
+    expect(await rowsOf(requestId)).toEqual([
+      expect.objectContaining({
+        command: 'admin.user.role.set',
+        outcome: 'ok',
+        entity_id: null,
+        aggregate_type: 'user',
+        aggregate_id: target.id,
+        before_json: { entityRoles: [{ entityId: 1, roleId: roleId('accounts'), teamId: null }] },
+        after_json: {
+          entityRoles: [{ entityId: 1, roleId: roleId('store_manager'), teamId: null }],
+          revokedSessions: 1,
+        },
+      }),
+    ]);
+  });
+
+  it('admin.user.suspend and reactivate record the status either side, and a repeat changes nothing', async () => {
+    const exec = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    await addSession(target.id);
+    const suspended = newId();
+    await executeCommand(exec, { requestId: suspended }, suspendUser, {
+      userId: target.id,
+      reason: 'left the company',
+    });
+    expect(await rowsOf(suspended)).toEqual([
+      expect.objectContaining({
+        command: 'admin.user.suspend',
+        aggregate_id: target.id,
+        input_json: { userId: target.id, reason: 'left the company' },
+        before_json: { status: 'active' },
+        after_json: { status: 'suspended', revokedSessions: 1 },
+      }),
+    ]);
+
+    const repeated = newId();
+    await executeCommand(exec, { requestId: repeated }, suspendUser, { userId: target.id });
+    expect(await rowsOf(repeated)).toEqual([
+      expect.objectContaining({
+        command: 'admin.user.suspend',
+        outcome: 'ok',
+        aggregate_id: target.id,
+        before_json: null,
+        after_json: null,
+      }),
+    ]);
+
+    const reactivated = newId();
+    await executeCommand(exec, { requestId: reactivated }, reactivateUser, { userId: target.id });
+    expect(await rowsOf(reactivated)).toEqual([
+      expect.objectContaining({
+        command: 'admin.user.reactivate',
+        aggregate_id: target.id,
+        before_json: { status: 'suspended' },
+        after_json: { status: 'active' },
+      }),
+    ]);
+  });
+
+  it('admin.session.revoke records the session it ended, never its secret', async () => {
+    const exec = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 2, roleKey: 'store_manager' }]);
+    const sessionId = await addSession(target.id);
+    const requestId = newId();
+    await executeCommand(exec, { requestId }, revokeSession, { sessionId });
+    const rows = await rowsOf(requestId);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        command: 'admin.session.revoke',
+        entity_id: null,
+        aggregate_type: 'session',
+        aggregate_id: sessionId,
+        before_json: { userId: target.id, revokedAt: null },
+        after_json: expect.objectContaining({
+          userId: target.id,
+          revokedReason: 'admin',
+        }) as unknown,
+      }),
+    ]);
+    expect((rows[0]?.after_json as { revokedAt: string }).revokedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(JSON.stringify(rows)).not.toContain(`tok-${sessionId}`);
+  });
+
+  it('pricing.price.set records the old price, the new one and the reason, on the company of the list', async () => {
+    const tag = newId().slice(-12);
+    const item = newId();
+    const list = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into items (id, sku, name, category, hsn)
+          values (${item}, ${`T-${tag}-AUD`}, 'audit trail item', 'pump', '8413')`;
+        await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from)
+          values (${list}, ${tierId('commercial')}, 2, ${Math.floor(Math.random() * 1_000_000_000)}, '2026-04-01')`;
+      }),
+    );
+    try {
+      const exec = await createTestPrincipal('executive');
+      const first = newId();
+      const priced = await executeCommand(exec, { entityIds: [2], requestId: first }, setPrice, {
+        priceListId: list,
+        itemId: item,
+        price: '1500.00',
+      });
+      expect(await rowsOf(first)).toEqual([
+        expect.objectContaining({
+          command: 'pricing.price.set',
+          entity_id: 2,
+          aggregate_type: 'price_list_item',
+          aggregate_id: priced.id,
+          before_json: null,
+          after_json: {
+            priceListId: list,
+            itemId: item,
+            kitId: null,
+            price: '1500.00',
+            reason: null,
+          },
+        }),
+      ]);
+
+      const second = newId();
+      await executeCommand(exec, { entityIds: [2], requestId: second }, setPrice, {
+        priceListId: list,
+        itemId: item,
+        price: '1650.00',
+        reason: 'supplier increase',
+      });
+      expect(await rowsOf(second)).toEqual([
+        expect.objectContaining({
+          before_json: { price: '1500.00' },
+          after_json: expect.objectContaining({
+            price: '1650.00',
+            reason: 'supplier increase',
+          }) as unknown,
+        }),
+      ]);
+    } finally {
+      // Closed, so the next run may open its own list for the same tier (AUDIT M19).
+      await asMigrator((m) => m`update price_lists set archived_at = now() where id = ${list}`);
+    }
   });
 });

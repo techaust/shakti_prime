@@ -131,7 +131,7 @@ Rules:
 | `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
 
 ## 5. Append-only tables
-`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`. The one exception is delivery bookkeeping (`outbox_events`, `webhook_inbox`): a separate role holds a column-level `update` on the delivery columns and the trigger allows only those columns to change.
+`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`. The one exception is delivery bookkeeping (`outbox_events`, `webhook_inbox`): a separate role holds a column-level `update` on the delivery columns and the trigger allows only those columns to change. A partitioned append-only table keeps its partitions in a schema no request role may use (`audit_partitions` for `audit_logs`), so a partition is never read or written around the policies and grants on the parent.
 
 ## 6. Table catalogue
 Key columns only; every table also has the standard columns from §2.

@@ -975,3 +975,52 @@ describe('the audit trail of sign-in and account changes (docs/design/backend-we
     expect(text).not.toContain(secret);
   });
 });
+
+describe('the audit trail of backup codes and forgotten passwords', () => {
+  it('records new backup codes, a sign-in with one and a request for a new password', async () => {
+    const ip = '10.0.7.5';
+    const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'accounts' }]);
+    const first = await signIn(user.email, GOOD_PASSWORD, { ip });
+    const enrol = await auth.api.enableTwoFactor({
+      body: { password: GOOD_PASSWORD, method: 'totp' },
+      headers: clientHeaders({ cookie: first.cookie, ip }),
+    });
+    if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
+    const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
+    const verified = await auth.api.verifyTOTP({
+      body: { code: totpCode(secret, new Date()) },
+      headers: clientHeaders({ cookie: first.cookie, ip }),
+      returnHeaders: true,
+    });
+    const enrolledCookie = cookieHeader(verified.headers) || first.cookie;
+
+    const fresh = await auth.api.generateBackupCodes({
+      body: { password: GOOD_PASSWORD },
+      headers: clientHeaders({ cookie: enrolledCookie, ip }),
+    });
+    const backup = fresh.backupCodes[0] ?? '';
+    const challenge = await signIn(user.email, GOOD_PASSWORD, { ip });
+    await auth.api.verifyBackupCode({
+      body: { code: backup },
+      headers: clientHeaders({ cookie: challenge.cookie, ip }),
+    });
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+      headers: clientHeaders({ ip, turnstile: 'ok:reset' }),
+    });
+
+    const rows = await authEvents({ actor: user.id, ip });
+    expect(rows.map((r) => [r.command, r.outcome, r.input_json])).toEqual([
+      ['auth.sign_in', 'ok', { email: '********test', detail: 'complete' }],
+      ['auth.two_factor.enable', 'ok', {}],
+      ['auth.two_factor.verify', 'ok', { method: 'totp' }],
+      ['auth.backup_codes.regenerate', 'ok', {}],
+      ['auth.sign_in', 'ok', { email: '********test', detail: 'code_required' }],
+      ['auth.two_factor.verify', 'ok', { method: 'backup_code' }],
+      ['auth.password.reset_requested', 'ok', { email: '********test' }],
+    ]);
+    const text = JSON.stringify(rows);
+    expect(text).not.toContain(backup);
+    expect(text).not.toContain(user.email);
+  });
+});
