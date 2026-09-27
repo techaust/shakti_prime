@@ -109,6 +109,14 @@
     "setPassword": {
       "subject": "Your Shakti Prime sign-in",
       "body": "Hello {name},\n\nYour Shakti Prime access is ready. Open this link to choose your password:\n{url}\n\nThe link works for one day. If you didn't expect this email, you can ignore it.\n\nShakti Prime"
+    },
+    "resetPassword": {
+      "subject": "Choose a new Shakti Prime password",
+      "body": "Hello {name},\n\nOpen this link to choose a new password for Shakti Prime:\n{url}\n\nThe link works for one hour, and only the newest link works. If you didn't ask for this, you can ignore this email; your password stays as it is.\n\nShakti Prime"
+    },
+    "signInAttempts": {
+      "subject": "Someone tried to sign in to your Shakti Prime account",
+      "body": "Hello {name},\n\nSomeone has entered a wrong password for your Shakti Prime account several times. If it was you, there is nothing to do. If it wasn't, tell your manager today and change your password from the home screen.\n\nShakti Prime"
     }
   },
   "roles": {

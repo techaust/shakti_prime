@@ -6,14 +6,19 @@ import { GET } from '../src/app/api/v1/health/ready/route';
 afterAll(closeDb);
 
 describe('GET /api/v1/health/ready', () => {
-  it('reports the database as ok and echoes the request id', async () => {
+  it('reports every dependency as ok and echoes the request id', async () => {
     const response = await GET(
       new Request('http://localhost/api/v1/health/ready', { headers: { 'x-request-id': 'r-1' } }),
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('x-request-id')).toBe('r-1');
     const body = ReadyResponse.parse(await response.json());
-    expect(body.checks.database).toBe('ok');
+    expect(body.checks).toEqual({
+      database: 'ok',
+      auth_database: 'ok',
+      key_value: 'ok',
+      config: 'ok',
+    });
   });
 
   it('replaces a request id it cannot echo safely', async () => {

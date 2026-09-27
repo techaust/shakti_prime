@@ -20,11 +20,17 @@ export {
   resolvePrincipalFromGrants,
 } from './auth/resolve-principal';
 export type { EntityGrants, ResolveOutcome, UserAccess } from './auth/resolve-principal';
-export { createLockout, lockoutDelaySeconds, LOCKOUT_FREE_ATTEMPTS } from './auth/lockout';
-export type { Lockout } from './auth/lockout';
+export {
+  createLockout,
+  createSignInGuard,
+  lockoutDelaySeconds,
+  LOCKOUT_FREE_ATTEMPTS,
+  SIGN_IN_NOTICE_EVERY,
+} from './auth/lockout';
+export type { Lockout, SignInGuard } from './auth/lockout';
 export { memoryKeyValue } from './ports/key-value';
 export type { KeyValue } from './ports/key-value';
-export { consoleMailer, memoryMailer } from './ports/mailer';
+export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';

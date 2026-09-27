@@ -70,3 +70,10 @@ export const RevokeSessionInput = z
   })
   .strict();
 export type RevokeSessionInput = z.infer<typeof RevokeSessionInput>;
+
+/**
+ * Clears every sign-in lock on a staff member's account (AUDIT M6), after an Executive has
+ * confirmed who is asking. The lock lives in the shared store, not in the database.
+ */
+export const ClearSignInLockInput = z.object({ userId: IdSchema }).strict();
+export type ClearSignInLockInput = z.infer<typeof ClearSignInLockInput>;

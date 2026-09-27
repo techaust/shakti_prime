@@ -72,3 +72,53 @@ export function createLockout(store: KeyValue, now: () => number = Date.now) {
 }
 
 export type Lockout = ReturnType<typeof createLockout>;
+
+/** Every this many failures on one account, from any address, the owner is told by email. */
+export const SIGN_IN_NOTICE_EVERY = 10;
+/** Clearing a lock moves the account to a new generation of pair keys; this outlives them. */
+const GENERATION_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+/**
+ * The sign-in lockout policy (docs/SECURITY.md §2, AUDIT M6). The exponential lock applies to
+ * one account from one address, so a stranger who knows an Executive's email cannot keep them
+ * out, and one office address is not locked for everyone behind it by one person's typos. The
+ * account-wide count only escalates: every tenth failure tells the owner. Per-address request
+ * caps bound what one address can try across accounts.
+ */
+export function createSignInGuard(store: KeyValue, now: () => number = Date.now) {
+  const lockout = createLockout(store, now);
+  const account = (email: string) => email.trim().toLowerCase();
+  const generationKey = (acct: string) => `signin-gen:${acct}`;
+  const failuresKey = (acct: string) => `signin-fail:${acct}`;
+  async function pairKey(acct: string, address: string | undefined): Promise<string> {
+    const generation = (await store.get(generationKey(acct))) ?? '0';
+    return `pair:${acct}:${generation}|${address ?? 'unknown'}`;
+  }
+  return {
+    /** Throws `rate_limited` while this account is locked from this address. */
+    async check(email: string, address: string | undefined): Promise<void> {
+      await lockout.check([await pairKey(account(email), address)]);
+    },
+    /** Records a wrong password; `notify` is true when the owner should be told. */
+    async recordFailure(email: string, address: string | undefined): Promise<{ notify: boolean }> {
+      const acct = account(email);
+      await lockout.recordFailure([await pairKey(acct, address)]);
+      const total = await store.incr(failuresKey(acct), LOCKOUT_COUNTER_TTL_SECONDS);
+      return { notify: total % SIGN_IN_NOTICE_EVERY === 0 };
+    },
+    /** A completed sign-in (after the second factor, where there is one). */
+    async succeeded(email: string, address: string | undefined): Promise<void> {
+      const acct = account(email);
+      await lockout.reset([await pairKey(acct, address)]);
+      await store.del(failuresKey(acct));
+    },
+    /** An administrator lifts every lock on the account, from every address. */
+    async clear(email: string): Promise<void> {
+      const acct = account(email);
+      await store.incr(generationKey(acct), GENERATION_TTL_SECONDS);
+      await store.del(failuresKey(acct));
+    },
+  };
+}
+
+export type SignInGuard = ReturnType<typeof createSignInGuard>;
