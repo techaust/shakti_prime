@@ -225,6 +225,20 @@
       "when": 1790498566363,
       "tag": "0031_financial_year_check",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790503597949,
+      "tag": "0032_audit_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790503622120,
+      "tag": "0033_audit_logs_rls",
+      "breakpoints": true
     }
   ]
 }

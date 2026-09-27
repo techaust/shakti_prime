@@ -179,6 +179,7 @@ export const ENTITY_TABLES = [
   'consents',
   'item_costs',
   'document_sequences',
+  'audit_logs',
 ] as const;
 
 /**
