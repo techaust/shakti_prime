@@ -32,7 +32,7 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 | 7–8 | Remaining state-machine specs, API contracts for mobile/connector/webhooks/ingest, vendor quotes, ADRs 9–13, contingency |
 
 **Exit gate checklist:**
-- [ ] Security suite green for every table in the core schema, including fail-closed and cost-gate tests
+- [x] Security suite green for every table in the core schema, including fail-closed and cost-gate tests
 - [ ] `DESIGN.md` and preview page signed off by the client
 - [ ] All six spikes passed with written results and latency numbers
 - [ ] ERD, data dictionary, state machines, permission matrix and API contracts reviewed

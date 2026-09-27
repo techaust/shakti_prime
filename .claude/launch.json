@@ -4,8 +4,26 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "web",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "prototype",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4100",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "docs/phase0/prototype"
+      ],
+      "port": 4100
     }
   ]
 }
