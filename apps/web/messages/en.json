@@ -26,7 +26,7 @@
     "password_too_long": "Your password is too long. Keep it under 128 characters.",
     "password_breached": "This password has appeared in a known leak, so it isn't safe. Please choose a different one.",
     "password_mismatch": "The two passwords don't match. Please type them again.",
-    "link_expired": "This link has expired or was already used. Ask your manager to send a new one.",
+    "link_expired": "This link has expired or was already used. Ask for a new one from the sign-in screen.",
     "code_incorrect": "That code didn't work. Open your authenticator app and enter the latest code.",
     "authenticator_already_set": "Your authenticator app is already set up. Sign in with a code from it.",
     "authenticator_missing": "Your authenticator app is not set up yet. Set it up first.",
@@ -41,7 +41,7 @@
     "user_offboarded": "This person has left. Invite them again to give access.",
     "self_suspend": "You can't suspend your own access. Ask another Executive.",
     "session_missing": "This sign-in has already ended.",
-    "account_missing": "We couldn't find this customer. Search again or create a new customer.",
+    "account_missing": "We couldn't find this customer. Check the customer and try again.",
     "self_role_change": "You can't change your own roles. Ask another Executive.",
     "user_roles_outside_scope": "This person also works in a company you are not viewing. Switch to all companies and try again.",
     "last_executive": "This would leave no one who can manage the whole group. Make another person an Executive first.",
@@ -53,7 +53,9 @@
     "request_refused": "We couldn't do that just now. Refresh the page and try again.",
     "concurrent_change": "Someone else changed this at the same moment. Refresh the page and try again.",
     "database_rejected": "Some details don't fit together. Please check them and try again.",
-    "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute."
+    "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute.",
+    "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this enquiry to them.",
+    "invite_mail_failed": "The invitation is saved, but the email didn't go out. Send the invitation again in a few minutes."
   },
   "auth": {
     "signIn": {
@@ -62,7 +64,8 @@
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
-      "working": "Signing in…"
+      "working": "Signing in…",
+      "forgot": "Forgot your password?"
     },
     "setPassword": {
       "title": "Choose your password",
@@ -107,6 +110,14 @@
       "confirm": "Type the new password again",
       "submit": "Change password",
       "done": "Your password is changed. Other devices are signed out."
+    },
+    "forgotPassword": {
+      "title": "Get a new password link",
+      "intro": "Enter your work email. If it belongs to a staff account, we'll send a link to choose a new password.",
+      "email": "Email",
+      "submit": "Send link",
+      "done": "If this email belongs to a staff account, a link is on its way. It works for one hour. Check your inbox, and your spam folder too.",
+      "back": "Back to sign in"
     }
   },
   "mail": {

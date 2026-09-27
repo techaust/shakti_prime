@@ -176,6 +176,20 @@
       "when": 1790491028750,
       "tag": "0024_db_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790493727008,
+      "tag": "0025_lead_flows_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790493734329,
+      "tag": "0026_lead_flows",
+      "breakpoints": true
     }
   ]
 }

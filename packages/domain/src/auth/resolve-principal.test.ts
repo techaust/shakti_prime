@@ -96,6 +96,7 @@ describe('resolvePrincipalFromGrants', () => {
         { key: 'crm.lead.write', scope: 'team' },
       ],
       teamId,
+      entityTeams: [{ entityId: 2, teamId }],
     });
   });
 
@@ -107,6 +108,8 @@ describe('resolvePrincipalFromGrants', () => {
     expect(outcome.principal.permissions).toEqual([{ key: 'crm.lead.read', scope: 'team' }]);
     expect(outcome.principal.roleKey).toBe('executive');
     expect(outcome.principal.teamId).toBeUndefined();
+    // the team of each company stays known, for a request narrowed to one (AUDIT M24)
+    expect(outcome.principal.entityTeams).toEqual([{ entityId: 2, teamId }]);
   });
 
   it('an entity outside the user’s access is reported, not silently widened', () => {

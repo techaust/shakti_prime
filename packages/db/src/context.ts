@@ -41,6 +41,14 @@ export async function withRequestContext<T>(
     });
   }
   const requestId = scope.requestId ?? newId();
+  // A request narrowed to one entity acts with the caller's team there, even when the principal
+  // was resolved in All-companies mode, where no single team applies (AUDIT M24).
+  const only = requested.length === 1 ? requested[0] : undefined;
+  const entityTeam = principal.entityTeams?.find((t) => t.entityId === only)?.teamId;
+  const acting: Principal =
+    entityTeam !== undefined && principal.teamId === undefined
+      ? { ...principal, teamId: entityTeam }
+      : principal;
   return rawDb().transaction(async (tx) => {
     await tx.execute(sql`
       select
@@ -48,10 +56,10 @@ export async function withRequestContext<T>(
         set_config('app.entity_ids', ${entityIdsLiteral(requested)}, true),
         set_config('app.role', ${principal.roleKey}, true),
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
-        set_config('app.team_id', ${principal.teamId ?? ''}, true),
+        set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
         set_config('DateStyle', 'ISO, YMD', true)
     `);
-    return fn({ principal, entityIds: requested, requestId, tx });
+    return fn({ principal: acting, entityIds: requested, requestId, tx });
   });
 }

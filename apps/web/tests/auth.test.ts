@@ -6,6 +6,7 @@ import {
   clearSignInLock,
   createAuth,
   HTTP_DISABLED_PATHS,
+  setPasswordMailFailed,
   type Auth,
 } from '../src/auth/create-auth';
 import { toDomainError } from '../src/auth/errors';
@@ -30,12 +31,10 @@ const fetchStub = vi.fn((input: RequestInfo | URL, init?: RequestInit): Promise<
   const url = input instanceof Request ? input.url : input.toString();
   if (url.includes('turnstile')) {
     const params = init?.body instanceof URLSearchParams ? init.body : new URLSearchParams();
+    // A token reads `ok` (the sign-in widget) or `ok:<widget>`, the way Cloudflare echoes it.
+    const [verdict, action = 'sign-in'] = (params.get('response') ?? '').split(':');
     return Promise.resolve(
-      Response.json({
-        success: params.get('response') === 'ok',
-        hostname: 'localhost',
-        action: 'sign-in',
-      }),
+      Response.json({ success: verdict === 'ok', hostname: 'localhost', action }),
     );
   }
   if (url.includes('pwnedpasswords')) {
@@ -389,7 +388,7 @@ describe('request caps and cookie attributes', () => {
     const request = () =>
       capped.api.requestPasswordReset({
         body: { email: user.email, redirectTo: '/set-password' },
-        headers: clientHeaders({ ip: '10.0.7.7' }),
+        headers: clientHeaders({ ip: '10.0.7.7', turnstile: 'ok:reset' }),
       });
     for (let i = 0; i < 3; i += 1) await request();
     await expect(request()).rejects.toSatisfy((e) => code(e) === 'account_locked');
@@ -488,7 +487,7 @@ describe('session limits', () => {
 
     await auth.api.requestPasswordReset({
       body: { email: user.email, redirectTo: '/set-password' },
-      headers: clientHeaders({ ip, cookie: stale.cookie }),
+      headers: clientHeaders({ ip, cookie: stale.cookie, turnstile: 'ok:reset' }),
     });
     const token = /reset-password\/([^?\s]+)/.exec(mailer.sent.at(-1)?.text ?? '')?.[1];
     expect(token).toBeDefined();
@@ -770,5 +769,28 @@ describe('an outage is not a sign-out (AUDIT M36, M37)', () => {
         headers: clientHeaders(),
       }),
     ).rejects.toSatisfy((e) => code(e) === 'bot_check_unavailable');
+  });
+});
+
+describe('an invitation email that does not go out (AUDIT M26)', () => {
+  it('is recorded once for the invite action to report', async () => {
+    const failing = createAuth(
+      {
+        keyValue,
+        mailer: { send: () => Promise.reject(new Error('mail service down')) },
+        fetch: fetchStub,
+        now: () => clock,
+        turnstileSecretKey: 'secret',
+      },
+      { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
+    );
+    const user = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+      status: 'invited',
+    });
+    await failing.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+    });
+    expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(true);
+    expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(false);
   });
 });

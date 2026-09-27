@@ -23,7 +23,7 @@ import {
   suspendUser as suspendUserCommand,
 } from '@shakti/domain';
 import { auth } from '../auth/auth';
-import { clearSignInLock as clearLock } from '../auth/create-auth';
+import { clearSignInLock as clearLock, setPasswordMailFailed } from '../auth/create-auth';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
 import { parseInput, requestId } from './support';
@@ -37,8 +37,14 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
   const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(inviteUserCommand, { context }, input),
   );
-  // The set-password link goes out through the auth module's own flow (no headers: an internal call).
+  // The set-password link goes out through the auth module's own flow (no headers: an internal
+  // call). Inviting someone still invited sends a fresh link, which withdraws the old one.
   await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: '/set-password' } });
+  if (await setPasswordMailFailed(defaultAuthDeps(), user.id)) {
+    throw new DomainError('integration_unavailable', 'the invitation email did not go out', {
+      reason: 'invite_mail_failed',
+    });
+  }
   return user;
 }
 

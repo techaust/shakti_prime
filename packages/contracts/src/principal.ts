@@ -17,6 +17,11 @@ export const PrincipalSchema = z.object({
   entityIds: z.array(EntityIdSchema),
   permissions: z.array(PermissionGrantSchema),
   teamId: IdSchema.optional(),
+  /**
+   * The user's team in each entity where they have one (AUDIT M24). In All-companies mode
+   * `teamId` is unset; a request narrowed to one entity takes that entity's team from here.
+   */
+  entityTeams: z.array(z.object({ entityId: EntityIdSchema, teamId: IdSchema })).optional(),
 });
 
 export type Principal = z.infer<typeof PrincipalSchema>;

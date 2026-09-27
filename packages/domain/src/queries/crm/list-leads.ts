@@ -67,9 +67,11 @@ export async function listLeads(
     })
     .from(o)
     .innerJoin(a, eq(a.id, o.accountId))
-    .innerJoin(ac, and(eq(ac.accountId, a.id), eq(ac.role, 'owner')))
-    .innerJoin(c, eq(c.id, ac.contactId))
-    .innerJoin(p, and(eq(p.contactId, c.id), eq(p.isPrimary, true)))
+    // One owner per customer and one main phone per contact (unique indexes), so these joins
+    // never repeat a lead; a lead whose owner or phone is not recorded yet is still listed.
+    .leftJoin(ac, and(eq(ac.accountId, a.id), eq(ac.role, 'owner')))
+    .leftJoin(c, eq(c.id, ac.contactId))
+    .leftJoin(p, and(eq(p.contactId, c.id), eq(p.isPrimary, true)))
     .where(
       and(
         isNull(o.archivedAt),

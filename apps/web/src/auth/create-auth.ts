@@ -18,7 +18,12 @@ import { and, eq, isNull, like, ne } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
-import { TURNSTILE_HEADER, TURNSTILE_SIGN_IN_ACTION, verifyTurnstile } from './turnstile';
+import {
+  TURNSTILE_HEADER,
+  TURNSTILE_RESET_ACTION,
+  TURNSTILE_SIGN_IN_ACTION,
+  verifyTurnstile,
+} from './turnstile';
 
 /** Argon2id parameters from docs/SECURITY.md §2: m = 64 MiB, t = 3, p = 1. */
 // algorithm 2 is Argon2id in @node-rs/argon2 (a const enum, not importable under verbatimModuleSyntax).
@@ -416,11 +421,19 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         }
         const t = mailTranslator();
         const kind = invited ? 'setPassword' : 'resetPassword';
-        await deps.mailer.send({
-          to: user.email,
-          subject: t(`${kind}.subject`),
-          text: t(`${kind}.body`, { name: user.name, url }),
-        });
+        try {
+          await deps.mailer.send({
+            to: user.email,
+            subject: t(`${kind}.subject`),
+            text: t(`${kind}.body`, { name: user.name, url }),
+          });
+        } catch (error) {
+          // Better Auth logs and swallows a failed send, so the invite action could not tell
+          // the Executive; the failure is recorded for it to read (AUDIT M26).
+          log.log('error', 'auth.mail_failed', { kind, error });
+          await deps.keyValue.set(mailFailedKey(user.id), '1', MAIL_FAILED_SECONDS);
+          throw error;
+        }
       },
     },
     rateLimit: {
@@ -473,7 +486,8 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           remoteIp: address,
           fetch: deps.fetch,
           expectedHostname: deps.turnstileHostname,
-          expectedAction: ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : undefined,
+          expectedAction:
+            ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : TURNSTILE_RESET_ACTION,
           logger: log,
         });
         if (verdict === 'unavailable') {
@@ -550,6 +564,20 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+const MAIL_FAILED_SECONDS = 5 * 60;
+const mailFailedKey = (userId: string) => `mail-failed:${userId}`;
+
+/** True, once, when the last set-password mail to this user failed to go out (AUDIT M26). */
+export async function setPasswordMailFailed(
+  deps: Pick<AuthDeps, 'keyValue'>,
+  userId: string,
+): Promise<boolean> {
+  const key = mailFailedKey(userId);
+  const failed = (await deps.keyValue.get(key)) !== null;
+  if (failed) await deps.keyValue.del(key);
+  return failed;
+}
 
 /** Lifts every sign-in lock on an account (AUDIT M6); the admin action checks the permission. */
 export function clearSignInLock(deps: Pick<AuthDeps, 'keyValue' | 'now'>, email: string) {
