@@ -44,15 +44,16 @@ export function VerifyCodeForm({ allowBackupCode = false }: { allowBackupCode?: 
         {t('verify')}
       </Button>
       {allowBackupCode ? (
-        <button
+        <Button
           type="button"
-          className="text-accent-text self-start text-sm underline"
+          variant="link"
+          className="text-sm underline"
           onClick={() => {
             setUseBackup(true);
           }}
         >
           {t('useBackupCode')}
-        </button>
+        </Button>
       ) : null}
     </form>
   );
@@ -77,13 +78,9 @@ function BackupCodeForm({ onBack }: { onBack: () => void }) {
       <Button type="submit" pending={pending}>
         {t('verify')}
       </Button>
-      <button
-        type="button"
-        className="text-accent-text self-start text-sm underline"
-        onClick={onBack}
-      >
+      <Button type="button" variant="link" className="text-sm underline" onClick={onBack}>
         {t('useAppCode')}
-      </button>
+      </Button>
     </form>
   );
 }

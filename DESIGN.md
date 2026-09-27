@@ -37,7 +37,7 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
-| `--accent-hover` | Accent, one step toward the text | Hover |
+| `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
 | `--accent-text` | Accent, adjusted to AA on `--surface` (lighter in dark) | Accent-coloured text |
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`) | Text on accent fills |
 | `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
@@ -128,7 +128,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 8. Token delivery
 `packages/tokens` holds the three theme inputs (§2.1), the fixed status and chart hues, and the LCH generator. Its build writes:
-- `tokens.css`: `:root` light values, dark values under `:root:not([data-theme="light"])` inside `@media (prefers-color-scheme: dark)`, and again under `:root[data-theme="dark"]`.
+- `tokens.css`: `:root` light values, dark values under `:root:not([data-theme="light"])` inside `@media (prefers-color-scheme: dark)`, and again under `:root[data-theme="dark"]`; `.theme-light` and `.theme-dark` classes carry each theme on one element, so the `/design` page shows both side by side.
 - `tailwind.css`: Tailwind v4 `@theme` mapping (`--color-bg: var(--bg)` …) and shadcn/ui variable aliases (`--background`, `--foreground`, `--primary`, `--primary-foreground`, `--muted`, `--border`, `--ring`, `--destructive`).
 - a typed object of the generated values, exported from the package for the Android app (NativeWind) and for chart colours.
 

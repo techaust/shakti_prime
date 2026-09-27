@@ -11,6 +11,7 @@ export { inviteUser } from './commands/admin/invite-user';
 export { setUserRoles } from './commands/admin/set-user-roles';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
+export { setTheme } from './commands/profile/set-theme';
 export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,

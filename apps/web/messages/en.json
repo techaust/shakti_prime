@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Shakti Prime",
-    "tagline": "One place to run Shakti's leads, sales, stock, projects and payments."
+    "tagline": "One place to run Shakti's leads, sales, stock, projects and payments.",
+    "staffSignIn": "Staff sign in"
   },
   "errors": {
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
@@ -122,5 +123,50 @@
     "field_engineer": "Field Engineer",
     "accounts": "Accounts",
     "hr_admin": "HR Admin"
+  },
+  "theme": {
+    "label": "Appearance",
+    "system": "Same as device",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "design": {
+    "title": "Design preview",
+    "intro": "Every colour, text size and control in the light and dark themes. Each colour shows how readable it is on a card: text needs 4.5 or more, lines and icons need 3 or more.",
+    "light": "Light",
+    "dark": "Dark",
+    "colours": "Colours",
+    "ratio": "{hex} · {ratio} on a card",
+    "type": "Text sizes",
+    "typeRole": "{role} · {size}/{line} · weight {weight}",
+    "typeSample": "Solar pump for a 5 acre farm near Jaipur",
+    "numericSample": "₹1,24,750.00",
+    "buttons": "Buttons",
+    "primary": "Save changes",
+    "secondary": "Cancel",
+    "link": "View details",
+    "unavailable": "Save changes",
+    "fields": "Fields",
+    "fieldLabel": "Customer name",
+    "fieldHint": "Full name, as the customer writes it",
+    "fieldErrorLabel": "Mobile number",
+    "fieldErrorValue": "98290",
+    "fieldError": "Please check the phone number. Enter the 10-digit mobile number.",
+    "statuses": "Status labels",
+    "status": {
+      "success": "Paid",
+      "warning": "Due soon",
+      "danger": "Overdue",
+      "info": "Dispatched"
+    },
+    "stage": {
+      "stage-new": "New",
+      "stage-contacted": "Contacted",
+      "stage-qualified": "Qualified",
+      "stage-quoted": "Quoted",
+      "stage-won": "Won",
+      "stage-lost": "Lost"
+    },
+    "charts": "Chart colours"
   }
 }

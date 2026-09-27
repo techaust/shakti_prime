@@ -57,6 +57,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'reports.export': 'Export reports',
   'audit.read': 'See the audit trail',
   'imports.write': 'Import leads, customers and items from files',
+  'profile.write': 'Change their own screen settings, such as light or dark',
   'admin.users.write': 'Manage users',
   'admin.roles.write': 'Manage roles',
   'admin.entities.write': 'Manage entities',
