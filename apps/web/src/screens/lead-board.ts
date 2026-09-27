@@ -7,6 +7,7 @@ import type {
   LeadBoardDto,
   OpportunityDto,
   OpportunityState,
+  PipelineDto,
   PipelineStageDto,
 } from '@shakti/contracts';
 
@@ -22,6 +23,53 @@ export function boardShowFrom(value: string | undefined): BoardShow {
 /** The statuses a filter asks the board for. */
 export function statesFor(show: BoardShow): OpportunityState[] {
   return show === 'all' ? ['open', 'nurture', 'won', 'lost'] : [show];
+}
+
+export interface BoardChoice {
+  /** The company the board shows; undefined only for a caller with no company at all. */
+  entityId: number | undefined;
+  /** The pipelines that company can use: its own and the shared ones. */
+  pipelines: PipelineDto[];
+  /** The pipeline shown, or undefined when the company has none. */
+  pipeline: PipelineDto | undefined;
+  show: BoardShow;
+}
+
+/**
+ * What the board shows for the address it was opened at: the company named there when the caller
+ * works in it (the first of theirs otherwise), the pipeline named there when that company uses it
+ * (the first one otherwise) and the status filter.
+ */
+export function boardChoice(input: {
+  pipelines: readonly PipelineDto[];
+  entityIds: readonly number[];
+  company?: string | undefined;
+  pipeline?: string | undefined;
+  show?: string | undefined;
+}): BoardChoice {
+  const asked = Number(input.company);
+  const entityId = input.entityIds.includes(asked) ? asked : input.entityIds[0];
+  const pipelines = input.pipelines.filter((p) => p.entityId === null || p.entityId === entityId);
+  return {
+    entityId,
+    pipelines,
+    pipeline: pipelines.find((p) => p.key === input.pipeline) ?? pipelines[0],
+    show: boardShowFrom(input.show),
+  };
+}
+
+/** The board's address for a choice of company, pipeline and filter. */
+export function boardHref(choice: {
+  entityId: number | undefined;
+  pipelineKey: string | undefined;
+  show: BoardShow;
+}): string {
+  const params = new URLSearchParams();
+  if (choice.entityId !== undefined) params.set('company', String(choice.entityId));
+  if (choice.pipelineKey !== undefined) params.set('pipeline', choice.pipelineKey);
+  if (choice.show !== 'open') params.set('show', choice.show);
+  const query = params.toString();
+  return query === '' ? '/leads/board' : `/leads/board?${query}`;
 }
 
 /**

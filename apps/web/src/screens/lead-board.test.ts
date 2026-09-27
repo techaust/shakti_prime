@@ -2,7 +2,9 @@ import type { BoardLeadDto, LeadBoardDto, PipelineStageDto } from '@shakti/contr
 import { describe, expect, it } from 'vitest';
 import {
   applyChange,
+  boardChoice,
   boardColumns,
+  boardHref,
   boardShowFrom,
   cardActions,
   daysSince,
@@ -196,5 +198,47 @@ describe('stage colours and age', () => {
     expect(daysSince('2026-09-28T09:00:00Z', now)).toBe(0);
     expect(daysSince('2026-09-26T10:00:00Z', now)).toBe(2);
     expect(daysSince('2026-09-29T10:00:00Z', now)).toBe(0);
+  });
+});
+
+describe('boardChoice', () => {
+  const pipeline = (key: string, entityId: number | null) => ({
+    id: id(key.length),
+    key,
+    name: key,
+    segment: 'farmer_pumps' as const,
+    entityId,
+    stages: STAGES,
+  });
+  const pipelines = [pipeline('shared', null), pipeline('mine', 2), pipeline('theirs', 3)];
+
+  it('takes the company and pipeline from the address when the caller may use them', () => {
+    const choice = boardChoice({
+      pipelines,
+      entityIds: [1, 2],
+      company: '2',
+      pipeline: 'mine',
+      show: 'lost',
+    });
+    expect(choice).toMatchObject({ entityId: 2, show: 'lost' });
+    expect(choice.pipeline?.key).toBe('mine');
+    expect(choice.pipelines.map((p) => p.key)).toEqual(['shared', 'mine']);
+  });
+
+  it('falls back to the first company and pipeline for anything else', () => {
+    const choice = boardChoice({ pipelines, entityIds: [1, 2], company: '3', pipeline: 'theirs' });
+    expect(choice.entityId).toBe(1);
+    expect(choice.pipeline?.key).toBe('shared');
+    expect(choice.show).toBe('open');
+    expect(boardChoice({ pipelines: [], entityIds: [1] }).pipeline).toBeUndefined();
+  });
+
+  it('writes the address back, leaving the default filter out', () => {
+    expect(boardHref({ entityId: 2, pipelineKey: 'mine', show: 'open' })).toBe(
+      '/leads/board?company=2&pipeline=mine',
+    );
+    expect(boardHref({ entityId: undefined, pipelineKey: undefined, show: 'all' })).toBe(
+      '/leads/board?show=all',
+    );
   });
 });
