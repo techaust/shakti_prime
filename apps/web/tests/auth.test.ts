@@ -2,7 +2,12 @@ import { asMigrator, closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { createAuth, type Auth } from '../src/auth/create-auth';
+import {
+  clearSignInLock,
+  createAuth,
+  HTTP_DISABLED_PATHS,
+  type Auth,
+} from '../src/auth/create-auth';
 import { toDomainError } from '../src/auth/errors';
 import {
   invalidatePrincipal,
@@ -179,8 +184,9 @@ describe('invite, set password, sign in', () => {
     ).rejects.toSatisfy((e) => code(e) === 'password_too_short');
   });
 
-  it('needs a valid bot check and locks the account after five failures', async () => {
+  it('needs a valid bot check and locks the account from that address after five failures (AUDIT M6)', async () => {
     const user = await inviteAndSetPassword([{ entityId: 2, roleKey: 'store_manager' }]);
+    const colleague = await inviteAndSetPassword([{ entityId: 2, roleKey: 'store_manager' }]);
     await expect(signIn(user.email, GOOD_PASSWORD, { turnstile: 'nope' })).rejects.toSatisfy(
       (e) => code(e) === 'bot_check_failed',
     );
@@ -192,10 +198,14 @@ describe('invite, set password, sign in', () => {
     await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.9' })).rejects.toSatisfy(
       (e) => code(e) === 'account_locked',
     );
-    // the address is locked too, for any account
-    await expect(
-      signIn('someone.else@shakti.test', GOOD_PASSWORD, { ip: '10.0.0.9' }),
-    ).rejects.toSatisfy((e) => code(e) === 'account_locked');
+    // a colleague behind the same office address is not locked out by someone else's typos
+    await expect(signIn(colleague.email, GOOD_PASSWORD, { ip: '10.0.0.9' })).resolves.toMatchObject(
+      { cookie: expect.stringContaining('session_token') as unknown },
+    );
+    // and a stranger's failures elsewhere cannot keep the owner out from their own address
+    await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.10' })).resolves.toMatchObject({
+      cookie: expect.stringContaining('session_token') as unknown,
+    });
     clock = new Date(clock.getTime() + 61_000);
     const { cookie } = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.9' });
     expect(cookie).toContain('session_token');
@@ -294,8 +304,9 @@ describe('authenticator app for Executive, GM and Accounts', () => {
         headers: clientHeaders({ cookie: again.cookie }),
       }),
     ).rejects.toSatisfy((e) => code(e) === 'request_refused');
+    // the code of the next time step: the enrolment code is spent (AUDIT M5)
     const done = await auth.api.verifyTOTP({
-      body: { code: totpCode(secret, new Date()) },
+      body: { code: totpCode(secret, new Date(Date.now() + 30_000)) },
       headers: clientHeaders({ cookie: again.cookie }),
       returnHeaders: true,
     });
@@ -481,5 +492,243 @@ describe('session limits', () => {
         headers: clientHeaders({ ip, cookie: stale.cookie }),
       }),
     ).resolves.toMatchObject({ status: true });
+  });
+});
+
+/** An Executive with an enrolled authenticator app; answers the secret for making codes. */
+async function enrolledExecutive(entityId = 1) {
+  const user = await inviteAndSetPassword([{ entityId, roleKey: 'executive' }]);
+  const first = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.1' });
+  const enrol = await auth.api.enableTwoFactor({
+    body: { password: GOOD_PASSWORD, method: 'totp' },
+    headers: clientHeaders({ cookie: first.cookie, ip: '10.0.9.1' }),
+  });
+  if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
+  const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
+  // enrolment spends the code of the step before now, leaving now and the next step free
+  await auth.api.verifyTOTP({
+    body: { code: totpCode(secret, new Date(Date.now() - 30_000)) },
+    headers: clientHeaders({ cookie: first.cookie, ip: '10.0.9.1' }),
+  });
+  return { user, secret };
+}
+
+const lastLogin = async (userId: string) => {
+  const [row] = await asMigrator(
+    (m) => m<{ at: Date | null }[]>`select last_login_at as at from users where id = ${userId}`,
+  );
+  return row?.at ?? null;
+};
+
+describe('second factor (AUDIT M5, L21)', () => {
+  it('a code verifies once, and the sign-in counts only when the code is done', async () => {
+    const { user, secret } = await enrolledExecutive();
+    await asMigrator((m) => m`update users set last_login_at = null where id = ${user.id}`);
+    const challenge = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.2' });
+    expect(challenge.response).toMatchObject({ twoFactorRedirect: true });
+    expect(await lastLogin(user.id)).toBeNull();
+
+    const totp = totpCode(secret, new Date());
+    await auth.api.verifyTOTP({
+      body: { code: totp },
+      headers: clientHeaders({ cookie: challenge.cookie, ip: '10.0.9.2' }),
+    });
+    expect(await lastLogin(user.id)).not.toBeNull();
+
+    const replay = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.3' });
+    await expect(
+      auth.api.verifyTOTP({
+        body: { code: totp },
+        headers: clientHeaders({ cookie: replay.cookie, ip: '10.0.9.3' }),
+      }),
+    ).rejects.toSatisfy((e) => code(e) === 'code_incorrect');
+  });
+
+  it('five wrong codes lock the second factor, even with a fresh challenge', async () => {
+    const { user, secret } = await enrolledExecutive();
+    const challenge = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.4' });
+    for (const wrong of ['000001', '000002', '000003', '000004', '000005']) {
+      await expect(
+        auth.api.verifyTOTP({
+          body: { code: wrong },
+          headers: clientHeaders({ cookie: challenge.cookie, ip: '10.0.9.4' }),
+        }),
+      ).rejects.toSatisfy((e) => code(e) === 'code_incorrect');
+    }
+    const fresh = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.4' });
+    await expect(
+      auth.api.verifyTOTP({
+        body: { code: totpCode(secret, new Date(Date.now() + 30_000)) },
+        headers: clientHeaders({ cookie: fresh.cookie, ip: '10.0.9.4' }),
+      }),
+    ).rejects.toSatisfy((e) => code(e) === 'account_locked');
+  });
+
+  it('a user suspended between the password and the code gets no session', async () => {
+    const { user, secret } = await enrolledExecutive(2);
+    const challenge = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.9.5' });
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${user.id}`);
+    const before = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from sessions where user_id = ${user.id}`,
+    );
+    await expect(
+      auth.api.verifyTOTP({
+        body: { code: totpCode(secret, new Date(Date.now() + 30_000)) },
+        headers: clientHeaders({ cookie: challenge.cookie, ip: '10.0.9.5' }),
+      }),
+    ).rejects.toBeDefined();
+    const after = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from sessions where user_id = ${user.id}`,
+    );
+    expect(after[0]?.n).toBe(before[0]?.n);
+  });
+});
+
+describe('sign-in lock policy (AUDIT M6, L21)', () => {
+  it('a suspended account locks like any other, so the lock does not reveal it', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 4, roleKey: 'hr_admin' }]);
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${user.id}`);
+    for (let i = 0; i < 5; i += 1) {
+      await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.8.1' })).rejects.toSatisfy(
+        (e) => code(e) === 'sign_in_failed',
+      );
+    }
+    await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.8.1' })).rejects.toSatisfy(
+      (e) => code(e) === 'account_locked',
+    );
+  });
+
+  it('tells the owner after ten wrong passwords from anywhere, and an administrator can lift the lock', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 4, roleKey: 'field_engineer' }]);
+    const before = mailer.sent.length;
+    for (let i = 0; i < 10; i += 1) {
+      await expect(
+        signIn(user.email, 'wrong password here', { ip: `10.0.8.${String(10 + (i % 2))}` }),
+      ).rejects.toSatisfy((e) => code(e) === 'sign_in_failed');
+    }
+    const notices = mailer.sent
+      .slice(before)
+      .filter((m) => m.to === user.email && m.subject.includes('tried to sign in'));
+    expect(notices).toHaveLength(1);
+
+    await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.8.10' })).rejects.toSatisfy(
+      (e) => code(e) === 'account_locked',
+    );
+    await clearSignInLock({ keyValue, now: () => clock }, user.email);
+    await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.8.10' })).resolves.toBeDefined();
+  });
+});
+
+describe('set-password links (AUDIT M7, M27)', () => {
+  const links = (userId: string) =>
+    asMigrator(
+      (m) => m<{ identifier: string; expires_at: Date }[]>`
+        select identifier, expires_at from auth_verifications
+         where value = ${userId} and identifier like 'reset-password:%'`,
+    );
+  const linkIn = (text: string | undefined) =>
+    /reset-password\/([^?\s]+)/.exec(text ?? '')?.[1] ?? '';
+
+  it('an invitation lasts a day, a reset an hour, only the newest works, and none is stored readable', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+      status: 'invited',
+    });
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+    });
+    const invite = linkIn(mailer.sent.at(-1)?.text);
+    expect(mailer.sent.at(-1)?.text).toContain('one day');
+    const [inviteRow] = await links(user.id);
+    expect(inviteRow?.identifier).not.toContain(invite);
+    const inviteHours = ((inviteRow?.expires_at.getTime() ?? 0) - Date.now()) / 3_600_000;
+    expect(inviteHours).toBeGreaterThan(23);
+
+    await auth.api.resetPassword({ body: { newPassword: GOOD_PASSWORD, token: invite } });
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+    });
+    const first = linkIn(mailer.sent.at(-1)?.text);
+    expect(mailer.sent.at(-1)?.text).toContain('one hour');
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+    });
+    const second = linkIn(mailer.sent.at(-1)?.text);
+    const rows = await links(user.id);
+    expect(rows).toHaveLength(1);
+    const resetHours = ((rows[0]?.expires_at.getTime() ?? 0) - Date.now()) / 3_600_000;
+    expect(resetHours).toBeLessThanOrEqual(1);
+
+    await expect(
+      auth.api.resetPassword({ body: { newPassword: `${GOOD_PASSWORD} one`, token: first } }),
+    ).rejects.toBeDefined();
+    await expect(
+      auth.api.resetPassword({ body: { newPassword: `${GOOD_PASSWORD} two`, token: second } }),
+    ).resolves.toMatchObject({ status: true });
+  });
+
+  it('six people set their passwords from one office address; one link cannot be tried endlessly', async () => {
+    const capped = createAuth(
+      { keyValue, mailer, fetch: fetchStub, now: () => clock, turnstileSecretKey: 'secret' },
+      {
+        nextCookies: false,
+        baseURL: 'http://localhost:3000',
+        secret: TEST_AUTH_SECRET,
+        rateLimit: true,
+      },
+    );
+    const office = clientHeaders({ ip: '10.0.6.1' });
+    for (let i = 0; i < 6; i += 1) {
+      const invitee = await createTestUser([{ entityId: 2, roleKey: 'tele_caller_cc' }], {
+        status: 'invited',
+      });
+      await capped.api.requestPasswordReset({
+        body: { email: invitee.email, redirectTo: '/set-password' },
+      });
+      const token = linkIn(mailer.sent.at(-1)?.text);
+      await expect(
+        capped.api.resetPassword({ body: { newPassword: GOOD_PASSWORD, token }, headers: office }),
+      ).resolves.toMatchObject({ status: true });
+    }
+    const probe = clientHeaders({ ip: '10.0.6.2' });
+    const guess = () =>
+      capped.api.resetPassword({
+        body: { newPassword: GOOD_PASSWORD, token: 'guessed-link' },
+        headers: probe,
+      });
+    for (let i = 0; i < 5; i += 1) {
+      await expect(guess()).rejects.toSatisfy((e) => code(e) !== 'account_locked');
+    }
+    await expect(guess()).rejects.toSatisfy((e) => code(e) === 'account_locked');
+  });
+});
+
+describe('endpoints served over HTTP (AUDIT M4)', () => {
+  /** The link in a set-password email, and Better Auth's own status pages. */
+  const SERVED = new Set(['/reset-password/:token', '/ok', '/error']);
+  /** Answers not found by itself: no social sign-in provider is configured. */
+  const INERT = new Set(['/callback/:id']);
+
+  it('every endpoint is either one the screens need over HTTP or switched off', () => {
+    const paths = Object.values(auth.api as Record<string, { path?: unknown }>)
+      .map((endpoint) => endpoint.path)
+      .filter((path): path is string => typeof path === 'string');
+    expect(paths.length).toBeGreaterThan(20);
+    const open = paths.filter(
+      (path) => !SERVED.has(path) && !INERT.has(path) && !HTTP_DISABLED_PATHS.includes(path),
+    );
+    expect(open).toEqual([]);
+  });
+
+  it('answers not found for a profile update or an authenticator removal over HTTP', async () => {
+    for (const path of ['/update-user', '/two-factor/disable', '/sign-in/email']) {
+      const response = await auth.handler(
+        new Request(`http://localhost:3000/api/auth${path}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+          body: '{}',
+        }),
+      );
+      expect({ path, status: response.status }).toEqual({ path, status: 404 });
+    }
   });
 });

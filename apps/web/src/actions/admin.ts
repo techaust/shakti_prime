@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  ClearSignInLockInput,
   DomainError,
   InviteUserInput,
   ReactivateUserInput,
@@ -12,7 +13,9 @@ import {
 } from '@shakti/contracts';
 import { withRequestContext } from '@shakti/db';
 import {
+  checkPermission,
   inviteUser as inviteUserCommand,
+  loadUserDto,
   reactivateUser as reactivateUserCommand,
   revokeSession as revokeSessionCommand,
   runCommand,
@@ -20,7 +23,9 @@ import {
   suspendUser as suspendUserCommand,
 } from '@shakti/domain';
 import { auth } from '../auth/auth';
+import { clearSignInLock as clearLock } from '../auth/create-auth';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
+import { defaultAuthDeps } from '../auth/deps';
 
 /** Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. */
 
@@ -76,4 +81,14 @@ export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsD
   );
   await forgetPrincipal(result.userId);
   return result;
+}
+
+/** Lifts every sign-in lock on a staff member's account, for a user administrator only. */
+export async function clearSignInLock(rawInput: unknown): Promise<void> {
+  const principal = await currentPrincipal();
+  if (!principal) throw new DomainError('unauthorized');
+  checkPermission(principal, 'admin.users.write', 'all');
+  const input = ClearSignInLockInput.parse(rawInput);
+  const user = await withRequestContext(principal, {}, ({ tx }) => loadUserDto(tx, input.userId));
+  await clearLock(defaultAuthDeps(), user.email);
 }

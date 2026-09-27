@@ -1,5 +1,6 @@
 // Invites the first Executive of an environment and prints the set-password link.
 // Usage: pnpm --filter web invite-executive -- --email you@shakti.example --name "Your Name"
+import { EmailSchema } from '@shakti/contracts';
 import { bootstrapExecutive } from '@shakti/db/bootstrap';
 import { consoleMailer, memoryKeyValue } from '@shakti/domain';
 import { createAuth } from '../src/auth/create-auth';
@@ -9,14 +10,27 @@ function arg(name: string): string | undefined {
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-const email = arg('email');
-const name = arg('name');
-if (email === undefined || name === undefined) {
+const rawEmail = arg('email');
+const name = arg('name')?.trim();
+if (rawEmail === undefined || name === undefined || name === '') {
   console.error('usage: invite-executive --email <email> --name <name> [--force]');
   process.exit(1);
 }
+const parsed = EmailSchema.safeParse(rawEmail);
+if (!parsed.success) {
+  console.error(`not an email address: ${rawEmail}`);
+  process.exit(1);
+}
+const email = parsed.data;
+const force = process.argv.includes('--force');
+if (force) {
+  // Every Executive sees every company and every cost figure; --force adds one more (AUDIT L23).
+  console.warn(
+    'warning: --force creates another Executive with access to every company, although Executives exist already',
+  );
+}
 
-const userId = await bootstrapExecutive({ email, name, force: process.argv.includes('--force') });
+const userId = await bootstrapExecutive({ email, name, force });
 console.log(`created Executive ${userId}`);
 
 const auth = createAuth(

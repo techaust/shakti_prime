@@ -20,10 +20,13 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 
 ## 2. Identity and authentication
 - **Passwords:** Argon2id (m = 64 MiB, t = 3, p = 1); minimum 12 characters; breached-password check.
-- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms; exponential lockout per IP and per account in Redis.
+- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms. The exponential lockout in Redis applies to one account from one address, so a stranger who knows an email cannot keep its owner out and one office address is not locked for everyone behind it; the account-wide count only escalates, emailing the owner at every tenth failure; per-address request caps bound what one address tries across accounts; an Executive can lift an account's locks. The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
 - **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. A revoked or expired session is refused on every auth route and in-process call, not only in `currentPrincipal()`; no device is ever remembered past the second factor. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token. The session cookie is `__Host-` prefixed in production. Per-address request caps bound the password-hashing and mail-sending endpoints on top of the sign-in lockout.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, `__Host-` prefix.
-- **2FA:** TOTP required for Executive, GM and Accounts; recovery codes; recovery email via SES only.
+- **2FA:** TOTP required for Executive, GM and Accounts; each code verifies once; five wrong codes lock the second factor for an hour; the sign-in lock clears and the last sign-in is recorded only after the second factor; recovery codes; recovery email via SES only.
+- **Set-password links:** stored hashed; an invitation lasts 24 h and a forgotten-password link 1 h; a new link withdraws the person's earlier ones; attempts are capped per link and per address.
+- **Endpoints:** the auth module serves over HTTP only the link a set-password email opens; every other auth endpoint answers not found over HTTP and is reached by the screens' server actions in-process.
+- **Deployment guard:** a hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mailer that would log message bodies; readiness reports both database connections, the key-value store (a write and read back) and the configuration.
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.
 - **Voice:** a 5-minute user-scoped token per session so the worker acts as the speaking user.
 - **Realtime:** BOS-signed ES256 JWT (≤ 15 min) registered as a Supabase third-party provider; Realtime-only claims.
@@ -147,7 +150,7 @@ No agent principal holds `procurement.rate.read`, `finance.cost.read`, `document
 - Client PC (connector): encrypted config, least-privilege Windows service account, signed self-updates.
 
 ## 10. Operations
-- **Secret rotation:** every 6 months and on offboarding; runbook in `docs/runbooks/SECRET-ROTATION.md`.
+- **Secret rotation:** every 6 months and on offboarding. `BETTER_AUTH_SECRET` also encrypts the stored authenticator secrets, so it is never replaced outright: the new key goes first in `BETTER_AUTH_SECRETS` (`<version>:<secret>` entries) and the previous `BETTER_AUTH_SECRET` stays set as the legacy key until every enrolled user has re-enrolled or the data is re-encrypted.
 - **Offboarding:** revoke sessions, rotate shared keys, remove from GitHub, Vercel, Supabase, AWS, Meta, Exotel, Anthropic within one business day.
 - **Incident response:** severity levels, on-call contact, containment steps, communication template, post-incident review within 5 working days.
 - **Pentest:** external test before go-live (Phase 7) and annually; findings tracked to closure.

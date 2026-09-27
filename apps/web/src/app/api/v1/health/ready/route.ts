@@ -1,23 +1,21 @@
 import { ErrorEnvelope, newId, ReadyResponse } from '@shakti/contracts';
-import { checkDatabaseReady } from '@shakti/db';
 import { getTranslations } from 'next-intl/server';
+import { checkReadiness } from '../../../../../auth/readiness';
 
 export const dynamic = 'force-dynamic';
 
-/** Readiness: dependency checks. Redis and QStash join in week 3 (docs/API.md §3.7). */
+/** Readiness: dependency checks (docs/API.md §3.7). */
 const REQUEST_ID = /^[\w.-]{1,128}$/;
 
 export async function GET(request: Request): Promise<Response> {
   const given = request.headers.get('x-request-id');
   const requestId = given !== null && REQUEST_ID.test(given) ? given : newId();
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
-  const database = await checkDatabaseReady();
+  const checks = await checkReadiness();
   const time = new Date().toISOString();
 
-  if (database === 'ok') {
-    return Response.json(ReadyResponse.parse({ status: 'ok', checks: { database }, time }), {
-      headers,
-    });
+  if (Object.values(checks).every((c) => c === 'ok')) {
+    return Response.json(ReadyResponse.parse({ status: 'ok', checks, time }), { headers });
   }
 
   const t = await getTranslations('errors');
@@ -25,7 +23,7 @@ export async function GET(request: Request): Promise<Response> {
     error: {
       code: 'integration_unavailable',
       message: t('integration_unavailable'),
-      details: { checks: { database } },
+      details: { checks },
       requestId,
     },
   });
