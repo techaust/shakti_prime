@@ -46,7 +46,7 @@ export const suspendUser = defineCommand({
         reason: 'self_suspend',
       });
     }
-    await lockExecutiveChanges(ctx);
+    const executivesBefore = await lockExecutiveChanges(ctx);
     if ((await targetStatus(ctx, input.userId)) === 'suspended') {
       return loadUserDto(ctx.tx, input.userId);
     }
@@ -54,7 +54,7 @@ export const suspendUser = defineCommand({
       .update(schema.users)
       .set({ status: 'suspended', updatedBy: ctx.principal.id })
       .where(eq(schema.users.id, input.userId));
-    await assertAnExecutiveRemains(ctx);
+    await assertAnExecutiveRemains(ctx, executivesBefore);
     const revoked = await revokeUserSessions(ctx, input.userId, 'suspended');
     const dto = await loadUserDto(ctx.tx, input.userId);
     for (const r of dto.entityRoles) {

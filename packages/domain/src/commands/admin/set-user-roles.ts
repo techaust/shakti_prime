@@ -48,12 +48,12 @@ export const setUserRoles = defineCommand({
     await assertUserInScope(ctx, input.userId);
     const rows = await resolveEntityRoles(ctx, input.entityRoles);
 
-    await lockExecutiveChanges(ctx);
+    const executivesBefore = await lockExecutiveChanges(ctx);
     await ctx.tx
       .delete(schema.userEntityRoles)
       .where(eq(schema.userEntityRoles.userId, input.userId));
     await insertEntityRoles(ctx, input.userId, rows);
-    await assertAnExecutiveRemains(ctx);
+    await assertAnExecutiveRemains(ctx, executivesBefore);
     await ctx.tx
       .update(schema.users)
       .set({ updatedBy: ctx.principal.id })

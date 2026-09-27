@@ -82,23 +82,35 @@ export async function assertUserInScope(ctx: CommandContext, userId: string): Pr
   }
 }
 
-/**
- * Serialises every change that can remove an Executive, so two Executives acting on each other
- * at once cannot both succeed (AUDIT L7). Held until the transaction ends.
- */
-export async function lockExecutiveChanges(ctx: CommandContext): Promise<void> {
-  await ctx.tx.execute(sql`select pg_advisory_xact_lock(hashtext('admin.executives'))`);
-}
-
-/** Refuses the change when it would leave the group without an active Executive. */
-export async function assertAnExecutiveRemains(ctx: CommandContext): Promise<void> {
+async function countActiveExecutives(ctx: CommandContext): Promise<number> {
   const [row] = await ctx.tx
     .select({ count: sql<number>`count(distinct ${schema.users.id})::int` })
     .from(schema.users)
     .innerJoin(schema.userEntityRoles, eq(schema.userEntityRoles.userId, schema.users.id))
     .innerJoin(schema.roles, eq(schema.roles.id, schema.userEntityRoles.roleId))
     .where(and(eq(schema.users.status, 'active'), eq(schema.roles.key, 'executive')));
-  if ((row?.count ?? 0) === 0) {
+  return row?.count ?? 0;
+}
+
+/**
+ * Serialises every change that can remove an Executive, so two Executives acting on each other
+ * at once cannot both succeed (AUDIT L7). Held until the transaction ends. Answers how many
+ * active Executives there are before the change.
+ */
+export async function lockExecutiveChanges(ctx: CommandContext): Promise<number> {
+  await ctx.tx.execute(sql`select pg_advisory_xact_lock(hashtext('admin.executives'))`);
+  return countActiveExecutives(ctx);
+}
+
+/**
+ * Refuses a change that took the group from at least one active Executive to none. A change that
+ * touches no Executive passes, whatever the count, so a new system is never stuck.
+ */
+export async function assertAnExecutiveRemains(
+  ctx: CommandContext,
+  executivesBefore: number,
+): Promise<void> {
+  if (executivesBefore > 0 && (await countActiveExecutives(ctx)) === 0) {
     throw new DomainError('conflict', 'the change would leave no active Executive', {
       reason: 'last_executive',
     });
