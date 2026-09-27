@@ -37,8 +37,10 @@ pnpm + Turborepo monorepo.
 | `pnpm db:generate`      | Drizzle migration from the schema                                   |
 | `pnpm db:migrate`       | Apply migrations (add `--rotate-passwords` to reset role passwords) |
 | `pnpm db:seed`          | Seed org and reference data; safe to re-run                         |
+| `pnpm db:verify`        | Check applied migrations against the journal hashes                 |
+| `pnpm coverage`         | Unit test coverage summary per workspace (report only)              |
 | `pnpm build`            | Production build of every workspace                                 |
 | `pnpm format`           | Prettier write                                                      |
 | `pnpm --filter web dev` | Run the web app locally                                             |
 
-CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan with dependency audit, and the security suite on every pull request and every push to `main`.
+CI runs lint, format, copy lint, typecheck, unit tests, a check that generated files are committed, the production build, a secret scan, a dependency audit at moderate severity, the migration hash check and the security suite on every pull request and every push to `main`. Deploying to a hosted environment follows `docs/runbooks/DEPLOY.md`.
