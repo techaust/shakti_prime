@@ -1,12 +1,5 @@
 import { newId } from '@shakti/contracts';
-import {
-  asMigrator,
-  asPrincipal,
-  closeDb,
-  PIPELINE_SEED,
-  principalFor,
-  tierId,
-} from '@shakti/db/testing';
+import { asMigrator, asPrincipal, closeDb, PIPELINE_SEED, principalFor } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
@@ -20,7 +13,11 @@ const pricedItem = newId();
 const unpricedItem = newId();
 const archivedItem = newId();
 const tag = newId().slice(-10);
-const version = 100_000 + Math.floor(Math.random() * 1_000_000_000);
+// Its own tier too: price lists of one tier and company may not overlap, and the suites never
+// clean up, so a fixed tier would clash with the lists an earlier run left behind.
+const tier = newId();
+const tierCode = `screen_lists_${tag}`;
+const version = 1;
 
 beforeAll(async () => {
   await asMigrator((m) =>
@@ -29,9 +26,10 @@ beforeAll(async () => {
         (${pricedItem}, ${`SL-A-${tag}`}, ${`screen-lists a ${tag}`}, 'pump', '8413', 'nos', null),
         (${unpricedItem}, ${`SL-B-${tag}`}, ${`screen-lists b ${tag}`}, 'cable', '8544', 'metre', null),
         (${archivedItem}, ${`SL-C-${tag}`}, ${`screen-lists c ${tag}`}, 'cable', '8544', 'metre', now())`;
+      await tx`insert into price_tiers (id, code, name) values (${tier}, ${tierCode}, ${`screen-lists ${tag}`})`;
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, effective_to) values
-        (${openList}, ${tierId('dealer')}, 1, ${version}, '2026-04-01', null),
-        (${endedList}, ${tierId('dealer')}, 1, ${version + 1}, '2025-04-01', '2025-10-01')`;
+        (${openList}, ${tier}, 1, ${version}, '2026-04-01', null),
+        (${endedList}, ${tier}, 1, ${version + 1}, '2025-04-01', '2025-10-01')`;
       // The history row the database writes for a first price is signed by whoever set it.
       const signer = newId();
       await tx`insert into principals (id, kind, display_name) values (${signer}, 'user', 'screen-lists signer')`;
@@ -73,7 +71,7 @@ describe('listPriceLists', () => {
       listPriceLists(ctx, new Date('2026-09-27T06:00:00Z')),
     );
     expect(forOne.find((l) => l.id === openList)).toMatchObject({
-      tierCode: 'dealer',
+      tierCode,
       entityId: 1,
       open: true,
       effectiveFrom: '2026-04-01',
