@@ -1,6 +1,6 @@
 export { defineCommand } from './command/define-command';
 export type { AnyCommand, Command } from './command/define-command';
-export type { AuditChange, CommandContext, DomainEvent } from './command/context';
+export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
 export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
 export { redactAuthEvent, redactForAudit } from './audit/redact';
@@ -27,6 +27,23 @@ export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { setTheme } from './commands/profile/set-theme';
+export { createImportJob } from './commands/imports/create-job';
+export { mapImportJob } from './commands/imports/map-job';
+export { previewImportJob } from './commands/imports/preview-job';
+export { commitImportBatch, commitImportJob } from './commands/imports/commit-job';
+export { rollbackImportJob } from './commands/imports/rollback-job';
+export {
+  getImportJob,
+  listImportRows,
+  listImportTemplates,
+} from './queries/imports/import-queries';
+export { parseImportFile, detectHeaderRow, detectImportFormat } from './imports/parse';
+export type { ImportFileReason, ParsedImportFile } from './imports/parse';
+export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
+export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
+export { importRowKey, rollbackChunks } from './imports/row-key';
+export { assertFileKey, localDiskFileStore, memoryFileStore } from './ports/file-store';
+export type { FileStore } from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,

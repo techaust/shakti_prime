@@ -62,6 +62,8 @@ yarn-*.log*
 *.xlsx
 !packages/db/seeds/**/*.csv
 !**/fixtures/**/*.csv
+# Files the dev server's local file store keeps (apps/web/src/files/store.ts)
+.data/
 
 # OS and editors
 .DS_Store

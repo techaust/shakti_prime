@@ -6,7 +6,7 @@ import { databaseAuditSink, type AuditRecord } from '../audit/sink';
 import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
 import type { Command } from './define-command';
-import { auditBase, failureOf, runCommand, type RunOptions } from './run-command';
+import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
 
 export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | 'outbox'> {
   /** Where a failure to record a refusal is reported; it never replaces the refusal itself. */
@@ -51,7 +51,7 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
       runCommand(command, { ...runOptions, audit: databaseAuditSink, outbox, context }, input),
     );
   } catch (error) {
-    await recordRefusal(principal, scoped, command.name, input, error, runOptions, logger);
+    await recordRefusal(principal, scoped, command, input, error, runOptions, logger);
     throw error;
   }
   if (onCommitted !== undefined && stored.length > 0) {
@@ -68,10 +68,10 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   return result;
 }
 
-async function recordRefusal(
+async function recordRefusal<I extends z.ZodType, O extends z.ZodType>(
   principal: Principal,
   scope: RequestScope,
-  commandName: string,
+  command: Command<I, O>,
   rawInput: unknown,
   error: unknown,
   options: Omit<RunOptions, 'context' | 'audit' | 'outbox'>,
@@ -86,13 +86,13 @@ async function recordRefusal(
   const requested = scope.entityIds ?? principal.entityIds;
   const ran = failure !== undefined;
   const record: AuditRecord = {
-    ...auditBase(principal, commandName, requestId, options.client),
+    ...auditBase(principal, command.name, requestId, options.client),
     outcome: code === 'forbidden' ? 'denied' : 'failed',
     entityId: ran && requested.length === 1 ? (requested[0] ?? null) : null,
     aggregateType: null,
     aggregateId: null,
     errorCode: code,
-    input: redactForAudit(ran ? failure.input : rawInput),
+    input: refusedInput(command, ran, ran ? failure.input : rawInput),
     before: null,
     after: null,
   };
@@ -104,12 +104,27 @@ async function recordRefusal(
     );
   } catch (writeError) {
     logger.log('error', 'audit.write_failed', {
-      command: commandName,
+      command: command.name,
       requestId,
       outcome: record.outcome,
       error: writeError,
     });
   }
+}
+
+/**
+ * The input a refusal row records. A command with an audit summary records only the summary;
+ * raw input it never parsed is then left out rather than stored whole.
+ */
+function refusedInput<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  parsed: boolean,
+  input: unknown,
+): unknown {
+  if (command.auditInput === undefined) return redactForAudit(input);
+  if (parsed) return auditedInput(command, input as z.output<I>);
+  const reparsed = command.input.safeParse(input);
+  return reparsed.success ? auditedInput(command, reparsed.data) : null;
 }
 
 /** The one way the web app reads data: a query from this package inside the caller's context. */

@@ -203,6 +203,10 @@ export const ENTITY_TABLES = [
   'item_costs',
   'document_sequences',
   'audit_logs',
+  'files',
+  'import_mapping_templates',
+  'import_jobs',
+  'import_rows',
 ] as const;
 
 /**

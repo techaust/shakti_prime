@@ -5,6 +5,9 @@ import { Client, Receiver } from '@upstash/qstash';
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
 export const OUTBOX_PUBLISH_PATH = '/api/v1/workers/outbox/publish';
 
+/** Where QStash calls the import worker, once per commit and again while a job has rows left. */
+export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
+
 /** A queue call that takes longer than this counts as failed; the next run tries again. */
 const QUEUE_TIMEOUT_MS = 5_000;
 const NUDGE_TIMEOUT_MS = 1_000;
@@ -111,14 +114,40 @@ export async function nudgeViaQStash(config: QStashConfig): Promise<void> {
   );
 }
 
+/** The public address of another worker route, on the same host as the publisher. */
+export function workerUrl(config: QStashConfig, path: string): string {
+  return new URL(path, config.publishUrl).toString();
+}
+
+/**
+ * Asks QStash to call the import worker for a job; QStash retries it if the worker fails, and
+ * sends a message with a `deduplicationId` it has already taken only once.
+ */
+export async function publishImportCommit(
+  config: QStashConfig,
+  body: unknown,
+  deduplicationId: string,
+): Promise<void> {
+  await withTimeout(
+    client(config).publishJSON({
+      url: workerUrl(config, IMPORT_COMMIT_PATH),
+      body,
+      retries: 3,
+      deduplicationId,
+    }),
+    QUEUE_TIMEOUT_MS,
+  );
+}
+
 /**
  * True when the call carries a valid QStash signature, made with the current or the next signing
- * key, for this route and this exact body.
+ * key, for this route (the publisher unless another is named) and this exact body.
  */
 export async function verifyQStashSignature(
   config: QStashConfig,
   signature: string | null,
   body: string,
+  url: string = config.publishUrl,
 ): Promise<boolean> {
   if (signature === null || signature === '') return false;
   const receiver = new Receiver({
@@ -127,7 +156,7 @@ export async function verifyQStashSignature(
     devMode: false,
   });
   try {
-    return await receiver.verify({ signature, body, url: config.publishUrl, clockTolerance: 5 });
+    return await receiver.verify({ signature, body, url, clockTolerance: 5 });
   } catch {
     return false;
   }

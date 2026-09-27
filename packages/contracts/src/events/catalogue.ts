@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { ImportKindSchema } from '../imports/enums';
 
 /**
  * The event catalogue (docs/design/backend-weeks-3-5.md §4.3). Names are
@@ -67,6 +68,30 @@ const eventCatalogue = {
   'admin.user.roles_changed': {
     subscribed: false,
     payload: z.object({ roleId: IdSchema, revokedSessions: z.number().int().min(0) }).strict(),
+  },
+  'imports.job.committed': {
+    subscribed: false,
+    payload: z
+      .object({
+        kind: ImportKindSchema,
+        committedRows: z.number().int().min(0),
+        batches: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'imports.job.failed': {
+    subscribed: false,
+    payload: z
+      .object({
+        kind: ImportKindSchema,
+        committedRows: z.number().int().min(0),
+        failedBatch: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'imports.job.rolled_back': {
+    subscribed: false,
+    payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),
   },
 } as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;
 

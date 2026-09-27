@@ -16,6 +16,12 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   output: O;
   /** Catalogue reasons for unique or check constraints the handler may race against. */
   constraintReasons?: Readonly<Record<string, string>>;
+  /**
+   * What the audit row records of the input, when the input itself is too large or carries
+   * customer data in shapes the redaction cannot recognise (an import file's rows). Redacted
+   * like any other input; left out, the whole parsed input is recorded.
+   */
+  auditInput?: (input: z.output<I>) => unknown;
   handler: (ctx: CommandContext, input: z.output<I>) => Promise<z.input<O>>;
 }
 

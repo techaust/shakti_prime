@@ -67,7 +67,11 @@ import {
   SttTranscribeJob,
   SttTranscribeResult,
 } from './worker-jobs';
-import { OutboxPublishResponse } from './workers';
+import {
+  ImportCommitWorkerBody,
+  ImportCommitWorkerResponse,
+  OutboxPublishResponse,
+} from './workers';
 
 /** How a caller proves who it is (docs/API.md §2). */
 export type ApiAuth =
@@ -354,6 +358,15 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     response: OutboxPublishResponse,
     errors: ['unauthorized', 'integration_unavailable'],
+  },
+  'workers.imports.commit': {
+    method: 'POST',
+    path: '/workers/imports/commit',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: ImportCommitWorkerBody,
+    response: ImportCommitWorkerResponse,
+    errors: ['unauthorized', 'forbidden', 'integration_unavailable'],
   },
   'workers.outbox.event': {
     method: 'POST',

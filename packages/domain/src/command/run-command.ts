@@ -35,6 +35,19 @@ export interface RunOptions {
   idempotency?: IdempotencyStore;
 }
 
+/** Collects what an inner command writes, for its caller to write with its own rows. */
+function holdIn<T>(held: T[]): { write: (tx: unknown, records: readonly T[]) => Promise<void> } {
+  return {
+    write(_tx, records) {
+      held.push(...records);
+      return Promise.resolve();
+    },
+  };
+}
+
+/** For an inner command whose caller writes one summary row instead (`auditedByCaller`). */
+const DISCARD_AUDIT: AuditSink = { write: () => Promise.resolve() };
+
 /**
  * Where a command stopped: `input` (the input did not parse, nothing ran), `guard` (the
  * permission guard refused) or `handler` (the handler, the DTO check or the audit and outbox
@@ -80,6 +93,14 @@ export function auditBase(
     requestId,
     client,
   };
+}
+
+/** The input as an audit row records it: the command's summary when it has one, redacted. */
+export function auditedInput<I extends z.ZodType, O extends z.ZodType>(
+  command: Pick<Command<I, O>, 'auditInput'>,
+  input: z.output<I>,
+): unknown {
+  return redactForAudit(command.auditInput === undefined ? input : command.auditInput(input));
 }
 
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
@@ -238,6 +259,9 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   const now = options.now ?? new Date();
   const events: OutboxRecord[] = [];
   const changes: AuditChange[] = [];
+  // What commands run through `ctx.run` recorded, written with this command's own rows at the end.
+  const innerAudit: AuditRecord[] = [];
+  const innerEvents: OutboxRecord[] = [];
   const activeEntityId = context.entityIds.length === 1 ? context.entityIds[0] : undefined;
   const ctx: CommandContext = {
     principal: context.principal,
@@ -265,6 +289,42 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     },
     now,
     requestId: context.requestId,
+    run: async (inner, innerInput, nested = {}) => {
+      try {
+        return await runCommand(
+          inner,
+          {
+            context: { ...context, tx: nested.tx ?? context.tx },
+            now,
+            audit: nested.auditedByCaller === true ? DISCARD_AUDIT : holdIn(innerAudit),
+            outbox: holdIn(innerEvents),
+            ...(options.client === undefined ? {} : { client: options.client }),
+            ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
+            ...(nested.idempotencyKey === undefined
+              ? {}
+              : { idempotencyKey: nested.idempotencyKey }),
+          },
+          innerInput,
+        );
+      } catch (e) {
+        // The outer command records its own stage and input, never the inner one's.
+        if (typeof e === 'object' && e !== null) failures.delete(e);
+        throw e;
+      }
+    },
+    savepoint: async (work) => {
+      const marks = [changes.length, events.length, innerAudit.length, innerEvents.length];
+      try {
+        return await context.tx.transaction((sp) => work(sp));
+      } catch (e) {
+        // The rows are gone with the savepoint; so is everything recorded for them.
+        changes.length = marks[0] ?? 0;
+        events.length = marks[1] ?? 0;
+        innerAudit.length = marks[2] ?? 0;
+        innerEvents.length = marks[3] ?? 0;
+        throw e;
+      }
+    },
   };
 
   let result: z.input<O>;
@@ -290,7 +350,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
 
   // One row per changed aggregate, or one row for the call when the handler named none.
   const base = auditBase(context.principal, command.name, context.requestId, options.client);
-  const input = redactForAudit(parsed.data);
+  const input = auditedInput(command, parsed.data);
   const rows: Partial<AuditChange>[] = changes.length > 0 ? changes : [{}];
   const records: AuditRecord[] = rows.map((change) => ({
     ...base,
@@ -306,8 +366,8 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
 
   // The audit, outbox and key writes share the transaction, so their failures translate alike.
   try {
-    await options.audit.write(context.tx, records);
-    await options.outbox.write(context.tx, events);
+    await options.audit.write(context.tx, [...innerAudit, ...records]);
+    await options.outbox.write(context.tx, [...innerEvents, ...events]);
     if (key !== undefined) await store.complete(context.tx, context.principal.id, key, output.data);
   } catch (e) {
     throw tag(

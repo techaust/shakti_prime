@@ -5,6 +5,11 @@ import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { createLead } from '../commands/crm/create-lead';
+import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
+import { createImportJob } from '../commands/imports/create-job';
+import { mapImportJob } from '../commands/imports/map-job';
+import { previewImportJob } from '../commands/imports/preview-job';
+import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
 import { setTheme } from '../commands/profile/set-theme';
@@ -22,6 +27,12 @@ export const commands = {
   [revokeSession.name]: revokeSession,
   [resetTwoFactor.name]: resetTwoFactor,
   [setTheme.name]: setTheme,
+  [createImportJob.name]: createImportJob,
+  [mapImportJob.name]: mapImportJob,
+  [previewImportJob.name]: previewImportJob,
+  [commitImportJob.name]: commitImportJob,
+  [commitImportBatch.name]: commitImportBatch,
+  [rollbackImportJob.name]: rollbackImportJob,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

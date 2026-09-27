@@ -15,6 +15,9 @@ export const FILE_PURPOSES = [
   'signature',
   'selfie',
   'customer_document',
+  // An import file (docs/design/backend-weeks-3-5.md §8); stored by the import screen's upload
+  // until the S3 store and its pre-signed path arrive in Phase 1.
+  'import',
 ] as const;
 export const FilePurposeSchema = z.enum(FILE_PURPOSES);
 export type FilePurpose = z.infer<typeof FilePurposeSchema>;
@@ -44,6 +47,10 @@ export const FilePresignRequest = z
   .refine((v) => v.purpose !== 'signature' || v.contentType === 'image/png', {
     message: 'a signature is a PNG',
     path: ['contentType'],
+  })
+  .refine((v) => v.purpose !== 'import', {
+    message: 'an import file is uploaded through the import screen',
+    path: ['purpose'],
   });
 export type FilePresignRequest = z.infer<typeof FilePresignRequest>;
 
