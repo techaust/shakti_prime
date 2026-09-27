@@ -37,10 +37,6 @@ export type ImportRowState = z.infer<typeof ImportRowStateSchema>;
 export const FileStatusSchema = z.enum(['pending', 'scanning', 'masked', 'ready', 'rejected']);
 export type FileStatus = z.infer<typeof FileStatusSchema>;
 
-/** Why a file is kept; each purpose has its own read and write rule. Imports only for now. */
-export const FilePurposeSchema = z.enum(['import']);
-export type FilePurpose = z.infer<typeof FilePurposeSchema>;
-
 /** The file formats an import accepts. */
 export const ImportFormatSchema = z.enum(['csv', 'xlsx']);
 export type ImportFormat = z.infer<typeof ImportFormatSchema>;

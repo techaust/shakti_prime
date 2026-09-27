@@ -15,8 +15,9 @@ import { entities } from './entities';
 
 /**
  * A stored file (docs/DATABASE.md §6.10): the bytes live in the file store under `bucket` and
- * `key`, this row records what they are. `purpose` decides who may see the row; imports are the
- * only purpose so far, gated by `imports.write` (migration 0041). Scanning and masking
+ * `key`, this row records what they are. `purpose` (the `FILE_PURPOSES` of the contracts) decides
+ * who may see the row; only imports have policies so far, gated by `imports.write` (migration
+ * 0041), so a row of any other purpose stays hidden until its module arrives. Scanning and masking
  * (`scanning`, `masked`) arrive with document uploads; an import file is stored as `ready`.
  */
 export const files = pgTable(
@@ -39,7 +40,10 @@ export const files = pgTable(
     ...actorsRequired,
   },
   (t) => [
-    check('files_purpose_check', sql`${t.purpose} in ('import')`),
+    check(
+      'files_purpose_check',
+      sql`${t.purpose} in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import')`,
+    ),
     check(
       'files_status_check',
       sql`${t.status} in ('pending', 'scanning', 'masked', 'ready', 'rejected')`,
