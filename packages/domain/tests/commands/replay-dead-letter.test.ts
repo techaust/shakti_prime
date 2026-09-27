@@ -62,6 +62,21 @@ describe('integrations.dlq.replay (design §4.4, API §3.7)', () => {
     expect(await state(id)).toEqual({ attempts: 10, lastError: 'http_404', deadLettered: true });
   });
 
+  it('also needs the Integration Health permission', async () => {
+    const id = await outboxEvent(true);
+    const exec = await createTestPrincipal('executive');
+    const withoutPage = {
+      ...exec,
+      permissions: exec.permissions.filter((g) => g.key !== 'admin.integrations.write'),
+    };
+    await expect(
+      asPrincipal(withoutPage, (context) =>
+        runCommand(replayDeadLetter, { context, audit, outbox }, { eventId: id }),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await state(id)).toMatchObject({ deadLettered: true });
+  });
+
   it('answers an event of another company as unknown and leaves it dead-lettered', async () => {
     const id = await outboxEvent(true);
     const narrow = await createTestPrincipal('executive', [1]);

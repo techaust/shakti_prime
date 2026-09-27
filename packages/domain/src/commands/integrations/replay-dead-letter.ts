@@ -27,6 +27,8 @@ export const replayDeadLetter = defineCommand({
   name: 'integrations.dlq.replay',
   permission: 'integrations.dlq.replay',
   minScope: 'all',
+  // The Integration Health page's own permission (API §3.7), held with this one by Executives.
+  alsoRequires: [{ permission: 'admin.integrations.write', minScope: 'all' }],
   input: IntegrationReplayRequest,
   output: IntegrationReplayResponse,
   async handler(ctx, input) {
