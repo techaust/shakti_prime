@@ -96,6 +96,7 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/.claude/skills/**',
+      '**/.claude/worktrees/**',
       '**/.next/**',
       '**/dist/**',
       '**/.turbo/**',
