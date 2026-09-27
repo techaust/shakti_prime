@@ -750,3 +750,49 @@ From you or the client, before the batch that depends on them:
 7. **Negative moving-average cost (L3):** is it legitimate after returns with negative stock?
 8. **GitHub plan (M45, M46):** move the repository to the client's organisation on a plan with rulesets (or upgrade to Pro), and enable Dependabot alerts in the repository settings. Both are actions only you can take.
 9. **New dev dependencies (L31):** `@vitest/coverage-v8` and `fast-check`.
+
+## 8. Resolution
+
+Every finding is fixed, apart from the three actions only you can take (below). Each batch landed as its own pull request after lint, format, copy lint, typecheck, unit tests, the production build with no `.env`, and the security suite on a long-lived and a fresh database.
+
+| Batch | Findings                                                                 | Pull request |
+| ----- | ------------------------------------------------------------------------ | ------------ |
+| 0     | M39, L26                                                                 | #5           |
+| 1     | C1, M28, M36 (cache half), M37 (Upstash half)                            | #7           |
+| 2     | H1, H2, L7, L8                                                           | #8           |
+| 3     | H3 (tables), M40, M42, M14, L28, L29, L30                                | #10          |
+| 4     | L14, L32, L33, ADR 0014                                                  | #11          |
+| 5     | M48, M49, L39, L40, L41, L42, L51                                        | #12          |
+| 6     | M1, M2, M3, M13, M17, M18, M19, L1, L4, L6, H3 (functions and API roles) | #13          |
+| 7     | M4, M5, M6, M7, M8, M9, M27, L19, L20, L21, L23                          | #14          |
+| 8     | M10, M30, M35, M36, M37, M38, L11, L13                                   | #15          |
+| 9     | M20, M23, M24, M25, M26, M29, L9, L10                                    | #16          |
+| 10    | M31, M32, M33, M34, L12                                                  | #17          |
+| 11    | M12, M21, M43, M44, L16, L17, L18                                        | #18          |
+| 12    | M11, M15, M16, M22, M45 (wording), M46, M47, L22, L24, L25, L27          | #19          |
+| 13    | M50, M51, M52, M53, L15, L34, L35, L36, L37, L38, L43                    | #20          |
+| 14    | L44, L45, L46, L47, L48, L49, L50                                        | #24          |
+| 15    | M41, L2, L3 (ranges), L5, L31                                            | #25          |
+
+M21 and M41 were not assigned in §6; they were fixed in batch 11 and batch 15. L2, L3, L5 and L31, which §6 left for week 5 or for your approval, were fixed in batch 15 on your instruction to proceed.
+
+**Decisions taken on your instruction to proceed (§7):**
+
+- **Item 1 (M25):** a customer a colleague looks after is routed to them.
+- **Item 2 (M20):** one owner contact per customer.
+- **Item 3 (M21, L17):** roles stay editable, the set of roles is fixed, and edited roles are marked customised.
+- **Item 4 (L9):** agents work without customer names and phones.
+- **Item 5 (M6):** the recommended lockout policy.
+
+Each is recorded in its pull request and in SECURITY or DATABASE, and each can be reversed by a small change if the client decides otherwise.
+
+**Still open:**
+
+- **Consent sources (item 6, M17 later part):** a legal and DLT question for the client, due with imports and ingest.
+- **Negative moving-average cost (item 7, L3):** the percentage and map-point ranges are checked; the cost columns stay unconstrained until the client decides, with inventory in Phase 1.
+
+**Actions only you can take:**
+
+1. Branch rules (M45): move the repository to the client's organisation on a plan with rulesets, or upgrade to Pro; until then merge only on a green run and keep Vercel's automatic production deploys off.
+2. Hosted provisioning (`docs/runbooks/DEPLOY.md`): Supabase projects with the Data API off, the CA certificate, GitHub environments with their secrets, the Vercel project, Upstash.
+3. A mail provider before production: production refuses to start with `MAILER=log`.

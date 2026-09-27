@@ -11,6 +11,7 @@ import {
 } from '../src/auth/create-auth';
 import { toDomainError } from '../src/auth/errors';
 import {
+  finishEnrolment,
   invalidatePrincipal,
   requirePrincipal,
   resolveSessionPrincipal,
@@ -280,6 +281,11 @@ describe('authenticator app for Executive, GM and Accounts', () => {
       returnHeaders: true,
     });
     const enrolledCookie = cookieHeader(verified.headers) || first.cookie;
+    // The enrolment ends every other sign-in of the user (AUDIT M41: set up before, now asserted).
+    await finishEnrolment(pending, verified.headers, keyValue);
+    expect(
+      await resolveSessionPrincipal(clientHeaders({ cookie: other.cookie }), undefined, deps),
+    ).toBeUndefined();
     const [row] = await asMigrator(
       (m) =>
         m<
@@ -294,7 +300,6 @@ describe('authenticator app for Executive, GM and Accounts', () => {
       deps,
     );
     expect(requirePrincipal(resolved)).toMatchObject({ roleKey: 'executive', entityIds: [2] });
-    expect(other.cookie).toContain('session_token');
 
     // from now on a password alone is not enough, and no device is ever remembered
     const again = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.3' });
@@ -792,5 +797,49 @@ describe('an invitation email that does not go out (AUDIT M26)', () => {
     });
     expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(true);
     expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(false);
+  });
+});
+
+describe('guards the audit found untested (AUDIT M41)', () => {
+  it("the auth route's own hook refuses a session past the absolute limit, and records why", async () => {
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'store_manager' }]);
+    const { cookie } = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.5.1' });
+    const [row] = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        update sessions set created_at = ${new Date(clock.getTime() - 8 * 86_400_000)}
+         where user_id = ${user.id} and revoked_at is null returning id`,
+    );
+    await expect(
+      auth.api.getSession({ headers: clientHeaders({ cookie, ip: '10.0.5.1' }) }),
+    ).rejects.toMatchObject({ statusCode: 401 });
+    const [after] = await asMigrator(
+      (m) =>
+        m<
+          { reason: string | null }[]
+        >`select revoked_reason as reason from sessions where id = ${row?.id ?? ''}`,
+    );
+    expect(after?.reason).toBe('absolute_expiry');
+  });
+
+  it('the HTTP routes are rate limited per address', async () => {
+    const limited = createAuth(
+      { keyValue, mailer, fetch: fetchStub, now: () => clock, turnstileSecretKey: 'secret' },
+      {
+        nextCookies: false,
+        baseURL: 'http://localhost:3000',
+        secret: TEST_AUTH_SECRET,
+        rateLimit: true,
+      },
+    );
+    const hit = () =>
+      limited.handler(
+        new Request('http://localhost:3000/api/auth/ok', {
+          headers: { 'x-forwarded-for': '10.0.5.9' },
+        }),
+      );
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i += 1) statuses.push((await hit()).status);
+    expect(statuses.slice(0, 60).every((s) => s === 200)).toBe(true);
+    expect(statuses[60]).toBe(429);
   });
 });

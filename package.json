@@ -19,11 +19,13 @@
     "db:verify": "pnpm --filter @shakti/db db:verify",
     "copy-lint": "pnpm --filter @shakti/copy-lint start",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "coverage": "pnpm -r --filter @shakti/contracts --filter @shakti/domain --filter @shakti/db --filter @shakti/tokens --filter web exec vitest run --coverage --coverage.reporter=text-summary"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
     "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^5.0.2",
     "eslint": "^9.30.0",
     "eslint-config-next": "^16.3.6",
     "eslint-config-prettier": "^10.1.8",

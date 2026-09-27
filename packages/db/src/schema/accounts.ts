@@ -130,6 +130,11 @@ export const customerSites = pgTable(
   },
   (t) => [
     check('customer_sites_type_check', sql`${t.type} in ('borewell', 'rooftop', 'factory')`),
+    // A map point on the globe (AUDIT L3).
+    check(
+      'customer_sites_point_check',
+      sql`(${t.lat} is null or ${t.lat} between -90 and 90) and (${t.lng} is null or ${t.lng} between -180 and 180)`,
+    ),
     check('customer_sites_pin_check', sql`${t.pin} is null or ${t.pin} ~ '^[1-9][0-9]{5}$'`),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),

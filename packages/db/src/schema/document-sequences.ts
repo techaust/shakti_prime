@@ -26,6 +26,10 @@ export const documentSequences = pgTable(
       'document_sequences_doc_type_check',
       sql`${t.docType} in ('quote', 'sales_order', 'proforma', 'challan', 'purchase_order')`,
     ),
-    check('document_sequences_fy_check', sql`${t.fy} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    // An Indian financial year: two consecutive years, `2026-27` (AUDIT L5).
+    check(
+      'document_sequences_fy_check',
+      sql`${t.fy} ~ '^[0-9]{4}-[0-9]{2}$' and right(${t.fy}, 2)::int = (left(${t.fy}, 4)::int + 1) % 100`,
+    ),
   ],
 );

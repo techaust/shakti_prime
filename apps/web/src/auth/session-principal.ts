@@ -155,3 +155,22 @@ export async function revokeOtherSessions(
       : and(eq(s.userId, userId), isNull(s.revokedAt), ne(s.token, keepToken));
   await authDb().update(s).set({ revokedAt: new Date(), revokedReason: reason }).where(where);
 }
+
+/**
+ * After a first authenticator enrolment: enrolment is a privilege change, so every other sign-in
+ * of the user ends (docs/SECURITY.md §2) and their cached principal is dropped. The enrolment
+ * re-issued the session, so the one to keep is named by the cookie it just set (`issued`).
+ */
+export async function finishEnrolment(
+  before: ResolvedSession | undefined,
+  issued: Headers,
+  keyValue: KeyValue,
+): Promise<void> {
+  if (!before || before.access.twoFactorEnabled) return;
+  await revokeOtherSessions(
+    before.session.userId,
+    sessionTokenFromSetCookie(issued),
+    'totp_enrolled',
+  );
+  await invalidatePrincipal(keyValue, before.session.userId);
+}

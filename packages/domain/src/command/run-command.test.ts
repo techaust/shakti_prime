@@ -125,6 +125,24 @@ describe('runCommand', () => {
     expect(translateDatabaseError(network, 'test.cmd')).toBe(network);
   });
 
+  it('holds a command to its minScope: a narrower grant of the same permission is refused (AUDIT M41)', async () => {
+    const entityWide = defineCommand({
+      name: 'test.entity_wide',
+      permission: 'crm.lead.read',
+      minScope: 'entity',
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: () => Promise.resolve({}),
+    });
+    const own = principal({ permissions: [{ key: 'crm.lead.read', scope: 'own' }] });
+    await expect(runCommand(entityWide, { context: context(own) }, {})).rejects.toMatchObject({
+      code: 'forbidden',
+      details: { permission: 'crm.lead.read', scope: 'entity' },
+    });
+    const all = principal({ permissions: [{ key: 'crm.lead.read', scope: 'all' }] });
+    await expect(runCommand(entityWide, { context: context(all) }, {})).resolves.toEqual({});
+  });
+
   it('translates a failing audit or outbox write like a handler failure', async () => {
     const cmd = defineCommand({
       name: 'test.sink',

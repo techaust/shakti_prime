@@ -7,9 +7,10 @@ import { toDataURL } from 'qrcode';
 import { auth } from '../auth/auth';
 import { normaliseBackupCode } from '../auth/backup-codes';
 import { ACTIVE_ENTITY_COOKIE, currentSession, forgetPrincipal } from '../auth/current-principal';
+import { defaultAuthDeps } from '../auth/deps';
 import { errorKey, toDomainError } from '../auth/errors';
 import { reportUnexpected } from '../log';
-import { revokeOtherSessions, sessionTokenFromSetCookie } from '../auth/session-principal';
+import { finishEnrolment } from '../auth/session-principal';
 import { TURNSTILE_HEADER } from '../auth/turnstile';
 
 /**
@@ -176,7 +177,7 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
   } catch (e) {
     return failure('verifyTwoFactor', e);
   }
-  await finishEnrolment(before, issued);
+  await finishEnrolment(before, issued, defaultAuthDeps().keyValue);
   redirect('/home');
 }
 
@@ -191,22 +192,6 @@ export async function verifyBackupCode(_prev: FormState, formData: FormData): Pr
     return failure('verifyBackupCode', e);
   }
   redirect('/home');
-}
-
-async function finishEnrolment(
-  before: Awaited<ReturnType<typeof currentSession>>,
-  issued: Headers,
-): Promise<void> {
-  if (before && !before.access.twoFactorEnabled) {
-    // Enrolment is a privilege change: every other sign-in of this user ends (docs/SECURITY.md §2).
-    // The enrolment itself re-issued the session; its token is in the cookie just set.
-    await revokeOtherSessions(
-      before.session.userId,
-      sessionTokenFromSetCookie(issued),
-      'totp_enrolled',
-    );
-    await forgetPrincipal(before.session.userId);
-  }
 }
 
 export async function changePassword(

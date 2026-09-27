@@ -36,5 +36,12 @@ export async function nextDocumentNo(
   if (no === undefined || no === null) {
     throw new DomainError('internal', 'document sequence returned no number');
   }
-  return DocumentNoSchema.parse({ docType, fy, no, formatted: formatDocumentNo(prefix, fy, no) });
+  // A series keeps the prefix it started the year with, even if the entity's code changes later
+  // (AUDIT L5), so every number in one year reads the same way.
+  const [series] = (await ctx.tx.execute(
+    sql`select prefix from document_sequences
+         where entity_id = ${entityId} and doc_type = ${docType} and fy = ${fy}`,
+  )) as unknown as { prefix: string }[];
+  const stored = series?.prefix ?? prefix;
+  return DocumentNoSchema.parse({ docType, fy, no, formatted: formatDocumentNo(stored, fy, no) });
 }
