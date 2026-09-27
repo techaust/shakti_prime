@@ -80,6 +80,7 @@ const {
   listUserSessions,
   listUsers,
   reactivateUser,
+  replayDeadLetter,
   resetTwoFactor,
   revokeSession,
   setUserRoles,
@@ -370,6 +371,33 @@ describe('command and query actions answer a result, never a thrown error (revie
     });
     expect(ok(await loseOpportunity({ ...target, reasonCode: 'no_budget' }))).toMatchObject({
       state: 'lost',
+    });
+  });
+
+  it('send a failed message again for an Executive only, and answer a second try as a sentence', async () => {
+    const eventId = newId();
+    await asMigrator(
+      (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                          payload_json, attempts, last_error, dead_lettered_at)
+               values (${eventId}, 1, 'admin.user.reactivated', 'test_action_replay', ${newId()},
+                       '{"v": 1}'::jsonb, 10, 'http_404', now())`,
+    );
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(replayDeadLetter({ eventId })).resolves.toEqual({ ok: false, error: 'forbidden' });
+
+    request.principal = await createTestPrincipal('executive');
+    expect(ok(await replayDeadLetter({ eventId }))).toEqual({
+      eventId,
+      requeued: true,
+      attempts: 0,
+    });
+    await expect(replayDeadLetter({ eventId })).resolves.toEqual({
+      ok: false,
+      error: 'not_dead_lettered',
+    });
+    await expect(replayDeadLetter({ eventId: newId() })).resolves.toEqual({
+      ok: false,
+      error: 'dead_letter_missing',
     });
   });
 
