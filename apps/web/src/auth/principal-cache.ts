@@ -1,5 +1,6 @@
 import { PrincipalSchema, type Principal } from '@shakti/contracts';
 import { parseUserAccess, type KeyValue, type UserAccess } from '@shakti/domain';
+import { logger } from '../log';
 
 /** How long a resolved principal is cached, and how long a user's version counter lives. */
 export const PRINCIPAL_CACHE_SECONDS = 60;
@@ -44,7 +45,10 @@ export function principalCache(keyValue: KeyValue) {
         const version = (await keyValue.get(versionKey(userId))) ?? '0';
         return `principal:${sessionId}:${entityId ?? 'all'}:${version}`;
       } catch (e) {
-        console.warn('principal cache unavailable, resolving from the database', e);
+        logger.log('warn', 'principal_cache.miss', {
+          note: 'principal cache unavailable, resolving from the database',
+          error: e,
+        });
         return undefined;
       }
     },
@@ -54,7 +58,10 @@ export function principalCache(keyValue: KeyValue) {
         const raw = await keyValue.get(key);
         return raw === null ? undefined : parseCached(raw);
       } catch (e) {
-        console.warn('principal cache read failed, resolving from the database', e);
+        logger.log('warn', 'principal_cache.miss', {
+          note: 'principal cache read failed, resolving from the database',
+          error: e,
+        });
         return undefined;
       }
     },
@@ -63,7 +70,10 @@ export function principalCache(keyValue: KeyValue) {
       try {
         await keyValue.set(key, JSON.stringify(value), PRINCIPAL_CACHE_SECONDS);
       } catch (e) {
-        console.warn('principal cache write failed', e);
+        logger.log('warn', 'principal_cache.miss', {
+          note: 'principal cache write failed',
+          error: e,
+        });
       }
     },
     /** Drops every cached principal of a user. Errors propagate: a missed invalidation is a stale grant. */

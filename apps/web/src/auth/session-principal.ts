@@ -7,6 +7,7 @@ import {
 import { loadUserGrants } from '@shakti/db';
 import { authDb, authSchema } from '@shakti/db/auth';
 import { resolvePrincipalFromGrants, type KeyValue, type UserAccess } from '@shakti/domain';
+import { APIError } from 'better-auth/api';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import type { Auth } from './create-auth';
 import { principalCache } from './principal-cache';
@@ -41,8 +42,13 @@ interface Deps {
  * undefined. `last_seen_at` is written at most once a minute.
  */
 export async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
-  // A session the app has ended is refused by the auth routes themselves (create-auth.ts).
-  const result = await deps.auth.api.getSession({ headers }).catch(() => null);
+  // A session the app has ended is refused by the auth routes themselves (create-auth.ts). Only
+  // that refusal means "signed out"; a database or network failure is an outage and reaches the
+  // error screen, instead of sending the person round the sign-in page (AUDIT M36).
+  const result = await deps.auth.api.getSession({ headers }).catch((e: unknown) => {
+    if (e instanceof APIError && (e.statusCode === 401 || e.statusCode === 403)) return null;
+    throw e;
+  });
   if (!result) return undefined;
   const s = authSchema.sessions;
   const [row] = await authDb()

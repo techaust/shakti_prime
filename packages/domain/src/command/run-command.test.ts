@@ -111,6 +111,35 @@ describe('runCommand', () => {
     expect(plain).toMatchObject({ code: 'conflict', details: { reason: 'concurrent_change' } });
   });
 
+  it('keeps the original failure as the cause, and leaves driver errors untranslated (AUDIT M30, M35)', () => {
+    const pg = Object.assign(new Error('deadlock detected'), { code: '40P01' });
+    const translated = translateDatabaseError(pg, 'test.cmd');
+    expect(translated).toMatchObject({ code: 'conflict', cause: pg });
+    const refused = translateDatabaseError(
+      Object.assign(new Error('new row violates row-level security policy'), { code: '42501' }),
+      'test.cmd',
+    );
+    expect(refused).toMatchObject({ code: 'forbidden', details: { sqlstate: '42501' } });
+    expect((refused as { details?: { reason?: unknown } }).details?.reason).toBeUndefined();
+    const network = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' });
+    expect(translateDatabaseError(network, 'test.cmd')).toBe(network);
+  });
+
+  it('translates a failing audit or outbox write like a handler failure', async () => {
+    const cmd = defineCommand({
+      name: 'test.sink',
+      permission: 'crm.lead.read',
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: () => Promise.resolve({}),
+    });
+    const onAudit = () =>
+      Promise.reject(Object.assign(new Error('could not serialize access'), { code: '40001' }));
+    await expect(
+      runCommand(cmd, { context: context(principal()), onAudit }, {}),
+    ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'concurrent_change' } });
+  });
+
   it('refuses data outside the declared DTO instead of leaking it', async () => {
     const leaky = defineCommand({
       name: 'test.leaky',

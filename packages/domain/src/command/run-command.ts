@@ -59,9 +59,16 @@ const SQLSTATE_CODES: Record<string, DomainError['code']> = {
   '42501': 'forbidden', // insufficient_privilege (RLS with check, security definer refusals)
 };
 
+/** The reasons the runner itself gives; each has a sentence in the catalogue (AUDIT M30). */
+export const RUNNER_REASONS = ['concurrent_change', 'database_rejected'] as const;
+
+/** A PostgreSQL SQLSTATE: five digits or capitals. Driver codes such as ECONNREFUSED are not. */
+const SQLSTATE = /^[0-9A-Z]{5}$/;
+
 /**
  * A handler that hits a database error answers with a domain code and a plain reason; the SQL
- * text stays out of the response. `DomainError`s pass through untouched.
+ * text stays out of the response and the original failure is kept as the `cause` for the logs.
+ * `DomainError`s pass through untouched.
  */
 export function translateDatabaseError(
   e: unknown,
@@ -71,7 +78,10 @@ export function translateDatabaseError(
   if (e instanceof DomainError) return e;
   const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
   if (!(cause instanceof Error)) return e;
-  const sqlstate = 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined;
+  const sqlstate =
+    'code' in cause && typeof cause.code === 'string' && SQLSTATE.test(cause.code)
+      ? cause.code
+      : undefined;
   if (sqlstate === undefined) return e;
   const constraint =
     'constraint_name' in cause && typeof cause.constraint_name === 'string'
@@ -79,11 +89,19 @@ export function translateDatabaseError(
       : undefined;
   const code = SQLSTATE_CODES[sqlstate] ?? 'internal';
   const named = constraint === undefined ? undefined : constraintReasons[constraint];
-  return new DomainError(code, `${commandName} hit database error ${sqlstate}`, {
-    reason: named ?? (code === 'conflict' ? 'concurrent_change' : 'database_rejected'),
-    sqlstate,
-    ...(constraint === undefined ? {} : { constraint }),
-  });
+  const fallback: (typeof RUNNER_REASONS)[number] =
+    code === 'conflict' ? 'concurrent_change' : 'database_rejected';
+  return new DomainError(
+    code,
+    `${commandName} hit database error ${sqlstate}`,
+    {
+      // A policy refusal is a plain "no access"; the forbidden sentence says so.
+      ...(code === 'forbidden' && named === undefined ? {} : { reason: named ?? fallback }),
+      sqlstate,
+      ...(constraint === undefined ? {} : { constraint }),
+    },
+    { cause: e },
+  );
 }
 
 /**
@@ -132,15 +150,20 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     });
   }
 
-  await options.onAudit?.({
-    command: command.name,
-    principalId: context.principal.id,
-    entityIds: context.entityIds,
-    requestId: context.requestId,
-    input: parsed.data,
-    at: now,
-  });
-  if (events.length > 0) await options.onEmit?.(events);
+  // The audit and outbox writes share the transaction, so their failures translate the same way.
+  try {
+    await options.onAudit?.({
+      command: command.name,
+      principalId: context.principal.id,
+      entityIds: context.entityIds,
+      requestId: context.requestId,
+      input: parsed.data,
+      at: now,
+    });
+    if (events.length > 0) await options.onEmit?.(events);
+  } catch (e) {
+    throw translateDatabaseError(e, command.name, command.constraintReasons);
+  }
 
   return output.data;
 }
