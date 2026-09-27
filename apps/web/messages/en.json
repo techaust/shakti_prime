@@ -74,7 +74,8 @@
       "confirm": "Type it again",
       "submit": "Save password",
       "done": "Your password is saved. You can sign in now.",
-      "goSignIn": "Go to sign in"
+      "goSignIn": "Go to sign in",
+      "askNew": "Ask for a new link"
     },
     "twoFactor": {
       "enrolTitle": "Set up your authenticator app",
@@ -92,7 +93,13 @@
       "verifyIntro": "Open the app on your phone and type the 6-digit code shown for Shakti Prime.",
       "useBackupCode": "Use a backup code",
       "useAppCode": "Use the app code",
-      "backupCodeLabel": "One of your backup codes"
+      "backupCodeLabel": "One of your backup codes",
+      "backToSignIn": "Back to sign in",
+      "copyKey": "Copy key",
+      "copyCodes": "Copy codes",
+      "downloadCodes": "Download codes",
+      "copied": "Copied",
+      "codesFile": "shakti-prime-backup-codes.txt"
     },
     "home": {
       "title": "Welcome",
@@ -202,5 +209,12 @@
     "title": "We couldn't find this screen",
     "body": "The link may be old or typed wrongly. Start again from the home screen.",
     "home": "Go to the home screen"
+  },
+  "fields": {
+    "required": "Please fill this in.",
+    "email": "Please enter a full email address, with an @ in it.",
+    "tooShort": "Please use at least {min} characters.",
+    "pattern": "Please check the format and try again.",
+    "invalid": "Please check this and try again."
   }
 }

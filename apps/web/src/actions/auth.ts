@@ -5,6 +5,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { toDataURL } from 'qrcode';
 import { auth } from '../auth/auth';
+import { normaliseBackupCode } from '../auth/backup-codes';
 import { ACTIVE_ENTITY_COOKIE, currentSession, forgetPrincipal } from '../auth/current-principal';
 import { errorKey, toDomainError } from '../auth/errors';
 import { reportUnexpected } from '../log';
@@ -18,6 +19,8 @@ import { TURNSTILE_HEADER } from '../auth/turnstile';
 export interface FormState {
   error?: string;
   reference?: string;
+  /** The one field the error is about, when there is one; otherwise the whole form (AUDIT L15). */
+  field?: string;
 }
 
 export interface SetPasswordState extends FormState {
@@ -36,12 +39,31 @@ const field = (formData: FormData, name: string): string => {
   return typeof value === 'string' ? value : '';
 };
 
-/** The form state for a failure; an unexpected one is logged with a reference (AUDIT M35). */
-function failure(action: string, e: unknown): FormState {
+/** Which field of a password form a reason is about. */
+const PASSWORD_REASONS = new Set(['password_too_short', 'password_too_long', 'password_breached']);
+
+/**
+ * The form state for a failure; an unexpected one is logged with a reference (AUDIT M35).
+ * `fields` names the field each reason concerns, so only that field is marked (AUDIT L15).
+ */
+function failure(
+  action: string,
+  e: unknown,
+  fields: Readonly<Record<string, string>> = {},
+): FormState {
   const domain = toDomainError(e);
   const error = errorKey(domain);
-  if (domain.code !== 'internal' && domain.code !== 'integration_unavailable') return { error };
+  const field = fields[error];
+  const named = field === undefined ? {} : { field };
+  if (domain.code !== 'internal' && domain.code !== 'integration_unavailable') {
+    return { error, ...named };
+  }
   return { error, reference: reportUnexpected('auth.action_failed', e, { action }) };
+}
+
+/** The reasons a new password is refused, each on the field that holds it. */
+function passwordFields(newField: string): Record<string, string> {
+  return Object.fromEntries([...PASSWORD_REASONS].map((reason) => [reason, newField]));
 }
 
 async function requestHeaders(turnstileToken?: string): Promise<Headers> {
@@ -100,10 +122,13 @@ export async function setPassword(
   formData: FormData,
 ): Promise<SetPasswordState> {
   const password = field(formData, 'password');
-  if (password !== field(formData, 'confirm')) return { error: 'password_mismatch' };
+  if (password !== field(formData, 'confirm')) {
+    return { error: 'password_mismatch', field: 'confirm' };
+  }
   if (!PasswordSchema.safeParse(password).success) {
     return {
       error: password.length < PASSWORD_MIN_LENGTH ? 'password_too_short' : 'password_too_long',
+      field: 'password',
     };
   }
   try {
@@ -112,7 +137,7 @@ export async function setPassword(
       headers: await headers(),
     });
   } catch (e) {
-    return failure('setPassword', e);
+    return failure('setPassword', e, passwordFields('password'));
   }
   return { done: true };
 }
@@ -159,7 +184,7 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
 export async function verifyBackupCode(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     await auth.api.verifyBackupCode({
-      body: { code: field(formData, 'code').trim() },
+      body: { code: normaliseBackupCode(field(formData, 'code')) },
       headers: await headers(),
     });
   } catch (e) {
@@ -189,10 +214,11 @@ export async function changePassword(
   formData: FormData,
 ): Promise<SetPasswordState> {
   const next = field(formData, 'newPassword');
-  if (next !== field(formData, 'confirm')) return { error: 'password_mismatch' };
+  if (next !== field(formData, 'confirm')) return { error: 'password_mismatch', field: 'confirm' };
   if (!PasswordSchema.safeParse(next).success) {
     return {
       error: next.length < PASSWORD_MIN_LENGTH ? 'password_too_short' : 'password_too_long',
+      field: 'newPassword',
     };
   }
   const session = await currentSession();
@@ -207,7 +233,10 @@ export async function changePassword(
       headers: await headers(),
     });
   } catch (e) {
-    return failure('changePassword', e);
+    return failure('changePassword', e, {
+      ...passwordFields('newPassword'),
+      password_incorrect: 'currentPassword',
+    });
   }
   await forgetPrincipal(session.session.userId);
   return { done: true };

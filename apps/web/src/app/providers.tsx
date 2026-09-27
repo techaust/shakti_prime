@@ -9,9 +9,12 @@ import { THEME_STORAGE_KEY } from '../theme';
 export function Providers({
   children,
   defaultTheme,
+  nonce,
 }: {
   children: ReactNode;
   defaultTheme: Theme;
+  /** The request's CSP nonce, for the inline script that applies the theme before paint. */
+  nonce: string;
 }) {
   return (
     <ThemeProvider
@@ -20,6 +23,7 @@ export function Providers({
       enableSystem
       storageKey={THEME_STORAGE_KEY}
       disableTransitionOnChange
+      nonce={nonce}
     >
       {children}
     </ThemeProvider>

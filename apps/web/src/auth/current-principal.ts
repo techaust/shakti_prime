@@ -13,6 +13,9 @@ import {
 /** The entity switcher's cookie: absent means "All entities". */
 export const ACTIVE_ENTITY_COOKIE = 'entity';
 
+/** Better Auth's cookie for a sign-in waiting for its second factor (prefix `shakti`). */
+export const TWO_FACTOR_PENDING_COOKIE = 'shakti.two_factor';
+
 async function activeEntityId(): Promise<number | undefined> {
   const raw = (await cookies()).get(ACTIVE_ENTITY_COOKIE)?.value;
   const parsed = EntityIdSchema.safeParse(Number(raw));

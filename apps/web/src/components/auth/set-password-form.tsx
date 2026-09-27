@@ -1,27 +1,35 @@
 'use client';
 
 import { PASSWORD_MIN_LENGTH } from '@shakti/contracts';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useActionState } from 'react';
 import { setPassword, type SetPasswordState } from '../../actions/auth';
-import { Button, Field, FormError, TextInput } from '../form';
+import { blockWhilePending, Button, Field, FormError, TextInput, useFormFeedback } from '../form';
 
 export function SetPasswordForm({ token }: { token: string }) {
   const t = useTranslations('auth.setPassword');
   const [state, action, pending] = useActionState<SetPasswordState, FormData>(setPassword, {});
+  const { errorId, attempt, formRef } = useFormFeedback(state);
+  const wrong = (name: string) =>
+    state.error !== undefined && (state.field === undefined || state.field === name);
   if (state.done === true) {
     return (
       <div className="flex flex-col gap-4">
-        <p>{t('done')}</p>
-        <Link href="/sign-in" className="text-accent-text underline">
+        <p role="status">{t('done')}</p>
+        <Link href="/sign-in" className="text-accent-text self-start underline">
           {t('goSignIn')}
         </Link>
       </div>
     );
   }
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      ref={formRef}
+      action={action}
+      onSubmit={blockWhilePending(pending)}
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="token" value={token} />
       <Field label={t('password')} id="password">
         <TextInput
@@ -30,7 +38,8 @@ export function SetPasswordForm({ token }: { token: string }) {
           type="password"
           autoComplete="new-password"
           minLength={PASSWORD_MIN_LENGTH}
-          invalid={state.error !== undefined}
+          invalid={wrong('password')}
+          errorId={errorId}
           required
         />
       </Field>
@@ -40,10 +49,17 @@ export function SetPasswordForm({ token }: { token: string }) {
           name="confirm"
           type="password"
           autoComplete="new-password"
+          invalid={wrong('confirm')}
+          errorId={errorId}
           required
         />
       </Field>
-      <FormError errorKey={state.error} reference={state.reference} />
+      <FormError
+        id={errorId}
+        attempt={attempt}
+        errorKey={state.error}
+        reference={state.reference}
+      />
       <Button type="submit" pending={pending}>
         {t('submit')}
       </Button>

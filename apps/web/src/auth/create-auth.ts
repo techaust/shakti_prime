@@ -16,6 +16,7 @@ import { nextCookies } from 'better-auth/next-js';
 import { haveIBeenPwned, twoFactor } from 'better-auth/plugins';
 import { and, eq, isNull, like, ne } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
+import { generateBackupCodes } from './backup-codes';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
 import {
@@ -556,6 +557,8 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         schema: { twoFactor: { modelName: 'user_two_factor' } },
         // Five wrong codes lock the second factor for an hour (AUDIT M5).
         accountLockout: { maxFailedAttempts: 5, durationSeconds: 60 * 60 },
+        // Readable codes, and the action brings what is typed to their form (AUDIT M51).
+        backupCodeOptions: { customBackupCodesGenerate: generateBackupCodes },
       }),
       haveIBeenPwned(),
       ...(options.nextCookies === false ? [] : [nextCookies()]),

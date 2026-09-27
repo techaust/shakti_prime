@@ -1,5 +1,17 @@
+'use client';
+
 import { useTranslations } from 'next-intl';
-import type { ComponentProps, ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+  type SyntheticEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { useFormStatus } from 'react-dom';
 import type { ErrorKey } from '../i18n/types';
 
 /** Minimal form primitives on the DESIGN.md §6 rules; the component library arrives in week 4. */
@@ -15,19 +27,67 @@ export function Field({ label, id, children }: { label: string; id: string; chil
   );
 }
 
-/** The id every form's error message carries, so inputs can point at it. */
-export const FORM_ERROR_ID = 'form-error';
+/**
+ * What a form needs to report an answer (AUDIT M50, L15): its own error id (a page can hold two
+ * forms), a count of attempts so a repeated error is announced again, and the form element, so
+ * focus moves to the first field the answer marks as wrong.
+ */
+export function useFormFeedback(state: object): {
+  errorId: string;
+  attempt: number;
+  formRef: RefObject<HTMLFormElement | null>;
+} {
+  const errorId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [attempt, setAttempt] = useState(0);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setAttempt((n) => n + 1);
+    formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [state]);
+  return { errorId, attempt, formRef };
+}
+
+/** The catalogue sentence for a field the browser finds invalid (AUDIT L34). */
+function validityMessage(
+  input: HTMLInputElement,
+  t: ReturnType<typeof useTranslations<'fields'>>,
+): string {
+  const v = input.validity;
+  if (v.valueMissing) return t('required');
+  if (v.typeMismatch && input.type === 'email') return t('email');
+  if (v.tooShort) return t('tooShort', { min: input.minLength });
+  if (v.patternMismatch) return t('pattern');
+  return t('invalid');
+}
 
 export function TextInput({
   className = '',
   invalid = false,
+  errorId,
+  onInvalid,
+  onInput,
   ...props
-}: ComponentProps<'input'> & { invalid?: boolean }) {
+}: ComponentProps<'input'> & { invalid?: boolean; errorId?: string }) {
+  const t = useTranslations('fields');
   return (
     <input
       {...props}
       aria-invalid={invalid || undefined}
-      aria-describedby={invalid ? FORM_ERROR_ID : undefined}
+      aria-describedby={invalid ? errorId : undefined}
+      // The browser's own messages are in its language and words; ours come from the catalogue.
+      onInvalid={(e) => {
+        e.currentTarget.setCustomValidity(validityMessage(e.currentTarget, t));
+        onInvalid?.(e);
+      }}
+      onInput={(e) => {
+        e.currentTarget.setCustomValidity('');
+        onInput?.(e);
+      }}
       className={`bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3 max-md:h-11 ${className}`}
     />
   );
@@ -38,6 +98,7 @@ export function Button({
   variant = 'primary',
   pending = false,
   className = '',
+  onClick,
   ...props
 }: ComponentProps<'button'> & { variant?: 'primary' | 'secondary' | 'link'; pending?: boolean }) {
   // Controls are 36 px on desktop and 44 px on phones (DESIGN.md §6); a text-style button keeps
@@ -51,25 +112,53 @@ export function Button({
   return (
     <button
       {...props}
-      disabled={pending || props.disabled}
+      // While an answer is on its way the button stays focusable, so focus is not lost, and a
+      // second press does nothing (AUDIT M50).
+      aria-disabled={pending || props.disabled === true || undefined}
+      disabled={props.disabled}
       aria-busy={pending || undefined}
-      className={`rounded-[var(--radius-md)] font-[510] disabled:opacity-60 ${look} ${className}`}
+      onClick={(e) => {
+        if (pending) {
+          e.preventDefault();
+          return;
+        }
+        onClick?.(e);
+      }}
+      className={`rounded-[var(--radius-md)] font-[510] disabled:opacity-60 aria-disabled:opacity-60 ${look} ${className}`}
     >
       {children}
     </button>
   );
 }
 
+/** A submit button that shows the form's own pending state, for forms without action state. */
+export function SubmitButton(props: Omit<ComponentProps<typeof Button>, 'type' | 'pending'>) {
+  const { pending } = useFormStatus();
+  return <Button {...props} type="submit" pending={pending} />;
+}
+
+/** Stops a submit while one is on its way, for forms whose button shows pending. */
+export function blockWhilePending(pending: boolean) {
+  return (e: SyntheticEvent<HTMLFormElement>) => {
+    if (pending) e.preventDefault();
+  };
+}
+
 /**
  * A catalogue error under `errors.*`, or nothing. An unexpected failure also shows the reference
- * the person reads to support (DESIGN.md §11).
+ * the person reads to support (DESIGN.md §11). `attempt` remounts the alert, so a screen reader
+ * announces the same sentence again after another failed try (AUDIT M50).
  */
 export function FormError({
   errorKey,
   reference,
+  id,
+  attempt = 0,
 }: {
   errorKey: string | undefined;
   reference?: string | undefined;
+  id: string;
+  attempt?: number;
 }) {
   const t = useTranslations('errors');
   const app = useTranslations('app');
@@ -77,7 +166,7 @@ export function FormError({
   // An action answers a string; only a key the catalogue has is shown, never a raw key path.
   const known: ErrorKey = t.has(errorKey as ErrorKey) ? (errorKey as ErrorKey) : 'internal';
   return (
-    <p id={FORM_ERROR_ID} role="alert" className="text-danger text-sm">
+    <p key={attempt} id={id} role="alert" className="text-danger text-sm">
       {t(known)}
       {reference === undefined ? null : (
         <span className="block">{app('reference', { reference })}</span>
