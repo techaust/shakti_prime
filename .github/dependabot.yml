@@ -1,4 +1,6 @@
 # Dependency updates (docs/SECURITY.md §5). Grouped weekly so the lockfile moves in one reviewed PR.
+# Majors come one at a time, outside the groups (AUDIT L25): a TypeScript or ESLint major waits
+# until typescript-eslint and the Next.js config support it.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -12,8 +14,17 @@ updates:
     groups:
       production:
         dependency-type: production
+        update-types: [minor, patch]
       development:
         dependency-type: development
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -2,6 +2,9 @@
   "name": "web",
   "version": "0.0.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "description": "Shakti Prime web app: public site, BOS app and /api/v1",
   "type": "module",
   "scripts": {

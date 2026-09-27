@@ -9,3 +9,13 @@ allowBuilds:
   '@swc/core': true
   esbuild: true
   unrs-resolver: true
+
+# A version must be a day old before it is installed (AUDIT L22), so a compromised release that
+# is pulled within hours never reaches the lockfile.
+minimumReleaseAge: 1440
+
+auditConfig:
+  ignoreGhsas:
+    # esbuild's development server (GHSA-67mh-4wv8-2f99) reaches us only through drizzle-kit,
+    # a build tool linked from the workspace; it is never run as a server nor shipped (AUDIT M46).
+    - GHSA-67mh-4wv8-2f99

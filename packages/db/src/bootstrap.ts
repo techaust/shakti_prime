@@ -5,6 +5,7 @@ import { newId, type Id } from '@shakti/contracts';
 import postgres from 'postgres';
 import { ALL_ENTITY_IDS } from '../seeds/entities';
 import { roleId } from '../seeds/roles';
+import { connectionOptions } from './connection';
 import { requireEnv } from './env';
 
 export interface BootstrapExecutiveInput {
@@ -19,7 +20,12 @@ export interface BootstrapExecutiveInput {
  * already exists, unless forced. Returns the new user id; the caller mails the set-password link.
  */
 export async function bootstrapExecutive(input: BootstrapExecutiveInput): Promise<Id> {
-  const sql = postgres(requireEnv('DATABASE_URL_MIGRATOR'), { max: 1, prepare: false });
+  const url = requireEnv('DATABASE_URL_MIGRATOR');
+  const sql = postgres(url, {
+    ...connectionOptions(url, 'shakti-bootstrap'),
+    max: 1,
+    prepare: false,
+  });
   const email = input.email.trim().toLowerCase();
   try {
     return await sql.begin(async (tx) => {
