@@ -2,13 +2,17 @@
 // Generates about thirty made-up document photos in memory, masks each one twice (as a photo
 // of unknown kind, as from WhatsApp, and as an upload to a slot that says which number it
 // carries), then reads each masked image again to check the hidden digits cannot be read
-// back. Writes the numbers to docs/spikes/results/ocr.json and the masked images (only) to
-// apps/web/.spike-output/ocr/. The unmasked photos never leave memory.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+// back, and looks for any QR code that can still be decoded on the masked image. Writes the
+// numbers to docs/spikes/results/ocr.json and the masked images (only) to
+// apps/web/.spike-output/ocr/. The unmasked photos and what their QR codes hold never leave
+// memory and are never printed.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeOcrDigits } from '@shakti/domain';
+import jsQR from 'jsqr';
+import sharp from 'sharp';
 import { createWorker, type Worker } from 'tesseract.js';
 import {
   createDocumentMasker,
@@ -50,6 +54,185 @@ const hiddenPart = (number: string, kind: 'aadhaar' | 'bank') =>
 
 type Mode = 'unknown_slot' | 'known_slot';
 
+interface CheckView {
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+  scale: number;
+  /** Contrast stretched and sharpened after enlarging, as a determined reader would. */
+  enhance: boolean;
+}
+
+/** The view's pixels as RGBA for jsQR. */
+async function viewPixels(
+  data: Buffer,
+  width: number,
+  height: number,
+  v: CheckView,
+): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
+  const base = sharp(data, { raw: { width, height, channels: 4 } })
+    .extract({ left: v.left, top: v.top, width: v.w, height: v.h })
+    .resize(Math.round(v.w * v.scale), undefined, { kernel: 'lanczos3' });
+  if (!v.enhance) {
+    const px = await base.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    return {
+      rgba: new Uint8ClampedArray(px.data.buffer, px.data.byteOffset, px.data.length),
+      width: px.info.width,
+      height: px.info.height,
+    };
+  }
+  const px = await base
+    .grayscale()
+    .normalise()
+    .sharpen({ sigma: 2, m1: 2, m2: 4 })
+    .extractChannel(0)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const n = px.info.width * px.info.height;
+  const rgba = new Uint8ClampedArray(n * 4);
+  for (let i = 0; i < n; i++) {
+    const g = px.data[i] ?? 0;
+    rgba[i * 4] = g;
+    rgba[i * 4 + 1] = g;
+    rgba[i * 4 + 2] = g;
+    rgba[i * 4 + 3] = 255;
+  }
+  px.data.fill(0);
+  return { rgba, width: px.info.width, height: px.info.height };
+}
+
+/**
+ * Whether any QR code on `image` can be decoded, looking harder than a single pass: the whole
+ * image (dark and light codes), a smaller and a larger copy, and the four quarters enlarged;
+ * on an image up to 1300 px, also nine overlapping tiles enlarged three times, contrast
+ * stretched and sharpened (a blurred code on a small photo reads that way when it reads no
+ * other). Independent of the masker's own scan except for the decoder. The payload is only
+ * tested for being empty and for the hidden digits, then dropped; it is never printed or
+ * kept. A decode with an empty payload (jsQR now and then "finds" a version 1 code in the
+ * corner of a cover box and text) holds nothing and is counted apart as `emptyOnly`.
+ */
+async function decodableQr(
+  image: Buffer,
+  hidden: string[],
+): Promise<{ readable: boolean; holdsHidden: boolean; emptyOnly: boolean }> {
+  const { data, info } = await sharp(image)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width, height } = info;
+  const longest = Math.max(width, height);
+  const whole = { left: 0, top: 0, w: width, h: height, enhance: false };
+  const views: CheckView[] = [
+    { ...whole, scale: 1 },
+    { ...whole, scale: 800 / longest },
+    { ...whole, scale: longest < 1800 ? 2 : 1.3 },
+  ];
+  const hw = Math.floor(width / 2);
+  const hh = Math.floor(height / 2);
+  for (const [left, top] of [
+    [0, 0],
+    [hw, 0],
+    [0, hh],
+    [hw, hh],
+  ] as const) {
+    views.push({ left, top, w: width - hw, h: height - hh, scale: 2, enhance: false });
+  }
+  if (longest <= 1300) {
+    const tw = Math.ceil(width / 2);
+    const th = Math.ceil(height / 2);
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const left = Math.min(width - tw, Math.round((col * width) / 4));
+        const top = Math.min(height - th, Math.round((row * height) / 4));
+        views.push({ left, top, w: tw, h: th, scale: 3, enhance: true });
+      }
+    }
+  }
+  const result = { readable: false, holdsHidden: false, emptyOnly: false };
+  for (const [index, v] of views.entries()) {
+    const pixels = await viewPixels(data, width, height, v);
+    const code = jsQR(
+      pixels.rgba,
+      pixels.width,
+      pixels.height,
+      // Light codes on the whole image only: the generated codes are dark, and trying both
+      // ways on every view doubles the time of the check.
+      { inversionAttempts: index === 0 ? 'attemptBoth' : 'dontInvert' },
+    );
+    pixels.rgba.fill(0);
+    if (code) {
+      if (code.binaryData.length === 0) result.emptyOnly = true;
+      else result.readable = true;
+      if (hidden.some((h) => code.data.includes(h))) result.holdsHidden = true;
+      code.binaryData.fill(0);
+    }
+  }
+  data.fill(0);
+  if (result.readable) result.emptyOnly = false;
+  return result;
+}
+
+/**
+ * Whether the code drawn at `extent` can be decoded from a crop around it, enlarged one to
+ * four times and sharpened three ways: the strongest reading of the one code the spike knows
+ * is there. What it holds is only tested for being non-empty and dropped.
+ */
+async function targetedQrReadable(
+  image: Buffer,
+  extent: { x0: number; y0: number; x1: number; y1: number },
+): Promise<boolean> {
+  const { data, info } = await sharp(image)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pad = 30;
+  const left = Math.max(0, extent.x0 - pad);
+  const top = Math.max(0, extent.y0 - pad);
+  const w = Math.min(info.width - left, extent.x1 - extent.x0 + 2 * pad);
+  const h = Math.min(info.height - top, extent.y1 - extent.y0 + 2 * pad);
+  let readable = false;
+  for (const scale of [1, 2, 3, 4]) {
+    for (const enhance of [false, true]) {
+      if (readable) break;
+      const pixels = await viewPixels(data, info.width, info.height, {
+        left,
+        top,
+        w,
+        h,
+        scale,
+        enhance,
+      });
+      const code = jsQR(pixels.rgba, pixels.width, pixels.height, {
+        inversionAttempts: 'attemptBoth',
+      });
+      pixels.rgba.fill(0);
+      if (code) {
+        if (code.binaryData.length > 0) readable = true;
+        code.binaryData.fill(0);
+      }
+    }
+  }
+  data.fill(0);
+  return readable;
+}
+
+/** Share of the code's extent that the cover boxes hide. */
+function coveredShare(
+  extent: { x0: number; y0: number; x1: number; y1: number },
+  boxes: { x0: number; y0: number; x1: number; y1: number }[],
+): number {
+  let covered = 0;
+  let total = 0;
+  for (let y = extent.y0; y < extent.y1; y++) {
+    for (let x = extent.x0; x < extent.x1; x++) {
+      total += 1;
+      if (boxes.some((b) => x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1)) covered += 1;
+    }
+  }
+  return total === 0 ? 1 : covered / total;
+}
+
 function requestFor(doc: SyntheticDocument, mode: Mode): MaskRequest {
   if (mode === 'unknown_slot') return {};
   if (doc.kind === 'identity_card') return { expect: ['aadhaar'] };
@@ -76,8 +259,29 @@ interface Row {
   unexpectedSpans: number;
   leakInText: boolean;
   leakOnReread: boolean;
+  /** Why the photo was held, when it was. */
+  cause?: string;
+  /** A QR code was drawn on the document. */
+  qrPlaced: boolean;
+  qrModules?: number;
+  /** The drawn code could be decoded on the photo before masking (any view or a crop around it). */
+  qrReadableBefore?: boolean;
+  /** QR cover boxes drawn by the masker (on any document). */
+  qrBoxes: number;
+  /** Codes the masker located by decoding them, and from their finder marks alone. */
+  qrDecoded: number;
+  qrEstimated: number;
+  /** Share of the drawn code's extent under a QR cover box. */
+  qrCoveredShare?: number;
+  /** A QR code could be decoded on the masked image: any view, or a crop around the drawn code. */
+  qrReadableAfter: boolean;
+  /** A decoded code on the masked image held the hidden digits. */
+  qrLeak: boolean;
+  /** Only an empty decode (no payload) was found on the masked image. */
+  qrEmptyDecodeAfter: boolean;
   passes: number;
   totalMs: number;
+  qrMs: number;
   ocrMs: number;
 }
 
@@ -86,6 +290,8 @@ function percentile(values: number[], p: number): number {
   const index = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
   return Math.round(sorted[Math.max(0, index)] ?? 0);
 }
+
+const qrBefore = new Map<string, boolean>();
 
 async function runOne(
   doc: SyntheticDocument,
@@ -115,11 +321,29 @@ async function runOne(
     unexpectedSpans: 0,
     leakInText: false,
     leakOnReread: false,
+    qrPlaced: doc.qr !== undefined,
+    ...(doc.qr
+      ? { qrModules: doc.qr.modules, qrReadableBefore: qrBefore.get(doc.id) ?? false }
+      : {}),
+    qrBoxes: 0,
+    qrDecoded: 0,
+    qrEstimated: 0,
+    qrReadableAfter: false,
+    qrLeak: false,
+    qrEmptyDecodeAfter: false,
     passes: outcome.timings.passes,
     totalMs: Math.round(outcome.timings.totalMs),
+    qrMs: Math.round(outcome.timings.qrMs),
     ocrMs: Math.round(outcome.timings.ocrMs),
   };
-  if (outcome.status === 'needs_review') return row;
+  if (outcome.status === 'needs_review') {
+    row.cause = outcome.cause;
+    return row;
+  }
+  row.qrBoxes = outcome.qr.covered;
+  row.qrDecoded = outcome.qr.decoded;
+  row.qrEstimated = outcome.qr.estimated;
+  if (doc.qr) row.qrCoveredShare = coveredShare(doc.qr.extent, outcome.qr.boxes);
 
   const aadhaarLast = [...outcome.aadhaarLastFour];
   for (const n of expected.aadhaar) {
@@ -148,7 +372,17 @@ async function runOne(
   ];
   row.leakInText = hidden.some((h) => textDigits.includes(h));
   row.leakOnReread = hidden.some((h) => rereadDigits.includes(h));
-  writeFileSync(join(outDir, `${doc.id}-${mode}-masked.jpg`), outcome.image);
+  const qrAfter = await decodableQr(outcome.image, hidden);
+  row.qrReadableAfter =
+    qrAfter.readable || (doc.qr ? await targetedQrReadable(outcome.image, doc.qr.extent) : false);
+  row.qrLeak = qrAfter.holdsHidden;
+  row.qrEmptyDecodeAfter = qrAfter.emptyOnly;
+  // A masked image that still shows a hidden number or a readable QR code is counted, never
+  // written: only images that passed every check reach the disk.
+  if (!row.leakInText && !row.leakOnReread && !row.qrReadableAfter) {
+    writeFileSync(join(outDir, `${doc.id}-${mode}-masked.jpg`), outcome.image);
+  }
+  outcome.image.fill(0);
   return row;
 }
 
@@ -166,6 +400,9 @@ function summarize(rows: Row[]) {
       (r.aadhaarFound < r.aadhaarExpected || r.bankFound < r.bankExpected),
   );
   const times = rows.map((r) => r.totalMs);
+  const qrTimes = rows.map((r) => r.qrMs);
+  const withQr = rows.filter((r) => r.qrPlaced);
+  const qrReturned = withQr.filter((r) => r.status !== 'needs_review');
   return {
     documents: rows.length,
     aadhaar: {
@@ -190,6 +427,33 @@ function summarize(rows: Row[]) {
     unexpectedSpans: sum((r) => r.unexpectedSpans),
     leaksInText: rows.filter((r) => r.leakInText).map((r) => r.id),
     leaksOnOcrReread: rows.filter((r) => r.leakOnReread).map((r) => r.id),
+    qr: {
+      documentsWithQr: withQr.length,
+      readableBeforeMasking: withQr.filter((r) => r.qrReadableBefore).length,
+      heldForReview: withQr.filter((r) => r.status === 'needs_review').map((r) => r.id),
+      heldBecauseQrNotCovered: rows.filter((r) => r.cause === 'qr_not_covered').map((r) => r.id),
+      codesCovered: sum((r) => r.qrBoxes),
+      codesDecoded: sum((r) => r.qrDecoded),
+      codesPlacedFromFinderMarks: sum((r) => r.qrEstimated),
+      returned: qrReturned.length,
+      returnedFullyCovered: qrReturned.filter((r) => (r.qrCoveredShare ?? 0) >= 1).length,
+      returnedNotFullyCovered: qrReturned
+        .filter((r) => (r.qrCoveredShare ?? 0) < 1)
+        .map((r) => ({
+          id: r.id,
+          coveredShare: Math.round((r.qrCoveredShare ?? 0) * 1000) / 1000,
+        })),
+      coverBoxesOnDocumentsWithoutQr: sum((r) => (r.qrPlaced ? 0 : r.qrBoxes)),
+      decodableAfterMasking: rows.filter((r) => r.qrReadableAfter).map((r) => r.id),
+      hiddenDigitsDecodableAfterMasking: rows.filter((r) => r.qrLeak).map((r) => r.id),
+      emptyDecodesAfterMasking: rows.filter((r) => r.qrEmptyDecodeAfter).map((r) => r.id),
+      timeAddedPerImageMs: {
+        mean: Math.round(sum((r) => r.qrMs) / rows.length),
+        p50: percentile(qrTimes, 50),
+        p95: percentile(qrTimes, 95),
+        max: Math.max(...qrTimes),
+      },
+    },
     timePerImageMs: {
       mean: Math.round(sum((r) => r.totalMs) / rows.length),
       p50: percentile(times, 50),
@@ -199,14 +463,64 @@ function summarize(rows: Row[]) {
   };
 }
 
+interface RunOptions {
+  only?: 'qr';
+  limit?: number;
+  mode?: Mode;
+}
+
+/**
+ * A shorter run: `--only qr` keeps the photos with a QR code drawn on them, `--limit N` the
+ * first N; either writes its numbers to `ocr-subset.json`, so the full run's results are not
+ * overwritten. `--mode unknown_slot` or `--mode known_slot` masks every photo in that mode
+ * only and replaces that mode's numbers in the results, so a slow machine can run the two
+ * halves one after the other.
+ */
+function subsetOptions(argv: readonly string[]): RunOptions {
+  const options: RunOptions = {};
+  const modeAt = argv.indexOf('--mode');
+  if (modeAt >= 0) {
+    const mode = argv[modeAt + 1];
+    if (mode !== 'unknown_slot' && mode !== 'known_slot') {
+      throw new Error('--mode takes unknown_slot or known_slot');
+    }
+    options.mode = mode;
+  }
+  const onlyAt = argv.indexOf('--only');
+  if (onlyAt >= 0) {
+    if (argv[onlyAt + 1] !== 'qr') throw new Error('--only takes one value: qr');
+    options.only = 'qr';
+  }
+  const limitAt = argv.indexOf('--limit');
+  if (limitAt >= 0) {
+    const limit = Number(argv[limitAt + 1]);
+    if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit takes a whole number');
+    options.limit = limit;
+  }
+  return options;
+}
+
 async function main() {
+  const subset = subsetOptions(process.argv.slice(2));
+  const isSubset = subset.only !== undefined || subset.limit !== undefined;
+  const modes: Mode[] = subset.mode ? [subset.mode] : ['unknown_slot', 'known_slot'];
   await ensureLanguageData();
   mkdirSync(outDir, { recursive: true });
   mkdirSync(dirname(resultFile), { recursive: true });
 
   const genStarted = performance.now();
-  const docs = await generateDocuments();
+  const generated = await generateDocuments();
   const generateMs = performance.now() - genStarted;
+  const chosen = subset.only === 'qr' ? generated.filter((d) => d.qr) : generated;
+  const docs = chosen.slice(0, subset.limit ?? chosen.length);
+  for (const doc of generated) if (!docs.includes(doc)) doc.photo.fill(0);
+
+  // Baseline: whether each drawn QR code can be decoded on the unmasked photo at all.
+  for (const doc of docs) {
+    if (!doc.qr) continue;
+    const before = await decodableQr(doc.photo, []);
+    qrBefore.set(doc.id, before.readable || (await targetedQrReadable(doc.photo, doc.qr.extent)));
+  }
 
   const coldStarted = performance.now();
   const masker = await createDocumentMasker({ langPath });
@@ -214,12 +528,12 @@ async function main() {
   const checker = await createWorker('eng', 1, { langPath, cacheMethod: 'none', gzip: true });
 
   const results: Record<Mode, Row[]> = { unknown_slot: [], known_slot: [] };
-  for (const mode of ['unknown_slot', 'known_slot'] as const) {
+  for (const mode of modes) {
     for (const doc of docs) {
       const row = await runOne(doc, mode, masker, checker);
       results[mode].push(row);
       console.log(
-        `${mode.padEnd(12)} ${row.id} ${row.kind.padEnd(13)} ${row.hard ? 'hard' : '    '} ${row.status.padEnd(12)} aadhaar ${row.aadhaarFound}/${row.aadhaarExpected} bank ${row.bankFound}/${row.bankExpected} extra ${row.unexpectedSpans} leak ${row.leakInText || row.leakOnReread ? 'YES' : 'no'} ${row.totalMs} ms`,
+        `${mode.padEnd(12)} ${row.id} ${row.kind.padEnd(13)} ${row.hard ? 'hard' : '    '} ${row.status.padEnd(12)} aadhaar ${row.aadhaarFound}/${row.aadhaarExpected} bank ${row.bankFound}/${row.bankExpected} extra ${row.unexpectedSpans} leak ${row.leakInText || row.leakOnReread ? 'YES' : 'no'} qr ${row.qrPlaced ? `${row.qrReadableBefore ? 'readable' : 'unreadable'} covered ${row.qrCoveredShare === undefined ? '-' : row.qrCoveredShare.toFixed(3)}` : 'none'} boxes ${row.qrBoxes} after ${row.qrReadableAfter ? 'READABLE' : row.qrEmptyDecodeAfter ? 'empty decode' : 'no'}${row.cause ? ` (${row.cause})` : ''} ${row.qrMs}/${row.totalMs} ms`,
       );
     }
   }
@@ -227,17 +541,41 @@ async function main() {
   await masker.close();
   await checker.terminate();
 
-  const summary = {
+  const target = isSubset ? resultFile.replace(/\.json$/, '-subset.json') : resultFile;
+  const run = {
     ranAt: new Date().toISOString(),
-    platform: `${process.platform} ${process.arch}, Node ${process.version}`,
-    engine: 'tesseract.js 7, eng 4.0.0_best_int (LSTM), up to four readings per photo',
     generateMs: Math.round(generateMs),
     coldStartMs: Math.round(coldStartMs),
-    unknownSlot: summarize(results.unknown_slot),
-    knownSlot: summarize(results.known_slot),
-    rows: results,
   };
-  writeFileSync(resultFile, `${JSON.stringify(summary, null, 2)}\n`);
+  // A run of one mode replaces that mode's numbers in the results and keeps the other's.
+  const previous: Partial<Record<string, unknown>> =
+    subset.mode && existsSync(target)
+      ? (JSON.parse(readFileSync(target, 'utf8')) as Record<string, unknown>)
+      : {};
+  const previousRows = (previous.rows ?? {}) as Partial<Record<Mode, Row[]>>;
+  const previousRuns = (previous.runs ?? {}) as Partial<Record<Mode, typeof run>>;
+  const sections: Record<Mode, 'unknownSlot' | 'knownSlot'> = {
+    unknown_slot: 'unknownSlot',
+    known_slot: 'knownSlot',
+  };
+  const summary: Record<string, unknown> = {
+    ...(isSubset ? { subset } : {}),
+    platform: `${process.platform} ${process.arch}, Node ${process.version}`,
+    engine:
+      'tesseract.js 7, eng 4.0.0_best_int (LSTM), up to four readings per photo; jsQR 1.4 with a finder-mark scan for QR codes',
+    runs: { ...previousRuns },
+    unknownSlot: previous.unknownSlot,
+    knownSlot: previous.knownSlot,
+    rows: { ...previousRows },
+  };
+  const runs = summary.runs as Partial<Record<Mode, typeof run>>;
+  const rows = summary.rows as Partial<Record<Mode, Row[]>>;
+  for (const mode of modes) {
+    runs[mode] = run;
+    summary[sections[mode]] = summarize(results[mode]);
+    rows[mode] = results[mode];
+  }
+  writeFileSync(target, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify({ ...summary, rows: undefined }, null, 2));
 }
 
