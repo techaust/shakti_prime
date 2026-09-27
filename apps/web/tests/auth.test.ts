@@ -401,7 +401,9 @@ describe('session limits', () => {
     expect(sessionId).not.toBe('');
 
     await asMigrator(
-      (m) => m`update sessions set created_at = now() - interval '8 days' where id = ${sessionId}`,
+      // Aged on the suite's own clock, which deps.now() also reads; Postgres now() would drift from it.
+      (m) =>
+        m`update sessions set created_at = ${new Date(clock.getTime() - 8 * 86_400_000)} where id = ${sessionId}`,
     );
     await invalidatePrincipal(keyValue, user.id);
     expect(
