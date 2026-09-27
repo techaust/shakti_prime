@@ -239,6 +239,20 @@
       "when": 1790503622120,
       "tag": "0033_audit_logs_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790507461133,
+      "tag": "0034_outbox_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790507478686,
+      "tag": "0035_outbox_events_rls",
+      "breakpoints": true
     }
   ]
 }

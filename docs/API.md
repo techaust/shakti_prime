@@ -85,13 +85,13 @@ Pipeline for every webhook: verify signature → insert `webhook_inbox` (unique 
 | GET | `/connector/release` | Latest signed release manifest for self-update |
 
 ### 3.6 Workers (QStash only)
-`/workers/outbox/:type`, `/workers/messaging/send`, `/workers/files/scan`, `/workers/files/mask`, `/workers/pdf/render`, `/workers/imports/commit`, `/workers/agents/:agent`, `/workers/stt/transcribe`, `/workers/embeddings/index`, `/workers/notify`. Each verifies the QStash signature, checks the event ID in Redis, runs the command and returns `200` on success or a retryable `5xx`.
+`/workers/outbox/publish` (the outbox publisher, built), `/workers/outbox/:type`, `/workers/messaging/send`, `/workers/files/scan`, `/workers/files/mask`, `/workers/pdf/render`, `/workers/imports/commit`, `/workers/agents/:agent`, `/workers/stt/transcribe`, `/workers/embeddings/index`, `/workers/notify`. Each verifies the QStash signature, checks the event ID in Redis, runs the command and returns `200` on success or a retryable `5xx`.
 
 ### 3.7 Operations
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | none | Liveness |
-| GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back) and `config`; 503 with the checks when one is down; QStash joins with the outbox publisher |
+| GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down |
 | GET | `/admin/integrations` | session (admin.integrations.write) | Integration Health: webhook inbox stats, DLQ, connector heartbeat, WhatsApp quality and tier, AI spend |
 | POST | `/admin/integrations/replay` | session | Replay a dead-lettered event |
 

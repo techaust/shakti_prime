@@ -14,6 +14,7 @@ export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricin
 export { taxRates, compositeSupplyRules } from './tax';
 export { documentSequences } from './document-sequences';
 export { auditLogs } from './audit-logs';
+export { outboxEvents } from './outbox-events';
 export {
   users,
   sessions,

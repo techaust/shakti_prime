@@ -24,19 +24,23 @@ async function assertOwnerBypassesRls(sql: postgres.Sql): Promise<void> {
   }
 }
 
+const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher'] as const;
+type LoginRole = (typeof LOGIN_ROLES)[number];
+
 /**
- * `app_user`, `auth_service` and `readonly_reporter` are cluster roles, so they are created here,
- * not in SQL files. `auth_service` is the auth module's connection: it may touch the identity
- * tables only (docs/DATABASE.md §3). A password is set when the role is created and again only
+ * `app_user`, `auth_service`, `outbox_publisher` and `readonly_reporter` are cluster roles, so
+ * they are created here, not in SQL files. `auth_service` is the auth module's connection: it may
+ * touch the identity tables only; `outbox_publisher` delivers `outbox_events` and touches nothing
+ * else (docs/DATABASE.md §3). A password is set when the role is created and again only
  * on `--rotate-passwords`, so the statement text does not land in the server log on every run.
  */
 async function ensureRoles(
   sql: postgres.Sql,
-  passwords: { appUser: string; authService: string },
+  passwords: { appUser: string; authService: string; outboxPublisher: string },
   rotatePasswords: boolean,
 ): Promise<void> {
   const before = await sql<{ rolname: string }[]>`
-    select rolname from pg_roles where rolname in ('app_user', 'auth_service', 'readonly_reporter')`;
+    select rolname from pg_roles where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'readonly_reporter')`;
   const existing = new Set(before.map((r) => r.rolname));
   await sql.unsafe(`
     do $$
@@ -47,19 +51,23 @@ async function ensureRoles(
       if not exists (select 1 from pg_roles where rolname = 'auth_service') then
         create role auth_service login nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
+      if not exists (select 1 from pg_roles where rolname = 'outbox_publisher') then
+        create role outbox_publisher login nosuperuser nocreatedb nocreaterole nobypassrls;
+      end if;
       if not exists (select 1 from pg_roles where rolname = 'readonly_reporter') then
         create role readonly_reporter nologin nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
     end $$;
   `);
-  const setPassword = async (role: 'app_user' | 'auth_service', password: string) => {
+  const setPassword = async (role: LoginRole, password: string) => {
     if (!rotatePasswords && existing.has(role)) return;
     const escaped = password.replaceAll("'", "''");
     await sql.unsafe(`alter role ${role} with password '${escaped}'`);
   };
   await setPassword('app_user', passwords.appUser);
   await setPassword('auth_service', passwords.authService);
-  for (const role of ['app_user', 'auth_service'] as const) {
+  await setPassword('outbox_publisher', passwords.outboxPublisher);
+  for (const role of LOGIN_ROLES) {
     await sql.unsafe(`alter role ${role} nobypassrls`);
     // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
     await sql.unsafe(`alter role ${role} set statement_timeout = '30s'`);
@@ -121,6 +129,7 @@ export async function runMigrations(
         {
           appUser: requireEnv('APP_USER_PASSWORD'),
           authService: requireEnv('AUTH_SERVICE_PASSWORD'),
+          outboxPublisher: requireEnv('OUTBOX_PUBLISHER_PASSWORD'),
         },
         options.rotatePasswords ?? false,
       );

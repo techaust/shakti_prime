@@ -1,7 +1,10 @@
 import type { Principal } from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
 
-/** An event a command wants delivered after commit. Persisted to `outbox_events` (ADR 0005). */
+/**
+ * An event a command wants delivered after commit. The runner checks it against the event
+ * catalogue in `@shakti/contracts` and stores it in `outbox_events` with the change (ADR 0005).
+ */
 export interface DomainEvent {
   type: string;
   entityId: number;

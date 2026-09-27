@@ -12,8 +12,10 @@ export function requireEnv(
     | 'DATABASE_URL'
     | 'DATABASE_URL_MIGRATOR'
     | 'DATABASE_URL_AUTH'
+    | 'DATABASE_URL_OUTBOX'
     | 'APP_USER_PASSWORD'
-    | 'AUTH_SERVICE_PASSWORD',
+    | 'AUTH_SERVICE_PASSWORD'
+    | 'OUTBOX_PUBLISHER_PASSWORD',
 ): string {
   const value = process.env[name];
   if (value === undefined || value === '') {

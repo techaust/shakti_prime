@@ -3,13 +3,19 @@ import { withRequestContext, type RequestContext, type RequestScope } from '@sha
 import type { z } from 'zod';
 import { redactForAudit } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
+import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbox/sink';
 import { jsonLogger, type Logger } from '../ports/logger';
 import type { Command } from './define-command';
 import { auditBase, failureOf, runCommand, type RunOptions } from './run-command';
 
-export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit'> {
+export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | 'outbox'> {
   /** Where a failure to record a refusal is reported; it never replaces the refusal itself. */
   logger?: Logger;
+  /**
+   * Runs after the transaction commits when the command stored events; the web app nudges the
+   * outbox publisher here. Its failure is logged and never fails the command, which committed.
+   */
+  onCommitted?: (events: readonly OutboxRecord[]) => Promise<void> | void;
 }
 
 const defaultLogger = jsonLogger();
@@ -30,16 +36,36 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   input: unknown,
   options: ExecuteOptions = {},
 ): Promise<z.output<O>> {
-  const { logger = defaultLogger, ...runOptions } = options;
+  const { logger = defaultLogger, onCommitted, ...runOptions } = options;
   const scoped: RequestScope = { ...scope, requestId: scope.requestId ?? newId() };
+  const stored: OutboxRecord[] = [];
+  const outbox: OutboxSink = {
+    async write(tx, records) {
+      await databaseOutboxSink.write(tx, records);
+      stored.push(...records);
+    },
+  };
+  let result: z.output<O>;
   try {
-    return await withRequestContext(principal, scoped, (context) =>
-      runCommand(command, { ...runOptions, audit: databaseAuditSink, context }, input),
+    result = await withRequestContext(principal, scoped, (context) =>
+      runCommand(command, { ...runOptions, audit: databaseAuditSink, outbox, context }, input),
     );
   } catch (error) {
     await recordRefusal(principal, scoped, command.name, input, error, runOptions, logger);
     throw error;
   }
+  if (onCommitted !== undefined && stored.length > 0) {
+    try {
+      await onCommitted(stored);
+    } catch (hookError) {
+      logger.log('warn', 'outbox.nudge_failed', {
+        command: command.name,
+        requestId: scoped.requestId,
+        error: hookError,
+      });
+    }
+  }
+  return result;
 }
 
 async function recordRefusal(
@@ -48,7 +74,7 @@ async function recordRefusal(
   commandName: string,
   rawInput: unknown,
   error: unknown,
-  options: Omit<RunOptions, 'context' | 'audit'>,
+  options: Omit<RunOptions, 'context' | 'audit' | 'outbox'>,
   logger: Logger,
 ): Promise<void> {
   const failure = failureOf(error);

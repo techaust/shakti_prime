@@ -3,7 +3,7 @@
 import { CreateLeadInput, DomainError, type LeadDto } from '@shakti/contracts';
 import { createLead as createLeadCommand, executeCommand } from '@shakti/domain';
 import { currentPrincipal } from '../auth/current-principal';
-import { parseInput, requestMeta } from './support';
+import { commandOptions, parseInput, requestMeta } from './support';
 
 /** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. */
 export async function createLead(rawInput: unknown): Promise<LeadDto> {
@@ -16,6 +16,6 @@ export async function createLead(rawInput: unknown): Promise<LeadDto> {
     { entityIds: [input.entityId], requestId: meta.requestId },
     createLeadCommand,
     input,
-    { client: meta.client },
+    commandOptions(meta),
   );
 }

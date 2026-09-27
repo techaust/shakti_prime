@@ -27,6 +27,11 @@ const rawClientImport = {
         'The auth_service connection belongs to the auth module (apps/web/src/auth) and its tests.',
     },
     {
+      name: '@shakti/db/outbox',
+      message:
+        'The outbox_publisher connection belongs to the outbox workers (apps/web/src/workers) and its tests.',
+    },
+    {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
@@ -50,6 +55,8 @@ const rawClientImport = {
         '**/db/src/testing/*',
         '**/db/src/auth-client',
         '**/db/src/auth-client.ts',
+        '**/db/src/outbox-client',
+        '**/db/src/outbox-client.ts',
         '**/db/src/bootstrap',
         '**/db/src/bootstrap.ts',
       ],
@@ -70,7 +77,7 @@ const webDatabaseNames = {
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
-  '/^(@shakti\\/db\\/(client|testing|auth|bootstrap)|postgres|drizzle-orm\\/postgres-js)$/';
+  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap)|postgres|drizzle-orm\\/postgres-js)$/';
 
 // packages/domain and packages/contracts never import a framework (AGENTS.md §3).
 const frameworkImports = {
@@ -179,6 +186,23 @@ export default tseslint.config(
         {
           paths: [
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/auth'),
+            webDatabaseNames,
+          ],
+          patterns: rawClientImport.patterns,
+        },
+      ],
+    },
+  },
+  {
+    // The outbox workers are the one caller of the outbox_publisher connection (DATABASE §3).
+    files: ['apps/web/src/workers/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
             webDatabaseNames,
           ],
           patterns: rawClientImport.patterns,

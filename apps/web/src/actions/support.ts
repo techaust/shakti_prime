@@ -1,7 +1,8 @@
 import { DomainError, newId } from '@shakti/contracts';
-import type { ClientMeta } from '@shakti/domain';
+import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
+import { nudgeOutbox } from '../workers/outbox';
 
 /**
  * One id per incoming request (AUDIT M35): Vercel's own request id when present, so a log line
@@ -12,6 +13,14 @@ import { clientMeta, platformRequestId } from '../auth/client-address';
 export async function requestMeta(): Promise<{ requestId: string; client: ClientMeta }> {
   const h = await headers();
   return { requestId: platformRequestId(h) ?? newId(), client: clientMeta(h) };
+}
+
+/**
+ * The options every action passes to `executeCommand`: the caller's address and browser for the
+ * audit row, and the nudge that has the outbox publisher deliver the command's events at once.
+ */
+export function commandOptions(meta: { client: ClientMeta }): ExecuteOptions {
+  return { client: meta.client, onCommitted: nudgeOutbox };
 }
 
 /** The part of a Zod schema the parser needs; the contracts package owns Zod itself. */

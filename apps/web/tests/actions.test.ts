@@ -1,5 +1,11 @@
 import type { Principal } from '@shakti/contracts';
-import { closeDb, createTestPrincipal, createTestUser } from '@shakti/db/testing';
+import { closeOutboxDb } from '@shakti/db/outbox';
+import {
+  asOutboxPublisher,
+  closeDb,
+  createTestPrincipal,
+  createTestUser,
+} from '@shakti/db/testing';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Server actions outside a Next.js request (AUDIT M41): the request headers and cookies, the
@@ -56,7 +62,10 @@ const { switchEntity } = await import('../src/actions/auth');
 const { createLead } = await import('../src/actions/crm');
 const { listAuditLog, setUserRoles } = await import('../src/actions/admin');
 
-afterAll(closeDb);
+afterAll(async () => {
+  await closeOutboxDb();
+  await closeDb();
+});
 beforeEach(() => {
   request.jar.clear();
   request.principal = undefined;
@@ -138,6 +147,26 @@ describe('server actions (AUDIT M41)', () => {
         requestId,
       }),
     ]);
+  });
+
+  it('store the events of a change with it and have the publisher deliver them after the commit', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const created = await createLead(lead(1));
+    const [row, ...more] = await asOutboxPublisher(
+      (p) => p<
+        { type: string; entity_id: number; payload_json: unknown; published_at: Date | null }[]
+      >`
+        select type, entity_id, payload_json, published_at
+          from outbox_events where aggregate_id = ${created.id}`,
+    );
+    expect(more).toEqual([]);
+    expect(row).toMatchObject({
+      type: 'crm.lead.created',
+      entity_id: 1,
+      payload_json: { v: 1, pipelineKey: 'farmer_pumps', sourceCode: null, existingAccount: false },
+    });
+    // No worker listens to this event yet, so the local run marks it delivered without sending.
+    expect(row?.published_at).toBeInstanceOf(Date);
   });
 
   it('keep the audit trail from a role without audit.read', async () => {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from './define-command';
 import { memoryAuditSink } from '../audit/sink';
+import { memoryOutboxSink } from '../outbox/sink';
 import { checkPermission, failureOf, runCommand, translateDatabaseError } from './run-command';
 import { fakeContext as context, type Principal } from './test-support';
 
@@ -48,7 +49,11 @@ describe('checkPermission', () => {
 describe('runCommand', () => {
   it('validates input before anything else', async () => {
     await expect(
-      runCommand(echo, { context: context(principal()), audit: memoryAuditSink() }, { value: 1 }),
+      runCommand(
+        echo,
+        { context: context(principal()), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        { value: 1 },
+      ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
     });
@@ -59,7 +64,7 @@ describe('runCommand', () => {
     const p = principal({ permissions: [] });
     const error: unknown = await runCommand(
       echo,
-      { context: context(p), audit },
+      { context: context(p), audit, outbox: memoryOutboxSink() },
       { value: 'x' },
     ).catch((e: unknown) => e);
     expect(error).toMatchObject({ code: 'forbidden' });
@@ -70,7 +75,7 @@ describe('runCommand', () => {
   it('marks input that does not parse, so nothing is recorded for it', async () => {
     const error: unknown = await runCommand(
       echo,
-      { context: context(principal()), audit: memoryAuditSink() },
+      { context: context(principal()), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
       { value: 1 },
     ).catch((e: unknown) => e);
     expect(failureOf(error)?.stage).toBe('input');
@@ -87,7 +92,7 @@ describe('runCommand', () => {
     const audit = memoryAuditSink();
     const error: unknown = await runCommand(
       failing,
-      { context: context(principal()), audit },
+      { context: context(principal()), audit, outbox: memoryOutboxSink() },
       { value: 'y' },
     ).catch((e: unknown) => e);
     expect(error).toMatchObject({ code: 'conflict' });
@@ -117,7 +122,12 @@ describe('runCommand', () => {
     const ctx = context(p);
     await runCommand(
       changing,
-      { context: ctx, audit, client: { ip: '203.0.113.9', device: 'Chrome' } },
+      {
+        context: ctx,
+        audit,
+        outbox: memoryOutboxSink(),
+        client: { ip: '203.0.113.9', device: 'Chrome' },
+      },
       { phone: '+919876543210', password: 'Hunter2hunter2' },
     );
     expect(audit.records).toEqual([
@@ -145,7 +155,7 @@ describe('runCommand', () => {
     const audit = memoryAuditSink();
     await runCommand(
       echo,
-      { context: context(principal({ entityIds: [1, 2] })), audit },
+      { context: context(principal({ entityIds: [1, 2] })), audit, outbox: memoryOutboxSink() },
       { value: 'x' },
     );
     expect(audit.records).toEqual([
@@ -159,9 +169,9 @@ describe('runCommand', () => {
     ]);
   });
 
-  it('returns the DTO, audits the call and forwards emitted events', async () => {
+  it('returns the DTO, audits the call and stores emitted events with their version', async () => {
     const audit = memoryAuditSink();
-    const onEmit = vi.fn();
+    const outbox = memoryOutboxSink();
     const emitting = defineCommand({
       name: 'test.emit',
       permission: 'crm.lead.read',
@@ -169,9 +179,9 @@ describe('runCommand', () => {
       output: z.object({ ok: z.literal(true) }).strict(),
       handler: (ctx) => {
         ctx.emit({
-          type: 'test.happened',
+          type: 'admin.user.reactivated',
           entityId: 1,
-          aggregateType: 'test',
+          aggregateType: 'user',
           aggregateId: 'a',
           payload: {},
         });
@@ -180,7 +190,7 @@ describe('runCommand', () => {
     });
     const p = principal();
     const ctx = context(p);
-    const result = await runCommand(emitting, { context: ctx, audit, onEmit }, {});
+    const result = await runCommand(emitting, { context: ctx, audit, outbox }, {});
     expect(result).toEqual({ ok: true });
     expect(audit.records).toEqual([
       expect.objectContaining({
@@ -189,7 +199,51 @@ describe('runCommand', () => {
         requestId: ctx.requestId,
       }),
     ]);
-    expect(onEmit).toHaveBeenCalledWith([expect.objectContaining({ type: 'test.happened' })]);
+    expect(outbox.records).toEqual([
+      {
+        type: 'admin.user.reactivated',
+        entityId: 1,
+        aggregateType: 'user',
+        aggregateId: 'a',
+        payload: { v: 1 },
+      },
+    ]);
+  });
+
+  it('hands the outbox sink the command transaction', async () => {
+    const write = vi.fn(() => Promise.resolve());
+    const ctx = context(principal());
+    await runCommand(
+      echo,
+      { context: ctx, audit: memoryAuditSink(), outbox: { write } },
+      { value: 'x' },
+    );
+    expect(write).toHaveBeenCalledWith(ctx.tx, []);
+  });
+
+  it.each([
+    ['a type outside the catalogue', 'test.happened', {}],
+    ['a payload that does not fit its type', 'admin.user.suspended', { reason: 'left' }],
+  ])('fails the command that emits %s', async (_label, type, payload) => {
+    const outbox = memoryOutboxSink();
+    const bad = defineCommand({
+      name: 'test.bad_event',
+      permission: 'crm.lead.read',
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: (ctx) => {
+        ctx.emit({ type, entityId: 1, aggregateType: 'user', aggregateId: 'a', payload });
+        return Promise.resolve({});
+      },
+    });
+    const error: unknown = await runCommand(
+      bad,
+      { context: context(principal()), audit: memoryAuditSink(), outbox },
+      {},
+    ).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'internal', details: { eventType: type } });
+    expect(failureOf(error)?.stage).toBe('handler');
+    expect(outbox.records).toEqual([]);
   });
 
   it('names a catalogue reason for a constraint the command declares', () => {
@@ -231,14 +285,22 @@ describe('runCommand', () => {
     });
     const own = principal({ permissions: [{ key: 'crm.lead.read', scope: 'own' }] });
     await expect(
-      runCommand(entityWide, { context: context(own), audit: memoryAuditSink() }, {}),
+      runCommand(
+        entityWide,
+        { context: context(own), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        {},
+      ),
     ).rejects.toMatchObject({
       code: 'forbidden',
       details: { permission: 'crm.lead.read', scope: 'entity' },
     });
     const all = principal({ permissions: [{ key: 'crm.lead.read', scope: 'all' }] });
     await expect(
-      runCommand(entityWide, { context: context(all), audit: memoryAuditSink() }, {}),
+      runCommand(
+        entityWide,
+        { context: context(all), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        {},
+      ),
     ).resolves.toEqual({});
   });
 
@@ -256,10 +318,23 @@ describe('runCommand', () => {
     };
     const error: unknown = await runCommand(
       cmd,
-      { context: context(principal()), audit },
+      { context: context(principal()), audit, outbox: memoryOutboxSink() },
       {},
     ).catch((e: unknown) => e);
     expect(error).toMatchObject({ code: 'conflict', details: { reason: 'concurrent_change' } });
+    expect(failureOf(error)?.stage).toBe('handler');
+  });
+
+  it('translates a failing outbox write like a handler failure', async () => {
+    const outbox = {
+      write: () => Promise.reject(Object.assign(new Error('permission denied'), { code: '42501' })),
+    };
+    const error: unknown = await runCommand(
+      echo,
+      { context: context(principal()), audit: memoryAuditSink(), outbox },
+      { value: 'x' },
+    ).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'forbidden' });
     expect(failureOf(error)?.stage).toBe('handler');
   });
 
@@ -272,7 +347,11 @@ describe('runCommand', () => {
       handler: () => Promise.resolve({ name: 'x', movingAvgCost: '123.00' } as { name: string }),
     });
     await expect(
-      runCommand(leaky, { context: context(principal()), audit: memoryAuditSink() }, {}),
+      runCommand(
+        leaky,
+        { context: context(principal()), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        {},
+      ),
     ).rejects.toMatchObject({
       code: 'internal',
     });
@@ -288,12 +367,20 @@ describe('runCommand', () => {
     });
     const single = await runCommand(
       probe,
-      { context: context(principal({ entityIds: [3] })), audit: memoryAuditSink() },
+      {
+        context: context(principal({ entityIds: [3] })),
+        audit: memoryAuditSink(),
+        outbox: memoryOutboxSink(),
+      },
       {},
     );
     const many = await runCommand(
       probe,
-      { context: context(principal({ entityIds: [1, 2] })), audit: memoryAuditSink() },
+      {
+        context: context(principal({ entityIds: [1, 2] })),
+        audit: memoryAuditSink(),
+        outbox: memoryOutboxSink(),
+      },
       {},
     );
     expect(single.active).toBe(3);

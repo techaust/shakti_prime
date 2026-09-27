@@ -1,6 +1,7 @@
 import { asPrincipal, closeDb, createTestPrincipal, createTestTeam } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
@@ -34,7 +35,7 @@ beforeAll(async () => {
   const create = async (who: keyof typeof people) =>
     (
       await asPrincipal(people[who], (context) =>
-        runCommand(createLead, { context, audit }, lead(4)),
+        runCommand(createLead, { context, audit, outbox }, lead(4)),
       )
     ).id;
   ids = {

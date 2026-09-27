@@ -72,7 +72,7 @@ export const suspendUser = defineCommand({
         entityId: r.entityId,
         aggregateType: 'user',
         aggregateId: input.userId,
-        payload: { reason: input.reason ?? null, revokedSessions: revoked.length },
+        payload: { revokedSessions: revoked.length },
       });
     }
     return dto;

@@ -1,10 +1,14 @@
 import { ErrorEnvelope, ReadyResponse } from '@shakti/contracts';
 import { closeDb } from '@shakti/db';
+import { closeOutboxDb } from '@shakti/db/outbox';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import * as readiness from '../src/auth/readiness';
 import { GET } from '../src/app/api/v1/health/ready/route';
 
-afterAll(closeDb);
+afterAll(async () => {
+  await closeOutboxDb();
+  await closeDb();
+});
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -22,6 +26,7 @@ describe('GET /api/v1/health/ready', () => {
       auth_database: 'ok',
       key_value: 'ok',
       config: 'ok',
+      outbox: 'ok',
     });
   });
 
@@ -42,6 +47,7 @@ describe('GET /api/v1/health/ready', () => {
       auth_database: 'ok',
       key_value: 'down',
       config: 'ok',
+      outbox: 'ok',
     });
     const response = await GET(new Request('http://localhost/api/v1/health/ready'));
     expect(response.status).toBe(503);
