@@ -13,8 +13,13 @@ import type { ReplyModel } from './ports';
  * The reply step of the latency spike: Claude's Messages API over plain HTTP with streaming
  * (server-sent events), timing the first text and the first full sentence. The voice worker will
  * use the Anthropic SDK inside the LiveKit worker (Phase 4); this harness uses fetch because the
- * spike takes no new dependency. The model is the blueprint's choice for live voice (§9.2).
+ * spike takes no new dependency. The model comes from `VOICE_SPIKE_MODEL`, defaulting to the
+ * blueprint's choice for live voice (§9.2). This harness calls the API directly for timing only;
+ * production calls go through the provider wrapper of ADR 0011, which owns the model choice.
  */
+
+/** The model the spike times when `VOICE_SPIKE_MODEL` is not set (blueprint §9.2). */
+export const DEFAULT_VOICE_SPIKE_MODEL = 'claude-sonnet-5';
 
 export interface ClaudeConfig {
   apiKey: string;
@@ -33,12 +38,10 @@ export function claudeConfig(
   const apiKey = env.ANTHROPIC_API_KEY ?? '';
   if (apiKey === '') return undefined;
   const effort = env.VOICE_SPIKE_EFFORT;
+  const model = env.VOICE_SPIKE_MODEL?.trim() ?? '';
   return {
     apiKey,
-    model:
-      env.VOICE_SPIKE_MODEL === undefined || env.VOICE_SPIKE_MODEL === ''
-        ? 'claude-sonnet-5'
-        : env.VOICE_SPIKE_MODEL,
+    model: model === '' ? DEFAULT_VOICE_SPIKE_MODEL : model,
     effort: effort === 'medium' || effort === 'high' ? effort : 'low',
     maxTokens: 400,
     baseUrl: 'https://api.anthropic.com',

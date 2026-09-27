@@ -1,7 +1,12 @@
 import { jwtVerify } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { bodyOf, stubFetch, urlOf } from '../test-fetch';
-import { claudeConfig, claudeReplyModel, readSse } from './claude-stream';
+import {
+  claudeConfig,
+  claudeReplyModel,
+  DEFAULT_VOICE_SPIKE_MODEL,
+  readSse,
+} from './claude-stream';
 import { percentile, runTurn, summarize } from './latency';
 import { liveKitHttpBase, liveKitRooms, liveKitToken } from './livekit';
 import type { ReplyModel, SpeechToText, TextToSpeech } from './ports';
@@ -87,6 +92,17 @@ describe('the Claude stream', () => {
       output_config: { effort: 'low' },
       messages: [{ role: 'user', content: 'pump ka stock hai?' }],
     });
+  });
+
+  it('takes the model from VOICE_SPIKE_MODEL, with the documented default', () => {
+    const key = { ANTHROPIC_API_KEY: 'anthropic-test-key' };
+    expect(claudeConfig(key)?.model).toBe(DEFAULT_VOICE_SPIKE_MODEL);
+    expect(claudeConfig({ ...key, VOICE_SPIKE_MODEL: '  ' })?.model).toBe(
+      DEFAULT_VOICE_SPIKE_MODEL,
+    );
+    expect(claudeConfig({ ...key, VOICE_SPIKE_MODEL: 'claude-haiku-5' })?.model).toBe(
+      'claude-haiku-5',
+    );
   });
 
   it('turns an error event or an error status into a provider error', async () => {

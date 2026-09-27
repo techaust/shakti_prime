@@ -8,7 +8,7 @@
 |---|---|
 | Step interfaces: `SpeechToText`, `ReplyModel`, `TextToSpeech`, so vendors can be swapped | `apps/web/src/integrations/voice/ports.ts` |
 | Sarvam AI (lead candidate): speech to text (`POST /speech-to-text`, multipart, `saarika:v2.5`) and text to speech (`POST /text-to-speech`, `bulbul:v2`, speaker `anushka`); models and speaker set by environment | `apps/web/src/integrations/voice/sarvam.ts` |
-| Claude reply over the streaming Messages API (server-sent events), timing the first text and the end of the first sentence; model `claude-sonnet-5` (blueprint §9.2) at effort `low` unless `VOICE_SPIKE_MODEL` or `VOICE_SPIKE_EFFORT` say otherwise | `apps/web/src/integrations/voice/claude-stream.ts` |
+| Claude reply over the streaming Messages API (server-sent events), timing the first text and the end of the first sentence; the model comes from `VOICE_SPIKE_MODEL` (default `claude-sonnet-5`, blueprint §9.2, `DEFAULT_VOICE_SPIKE_MODEL`) at effort `low` unless `VOICE_SPIKE_EFFORT` says otherwise. The harness calls the API directly only to time it; production calls go through the provider wrapper of ADR 0011 (`docs/adr/0011-claude-provider-wrapper-voyage-pgvector.md`), which owns the model choice | `apps/web/src/integrations/voice/claude-stream.ts` |
 | LiveKit: access tokens (HS256 over the API secret, `video` grant) and the room service (create, list, delete) over HTTPS, for the round trip to the project's region | `apps/web/src/integrations/voice/livekit.ts` |
 | Timing: one turn = transcript, reply, speech of the first sentence (then the rest); `firstAudioMs` = transcript + first sentence + its speech, the measure the 1.5 s target applies to; nearest-rank p50 and p95 | `apps/web/src/integrations/voice/latency.ts` |
 | Twelve Roman-Hinglish checklist lines (brand, HP, lakh and crore, kW, subsidy scheme, model code, date and time, document number, depth, recording notice, handoff) with what to listen for | `apps/web/src/integrations/voice/pronunciation-checklist.ts` |
@@ -23,7 +23,7 @@ No SDK is added: all three vendors are called with `fetch`. The real voice worke
 3. A **Claude API key** for the Shakti workspace (`ANTHROPIC_API_KEY`).
 4. A **LiveKit Cloud** project in the India region: `LIVEKIT_URL` (`wss://…livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
 5. A folder for the synthesised checklist audio (`VOICE_SPIKE_OUT_DIR`) and **three listeners** from the Shakti team (one tele-caller, one executive, one field engineer) to rate it.
-Optional: `VOICE_SPIKE_LANGUAGE` (default `hi-IN`), `VOICE_SPIKE_ROUNDS` (default 20).
+Optional: `VOICE_SPIKE_LANGUAGE` (default `hi-IN`), `VOICE_SPIKE_ROUNDS` (default 20), `VOICE_SPIKE_MODEL` (default `claude-sonnet-5`).
 
 ## 3. Steps
 1. From a machine in India (ideally Mumbai, as the Vercel functions will be): `pnpm --filter web spike:voice -- latency`. It prints per-recording timings (never the words) and a JSON report.
