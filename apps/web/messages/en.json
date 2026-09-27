@@ -123,7 +123,24 @@
     "document_filing_transition_not_allowed": "This document can't do that in its current status. Refresh the page to see where it stands.",
     "expense_claim_transition_not_allowed": "This expense claim can't do that in its current status. Refresh the page to see where it stands.",
     "playbook_directive_transition_not_allowed": "This rule can't do that in its current status. Refresh the page to see where it stands.",
-    "tally_voucher_transition_not_allowed": "This Tally entry can't do that in its current status. Refresh the page to see where it stands."
+    "tally_voucher_transition_not_allowed": "This Tally entry can't do that in its current status. Refresh the page to see where it stands.",
+    "import_file_empty": "This file is empty. Choose the spreadsheet with your leads and try again.",
+    "import_file_too_large": "This file is too big. Keep it under 10 MB, or split it into smaller files.",
+    "import_file_type": "We can read CSV files and Excel files saved as .xlsx. Save the file as one of these and try again.",
+    "import_file_unreadable": "We couldn't read this file. Open it in Excel, save it again as .xlsx or CSV, and try again.",
+    "import_no_header": "We couldn't find the column headings. Put a heading such as Name or Mobile at the top of each column and try again.",
+    "import_too_many_rows": "This file has more than 50,000 rows. Split it into smaller files and add them one at a time.",
+    "import_too_many_columns": "This file has more than 50 columns. Remove the columns you don't need and try again.",
+    "import_cell_too_long": "Some cells in this file hold too much text. Keep each cell to a name, a number or a short note, and try again.",
+    "import_file_duplicate": "This file is already saved. Refresh the page to see it.",
+    "import_job_missing": "We couldn't find this import. It may belong to another company.",
+    "import_job_state": "This import has moved on since you opened it. Refresh the page to see where it stands.",
+    "import_mapping_column_missing": "A column you chose is not in this file. Match each field to a column of this file.",
+    "import_template_missing": "This saved column layout is not available. Choose another one, or match the columns again.",
+    "import_template_name_taken": "A saved column layout already has this name. Choose a different name.",
+    "import_nothing_to_commit": "None of the rows can be added. Correct the file and add it again.",
+    "import_rollback_blocked": "Some leads from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
+    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now."
   },
   "auth": {
     "signIn": {
@@ -324,6 +341,30 @@
       "serial": "Serial number",
       "item": "Item code",
       "scan": "Scan for warranty"
+    }
+  },
+  "imports": {
+    "fields": {
+      "contactName": "Customer name",
+      "phone": "Mobile number",
+      "accountName": "Farm or business name",
+      "accountType": "Customer type",
+      "preferredLanguage": "Language",
+      "siteType": "Site type",
+      "village": "Village",
+      "pin": "PIN code",
+      "sourceCode": "Lead source",
+      "pipelineKey": "Pipeline",
+      "row": "Whole row"
+    },
+    "rowErrors": {
+      "required": "This is missing. Fill it in, or choose a value for every row.",
+      "invalid": "We don't recognise this value. Use one of the choices in the list.",
+      "too_long": "This is too long. Shorten it in the file.",
+      "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number.",
+      "pipeline_unknown": "This pipeline is not set up for this company. Use one from the list.",
+      "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
+      "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again."
     }
   }
 }

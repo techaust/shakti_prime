@@ -1,4 +1,4 @@
-import { ERROR_CODES } from '@shakti/contracts';
+import { ERROR_CODES, ImportRowErrorCodeSchema, LeadImportFieldSchema } from '@shakti/contracts';
 import { commands, MACHINE_REASONS, RUNNER_REASONS } from '@shakti/domain';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -46,6 +46,15 @@ describe('every error a person can meet has a sentence (AUDIT M30)', () => {
   it('every illegal-move reason of the state machines', () => {
     expect(MACHINE_REASONS.length).toBeGreaterThan(0);
     for (const reason of MACHINE_REASONS) expect(catalogue, reason).toHaveProperty(reason);
+  });
+
+  it('every finding on an import row, and every field it can name', () => {
+    for (const code of ImportRowErrorCodeSchema.options) {
+      expect(en.imports.rowErrors, code).toHaveProperty(code);
+    }
+    for (const field of [...LeadImportFieldSchema.options, 'row']) {
+      expect(en.imports.fields, field).toHaveProperty(field);
+    }
   });
 
   it('every reason written in the domain and web source, and every auth reason', () => {
