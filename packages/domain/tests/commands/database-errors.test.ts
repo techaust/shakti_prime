@@ -4,6 +4,7 @@ import { schema } from '@shakti/db';
 import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from '../../src/command/define-command';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
 
 afterAll(closeDb);
@@ -55,7 +56,7 @@ describe('database errors inside a command', () => {
   it('a unique violation answers conflict with the constraint named, never the SQL', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     const error = await asPrincipal(exec, (context) =>
-      runCommand(insertTier, { context }, { code: 'retail' }),
+      runCommand(insertTier, { context, audit }, { code: 'retail' }),
     ).catch((e: unknown) => e);
     expect(error).toMatchObject({
       code: 'conflict',
@@ -71,7 +72,7 @@ describe('database errors inside a command', () => {
   it('a check violation answers validation_failed', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
-      asPrincipal(exec, (context) => runCommand(insertItem, { context }, { hsn: 'abc' })),
+      asPrincipal(exec, (context) => runCommand(insertItem, { context, audit }, { hsn: 'abc' })),
     ).rejects.toMatchObject({
       code: 'validation_failed',
       details: { reason: 'database_rejected', sqlstate: '23514', constraint: 'items_hsn_check' },
@@ -85,7 +86,9 @@ describe('database errors inside a command', () => {
     // Holds pricing.write at own scope only: the runner allows the call, the policy refuses it.
     const denied = defineCommand({ ...insertTier, minScope: 'own' });
     await expect(
-      asPrincipal(cc, (context) => runCommand(denied, { context }, { code: `t-${newId()}` })),
+      asPrincipal(cc, (context) =>
+        runCommand(denied, { context, audit }, { code: `t-${newId()}` }),
+      ),
     ).rejects.toMatchObject({ code: 'forbidden', details: { sqlstate: '42501' } });
   });
 });

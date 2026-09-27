@@ -7,27 +7,68 @@ import {
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
-import type { CommandContext, DomainEvent } from './context';
+import { redactForAudit } from '../audit/redact';
+import type { AuditRecord, AuditSink, ClientMeta } from '../audit/sink';
+import type { AuditChange, CommandContext, DomainEvent } from './context';
 import type { Command } from './define-command';
-
-/** What the audit log records for every mutating command (docs/ARCHITECTURE.md §5). */
-export interface AuditEntry {
-  command: string;
-  principalId: string;
-  entityIds: readonly number[];
-  requestId: string;
-  input: unknown;
-  at: Date;
-}
 
 export interface RunOptions {
   /** The open request context from `withRequestContext()`. */
   context: RequestContext;
   now?: Date;
-  /** Receives the audit row. Wired to `audit_logs` when that table exists. */
-  onAudit?: (entry: AuditEntry) => Promise<void> | void;
+  /** Where the audit rows go (required since review 3; `executeCommand` passes the database). */
+  audit: AuditSink;
+  /** The caller's address and device, recorded on the audit row. */
+  client?: ClientMeta;
   /** Receives emitted events. Wired to `outbox_events` when that table exists. */
   onEmit?: (events: readonly DomainEvent[]) => Promise<void> | void;
+}
+
+/**
+ * Where a command stopped: `input` (the input did not parse, nothing ran), `guard` (the
+ * permission guard refused) or `handler` (the handler, the DTO check or the audit and outbox
+ * writes). `executeCommand` reads it to choose the outcome of the audit row it writes after the
+ * rollback; the parsed input travels with it so that row can record what was asked.
+ */
+export type FailureStage = 'input' | 'guard' | 'handler';
+
+interface Failure {
+  stage: FailureStage;
+  input: unknown;
+}
+
+const failures = new WeakMap<object, Failure>();
+
+function tag<E>(error: E, stage: FailureStage, input: unknown): E {
+  if (typeof error === 'object' && error !== null && !failures.has(error)) {
+    failures.set(error, { stage, input });
+  }
+  return error;
+}
+
+/** The stage and parsed input of an error thrown by `runCommand`, if it came from there. */
+export function failureOf(error: unknown): Failure | undefined {
+  return typeof error === 'object' && error !== null ? failures.get(error) : undefined;
+}
+
+/** The fields every audit row of one call shares. */
+export function auditBase(
+  principal: Principal,
+  command: string,
+  requestId: string,
+  client: ClientMeta = {},
+): Pick<
+  AuditRecord,
+  'command' | 'actorPrincipalId' | 'actorKind' | 'onBehalfOfUserId' | 'requestId' | 'client'
+> {
+  return {
+    command,
+    actorPrincipalId: principal.id,
+    actorKind: principal.kind,
+    onBehalfOfUserId: null,
+    requestId,
+    client,
+  };
 }
 
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
@@ -106,7 +147,8 @@ export function translateDatabaseError(
 
 /**
  * Runs one command inside an existing request context: validate → guard → handler → strict DTO →
- * audit. Denied calls throw `forbidden` before the handler runs.
+ * audit rows and events in the same transaction. Denied calls throw `forbidden` before the handler
+ * runs; every error carries its stage for `executeCommand` (see `failureOf`).
  */
 export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   command: Command<I, O>,
@@ -116,25 +158,38 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   const { context } = options;
   const parsed = command.input.safeParse(rawInput);
   if (!parsed.success) {
-    throw new DomainError('validation_failed', `invalid input for ${command.name}`, {
-      issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-    });
+    throw tag(
+      new DomainError('validation_failed', `invalid input for ${command.name}`, {
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      }),
+      'input',
+      undefined,
+    );
   }
 
-  checkPermission(context.principal, command.permission, command.minScope ?? 'own');
-  for (const also of command.alsoRequires ?? []) {
-    checkPermission(context.principal, also.permission, also.minScope);
+  try {
+    checkPermission(context.principal, command.permission, command.minScope ?? 'own');
+    for (const also of command.alsoRequires ?? []) {
+      checkPermission(context.principal, also.permission, also.minScope);
+    }
+  } catch (e) {
+    throw tag(e, 'guard', parsed.data);
   }
 
   const now = options.now ?? new Date();
   const events: DomainEvent[] = [];
+  const changes: AuditChange[] = [];
+  const activeEntityId = context.entityIds.length === 1 ? context.entityIds[0] : undefined;
   const ctx: CommandContext = {
     principal: context.principal,
     entityIds: context.entityIds,
-    activeEntityId: context.entityIds.length === 1 ? context.entityIds[0] : undefined,
+    activeEntityId,
     tx: context.tx,
     emit: (event) => {
       events.push(event);
+    },
+    audit: (change) => {
+      changes.push(change);
     },
     now,
     requestId: context.requestId,
@@ -144,28 +199,49 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   try {
     result = await command.handler(ctx, parsed.data);
   } catch (e) {
-    throw translateDatabaseError(e, command.name, command.constraintReasons);
+    throw tag(
+      translateDatabaseError(e, command.name, command.constraintReasons),
+      'handler',
+      parsed.data,
+    );
   }
   const output = command.output.safeParse(result);
   if (!output.success) {
-    throw new DomainError('internal', `${command.name} returned data outside its DTO`, {
-      issues: output.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-    });
+    throw tag(
+      new DomainError('internal', `${command.name} returned data outside its DTO`, {
+        issues: output.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      }),
+      'handler',
+      parsed.data,
+    );
   }
+
+  // One row per changed aggregate, or one row for the call when the handler named none.
+  const base = auditBase(context.principal, command.name, context.requestId, options.client);
+  const input = redactForAudit(parsed.data);
+  const rows: Partial<AuditChange>[] = changes.length > 0 ? changes : [{}];
+  const records: AuditRecord[] = rows.map((change) => ({
+    ...base,
+    outcome: 'ok',
+    entityId: change.entityId === undefined ? (activeEntityId ?? null) : change.entityId,
+    aggregateType: change.aggregateType ?? null,
+    aggregateId: change.aggregateId ?? null,
+    errorCode: null,
+    input,
+    before: 'before' in change ? redactForAudit(change.before) : null,
+    after: 'after' in change ? redactForAudit(change.after) : null,
+  }));
 
   // The audit and outbox writes share the transaction, so their failures translate the same way.
   try {
-    await options.onAudit?.({
-      command: command.name,
-      principalId: context.principal.id,
-      entityIds: context.entityIds,
-      requestId: context.requestId,
-      input: parsed.data,
-      at: now,
-    });
+    await options.audit.write(context.tx, records);
     if (events.length > 0) await options.onEmit?.(events);
   } catch (e) {
-    throw translateDatabaseError(e, command.name, command.constraintReasons);
+    throw tag(
+      translateDatabaseError(e, command.name, command.constraintReasons),
+      'handler',
+      parsed.data,
+    );
   }
 
   return output.data;

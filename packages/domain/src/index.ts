@@ -1,10 +1,14 @@
 export { defineCommand } from './command/define-command';
 export type { AnyCommand, Command } from './command/define-command';
-export type { CommandContext, DomainEvent } from './command/context';
-export { runCommand, checkPermission, RUNNER_REASONS } from './command/run-command';
-export type { AuditEntry, RunOptions } from './command/run-command';
+export type { AuditChange, CommandContext, DomainEvent } from './command/context';
+export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
+export type { FailureStage, RunOptions } from './command/run-command';
+export { redactAuthEvent, redactForAudit } from './audit/redact';
+export { auditDevice, auditIp, databaseAuditSink, memoryAuditSink } from './audit/sink';
+export type { AuditRecord, AuditSink, ClientMeta } from './audit/sink';
 export { commands, getCommand } from './command/registry';
 export { executeCommand, executeQuery } from './command/execute';
+export type { ExecuteOptions } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { createLead } from './commands/crm/create-lead';
 export { setPrice } from './commands/pricing/set-price';
@@ -35,6 +39,7 @@ export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer
 export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
 export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
+export { queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';
 export { listLeads, countLeads } from './queries/crm/list-leads';

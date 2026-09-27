@@ -128,6 +128,19 @@ export const setPrice = defineCommand({
           .returning();
     if (!row) throw new DomainError('internal', 'price list item write returned no row');
 
+    ctx.audit({
+      aggregateType: 'price_list_item',
+      aggregateId: row.id,
+      entityId: list.entityId,
+      before: existing === undefined ? null : { price: existing.price },
+      after: {
+        priceListId: list.id,
+        itemId: row.itemId,
+        kitId: row.kitId,
+        price: row.price,
+        reason: input.reason ?? null,
+      },
+    });
     ctx.emit({
       type: 'pricing.price.changed',
       entityId: eventEntityId,

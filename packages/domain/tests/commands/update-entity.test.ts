@@ -6,6 +6,7 @@ import {
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
 import { updateEntity } from '../../src/commands/org/update-entity';
 import { listEntities } from '../../src/queries/org/list-entities';
@@ -17,7 +18,11 @@ describe('org.entity.update', () => {
     const gm = principalFor('general_manager', [1]);
     await expect(
       asPrincipal(gm, (context) =>
-        runCommand(updateEntity, { context }, { entityId: 1, brandName: 'Shakti Supreme Solar' }),
+        runCommand(
+          updateEntity,
+          { context, audit },
+          { entityId: 1, brandName: 'Shakti Supreme Solar' },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
@@ -28,7 +33,7 @@ describe('org.entity.update', () => {
       asPrincipal(exec, (context) =>
         runCommand(
           updateEntity,
-          { context },
+          { context, audit },
           { entityId: 2, brandName: 'Shakti Motor Pumps Jaipur' },
         ),
       ),
@@ -38,11 +43,11 @@ describe('org.entity.update', () => {
   it('rejects an input that changes nothing or has a bad UPI id', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
-      asPrincipal(exec, (context) => runCommand(updateEntity, { context }, { entityId: 1 })),
+      asPrincipal(exec, (context) => runCommand(updateEntity, { context, audit }, { entityId: 1 })),
     ).rejects.toMatchObject({ code: 'validation_failed' });
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(updateEntity, { context }, { entityId: 1, upiId: 'not a upi id' }),
+        runCommand(updateEntity, { context, audit }, { entityId: 1, upiId: 'not a upi id' }),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
@@ -58,13 +63,13 @@ describe('org.entity.update', () => {
     );
     if (!before) throw new Error('entity 1 is seeded');
     const exec = await createTestPrincipal('executive', [1]);
-    const onAudit = vi.fn();
+    const recorded = memoryAuditSink();
     const onEmit = vi.fn();
     try {
       const dto = await asPrincipal(exec, (context) =>
         runCommand(
           updateEntity,
-          { context, onAudit, onEmit },
+          { context, audit: recorded, onEmit },
           { entityId: 1, brandName: `${before.brand_name} Solar` },
         ),
       );
@@ -77,8 +82,12 @@ describe('org.entity.update', () => {
         gstin: before.gstin,
         upiId: before.upi_id,
       });
-      expect(onAudit).toHaveBeenCalledWith(
-        expect.objectContaining({ command: 'org.entity.update', principalId: exec.id }),
+      expect(recorded.records).toContainEqual(
+        expect.objectContaining({
+          command: 'org.entity.update',
+          actorPrincipalId: exec.id,
+          outcome: 'ok',
+        }),
       );
       expect(onEmit).toHaveBeenCalledWith([
         expect.objectContaining({ type: 'org.entity.updated', entityId: 1 }),

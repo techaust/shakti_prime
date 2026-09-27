@@ -1,5 +1,6 @@
 import { DomainError, SetThemeInput, ThemeDto, type Theme } from '@shakti/contracts';
-import { sql } from 'drizzle-orm';
+import { schema } from '@shakti/db';
+import { eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 
 /**
@@ -14,6 +15,11 @@ export const setTheme = defineCommand({
   input: SetThemeInput,
   output: ThemeDto,
   async handler(ctx, input) {
+    const [current] = await ctx.tx
+      .select({ theme: schema.users.theme })
+      .from(schema.users)
+      .where(eq(schema.users.id, ctx.principal.id))
+      .limit(1);
     const rows = (await ctx.tx.execute(
       sql`select app.set_own_theme(${input.theme}) as theme`,
     )) as unknown as { theme: Theme | null }[];
@@ -21,6 +27,13 @@ export const setTheme = defineCommand({
     if (theme == null) {
       throw new DomainError('not_found', 'no active user for this request');
     }
+    ctx.audit({
+      aggregateType: 'user',
+      aggregateId: ctx.principal.id,
+      entityId: null,
+      before: { theme: current?.theme ?? null },
+      after: { theme },
+    });
     return { theme };
   },
 });

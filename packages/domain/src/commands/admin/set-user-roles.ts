@@ -49,6 +49,12 @@ export const setUserRoles = defineCommand({
     const rows = await resolveEntityRoles(ctx, input.entityRoles);
 
     const executivesBefore = await lockExecutiveChanges(ctx);
+    const uer = schema.userEntityRoles;
+    const before = await ctx.tx
+      .select({ entityId: uer.entityId, roleId: uer.roleId, teamId: uer.teamId })
+      .from(uer)
+      .where(eq(uer.userId, input.userId))
+      .orderBy(uer.entityId);
     await ctx.tx
       .delete(schema.userEntityRoles)
       .where(eq(schema.userEntityRoles.userId, input.userId));
@@ -59,6 +65,13 @@ export const setUserRoles = defineCommand({
       .set({ updatedBy: ctx.principal.id })
       .where(eq(schema.users.id, input.userId));
     const revoked = await revokeUserSessions(ctx, input.userId, 'role_changed');
+    ctx.audit({
+      aggregateType: 'user',
+      aggregateId: input.userId,
+      entityId: null,
+      before: { entityRoles: before },
+      after: { entityRoles: rows, revokedSessions: revoked.length },
+    });
 
     for (const r of rows) {
       ctx.emit({

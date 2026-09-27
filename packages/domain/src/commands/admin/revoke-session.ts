@@ -34,6 +34,13 @@ export const revokeSession = defineCommand({
         reason: 'session_missing',
       });
     }
+    ctx.audit({
+      aggregateType: 'session',
+      aggregateId: row.id,
+      entityId: null,
+      before: { userId: row.userId, revokedAt: null },
+      after: { userId: row.userId, revokedAt: ctx.now, revokedReason: input.reason },
+    });
     const entityId = ctx.entityIds[0];
     if (entityId !== undefined) {
       ctx.emit({

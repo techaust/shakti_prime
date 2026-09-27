@@ -23,6 +23,13 @@ export const updateEntity = defineCommand({
       throw new DomainError('validation_failed', 'nothing to update', { entityId: input.entityId });
     }
 
+    const e = schema.entities;
+    const [before] = await ctx.tx
+      .select({ brandName: e.brandName, upiId: e.upiId })
+      .from(e)
+      .where(eq(e.id, input.entityId))
+      .limit(1)
+      .for('update');
     const [row] = await ctx.tx
       .update(schema.entities)
       .set({ ...patch, updatedBy: ctx.principal.id })
@@ -34,6 +41,13 @@ export const updateEntity = defineCommand({
       });
     }
 
+    ctx.audit({
+      aggregateType: 'entity',
+      aggregateId: String(row.id),
+      entityId: row.id,
+      before: before === undefined ? null : pick(before, Object.keys(patch)),
+      after: pick(row, Object.keys(patch)),
+    });
     ctx.emit({
       type: 'org.entity.updated',
       entityId: row.id,
@@ -44,3 +58,8 @@ export const updateEntity = defineCommand({
     return toEntityDto(row);
   },
 });
+
+/** The changed fields only, so the audit row shows what this call touched. */
+function pick(source: Readonly<Record<string, unknown>>, keys: readonly string[]) {
+  return Object.fromEntries(keys.map((k) => [k, source[k] ?? null]));
+}
