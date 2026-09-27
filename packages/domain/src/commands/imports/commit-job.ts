@@ -70,7 +70,8 @@ export const commitImportJob = defineCommand({
  * one savepoint. A row that fails rolls the whole batch back, and the job stops there as
  * `failed` with the batch and the row recorded; the rows committed by earlier batches stay until
  * the job is rolled back. When no valid row is left the job is `committed`. One audit row per
- * batch records the row range; each lead also has its own row from `crm.lead.create`.
+ * batch records the job, the row range and the counts; the leads write no row of their own
+ * (design §8), and their events are stored only when the batch commits.
  */
 export const commitImportBatch = defineCommand({
   name: 'imports.job.commit_batch',
@@ -122,13 +123,14 @@ export const commitImportBatch = defineCommand({
 
     let failedRow: number | undefined;
     try {
-      await ctx.tx.transaction(async (sp) => {
+      await ctx.savepoint(async (sp) => {
         const created: { rowNo: number; id: string }[] = [];
         for (const row of rows) {
           failedRow = row.rowNo;
           const lead = await ctx.run(createLead, row.input, {
             tx: sp,
             idempotencyKey: importRowKey(job.id, row.rowNo),
+            auditedByCaller: true,
           });
           created.push({ rowNo: row.rowNo, id: lead.id });
         }

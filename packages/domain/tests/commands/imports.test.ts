@@ -291,7 +291,40 @@ describe('imports: commit and rollback', () => {
 
     const first = await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 2 });
     expect(first).toMatchObject({ state: 'committing', committedRows: 2 });
-    await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 2 });
+    // One audit row for the batch, with its range and counts; none per lead (design §8).
+    const requestId = newId();
+    const committed: string[] = [];
+    await executeCommand(
+      gm,
+      { entityIds: [1], requestId },
+      commitImportBatch,
+      { entityId: 1, jobId: job.id, batchSize: 2 },
+      {
+        onCommitted: (events) => {
+          committed.push(...events.map((e) => e.type));
+        },
+      },
+    );
+    const batchAudit = await asMigrator(
+      (m) => m<{ command: string; aggregate_id: string; after_json: Record<string, unknown> }[]>`
+        select command, aggregate_id, after_json from audit_logs where request_id = ${requestId}`,
+    );
+    expect(batchAudit).toEqual([
+      {
+        command: 'imports.job.commit_batch',
+        aggregate_id: job.id,
+        after_json: {
+          state: 'committing',
+          batch: 2,
+          fromRow: 3,
+          toRow: 4,
+          rows: 2,
+          committedRows: 4,
+        },
+      },
+    ]);
+    // Each lead is still made as one typed in, with its own event after the commit.
+    expect(committed).toEqual(['crm.lead.created', 'crm.lead.created']);
     const done = await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 2 });
     expect(done).toMatchObject({ state: 'committed', committedRows: 5 });
     // Nothing more to do once committed.
@@ -345,8 +378,27 @@ describe('imports: commit and rollback', () => {
     await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
     const first = await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 3 });
     expect(first).toMatchObject({ state: 'committing', committedRows: 3 });
-    const second = await run(gm, commitImportBatch, { entityId: 1, jobId: job.id, batchSize: 3 });
+    const requestId = newId();
+    const reported: string[] = [];
+    const second = await executeCommand(
+      gm,
+      { entityIds: [1], requestId },
+      commitImportBatch,
+      { entityId: 1, jobId: job.id, batchSize: 3 },
+      {
+        onCommitted: (events) => {
+          reported.push(...events.map((e) => e.type));
+        },
+      },
+    );
     expect(second).toMatchObject({ state: 'failed', failedBatch: 2, committedRows: 3 });
+    // Row 4's lead went with the savepoint, and so did its event and any audit row.
+    expect(reported).toEqual(['imports.job.failed']);
+    const failedAudit = await asMigrator(
+      (m) =>
+        m<{ command: string }[]>`select command from audit_logs where request_id = ${requestId}`,
+    );
+    expect(failedAudit).toEqual([{ command: 'imports.job.commit_batch' }]);
 
     const rows = await rowsOf(gm, job.id);
     expect(rows.map((r) => r.state)).toEqual([

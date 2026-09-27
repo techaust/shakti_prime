@@ -41,18 +41,30 @@ export interface CommandContext {
   now: Date;
   requestId: string;
   /**
-   * Runs another command as the same caller inside this transaction, with its own guard, DTO,
-   * audit rows and events; `tx` narrows it to a savepoint the handler opened. Imports commit
-   * their rows through here, so a lead from a file is made exactly as one typed in.
+   * Runs another command as the same caller inside this transaction, with its own guard, DTO and
+   * idempotency key. Its audit rows and events are held and written with this command's own, so a
+   * `savepoint` that rolls back drops them too. Imports commit their rows through here, so a lead
+   * from a file is made exactly as one typed in.
    */
   run: <I extends z.ZodType, O extends z.ZodType>(
     command: Command<I, O>,
     input: unknown,
     options?: NestedRunOptions,
   ) => Promise<z.output<O>>;
+  /**
+   * Runs `work` in a savepoint of this transaction. If it throws, the savepoint rolls back, and
+   * the audit changes, events and inner commands' rows recorded inside it are dropped with it.
+   */
+  savepoint: <T>(work: (tx: RequestTx) => Promise<T>) => Promise<T>;
 }
 
 export interface NestedRunOptions {
   idempotencyKey?: string;
+  /** The savepoint's transaction, from `savepoint`. */
   tx?: RequestTx;
+  /**
+   * The calling command records one summary audit row for this and its sibling calls (an import
+   * batch, design §8), so the inner command writes no audit row of its own.
+   */
+  auditedByCaller?: boolean;
 }

@@ -545,3 +545,83 @@ describe('commands inside commands and audit summaries', () => {
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
+
+describe('savepoints and summarised inner commands', () => {
+  const noisy = defineCommand({
+    name: 'test.noisy',
+    permission: 'crm.lead.read',
+    input: z.object({ value: z.string(), fail: z.boolean().default(false) }).strict(),
+    output: z.object({ value: z.string() }).strict(),
+    handler: (ctx, input) => {
+      const id = newId();
+      ctx.audit({ aggregateType: 'thing', aggregateId: id, after: { value: input.value } });
+      ctx.emit({
+        type: 'admin.user.reactivated',
+        entityId: 1,
+        aggregateType: 'user',
+        aggregateId: id,
+        payload: {},
+      });
+      if (input.fail) return Promise.reject(new DomainError('conflict', 'raced'));
+      return Promise.resolve({ value: input.value });
+    },
+  });
+
+  const batches = defineCommand({
+    name: 'test.batches',
+    permission: 'crm.lead.read',
+    input: z.object({ summarised: z.boolean() }).strict(),
+    output: z.object({ failed: z.number() }).strict(),
+    async handler(ctx, input) {
+      let failed = 0;
+      for (const fail of [false, true]) {
+        try {
+          await ctx.savepoint(async (sp) => {
+            const options = { tx: sp, auditedByCaller: input.summarised };
+            await ctx.run(noisy, { value: 'a' }, options);
+            await ctx.run(noisy, { value: 'b', fail }, options);
+          });
+        } catch {
+          failed += 1;
+        }
+      }
+      return { failed };
+    },
+  });
+
+  /** A context whose transaction opens savepoints that do nothing, as a pure test needs. */
+  function savepointContext() {
+    const base = context(principal());
+    const tx = { transaction: (work: (sp: unknown) => Promise<unknown>) => work(tx) };
+    return { ...base, tx: tx as unknown as typeof base.tx };
+  }
+
+  it('drops what a rolled-back savepoint recorded, and keeps what a committed one did', async () => {
+    const audit = memoryAuditSink();
+    const outbox = memoryOutboxSink();
+    const result = await runCommand(
+      batches,
+      { context: savepointContext(), audit, outbox },
+      { summarised: false },
+    );
+    expect(result).toEqual({ failed: 1 });
+    // The first savepoint's two inner calls, then the outer call's own row.
+    expect(audit.records.map((r) => r.command)).toEqual([
+      'test.noisy',
+      'test.noisy',
+      'test.batches',
+    ]);
+    expect(outbox.records).toHaveLength(2);
+  });
+
+  it('writes no row for an inner command its caller summarises, but keeps its events', async () => {
+    const audit = memoryAuditSink();
+    const outbox = memoryOutboxSink();
+    await runCommand(batches, { context: savepointContext(), audit, outbox }, { summarised: true });
+    expect(audit.records.map((r) => r.command)).toEqual(['test.batches']);
+    expect(outbox.records.map((r) => r.type)).toEqual([
+      'admin.user.reactivated',
+      'admin.user.reactivated',
+    ]);
+  });
+});
