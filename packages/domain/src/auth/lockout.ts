@@ -5,7 +5,7 @@ import type { KeyValue } from '../ports/key-value';
 export const LOCKOUT_FREE_ATTEMPTS = 5;
 export const LOCKOUT_FIRST_WAIT_SECONDS = 60;
 export const LOCKOUT_MAX_WAIT_SECONDS = 60 * 60;
-/** A quiet day clears the counter. */
+/** The failure count covers a day from its first failure, then starts again. */
 export const LOCKOUT_COUNTER_TTL_SECONDS = 24 * 60 * 60;
 
 /** Seconds the caller must wait after `failures` consecutive failures: 0, then 1 min doubling to 1 h. */
@@ -16,38 +16,34 @@ export function lockoutDelaySeconds(failures: number): number {
   return Math.min(seconds, LOCKOUT_MAX_WAIT_SECONDS);
 }
 
-interface LockState {
-  failures: number;
-  /** Unix milliseconds until which attempts are refused. */
-  until: number;
-}
-
-function parse(raw: string | null): LockState {
-  if (raw === null) return { failures: 0, until: 0 };
-  try {
-    const value = JSON.parse(raw) as Partial<LockState>;
-    return {
-      failures: typeof value.failures === 'number' ? value.failures : 0,
-      until: typeof value.until === 'number' ? value.until : 0,
-    };
-  } catch {
-    return { failures: 0, until: 0 };
-  }
+/** A stored whole number, or 0 for a missing or corrupt value. */
+function wholeNumber(raw: string | null): number {
+  const value = Number(raw ?? 0);
+  return Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
 /**
  * Exponential lockout per account and per IP on top of `KeyValue`. `check` throws
  * `rate_limited` with `details.retryAfterSeconds` while a wait is running; `recordFailure`
  * lengthens the wait; `reset` clears the keys after a success.
+ *
+ * The count is kept with the store's atomic `incr` (review 3), so failures arriving at the same
+ * moment from many places are all counted; no read, change and write of a whole state can lose
+ * one. Beside it sits the time of the latest failure, and the wait is worked out from the two
+ * when a sign-in is checked: the latest failure plus the delay for the current count.
  */
 export function createLockout(store: KeyValue, now: () => number = Date.now) {
-  const key = (k: string) => `lockout:${k}`;
+  const countKey = (k: string) => `lockout:${k}:count`;
+  const lastKey = (k: string) => `lockout:${k}:last`;
   return {
     async check(keys: readonly string[]): Promise<void> {
       let retryAfter = 0;
       for (const k of keys) {
-        const state = parse(await store.get(key(k)));
-        retryAfter = Math.max(retryAfter, Math.ceil((state.until - now()) / 1000));
+        const failures = wholeNumber(await store.get(countKey(k)));
+        const wait = lockoutDelaySeconds(failures);
+        if (wait === 0) continue;
+        const last = wholeNumber(await store.get(lastKey(k)));
+        retryAfter = Math.max(retryAfter, Math.ceil((last + wait * 1000 - now()) / 1000));
       }
       if (retryAfter > 0) {
         throw new DomainError('rate_limited', 'too many failed attempts', {
@@ -58,15 +54,16 @@ export function createLockout(store: KeyValue, now: () => number = Date.now) {
     },
     async recordFailure(keys: readonly string[]): Promise<void> {
       for (const k of keys) {
-        const state = parse(await store.get(key(k)));
-        const failures = state.failures + 1;
-        const wait = lockoutDelaySeconds(failures);
-        const next: LockState = { failures, until: wait > 0 ? now() + wait * 1000 : 0 };
-        await store.set(key(k), JSON.stringify(next), LOCKOUT_COUNTER_TTL_SECONDS);
+        await store.incr(countKey(k), LOCKOUT_COUNTER_TTL_SECONDS);
+        // Concurrent failures write almost the same moment here; whichever lands last stands.
+        await store.set(lastKey(k), String(now()), LOCKOUT_COUNTER_TTL_SECONDS);
       }
     },
     async reset(keys: readonly string[]): Promise<void> {
-      for (const k of keys) await store.del(key(k));
+      for (const k of keys) {
+        await store.del(countKey(k));
+        await store.del(lastKey(k));
+      }
     },
   };
 }

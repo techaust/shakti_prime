@@ -138,3 +138,39 @@ export { documentFilingMachine } from './state-machines/machines/document-filing
 export { expenseClaimMachine } from './state-machines/machines/expense-claim';
 export { playbookDirectiveMachine } from './state-machines/machines/playbook-directive';
 export { tallyVoucherMachine } from './state-machines/machines/tally-voucher';
+export {
+  CALLING_WINDOW_IST,
+  checkDial,
+  isIndianMobile,
+  istMinuteOfDay,
+  nationalNumber,
+  nextCallingWindowStart,
+  numberSeries,
+  withinCallingHours,
+} from './telecom/dial-policy';
+export type {
+  CallPurpose,
+  DialDecision,
+  DialRefusal,
+  DialRequest,
+  NumberSeries,
+} from './telecom/dial-policy';
+export {
+  checkBatch,
+  connectorHealth,
+  DEFAULT_SNAPSHOT_LIMITS,
+  diffSnapshot,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_SILENCE_MS,
+  shouldAlertSilence,
+} from './tally/sync-rules';
+export type {
+  BatchCheck,
+  BatchOutcome,
+  BatchVoucherRef,
+  ConnectorHealth,
+  SnapshotCheck,
+  SnapshotDiff,
+  SnapshotLimits,
+  StoredVoucher,
+} from './tally/sync-rules';

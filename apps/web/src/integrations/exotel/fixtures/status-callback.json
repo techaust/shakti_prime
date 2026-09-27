@@ -1,0 +1,32 @@
+{
+  "CallSid": "b6cfaf5e4d8a1c7e2f9d3a0b1c2d1a8f",
+  "EventType": "terminal",
+  "DateCreated": "2026-09-28 11:00:02",
+  "DateUpdated": "2026-09-28 11:04:40",
+  "Status": "completed",
+  "To": "09000000002",
+  "From": "09000000001",
+  "PhoneNumberSid": "01400000000",
+  "StartTime": "2026-09-28 11:00:02",
+  "EndTime": "2026-09-28 11:04:40",
+  "Direction": "outbound-api",
+  "RecordingUrl": "https://recordings.exotel.test/shaktiprime1/b6cfaf5e.mp3",
+  "ConversationDuration": 251,
+  "Legs": [
+    {
+      "Number": "09000000001",
+      "Type": "single",
+      "OnCallDuration": 270,
+      "CauseCode": "NORMAL_HANGUP",
+      "Cause": "16"
+    },
+    {
+      "Number": "09000000002",
+      "Type": "single",
+      "OnCallDuration": 251,
+      "CauseCode": "NORMAL_HANGUP",
+      "Cause": "16"
+    }
+  ],
+  "CustomField": "01931f6e-8a2b-7c3d-9e4f-5a6b7c8d9e0f"
+}
