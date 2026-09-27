@@ -387,9 +387,15 @@ describe('command and query actions answer a result, never a thrown error (revie
     const lists = ok(await listPriceLists());
     const list = lists[0];
     if (list !== undefined) {
-      const rows = ok(await listPrices({ priceListId: list.id }));
-      for (const row of rows) expect(row).not.toHaveProperty('cost');
-      const item = rows[0];
+      const page = ok(await listPrices({ priceListId: list.id, limit: 2 }));
+      expect(page.items.length).toBeLessThanOrEqual(2);
+      for (const row of page.items) expect(row).not.toHaveProperty('cost');
+      if (page.nextCursor !== null) {
+        const next = ok(await listPrices({ priceListId: list.id, cursor: page.nextCursor }));
+        const seen = new Set(page.items.map((r) => r.itemId));
+        for (const row of next.items) expect(seen.has(row.itemId)).toBe(false);
+      }
+      const item = page.items[0];
       if (item !== undefined) {
         await expect(
           setPrice({ priceListId: list.id, itemId: item.itemId, price: '100.00' }),

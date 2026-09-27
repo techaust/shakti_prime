@@ -4,7 +4,7 @@ import {
   SetPriceInput,
   type PriceListDto,
   type PriceListItemDto,
-  type PriceRowDto,
+  type PricePageDto,
 } from '@shakti/contracts';
 import {
   executeCommand,
@@ -44,8 +44,8 @@ export async function listPriceLists(): Promise<ActionResult<PriceListDto[]>> {
   });
 }
 
-/** Price Master: the items of one list with their selling price. */
-export async function listPrices(rawInput: unknown): Promise<ActionResult<PriceRowDto[]>> {
+/** Price Master: the items of one list with their selling price, a page at a time. */
+export async function listPrices(rawInput: unknown): Promise<ActionResult<PricePageDto>> {
   return toResult('listPrices', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
