@@ -72,11 +72,11 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 ## 5. Domain command layer
 - **Definition:** `defineCommand({ name, permission, minScope?, input, output, constraintReasons?, handler })`. The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
 - **Context:** `{ principal, entityIds, activeEntityId, tx, emit, now, requestId }`. `principal` is a user, an agent service principal or a voice session acting as a user.
-- **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')`; from week 3 slice 2 they are audited as `outcome = denied`.
+- **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')` and are audited as `outcome = denied`.
 - **State machines** (specified in week 5, built with each module): `packages/domain/src/state-machines/*` define states, transitions, guards, side effects and permitted actors for opportunity, quote, sales order, dispatch, project flows, subsidy gates, loan, warranty claim, document filing, expense claim, Playbook directive and Tally voucher. Commands call `transition(machine, record, event, ctx)`.
 - **Calculators:** TDH, kW sizing, kit availability, credit check, job-cost roll-up, incentive rules and the tax engine are pure functions with fixture-based tests.
 - **DTOs:** each command declares an output schema. Cost fields exist only in DTOs of commands whose permission is `finance.cost.read` or `procurement.rate.read`.
-- **Audit:** the command runner calls an audit hook (command, actor, entities, input, request ID) for every successful mutating command today; week 3 slice 2 persists it to `audit_logs` with before/after, IP, device and denied and failed outcomes.
+- **Audit:** the command runner writes `audit_logs` in the command's own transaction (command, actor, entity, aggregate, redacted input, before/after, IP, device, request ID), one row per changed aggregate; `executeCommand` records denied and failed calls in a short transaction after the rollback; the auth module records sign-in and account events (docs/design/backend-weeks-3-5.md §3).
 
 ## 6. Events and workers
 - **Outbox:** `outbox_events(id, sequence, entity_id, type, aggregate_type, aggregate_id, payload_json, created_at, published_at, attempts, last_error, dead_lettered_at)` written in the command's transaction; delivery columns are updated only by the `outbox_publisher` role.

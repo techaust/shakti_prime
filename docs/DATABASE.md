@@ -274,7 +274,7 @@ Key columns only; every table also has the standard columns from §2.
 |---|---|
 | `outbox_events` (append-only) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`; the last four are updated only by the `outbox_publisher` role |
 | `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
-| `audit_logs` (partitioned, append-only) | `entity_id`, `actor_principal_id`, `command`, `aggregate`, `before_json`, `after_json`, `ip`, `device`, `request_id` |
+| `audit_logs` (partitioned, append-only; partitions in schema `audit_partitions`) | `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3) |
 | `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
 | `import_jobs`, `import_rows` | `mapping_json`, `state`, row `errors_json`, `committed_batch` |
 | `files` | `bucket`, `key`, `content_type`, `size`, `status` (`pending`, `scanning`, `masked`, `ready`, `rejected`), `scan_result`, `entity_id null` |

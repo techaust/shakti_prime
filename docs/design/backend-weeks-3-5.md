@@ -1,6 +1,6 @@
 # Backend design: Phase 0 weeks 3 to 5
 
-Date: 2026-09-27. Status: the parts marked built (slice 1, ADR 0008) are built and reviewed; the remaining slices are the design for approval. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
+Date: 2026-09-27. Status: the parts marked built (slice 1, ADR 0008, slice 2) are built; slice 1 and ADR 0008 are reviewed; the remaining slices are the design for approval. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
 
 Decisions taken with the client on 2026-09-27:
 - **Mixed roles in "All entities" view:** the narrowest role wins. The request carries only the grants every one of the user's roles holds; the user switches to a single entity to use a wider role there.
@@ -65,24 +65,25 @@ Domain commands (built in slice 1): `admin.user.invite`, `admin.user.role.set`, 
 ## 3. Audit log (week 3)
 
 ### 3.1 Table
-`audit_logs`, partitioned by month on `created_at`, append-only, pg_cron creates next month's partition on the 25th:
+Built (slice 2, migrations 0032 and 0033). `audit_logs`, partitioned by month on `created_at` with the key `(id, created_at)`, append-only. The partitions live in the schema `audit_partitions`, which no request role may use, so no row is reachable around the policies on the parent; a default partition takes any row whose month has no partition, so a missing partition never fails a command. `app.ensure_audit_partitions(3)` (migrator only) makes this month and the next three, and pg_cron runs it on the 25th:
 
 `id`, `entity_id` (null for cross-entity admin commands), `actor_principal_id`, `actor_kind` (`user`, `agent`, `voice_session`), `on_behalf_of_user_id` (set when a voice session acts for a user), `command`, `aggregate_type`, `aggregate_id`, `outcome` (`ok`, `denied`, `failed`), `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`, `created_at`.
 
-Grants: `app_user` may insert (policy: `actor_principal_id = app.user_id()`) and select with `audit.read` at entity scope (`entity_id` null rows need `audit.read:all`). No update or delete; `app.raise_append_only()` trigger.
+Grants: `app_user` may insert (policy: `actor_principal_id = app.user_id()`, an entity in the request scope or none, never an `auth.*` event) and select with `audit.read` at entity scope (`entity_id` null rows need `audit.read:all`, and an empty scope reads nothing). `auth_service` may insert `auth.*` events of no entity and read nothing. `actor_principal_id` may be null only on an `auth.*` event (a failed sign-in for an unknown address). No update or delete; `app.raise_append_only()` trigger.
 
 ### 3.2 What the runner writes
-`runCommand` already receives `onAudit`; in week 3 the hook becomes the default and writes through `ctx.tx`, so the audit row commits with the change or not at all:
-- one row per mutating command with `outcome = ok`;
-- one row with `outcome = denied` when the permission guard refuses (written in its own short transaction, since no request transaction exists yet for the handler);
-- one row with `outcome = failed` and the `DomainError` code when the handler throws (written after rollback in its own transaction, without before/after).
+`runCommand` requires an `AuditSink`; `executeCommand` passes `databaseAuditSink`, which writes through `ctx.tx`, so the audit row commits with the change or not at all. The web actions pass the caller's address and browser as `client`:
+- one row per changed aggregate with `outcome = ok`, or one row for the call when the handler names none; `entity_id` is the aggregate's entity, or the request's single entity when the handler leaves it out;
+- one row with `outcome = denied` when the permission guard, the request scope or a row policy refuses (written by `executeCommand` in its own short transaction after the rollback);
+- one row with `outcome = failed` and the `DomainError` code when the handler, the DTO check or the audit and outbox writes throw (written after the rollback in its own transaction, without before/after);
+- nothing for input that does not parse, since nothing ran; a failure to write a denied or failed row is logged and never replaces the original error.
 - `before_json` and `after_json` come from the handler through `ctx.audit({ aggregateType, aggregateId, before, after })`; commands that touch several aggregates call it once per aggregate.
 
 ### 3.3 Redaction
-`redactForAudit()` records an allow-list of fields per auth endpoint and applies a deny-by-pattern pass to command input (AUDIT M16), built from the real column and body names: `password`, `secret`, `backup_codes`, `token`, `identifier` and the request fields `newPassword`, `currentPassword`, `code` are removed, as are `bank_json` and `api_key`; phone numbers and emails keep only the last four characters; `input_json` is the parsed command input after the same pass. Aadhaar never exists in any table (BLUEPRINT §7.5), so nothing about it can reach the audit. The suite asserts the deny list on a synthetic before/after that contains every listed field.
+`redactAuthEvent()` records an allow-list of fields per auth event (the email, the sign-in step, the second-factor method), so the one-time `code`, the password and the link token are never read; `redactForAudit()` applies a deny-by-pattern pass to command input and before/after (AUDIT M16), built from the real column and body names: `password`, `secret`, `backup_codes`, `token`, `identifier`, `newPassword`, `currentPassword`, `bank_json`, `api_key` and any name containing password, secret, token or api key are removed at any depth; business codes (`code` of an entity, item or stage) are kept; phone numbers and emails keep only the last four characters; `input_json` is the parsed command input after the same pass. Aadhaar never exists in any table (BLUEPRINT §7.5), so nothing about it can reach the audit. The suite asserts the deny list on a synthetic before/after that contains every listed field.
 
 ### 3.4 Reading
-`audit.query(ctx, { entityId?, aggregate?, actor?, from, to, cursor })` with keyset pagination (text-form cursor, as in `listLeads`). Views of sensitive documents (Phase 1) and exports are recorded through the same runner path as commands with an empty change set.
+`queryAudit(ctx, { entityId?, aggregateType?, aggregateId?, actorPrincipalId?, command?, outcome?, from, to, cursor?, limit? })` (built; server action `listAuditLog`) with keyset pagination on `(created_at, id)` (text-form cursor, as in `listLeads`); the window is required and at most 93 days, so only its months' partitions are read. The Admin audit screen arrives with the week 4 app shell. Views of sensitive documents (Phase 1) and exports are recorded through the same runner path as commands with an empty change set.
 
 ## 4. Outbox, publisher and workers (week 3)
 
