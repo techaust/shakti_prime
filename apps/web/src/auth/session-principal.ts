@@ -50,20 +50,12 @@ export async function loadSession(headers: Headers, deps: Deps): Promise<Session
     throw e;
   });
   if (!result) return undefined;
+  // Better Auth returns the session row with the app's own columns, and its before hook has
+  // already refused a revoked or expired one, so there is no second read of the row (AUDIT M34).
+  const row = result.session;
   const s = authSchema.sessions;
-  const [row] = await authDb()
-    .select({
-      id: s.id,
-      userId: s.userId,
-      createdAt: s.createdAt,
-      revokedAt: s.revokedAt,
-      lastSeenAt: s.lastSeenAt,
-    })
-    .from(s)
-    .where(eq(s.id, result.session.id))
-    .limit(1);
-  if (row?.revokedAt !== null) return undefined;
   const now = deps.now();
+  if (row.revokedAt != null) return undefined;
   if (now.getTime() - row.createdAt.getTime() > SESSION_ABSOLUTE_SECONDS * 1000) {
     await authDb()
       .update(s)
@@ -71,7 +63,11 @@ export async function loadSession(headers: Headers, deps: Deps): Promise<Session
       .where(and(eq(s.id, row.id), isNull(s.revokedAt)));
     return undefined;
   }
-  if (!row.lastSeenAt || now.getTime() - row.lastSeenAt.getTime() > LAST_SEEN_BUMP_SECONDS * 1000) {
+  const lastSeen = row.lastSeenAt == null ? undefined : new Date(row.lastSeenAt);
+  if (
+    lastSeen === undefined ||
+    now.getTime() - lastSeen.getTime() > LAST_SEEN_BUMP_SECONDS * 1000
+  ) {
     await authDb().update(s).set({ lastSeenAt: now }).where(eq(s.id, row.id));
   }
   return { sessionId: row.id, userId: row.userId, createdAt: row.createdAt };
