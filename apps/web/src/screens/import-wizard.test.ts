@@ -11,6 +11,7 @@ import {
   buildMapInput,
   canRollBack,
   commitProgress,
+  draftForFile,
   failedBatchRange,
   fileProblem,
   fileSize,
@@ -28,6 +29,8 @@ import {
   STALL_AFTER_MS,
   stepOf,
   stepStatus,
+  withColumn,
+  withDefault,
   type MappingDraft,
 } from './import-wizard';
 
@@ -92,7 +95,10 @@ describe('the matching form', () => {
   });
 
   it('changes one field of the form at a time, and clears it with an empty choice', () => {
-    const start: MappingDraft = { columns: { contactName: 'A' }, defaults: { siteType: 'rooftop' } };
+    const start: MappingDraft = {
+      columns: { contactName: 'A' },
+      defaults: { siteType: 'rooftop' },
+    };
     expect(withColumn(start, 'phone', 'B').columns).toEqual({ contactName: 'A', phone: 'B' });
     expect(withColumn(start, 'contactName', '').columns).toEqual({});
     expect(withDefault(start, 'siteType', 'borewell').defaults).toEqual({ siteType: 'borewell' });

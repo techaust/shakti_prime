@@ -149,7 +149,11 @@ export function draftOf(mapping: ImportMapping): MappingDraft {
 }
 
 /** The draft with `field` read from `column`, or from no column when `column` is empty. */
-export function withColumn(draft: MappingDraft, field: LeadImportField, column: string): MappingDraft {
+export function withColumn(
+  draft: MappingDraft,
+  field: LeadImportField,
+  column: string,
+): MappingDraft {
   const columns = Object.fromEntries(
     Object.entries(draft.columns).filter(([f]) => f !== field),
   ) as MappingDraft['columns'];
@@ -178,7 +182,7 @@ export function draftForFile(mapping: ImportMapping, columns: readonly string[])
     ...draft,
     columns: Object.fromEntries(
       Object.entries(draft.columns).filter(([, column]) => columns.includes(column)),
-    ) as MappingDraft['columns'],
+    ),
   };
 }
 
