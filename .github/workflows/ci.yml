@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Started on main by the merge-on-green workflow, whose merges trigger no push run.
+  workflow_dispatch:
 
 permissions:
   contents: read
