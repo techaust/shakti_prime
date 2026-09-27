@@ -1,5 +1,5 @@
-import { BOS_JWT_ALGORITHM, type PublicSigningJwk } from '@shakti/contracts';
 import { calculateJwkThumbprint, importJWK, type CryptoKey } from 'jose';
+import { BOS_JWT_ALGORITHM, type PublicSigningJwk } from './claims';
 
 /**
  * Where the BOS signing keys come from: private P-256 keys as JWK JSON strings, one per variable.

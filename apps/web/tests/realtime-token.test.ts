@@ -1,10 +1,11 @@
-import { ErrorEnvelope, JwksResponse, RealtimeTokenResponse } from '@shakti/contracts';
+import { ErrorEnvelope } from '@shakti/contracts';
 import { closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAuth, type Auth } from '../src/auth/create-auth';
 import { requirePrincipal, resolveSessionPrincipal } from '../src/auth/session-principal';
 import { TURNSTILE_HEADER } from '../src/auth/turnstile';
+import { JwksResponse, RealtimeTokenResponse } from '../src/realtime/claims';
 import { issueRealtimeToken, jwksDocument } from '../src/realtime/handlers';
 import type { Env } from '../src/realtime/keys';
 import { newSigningKeyJson } from '../src/realtime/test-keys';
@@ -107,7 +108,14 @@ describe('POST /api/v1/realtime/token with a real session', () => {
     ]);
     const response = await call(principalFrom(cookie));
     expect(response.status).toBe(200);
-    const { token } = RealtimeTokenResponse.parse(await response.json());
+    const { token, channels } = RealtimeTokenResponse.parse(await response.json());
+    expect(channels).toEqual([
+      `user:${user.id}`,
+      'entity:1:queue',
+      'entity:1:board',
+      'entity:2:queue',
+      'entity:2:board',
+    ]);
     const jwks = JwksResponse.parse(await (await jwksDocument(env)).json());
     const claims = await verifyRealtimeToken(token, jwks, ISSUER, clock);
     expect(claims).toMatchObject({

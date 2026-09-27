@@ -1,13 +1,6 @@
-import {
-  DomainError,
-  ErrorEnvelope,
-  JwksResponse,
-  newId,
-  OpenIdConfiguration,
-  RealtimeTokenResponse,
-  type Principal,
-} from '@shakti/contracts';
+import { DomainError, ErrorEnvelope, newId, type Principal } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
+import { JwksResponse, OpenIdConfiguration, RealtimeTokenResponse } from './claims';
 import { issueRealtimeToken, jwksDocument, openIdConfigurationDocument } from './handlers';
 import type { Env } from './keys';
 import { newSigningKeyJson } from './test-keys';
@@ -58,6 +51,7 @@ describe('POST /api/v1/realtime/token', () => {
     const claims = await verifyRealtimeToken(body.token, jwks, ISSUER);
     expect(claims).toMatchObject({ sub: person.id, entity_ids: [2], bos_role: 'field_engineer' });
     expect(new Date(body.expiresAt).getTime()).toBe(claims.exp * 1000);
+    expect(body.channels).toEqual([`user:${person.id}`, 'entity:2:queue', 'entity:2:board']);
   });
 
   it('refuses a caller without a session', async () => {
@@ -92,12 +86,17 @@ describe('POST /api/v1/realtime/token', () => {
     expect(response.status).toBe(403);
   });
 
-  it('refuses an agent', async () => {
-    const response = await issueRealtimeToken(post(), {
-      principal: () => Promise.resolve({ ...person, kind: 'agent', roleKey: 'agent:triage' }),
-      env: await env(),
-    });
-    expect(response.status).toBe(403);
+  it('refuses an agent, and a person with no entity in scope', async () => {
+    for (const caller of [
+      { ...person, kind: 'agent' as const, roleKey: 'agent:triage' as const },
+      { ...person, entityIds: [] },
+    ]) {
+      const response = await issueRealtimeToken(post(), {
+        principal: () => Promise.resolve(caller),
+        env: await env(),
+      });
+      expect(response.status).toBe(403);
+    }
   });
 
   it('answers unavailable, not a token, when the keys are missing or broken', async () => {

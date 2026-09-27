@@ -1,15 +1,13 @@
+import { DomainError, isAgentRole, newId, type Principal } from '@shakti/contracts';
+import { createLocalJWKSet, jwtVerify, SignJWT } from 'jose';
 import {
   BOS_JWT_ALGORITHM,
-  DomainError,
-  newId,
   OpenIdConfiguration,
   REALTIME_AUDIENCE,
   REALTIME_TOKEN_MAX_SECONDS,
   RealtimeClaims,
   type JwksResponse,
-  type Principal,
-} from '@shakti/contracts';
-import { createLocalJWKSet, jwtVerify, SignJWT } from 'jose';
+} from './claims';
 import type { Env, SigningKeys } from './keys';
 
 export const JWKS_PATH = '/.well-known/jwks.json';
@@ -64,8 +62,11 @@ export async function mintRealtimeToken(
   keys: SigningKeys,
   options: MintOptions,
 ): Promise<MintedToken> {
-  if (principal.kind !== 'user') {
+  if (principal.kind !== 'user' || isAgentRole(principal.roleKey)) {
     throw new DomainError('forbidden', 'only a signed-in person receives a Realtime token');
+  }
+  if (principal.entityIds.length === 0) {
+    throw new DomainError('forbidden', 'a Realtime token needs at least one entity in scope');
   }
   const now = options.now ?? new Date();
   const iat = Math.floor(now.getTime() / 1000);
@@ -85,7 +86,7 @@ export async function mintRealtimeToken(
     exp: iat + ttl,
     jti: newId(),
   });
-  const token = await new SignJWT(claims)
+  const token = await new SignJWT({ ...claims })
     .setProtectedHeader({ alg: BOS_JWT_ALGORITHM, kid: keys.current.kid, typ: 'JWT' })
     .sign(keys.current.privateKey);
   return { token, claims, expiresAt: new Date(claims.exp * 1000) };

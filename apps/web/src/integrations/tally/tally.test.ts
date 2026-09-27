@@ -18,7 +18,7 @@ import {
 // Low-entropy phrases, so the secret scan never mistakes them for keys (CLAUDE.md).
 const KEY = 'tally-connector-test-key-one';
 const NEXT_KEY = 'tally-connector-test-key-two';
-const CONNECTOR = 'tally-ss-office-1';
+const CONNECTOR = '01931f6e-8a2b-7c3d-9e4f-00000000c0de';
 const PATH = '/api/v1/connector/tally/batches';
 const NOW = new Date('2026-09-28T06:00:00Z');
 const NOW_SECONDS = String(Math.floor(NOW.getTime() / 1000));
@@ -64,7 +64,7 @@ describe('connector request signing', () => {
       'POST\n/x?a=1\n1790000000\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
     );
     expect(signConnectorRequest(KEY, 'POST', PATH, NOW_SECONDS, rawBatch)).toMatch(
-      /^v1=[0-9a-f]{64}$/,
+      /^[0-9a-f]{64}$/,
     );
   });
 

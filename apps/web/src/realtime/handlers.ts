@@ -1,15 +1,15 @@
 import {
   ERROR_HTTP_STATUS,
   ErrorEnvelope,
+  isAgentRole,
   isDomainError,
-  JwksResponse,
   newId,
-  RealtimeTokenResponse,
   type ErrorCode,
   type Principal,
 } from '@shakti/contracts';
 import en from '../../messages/en.json';
 import { logger } from '../log';
+import { JwksResponse, RealtimeTokenResponse, realtimeChannels } from './claims';
 import { publicKeyList, signingKeys, SigningKeyError, type Env, type SigningKeys } from './keys';
 import { bosIssuer, mintRealtimeToken, openIdConfiguration } from './token';
 
@@ -91,7 +91,14 @@ export async function issueRealtimeToken(
     return failure('internal', requestId);
   }
   if (principal === undefined) return failure('unauthorized', requestId);
-  if (principal.kind !== 'user') return failure('forbidden', requestId);
+  // A person with no entity in scope has no channel to open.
+  if (
+    principal.kind !== 'user' ||
+    isAgentRole(principal.roleKey) ||
+    principal.entityIds.length === 0
+  ) {
+    return failure('forbidden', requestId);
+  }
 
   const keys = await keysOrFailure(env, requestId);
   if (keys instanceof Response) return keys;
@@ -104,6 +111,7 @@ export async function issueRealtimeToken(
     const body = RealtimeTokenResponse.parse({
       token: minted.token,
       expiresAt: minted.expiresAt.toISOString(),
+      channels: realtimeChannels(minted.claims),
     });
     return Response.json(body, {
       headers: { 'cache-control': NO_STORE, 'x-request-id': requestId },

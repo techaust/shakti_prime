@@ -1,6 +1,13 @@
-import { JwksResponse, newId, REALTIME_TOKEN_MAX_SECONDS, type Principal } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import { decodeProtectedHeader, SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
+import {
+  ClaimsError,
+  JwksResponse,
+  REALTIME_TOKEN_MAX_SECONDS,
+  RealtimeClaims,
+  realtimeChannels,
+} from './claims';
 import { parseSigningKeys, publicKeyList, signingKeys, SigningKeyError } from './keys';
 import { newSigningKeyJson } from './test-keys';
 import { bosIssuer, mintRealtimeToken, openIdConfiguration, verifyRealtimeToken } from './token';
@@ -159,11 +166,54 @@ describe('the Realtime token', () => {
     ).rejects.toThrow();
   });
 
-  it('is only for a person, never an agent', async () => {
+  it('is only for a person with an entity in scope, never an agent', async () => {
     const keys = await keysFrom(await newSigningKeyJson());
-    await expect(
-      mintRealtimeToken({ ...principal, kind: 'agent' }, keys, { issuer: ISSUER }),
-    ).rejects.toMatchObject({ code: 'forbidden' });
+    for (const caller of [
+      { ...principal, kind: 'agent' as const },
+      { ...principal, roleKey: 'agent:triage' as const },
+      { ...principal, entityIds: [] },
+    ]) {
+      await expect(mintRealtimeToken(caller, keys, { issuer: ISSUER })).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+    }
+  });
+});
+
+describe('the claims shape (as the published contract fixes it)', () => {
+  const now = Math.floor(Date.now() / 1000);
+  const good = {
+    iss: ISSUER,
+    sub: principal.id,
+    iat: now,
+    exp: now + 900,
+    jti: newId(),
+    aud: 'shakti-realtime',
+    role: 'authenticated',
+    bos_role: 'tele_caller_cc',
+    entity_ids: [1],
+  };
+
+  it('accepts the ADR 0003 claims and names the channels they open', () => {
+    const claims = RealtimeClaims.parse(good);
+    expect(realtimeChannels(claims)).toEqual([
+      `user:${principal.id}`,
+      'entity:1:queue',
+      'entity:1:board',
+    ]);
+  });
+
+  it.each([
+    ['an unknown claim', { ...good, extra: true }],
+    ['a longer life than 15 minutes', { ...good, exp: now + 901 }],
+    ['an expiry before issue', { ...good, exp: now }],
+    ['another audience', { ...good, aud: 'shakti-mobile' }],
+    ['a Data API role', { ...good, role: 'service_role' }],
+    ['an agent role', { ...good, bos_role: 'agent:triage' }],
+    ['no entities', { ...good, entity_ids: [] }],
+    ['a subject that is not a UUIDv7', { ...good, sub: 'someone' }],
+  ])('refuses %s', (_name, claims) => {
+    expect(() => RealtimeClaims.parse(claims)).toThrow(ClaimsError);
   });
 });
 

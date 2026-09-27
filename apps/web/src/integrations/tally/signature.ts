@@ -3,8 +3,9 @@ import { hmacSha256Hex, safeEqual } from '../http';
 
 /**
  * Request signing between the Tally connector and the BOS (docs/API.md §2 and §3.5, SECURITY §2).
- * Every call carries `X-Connector-Id`, `X-Timestamp` (Unix seconds) and `X-Signature`
- * (`v1=` and the lowercase hex HMAC-SHA256 under the connector's key) over the canonical string:
+ * Every call carries `X-Connector-Id` (a UUID), `X-Timestamp` (Unix seconds, ten digits) and
+ * `X-Signature` (the lowercase hex HMAC-SHA256 under the connector's key) over the canonical
+ * string, the same one `connectorSigningString()` in the published connector contract builds:
  *
  *     METHOD \n PATH-WITH-QUERY \n TIMESTAMP \n hex(SHA-256(raw body))
  *
@@ -14,7 +15,6 @@ import { hmacSha256Hex, safeEqual } from '../http';
  */
 
 export const CONNECTOR_SKEW_SECONDS = 300;
-export const SIGNATURE_VERSION = 'v1';
 
 export const CONNECTOR_HEADERS = {
   id: 'x-connector-id',
@@ -40,7 +40,7 @@ export function signConnectorRequest(
   timestamp: string,
   body: string | Uint8Array,
 ): string {
-  return `${SIGNATURE_VERSION}=${hmacSha256Hex(key, canonicalRequest(method, pathWithQuery, timestamp, body))}`;
+  return hmacSha256Hex(key, canonicalRequest(method, pathWithQuery, timestamp, body));
 }
 
 export type ConnectorAuth =
@@ -70,7 +70,7 @@ export function verifyConnectorRequest(
   const connectorId = request.headers.get(CONNECTOR_HEADERS.id) ?? '';
   const timestamp = request.headers.get(CONNECTOR_HEADERS.timestamp) ?? '';
   const signature = request.headers.get(CONNECTOR_HEADERS.signature) ?? '';
-  if (connectorId === '' || !/^\d{9,11}$/.test(timestamp) || signature === '') {
+  if (connectorId === '' || !/^\d{10}$/.test(timestamp) || signature === '') {
     return { ok: false, problem: 'missing_headers' };
   }
   const keys = keysFor(connectorId).filter((k) => k !== '');
