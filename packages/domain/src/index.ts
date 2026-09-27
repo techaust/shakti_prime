@@ -64,3 +64,20 @@ export {
   istCalendarDate,
 } from './numbering/financial-year';
 export { nextDocumentNo } from './numbering/next-document-no';
+export { verhoeffCheckDigit, verhoeffValid } from './privacy/verhoeff';
+export {
+  AADHAAR_VISIBLE_FROM,
+  findIdentityNumbers,
+  isAadhaarNumber,
+  maskedDigitIndices,
+  maskIdentityNumbers,
+  maskLine,
+  normalizeOcrDigits,
+  summarizeSpans,
+} from './privacy/identity-numbers';
+export type {
+  IdentityNumberKind,
+  IdentityNumberSpan,
+  LineMask,
+  MaskedText,
+} from './privacy/identity-numbers';

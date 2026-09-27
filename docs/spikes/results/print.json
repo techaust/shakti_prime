@@ -1,0 +1,119 @@
+{
+  "ranAt": "2026-09-27T15:00:54.617Z",
+  "platform": "win32 x64, Node v24.19.0",
+  "chromium": "playwright-core 1.63, chromium-headless-shell",
+  "coldStart": {
+    "launchMs": 523,
+    "firstRenderMs": 1675,
+    "totalMs": 2198
+  },
+  "quote1Page": {
+    "pages": 1,
+    "medianMs": 1003,
+    "bytes": 161294
+  },
+  "quote5Pages": {
+    "pages": 5,
+    "lines": 70,
+    "medianMs": 1420,
+    "perPageMs": 284,
+    "bytes": 252777
+  },
+  "labels": {
+    "50x25": {
+      "labels": 100,
+      "batchMs": 616,
+      "batchPerLabelMs": 6.2,
+      "batchBytes": 248068,
+      "singleLabelMedianMs": 391,
+      "qrModulesWrong": 0
+    },
+    "100x50": {
+      "labels": 100,
+      "batchMs": 764,
+      "batchPerLabelMs": 7.6,
+      "batchBytes": 310226,
+      "singleLabelMedianMs": 507,
+      "qrModulesWrong": 0
+    }
+  },
+  "fonts": [
+    "Inter-20pt-SemiBold",
+    "Inter",
+    "Inter-16pt-SemiBold",
+    "Inter-Medium",
+    "Inter-SemiBold"
+  ],
+  "fontPrograms": {
+    "type3": 20,
+    "fonts": 20,
+    "toUnicode": 20
+  },
+  "checks": [
+    {
+      "name": "labels 50x25: one page per label",
+      "pass": true,
+      "detail": "100 pages"
+    },
+    {
+      "name": "labels 50x25: QR modules match the payload at 300 dpi",
+      "pass": true,
+      "detail": "0 modules differ"
+    },
+    {
+      "name": "labels 100x50: one page per label",
+      "pass": true,
+      "detail": "100 pages"
+    },
+    {
+      "name": "labels 100x50: QR modules match the payload at 300 dpi",
+      "pass": true,
+      "detail": "0 modules differ"
+    },
+    {
+      "name": "1-page quotation has one page",
+      "pass": true,
+      "detail": "1 page(s)"
+    },
+    {
+      "name": "5-page quotation has five pages",
+      "pass": true,
+      "detail": "5 page(s)"
+    },
+    {
+      "name": "Inter is embedded in the PDF",
+      "pass": true,
+      "detail": "Inter-20pt-SemiBold, Inter, Inter-16pt-SemiBold, Inter-Medium, Inter-SemiBold"
+    },
+    {
+      "name": "no other font is embedded",
+      "pass": true,
+      "detail": "Inter-20pt-SemiBold, Inter, Inter-16pt-SemiBold, Inter-Medium, Inter-SemiBold"
+    },
+    {
+      "name": "quotation QR modules match the payload at 300 dpi",
+      "pass": true,
+      "detail": "0 modules differ"
+    },
+    {
+      "name": "every font has a text map, so the PDF text can be searched and copied",
+      "pass": true,
+      "detail": "20 maps for 20 fonts (20 drawn as Type 3)"
+    },
+    {
+      "name": "quotation text present",
+      "pass": true,
+      "detail": "all present"
+    },
+    {
+      "name": "rupee sign drawn in Inter",
+      "pass": true,
+      "detail": "true"
+    },
+    {
+      "name": "light background",
+      "pass": true,
+      "detail": "rgb(255, 255, 255)"
+    }
+  ]
+}
