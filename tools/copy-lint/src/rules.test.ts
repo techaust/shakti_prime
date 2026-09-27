@@ -19,7 +19,18 @@ describe('checkString', () => {
         'en',
       ),
     ).toEqual([]);
-    expect(checkString('k', 'नमस्ते रमेश जी, आपका कोटेशन तैयार है।', 'hi')).toEqual([]);
+    expect(checkString('k', 'Namaste Ramesh ji, aapka quotation taiyaar hai.', 'hinglish')).toEqual(
+      [],
+    );
+  });
+
+  it('flags Devanagari anywhere (ADR 0014)', () => {
+    expect(checkString('k', 'आपका कोटेशन तैयार है।', 'en').map((i) => i.reason)).toContain(
+      'Devanagari text',
+    );
+    expect(checkString('k', 'Quote ready: कोटेशन', 'en').map((i) => i.reason)).toContain(
+      'Devanagari text',
+    );
   });
 
   it.each([
@@ -65,10 +76,10 @@ describe('checkParity', () => {
           ['b', 'y'],
         ]),
       ],
-      ['hi', new Map([['a', 'क']])],
+      ['hinglish', new Map([['a', 'Namaste']])],
     ]);
     expect(checkParity(cats)).toEqual([
-      { key: 'b', locale: 'hi', reason: 'missing in this language' },
+      { key: 'b', locale: 'hinglish', reason: 'missing in this language' },
     ]);
   });
 });
@@ -77,7 +88,7 @@ describe('checkCatalogues', () => {
   it('is clean for a good pair', () => {
     const cats = new Map([
       ['en', new Map([['a', 'Please sign in again.']])],
-      ['hi', new Map([['a', 'कृपया फिर से साइन इन करें।']])],
+      ['hinglish', new Map([['a', 'Kripya dobara sign in karein.']])],
     ]);
     expect(checkCatalogues(cats)).toEqual([]);
   });

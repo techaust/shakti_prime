@@ -157,7 +157,6 @@ export const createLead = defineCommand({
       contact = { id: newId(), name: contactInput.name };
       await ctx.tx.insert(schema.contacts).values({
         ...contact,
-        nameHi: contactInput.nameHi ?? null,
         preferredLanguage: contactInput.preferredLanguage,
         createdBy: actor,
       });

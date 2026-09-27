@@ -166,7 +166,6 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
       modelName: 'users',
       additionalFields: {
         phone: { type: 'string', required: false, input: false },
-        locale: { type: 'string', required: false, input: false, defaultValue: 'en' },
         theme: { type: 'string', required: false, input: false, defaultValue: 'system' },
         status: { type: 'string', required: false, input: false, defaultValue: 'invited' },
         lastLoginAt: { type: 'date', required: false, input: false },
@@ -203,7 +202,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           .where(and(eq(authSchema.users.id, user.id), eq(authSchema.users.status, 'invited')));
       },
       sendResetPassword: async ({ user, url }) => {
-        const t = mailTranslator((user as { locale?: unknown }).locale);
+        const t = mailTranslator();
         await deps.mailer.send({
           to: user.email,
           subject: t('setPassword.subject'),

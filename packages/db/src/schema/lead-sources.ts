@@ -9,7 +9,6 @@ export const leadSources = pgTable(
     id: uuid('id').primaryKey(),
     code: text('code').notNull().unique(),
     name: text('name').notNull(),
-    nameHi: text('name_hi').notNull(),
     channel: text('channel').notNull(),
     costModel: text('cost_model'),
     isActive: boolean('is_active').notNull().default(true),

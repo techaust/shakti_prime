@@ -59,9 +59,11 @@ const BANNED_REGEX = BANNED_PHRASES.map((phrase) => ({
   ),
 }));
 
+const DEVANAGARI = /\p{Script=Devanagari}/u;
+
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
-/** Visible characters, so a Devanagari syllable with matras counts once (DESIGN.md §11.4). */
+/** Visible characters, so a letter with combining marks counts once (DESIGN.md §11.4). */
 export function graphemeCount(value: string): number {
   return Array.from(segmenter.segment(value)).length;
 }
@@ -107,6 +109,8 @@ export function checkString(
     if (regex.test(value)) issues.push({ key, locale, reason: `banned word "${phrase}"` });
   }
   if (value.includes('!')) issues.push({ key, locale, reason: 'exclamation mark' });
+  // Screens, messages and documents are English; Hinglish is written in Roman letters (ADR 0014).
+  if (DEVANAGARI.test(value)) issues.push({ key, locale, reason: 'Devanagari text' });
   for (const limit of limits) {
     if (new RegExp(limit.keyPattern).test(key) && graphemeCount(value) > limit.max) {
       issues.push({ key, locale, reason: `longer than ${limit.max} characters` });
@@ -115,7 +119,7 @@ export function checkString(
   return issues;
 }
 
-/** Every key must exist in every locale (DESIGN.md §11.1 rule 7). */
+/** Every key must exist in every catalogue of a set, such as the `hinglish` and `en` caller scripts. */
 export function checkParity(catalogues: ReadonlyMap<string, ReadonlyMap<string, string>>): Issue[] {
   const issues: Issue[] = [];
   const allKeys = new Set<string>();

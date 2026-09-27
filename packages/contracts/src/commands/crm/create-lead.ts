@@ -4,11 +4,11 @@ import {
   ConsentChannelSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
+  CustomerLanguageSchema,
   SiteTypeSchema,
 } from '../../crm/enums';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
-import { LocaleSchema } from '../../principal';
 
 const Name = z.string().trim().min(2).max(120);
 
@@ -25,9 +25,8 @@ export const CreateLeadInput = z
     contact: z
       .object({
         name: Name,
-        nameHi: Name.optional(),
         phone: PhoneInputSchema,
-        preferredLanguage: LocaleSchema.default('hi'),
+        preferredLanguage: CustomerLanguageSchema.default('hinglish'),
       })
       .strict()
       .optional(),

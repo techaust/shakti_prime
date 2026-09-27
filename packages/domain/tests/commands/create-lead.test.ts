@@ -53,8 +53,8 @@ describe('crm.lead.create', () => {
   it('refuses a pipeline that belongs to another entity', async () => {
     const key = `entity2-${newId().slice(-8)}`;
     await asMigrator(
-      (m) => m`insert into pipelines (id, entity_id, key, name, name_hi, segment)
-        values (${newId()}, 2, ${key}, 'entity two pipeline', 'entity two pipeline hi', 'farmer_pumps')`,
+      (m) => m`insert into pipelines (id, entity_id, key, name, segment)
+        values (${newId()}, 2, ${key}, 'entity two pipeline', 'farmer_pumps')`,
     );
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     await expect(

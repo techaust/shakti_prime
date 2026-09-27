@@ -120,7 +120,6 @@ describe('admin.user.invite', () => {
           email: ` ${address.toUpperCase()} `,
           displayName: 'Ravi Kumar',
           phone: '+919811100001',
-          locale: 'hi',
           entityRoles: [
             { entityId: 1, roleKey: 'accounts' },
             { entityId: 3, roleKey: 'general_manager' },
@@ -132,7 +131,6 @@ describe('admin.user.invite', () => {
       email: address,
       displayName: 'Ravi Kumar',
       status: 'invited',
-      locale: 'hi',
       theme: 'system',
       twoFactorEnabled: false,
       lastLoginAt: null,

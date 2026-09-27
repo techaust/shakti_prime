@@ -7,7 +7,6 @@ export const roles = pgTable('roles', {
   id: uuid('id').primaryKey(),
   key: text('key').notNull().unique(),
   name: text('name').notNull(),
-  nameHi: text('name_hi').notNull(),
   isSystem: boolean('is_system').notNull().default(false),
   ...archivable,
   ...timestamps,

@@ -92,8 +92,8 @@ const CASES: Case[] = [
     name: 'create a role',
     kind: 'insert',
     statement: () =>
-      sql`insert into roles (id, key, name, name_hi, is_system)
-          values (${newId()}, ${`write_policy_${newId().slice(-8)}`}, 'Role', 'Role', false)`,
+      sql`insert into roles (id, key, name, is_system)
+          values (${newId()}, ${`write_policy_${newId().slice(-8)}`}, 'Role', false)`,
   },
   {
     name: 'rename a role',

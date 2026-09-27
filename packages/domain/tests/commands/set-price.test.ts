@@ -28,11 +28,11 @@ const tag = newId().slice(-12);
 beforeAll(async () => {
   await asMigrator((m) =>
     m.begin(async (tx) => {
-      await tx`insert into items (id, sku, name, name_hi, category, hsn) values
-        (${ids.item}, ${`T-${tag}-A`}, 'set-price item', 'set-price item hi', 'pump', '8413'),
-        (${ids.inactiveItem}, ${`T-${tag}-B`}, 'set-price inactive', 'set-price inactive hi', 'pump', '8413')`;
+      await tx`insert into items (id, sku, name, category, hsn) values
+        (${ids.item}, ${`T-${tag}-A`}, 'set-price item', 'pump', '8413'),
+        (${ids.inactiveItem}, ${`T-${tag}-B`}, 'set-price inactive', 'pump', '8413')`;
       await tx`update items set is_active = false where id = ${ids.inactiveItem}`;
-      await tx`insert into kits (id, sku, name, name_hi) values (${ids.kit}, ${`T-${tag}-K`}, 'set-price kit', 'set-price kit hi')`;
+      await tx`insert into kits (id, sku, name) values (${ids.kit}, ${`T-${tag}-K`}, 'set-price kit')`;
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at) values
         (${ids.sharedList}, ${tierId('commercial')}, null, ${version()}, '2026-04-01', null),
         (${ids.entity2List}, ${tierId('commercial')}, 2, ${version()}, '2026-04-01', null),

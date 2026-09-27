@@ -12,7 +12,6 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     roleKey: 'general_manager',
     entityIds: [1],
     permissions: [{ key: 'crm.lead.read', scope: 'entity' }],
-    locale: 'en',
     ...overrides,
   };
 }

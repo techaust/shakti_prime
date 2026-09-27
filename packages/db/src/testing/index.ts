@@ -64,7 +64,6 @@ export function principalFor(
     roleKey,
     entityIds: [...entityIds],
     permissions: grantsForRole(roleKey),
-    locale: 'en',
     ...overrides,
   };
 }

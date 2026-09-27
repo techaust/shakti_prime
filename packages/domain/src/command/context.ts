@@ -1,4 +1,4 @@
-import type { Locale, Principal } from '@shakti/contracts';
+import type { Principal } from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
 
 /** An event a command wants delivered after commit. Persisted to `outbox_events` (ADR 0005). */
@@ -20,5 +20,4 @@ export interface CommandContext {
   emit: (event: DomainEvent) => void;
   now: Date;
   requestId: string;
-  locale: Locale;
 }

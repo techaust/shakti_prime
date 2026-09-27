@@ -22,7 +22,6 @@ const insertTier = defineCommand({
         id: newId(),
         code: input.code,
         name: 'x',
-        nameHi: 'x',
         createdBy: ctx.principal.id,
       })
       .returning({ id: schema.priceTiers.id });
@@ -43,7 +42,6 @@ const insertItem = defineCommand({
         id: newId(),
         sku: `T-${newId().slice(-8)}`,
         name: 'x',
-        nameHi: 'x',
         category: 'x',
         hsn: input.hsn,
         createdBy: ctx.principal.id,

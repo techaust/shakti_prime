@@ -21,12 +21,10 @@ const principal: Principal = {
   roleKey: 'general_manager',
   entityIds: [1, 2],
   permissions: [{ key: 'crm.lead.read', scope: 'entity' }],
-  locale: 'en',
 };
 
 const access: UserAccess = {
   status: 'active',
-  locale: 'en',
   theme: 'system',
   name: 'Suman Rathore',
   email: 'suman@shakti.example',

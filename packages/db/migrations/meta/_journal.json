@@ -141,6 +141,20 @@
       "when": 1790486701143,
       "tag": "0019_audit_shared_price_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790488157656,
+      "tag": "0020_english_interface",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790488169340,
+      "tag": "0021_english_interface_functions",
+      "breakpoints": true
     }
   ]
 }

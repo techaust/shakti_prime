@@ -59,13 +59,13 @@ export async function catalogueFixture(): Promise<CatalogueFixture> {
 
       await tx`insert into principals (id, kind, display_name) values (${fx.execPrincipalId}, 'user', 'fixture executive')`;
 
-      await tx`insert into items (id, sku, name, name_hi, category, hsn, unit, is_serial_tracked) values
-        (${fx.items.pump}, 'FX-PUMP', 'fixture pump', 'fixture pump hi', 'pump', '8413', 'nos', true),
-        (${fx.items.panel}, 'FX-PANEL', 'fixture panel', 'fixture panel hi', 'panel', '8541', 'nos', true),
-        (${fx.items.cable}, 'FX-CABLE', 'fixture cable', 'fixture cable hi', 'cable', '8544', 'metre', false)`;
+      await tx`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked) values
+        (${fx.items.pump}, 'FX-PUMP', 'fixture pump', 'pump', '8413', 'nos', true),
+        (${fx.items.panel}, 'FX-PANEL', 'fixture panel', 'panel', '8541', 'nos', true),
+        (${fx.items.cable}, 'FX-CABLE', 'fixture cable', 'cable', '8544', 'metre', false)`;
       await tx`insert into pump_curves (id, item_id, head_m, flow_lph) values
         (${id(0x1201)}, ${fx.items.pump}, 30.00, 12000.00), (${id(0x1202)}, ${fx.items.pump}, 50.00, 8000.00)`;
-      await tx`insert into kits (id, sku, name, name_hi) values (${fx.kit}, 'FX-KIT', 'fixture kit', 'fixture kit hi')`;
+      await tx`insert into kits (id, sku, name) values (${fx.kit}, 'FX-KIT', 'fixture kit')`;
       await tx`insert into kit_components (id, kit_id, item_id, qty) values
         (${id(0x1111)}, ${fx.kit}, ${fx.items.pump}, 1.000), (${id(0x1112)}, ${fx.kit}, ${fx.items.cable}, 25.000)`;
       await tx`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of) values
