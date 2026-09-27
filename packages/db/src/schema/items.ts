@@ -22,7 +22,6 @@ export const items = pgTable(
     id: uuid('id').primaryKey(),
     sku: text('sku').notNull().unique(),
     name: text('name').notNull(),
-    nameHi: text('name_hi').notNull(),
     category: text('category').notNull(),
     hsn: text('hsn').notNull(),
     unit: text('unit').notNull().default('nos'),

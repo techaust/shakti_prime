@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { EmailSchema } from '../../auth/enums';
 import { E164Schema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
-import { LocaleSchema } from '../../principal';
 import { StaffRoleKeySchema } from '../../roles';
 
 /** One role per entity. A user without a row for an entity cannot see it at all. */
@@ -32,7 +31,6 @@ export const InviteUserInput = z
     email: EmailSchema,
     displayName: z.string().trim().min(2).max(120),
     phone: E164Schema.optional(),
-    locale: LocaleSchema.default('en'),
     entityRoles: EntityRolesInput,
   })
   .strict();

@@ -52,7 +52,6 @@ export async function runSeeds(): Promise<void> {
           set: {
             key: sql`excluded.key`,
             name: sql`excluded.name`,
-            nameHi: sql`excluded.name_hi`,
             isSystem: true,
           },
         });
@@ -92,7 +91,6 @@ export async function runSeeds(): Promise<void> {
           set: {
             key: sql`excluded.key`,
             name: sql`excluded.name`,
-            nameHi: sql`excluded.name_hi`,
             segment: sql`excluded.segment`,
           },
         });
@@ -105,7 +103,6 @@ export async function runSeeds(): Promise<void> {
           set: {
             key: sql`excluded.key`,
             name: sql`excluded.name`,
-            nameHi: sql`excluded.name_hi`,
             position: sql`excluded.position`,
             kind: sql`excluded.kind`,
           },
@@ -120,7 +117,6 @@ export async function runSeeds(): Promise<void> {
             code: sql`excluded.code`,
             channel: sql`excluded.channel`,
             name: sql`excluded.name`,
-            nameHi: sql`excluded.name_hi`,
           },
         });
 
@@ -132,7 +128,6 @@ export async function runSeeds(): Promise<void> {
           set: {
             code: sql`excluded.code`,
             name: sql`excluded.name`,
-            nameHi: sql`excluded.name_hi`,
           },
         });
     });

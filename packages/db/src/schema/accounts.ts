@@ -30,7 +30,6 @@ export const accounts = pgTable(
     id: uuid('id').primaryKey(),
     type: text('type').notNull(),
     name: text('name').notNull(),
-    nameHi: text('name_hi'),
     gstin: text('gstin'),
     tierId: uuid('tier_id').references(() => priceTiers.id),
     ...archivable,

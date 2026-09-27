@@ -22,18 +22,15 @@ export const contacts = pgTable(
   {
     id: uuid('id').primaryKey(),
     name: text('name').notNull(),
-    nameHi: text('name_hi'),
-    searchRoman: text('search_roman'),
     email: text('email'),
-    preferredLanguage: text('preferred_language').notNull().default('hi'),
+    preferredLanguage: text('preferred_language').notNull().default('hinglish'),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
   },
   (t) => [
-    check('contacts_preferred_language_check', sql`${t.preferredLanguage} in ('en', 'hi')`),
+    check('contacts_preferred_language_check', sql`${t.preferredLanguage} in ('hinglish', 'en')`),
     index('contacts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
-    index('contacts_search_roman_trgm_idx').using('gin', t.searchRoman.op('gin_trgm_ops')),
   ],
 );
 

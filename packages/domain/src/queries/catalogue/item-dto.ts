@@ -10,7 +10,6 @@ export function toItemDto(item: ItemRow): ItemDto {
     id: item.id,
     sku: item.sku,
     name: item.name,
-    nameHi: item.nameHi,
     category: item.category,
     hsn: item.hsn,
     unit: item.unit,

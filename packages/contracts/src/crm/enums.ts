@@ -27,6 +27,13 @@ export type StageKind = z.infer<typeof StageKindSchema>;
 export const OpportunityStateSchema = z.enum(['open', 'won', 'lost']);
 export type OpportunityState = z.infer<typeof OpportunityStateSchema>;
 
+/**
+ * The language of a customer's calls: the voice agent and the caller-script variant. Screens,
+ * messages and documents are always English (ADR 0014).
+ */
+export const CustomerLanguageSchema = z.enum(['hinglish', 'en']);
+export type CustomerLanguage = z.infer<typeof CustomerLanguageSchema>;
+
 export const ConsentChannelSchema = z.enum(['whatsapp', 'call', 'sms', 'email']);
 export type ConsentChannel = z.infer<typeof ConsentChannelSchema>;
 

@@ -1,7 +1,6 @@
 import {
   DomainError,
   hasGrant,
-  type Locale,
   type PermissionKey,
   type Principal,
   type Scope,
@@ -24,7 +23,6 @@ export interface AuditEntry {
 export interface RunOptions {
   /** The open request context from `withRequestContext()`. */
   context: RequestContext;
-  locale?: Locale;
   now?: Date;
   /** Receives the audit row. Wired to `audit_logs` when that table exists. */
   onAudit?: (entry: AuditEntry) => Promise<void> | void;
@@ -119,7 +117,6 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     },
     now,
     requestId: context.requestId,
-    locale: options.locale ?? context.principal.locale,
   };
 
   let result: z.input<O>;

@@ -24,7 +24,6 @@ export const priceTiers = pgTable('price_tiers', {
   id: uuid('id').primaryKey(),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
-  nameHi: text('name_hi').notNull(),
   isActive: boolean('is_active').notNull().default(true),
   ...archivable,
   ...timestamps,

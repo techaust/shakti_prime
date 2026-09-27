@@ -11,8 +11,8 @@ const tag = newId().slice(-12);
 beforeAll(async () => {
   await asMigrator((m) =>
     m.begin(async (tx) => {
-      await tx`insert into items (id, sku, name, name_hi, category, hsn) values
-        (${itemId}, ${`T-${tag}`}, 'list-items item', 'list-items item hi', 'panel', '8541')`;
+      await tx`insert into items (id, sku, name, category, hsn) values
+        (${itemId}, ${`T-${tag}`}, 'list-items item', 'panel', '8541')`;
       await tx`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of) values
         (${newId()}, ${itemId}, 1, 1234.5000, 1300.0000, '2026-09-01T00:00:00Z')`;
     }),
@@ -39,7 +39,6 @@ describe('listItems', () => {
         'isDcr',
         'isSerialTracked',
         'name',
-        'nameHi',
         'sku',
         'unit',
         'updatedAt',

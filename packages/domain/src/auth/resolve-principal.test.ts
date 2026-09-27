@@ -7,7 +7,6 @@ const base: Omit<
   'entityId' | 'entityName' | 'roleKey' | 'teamId' | 'permissionKey' | 'scope'
 > = {
   status: 'active',
-  locale: 'hi',
   theme: 'dark',
   name: 'Asha',
   email: 'asha@shakti.test',
@@ -96,7 +95,6 @@ describe('resolvePrincipalFromGrants', () => {
         { key: 'crm.lead.read', scope: 'team' },
         { key: 'crm.lead.write', scope: 'team' },
       ],
-      locale: 'hi',
       teamId,
     });
   });

@@ -5,25 +5,21 @@ export const PRICE_TIER_SEED: readonly {
   id: string;
   code: PriceTierCode;
   name: string;
-  nameHi: string;
 }[] = [
   {
     id: '01990000-0000-7000-8000-000000000701',
     code: 'retail',
     name: 'Retail price',
-    nameHi: 'रिटेल दाम',
   },
   {
     id: '01990000-0000-7000-8000-000000000702',
     code: 'dealer',
     name: 'Dealer price',
-    nameHi: 'डीलर दाम',
   },
   {
     id: '01990000-0000-7000-8000-000000000703',
     code: 'commercial',
     name: 'Commercial price',
-    nameHi: 'कमर्शियल दाम',
   },
 ];
 

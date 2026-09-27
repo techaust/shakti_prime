@@ -1,5 +1,4 @@
 import {
-  LocaleSchema,
   PermissionGrantSchema,
   PermissionKeySchema,
   requiresTotp,
@@ -7,7 +6,6 @@ import {
   SCOPES,
   ScopeSchema,
   StaffRoleKeySchema,
-  type Locale,
   type PermissionGrant,
   type Principal,
   type Scope,
@@ -28,7 +26,6 @@ export interface EntityGrants {
 
 export interface UserAccess {
   status: string;
-  locale: Locale;
   theme: string;
   name: string;
   email: string;
@@ -38,7 +35,6 @@ export interface UserAccess {
 
 const UserAccessSchema = z.object({
   status: z.string(),
-  locale: LocaleSchema,
   theme: z.string(),
   name: z.string(),
   email: z.string(),
@@ -84,10 +80,8 @@ export function groupUserGrants(rows: readonly UserGrantRow[]): UserAccess | und
     const scope = ScopeSchema.safeParse(row.scope);
     if (key.success && scope.success) entry.grants.push({ key: key.data, scope: scope.data });
   }
-  const locale = LocaleSchema.safeParse(first.locale);
   return {
     status: first.status,
-    locale: locale.success ? locale.data : 'en',
     theme: first.theme,
     name: first.name,
     email: first.email,
@@ -172,7 +166,6 @@ export function resolvePrincipalFromGrants(
     roleKey: RoleKeySchema.parse(display.roleKey),
     entityIds: selected.map((e) => e.entityId),
     permissions: intersectGrants(selected),
-    locale: access.locale,
     ...(team ? { teamId: team } : {}),
   };
   return { kind: 'principal', principal, access };

@@ -164,6 +164,17 @@ export default tseslint.config(
     settings: { next: { rootDir: 'apps/web' } },
   },
   {
+    // Every word a user reads comes from the message catalogue, where the copy lint checks it
+    // (DESIGN.md §11.4); text written straight into JSX would bypass it (AUDIT L32).
+    files: ['apps/web/src/app/**/*.tsx', 'apps/web/src/components/**/*.tsx'],
+    rules: {
+      'react/jsx-no-literals': [
+        'error',
+        { noStrings: false, ignoreProps: true, allowedStrings: ['·', '—', '/', ':'] },
+      ],
+    },
+  },
+  {
     files: [
       '**/*.{js,mjs,cjs}',
       '**/scripts/**/*.ts',

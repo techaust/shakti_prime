@@ -8,7 +8,6 @@ export const ItemDto = z
     id: IdSchema,
     sku: z.string(),
     name: z.string(),
-    nameHi: z.string(),
     category: z.string(),
     hsn: HsnSchema,
     unit: ItemUnitSchema,

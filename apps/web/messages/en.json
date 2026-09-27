@@ -53,7 +53,7 @@
   "auth": {
     "signIn": {
       "title": "Sign in",
-      "intro": "Use the email and password your manager set up for you.",
+      "intro": "Use your work email and the password you chose.",
       "email": "Email",
       "password": "Password",
       "submit": "Sign in",
@@ -77,7 +77,7 @@
       "scanIntro": "Open the app, choose “Add account” and scan the square. If the camera doesn't work, type the key below by hand.",
       "secretLabel": "Key to type by hand",
       "backupTitle": "Keep these backup codes safe",
-      "backupIntro": "Each code works once, if your phone is ever lost. Write them down or save them somewhere private.",
+      "backupIntro": "If you lose your phone, sign in with one of these codes. Each code works only once. Write them down or save them somewhere private.",
       "codeLabel": "6-digit code from the app",
       "verify": "Confirm",
       "verifyTitle": "Enter the code from your authenticator app",

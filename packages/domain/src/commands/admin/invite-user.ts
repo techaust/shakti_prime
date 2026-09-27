@@ -43,7 +43,6 @@ export const inviteUser = defineCommand({
       name: input.displayName,
       email: input.email,
       phone: input.phone ?? null,
-      locale: input.locale,
       status: 'invited',
       createdBy: ctx.principal.id,
     });

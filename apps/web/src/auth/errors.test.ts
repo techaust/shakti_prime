@@ -3,14 +3,12 @@ import { APIError } from 'better-auth/api';
 import { twoFactor } from 'better-auth/plugins';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
-import hi from '../../messages/hi.json';
 import { errorKey, REASONS, toDomainError } from './errors';
 
 describe('Better Auth errors → catalogue keys', () => {
-  it('every mapped reason has a sentence in both languages', () => {
+  it('every mapped reason has a sentence in the catalogue', () => {
     for (const { reason } of Object.values(REASONS)) {
       expect(en.errors, reason).toHaveProperty(reason);
-      expect(hi.errors, reason).toHaveProperty(reason);
     }
   });
 

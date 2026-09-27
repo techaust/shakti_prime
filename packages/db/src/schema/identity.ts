@@ -36,7 +36,6 @@ export const users = pgTable(
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
     phone: text('phone'),
-    locale: text('locale').notNull().default('en'),
     theme: text('theme').notNull().default('system'),
     status: text('status').notNull().default('invited'),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
@@ -46,7 +45,6 @@ export const users = pgTable(
   },
   (t) => [
     check('users_email_lower_check', sql`${t.email} = lower(${t.email})`),
-    check('users_locale_check', sql`${t.locale} in ('en', 'hi')`),
     check('users_theme_check', sql`${t.theme} in ('system', 'light', 'dark')`),
     check(
       'users_status_check',

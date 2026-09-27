@@ -1,6 +1,5 @@
 import {
   DomainError,
-  LocaleSchema,
   StaffRoleKeySchema,
   ThemeSchema,
   UserDto,
@@ -29,7 +28,6 @@ export async function loadUserDto(tx: RequestTx, userId: string): Promise<UserDt
     displayName: user.name,
     phone: user.phone,
     status: UserStatusSchema.parse(user.status),
-    locale: LocaleSchema.parse(user.locale),
     theme: ThemeSchema.parse(user.theme),
     twoFactorEnabled: user.twoFactorEnabled,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,

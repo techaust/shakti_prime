@@ -189,7 +189,6 @@ describe('the application role and the identity tables', () => {
       'email',
       'entity_id',
       'entity_name',
-      'locale',
       'name',
       'permission_key',
       'role_key',

@@ -1,3 +1,4 @@
-// WhatsApp and email templates live here in both languages with their approved Meta template
-// names (DESIGN.md §11.4). The first templates arrive with the messaging worker in Phase 2.
-export const TEMPLATE_LOCALES = ['en', 'hi'] as const;
+// WhatsApp and email templates live here in English with their approved Meta template names;
+// caller scripts and voice prompts live beside them in `hinglish` and `en` variants (DESIGN.md
+// §11.4, ADR 0014). The first templates arrive with the messaging worker in Phase 2.
+export const SCRIPT_LANGUAGES = ['hinglish', 'en'] as const;

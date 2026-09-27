@@ -8,7 +8,6 @@ export const kits = pgTable('kits', {
   id: uuid('id').primaryKey(),
   sku: text('sku').notNull().unique(),
   name: text('name').notNull(),
-  nameHi: text('name_hi').notNull(),
   isActive: boolean('is_active').notNull().default(true),
   ...archivable,
   ...timestamps,
