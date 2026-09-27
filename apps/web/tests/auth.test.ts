@@ -18,6 +18,8 @@ let clock = new Date('2026-09-27T10:00:00Z');
 const keyValue = memoryKeyValue(() => clock.getTime());
 const mailer = memoryMailer();
 let breachedSuffixes: string[] = [];
+// Long enough to satisfy Better Auth, low-entropy so the secret scan does not mistake it for a key.
+const TEST_AUTH_SECRET = 'test-only-secret-test-only-secret-test-only-secret';
 
 const fetchStub = vi.fn((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = input instanceof Request ? input.url : input.toString();
@@ -51,7 +53,7 @@ beforeAll(() => {
       now: () => clock,
       turnstileSecretKey: 'secret',
     },
-    { nextCookies: false, baseURL: 'http://localhost:3000', secret: 'test-secret-0123456789' },
+    { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
   );
 });
 afterAll(async () => {
@@ -361,7 +363,7 @@ describe('request caps and cookie attributes', () => {
       {
         nextCookies: false,
         baseURL: 'http://localhost:3000',
-        secret: 'test-secret-0123456789',
+        secret: TEST_AUTH_SECRET,
         rateLimit: true,
         secureCookies: true,
       },
