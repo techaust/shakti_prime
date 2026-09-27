@@ -6,6 +6,7 @@ import { PriceMasterScreen } from '../../../components/pricing/price-master-scre
 import { FailureMessage } from '../../../components/screens/failure';
 import { Screen } from '../../../components/screens/screen';
 import { companyNames, screenAccess } from '../../../screens/access';
+import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export default async function PriceMasterPage() {
   if (!lists.ok) {
     return (
       <Screen title={t('title')} intro={t('intro')}>
-        <FailureMessage failure={{ ...lists, attempt: 0 }} />
+        <FailureMessage failure={firstFailure(lists)} />
       </Screen>
     );
   }
@@ -35,7 +36,7 @@ export default async function PriceMasterPage() {
     if (!prices.ok) {
       return (
         <Screen title={t('title')} intro={t('intro')}>
-          <FailureMessage failure={{ ...prices, attempt: 0 }} />
+          <FailureMessage failure={firstFailure(prices)} />
         </Screen>
       );
     }

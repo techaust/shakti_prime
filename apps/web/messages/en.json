@@ -390,6 +390,72 @@
       "hour": "hour"
     }
   },
+  "leads": {
+    "title": "Leads",
+    "intro": "The leads you can see, with the most recent change first.",
+    "add": "Add lead",
+    "caption": "Leads",
+    "empty": "No leads yet. Add the first one to start calling.",
+    "emptyReadOnly": "No leads to show yet. New leads appear here as they come in.",
+    "columns": {
+      "customer": "Customer",
+      "contact": "Contact",
+      "phone": "Mobile number",
+      "stage": "Stage",
+      "status": "Status",
+      "company": "Company",
+      "updated": "Last change"
+    },
+    "state": {
+      "open": "Open",
+      "won": "Won",
+      "lost": "Lost"
+    },
+    "notRecorded": "Not recorded yet",
+    "new": {
+      "title": "Add a lead",
+      "intro": "Enter what the customer told you. You can add more details after the first call.",
+      "noCompany": "You can't add leads in the companies you are viewing. Switch company or ask your manager.",
+      "company": "Company",
+      "pipeline": "Line of business",
+      "customer": "Customer",
+      "name": "Customer name",
+      "nameHelper": "Full name, as the customer writes it",
+      "phone": "Mobile number",
+      "phoneHelper": "The 10-digit mobile number",
+      "accountType": "Type of customer",
+      "accountName": "Farm or business name",
+      "accountNameHelper": "Leave it empty to use the customer's name",
+      "language": "Language for calls",
+      "site": "Site",
+      "siteHelper": "Fill these in if the customer told you where the work is.",
+      "village": "Village or town",
+      "siteType": "Kind of site",
+      "pin": "PIN code",
+      "source": "Where the lead came from",
+      "sourceUnknown": "Not known",
+      "choose": "Choose one",
+      "submit": "Save lead",
+      "cancel": "Cancel",
+      "done": "Lead saved for {name}."
+    },
+    "accountType": {
+      "household": "Household",
+      "farm": "Farm",
+      "business": "Business",
+      "dealer": "Dealer",
+      "referral_partner": "Referral partner"
+    },
+    "siteType": {
+      "borewell": "Borewell",
+      "rooftop": "Rooftop",
+      "factory": "Factory"
+    },
+    "language": {
+      "hinglish": "Hinglish",
+      "en": "English"
+    }
+  },
   "print": {
     "quote": {
       "title": "Quotation",

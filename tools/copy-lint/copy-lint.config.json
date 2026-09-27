@@ -3,7 +3,7 @@
   "templateDirs": ["packages/contracts/src/templates"],
   "limits": [
     {
-      "keyPattern": "\\.(submit|verify|start|switch|signOut|goSignIn|useBackupCode|useAppCode|staffSignIn|primary|secondary|link|unavailable|retry|home|forgot|back|backToSignIn|copyKey|copyCodes|downloadCodes|askNew|loadMore|cancel|close|edit|setPrice)$",
+      "keyPattern": "\\.(submit|verify|start|switch|signOut|goSignIn|useBackupCode|useAppCode|staffSignIn|primary|secondary|link|unavailable|retry|home|forgot|back|backToSignIn|copyKey|copyCodes|downloadCodes|askNew|loadMore|cancel|close|edit|setPrice|add)$",
       "max": 24
     },
     { "keyPattern": "\\.[A-Za-z]*[Tt]itle$", "max": 60 },

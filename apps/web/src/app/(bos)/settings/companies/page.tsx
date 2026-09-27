@@ -5,6 +5,7 @@ import { CompaniesScreen } from '../../../../components/companies/companies-scre
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Screen } from '../../../../components/screens/screen';
 import { screenAccess } from '../../../../screens/access';
+import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,7 @@ export default async function CompaniesPage() {
       {companies.ok ? (
         <CompaniesScreen initial={companies.data} canEdit={can('admin.entities.write', 'all')} />
       ) : (
-        <FailureMessage failure={{ ...companies, attempt: 0 }} />
+        <FailureMessage failure={firstFailure(companies)} />
       )}
     </Screen>
   );

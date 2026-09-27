@@ -13,4 +13,5 @@ export const CLIENT_NAMESPACES = [
   'common',
   'companies',
   'priceMaster',
+  'leads',
 ] as const;
