@@ -456,6 +456,111 @@
       "en": "English"
     }
   },
+  "users": {
+    "title": "Team members",
+    "intro": "Everyone who can sign in, their role in each company and how they sign in.",
+    "invite": "Invite a person",
+    "caption": "Team members",
+    "empty": "No one else is on the team yet. Invite the first person.",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "status": "Status",
+      "roles": "Roles",
+      "authenticator": "Authenticator app",
+      "lastSignIn": "Last sign-in",
+      "actions": "Actions"
+    },
+    "status": {
+      "invited": "Invited",
+      "active": "Active",
+      "suspended": "Suspended",
+      "offboarded": "Left"
+    },
+    "roleIn": "{company}: {role}",
+    "authenticatorOn": "Set up",
+    "authenticatorOff": "Not set up",
+    "you": "{name} (you)",
+    "menu": {
+      "changeRoles": "Change roles",
+      "sessions": "Sign-ins",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "resetAuthenticator": "Reset authenticator app",
+      "liftLock": "Lift sign-in lock"
+    },
+    "rolesField": {
+      "legend": "Role in each company",
+      "helper": "Choose No access for a company this person does not work in.",
+      "none": "No access"
+    },
+    "inviteDialog": {
+      "title": "Invite a person",
+      "intro": "They get an email with a link to choose their password. The link works for one day.",
+      "name": "Full name",
+      "email": "Work email",
+      "submit": "Send invitation",
+      "done": "Invitation sent to {email}.",
+      "needsRole": "Give this person a role in at least one company."
+    },
+    "rolesDialog": {
+      "title": "Change roles for {name}",
+      "intro": "They are signed out on every device and sign in again with the new roles.",
+      "submit": "Save roles",
+      "done": "Roles changed for {name}."
+    },
+    "suspendDialog": {
+      "title": "Suspend {name}",
+      "intro": "They are signed out on every device and can't sign in until someone reactivates them.",
+      "reason": "Reason",
+      "reasonHelper": "Optional. Kept in the activity log.",
+      "submit": "Suspend",
+      "done": "{name} is suspended."
+    },
+    "reactivateDialog": {
+      "title": "Reactivate {name}",
+      "intro": "They can sign in again with their own password.",
+      "submit": "Reactivate",
+      "done": "{name} can sign in again."
+    },
+    "resetDialog": {
+      "title": "Reset the authenticator app for {name}",
+      "intro": "Do this only after you have confirmed who is asking, by phone or in person. Someone who only sends a message or an email may not be who they say they are.",
+      "effect": "They are signed out on every device and set up the app again at their next sign-in. We email them to say it was reset.",
+      "submit": "Reset the app",
+      "done": "The authenticator app for {name} is reset."
+    },
+    "liftLockDialog": {
+      "title": "Lift the sign-in lock for {name}",
+      "intro": "Do this only after you have confirmed who is asking, by phone or in person. They can try their password again straight away.",
+      "submit": "Lift the lock",
+      "done": "{name} can try signing in again."
+    },
+    "sessions": {
+      "title": "Sign-ins for {name}",
+      "intro": "The devices this person has signed in from, newest first. Sign out any you don't recognise.",
+      "empty": "This person has not signed in yet.",
+      "address": "Network address {address}",
+      "started": "Signed in {time}",
+      "lastSeen": "Last active {time}",
+      "active": "Signed in",
+      "ended": "Ended",
+      "endedAt": "Ended {time}",
+      "signOut": "Sign out",
+      "signOutLabel": "Sign out {device}",
+      "done": "That device is signed out.",
+      "reason": {
+        "admin": "Signed out by an Executive",
+        "role_changed": "Roles changed",
+        "suspended": "Suspended",
+        "password_changed": "Password changed",
+        "totp_enrolled": "Authenticator app set up",
+        "totp_reset": "Authenticator app reset",
+        "absolute_expiry": "Signed in for seven days",
+        "timedOut": "Not used for a while"
+      }
+    }
+  },
   "print": {
     "quote": {
       "title": "Quotation",
