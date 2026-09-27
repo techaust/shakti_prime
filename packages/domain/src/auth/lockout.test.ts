@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { memoryKeyValue } from '../ports/key-value';
+import { memoryKeyValue, type KeyValue } from '../ports/key-value';
 import {
   createLockout,
   createSignInGuard,
@@ -51,8 +51,45 @@ describe('createLockout', () => {
 
   it('ignores a corrupt stored value', async () => {
     const store = memoryKeyValue();
-    await store.set('lockout:acct:x', 'not json', 60);
+    await store.set('lockout:acct:x:count', 'not a number', 60);
+    await store.set('lockout:acct:x:last', 'not a time', 60);
     await expect(createLockout(store).check(['acct:x'])).resolves.toBeUndefined();
+  });
+
+  it('counts every one of many failures that arrive at the same moment', async () => {
+    const clock = 1_000_000;
+    const memory = memoryKeyValue(() => clock);
+    // Every call yields before it reaches the store, so the failures interleave as they would
+    // across serverless instances: a read, change and write of the count would lose all but one.
+    const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const store: KeyValue = {
+      get: async (key) => {
+        await tick();
+        return memory.get(key);
+      },
+      set: async (key, value, ttl) => {
+        await tick();
+        await memory.set(key, value, ttl);
+      },
+      del: async (key) => {
+        await tick();
+        await memory.del(key);
+      },
+      incr: async (key, ttl) => {
+        await tick();
+        return memory.incr(key, ttl);
+      },
+    };
+    const lockout = createLockout(store, () => clock);
+    const keys = ['acct:asha@shakti.test', 'ip:10.0.0.1'];
+
+    await Promise.all(Array.from({ length: 8 }, () => lockout.recordFailure(keys)));
+
+    expect(await memory.get('lockout:acct:asha@shakti.test:count')).toBe('8');
+    expect(await memory.get('lockout:ip:10.0.0.1:count')).toBe('8');
+    await expect(lockout.check(keys)).rejects.toMatchObject({
+      details: { retryAfterSeconds: lockoutDelaySeconds(8) },
+    });
   });
 });
 
@@ -90,6 +127,17 @@ describe('createSignInGuard (AUDIT M6)', () => {
     }
     expect(notices.filter(Boolean)).toHaveLength(2);
     expect(notices[SIGN_IN_NOTICE_EVERY - 1]).toBe(true);
+  });
+
+  it('locks and tells the owner once when ten failures arrive together', async () => {
+    const guard = createSignInGuard(memoryKeyValue());
+    const results = await Promise.all(
+      Array.from({ length: SIGN_IN_NOTICE_EVERY }, () => guard.recordFailure(email, office)),
+    );
+    expect(results.filter((r) => r.notify)).toHaveLength(1);
+    await expect(guard.check(email, office)).rejects.toMatchObject({
+      details: { retryAfterSeconds: lockoutDelaySeconds(SIGN_IN_NOTICE_EVERY) },
+    });
   });
 
   it('an administrator clears every lock on the account at once', async () => {

@@ -1,0 +1,23 @@
+{
+  "Call": {
+    "Sid": "b6cfaf5e4d8a1c7e2f9d3a0b1c2d1a8f",
+    "ParentCallSid": null,
+    "DateCreated": "2026-09-28 11:00:02",
+    "DateUpdated": "2026-09-28 11:00:02",
+    "AccountSid": "shaktiprime1",
+    "To": "09000000002",
+    "From": "09000000001",
+    "PhoneNumberSid": "01400000000",
+    "Status": "in-progress",
+    "StartTime": "2026-09-28 11:00:02",
+    "EndTime": null,
+    "Duration": null,
+    "Price": null,
+    "Direction": "outbound-api",
+    "AnsweredBy": null,
+    "ForwardedFrom": null,
+    "CallerName": null,
+    "Uri": "/v1/Accounts/shaktiprime1/Calls/b6cfaf5e4d8a1c7e2f9d3a0b1c2d1a8f.json",
+    "RecordingUrl": null
+  }
+}

@@ -641,7 +641,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### accounts
 
-**Catalogue entry** (DATABASE.md §6.2): `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`; one record for the group (ADR 0008); `billing_state_code` arrives with the tax engine in week 5
+**Catalogue entry** (DATABASE.md §6.2): `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`; one record for the group (ADR 0008); `billing_state_code` arrives with the week 5 command slice that loads tax rows for the engine
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -832,7 +832,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### customer_sites
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `lat`, `lng`, `technical_json`; `state_code` (place of supply) arrives with the tax engine in week 5
+**Catalogue entry** (DATABASE.md §6.2): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `lat`, `lng`, `technical_json`; `state_code` (place of supply) arrives with the week 5 command slice that loads tax rows for the engine
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1769,6 +1769,7 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 | `call_dispositions` | `code`, `label`, `next_action` |
 | `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` |
 | `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` |
+| `tags` | `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; a lead carries its tags in the link table `opportunity_tags` (`opportunity_id`, `tag_id`, `entity_id`, composite foreign key to the lead), which follows the child-table template, and a tag of one company is never put on another company's lead |
 | `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` |
 | `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists |
 | `referral_partners` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
@@ -1800,10 +1801,10 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 | `surplus_pool` | `project_id`, `item_id`, `qty`, `state` |
 | `vendors` | `name`, `gstin`, `terms_json` |
 | `vendor_quotes` (restricted) | `vendor_id`, `item_id`, `rate`, `valid_until` |
-| `purchase_orders` | `po_no`, `vendor_id`, `state`; `po_lines.unit_rate` restricted |
-| `po_lines` | `po_no`, `vendor_id`, `state`; `po_lines.unit_rate` restricted |
-| `goods_receipts` | `po_id`, `received_at`, serials captured |
-| `goods_receipt_lines` | `po_id`, `received_at`, serials captured |
+| `purchase_orders` | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` |
+| `po_lines` | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` |
+| `goods_receipts` | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` |
+| `goods_receipt_lines` | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row |
 | `dispatches` | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` |
 | `dispatch_lines` | `dispatch_id`, `so_line_id`, `qty`, serials |
 | `delivery_challans` | `dispatch_id`, `challan_no`, `pdf_file_id` |
@@ -1819,13 +1820,13 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 | `project_milestones` | `project_id`, `code`, `state`, `due_at`, `done_at` |
 | `subsidy_applications` | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` |
 | `subsidy_gates` | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` |
-| `surveys` | `project_id`, `answers_json`, `engineer_id`, photo `geo`, `taken_at` |
-| `survey_photos` | `project_id`, `answers_json`, `engineer_id`, photo `geo`, `taken_at` |
+| `surveys` | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` |
+| `survey_photos` | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` |
 | `checklists` | `project_id`, `items_json`, `signed_off_by` |
 | `qc_inspections` | `project_id`, `items_json`, `signed_off_by` |
 | `schedule_slots` | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` |
-| `documents` | `project_id`, `requirement_code`, `file_id`, `classification`, `confidence`, `confirmed_by` |
-| `document_requirements` | `project_id`, `requirement_code`, `file_id`, `classification`, `confidence`, `confirmed_by` |
+| `documents` | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file |
+| `document_requirements` | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing |
 | `cmc_register` | `project_id`, `starts_on`, `ends_on`, `state` |
 
 ### 6.7 Finance and costing
@@ -1843,19 +1844,19 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 | `unlinked_vouchers` | review queue rows |
 | `dealer_outstanding` | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` |
 | `job_cost_entries` (restricted) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` |
-| `expense_claims` | `employee_id`, `state`, `category`, `amount`, `receipt_file_id`, `project_id null` |
-| `expense_lines` | `employee_id`, `state`, `category`, `amount`, `receipt_file_id`, `project_id null` |
+| `expense_claims` | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` |
+| `expense_lines` | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` |
 
 ### 6.8 HR
 
 | Table | Documented columns |
 |---|---|
-| `employees` |  |
+| `employees` | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` |
 | `attendance_events` | `type`, `geo`, `selfie_file_id`, `site_id null` |
-| `shifts` |  |
-| `leave_types` |  |
-| `leave_requests` |  |
-| `holidays` |  |
+| `shifts` | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` |
+| `leave_types` | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` |
+| `leave_requests` | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` |
+| `holidays` | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check |
 | `incentive_rules` | `rule_json` |
 | `incentive_accruals` | `released_on_event` |
 | `salary_sheets` | `period`, `file_id` |
@@ -1879,8 +1880,8 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 |---|---|
 | `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
 | `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
-| `import_jobs` | `mapping_json`, `state`, row `errors_json`, `committed_batch` |
-| `import_rows` | `mapping_json`, `state`, row `errors_json`, `committed_batch` |
+| `import_jobs` | `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `file_id`, `template_id`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `committed_rows`, `created_by` (docs/design/backend-weeks-3-5.md §8) |
+| `import_rows` | `job_id`, `row_no`, `raw_json`, `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type`, `created_id`, `committed_batch` (docs/design/backend-weeks-3-5.md §8) |
 | `files` | `bucket`, `key`, `content_type`, `size`, `status` (`pending`, `scanning`, `masked`, `ready`, `rejected`), `scan_result`, `entity_id null` |
 | `feature_flags` | `key`, `enabled`, `overrides_json` |
 | `privacy_incidents` | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |

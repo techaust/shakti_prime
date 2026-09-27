@@ -8,14 +8,18 @@ The blueprint asks for clickable wireframes of the core screens for each role, r
 
 Two things are reviewed together:
 
-**Screens already working in the review system** (real sign-in, real saving, entries in the activity log):
-| Screen | Where | Roles that see it |
-|---|---|---|
-| Team members | Admin › Team members: list, invite, change role, reset a lost authenticator app | Executive |
-| Activity log | Admin › Activity log: who changed what and when | Executive, General Manager, Accounts |
-| Leads and New lead | Leads: list with search and filters; New lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
-| Companies | Admin › Companies: name, GSTIN, state, letterhead and bank details per company | Executive |
-| Price Master | Pricing › Price Master: prices per tier with start dates and history | Executive edits; most roles can view |
+**Screens in the review system** (real sign-in, real saving, entries in the activity log). The sessions run once all of these are on the main app; the development team confirms that, and shares the full address, before the first session:
+| Screen | Address | What it does | Roles that see it |
+|---|---|---|---|
+| Home | `/home` | The person's start page, with the System, Light and Dark theme switch | All roles |
+| Leads | `/leads` | List with search and filters | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
+| New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
+| Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
+| Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
+| Companies | `/settings/companies` | Name, GSTIN, state, letterhead and bank details per company | Executive |
+| Price Master | `/price-master` | Prices per tier with start dates and history | Executive edits; most roles can view |
+| Imports | `/imports` | Upload a spreadsheet of leads, customers or items, match its columns, check the rows, then add them | Executive, General Manager |
+| Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
 **The clickable prototype** (`docs/phase0/prototype/index.html`, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
 | Prototype screen | Roles |
