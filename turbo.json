@@ -13,6 +13,14 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "@shakti/db#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/DATABASE.md", "$TURBO_ROOT$/docs/data/**"]
+    },
+    "@shakti/contracts#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/API.md"]
+    },
     "test:security": {
       "dependsOn": ["^build"],
       "cache": false,
