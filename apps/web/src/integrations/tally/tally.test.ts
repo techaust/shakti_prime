@@ -166,17 +166,17 @@ describe('payloads (the published connector contract)', () => {
 
   it('refuses a voucher twice in one batch, a row outside the range, and a batch above the limit', () => {
     const vouchers = batch().vouchers;
-    const twice = { ...JSON.parse(rawBatch), vouchers: [vouchers[2], { ...vouchers[2] }] };
+    const twice = { ...batch(), vouchers: [vouchers[2], { ...vouchers[2] }] };
     expect(parseBatch(twice)).toMatchObject({
       ok: false,
       problems: ['vouchers: a voucher appears twice'],
     });
-    const outside = { ...JSON.parse(rawBatch), fromAlterId: 4175 };
+    const outside = { ...batch(), fromAlterId: 4175 };
     expect(parseBatch(outside)).toMatchObject({
       ok: false,
       problems: ['vouchers: a row lies outside the batch range'],
     });
-    const many = { ...JSON.parse(rawBatch), vouchers: Array.from({ length: 501 }, () => ({})) };
+    const many = { ...batch(), vouchers: Array.from({ length: 501 }, () => ({})) };
     const tooMany = parseBatch(many);
     expect(tooMany.ok).toBe(false);
     if (!tooMany.ok) expect(tooMany.problems).toContain('vouchers');
