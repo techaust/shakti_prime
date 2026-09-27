@@ -21,3 +21,8 @@ auditConfig:
     # esbuild's development server (GHSA-67mh-4wv8-2f99) reaches us only through drizzle-kit,
     # a build tool linked from the workspace; it is never run as a server nor shipped (AUDIT M46).
     - GHSA-67mh-4wv8-2f99
+
+overrides:
+  # exceljs pins uuid 8, below the fix for GHSA-w5hq-g745-h8pq; 11.x keeps the CommonJS build
+  # exceljs requires, and exceljs calls only v4.
+  'exceljs>uuid': ^11.1.1

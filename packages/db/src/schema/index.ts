@@ -16,6 +16,8 @@ export { documentSequences } from './document-sequences';
 export { auditLogs } from './audit-logs';
 export { outboxEvents } from './outbox-events';
 export { idempotencyKeys } from './idempotency-keys';
+export { files } from './files';
+export { importMappingTemplates, importJobs, importRows } from './imports';
 export {
   users,
   sessions,
