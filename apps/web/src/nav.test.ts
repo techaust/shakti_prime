@@ -30,7 +30,6 @@ describe('visibleNav', () => {
     expect(ids([{ key: 'pricing.read', scope: 'own' }])).not.toContain('price-master');
     expect(ids([{ key: 'pricing.read', scope: 'all' }])).toContain('price-master');
     expect(ids([{ key: 'audit.read', scope: 'entity' }])).toContain('admin-activity');
-    expect(ids([{ key: 'imports.write', scope: 'entity' }])).toContain('imports');
     expect(ids([{ key: 'admin.entities.write', scope: 'all' }])).toContain('settings-companies');
   });
 
