@@ -6,6 +6,7 @@ import {
   DomainError,
   InviteUserInput,
   ReactivateUserInput,
+  ResetTwoFactorInput,
   RevokeSessionInput,
   SetUserRolesInput,
   SuspendUserInput,
@@ -20,6 +21,7 @@ import {
   loadUserDto,
   queryAudit,
   reactivateUser as reactivateUserCommand,
+  resetTwoFactor as resetTwoFactorCommand,
   revokeSession as revokeSessionCommand,
   setUserRoles as setUserRolesCommand,
   suspendUser as suspendUserCommand,
@@ -28,6 +30,8 @@ import { auth } from '../auth/auth';
 import { clearSignInLock as clearLock, setPasswordMailFailed } from '../auth/create-auth';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
+import { twoFactorResetMail } from '../auth/mail-copy';
+import { logger } from '../log';
 import { commandOptions, parseInput, requestMeta } from './support';
 
 /** Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. */
@@ -121,6 +125,42 @@ export async function revokeSession(
   );
   await forgetPrincipal(result.userId);
   return result;
+}
+
+/**
+ * Removes a lost authenticator app (Executive only). The user is told by email when an app was
+ * actually removed; a failed email is logged and leaves the reset in place, because the user is
+ * already signed out and the Executive has spoken to them before resetting (docs/SECURITY.md §2).
+ */
+export async function resetTwoFactor(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<UserDto> {
+  const principal = await currentPrincipal();
+  if (!principal) throw new DomainError('unauthorized');
+  const input = parseInput(ResetTwoFactorInput, rawInput);
+  const meta = await requestMeta();
+  const before = await executeQuery(principal, { requestId: meta.requestId }, ({ tx }) =>
+    loadUserDto(tx, input.userId),
+  );
+  const user = await executeCommand(
+    principal,
+    { requestId: meta.requestId },
+    resetTwoFactorCommand,
+    input,
+    commandOptions(meta, idempotencyKey),
+  );
+  await forgetPrincipal(user.id);
+  if (before.twoFactorEnabled && !user.twoFactorEnabled) {
+    try {
+      await defaultAuthDeps().mailer.send(
+        twoFactorResetMail({ email: user.email, name: user.displayName }),
+      );
+    } catch (error) {
+      logger.log('error', 'mail.two_factor_reset_failed', { requestId: meta.requestId, error });
+    }
+  }
+  return user;
 }
 
 /** Lifts every sign-in lock on a staff member's account, for a user administrator only. */

@@ -62,6 +62,17 @@ export const ReactivateUserInput = z
   .strict();
 export type ReactivateUserInput = z.infer<typeof ReactivateUserInput>;
 
+/**
+ * `admin.user.two_factor.reset`: removes a lost authenticator app so the user enrols a new one at
+ * the next sign-in. Every session of the user is revoked. Never for the caller's own account.
+ */
+export const ResetTwoFactorInput = z
+  .object({
+    userId: IdSchema,
+  })
+  .strict();
+export type ResetTwoFactorInput = z.infer<typeof ResetTwoFactorInput>;
+
 /** `admin.session.revoke`: forces one session out. The system reasons are never set by hand. */
 export const RevokeSessionInput = z
   .object({

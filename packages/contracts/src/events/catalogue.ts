@@ -56,6 +56,10 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ revokedSessions: z.number().int().min(0) }).strict(),
   },
+  'admin.user.two_factor_reset': {
+    subscribed: false,
+    payload: z.object({ revokedSessions: z.number().int().min(0) }).strict(),
+  },
   'admin.user.reactivated': {
     subscribed: false,
     payload: z.object({}).strict(),

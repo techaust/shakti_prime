@@ -45,6 +45,7 @@ export const SESSION_REVOKE_REASONS = [
   'suspended',
   'password_changed',
   'totp_enrolled',
+  'totp_reset',
   'absolute_expiry',
 ] as const;
 export const SessionRevokeReasonSchema = z.enum(SESSION_REVOKE_REASONS);

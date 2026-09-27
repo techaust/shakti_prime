@@ -2,6 +2,7 @@ import { DomainError } from '@shakti/contracts';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setUserRoles } from '../commands/admin/set-user-roles';
+import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { createLead } from '../commands/crm/create-lead';
 import { updateEntity } from '../commands/org/update-entity';
@@ -19,6 +20,7 @@ export const commands = {
   [suspendUser.name]: suspendUser,
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,
+  [resetTwoFactor.name]: resetTwoFactor,
   [setTheme.name]: setTheme,
 } as const satisfies Record<string, AnyCommand>;
 
