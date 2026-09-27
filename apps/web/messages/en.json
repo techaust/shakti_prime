@@ -289,6 +289,59 @@
     "pattern": "Please check the format and try again.",
     "invalid": "Please check this and try again."
   },
+  "common": {
+    "loadMore": "Load more",
+    "cancel": "Cancel",
+    "close": "Close",
+    "notSet": "Not set",
+    "never": "Never",
+    "yes": "Yes",
+    "no": "No",
+    "allCompanies": "All companies",
+    "rowActions": "Actions for {name}",
+    "device": "{browser} on {system}",
+    "browser": {
+      "chrome": "Chrome",
+      "edge": "Edge",
+      "firefox": "Firefox",
+      "safari": "Safari",
+      "samsung": "Samsung Internet",
+      "opera": "Opera",
+      "other": "A web browser"
+    },
+    "system": {
+      "android": "Android",
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "windows": "Windows",
+      "mac": "Mac",
+      "linux": "Linux",
+      "other": "another device"
+    }
+  },
+  "companies": {
+    "title": "Companies",
+    "intro": "The companies in the group and the details printed on their quotes and payment requests.",
+    "caption": "Companies",
+    "empty": "You don't work in any company yet. Ask an Executive to give you a role.",
+    "columns": {
+      "name": "Company",
+      "brand": "Brand name",
+      "state": "GST state code",
+      "gstin": "GSTIN",
+      "upi": "UPI ID",
+      "actions": "Actions"
+    },
+    "edit": "Edit",
+    "editTitle": "Edit {name}",
+    "editIntro": "The brand name and UPI ID appear on quotes and payment requests from now on.",
+    "brandName": "Brand name",
+    "brandNameHelper": "The name customers know the company by, 2 to 80 characters",
+    "upiId": "UPI ID",
+    "upiHelper": "The ID customers pay to, with an @ in it. Leave it empty to remove it.",
+    "submit": "Save changes",
+    "done": "{name} is updated."
+  },
   "print": {
     "quote": {
       "title": "Quotation",
