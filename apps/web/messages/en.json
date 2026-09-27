@@ -195,6 +195,57 @@
       "back": "Back to sign in"
     }
   },
+  "nav": {
+    "home": "Home",
+    "leads": "Leads",
+    "newLead": "New lead",
+    "priceMaster": "Price lists",
+    "imports": "Imports",
+    "adminUsers": "Team members",
+    "adminActivity": "Activity log",
+    "settingsCompanies": "Companies",
+    "design": "Design preview"
+  },
+  "shell": {
+    "skipToContent": "Skip to main content",
+    "mainMenu": "Main menu",
+    "adminHeading": "Admin",
+    "openMenu": "Open menu",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "search": "Go to a page",
+    "shortcutMac": "⌘K",
+    "shortcutOther": "Ctrl K",
+    "paletteTitle": "Go to a page",
+    "paletteInput": "Type the name of a page",
+    "paletteEmpty": "No page has that name. Check the spelling and try again.",
+    "paletteGoto": "Go to",
+    "companyMenu": "Choose a company",
+    "profileMenu": "Your account",
+    "profile": "Your profile",
+    "changePassword": "Change password",
+    "notifications": "Notifications"
+  },
+  "home": {
+    "greeting": "Welcome, {name}",
+    "company": "Company: {company}",
+    "allCompanies": "Company: all companies you can see",
+    "shortcutsTitle": "Where to go",
+    "hint": {
+      "leads": "Find and follow up the leads you can see.",
+      "newLead": "Add a customer who called or walked in as a new lead.",
+      "priceMaster": "See the current price of every item.",
+      "imports": "Bring in records from a spreadsheet file.",
+      "adminUsers": "Invite staff, change their roles and sign them out.",
+      "adminActivity": "See who changed what, and when.",
+      "settingsCompanies": "Change each company's brand name and UPI ID.",
+      "design": "See every colour, text size and control in both themes."
+    }
+  },
+  "profile": {
+    "title": "Your profile",
+    "intro": "How the screens look for you, and your password."
+  },
   "mail": {
     "setPassword": {
       "subject": "Your Shakti Prime sign-in",
