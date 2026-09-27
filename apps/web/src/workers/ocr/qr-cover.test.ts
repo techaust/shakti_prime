@@ -11,6 +11,7 @@ import {
   toGray,
   type Raster,
 } from './qr-cover';
+import { reviewCause } from './review';
 
 // Small in-memory pictures only. The payloads are made-up words, never a number.
 
@@ -106,6 +107,38 @@ describe('qrCoverBox', () => {
       y1: 20,
     });
   });
+
+  it('clips a code at the far corner to the right and bottom edges', () => {
+    // A 21-module code, 84 px a side: 4 px modules, margin 4 × 4 + 8.4 = 24.4 px.
+    const corners = [
+      { x: 200, y: 150 },
+      { x: 284, y: 150 },
+      { x: 284, y: 234 },
+      { x: 200, y: 234 },
+    ];
+    expect(qrCoverBox(corners, 21, { width: 290, height: 240 })).toEqual({
+      x0: 175,
+      y0: 125,
+      x1: 290,
+      y1: 240,
+    });
+  });
+
+  it('keeps every edge inside the photo even for corners outside it', () => {
+    const corners = [
+      { x: 400, y: -60 },
+      { x: 480, y: -60 },
+      { x: 480, y: 20 },
+      { x: 400, y: 20 },
+    ];
+    const box = qrCoverBox(corners, 21, { width: 300, height: 200 });
+    for (const v of [box.x0, box.x1]) expect(v).toBeGreaterThanOrEqual(0);
+    for (const v of [box.x0, box.x1]) expect(v).toBeLessThanOrEqual(300);
+    for (const v of [box.y0, box.y1]) expect(v).toBeGreaterThanOrEqual(0);
+    for (const v of [box.y0, box.y1]) expect(v).toBeLessThanOrEqual(200);
+    expect(box.x0).toBeLessThanOrEqual(box.x1);
+    expect(box.y0).toBeLessThanOrEqual(box.y1);
+  });
 });
 
 describe('cornersFromFinders', () => {
@@ -184,12 +217,87 @@ describe('scanQrCodes', () => {
     expect(scan.uncovered).toBe(1);
   });
 
+  it('covers a code that runs to the edge of the photo, clipped to the edge', () => {
+    const image = blank(260, 200);
+    // Quiet zone of one module only on the right and bottom: the box must stop at the edge.
+    const size = QRCode.create('made-up edge record', { errorCorrectionLevel: 'M' }).modules.size;
+    const code = drawQr(image, 'made-up edge record', 260 - 4 - size * 4, 200 - 4 - size * 4, 4);
+    const scan = scanQrCodes(image);
+    expect(scan.decoded).toBe(1);
+    const box = scan.boxes.find((b) => contains(b, code));
+    expect(box).toBeDefined();
+    expect(box?.x1).toBe(260);
+    expect(box?.y1).toBe(200);
+    cover(image, scan.boxes);
+    expect(
+      jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' }),
+    ).toBeNull();
+  });
+
+  it('covers a light code printed on a dark ground', () => {
+    const image = blank(300, 260, 20);
+    const { modules } = QRCode.create('made-up light record', { errorCorrectionLevel: 'M' });
+    for (let row = 0; row < modules.size; row++) {
+      for (let col = 0; col < modules.size; col++) {
+        if (modules.get(row, col)) fillRect(image, 90 + col * 4, 60 + row * 4, 4, 4, 245);
+      }
+    }
+    const scan = scanQrCodes(image);
+    expect(scan.decoded).toBe(1);
+    cover(image, scan.boxes);
+    expect(
+      jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' }),
+    ).toBeNull();
+  });
+
   it('leaves the photo it is given unchanged', () => {
     const image = blank(200, 200);
     drawQr(image, 'made-up record', 40, 40, 4);
     const before = Buffer.from(image.data).toString('base64');
     scanQrCodes(image);
     expect(Buffer.from(image.data).toString('base64')).toBe(before);
+  });
+});
+
+describe('holding an Aadhaar photo whose QR code cannot be covered', () => {
+  // A torn code: two finder marks of a 25-module code and no third, so it can be neither
+  // decoded nor placed from its marks.
+  function tornCode(): Raster {
+    const image = blank(320, 260);
+    drawFinder(image, 60, 60, 6);
+    drawFinder(image, 60 + 18 * 6, 60, 6);
+    return image;
+  }
+  const found = { aadhaarFound: true, bankFound: false } as const;
+
+  it('holds it for review when the slot says Aadhaar', () => {
+    const scan = scanQrCodes(tornCode());
+    expect(scan.uncovered).toBe(2);
+    expect(
+      reviewCause({ expect: ['aadhaar'], readText: '', ...found, qrUncovered: scan.uncovered }),
+    ).toBe('qr_not_covered');
+  });
+
+  it('holds it for review when the photo reads as an Aadhaar card', () => {
+    const scan = scanQrCodes(tornCode());
+    expect(
+      reviewCause({
+        expect: [],
+        readText: 'Government of India',
+        ...found,
+        qrUncovered: scan.uncovered,
+      }),
+    ).toBe('qr_not_covered');
+  });
+
+  it('keeps an Aadhaar photo whose code was located and covered', () => {
+    const image = blank(320, 260);
+    drawQr(image, 'made-up card holder record', 150, 60, 4);
+    const scan = scanQrCodes(image);
+    expect(scan.boxes).toHaveLength(1);
+    expect(
+      reviewCause({ expect: ['aadhaar'], readText: '', ...found, qrUncovered: scan.uncovered }),
+    ).toBeUndefined();
   });
 });
 

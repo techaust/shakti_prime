@@ -87,11 +87,12 @@ export function qrCoverBox(
   const side = a && b && d ? Math.max(distance(a, b), distance(a, d)) : 0;
   const pitch = side / Math.max(1, dimension);
   const margin = Math.max(MIN_MARGIN_PX, QUIET_MODULES * pitch + SAFETY_SHARE * side);
+  const clamp = (v: number, max: number) => Math.min(max, Math.max(0, v));
   return {
-    x0: Math.max(0, Math.floor(Math.min(...xs) - margin)),
-    y0: Math.max(0, Math.floor(Math.min(...ys) - margin)),
-    x1: Math.min(bounds.width, Math.ceil(Math.max(...xs) + margin)),
-    y1: Math.min(bounds.height, Math.ceil(Math.max(...ys) + margin)),
+    x0: clamp(Math.floor(Math.min(...xs) - margin), bounds.width),
+    y0: clamp(Math.floor(Math.min(...ys) - margin), bounds.height),
+    x1: clamp(Math.ceil(Math.max(...xs) + margin), bounds.width),
+    y1: clamp(Math.ceil(Math.max(...ys) + margin), bounds.height),
   };
 }
 
@@ -223,8 +224,11 @@ function decodeCodes(work: Gray, pass: Pass, boxes: Box[]): number {
     rgba.fill(0);
     pixels.data.fill(0);
     if (!code) break;
-    // The payload may hold the full Aadhaar number: never keep, compare or log it.
+    // The payload may hold the full Aadhaar number: never keep, compare or log it. The byte
+    // copies are wiped; the strings go out of reach with `code` when this iteration ends.
     code.binaryData.fill(0);
+    for (const chunk of code.chunks) if ('bytes' in chunk) chunk.bytes.fill(0);
+    code.chunks.length = 0;
     const { location } = code;
     const toPhoto = (p: Point): Point => ({
       x: pass.crop.x0 + p.x / pass.scale,
@@ -455,7 +459,9 @@ export function scanQrCodes(image: Raster): QrScan {
     decoded += decodeCodes(work, pass, boxes);
   }
   // Finder marks left on the photo mean a code the whole-photo passes did not decode: look for
-  // it tile by tile, then look for marks again. A photo with none is spared the tiles.
+  // it tile by tile, then look for marks again. A photo with none is spared the tiles (they
+  // cost two to five seconds a photo): the finder scan sees marks from about 1.3 px a module,
+  // and the whole-photo decode reads a clean code smaller than that.
   let marks = findFinderMarks(work);
   if (marks.length > 0) {
     for (const pass of tilePasses(image.width, image.height)) {
