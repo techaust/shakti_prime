@@ -9,14 +9,16 @@ import {
 import { authDb, authSchema } from '@shakti/db/auth';
 import { createSignInGuard } from '@shakti/domain';
 import { logger as appLogger } from '../log';
-import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { APIError, createAuthMiddleware, getIP, getSessionFromCtx } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { haveIBeenPwned, twoFactor } from 'better-auth/plugins';
 import { and, eq, isNull, like, ne } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
+import { recordAuthEvent, type AuthEvent } from './audit-events';
 import { generateBackupCodes } from './backup-codes';
+import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
 import {
@@ -42,6 +44,23 @@ const RESET_PATH = '/reset-password';
 const SIGN_OUT_PATH = '/sign-out';
 const VERIFY_TOTP_PATH = '/two-factor/verify-totp';
 const VERIFY_BACKUP_PATH = '/two-factor/verify-backup-code';
+const CHANGE_PASSWORD_PATH = '/change-password';
+const ENABLE_TWO_FACTOR_PATH = '/two-factor/enable';
+const BACKUP_CODES_PATH = '/two-factor/generate-backup-codes';
+
+/**
+ * Account events recorded in the audit trail for the signed-in person (docs/design/
+ * backend-weeks-3-5.md §2.6). The person is looked up before the endpoint runs, because some of
+ * them end or replace the session the request arrived with.
+ */
+const SESSION_EVENTS: Readonly<Record<string, AuthEvent['event']>> = {
+  [SIGN_OUT_PATH]: 'auth.sign_out',
+  [CHANGE_PASSWORD_PATH]: 'auth.password.change',
+  [ENABLE_TWO_FACTOR_PATH]: 'auth.two_factor.enable',
+  [BACKUP_CODES_PATH]: 'auth.backup_codes.regenerate',
+  [VERIFY_TOTP_PATH]: 'auth.two_factor.verify',
+  [VERIFY_BACKUP_PATH]: 'auth.two_factor.verify',
+};
 
 /**
  * Paths that neither read nor need the current session. A browser still holding the cookie of a
@@ -119,30 +138,15 @@ const RATE_LIMIT_RULES: Record<string, { window: number; max: number }> = {
   [SIGN_IN_PATH]: { window: 15 * 60, max: 100 },
   [RESET_REQUEST_PATH]: { window: 15 * 60, max: 3 },
   [RESET_PATH]: { window: 15 * 60, max: 30 },
-  '/change-password': { window: 60, max: 5 },
+  [CHANGE_PASSWORD_PATH]: { window: 60, max: 5 },
   '/verify-password': { window: 60, max: 5 },
-  '/two-factor/enable': { window: 60, max: 5 },
+  [ENABLE_TWO_FACTOR_PATH]: { window: 60, max: 5 },
   '/two-factor/disable': { window: 60, max: 5 },
 };
 const RESET_PER_LINK = { window: 15 * 60, max: 5 };
 
 /** A second-factor code verifies once: long enough to cover the ±1 step Better Auth accepts. */
 const USED_CODE_SECONDS = 120;
-
-/**
- * Better Auth options that also drive our own address resolution, so the lockout, the caps and
- * the session record agree on one client address (AUDIT L20). On Vercel the edge overwrites
- * `X-Forwarded-For` with the connecting address, so a single value there is trustworthy; IPv6
- * addresses are grouped by /64, as one household or phone gets a whole /64.
- */
-const ADDRESS_OPTIONS = {
-  advanced: { ipAddress: { ipAddressHeaders: ['x-forwarded-for'], ipv6Subnet: 64 } },
-} satisfies Pick<BetterAuthOptions, 'advanced'>;
-
-function clientAddress(headers: Headers | undefined): string | undefined {
-  if (headers === undefined) return undefined;
-  return getIP(headers, ADDRESS_OPTIONS) ?? undefined;
-}
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('base64url');
 
@@ -321,6 +325,18 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
       .where(eq(authSchema.users.id, user.id));
   }
 
+  const audit = (e: AuthEvent) => recordAuthEvent(e, log);
+
+  /**
+   * The person behind a request, found in the before hook and read in the after hook. Better Auth
+   * hands both hooks the same request headers, so they key the lookup; it is gone with the request.
+   */
+  const requestActors = new WeakMap<Headers, string>();
+
+  /** Better Auth's code for a refused request, recorded instead of its message. */
+  const errorCodeOf = (e: APIError): string =>
+    typeof e.body?.code === 'string' ? e.body.code : String(e.statusCode);
+
   return betterAuth({
     appName: 'Shakti Prime',
     baseURL: options.baseURL ?? process.env.BETTER_AUTH_URL,
@@ -393,7 +409,13 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         verify: ({ hash: stored, password }) => verify(stored, password),
       },
       // The first password set through an invite link activates the user.
-      onPasswordReset: async ({ user }) => {
+      onPasswordReset: async ({ user }, request) => {
+        await audit({
+          event: 'auth.password.set',
+          outcome: 'ok',
+          actorId: user.id,
+          headers: request?.headers,
+        });
         await authDb()
           .update(authSchema.users)
           .set({ status: 'active', emailVerified: true })
@@ -467,6 +489,13 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         await refuseRevokedSession(ctx);
+        if (ctx.headers !== undefined && SESSION_EVENTS[ctx.path] !== undefined) {
+          const actorId =
+            ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH
+              ? await secondFactorUserId(ctx)
+              : (await getSessionFromCtx(ctx).catch(() => null))?.user.id;
+          if (actorId !== undefined) requestActors.set(ctx.headers, actorId);
+        }
         const address = clientAddress(ctx.headers);
         await applyRequestCaps(ctx.path, address, ctx.body);
         if (ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH) {
@@ -514,6 +543,14 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
             typeof e === 'object' && e !== null && 'details' in e
               ? (e as { details?: { retryAfterSeconds?: number } }).details?.retryAfterSeconds
               : undefined;
+          await audit({
+            event: 'auth.sign_in',
+            outcome: 'denied',
+            actorId: (await userByEmail(email))?.id,
+            errorCode: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
+            fields: { email, detail: 'locked' },
+            headers: ctx.headers,
+          });
           throw tooMany(retryAfter);
         }
         // A suspended or offboarded user gets the same answer, delay and lock as a wrong
@@ -522,6 +559,14 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         if (user && !ACTIVE_STATUSES.has(user.status)) {
           await spendPasswordVerify(body.password);
           await recordSignInFailure(email, address);
+          await audit({
+            event: 'auth.sign_in',
+            outcome: 'denied',
+            actorId: user.id,
+            errorCode: 'INVALID_EMAIL_OR_PASSWORD',
+            fields: { email, detail: 'inactive' },
+            headers: ctx.headers,
+          });
           throw new APIError('UNAUTHORIZED', {
             message: 'account not active',
             code: 'INVALID_EMAIL_OR_PASSWORD',
@@ -532,20 +577,80 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         const returned: unknown = ctx.context.returned;
         const failed = returned instanceof APIError;
         const address = clientAddress(ctx.headers);
+        const outcome = failed ? 'failed' : 'ok';
+        const errorCode = failed ? errorCodeOf(returned) : null;
         if (ctx.path === SIGN_IN_PATH) {
           const email = (ctx.body as { email?: unknown } | undefined)?.email;
           if (typeof email !== 'string' || email === '') return;
+          const user = await userByEmail(email);
           if (failed) {
             if (returned.statusCode === 401) await recordSignInFailure(email, address);
+            await audit({
+              event: 'auth.sign_in',
+              outcome,
+              actorId: user?.id,
+              errorCode,
+              fields: { email },
+              headers: ctx.headers,
+            });
             return;
           }
           // This hook runs before the two-factor plugin turns the answer into a code request,
           // so the user's own setting says whether the sign-in is complete yet.
-          const user = await userByEmail(email);
+          await audit({
+            event: 'auth.sign_in',
+            outcome,
+            actorId: user?.id,
+            fields: { email, detail: user?.twoFactorEnabled ? 'code_required' : 'complete' },
+            headers: ctx.headers,
+          });
           if (user && !user.twoFactorEnabled) await completeSignIn(user, address);
           return;
         }
-        if ((ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH) && !failed) {
+        if (ctx.path === RESET_REQUEST_PATH) {
+          // An invite asks for its link from our own server code, and the invite is audited.
+          if (ctx.headers === undefined) return;
+          const email = (ctx.body as { email?: unknown } | undefined)?.email;
+          if (typeof email !== 'string' || email === '') return;
+          await audit({
+            event: 'auth.password.reset_requested',
+            outcome,
+            actorId: (await userByEmail(email))?.id,
+            errorCode,
+            fields: { email },
+            headers: ctx.headers,
+          });
+          return;
+        }
+        // A link that worked is recorded by onPasswordReset, which knows whose it was.
+        if (ctx.path === RESET_PATH) {
+          if (failed) {
+            await audit({ event: 'auth.password.set', outcome, errorCode, headers: ctx.headers });
+          }
+          return;
+        }
+        const event = SESSION_EVENTS[ctx.path];
+        if (event === undefined) return;
+        const verifying = ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH;
+        const actorId =
+          (verifying && !failed ? ctx.context.newSession?.user.id : undefined) ??
+          (ctx.headers === undefined ? undefined : requestActors.get(ctx.headers));
+        // Signing out with no session ends nothing, so there is nothing to record.
+        if (ctx.path === SIGN_OUT_PATH && actorId === undefined) return;
+        await audit({
+          event,
+          outcome,
+          actorId,
+          errorCode,
+          fields: {
+            method:
+              ctx.path === VERIFY_BACKUP_PATH ? 'backup_code' : verifying ? 'totp' : undefined,
+            revokeOtherSessions: (ctx.body as { revokeOtherSessions?: unknown } | undefined)
+              ?.revokeOtherSessions,
+          },
+          headers: ctx.headers,
+        });
+        if (verifying && !failed) {
           const user = ctx.context.newSession?.user;
           if (user) await completeSignIn({ id: user.id, email: user.email }, address);
         }

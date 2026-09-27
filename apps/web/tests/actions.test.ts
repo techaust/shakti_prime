@@ -9,6 +9,7 @@ interface RequestState {
   principal: Principal | undefined;
   session: unknown;
   forgotten: string[];
+  headers: Headers;
 }
 
 const request = vi.hoisted((): RequestState => ({
@@ -16,10 +17,11 @@ const request = vi.hoisted((): RequestState => ({
   principal: undefined,
   session: undefined,
   forgotten: [],
+  headers: new Headers(),
 }));
 
 vi.mock('next/headers', () => ({
-  headers: () => Promise.resolve(new Headers()),
+  headers: () => Promise.resolve(request.headers),
   cookies: () =>
     Promise.resolve({
       get: (name: string) =>
@@ -52,7 +54,7 @@ vi.mock('../src/auth/current-principal', () => ({
 
 const { switchEntity } = await import('../src/actions/auth');
 const { createLead } = await import('../src/actions/crm');
-const { setUserRoles } = await import('../src/actions/admin');
+const { listAuditLog, setUserRoles } = await import('../src/actions/admin');
 
 afterAll(closeDb);
 beforeEach(() => {
@@ -60,6 +62,7 @@ beforeEach(() => {
   request.principal = undefined;
   request.session = undefined;
   request.forgotten.length = 0;
+  request.headers = new Headers();
 });
 
 const lead = (entityId: number) => ({
@@ -104,5 +107,47 @@ describe('server actions (AUDIT M41)', () => {
     expect(request.jar.get('entity')).toBe('2');
     await expect(switchEntity(form(''))).rejects.toThrow('redirect /home');
     expect(request.jar.has('entity')).toBe(false);
+  });
+
+  it('record the caller’s address, browser and request on the audit trail, read back by an Executive', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    request.principal = caller;
+    const requestId = `req-${caller.id}`;
+    request.headers = new Headers({
+      'x-forwarded-for': '198.51.100.23',
+      'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/140',
+      'x-request-id': requestId,
+    });
+    const created = await createLead(lead(1));
+
+    request.principal = await createTestPrincipal('executive');
+    const now = Date.now();
+    const page = await listAuditLog({
+      from: new Date(now - 60_000).toISOString(),
+      to: new Date(now + 60_000).toISOString(),
+      actorPrincipalId: caller.id,
+    });
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        command: 'crm.lead.create',
+        outcome: 'ok',
+        entityId: 1,
+        aggregateId: created.id,
+        ip: '198.51.100.23',
+        device: 'Mozilla/5.0 (Linux; Android 14) Chrome/140',
+        requestId,
+      }),
+    ]);
+  });
+
+  it('keep the audit trail from a role without audit.read', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const now = Date.now();
+    await expect(
+      listAuditLog({
+        from: new Date(now - 60_000).toISOString(),
+        to: new Date(now + 60_000).toISOString(),
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
