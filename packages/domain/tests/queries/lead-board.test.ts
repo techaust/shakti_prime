@@ -22,6 +22,9 @@ afterAll(closeDb);
 
 const ENTITY = 1;
 const tag = newId().slice(-8);
+// The assignee list is bounded and by name: names that sort before every earlier run's keep this
+// run's people on it however many people the suites have added.
+const first = `0 ${String(1e13 - Date.now()).padStart(13, '0')}`;
 const phone = () => `96${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
 
 let team: string;
@@ -166,17 +169,17 @@ describe('listLeadAssignees', () => {
   beforeAll(async () => {
     converter = (
       await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_lc', teamId: team }], {
-        name: `Board converter ${tag}`,
+        name: `${first} board converter ${tag}`,
       })
     ).id;
     otherConverter = (
       await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_lc', teamId: otherTeam }], {
-        name: `Board other converter ${tag}`,
+        name: `${first} board other converter ${tag}`,
       })
     ).id;
     hrPerson = (
       await createTestUser([{ entityId: ENTITY, roleKey: 'hr_admin', teamId: team }], {
-        name: `Board hr ${tag}`,
+        name: `${first} board hr ${tag}`,
       })
     ).id;
   });
@@ -197,7 +200,7 @@ describe('listLeadAssignees', () => {
     expect(found).not.toContain(hrPerson);
     expect(people.find((p) => p.id === converter)).toEqual({
       id: converter,
-      name: `Board converter ${tag}`,
+      name: `${first} board converter ${tag}`,
       teamId: team,
     });
   });

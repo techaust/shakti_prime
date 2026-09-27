@@ -1,9 +1,4 @@
-import {
-  DomainError,
-  hasGrant,
-  LeadAssigneeDto,
-  ListLeadAssigneesInput,
-} from '@shakti/contracts';
+import { DomainError, hasGrant, LeadAssigneeDto, ListLeadAssigneesInput } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
