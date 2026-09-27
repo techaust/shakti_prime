@@ -22,8 +22,13 @@ vi.mock('@upstash/qstash', () => ({
   },
 }));
 
-const { nudgeViaQStash, qstashConfig, qstashEventPublisher, verifyQStashSignature } =
-  await import('./qstash');
+const {
+  nudgeViaQStash,
+  publishImportCommit,
+  qstashConfig,
+  qstashEventPublisher,
+  verifyQStashSignature,
+} = await import('./qstash');
 
 const ENV: NodeJS.ProcessEnv = {
   NODE_ENV: 'test',
@@ -119,6 +124,18 @@ describe('the nudge and the signature check', () => {
       url: 'https://bos.example.in/api/v1/workers/outbox/publish',
       body: {},
       retries: 1,
+    });
+  });
+
+  it('asks QStash to call the import worker once per run of a job', async () => {
+    queue.publishJSON.mockResolvedValue({ messageId: 'm' });
+    const body = { jobId: newId(), entityId: 1, userId: newId() };
+    await publishImportCommit(config, body, 'import-run-1');
+    expect(queue.publishJSON).toHaveBeenCalledWith({
+      url: 'https://bos.example.in/api/v1/workers/imports/commit',
+      body,
+      retries: 3,
+      deduplicationId: 'import-run-1',
     });
   });
 

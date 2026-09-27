@@ -119,10 +119,22 @@ export function workerUrl(config: QStashConfig, path: string): string {
   return new URL(path, config.publishUrl).toString();
 }
 
-/** Asks QStash to call the import worker for a job; QStash retries it if the worker fails. */
-export async function publishImportCommit(config: QStashConfig, body: unknown): Promise<void> {
+/**
+ * Asks QStash to call the import worker for a job; QStash retries it if the worker fails, and
+ * sends a message with a `deduplicationId` it has already taken only once.
+ */
+export async function publishImportCommit(
+  config: QStashConfig,
+  body: unknown,
+  deduplicationId: string,
+): Promise<void> {
   await withTimeout(
-    client(config).publishJSON({ url: workerUrl(config, IMPORT_COMMIT_PATH), body, retries: 3 }),
+    client(config).publishJSON({
+      url: workerUrl(config, IMPORT_COMMIT_PATH),
+      body,
+      retries: 3,
+      deduplicationId,
+    }),
     QUEUE_TIMEOUT_MS,
   );
 }

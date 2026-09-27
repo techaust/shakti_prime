@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { API_CONTENT_SECURITY_POLICY } from './src/csp';
+import { UPLOAD_BODY_LIMIT } from './src/files/limits';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -28,6 +29,12 @@ const config: NextConfig = {
   ],
   serverExternalPackages: ['postgres', '@node-rs/argon2'],
   poweredByHeader: false,
+  experimental: {
+    // An import file reaches its server action as a form (docs/design/backend-weeks-3-5.md §8),
+    // through the proxy, which would otherwise cut the body at 10 MB.
+    serverActions: { bodySizeLimit: UPLOAD_BODY_LIMIT },
+    proxyClientMaxBodySize: UPLOAD_BODY_LIMIT,
+  },
   headers() {
     return Promise.resolve([
       { source: '/(.*)', headers: SECURITY_HEADERS },
