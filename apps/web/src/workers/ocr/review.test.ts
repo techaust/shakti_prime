@@ -37,6 +37,10 @@ describe('reviewCause', () => {
     );
   });
 
+  it('holds a photo of unknown kind with an Aadhaar number and an uncovered QR-like mark', () => {
+    expect(reviewCause({ ...base, aadhaarFound: true, qrUncovered: 1 })).toBe('qr_not_covered');
+  });
+
   it('keeps an Aadhaar upload whose number and QR codes were all covered', () => {
     expect(
       reviewCause({ ...base, expect: ['aadhaar'], aadhaarFound: true, qrUncovered: 0 }),

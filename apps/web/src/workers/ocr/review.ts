@@ -31,7 +31,8 @@ export function reviewCause(input: ReviewInput): ReviewCause | undefined {
   if (aadhaar && !input.aadhaarFound) return 'number_not_found';
   if (input.expect.includes('bank_account') && !input.bankFound) return 'number_not_found';
   // An Aadhaar card or letter whose QR code (which can hold the full number) cannot be covered
-  // with confidence is not kept, whatever the code holds.
-  if (aadhaar && input.qrUncovered > 0) return 'qr_not_covered';
+  // with confidence is not kept, whatever the code holds. A photo on which an Aadhaar number
+  // was found counts as one even when its words were not read.
+  if ((aadhaar || input.aadhaarFound) && input.qrUncovered > 0) return 'qr_not_covered';
   return undefined;
 }

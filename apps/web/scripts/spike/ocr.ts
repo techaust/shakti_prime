@@ -173,6 +173,50 @@ async function decodableQr(
   return result;
 }
 
+/**
+ * Whether the code drawn at `extent` can be decoded from a crop around it, enlarged one to
+ * four times and sharpened three ways: the strongest reading of the one code the spike knows
+ * is there. What it holds is only tested for being non-empty and dropped.
+ */
+async function targetedQrReadable(
+  image: Buffer,
+  extent: { x0: number; y0: number; x1: number; y1: number },
+): Promise<boolean> {
+  const { data, info } = await sharp(image)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pad = 30;
+  const left = Math.max(0, extent.x0 - pad);
+  const top = Math.max(0, extent.y0 - pad);
+  const w = Math.min(info.width - left, extent.x1 - extent.x0 + 2 * pad);
+  const h = Math.min(info.height - top, extent.y1 - extent.y0 + 2 * pad);
+  let readable = false;
+  for (const scale of [1, 2, 3, 4]) {
+    for (const enhance of [false, true]) {
+      if (readable) break;
+      const pixels = await viewPixels(data, info.width, info.height, {
+        left,
+        top,
+        w,
+        h,
+        scale,
+        enhance,
+      });
+      const code = jsQR(pixels.rgba, pixels.width, pixels.height, {
+        inversionAttempts: 'attemptBoth',
+      });
+      pixels.rgba.fill(0);
+      if (code) {
+        if (code.binaryData.length > 0) readable = true;
+        code.binaryData.fill(0);
+      }
+    }
+  }
+  data.fill(0);
+  return readable;
+}
+
 /** Share of the code's extent that the cover boxes hide. */
 function coveredShare(
   extent: { x0: number; y0: number; x1: number; y1: number },
@@ -220,7 +264,7 @@ interface Row {
   /** A QR code was drawn on the document. */
   qrPlaced: boolean;
   qrModules?: number;
-  /** The drawn code could be decoded on the photo before masking. */
+  /** The drawn code could be decoded on the photo before masking (any view or a crop around it). */
   qrReadableBefore?: boolean;
   /** QR cover boxes drawn by the masker (on any document). */
   qrBoxes: number;
@@ -229,7 +273,7 @@ interface Row {
   qrEstimated: number;
   /** Share of the drawn code's extent under a QR cover box. */
   qrCoveredShare?: number;
-  /** Any QR code could be decoded on the masked image. */
+  /** A QR code could be decoded on the masked image: any view, or a crop around the drawn code. */
   qrReadableAfter: boolean;
   /** A decoded code on the masked image held the hidden digits. */
   qrLeak: boolean;
@@ -329,7 +373,8 @@ async function runOne(
   row.leakInText = hidden.some((h) => textDigits.includes(h));
   row.leakOnReread = hidden.some((h) => rereadDigits.includes(h));
   const qrAfter = await decodableQr(outcome.image, hidden);
-  row.qrReadableAfter = qrAfter.readable;
+  row.qrReadableAfter =
+    qrAfter.readable || (doc.qr ? await targetedQrReadable(outcome.image, doc.qr.extent) : false);
   row.qrLeak = qrAfter.holdsHidden;
   row.qrEmptyDecodeAfter = qrAfter.emptyOnly;
   // A masked image that still shows a hidden number or a readable QR code is counted, never
@@ -457,7 +502,7 @@ async function main() {
   for (const doc of docs) {
     if (!doc.qr) continue;
     const before = await decodableQr(doc.photo, []);
-    qrBefore.set(doc.id, before.readable);
+    qrBefore.set(doc.id, before.readable || (await targetedQrReadable(doc.photo, doc.qr.extent)));
   }
 
   const coldStarted = performance.now();
