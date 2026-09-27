@@ -98,7 +98,7 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 
 ## 8. Realtime
 - Supabase Realtime private broadcast channels per user (`user:{id}`) and per entity topic (`entity:{id}:queue`, `entity:{id}:board`).
-- The BOS signs a short-lived ES256 JWT (`sub`, `entity_ids`, `role`, `exp` ≤ 15 min) from its own key pair and exposes an OIDC discovery document on `shaktiprime.com`. Supabase is configured to trust it as a third-party auth provider. Realtime authorization policies on `realtime.messages` read those claims.
+- The BOS signs a short-lived ES256 JWT (`sub`, `entity_ids`, `bos_role`, `aud: shakti-realtime`, `role: authenticated`, `exp` ≤ 15 min, as ADR 0003 fixes them; `RealtimeClaims` in `packages/contracts/src/api/realtime.ts`) from its own key pair and exposes an OIDC discovery document on `shaktiprime.com`. Supabase is configured to trust it as a third-party auth provider. Realtime authorization policies on `realtime.messages` read those claims.
 - The token grants Realtime only; it carries no Data API role. All data still flows through commands.
 - Server-side commands broadcast after commit through the outbox → a small "notify" worker, so a broadcast never precedes a committed write.
 

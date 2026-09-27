@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ERROR_CODES } from '../errors';
+import { API_ERROR_REASONS } from './common';
 import { API_ENDPOINTS, type ApiEndpointId } from './endpoints';
 import { API_FIXTURES } from './fixtures';
+import { MOBILE_AUTH_REASONS } from './mobile-auth';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const apiDoc = readFileSync(join(here, '../../../../docs/API.md'), 'utf8');
@@ -38,6 +40,21 @@ describe('the /api/v1 endpoint catalogue', () => {
       .map(([, e]) => `${e.method} ${e.path}`)
       .sort();
     expect(catalogued).toEqual(documentedRoutes());
+  });
+
+  it('documents only error codes and reasons the contracts define', () => {
+    const known = new Set<string>([...ERROR_CODES, ...API_ERROR_REASONS, ...MOBILE_AUTH_REASONS]);
+    const named = apiDoc
+      .split(/\r?\n/)
+      .filter((line) =>
+        /^\| (GET|POST) \| `\/(auth|sync|files|attendance|expenses|ingest|connector|me|realtime|voice)/.test(
+          line,
+        ),
+      )
+      .flatMap((line) => [...(line.split(' | ').at(-1) ?? '').matchAll(/`([a-z_]+)`/g)])
+      .map((m) => m[1] ?? '');
+    expect(named.length).toBeGreaterThan(30);
+    expect(named.filter((word) => !known.has(word))).toEqual([]);
   });
 
   it('names each route once', () => {

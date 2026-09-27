@@ -17,6 +17,24 @@ export const API_HEADERS = {
   retryAfter: 'retry-after',
 } as const;
 
+/**
+ * `details.reason` values the `/api/v1` routes give beside an error code (docs/API.md §3), for the
+ * callers that act on them: the field app's update gate and conflict screen, the connector's
+ * re-read, the website form. The mobile sign-in reasons are `MOBILE_AUTH_REASONS`.
+ */
+export const API_ERROR_REASONS = [
+  'app_update_required',
+  'voice_cap_reached',
+  'cursor_expired',
+  'upload_missing',
+  'size_mismatch',
+  'turnstile_failed',
+  'cursor_mismatch',
+  'idempotency_mismatch',
+] as const;
+export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
+export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;
+
 /** `?cursor=<opaque>&limit=<1..200>` on every list (docs/API.md §1). */
 export const CursorSchema = z.string().min(1).max(512);
 export const PageLimitSchema = z.coerce.number().int().min(1).max(200).default(50);
