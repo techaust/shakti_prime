@@ -66,7 +66,11 @@ export const assignOpportunity = defineCommand({
     auditOpportunity(
       ctx,
       row,
-      { ownerId: row.ownerId, teamId: row.teamId, lockedUntil: row.lockedUntil?.toISOString() ?? null },
+      {
+        ownerId: row.ownerId,
+        teamId: row.teamId,
+        lockedUntil: row.lockedUntil?.toISOString() ?? null,
+      },
       { ownerId: input.ownerId, teamId: assignee.teamId, lockedUntil: lockedUntil.toISOString() },
     );
     ctx.emit({

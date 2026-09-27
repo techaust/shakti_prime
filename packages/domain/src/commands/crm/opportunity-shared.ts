@@ -44,9 +44,7 @@ export async function lockOpportunity(
   const [row] = await ctx.tx
     .select()
     .from(o)
-    .where(
-      and(eq(o.id, input.opportunityId), eq(o.entityId, input.entityId), isNull(o.archivedAt)),
-    )
+    .where(and(eq(o.id, input.opportunityId), eq(o.entityId, input.entityId), isNull(o.archivedAt)))
     .limit(1)
     .for('update');
   if (!row) {
@@ -84,7 +82,7 @@ export async function opportunityRecord(
           .where(eq(cs.id, row.siteId))
           .limit(1);
   return {
-    state: OpportunityStateSchema.parse(row.state) as OpportunityMachineState,
+    state: OpportunityStateSchema.parse(row.state),
     pipelineId: row.pipelineId,
     exitRequiredFields: rules.data.requiredFields ?? [],
     fields: {
@@ -132,7 +130,10 @@ export async function firstStage(
 }
 
 type OpportunityChange = Partial<
-  Pick<OpportunityRow, 'state' | 'stateChangedAt' | 'stageId' | 'ownerId' | 'teamId' | 'lockedUntil'>
+  Pick<
+    OpportunityRow,
+    'state' | 'stateChangedAt' | 'stageId' | 'ownerId' | 'teamId' | 'lockedUntil'
+  >
 >;
 
 /**
@@ -164,7 +165,13 @@ export function auditOpportunity(
   before: Record<string, unknown>,
   after: Record<string, unknown>,
 ): void {
-  ctx.audit({ aggregateType: 'opportunity', aggregateId: row.id, entityId: row.entityId, before, after });
+  ctx.audit({
+    aggregateType: 'opportunity',
+    aggregateId: row.id,
+    entityId: row.entityId,
+    before,
+    after,
+  });
 }
 
 /** Whitelists what an opportunity command answers (AGENTS.md §5). */
