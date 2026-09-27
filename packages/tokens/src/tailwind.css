@@ -24,10 +24,11 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
-  --color-stage-contacted: var(--stage-contacted);
-  --color-stage-quoted: var(--stage-quoted);
+  --color-rose: var(--rose);
   --color-stage-new: var(--stage-new);
+  --color-stage-contacted: var(--stage-contacted);
   --color-stage-qualified: var(--stage-qualified);
+  --color-stage-quoted: var(--stage-quoted);
   --color-stage-won: var(--stage-won);
   --color-stage-lost: var(--stage-lost);
   --color-sla-ok: var(--sla-ok);
@@ -81,4 +82,23 @@
   --input: var(--border-strong);
   --ring: var(--focus);
   --radius: var(--radius-lg);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }

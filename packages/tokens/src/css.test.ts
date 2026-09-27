@@ -23,7 +23,30 @@ describe('generated CSS', () => {
     );
     expect(css).toContain(':root[data-theme="dark"] {');
     expect(css).toContain('color-scheme: light;');
-    expect(css.match(/color-scheme: dark;/g)).toHaveLength(2);
+    // the system query, the explicit override and the scoped .theme-dark block
+    expect(css.match(/color-scheme: dark;/g)).toHaveLength(3);
+  });
+
+  it('offers scoped light and dark blocks for side-by-side previews', () => {
+    const css = renderTokensCss();
+    expect(css).toContain('.theme-light {');
+    expect(css).toContain('.theme-dark {');
+  });
+
+  it('declares the aliases again in each scoped block, so they resolve to that theme', () => {
+    const css = renderTokensCss();
+    for (const scope of ['.theme-light {', '.theme-dark {']) {
+      const block = css.slice(css.indexOf(scope), css.indexOf('}', css.indexOf(scope)));
+      expect(block).toContain('--chart-2: var(--info);');
+      expect(block).toContain('--stage-new: var(--text-subtle);');
+    }
+  });
+
+  it('sizes type and controls in rem, so a user text-size setting scales them', () => {
+    const css = renderTokensCss();
+    expect(css).toContain('--font-body-size: 0.875rem;');
+    expect(css).toContain('--control-phone: 2.75rem;');
+    expect(css).not.toMatch(/--font-[a-z0-9-]+-size: \d+px/);
   });
 
   it('contains no raw hex outside the theme blocks of tailwind.css', () => {

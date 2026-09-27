@@ -17,6 +17,7 @@ export * from './commands/org/update-entity';
 export * from './commands/crm/create-lead';
 export * from './commands/pricing/set-price';
 export * from './commands/admin/users';
+export * from './commands/profile/set-theme';
 export * from './api/error';
 export * from './api/health';
 export * from './templates/index';

@@ -1,3 +1,4 @@
+import { ThemeSchema } from '@shakti/contracts';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { currentSession } from '../../../auth/current-principal';
@@ -6,8 +7,11 @@ import {
   EntitySwitcher,
   SignOutButton,
 } from '../../../components/auth/home-forms';
+import { ThemeSwitch } from '../../../components/theme';
 
 export const dynamic = 'force-dynamic';
+
+const savedTheme = (value: string) => ThemeSchema.catch('system').parse(value);
 
 /** Signed-in landing until the app shell arrives in week 4: who you are, where you are, sign out. */
 export default async function HomePage() {
@@ -22,7 +26,7 @@ export default async function HomePage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-semibold">
+        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
           {t('title')}
         </h1>
         <p>{t('signedInAs', { name: session.access.name })}</p>
@@ -35,6 +39,7 @@ export default async function HomePage() {
         }))}
         active={active}
       />
+      <ThemeSwitch saved={savedTheme(session.access.theme)} />
       <ChangePasswordForm />
       <SignOutButton />
     </main>

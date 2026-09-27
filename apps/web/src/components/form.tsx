@@ -27,7 +27,7 @@ export function TextInput({
       {...props}
       aria-invalid={invalid || undefined}
       aria-describedby={invalid ? FORM_ERROR_ID : undefined}
-      className={`bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3 ${className}`}
+      className={`bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3 max-md:h-11 ${className}`}
     />
   );
 }
@@ -38,17 +38,21 @@ export function Button({
   pending = false,
   className = '',
   ...props
-}: ComponentProps<'button'> & { variant?: 'primary' | 'secondary'; pending?: boolean }) {
-  const look =
-    variant === 'primary'
-      ? 'bg-accent text-accent-fg hover:bg-accent-hover'
-      : 'bg-surface text-text border-border-strong border';
+}: ComponentProps<'button'> & { variant?: 'primary' | 'secondary' | 'link'; pending?: boolean }) {
+  // Controls are 36 px on desktop and 44 px on phones (DESIGN.md §6); a text-style button keeps
+  // the same touch target.
+  const look = {
+    primary: 'bg-accent text-accent-fg hover:bg-accent-hover h-9 px-4 max-md:h-11',
+    secondary:
+      'bg-surface text-text border-border-strong hover:bg-surface-3 h-9 border px-4 max-md:h-11',
+    link: 'text-accent-text min-h-9 self-start px-0 underline-offset-4 hover:underline max-md:min-h-11',
+  }[variant];
   return (
     <button
       {...props}
       disabled={pending || props.disabled}
       aria-busy={pending || undefined}
-      className={`h-9 rounded-[var(--radius-md)] px-4 font-medium disabled:opacity-60 ${look} ${className}`}
+      className={`rounded-[var(--radius-md)] font-[510] disabled:opacity-60 ${look} ${className}`}
     >
       {children}
     </button>
@@ -79,7 +83,7 @@ export function Card({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-semibold">
+        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
           {title}
         </h1>
         {intro === undefined ? null : <p className="text-text-muted">{intro}</p>}

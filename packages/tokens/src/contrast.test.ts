@@ -14,7 +14,7 @@ describe('contrast helpers', () => {
   });
 });
 
-describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.4', (theme) => {
+describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.5', (theme) => {
   const t = resolve(theme);
 
   it.each([
@@ -23,9 +23,10 @@ describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.4', (theme
     ['text', 'surface-2'],
     ['text-muted', 'surface'],
     ['text-muted', 'surface-2'],
-    ['text-subtle', 'surface'],
     ['accent-text', 'surface'],
+    ['accent-text', 'surface-2'],
     ['accent-fg', 'accent'],
+    ['accent-fg', 'accent-hover'],
     ['success', 'success-soft'],
     ['warning', 'warning-soft'],
     ['danger', 'danger-soft'],
@@ -36,8 +37,12 @@ describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.4', (theme
   });
 
   it.each([
-    // Primary button label on the hover fill: 3.7:1 in light. Raised for the DESIGN.md sign-off in week 4.
-    ['accent-fg', 'accent-hover'],
+    // Placeholders and metadata (DESIGN.md §2.2).
+    ['text-subtle', 'surface'],
+    ['text-subtle', 'surface-2'],
+    // A field is identified by its outline alone (WCAG 1.4.11, AUDIT M49).
+    ['border-strong', 'surface'],
+    ['border-strong', 'bg'],
     ['accent', 'surface'],
     ['focus', 'surface'],
     ['focus', 'bg'],

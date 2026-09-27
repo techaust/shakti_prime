@@ -2,6 +2,9 @@
 // stale-file test can compare the committed output with a fresh render.
 import { aliases, colors, scale, shadows, type Theme } from './tokens';
 
+/** Pixels at the browser default text size, emitted in rem so a user's own setting scales them. */
+const rem = (px: number) => `${String(px / 16)}rem`;
+
 const HEADER = '/* Generated from packages/tokens/src/tokens.ts. Do not edit by hand. */\n';
 
 function themeBlock(theme: Theme, indent: string): string {
@@ -14,26 +17,33 @@ function themeBlock(theme: Theme, indent: string): string {
   return lines.join('\n');
 }
 
+// A custom property's var() resolves on the element that declares it, so a scoped theme block
+// must declare the aliases again or they keep the values resolved on :root.
+function aliasBlock(indent: string): string {
+  return Object.entries(aliases)
+    .map(([name, target]) => `${indent}--${name}: var(--${target});`)
+    .join('\n');
+}
+
 function staticBlock(indent: string): string {
-  const lines: string[] = [];
-  for (const [name, target] of Object.entries(aliases))
-    lines.push(`${indent}--${name}: var(--${target});`);
+  const lines: string[] = [aliasBlock(indent)];
   for (const [step, px] of Object.entries(scale.space))
-    lines.push(`${indent}--space-${step}: ${px}px;`);
+    lines.push(`${indent}--space-${step}: ${rem(px)};`);
   for (const [step, px] of Object.entries(scale.radius))
     lines.push(`${indent}--radius-${step}: ${px}px;`);
   for (const [role, font] of Object.entries(scale.font)) {
-    lines.push(`${indent}--font-${role}-size: ${font.size}px;`);
-    lines.push(`${indent}--font-${role}-line: ${font.line}px;`);
+    lines.push(`${indent}--font-${role}-size: ${rem(font.size)};`);
+    lines.push(`${indent}--font-${role}-line: ${rem(font.line)};`);
     lines.push(`${indent}--font-${role}-weight: ${font.weight};`);
   }
-  lines.push(`${indent}--font-family: ${scale.fontFamily};`);
+  // next/font sets --font-inter on <html>; elsewhere the stack falls back to Inter by name.
+  lines.push(`${indent}--font-family: var(--font-inter, Inter), system-ui, sans-serif;`);
   for (const [name, ms] of Object.entries(scale.motion))
     lines.push(`${indent}--motion-${name}: ${ms}ms;`);
-  lines.push(`${indent}--row-comfortable: ${scale.row.comfortable}px;`);
-  lines.push(`${indent}--row-compact: ${scale.row.compact}px;`);
-  lines.push(`${indent}--control-desktop: ${scale.control.desktop}px;`);
-  lines.push(`${indent}--control-phone: ${scale.control.phone}px;`);
+  lines.push(`${indent}--row-comfortable: ${rem(scale.row.comfortable)};`);
+  lines.push(`${indent}--row-compact: ${rem(scale.row.compact)};`);
+  lines.push(`${indent}--control-desktop: ${rem(scale.control.desktop)};`);
+  lines.push(`${indent}--control-phone: ${rem(scale.control.phone)};`);
   lines.push(`${indent}--focus-ring-width: ${scale.focusRing.width}px;`);
   lines.push(`${indent}--focus-ring-offset: ${scale.focusRing.offset}px;`);
   return lines.join('\n');
@@ -56,6 +66,17 @@ export function renderTokensCss(): string {
     '',
     ':root[data-theme="dark"] {',
     themeBlock('dark', '  '),
+    '}',
+    '',
+    '/* Scoped themes, so one page can show both side by side (the /design preview). */',
+    '.theme-light {',
+    themeBlock('light', '  '),
+    aliasBlock('  '),
+    '}',
+    '',
+    '.theme-dark {',
+    themeBlock('dark', '  '),
+    aliasBlock('  '),
     '}',
     '',
   ].join('\n');
@@ -99,6 +120,11 @@ export function renderTailwindCss(): string {
   for (const [alias, target] of Object.entries(shadcn))
     lines.push(`  --${alias}: var(--${target});`);
   lines.push('  --radius: var(--radius-lg);');
+  lines.push('}', '');
+  // Tailwind v4 makes utilities only from @theme keys, so the aliases need --color-* entries
+  // too. `accent` stays the Shakti accent; shadcn components use surface-3 for hover fills.
+  lines.push('@theme inline {');
+  for (const alias of Object.keys(shadcn)) lines.push(`  --color-${alias}: var(--${alias});`);
   lines.push('}', '');
   return lines.join('\n');
 }

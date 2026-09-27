@@ -6,6 +6,7 @@ import { reactivateUser, suspendUser } from '../commands/admin/user-status';
 import { createLead } from '../commands/crm/create-lead';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
+import { setTheme } from '../commands/profile/set-theme';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -18,6 +19,7 @@ export const commands = {
   [suspendUser.name]: suspendUser,
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,
+  [setTheme.name]: setTheme,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {
