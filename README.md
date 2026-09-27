@@ -43,4 +43,4 @@ pnpm + Turborepo monorepo.
 | `pnpm format`           | Prettier write                                                      |
 | `pnpm --filter web dev` | Run the web app locally                                             |
 
-CI runs lint, format, copy lint, typecheck, unit tests, a check that generated files are committed, the production build, a secret scan, a dependency audit at moderate severity, the migration hash check and the security suite on every pull request and every push to `main`. Deploying to a hosted environment follows `docs/runbooks/DEPLOY.md`.
+CI runs lint, format, copy lint, typecheck, unit tests, a check that generated files are committed, the production build, a secret scan, a dependency audit at moderate severity, the migration hash check and the security suite on every pull request and every push to `main`. A pull request merges itself once CI passes on its latest commit (`.github/workflows/automerge.yml`, `AGENTS.md` §8); the `hold` label stops that. Deploying to a hosted environment follows `docs/runbooks/DEPLOY.md`.
