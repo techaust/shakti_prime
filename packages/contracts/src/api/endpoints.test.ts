@@ -22,7 +22,6 @@ function documentedRoutes(): string[] {
     const row = /^\| (GET|POST|GET\/POST) \| `([^`]+)`/.exec(line);
     if (row?.[1] === undefined || row[2] === undefined) continue;
     const path = row[2].split('?')[0] ?? row[2];
-    if (path.startsWith('/admin/')) continue;
     for (const method of row[1].split('/')) routes.push(`${method} ${path}`);
   }
   return routes.sort();
@@ -47,7 +46,7 @@ describe('the /api/v1 endpoint catalogue', () => {
     const named = apiDoc
       .split(/\r?\n/)
       .filter((line) =>
-        /^\| (GET|POST) \| `\/(auth|sync|files|attendance|expenses|ingest|connector|me|realtime|voice)/.test(
+        /^\| (GET|POST) \| `\/(auth|sync|files|attendance|expenses|ingest|connector|me|realtime|voice|admin)/.test(
           line,
         ),
       )
@@ -55,6 +54,16 @@ describe('the /api/v1 endpoint catalogue', () => {
       .map((m) => m[1] ?? '');
     expect(named.length).toBeGreaterThan(30);
     expect(named.filter((word) => !known.has(word))).toEqual([]);
+  });
+
+  it('names every worker route of the catalogue in §3.6', () => {
+    const workers = apiDoc.slice(apiDoc.indexOf('### 3.6'), apiDoc.indexOf('### 3.7'));
+    const documented = new Set(
+      [...workers.matchAll(/^\| POST \| `([^`]+)`/gm)].map((m) => m[1] ?? ''),
+    );
+    const catalogued = entries.filter(([, e]) => e.path.startsWith('/workers/'));
+    expect(catalogued.length).toBeGreaterThan(9);
+    for (const [, e] of catalogued) expect(documented).toContain(e.path);
   });
 
   it('names each route once', () => {

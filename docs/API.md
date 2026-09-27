@@ -90,15 +90,29 @@ Contracts in `connector.ts`. Every call carries `ConnectorHeaders`; the signatur
 | GET | `/connector/release` | Latest signed release manifest for self-update | none | `ConnectorReleaseResponse`: `{ version, minimumVersion, url, sha256, signature, publishedAt }` | `unauthorized` |
 
 ### 3.6 Workers (QStash only)
-`/workers/outbox/publish` (the outbox publisher, built; answers `OutboxPublishResponse` in `workers.ts`), `/workers/outbox/:type`, `/workers/messaging/send`, `/workers/files/scan`, `/workers/files/mask`, `/workers/pdf/render`, `/workers/imports/commit`, `/workers/agents/:agent`, `/workers/stt/transcribe`, `/workers/embeddings/index`, `/workers/notify`. Each verifies the QStash signature, checks the event ID in Redis, runs the command and returns `200` on success or a retryable `5xx`.
+Every worker verifies the QStash signature (`Upstash-Signature`) with the current and next signing keys, checks the body's `eventId` in Redis (`evt:{id}`, 7 days) and answers `duplicate` without running when it has seen it, runs the command as its principal (a named agent principal or `system:workers`, never with a cost permission), and returns `200` on success or a retryable `5xx`. Bodies carry ids, codes and counts only. Contracts in `worker-jobs.ts` unless the row says otherwise; each answer is `{ eventId, outcome: duplicate }` or `{ eventId, outcome: done, … }` with the fields listed. Errors for every worker: `unauthorized` (signature), `validation_failed` (body, not retried), `integration_unavailable` (retried).
+
+| Method | Path | Purpose | Contract | Response |
+|---|---|---|---|---|
+| POST | `/workers/outbox/publish` | The outbox publisher (built): claims pending events and sends each to its queue group | `workers.ts`, no body | `OutboxPublishResponse`: `{ claimed, published, skipped, failed, deadLettered }` |
+| POST | `/workers/outbox/:type` | One outbox event delivered to the worker subscribed to its type (queue group `evt-<type>`) | `OutboxEventParams` (`type` from the event catalogue); body `OutboxEventDelivery` (the publisher's `DeliveredEvent`) | `OutboxEventResult`: `{ eventId, outcome }` |
+| POST | `/workers/messaging/send` | Check and send one `message.requested` (§6) | `MessagingSendJob` (`eventId`, `entityId`, `message`: `MessageRequested` in `messaging.ts`) | `MessagingSendResult`: `status: sent` with `providerMessageId`, or `status: refused` with `refusal` (`MESSAGING_REFUSALS`) |
+| POST | `/workers/files/scan` | Malware scan of a completed upload | `FileScanJob` (`eventId`, `fileId`) | `FileScanResult`: `{ fileId, verdict: clean \| infected \| unreadable }` |
+| POST | `/workers/files/mask` | OCR masking before the kept copy is stored and before any classifier | `FileMaskJob` (`eventId`, `fileId`, `expect`: `aadhaar`, `bank_account`) | `FileMaskResult`: `{ fileId, status: masked \| clean \| needs_review \| rejected, regionsMasked }` |
+| POST | `/workers/pdf/render` | Render a document version or a label sheet with headless Chromium (ADR 0009) | `PdfRenderJob` (`eventId`, `entityId`, `target`: a `document` with type, id and version, or `labels` with kind, size and 1..500 ids) | `PdfRenderResult`: `{ fileId, pages, bytes }` |
+| POST | `/workers/imports/commit` | Commit one batch of an import job | Arrives with the import framework (docs/design/backend-weeks-3-5.md §8) | |
+| POST | `/workers/agents/:agent` | Wake one agent with the event that concerns it | `AgentRunParams` (`agent`: `AGENT_NAMES`); body `AgentRunJob` (`DeliveredEvent`) | `AgentRunResult`: `{ runId, suggested, awaitingApproval, applied, stopped: kill_switch \| spend_cap \| null }` |
+| POST | `/workers/stt/transcribe` | Transcribe a call recording or a voice session | `SttTranscribeJob` (`eventId`, `entityId`, `source`: a call or a voice session, `audioFileId`, `languageHint`) | `SttTranscribeResult`: `{ transcriptFileId, audioSeconds }` |
+| POST | `/workers/embeddings/index` | Chunk and embed one vault file with its entity and sensitivity | `EmbeddingsIndexJob` (`eventId`, `knowledgeFileId`, `entityId` or null, `sensitivity`) | `EmbeddingsIndexResult`: `{ knowledgeFileId, chunks, replaced }` |
+| POST | `/workers/notify` | Write a notification for up to 500 people and push it under their preferences and quiet hours | `NotifyJob` (`eventId`, `entityId`, `type`, `recipientIds`, `subject`: type and id) | `NotifyResult`: `{ created, pushed, heldForQuietHours }` |
 
 ### 3.7 Operations
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/health` | none | Liveness; `HealthResponse` in `health.ts` |
 | GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down; `ReadyResponse` in `health.ts` |
-| GET | `/admin/integrations` | session (admin.integrations.write) | Integration Health: webhook inbox stats, DLQ, connector heartbeat, WhatsApp quality and tier, AI spend |
-| POST | `/admin/integrations/replay` | session | Replay a dead-lettered event |
+| GET | `/admin/integrations?cursor=&limit=` | session (admin.integrations.write) | Integration Health: webhook inbox stats per provider, dead-lettered events (paged by the cursor), connector heartbeat, WhatsApp quality and tier, AI spend per agent; `IntegrationHealthQuery` and `IntegrationHealthResponse` in `admin-integrations.ts`; errors `validation_failed`, `unauthorized`, `forbidden` |
+| POST | `/admin/integrations/replay` | session (admin.integrations.write) | Replay a dead-lettered event (`integrations.dlq.replay`): back in the queue with its attempts reset, audited; `IntegrationReplayRequest` (`eventId`) and `IntegrationReplayResponse` (`{ eventId, requeued, attempts: 0 }`) in `admin-integrations.ts`; errors `validation_failed`, `unauthorized`, `forbidden`, `not_found`, `conflict` (`not_dead_lettered`) |
 
 ## 4. Server actions (web)
 - Live in `apps/web/src/actions/<module>.ts`, one exported function per command, each a thin wrapper: resolve the caller from the session → `parseInput()` with the contract → `executeCommand()` or `executeQuery()` (which open `withRequestContext()`) → return DTO.
@@ -128,7 +142,7 @@ export const SalesOrderDto = z.object({
 ```
 
 ## 6. Messaging contracts (outbound WhatsApp)
-Commands never call Meta directly. They emit `message.requested` with `{ threadId, kind: 'template' | 'session', templateName?, params?, bodyMasked?, fileId? }`. The messaging worker enforces: opt-out, 24-hour window for session messages, template approval status, portfolio tier budget (service messages first), deterministic output filter, per-conversation rate limit; then sends and records `provider_message_id`. Status webhooks update `whatsapp_messages.status`.
+Commands never call Meta directly. They emit `message.requested` with `{ threadId, kind: 'template' | 'session', templateName?, params?, bodyMasked?, fileId? }` (`MessageRequested` in `packages/contracts/src/api/messaging.ts`: a template message names its approved template and parameters, a session message its masked body; the type joins the event catalogue with the messaging worker in Phase 2). The messaging worker enforces: opt-out, 24-hour window for session messages, template approval status, portfolio tier budget (service messages first), deterministic output filter, per-conversation rate limit; then sends and records `provider_message_id`. Status webhooks update `whatsapp_messages.status`.
 
 ## 7. Compatibility and deprecation
 - Additive changes (new optional fields, new endpoints) ship without a version bump.

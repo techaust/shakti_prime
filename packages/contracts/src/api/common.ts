@@ -20,7 +20,8 @@ export const API_HEADERS = {
 /**
  * `details.reason` values the `/api/v1` routes give beside an error code (docs/API.md §3), for the
  * callers that act on them: the field app's update gate and conflict screen, the connector's
- * re-read, the website form. The mobile sign-in reasons are `MOBILE_AUTH_REASONS`.
+ * re-read, the website form, the Integration Health page's replay. The mobile sign-in reasons are
+ * `MOBILE_AUTH_REASONS`.
  */
 export const API_ERROR_REASONS = [
   'app_update_required',
@@ -31,6 +32,7 @@ export const API_ERROR_REASONS = [
   'turnstile_failed',
   'cursor_mismatch',
   'idempotency_mismatch',
+  'not_dead_lettered',
 ] as const;
 export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
 export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;
