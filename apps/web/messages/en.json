@@ -968,8 +968,7 @@
         "field": "{field}: {sentence}",
         "sameAsRow": "Same mobile number as row {row}. Only the first of them is added.",
         "customer": "Already a customer: {name}. Check this before adding, so nobody is entered twice.",
-        "customerHidden": "Already a customer you can't see. Ask your manager before adding.",
-        "none": "Nothing to correct"
+        "customerHidden": "Already a customer you can't see. Ask your manager before adding."
       },
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",
