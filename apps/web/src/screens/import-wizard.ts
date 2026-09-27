@@ -8,10 +8,37 @@ import type {
   ImportTemplateDto,
   LeadImportField,
 } from '@shakti/contracts';
+import type { StatusTone } from '@shakti/ui';
 
 // The import screen's own logic (docs/design/backend-weeks-3-5.md §8): which step a job is at,
 // the column matching form, the rows' findings and the progress line. Only types come from the
 // contracts, so no schema reaches the browser; `import-wizard.test.ts` keeps the lists equal.
+
+/** How a job's state looks in the lists and on its page. */
+export const JOB_STATE_TONE: Record<ImportJobState, StatusTone> = {
+  uploaded: 'neutral',
+  mapped: 'neutral',
+  previewed: 'accent',
+  committing: 'info',
+  committed: 'success',
+  rolled_back: 'neutral',
+  failed: 'danger',
+};
+
+/** How a row's state looks in the check step's grid. */
+export const ROW_STATE_TONE: Record<ImportRowState, StatusTone> = {
+  pending: 'neutral',
+  valid: 'success',
+  invalid: 'danger',
+  committed: 'success',
+  skipped: 'warning',
+  rolled_back: 'neutral',
+};
+
+/** Where a job opens: its own page, which shows the step it waits at. */
+export function jobHref(job: Pick<ImportJobDto, 'entityId' | 'id'>) {
+  return `/imports/${String(job.entityId)}/${job.id}` as const;
+}
 
 /** The lead fields a file column can fill, in the order the matching form offers them. */
 export const LEAD_IMPORT_FIELDS = [

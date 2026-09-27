@@ -893,6 +893,7 @@
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
+      "noFile": "Choose the spreadsheet file to add.",
       "chosen": "{name}, {size}",
       "submit": "Read the file",
       "cancel": "Cancel",
