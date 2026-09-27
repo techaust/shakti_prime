@@ -20,7 +20,8 @@ interface ReplayRow {
  * back in the queue with its attempts and error cleared; the publisher sends it on its next run.
  * `app_user` cannot write `outbox_events`, so the change goes through the definer function, which
  * checks `integrations.dlq.replay:all` itself and is the one change the outbox trigger allows on
- * a dead letter. An event that is not dead-lettered is left as it is.
+ * a dead letter. An event that is not dead-lettered is left as it is, and one of a company outside
+ * the request scope is not replayed.
  */
 export const replayDeadLetter = defineCommand({
   name: 'integrations.dlq.replay',
@@ -34,7 +35,9 @@ export const replayDeadLetter = defineCommand({
              to_json(was_dead_lettered_at) #>> '{}' as dead_lettered_at
         from app.replay_dead_letter(${input.eventId}::uuid)`)) as unknown as ReplayRow[];
     const row = rows[0];
-    if (!row) {
+    // An event of a company outside the request scope is answered as unknown; throwing rolls the
+    // reset back with the rest of the transaction.
+    if (!row || !ctx.entityIds.includes(row.event_entity_id)) {
       throw new DomainError('not_found', `event ${input.eventId} does not exist`, {
         reason: 'dead_letter_missing',
       });
@@ -58,6 +61,6 @@ export const replayDeadLetter = defineCommand({
         eventEntityId: row.event_entity_id,
       },
     });
-    return { eventId: input.eventId, requeued: true, attempts: 0 };
+    return { eventId: input.eventId, requeued: true as const, attempts: 0 as const };
   },
 });
