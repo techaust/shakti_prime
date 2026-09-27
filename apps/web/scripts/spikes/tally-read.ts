@@ -71,6 +71,7 @@ for (let i = 0; i < vouchers.length; i += MAX_VOUCHERS_PER_BATCH) {
   const body = {
     company,
     entityCode: env('TALLY_ENTITY_CODE'),
+    fromAlterId: cursor,
     maxAlterId,
     vouchers: slice,
     ledgers: [],

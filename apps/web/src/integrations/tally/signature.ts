@@ -1,25 +1,32 @@
+import {
+  API_HEADERS,
+  CONNECTOR_CLOCK_SKEW_SECONDS,
+  ConnectorHeaders,
+  connectorSigningString,
+  isConnectorTimestampFresh,
+} from '@shakti/contracts';
 import { createHash } from 'node:crypto';
 import { hmacSha256Hex, safeEqual } from '../http';
 
 /**
  * Request signing between the Tally connector and the BOS (docs/API.md §2 and §3.5, SECURITY §2).
  * Every call carries `X-Connector-Id` (a UUID), `X-Timestamp` (Unix seconds, ten digits) and
- * `X-Signature` (the lowercase hex HMAC-SHA256 under the connector's key) over the canonical
- * string, the same one `connectorSigningString()` in the published connector contract builds:
+ * `X-Signature` (the lowercase hex HMAC-SHA256 under the connector's key) over the string the
+ * published connector contract builds with `connectorSigningString()`:
  *
  *     METHOD \n PATH-WITH-QUERY \n TIMESTAMP \n hex(SHA-256(raw body))
  *
- * A timestamp more than five minutes from the BOS clock is refused, so a captured request cannot be
- * replayed later; within the window, the `Idempotency-Key` on every batch makes a replay a no-op.
- * A connector may hold two keys during a rotation; either verifies.
+ * A timestamp more than five minutes from the BOS clock is refused (`isConnectorTimestampFresh()`),
+ * so a captured request cannot be replayed later; within the window, the `Idempotency-Key` on every
+ * batch makes a replay a no-op. A connector may hold two keys during a rotation; either verifies.
  */
 
-export const CONNECTOR_SKEW_SECONDS = 300;
+export const CONNECTOR_SKEW_SECONDS = CONNECTOR_CLOCK_SKEW_SECONDS;
 
 export const CONNECTOR_HEADERS = {
-  id: 'x-connector-id',
-  timestamp: 'x-timestamp',
-  signature: 'x-signature',
+  id: API_HEADERS.connectorId,
+  timestamp: API_HEADERS.timestamp,
+  signature: API_HEADERS.signature,
 } as const;
 
 export function canonicalRequest(
@@ -28,8 +35,12 @@ export function canonicalRequest(
   timestamp: string,
   body: string | Uint8Array,
 ): string {
-  const bodyHash = createHash('sha256').update(body).digest('hex');
-  return `${method.toUpperCase()}\n${pathWithQuery}\n${timestamp}\n${bodyHash}`;
+  return connectorSigningString({
+    method,
+    pathWithQuery,
+    timestamp,
+    bodySha256Hex: createHash('sha256').update(body).digest('hex'),
+  });
 }
 
 /** What the connector sends in `X-Signature`. */
@@ -67,15 +78,20 @@ export function verifyConnectorRequest(
   keysFor: (connectorId: string) => readonly string[],
   now: Date,
 ): ConnectorAuth {
-  const connectorId = request.headers.get(CONNECTOR_HEADERS.id) ?? '';
-  const timestamp = request.headers.get(CONNECTOR_HEADERS.timestamp) ?? '';
-  const signature = request.headers.get(CONNECTOR_HEADERS.signature) ?? '';
-  if (connectorId === '' || !/^\d{10}$/.test(timestamp) || signature === '') {
-    return { ok: false, problem: 'missing_headers' };
-  }
+  const headers = ConnectorHeaders.safeParse({
+    [CONNECTOR_HEADERS.id]: request.headers.get(CONNECTOR_HEADERS.id) ?? undefined,
+    [CONNECTOR_HEADERS.timestamp]: request.headers.get(CONNECTOR_HEADERS.timestamp) ?? undefined,
+    [CONNECTOR_HEADERS.signature]: request.headers.get(CONNECTOR_HEADERS.signature) ?? undefined,
+  });
+  if (!headers.success) return { ok: false, problem: 'missing_headers' };
+  const {
+    [CONNECTOR_HEADERS.id]: connectorId,
+    [CONNECTOR_HEADERS.timestamp]: timestamp,
+    [CONNECTOR_HEADERS.signature]: signature,
+  } = headers.data;
   const keys = keysFor(connectorId).filter((k) => k !== '');
   if (keys.length === 0) return { ok: false, problem: 'unknown_connector' };
-  if (Math.abs(Math.floor(now.getTime() / 1000) - Number(timestamp)) > CONNECTOR_SKEW_SECONDS) {
+  if (!isConnectorTimestampFresh(timestamp, Math.floor(now.getTime() / 1000))) {
     return { ok: false, problem: 'stale_timestamp' };
   }
   // Every key is tried so the time taken does not tell which one matched.

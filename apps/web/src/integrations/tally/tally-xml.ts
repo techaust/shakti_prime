@@ -1,3 +1,5 @@
+import { voucherTypeOf } from './payloads';
+
 /**
  * Reading Tally Prime over its XML server (port 9000 on the accounts machine), for the spike only:
  * the Windows connector (`apps/tally-connector`, Phase 5) owns this in production and pushes to the
@@ -39,8 +41,9 @@ export function vouchersSinceRequest(company: string, sinceAlterId: number): str
     [
       '<COLLECTION NAME="BOSVouchersSince" ISMODIFY="No">',
       '<TYPE>Voucher</TYPE>',
-      '<FETCH>GUID, ALTERID, VOUCHERTYPENAME, DATE, VOUCHERNUMBER, PARTYLEDGERNAME, AMOUNT,',
-      ' ISCANCELLED, BASICBUYERORDERNO</FETCH>',
+      '<FETCH>GUID, ALTERID, VOUCHERTYPENAME, DATE, VOUCHERNUMBER, PARTYLEDGERNAME, PARTYGSTIN,',
+      ' AMOUNT, ISCANCELLED, ISOPTIONAL, BASICBUYERORDERNO, ALLLEDGERENTRIES.LIST,',
+      ' ALLINVENTORYENTRIES.LIST</FETCH>',
       '<FILTER>BOSAfterCursor</FILTER>',
       '<SORT>$ALTERID</SORT>',
       '</COLLECTION>',
@@ -82,33 +85,97 @@ function isoDate(value: string | undefined): string | undefined {
     : undefined;
 }
 
-/** Tally amounts carry a sign for debit or credit; the BOS keeps rupees with two decimals. */
-function money(value: string | undefined): string | undefined {
+/**
+ * Tally amounts carry a sign for the debit or credit side, formatted as the contract's two-decimal
+ * rupee string (`SignedMoneySchema`); `unsigned` drops the sign for a voucher's total (`MoneySchema`).
+ */
+function money(value: string | undefined, unsigned = false): string | undefined {
   if (value === undefined) return undefined;
   const n = Number(value.replaceAll(',', ''));
-  return Number.isFinite(n) ? Math.abs(n).toFixed(2) : undefined;
+  if (!Number.isFinite(n)) return undefined;
+  return (unsigned ? Math.abs(n) : n).toFixed(2);
 }
 
-/** Vouchers from an export answer, in the connector's batch shape. Unreadable ones are skipped. */
+/** Tally writes a quantity as `2 Nos` and a rate as `62500.00/Nos`. */
+function quantityOf(value: string | undefined): { quantity?: string; unit?: string } {
+  const match = /^(-?[\d.,]+)\s*(\S+)?$/.exec(value ?? '');
+  if (match?.[1] === undefined) return {};
+  return {
+    quantity: match[1].replaceAll(',', ''),
+    ...(match[2] === undefined ? {} : { unit: match[2] }),
+  };
+}
+
+function rateOf(value: string | undefined): string | undefined {
+  const figure = value?.split('/')[0]?.replaceAll(',', '').trim();
+  return figure === undefined || figure === '' ? undefined : Number(figure).toFixed(2);
+}
+
+function lists(block: string, name: string): string[] {
+  const escaped = name.replaceAll('.', '\\.');
+  return [...block.matchAll(new RegExp(`<${escaped}\\b[^>]*>([\\s\\S]*?)</${escaped}>`, 'g'))].map(
+    (m) => m[1] ?? '',
+  );
+}
+
+/** The voucher's own fields: the nested `*.LIST` blocks removed, so their tags are not read. */
+function headerOf(block: string): string {
+  return block.replaceAll(/<([A-Z]+(?:\.[A-Z]+)*\.LIST)\b[^>]*>[\s\S]*?<\/\1>/g, '');
+}
+
+function nonEmpty(value: string | undefined): string | null {
+  return value === undefined || value === '' ? null : value;
+}
+
+/**
+ * Vouchers from an export answer, in the contract's `TallyVoucher` shape (checked afterwards by
+ * `parseBatch`). A voucher without a GUID or AlterID, or of a type the BOS does not read, is
+ * skipped.
+ */
 export function parseVoucherExport(xml: string): Record<string, unknown>[] {
   const vouchers: Record<string, unknown>[] = [];
   for (const match of xml.matchAll(/<VOUCHER\b[^>]*>([\s\S]*?)<\/VOUCHER>/g)) {
     const block = match[1] ?? '';
-    const guid = tag(block, 'GUID');
-    const alterId = Number(tag(block, 'ALTERID'));
-    if (guid === undefined || !Number.isSafeInteger(alterId)) continue;
-    const buyerOrderNo = tag(block, 'BASICBUYERORDERNO');
-    const partyLedger = tag(block, 'PARTYLEDGERNAME');
+    const header = headerOf(block);
+    const guid = tag(header, 'GUID');
+    const alterId = Number(tag(header, 'ALTERID'));
+    const typeName = tag(header, 'VOUCHERTYPENAME') ?? '';
+    const type = voucherTypeOf(typeName);
+    if (guid === undefined || !Number.isSafeInteger(alterId) || type === undefined) continue;
+    const ledgerEntries = [
+      ...lists(block, 'ALLLEDGERENTRIES.LIST'),
+      ...lists(block, 'LEDGERENTRIES.LIST'),
+    ].map((entry) => ({
+      ledgerName: tag(entry, 'LEDGERNAME'),
+      amount: money(tag(entry, 'AMOUNT')),
+    }));
+    const inventoryEntries = [
+      ...lists(block, 'ALLINVENTORYENTRIES.LIST'),
+      ...lists(block, 'INVENTORYENTRIES.LIST'),
+    ].map((entry) => {
+      const rate = rateOf(tag(entry, 'RATE'));
+      return {
+        stockItemName: tag(entry, 'STOCKITEMNAME'),
+        ...quantityOf(tag(entry, 'ACTUALQTY')),
+        ...(rate === undefined ? {} : { rate }),
+        amount: money(tag(entry, 'AMOUNT')),
+      };
+    });
     vouchers.push({
       guid,
       alterId,
-      voucherType: tag(block, 'VOUCHERTYPENAME'),
-      date: isoDate(tag(block, 'DATE')),
-      number: tag(block, 'VOUCHERNUMBER') ?? '',
-      amount: money(tag(block, 'AMOUNT')),
-      cancelled: tag(block, 'ISCANCELLED') === 'Yes',
-      ...(partyLedger === undefined || partyLedger === '' ? {} : { partyLedger }),
-      ...(buyerOrderNo === undefined || buyerOrderNo === '' ? {} : { buyerOrderNo }),
+      type,
+      typeName,
+      voucherNo: tag(header, 'VOUCHERNUMBER') ?? '',
+      date: isoDate(tag(header, 'DATE')),
+      partyName: nonEmpty(tag(header, 'PARTYLEDGERNAME')),
+      partyGstin: nonEmpty(tag(header, 'PARTYGSTIN')?.toUpperCase()),
+      buyerOrderNo: nonEmpty(tag(header, 'BASICBUYERORDERNO')),
+      amount: money(tag(header, 'AMOUNT'), true),
+      isCancelled: tag(header, 'ISCANCELLED') === 'Yes',
+      isOptional: tag(header, 'ISOPTIONAL') === 'Yes',
+      ledgerEntries,
+      inventoryEntries,
     });
   }
   return vouchers;

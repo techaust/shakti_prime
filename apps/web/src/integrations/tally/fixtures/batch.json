@@ -1,55 +1,79 @@
 {
   "company": "Shakti Supreme Pvt Ltd 2026-27",
   "entityCode": "SS",
+  "fromAlterId": 4170,
   "maxAlterId": 4180,
   "vouchers": [
     {
-      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a11",
-      "alterId": 4172,
-      "voucherType": "Sales",
-      "date": "2026-09-27",
-      "number": "SS/2026-27/0418",
-      "partyLedger": "Kisan Agro Traders",
-      "amount": "125000.00",
-      "buyerOrderNo": "SS/SO/2026-27/0042"
-    },
-    {
       "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a12",
       "alterId": 4175,
-      "voucherType": "Receipt",
+      "type": "receipt",
+      "typeName": "Receipt",
+      "voucherNo": "RC/0311",
       "date": "2026-09-27",
-      "number": "RC/0311",
-      "partyLedger": "Kisan Agro Traders",
+      "partyName": "Kisan Agro Traders",
+      "partyGstin": null,
+      "buyerOrderNo": "SS/PI/2026-27/0017",
       "amount": "50000.00",
-      "buyerOrderNo": "SS/PI/2026-27/0017"
+      "isCancelled": false,
+      "isOptional": false,
+      "ledgerEntries": [{ "ledgerName": "Kisan Agro Traders", "amount": "50000.00" }],
+      "inventoryEntries": []
     },
     {
       "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a13",
       "alterId": 4178,
-      "voucherType": "Purchase",
+      "type": "purchase",
+      "typeName": "Purchase",
+      "voucherNo": "PUR/0099",
       "date": "2026-09-26",
-      "number": "PUR/0099",
-      "partyLedger": "Motor Components Supplier",
-      "amount": "88210.50"
+      "partyName": "Motor Components Supplier",
+      "partyGstin": null,
+      "buyerOrderNo": null,
+      "amount": "88210.50",
+      "isCancelled": false,
+      "isOptional": false,
+      "ledgerEntries": [{ "ledgerName": "Motor Components Supplier", "amount": "88210.50" }],
+      "inventoryEntries": []
     },
     {
       "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a11",
       "alterId": 4180,
-      "voucherType": "Sales",
+      "type": "sales",
+      "typeName": "Sales",
+      "voucherNo": "SS/2026-27/0418",
       "date": "2026-09-27",
-      "number": "SS/2026-27/0418",
-      "partyLedger": "Kisan Agro Traders",
+      "partyName": "Kisan Agro Traders",
+      "partyGstin": "08AAAAA0000A1Z5",
+      "buyerOrderNo": "SS/SO/2026-27/0042",
       "amount": "126500.00",
-      "buyerOrderNo": "SS/SO/2026-27/0042"
+      "isCancelled": false,
+      "isOptional": false,
+      "ledgerEntries": [
+        { "ledgerName": "Kisan Agro Traders", "amount": "-126500.00" },
+        { "ledgerName": "Sales GST 18%", "amount": "107203.39" }
+      ],
+      "inventoryEntries": [
+        {
+          "stockItemName": "Submersible pump 5 HP",
+          "quantity": "2",
+          "unit": "Nos",
+          "rate": "53601.69",
+          "amount": "107203.39"
+        }
+      ]
     }
   ],
   "ledgers": [
     {
       "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000b01",
-      "alterId": 4101,
+      "alterId": 4171,
       "name": "Kisan Agro Traders",
       "parent": "Sundry Debtors",
-      "gstin": "08AAAAA0000A1Z5"
+      "gstin": "08AAAAA0000A1Z5",
+      "openingBalance": "0.00",
+      "closingBalance": "-76500.00",
+      "asOf": "2026-09-27"
     }
   ]
 }
