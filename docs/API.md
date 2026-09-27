@@ -98,7 +98,7 @@ Pipeline for every webhook: verify signature → insert `webhook_inbox` (unique 
 ## 4. Server actions (web)
 - Live in `apps/web/src/actions/<module>.ts`, one exported function per command, each a thin wrapper: parse input with the contract → `withRequestContext()` → command → return DTO.
 - No business logic in actions. No direct database access in components.
-- Reads for pages use the same context helper through typed query functions in `apps/web/src/queries`.
+- Reads for pages use typed query functions in `packages/domain/src/queries`, called through `executeQuery()`.
 
 ## 5. Contracts
 `packages/contracts` layout:

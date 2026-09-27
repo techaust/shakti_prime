@@ -276,7 +276,7 @@ Retention runs as scheduled, logged jobs. Final periods are confirmed with the C
 - CSP, CSRF protection, Zod validation on every input.
 - Signature verification on all webhooks; HMAC-signed Tally connector requests.
 - Secrets only in Vercel and EAS encrypted environments; there is no browser-to-database access.
-- **Supply chain:** Renovate, `pnpm audit`, CodeQL and secret scanning in CI; pinned lockfile.
+- **Supply chain:** Dependabot (grouped minor and patch updates, alerts and security updates), `pnpm audit` in CI and weekly, gitleaks over the git history, actions pinned by commit SHA, a one-day minimum release age; pinned lockfile.
 - **Secret rotation:** every 6 months and when team members leave, following a documented runbook.
 - **Staging:** synthetic or anonymised data only; never raw production PII.
 - **Customer files received on WhatsApp** are downloaded, malware-scanned and type-checked before they are filed.

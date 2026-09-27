@@ -45,11 +45,11 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 ## 4. Language and style
 - TypeScript strict everywhere; no `any`, no non-null assertions without a comment explaining why.
 - ESM only. Named exports. One command, state machine or calculator per file.
-- Files: `kebab-case.ts`. React components: `PascalCase.tsx`. Database identifiers: `snake_case`. Enum values: `snake_case` strings.
+- Files: `kebab-case.ts`, and `kebab-case.tsx` for React components, whose exports are `PascalCase`. Database identifiers: `snake_case`. Enum values: `snake_case` strings.
 - Formatting and linting: Prettier + ESLint with the repo config. CI fails on warnings.
 - Comments explain *why*, not *what*. No commented-out code.
 - Errors are typed: `DomainError` with a stable `code` from `packages/contracts/src/errors.ts`.
-- Dates: store UTC `timestamptz`, format with the shared `formatIst()` helpers. Money: `numeric(14,2)` in the DB, `Money` value object in code, lakh/crore formatting in UI.
+- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). The shared `formatIst()` helpers, the `Money` value object and lakh/crore formatting arrive with the first screen that shows them (week 4 and Phase 1).
 
 ## 4a. Product copy
 Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `DESIGN.md` §11:
@@ -57,7 +57,7 @@ Everything a user can read or hear is product copy: labels, buttons, table heade
 - **English on every surface.** Screens, messages, emails and documents are English. Roman-script Hinglish is used only for caller scripts, voice agent speech and training (`DESIGN.md` §11.5); no Devanagari in any catalogue, template or print file.
 - **No technical words.** Never show: error codes, HTTP statuses, stack traces, table or column names, "null", "undefined", "payload", "sync", "cache", "token", "webhook", "API", "RLS", "entity_id", "DTO", "invalid input", "exception", "timeout" or vendor names. Say what happened and what to do next: "We couldn't save this quote. Check your connection and try again."
 - **Final, not dummy.** No "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example text" or invented names, phones or amounts in any string, template, seed shown to users, screenshot or PDF. Every string is the wording the product ships with.
-- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogue (`apps/web/messages/en.json`) and the field app catalogue; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email live in `packages/contracts/templates` in English; caller scripts and voice prompts live beside them in `hinglish` and `en` variants.
+- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogue (`apps/web/messages/en.json`) and the field app catalogue; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email live in `packages/contracts/src/templates` in English; caller scripts and voice prompts live beside them in `hinglish` and `en` variants.
 - **Checked in CI.** A copy lint fails the build when the catalogue, a template, a caller script, a voice prompt or a print file contains a banned technical word, placeholder text or a Devanagari character.
 
 ## 5. Domain commands
