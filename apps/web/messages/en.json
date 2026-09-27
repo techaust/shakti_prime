@@ -611,6 +611,113 @@
     "language": {
       "hinglish": "Hinglish",
       "en": "English"
+    },
+    "viewLabel": "How to show leads",
+    "viewList": "List",
+    "viewBoard": "Board",
+    "board": {
+      "intro": "Your leads by stage. Drag a card to another stage, or use the card's menu.",
+      "filters": "Choose the leads to show",
+      "company": "Company",
+      "pipeline": "Line of business",
+      "show": "Show",
+      "showOption": {
+        "open": "Open leads",
+        "nurture": "Follow up later",
+        "won": "Won",
+        "lost": "Lost",
+        "all": "All leads"
+      },
+      "stage": "Stage",
+      "stageOption": "{stage}: {count, plural, one {{shown} lead} other {{shown} leads}}",
+      "count": "{count, plural, one {{shown} lead} other {{shown} leads}}",
+      "partial": "{count, plural, one {Showing {shown} of {total} lead} other {Showing the newest {shown} of {total} leads}}",
+      "emptyColumn": "No leads at this stage.",
+      "noPipelines": "No line of business is set up for this company yet. Ask an Executive to add one.",
+      "villageUnknown": "Village not recorded",
+      "noOwner": "Not assigned yet",
+      "choose": "Choose one",
+      "owner": "With {name}",
+      "age": {
+        "open": "{count, plural, =0 {Opened today} one {Open for {shown} day} other {Open for {shown} days}}",
+        "nurture": "{count, plural, =0 {Parked today} one {Parked for {shown} day} other {Parked for {shown} days}}",
+        "closed": "{count, plural, =0 {Closed today} one {Closed {shown} day ago} other {Closed {shown} days ago}}"
+      },
+      "sla": {
+        "ok": "On time",
+        "warn": "Due soon",
+        "breach": "Late"
+      },
+      "menuMove": "Move to…",
+      "menuAssign": "Assign to someone",
+      "menuNurture": "Follow up later",
+      "menuReopen": "Reopen",
+      "menuWin": "Mark as won",
+      "menuLost": "Mark as lost",
+      "moving": "Moving the lead.",
+      "moveDialog": {
+        "title": "Move {name}",
+        "intro": "Choose the stage this lead has reached.",
+        "stage": "Stage",
+        "noStage": "This line of business has no other open stage to move the lead to.",
+        "submit": "Move lead",
+        "done": "{name} moved to {stage}."
+      },
+      "assignDialog": {
+        "title": "Assign {name}",
+        "intro": "Choose who works on this lead next. It stays with them for two days before anyone else can take it.",
+        "person": "Person",
+        "loading": "Finding the people you can choose.",
+        "none": "No one you can hand this lead to works in this company.",
+        "needPerson": "Choose the person to hand this lead to.",
+        "submit": "Assign lead",
+        "done": "{name} is now with {person}."
+      },
+      "nurtureDialog": {
+        "title": "Follow up {name} later",
+        "intro": "The lead leaves your open work until it is time to call again.",
+        "reason": "Reason",
+        "needReason": "Choose why the customer wants to wait.",
+        "submit": "Follow up later",
+        "done": "{name} is set to follow up later."
+      },
+      "reopenDialog": {
+        "title": "Reopen {name}",
+        "intro": "The lead goes back to the first stage of its line of business.",
+        "submit": "Reopen lead",
+        "done": "{name} is open again."
+      },
+      "winDialog": {
+        "title": "Mark {name} as won",
+        "intro": "A lead is won once the customer accepts a quote or an order is confirmed.",
+        "submit": "Mark as won",
+        "done": "{name} is marked as won."
+      },
+      "loseDialog": {
+        "title": "Mark {name} as lost",
+        "intro": "Choose why the customer is not buying. You can reopen the lead within 30 days.",
+        "reason": "Reason",
+        "needReason": "Choose why the lead was lost.",
+        "submit": "Mark as lost",
+        "done": "{name} is marked as lost."
+      },
+      "nurtureReason": {
+        "not_ready_yet": "Not ready to buy yet",
+        "waiting_for_funds": "Waiting for money",
+        "waiting_for_subsidy": "Waiting for the subsidy",
+        "waiting_for_season": "Waiting for the season",
+        "other": "Another reason"
+      },
+      "lostReason": {
+        "price_too_high": "Price too high",
+        "bought_elsewhere": "Bought from someone else",
+        "not_interested": "Not interested",
+        "not_reachable": "Could not reach the customer",
+        "no_budget": "No money to spend",
+        "not_eligible": "Not eligible",
+        "duplicate": "Already a lead",
+        "other": "Another reason"
+      }
     }
   },
   "users": {

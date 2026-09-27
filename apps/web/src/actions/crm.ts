@@ -3,12 +3,16 @@
 import {
   AssignOpportunityInput,
   CreateLeadInput,
+  ListBoardLeadsInput,
+  ListLeadAssigneesInput,
   ListLeadsInput,
   LoseOpportunityInput,
   MoveOpportunityStageInput,
   NurtureOpportunityInput,
   ReopenOpportunityInput,
   WinOpportunityInput,
+  type LeadAssigneeDto,
+  type LeadBoardDto,
   type LeadDto,
   type LeadSourceDto,
   type OpportunityDto,
@@ -19,6 +23,8 @@ import {
   createLead as createLeadCommand,
   executeCommand,
   executeQuery,
+  listBoardLeads as listBoardLeadsQuery,
+  listLeadAssignees as listLeadAssigneesQuery,
   listLeadSources,
   listLeads as listLeadsQuery,
   listPipelines,
@@ -69,6 +75,37 @@ export async function listLeads(rawInput: unknown): Promise<ActionResult<LeadPag
           ? { limit: input.limit }
           : { limit: input.limit, cursor: input.cursor },
       ),
+    );
+  });
+}
+
+/**
+ * The leads board of one pipeline (DESIGN.md §6). A board for one company is read with the
+ * request narrowed to it, so a team lead viewing All companies sees their team there (AUDIT M24).
+ */
+export async function listBoardLeads(rawInput: unknown): Promise<ActionResult<LeadBoardDto>> {
+  return toResult('listBoardLeads', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListBoardLeadsInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
+      (context) => listBoardLeadsQuery(context, input),
+    );
+  });
+}
+
+/** The people a lead in one company can be handed to, for the board's Assign dialog. */
+export async function listLeadAssignees(
+  rawInput: unknown,
+): Promise<ActionResult<LeadAssigneeDto[]>> {
+  return toResult('listLeadAssignees', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListLeadAssigneesInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { entityIds: [input.entityId], requestId }, (context) =>
+      listLeadAssigneesQuery(context, input),
     );
   });
 }

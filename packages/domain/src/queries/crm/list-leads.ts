@@ -46,7 +46,7 @@ type LeadContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
  * owner and team indexes can serve (AUDIT M33). RLS still decides; this only lets the planner
  * go straight to the caller's own leads instead of testing every lead in the company.
  */
-function scopeFilter(ctx: LeadContext) {
+export function scopeFilter(ctx: LeadContext) {
   const o = schema.opportunities;
   const me = ctx.principal.id;
   if (hasGrant(ctx.principal.permissions, 'crm.lead.read', 'entity')) return undefined;

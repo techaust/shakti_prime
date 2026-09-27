@@ -62,10 +62,14 @@ vi.mock('../src/auth/current-principal', () => ({
 
 const { switchEntity } = await import('../src/actions/auth');
 const {
+  assignOpportunity,
   createLead,
   leadFormOptions,
+  listBoardLeads,
+  listLeadAssignees,
   listLeads,
   loseOpportunity,
+  nurtureOpportunity,
   moveOpportunityStage,
   reopenOpportunity,
   winOpportunity,
@@ -399,6 +403,71 @@ describe('command and query actions answer a result, never a thrown error (revie
       ok: false,
       error: 'dead_letter_missing',
     });
+  });
+
+  it('read the leads board of one company and pipeline, and refuse another company', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const created = ok(await createLead(lead(1)));
+    const board = ok(await listBoardLeads({ entityId: 1, pipelineKey: 'farmer_pumps' }));
+    expect(board.items.map((l) => l.id)).toEqual([created.id]);
+    expect(board.counts).toEqual([{ stageId: created.stageId, count: 1 }]);
+    expect(board.items[0]).toMatchObject({
+      customerName: 'Action test customer',
+      ownerId: request.principal.id,
+      sla: null,
+    });
+    await expect(listBoardLeads({ entityId: 2, pipelineKey: 'farmer_pumps' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    await expect(
+      listBoardLeads({ entityId: 1, pipelineKey: 'farmer_pumps', states: [] }),
+    ).resolves.toMatchObject({ ok: false, error: 'validation_failed', field: 'states' });
+    await expect(listBoardLeads({ pipelineKey: 'no_such_pipeline' })).resolves.toEqual({
+      ok: false,
+      error: 'lead_pipeline_missing',
+    });
+  });
+
+  it('offer the people to hand a lead to, then assign, park and reopen it from the board', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    await expect(listLeadAssignees({ entityId: 1 })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+
+    const team = await createTestTeam(1, 'board action team');
+    // The dialog lists people by name, a bounded number of them; a name that sorts before every
+    // earlier run's keeps this person on the list however many people the suites have added.
+    const converter = await createTestUser(
+      [{ entityId: 1, roleKey: 'tele_caller_lc', teamId: team }],
+      { name: `0 ${String(1e13 - Date.now()).padStart(13, '0')} board converter` },
+    );
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    const people = ok(await listLeadAssignees({ entityId: 1 }));
+    expect(people.map((p) => p.id)).toContain(converter.id);
+
+    const created = ok(
+      await createLead({ ...lead(1), contact: { ...lead(1).contact, phone: '9812300011' } }),
+    );
+    const target = { entityId: 1, opportunityId: created.id };
+    const assigned = ok(
+      await assignOpportunity({ ...target, ownerId: converter.id }, crypto.randomUUID()),
+    );
+    expect(assigned).toMatchObject({ ownerId: converter.id, teamId: team });
+    const parked = ok(
+      await nurtureOpportunity({ ...target, reasonCode: 'waiting_for_funds' }, crypto.randomUUID()),
+    );
+    expect(parked.state).toBe('nurture');
+    const nurtureBoard = ok(
+      await listBoardLeads({ entityId: 1, pipelineKey: 'farmer_pumps', states: ['nurture'] }),
+    );
+    expect(nurtureBoard.items.find((l) => l.id === created.id)).toMatchObject({
+      state: 'nurture',
+      ownerId: converter.id,
+      ownerName: expect.stringContaining('board converter') as unknown,
+    });
+    expect(ok(await reopenOpportunity(target, crypto.randomUUID())).state).toBe('open');
   });
 
   it('list leads a page at a time, and give the lead form its choices', async () => {
