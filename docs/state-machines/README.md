@@ -34,11 +34,3 @@ Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.
 | `quote.validityDays` | 15 |
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
-
-## New permissions needed
-
-Not in the permission catalogue yet; each transition names the interim key it uses.
-
-- `inventory.warranty.write` (warranty_claim)
-- `finance.expense.submit` (expense_claim)
-- `finance.expense.verify` (expense_claim)

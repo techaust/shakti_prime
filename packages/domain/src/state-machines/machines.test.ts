@@ -766,14 +766,6 @@ const GUARDS: GuardCase[] = [
   {
     fixture: 'expense_claim',
     from: 'manager_approved',
-    event: 'accounts.approve',
-    actor: everything('general_manager'),
-    code: 'forbidden',
-    reason: 'expense_accounts_step',
-  },
-  {
-    fixture: 'expense_claim',
-    from: 'manager_approved',
     event: 'reimburse',
     code: 'conflict',
     reason: 'expense_claim_transition_not_allowed',
@@ -984,7 +976,7 @@ describe('guards that let some actors through', () => {
     ).toBe('approved');
   });
 
-  it('expense claim: the manager step needs team scope, the Accounts step entity scope', () => {
+  it('expense claim: the manager step needs approve at team scope, the Accounts step verify', () => {
     const team = holding([{ key: 'finance.expense.approve', scope: 'team' }], 'accounts');
     const base = setup(fixtureOf('expense_claim'), 'submitted', 'manager.approve');
     expect(

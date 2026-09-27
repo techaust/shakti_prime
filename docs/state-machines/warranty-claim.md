@@ -23,18 +23,14 @@ Items marked *proposed* are not named in the governing documents; they were chos
 
 | Event | From → To | Permitted actor | Guard | Effects |
 |---|---|---|---|---|
-| `raise` | (new) → `raised` | `crm.account.write` (interim; new permission needed: `inventory.warranty.write`) | – | – |
-| `serial.identify` | `raised` → `serial_identified` | `inventory.stock.move` (interim; new permission needed: `inventory.warranty.write`) | the failed serial is given; the serial's warranty runs to today or later (IST) | `set_serial`: record the failed serial on the claim |
+| `raise` | (new) → `raised` | `inventory.warranty.write` | – | – |
+| `serial.identify` | `raised` → `serial_identified` | `inventory.warranty.write` | the failed serial is given; the serial's warranty runs to today or later (IST) | `set_serial`: record the failed serial on the claim |
 | `replace` | `serial_identified` → `replacement_issued` | `inventory.stock.move` | the replacement serial is recorded | `issue_stock`: stock movement out for the replacement serial; `cost_entry`: job cost entry of type `warranty` (restricted) |
 | `rma.raise` | `replacement_issued` → `rma_raised` | `procurement.po.write` | the supplier's RMA reference is recorded | – |
 | `settle` | `rma_raised` → `closed` | `procurement.grn.write` | supplier credit or a supplier replacement is received | `adjust_cost`: offset the warranty cost entry by the supplier credit or replacement |
-| `reject` *(proposed)* | `raised`, `serial_identified` → `rejected` | `inventory.stock.move` (interim; new permission needed: `inventory.warranty.write`) | a reason is given | – |
+| `reject` *(proposed)* | `raised`, `serial_identified` → `rejected` | `inventory.warranty.write` | a reason is given | – |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `warranty_claim_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
-
-## New permissions needed
-
-- `inventory.warranty.write`: not in the permission catalogue (SECURITY §3.2) yet; the transitions above use the interim key until it is added.
 
 ## Diagram
 

@@ -1,23 +1,37 @@
 'use server';
 
 import {
+  AssignOpportunityInput,
   CreateLeadInput,
   ListLeadsInput,
+  LoseOpportunityInput,
+  MoveOpportunityStageInput,
+  NurtureOpportunityInput,
+  ReopenOpportunityInput,
+  WinOpportunityInput,
   type LeadDto,
   type LeadSourceDto,
+  type OpportunityDto,
   type PipelineDto,
 } from '@shakti/contracts';
 import {
+  assignOpportunity as assignOpportunityCommand,
   createLead as createLeadCommand,
   executeCommand,
   executeQuery,
   listLeadSources,
   listLeads as listLeadsQuery,
   listPipelines,
+  loseOpportunity as loseOpportunityCommand,
+  moveOpportunityStage as moveOpportunityStageCommand,
+  nurtureOpportunity as nurtureOpportunityCommand,
+  reopenOpportunity as reopenOpportunityCommand,
+  winOpportunity as winOpportunityCommand,
+  type AnyCommand,
   type LeadPage,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
 
 /**
  * Thin wrapper (docs/API.md §4): parse → request context → command → DTO. The request is
@@ -71,4 +85,113 @@ export async function leadFormOptions(): Promise<
       sources: await listLeadSources(context),
     }));
   });
+}
+
+/**
+ * One lead's move through the opportunity machine (design §7.2), narrowed to the lead's company
+ * like `createLead`. Each form sends its own idempotency key, so a double click moves it once.
+ */
+async function opportunityAction(
+  action: string,
+  schema: Schema<{ entityId: number }>,
+  command: AnyCommand,
+  rawInput: unknown,
+  idempotencyKey: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return toResult(action, async () => {
+    const principal = await signedIn();
+    const input = parseInput(schema, rawInput);
+    const meta = await requestMeta();
+    return (await executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      command,
+      input,
+      commandOptions(meta, idempotencyKey),
+    )) as OpportunityDto;
+  });
+}
+
+/** Moves a lead to another open stage of its pipeline. */
+export async function moveOpportunityStage(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'moveOpportunityStage',
+    MoveOpportunityStageInput,
+    moveOpportunityStageCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Hands a lead to a person who works on leads in its company. */
+export async function assignOpportunity(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'assignOpportunity',
+    AssignOpportunityInput,
+    assignOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Parks a lead to follow up later, with the reason. */
+export async function nurtureOpportunity(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'nurtureOpportunity',
+    NurtureOpportunityInput,
+    nurtureOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Opens a parked lead again, or a lost one within the reopen window. */
+export async function reopenOpportunity(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'reopenOpportunity',
+    ReopenOpportunityInput,
+    reopenOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Marks a lead won; refused until quotes and orders exist (Phase 1). */
+export async function winOpportunity(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'winOpportunity',
+    WinOpportunityInput,
+    winOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Closes a lead without a sale, with the reason. */
+export async function loseOpportunity(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<OpportunityDto>> {
+  return opportunityAction(
+    'loseOpportunity',
+    LoseOpportunityInput,
+    loseOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }

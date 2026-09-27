@@ -42,7 +42,7 @@ export function commandOptions(
 }
 
 /** The part of a Zod schema the parser needs; the contracts package owns Zod itself. */
-interface Schema<T> {
+export interface Schema<T> {
   safeParse(
     raw: unknown,
   ):

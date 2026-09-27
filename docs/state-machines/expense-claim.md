@@ -23,10 +23,10 @@ Items marked *proposed* are not named in the governing documents; they were chos
 
 | Event | From → To | Permitted actor | Guard | Effects |
 |---|---|---|---|---|
-| `create` | (new) → `draft` | `profile.write` (interim; new permission needed: `finance.expense.submit`) | – | – |
-| `submit` | `draft` → `submitted` | `profile.write` (interim; new permission needed: `finance.expense.submit`) | at least one line, each with its receipt photo | – |
+| `create` | (new) → `draft` | `finance.expense.submit` | – | – |
+| `submit` | `draft` → `submitted` | `finance.expense.submit` | at least one line, each with its receipt photo | – |
 | `manager.approve` | `submitted` → `manager_approved` | `finance.expense.approve` at team scope or wider | the approver is not the claimant | `set_manager`: record the manager approver |
-| `accounts.approve` | `manager_approved` → `approved` | `finance.expense.approve` at entity scope or wider (interim; new permission needed: `finance.expense.verify`) | the approver is not the claimant; the Accounts step: an Accounts or Executive user other than the manager who approved | `cost_entry`: job cost entry of type `expense` when allocated to a project (restricted) |
+| `accounts.approve` | `manager_approved` → `approved` | `finance.expense.verify` at entity scope or wider | the approver is not the claimant; the Accounts step: a person other than the manager who approved | `cost_entry`: job cost entry of type `expense` when allocated to a project (restricted) |
 | `reject` *(proposed)* | `submitted`, `manager_approved` → `rejected` | `finance.expense.approve` at team scope or wider | a reason is given; the approver is not the claimant | – |
 | `reimburse` | `approved` → `reimbursed` | `finance.payment.write` or the platform | – | `export_line`: included in the monthly reimbursement export (HR-04) |
 
@@ -34,13 +34,8 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 
 ## Notes
 
-- `create`: Every staff role holds `profile.write` at own scope; the interim key stands in until the claim permission exists.
-- `accounts.approve`: The GM holds `finance.expense.approve` at entity scope for the manager step, so the Accounts step is told apart by role until a permission of its own exists.
-
-## New permissions needed
-
-- `finance.expense.submit`: not in the permission catalogue (SECURITY §3.2) yet; the transitions above use the interim key until it is added.
-- `finance.expense.verify`: not in the permission catalogue (SECURITY §3.2) yet; the transitions above use the interim key until it is added.
+- `create`: Every staff role holds `finance.expense.submit` at own scope.
+- `accounts.approve`: The GM holds `finance.expense.approve` at entity scope for the manager step; the Accounts step needs `finance.expense.verify`, which only Accounts and the Executive hold.
 
 ## Diagram
 

@@ -67,8 +67,6 @@ const settled: G = {
       : { code: 'conflict', reason: 'supplier_settlement_missing' },
 };
 
-const NEW_PERMISSION = 'inventory.warranty.write';
-
 /** Warranty claim and supplier return, the five steps of BLUEPRINT §8.4 (PRD INV-08). */
 export const warrantyClaimMachine = defineMachine<
   WarrantyClaimState,
@@ -105,15 +103,13 @@ export const warrantyClaimMachine = defineMachine<
       from: 'new',
       event: 'raise',
       to: 'raised',
-      permission: 'crm.account.write',
-      newPermission: NEW_PERMISSION,
+      permission: 'inventory.warranty.write',
     },
     {
       from: ['raised'],
       event: 'serial.identify',
       to: 'serial_identified',
-      permission: 'inventory.stock.move',
-      newPermission: NEW_PERMISSION,
+      permission: 'inventory.warranty.write',
       guard: allOf(serialGiven, underWarranty),
       effects: [{ key: 'set_serial', description: 'record the failed serial on the claim' }],
     },
@@ -152,8 +148,7 @@ export const warrantyClaimMachine = defineMachine<
       from: ['raised', 'serial_identified'],
       event: 'reject',
       to: 'rejected',
-      permission: 'inventory.stock.move',
-      newPermission: NEW_PERMISSION,
+      permission: 'inventory.warranty.write',
       guard: reasonGiven(),
       proposed: true,
     },

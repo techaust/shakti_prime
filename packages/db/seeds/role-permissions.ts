@@ -131,6 +131,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     project_manager: 'entity',
   },
   'inventory.eway.write': { ...EXEC, inventory_manager: 'entity', accounts: 'entity' },
+  'inventory.warranty.write': { ...EXEC, inventory_manager: 'entity' },
   'procurement.po.write': { ...EXEC, inventory_manager: 'entity' },
   'procurement.grn.write': { ...EXEC, inventory_manager: 'entity' },
   'procurement.rate.read': { ...EXEC, inventory_manager: 'entity', accounts: 'entity' },
@@ -174,6 +175,19 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'finance.payment.write': { ...EXEC, accounts: 'entity' },
   'finance.recon.write': { ...EXEC, accounts: 'entity' },
   'finance.cost.read': { ...EXEC, accounts: 'entity' },
+  'finance.expense.submit': {
+    executive: 'own',
+    general_manager: 'own',
+    sales_team_lead: 'own',
+    tele_caller_cc: 'own',
+    tele_caller_lc: 'own',
+    store_manager: 'own',
+    inventory_manager: 'own',
+    project_manager: 'own',
+    field_engineer: 'own',
+    accounts: 'own',
+    hr_admin: 'own',
+  },
   'finance.expense.approve': {
     ...EXEC,
     general_manager: 'entity',
@@ -181,6 +195,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     project_manager: 'entity',
     accounts: 'entity',
   },
+  'finance.expense.verify': { ...EXEC, accounts: 'entity' },
   'hr.employee.write': { ...EXEC, hr_admin: 'all' },
   'hr.attendance.manage': { ...EXEC, hr_admin: 'all' },
   'hr.leave.approve': {
@@ -250,6 +265,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'admin.entities.write': { ...EXEC },
   'admin.integrations.write': { ...EXEC },
   'admin.flags.write': { ...EXEC },
+  'integrations.dlq.replay': { ...EXEC },
 };
 
 /** Agent principal permission sets (docs/SECURITY.md §3.3), limited to keys in the catalogue. */

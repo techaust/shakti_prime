@@ -23,6 +23,8 @@ export const pipelines = pgTable(
     name: text('name').notNull(),
     segment: text('segment').notNull(),
     isActive: boolean('is_active').notNull().default(true),
+    /** Hours an assigned lead stays with its new owner before others may take it (design §7.2). */
+    lockHours: smallint('lock_hours').notNull().default(48),
     ...archivable,
     ...timestamps,
     ...actors,
@@ -32,6 +34,7 @@ export const pipelines = pgTable(
       'pipelines_segment_check',
       sql`${t.segment} in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale')`,
     ),
+    check('pipelines_lock_hours_check', sql`${t.lockHours} between 1 and 720`),
   ],
 );
 

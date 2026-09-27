@@ -4,28 +4,46 @@ import { revokeSession } from '../commands/admin/revoke-session';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
+import { assignOpportunity } from '../commands/crm/assign-opportunity';
 import { createLead } from '../commands/crm/create-lead';
+import { loseOpportunity } from '../commands/crm/lose-opportunity';
+import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
+import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
+import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
+import { winOpportunity } from '../commands/crm/win-opportunity';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
+import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
 import { setTheme } from '../commands/profile/set-theme';
+import { setCompositeRule } from '../commands/tax/set-composite-rule';
+import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
 export const commands = {
   [updateEntity.name]: updateEntity,
   [createLead.name]: createLead,
+  [moveOpportunityStage.name]: moveOpportunityStage,
+  [assignOpportunity.name]: assignOpportunity,
+  [nurtureOpportunity.name]: nurtureOpportunity,
+  [reopenOpportunity.name]: reopenOpportunity,
+  [winOpportunity.name]: winOpportunity,
+  [loseOpportunity.name]: loseOpportunity,
   [setPrice.name]: setPrice,
+  [setTaxRate.name]: setTaxRate,
+  [setCompositeRule.name]: setCompositeRule,
   [inviteUser.name]: inviteUser,
   [setUserRoles.name]: setUserRoles,
   [suspendUser.name]: suspendUser,
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,
   [resetTwoFactor.name]: resetTwoFactor,
+  [replayDeadLetter.name]: replayDeadLetter,
   [setTheme.name]: setTheme,
   [createImportJob.name]: createImportJob,
   [mapImportJob.name]: mapImportJob,

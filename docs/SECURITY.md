@@ -59,6 +59,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 | `inventory.stock.move` / `.adjust` | all | – | – | – | – | – | entity | – | own (move) | – | – |
 | `inventory.dispatch.write` | all | entity | – | – | – | – | entity | entity | – | – | – |
 | `inventory.eway.write` | all | – | – | – | – | – | entity | – | – | entity | – |
+| `inventory.warranty.write` | all | – | – | – | – | – | entity | – | – | – | – |
 | `procurement.po.write` / `.grn.write` | all | – | – | – | – | – | entity | – | – | – | – |
 | `procurement.rate.read` | all | – | – | – | – | – | entity | – | – | entity | – |
 | `projects.read` / `.write` | all | entity | – | – | own (read) | – | – | entity | own | entity (read) | – |
@@ -68,7 +69,9 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 | `documents.sensitive.read` | all | – | – | – | – | – | – | entity | – | entity | – |
 | `finance.proforma.write` / `.payment.write` / `.recon.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `finance.cost.read` | all | – | – | – | – | – | – | – | – | entity | – |
+| `finance.expense.submit` | own | own | own | own | own | own | own | own | own | own | own |
 | `finance.expense.approve` | all | entity (manager step) | team | – | – | – | – | entity | – | entity | – |
+| `finance.expense.verify` | all | – | – | – | – | – | – | – | – | entity | – |
 | `hr.employee.write` / `.attendance.manage` / `.leave.approve` / `.incentive.manage` | all | entity (leave) | team (leave) | – | – | – | – | – | – | – | all |
 | `hr.export` | all | – | – | – | – | – | – | – | – | all | all |
 | `knowledge.vault.read.staff` | all | all | all | all | all | all | all | all | all | all | all |
@@ -84,6 +87,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 | `imports.write` | all | entity | – | – | – | – | – | – | – | – | – |
 | `profile.write` | own | own | own | own | own | own | own | own | own | own | own |
 | `admin.users.write` / `.roles.write` / `.entities.write` / `.integrations.write` / `.flags.write` | all | – | – | – | – | – | – | – | – | – | – |
+| `integrations.dlq.replay` | all | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle.
 

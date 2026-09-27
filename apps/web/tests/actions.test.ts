@@ -61,7 +61,15 @@ vi.mock('../src/auth/current-principal', () => ({
 }));
 
 const { switchEntity } = await import('../src/actions/auth');
-const { createLead, leadFormOptions, listLeads } = await import('../src/actions/crm');
+const {
+  createLead,
+  leadFormOptions,
+  listLeads,
+  loseOpportunity,
+  moveOpportunityStage,
+  reopenOpportunity,
+  winOpportunity,
+} = await import('../src/actions/crm');
 const { listEntities, updateEntity } = await import('../src/actions/org');
 const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
 const {
@@ -72,6 +80,7 @@ const {
   listUserSessions,
   listUsers,
   reactivateUser,
+  replayDeadLetter,
   resetTwoFactor,
   revokeSession,
   setUserRoles,
@@ -333,6 +342,63 @@ describe('command and query actions answer a result, never a thrown error (revie
     const created = ok(await createLead(lead(2), crypto.randomUUID()));
     expect(created.entityId).toBe(2);
     expect(created.teamId).toBe(team2);
+  });
+
+  it('move a lead once for a form sent twice, and answer the machine refusals as sentences', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const created = ok(await createLead(lead(1)));
+    const pipelineStages = ok(await leadFormOptions()).pipelines.find(
+      (p) => p.id === created.pipelineId,
+    )?.stages;
+    const next = pipelineStages?.find((s) => s.id !== created.stageId && s.kind === 'open');
+    if (next === undefined) throw new Error('the pipeline has no second open stage');
+    const move = { entityId: 1, opportunityId: created.id, stageId: next.id };
+    const key = crypto.randomUUID();
+    const first = ok(await moveOpportunityStage(move, key));
+    expect(ok(await moveOpportunityStage(move, key))).toEqual(first);
+    expect(first).toMatchObject({ stageId: next.id, state: 'open' });
+
+    const target = { entityId: 1, opportunityId: created.id };
+    await expect(winOpportunity(target)).resolves.toEqual({ ok: false, error: 'win_needs_order' });
+    await expect(reopenOpportunity(target)).resolves.toEqual({
+      ok: false,
+      error: 'opportunity_transition_not_allowed',
+    });
+    await expect(loseOpportunity({ ...target, reasonCode: 'weather' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+      field: 'reasonCode',
+    });
+    expect(ok(await loseOpportunity({ ...target, reasonCode: 'no_budget' }))).toMatchObject({
+      state: 'lost',
+    });
+  });
+
+  it('send a failed message again for an Executive only, and answer a second try as a sentence', async () => {
+    const eventId = newId();
+    await asMigrator(
+      (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                          payload_json, attempts, last_error, dead_lettered_at)
+               values (${eventId}, 1, 'admin.user.reactivated', 'test_action_replay', ${newId()},
+                       '{"v": 1}'::jsonb, 10, 'http_404', now())`,
+    );
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(replayDeadLetter({ eventId })).resolves.toEqual({ ok: false, error: 'forbidden' });
+
+    request.principal = await createTestPrincipal('executive');
+    expect(ok(await replayDeadLetter({ eventId }))).toEqual({
+      eventId,
+      requeued: true,
+      attempts: 0,
+    });
+    await expect(replayDeadLetter({ eventId })).resolves.toEqual({
+      ok: false,
+      error: 'not_dead_lettered',
+    });
+    await expect(replayDeadLetter({ eventId: newId() })).resolves.toEqual({
+      ok: false,
+      error: 'dead_letter_missing',
+    });
   });
 
   it('list leads a page at a time, and give the lead form its choices', async () => {

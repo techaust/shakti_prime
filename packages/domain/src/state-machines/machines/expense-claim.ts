@@ -46,15 +46,11 @@ const notOwnClaim: G = {
 };
 
 const accountsStep: G = {
-  description:
-    'the Accounts step: an Accounts or Executive user other than the manager who approved',
-  check: (record, { actor }) => {
-    if (actor.kind !== 'principal') return { code: 'forbidden', reason: 'expense_accounts_step' };
-    const { id, roleKey } = actor.principal;
-    return (roleKey === 'accounts' || roleKey === 'executive') && id !== record.managerApproverId
+  description: 'the Accounts step: a person other than the manager who approved',
+  check: (record, { actor }) =>
+    actor.kind === 'principal' && actor.principal.id !== record.managerApproverId
       ? undefined
-      : { code: 'forbidden', reason: 'expense_accounts_step' };
-  },
+      : { code: 'forbidden', reason: 'expense_accounts_step' },
 };
 
 /** Expense claim: manager → Accounts approval, then the monthly reimbursement (BLUEPRINT §8.8, PRD FIN-07). */
@@ -82,16 +78,14 @@ export const expenseClaimMachine = defineMachine<
       from: 'new',
       event: 'create',
       to: 'draft',
-      permission: 'profile.write',
-      newPermission: 'finance.expense.submit',
-      note: 'Every staff role holds `profile.write` at own scope; the interim key stands in until the claim permission exists.',
+      permission: 'finance.expense.submit',
+      note: 'Every staff role holds `finance.expense.submit` at own scope.',
     },
     {
       from: ['draft'],
       event: 'submit',
       to: 'submitted',
-      permission: 'profile.write',
-      newPermission: 'finance.expense.submit',
+      permission: 'finance.expense.submit',
       guard: receipts,
     },
     {
@@ -107,9 +101,8 @@ export const expenseClaimMachine = defineMachine<
       from: ['manager_approved'],
       event: 'accounts.approve',
       to: 'approved',
-      permission: 'finance.expense.approve',
+      permission: 'finance.expense.verify',
       scope: 'entity',
-      newPermission: 'finance.expense.verify',
       guard: allOf(notOwnClaim, accountsStep),
       effects: [
         {
@@ -117,7 +110,7 @@ export const expenseClaimMachine = defineMachine<
           description: 'job cost entry of type `expense` when allocated to a project (restricted)',
         },
       ],
-      note: 'The GM holds `finance.expense.approve` at entity scope for the manager step, so the Accounts step is told apart by role until a permission of its own exists.',
+      note: 'The GM holds `finance.expense.approve` at entity scope for the manager step; the Accounts step needs `finance.expense.verify`, which only Accounts and the Executive hold.',
     },
     {
       from: ['submitted', 'manager_approved'],

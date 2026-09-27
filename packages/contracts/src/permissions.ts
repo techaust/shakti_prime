@@ -25,6 +25,7 @@ export const PERMISSION_KEYS = [
   'inventory.stock.adjust',
   'inventory.dispatch.write',
   'inventory.eway.write',
+  'inventory.warranty.write',
   'procurement.po.write',
   'procurement.grn.write',
   'procurement.rate.read',
@@ -40,7 +41,9 @@ export const PERMISSION_KEYS = [
   'finance.payment.write',
   'finance.recon.write',
   'finance.cost.read',
+  'finance.expense.submit',
   'finance.expense.approve',
+  'finance.expense.verify',
   'hr.employee.write',
   'hr.attendance.manage',
   'hr.leave.approve',
@@ -63,6 +66,7 @@ export const PERMISSION_KEYS = [
   'admin.entities.write',
   'admin.integrations.write',
   'admin.flags.write',
+  'integrations.dlq.replay',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -102,6 +106,10 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'agents.killswitch',
   'knowledge.playbook.approve',
   'sales.credit.release',
+  // The second approval of an expense claim is a person's check (FIN-07), and replaying a dead
+  // letter re-sends a message outside the agent's own work.
+  'finance.expense.verify',
+  'integrations.dlq.replay',
 ] as const satisfies readonly PermissionKey[];
 
 export function permissionModule(key: PermissionKey): string {

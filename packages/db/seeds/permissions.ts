@@ -25,6 +25,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'inventory.stock.adjust': 'Adjust stock with a reason',
   'inventory.dispatch.write': 'Create and update dispatches',
   'inventory.eway.write': 'Enter e-way bill details',
+  'inventory.warranty.write': 'Handle warranty claims',
   'procurement.po.write': 'Create purchase orders',
   'procurement.grn.write': 'Record goods received',
   'procurement.rate.read': 'See supplier rates',
@@ -40,7 +41,9 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'finance.payment.write': 'Record payments',
   'finance.recon.write': 'Reconcile with Tally',
   'finance.cost.read': 'See costs and margins',
+  'finance.expense.submit': 'Submit their own expense claims',
   'finance.expense.approve': 'Approve expense claims',
+  'finance.expense.verify': 'Give the final Accounts approval of expense claims',
   'hr.employee.write': 'Maintain employee records',
   'hr.attendance.manage': 'Manage attendance',
   'hr.leave.approve': 'Approve leave',
@@ -63,6 +66,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'admin.entities.write': 'Manage entities',
   'admin.integrations.write': 'Manage integrations',
   'admin.flags.write': 'Manage feature flags',
+  'integrations.dlq.replay': 'Send failed messages to other systems again',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

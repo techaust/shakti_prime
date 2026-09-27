@@ -36,3 +36,21 @@ export const LeadDto = z
   .strict();
 
 export type LeadDto = z.infer<typeof LeadDto>;
+
+/** What an opportunity command answers: the lead's position after the change. Strict. */
+export const OpportunityDto = z
+  .object({
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    pipelineId: IdSchema,
+    stageId: IdSchema,
+    state: OpportunityStateSchema,
+    stateChangedAt: z.iso.datetime(),
+    ownerId: IdSchema.nullable(),
+    teamId: IdSchema.nullable(),
+    lockedUntil: z.iso.datetime().nullable(),
+    updatedAt: z.iso.datetime(),
+  })
+  .strict();
+
+export type OpportunityDto = z.infer<typeof OpportunityDto>;
