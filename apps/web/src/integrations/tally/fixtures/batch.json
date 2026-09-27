@@ -1,0 +1,55 @@
+{
+  "company": "Shakti Supreme Pvt Ltd 2026-27",
+  "entityCode": "SS",
+  "maxAlterId": 4180,
+  "vouchers": [
+    {
+      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a11",
+      "alterId": 4172,
+      "voucherType": "Sales",
+      "date": "2026-09-27",
+      "number": "SS/2026-27/0418",
+      "partyLedger": "Kisan Agro Traders",
+      "amount": "125000.00",
+      "buyerOrderNo": "SS/SO/2026-27/0042"
+    },
+    {
+      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a12",
+      "alterId": 4175,
+      "voucherType": "Receipt",
+      "date": "2026-09-27",
+      "number": "RC/0311",
+      "partyLedger": "Kisan Agro Traders",
+      "amount": "50000.00",
+      "buyerOrderNo": "SS/PI/2026-27/0017"
+    },
+    {
+      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a13",
+      "alterId": 4178,
+      "voucherType": "Purchase",
+      "date": "2026-09-26",
+      "number": "PUR/0099",
+      "partyLedger": "Motor Components Supplier",
+      "amount": "88210.50"
+    },
+    {
+      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000a11",
+      "alterId": 4180,
+      "voucherType": "Sales",
+      "date": "2026-09-27",
+      "number": "SS/2026-27/0418",
+      "partyLedger": "Kisan Agro Traders",
+      "amount": "126500.00",
+      "buyerOrderNo": "SS/SO/2026-27/0042"
+    }
+  ],
+  "ledgers": [
+    {
+      "guid": "5f1c2a3b-4d5e-4f60-8a9b-0c1d2e3f4a5b-00000b01",
+      "alterId": 4101,
+      "name": "Kisan Agro Traders",
+      "parent": "Sundry Debtors",
+      "gstin": "08AAAAA0000A1Z5"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "100000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000100",
+              "phone_number_id": "200000000000001"
+            },
+            "statuses": [
+              {
+                "id": "wamid.HBgMOTE5MDAwMDAwMDAyFQIAERgSQUJDREVGMDEyMzQ1Njc4OQA=",
+                "status": "delivered",
+                "timestamp": "1790575260",
+                "recipient_id": "919000000002",
+                "pricing": { "billable": true, "pricing_model": "PMP", "category": "utility" }
+              },
+              {
+                "id": "wamid.HBgMOTE5MDAwMDAwMDAzFQIAERgSQUJDREVGMDEyMzQ1Njc4OQA=",
+                "status": "failed",
+                "timestamp": "1790575261",
+                "recipient_id": "919000000003",
+                "errors": [{ "code": 131026, "title": "Message undeliverable" }]
+              }
+            ]
+          }
+        },
+        {
+          "field": "message_template_status_update",
+          "value": {
+            "event": "APPROVED",
+            "message_template_id": 300000000000001,
+            "message_template_name": "quote_ready",
+            "message_template_language": "en"
+          }
+        }
+      ]
+    }
+  ]
+}

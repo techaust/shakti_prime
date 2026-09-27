@@ -1,0 +1,30 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "100000000000001",
+      "changes": [
+        {
+          "field": "messages",
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "919000000100",
+              "phone_number_id": "200000000000001"
+            },
+            "contacts": [{ "profile": { "name": "Ramesh" }, "wa_id": "919000000002" }],
+            "messages": [
+              {
+                "from": "919000000002",
+                "id": "wamid.HBgMOTE5MDAwMDAwMDAyFQIAEhgUM0EwQjFDMkQzRTRGNUE2QjdDOEQA",
+                "timestamp": "1790575200",
+                "type": "text",
+                "text": { "body": "5 HP submersible ka rate batao" }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
