@@ -64,6 +64,8 @@
     "tax_rate_overlap": "Another GST rate already covers some of these dates for this item or HSN code. Choose a start date after it.",
     "composite_rule_overlap": "Another goods and services split already covers some of these dates for this kind of job. Choose a start date after it.",
     "composite_share_total": "The goods and services shares must add up to 100.",
+    "dead_letter_missing": "We couldn't find this failed message. Refresh the page to see the current list.",
+    "not_dead_lettered": "This message is not on the failed list, so there is nothing to send again. Refresh the page to see where it stands.",
     "transition_reason_missing": "Please give a reason before you continue.",
     "stage_missing": "Choose the stage to move this lead to.",
     "stage_other_pipeline": "This stage belongs to a different pipeline. Choose a stage from this pipeline.",

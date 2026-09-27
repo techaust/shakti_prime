@@ -5,6 +5,8 @@ import {
   type AuditPageDto,
   type AuditPeopleDto,
   DomainError,
+  IntegrationReplayRequest,
+  type IntegrationReplayResponse,
   InviteUserInput,
   ReactivateUserInput,
   ResetTwoFactorInput,
@@ -27,6 +29,7 @@ import {
   loadUserDto,
   queryAudit,
   reactivateUser as reactivateUserCommand,
+  replayDeadLetter as replayDeadLetterCommand,
   resetTwoFactor as resetTwoFactorCommand,
   revokeSession as revokeSessionCommand,
   setUserRoles as setUserRolesCommand,
@@ -127,6 +130,29 @@ export async function reactivateUser(
       principal,
       { requestId: meta.requestId },
       reactivateUserCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/**
+ * Sends a failed message to other systems again (Executive only, design §4.4): the dead-lettered
+ * event goes back in the queue with its attempts cleared, and the publisher's next run, at most a
+ * minute away, sends it.
+ */
+export async function replayDeadLetter(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<IntegrationReplayResponse>> {
+  return toResult('replayDeadLetter', async () => {
+    const principal = await signedIn();
+    const input = parseInput(IntegrationReplayRequest, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      replayDeadLetterCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

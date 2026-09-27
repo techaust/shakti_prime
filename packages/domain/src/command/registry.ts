@@ -16,6 +16,7 @@ import { createImportJob } from '../commands/imports/create-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
+import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
 import { setTheme } from '../commands/profile/set-theme';
@@ -42,6 +43,7 @@ export const commands = {
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,
   [resetTwoFactor.name]: resetTwoFactor,
+  [replayDeadLetter.name]: replayDeadLetter,
   [setTheme.name]: setTheme,
   [createImportJob.name]: createImportJob,
   [mapImportJob.name]: mapImportJob,
