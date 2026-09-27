@@ -190,7 +190,7 @@ interface Pass {
 }
 
 // A photo at most this long is read at full size from the start, and its tiles enlarged.
-const SMALL_PHOTO_PX = 1300;
+export const SMALL_PHOTO_PX = 1300;
 // The longest side of the first, quick copy of a larger photo.
 const QUICK_COPY_PX = 1000;
 
@@ -462,17 +462,24 @@ function inside(point: Point, box: Box): boolean {
   return point.x >= box.x0 && point.x < box.x1 && point.y >= box.y0 && point.y < box.y1;
 }
 
+interface GrayScan {
+  boxes: Box[];
+  decoded: number;
+  estimated: number;
+  /** Finder marks in no located code. */
+  loose: Point[];
+}
+
 /**
- * Every QR code on the photo, as rectangles to cover. `image` is read, not changed; every
- * working copy is zeroed before this returns.
+ * Locates the codes on `work`, painting each one out of it; zeroes `work` before returning.
+ * `fullSize` reads the whole of a large copy at full size from the start (an enlarged copy).
  */
-export function scanQrCodes(image: Raster): QrScan {
-  const { width, height } = image;
-  const work = toGray(image);
+function scanGray(work: Gray, fullSize: boolean): GrayScan {
+  const { width, height } = work;
   const bounds = { width, height };
   const whole = { x0: 0, y0: 0, x1: width, y1: height };
   const longest = Math.max(width, height);
-  const small = longest <= SMALL_PHOTO_PX;
+  const small = fullSize || longest <= SMALL_PHOTO_PX;
   const boxes: Box[] = [];
   let decoded = 0;
 
@@ -497,19 +504,69 @@ export function scanQrCodes(image: Raster): QrScan {
   }
 
   // 3. Three marks at the corners of a square place a code jsQR could not read; a mark in no
-  //    such square is left uncovered and counted.
+  //    such square is left loose.
   work.data.fill(0);
   let estimated = 0;
-  let uncovered = 0;
+  const loose: Point[] = [];
   for (const group of [marks.dark, marks.light]) {
-    const { codes, loose } = groupFinderMarks(group);
-    for (const code of codes) {
+    const grouped = groupFinderMarks(group);
+    for (const code of grouped.codes) {
       const pitch = (code.corner.pitch + code.b.pitch + code.c.pitch) / 3;
       const { corners, dimension } = cornersFromFinders(code.corner, code.b, code.c, pitch);
       boxes.push(qrCoverBox(corners, dimension, bounds));
     }
-    estimated += codes.length;
-    uncovered += loose.length;
+    estimated += grouped.codes.length;
+    loose.push(...grouped.loose.map((m) => ({ x: m.x, y: m.y })));
   }
+  return { boxes, decoded, estimated, loose };
+}
+
+/**
+ * A copy of the photo made easier to read: enlarged `scale` times, contrast stretched and
+ * sharpened (the masking worker makes it with sharp for a small photo, where a blurred code
+ * can hide from a plain reading). One byte per pixel.
+ */
+export interface EnhancedCopy {
+  gray: Gray;
+  scale: number;
+}
+
+/**
+ * Every QR code on the photo, as rectangles to cover. With `enhanced`, the codes not found on
+ * the photo are looked for on the enhanced copy as well (the photo's codes painted out of it
+ * first). A finder mark counts as `uncovered` when it lies in no cover box. `image` and
+ * `enhanced` are read, not changed; every working copy is zeroed before this returns.
+ */
+export function scanQrCodes(image: Raster, enhanced?: EnhancedCopy): QrScan {
+  const bounds = { width: image.width, height: image.height };
+  const main = scanGray(toGray(image), false);
+  const boxes = [...main.boxes];
+  const loose = [...main.loose];
+  let { decoded, estimated } = main;
+  if (enhanced) {
+    const { scale } = enhanced;
+    const work: Gray = { ...enhanced.gray, data: Uint8ClampedArray.from(enhanced.gray.data) };
+    for (const b of main.boxes) {
+      paint(work, {
+        x0: Math.floor(b.x0 * scale),
+        y0: Math.floor(b.y0 * scale),
+        x1: Math.ceil(b.x1 * scale),
+        y1: Math.ceil(b.y1 * scale),
+      });
+    }
+    const extra = scanGray(work, true);
+    for (const b of extra.boxes) {
+      boxes.push({
+        x0: Math.max(0, Math.floor(b.x0 / scale)),
+        y0: Math.max(0, Math.floor(b.y0 / scale)),
+        x1: Math.min(bounds.width, Math.ceil(b.x1 / scale)),
+        y1: Math.min(bounds.height, Math.ceil(b.y1 / scale)),
+      });
+    }
+    loose.push(...extra.loose.map((p) => ({ x: p.x / scale, y: p.y / scale })));
+    decoded += extra.decoded;
+    estimated += extra.estimated;
+  }
+  const uncovered = loose.filter((p) => !boxes.some((b) => inside(p, b))).length;
   return { boxes, decoded, estimated, uncovered };
 }

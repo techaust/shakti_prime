@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import { createWorker, PSM, type Page, type Worker } from 'tesseract.js';
 import type { MaskedText } from '@shakti/domain';
 import { planMasks, scrubHiddenDigits, type Box, type MaskPlan, type OcrLine } from './plan-masks';
-import { scanQrCodes } from './qr-cover';
+import { scanQrCodes, SMALL_PHOTO_PX } from './qr-cover';
 import { reviewCause, type ExpectedNumber, type ReviewCause } from './review';
 
 export interface DocumentMaskerOptions {
@@ -69,6 +69,8 @@ export interface DocumentMasker {
 // Upscale small photos so digits reach the height the OCR engine reads best.
 const MIN_WIDTH = 1600;
 const MAX_SCALE = 3;
+// How much a small photo is enlarged for the second look for QR codes.
+const ENHANCE_SCALE = 2;
 
 interface Pass {
   image: 'upscaled' | 'native';
@@ -180,12 +182,42 @@ export async function createDocumentMasker(
       // code can carry the full number. The decoded pixels are wiped once scanned.
       const qrStarted = performance.now();
       const pixels = await sharp(upright.data).ensureAlpha().raw().toBuffer();
-      const qr = scanQrCodes({
-        data: new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.length),
-        width,
-        height,
-      });
+      // A small photo is often a forwarded, blurred one: its code is looked for on an enlarged,
+      // contrast-stretched and sharpened copy as well, where a blurred code can be read.
+      const enhanced =
+        Math.max(width, height) <= SMALL_PHOTO_PX
+          ? await sharp(upright.data)
+              .resize(width * ENHANCE_SCALE, height * ENHANCE_SCALE, { kernel: 'lanczos3' })
+              .grayscale()
+              .normalise()
+              .sharpen({ sigma: 3, m1: 2, m2: 4 })
+              .extractChannel(0)
+              .raw()
+              .toBuffer({ resolveWithObject: true })
+          : undefined;
+      const qr = scanQrCodes(
+        {
+          data: new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.length),
+          width,
+          height,
+        },
+        enhanced
+          ? {
+              gray: {
+                data: new Uint8ClampedArray(
+                  enhanced.data.buffer,
+                  enhanced.data.byteOffset,
+                  enhanced.data.length,
+                ),
+                width: enhanced.info.width,
+                height: enhanced.info.height,
+              },
+              scale: enhanced.info.width / width,
+            }
+          : undefined,
+      );
       pixels.fill(0);
+      enhanced?.data.fill(0);
       const qrMs = performance.now() - qrStarted;
 
       const ocrStarted = performance.now();

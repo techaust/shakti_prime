@@ -283,6 +283,53 @@ describe('scanQrCodes', () => {
   });
 });
 
+describe('scanQrCodes with an enhanced copy', () => {
+  it('covers a code only the enhanced copy shows, mapped back to the photo', () => {
+    const photo = blank(200, 160);
+    const copy = blank(400, 320);
+    const code = drawQr(copy, 'made-up blurred record', 200, 120, 4);
+    const scan = scanQrCodes(photo, { gray: toGray(copy), scale: 2 });
+    expect(scan.decoded).toBe(1);
+    expect(scan.uncovered).toBe(0);
+    const onPhoto = { x0: code.x0 / 2, y0: code.y0 / 2, x1: code.x1 / 2, y1: code.y1 / 2 };
+    expect(scan.boxes.some((b) => contains(b, onPhoto, 4))).toBe(true);
+    for (const b of scan.boxes) {
+      expect(b.x0).toBeGreaterThanOrEqual(0);
+      expect(b.y0).toBeGreaterThanOrEqual(0);
+      expect(b.x1).toBeLessThanOrEqual(200);
+      expect(b.y1).toBeLessThanOrEqual(160);
+    }
+  });
+
+  it('does not count a code twice when the photo already shows it', () => {
+    const photo = blank(320, 260);
+    drawQr(photo, 'made-up card holder record', 150, 60, 4);
+    const copy = blank(640, 520);
+    drawQr(copy, 'made-up card holder record', 300, 120, 8);
+    const scan = scanQrCodes(photo, { gray: toGray(copy), scale: 2 });
+    expect(scan.decoded).toBe(1);
+    expect(scan.boxes).toHaveLength(1);
+    expect(scan.uncovered).toBe(0);
+  });
+
+  it('counts finder marks only the enhanced copy shows as uncovered', () => {
+    const photo = blank(200, 160);
+    const copy = blank(400, 320);
+    drawFinder(copy, 60, 60, 6);
+    drawFinder(copy, 60 + 18 * 6, 60, 6);
+    const scan = scanQrCodes(photo, { gray: toGray(copy), scale: 2 });
+    expect(scan.boxes).toEqual([]);
+    expect(scan.uncovered).toBe(2);
+  });
+
+  it('leaves the enhanced copy it is given unchanged', () => {
+    const copy = toGray(blank(400, 320));
+    const before = Buffer.from(copy.data).toString('base64');
+    scanQrCodes(blank(200, 160), { gray: copy, scale: 2 });
+    expect(Buffer.from(copy.data).toString('base64')).toBe(before);
+  });
+});
+
 describe('holding an Aadhaar photo whose QR code cannot be covered', () => {
   // A torn code: two finder marks of a 25-module code and no third, so it can be neither
   // decoded nor placed from its marks.
