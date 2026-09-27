@@ -396,10 +396,7 @@ export function limitsInWords(limits: UploadLimits): { megabytes: number; rows: 
   };
 }
 
-/** A count as the screens write it, grouped the Indian way (1,00,000). */
-export function formatCount(value: number): string {
-  return new Intl.NumberFormat('en-IN').format(value);
-}
+export { formatCount } from './format';
 
 /** A file's size in words: kilobytes below one megabyte, else megabytes to one place. */
 export function fileSize(bytes: number): { unit: 'kb' | 'mb'; value: string } {

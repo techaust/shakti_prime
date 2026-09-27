@@ -80,3 +80,8 @@ export function describeDevice(userAgent: string | null): DeviceDescription {
               : 'other';
   return { browser, system };
 }
+
+/** A count as the screens write it, grouped the Indian way (1,00,000; DESIGN.md §9). */
+export function formatCount(value: number): string {
+  return new Intl.NumberFormat('en-IN').format(value);
+}

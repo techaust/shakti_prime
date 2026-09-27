@@ -213,7 +213,4 @@ export function daysSince(since: string, now: Date): number {
   return Math.max(Math.floor((now.getTime() - Date.parse(since)) / DAY_MS), 0);
 }
 
-/** A count as people read it, with Indian digit grouping (DESIGN.md §9). */
-export function formatCount(value: number): string {
-  return new Intl.NumberFormat('en-IN').format(value);
-}
+export { formatCount } from './format';
