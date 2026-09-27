@@ -6,8 +6,9 @@ import { istCalendarDate } from '../../numbering/financial-year';
 
 /**
  * `pricing.price.set`: the one way a price changes (SAL-01). Sets the price of an item or kit on a
- * price list the caller can see, and appends the change to `price_change_log` in the same
- * transaction. Scheduled changes are a new price-list version, not an edit here.
+ * price list the caller can see. The database appends the change to `price_change_log` from the
+ * write itself (AUDIT M18), with the reason this command passes in `app.price_reason`. Scheduled
+ * changes are a new price-list version, not an edit here.
  */
 export const setPrice = defineCommand({
   name: 'pricing.price.set',
@@ -36,7 +37,8 @@ export const setPrice = defineCommand({
     }
     if (
       list.archivedAt !== null ||
-      (list.effectiveTo !== null && list.effectiveTo < istCalendarDate(ctx.now))
+      // effective_to is exclusive: a list ending today no longer prices anything (AUDIT M19)
+      (list.effectiveTo !== null && list.effectiveTo <= istCalendarDate(ctx.now))
     ) {
       throw new DomainError('conflict', 'price list is closed', { reason: 'price_list_closed' });
     }
@@ -100,7 +102,11 @@ export const setPrice = defineCommand({
       .select({ id: pli.id, price: pli.price })
       .from(pli)
       .where(and(eq(pli.priceListId, list.id), target))
-      .limit(1);
+      .limit(1)
+      // a concurrent change of the same price waits here, so the old price below is the latest
+      .for('update');
+
+    await ctx.tx.execute(sql`select set_config('app.price_reason', ${input.reason ?? ''}, true)`);
 
     const actor = ctx.principal.id;
     const [row] = existing
@@ -121,15 +127,6 @@ export const setPrice = defineCommand({
           })
           .returning();
     if (!row) throw new DomainError('internal', 'price list item write returned no row');
-
-    await ctx.tx.insert(schema.priceChangeLog).values({
-      id: newId(),
-      priceListItemId: row.id,
-      oldPrice: existing?.price ?? null,
-      newPrice: input.price,
-      reason: input.reason ?? null,
-      changedBy: actor,
-    });
 
     ctx.emit({
       type: 'pricing.price.changed',

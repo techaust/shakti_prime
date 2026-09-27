@@ -6,7 +6,7 @@ import {
   createTestTeam,
   stageId,
 } from '@shakti/db/testing';
-import { newId } from '@shakti/contracts';
+import { IdSchema, newId } from '@shakti/contracts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
@@ -210,6 +210,14 @@ describe('crm.lead.create', () => {
         >`select count(*)::int as n from account_entities where account_id = ${accountId}`,
     );
     expect(rows?.n).toBe(2);
+    // the relationship the database wrote carries an ADR 0006 id (AUDIT L4)
+    const attached = await asMigrator(
+      (m) =>
+        m<
+          { id: string }[]
+        >`select id from account_entities where account_id = ${accountId} and entity_id = 2`,
+    );
+    expect(IdSchema.safeParse(attached[0]?.id).success).toBe(true);
 
     // attaching again is idempotent for the relationship, and a consent given now is recorded
     const third = await asPrincipal(cc2, (context) =>

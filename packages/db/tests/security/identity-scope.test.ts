@@ -1,4 +1,4 @@
-import { newId } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -132,7 +132,7 @@ describe('the application role and the identity tables', () => {
     expect(await revoke(principalFor('executive'))).toBe(1);
   });
 
-  it('users and roles: readable with any context, written only with admin.users.write:all', async () => {
+  it('user roles: readable with any context, written only with admin.users.write:all', async () => {
     const gm = principalFor('general_manager', [1]);
     const seen = await asPrincipal(gm, async ({ tx }) => {
       const rows = (await tx.execute(
@@ -167,6 +167,37 @@ describe('the application role and the identity tables', () => {
       sql`select count(*)::int as n from users`,
     );
     expect(noContext?.n).toBe(0);
+  });
+
+  it('staff email, phone and sign-in state: own row, or user administrators only (AUDIT M3)', async () => {
+    const emails = (principal: Principal) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select id, email from users order by id`,
+        )) as unknown as { id: string; email: string }[];
+        return rows;
+      });
+    for (const agent of ['agent:concierge', 'agent:triage', 'agent:chief'] as const) {
+      expect(await emails(principalFor(agent, [1, 2, 3, 4]))).toEqual([]);
+    }
+    expect(await emails(principalFor('general_manager', [1]))).toEqual([]);
+    expect(await emails(principalFor('accounts', [1], { id: user.id }))).toEqual([
+      { id: user.id, email: user.email },
+    ]);
+    expect((await emails(principalFor('executive', [1]))).map((r) => r.id)).toContain(user.id);
+  });
+
+  it('holds at most one authenticator per user (AUDIT L6)', async () => {
+    const other = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
+    const insert = () =>
+      asMigrator(
+        (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
+          values (${newId()}, ${other.id}, 'enc', 'enc')`,
+      );
+    await insert();
+    await expect(insert()).rejects.toMatchObject({
+      constraint_name: 'user_two_factor_user_unique',
+    });
   });
 
   it('app.user_grants() is callable by the application role only and returns no secret', async () => {

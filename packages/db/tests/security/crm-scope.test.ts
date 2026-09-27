@@ -380,7 +380,10 @@ describe('an opportunity sits only in an entity its account deals with', () => {
 });
 
 describe('shared reference tables', () => {
-  it.each(SHARED_TABLES)('%s is readable by any caller with a context', async (table) => {
+  // users is shared but personal: a caller reads only their own row (AUDIT M3, identity-scope).
+  const REFERENCE_TABLES = SHARED_TABLES.filter((t) => t !== 'users');
+
+  it.each(REFERENCE_TABLES)('%s is readable by any caller with a context', async (table) => {
     expect(await countAs(fx.principals.d, table)).toBeGreaterThan(0);
   });
 
@@ -443,4 +446,72 @@ describe('write policies', () => {
     await expect(insert(2, fx.principals.a.id)).rejects.toSatisfy(rls);
     await expect(insert(1, fx.principals.b.id)).rejects.toSatisfy(rls);
   });
+});
+
+describe('consent evidence is fixed once written (AUDIT M17)', () => {
+  const refused = (e: unknown) =>
+    e instanceof Error &&
+    e.cause instanceof Error &&
+    /permission denied|consents_(evidence|withdrawal)_fixed/.test(e.cause.message);
+
+  async function consentOf(contactId: string) {
+    const [row] = await asMigrator(
+      (m) => m<{ id: string; purpose: string; withdrawn_at: Date | null }[]>`
+        select id, purpose, withdrawn_at from consents where contact_id = ${contactId} limit 1`,
+    );
+    if (!row) throw new Error('the fixture gives every contact a consent');
+    return row;
+  }
+
+  it('a customer writer cannot change purpose, source or date, only record a withdrawal', async () => {
+    const consent = await consentOf(fx.contacts.a[0] ?? '');
+    for (const change of [
+      sql`purpose = 'promotional'`,
+      sql`source = 'web_form'`,
+      sql`given_at = given_at - interval '30 days'`,
+    ]) {
+      await expect(
+        asPrincipal(fx.principals.a, ({ tx }) =>
+          tx.execute(sql`update consents set ${change} where id = ${consent.id}`),
+        ),
+      ).rejects.toSatisfy(refused);
+    }
+    await asPrincipal(fx.principals.a, ({ tx }) =>
+      tx.execute(sql`update consents set withdrawn_at = now() where id = ${consent.id}`),
+    );
+    const after = await consentOf(fx.contacts.a[0] ?? '');
+    expect(after.purpose).toBe(consent.purpose);
+    expect(after.withdrawn_at).not.toBeNull();
+  });
+
+  it('a withdrawal stands, even for the table owner', async () => {
+    const consent = await consentOf(fx.contacts.b[0] ?? '');
+    await asMigrator((m) => m`update consents set withdrawn_at = now() where id = ${consent.id}`);
+    await expect(
+      asMigrator((m) => m`update consents set withdrawn_at = null where id = ${consent.id}`),
+    ).rejects.toMatchObject({ constraint_name: 'consents_withdrawal_fixed' });
+    await expect(
+      asMigrator((m) => m`update consents set purpose = 'promotional' where id = ${consent.id}`),
+    ).rejects.toMatchObject({ constraint_name: 'consents_evidence_fixed' });
+  });
+});
+
+describe('the customer scope helpers answer only for their own permissions (AUDIT L1)', () => {
+  it.each(['account_in_scope', 'contact_in_scope'] as const)(
+    '%s refuses any other permission name',
+    async (fn) => {
+      await expect(
+        asPrincipal(fx.principals.a, ({ tx }) =>
+          tx.execute(
+            sql`select ${sql.raw(`app.${fn}`)}(${fx.accounts.a[0] ?? ''}::uuid, 'finance.cost.read')`,
+          ),
+        ),
+      ).rejects.toSatisfy(
+        (e: unknown) =>
+          e instanceof Error &&
+          e.cause instanceof Error &&
+          e.cause.message.includes('answers only'),
+      );
+    },
+  );
 });

@@ -40,13 +40,15 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
   );
 
   /**
-   * Append-only ledgers take no update; series counters are written only by app.next_document_no();
+   * Append-only ledgers take no update, and price history is written only by its trigger;
+   * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
    * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
   > = {
-    price_change_log: { i: true, u: false },
+    price_change_log: { i: false, u: false },
+    consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
     users: { i: true, u: false },
@@ -138,5 +140,70 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
              (select rolbypassrls from pg_roles where rolname = 'readonly_reporter') as bypass
     `);
     expect(row).toEqual({ s: true, i: false, d: false, bypass: false });
+  });
+});
+
+describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
+  /** Policy helpers the reporting role's own policies call; every other definer function refuses it. */
+  const REPORTER_HELPERS = ['app.account_in_scope', 'app.contact_in_scope'];
+
+  it('every security-definer function searches pg_temp last or nothing at all', async () => {
+    const rows = await withoutContext<{ fn: string; path: string | null }>(sql`
+      select n.nspname || '.' || p.proname as fn,
+             (select substring(c from 'search_path=(.*)') from unnest(p.proconfig) c
+               where c like 'search_path=%') as path
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where p.prosecdef and n.nspname in ('app', 'public')
+       order by 1
+    `);
+    expect(rows.length).toBeGreaterThan(0);
+    const unsafe = rows.filter(
+      (r) => r.path === null || !(r.path === '""' || r.path.endsWith('pg_temp')),
+    );
+    expect(unsafe).toEqual([]);
+  });
+
+  it('no security-definer function is executable by everyone or, beyond its helpers, by reporting', async () => {
+    const rows = await withoutContext<{ fn: string; grantee: string }>(sql`
+      select n.nspname || '.' || p.proname as fn, coalesce(r.rolname, 'public') as grantee
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+        left join pg_roles r on r.oid = a.grantee
+       where p.prosecdef and n.nspname in ('app', 'public')
+         and p.prorettype <> 'trigger'::regtype
+         and a.privilege_type = 'EXECUTE'
+         and (a.grantee = 0 or r.rolname = 'readonly_reporter')
+    `);
+    expect(
+      rows.filter((r) => !(r.grantee === 'readonly_reporter' && REPORTER_HELPERS.includes(r.fn))),
+    ).toEqual([]);
+  });
+
+  it('no session may create temporary objects', async () => {
+    const [row] = await withoutContext<{ app: boolean; pub: boolean }>(sql`
+      select has_database_privilege('app_user', current_database(), 'TEMPORARY') as app,
+             has_database_privilege('public', current_database(), 'TEMPORARY') as pub
+    `);
+    expect(row).toEqual({ app: false, pub: false });
+  });
+
+  it('the Supabase API roles hold nothing on application tables, sequences or functions', async () => {
+    const roles = await withoutContext<{ name: string }>(sql`
+      select rolname as name from pg_roles where rolname in ('anon', 'authenticated', 'service_role')
+    `);
+    for (const { name } of roles) {
+      const rows = await withoutContext<{ obj: string }>(sql`
+        select c.relname as obj from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public' and c.relkind in ('r', 'p', 'S', 'v')
+           and (has_table_privilege(${name}, c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+                or (c.relkind = 'S' and has_sequence_privilege(${name}, c.oid, 'USAGE')))
+        union all
+        select n.nspname || '.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'app' and has_function_privilege(${name}, p.oid, 'EXECUTE')
+           and has_schema_privilege(${name}, 'app', 'USAGE')
+      `);
+      expect({ role: name, objects: rows.map((r) => r.obj) }).toEqual({ role: name, objects: [] });
+    }
   });
 });

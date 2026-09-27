@@ -215,20 +215,43 @@ describe('price lists (pricing.read / pricing.write)', () => {
 });
 
 describe('price_change_log is append-only', () => {
-  it('a log row must be signed by the caller', async () => {
+  it('the application role cannot write a log row, even one signed by itself (AUDIT M18)', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
       asPrincipal(exec, ({ tx }) =>
         tx.execute(sql`insert into price_change_log (id, price_list_item_id, old_price, new_price, changed_by)
-          values (${`${CATALOGUE_FIXTURE_PREFIX}fffe`}, ${fx.priceListItems.sharedPump}, 1500.00, 1600.00, ${fx.execPrincipalId})`),
+          values (${`${CATALOGUE_FIXTURE_PREFIX}fffd`}, ${fx.priceListItems.sharedPump}, 1500.00, 1600.00, ${exec.id})`),
       ),
-    ).rejects.toSatisfy(rlsError);
-    const inserted = await updated(
-      exec,
-      sql`insert into price_change_log (id, price_list_item_id, old_price, new_price, changed_by)
-          values (${`${CATALOGUE_FIXTURE_PREFIX}fffd`}, ${fx.priceListItems.sharedPump}, 1500.00, 1600.00, ${exec.id}) returning id`,
+    ).rejects.toSatisfy(deniedError);
+  });
+
+  it('a price change writes its own history: old and new price, reason and signer', async () => {
+    const exec = await createTestPrincipal('executive', [1, 2, 3, 4]);
+    const [before] = await asMigrator(
+      (m) =>
+        m<
+          { price: string }[]
+        >`select price from price_list_items where id = ${fx.priceListItems.sharedKit}`,
     );
-    expect(inserted).toBe(1);
+    const next = (Number(before?.price ?? '0') + 1).toFixed(2);
+    await asPrincipal(exec, async ({ tx }) => {
+      await tx.execute(sql`select set_config('app.price_reason', 'fixture reprice', true)`);
+      await tx.execute(
+        sql`update price_list_items set price = ${next} where id = ${fx.priceListItems.sharedKit}`,
+      );
+      // an update that leaves the price as it is writes nothing
+      await tx.execute(
+        sql`update price_list_items set price = price where id = ${fx.priceListItems.sharedKit}`,
+      );
+    });
+    const rows = await asMigrator(
+      (m) => m<{ old_price: string; new_price: string; reason: string; changed_by: string }[]>`
+        select old_price, new_price, reason, changed_by from price_change_log
+         where price_list_item_id = ${fx.priceListItems.sharedKit} and changed_by = ${exec.id}`,
+    );
+    expect(rows).toEqual([
+      { old_price: before?.price, new_price: next, reason: 'fixture reprice', changed_by: exec.id },
+    ]);
   });
 
   it('the application role can neither update nor delete a log row', async () => {
