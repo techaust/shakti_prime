@@ -8,9 +8,10 @@ on:
 permissions:
   contents: read
 
+# Pull requests cancel superseded runs; every push to main keeps its own run and verdict.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   TURBO_TELEMETRY_DISABLED: '1'
