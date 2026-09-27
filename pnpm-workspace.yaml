@@ -8,6 +8,8 @@ allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
+  # Its postinstall only prints a funding notice.
+  tesseract.js: false
   unrs-resolver: true
 
 # A version must be a day old before it is installed (AUDIT L22), so a compromised release that
