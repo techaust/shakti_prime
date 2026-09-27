@@ -15,12 +15,21 @@ import {
 
 const id = (n: number) => `01990000-0000-7000-8000-${String(n).padStart(12, '0')}`;
 
+const NEW: PipelineStageDto = { id: id(1), key: 'new', name: 'New', kind: 'open' };
+const SITE_VISIT: PipelineStageDto = {
+  id: id(3),
+  key: 'site_visit',
+  name: 'Site visit',
+  kind: 'open',
+};
+const WON: PipelineStageDto = { id: id(5), key: 'won', name: 'Won', kind: 'won' };
+const LOST: PipelineStageDto = { id: id(6), key: 'lost', name: 'Lost', kind: 'lost' };
 const STAGES: PipelineStageDto[] = [
-  { id: id(1), key: 'new', name: 'New', kind: 'open' },
+  NEW,
   { id: id(2), key: 'contacted', name: 'Contacted', kind: 'open' },
-  { id: id(3), key: 'site_visit', name: 'Site visit', kind: 'open' },
-  { id: id(5), key: 'won', name: 'Won', kind: 'won' },
-  { id: id(6), key: 'lost', name: 'Lost', kind: 'lost' },
+  SITE_VISIT,
+  WON,
+  LOST,
 ];
 
 function card(n: number, stage: number, state: BoardLeadDto['state'] = 'open'): BoardLeadDto {
@@ -101,14 +110,14 @@ describe('boardColumns', () => {
 describe('moveDecision', () => {
   const lead = card(1, 1);
   it('does nothing on the lead’s own column', () => {
-    expect(moveDecision(lead, STAGES[0] as PipelineStageDto)).toBe('none');
+    expect(moveDecision(lead, NEW)).toBe('none');
   });
   it('moves to another open stage', () => {
-    expect(moveDecision(lead, STAGES[2] as PipelineStageDto)).toBe('move');
+    expect(moveDecision(lead, SITE_VISIT)).toBe('move');
   });
   it('asks to win or lose on a closing column, never moves there', () => {
-    expect(moveDecision(lead, STAGES[3] as PipelineStageDto)).toBe('win');
-    expect(moveDecision(lead, STAGES[4] as PipelineStageDto)).toBe('lose');
+    expect(moveDecision(lead, WON)).toBe('win');
+    expect(moveDecision(lead, LOST)).toBe('lose');
   });
 });
 

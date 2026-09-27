@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { leadFormOptions, listLeads } from '../../../actions/crm';
 import { LeadsScreen } from '../../../components/leads/leads-screen';
+import { LeadsViewSwitch } from '../../../components/leads/view-switch';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../screens/access';
@@ -26,11 +27,14 @@ export default async function LeadsPage() {
       title={t('title')}
       description={t('intro')}
       actions={
-        canAdd ? (
-          <Button asChild>
-            <Link href="/leads/new">{t('add')}</Link>
-          </Button>
-        ) : undefined
+        <>
+          <LeadsViewSwitch current="list" />
+          {canAdd ? (
+            <Button asChild>
+              <Link href="/leads/new">{t('add')}</Link>
+            </Button>
+          ) : null}
+        </>
       }
     >
       {page.ok && options.ok ? (

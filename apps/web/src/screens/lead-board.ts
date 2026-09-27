@@ -63,7 +63,7 @@ export function boardHref(choice: {
   entityId: number | undefined;
   pipelineKey: string | undefined;
   show: BoardShow;
-}): string {
+}): '/leads/board' | `/leads/board?${string}` {
   const params = new URLSearchParams();
   if (choice.entityId !== undefined) params.set('company', String(choice.entityId));
   if (choice.pipelineKey !== undefined) params.set('pipeline', choice.pipelineKey);
@@ -211,4 +211,9 @@ const DAY_MS = 86_400_000;
 /** Whole days from `since` to `now`; never negative, so a clock a little ahead reads 0. */
 export function daysSince(since: string, now: Date): number {
   return Math.max(Math.floor((now.getTime() - Date.parse(since)) / DAY_MS), 0);
+}
+
+/** A count as people read it, with Indian digit grouping (DESIGN.md §9). */
+export function formatCount(value: number): string {
+  return new Intl.NumberFormat('en-IN').format(value);
 }
