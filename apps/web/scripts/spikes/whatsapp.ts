@@ -97,6 +97,7 @@ if (mode === 'send') {
         return;
       }
       const events = parseWhatsAppWebhook(body);
+      if (!events.valid) console.error('delivery signed but not the shape the contract accepts');
       for (const m of events.messages) console.error(`message ${m.id} type ${m.type}`);
       for (const s of events.statuses) {
         console.error(`status ${s.messageId} ${s.status} ${s.errorCodes.join(',')}`);

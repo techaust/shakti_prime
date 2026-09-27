@@ -1,5 +1,6 @@
+import { MetaSignatureHeaderSchema, MetaVerifyQuery, WhatsAppWebhook } from '@shakti/contracts';
 import { createHmac } from 'node:crypto';
-import { asArray, asObject, asString, at, safeEqual } from '../http';
+import { safeEqual } from '../http';
 
 /**
  * The Meta webhook for WhatsApp (docs/API.md §3.4, `GET/POST /webhooks/meta/whatsapp`): the
@@ -13,11 +14,12 @@ export type HandshakeResult = { ok: true; challenge: string } | { ok: false };
 
 /** Meta's subscription check: answer the challenge only for our verify token. */
 export function verifyHandshake(params: URLSearchParams, verifyToken: string): HandshakeResult {
-  const mode = params.get('hub.mode');
-  const token = params.get('hub.verify_token') ?? '';
-  const challenge = params.get('hub.challenge') ?? '';
-  if (mode !== 'subscribe' || verifyToken === '' || challenge === '') return { ok: false };
-  return safeEqual(token, verifyToken) ? { ok: true, challenge } : { ok: false };
+  const query = MetaVerifyQuery.safeParse(Object.fromEntries(params));
+  if (!query.success || verifyToken === '') return { ok: false };
+  const challenge = query.data['hub.challenge'];
+  return safeEqual(query.data['hub.verify_token'], verifyToken)
+    ? { ok: true, challenge }
+    : { ok: false };
 }
 
 /**
@@ -29,7 +31,9 @@ export function verifyHubSignature(
   header: string | null,
   appSecret: string,
 ): boolean {
-  if (header === null || !header.startsWith('sha256=') || appSecret === '') return false;
+  if (header === null || appSecret === '') return false;
+  // Meta sends lowercase hex; the contract's pattern is the header's only accepted form.
+  if (!MetaSignatureHeaderSchema.safeParse(header.toLowerCase()).success) return false;
   const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
   return safeEqual(header.slice('sha256='.length).toLowerCase(), expected);
 }
@@ -62,63 +66,65 @@ export interface TemplateStatusUpdate {
 }
 
 export interface WhatsAppWebhookEvents {
+  /** False when the body is not a WhatsApp webhook the published contract accepts; no events then. */
+  valid: boolean;
   messages: InboundMessage[];
   statuses: StatusUpdate[];
   templates: TemplateStatusUpdate[];
 }
 
-const STATUSES = new Set(['sent', 'delivered', 'read', 'failed']);
+type Change = WhatsAppWebhook['entry'][number]['changes'][number];
 
-function seconds(value: unknown): number {
-  const text = asString(value) ?? '';
-  return /^\d+$/.test(text) ? Number(text) : 0;
+/** The contract refuses a handled field in its catch-all branch, so the field names the branch. */
+function isField<F extends 'messages' | 'message_template_status_update'>(
+  change: Change,
+  field: F,
+): change is Extract<Change, { field: F }> {
+  return change.field === field;
 }
 
-/** The events in a webhook body; anything unrecognised is ignored. */
+/**
+ * The events in a webhook body, read through the published `WhatsAppWebhook` contract. A field
+ * the BOS does not handle is ignored; a body the contract refuses gives no events.
+ */
 export function parseWhatsAppWebhook(body: unknown): WhatsAppWebhookEvents {
-  const events: WhatsAppWebhookEvents = { messages: [], statuses: [], templates: [] };
-  if (asString(asObject(body)?.object) !== 'whatsapp_business_account') return events;
-  for (const entry of asArray(asObject(body)?.entry)) {
-    for (const change of asArray(asObject(entry)?.changes)) {
-      const field = asString(asObject(change)?.field);
-      const value = asObject(asObject(change)?.value);
-      if (value === undefined) continue;
-      if (field === 'messages') {
-        const phoneNumberId = asString(at(value, 'metadata', 'phone_number_id')) ?? '';
-        for (const message of asArray(value.messages)) {
-          const id = asString(asObject(message)?.id);
-          const from = asString(asObject(message)?.from);
-          if (id === undefined || from === undefined) continue;
+  const parsed = WhatsAppWebhook.safeParse(body);
+  const events: WhatsAppWebhookEvents = {
+    valid: parsed.success,
+    messages: [],
+    statuses: [],
+    templates: [],
+  };
+  if (!parsed.success) return events;
+  for (const entry of parsed.data.entry) {
+    for (const change of entry.changes) {
+      if (isField(change, 'messages')) {
+        const phoneNumberId = change.value.metadata.phone_number_id;
+        for (const message of change.value.messages ?? []) {
           events.messages.push({
-            id,
+            id: message.id,
             phoneNumberId,
-            from,
-            timestamp: seconds(asObject(message)?.timestamp),
-            type: asString(asObject(message)?.type) ?? 'unknown',
-            text: asString(at(message, 'text', 'body')),
+            from: message.from,
+            timestamp: Number(message.timestamp),
+            type: message.type,
+            text: message.text?.body,
           });
         }
-        for (const status of asArray(value.statuses)) {
-          const messageId = asString(asObject(status)?.id);
-          if (messageId === undefined) continue;
-          const state = asString(asObject(status)?.status) ?? '';
+        for (const status of change.value.statuses ?? []) {
           events.statuses.push({
-            messageId,
+            messageId: status.id,
             phoneNumberId,
-            status: STATUSES.has(state) ? (state as StatusUpdate['status']) : 'other',
-            timestamp: seconds(asObject(status)?.timestamp),
-            recipientId: asString(asObject(status)?.recipient_id),
-            errorCodes: asArray(asObject(status)?.errors)
-              .map((e) => asObject(e)?.code)
-              .filter((c): c is number => typeof c === 'number'),
+            status: status.status === 'deleted' ? 'other' : status.status,
+            timestamp: Number(status.timestamp),
+            recipientId: status.recipient_id,
+            errorCodes: (status.errors ?? []).map((e) => e.code),
           });
         }
-      } else if (field === 'message_template_status_update') {
-        const templateName = asString(value.message_template_name);
-        const event = asString(value.event);
-        if (templateName !== undefined && event !== undefined) {
-          events.templates.push({ templateName, event });
-        }
+      } else if (isField(change, 'message_template_status_update')) {
+        events.templates.push({
+          templateName: change.value.message_template_name,
+          event: change.value.event,
+        });
       }
     }
   }

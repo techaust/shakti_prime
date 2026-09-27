@@ -7,7 +7,7 @@
 | Piece | Where |
 |---|---|
 | Send wrapper: approved template with body values, and text inside the 24-hour window, to `POST {graph}/{version}/{phone-number-id}/messages` with the system-user key; 10 s timeout; never retried (a timeout does not prove Meta did not deliver); Meta's error code and subcode reported, the body never logged; Graph version pinned (`v23.0` unless `WHATSAPP_GRAPH_VERSION` says otherwise) | `apps/web/src/integrations/whatsapp/client.ts` |
-| Webhook checks: the verify-token handshake (`hub.mode=subscribe`, constant-time phrase check, echo `hub.challenge`), `X-Hub-Signature-256` over the exact raw body with the app secret, and a reader for inbound messages, delivery states with failure codes, and template approvals | `apps/web/src/integrations/whatsapp/webhook.ts` |
+| Webhook checks: the verify-token handshake (`hub.mode=subscribe`, constant-time phrase check, echo `hub.challenge`), `X-Hub-Signature-256` over the exact raw body with the app secret, and a reader for inbound messages, delivery states with failure codes, and template approvals; the query and body are read through the published contracts (`MetaVerifyQuery`, `MetaSignatureHeaderSchema`, `WhatsAppWebhook` in `packages/contracts/src/api/webhooks-meta.ts`) | `apps/web/src/integrations/whatsapp/webhook.ts` |
 | Fixture tests (template and text request shapes, error mapping, handshake, signature on raw bytes versus a re-serialised body, event parsing) | `apps/web/src/integrations/whatsapp/whatsapp.test.ts` with `fixtures/*.json` |
 | Spike script: `send` (template, then optional text, timed) and `listen` (a local receiver that answers the handshake, checks signatures and prints ids and states, never bodies) | `pnpm --filter web spike:whatsapp -- send` or `-- listen` |
 

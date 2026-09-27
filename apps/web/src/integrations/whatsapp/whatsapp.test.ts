@@ -171,8 +171,9 @@ describe('webhook events', () => {
     expect(events.templates).toEqual([{ templateName: 'quote_ready', event: 'APPROVED' }]);
   });
 
-  it('ignores another object type and malformed entries', () => {
+  it('gives no events for another object type or a body the contract refuses', () => {
     expect(parseWhatsAppWebhook({ object: 'page', entry: [] })).toEqual({
+      valid: false,
       messages: [],
       statuses: [],
       templates: [],
@@ -181,7 +182,16 @@ describe('webhook events', () => {
       parseWhatsAppWebhook({
         object: 'whatsapp_business_account',
         entry: [{ changes: [{ field: 'messages', value: { messages: [{ type: 'text' }] } }] }],
-      }).messages,
-    ).toEqual([]);
+      }),
+    ).toMatchObject({ valid: false, messages: [] });
+  });
+
+  it('accepts and ignores a field the BOS does not handle', () => {
+    expect(
+      parseWhatsAppWebhook({
+        object: 'whatsapp_business_account',
+        entry: [{ id: '100000000000001', changes: [{ field: 'account_update', value: {} }] }],
+      }),
+    ).toEqual({ valid: true, messages: [], statuses: [], templates: [] });
   });
 });

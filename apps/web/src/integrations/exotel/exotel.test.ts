@@ -184,4 +184,17 @@ describe('the status callback', () => {
     expect(parseStatusCallback('{}', 'application/json')).toBeUndefined();
     expect(parseStatusCallback('not json', 'application/json')).toBeUndefined();
   });
+
+  it('reads the body through the published contract', () => {
+    const form = (fields: Record<string, string>) =>
+      parseStatusCallback(new URLSearchParams(fields).toString(), null);
+    const base = { CallSid: 'c2', DateUpdated: '2026-09-28 11:01:00' };
+    expect(form({ ...base, Status: 'In-Progress' })?.status).toBe('other');
+    expect(form({ ...base, Status: 'Completed' })?.status).toBe('completed');
+    expect(form({ ...base, Status: 'ringing' })).toBeUndefined();
+    expect(form({ ...base, Status: 'busy', DateUpdated: 'yesterday' })).toBeUndefined();
+    expect(form({ ...base, Status: 'busy', RecordingUrl: 'http://plain.test/a.mp3' })).toBe(
+      undefined,
+    );
+  });
 });

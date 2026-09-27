@@ -1,4 +1,5 @@
-import { asArray, asNumber, asObject, asString, at, hmacSha256Hex, safeEqual } from '../http';
+import { ExotelCallStatusWebhook } from '@shakti/contracts';
+import { asObject, hmacSha256Hex, safeEqual } from '../http';
 
 /**
  * Verifying Exotel's call-status callback (docs/API.md §3.4, `POST /webhooks/exotel/call-status`).
@@ -76,18 +77,33 @@ export interface CallStatusEvent {
   /** The BOS call id echoed back through CustomField. */
   customField: string | undefined;
   /** Exotel's timestamp for ordering out-of-order callbacks. */
-  updatedAt: string | undefined;
-}
-
-function textOf(body: unknown, key: string): string | undefined {
-  const value = asObject(body)?.[key];
-  const text = asString(value) ?? (asNumber(value) === undefined ? undefined : String(value));
-  return text === undefined || text === '' ? undefined : text;
+  updatedAt: string;
 }
 
 /**
- * Reads a callback body, JSON (as the dial asks for) or form-encoded (Exotel's default). Answers
- * undefined when it names no call.
+ * Exotel documents every value as a string, but a JSON callback may carry durations as numbers;
+ * numbers become strings and the status is lower-cased before the contract reads the body.
+ */
+function asExotelStrings(value: unknown): unknown {
+  if (typeof value === 'number') return String(value);
+  if (Array.isArray(value)) return value.map(asExotelStrings);
+  const object = asObject(value);
+  if (object === undefined) return value;
+  return Object.fromEntries(
+    Object.entries(object).map(([key, v]) => [
+      key,
+      key === 'Status' && typeof v === 'string' ? v.toLowerCase() : asExotelStrings(v),
+    ]),
+  );
+}
+
+function seconds(value: string | undefined): number | undefined {
+  return value !== undefined && /^\d+$/.test(value) ? Number(value) : undefined;
+}
+
+/**
+ * Reads a callback body, JSON (as the dial asks for) or form-encoded (Exotel's default), through
+ * the published `ExotelCallStatusWebhook` contract. Answers undefined when the body is not one.
  */
 export function parseStatusCallback(
   rawBody: string,
@@ -103,27 +119,23 @@ export function parseStatusCallback(
   } else {
     body = Object.fromEntries(new URLSearchParams(rawBody));
   }
-  const callSid = textOf(body, 'CallSid');
-  if (callSid === undefined) return undefined;
-  const status = (textOf(body, 'Status') ?? '').toLowerCase();
-  const legs = asArray(asObject(body)?.Legs);
-  const onCall = legs
-    .map((leg) => asNumber(at(leg, 'OnCallDuration')))
+  const parsed = ExotelCallStatusWebhook.safeParse(asExotelStrings(body));
+  if (!parsed.success) return undefined;
+  const callback = parsed.data;
+  const onCall = (callback.Legs ?? [])
+    .map((leg) => seconds(leg.OnCallDuration))
     .filter((n): n is number => n !== undefined);
-  const conversation = textOf(body, 'ConversationDuration');
+  const nonEmpty = (text: string | undefined) => (text === '' ? undefined : text);
   return {
-    callSid,
-    status: (TERMINAL_CALL_STATES as readonly string[]).includes(status)
-      ? (status as TerminalCallState)
+    callSid: callback.CallSid,
+    status: (TERMINAL_CALL_STATES as readonly string[]).includes(callback.Status)
+      ? (callback.Status as TerminalCallState)
       : 'other',
     conversationSeconds:
-      conversation !== undefined && /^\d+$/.test(conversation)
-        ? Number(conversation)
-        : onCall.length > 0
-          ? Math.max(...onCall)
-          : undefined,
-    recordingUrl: textOf(body, 'RecordingUrl'),
-    customField: textOf(body, 'CustomField'),
-    updatedAt: textOf(body, 'DateUpdated'),
+      seconds(callback.ConversationDuration) ??
+      (onCall.length > 0 ? Math.max(...onCall) : undefined),
+    recordingUrl: nonEmpty(callback.RecordingUrl),
+    customField: nonEmpty(callback.CustomField),
+    updatedAt: callback.DateUpdated,
   };
 }
