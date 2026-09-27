@@ -18,15 +18,15 @@ export interface CommandFailure {
  * answer acts once. A form is rendered afresh (a dialog opens again, a page loads) for the next
  * change, which gives it a new key; after a failure the key stays, because nothing was stored.
  */
-export function useCommand<T>(
-  action: (input: unknown, idempotencyKey?: unknown) => Promise<ActionResult<T>>,
+export function useCommand<T, I = unknown>(
+  action: (input: I, idempotencyKey?: unknown) => Promise<ActionResult<T>>,
 ) {
   const [key, setKey] = useState(() => crypto.randomUUID());
   const [pending, startTransition] = useTransition();
   const [failure, setFailure] = useState<CommandFailure | undefined>();
 
   const run = useCallback(
-    (input: unknown, onDone: (data: T) => void) => {
+    (input: I, onDone: (data: T) => void) => {
       startTransition(async () => {
         const result = await action(input, key);
         if (result.ok) {

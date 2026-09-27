@@ -84,9 +84,26 @@ export const ImportRowPage = z
     rows: z.array(ImportRowDto),
     /** Pass as `after` for the next page; null on the last page. */
     nextAfter: z.number().int().min(1).nullable(),
+    /**
+     * The names of the customers this page's dedupe suggestions point at, by account id, as the
+     * caller may read them; a customer they can no longer see is left out.
+     */
+    customers: z.record(z.string(), z.string()),
   })
   .strict();
 export type ImportRowPage = z.infer<typeof ImportRowPage>;
+
+/** One page of import jobs, newest first, with the names of the people who started them. */
+export const ImportJobPage = z
+  .object({
+    items: z.array(ImportJobDto),
+    /** Display names by principal id, for `createdBy`. */
+    creators: z.record(z.string(), z.string()),
+    /** Pass as `cursor` for the next page; null on the last page. */
+    nextCursor: z.string().nullable(),
+  })
+  .strict();
+export type ImportJobPage = z.infer<typeof ImportJobPage>;
 
 export const ImportTemplateDto = z
   .object({

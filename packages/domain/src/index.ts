@@ -34,6 +34,7 @@ export { commitImportBatch, commitImportJob } from './commands/imports/commit-jo
 export { rollbackImportJob } from './commands/imports/rollback-job';
 export {
   getImportJob,
+  listImportJobs,
   listImportRows,
   listImportTemplates,
 } from './queries/imports/import-queries';

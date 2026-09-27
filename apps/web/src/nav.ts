@@ -1,6 +1,7 @@
 import { hasGrant, type PermissionGrant } from '@shakti/contracts';
 import {
   Building2,
+  FileUp,
   House,
   IndianRupee,
   ListTodo,
@@ -69,6 +70,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: IndianRupee,
     group: 'work',
     requires: [{ key: 'pricing.read', scope: 'entity' }],
+  },
+  {
+    id: 'imports',
+    href: '/imports',
+    label: 'imports',
+    icon: FileUp,
+    group: 'work',
+    requires: [{ key: 'imports.write', scope: 'entity' }],
   },
   {
     id: 'admin-users',

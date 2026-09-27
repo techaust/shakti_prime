@@ -178,6 +178,19 @@ export const ListImportRowsInput = z
   .strict();
 export type ListImportRowsInput = z.infer<typeof ListImportRowsInput>;
 
+/**
+ * The import screen's list: the jobs of one company, or of every company of the request when
+ * `entityId` is left out, newest first, keyset-paginated by the opaque `cursor` of the last page.
+ */
+export const ListImportJobsInput = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    cursor: z.string().min(1).max(512).optional(),
+    limit: z.number().int().min(1).max(100).default(25),
+  })
+  .strict();
+export type ListImportJobsInput = z.infer<typeof ListImportJobsInput>;
+
 export const ListImportTemplatesInput = z
   .object({ entityId: EntityIdSchema, kind: ImportKindSchema })
   .strict();
