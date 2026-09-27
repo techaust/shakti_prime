@@ -99,6 +99,12 @@ export const CreateImportJobInput = z
   });
 export type CreateImportJobInput = z.infer<typeof CreateImportJobInput>;
 
+/** The upload form's fields beside the file itself; form values arrive as text. */
+export const UploadImportFileInput = z
+  .object({ entityId: z.coerce.number().pipe(EntityIdSchema), kind: ImportKindSchema })
+  .strict();
+export type UploadImportFileInput = z.infer<typeof UploadImportFileInput>;
+
 const JobRef = { entityId: EntityIdSchema, jobId: IdSchema };
 
 /**
