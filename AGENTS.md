@@ -99,7 +99,7 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1.
+Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1. The test strategy, the suite layout, the generated-file checks and how to run one test are in `docs/TESTING.md`.
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.

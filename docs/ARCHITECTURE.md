@@ -57,7 +57,7 @@ apps/tally-connector ─► packages/contracts
 - `packages/domain` has no framework imports. It is testable with Vitest against a real Postgres.
 - `packages/contracts` is the only shared surface between apps; it holds Zod schemas, DTO types, error codes and event names.
 - `packages/db` owns schema, migrations, RLS SQL, seeds and the `withRequestContext()` helper.
-- Turborepo tasks: `build`, `typecheck`, `test`, `test:security` (`lint`, `format:check` and `copy-lint` run at the root; `db:*` scripts call the db workspace directly; `test:e2e` arrives with Playwright in Phase 1).
+- Turborepo tasks: `build`, `typecheck`, `test`, `test:security` (`lint`, `format:check` and `copy-lint` run at the root; `db:*` scripts call the db workspace directly; `test:e2e` arrives with Playwright in Phase 1). The test layers, suite layout and CI jobs are in [TESTING.md](TESTING.md).
 
 ## 4. Request lifecycle (web)
 1. **Edge:** Vercel routes the request; the proxy (`apps/web/src/proxy.ts`) gives every page request a fresh nonce and the Content-Security-Policy that trusts it (JSON routes get a fixed policy from `next.config.ts`, which also sets the other security headers). The `(bos)` layout redirects a request without a usable session; the app shell in week 4 moves the session check into the proxy.
