@@ -68,7 +68,7 @@ The renderer needs a Chromium binary next to it. Two ways:
 2. **In a separate worker** (a small container in ap-south-1, for example on the same AWS account as S3), fed by the QStash event that already carries the document id, with the Playwright image (Chromium included). The browser stays warm between jobs, so a quotation costs about 1 s and a batch of 100 labels under 1 s. It is one more service to run.
 
 Also to decide:
-- **Font files.** Variable Inter is drawn as Type 3 fonts in the PDF (searchable, prints correctly). Static Inter files (Regular, Medium, SemiBold, Display SemiBold) would embed as TrueType, cut about 60 KB and 0.2 s per document. The Inter licence (SIL Open Font License 1.1) text should sit next to the font files before the templates ship; it is not in the repository yet.
+- **Font files.** Variable Inter is drawn as Type 3 fonts in the PDF (searchable, prints correctly). Static Inter files (Regular, Medium, SemiBold, Display SemiBold) would embed as TrueType, cut about 60 KB and 0.2 s per document. The Inter licence (SIL Open Font License 1.1) sits next to the font files in `apps/web/src/print/fonts/OFL.txt`.
 - **Label printers.** The client's thermal printer model, its driver (does it take PDF, or does it need ZPL or TSPL), and the label stock sizes. The spike assumes PDF at the stock size.
 - **Long item names** on the 50 × 25 mm label are cut after two lines with an ellipsis.
 
