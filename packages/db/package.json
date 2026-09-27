@@ -18,6 +18,7 @@
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx seeds/index.ts",
     "db:verify": "tsx src/migrate.ts --verify",
+    "db:docs": "tsx src/docs/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:security": "vitest run --config vitest.security.config.ts"

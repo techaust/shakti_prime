@@ -36,62 +36,67 @@ Blueprint reference: §4, §10. The BOS has two entry surfaces: **server actions
 Every authenticated call runs inside `withRequestContext()` with the caller's principal and entity scope.
 
 ## 3. Endpoint catalogue
+Every route below is an entry of `API_ENDPOINTS` in `packages/contracts/src/api/endpoints.ts`, which names its request, query and response schemas and its error codes; schema files are under `packages/contracts/src/api/`. `packages/contracts/src/api/fixtures.ts` holds a recorded example for each route, and `endpoints.test.ts` fails when a route here and the catalogue differ. Every authenticated route can also answer `rate_limited` (429 with `Retry-After`) and `internal`; the Errors column lists the rest, with `details.reason` where the caller acts on it.
 
 ### 3.1 Auth and session
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| POST | `/auth/mobile/token` | credentials | Issue access + refresh tokens for the field app |
-| POST | `/auth/mobile/refresh` | refresh token | Rotate tokens |
-| POST | `/auth/mobile/revoke` | bearer | Revoke this device |
-| GET | `/me` | bearer | Principal, roles per entity, permissions, feature flags, minimum app version |
-| POST | `/realtime/token` | session or bearer | BOS-signed ES256 JWT for Supabase Realtime (≤ 15 min) |
-| POST | `/voice/session` | session (Executive, GM) | Create a voice session, return LiveKit room token and the user-scoped BOS token |
+| Method | Path | Auth | Purpose | Contract | Response | Errors |
+|---|---|---|---|---|---|---|
+| POST | `/auth/mobile/token` | credentials | Issue access + refresh tokens for the field app | `mobile-auth.ts`: `MobileTokenRequest` (email, password, `totpCode?` or `backupCode?`, `device`) | `MobileTokenResponse`: `{ tokenType, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, userId }`; access claims `MobileAccessClaims` (`aud: shakti-mobile`, `sid` = device, `bos_role`, ≤ 15 min) | `validation_failed`; `unauthorized` (`invalid_credentials`, `totp_required`, `totp_invalid`, `account_locked`); `forbidden` (`account_suspended`, `app_update_required`) |
+| POST | `/auth/mobile/refresh` | refresh token | Rotate tokens | `MobileRefreshRequest` (`refreshToken`, `deviceId`, `appVersion`) | `MobileRefreshResponse` (the same pair, both tokens new) | `validation_failed`; `unauthorized` (`refresh_expired`, `refresh_reused` revokes the family, `device_revoked`); `forbidden` (`app_update_required`) |
+| POST | `/auth/mobile/revoke` | bearer | Revoke this device | `MobileRevokeRequest` (empty) | `MobileRevokeResponse`: `{ revoked: true, deviceId }` | `unauthorized` |
+| GET | `/me` | bearer | Principal, roles per entity, permissions, feature flags, minimum app version | `me.ts` | `MeResponse`: `{ principal, roles: [{ entityId, entityCode, roleKey, teamId }], permissions, featureFlags, minimumAppVersion, latestAppVersion, serverTime }` | `unauthorized` |
+| POST | `/realtime/token` | session or bearer | BOS-signed ES256 JWT for Supabase Realtime (≤ 15 min) | `realtime.ts`: `RealtimeTokenRequest` (empty) | `RealtimeTokenResponse`: `{ token, expiresAt, channels }`; claims `RealtimeClaims` (`sub`, `entity_ids`, `bos_role`, `aud: shakti-realtime`, `role: authenticated`, `exp` ≤ 15 min, ADR 0003) | `unauthorized`; `forbidden` |
+| POST | `/voice/session` | session (Executive, GM) | Create a voice session, return LiveKit room token and the user-scoped BOS token | `voice.ts`: `VoiceSessionRequest` (`mode`, `consentRecording`, `entityId?`) | `VoiceSessionResponse`: `{ sessionId, livekit: { url, roomName, participantToken, expiresAt }, bosToken: { token, expiresAt }, limits }`; worker claims `VoiceTokenClaims` (`aud: shakti-voice`, `sid` = session, ≤ 5 min) | `validation_failed`; `unauthorized`; `forbidden` (`voice_cap_reached`); `integration_unavailable` |
 
 ### 3.2 Field app sync
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/sync/pull?since=<cursor>` | Engineer's schedule, jobs, checklists, surveys, reference data changed since the cursor; returns `nextCursor` |
-| POST | `/sync/push` | Batch of commands `{ commands: [{ id, name, input, idempotencyKey, clientTime }] }`; applied in order; returns per-command result or conflict |
-| POST | `/files/presign` | Pre-signed PUT for a photo, receipt or signature (`purpose`, `contentType`, `size`) |
-| POST | `/files/:id/complete` | Marks the upload complete; triggers scan and masking |
-| POST | `/attendance/check-in` | Geofenced or site check-in with selfie file ID |
-| POST | `/expenses` | Create an expense claim with receipt file IDs |
+| Method | Path | Purpose | Contract | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `/sync/pull?since=<cursor>` | Engineer's schedule, jobs, checklists, surveys, reference data changed since the cursor; returns `nextCursor` | `sync.ts`: `SyncPullQuery` (`since?`, `limit` 1..1000) | `SyncPullResponse`: `{ changes: [{ op: upsert, collection, id, updatedAt, record } \| { op: delete, collection, id, updatedAt }], nextCursor, hasMore, serverTime }` | `validation_failed` (`cursor_expired`: the app starts a full pull); `unauthorized`; `forbidden` (`app_update_required`) |
+| POST | `/sync/push` | Batch of commands `{ commands: [{ id, name, input, idempotencyKey, clientTime }] }`; applied in order; returns per-command result or conflict | `SyncPushRequest` (1..100 commands, one key each) | `SyncPushResponse`: `{ results: [{ idempotencyKey, id, status: applied \| replayed \| conflict \| rejected \| held, … }], serverTime }`; a conflict carries `reason` and the server's record for the conflict screen | `validation_failed`; `unauthorized`; `forbidden` (`app_update_required`); `conflict` (`idempotency_mismatch` for the batch key) |
+| POST | `/files/presign` | Pre-signed PUT for a photo, receipt or signature (`purpose`, `contentType`, `size`) | `files.ts`: `FilePresignRequest` (`id`, `entityId`, `purpose`, `contentType`, `size` ≤ 15 MB, `sha256?`) | `FilePresignResponse`: `{ fileId, method: PUT, uploadUrl, headers, expiresAt }` | `validation_failed`; `unauthorized`; `forbidden`; `conflict` (`idempotency_mismatch`); `integration_unavailable` |
+| POST | `/files/:id/complete` | Marks the upload complete; triggers scan and masking | `FileCompleteParams`, `FileCompleteRequest` (`size`, `sha256?`) | `FileCompleteResponse`: `{ fileId, status: scanning \| ready }` | `validation_failed` (`upload_missing`, `size_mismatch`); `unauthorized`; `forbidden`; `not_found`; `conflict` |
+| POST | `/attendance/check-in` | Geofenced or site check-in with selfie file ID | `attendance.ts`: `CheckInRequest` (`id`, `entityId`, `type`, `at`, `geo`, `selfieFileId`, `siteId` for a site check-in, `projectId?`) | `CheckInResponse`: `{ id, recordedAt, withinGeofence, distanceM, needsReview }`; outside the geofence is recorded for review, not refused | `validation_failed`; `unauthorized`; `forbidden`; `not_found` (selfie or site); `conflict` |
+| POST | `/expenses` | Create an expense claim with receipt file IDs | `expenses.ts`: `CreateExpenseRequest` (`id`, `entityId`, `projectId` or null for overhead, `lines` with category, date, amount, receipts) | `CreateExpenseResponse`: `{ id, state: submitted, total, overLimitLineIds }` | `validation_failed`; `unauthorized`; `forbidden`; `not_found` (project or receipt); `conflict` |
 
 ### 3.3 Ingest (entity websites, partners)
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/ingest/leads` | `{ entityCode, name, phone, pin?, segment?, message?, utm?, consent: { purpose, text, givenAt }, turnstileToken }` → lead created or attached; returns `leadId` |
-| GET | `/ingest/health` | Key validity and rate-limit status |
+| Method | Path | Purpose | Contract | Response | Errors |
+|---|---|---|---|---|---|
+| POST | `/ingest/leads` | `{ entityCode, name, phone, pin?, segment?, message?, utm?, consent: { purpose, text, givenAt }, turnstileToken }` → lead created or attached; returns `leadId` | `ingest.ts`: `IngestLeadRequest` (phone normalised to E.164 on parse) | `IngestLeadResponse`: `{ leadId, outcome: created \| attached }` | `validation_failed`; `unauthorized` (key); `forbidden` (`turnstile_failed`, key of another entity) |
+| GET | `/ingest/health` | Key validity and rate-limit status | none | `IngestHealthResponse`: `{ keyValid, entityCode, rateLimit: { limit, remaining, resetAt } }` | `unauthorized` |
 
 ### 3.4 Provider webhooks
-| Method | Path | Provider | Notes |
-|---|---|---|---|
-| GET/POST | `/webhooks/meta/whatsapp` | Meta WhatsApp Cloud API | Verification handshake on GET; messages, statuses, template updates on POST |
-| POST | `/webhooks/meta/leadgen` | Meta Lead Ads | Lead ID → fetched with the page token → normalised |
-| POST | `/webhooks/google/leadform` | Google Lead Form | Key in payload |
-| POST | `/webhooks/exotel/call-status` | Exotel | Call state, duration, recording URL |
-| POST | `/webhooks/exotel/incoming` | Exotel | Inbound call → screen-pop event |
-| POST | `/webhooks/livekit` | LiveKit | Room and participant events |
+Provider payloads are loose schemas: unknown keys are kept, and only the fields the workers act on are required, so a field a provider adds never fails parsing while a changed field the BOS relies on does. Each POST answers `WebhookAck` (`{ received: true }`) once the raw payload is stored, and `unauthorized` when the signature or key check fails.
+
+| Method | Path | Provider | Notes | Contract |
+|---|---|---|---|---|
+| GET/POST | `/webhooks/meta/whatsapp` | Meta WhatsApp Cloud API | Verification handshake on GET; messages, statuses, template updates on POST | `webhooks-meta.ts`: `MetaVerifyQuery` (GET answers the challenge as text, `forbidden` on a wrong verify token); `WhatsAppWebhook` (`messages`, `statuses`, `message_template_status_update`, `phone_number_quality_update`; other fields acknowledged); `MetaSignatureHeaderSchema` |
+| POST | `/webhooks/meta/leadgen` | Meta Lead Ads | Lead ID → fetched with the page token → normalised | `MetaLeadgenWebhook`; the fetched lead parses with `MetaLeadDetails` |
+| POST | `/webhooks/google/leadform` | Google Lead Form | Key in payload | `webhooks-google.ts`: `GoogleLeadFormWebhook` (`google_key` compared in constant time; `is_test` stored, no lead) |
+| POST | `/webhooks/exotel/call-status` | Exotel | Call state, duration, recording URL | `webhooks-exotel.ts`: `ExotelCallStatusWebhook` (`CustomField` carries `calls.id`); the authentication method is fixed by the week 6 Exotel spike |
+| POST | `/webhooks/exotel/incoming` | Exotel | Inbound call → screen-pop event | `ExotelIncomingWebhook` (Passthru applet) |
+| POST | `/webhooks/livekit` | LiveKit | Room and participant events | `webhooks-livekit.ts`: `LiveKitWebhook`; `Authorization` JWT from the API secret with the body's SHA-256 |
 
 Pipeline for every webhook: verify signature → insert `webhook_inbox` (unique on provider event ID) → `200` within 2 s → QStash worker → commands. Duplicates and out-of-order events are handled by the worker using the provider event ID and timestamps.
 
 ### 3.5 Tally connector
-| Method | Path | Purpose |
-|---|---|---|
-| POST | `/connector/tally/heartbeat` | `{ connectorVersion, tallyVersion, companies: [{ name, lastAlterId }] }`; a 30-minute silence raises an alert |
-| POST | `/connector/tally/batches` | `{ company, entityCode, vouchers: [...], ledgers: [...], maxAlterId }` with `Idempotency-Key`; vouchers keyed by GUID; purchase vouchers stored restricted |
-| POST | `/connector/tally/snapshot` | Daily `{ company, voucherGuids: [...], asOf }`; server computes tombstones |
-| GET | `/connector/tally/cursor?company=` | Last accepted `alterId` per company so the connector can resume |
-| GET | `/connector/release` | Latest signed release manifest for self-update |
+Contracts in `connector.ts`. Every call carries `ConnectorHeaders`; the signature is HMAC-SHA256, as lowercase hex, over `connectorSigningString()` (method, path with query, Unix-seconds timestamp and the body's SHA-256, one per line), and a timestamp outside `CONNECTOR_CLOCK_SKEW_SECONDS` (300) answers `unauthorized`.
+
+| Method | Path | Purpose | Contract | Response | Errors |
+|---|---|---|---|---|---|
+| POST | `/connector/tally/heartbeat` | `{ connectorVersion, tallyVersion, companies: [{ name, lastAlterId }] }`; a 30-minute silence raises an alert | `ConnectorHeartbeatRequest` (adds `reachable` per company and `queueDepth`) | `ConnectorHeartbeatResponse`: `{ serverTime, latestVersion, updateAvailable }` | `validation_failed`; `unauthorized` |
+| POST | `/connector/tally/batches` | `{ company, entityCode, vouchers: [...], ledgers: [...], maxAlterId }` with `Idempotency-Key`; vouchers keyed by GUID; purchase vouchers stored restricted | `ConnectorBatchRequest` (adds `fromAlterId`; `TallyVoucher`, `TallyLedger`; ≤ 500 vouchers) | `ConnectorBatchResponse`: `{ company, accepted: { vouchersNew, vouchersChanged, vouchersUnchanged, ledgers }, lastAlterId }` | `validation_failed`; `unauthorized`; `forbidden` (company not mapped to the entity); `conflict` (`cursor_mismatch`, `idempotency_mismatch`) |
+| POST | `/connector/tally/snapshot` | Daily `{ company, voucherGuids: [...], asOf }`; server computes tombstones | `ConnectorSnapshotRequest` (adds `entityCode` and `fromDate`, the first voucher date covered) | `ConnectorSnapshotResponse`: `{ company, known, tombstoned, missingOnServer }` | `validation_failed`; `unauthorized`; `forbidden`; `conflict` (`idempotency_mismatch`) |
+| GET | `/connector/tally/cursor?company=` | Last accepted `alterId` per company so the connector can resume | `ConnectorCursorQuery` | `ConnectorCursorResponse`: `{ company, lastAlterId, updatedAt }` | `validation_failed`; `unauthorized`; `forbidden` |
+| GET | `/connector/release` | Latest signed release manifest for self-update | none | `ConnectorReleaseResponse`: `{ version, minimumVersion, url, sha256, signature, publishedAt }` | `unauthorized` |
 
 ### 3.6 Workers (QStash only)
-`/workers/outbox/publish` (the outbox publisher, built), `/workers/outbox/:type`, `/workers/messaging/send`, `/workers/files/scan`, `/workers/files/mask`, `/workers/pdf/render`, `/workers/imports/commit`, `/workers/agents/:agent`, `/workers/stt/transcribe`, `/workers/embeddings/index`, `/workers/notify`. Each verifies the QStash signature, checks the event ID in Redis, runs the command and returns `200` on success or a retryable `5xx`.
+`/workers/outbox/publish` (the outbox publisher, built; answers `OutboxPublishResponse` in `workers.ts`), `/workers/outbox/:type`, `/workers/messaging/send`, `/workers/files/scan`, `/workers/files/mask`, `/workers/pdf/render`, `/workers/imports/commit`, `/workers/agents/:agent`, `/workers/stt/transcribe`, `/workers/embeddings/index`, `/workers/notify`. Each verifies the QStash signature, checks the event ID in Redis, runs the command and returns `200` on success or a retryable `5xx`.
 
 ### 3.7 Operations
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/health` | none | Liveness |
-| GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down |
+| GET | `/health` | none | Liveness; `HealthResponse` in `health.ts` |
+| GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down; `ReadyResponse` in `health.ts` |
 | GET | `/admin/integrations` | session (admin.integrations.write) | Integration Health: webhook inbox stats, DLQ, connector heartbeat, WhatsApp quality and tier, AI spend |
 | POST | `/admin/integrations/replay` | session | Replay a dead-lettered event |
 
