@@ -71,9 +71,13 @@ export {
   isAadhaarNumber,
   maskedDigitIndices,
   maskIdentityNumbers,
+  maskLine,
+  normalizeOcrDigits,
+  summarizeSpans,
 } from './privacy/identity-numbers';
 export type {
   IdentityNumberKind,
   IdentityNumberSpan,
+  LineMask,
   MaskedText,
 } from './privacy/identity-numbers';

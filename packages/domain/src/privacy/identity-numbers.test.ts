@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findIdentityNumbers, isAadhaarNumber, maskIdentityNumbers } from './identity-numbers';
+import {
+  findIdentityNumbers,
+  isAadhaarNumber,
+  maskIdentityNumbers,
+  normalizeOcrDigits,
+} from './identity-numbers';
 import { verhoeffCheckDigit, verhoeffValid } from './verhoeff';
 
 // Every number here is generated with a correct or a deliberately wrong check digit. None is a
@@ -101,6 +106,40 @@ describe('maskIdentityNumbers', () => {
   it('does not treat a long number as a bank account without a label', () => {
     const text = 'Invoice 202608150012345';
     expect(maskIdentityNumbers(text).text).toBe(text);
+  });
+
+  it('reads look-alike letters as digits inside a number, and only there', () => {
+    const number = madeUpAadhaar(random);
+    const misread = `${number.slice(0, 2)}O${number.slice(3, 4)} ${number.slice(4, 5)}l${number.slice(6, 8)}${number.slice(8)}`;
+    const out = maskIdentityNumbers(`DOB: 04-11-1987\nNo ${misread}`);
+    expect(out.text).toBe(`DOB: 04-11-1987\nNo XXXX XXXX${number.slice(8)}`);
+    expect(out.counts.aadhaar_unverified + out.counts.aadhaar).toBe(1);
+    expect(normalizeOcrDigits('Sold to Ramesh')).toBe('Sold to Ramesh');
+    expect(normalizeOcrDigits('4O2l7')).toBe('40217');
+  });
+
+  it('joins the groups of a number that OCR split in the wrong place', () => {
+    const number = madeUpAadhaar(random);
+    const split = `${number.slice(0, 3)} ${number.slice(3, 7)} ${number.slice(7)}`;
+    const out = maskIdentityNumbers(`Aadhaar ${split}`);
+    expect(out.text).toBe(`Aadhaar XXX XXXX X${number.slice(8)}`);
+    expect(out.aadhaarLastFour).toEqual([number.slice(8)]);
+
+    const account = maskIdentityNumbers('Bank A/c No: 372480849621 251');
+    expect(account.text).toBe('Bank A/c No: XXXXXXXXXXX1 251');
+    expect(account.bankAccountLastFour).toEqual(['1251']);
+  });
+
+  it('reads a twelve-digit number on an account line as the account', () => {
+    const number = madeUpAadhaar(random);
+    const out = maskIdentityNumbers(`Bank A/c No: ${number}`);
+    expect(out.counts).toEqual({ aadhaar: 0, aadhaar_unverified: 0, bank_account: 1 });
+    expect(out.text).toBe(`Bank A/c No: XXXXXXXX${number.slice(8)}`);
+  });
+
+  it('finds the account label on the line as read, before letters were corrected', () => {
+    const out = maskIdentityNumbers('AcNo:50100234871936');
+    expect(out.text).toBe('AcNo:XXXXXXXXXX1936');
   });
 
   it('reports an Aadhaar number on an account line as Aadhaar, not twice', () => {
