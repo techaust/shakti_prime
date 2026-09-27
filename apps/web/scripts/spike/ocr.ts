@@ -161,6 +161,9 @@ interface Row {
   qrReadableBefore?: boolean;
   /** QR cover boxes drawn by the masker (on any document). */
   qrBoxes: number;
+  /** Codes the masker located by decoding them, and from their finder marks alone. */
+  qrDecoded: number;
+  qrEstimated: number;
   /** Share of the drawn code's extent under a QR cover box. */
   qrCoveredShare?: number;
   /** Any QR code could be decoded on the masked image. */
@@ -214,6 +217,8 @@ async function runOne(
       ? { qrModules: doc.qr.modules, qrReadableBefore: qrBefore.get(doc.id) ?? false }
       : {}),
     qrBoxes: 0,
+    qrDecoded: 0,
+    qrEstimated: 0,
     qrReadableAfter: false,
     qrLeak: false,
     passes: outcome.timings.passes,
@@ -226,6 +231,8 @@ async function runOne(
     return row;
   }
   row.qrBoxes = outcome.qr.covered;
+  row.qrDecoded = outcome.qr.decoded;
+  row.qrEstimated = outcome.qr.estimated;
   if (doc.qr) row.qrCoveredShare = coveredShare(doc.qr.extent, outcome.qr.boxes);
 
   const aadhaarLast = [...outcome.aadhaarLastFour];
@@ -258,7 +265,12 @@ async function runOne(
   const qrAfter = await decodableQr(outcome.image, hidden);
   row.qrReadableAfter = qrAfter.readable;
   row.qrLeak = qrAfter.holdsHidden;
-  writeFileSync(join(outDir, `${doc.id}-${mode}-masked.jpg`), outcome.image);
+  // A masked image that still shows a hidden number or a readable QR code is counted, never
+  // written: only images that passed every check reach the disk.
+  if (!row.leakInText && !row.leakOnReread && !row.qrReadableAfter) {
+    writeFileSync(join(outDir, `${doc.id}-${mode}-masked.jpg`), outcome.image);
+  }
+  outcome.image.fill(0);
   return row;
 }
 
@@ -308,6 +320,9 @@ function summarize(rows: Row[]) {
       readableBeforeMasking: withQr.filter((r) => r.qrReadableBefore).length,
       heldForReview: withQr.filter((r) => r.status === 'needs_review').map((r) => r.id),
       heldBecauseQrNotCovered: rows.filter((r) => r.cause === 'qr_not_covered').map((r) => r.id),
+      codesCovered: sum((r) => r.qrBoxes),
+      codesDecoded: sum((r) => r.qrDecoded),
+      codesPlacedFromFinderMarks: sum((r) => r.qrEstimated),
       returned: qrReturned.length,
       returnedFullyCovered: qrReturned.filter((r) => (r.qrCoveredShare ?? 0) >= 1).length,
       returnedNotFullyCovered: qrReturned
@@ -335,14 +350,40 @@ function summarize(rows: Row[]) {
   };
 }
 
+/**
+ * A subset for a quicker run: `--only qr` keeps the photos with a QR code drawn on them,
+ * `--limit N` the first N. A subset run writes its numbers to `ocr-subset.json`, so the full
+ * run's results are not overwritten.
+ */
+function subsetOptions(argv: readonly string[]): { only?: 'qr'; limit?: number } {
+  const options: { only?: 'qr'; limit?: number } = {};
+  const onlyAt = argv.indexOf('--only');
+  if (onlyAt >= 0) {
+    if (argv[onlyAt + 1] !== 'qr') throw new Error('--only takes one value: qr');
+    options.only = 'qr';
+  }
+  const limitAt = argv.indexOf('--limit');
+  if (limitAt >= 0) {
+    const limit = Number(argv[limitAt + 1]);
+    if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit takes a whole number');
+    options.limit = limit;
+  }
+  return options;
+}
+
 async function main() {
+  const subset = subsetOptions(process.argv.slice(2));
+  const isSubset = subset.only !== undefined || subset.limit !== undefined;
   await ensureLanguageData();
   mkdirSync(outDir, { recursive: true });
   mkdirSync(dirname(resultFile), { recursive: true });
 
   const genStarted = performance.now();
-  const docs = await generateDocuments();
+  const generated = await generateDocuments();
   const generateMs = performance.now() - genStarted;
+  const chosen = subset.only === 'qr' ? generated.filter((d) => d.qr) : generated;
+  const docs = chosen.slice(0, subset.limit ?? chosen.length);
+  for (const doc of generated) if (!docs.includes(doc)) doc.photo.fill(0);
 
   // Baseline: whether each drawn QR code can be decoded on the unmasked photo at all.
   for (const doc of docs) {
@@ -372,6 +413,7 @@ async function main() {
 
   const summary = {
     ranAt: new Date().toISOString(),
+    ...(isSubset ? { subset } : {}),
     platform: `${process.platform} ${process.arch}, Node ${process.version}`,
     engine:
       'tesseract.js 7, eng 4.0.0_best_int (LSTM), up to four readings per photo; jsQR 1.4 with a finder-mark scan for QR codes',
@@ -381,7 +423,10 @@ async function main() {
     knownSlot: summarize(results.known_slot),
     rows: results,
   };
-  writeFileSync(resultFile, `${JSON.stringify(summary, null, 2)}\n`);
+  writeFileSync(
+    isSubset ? resultFile.replace(/\.json$/, '-subset.json') : resultFile,
+    `${JSON.stringify(summary, null, 2)}\n`,
+  );
   console.log(JSON.stringify({ ...summary, rows: undefined }, null, 2));
 }
 
