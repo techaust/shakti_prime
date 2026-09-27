@@ -4,6 +4,7 @@ export type { CommandContext, DomainEvent } from './command/context';
 export { runCommand, checkPermission, RUNNER_REASONS } from './command/run-command';
 export type { AuditEntry, RunOptions } from './command/run-command';
 export { commands, getCommand } from './command/registry';
+export { executeCommand, executeQuery } from './command/execute';
 export { updateEntity } from './commands/org/update-entity';
 export { createLead } from './commands/crm/create-lead';
 export { setPrice } from './commands/pricing/set-price';

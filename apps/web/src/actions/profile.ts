@@ -1,8 +1,7 @@
 'use server';
 
 import { SetThemeInput } from '@shakti/contracts';
-import { withRequestContext } from '@shakti/db';
-import { runCommand, setTheme as setThemeCommand } from '@shakti/domain';
+import { executeCommand, setTheme as setThemeCommand } from '@shakti/domain';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { errorKey, toDomainError } from '../auth/errors';
 import type { FormState } from './auth';
@@ -18,9 +17,7 @@ export async function saveTheme(rawInput: unknown): Promise<FormState> {
     const principal = await currentPrincipal();
     if (!principal) return { error: 'unauthorized' };
     const input = parseInput(SetThemeInput, rawInput);
-    await withRequestContext(principal, { requestId: await requestId() }, (context) =>
-      runCommand(setThemeCommand, { context }, input),
-    );
+    await executeCommand(principal, { requestId: await requestId() }, setThemeCommand, input);
     await forgetPrincipal(principal.id);
     return {};
   } catch (e) {

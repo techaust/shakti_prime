@@ -1,6 +1,9 @@
-// Idempotent seed of org and reference data as the table owner (docs/DATABASE.md §9). Safe to re-run.
-import { ROLE_KEYS } from '@shakti/contracts';
-import { inArray, sql } from 'drizzle-orm';
+// Seed of org and reference data as the table owner (docs/DATABASE.md §9). Safe to re-run after
+// any Admin edit (AUDIT M21): it writes only code-owned columns (keys, codes, kinds, segments,
+// channels, permission descriptions), adds missing rows, restores the grants of system roles no
+// Executive has customised, and gives a customised role only the permissions created since.
+import { ROLE_KEYS, type RoleKey } from '@shakti/contracts';
+import { and, inArray, isNotNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { requireEnv } from '../src/env';
@@ -9,7 +12,6 @@ import {
   leadSources,
   permissions,
   pipelines,
-  pipelineStages,
   priceTiers,
   principals,
   rolePermissions,
@@ -49,25 +51,42 @@ export async function runSeeds(): Promise<void> {
         .values(ROLE_SEED.map((r) => ({ ...r, isSystem: true })))
         .onConflictDoUpdate({
           target: roles.id,
-          set: {
-            key: sql`excluded.key`,
-            name: sql`excluded.name`,
-            isSystem: true,
-          },
+          set: { key: sql`excluded.key`, isSystem: true },
         });
 
-      // The matrix is authoritative for the system roles: their rows are replaced as a set.
-      // Roles created in Admin (admin.roles.write) keep their grants.
-      const systemRoleIds = ROLE_KEYS.map((key) => roleId(key));
-      const grants = ROLE_KEYS.flatMap((key) =>
-        grantsForRole(key).map((g) => ({
-          roleId: roleId(key),
-          permissionKey: g.key,
-          scope: g.scope,
-        })),
+      // A system role nobody has customised gets the matrix as a set. A customised role keeps
+      // what the Executive chose and gains only permissions that did not exist at the time.
+      const customised = await tx
+        .select({ id: roles.id, at: roles.customisedAt })
+        .from(roles)
+        .where(and(inArray(roles.id, ROLE_KEYS.map(roleId)), isNotNull(roles.customisedAt)));
+      const customisedAt = new Map(customised.map((r) => [r.id, r.at]));
+      const created = new Map(
+        (
+          await tx.select({ key: permissions.key, at: permissions.createdAt }).from(permissions)
+        ).map((p) => [p.key, p.at]),
       );
-      await tx.delete(rolePermissions).where(inArray(rolePermissions.roleId, systemRoleIds));
-      await tx.insert(rolePermissions).values(grants);
+      const pristine = ROLE_KEYS.filter((key) => !customisedAt.has(roleId(key)));
+      const grantRows = (keys: readonly RoleKey[]) =>
+        keys.flatMap((key) =>
+          grantsForRole(key)
+            .filter((g) => {
+              const since = customisedAt.get(roleId(key));
+              const at = created.get(g.key);
+              return since === undefined || since === null || (at !== undefined && at > since);
+            })
+            .map((g) => ({ roleId: roleId(key), permissionKey: g.key, scope: g.scope })),
+        );
+      if (pristine.length > 0) {
+        await tx
+          .delete(rolePermissions)
+          .where(inArray(rolePermissions.roleId, pristine.map(roleId)));
+      }
+      const grants = [
+        ...grantRows(pristine),
+        ...grantRows(ROLE_KEYS.filter((k) => !pristine.includes(k))),
+      ];
+      if (grants.length > 0) await tx.insert(rolePermissions).values(grants).onConflictDoNothing();
 
       await tx
         .insert(principals)
@@ -83,53 +102,42 @@ export async function runSeeds(): Promise<void> {
           set: { displayName: sql`excluded.display_name`, kind: 'agent' },
         });
 
+      // Names are edited in Admin; the seed owns keys, segments, kinds, codes and channels.
       await tx
         .insert(pipelines)
         .values(PIPELINE_SEED.map((p) => ({ ...p })))
         .onConflictDoUpdate({
           target: pipelines.id,
-          set: {
-            key: sql`excluded.key`,
-            name: sql`excluded.name`,
-            segment: sql`excluded.segment`,
-          },
+          set: { key: sql`excluded.key`, segment: sql`excluded.segment` },
         });
 
-      await tx
-        .insert(pipelineStages)
-        .values(STAGE_SEED.map((s) => ({ ...s })))
-        .onConflictDoUpdate({
-          target: pipelineStages.id,
-          set: {
-            key: sql`excluded.key`,
-            name: sql`excluded.name`,
-            position: sql`excluded.position`,
-            kind: sql`excluded.kind`,
-          },
-        });
+      // Stage order is edited in Admin too: an existing stage keeps its name and position, and a
+      // stage new to a pipeline takes its seed position, or the end when that one is in use.
+      for (const stage of STAGE_SEED) {
+        await tx.execute(sql`
+          insert into pipeline_stages (id, pipeline_id, key, name, position, kind)
+          select ${stage.id}, ${stage.pipelineId}, ${stage.key}, ${stage.name},
+                 case when exists (select 1 from pipeline_stages
+                                    where pipeline_id = ${stage.pipelineId} and position = ${stage.position})
+                      then (select coalesce(max(position), 0) + 1 from pipeline_stages
+                             where pipeline_id = ${stage.pipelineId})
+                      else ${stage.position} end,
+                 ${stage.kind}
+          on conflict (id) do update set key = excluded.key, kind = excluded.kind`);
+      }
 
       await tx
         .insert(leadSources)
         .values(LEAD_SOURCE_SEED.map((s) => ({ ...s })))
         .onConflictDoUpdate({
           target: leadSources.id,
-          set: {
-            code: sql`excluded.code`,
-            channel: sql`excluded.channel`,
-            name: sql`excluded.name`,
-          },
+          set: { code: sql`excluded.code`, channel: sql`excluded.channel` },
         });
 
       await tx
         .insert(priceTiers)
         .values(PRICE_TIER_SEED.map((t) => ({ ...t })))
-        .onConflictDoUpdate({
-          target: priceTiers.id,
-          set: {
-            code: sql`excluded.code`,
-            name: sql`excluded.name`,
-          },
-        });
+        .onConflictDoUpdate({ target: priceTiers.id, set: { code: sql`excluded.code` } });
     });
   } finally {
     await client.end();

@@ -1,5 +1,6 @@
 'use client';
 
+import { PASSWORD_MIN_LENGTH } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { changePassword, signOut, switchEntity, type SetPasswordState } from '../../actions/auth';
@@ -81,7 +82,7 @@ export function ChangePasswordForm() {
           name="newPassword"
           type="password"
           autoComplete="new-password"
-          minLength={12}
+          minLength={PASSWORD_MIN_LENGTH}
           required
         />
       </Field>

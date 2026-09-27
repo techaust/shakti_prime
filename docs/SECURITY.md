@@ -35,7 +35,7 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 ## 3. Authorization
 
 ### 3.1 Model
-Roles are permission templates that Executives can edit. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
+Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions added to the catalogue later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
 
 ### 3.2 Permission catalogue
 | Permission | Executive | GM | Sales Lead | CC | LC | Store | Inventory | Project Mgr | Field | Accounts | HR |

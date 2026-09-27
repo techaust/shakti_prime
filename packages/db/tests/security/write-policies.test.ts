@@ -89,11 +89,11 @@ const CASES: Case[] = [
           returning role_id`,
   },
   {
-    name: 'create a role',
-    kind: 'insert',
+    // The set of roles is fixed (AUDIT L17): editing one marks it customised (AUDIT M21).
+    name: 'mark a role customised',
+    kind: 'update',
     statement: () =>
-      sql`insert into roles (id, key, name, is_system)
-          values (${newId()}, ${`write_policy_${newId().slice(-8)}`}, 'Role', false)`,
+      sql`update roles set customised_at = customised_at where key = 'tele_caller_lc' returning id`,
   },
   {
     name: 'rename a role',

@@ -1,5 +1,6 @@
 'use client';
 
+import { PASSWORD_MIN_LENGTH } from '@shakti/contracts';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
@@ -28,7 +29,7 @@ export function SetPasswordForm({ token }: { token: string }) {
           name="password"
           type="password"
           autoComplete="new-password"
-          minLength={12}
+          minLength={PASSWORD_MIN_LENGTH}
           invalid={state.error !== undefined}
           required
         />

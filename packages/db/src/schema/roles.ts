@@ -1,17 +1,34 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, pgTable, primaryKey, text, uuid } from 'drizzle-orm/pg-core';
+import { ROLE_KEYS } from '@shakti/contracts';
+import { boolean, check, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { actors, archivable, timestamps } from './columns';
 
-/** Roles are permission templates that Executives can edit (docs/BLUEPRINT.md §7.1). */
-export const roles = pgTable('roles', {
-  id: uuid('id').primaryKey(),
-  key: text('key').notNull().unique(),
-  name: text('name').notNull(),
-  isSystem: boolean('is_system').notNull().default(false),
-  ...archivable,
-  ...timestamps,
-  ...actors,
-});
+/**
+ * Roles are permission templates that Executives can edit (docs/BLUEPRINT.md §7.1). The set of
+ * roles is fixed (AUDIT L17): a key outside the catalogue cannot be stored. `customisedAt` marks a
+ * role whose grants an Executive has changed; the seed then leaves them alone and only adds
+ * permissions created after it (AUDIT M21).
+ */
+export const roles = pgTable(
+  'roles',
+  {
+    id: uuid('id').primaryKey(),
+    key: text('key').notNull().unique(),
+    name: text('name').notNull(),
+    isSystem: boolean('is_system').notNull().default(false),
+    customisedAt: timestamp('customised_at', { withTimezone: true }),
+    ...archivable,
+    ...timestamps,
+    ...actors,
+  },
+  () => [
+    check(
+      'roles_key_check',
+      // Built from the contracts list, so a new role key changes the check in the next migration.
+      sql.raw(`"roles"."key" in (${ROLE_KEYS.map((k) => `'${k}'`).join(', ')})`),
+    ),
+  ],
+);
 
 /** The permission catalogue as data (docs/SECURITY.md §3.2). */
 export const permissions = pgTable('permissions', {
