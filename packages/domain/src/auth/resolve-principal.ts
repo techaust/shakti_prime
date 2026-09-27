@@ -1,5 +1,6 @@
 import {
   LocaleSchema,
+  PermissionGrantSchema,
   PermissionKeySchema,
   requiresTotp,
   RoleKeySchema,
@@ -13,6 +14,7 @@ import {
   type StaffRoleKey,
 } from '@shakti/contracts';
 import type { UserGrantRow } from '@shakti/db';
+import { z } from 'zod';
 
 /** One entity row of a user with its grants, assembled from `app.user_grants()`. */
 export interface EntityGrants {
@@ -32,6 +34,30 @@ export interface UserAccess {
   email: string;
   twoFactorEnabled: boolean;
   entities: EntityGrants[];
+}
+
+const UserAccessSchema = z.object({
+  status: z.string(),
+  locale: LocaleSchema,
+  theme: z.string(),
+  name: z.string(),
+  email: z.string(),
+  twoFactorEnabled: z.boolean(),
+  entities: z.array(
+    z.object({
+      entityId: z.number().int(),
+      entityName: z.string(),
+      roleKey: StaffRoleKeySchema,
+      teamId: z.string().nullable(),
+      grants: z.array(PermissionGrantSchema),
+    }),
+  ),
+});
+
+/** A `UserAccess` read back from a cache, or undefined when it does not have the expected shape. */
+export function parseUserAccess(value: unknown): UserAccess | undefined {
+  const parsed = UserAccessSchema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
 }
 
 /** Groups the flat function output by entity. Rows with no entity (a user without roles) are dropped. */

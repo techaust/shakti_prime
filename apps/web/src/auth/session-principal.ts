@@ -1,6 +1,5 @@
 import {
   DomainError,
-  PrincipalSchema,
   SESSION_ABSOLUTE_SECONDS,
   type Principal,
   type SessionRevokeReason,
@@ -10,11 +9,10 @@ import { authDb, authSchema } from '@shakti/db/auth';
 import { resolvePrincipalFromGrants, type KeyValue, type UserAccess } from '@shakti/domain';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import type { Auth } from './create-auth';
+import { principalCache } from './principal-cache';
 
-/** How often `last_seen_at` is written, and how long a resolved principal is cached. */
+/** How often `last_seen_at` is written. */
 const LAST_SEEN_BUMP_SECONDS = 60;
-const PRINCIPAL_CACHE_SECONDS = 60;
-const VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface SessionInfo {
   sessionId: string;
@@ -73,13 +71,9 @@ export async function loadSession(headers: Headers, deps: Deps): Promise<Session
   return { sessionId: row.id, userId: row.userId, createdAt: row.createdAt };
 }
 
-const versionKey = (userId: string) => `principal-version:${userId}`;
-const cacheKey = (sessionId: string, entity: number | undefined, version: string) =>
-  `principal:${sessionId}:${entity ?? 'all'}:${version}`;
-
 /** Drops every cached principal of a user: called after a role, status or session change. */
 export async function invalidatePrincipal(keyValue: KeyValue, userId: string): Promise<void> {
-  await keyValue.incr(versionKey(userId), VERSION_TTL_SECONDS);
+  await principalCache(keyValue).invalidate(userId);
 }
 
 /**
@@ -95,14 +89,10 @@ export async function resolveSessionPrincipal(
   const session = await loadSession(headers, deps);
   if (!session) return undefined;
 
-  const version = (await deps.keyValue.get(versionKey(session.userId))) ?? '0';
-  const key = cacheKey(session.sessionId, activeEntityId, version);
-  const cached = await deps.keyValue.get(key);
-  if (cached !== null) {
-    const parsed = JSON.parse(cached) as { principal: unknown; access: UserAccess };
-    const principal = PrincipalSchema.safeParse(parsed.principal);
-    if (principal.success) return { session, principal: principal.data, access: parsed.access };
-  }
+  const cache = principalCache(deps.keyValue);
+  const key = await cache.keyFor(session.userId, session.sessionId, activeEntityId);
+  const cached = await cache.read(key);
+  if (cached) return { session, principal: cached.principal, access: cached.access };
 
   const rows = await loadUserGrants(session.userId);
   let outcome = resolvePrincipalFromGrants(session.userId, rows, activeEntityId);
@@ -117,11 +107,7 @@ export async function resolveSessionPrincipal(
     return { session, principal: undefined, access: outcome.access, blocked: outcome.kind };
   }
   if (outcome.kind !== 'principal') return undefined;
-  await deps.keyValue.set(
-    key,
-    JSON.stringify({ principal: outcome.principal, access: outcome.access }),
-    PRINCIPAL_CACHE_SECONDS,
-  );
+  await cache.write(key, { principal: outcome.principal, access: outcome.access });
   return { session, principal: outcome.principal, access: outcome.access };
 }
 
