@@ -1,9 +1,11 @@
 import { DomainError } from '@shakti/contracts';
 import { APIError } from 'better-auth/api';
+import en from '../../messages/en.json';
 
 /** Better Auth error codes → catalogue reasons (`errors.*`). Anything else is the generic sentence. */
 export const REASONS: Record<string, { code: DomainError['code']; reason: string }> = {
   BOT_CHECK_FAILED: { code: 'validation_failed', reason: 'bot_check_failed' },
+  BOT_CHECK_UNAVAILABLE: { code: 'integration_unavailable', reason: 'bot_check_unavailable' },
   ACCOUNT_LOCKED: { code: 'rate_limited', reason: 'account_locked' },
   INVALID_EMAIL_OR_PASSWORD: { code: 'unauthorized', reason: 'sign_in_failed' },
   INVALID_EMAIL: { code: 'validation_failed', reason: 'sign_in_failed' },
@@ -43,11 +45,18 @@ export function toDomainError(e: unknown): DomainError {
       return new DomainError('validation_failed', e.message);
     }
   }
-  return new DomainError('internal', e instanceof Error ? e.message : 'auth failure');
+  return new DomainError('internal', e instanceof Error ? e.message : 'auth failure', undefined, {
+    cause: e,
+  });
 }
 
-/** The catalogue key for an error: `errors.<reason>` when one is mapped, else `errors.<code>`. */
+const CATALOGUE: Readonly<Record<string, unknown>> = en.errors;
+
+/**
+ * The catalogue key for an error: `errors.<reason>` when the catalogue has that sentence, else
+ * `errors.<code>` (AUDIT M30), so a known kind of failure never reads as "went wrong on our side".
+ */
 export function errorKey(e: DomainError): string {
   const reason = e.details?.reason;
-  return typeof reason === 'string' ? reason : e.code;
+  return typeof reason === 'string' && reason in CATALOGUE ? reason : e.code;
 }

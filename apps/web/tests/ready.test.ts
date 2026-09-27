@@ -1,9 +1,13 @@
-import { ReadyResponse } from '@shakti/contracts';
+import { ErrorEnvelope, ReadyResponse } from '@shakti/contracts';
 import { closeDb } from '@shakti/db';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import * as readiness from '../src/auth/readiness';
 import { GET } from '../src/app/api/v1/health/ready/route';
 
 afterAll(closeDb);
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('GET /api/v1/health/ready', () => {
   it('reports every dependency as ok and echoes the request id', async () => {
@@ -30,5 +34,21 @@ describe('GET /api/v1/health/ready', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('x-request-id')).toMatch(/^[\w.-]+$/);
     expect(response.headers.get('x-request-id')).not.toBe('bad id with spaces');
+  });
+
+  it('answers 503 with the error envelope and the failing check (AUDIT L11)', async () => {
+    vi.spyOn(readiness, 'checkReadiness').mockResolvedValue({
+      database: 'ok',
+      auth_database: 'ok',
+      key_value: 'down',
+      config: 'ok',
+    });
+    const response = await GET(new Request('http://localhost/api/v1/health/ready'));
+    expect(response.status).toBe(503);
+    const body = ErrorEnvelope.parse(await response.json());
+    expect(body.error).toMatchObject({
+      code: 'integration_unavailable',
+      details: { checks: { key_value: 'down' } },
+    });
   });
 });

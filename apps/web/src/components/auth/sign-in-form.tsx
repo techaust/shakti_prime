@@ -4,12 +4,13 @@ import Script from 'next/script';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useRef, type RefObject } from 'react';
 import { signIn, type FormState } from '../../actions/auth';
+import { TURNSTILE_SIGN_IN_ACTION } from '../../auth/turnstile';
 import { Button, Field, FormError, TextInput } from '../form';
 
 declare global {
   interface Window {
     turnstile?: {
-      render: (container: HTMLElement, options: { sitekey: string }) => string;
+      render: (container: HTMLElement, options: { sitekey: string; action: string }) => string;
       reset: (widgetId: string) => void;
     };
     onTurnstileReady?: (() => void) | undefined;
@@ -27,7 +28,10 @@ function useTurnstile(siteKey: string, attempt: unknown): RefObject<HTMLDivEleme
   useEffect(() => {
     const render = () => {
       if (container.current === null || widgetId.current !== undefined) return;
-      widgetId.current = window.turnstile?.render(container.current, { sitekey: siteKey });
+      widgetId.current = window.turnstile?.render(container.current, {
+        sitekey: siteKey,
+        action: TURNSTILE_SIGN_IN_ACTION,
+      });
     };
     if (window.turnstile) render();
     else window.onTurnstileReady = render;
@@ -73,7 +77,7 @@ export function SignInForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
         strategy="afterInteractive"
       />
       <div ref={widget} />
-      <FormError errorKey={state.error} />
+      <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" pending={pending}>
         {pending ? t('working') : t('submit')}
       </Button>

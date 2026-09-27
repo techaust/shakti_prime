@@ -42,7 +42,7 @@ export function SetPasswordForm({ token }: { token: string }) {
           required
         />
       </Field>
-      <FormError errorKey={state.error} />
+      <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" pending={pending}>
         {t('submit')}
       </Button>

@@ -94,7 +94,7 @@ export function ChangePasswordForm() {
           required
         />
       </Field>
-      <FormError errorKey={state.error} />
+      <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" variant="secondary" pending={pending}>
         {t('submit')}
       </Button>

@@ -1,5 +1,5 @@
 import { ErrorEnvelope, newId, ReadyResponse } from '@shakti/contracts';
-import { getTranslations } from 'next-intl/server';
+import en from '../../../../../../messages/en.json';
 import { checkReadiness } from '../../../../../auth/readiness';
 
 export const dynamic = 'force-dynamic';
@@ -18,11 +18,11 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json(ReadyResponse.parse({ status: 'ok', checks, time }), { headers });
   }
 
-  const t = await getTranslations('errors');
+  // The one catalogue is English (ADR 0014); a route handler has no request locale to resolve.
   const body = ErrorEnvelope.parse({
     error: {
       code: 'integration_unavailable',
-      message: t('integration_unavailable'),
+      message: en.errors.integration_unavailable,
       details: { checks },
       requestId,
     },

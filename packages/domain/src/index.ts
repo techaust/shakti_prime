@@ -1,7 +1,7 @@
 export { defineCommand } from './command/define-command';
 export type { AnyCommand, Command } from './command/define-command';
 export type { CommandContext, DomainEvent } from './command/context';
-export { runCommand, checkPermission } from './command/run-command';
+export { runCommand, checkPermission, RUNNER_REASONS } from './command/run-command';
 export type { AuditEntry, RunOptions } from './command/run-command';
 export { commands, getCommand } from './command/registry';
 export { updateEntity } from './commands/org/update-entity';
@@ -31,6 +31,8 @@ export type { Lockout, SignInGuard } from './auth/lockout';
 export { memoryKeyValue } from './ports/key-value';
 export type { KeyValue } from './ports/key-value';
 export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer';
+export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
+export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';

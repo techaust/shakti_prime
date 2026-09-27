@@ -2,7 +2,8 @@
   "app": {
     "name": "Shakti Prime",
     "tagline": "One place to run Shakti's leads, sales, stock, projects and payments.",
-    "staffSignIn": "Staff sign in"
+    "staffSignIn": "Staff sign in",
+    "reference": "Reference: {reference}"
   },
   "errors": {
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
@@ -49,7 +50,10 @@
     "backup_code_incorrect": "That backup code didn't work. Check it and try again, or use a code from your app.",
     "code_attempts_exhausted": "Too many wrong codes. Sign in again and try with a fresh code.",
     "code_session_expired": "This sign-in took too long. Please sign in again.",
-    "request_refused": "We couldn't do that just now. Refresh the page and try again."
+    "request_refused": "We couldn't do that just now. Refresh the page and try again.",
+    "concurrent_change": "Someone else changed this at the same moment. Refresh the page and try again.",
+    "database_rejected": "Some details don't fit together. Please check them and try again.",
+    "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute."
   },
   "auth": {
     "signIn": {
@@ -176,5 +180,16 @@
       "stage-lost": "Lost"
     },
     "charts": "Chart colours"
+  },
+  "errorPage": {
+    "title": "Something went wrong on our side",
+    "body": "Please try again in a minute. If it happens again, tell your manager the reference below.",
+    "retry": "Try again",
+    "home": "Go to the home screen"
+  },
+  "notFound": {
+    "title": "We couldn't find this screen",
+    "body": "The link may be old or typed wrongly. Start again from the home screen.",
+    "home": "Go to the home screen"
   }
 }

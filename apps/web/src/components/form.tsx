@@ -59,14 +59,27 @@ export function Button({
   );
 }
 
-/** A catalogue error under `errors.*`, or nothing. */
-export function FormError({ errorKey }: { errorKey: string | undefined }) {
+/**
+ * A catalogue error under `errors.*`, or nothing. An unexpected failure also shows the reference
+ * the person reads to support (DESIGN.md §11).
+ */
+export function FormError({
+  errorKey,
+  reference,
+}: {
+  errorKey: string | undefined;
+  reference?: string | undefined;
+}) {
   const t = useTranslations('errors');
+  const app = useTranslations('app');
   if (errorKey === undefined) return null;
   const known = t.has(errorKey) ? errorKey : 'internal';
   return (
     <p id={FORM_ERROR_ID} role="alert" className="text-danger text-sm">
       {t(known)}
+      {reference === undefined ? null : (
+        <span className="block">{app('reference', { reference })}</span>
+      )}
     </p>
   );
 }

@@ -30,7 +30,13 @@ const fetchStub = vi.fn((input: RequestInfo | URL, init?: RequestInit): Promise<
   const url = input instanceof Request ? input.url : input.toString();
   if (url.includes('turnstile')) {
     const params = init?.body instanceof URLSearchParams ? init.body : new URLSearchParams();
-    return Promise.resolve(Response.json({ success: params.get('response') === 'ok' }));
+    return Promise.resolve(
+      Response.json({
+        success: params.get('response') === 'ok',
+        hostname: 'localhost',
+        action: 'sign-in',
+      }),
+    );
   }
   if (url.includes('pwnedpasswords')) {
     const body = breachedSuffixes.map((s) => `${s}:3`).join('\r\n');
@@ -730,5 +736,39 @@ describe('endpoints served over HTTP (AUDIT M4)', () => {
       );
       expect({ path, status: response.status }).toEqual({ path, status: 404 });
     }
+  });
+});
+
+describe('an outage is not a sign-out (AUDIT M36, M37)', () => {
+  it('a failing session lookup reaches the error screen instead of reading as signed out', async () => {
+    const broken = {
+      keyValue,
+      now: () => clock,
+      auth: {
+        api: { getSession: () => Promise.reject(new Error('connection terminated')) },
+      } as unknown as Auth,
+    };
+    await expect(resolveSessionPrincipal(clientHeaders(), undefined, broken)).rejects.toThrow(
+      'connection terminated',
+    );
+  });
+
+  it('an unreachable bot check reads as an outage, not as a bot', async () => {
+    const offline = createAuth(
+      {
+        keyValue,
+        mailer,
+        fetch: () => Promise.reject(new TypeError('fetch failed')),
+        now: () => clock,
+        turnstileSecretKey: 'secret',
+      },
+      { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
+    );
+    await expect(
+      offline.api.signInEmail({
+        body: { email: 'anyone@shakti.test', password: GOOD_PASSWORD },
+        headers: clientHeaders(),
+      }),
+    ).rejects.toSatisfy((e) => code(e) === 'bot_check_unavailable');
   });
 });

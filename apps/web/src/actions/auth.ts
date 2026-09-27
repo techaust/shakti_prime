@@ -7,12 +7,17 @@ import { toDataURL } from 'qrcode';
 import { auth } from '../auth/auth';
 import { ACTIVE_ENTITY_COOKIE, currentSession, forgetPrincipal } from '../auth/current-principal';
 import { errorKey, toDomainError } from '../auth/errors';
+import { reportUnexpected } from '../log';
 import { revokeOtherSessions, sessionTokenFromSetCookie } from '../auth/session-principal';
 import { TURNSTILE_HEADER } from '../auth/turnstile';
 
-/** State of a form action: a catalogue key under `errors`, or nothing when it succeeded. */
+/**
+ * State of a form action: a catalogue key under `errors`, or nothing when it succeeded. An
+ * unexpected failure also carries the reference the person reads to support (DESIGN.md §11).
+ */
 export interface FormState {
   error?: string;
+  reference?: string;
 }
 
 export interface SetPasswordState extends FormState {
@@ -31,6 +36,14 @@ const field = (formData: FormData, name: string): string => {
   return typeof value === 'string' ? value : '';
 };
 
+/** The form state for a failure; an unexpected one is logged with a reference (AUDIT M35). */
+function failure(action: string, e: unknown): FormState {
+  const domain = toDomainError(e);
+  const error = errorKey(domain);
+  if (domain.code !== 'internal' && domain.code !== 'integration_unavailable') return { error };
+  return { error, reference: reportUnexpected('auth.action_failed', e, { action }) };
+}
+
 async function requestHeaders(turnstileToken?: string): Promise<Headers> {
   const h = new Headers(await headers());
   if (turnstileToken !== undefined) h.set(TURNSTILE_HEADER, turnstileToken);
@@ -46,7 +59,7 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
     });
     twoFactor = 'twoFactorRedirect' in result && result.twoFactorRedirect === true;
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('signIn', e);
   }
   redirect(twoFactor ? '/two-factor' : '/home');
 }
@@ -75,7 +88,7 @@ export async function setPassword(
       headers: await headers(),
     });
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('setPassword', e);
   }
   return { done: true };
 }
@@ -97,7 +110,7 @@ export async function beginTwoFactor(
       backupCodes: result.backupCodes,
     };
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('beginTwoFactor', e);
   }
 }
 
@@ -112,7 +125,7 @@ export async function verifyTwoFactor(_prev: FormState, formData: FormData): Pro
     });
     issued = result.headers;
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('verifyTwoFactor', e);
   }
   await finishEnrolment(before, issued);
   redirect('/home');
@@ -126,7 +139,7 @@ export async function verifyBackupCode(_prev: FormState, formData: FormData): Pr
       headers: await headers(),
     });
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('verifyBackupCode', e);
   }
   redirect('/home');
 }
@@ -168,7 +181,7 @@ export async function changePassword(
       headers: await headers(),
     });
   } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
+    return failure('changePassword', e);
   }
   await forgetPrincipal(session.session.userId);
   return { done: true };

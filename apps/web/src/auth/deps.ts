@@ -3,8 +3,10 @@ import {
   memoryKeyValue,
   recipientOnlyMailer,
   type KeyValue,
+  type Logger,
   type Mailer,
 } from '@shakti/domain';
+import { logger } from '../log';
 import { upstashKeyValue } from './upstash-key-value';
 
 /** What the auth module needs from the outside world, injectable for tests. */
@@ -15,6 +17,10 @@ export interface AuthDeps {
   fetch: typeof fetch;
   now: () => Date;
   turnstileSecretKey: string;
+  /** Where the auth module reports what it cannot handle; the app's redacting logger by default. */
+  logger?: Logger;
+  /** The hostname a Turnstile answer must come from; unchecked with Cloudflare's test keys. */
+  turnstileHostname?: string | undefined;
 }
 
 /** Variables a hosted deployment cannot run without (docs/SECURITY.md §2). */
@@ -98,6 +104,15 @@ export function upstashOrMemoryKeyValue(): KeyValue {
   return upstashKeyValue({ url, token });
 }
 
+function hostnameOf(url: string | undefined): string | undefined {
+  if (url === undefined || url === '') return undefined;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
 let deps: AuthDeps | undefined;
 
 export function defaultAuthDeps(): AuthDeps {
@@ -110,6 +125,8 @@ export function defaultAuthDeps(): AuthDeps {
     fetch: (...args) => fetch(...args),
     now: () => new Date(),
     turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY ?? '',
+    logger,
+    turnstileHostname: hostnameOf(process.env.BETTER_AUTH_URL),
   };
   return deps;
 }

@@ -8,6 +8,7 @@ import {
 } from '@shakti/contracts';
 import { authDb, authSchema } from '@shakti/db/auth';
 import { createSignInGuard } from '@shakti/domain';
+import { logger as appLogger } from '../log';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware, getIP, getSessionFromCtx } from 'better-auth/api';
@@ -17,7 +18,7 @@ import { and, eq, isNull, like, ne } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
-import { TURNSTILE_HEADER, verifyTurnstile } from './turnstile';
+import { TURNSTILE_HEADER, TURNSTILE_SIGN_IN_ACTION, verifyTurnstile } from './turnstile';
 
 /** Argon2id parameters from docs/SECURITY.md §2: m = 64 MiB, t = 3, p = 1. */
 // algorithm 2 is Argon2id in @node-rs/argon2 (a const enum, not importable under verbatimModuleSyntax).
@@ -96,6 +97,7 @@ export const HTTP_DISABLED_PATHS = [
 /** Our own error codes on top of Better Auth's; the actions map them to catalogue keys. */
 export const AUTH_ERROR_CODES = {
   BOT_CHECK_FAILED: 'BOT_CHECK_FAILED',
+  BOT_CHECK_UNAVAILABLE: 'BOT_CHECK_UNAVAILABLE',
   ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',
   TRUSTED_DEVICE_OFF: 'TRUSTED_DEVICE_OFF',
 } as const;
@@ -181,6 +183,7 @@ export interface CreateAuthOptions {
  */
 export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
   const guard = createSignInGuard(deps.keyValue, () => deps.now().getTime());
+  const log = deps.logger ?? appLogger;
   const production = process.env.NODE_ENV === 'production';
   const secure = options.secureCookies ?? production;
   const capsOn = options.rateLimit ?? production;
@@ -318,6 +321,20 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     secret: options.secret ?? process.env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(authDb(), { provider: 'pg', schema: authSchema }),
     disabledPaths: HTTP_DISABLED_PATHS,
+    // Better Auth's own messages and HTTP failures go through the redacting logger: its default
+    // logger prints a failed query with its bound values, set-password links included (AUDIT M10).
+    logger: {
+      level: 'warn',
+      log: (level, message, ...args) => {
+        log.log(level, 'auth.library', { message, args });
+      },
+    },
+    onAPIError: {
+      onError: (error) => {
+        const status = error instanceof APIError ? error.statusCode : 500;
+        if (status >= 500) log.log('error', 'auth.http_failed', { error });
+      },
+    },
     user: {
       modelName: 'users',
       additionalFields: {
@@ -451,12 +468,21 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         if (ctx.path !== SIGN_IN_PATH && ctx.path !== RESET_REQUEST_PATH) return;
         // A call without headers comes from our own server code (an invite), never from a client.
         if (ctx.headers === undefined) return;
-        const human = await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
+        const verdict = await verifyTurnstile(ctx.headers.get(TURNSTILE_HEADER), {
           secretKey: deps.turnstileSecretKey,
           remoteIp: address,
           fetch: deps.fetch,
+          expectedHostname: deps.turnstileHostname,
+          expectedAction: ctx.path === SIGN_IN_PATH ? TURNSTILE_SIGN_IN_ACTION : undefined,
+          logger: log,
         });
-        if (!human) {
+        if (verdict === 'unavailable') {
+          throw new APIError('SERVICE_UNAVAILABLE', {
+            message: 'bot check unavailable',
+            code: AUTH_ERROR_CODES.BOT_CHECK_UNAVAILABLE,
+          });
+        }
+        if (verdict !== 'human') {
           throw new APIError('BAD_REQUEST', {
             message: 'bot check failed',
             code: AUTH_ERROR_CODES.BOT_CHECK_FAILED,

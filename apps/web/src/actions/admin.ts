@@ -26,14 +26,15 @@ import { auth } from '../auth/auth';
 import { clearSignInLock as clearLock } from '../auth/create-auth';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
+import { parseInput, requestId } from './support';
 
 /** Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. */
 
 export async function inviteUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
-  const input = InviteUserInput.parse(rawInput);
-  const user = await withRequestContext(principal, {}, (context) =>
+  const input = parseInput(InviteUserInput, rawInput);
+  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(inviteUserCommand, { context }, input),
   );
   // The set-password link goes out through the auth module's own flow (no headers: an internal call).
@@ -44,8 +45,8 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
 export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
-  const input = SetUserRolesInput.parse(rawInput);
-  const user = await withRequestContext(principal, {}, (context) =>
+  const input = parseInput(SetUserRolesInput, rawInput);
+  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(setUserRolesCommand, { context }, input),
   );
   await forgetPrincipal(user.id);
@@ -55,8 +56,8 @@ export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
 export async function suspendUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
-  const input = SuspendUserInput.parse(rawInput);
-  const user = await withRequestContext(principal, {}, (context) =>
+  const input = parseInput(SuspendUserInput, rawInput);
+  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(suspendUserCommand, { context }, input),
   );
   await forgetPrincipal(user.id);
@@ -66,8 +67,8 @@ export async function suspendUser(rawInput: unknown): Promise<UserDto> {
 export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
-  const input = ReactivateUserInput.parse(rawInput);
-  return withRequestContext(principal, {}, (context) =>
+  const input = parseInput(ReactivateUserInput, rawInput);
+  return withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(reactivateUserCommand, { context }, input),
   );
 }
@@ -75,8 +76,8 @@ export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
 export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
-  const input = RevokeSessionInput.parse(rawInput);
-  const result = await withRequestContext(principal, {}, (context) =>
+  const input = parseInput(RevokeSessionInput, rawInput);
+  const result = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
     runCommand(revokeSessionCommand, { context }, input),
   );
   await forgetPrincipal(result.userId);
@@ -88,7 +89,9 @@ export async function clearSignInLock(rawInput: unknown): Promise<void> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   checkPermission(principal, 'admin.users.write', 'all');
-  const input = ClearSignInLockInput.parse(rawInput);
-  const user = await withRequestContext(principal, {}, ({ tx }) => loadUserDto(tx, input.userId));
+  const input = parseInput(ClearSignInLockInput, rawInput);
+  const user = await withRequestContext(principal, { requestId: await requestId() }, ({ tx }) =>
+    loadUserDto(tx, input.userId),
+  );
   await clearLock(defaultAuthDeps(), user.email);
 }

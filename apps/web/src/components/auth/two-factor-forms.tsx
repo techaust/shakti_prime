@@ -39,7 +39,7 @@ export function VerifyCodeForm({ allowBackupCode = false }: { allowBackupCode?: 
           required
         />
       </Field>
-      <FormError errorKey={state.error} />
+      <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" pending={pending}>
         {t('verify')}
       </Button>
@@ -74,7 +74,7 @@ function BackupCodeForm({ onBack }: { onBack: () => void }) {
           required
         />
       </Field>
-      <FormError errorKey={state.error} />
+      <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" pending={pending}>
         {t('verify')}
       </Button>
@@ -102,7 +102,7 @@ export function EnrolForm() {
             required
           />
         </Field>
-        <FormError errorKey={state.error} />
+        <FormError errorKey={state.error} reference={state.reference} />
         <Button type="submit" pending={pending}>
           {t('start')}
         </Button>

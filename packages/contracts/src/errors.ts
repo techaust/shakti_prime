@@ -34,8 +34,14 @@ export class DomainError extends Error {
   readonly code: ErrorCode;
   readonly details: Record<string, unknown> | undefined;
 
-  constructor(code: ErrorCode, message?: string, details?: Record<string, unknown>) {
-    super(message ?? code);
+  /** `cause` keeps the original failure for the logs (AUDIT M35); it never reaches a user. */
+  constructor(
+    code: ErrorCode,
+    message?: string,
+    details?: Record<string, unknown>,
+    options?: { cause?: unknown },
+  ) {
+    super(message ?? code, options);
     this.name = 'DomainError';
     this.code = code;
     this.details = details;
