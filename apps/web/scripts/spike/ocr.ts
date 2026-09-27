@@ -6,7 +6,7 @@
 // numbers to docs/spikes/results/ocr.json and the masked images (only) to
 // apps/web/.spike-output/ocr/. The unmasked photos and what their QR codes hold never leave
 // memory and are never printed.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -463,13 +463,29 @@ function summarize(rows: Row[]) {
   };
 }
 
+interface RunOptions {
+  only?: 'qr';
+  limit?: number;
+  mode?: Mode;
+}
+
 /**
- * A subset for a quicker run: `--only qr` keeps the photos with a QR code drawn on them,
- * `--limit N` the first N. A subset run writes its numbers to `ocr-subset.json`, so the full
- * run's results are not overwritten.
+ * A shorter run: `--only qr` keeps the photos with a QR code drawn on them, `--limit N` the
+ * first N; either writes its numbers to `ocr-subset.json`, so the full run's results are not
+ * overwritten. `--mode unknown_slot` or `--mode known_slot` masks every photo in that mode
+ * only and replaces that mode's numbers in the results, so a slow machine can run the two
+ * halves one after the other.
  */
-function subsetOptions(argv: readonly string[]): { only?: 'qr'; limit?: number } {
-  const options: { only?: 'qr'; limit?: number } = {};
+function subsetOptions(argv: readonly string[]): RunOptions {
+  const options: RunOptions = {};
+  const modeAt = argv.indexOf('--mode');
+  if (modeAt >= 0) {
+    const mode = argv[modeAt + 1];
+    if (mode !== 'unknown_slot' && mode !== 'known_slot') {
+      throw new Error('--mode takes unknown_slot or known_slot');
+    }
+    options.mode = mode;
+  }
   const onlyAt = argv.indexOf('--only');
   if (onlyAt >= 0) {
     if (argv[onlyAt + 1] !== 'qr') throw new Error('--only takes one value: qr');
@@ -487,6 +503,7 @@ function subsetOptions(argv: readonly string[]): { only?: 'qr'; limit?: number }
 async function main() {
   const subset = subsetOptions(process.argv.slice(2));
   const isSubset = subset.only !== undefined || subset.limit !== undefined;
+  const modes: Mode[] = subset.mode ? [subset.mode] : ['unknown_slot', 'known_slot'];
   await ensureLanguageData();
   mkdirSync(outDir, { recursive: true });
   mkdirSync(dirname(resultFile), { recursive: true });
@@ -511,7 +528,7 @@ async function main() {
   const checker = await createWorker('eng', 1, { langPath, cacheMethod: 'none', gzip: true });
 
   const results: Record<Mode, Row[]> = { unknown_slot: [], known_slot: [] };
-  for (const mode of ['unknown_slot', 'known_slot'] as const) {
+  for (const mode of modes) {
     for (const doc of docs) {
       const row = await runOne(doc, mode, masker, checker);
       results[mode].push(row);
@@ -524,22 +541,41 @@ async function main() {
   await masker.close();
   await checker.terminate();
 
-  const summary = {
+  const target = isSubset ? resultFile.replace(/\.json$/, '-subset.json') : resultFile;
+  const run = {
     ranAt: new Date().toISOString(),
+    generateMs: Math.round(generateMs),
+    coldStartMs: Math.round(coldStartMs),
+  };
+  // A run of one mode replaces that mode's numbers in the results and keeps the other's.
+  const previous: Partial<Record<string, unknown>> =
+    subset.mode && existsSync(target)
+      ? (JSON.parse(readFileSync(target, 'utf8')) as Record<string, unknown>)
+      : {};
+  const previousRows = (previous.rows ?? {}) as Partial<Record<Mode, Row[]>>;
+  const previousRuns = (previous.runs ?? {}) as Partial<Record<Mode, typeof run>>;
+  const sections: Record<Mode, 'unknownSlot' | 'knownSlot'> = {
+    unknown_slot: 'unknownSlot',
+    known_slot: 'knownSlot',
+  };
+  const summary: Record<string, unknown> = {
     ...(isSubset ? { subset } : {}),
     platform: `${process.platform} ${process.arch}, Node ${process.version}`,
     engine:
       'tesseract.js 7, eng 4.0.0_best_int (LSTM), up to four readings per photo; jsQR 1.4 with a finder-mark scan for QR codes',
-    generateMs: Math.round(generateMs),
-    coldStartMs: Math.round(coldStartMs),
-    unknownSlot: summarize(results.unknown_slot),
-    knownSlot: summarize(results.known_slot),
-    rows: results,
+    runs: { ...previousRuns },
+    unknownSlot: previous.unknownSlot,
+    knownSlot: previous.knownSlot,
+    rows: { ...previousRows },
   };
-  writeFileSync(
-    isSubset ? resultFile.replace(/\.json$/, '-subset.json') : resultFile,
-    `${JSON.stringify(summary, null, 2)}\n`,
-  );
+  const runs = summary.runs as Partial<Record<Mode, typeof run>>;
+  const rows = summary.rows as Partial<Record<Mode, Row[]>>;
+  for (const mode of modes) {
+    runs[mode] = run;
+    summary[sections[mode]] = summarize(results[mode]);
+    rows[mode] = results[mode];
+  }
+  writeFileSync(target, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify({ ...summary, rows: undefined }, null, 2));
 }
 
