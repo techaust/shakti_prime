@@ -6,6 +6,11 @@
       "ranAt": "2026-09-27T19:37:33.215Z",
       "generateMs": 15525,
       "coldStartMs": 982
+    },
+    "known_slot": {
+      "ranAt": "2026-09-27T19:43:47.814Z",
+      "generateMs": 12350,
+      "coldStartMs": 627
     }
   },
   "unknownSlot": {
@@ -75,8 +80,8 @@
     "documents": 30,
     "aadhaar": {
       "expected": 19,
-      "maskedWithCorrectLastFour": 18,
-      "detectionRate": 0.9473684210526315
+      "maskedWithCorrectLastFour": 17,
+      "detectionRate": 0.8947368421052632
     },
     "bankAccount": {
       "expected": 7,
@@ -86,10 +91,11 @@
     "hardPhotos": {
       "documents": 6,
       "numbersExpected": 4,
-      "numbersMasked": 2
+      "numbersMasked": 1
     },
     "heldForReview": [
       "doc-05",
+      "doc-10",
       "doc-20"
     ],
     "missedAndReturned": [],
@@ -100,38 +106,36 @@
     "leaksOnOcrReread": [],
     "qr": {
       "documentsWithQr": 9,
-      "readableBeforeMasking": 7,
+      "readableBeforeMasking": 8,
       "heldForReview": [
-        "doc-05"
+        "doc-05",
+        "doc-10"
       ],
-      "heldBecauseQrNotCovered": [],
+      "heldBecauseQrNotCovered": [
+        "doc-10"
+      ],
       "codesCovered": 7,
       "codesDecoded": 7,
       "codesPlacedFromFinderMarks": 0,
-      "returned": 8,
+      "returned": 7,
       "returnedFullyCovered": 7,
-      "returnedNotFullyCovered": [
-        {
-          "id": "doc-10",
-          "coveredShare": 0
-        }
-      ],
+      "returnedNotFullyCovered": [],
       "coverBoxesOnDocumentsWithoutQr": 0,
       "decodableAfterMasking": [],
       "hiddenDigitsDecodableAfterMasking": [],
       "emptyDecodesAfterMasking": [],
       "timeAddedPerImageMs": {
-        "mean": 541,
-        "p50": 335,
-        "p95": 2164,
-        "max": 2172
+        "mean": 1100,
+        "p50": 495,
+        "p95": 4985,
+        "max": 6063
       }
     },
     "timePerImageMs": {
-      "mean": 2661,
-      "p50": 2247,
-      "p95": 4558,
-      "max": 5287
+      "mean": 3453,
+      "p50": 2793,
+      "p95": 7066,
+      "max": 7699
     }
   },
   "rows": {
@@ -1124,9 +1128,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 5287,
-        "qrMs": 795,
-        "ocrMs": 3562,
+        "totalMs": 3333,
+        "qrMs": 434,
+        "ocrMs": 2305,
         "qrCoveredShare": 1
       },
       {
@@ -1156,9 +1160,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 1748,
-        "qrMs": 379,
-        "ocrMs": 1095
+        "totalMs": 2288,
+        "qrMs": 487,
+        "ocrMs": 1500
       },
       {
         "id": "doc-03",
@@ -1189,9 +1193,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 4401,
-        "qrMs": 1845,
-        "ocrMs": 2255,
+        "totalMs": 3699,
+        "qrMs": 1404,
+        "ocrMs": 2001,
         "qrCoveredShare": 1
       },
       {
@@ -1221,9 +1225,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 4558,
-        "qrMs": 2172,
-        "ocrMs": 1511
+        "totalMs": 4886,
+        "qrMs": 1860,
+        "ocrMs": 2042
       },
       {
         "id": "doc-05",
@@ -1254,9 +1258,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1873,
-        "qrMs": 88,
-        "ocrMs": 1633,
+        "totalMs": 4533,
+        "qrMs": 1310,
+        "ocrMs": 3051,
         "cause": "number_not_found"
       },
       {
@@ -1286,9 +1290,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 2300,
-        "qrMs": 274,
-        "ocrMs": 1559
+        "totalMs": 7066,
+        "qrMs": 4985,
+        "ocrMs": 1503
       },
       {
         "id": "doc-07",
@@ -1319,9 +1323,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 2115,
-        "qrMs": 246,
-        "ocrMs": 1488,
+        "totalMs": 2756,
+        "qrMs": 348,
+        "ocrMs": 1932,
         "qrCoveredShare": 1
       },
       {
@@ -1351,9 +1355,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 4457,
-        "qrMs": 2164,
-        "ocrMs": 1723
+        "totalMs": 4578,
+        "qrMs": 2105,
+        "ocrMs": 1506
       },
       {
         "id": "doc-09",
@@ -1384,9 +1388,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 3075,
-        "qrMs": 466,
-        "ocrMs": 2134,
+        "totalMs": 4340,
+        "qrMs": 640,
+        "ocrMs": 3154,
         "qrCoveredShare": 1
       },
       {
@@ -1400,9 +1404,9 @@
         "noise": 70,
         "jpegQuality": 28,
         "width": 697,
-        "status": "masked",
+        "status": "needs_review",
         "aadhaarExpected": 1,
-        "aadhaarFound": 1,
+        "aadhaarFound": 0,
         "bankExpected": 0,
         "bankFound": 0,
         "unexpectedSpans": 0,
@@ -1410,7 +1414,7 @@
         "leakOnReread": false,
         "qrPlaced": true,
         "qrModules": 41,
-        "qrReadableBefore": false,
+        "qrReadableBefore": true,
         "qrBoxes": 0,
         "qrDecoded": 0,
         "qrEstimated": 0,
@@ -1418,10 +1422,10 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1570,
-        "qrMs": 82,
-        "ocrMs": 1310,
-        "qrCoveredShare": 0
+        "totalMs": 3725,
+        "qrMs": 1228,
+        "ocrMs": 2231,
+        "cause": "qr_not_covered"
       },
       {
         "id": "doc-11",
@@ -1452,9 +1456,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 2703,
-        "qrMs": 403,
-        "ocrMs": 1809,
+        "totalMs": 2793,
+        "qrMs": 486,
+        "ocrMs": 1940,
         "qrCoveredShare": 1
       },
       {
@@ -1484,9 +1488,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 2489,
-        "qrMs": 534,
-        "ocrMs": 1204
+        "totalMs": 3091,
+        "qrMs": 462,
+        "ocrMs": 1691
       },
       {
         "id": "doc-13",
@@ -1515,9 +1519,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 3260,
-        "qrMs": 366,
-        "ocrMs": 2100
+        "totalMs": 5107,
+        "qrMs": 732,
+        "ocrMs": 3466
       },
       {
         "id": "doc-14",
@@ -1548,9 +1552,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 3493,
-        "qrMs": 633,
-        "ocrMs": 2568,
+        "totalMs": 5150,
+        "qrMs": 495,
+        "ocrMs": 4258,
         "qrCoveredShare": 1
       },
       {
@@ -1580,9 +1584,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1746,
-        "qrMs": 84,
-        "ocrMs": 1461
+        "totalMs": 2095,
+        "qrMs": 441,
+        "ocrMs": 1426
       },
       {
         "id": "doc-16",
@@ -1613,9 +1617,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 3450,
-        "qrMs": 455,
-        "ocrMs": 2269,
+        "totalMs": 3537,
+        "qrMs": 416,
+        "ocrMs": 2352,
         "qrCoveredShare": 1
       },
       {
@@ -1645,9 +1649,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 2630,
-        "qrMs": 320,
-        "ocrMs": 1289
+        "totalMs": 2258,
+        "qrMs": 295,
+        "ocrMs": 1052
       },
       {
         "id": "doc-18",
@@ -1676,9 +1680,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 2592,
-        "qrMs": 392,
-        "ocrMs": 1351
+        "totalMs": 2519,
+        "qrMs": 326,
+        "ocrMs": 1267
       },
       {
         "id": "doc-19",
@@ -1707,9 +1711,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1713,
-        "qrMs": 296,
-        "ocrMs": 1182
+        "totalMs": 2793,
+        "qrMs": 1363,
+        "ocrMs": 1228
       },
       {
         "id": "doc-20",
@@ -1738,9 +1742,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1584,
-        "qrMs": 116,
-        "ocrMs": 1349,
+        "totalMs": 1877,
+        "qrMs": 528,
+        "ocrMs": 1219,
         "cause": "number_not_found"
       },
       {
@@ -1770,9 +1774,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 4422,
-        "qrMs": 1990,
-        "ocrMs": 1521
+        "totalMs": 3888,
+        "qrMs": 1717,
+        "ocrMs": 1358
       },
       {
         "id": "doc-22",
@@ -1801,9 +1805,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1761,
-        "qrMs": 137,
-        "ocrMs": 1290
+        "totalMs": 2631,
+        "qrMs": 1100,
+        "ocrMs": 1232
       },
       {
         "id": "doc-23",
@@ -1832,9 +1836,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 3,
-        "totalMs": 2928,
-        "qrMs": 518,
-        "ocrMs": 1507
+        "totalMs": 2226,
+        "qrMs": 289,
+        "ocrMs": 1397
       },
       {
         "id": "doc-24",
@@ -1863,9 +1867,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 2247,
-        "qrMs": 335,
-        "ocrMs": 1439
+        "totalMs": 2101,
+        "qrMs": 250,
+        "ocrMs": 1417
       },
       {
         "id": "doc-25",
@@ -1894,9 +1898,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1872,
-        "qrMs": 63,
-        "ocrMs": 1633
+        "totalMs": 2130,
+        "qrMs": 387,
+        "ocrMs": 1611
       },
       {
         "id": "doc-26",
@@ -1925,9 +1929,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1865,
-        "qrMs": 220,
-        "ocrMs": 1312
+        "totalMs": 7699,
+        "qrMs": 6063,
+        "ocrMs": 1292
       },
       {
         "id": "doc-27",
@@ -1956,9 +1960,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1978,
-        "qrMs": 170,
-        "ocrMs": 1635
+        "totalMs": 4073,
+        "qrMs": 1204,
+        "ocrMs": 2661
       },
       {
         "id": "doc-28",
@@ -1987,9 +1991,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1711,
-        "qrMs": 228,
-        "ocrMs": 1214
+        "totalMs": 2565,
+        "qrMs": 1074,
+        "ocrMs": 1202
       },
       {
         "id": "doc-29",
@@ -2018,9 +2022,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 2220,
-        "qrMs": 410,
-        "ocrMs": 1350
+        "totalMs": 1841,
+        "qrMs": 186,
+        "ocrMs": 1208
       },
       {
         "id": "doc-30",
@@ -2049,9 +2053,9 @@
         "qrLeak": false,
         "qrEmptyDecodeAfter": false,
         "passes": 4,
-        "totalMs": 1785,
-        "qrMs": 63,
-        "ocrMs": 1567
+        "totalMs": 2004,
+        "qrMs": 385,
+        "ocrMs": 1486
       }
     ]
   }
