@@ -49,7 +49,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Formatting and linting: Prettier + ESLint with the repo config. CI fails on warnings.
 - Comments explain *why*, not *what*. No commented-out code.
 - Errors are typed: `DomainError` with a stable `code` from `packages/contracts/src/errors.ts`.
-- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). The shared `formatIst()` helpers, the `Money` value object and lakh/crore formatting arrive with the first screen that shows them (week 4 and Phase 1).
+- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). Lakh/crore grouping and DD-MM-YYYY dates in IST exist in `apps/web/src/print/format.ts` (`formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates), and integer-paise arithmetic in `packages/domain/src/money/paise.ts`; the shared `formatIst()` helpers for screens and the `Money` value object arrive with the first screen that needs them (week 4 and Phase 1).
 
 ## 4a. Product copy
 Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `DESIGN.md` §11:
@@ -74,7 +74,7 @@ export const confirmSalesOrder = defineCommand({
 Rules:
 - The handler receives `ctx` with the principal, entity scope, transaction and `emit()`. It never opens its own connection.
 - Permission is declared, not checked inline. Scope (own / team / entity / all) comes from the permission matrix in `docs/SECURITY.md`.
-- Every state transition goes through the state machine in `packages/domain/state-machines`; commands never set a status field directly.
+- Every state transition goes through the state machine in `packages/domain/src/state-machines`; commands never set a status field directly.
 - Prices come from the Price Master snapshot helpers; tax from the tax engine. No arithmetic on money in UI code.
 - Side effects (messages, PDFs, notifications) are events written to `outbox_events` via `ctx.emit()`, processed by workers.
 - Return only the declared DTO. Restricted fields never appear in a DTO unless the command's permission is a cost permission.
@@ -99,7 +99,7 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1.
+Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1. The test strategy, the suite layout, the generated-file checks and how to run one test are in `docs/TESTING.md`.
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.
@@ -111,7 +111,7 @@ Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase
 
 ## 9. Security habits
 - Never use the Supabase service role in application code.
-- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/privacy`.
+- Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy`.
 - Never log phone numbers, Aadhaar digits, bank details or message bodies. Log IDs and request IDs.
 - Treat WhatsApp messages, uploaded files, call transcripts and webhook payloads as untrusted data.
 - New external calls go through a provider wrapper with timeouts, retries and budgets.

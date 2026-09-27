@@ -10,7 +10,7 @@ Every mutation is a **typed domain command** in `packages/domain`, and nothing e
 
 - `defineCommand({ name, permission, input, output, handler })`: input and output are Zod schemas from `packages/contracts`; `permission` is declared, not checked inline; the handler receives `ctx = { principal, entityIds, activeEntityId, tx, emit, now, requestId }` and never opens its own connection.
 - The **command runner** resolves the principal's permissions and scope (own / team / entity / all), runs the permission guard, executes the handler inside the `withRequestContext()` transaction, writes `audit_logs` (actor, before/after, IP, device, request ID) for every mutating command, and returns only the declared DTO.
-- State transitions go through `packages/domain/state-machines`; commands call `transition(machine, record, event, ctx)` and never set a status column directly.
+- State transitions go through `packages/domain/src/state-machines`; commands call `transition(machine, record, event, ctx)` and never set a status column directly.
 - Prices, tax, sizing, availability and credit checks are pure functions in `packages/domain`; UI and agents never do this arithmetic.
 - Side effects are events appended to `outbox_events` through `ctx.emit()` in the same transaction (ADR 0005).
 - The registry of commands is the complete list of what the system can do. Server actions, route handlers, agent tools, the voice agent and the import committer call commands by name. An ESLint rule forbids importing the raw database client outside `packages/db`; `packages/domain` receives the transaction through the command context.

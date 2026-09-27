@@ -748,7 +748,7 @@ From you or the client, before the batch that depends on them:
 5. **Lockout policy (M6):** I recommend locking on account plus address, with the account-wide counter used only to escalate (challenge, delay, notify). This trades a little brute-force resistance for no targeted lockout of Executives.
 6. **Consent sources (M17):** which consent sources may a human caller record (walk-in form, verbal), and is a stored consent text per version required? This is a legal and DLT question for the client.
 7. **Negative moving-average cost (L3):** is it legitimate after returns with negative stock?
-8. **GitHub plan (M45, M46):** move the repository to the client's organisation on a plan with rulesets (or upgrade to Pro), and enable Dependabot alerts in the repository settings. Both are actions only you can take.
+8. **GitHub plan (M45, M46):** move the repository to the client's organisation on a plan with rulesets (or upgrade to Pro); this is an action only you can take. Dependabot alerts are enabled in the repository settings (the vulnerability-alerts API answers 204).
 9. **New dev dependencies (L31):** `@vitest/coverage-v8` and `fast-check`.
 
 ## 8. Resolution

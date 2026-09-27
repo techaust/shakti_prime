@@ -34,6 +34,20 @@ export const IDS = {
   lead: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0d',
   voiceSession: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0e',
   qc: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a0f',
+  event: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a10',
+  eventB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a11',
+  file: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a12',
+  quote: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a13',
+  pdf: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a14',
+  agentRun: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a15',
+  call: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a16',
+  audio: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a17',
+  transcript: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a18',
+  knowledgeFile: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a19',
+  thread: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1a',
+  channel: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1b',
+  serialA: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1c',
+  serialB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1d',
   device: '6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f',
   connector: '2b7e1516-28ae-4d2a-9f15-1b3c4d5e6f70',
   commandA: '9c1d2e3f-4a5b-4c6d-9e8f-0a1b2c3d4e51',
@@ -135,6 +149,22 @@ const salesVoucher = {
       godown: 'Bikaner Main',
     },
   ],
+};
+
+/** An outbox event as the publisher delivers it (`DeliveredEvent`). */
+const deliveredEvent = {
+  id: IDS.event,
+  sequence: '48213',
+  type: 'crm.lead.created',
+  entityId: 1,
+  aggregateType: 'opportunity',
+  aggregateId: IDS.lead,
+  payload: {
+    v: 1,
+    pipelineKey: 'farmer_pumps',
+    sourceCode: 'meta_lead_ads',
+    existingAccount: false,
+  },
 };
 
 /** One recorded example per route: what the caller sends and what the route answers. */
@@ -618,6 +648,173 @@ export const API_FIXTURES: Record<
   },
   'workers.outbox.publish': {
     response: { claimed: 12, published: 3, skipped: 9, failed: 0, deadLettered: 0 },
+  },
+  'workers.outbox.event': {
+    params: { type: 'crm.lead.created' },
+    request: deliveredEvent,
+    response: { eventId: IDS.event, outcome: 'done' },
+  },
+  'workers.messaging.send': {
+    request: {
+      eventId: IDS.eventB,
+      entityId: 1,
+      message: {
+        threadId: IDS.thread,
+        kind: 'template',
+        templateName: 'quote_sent',
+        params: ['SS/QT/2026-27/0231', '15-10-2026'],
+        fileId: IDS.pdf,
+      },
+    },
+    response: {
+      eventId: IDS.eventB,
+      outcome: 'done',
+      status: 'sent',
+      providerMessageId: `wamid.${'HBgM'.repeat(12)}`,
+    },
+  },
+  'workers.files.scan': {
+    request: { eventId: IDS.eventB, fileId: IDS.file },
+    response: { eventId: IDS.eventB, outcome: 'done', fileId: IDS.file, verdict: 'clean' },
+  },
+  'workers.files.mask': {
+    request: { eventId: IDS.eventB, fileId: IDS.file, expect: ['aadhaar'] },
+    response: {
+      eventId: IDS.eventB,
+      outcome: 'done',
+      fileId: IDS.file,
+      status: 'masked',
+      regionsMasked: 2,
+    },
+  },
+  'workers.pdf.render': {
+    request: {
+      eventId: IDS.eventB,
+      entityId: 1,
+      target: { kind: 'document', documentType: 'quote', documentId: IDS.quote, version: 1 },
+    },
+    response: { eventId: IDS.eventB, outcome: 'done', fileId: IDS.pdf, pages: 1, bytes: 164_864 },
+  },
+  'workers.agents.run': {
+    params: { agent: 'triage' },
+    request: deliveredEvent,
+    response: {
+      eventId: IDS.event,
+      outcome: 'done',
+      runId: IDS.agentRun,
+      suggested: 1,
+      awaitingApproval: 0,
+      applied: 0,
+      stopped: null,
+    },
+  },
+  'workers.stt.transcribe': {
+    request: {
+      eventId: IDS.eventB,
+      entityId: 1,
+      source: { kind: 'call', callId: IDS.call },
+      audioFileId: IDS.audio,
+      languageHint: 'hinglish',
+    },
+    response: {
+      eventId: IDS.eventB,
+      outcome: 'done',
+      transcriptFileId: IDS.transcript,
+      audioSeconds: 184,
+    },
+  },
+  'workers.embeddings.index': {
+    request: {
+      eventId: IDS.eventB,
+      knowledgeFileId: IDS.knowledgeFile,
+      entityId: null,
+      sensitivity: 'staff_ai_ok',
+    },
+    response: { eventId: IDS.eventB, outcome: 'duplicate' },
+  },
+  'workers.notify': {
+    request: {
+      eventId: IDS.eventB,
+      entityId: 1,
+      type: 'lead.assigned',
+      recipientIds: [IDS.user],
+      subject: { type: 'opportunity', id: IDS.lead },
+    },
+    response: { eventId: IDS.eventB, outcome: 'done', created: 1, pushed: 1, heldForQuietHours: 0 },
+  },
+  'admin.integrations': {
+    query: { limit: '50' },
+    response: {
+      generatedAt: '2026-09-27T05:06:40.000Z',
+      webhooks: [
+        {
+          provider: 'meta_whatsapp',
+          received24h: 1412,
+          failedSignature24h: 0,
+          unprocessed: 3,
+          failed: 0,
+          lastReceivedAt: '2026-09-27T05:06:31.000Z',
+          oldestUnprocessedAt: '2026-09-27T05:06:29.000Z',
+        },
+      ],
+      deadLetters: {
+        total: 1,
+        items: [
+          {
+            eventId: IDS.event,
+            type: 'crm.lead.created',
+            entityId: 1,
+            aggregateType: 'opportunity',
+            aggregateId: IDS.lead,
+            attempts: 10,
+            createdAt: '2026-09-27T03:10:02.000Z',
+            deadLetteredAt: '2026-09-27T04:02:15.000Z',
+          },
+        ],
+        nextCursor: null,
+      },
+      connectors: [
+        {
+          connectorId: IDS.connector,
+          entityId: 1,
+          company: 'Shakti Supreme 2026-27',
+          connectorVersion: '1.3.2',
+          updateAvailable: false,
+          lastHeartbeatAt: '2026-09-27T05:05:00.000Z',
+          lastBatchAt: '2026-09-27T05:01:12.000Z',
+          queueDepth: 0,
+          silent: false,
+        },
+      ],
+      whatsapp: [
+        {
+          entityId: 1,
+          channelId: IDS.channel,
+          quality: 'green',
+          messagingTier: 'tier_1k',
+          templatesPending: 1,
+          templatesRejected: 0,
+          updatedAt: '2026-09-26T11:40:00.000Z',
+        },
+      ],
+      aiSpend: {
+        today: '412.50',
+        monthToDate: '9840.00',
+        byAgent: [
+          {
+            agent: 'triage',
+            today: '38.20',
+            monthToDate: '910.75',
+            dailyCap: '500.00',
+            stoppedByCap: false,
+          },
+        ],
+      },
+    },
+  },
+  'admin.integrations.replay': {
+    request: { eventId: IDS.event },
+    response: { eventId: IDS.event, requeued: true, attempts: 0 },
   },
   health: {
     response: { status: 'ok', time: '2026-09-27T05:06:40.000Z' },
