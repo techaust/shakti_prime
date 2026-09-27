@@ -2,7 +2,7 @@
 
 **Week 6, ROADMAP §2.** Result: **passed on generated images; real document photos from the client still to run.** No real Aadhaar number, bank account or document was used.
 
-Run it with `pnpm spike:ocr`. The first run fetches the English OCR model (2.9 MB, `eng.traineddata.gz` from the tesseract.js default source) once into `%LOCALAPPDATA%\shakti-prime\tesseract` (or `~/.cache/shakti-prime/tesseract`), outside the repository; the masking code itself only reads it from a local folder. The numbers are in [results/ocr.json](results/ocr.json) (ids, flags, counts and times only, no digits); the masked images, and only those, go to `apps/web/.spike-output/ocr/` (ignored by git).
+Run it with `pnpm spike:ocr`. The first run fetches the English OCR model (2.9 MB, `eng.traineddata.gz` from the tesseract.js default source) once into `%LOCALAPPDATA%\shakti-prime\tesseract` (or `~/.cache/shakti-prime/tesseract`), outside the repository; the masking code itself only reads it from a local folder. The numbers are in [results/ocr.json](results/ocr.json) (ids, flags, counts and times only, no digits); the masked images, and only those, go to `apps/web/.spike-output/ocr/` (ignored by git). `--mode unknown_slot` or `--mode known_slot` runs one half and keeps the other half's numbers; `--only qr` (the photos with a QR code) and `--limit N` write to `results/ocr-subset.json` instead.
 
 ## What was built
 | Part | Where |
@@ -29,26 +29,33 @@ How `mask` works:
 Each photo is masked twice: as a photo of unknown kind (a WhatsApp upload) and as an upload to a slot that says what it holds (cards expect an Aadhaar number, passbooks an account number). After masking, the masked image is read again by a separate OCR pass and the hidden digits are searched for in that reading and in the returned text. Every returned image is also searched for any QR code jsQR can decode, independently of the masker's scan: the whole image (dark and light codes), a smaller and a larger copy, the four quarters enlarged, on an image up to 1300 px nine tiles enlarged three times, contrast stretched and sharpened, and a crop around the drawn code enlarged one to four times, plain and sharpened. The same search on the unmasked photo gives the baseline. Only masked images that pass every check are written to disk.
 
 ## Numbers
-Windows 11 laptop, 4 cores, Node 24.19, tesseract.js 7 with `eng` 4.0.0 best_int. Other workstreams were running on the same machine, so treat the times as upper bounds.
+Windows 11 laptop, 4 cores, Node 24.19, tesseract.js 7 with `eng` 4.0.0 best_int. Other workstreams were running on the same machine, so treat the times as upper bounds: the two columns come from two runs one after the other (`pnpm spike:ocr --mode unknown_slot`, then `--mode known_slot`), because one run of both took over nine minutes, and the same photo's QR scan took 15.5 s in one run and 6.1 s in the other.
 
 | Measure | Photo of unknown kind | Upload slot known |
 |---|---|---|
-| Aadhaar numbers masked with the correct last four | 18 of 19 (94.7%) | 18 of 19 (94.7%) |
+| Aadhaar numbers masked with the correct last four, photo returned | 17 of 19 (89.5%) | 17 of 19 (89.5%) |
 | Bank account numbers masked with the correct last four | 6 of 7 (85.7%) | 6 of 7 (85.7%) |
 | Normal photos: numbers masked | 22 of 22 | 22 of 22 |
-| Hard photos: numbers masked | 2 of 4 | 2 of 4 |
-| Held for review (nothing returned) | 1 (hard card) | 2 (hard card, hard passbook) |
+| Hard photos: numbers masked, photo returned | 1 of 4 | 1 of 4 |
+| Held for review (nothing returned) | 2 (hard card with no number found; hard card whose QR code could not be covered) | 3 (the same two, hard passbook) |
 | **Returned with a number left readable** | **1 (hard passbook, account number)** | **0** |
 | False positives on the 7 photos without such numbers | 0 | 0 |
 | Numbers masked that were not there | 0 | 0 |
 | Hidden digits found in the returned text | 0 | 0 |
 | Hidden digits found by re-reading the masked image | 0 | 0 |
-| Time per photo, mean / p50 / p95 / max | 4.3 / 3.7 / 6.9 / 7.4 s | 4.5 / 3.7 / 9.0 / 16.4 s |
-| Loading the OCR engine (once per worker) | 0.7 s | |
+| QR codes drawn / decodable on the photo before masking | 9 / 8 | 9 / 8 |
+| QR codes found and covered on returned photos | 7 of 7, each wholly under its box | 7 of 7, each wholly under its box |
+| Held because a QR code could not be covered | 1 (hard card) | 1 (hard card) |
+| **Returned with a QR code left uncovered** | **0** | **0** |
+| **QR codes decodable on the returned images** | **0** | **0** |
+| QR cover boxes on photos without a QR code | 0 | 0 |
+| Time added by the QR scan per photo, mean / p50 / p95 / max | 1.7 / 0.8 / 5.2 / 15.5 s | 1.1 / 0.5 / 5.0 / 6.1 s |
+| Time per photo, mean / p50 / p95 / max | 5.1 / 3.9 / 9.8 / 19.0 s | 3.5 / 2.8 / 7.1 / 7.7 s |
+| Loading the OCR engine (once per worker) | 1.0 s | 0.6 s |
 
 The re-reading check uses OCR, so it proves only what OCR can read. On the one returned miss (the hard passbook, unknown kind) OCR could not read the account number either, but a person can: that photo counts as a leak of a bank account number, and it is the reason to pass `expect` whenever the upload slot is known. With the slot known it was held for review.
 
-Reading every photo four ways costs time. An earlier version on the same set (one reading, a second only when the first found nothing) took about 1.6 s per photo, masked 1 of the 4 numbers on hard photos and returned one hard card with its Aadhaar number readable to a person and to OCR. Four readings mask 2 of 4 and, with the slot known, hold the other two for review. The time is spent in a background worker, not while a person waits.
+Reading every photo four ways costs time. An earlier version on the same set (one reading, a second only when the first found nothing) took about 1.6 s per photo, masked 1 of the 4 numbers on hard photos and returned one hard card with its Aadhaar number readable to a person and to OCR. Four readings mask 2 of 4 (one of them, a hard card, is then held because its QR code cannot be covered) and, with the slot known, hold the other two for review. The time is spent in a background worker, not while a person waits.
 
 ## Against the blueprint
 | Expectation | Status |
@@ -59,10 +66,10 @@ Reading every photo four ways costs time. An earlier version on the same set (on
 | OCR masking on **real document photos** (ROADMAP §2 week 6) | **Not done**: needs photos from the client, handled under their consent, run on their premises or a machine they approve |
 
 ## What remains before production
-- **Real photos.** Run the same script over real, consented photos (Aadhaar cards front and back, e-Aadhaar letters, passbooks, cancelled cheques, taken on the phones the field staff use). Real cards print Hindi text, a photo and a QR code, which the generated set does not have.
-- **The QR code on Aadhaar cards.** Older cards and e-Aadhaar letters carry a QR code that can hold the full number. This spike does not find or cover QR codes. A card or letter must have its QR code covered too (detect it, or cover every QR code on a document that reads as Aadhaar); this is a blocker for production.
-- **Hard photos.** Two of six hard photos could not be masked. With the slot known they were held for review, which is safe but means a person asks the customer for a better photo. The rate on real photos decides whether that is acceptable.
-- **Where it runs.** tesseract.js core is about 44 MB with its WebAssembly builds, plus the 2.9 MB model, which must be bundled with the worker (the worker must never download it while handling a document). CPU time of 4 to 9 s per photo suits a background worker (the same one as PDF rendering, ADR 0009) better than a Vercel function.
+- **Real photos.** Run the same script over real, consented photos (Aadhaar cards front and back, e-Aadhaar letters, passbooks, cancelled cheques, taken on the phones the field staff use). Real cards print Hindi text and a photo, which the generated set does not have, and their QR codes follow UIDAI's formats rather than the made-up records drawn here.
+- **The QR code on Aadhaar cards.** Resolved on generated images; real document photos from the client still to run. Older cards and e-Aadhaar letters carry a QR code that can hold the full number, so every QR code on a photo is covered whatever it holds, and an Aadhaar photo with a finder mark outside every cover box is held for review. Limits: a code with modules under about 1.3 px on a photo longer than 1300 px, and a code too blurred for its finder marks to be seen, are not found (the hard card whose code no reading could decode was held for its number; had its number been read, it would have been returned with that unreadable code uncovered). jsQR is the only decoder tried.
+- **Hard photos.** Three of six hard photos are held for review with the slot known (two with no number found, one whose QR code could not be covered), which is safe but means a person asks the customer for a better photo. The rate on real photos decides whether that is acceptable.
+- **Where it runs.** tesseract.js core is about 44 MB with its WebAssembly builds, plus the 2.9 MB model, which must be bundled with the worker (the worker must never download it while handling a document). CPU time of 3 to 10 s per photo (the QR scan adds 0.5 to 5 s) suits a background worker (the same one as PDF rendering, ADR 0009) better than a Vercel function.
 - **Wiring.** The upload flow (ARCHITECTURE §9: scan and mask before `ready`), the `needs_review` path and the message a person sees, and the command that stores the last four digits.
 
 ## Not verified
