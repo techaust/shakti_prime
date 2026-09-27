@@ -1,0 +1,1597 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shakti Prime prototype</title>
+    <meta name="theme-color" content="#FFFFFF" />
+    <style>
+      /* Tokens copied from packages/tokens/src/tokens.css (DESIGN.md §2). */
+      :root {
+        --bg: #ffffff;
+        --surface: #ffffff;
+        --surface-2: #f6f6f8;
+        --surface-3: #edecef;
+        --text: #1d1d21;
+        --text-muted: #626163;
+        --text-subtle: #818183;
+        --border: #e4e4e6;
+        --border-strong: #908f92;
+        --accent: #5e6ad2;
+        --accent-hover: #4c5bc1;
+        --accent-text: #5a66ce;
+        --accent-fg: #ffffff;
+        --accent-soft: #f1efff;
+        --focus: #5e6ad2;
+        --success: #15803d;
+        --success-soft: #dcfce7;
+        --warning: #b45309;
+        --warning-soft: #fef3c7;
+        --danger: #b91c1c;
+        --danger-soft: #fee2e2;
+        --info: #0369a1;
+        --info-soft: #e0f2fe;
+        --rose: #be185d;
+        --shadow-1: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.08);
+        --shadow-2: 0 8px 24px rgb(0 0 0 / 0.12);
+        --scrim: rgb(0 0 0 / 0.32);
+        color-scheme: light;
+        --stage-new: var(--text-subtle);
+        --stage-contacted: var(--warning);
+        --stage-qualified: var(--accent);
+        --stage-quoted: var(--info);
+        --stage-won: var(--success);
+        --stage-lost: var(--danger);
+        --entity-1: var(--accent);
+        --entity-2: var(--info);
+        --entity-3: var(--success);
+        --entity-4: var(--rose);
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --radius-xl: 12px;
+        --control: 36px;
+        --row: 40px;
+        --row-compact: 32px;
+        --font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      :root[data-theme='dark'] {
+        --bg: #08090a;
+        --surface: #111014;
+        --surface-2: #18171b;
+        --surface-3: #1e1e21;
+        --text: #f8f8fa;
+        --text-muted: #929196;
+        --text-subtle: #707074;
+        --border: #262529;
+        --border-strong: #646468;
+        --accent-text: #6e78e1;
+        --accent-soft: #2e2e48;
+        --success: #4ade80;
+        --success-soft: #0f2e1a;
+        --warning: #fbbf24;
+        --warning-soft: #3a2a08;
+        --danger: #f87171;
+        --danger-soft: #3b1111;
+        --info: #38bdf8;
+        --info-soft: #0c2a3d;
+        --rose: #f472b6;
+        --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+        --shadow-2: 0 8px 24px rgb(0 0 0 / 0.5);
+        --scrim: rgb(0 0 0 / 0.6);
+        color-scheme: dark;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 14px;
+        line-height: 20px;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.01em; }
+      h2 { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.01em; }
+      h3 { font-size: 16px; line-height: 24px; font-weight: 600; }
+      a { color: var(--accent-text); }
+      button, input, select, textarea { font: inherit; color: inherit; }
+      :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+      .muted { color: var(--text-muted); }
+      .subtle { color: var(--text-subtle); }
+      .caption { font-size: 12px; line-height: 16px; }
+      .num { font-variant-numeric: tabular-nums; font-weight: 500; }
+      .right { text-align: right; }
+      .hidden { display: none !important; }
+      .stack > * + * { margin-top: 16px; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .spread { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+      .grow { flex: 1 1 auto; min-width: 0; }
+      svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+      /* Buttons and fields (DESIGN.md §6) */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        height: var(--control); padding: 0 12px; border-radius: var(--radius-md);
+        border: 1px solid var(--border); background: var(--surface); color: var(--text);
+        font-weight: 500; cursor: pointer; white-space: nowrap;
+        transition: background-color 120ms ease-out, border-color 120ms ease-out;
+      }
+      .btn:hover { background: var(--surface-3); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+      .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+      .btn.ghost { border-color: transparent; background: transparent; }
+      .btn.ghost:hover { background: var(--surface-3); }
+      .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+      :root[data-theme='dark'] .btn.danger { color: #111014; }
+      .btn.icon { width: var(--control); padding: 0; }
+      .btn.sm { height: 28px; padding: 0 8px; font-size: 13px; }
+      .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+      .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+      .field label { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--text-muted); }
+      .input, select.input, textarea.input {
+        height: var(--control); width: 100%; padding: 0 10px; border-radius: var(--radius-md);
+        border: 1px solid var(--border-strong); background: var(--surface); min-width: 0;
+      }
+      textarea.input { height: 80px; padding: 8px 10px; resize: vertical; }
+      .help { font-size: 12px; line-height: 16px; color: var(--text-muted); }
+      .error { font-size: 12px; line-height: 16px; color: var(--danger); display: flex; gap: 4px; align-items: flex-start; }
+      .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .form-grid .full { grid-column: 1 / -1; }
+      .check { display: flex; gap: 8px; align-items: flex-start; }
+      .check input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); }
+
+      /* Badges and dots */
+      .badge { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: var(--radius-sm); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; background: var(--surface-3); color: var(--text-muted); }
+      .badge.success { background: var(--success-soft); color: var(--success); }
+      .badge.warning { background: var(--warning-soft); color: var(--warning); }
+      .badge.danger { background: var(--danger-soft); color: var(--danger); }
+      .badge.info { background: var(--info-soft); color: var(--info); }
+      .badge.accent { background: var(--accent-soft); color: var(--accent-text); }
+      .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+      .co-SS { background: var(--entity-1); }
+      .co-SMP { background: var(--entity-2); }
+      .co-ASH { background: var(--entity-3); }
+      .co-RCREF { background: var(--entity-4); }
+      .sla-ok { background: var(--success); }
+      .sla-warn { background: var(--warning); }
+      .sla-breach { background: var(--danger); }
+      .avatar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); font-size: 11px; font-weight: 600; flex: none; }
+      .kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--text-muted); }
+
+      /* Landing */
+      .landing { max-width: 1040px; margin: 0 auto; padding: 32px 24px 48px; }
+      .landing-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; }
+      .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+      .brand-mark { width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: var(--accent-fg); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+      .notice { border: 1px solid var(--border); border-left: 3px solid var(--warning); background: var(--warning-soft); border-radius: var(--radius-lg); padding: 16px; }
+      .notice p + p { margin-top: 8px; }
+      .notice strong { color: var(--text); }
+      .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+      .role-card { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; min-height: 96px; }
+      .role-card:hover { border-color: var(--accent); background: var(--accent-soft); }
+      .role-card strong { font-weight: 600; }
+
+      /* App shell (DESIGN.md §5) */
+      .shell { display: flex; min-height: 100vh; }
+      .sidebar { width: 240px; flex: none; background: var(--surface-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+      .sidebar .brand { height: 48px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+      .nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+      .nav-group { padding: 12px 10px 4px; font-size: 12px; line-height: 16px; color: var(--text-subtle); font-weight: 500; }
+      .nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: var(--radius-md); color: var(--text-muted); text-decoration: none; font-weight: 500; }
+      .nav a:hover { background: var(--surface-3); color: var(--text); }
+      .nav a[aria-current='page'] { background: var(--accent-soft); color: var(--accent-text); }
+      .nav a .tag { margin-left: auto; }
+      .sidebar-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--border); }
+      .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+      .topbar { height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 20; }
+      .topbar .company { width: 190px; height: 32px; }
+      .searchbox { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; width: 300px; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-2); color: var(--text-subtle); cursor: text; }
+      .searchbox .kbd { margin-left: auto; }
+      .topbar .btn.icon { width: 32px; height: 32px; }
+      .proto-tag { margin-left: auto; }
+      .menu-btn { display: none; }
+      .content { padding: 24px; width: 100%; min-width: 0; }
+      .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+      .page-head p { margin-top: 2px; }
+      .scrim { display: none; }
+
+      /* Cards, tiles and grids */
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; min-width: 0; }
+      .card > h3 + * { margin-top: 12px; }
+      .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+      .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; min-width: 0; }
+      .tile .label { font-size: 12px; line-height: 16px; color: var(--text-muted); font-weight: 500; }
+      .tile .value { font-size: 22px; line-height: 30px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; overflow-wrap: anywhere; }
+      .tile .foot { font-size: 12px; line-height: 16px; color: var(--text-muted); margin-top: 2px; }
+      .tile.danger .value { color: var(--danger); }
+      .tile.warning .value { color: var(--warning); }
+      .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .cols-3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+      .cols-main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+      .bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+      .bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+      .bar.warn > span { background: var(--warning); }
+      .bar.ok > span { background: var(--success); }
+      .list { list-style: none; margin: 0; padding: 0; }
+      .list li { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); min-width: 0; }
+      .list li:last-child { border-bottom: 0; }
+      .empty { text-align: center; padding: 24px 12px; color: var(--text-muted); }
+      .empty p + .btn { margin-top: 12px; }
+      .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+      .chip { height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+      .chip[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+
+      /* Data grid (DESIGN.md §6) */
+      .table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+      table.dg { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 18px; }
+      .dg th { background: var(--surface-2); color: var(--text-muted); font-weight: 500; font-size: 12px; text-align: left; height: 32px; padding: 0 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+      .dg td { height: var(--row); padding: 6px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+      .dg.compact td { height: var(--row-compact); padding: 4px 12px; }
+      .dg tr:last-child td { border-bottom: 0; }
+      .dg tbody tr.click { cursor: pointer; }
+      .dg tbody tr.click:hover td { background: var(--surface-3); }
+      .dg tr.selected td { background: var(--accent-soft); }
+      .dg .num, .dg th.num { text-align: right; }
+      .dg tfoot td { background: var(--surface-2); font-weight: 500; }
+
+      /* Kanban (DESIGN.md §6) */
+      .board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(155px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+      .column { background: var(--surface-2); border-radius: var(--radius-lg); border-top: 3px solid var(--text-subtle); min-height: 320px; display: flex; flex-direction: column; scroll-snap-align: start; }
+      .column.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
+      .column-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; font-weight: 600; }
+      .column-body { padding: 0 8px 8px; display: flex; flex-direction: column; gap: 8px; }
+      .st-new { border-top-color: var(--stage-new); }
+      .st-contacted { border-top-color: var(--stage-contacted); }
+      .st-qualified { border-top-color: var(--stage-qualified); }
+      .st-quoted { border-top-color: var(--stage-quoted); }
+      .st-won { border-top-color: var(--stage-won); }
+      .st-lost { border-top-color: var(--stage-lost); }
+      .kcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px; cursor: pointer; text-align: left; width: 100%; }
+      .kcard:hover { border-color: var(--border-strong); }
+      .kcard .name { font-weight: 600; }
+      .kcard .meta { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+
+      /* Caller workspace */
+      .queue li { cursor: pointer; padding: 8px; border-radius: var(--radius-md); border-bottom: 0; }
+      .queue li:hover { background: var(--surface-3); }
+      .queue li[aria-current='true'] { background: var(--accent-soft); }
+      .queue li.done { opacity: 0.55; }
+      .dispositions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+      .dispositions .btn { justify-content: flex-start; height: 36px; }
+      .dispositions .btn.picked { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+      .script { background: var(--surface-2); border-radius: var(--radius-md); padding: 12px; }
+      .script p + p { margin-top: 10px; }
+      .script .step { font-size: 12px; line-height: 16px; color: var(--text-subtle); font-weight: 500; }
+      .call-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-md); background: var(--success-soft); color: var(--success); font-weight: 500; }
+
+      /* Quote builder */
+      .locked { display: inline-flex; align-items: center; gap: 4px; }
+      .totals { width: 100%; max-width: 360px; margin-left: auto; }
+      .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+      .totals .grand { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; font-size: 16px; font-weight: 600; }
+      .callout { display: flex; gap: 10px; padding: 12px; border-radius: var(--radius-md); background: var(--info-soft); color: var(--text); }
+      .callout.warn { background: var(--warning-soft); }
+      .callout.danger { background: var(--danger-soft); }
+      .callout.ok { background: var(--success-soft); }
+      .callout svg { margin-top: 2px; }
+      .callout.warn svg { color: var(--warning); }
+      .callout.danger svg { color: var(--danger); }
+      .callout.ok svg { color: var(--success); }
+      .callout svg { color: var(--info); }
+
+      /* Steps */
+      .steps { display: flex; gap: 4px; flex-wrap: wrap; }
+      .steps span { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--surface-3); color: var(--text-muted); }
+      .steps span.done { background: var(--success-soft); color: var(--success); }
+      .steps span.now { background: var(--accent); color: var(--accent-fg); }
+
+      /* Sheet, dialog, toast, popover */
+      .overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+      .dialog { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-2); width: 100%; max-width: 480px; max-height: calc(100vh - 32px); overflow: auto; padding: 20px; }
+      .dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+      .overlay.sheet { justify-content: flex-end; align-items: stretch; padding: 0; }
+      .sheet-panel { background: var(--surface); border-left: 1px solid var(--border); width: 100%; max-width: 420px; height: 100%; overflow: auto; padding: 20px; box-shadow: var(--shadow-2); }
+      .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 60; max-width: calc(100vw - 32px); }
+      .toast { background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: var(--radius-md); box-shadow: var(--shadow-1); max-width: 380px; }
+      .popover { position: absolute; top: 44px; right: 8px; width: 320px; max-width: calc(100vw - 16px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); padding: 8px; z-index: 30; }
+      .popover .list li { padding: 8px; }
+      .offline { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-3); color: var(--text-muted); }
+
+      /* Phone (DESIGN.md §5: below md the sidebar becomes a sheet and tables become cards) */
+      @media (max-width: 1100px) {
+        .cols-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .cols-3 > :first-child { grid-column: 1 / -1; }
+      }
+      @media (max-width: 767px) {
+        body { font-size: 15px; line-height: 22px; }
+        :root { --control: 44px; }
+        .content { padding: 16px; }
+        .landing { padding: 20px 16px 40px; }
+        .sidebar { position: fixed; left: 0; top: 0; z-index: 45; transform: translateX(-100%); transition: transform 180ms ease-out; box-shadow: var(--shadow-2); }
+        .shell.nav-open .sidebar { transform: none; }
+        .shell.nav-open .scrim { display: block; position: fixed; inset: 0; background: var(--scrim); z-index: 40; }
+        .menu-btn { display: inline-flex; }
+        .topbar { padding: 0 8px; gap: 4px; }
+        .topbar .company { width: auto; flex: 1 1 auto; min-width: 0; max-width: 170px; }
+        .searchbox { width: 32px; padding: 0; justify-content: center; background: transparent; border-color: transparent; color: var(--text-muted); }
+        .searchbox span, .searchbox .kbd { display: none; }
+        .proto-tag { display: none; }
+        .hide-phone { display: none !important; }
+        .cols, .cols-3, .cols-main, .form-grid { grid-template-columns: minmax(0, 1fr); }
+        .cols-3 > :first-child { grid-column: auto; }
+        .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .table-wrap { border: 0; background: transparent; overflow: visible; }
+        table.dg, .dg tbody, .dg tr, .dg td, .dg tfoot { display: block; width: 100%; }
+        .dg thead { display: none; }
+        .dg tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 8px 12px; margin-bottom: 8px; }
+        .dg td { display: flex; justify-content: space-between; gap: 12px; height: auto; padding: 4px 0; border: 0; text-align: right; overflow-wrap: anywhere; }
+        .dg td::before { content: attr(data-label); color: var(--text-muted); font-weight: 500; text-align: left; flex: none; }
+        .dg td[data-label='']::before { content: none; }
+        .dg td.lead { font-weight: 600; text-align: left; }
+        .dg .num { text-align: right; }
+        .dg tfoot tr { background: var(--surface-2); }
+        .toasts { top: 56px; bottom: auto; left: 16px; right: 16px; }
+        .toast { max-width: none; }
+        .dispositions { grid-template-columns: minmax(0, 1fr); }
+        .sheet-panel { max-width: none; }
+        .board { grid-auto-columns: minmax(78%, 1fr); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; scroll-behavior: auto !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div id="layer"></div>
+    <script>
+      'use strict';
+
+      /* ---------- Invented data. Every person, village, phone number and amount is invented. ---------- */
+      const TODAY = '27-09-2026';
+      const COMPANIES = [
+        { code: 'SS', name: 'Shakti Supreme' },
+        { code: 'SMP', name: 'Shakti Motor Pumps' },
+        { code: 'ASH', name: 'Agro Solar Hub' },
+        { code: 'RCREF', name: 'RCREF' },
+      ];
+      const coName = (c) => (COMPANIES.find((x) => x.code === c) || {}).name || '';
+
+      const ROLES = [
+        { key: 'executive', name: 'Executive', job: 'Direction, approvals, prices and profit', person: 'Rajendra Agarwal', home: 'home',
+          nav: ['home', 'board', 'calling', 'customers', 'quote', 'orders', 'credit', 'leads', 'price', 'team', 'activity', 'companies'] },
+        { key: 'general_manager', name: 'General Manager', job: 'Daily operations, response times and escalations', person: 'Sunil Mathur', home: 'home',
+          nav: ['home', 'board', 'customers', 'orders', 'credit', 'leads', 'price', 'activity'] },
+        { key: 'sales_team_lead', name: 'Sales Team Lead', job: 'Callers, lead reassignment and targets', person: 'Vikram Singh Shekhawat', home: 'home',
+          nav: ['home', 'calling', 'board', 'customers', 'leads', 'price'] },
+        { key: 'tele_caller_cc', name: 'Tele-caller, cold calling', job: 'The calling queue and qualifying leads', person: 'Priya Sharma', home: 'calling',
+          nav: ['calling', 'customers', 'leads', 'price'] },
+        { key: 'tele_caller_lc', name: 'Tele-caller, lead converter', job: 'Sizing, quotes and orders for qualified leads', person: 'Kavita Rathore', home: 'board',
+          nav: ['board', 'customers', 'quote', 'orders', 'leads', 'price'] },
+        { key: 'store_manager', name: 'Store Manager', job: 'Walk-in customers at the counter', person: 'Dinesh Khandelwal', home: 'home',
+          nav: ['home', 'customers', 'quote', 'orders', 'leads', 'price'] },
+        { key: 'inventory_manager', name: 'Inventory Manager', job: 'Stock, purchasing and dispatch', person: 'Harish Tak', home: 'home',
+          nav: ['home', 'orders', 'price'] },
+        { key: 'project_manager', name: 'Project Manager', job: 'Installations, subsidy steps and engineer visits', person: 'Arvind Poonia', home: 'home',
+          nav: ['home', 'customers', 'price'] },
+        { key: 'field_engineer', name: 'Field Engineer', job: 'Surveys and installations, on the phone', person: 'Suresh Yadav', home: 'home',
+          nav: ['home'] },
+        { key: 'accounts', name: 'Accounts', job: 'Payments, dealer credit, tax and expenses', person: 'Meenakshi Jain', home: 'home',
+          nav: ['home', 'credit', 'orders', 'quote', 'price', 'activity'] },
+        { key: 'hr_admin', name: 'HR Admin', job: 'Attendance, leave and incentives', person: 'Rekha Chouhan', home: 'home',
+          nav: ['home'] },
+      ];
+      const NAV = {
+        home: { label: 'Home', icon: 'home' },
+        calling: { label: 'Calling', icon: 'phone' },
+        board: { label: 'Lead board', icon: 'board' },
+        customers: { label: 'Customers', icon: 'user' },
+        quote: { label: 'Quote builder', icon: 'doc' },
+        orders: { label: 'Sales orders', icon: 'box' },
+        credit: { label: 'Dealer credit', icon: 'shield' },
+        leads: { label: 'Leads', icon: 'list', app: true },
+        price: { label: 'Price Master', icon: 'tag', app: true },
+        team: { label: 'Team members', icon: 'users', app: true },
+        activity: { label: 'Activity log', icon: 'clock', app: true },
+        companies: { label: 'Companies', icon: 'building', app: true },
+      };
+      const APP_SCREENS = {
+        leads: 'The list of leads with search and filters, and the New lead form.',
+        price: 'Prices for each tier with start dates and the full history of changes. Only Executives can change a price.',
+        team: 'Invite people, give them a role in each company, and reset a lost authenticator app.',
+        activity: 'Who changed what, and when, for every company you can see.',
+        companies: 'Each company’s name, GSTIN, state, letterhead and bank details.',
+      };
+
+      const TIER = { retail: 'Retail price', dealer: 'Dealer price', commercial: 'Commercial price' };
+      const ITEMS = [
+        { code: 'SPK30', name: '3 HP solar pump kit, DC submersible', hp: 3, retail: 195000, dealer: 179000, commercial: 188000 },
+        { code: 'SPK50', name: '5 HP solar pump kit, DC submersible', hp: 5, retail: 285000, dealer: 262000, commercial: 275000 },
+        { code: 'SPK75', name: '7.5 HP solar pump kit, DC submersible', hp: 7.5, retail: 398000, dealer: 366000, commercial: 385000 },
+        { code: 'CTL50', name: '5 HP pump controller', retail: 42500, dealer: 38900, commercial: 41000 },
+        { code: 'SUB75', name: '7.5 HP AC submersible pump', retail: 68500, dealer: 62800, commercial: 66000 },
+        { code: 'RT33', name: '3.3 kW rooftop solar system, on-grid', retail: 189000, dealer: 174000, commercial: 182000 },
+        { code: 'RT50', name: '5 kW rooftop solar system, on-grid', retail: 285000, dealer: 262000, commercial: 274000 },
+        { code: 'PNL550', name: 'Solar panel 550 W, DCR', retail: 14800, dealer: 13600, commercial: 14200 },
+      ];
+      const item = (code) => ITEMS.find((i) => i.code === code);
+      const GST_RATE = 5; // Shown only to illustrate the layout; real rates are set by the CA at the workshop.
+
+      const STAFF = {
+        PS: { name: 'Priya Sharma', role: 'Tele-caller, cold calling', co: 'ASH' },
+        NK: { name: 'Neha Kanwar', role: 'Tele-caller, cold calling', co: 'SMP' },
+        AC: { name: 'Anil Choudhary', role: 'Tele-caller, cold calling', co: 'ASH' },
+        DS: { name: 'Deepak Saini', role: 'Tele-caller, cold calling', co: 'SS' },
+        PM: { name: 'Pooja Meena', role: 'Tele-caller, cold calling', co: 'SMP' },
+        KR: { name: 'Kavita Rathore', role: 'Tele-caller, lead converter', co: 'ASH' },
+        RJ: { name: 'Rohit Jangid', role: 'Tele-caller, lead converter', co: 'SMP' },
+        NA: { name: 'Nisha Agarwal', role: 'Tele-caller, lead converter', co: 'ASH' },
+        SY: { name: 'Suresh Yadav', role: 'Field Engineer', co: 'ASH' },
+        MB: { name: 'Mahendra Bairwa', role: 'Field Engineer', co: 'SMP' },
+        SK: { name: 'Sanjay Kumawat', role: 'Store Manager', co: 'SS' },
+        HT: { name: 'Harish Tak', role: 'Inventory Manager', co: 'SMP' },
+        AP: { name: 'Arvind Poonia', role: 'Project Manager', co: 'RCREF' },
+        VS: { name: 'Vikram Singh Shekhawat', role: 'Sales Team Lead', co: 'ASH' },
+        MJ: { name: 'Meenakshi Jain', role: 'Accounts', co: 'SS' },
+      };
+      const CONVERTERS = ['KR', 'RJ', 'NA'];
+      const initials = (k) => STAFF[k] ? STAFF[k].name.split(' ').map((p) => p[0]).slice(0, 2).join('') : '';
+
+      const STAGES = [
+        { key: 'new', name: 'New' },
+        { key: 'contacted', name: 'Contacted' },
+        { key: 'qualified', name: 'Qualified' },
+        { key: 'quoted', name: 'Quoted' },
+        { key: 'won', name: 'Won' },
+        { key: 'lost', name: 'Lost' },
+      ];
+      const PIPELINES = [
+        { key: 'farmer_pumps', name: 'Farmer Pumps' },
+        { key: 'residential_rooftop', name: 'Residential Rooftop' },
+        { key: 'commercial_epc', name: 'Commercial EPC' },
+        { key: 'dealer_wholesale', name: 'Dealer and Wholesale' },
+      ];
+
+      let LEADS = [
+        { id: 'L1', name: 'Bhanwar Lal Jat', place: 'Renwal, Jaipur', co: 'ASH', pipe: 'farmer_pumps', stage: 'quoted', need: '7.5 HP', age: 2, owner: 'KR', sla: 'ok', acct: 'A1',
+          next: 'He asked about the subsidy on WhatsApp. Reply with the steps and follow up on the quote tomorrow.',
+          wa: [['in', 'Quotation mil gaya. Subsidy kitni milegi?', '09:41'], ['out', 'Bhanwar Lal ji, thank you. I will call you by 12 noon today with the subsidy steps.', '09:44']] },
+        { id: 'L2', name: 'Sita Devi Meena', place: 'Chaksu, Jaipur', co: 'ASH', pipe: 'farmer_pumps', stage: 'qualified', need: '5 HP', age: 1, owner: 'KR', sla: 'warn', acct: 'A2',
+          next: 'Survey booked for 28-09-2026. Prepare the 5 HP quote after the survey.', wa: [] },
+        { id: 'L3', name: 'Ramesh Kumar Saini', place: 'Bassi, Jaipur', co: 'SMP', pipe: 'farmer_pumps', stage: 'contacted', need: '3 HP', age: 4, owner: 'RJ', sla: 'breach', acct: null,
+          next: 'Callback was due yesterday at 16:00. Call him first.', wa: [] },
+        { id: 'L4', name: 'Kailash Chand Gurjar', place: 'Phagi, Jaipur', co: 'ASH', pipe: 'farmer_pumps', stage: 'new', need: '5 HP', age: 0, owner: 'NA', sla: 'ok', acct: null, next: 'First call due today.', wa: [] },
+        { id: 'L5', name: 'Gopal Bairwa', place: 'Malpura, Tonk', co: 'SMP', pipe: 'farmer_pumps', stage: 'contacted', need: '7.5 HP', age: 5, owner: 'NA', sla: 'breach', acct: null, next: 'Waiting for borewell depth. Ask on the next call.', wa: [] },
+        { id: 'L6', name: 'Hanuman Sahay Yadav', place: 'Kotputli, Jaipur', co: 'SMP', pipe: 'farmer_pumps', stage: 'qualified', need: '7.5 HP', age: 1, owner: 'NA', sla: 'ok', acct: null, next: 'Qualified today. Send the quote.', wa: [] },
+        { id: 'L7', name: 'Mohan Lal Sharma', place: 'Dudu, Jaipur', co: 'ASH', pipe: 'farmer_pumps', stage: 'won', need: '5 HP', age: 9, owner: 'KR', sla: 'ok', acct: null, next: 'Sales order confirmed.', wa: [] },
+        { id: 'L8', name: 'Chhotu Ram Kumawat', place: 'Jobner, Jaipur', co: 'SMP', pipe: 'farmer_pumps', stage: 'lost', need: '3 HP', age: 12, owner: 'RJ', sla: 'ok', acct: null, next: 'Bought elsewhere.', wa: [] },
+        { id: 'L9', name: 'Anita Khandelwal', place: 'Mansarovar, Jaipur', co: 'RCREF', pipe: 'residential_rooftop', stage: 'won', need: '3.3 kW', age: 20, owner: 'KR', sla: 'ok', acct: 'A4', next: 'Project running.', wa: [] },
+        { id: 'L10', name: 'Vivek Joshi', place: 'Vaishali Nagar, Jaipur', co: 'RCREF', pipe: 'residential_rooftop', stage: 'quoted', need: '5 kW', age: 3, owner: 'NA', sla: 'warn', acct: null, next: 'Quote sent 24-09-2026. Follow up.', wa: [] },
+        { id: 'L11', name: 'Suman Sharma', place: 'Jhotwara, Jaipur', co: 'RCREF', pipe: 'residential_rooftop', stage: 'new', need: '3.3 kW', age: 0, owner: 'RJ', sla: 'ok', acct: null, next: 'First call due today.', wa: [] },
+        { id: 'L12', name: 'Shree Balaji Cold Storage', place: 'Bagru, Jaipur', co: 'RCREF', pipe: 'commercial_epc', stage: 'qualified', need: '100 kW', age: 6, owner: 'RJ', sla: 'ok', acct: 'A6', next: 'Site visit with the Project Manager on 30-09-2026.', wa: [] },
+        { id: 'L13', name: 'Marudhar Agro Agencies', place: 'Kishangarh, Ajmer', co: 'ASH', pipe: 'dealer_wholesale', stage: 'won', need: '6 kits', age: 15, owner: 'KR', sla: 'ok', acct: 'A3', next: 'Order on hold for credit.', wa: [] },
+        { id: 'L14', name: 'Kisan Seva Kendra', place: 'Tonk', co: 'SMP', pipe: 'dealer_wholesale', stage: 'contacted', need: '10 pumps', age: 2, owner: 'NA', sla: 'ok', acct: null, next: 'Asked for the dealer price list.', wa: [] },
+      ];
+
+      let QUEUE = [
+        { id: 'Q1', name: 'Kailash Chand Gurjar', village: 'Phagi', district: 'Jaipur', phone: '4471', source: 'Missed call', score: 86, due: 'Now', co: 'ASH', lang: 'hinglish', consent: true,
+          note: 'Gave a missed call at 09:12 about a solar pump.', hp: '', depth: '', water: '' },
+        { id: 'Q2', name: 'Mohan Singh Rathore', village: 'Dudu', district: 'Jaipur', phone: '2093', source: 'Facebook and Instagram ads', score: 78, due: 'Callback 10:30', co: 'ASH', lang: 'hinglish', consent: true,
+          note: 'Asked to call back after 10:30.', hp: '5 HP', depth: '', water: '' },
+        { id: 'Q3', name: 'Gopal Lal Bairwa', village: 'Malpura', district: 'Tonk', phone: '6618', source: 'Website enquiry', score: 72, due: 'Now', co: 'SMP', lang: 'hinglish', consent: true,
+          note: 'Website form: 7.5 HP pump for a 250 ft borewell.', hp: '7.5 HP', depth: '250', water: '' },
+        { id: 'Q4', name: 'Santosh Kanwar', village: 'Danta Ramgarh', district: 'Sikar', phone: '3350', source: 'Imported list', score: 64, due: 'Now', co: 'ASH', lang: 'hinglish', consent: false,
+          note: 'From the dealer meeting list. No consent recorded: calls go out on the promotional line.', hp: '', depth: '', water: '' },
+        { id: 'Q5', name: 'Ajay Choudhary', village: 'Kishangarh Renwal', district: 'Jaipur', phone: '7182', source: 'Walk-in', score: 61, due: 'Today', co: 'SS', lang: 'en', consent: true,
+          note: 'Prefers English on calls. Walked in at the Jaipur office on 25-09-2026.', hp: '', depth: '', water: '' },
+        { id: 'Q6', name: 'Laxmi Narayan Meena', village: 'Jamwa Ramgarh', district: 'Jaipur', phone: '9024', source: 'Referral', score: 58, due: 'Today', co: 'SMP', lang: 'hinglish', consent: true,
+          note: 'Referred by Jai Ambe Pump House.', hp: '', depth: '', water: '' },
+      ];
+      const DISPOSITIONS = [
+        { k: 1, label: 'Interested, call again' },
+        { k: 2, label: 'Call back later' },
+        { k: 3, label: 'Not reachable' },
+        { k: 4, label: 'Switched off' },
+        { k: 5, label: 'Wrong number' },
+        { k: 6, label: 'Not interested' },
+        { k: 7, label: 'Already bought' },
+        { k: 8, label: 'Qualified' },
+      ];
+
+      const ACCOUNTS = [
+        { id: 'A1', name: 'Bhanwar Lal Jat', type: 'Farm', place: 'Renwal, Jaipur', phone: '5813', lang: 'Hinglish', loan: 'Bank loan applied at the local cooperative bank on 20-09-2026',
+          rel: [{ co: 'SMP', owner: 'RJ', since: '14-03-2025' }, { co: 'ASH', owner: 'KR', since: '18-09-2026' }],
+          contacts: [['Bhanwar Lal Jat', 'Owner'], ['Kamla Devi', 'Family']],
+          sites: [['Borewell, Khasra 212, Renwal', 'Depth 220 ft, water at 140 ft, 3-phase supply'], ['Borewell, Khasra 318, Renwal', 'Depth 180 ft, water at 110 ft, no power line']],
+          deals: [['SMP', '7.5 HP AC submersible pump', 'Won'], ['ASH', '7.5 HP solar pump kit for Khasra 318', 'Quoted']],
+          orders: ['SMP/SO/2026-27/0231'],
+          timeline: [
+            ['27-09-2026 09:41', 'WhatsApp', 'Asked how much subsidy he can get.'],
+            ['26-09-2026 17:20', 'Call by Kavita Rathore, 6 min', 'Wants the solar pump for the second borewell before the rabi season. Will decide after hearing the subsidy steps. Son handles the paperwork.'],
+            ['26-09-2026 17:35', 'Quote sent', 'ASH/Q/2026-27/0318, 7.5 HP solar pump kit, valid until 11-10-2026.'],
+            ['18-09-2026 11:02', 'Walk-in', 'Visited the Jaipur office. Recorded by Dinesh Khandelwal.'],
+            ['12-09-2026 15:10', 'Sales order', 'SMP/SO/2026-27/0231 dispatched: 7.5 HP AC submersible pump.'],
+          ] },
+        { id: 'A2', name: 'Sita Devi Meena', type: 'Farm', place: 'Chaksu, Jaipur', phone: '2240', lang: 'Hinglish', loan: '',
+          rel: [{ co: 'ASH', owner: 'KR', since: '25-09-2026' }], contacts: [['Sita Devi Meena', 'Owner'], ['Ramkishan Meena', 'Family']],
+          sites: [['Borewell near the village pond, Chaksu', 'Depth 180 ft, water at 95 ft']], deals: [['ASH', '5 HP solar pump kit', 'Qualified']], orders: ['ASH/SO/2026-27/0139'],
+          timeline: [['26-09-2026 12:15', 'Call by Priya Sharma, 4 min', 'Qualified: 5 HP, borewell 180 ft. Survey booked for 28-09-2026.']] },
+        { id: 'A3', name: 'Marudhar Agro Agencies', type: 'Dealer', place: 'Kishangarh, Ajmer', phone: '7710', lang: 'English', loan: '',
+          rel: [{ co: 'ASH', owner: 'KR', since: '02-04-2024' }], contacts: [['Prakash Mundra', 'Owner'], ['Sunita Mundra', 'Accountant']],
+          sites: [['Shop and store, Madanganj', 'Delivery point']], deals: [['ASH', 'Solar pump kits for the rabi season', 'Won']], orders: ['ASH/SO/2026-27/0142'],
+          timeline: [['26-09-2026 16:05', 'Sales order', 'ASH/SO/2026-27/0142 put on hold for credit.']] },
+        { id: 'A4', name: 'Anita Khandelwal', type: 'Household', place: 'Mansarovar, Jaipur', phone: '4102', lang: 'English', loan: '',
+          rel: [{ co: 'RCREF', owner: 'KR', since: '07-09-2026' }], contacts: [['Anita Khandelwal', 'Owner']],
+          sites: [['Rooftop, Mansarovar', 'Sanctioned load 5 kW, roof 600 sq ft']], deals: [['RCREF', '3.3 kW rooftop system', 'Won']], orders: ['ASH/SO/2026-27/0140'],
+          timeline: [['24-09-2026 10:00', 'Project', 'Waiting for the latest electricity bill for the feasibility step.']] },
+        { id: 'A5', name: 'Shree Traders', type: 'Dealer', place: 'Chomu, Jaipur', phone: '8876', lang: 'Hinglish', loan: '',
+          rel: [{ co: 'SS', owner: 'DS', since: '11-11-2023' }], contacts: [['Mahesh Agarwal', 'Owner']],
+          sites: [['Shop, Chomu', 'Delivery point']], deals: [['SS', 'Monthly pump stock', 'Won']], orders: ['SS/SO/2026-27/0087'],
+          timeline: [['25-09-2026 11:40', 'Sales order', 'SS/SO/2026-27/0087 put on hold: ₹1,20,000 overdue for more than 30 days.']] },
+        { id: 'A6', name: 'Shree Balaji Cold Storage', type: 'Business', place: 'Bagru, Jaipur', phone: '6630', lang: 'English', loan: '',
+          rel: [{ co: 'RCREF', owner: 'RJ', since: '21-09-2026' }], contacts: [['Naresh Goyal', 'Owner'], ['Amit Goyal', 'Manager']],
+          sites: [['Factory roof, Bagru industrial area', 'Roof 11,000 sq ft, sanctioned load 120 kW']], deals: [['RCREF', '100 kW rooftop plant', 'Qualified']], orders: ['RCREF/SO/2026-27/0021'],
+          timeline: [['26-09-2026 14:30', 'Call by Rohit Jangid, 11 min', 'Site visit agreed for 30-09-2026 with the Project Manager.']] },
+      ];
+      const account = (id) => ACCOUNTS.find((a) => a.id === id);
+      const accountByName = (n) => ACCOUNTS.find((a) => a.name === n);
+
+      let ORDERS = [
+        { no: 'ASH/SO/2026-27/0142', acct: 'A3', co: 'ASH', date: '26-09-2026', tier: 'dealer', status: 'hold', lines: [['SPK50', 1, 0], ['CTL50', 2, 0]] },
+        { no: 'SS/SO/2026-27/0087', acct: 'A5', co: 'SS', date: '25-09-2026', tier: 'dealer', status: 'hold', lines: [['SUB75', 6, 0]] },
+        { no: 'RCREF/SO/2026-27/0021', acct: 'A6', co: 'RCREF', date: '26-09-2026', tier: 'commercial', status: 'draft', lines: [['PNL550', 60, 0]] },
+        { no: 'ASH/SO/2026-27/0141', acct: 'A2', co: 'ASH', date: '27-09-2026', tier: 'retail', status: 'draft', lines: [['SPK50', 1, 0]] },
+        { no: 'ASH/SO/2026-27/0139', acct: 'A2', co: 'ASH', date: '24-09-2026', tier: 'retail', status: 'confirmed', lines: [['CTL50', 1, 0]], waiting: '5 HP pump controller: 1 short at the Jaipur godown' },
+        { no: 'SMP/SO/2026-27/0229', acct: 'A5', co: 'SMP', date: '19-09-2026', tier: 'dealer', status: 'partly', lines: [['SUB75', 10, 6]], waiting: '7.5 HP AC submersible pump: 4 still to dispatch' },
+        { no: 'SMP/SO/2026-27/0231', acct: 'A1', co: 'SMP', date: '10-09-2026', tier: 'retail', status: 'dispatched', lines: [['SUB75', 1, 1]] },
+        { no: 'ASH/SO/2026-27/0140', acct: 'A4', co: 'RCREF', date: '08-09-2026', tier: 'retail', status: 'invoiced', lines: [['RT33', 1, 1]] },
+        { no: 'SS/SO/2026-27/0085', acct: 'A5', co: 'SS', date: '28-08-2026', tier: 'dealer', status: 'closed', lines: [['SUB75', 4, 4]] },
+        { no: 'SMP/SO/2026-27/0227', acct: 'A1', co: 'SMP', date: '02-09-2026', tier: 'retail', status: 'cancelled', lines: [['CTL50', 1, 0]] },
+      ];
+      const STATUS = {
+        draft: ['Draft', ''],
+        confirmed: ['Confirmed', 'accent'],
+        partly: ['Partly dispatched', 'info'],
+        dispatched: ['Dispatched', 'info'],
+        invoiced: ['Invoiced', 'success'],
+        closed: ['Closed', ''],
+        cancelled: ['Cancelled', 'danger'],
+        hold: ['On hold for credit', 'warning'],
+      };
+
+      let DEALERS = [
+        { name: 'Shree Traders', place: 'Chomu, Jaipur', co: 'SS', limit: 500000, outstanding: 380000, overdue: 120000, oldest: 41, days: 30 },
+        { name: 'Marudhar Agro Agencies', place: 'Kishangarh, Ajmer', co: 'ASH', limit: 1000000, outstanding: 865000, overdue: 0, oldest: 12, days: 45 },
+        { name: 'Kisan Seva Kendra', place: 'Tonk', co: 'SMP', limit: 400000, outstanding: 352000, overdue: 0, oldest: 20, days: 30 },
+        { name: 'Jai Ambe Pump House', place: 'Sikar', co: 'SMP', limit: 800000, outstanding: 310000, overdue: 0, oldest: 9, days: 30 },
+        { name: 'Rajputana Solar Traders', place: 'Ajmer', co: 'ASH', limit: 1200000, outstanding: 240000, overdue: 0, oldest: 5, days: 45 },
+      ];
+
+      const CO_STATS = {
+        SS: { leads: 214, waiting: 18, quotes: 41, orders: 1840000, margin: 16.2, collections: 620000 },
+        SMP: { leads: 486, waiting: 37, quotes: 96, orders: 3165000, margin: 18.9, collections: 1140000 },
+        ASH: { leads: 732, waiting: 54, quotes: 158, orders: 5420000, margin: 17.4, collections: 1785000 },
+        RCREF: { leads: 168, waiting: 11, quotes: 29, orders: 2290000, margin: 21.3, collections: 505000 },
+      };
+      const OVERDUE_CALLBACKS = [
+        { lead: 'Ramesh Kumar Saini', place: 'Bassi, Jaipur', co: 'SMP', owner: 'RJ', due: '26-09-2026 16:00', late: '18 h' },
+        { lead: 'Gopal Bairwa', place: 'Malpura, Tonk', co: 'SMP', owner: 'NA', due: '26-09-2026 18:30', late: '15 h' },
+        { lead: 'Vivek Joshi', place: 'Vaishali Nagar, Jaipur', co: 'RCREF', owner: 'NA', due: '27-09-2026 09:00', late: '1 h' },
+        { lead: 'Rukmani Devi', place: 'Shahpura, Jaipur', co: 'ASH', owner: 'PS', due: '27-09-2026 09:15', late: '45 min' },
+        { lead: 'Bhagirath Choudhary', place: 'Sambhar, Jaipur', co: 'SS', owner: 'DS', due: '27-09-2026 09:30', late: '30 min' },
+      ];
+      const CALLERS = [
+        { k: 'AC', calls: 102, target: 120, connected: 61, qualified: 7, qTarget: 8 },
+        { k: 'NK', calls: 88, target: 120, connected: 49, qualified: 6, qTarget: 8 },
+        { k: 'PM', calls: 76, target: 120, connected: 40, qualified: 4, qTarget: 8 },
+        { k: 'PS', calls: 64, target: 120, connected: 38, qualified: 5, qTarget: 8 },
+        { k: 'DS', calls: 41, target: 120, connected: 19, qualified: 1, qTarget: 8 },
+      ];
+      const STOCK = [
+        { item: '5 HP pump controller', wh: 'Jaipur godown', onHand: 3, reserved: 4, reorder: 10, state: 'out' },
+        { item: '7.5 HP AC submersible pump', wh: 'Jaipur godown', onHand: 6, reserved: 4, reorder: 8, state: 'low' },
+        { item: 'Solar panel 550 W, DCR', wh: 'EPC factory', onHand: 140, reserved: 60, reorder: 120, state: 'reserved' },
+        { item: '5 HP solar pump kit, DC submersible', wh: 'Jaipur godown', onHand: 9, reserved: 5, reorder: 6, state: 'low' },
+        { item: '3.3 kW rooftop solar system, on-grid', wh: 'EPC factory', onHand: 12, reserved: 2, reorder: 4, state: 'healthy' },
+        { item: '3 HP solar pump kit, DC submersible', wh: 'Jaipur godown', onHand: 15, reserved: 1, reorder: 6, state: 'healthy' },
+      ];
+      const STOCK_STATE = { healthy: ['Healthy', 'success'], low: ['Low', 'warning'], out: ['Out of stock', 'danger'], reserved: ['Mostly reserved', 'info'] };
+      const PROJECTS = [
+        { cust: 'Anita Khandelwal', acct: 'A4', place: 'Mansarovar, Jaipur', co: 'RCREF', kind: 'Rooftop, PM Surya Ghar', step: 'Feasibility', waiting: 'Latest electricity bill', days: 6 },
+        { cust: 'Vivek Joshi', acct: null, place: 'Vaishali Nagar, Jaipur', co: 'RCREF', kind: 'Rooftop, PM Surya Ghar', step: 'Agreement', waiting: 'Signed agreement', days: 3 },
+        { cust: 'Mohan Lal Sharma', acct: null, place: 'Dudu, Jaipur', co: 'ASH', kind: 'Solar pump, standard install', step: 'Dispatch', waiting: '', days: 1 },
+        { cust: 'Bhanwar Lal Jat', acct: 'A1', place: 'Renwal, Jaipur', co: 'SMP', kind: 'Pump, standard install', step: 'Handover', waiting: '', days: 0 },
+      ];
+      const VISITS = [
+        { when: '28-09-2026 10:00', eng: 'SY', what: 'Survey', cust: 'Sita Devi Meena', place: 'Chaksu' },
+        { when: '28-09-2026 11:30', eng: 'MB', what: 'Installation', cust: 'Mohan Lal Sharma', place: 'Dudu' },
+        { when: '28-09-2026 15:00', eng: 'SY', what: 'Site visit', cust: 'Shree Balaji Cold Storage', place: 'Bagru' },
+      ];
+      let JOBS = [
+        { time: '10:00', what: 'Survey', cust: 'Sita Devi Meena', place: 'Near the village pond, Chaksu', phone: '2240', detail: '5 HP solar pump. Borewell 180 ft.', state: '' },
+        { time: '13:30', what: 'Installation check', cust: 'Gopal Lal Bairwa', place: 'Malpura, Tonk', phone: '6618', detail: '7.5 HP pump. Check the controller wiring.', state: '' },
+        { time: '16:30', what: 'Handover', cust: 'Bhanwar Lal Jat', place: 'Khasra 212, Renwal', phone: '5813', detail: 'Explain the warranty card and the pump controller.', state: '' },
+      ];
+      let WALKINS = [
+        { time: '09:20', name: 'Omprakash Saini', village: 'Chomu', need: 'Solar pump, 5 HP', co: 'ASH' },
+        { time: '10:05', name: 'Kamla Kanwar', village: 'Achrol', need: 'Rooftop, 3.3 kW', co: 'RCREF' },
+        { time: '10:40', name: 'Bajrang Lal Jangid', village: 'Govindgarh', need: 'Pump, 3 HP', co: 'SMP' },
+      ];
+
+      /* ---------- State ---------- */
+      const state = {
+        company: 'all',
+        cc: { index: 0, results: {}, onCall: false, callStart: 0, script: null },
+        board: { pipe: 'farmer_pumps', mine: false },
+        orderFilter: 'all',
+        quote: { acct: 'A1', co: 'ASH', lines: [['SPK75', 1]], saved: false, sent: false },
+        walkStart: 0,
+        offline: true,
+        checkedIn: false,
+      };
+      let callTimer = null;
+
+      /* ---------- Helpers ---------- */
+      const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      const inr = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const inr0 = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+      const r2 = (n) => Math.round(n * 100) / 100;
+      const inCo = (c) => state.company === 'all' || state.company === c;
+      const coDot = (c) => `<span class="dot co-${c}" title="${esc(coName(c))}"></span>`;
+      const badge = (text, kind) => `<span class="badge ${kind || ''}">${esc(text)}</span>`;
+      const role = () => ROLES.find((r) => r.key === route().role);
+      const canRelease = () => route().role === 'executive';
+      const callName = (n) => { const p = n.split(' '); return p.length > 1 ? p.slice(0, -1).join(' ') : n; };
+      const maskPhone = (last4) => '+91 ••••• •' + last4;
+
+      function computeLines(lines, tier) {
+        const rows = lines.map(([code, qty]) => {
+          const it = item(code);
+          const price = it[tier];
+          return { code, name: it.name, qty, price, amount: price * qty };
+        });
+        const taxable = rows.reduce((s, r) => s + r.amount, 0);
+        const cgst = r2((taxable * GST_RATE) / 200);
+        const sgst = cgst;
+        const exact = taxable + cgst + sgst;
+        const grand = Math.round(exact);
+        return { rows, taxable, cgst, sgst, roundOff: r2(grand - exact), grand };
+      }
+      const orderTotal = (o) => computeLines(o.lines.map(([c, q]) => [c, q]), o.tier).grand;
+
+      const ICONS = {
+        home: '<path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+        phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+        board: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/>',
+        user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+        users: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/>',
+        doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+        box: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+        shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+        list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+        tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>',
+        clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        building: '<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+        bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+        spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+        mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/>',
+        menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+        moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+        sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+        x: '<path d="M18 6 6 18M6 6l12 12"/>',
+        map: '<path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/>',
+        check: '<path d="M20 6 9 17l-5-5"/>',
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+        alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+        cloudoff: '<path d="m2 2 20 20M5.8 5.8A7 7 0 0 0 7 19h10.5M21.3 16.3A4.5 4.5 0 0 0 17.5 10h-1.8A7 7 0 0 0 10 5.2"/>',
+      };
+      const icon = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+
+      function toast(msg) {
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = msg;
+        document.getElementById('toasts').appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+      }
+      function openLayer(html, cls) {
+        const layer = document.getElementById('layer');
+        layer.innerHTML = `<div class="overlay ${cls || ''}" data-close="1">${html}</div>`;
+        const first = layer.querySelector('input, textarea, select, button:not([data-close])');
+        if (first) first.focus();
+      }
+      function closeLayer() {
+        document.getElementById('layer').innerHTML = '';
+      }
+      function dialog(title, body, actions) {
+        openLayer(`<div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${esc(title)}</h2><div style="margin-top:12px">${body}</div><div class="actions">${actions}</div></div>`);
+      }
+
+      /* ---------- Routing ---------- */
+      function route() {
+        const p = new URLSearchParams(location.hash.slice(1));
+        return { role: p.get('role'), s: p.get('s'), id: p.get('id') };
+      }
+      function go(s, id) {
+        const r = route();
+        const p = new URLSearchParams();
+        if (r.role) p.set('role', r.role);
+        if (s) p.set('s', s);
+        if (id) p.set('id', id);
+        location.hash = p.toString();
+      }
+      function pickRole(key) {
+        const r = ROLES.find((x) => x.key === key);
+        state.company = 'all';
+        location.hash = new URLSearchParams({ role: key, s: r.home }).toString();
+      }
+
+      /* ---------- Theme ---------- */
+      function setTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#08090A' : '#FFFFFF');
+        try { localStorage.setItem('sp-proto-theme', t); } catch (e) { /* not available */ }
+        render();
+      }
+      function themeButton() {
+        const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        return `<button class="btn ghost icon" data-act="theme" aria-label="${dark ? 'Use the light theme' : 'Use the dark theme'}" title="${dark ? 'Light theme' : 'Dark theme'}">${icon(dark ? 'sun' : 'moon')}</button>`;
+      }
+
+      /* ---------- Landing: role picker ---------- */
+      function renderLanding() {
+        return `<div class="landing">
+          <div class="landing-top">
+            <div class="brand"><span class="brand-mark">S</span>Shakti Prime</div>
+            <div class="row">${badge('Prototype', 'warning')}${themeButton()}</div>
+          </div>
+          <h1>Screen prototype for review</h1>
+          <p class="muted" style="margin-top:4px">The Phase 1 screens for each role, to try before they are built.</p>
+          <div class="notice" style="margin-top:16px">
+            <p><strong>This is a prototype.</strong> Nothing you do here is saved, sent or seen by anyone. Buttons show what would happen, and the screens reset when the page is reloaded.</p>
+            <p>Every person, village, phone number and amount is invented. Prices, tax rates, document numbers and call outcomes are shown in one possible form; the real ones are set at the discovery workshop.</p>
+            <p>Some screens already work in the review system: Leads, Price Master, Team members, Activity log and Companies. They are marked "In the app" in the menu.</p>
+          </div>
+          <h2 style="margin-top:28px">Choose a role</h2>
+          <p class="muted">You will see the screens that role works with. You can change role at any time from the menu.</p>
+          <div class="role-grid">
+            ${ROLES.map((r) => `<button class="role-card" data-act="role" data-key="${r.key}"><strong>${esc(r.name)}</strong><span class="muted caption">${esc(r.job)}</span><span class="subtle caption">Signed in as ${esc(r.person)}</span></button>`).join('')}
+          </div>
+        </div>`;
+      }
+
+      /* ---------- Shell ---------- */
+      function renderShell(inner) {
+        const r = role();
+        const s = route().s;
+        const prototypeNav = r.nav.filter((k) => !NAV[k].app);
+        const appNav = r.nav.filter((k) => NAV[k].app);
+        const link = (k) => `<a href="#${new URLSearchParams({ role: r.key, s: k }).toString()}" ${s === k ? 'aria-current="page"' : ''}>${icon(NAV[k].icon)}<span>${esc(NAV[k].label)}</span>${NAV[k].app ? `<span class="tag">${badge('In the app', 'accent')}</span>` : ''}</a>`;
+        const execOrGm = r.key === 'executive' || r.key === 'general_manager';
+        return `<div class="shell" id="shell">
+          <aside class="sidebar" aria-label="Main menu">
+            <div class="brand"><span class="brand-mark">S</span>Shakti Prime</div>
+            <nav class="nav">${prototypeNav.map(link).join('')}
+              ${appNav.length ? `<div class="nav-group">Working in the review system</div>${appNav.map(link).join('')}` : ''}
+            </nav>
+            <div class="sidebar-foot">
+              <div class="row"><span class="avatar">${esc(r.person.split(' ').map((p) => p[0]).slice(0, 2).join(''))}</span><div class="grow"><div style="font-weight:500">${esc(r.person)}</div><div class="caption muted">${esc(r.name)}</div></div></div>
+              <button class="btn sm" style="margin-top:10px;width:100%" data-act="change-role">Change role</button>
+            </div>
+          </aside>
+          <div class="scrim" data-act="close-nav"></div>
+          <div class="main">
+            <header class="topbar">
+              <button class="btn ghost icon menu-btn" data-act="open-nav" aria-label="Open the menu">${icon('menu')}</button>
+              <select class="input company" data-act="company" aria-label="Company">
+                <option value="all" ${state.company === 'all' ? 'selected' : ''}>All companies</option>
+                ${COMPANIES.map((c) => `<option value="${c.code}" ${state.company === c.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+              </select>
+              <button class="searchbox" data-act="search" aria-label="Search">${icon('search')}<span>Search phone, name or village</span><span class="kbd">Ctrl K</span></button>
+              <span class="proto-tag">${badge('Prototype', 'warning')}</span>
+              ${execOrGm ? `<button class="btn ghost icon" data-act="mic" aria-label="Talk to Shakti" title="Talk to Shakti">${icon('mic')}</button>` : ''}
+              <button class="btn ghost icon" data-act="suggest" aria-label="AI suggestions" title="AI suggestions">${icon('spark')}</button>
+              <button class="btn ghost icon" data-act="bell" aria-label="Notifications" title="Notifications">${icon('bell')}</button>
+              ${themeButton()}
+              <div id="pop"></div>
+            </header>
+            <main class="content" id="content">${inner}</main>
+          </div>
+        </div>`;
+      }
+
+      /* ---------- Screens ---------- */
+      function head(title, sub, right) {
+        return `<div class="page-head"><div><h1>${esc(title)}</h1>${sub ? `<p class="muted">${sub}</p>` : ''}</div>${right ? `<div class="row">${right}</div>` : ''}</div>`;
+      }
+      function tile(label, value, foot, kind) {
+        return `<div class="tile ${kind || ''}"><div class="label">${esc(label)}</div><div class="value">${value}</div>${foot ? `<div class="foot">${foot}</div>` : ''}</div>`;
+      }
+      const companyLabel = () => (state.company === 'all' ? 'All companies' : coName(state.company));
+      function sumStats(key) {
+        return COMPANIES.filter((c) => inCo(c.code)).reduce((s, c) => s + CO_STATS[c.code][key], 0);
+      }
+
+      function screenExecutiveHome() {
+        const cos = COMPANIES.filter((c) => inCo(c.code));
+        const byStage = [['New', 420, 'stage-new'], ['Contacted', 610, 'stage-contacted'], ['Qualified', 288, 'stage-qualified'], ['Quoted', 324, 'stage-quoted'], ['Won', 97, 'stage-won']];
+        const maxS = Math.max(...byStage.map((b) => b[1]));
+        const held = ORDERS.filter((o) => o.status === 'hold' && inCo(o.co));
+        return head('Good morning, Rajendra', `${esc(companyLabel())} · September 2026 · figures as of ${TODAY} 10:00`) +
+          `<div class="tiles">
+            ${tile('Sales order value this month', inr0(sumStats('orders')), 'Confirmed and later')}
+            ${tile('New leads this month', sumStats('leads').toLocaleString('en-IN'))}
+            ${tile('Waiting for a first call', sumStats('waiting').toLocaleString('en-IN'), 'Across all callers', sumStats('waiting') > 60 ? 'warning' : '')}
+            ${tile('Quotes sent this month', sumStats('quotes').toLocaleString('en-IN'))}
+            ${tile('Payments received this month', inr0(sumStats('collections')))}
+            ${tile('Margin on invoiced orders', (cos.reduce((s, c) => s + CO_STATS[c.code].margin * CO_STATS[c.code].orders, 0) / cos.reduce((s, c) => s + CO_STATS[c.code].orders, 0)).toFixed(1) + '%', 'Executives and Accounts only')}
+          </div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><div class="card-head"><h3>By company</h3></div>
+              <div class="table-wrap"><table class="dg compact"><thead><tr><th>Company</th><th class="num">Leads</th><th class="num">Quotes</th><th class="num">Order value</th><th class="num">Margin</th></tr></thead><tbody>
+              ${cos.map((c) => `<tr><td class="lead" data-label=""><span class="row">${coDot(c.code)}${esc(c.name)}</span></td><td class="num" data-label="Leads">${CO_STATS[c.code].leads}</td><td class="num" data-label="Quotes">${CO_STATS[c.code].quotes}</td><td class="num" data-label="Order value">${inr0(CO_STATS[c.code].orders)}</td><td class="num" data-label="Margin">${CO_STATS[c.code].margin.toFixed(1)}%</td></tr>`).join('')}
+              </tbody></table></div>
+            </div>
+            <div class="card"><div class="card-head"><h3>Open leads by stage</h3><span class="caption muted">All four pipelines</span></div>
+              ${byStage.map((b) => `<div style="margin-bottom:10px"><div class="spread caption"><span>${b[0]}</span><span class="num">${b[1]}</span></div><div class="bar"><span style="width:${(b[1] / maxS) * 100}%;background:var(--${b[2]})"></span></div></div>`).join('')}
+            </div>
+          </div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><div class="card-head"><h3>Waiting for you</h3></div>
+              ${held.length ? `<ul class="list">${held.map((o) => `<li>${coDot(o.co)}<div class="grow"><div style="font-weight:500">${esc(o.no)}</div><div class="caption muted">${esc(account(o.acct).name)} · ${inr0(orderTotal(o))} · on hold for credit</div></div><button class="btn sm" data-act="goto" data-s="credit">Review</button></li>`).join('')}</ul>` : `<div class="empty"><p>Nothing is waiting for you.</p></div>`}
+            </div>
+            <div class="card"><div class="card-head"><h3>AI assistants this month</h3>${badge('Suggest only', 'info')}</div>
+              <ul class="list">
+                <li><div class="grow">Lead sorting suggestions</div><span class="num">1,212</span></li>
+                <li><div class="grow">Accepted without changes</div><span class="num">88%</span></li>
+                <li><div class="grow">AI spend this month</div><span class="num">${inr0(38400)}</span></li>
+              </ul>
+            </div>
+          </div>`;
+      }
+
+      function screenGmHome() {
+        const overdue = OVERDUE_CALLBACKS.filter((o) => inCo(o.co));
+        const drafts = ORDERS.filter((o) => o.status === 'draft' && inCo(o.co)).length;
+        return head('Operations today', `${esc(companyLabel())} · ${TODAY}`) +
+          `<div class="tiles">
+            ${tile('Callbacks overdue', overdue.length, 'Owner has been told', overdue.length ? 'danger' : '')}
+            ${tile('First call within 2 hours', '91%', 'Target 95%', 'warning')}
+            ${tile('Sales orders in draft', drafts, 'Waiting to be confirmed')}
+            ${tile('Dispatches ready', '3', 'Jaipur godown')}
+          </div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Overdue callbacks</h3><span class="caption muted">Oldest first</span></div>
+          ${overdue.length ? `<div class="table-wrap"><table class="dg compact"><thead><tr><th>Lead</th><th>Village</th><th>Owner</th><th>Callback was due</th><th class="num">Late by</th><th></th></tr></thead><tbody>
+            ${overdue.map((o) => `<tr><td class="lead" data-label=""><span class="row">${coDot(o.co)}<span class="dot sla-breach"></span>${esc(o.lead)}</span></td><td data-label="Village">${esc(o.place)}</td><td data-label="Owner"><span class="row"><span class="avatar">${initials(o.owner)}</span>${esc(STAFF[o.owner].name)}</span></td><td data-label="Callback was due">${esc(o.due)}</td><td class="num" data-label="Late by">${esc(o.late)}</td><td data-label=""><button class="btn sm" data-act="nudge" data-name="${esc(STAFF[o.owner].name)}">Remind owner</button></td></tr>`).join('')}
+          </tbody></table></div>` : `<div class="empty"><p>No overdue callbacks in ${esc(companyLabel())}.</p></div>`}
+          </div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><h3>Escalations</h3><ul class="list">
+              <li><span class="dot sla-breach"></span><div class="grow"><div>Engineer visit missed at Malpura</div><div class="caption muted">Gopal Lal Bairwa · reported 26-09-2026 18:10</div></div></li>
+              <li><span class="dot sla-warn"></span><div class="grow"><div>Dispatch waiting for an e-way bill</div><div class="caption muted">SMP/SO/2026-27/0229 · since 09:30</div></div></li>
+            </ul></div>
+            <div class="card"><h3>Team on the phones</h3><ul class="list">
+              <li><div class="grow">Callers present</div><span class="num">41 of 45</span></li>
+              <li><div class="grow">Calls made so far</div><span class="num">1,386</span></li>
+              <li><div class="grow">Leads qualified so far</div><span class="num">112</span></li>
+            </ul></div>
+          </div>`;
+      }
+
+      function screenTeamLeadHome() {
+        return head('My team today', `${esc(companyLabel())} · ${TODAY} · updated every minute`) +
+          `<div class="tiles">
+            ${tile('Calls made', CALLERS.reduce((s, c) => s + c.calls, 0), 'Target 600 for the day')}
+            ${tile('Leads qualified', CALLERS.reduce((s, c) => s + c.qualified, 0), 'Target 40 for the day')}
+            ${tile('In the queue', '146', '32 callbacks due before 12:00')}
+            ${tile('Converters on leave', '1', 'Nisha Agarwal', 'warning')}
+          </div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Leaderboard, cold calling</h3><span class="caption muted">Calls today</span></div>
+            <div class="table-wrap"><table class="dg"><thead><tr><th>Caller</th><th style="width:34%">Calls against target</th><th class="num">Answered</th><th class="num">Qualified</th></tr></thead><tbody>
+            ${CALLERS.map((c) => { const pct = Math.round((c.calls / c.target) * 100); const behind = pct < 50; return `<tr><td class="lead" data-label=""><span class="row"><span class="avatar">${initials(c.k)}</span>${esc(STAFF[c.k].name)}${behind ? badge('Behind target', 'warning') : ''}</span></td><td data-label="Calls"><div class="row" style="flex-wrap:nowrap"><div class="bar grow ${behind ? 'warn' : 'ok'}" style="min-width:60px"><span style="width:${pct}%"></span></div><span class="num caption">${c.calls} / ${c.target}</span></div></td><td class="num" data-label="Answered">${c.connected}</td><td class="num" data-label="Qualified">${c.qualified} / ${c.qTarget}</td></tr>`; }).join('')}
+            </tbody></table></div>
+          </div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><h3>Converters</h3><ul class="list">
+              <li><span class="avatar">KR</span><div class="grow">Kavita Rathore<div class="caption muted">14 open leads · 4 quotes today</div></div>${badge('Present', 'success')}</li>
+              <li><span class="avatar">RJ</span><div class="grow">Rohit Jangid<div class="caption muted">11 open leads · 2 quotes today</div></div>${badge('Present', 'success')}</li>
+              <li><span class="avatar">NA</span><div class="grow">Nisha Agarwal<div class="caption muted">6 open leads · new leads paused</div></div>${badge('On leave', 'warning')}</li>
+            </ul><button class="btn" style="margin-top:8px" data-act="goto" data-s="board">Open the lead board</button></div>
+            <div class="card"><h3>Needs your attention</h3><ul class="list">
+              <li><span class="dot sla-breach"></span><div class="grow">2 callbacks overdue by more than 12 hours</div></li>
+              <li><span class="dot sla-warn"></span><div class="grow">Deepak Saini has 41 calls by 10:00</div></li>
+              <li><span class="dot sla-warn"></span><div class="grow">6 leads with Nisha Agarwal while she is on leave</div></li>
+            </ul></div>
+          </div>`;
+      }
+
+      /* Cold-calling workspace */
+      function ccLead() { return QUEUE[state.cc.index]; }
+      function scriptLines(l) {
+        const first = callName(l.name);
+        if (l.lang === 'en') {
+          return [
+            ['Opening', `Good morning, ${first} ji. This is Priya from ${coName(l.co)}. You asked us about a solar pump. Do you have two minutes to talk now?`],
+            ['Need', 'How deep is your borewell, and at how many feet is the water?'],
+            ['Need', 'Which pump do you run now, electric or diesel, and how many HP?'],
+            ['If asked about subsidy', 'There is a government scheme for solar pumps. Our team will explain the steps and the papers you need after we know your pump size.'],
+            ['Close', `Thank you, ${first} ji. Our pump expert will call you today with the right size and price.`],
+          ];
+        }
+        return [
+          ['Opening', `Namaste ${first} ji, main ${coName(l.co)} se Priya bol rahi hoon. Aapne solar pump ke baare mein poocha tha. Kya abhi do minute baat kar sakte hain?`],
+          ['Need', 'Aapke borewell ki gehraai kitni hai, aur paani kitne feet par hai?'],
+          ['Need', 'Abhi aap kheti ke liye bijli ka pump chalate hain ya diesel ka? Kitne HP ka hai?'],
+          ['If asked about subsidy', 'Solar pump ke liye sarkari yojana hai. Aapke pump ka size pata chalne ke baad hamari team aapko poori jaankari aur zaroori kaagaz bata degi.'],
+          ['Close', `Theek hai ${first} ji, dhanyavaad. Hamare pump expert aaj hi aapko sahi size aur price ke saath call karenge.`],
+        ];
+      }
+      function screenCalling() {
+        const list = QUEUE.filter((q) => inCo(q.co));
+        if (!list.length) return head('Calling', esc(companyLabel())) + `<div class="card empty"><p>No calls due right now. New leads appear here as they come in.</p></div>`;
+        if (!inCo(ccLead().co)) state.cc.index = QUEUE.indexOf(list[0]);
+        const l = ccLead();
+        const res = state.cc.results[l.id];
+        const done = Object.keys(state.cc.results).length;
+        const lines = scriptLines(l);
+        return head('Calling', `${esc(companyLabel())} · ${list.length - list.filter((q) => state.cc.results[q.id]).length} leads due`,
+            `<span class="caption muted hide-phone">Keys: <span class="kbd">D</span> call · <span class="kbd">1</span>–<span class="kbd">8</span> outcome · <span class="kbd">N</span> next lead · <span class="kbd">/</span> search</span>`) +
+          `<div class="tiles" style="margin-bottom:16px">
+            ${tile('Calls today', 64 + done + ' / 120', '', '')}
+            ${tile('Answered', 38 + done, '')}
+            ${tile('Qualified today', 5 + Object.values(state.cc.results).filter((r) => r === 8).length + ' / 8', '')}
+          </div>
+          <div class="cols-3">
+            <section class="card" aria-label="Queue"><div class="card-head"><h3>Queue</h3><span class="caption muted">By priority</span></div>
+              <ul class="list queue">${list.map((q) => `<li data-act="pick-lead" data-id="${q.id}" aria-current="${q.id === l.id}" class="${state.cc.results[q.id] ? 'done' : ''}">${coDot(q.co)}<div class="grow"><div style="font-weight:500">${esc(q.name)}</div><div class="caption muted">${esc(q.village)} · ${esc(q.source)}</div></div><div class="right"><div class="num caption">${q.score}</div><div class="caption ${q.due === 'Now' ? '' : 'muted'}">${state.cc.results[q.id] ? 'Done' : esc(q.due)}</div></div></li>`).join('')}</ul>
+            </section>
+            <section class="card" aria-label="Current lead">
+              <div class="spread"><div><h2>${esc(l.name)}</h2><div class="muted">${esc(l.village)}, ${esc(l.district)} · ${coDot(l.co)} ${esc(coName(l.co))}</div></div>${badge('Priority ' + l.score, 'accent')}</div>
+              <div class="row" style="margin-top:12px">${badge(l.source)}${badge(l.lang === 'en' ? 'Calls in English' : 'Calls in Hinglish', 'info')}${l.consent ? badge('Agreed to calls', 'success') : badge('No consent recorded', 'warning')}</div>
+              <p class="muted" style="margin-top:10px">${esc(l.note)}</p>
+              <div style="margin-top:12px">${state.cc.onCall
+                ? `<div class="call-bar">${icon('phone')}<span class="grow">On call with ${esc(maskPhone(l.phone))} · <span id="call-time">00:00</span></span><button class="btn sm" data-act="end-call">End call</button></div>`
+                : `<div class="row"><button class="btn primary" data-act="dial">${icon('phone')}Call <span class="kbd" style="margin-left:4px">D</span></button><span class="caption muted">${esc(maskPhone(l.phone))} · from the ${l.consent ? 'service line' : 'promotional line'}</span></div>`}</div>
+              <h3 style="margin-top:20px">What the customer needs</h3>
+              <div class="form-grid" style="margin-top:8px">
+                <div class="field"><label for="f-hp">Pump size</label><select class="input" id="f-hp" data-bind="hp"><option value="">Not asked yet</option>${['3 HP', '5 HP', '7.5 HP', '10 HP'].map((h) => `<option ${l.hp === h ? 'selected' : ''}>${h}</option>`).join('')}</select></div>
+                <div class="field"><label for="f-depth">Borewell depth (ft)</label><input class="input" id="f-depth" inputmode="numeric" data-bind="depth" value="${esc(l.depth)}" /></div>
+                <div class="field"><label for="f-water">Water level (ft)</label><input class="input" id="f-water" inputmode="numeric" data-bind="water" value="${esc(l.water)}" /></div>
+                <div class="field"><label for="f-village">Village</label><input class="input" id="f-village" value="${esc(l.village)}" /></div>
+              </div>
+              <div id="qual-error"></div>
+              <h3 style="margin-top:20px">How did the call go</h3>
+              <div class="dispositions" style="margin-top:8px">${DISPOSITIONS.map((d) => `<button class="btn ${res === d.k ? 'picked' : ''}" data-act="dispo" data-k="${d.k}"><span class="kbd">${d.k}</span>${esc(d.label)}</button>`).join('')}</div>
+              <div class="spread" style="margin-top:16px"><span class="caption muted">${res ? 'Recorded: ' + esc(DISPOSITIONS[res - 1].label) : 'Choose an outcome, then go to the next lead.'}</span><button class="btn" data-act="next-lead">Next lead <span class="kbd">N</span></button></div>
+            </section>
+            <section class="card" aria-label="Call script">
+              <div class="card-head"><h3>Script</h3><span class="caption muted">${l.lang === 'en' ? 'English, as the customer prefers' : 'Hinglish'}</span></div>
+              <div class="script">${lines.map(([step, text]) => `<p class="step">${esc(step)}</p><p>${esc(text)}</p>`).join('')}</div>
+              <p class="caption muted" style="margin-top:10px">Read it in your own voice. Ask one question at a time.</p>
+            </section>
+          </div>`;
+      }
+      function recordDisposition(k) {
+        const l = ccLead();
+        if (k === 8) {
+          const missing = [];
+          if (!l.hp) missing.push('pump size');
+          if (!l.depth) missing.push('borewell depth');
+          if (missing.length) {
+            const el = document.getElementById('qual-error');
+            if (el) el.innerHTML = `<p class="error" style="margin-top:8px">${icon('alert')}Add the ${missing.join(' and ')} before marking this lead Qualified.</p>`;
+            return;
+          }
+          state.cc.results[l.id] = 8;
+          render();
+          dialog('Lead qualified', `<p>${esc(l.name)} is now with <strong>Kavita Rathore</strong>, a lead converter, chosen by turn. She keeps the lead for the next 48 hours.</p><p class="muted" style="margin-top:8px">${esc(l.hp)}, borewell ${esc(l.depth)} ft, ${esc(l.village)}.</p>`, `<button class="btn primary" data-close="1">Next lead</button>`);
+          return;
+        }
+        state.cc.results[l.id] = k;
+        if (k === 2) toast(`Callback set for 28-09-2026 at 11:00 for ${l.name}.`);
+        else toast(`Recorded: ${DISPOSITIONS[k - 1].label}. Press N for the next lead.`);
+        render();
+      }
+      function nextLead() {
+        stopCall();
+        const list = QUEUE.filter((q) => inCo(q.co));
+        const cur = list.indexOf(ccLead());
+        const rest = list.slice(cur + 1).concat(list.slice(0, cur + 1));
+        const nxt = rest.find((q) => !state.cc.results[q.id]);
+        if (!nxt) { toast('No calls due right now. New leads appear here as they come in.'); return; }
+        state.cc.index = QUEUE.indexOf(nxt);
+        render();
+      }
+      function startCall() {
+        if (state.cc.onCall) return;
+        state.cc.onCall = true;
+        state.cc.callStart = Date.now();
+        render();
+        callTimer = setInterval(() => {
+          const el = document.getElementById('call-time');
+          if (!el) return;
+          const s = Math.floor((Date.now() - state.cc.callStart) / 1000);
+          el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+        }, 500);
+      }
+      function stopCall() {
+        state.cc.onCall = false;
+        clearInterval(callTimer);
+      }
+
+      /* Lead board */
+      function screenBoard() {
+        const r = role();
+        const me = r.key === 'tele_caller_lc' ? 'KR' : null;
+        const leads = LEADS.filter((l) => l.pipe === state.board.pipe && inCo(l.co) && (!state.board.mine || !me || l.owner === me));
+        return head('Lead board', `${esc(companyLabel())} · drag a card to move it, or open it for more`,
+            `<select class="input" style="width:auto" data-act="pipe" aria-label="Pipeline">${PIPELINES.map((p) => `<option value="${p.key}" ${state.board.pipe === p.key ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+             ${me ? `<div class="chips"><button class="chip" aria-pressed="${!state.board.mine}" data-act="mine" data-v="0">Team</button><button class="chip" aria-pressed="${state.board.mine}" data-act="mine" data-v="1">My leads</button></div>` : ''}`) +
+          `<div class="board">${STAGES.map((st) => {
+            const cards = leads.filter((l) => l.stage === st.key);
+            return `<section class="column st-${st.key}" data-drop="${st.key}" aria-label="${esc(st.name)}"><div class="column-head"><span>${esc(st.name)}</span><span class="caption muted num">${cards.length}</span></div><div class="column-body">
+              ${cards.length ? cards.map((l) => `<button class="kcard" draggable="true" data-drag="${l.id}" data-act="open-lead" data-id="${l.id}"><div class="spread" style="flex-wrap:nowrap;align-items:flex-start"><span class="name">${esc(l.name)}</span><span style="padding-top:6px">${coDot(l.co)}</span></div><div class="caption muted">${esc(l.place)}</div><div class="meta"><span>${esc(l.need)} · ${l.age === 0 ? 'today' : l.age + (l.age === 1 ? ' day' : ' days')}</span><span class="row" style="gap:6px"><span class="dot sla-${l.sla}" title="${l.sla === 'breach' ? 'Overdue' : l.sla === 'warn' ? 'Due soon' : 'On time'}"></span><span class="avatar" title="${esc(STAFF[l.owner].name)}">${initials(l.owner)}</span></span></div></button>`).join('') : `<p class="caption subtle" style="padding:8px 4px">No leads at this stage.</p>`}
+            </div></section>`;
+          }).join('')}</div>`;
+      }
+      function openLead(id) {
+        const l = LEADS.find((x) => x.id === id);
+        const r = role().key;
+        const canQuote = ['executive', 'tele_caller_lc', 'store_manager', 'sales_team_lead', 'general_manager'].includes(r);
+        const canAssign = ['executive', 'general_manager', 'sales_team_lead'].includes(r);
+        openLayer(`<aside class="sheet-panel" role="dialog" aria-modal="true" aria-label="${esc(l.name)}">
+          <div class="spread"><h2>${esc(l.name)}</h2><button class="btn ghost icon" data-close="1" aria-label="Close">${icon('x')}</button></div>
+          <p class="muted">${esc(l.place)} · ${coDot(l.co)} ${esc(coName(l.co))}</p>
+          <div class="row" style="margin-top:10px">${badge(STAGES.find((s) => s.key === l.stage).name, 'accent')}${badge(l.need)}${badge('Owner: ' + STAFF[l.owner].name)}</div>
+          <div class="callout" style="margin-top:16px">${icon('spark')}<div><div style="font-weight:500">Next step</div><div>${esc(l.next)}</div></div></div>
+          ${l.wa.length ? `<h3 style="margin-top:16px">WhatsApp</h3><ul class="list">${l.wa.map(([dir, text, t]) => `<li><div class="grow"><div class="caption muted">${dir === 'in' ? esc(l.name.split(' ')[0]) : 'Kavita'} · ${t}</div><div>${esc(text)}</div></div></li>`).join('')}</ul>` : ''}
+          <div class="stack" style="margin-top:16px">
+            <div class="field"><label for="mv">Move to stage</label><div class="row" style="flex-wrap:nowrap"><select class="input" id="mv">${STAGES.map((s) => `<option value="${s.key}" ${s.key === l.stage ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><button class="btn" data-act="move-lead" data-id="${l.id}">Move</button></div></div>
+            ${canAssign ? `<div class="field"><label for="ra">Give this lead to</label><div class="row" style="flex-wrap:nowrap"><select class="input" id="ra">${CONVERTERS.filter((c) => c !== l.owner).map((c) => `<option value="${c}">${esc(STAFF[c].name)}${c === 'NA' ? ' (on leave)' : ''}</option>`).join('')}</select><button class="btn" data-act="reassign" data-id="${l.id}">Reassign</button></div></div>` : ''}
+            <div class="row">${l.acct ? `<button class="btn" data-act="goto" data-s="customer" data-id="${l.acct}">Open customer</button>` : ''}${canQuote && l.acct ? `<button class="btn primary" data-act="quote-for" data-id="${l.acct}" data-co="${l.co}">Make a quote</button>` : ''}</div>
+          </div>
+        </aside>`, 'sheet');
+      }
+      function moveLead(id, to) {
+        const l = LEADS.find((x) => x.id === id);
+        if (l.stage === to) return;
+        if (to === 'won' && !ORDERS.some((o) => o.acct && o.acct === l.acct && o.status !== 'cancelled')) {
+          toast('Create a sales order before moving this lead to Won.');
+          return;
+        }
+        if (to === 'lost') {
+          dialog('Why was this lead lost?', `<div class="field"><label for="lost-r">Reason</label><select class="input" id="lost-r"><option>Bought from someone else</option><option>Price too high</option><option>Not ready this season</option><option>Could not reach after several tries</option></select></div>`,
+            `<button class="btn" data-close="1">Keep the lead</button><button class="btn danger" data-act="confirm-lost" data-id="${id}">Mark as lost</button>`);
+          return;
+        }
+        l.stage = to;
+        closeLayer();
+        render();
+        toast(`${l.name} moved to ${STAGES.find((s) => s.key === to).name}.`);
+      }
+
+      /* Customers */
+      function screenCustomers() {
+        const list = ACCOUNTS.filter((a) => a.rel.some((x) => inCo(x.co)));
+        return head('Customers', `${esc(companyLabel())} · one record per customer across the group`) +
+          `<div class="table-wrap"><table class="dg"><thead><tr><th>Customer</th><th>Type</th><th>Village or town</th><th>Companies</th><th>Looked after by</th></tr></thead><tbody>
+          ${list.map((a) => `<tr class="click" data-act="goto" data-s="customer" data-id="${a.id}"><td class="lead" data-label="">${esc(a.name)}</td><td data-label="Type">${esc(a.type)}</td><td data-label="Village">${esc(a.place)}</td><td data-label="Companies"><span class="row">${a.rel.map((x) => coDot(x.co)).join('')}</span></td><td data-label="Looked after by">${a.rel.map((x) => esc(STAFF[x.owner].name)).join(', ')}</td></tr>`).join('')}
+          </tbody></table></div>`;
+      }
+      function screenCustomer(id) {
+        const a = account(id) || ACCOUNTS[0];
+        const orders = ORDERS.filter((o) => o.acct === a.id);
+        return `<p class="caption"><a href="#" data-act="goto" data-s="customers">Customers</a> / ${esc(a.name)}</p>` +
+          head(a.name, `${esc(a.type)} · ${esc(a.place)} · ${esc(maskPhone(a.phone))} · calls in ${esc(a.lang)}`,
+            `<button class="btn" data-act="toast" data-msg="Calling ${esc(a.name)}.">${icon('phone')}Call</button>${['executive', 'tele_caller_lc', 'store_manager'].includes(role().key) ? `<button class="btn primary" data-act="quote-for" data-id="${a.id}" data-co="${a.rel[a.rel.length - 1].co}">Make a quote</button>` : ''}`) +
+          `<div class="row" style="margin-bottom:16px">${a.rel.map((x) => `<span class="badge">${coDot(x.co)} ${esc(coName(x.co))} · ${esc(STAFF[x.owner].name)} · since ${esc(x.since)}</span>`).join('')}</div>
+          <div class="cols-main">
+            <div class="stack">
+              <div class="card"><h3>Deals</h3><ul class="list">${a.deals.map(([c, what, st]) => `<li>${coDot(c)}<div class="grow"><div style="font-weight:500">${esc(what)}</div><div class="caption muted">${esc(coName(c))}</div></div>${badge(st, st === 'Won' ? 'success' : st === 'Quoted' ? 'info' : 'accent')}</li>`).join('')}</ul></div>
+              <div class="card"><h3>Timeline</h3><ul class="list">${a.timeline.map(([t, kind, text]) => `<li style="align-items:flex-start"><div class="grow"><div class="spread"><span style="font-weight:500">${esc(kind)}</span><span class="caption muted">${esc(t)}</span></div><div class="muted">${esc(text)}</div></div></li>`).join('')}</ul></div>
+              <div class="card"><h3>Sales orders</h3>${orders.length ? `<ul class="list">${orders.map((o) => `<li>${coDot(o.co)}<div class="grow"><a href="#" data-act="goto" data-s="order" data-id="${esc(o.no)}">${esc(o.no)}</a><div class="caption muted">${esc(o.date)} · ${inr(orderTotal(o))}</div></div>${badge(STATUS[o.status][0], STATUS[o.status][1])}</li>`).join('')}</ul>` : `<div class="empty"><p>No sales orders yet.</p></div>`}</div>
+            </div>
+            <div class="stack">
+              <div class="card"><h3>People</h3><ul class="list">${a.contacts.map(([n, r]) => `<li><span class="avatar">${esc(n.split(' ').map((p) => p[0]).slice(0, 2).join(''))}</span><div class="grow">${esc(n)}</div>${badge(r)}</li>`).join('')}</ul></div>
+              <div class="card"><h3>Sites</h3><ul class="list">${a.sites.map(([n, d]) => `<li style="align-items:flex-start">${icon('map')}<div class="grow"><div style="font-weight:500">${esc(n)}</div><div class="caption muted">${esc(d)}</div></div></li>`).join('')}</ul></div>
+              <div class="card"><h3>Loan</h3>${a.loan ? `<p>${esc(a.loan)}</p><div class="steps" style="margin-top:8px"><span class="now">Applied</span><span>Sanctioned</span><span>Paid out</span></div>` : `<div class="empty"><p>No loan for this customer.</p></div>`}</div>
+              <div class="card"><h3>Warranty claims</h3><div class="empty"><p>No warranty claims.</p></div></div>
+            </div>
+          </div>`;
+      }
+
+      /* Quote builder */
+      function screenQuote() {
+        const q = state.quote;
+        const a = account(q.acct);
+        const tier = a.type === 'Dealer' ? 'dealer' : a.type === 'Business' ? 'commercial' : 'retail';
+        const t = computeLines(q.lines, tier);
+        const site = a.sites[a.sites.length - 1];
+        const pumpLines = q.lines.map(([c]) => item(c)).filter((i) => i.hp);
+        const tooSmall = a.id === 'A1' && pumpLines.some((i) => i.hp < 7.5);
+        const qno = `${q.co}/Q/2026-27/0318`;
+        return head('Quote builder', `${esc(qno)} · ${esc(coName(q.co))} · valid until 12-10-2026`,
+            `${badge(q.sent ? 'Sent on WhatsApp' : q.saved ? 'Saved' : 'Not saved yet', q.sent ? 'info' : q.saved ? 'success' : '')}`) +
+          `<div class="cols-main">
+            <div class="stack">
+              <div class="card"><div class="form-grid">
+                <div class="field"><label for="q-cust">Customer</label><select class="input" id="q-cust" data-act="q-cust">${ACCOUNTS.map((x) => `<option value="${x.id}" ${x.id === q.acct ? 'selected' : ''}>${esc(x.name)}, ${esc(x.place)}</option>`).join('')}</select></div>
+                <div class="field"><label for="q-co">Selling company</label><select class="input" id="q-co" data-act="q-co">${COMPANIES.map((c) => `<option value="${c.code}" ${c.code === q.co ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+                <div class="field full"><label>Price tier</label><div class="row">${badge(TIER[tier], 'accent')}<span class="help">Set by the customer type (${esc(a.type)}). Prices come from the Price Master and cannot be changed on a quote.</span></div></div>
+              </div></div>
+              <div class="card"><div class="card-head"><h3>Items</h3></div>
+                <div class="table-wrap"><table class="dg"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+                ${t.rows.length ? t.rows.map((r, i) => `<tr><td class="lead" data-label="">${esc(r.name)}</td><td class="num" data-label="Qty"><input class="input" style="width:64px;text-align:right;height:30px" type="number" min="1" value="${r.qty}" data-act="q-qty" data-i="${i}" aria-label="Quantity" /></td><td class="num" data-label="Price"><span class="locked" title="From the Price Master">${icon('lock')}${inr(r.price)}</span></td><td class="num" data-label="Amount">${inr(r.amount)}</td><td data-label=""><button class="btn ghost sm" data-act="q-remove" data-i="${i}" aria-label="Remove ${esc(r.name)}">${icon('x')}</button></td></tr>`).join('') : `<tr><td colspan="5" data-label=""><div class="empty"><p>Add the first item to start the quote.</p></div></td></tr>`}
+                </tbody></table></div>
+                <div class="row" style="margin-top:12px"><select class="input grow" id="q-add" aria-label="Item to add" style="max-width:360px">${ITEMS.map((i) => `<option value="${i.code}">${esc(i.name)}</option>`).join('')}</select><button class="btn" data-act="q-add">${icon('plus')}Add item</button></div>
+              </div>
+              <div class="card"><div class="totals">
+                <div><span class="muted">Taxable value</span><span class="num">${inr(t.taxable)}</span></div>
+                <div><span class="muted">CGST at ${GST_RATE / 2}%</span><span class="num">${inr(t.cgst)}</span></div>
+                <div><span class="muted">SGST at ${GST_RATE / 2}%</span><span class="num">${inr(t.sgst)}</span></div>
+                <div><span class="muted">Round off</span><span class="num">${inr(t.roundOff)}</span></div>
+                <div class="grand"><span>Total</span><span class="num">${inr(t.grand)}</span></div>
+              </div><p class="help right" style="margin-top:6px">Tax as on the quote date. The quote keeps these amounts even if a rate changes later.</p></div>
+            </div>
+            <div class="stack">
+              <div class="card"><h3>Site check</h3>
+                <p class="muted" style="margin-top:8px">${esc(site[0])}: ${esc(site[1])}</p>
+                <div style="margin-top:10px">${tooSmall ? `<div class="callout warn">${icon('alert')}<div>A pump smaller than 7.5 HP may not lift water from this depth. Check the size before sending, or send it for review.</div></div>` : `<div class="callout ok">${icon('check')}<div>The pump size fits this site.</div></div>`}</div>
+              </div>
+              <div class="card"><h3>Next</h3>
+                <div class="stack" style="margin-top:12px">
+                  <button class="btn" style="width:100%" data-act="q-save">Save quote</button>
+                  <button class="btn primary" style="width:100%" data-act="q-send" ${t.rows.length ? '' : 'disabled'}>Send on WhatsApp</button>
+                  <button class="btn" style="width:100%" data-act="q-accept" ${q.sent ? '' : 'disabled'}>Customer accepted</button>
+                  <p class="help">${q.sent ? 'When the customer replies YES on WhatsApp, the sales order is made for you.' : 'Send the quote first. The customer can accept by replying on WhatsApp.'}</p>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      /* Sales orders */
+      function screenOrders() {
+        const filters = [['all', 'All'], ['draft', 'Draft'], ['hold', 'On hold'], ['confirmed', 'Confirmed'], ['partly', 'Partly dispatched'], ['dispatched', 'Dispatched'], ['invoiced', 'Invoiced'], ['closed', 'Closed']];
+        const list = ORDERS.filter((o) => inCo(o.co) && (state.orderFilter === 'all' || o.status === state.orderFilter));
+        return head('Sales orders', esc(companyLabel())) +
+          `<div class="chips" style="margin-bottom:12px">${filters.map(([k, n]) => `<button class="chip" aria-pressed="${state.orderFilter === k}" data-act="ofilter" data-k="${k}">${esc(n)}</button>`).join('')}</div>
+          ${list.length ? `<div class="table-wrap"><table class="dg"><thead><tr><th>Sales order</th><th>Customer</th><th>Date</th><th class="num">Value</th><th>Status</th></tr></thead><tbody>
+          ${list.map((o) => `<tr class="click" data-act="goto" data-s="order" data-id="${esc(o.no)}"><td class="lead" data-label=""><span class="row">${coDot(o.co)}${esc(o.no)}</span></td><td data-label="Customer">${esc(account(o.acct).name)}</td><td data-label="Date">${esc(o.date)}</td><td class="num" data-label="Value">${inr(orderTotal(o))}</td><td data-label="Status">${badge(STATUS[o.status][0], STATUS[o.status][1])}</td></tr>`).join('')}
+          </tbody></table></div>` : `<div class="card empty"><p>No sales orders match this filter.</p></div>`}`;
+      }
+      function holdReason(o) {
+        const a = account(o.acct);
+        const d = DEALERS.find((x) => x.name === a.name);
+        if (!d) return '';
+        if (d.overdue > 0) return `This order is on hold. ${a.name} has ${inr0(d.overdue)} overdue for more than ${d.days} days. An Executive can release it.`;
+        const over = d.outstanding + orderTotal(o) - d.limit;
+        return `This order is on hold. ${a.name} would go ${inr0(over)} over its credit limit of ${inr0(d.limit)}. An Executive can release it.`;
+      }
+      function screenOrder(no) {
+        const o = ORDERS.find((x) => x.no === no) || ORDERS[0];
+        const a = account(o.acct);
+        const t = computeLines(o.lines.map(([c, q]) => [c, q]), o.tier);
+        const flow = ['draft', 'confirmed', 'dispatched', 'invoiced', 'closed'];
+        const pos = { draft: 0, hold: 0, confirmed: 1, partly: 1, dispatched: 2, invoiced: 3, closed: 4, cancelled: -1 }[o.status];
+        const names = ['Draft', 'Confirmed', 'Dispatched', 'Invoiced', 'Closed'];
+        const r = role().key;
+        const canConfirm = ['executive', 'general_manager', 'tele_caller_lc', 'store_manager', 'sales_team_lead'].includes(r);
+        return `<p class="caption"><a href="#" data-act="goto" data-s="orders">Sales orders</a> / ${esc(o.no)}</p>` +
+          head(o.no, `${coDot(o.co)} ${esc(coName(o.co))} · ${esc(a.name)} · ${esc(o.date)} · ${esc(TIER[o.tier])}`, badge(STATUS[o.status][0], STATUS[o.status][1])) +
+          (o.status === 'hold' ? `<div class="callout warn" style="margin-bottom:16px">${icon('alert')}<div class="grow"><div>${esc(holdReason(o))}</div>${canRelease() ? `<button class="btn sm" style="margin-top:8px" data-act="release" data-no="${esc(o.no)}">Release this order</button>` : ''}</div></div>` : '') +
+          (o.waiting ? `<div class="callout" style="margin-bottom:16px">${icon('box')}<div>Waiting for stock: ${esc(o.waiting)}</div></div>` : '') +
+          `<div class="card" style="margin-bottom:16px"><div class="steps">${o.status === 'cancelled' ? `<span class="now">Cancelled</span>` : names.map((n, i) => `<span class="${i < pos ? 'done' : i === pos ? 'now' : ''}">${n}${i === 2 && o.status === 'partly' ? ' (partly)' : ''}</span>`).join('')}</div></div>
+          <div class="cols-main">
+            <div class="card"><h3>Items</h3>
+              <div class="table-wrap" style="margin-top:12px"><table class="dg"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Dispatched</th><th class="num">To dispatch</th><th class="num">Price</th><th class="num">Amount</th></tr></thead><tbody>
+              ${o.lines.map(([c, q, d], i) => `<tr><td class="lead" data-label="">${esc(item(c).name)}</td><td class="num" data-label="Ordered">${q}</td><td class="num" data-label="Dispatched">${d}</td><td class="num" data-label="To dispatch">${q - d}</td><td class="num" data-label="Price">${inr(t.rows[i].price)}</td><td class="num" data-label="Amount">${inr(t.rows[i].amount)}</td></tr>`).join('')}
+              </tbody></table></div>
+            </div>
+            <div class="stack">
+              <div class="card"><h3>Amount</h3><div class="totals" style="margin-top:8px;max-width:none">
+                <div><span class="muted">Taxable value</span><span class="num">${inr(t.taxable)}</span></div>
+                <div><span class="muted">CGST at ${GST_RATE / 2}%</span><span class="num">${inr(t.cgst)}</span></div>
+                <div><span class="muted">SGST at ${GST_RATE / 2}%</span><span class="num">${inr(t.sgst)}</span></div>
+                <div><span class="muted">Round off</span><span class="num">${inr(t.roundOff)}</span></div>
+                <div class="grand"><span>Total</span><span class="num">${inr(t.grand)}</span></div>
+              </div></div>
+              ${o.status === 'draft' && canConfirm ? `<div class="card"><h3>Next</h3><div class="row" style="margin-top:12px"><button class="btn primary" data-act="confirm-order" data-no="${esc(o.no)}">Confirm order</button><button class="btn" data-act="cancel-order" data-no="${esc(o.no)}">Cancel order</button></div><p class="help" style="margin-top:8px">Dealer orders are checked against the dealer's credit when you confirm.</p></div>` : ''}
+            </div>
+          </div>`;
+      }
+
+      /* Dealer credit */
+      function dealerStatus(d) {
+        const used = d.outstanding / d.limit;
+        if (d.overdue > 0) return ['Overdue', 'danger'];
+        if (used > 1) return ['Over limit', 'danger'];
+        if (used >= 0.85) return ['Near limit', 'warning'];
+        return ['Within limit', 'success'];
+      }
+      function screenCredit() {
+        const ds = DEALERS.filter((d) => inCo(d.co));
+        const held = ORDERS.filter((o) => o.status === 'hold' && inCo(o.co));
+        return head('Dealer credit', `${esc(companyLabel())} · outstanding entered by Accounts until the Tally link is live`) +
+          `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>Orders on hold</h3>${canRelease() ? '' : `<span class="caption muted">Only an Executive can release a held order.</span>`}</div>
+            ${held.length ? `<ul class="list">${held.map((o) => `<li style="align-items:flex-start">${coDot(o.co)}<div class="grow"><a href="#" data-act="goto" data-s="order" data-id="${esc(o.no)}">${esc(o.no)}</a> · <span class="num">${inr(orderTotal(o))}</span><div class="muted">${esc(holdReason(o))}</div></div>${canRelease() ? `<button class="btn sm" data-act="release" data-no="${esc(o.no)}">Release</button>` : ''}</li>`).join('')}</ul>` : `<div class="empty"><p>No dealer orders are on hold.</p></div>`}
+          </div>
+          <div class="table-wrap"><table class="dg"><thead><tr><th>Dealer</th><th class="num">Credit limit</th><th class="num">Outstanding</th><th style="width:16%">Used</th><th class="num">Overdue</th><th class="num">Oldest bill</th><th>Status</th></tr></thead><tbody>
+          ${ds.map((d) => { const st = dealerStatus(d); const pct = Math.min(100, Math.round((d.outstanding / d.limit) * 100)); return `<tr><td class="lead" data-label=""><span class="row">${coDot(d.co)}<span>${esc(d.name)}<div class="caption muted">${esc(d.place)}</div></span></span></td><td class="num" data-label="Credit limit">${inr0(d.limit)}</td><td class="num" data-label="Outstanding">${inr0(d.outstanding)}</td><td data-label="Used"><div class="row" style="flex-wrap:nowrap"><div class="bar grow ${pct >= 85 ? 'warn' : 'ok'}" style="min-width:48px"><span style="width:${pct}%"></span></div><span class="caption num">${pct}%</span></div></td><td class="num" data-label="Overdue">${d.overdue ? inr0(d.overdue) : '–'}</td><td class="num" data-label="Oldest bill">${d.oldest} days (terms ${d.days})</td><td data-label="Status">${badge(st[0], st[1])}</td></tr>`; }).join('')}
+          </tbody></table></div>`;
+      }
+      function releaseDialog(no) {
+        dialog('Release this order', `<p>${esc(holdReason(ORDERS.find((o) => o.no === no)))}</p><div class="field" style="margin-top:12px"><label for="rel-r">Why are you releasing it?</label><textarea class="input" id="rel-r"></textarea><span class="help">Your name and the reason are kept in the activity log.</span></div><div id="rel-err"></div>`,
+          `<button class="btn" data-close="1">Keep on hold</button><button class="btn primary" data-act="do-release" data-no="${esc(no)}">Release order</button>`);
+      }
+
+      /* Store Manager */
+      function screenStoreHome() {
+        const list = WALKINS.filter((w) => inCo(w.co));
+        return head('Store counter', `Jaipur office · ${TODAY}`) +
+          `<div class="cols-main">
+            <div class="card"><div class="card-head"><h3>New walk-in</h3><span class="caption muted" id="walk-timer">Takes under 30 seconds</span></div>
+              <form class="form-grid" data-form="walkin" autocomplete="off">
+                <div class="field"><label for="w-name">Customer name</label><input class="input" id="w-name" name="name" required /></div>
+                <div class="field"><label for="w-phone">Mobile number</label><input class="input" id="w-phone" name="phone" inputmode="tel" required /></div>
+                <div class="field"><label for="w-village">Village or town</label><input class="input" id="w-village" name="village" required /></div>
+                <div class="field"><label for="w-need">Looking for</label><select class="input" id="w-need" name="need"><option>Solar pump</option><option>Pump</option><option>Rooftop solar</option><option>Dealer enquiry</option></select></div>
+                <div class="field"><label for="w-size">Size, if known</label><input class="input" id="w-size" name="size" /></div>
+                <div class="field"><label for="w-co">Company</label><select class="input" id="w-co" name="co">${COMPANIES.map((c) => `<option value="${c.code}" ${c.code === (state.company === 'all' ? 'ASH' : state.company) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+                <label class="check full"><input type="checkbox" name="consent" checked /><span>The customer agreed to be called and messaged about this enquiry.</span></label>
+                <div class="full" id="walk-err"></div>
+                <div class="full row"><button class="btn primary" type="submit">Save walk-in</button><span class="help">The lead goes to the calling team straight away.</span></div>
+              </form>
+            </div>
+            <div class="card"><div class="card-head"><h3>Today's walk-ins</h3><span class="caption muted num">${list.length}</span></div>
+              ${list.length ? `<ul class="list">${list.slice().reverse().map((w) => `<li>${coDot(w.co)}<div class="grow"><div style="font-weight:500">${esc(w.name)}</div><div class="caption muted">${esc(w.village)} · ${esc(w.need)}</div></div><span class="caption muted">${esc(w.time)}</span></li>`).join('')}</ul>` : `<div class="empty"><p>No walk-ins yet today.</p></div>`}
+            </div>
+          </div>`;
+      }
+
+      /* Inventory Manager */
+      function screenInventoryHome() {
+        const waiting = ORDERS.filter((o) => o.waiting && inCo(o.co));
+        const count = (s) => STOCK.filter((x) => x.state === s).length;
+        return head('Stock today', `Jaipur godown and EPC factory · ${TODAY}`) +
+          `<div class="tiles">${tile('Healthy', count('healthy'))}${tile('Low', count('low'), 'Below the reorder level', 'warning')}${tile('Out of stock', count('out'), '', 'danger')}${tile('Open supplier returns', '2', 'Oldest 12 days')}</div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Needs attention</h3></div>
+            <div class="table-wrap"><table class="dg compact"><thead><tr><th>Item</th><th>Where</th><th class="num">In stock</th><th class="num">Reserved</th><th class="num">Reorder at</th><th>Status</th></tr></thead><tbody>
+            ${STOCK.filter((s) => s.state !== 'healthy').map((s) => `<tr><td class="lead" data-label="">${esc(s.item)}</td><td data-label="Where">${esc(s.wh)}</td><td class="num" data-label="In stock">${s.onHand}</td><td class="num" data-label="Reserved">${s.reserved}</td><td class="num" data-label="Reorder at">${s.reorder}</td><td data-label="Status">${badge(STOCK_STATE[s.state][0], STOCK_STATE[s.state][1])}</td></tr>`).join('')}
+            </tbody></table></div>
+          </div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Sales orders waiting for stock</h3></div>
+            ${waiting.length ? `<ul class="list">${waiting.map((o) => `<li>${coDot(o.co)}<div class="grow"><a href="#" data-act="goto" data-s="order" data-id="${esc(o.no)}">${esc(o.no)}</a><div class="caption muted">${esc(account(o.acct).name)} · ${esc(o.waiting)}</div></div>${badge(STATUS[o.status][0], STATUS[o.status][1])}</li>`).join('')}</ul>` : `<div class="empty"><p>No orders are waiting for stock.</p></div>`}
+          </div>`;
+      }
+
+      /* Project Manager */
+      function screenProjectHome() {
+        const ps = PROJECTS.filter((p) => inCo(p.co));
+        return head('Projects', `${esc(companyLabel())} · ${TODAY}`) +
+          `<div class="tiles">${tile('Open projects', '38')}${tile('Waiting for customer documents', ps.filter((p) => p.waiting).length, '', 'warning')}${tile('Engineer visits tomorrow', VISITS.length)}${tile('Handovers this week', '4')}</div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Projects by step</h3></div>
+            <div class="table-wrap"><table class="dg"><thead><tr><th>Customer</th><th>Project</th><th>Step</th><th>Waiting for</th><th class="num">Days at step</th></tr></thead><tbody>
+            ${ps.map((p) => `<tr class="${p.acct ? 'click' : ''}" ${p.acct ? `data-act="goto" data-s="customer" data-id="${p.acct}"` : ''}><td class="lead" data-label=""><span class="row">${coDot(p.co)}<span>${esc(p.cust)}<div class="caption muted">${esc(p.place)}</div></span></span></td><td data-label="Project">${esc(p.kind)}</td><td data-label="Step">${badge(p.step, 'accent')}</td><td data-label="Waiting for">${p.waiting ? badge(p.waiting, 'warning') : '<span class="muted">Nothing</span>'}</td><td class="num" data-label="Days at step">${p.days}</td></tr>`).join('')}
+            </tbody></table></div>
+          </div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Engineer visits tomorrow, 28-09-2026</h3></div>
+            <ul class="list">${VISITS.map((v) => `<li><span class="avatar">${initials(v.eng)}</span><div class="grow"><div style="font-weight:500">${esc(v.what)}: ${esc(v.cust)}</div><div class="caption muted">${esc(v.place)} · ${esc(STAFF[v.eng].name)}</div></div><span class="caption num">${esc(v.when.slice(11))}</span></li>`).join('')}</ul>
+          </div>`;
+      }
+
+      /* Field Engineer */
+      function screenFieldHome() {
+        return `<div style="max-width:560px">` + head('Today’s jobs', `Suresh Yadav · ${TODAY}`) +
+          (state.offline ? `<div class="offline" style="margin-bottom:12px">${icon('cloudoff')}<div class="grow">You're offline. Your work is saved on this phone and will reach the office when you're back online.</div><button class="btn sm" data-act="online">Hide</button></div>` : '') +
+          `<div class="card" style="margin-bottom:12px"><div class="spread"><div><div style="font-weight:500">Attendance</div><div class="caption muted">${state.checkedIn ? 'Checked in at 08:52 near Chaksu' : 'Not checked in yet'}</div></div>${state.checkedIn ? badge('Checked in', 'success') : `<button class="btn primary" data-act="checkin">Check in</button>`}</div></div>
+          <div class="stack">${JOBS.map((j, i) => `<div class="card"><div class="spread"><span class="badge accent">${esc(j.time)}</span>${j.state ? badge(j.state, 'success') : ''}</div>
+            <h3 style="margin-top:8px">${esc(j.what)}: ${esc(j.cust)}</h3><p class="muted">${esc(j.place)}</p><p style="margin-top:6px">${esc(j.detail)}</p>
+            <div class="row" style="margin-top:12px"><button class="btn" data-act="toast" data-msg="Calling ${esc(j.cust)}.">${icon('phone')}Call</button><button class="btn" data-act="toast" data-msg="Opening directions in the phone's map.">${icon('map')}Directions</button>${j.state ? '' : `<button class="btn primary" data-act="reached" data-i="${i}">Reached site</button>`}</div></div>`).join('')}</div></div>`;
+      }
+
+      /* Accounts */
+      function screenAccountsHome() {
+        const held = ORDERS.filter((o) => o.status === 'hold' && inCo(o.co));
+        const risky = DEALERS.filter((d) => inCo(d.co) && dealerStatus(d)[1] === 'danger');
+        return head('Accounts today', `${esc(companyLabel())} · ${TODAY}`) +
+          `<div class="tiles">${tile('Payments due this week', inr0(1874500), '23 customers')}${tile('Dealers over limit or overdue', risky.length, '', risky.length ? 'danger' : '')}${tile('Orders on hold for credit', held.length, '', held.length ? 'warning' : '')}${tile('Expenses waiting for you', '6', inr0(18450))}</div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><div class="card-head"><h3>Dealers to watch</h3><button class="btn sm" data-act="goto" data-s="credit">Open dealer credit</button></div>
+              ${risky.length ? `<ul class="list">${risky.map((d) => `<li>${coDot(d.co)}<div class="grow"><div style="font-weight:500">${esc(d.name)}</div><div class="caption muted">${d.overdue ? inr0(d.overdue) + ' overdue, oldest bill ' + d.oldest + ' days' : 'Outstanding ' + inr0(d.outstanding) + ' of ' + inr0(d.limit)}</div></div>${badge(dealerStatus(d)[0], 'danger')}</li>`).join('')}</ul>` : `<div class="empty"><p>No dealer is over the limit or overdue.</p></div>`}
+            </div>
+            <div class="card"><div class="card-head"><h3>Payments due</h3></div><ul class="list">
+              <li>${coDot('ASH')}<div class="grow">Sita Devi Meena<div class="caption muted">Advance on ASH/SO/2026-27/0139 · due 28-09-2026</div></div><span class="num">${inr0(21000)}</span></li>
+              <li>${coDot('RCREF')}<div class="grow">Anita Khandelwal<div class="caption muted">Balance after installation · due 30-09-2026</div></div><span class="num">${inr0(59535)}</span></li>
+              <li>${coDot('SMP')}<div class="grow">Jai Ambe Pump House<div class="caption muted">Bill of 19-09-2026 · due 19-10-2026</div></div><span class="num">${inr0(274740)}</span></li>
+            </ul></div>
+          </div>`;
+      }
+
+      /* HR Admin */
+      function screenHrHome() {
+        const staff = Object.values(STAFF);
+        return head('People today', `All companies · ${TODAY}`) +
+          `<div class="tiles">${tile('Present', '86 of 100')}${tile('On leave today', '3')}${tile('Not marked by 10:00', '4', '', 'warning')}${tile('Leave waiting for approval', '5')}</div>
+          <div class="cols" style="margin-top:16px">
+            <div class="card"><h3>On leave today</h3><ul class="list">
+              <li><span class="avatar">NA</span><div class="grow">Nisha Agarwal<div class="caption muted">Tele-caller, lead converter · Agro Solar Hub</div></div>${badge('Casual leave')}</li>
+              <li><span class="avatar">SK</span><div class="grow">Sanjay Kumawat<div class="caption muted">Store Manager · Shakti Supreme</div></div>${badge('Sick leave')}</li>
+              <li><span class="avatar">GC</span><div class="grow">Geeta Choudhary<div class="caption muted">Accounts · Shakti Motor Pumps</div></div>${badge('Earned leave')}</li>
+            </ul></div>
+            <div class="card"><h3>Not marked attendance by 10:00</h3><ul class="list">
+              <li><span class="avatar">DS</span><div class="grow">Deepak Saini<div class="caption muted">Tele-caller, cold calling · Shakti Supreme</div></div><button class="btn sm" data-act="toast" data-msg="Reminder sent to Deepak Saini.">Remind</button></li>
+              <li><span class="avatar">MB</span><div class="grow">Mahendra Bairwa<div class="caption muted">Field Engineer · on the way to Dudu</div></div><button class="btn sm" data-act="toast" data-msg="Reminder sent to Mahendra Bairwa.">Remind</button></li>
+            </ul></div>
+          </div>
+          <div class="card" style="margin-top:16px"><div class="card-head"><h3>Staff</h3><input class="input" style="max-width:260px" id="hr-find" data-act="hr-find" aria-label="Find a person" /></div>
+            <div class="table-wrap"><table class="dg compact"><thead><tr><th>Name</th><th>Role</th><th>Company</th></tr></thead><tbody id="hr-rows">
+            ${staff.map((p) => `<tr data-name="${esc(p.name.toLowerCase())}"><td class="lead" data-label="">${esc(p.name)}</td><td data-label="Role">${esc(p.role)}</td><td data-label="Company"><span class="row">${coDot(p.co)}${esc(coName(p.co))}</span></td></tr>`).join('')}
+            </tbody></table></div>
+            <p class="help" style="margin-top:8px">Type a name to find a person.</p>
+          </div>`;
+      }
+
+      function screenApp(key) {
+        return head(NAV[key].label, 'Working in the review system') +
+          `<div class="card" style="max-width:640px"><div class="callout">${icon('info')}<div><div style="font-weight:500">This screen already works in the review system.</div><div>${esc(APP_SCREENS[key])}</div><div style="margin-top:8px">Sign in to the review system with the details the development team gave you to try it.</div></div></div></div>`;
+      }
+
+      function renderContent() {
+        const r = role();
+        const s = route().s || r.home;
+        if (NAV[s] && NAV[s].app) return screenApp(s);
+        if (s === 'calling') return screenCalling();
+        if (s === 'board') return screenBoard();
+        if (s === 'customers') return screenCustomers();
+        if (s === 'customer') return screenCustomer(route().id);
+        if (s === 'quote') return screenQuote();
+        if (s === 'orders') return screenOrders();
+        if (s === 'order') return screenOrder(route().id);
+        if (s === 'credit') return screenCredit();
+        const homes = {
+          executive: screenExecutiveHome, general_manager: screenGmHome, sales_team_lead: screenTeamLeadHome,
+          tele_caller_cc: screenCalling, tele_caller_lc: screenBoard, store_manager: screenStoreHome,
+          inventory_manager: screenInventoryHome, project_manager: screenProjectHome, field_engineer: screenFieldHome,
+          accounts: screenAccountsHome, hr_admin: screenHrHome,
+        };
+        return homes[r.key]();
+      }
+
+      function render() {
+        const r = route();
+        const app = document.getElementById('app');
+        if (!r.role || !ROLES.find((x) => x.key === r.role)) {
+          app.innerHTML = renderLanding();
+          document.title = 'Shakti Prime prototype';
+          return;
+        }
+        const scrollY = window.scrollY;
+        app.innerHTML = renderShell(renderContent());
+        document.title = 'Shakti Prime prototype · ' + role().name;
+        window.scrollTo(0, scrollY);
+      }
+
+      /* ---------- Search ---------- */
+      function openSearch() {
+        openLayer(`<div class="dialog" role="dialog" aria-modal="true" aria-label="Search"><div class="field"><label for="s-q">Search by phone, name or village</label><input class="input" id="s-q" data-act="search-input" autocomplete="off" /></div><ul class="list" id="s-res" style="margin-top:8px"></ul><p class="help" id="s-help">Type at least two letters, or the last digits of a phone number.</p></div>`);
+      }
+      function runSearch(q) {
+        const res = document.getElementById('s-res');
+        const help = document.getElementById('s-help');
+        q = q.trim().toLowerCase();
+        if (q.length < 2) { res.innerHTML = ''; help.classList.remove('hidden'); return; }
+        help.classList.add('hidden');
+        const hits = [];
+        ACCOUNTS.forEach((a) => { if ((a.name + ' ' + a.place + ' ' + a.phone).toLowerCase().includes(q)) hits.push([a.name, 'Customer · ' + a.place, 'customer', a.id]); });
+        LEADS.forEach((l) => { if (!l.acct && (l.name + ' ' + l.place).toLowerCase().includes(q)) hits.push([l.name, 'Lead · ' + l.place, 'board', '']); });
+        QUEUE.forEach((l) => { if ((l.name + ' ' + l.village + ' ' + l.phone).toLowerCase().includes(q)) hits.push([l.name, 'In the calling queue · ' + l.village, 'calling', '']); });
+        res.innerHTML = hits.length ? hits.slice(0, 8).map(([n, d, s, id]) => `<li><button class="btn ghost" style="width:100%;justify-content:flex-start;height:auto;padding:6px 8px;text-align:left" data-act="goto" data-s="${s}" data-id="${id}"><span><span style="font-weight:500">${esc(n)}</span><br /><span class="caption muted">${esc(d)}</span></span></button></li>`).join('') : `<li><span class="muted">No match. Check the spelling or try the phone number.</span></li>`;
+      }
+
+      /* ---------- Events ---------- */
+      document.addEventListener('click', (e) => {
+        const closer = e.target.closest('[data-close]');
+        if (closer && (closer === e.target || closer.tagName === 'BUTTON')) {
+          const wasQualified = closer.tagName === 'BUTTON' && closer.textContent.trim() === 'Next lead';
+          closeLayer();
+          if (wasQualified) nextLead();
+          return;
+        }
+        const el = e.target.closest('[data-act]');
+        if (!el) {
+          const pop = document.getElementById('pop');
+          if (pop && !e.target.closest('.popover')) pop.innerHTML = '';
+          return;
+        }
+        const act = el.dataset.act;
+        if (['company', 'pipe', 'q-cust', 'q-co', 'q-qty', 'search-input', 'hr-find'].includes(act)) return;
+        if (el.tagName === 'A' || act === 'goto') e.preventDefault();
+        const pop = document.getElementById('pop');
+        switch (act) {
+          case 'role': pickRole(el.dataset.key); break;
+          case 'change-role': location.hash = ''; break;
+          case 'theme': setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); break;
+          case 'open-nav': document.getElementById('shell').classList.add('nav-open'); break;
+          case 'close-nav': document.getElementById('shell').classList.remove('nav-open'); break;
+          case 'goto': closeLayer(); go(el.dataset.s, el.dataset.id || null); break;
+          case 'search': openSearch(); break;
+          case 'mic': toast('Talk to Shakti opens here. Live voice conversation arrives in Phase 2.'); break;
+          case 'bell':
+            pop.innerHTML = pop.innerHTML ? '' : `<div class="popover"><h3 style="padding:4px 8px">Notifications</h3><ul class="list">
+              <li><span class="dot sla-breach"></span><div class="grow">Callback for Ramesh Kumar Saini is 18 hours late<div class="caption muted">10:00</div></div></li>
+              <li><span class="dot sla-warn"></span><div class="grow">ASH/SO/2026-27/0142 is on hold for credit<div class="caption muted">Yesterday 16:05</div></div></li>
+              <li><span class="dot sla-ok"></span><div class="grow">Bhanwar Lal Jat opened the quote on WhatsApp<div class="caption muted">09:38</div></div></li></ul></div>`;
+            break;
+          case 'suggest':
+            pop.innerHTML = pop.innerHTML ? '' : `<div class="popover"><h3 style="padding:4px 8px">AI suggestions</h3><ul class="list">
+              <li><div class="grow">Two leads from Phagi look like the same farmer. Join them?<div class="caption muted">Lead sorting · waiting for a person</div></div>${badge('Suggest', 'info')}</li>
+              <li><div class="grow">Move Kisan Seva Kendra to the Dealer and Wholesale pipeline<div class="caption muted">Lead sorting · waiting for a person</div></div>${badge('Suggest', 'info')}</li></ul></div>`;
+            break;
+          case 'nudge': toast(`Reminder sent to ${el.dataset.name}.`); break;
+          case 'toast': toast(el.dataset.msg); break;
+          case 'pick-lead': stopCall(); state.cc.index = QUEUE.findIndex((q) => q.id === el.dataset.id); render(); break;
+          case 'dispo': recordDisposition(Number(el.dataset.k)); break;
+          case 'next-lead': nextLead(); break;
+          case 'dial': startCall(); break;
+          case 'end-call': stopCall(); render(); toast('Call ended. Choose how the call went.'); break;
+          case 'mine': state.board.mine = el.dataset.v === '1'; render(); break;
+          case 'open-lead': openLead(el.dataset.id); break;
+          case 'move-lead': moveLead(el.dataset.id, document.getElementById('mv').value); break;
+          case 'confirm-lost': {
+            const l = LEADS.find((x) => x.id === el.dataset.id);
+            l.stage = 'lost';
+            closeLayer();
+            render();
+            toast(`${l.name} marked as lost.`);
+            break;
+          }
+          case 'reassign': {
+            const l = LEADS.find((x) => x.id === el.dataset.id);
+            const to = document.getElementById('ra').value;
+            if (to === 'NA') { toast('Nisha Agarwal is on leave today. Choose someone who is present.'); break; }
+            l.owner = to;
+            closeLayer();
+            render();
+            toast(`${l.name} is now with ${STAFF[to].name}.`);
+            break;
+          }
+          case 'quote-for': state.quote = { acct: el.dataset.id, co: el.dataset.co, lines: account(el.dataset.id).type === 'Dealer' ? [['SPK50', 4]] : [['SPK75', 1]], saved: false, sent: false }; closeLayer(); go('quote'); break;
+          case 'q-add': state.quote.lines.push([document.getElementById('q-add').value, 1]); state.quote.saved = false; state.quote.sent = false; render(); break;
+          case 'q-remove': state.quote.lines.splice(Number(el.dataset.i), 1); state.quote.saved = false; state.quote.sent = false; render(); break;
+          case 'q-save': state.quote.saved = true; render(); toast('Quote saved.'); break;
+          case 'q-send': state.quote.saved = true; state.quote.sent = true; render(); toast(`Quote sent to ${callName(account(state.quote.acct).contacts[0][0])} ji on WhatsApp.`); break;
+          case 'q-accept': {
+            const q = state.quote;
+            const a = account(q.acct);
+            const no = `${q.co}/SO/2026-27/0${143 + ORDERS.filter((o) => o.date === TODAY).length}`;
+            ORDERS.unshift({ no, acct: q.acct, co: q.co, date: TODAY, tier: a.type === 'Dealer' ? 'dealer' : a.type === 'Business' ? 'commercial' : 'retail', status: 'draft', lines: q.lines.map(([c, n]) => [c, n, 0]) });
+            go('order', no);
+            toast('Sales order made from the quote. Confirm it to start the dispatch.');
+            break;
+          }
+          case 'ofilter': state.orderFilter = el.dataset.k; render(); break;
+          case 'confirm-order': {
+            const o = ORDERS.find((x) => x.no === el.dataset.no);
+            const a = account(o.acct);
+            const d = DEALERS.find((x) => x.name === a.name);
+            if (d && (d.overdue > 0 || d.outstanding + orderTotal(o) > d.limit)) { o.status = 'hold'; render(); toast('The order is on hold for credit. An Executive can release it.'); }
+            else { o.status = 'confirmed'; render(); toast('Order confirmed.'); }
+            break;
+          }
+          case 'cancel-order':
+            dialog('Cancel this order?', `<div class="field"><label for="can-r">Reason</label><select class="input" id="can-r"><option>Customer changed their mind</option><option>Ordered twice by mistake</option><option>Customer could not arrange payment</option></select></div>`,
+              `<button class="btn" data-close="1">Keep the order</button><button class="btn danger" data-act="do-cancel" data-no="${esc(el.dataset.no)}">Cancel order</button>`);
+            break;
+          case 'do-cancel': ORDERS.find((x) => x.no === el.dataset.no).status = 'cancelled'; closeLayer(); render(); toast('Order cancelled.'); break;
+          case 'release': releaseDialog(el.dataset.no); break;
+          case 'do-release': {
+            const reason = document.getElementById('rel-r').value.trim();
+            if (!reason) { document.getElementById('rel-err').innerHTML = `<p class="error" style="margin-top:8px">${icon('alert')}Write the reason before releasing the order.</p>`; break; }
+            ORDERS.find((x) => x.no === el.dataset.no).status = 'confirmed';
+            closeLayer();
+            render();
+            toast('Order released. Your reason is kept in the activity log.');
+            break;
+          }
+          case 'online': state.offline = false; render(); break;
+          case 'checkin': state.checkedIn = true; render(); toast('Checked in at 08:52.'); break;
+          case 'reached': JOBS[Number(el.dataset.i)].state = 'At site since 10:04'; render(); toast('Marked as reached. The office and the customer can see it.'); break;
+          default: break;
+        }
+      });
+
+      document.addEventListener('change', (e) => {
+        const act = e.target.dataset.act;
+        const bind = e.target.dataset.bind;
+        if (act === 'company') { state.company = e.target.value; render(); }
+        else if (act === 'pipe') { state.board.pipe = e.target.value; render(); }
+        else if (act === 'q-cust') { state.quote.acct = e.target.value; state.quote.saved = false; state.quote.sent = false; render(); }
+        else if (act === 'q-co') { state.quote.co = e.target.value; render(); }
+        else if (act === 'q-qty') { const n = Math.max(1, parseInt(e.target.value, 10) || 1); state.quote.lines[Number(e.target.dataset.i)][1] = n; state.quote.saved = false; state.quote.sent = false; render(); }
+        else if (bind) { ccLead()[bind] = e.target.value; }
+      });
+      document.addEventListener('input', (e) => {
+        const act = e.target.dataset.act;
+        if (act === 'search-input') runSearch(e.target.value);
+        if (act === 'hr-find') {
+          const q = e.target.value.trim().toLowerCase();
+          document.querySelectorAll('#hr-rows tr').forEach((tr) => tr.classList.toggle('hidden', !!q && !tr.dataset.name.includes(q)));
+        }
+        if (e.target.dataset.bind) ccLead()[e.target.dataset.bind] = e.target.value;
+      });
+      document.addEventListener('focusin', (e) => {
+        if (e.target.closest('[data-form="walkin"]') && !state.walkStart) state.walkStart = Date.now();
+      });
+      document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.dataset.form !== 'walkin') return;
+        e.preventDefault();
+        const f = new FormData(form);
+        const phone = String(f.get('phone')).replace(/\D/g, '');
+        const err = document.getElementById('walk-err');
+        if (phone.length !== 10) { err.innerHTML = `<p class="error">${icon('alert')}Please check the mobile number. It should have 10 digits.</p>`; return; }
+        const secs = state.walkStart ? Math.max(1, Math.round((Date.now() - state.walkStart) / 1000)) : 0;
+        WALKINS.push({ time: '11:0' + Math.min(9, WALKINS.length), name: String(f.get('name')), village: String(f.get('village')), need: String(f.get('need')) + (f.get('size') ? ', ' + f.get('size') : ''), co: String(f.get('co')) });
+        state.walkStart = 0;
+        render();
+        toast(`Walk-in saved${secs ? ' in ' + secs + (secs === 1 ? ' second' : ' seconds') : ''}. The calling team has it now.`);
+      });
+
+      /* Drag and drop on the lead board */
+      document.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('[data-drag]');
+        if (card) { e.dataTransfer.setData('text/plain', card.dataset.drag); e.dataTransfer.effectAllowed = 'move'; }
+      });
+      document.addEventListener('dragover', (e) => {
+        const col = e.target.closest('[data-drop]');
+        if (col) { e.preventDefault(); document.querySelectorAll('.column.drop').forEach((c) => c !== col && c.classList.remove('drop')); col.classList.add('drop'); }
+      });
+      document.addEventListener('dragleave', (e) => {
+        const col = e.target.closest('[data-drop]');
+        if (col && !col.contains(e.relatedTarget)) col.classList.remove('drop');
+      });
+      document.addEventListener('drop', (e) => {
+        const col = e.target.closest('[data-drop]');
+        if (!col) return;
+        e.preventDefault();
+        col.classList.remove('drop');
+        moveLead(e.dataTransfer.getData('text/plain'), col.dataset.drop);
+      });
+
+      /* Keyboard: Ctrl K search, Escape closes, caller keys on the calling screen */
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && route().role) { e.preventDefault(); openSearch(); return; }
+        if (e.key === 'Escape') { closeLayer(); const sh = document.getElementById('shell'); if (sh) sh.classList.remove('nav-open'); return; }
+        const r = route();
+        const onCalling = r.role && ((r.s || role().home) === 'calling');
+        if (!onCalling || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.target.closest && e.target.closest('input, textarea, select')) return;
+        if (document.getElementById('layer').innerHTML) {
+          if (e.key === 'n' || e.key === 'N' || e.key === 'Enter') { closeLayer(); nextLead(); }
+          return;
+        }
+        if (/^[1-8]$/.test(e.key)) { e.preventDefault(); recordDisposition(Number(e.key)); }
+        else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); nextLead(); }
+        else if (e.key === 'd' || e.key === 'D') { e.preventDefault(); startCall(); }
+        else if (e.key === '/') { e.preventDefault(); openSearch(); }
+      });
+
+      window.addEventListener('hashchange', () => { stopCall(); closeLayer(); render(); window.scrollTo(0, 0); });
+      try {
+        const saved = localStorage.getItem('sp-proto-theme');
+        if (saved === 'dark' || saved === 'light') document.documentElement.setAttribute('data-theme', saved);
+      } catch (e) { /* not available */ }
+      render();
+    </script>
+  </body>
+</html>
