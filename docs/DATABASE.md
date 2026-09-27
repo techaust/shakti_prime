@@ -29,6 +29,7 @@ Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `
 | `postgres` (Supabase owner) | Migrations only | Owns tables |
 | `app_user` | All application connections | `SELECT/INSERT/UPDATE` per table; `UPDATE/DELETE` revoked on append-only tables; no `BYPASSRLS`; not the table owner; role settings `statement_timeout 30s`, `lock_timeout 10s`, `idle_in_transaction_session_timeout 30s` |
 | `auth_service` | The auth module only (Better Auth's adapter and session bookkeeping in `apps/web/src/auth`) | Full access to `sessions`, `auth_accounts`, `auth_verifications`, `user_two_factor`; `SELECT/UPDATE` on `users`; nothing on any business table; no `BYPASSRLS`; the same three timeouts as `app_user` |
+| `outbox_publisher` | The outbox publisher only (`apps/web/src/workers`) | `SELECT` and a column-level `UPDATE (published_at, attempts, last_error, dead_lettered_at)` on `outbox_events`; nothing on any other table; no `BYPASSRLS`; the same three timeouts as `app_user` |
 | `readonly_reporter` | Materialised-view refresh and exports | `SELECT` only, RLS applies; no access to the auth module's tables |
 | `anon`, `authenticated`, `service_role` (Supabase API roles) | Never | No privilege on any application table, sequence or function, now or by default; the Data API is switched off on every hosted project; no role may create temporary objects |
 

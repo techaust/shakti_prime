@@ -64,7 +64,7 @@ apps/tally-connector ─► packages/contracts
 2. **Server action or route handler** validates the input with the Zod contract from `packages/contracts`.
 3. **`withRequestContext(principal, entityScope, fn)`** opens a transaction and calls `set_config` for `app.user_id`, `app.entity_ids`, `app.role`, `app.permissions`, `app.request_id` (all transaction-local).
 4. **Command** runs inside the transaction: permission guard → state machine → business logic → writes → `ctx.emit()` appends `outbox_events` rows in the same transaction.
-5. **Commit.** After commit, the outbox publisher (a QStash schedule every 10 seconds, plus an immediate nudge from the action) pushes pending events to QStash.
+5. **Commit.** After commit, the outbox publisher (an immediate nudge from the action, plus a QStash schedule every minute as the safety net, since QStash schedules are minute-granular) pushes pending events to QStash.
 6. **Response** is the command's DTO. Server components re-render; Realtime broadcasts refresh other users' screens.
 
 Every read also runs inside `withRequestContext()`, so RLS applies to reads and writes alike. The connections without a request context are named and fenced: the auth module's `auth_service` connection (identity tables only), the migrator, seed and bootstrap scripts (table owner, never in a request), the readiness probe (`select 1`), and `app.user_grants()`, a definer function that resolves the signed-in user's own grants. ESLint keeps every other module off them.
