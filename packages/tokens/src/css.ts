@@ -46,6 +46,11 @@ function staticBlock(indent: string): string {
   lines.push(`${indent}--control-phone: ${rem(scale.control.phone)};`);
   lines.push(`${indent}--focus-ring-width: ${scale.focusRing.width}px;`);
   lines.push(`${indent}--focus-ring-offset: ${scale.focusRing.offset}px;`);
+  lines.push(`${indent}--sidebar-width: ${rem(scale.shell.sidebar)};`);
+  lines.push(`${indent}--sidebar-collapsed: ${rem(scale.shell.sidebarCollapsed)};`);
+  lines.push(`${indent}--topbar-height: ${rem(scale.shell.topbar)};`);
+  lines.push(`${indent}--content-form: ${rem(scale.content.form)};`);
+  lines.push(`${indent}--content-detail: ${rem(scale.content.detail)};`);
   return lines.join('\n');
 }
 
@@ -83,9 +88,33 @@ export function renderTokensCss(): string {
 }
 
 /**
- * `tailwind.css`: Tailwind v4 theme mapping and shadcn/ui aliases. shadcn's own `--accent`
- * (a hover surface) is not aliased because the Shakti accent token already owns that name.
+ * shadcn/ui names its neutral hover fill `--accent`, which the Shakti indigo already owns. The
+ * neutral takes the name `highlight` instead, and `--accent-foreground` is never declared, so a
+ * pasted shadcn class `text-accent-foreground` styles nothing and the packages/ui source check
+ * (`no-shadcn-accent.test.ts`) catches it; `bg-accent` stays the indigo fill.
  */
+const SHADCN_ALIASES: Readonly<Record<string, string>> = {
+  background: 'bg',
+  foreground: 'text',
+  card: 'surface',
+  'card-foreground': 'text',
+  popover: 'surface',
+  'popover-foreground': 'text',
+  primary: 'accent',
+  'primary-foreground': 'accent-fg',
+  secondary: 'surface-2',
+  'secondary-foreground': 'text',
+  muted: 'surface-2',
+  'muted-foreground': 'text-muted',
+  highlight: 'surface-3',
+  'highlight-foreground': 'text',
+  destructive: 'danger',
+  'destructive-foreground': 'danger-soft',
+  input: 'border-strong',
+  ring: 'focus',
+};
+
+/** `tailwind.css`: Tailwind v4 theme mapping and the shadcn/ui aliases above. */
 export function renderTailwindCss(): string {
   const lines: string[] = [HEADER, '@theme inline {'];
   for (const name of Object.keys(colors)) lines.push(`  --color-${name}: var(--${name});`);
@@ -97,32 +126,26 @@ export function renderTailwindCss(): string {
   lines.push(`  --font-sans: var(--font-family);`);
   for (const [name, px] of Object.entries(scale.breakpoint))
     lines.push(`  --breakpoint-${name}: ${px}px;`);
+  // Shell and control sizes as spacing (`w-sidebar`, `h-topbar`, `h-control`) and the content
+  // widths as containers (`max-w-form`, `max-w-detail`).
+  lines.push('  --spacing-sidebar: var(--sidebar-width);');
+  lines.push('  --spacing-sidebar-collapsed: var(--sidebar-collapsed);');
+  lines.push('  --spacing-topbar: var(--topbar-height);');
+  lines.push('  --spacing-control: var(--control-desktop);');
+  lines.push('  --spacing-control-phone: var(--control-phone);');
+  lines.push('  --spacing-row: var(--row-comfortable);');
+  lines.push('  --spacing-row-compact: var(--row-compact);');
+  lines.push('  --container-form: var(--content-form);');
+  lines.push('  --container-detail: var(--content-detail);');
   lines.push('}', '');
   lines.push(':root {');
-  const shadcn: Record<string, string> = {
-    background: 'bg',
-    foreground: 'text',
-    card: 'surface',
-    'card-foreground': 'text',
-    popover: 'surface',
-    'popover-foreground': 'text',
-    primary: 'accent',
-    'primary-foreground': 'accent-fg',
-    secondary: 'surface-2',
-    'secondary-foreground': 'text',
-    muted: 'surface-2',
-    'muted-foreground': 'text-muted',
-    destructive: 'danger',
-    'destructive-foreground': 'danger-soft',
-    input: 'border-strong',
-    ring: 'focus',
-  };
+  const shadcn = SHADCN_ALIASES;
   for (const [alias, target] of Object.entries(shadcn))
     lines.push(`  --${alias}: var(--${target});`);
   lines.push('  --radius: var(--radius-lg);');
   lines.push('}', '');
   // Tailwind v4 makes utilities only from @theme keys, so the aliases need --color-* entries
-  // too. `accent` stays the Shakti accent; shadcn components use surface-3 for hover fills.
+  // too. `accent` stays the Shakti accent; hover fills use `highlight`.
   lines.push('@theme inline {');
   for (const alias of Object.keys(shadcn)) lines.push(`  --color-${alias}: var(--${alias});`);
   lines.push('}', '');

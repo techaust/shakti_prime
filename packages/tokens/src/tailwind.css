@@ -62,6 +62,15 @@
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-sidebar-collapsed: var(--sidebar-collapsed);
+  --spacing-topbar: var(--topbar-height);
+  --spacing-control: var(--control-desktop);
+  --spacing-control-phone: var(--control-phone);
+  --spacing-row: var(--row-comfortable);
+  --spacing-row-compact: var(--row-compact);
+  --container-form: var(--content-form);
+  --container-detail: var(--content-detail);
 }
 
 :root {
@@ -77,6 +86,8 @@
   --secondary-foreground: var(--text);
   --muted: var(--surface-2);
   --muted-foreground: var(--text-muted);
+  --highlight: var(--surface-3);
+  --highlight-foreground: var(--text);
   --destructive: var(--danger);
   --destructive-foreground: var(--danger-soft);
   --input: var(--border-strong);
@@ -97,6 +108,8 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-input: var(--input);
