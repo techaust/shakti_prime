@@ -32,7 +32,7 @@ import { commandOptions, parseInput, requestMeta } from './support';
 
 /** Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. */
 
-export async function inviteUser(rawInput: unknown): Promise<UserDto> {
+export async function inviteUser(rawInput: unknown, idempotencyKey?: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(InviteUserInput, rawInput);
@@ -42,7 +42,7 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     inviteUserCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
   // The set-password link goes out through the auth module's own flow (no headers: an internal
   // call). Inviting someone still invited sends a fresh link, which withdraws the old one.
@@ -55,7 +55,7 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
   return user;
 }
 
-export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
+export async function setUserRoles(rawInput: unknown, idempotencyKey?: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(SetUserRolesInput, rawInput);
@@ -65,13 +65,13 @@ export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     setUserRolesCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
   await forgetPrincipal(user.id);
   return user;
 }
 
-export async function suspendUser(rawInput: unknown): Promise<UserDto> {
+export async function suspendUser(rawInput: unknown, idempotencyKey?: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(SuspendUserInput, rawInput);
@@ -81,13 +81,16 @@ export async function suspendUser(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     suspendUserCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
   await forgetPrincipal(user.id);
   return user;
 }
 
-export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
+export async function reactivateUser(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(ReactivateUserInput, rawInput);
@@ -97,11 +100,14 @@ export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     reactivateUserCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
 }
 
-export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsDto> {
+export async function revokeSession(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<RevokedSessionsDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(RevokeSessionInput, rawInput);
@@ -111,7 +117,7 @@ export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsD
     { requestId: meta.requestId },
     revokeSessionCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
   await forgetPrincipal(result.userId);
   return result;

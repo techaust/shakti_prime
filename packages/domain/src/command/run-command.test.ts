@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from './define-command';
 import { memoryAuditSink } from '../audit/sink';
+import { memoryIdempotencyStore } from '../idempotency/store';
 import { memoryOutboxSink } from '../outbox/sink';
 import { checkPermission, failureOf, runCommand, translateDatabaseError } from './run-command';
 import { fakeContext as context, type Principal } from './test-support';
@@ -385,5 +386,91 @@ describe('runCommand', () => {
     );
     expect(single.active).toBe(3);
     expect(many.active).toBeNull();
+  });
+});
+
+describe('runCommand with an idempotency key', () => {
+  let runs = 0;
+  const counted = defineCommand({
+    name: 'test.counted',
+    permission: 'crm.lead.read',
+    input: z.object({ value: z.string() }).strict(),
+    output: z.object({ value: z.string(), run: z.number() }).strict(),
+    handler: (ctx, input) => {
+      runs += 1;
+      ctx.emit({
+        type: 'admin.user.reactivated',
+        entityId: 1,
+        aggregateType: 'user',
+        aggregateId: 'a',
+        payload: {},
+      });
+      return Promise.resolve({ value: input.value, run: runs });
+    },
+  });
+
+  function run(
+    options: { key?: string; principal?: Principal; value?: string } = {},
+    idempotency = memoryIdempotencyStore(),
+  ) {
+    const audit = memoryAuditSink();
+    const outbox = memoryOutboxSink();
+    const call = runCommand(
+      counted,
+      {
+        context: context(options.principal ?? principal()),
+        audit,
+        outbox,
+        idempotency,
+        ...(options.key === undefined ? {} : { idempotencyKey: options.key }),
+      },
+      { value: options.value ?? 'x' },
+    );
+    return { call, audit, outbox };
+  }
+
+  it('runs once and replays the first answer, with no second audit row or event', async () => {
+    const store = memoryIdempotencyStore();
+    const p = principal();
+    const first = run({ key: 'k1', principal: p }, store);
+    const answer = await first.call;
+    const repeat = run({ key: 'k1', principal: p }, store);
+    expect(await repeat.call).toEqual(answer);
+    expect(first.audit.records).toHaveLength(1);
+    expect(first.outbox.records).toHaveLength(1);
+    expect(repeat.audit.records).toEqual([]);
+    expect(repeat.outbox.records).toEqual([]);
+    const rows = [...store.rows.values()];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ command: 'test.counted', response: answer });
+    expect(rows[0]?.inputHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('refuses the same key with other input', async () => {
+    const store = memoryIdempotencyStore();
+    const p = principal();
+    await run({ key: 'k2', principal: p, value: 'x' }, store).call;
+    const error: unknown = await run({ key: 'k2', principal: p, value: 'y' }, store).call.catch(
+      (e: unknown) => e,
+    );
+    expect(error).toMatchObject({ code: 'conflict', details: { reason: 'idempotency_mismatch' } });
+    expect(failureOf(error)?.stage).toBe('handler');
+  });
+
+  it('checks the permission before it looks at the key', async () => {
+    const store = memoryIdempotencyStore();
+    const p = principal();
+    await run({ key: 'k3', principal: p }, store).call;
+    const denied = run({ key: 'k3', principal: { ...p, permissions: [] } }, store);
+    await expect(denied.call).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('runs every call without a key', async () => {
+    const store = memoryIdempotencyStore();
+    const p = principal();
+    const a = await run({ principal: p }, store).call;
+    const b = await run({ principal: p }, store).call;
+    expect(b.run).toBe(a.run + 1);
+    expect(store.rows.size).toBe(0);
   });
 });

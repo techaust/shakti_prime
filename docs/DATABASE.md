@@ -150,7 +150,7 @@ Key columns only; every table also has the standard columns from §2.
 | `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only |
 | `sessions` | Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason` |
 | `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
-| `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `status`, `response_json`, `expires_at`; 7-day retention |
+| `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron |
 | `roles`, `permissions`, `role_permissions` | `role_permissions(role_id, permission_key, scope)` |
 | `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; replaced as a set by `admin.user.role.set`, the one table with a delete grant for `app_user` |
 | `teams` | `entity_id null`, `name`, `lead_principal_id` |

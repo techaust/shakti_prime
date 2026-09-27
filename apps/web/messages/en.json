@@ -52,6 +52,7 @@
     "code_session_expired": "This sign-in took too long. Please sign in again.",
     "request_refused": "We couldn't do that just now. Refresh the page and try again.",
     "concurrent_change": "Someone else changed this at the same moment. Refresh the page and try again.",
+    "idempotency_mismatch": "This form was already sent with different details. Refresh the page and try again.",
     "database_rejected": "Some details don't fit together. Please check them and try again.",
     "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute.",
     "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this enquiry to them.",
