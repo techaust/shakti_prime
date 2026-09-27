@@ -15,6 +15,7 @@ export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,
   intersectGrants,
+  parseUserAccess,
   resolvePrincipalFromGrants,
 } from './auth/resolve-principal';
 export type { EntityGrants, ResolveOutcome, UserAccess } from './auth/resolve-principal';

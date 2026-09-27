@@ -1,5 +1,5 @@
 import { consoleMailer, memoryKeyValue, type KeyValue, type Mailer } from '@shakti/domain';
-import { Redis } from '@upstash/redis';
+import { upstashKeyValue } from './upstash-key-value';
 
 /** What the auth module needs from the outside world, injectable for tests. */
 export interface AuthDeps {
@@ -51,24 +51,7 @@ export function upstashOrMemoryKeyValue(): KeyValue {
   if (url === undefined || url === '' || token === undefined || token === '') {
     return memoryKeyValue();
   }
-  const redis = new Redis({ url, token });
-  return {
-    get: async (key) => {
-      const value = await redis.get<string | number>(key);
-      return value === null ? null : String(value);
-    },
-    set: async (key, value, ttlSeconds) => {
-      await redis.set(key, value, { ex: ttlSeconds });
-    },
-    del: async (key) => {
-      await redis.del(key);
-    },
-    incr: async (key, ttlSeconds) => {
-      const next = await redis.incr(key);
-      if (next === 1) await redis.expire(key, ttlSeconds);
-      return next;
-    },
-  };
+  return upstashKeyValue({ url, token });
 }
 
 let deps: AuthDeps | undefined;
