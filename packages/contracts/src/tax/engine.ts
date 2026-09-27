@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HsnSchema, MoneySchema } from '../catalogue/enums';
+import { HsnSchema, MoneySchema, SignedMoneySchema } from '../catalogue/enums';
 import { SegmentSchema } from '../crm/enums';
 import { IdSchema } from '../ids';
 
@@ -22,10 +22,6 @@ export const QuantitySchema = z
   .regex(/^\d{1,9}(\.\d{1,3})?$/)
   .refine((value) => Number(value) > 0, { message: 'quantity must be above zero' });
 export type Quantity = z.infer<typeof QuantitySchema>;
-
-/** Money that may be negative: only the rupee round-off of a document total. */
-export const SignedMoneySchema = z.string().regex(/^-?\d{1,12}\.\d{2}$/);
-export type SignedMoney = z.infer<typeof SignedMoneySchema>;
 
 /** A calendar date as Postgres `date` returns it. */
 export const CalendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);

@@ -12,6 +12,10 @@ export type PriceTierCode = z.infer<typeof PriceTierCodeSchema>;
 export const MoneySchema = z.string().regex(/^\d{1,12}\.\d{2}$/);
 export type Money = z.infer<typeof MoneySchema>;
 
+/** Money that may be negative: a document's rupee round-off, or a Tally debit or credit side. */
+export const SignedMoneySchema = z.string().regex(/^-?\d{1,12}\.\d{2}$/);
+export type SignedMoney = z.infer<typeof SignedMoneySchema>;
+
 /** Rates such as costs keep four decimals (docs/DATABASE.md §2). */
 export const RateSchema = z.string().regex(/^\d{1,10}\.\d{4}$/);
 export type Rate = z.infer<typeof RateSchema>;
