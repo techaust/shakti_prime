@@ -99,13 +99,14 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main` and every PR; E2E joins on main and release branches in Phase 1.
+Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1.
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
 - PR description: what, why, how verified, migration notes, screenshots for UI, checklist below.
 - PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in the English catalogue in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
+- Merging: `.github/workflows/automerge.yml` merges a PR into `main` with a merge commit once CI passes on its latest commit, when the PR is open, not a draft, from this repository, not labelled `hold`, and by the owner or a Dependabot minor or patch bump; it then deletes the branch and runs CI on `main`. Nobody pushes to `main` directly or merges by hand, a slice branches from `main` after the previous PR has merged, and a Dependabot major waits for the owner's review.
 - Never commit secrets, `.env*` files, production data or recordings. A gitleaks secret scan over the history and `pnpm audit` run in CI.
 
 ## 9. Security habits

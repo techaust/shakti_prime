@@ -1,0 +1,72 @@
+name: Merge on green
+
+# The free plan cannot require a green CI run before a merge (AUDIT M45), so this workflow is the
+# only one that merges: after CI passes on a pull request, it merges that pull request into main if
+# the rule below says so, deletes its branch and runs CI again on main. It checks out no code and
+# runs nothing from the pull request; every value it reads reaches the shell through `env`.
+# GitHub runs this file from main only, so a change to it takes effect after it merges.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: merge-on-green
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    name: Merge a green pull request
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      # Reads the open pull requests of the tested branch and answers `merge` or `skip: <why>`.
+      # Only the owner's pull requests and Dependabot's minor and patch bumps merge; a Dependabot
+      # group is minor and patch by .github/dependabot.yml, a single bump needs the same major.
+      MERGE_RULE: |
+        def major: ltrimstr("v") | split(".")[0];
+        def same_major:
+          [.title | capture("from v?(?<a>[0-9][^ ]*) to v?(?<b>[0-9][^ ]*)") | (.a | major) == (.b | major)]
+          | any;
+        if length == 0 then "skip: no open pull request for this branch"
+        else .[0] as $pr
+          | if $pr.state != "OPEN" then "skip: not open"
+            elif $pr.isDraft then "skip: draft"
+            elif $pr.baseRefName != "main" then "skip: base is \($pr.baseRefName), not main"
+            elif $pr.isCrossRepository then "skip: from a fork"
+            elif any($pr.labels[]; .name == "hold") then "skip: labelled hold"
+            elif $pr.headRefOid != $ENV.HEAD_SHA then "skip: a newer commit than the one tested"
+            elif $pr.author.login == "techaust" then "merge"
+            elif $pr.author.login == "app/dependabot" then
+              if ($pr.title | test("bump the .+ group"; "i")) then "merge"
+              elif ($pr | same_major) then "merge"
+              else "skip: a major version bump waits for the owner"
+              end
+            else "skip: author \($pr.author.login)"
+            end
+        end
+    steps:
+      - name: Decide and merge
+        run: |
+          set -euo pipefail
+          fields=number,state,isDraft,baseRefName,isCrossRepository,labels,headRefOid,author,title
+          number=$(gh pr list --head "$HEAD_BRANCH" --state open --json number --jq '.[0].number // ""')
+          decision=$(gh pr list --head "$HEAD_BRANCH" --state open --json "$fields" --jq "$MERGE_RULE")
+          echo "Pull request ${number:-none} on ${HEAD_BRANCH} at ${HEAD_SHA}: ${decision}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$decision" != "merge" ]; then exit 0; fi
+          gh pr merge "$number" --merge --match-head-commit "$HEAD_SHA"
+          gh api -X DELETE "repos/${GH_REPO}/git/refs/heads/${HEAD_BRANCH}"
+          # A merge made with this workflow's token starts no push run, so CI is started on main here.
+          gh workflow run ci.yml --ref main
+          echo "Merged, deleted ${HEAD_BRANCH} and started CI on main." | tee -a "$GITHUB_STEP_SUMMARY"

@@ -19,7 +19,7 @@ How the BOS reaches staging and production: the database, its secrets, the first
    A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()`), and `/api/v1/health/ready` reports which dependency is down.
 
 ## 2. Every deploy
-1. Merge to `main` only on a green CI run.
+1. Merge to `main` only on a green CI run; the merge-on-green workflow (`.github/workflows/automerge.yml`) merges a pull request only after CI passes on its latest commit, and runs CI again on `main`.
 2. **Migrate** from GitHub: Actions › *Migrate a hosted database* › Run workflow › choose the environment. It runs only from `main`, applies the migrations under an advisory lock, then runs `pnpm db:verify`, which fails when a migration on disk is not applied exactly as written.
 3. **Seed** when the permission catalogue, roles, pipelines, tiers or lead sources changed: run `pnpm db:seed` with the environment's `DATABASE_URL_MIGRATOR` and `DATABASE_CA_CERT`. It keeps every Admin edit (DATABASE §9).
 4. **Promote** the Vercel deployment of that commit, then open `/api/v1/health/ready` and confirm every check reads `ok`.

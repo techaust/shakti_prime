@@ -138,7 +138,7 @@ No agent principal holds `procurement.rate.read`, `finance.cost.read`, `document
 - Uploads: pre-signed URLs with type and size limits; malware scan before `ready`; images re-encoded; PDFs sanitised.
 - Secrets only in Vercel, EAS and the connector's encrypted local store; none in the repo, `tooling.json` or `.mcp.json`.
 - Logging: structured JSON; request IDs; no phone numbers, Aadhaar digits, bank details or message bodies; log redaction tested.
-- Supply chain: Dependabot (weekly, grouped), `pnpm audit --audit-level=high` and a gitleaks secret scan over the history in CI; CodeQL once the repository has GitHub Advanced Security; pinned lockfile; provenance-checked releases for the connector.
+- Supply chain: Dependabot (weekly, grouped; minor and patch bumps merge automatically once CI passes, majors wait for the owner's review), `pnpm audit --audit-level=moderate` and a gitleaks secret scan over the history in CI; CodeQL once the repository has GitHub Advanced Security; pinned lockfile; provenance-checked releases for the connector.
 - Staging holds synthetic data only.
 
 ## 9. Infrastructure security
