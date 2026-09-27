@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveTheme } from '../actions/profile';
+import type { ErrorKey } from '../i18n/types';
 import { themeCookie } from '../theme';
 
 const THEMES = ThemeSchema.options;
@@ -38,7 +39,7 @@ export function ThemeSwitch({ saved }: { saved: Theme }) {
   const errors = useTranslations('errors');
   const { setTheme } = useTheme();
   const [chosen, setChosen] = useState<Theme>(saved);
-  const [error, setError] = useState<string | undefined>();
+  const [error, setError] = useState<ErrorKey | undefined>();
   const [, startTransition] = useTransition();
 
   function choose(theme: Theme) {
@@ -53,7 +54,8 @@ export function ThemeSwitch({ saved }: { saved: Theme }) {
       setChosen(before);
       setTheme(before);
       rememberOnThisDevice(before);
-      setError(errors.has(result.error) ? result.error : 'internal');
+      const key = result.error as ErrorKey;
+      setError(errors.has(key) ? key : 'internal');
     });
   }
 

@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import type { ComponentProps, ReactNode } from 'react';
+import type { ErrorKey } from '../i18n/types';
 
 /** Minimal form primitives on the DESIGN.md §6 rules; the component library arrives in week 4. */
 
@@ -73,7 +74,8 @@ export function FormError({
   const t = useTranslations('errors');
   const app = useTranslations('app');
   if (errorKey === undefined) return null;
-  const known = t.has(errorKey) ? errorKey : 'internal';
+  // An action answers a string; only a key the catalogue has is shown, never a raw key path.
+  const known: ErrorKey = t.has(errorKey as ErrorKey) ? (errorKey as ErrorKey) : 'internal';
   return (
     <p id={FORM_ERROR_ID} role="alert" className="text-danger text-sm">
       {t(known)}

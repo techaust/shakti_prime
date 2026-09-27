@@ -8,6 +8,7 @@ import {
   SignOutButton,
 } from '../../../components/auth/home-forms';
 import { ThemeSwitch } from '../../../components/theme';
+import type { RoleNameKey } from '../../../i18n/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,10 @@ export default async function HomePage() {
           {t('title')}
         </h1>
         <p>{t('signedInAs', { name: session.access.name })}</p>
-        <p className="text-text-muted">{t('role', { role: roles(principal.roleKey) })}</p>
+        {/* A signed-in person always holds a staff role; agents never sign in here. */}
+        <p className="text-text-muted">
+          {t('role', { role: roles(principal.roleKey as RoleNameKey) })}
+        </p>
       </div>
       <EntitySwitcher
         entities={session.access.entities.map((e) => ({

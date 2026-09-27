@@ -22,7 +22,14 @@ const TYPE_ROLES = [
   'numeric',
 ] as const;
 const STATUSES = ['success', 'warning', 'danger', 'info'] as const;
-const STAGES = Object.keys(aliases).filter((name) => name.startsWith('stage-'));
+const STAGES = [
+  'stage-new',
+  'stage-contacted',
+  'stage-qualified',
+  'stage-quoted',
+  'stage-won',
+  'stage-lost',
+] as const satisfies readonly (keyof typeof aliases)[];
 const CHARTS = Object.keys(aliases).filter((name) => name.startsWith('chart-'));
 
 /**

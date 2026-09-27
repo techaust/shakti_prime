@@ -11,14 +11,14 @@ import {
   type RevokedSessionsDto,
   type UserDto,
 } from '@shakti/contracts';
-import { withRequestContext } from '@shakti/db';
 import {
   checkPermission,
+  executeCommand,
+  executeQuery,
   inviteUser as inviteUserCommand,
   loadUserDto,
   reactivateUser as reactivateUserCommand,
   revokeSession as revokeSessionCommand,
-  runCommand,
   setUserRoles as setUserRolesCommand,
   suspendUser as suspendUserCommand,
 } from '@shakti/domain';
@@ -34,8 +34,11 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(InviteUserInput, rawInput);
-  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
-    runCommand(inviteUserCommand, { context }, input),
+  const user = await executeCommand(
+    principal,
+    { requestId: await requestId() },
+    inviteUserCommand,
+    input,
   );
   // The set-password link goes out through the auth module's own flow (no headers: an internal
   // call). Inviting someone still invited sends a fresh link, which withdraws the old one.
@@ -52,8 +55,11 @@ export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(SetUserRolesInput, rawInput);
-  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
-    runCommand(setUserRolesCommand, { context }, input),
+  const user = await executeCommand(
+    principal,
+    { requestId: await requestId() },
+    setUserRolesCommand,
+    input,
   );
   await forgetPrincipal(user.id);
   return user;
@@ -63,8 +69,11 @@ export async function suspendUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(SuspendUserInput, rawInput);
-  const user = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
-    runCommand(suspendUserCommand, { context }, input),
+  const user = await executeCommand(
+    principal,
+    { requestId: await requestId() },
+    suspendUserCommand,
+    input,
   );
   await forgetPrincipal(user.id);
   return user;
@@ -74,17 +83,18 @@ export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(ReactivateUserInput, rawInput);
-  return withRequestContext(principal, { requestId: await requestId() }, (context) =>
-    runCommand(reactivateUserCommand, { context }, input),
-  );
+  return executeCommand(principal, { requestId: await requestId() }, reactivateUserCommand, input);
 }
 
 export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(RevokeSessionInput, rawInput);
-  const result = await withRequestContext(principal, { requestId: await requestId() }, (context) =>
-    runCommand(revokeSessionCommand, { context }, input),
+  const result = await executeCommand(
+    principal,
+    { requestId: await requestId() },
+    revokeSessionCommand,
+    input,
   );
   await forgetPrincipal(result.userId);
   return result;
@@ -96,7 +106,7 @@ export async function clearSignInLock(rawInput: unknown): Promise<void> {
   if (!principal) throw new DomainError('unauthorized');
   checkPermission(principal, 'admin.users.write', 'all');
   const input = parseInput(ClearSignInLockInput, rawInput);
-  const user = await withRequestContext(principal, { requestId: await requestId() }, ({ tx }) =>
+  const user = await executeQuery(principal, { requestId: await requestId() }, ({ tx }) =>
     loadUserDto(tx, input.userId),
   );
   await clearLock(defaultAuthDeps(), user.email);

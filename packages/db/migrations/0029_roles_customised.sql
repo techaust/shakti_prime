@@ -1,0 +1,2 @@
+ALTER TABLE "roles" ADD COLUMN "customised_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "roles" ADD CONSTRAINT "roles_key_check" CHECK ("roles"."key" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief'));

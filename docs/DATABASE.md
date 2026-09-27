@@ -295,6 +295,7 @@ Key columns only; every table also has the standard columns from §2.
 
 ## 9. Seeds and test data
 - `packages/db/seeds` holds synthetic entities, roles, permissions, tiers, tax rates (current GST rates with effective dates), a small catalogue, sample pipelines and 200 synthetic leads across four entities.
+- Re-running the seed keeps Admin edits: it writes only code-owned columns (keys, codes, kinds, segments, channels, permission descriptions) and adds missing rows, placing a new stage last when its position is taken. A role no Executive has customised (`roles.customised_at` null) gets the permission matrix as a set; a customised role keeps its grants and gains only permissions created after the customisation. Role keys are a fixed set (`roles_key_check`); every list-valued check equals its contract enum, which a security test compares.
 - The security suite seeds one user per role per entity and asserts row visibility per table.
 - Staging is refreshed from seeds plus anonymised structure only; production PII never leaves production.
 

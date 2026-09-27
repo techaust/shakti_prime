@@ -1,6 +1,6 @@
 'use server';
 
-import { EntityIdSchema, PasswordSchema } from '@shakti/contracts';
+import { EntityIdSchema, PASSWORD_MIN_LENGTH, PasswordSchema } from '@shakti/contracts';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { toDataURL } from 'qrcode';
@@ -102,7 +102,9 @@ export async function setPassword(
   const password = field(formData, 'password');
   if (password !== field(formData, 'confirm')) return { error: 'password_mismatch' };
   if (!PasswordSchema.safeParse(password).success) {
-    return { error: password.length < 12 ? 'password_too_short' : 'password_too_long' };
+    return {
+      error: password.length < PASSWORD_MIN_LENGTH ? 'password_too_short' : 'password_too_long',
+    };
   }
   try {
     await auth.api.resetPassword({
@@ -189,7 +191,9 @@ export async function changePassword(
   const next = field(formData, 'newPassword');
   if (next !== field(formData, 'confirm')) return { error: 'password_mismatch' };
   if (!PasswordSchema.safeParse(next).success) {
-    return { error: next.length < 12 ? 'password_too_short' : 'password_too_long' };
+    return {
+      error: next.length < PASSWORD_MIN_LENGTH ? 'password_too_short' : 'password_too_long',
+    };
   }
   const session = await currentSession();
   if (!session || session.blocked !== undefined) return { error: 'unauthorized' };

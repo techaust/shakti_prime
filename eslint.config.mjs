@@ -30,6 +30,15 @@ const rawClientImport = {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
+    // A connection opened by hand would skip the request context and RLS settings (AUDIT M12).
+    {
+      name: 'postgres',
+      message: 'Database connections are opened only in packages/db.',
+    },
+    {
+      name: 'drizzle-orm/postgres-js',
+      message: 'Database connections are opened only in packages/db.',
+    },
   ],
   patterns: [
     {
@@ -49,6 +58,19 @@ const rawClientImport = {
     },
   ],
 };
+
+// apps/web reaches the database only through the domain package: executeCommand() runs the
+// guard, the strict DTO and the audit and outbox hooks; executeQuery() runs a domain query
+// (AUDIT M12). The request context and the schema would let a screen write around them.
+const webDatabaseNames = {
+  name: '@shakti/db',
+  importNames: ['withRequestContext', 'schema', 'entityIdsLiteral'],
+  message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
+};
+
+// The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
+const restrictedModule =
+  '/^(@shakti\\/db\\/(client|testing|auth|bootstrap)|postgres|drizzle-orm\\/postgres-js)$/';
 
 // packages/domain and packages/contracts never import a framework (AGENTS.md §3).
 const frameworkImports = {
@@ -110,6 +132,14 @@ export default tseslint.config(
           selector: 'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
           message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
         },
+        {
+          selector: `ImportExpression[source.value=${restrictedModule}]`,
+          message: 'A dynamic import of a database module passes around the import fences.',
+        },
+        {
+          selector: "CallExpression[callee.name='require']",
+          message: 'Use import; require() passes around the import fences.',
+        },
       ],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
@@ -118,8 +148,8 @@ export default tseslint.config(
     files: [
       'packages/db/src/**/*.ts',
       'packages/db/seeds/**/*.ts',
-      'packages/db/tests/**/*.ts',
-      '**/tests/**/*.ts',
+      'packages/*/tests/**/*.ts',
+      'apps/*/tests/**/*.ts',
       '**/*.test.ts',
     ],
     rules: { 'no-restricted-imports': 'off' },
@@ -130,13 +160,27 @@ export default tseslint.config(
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
   },
   {
+    files: ['apps/web/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [...rawClientImport.paths, webDatabaseNames], patterns: rawClientImport.patterns },
+      ],
+    },
+  },
+  {
     // The auth module is the one caller of the auth_service connection (docs/DATABASE.md §3).
     files: ['apps/web/src/auth/**/*.ts'],
+    ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
-          paths: rawClientImport.paths.filter((p) => p.name !== '@shakti/db/auth'),
+          paths: [
+            ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/auth'),
+            webDatabaseNames,
+          ],
           patterns: rawClientImport.patterns,
         },
       ],
@@ -149,9 +193,12 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: rawClientImport.paths.filter(
-            (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/bootstrap',
-          ),
+          paths: [
+            ...rawClientImport.paths.filter(
+              (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/bootstrap',
+            ),
+            webDatabaseNames,
+          ],
           patterns: rawClientImport.patterns,
         },
       ],
