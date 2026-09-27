@@ -91,6 +91,26 @@ describe('the matching form', () => {
     });
   });
 
+  it('changes one field of the form at a time, and clears it with an empty choice', () => {
+    const start: MappingDraft = { columns: { contactName: 'A' }, defaults: { siteType: 'rooftop' } };
+    expect(withColumn(start, 'phone', 'B').columns).toEqual({ contactName: 'A', phone: 'B' });
+    expect(withColumn(start, 'contactName', '').columns).toEqual({});
+    expect(withDefault(start, 'siteType', 'borewell').defaults).toEqual({ siteType: 'borewell' });
+    expect(withDefault(start, 'siteType', '').defaults).toEqual({});
+    expect(start).toEqual({ columns: { contactName: 'A' }, defaults: { siteType: 'rooftop' } });
+  });
+
+  it('applies a saved layout, leaving unmatched a column this file lacks', () => {
+    const mapping = {
+      columns: { contactName: 'Name', phone: 'Mobile', village: 'Gaon' },
+      defaults: { pipelineKey: 'farmer_pumps' },
+    };
+    expect(draftForFile(mapping, ['Name', 'Mobile'])).toEqual({
+      columns: { contactName: 'Name', phone: 'Mobile' },
+      defaults: { pipelineKey: 'farmer_pumps' },
+    });
+  });
+
   it('finds what the contract would refuse', () => {
     expect(mappingProblems({ columns: {}, defaults: {} })).toEqual({
       contactName: 'columnRequired',

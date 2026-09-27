@@ -46,7 +46,10 @@ export function ImportSteps({ state }: { state: ImportJobState | undefined }) {
                 )}
               >
                 {t(step)}
-                <span className="sr-only">, {t(`status.${status}`)}</span>
+                <span className="sr-only">
+                  {' '}
+                  {t(`status.${status}`)}
+                </span>
               </span>
             </li>
           );

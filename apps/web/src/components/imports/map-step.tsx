@@ -12,11 +12,13 @@ import { useState, type SyntheticEvent } from 'react';
 import { mapImportJob, previewImportJob } from '../../actions/imports';
 import {
   buildMapInput,
-  draftOf,
+  draftForFile,
   initialDraft,
   isDefaultable,
   LEAD_IMPORT_FIELDS,
   mappingProblems,
+  withColumn,
+  withDefault,
   type DefaultableField,
   type MappingDraft,
 } from '../../screens/import-wizard';
@@ -70,32 +72,15 @@ export function MapStep({
   function applyTemplate(id: string) {
     setTemplateId(id);
     const template = templates.find((x) => x.id === id);
-    if (template === undefined) return;
-    const next = draftOf(template.mapping);
-    // A layout saved from another file may name a column this file lacks; it is left unmatched.
-    for (const field of LEAD_IMPORT_FIELDS) {
-      const column = next.columns[field];
-      if (column !== undefined && !job.columns.includes(column)) delete next.columns[field];
-    }
-    setDraft(next);
+    if (template !== undefined) setDraft(draftForFile(template.mapping, job.columns));
   }
 
   function setColumn(field: LeadImportField, column: string) {
-    setDraft((d) => {
-      const columns = { ...d.columns };
-      if (column === '') delete columns[field];
-      else columns[field] = column;
-      return { ...d, columns };
-    });
+    setDraft((d) => withColumn(d, field, column));
   }
 
   function setDefault(field: DefaultableField, value: string) {
-    setDraft((d) => {
-      const defaults = { ...d.defaults };
-      if (value === '') delete defaults[field];
-      else defaults[field] = value;
-      return { ...d, defaults };
-    });
+    setDraft((d) => withDefault(d, field, value));
   }
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {

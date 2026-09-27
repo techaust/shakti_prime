@@ -875,9 +875,9 @@
       "check": "Check the rows",
       "add": "Add the leads",
       "status": {
-        "done": "done",
-        "current": "current step",
-        "next": "still to come"
+        "done": "(done)",
+        "current": "(current step)",
+        "next": "(still to come)"
       }
     },
     "upload": {

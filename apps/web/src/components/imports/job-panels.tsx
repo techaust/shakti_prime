@@ -211,11 +211,13 @@ export function ProgressPanel({
   const t = useTranslations('imports.progress');
   const [current, setCurrent] = useState(job);
   const [stalled, setStalled] = useState(false);
-  const lastChange = useRef({ rows: job.committedRows, at: Date.now() });
+  // When the rows added last changed; set when the first check starts, not while rendering.
+  const lastChange = useRef<{ rows: number; at: number } | undefined>(undefined);
   const resume = useCommand(commitImportJob);
 
   useEffect(() => {
     let stopped = false;
+    lastChange.current ??= { rows: job.committedRows, at: Date.now() };
     const timer = window.setInterval(() => {
       void getImportJob({ entityId: job.entityId, jobId: job.id }).then((result) => {
         if (stopped || !result.ok) return;
@@ -227,9 +229,9 @@ export function ProgressPanel({
           return;
         }
         const now = Date.now();
-        if (next.committedRows !== lastChange.current.rows) {
-          lastChange.current = { rows: next.committedRows, at: now };
-        }
+        const last = lastChange.current ?? { rows: next.committedRows, at: now };
+        lastChange.current =
+          next.committedRows === last.rows ? last : { rows: next.committedRows, at: now };
         setCurrent(next);
         setStalled(isStalled(lastChange.current.at, now));
       });
@@ -238,7 +240,7 @@ export function ProgressPanel({
       stopped = true;
       window.clearInterval(timer);
     };
-  }, [job.entityId, job.id, onChanged]);
+  }, [job.entityId, job.id, job.committedRows, onChanged]);
 
   return (
     <Panel title={t('title')} intro={t('intro')}>
@@ -251,8 +253,8 @@ export function ProgressPanel({
             <Button
               pending={resume.pending || refreshing}
               onClick={() => {
-                resume.run({ entityId: job.entityId, jobId: job.id }, () => {
-                  lastChange.current = { rows: lastChange.current.rows, at: Date.now() };
+                resume.run({ entityId: job.entityId, jobId: job.id }, (next) => {
+                  lastChange.current = { rows: next.committedRows, at: Date.now() };
                   setStalled(false);
                   onChanged();
                 });

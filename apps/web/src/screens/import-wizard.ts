@@ -148,6 +148,40 @@ export function draftOf(mapping: ImportMapping): MappingDraft {
   return { columns: { ...mapping.columns }, defaults };
 }
 
+/** The draft with `field` read from `column`, or from no column when `column` is empty. */
+export function withColumn(draft: MappingDraft, field: LeadImportField, column: string): MappingDraft {
+  const columns = Object.fromEntries(
+    Object.entries(draft.columns).filter(([f]) => f !== field),
+  ) as MappingDraft['columns'];
+  return { ...draft, columns: column === '' ? columns : { ...columns, [field]: column } };
+}
+
+/** The draft with `value` for rows whose `field` is empty, or no value when `value` is empty. */
+export function withDefault(
+  draft: MappingDraft,
+  field: DefaultableField,
+  value: string,
+): MappingDraft {
+  const defaults = Object.fromEntries(
+    Object.entries(draft.defaults).filter(([f]) => f !== field),
+  ) as MappingDraft['defaults'];
+  return { ...draft, defaults: value === '' ? defaults : { ...defaults, [field]: value } };
+}
+
+/**
+ * A saved layout applied to this file: a column the file lacks (the layout came from another
+ * file) is left unmatched, for the person to choose.
+ */
+export function draftForFile(mapping: ImportMapping, columns: readonly string[]): MappingDraft {
+  const draft = draftOf(mapping);
+  return {
+    ...draft,
+    columns: Object.fromEntries(
+      Object.entries(draft.columns).filter(([, column]) => columns.includes(column)),
+    ) as MappingDraft['columns'],
+  };
+}
+
 /** Why a field of the matching form cannot be sent yet, keyed to `imports.map.problems`. */
 export type MappingProblem = 'columnRequired' | 'columnRepeated' | 'pipelineRequired';
 
@@ -161,9 +195,7 @@ export function mappingProblems(
 ): Partial<Record<LeadImportField, MappingProblem>> {
   const problems: Partial<Record<LeadImportField, MappingProblem>> = {};
   const seen = new Map<string, number>();
-  for (const column of Object.values(draft.columns)) {
-    if (column !== undefined) seen.set(column, (seen.get(column) ?? 0) + 1);
-  }
+  for (const column of Object.values(draft.columns)) seen.set(column, (seen.get(column) ?? 0) + 1);
   for (const field of LEAD_IMPORT_FIELDS) {
     const column = draft.columns[field];
     if (column !== undefined && (seen.get(column) ?? 0) > 1) problems[field] = 'columnRepeated';
