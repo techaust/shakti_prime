@@ -215,7 +215,7 @@ Roles are permission templates that Executives can edit:
 Response DTOs are whitelisted, so restricted fields are never fetched for roles that can't see them.
 
 ### 7.3 Authentication
-- Argon2id password hashing, Turnstile, exponential lockout per IP and account.
+- Argon2id password hashing, Turnstile, exponential lockout per account and address pair with an email to the account owner on every tenth failure, and per-address request caps.
 - DB sessions with rotation and idle (12 h) / absolute (7 d) timeouts. Admins can force logout; a role change revokes sessions.
 - Cookies are HttpOnly, Secure and SameSite=Lax. TOTP 2FA is required for Executive, GM and Accounts.
 - Mobile: short-lived access tokens + refresh tokens in the Android Keystore; per-device revocation.
