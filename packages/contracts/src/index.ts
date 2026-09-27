@@ -12,6 +12,7 @@ export * from './numbering/document-no';
 export * from './tax/engine';
 export * from './dto/entity';
 export * from './dto/lead';
+export * from './dto/board';
 export * from './dto/item';
 export * from './dto/price';
 export * from './dto/user';
