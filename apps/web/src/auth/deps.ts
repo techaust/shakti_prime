@@ -32,6 +32,10 @@ const PRODUCTION_ENV = [
   'UPSTASH_REDIS_REST_URL',
   'UPSTASH_REDIS_REST_TOKEN',
   'MAILER',
+  'DATABASE_URL_OUTBOX',
+  'QSTASH_TOKEN',
+  'QSTASH_CURRENT_SIGNING_KEY',
+  'QSTASH_NEXT_SIGNING_KEY',
 ] as const;
 
 /** Secrets that sit in the repository (the example file, CI, tests) and so protect nothing. */

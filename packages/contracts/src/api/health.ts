@@ -11,11 +11,17 @@ const Check = z.enum(['ok', 'down']);
 
 /**
  * `GET /api/v1/health/ready`: dependency checks. The application and auth database connections,
- * the shared key-value store (a set and get round trip) and the deployment configuration.
- * QStash joins the list with the outbox publisher.
+ * the shared key-value store (a set and get round trip), the deployment configuration, and the
+ * outbox (down when an event has waited longer than the publisher should ever take).
  */
 export const ReadyChecks = z
-  .object({ database: Check, auth_database: Check, key_value: Check, config: Check })
+  .object({
+    database: Check,
+    auth_database: Check,
+    key_value: Check,
+    config: Check,
+    outbox: Check,
+  })
   .strict();
 export type ReadyChecks = z.infer<typeof ReadyChecks>;
 

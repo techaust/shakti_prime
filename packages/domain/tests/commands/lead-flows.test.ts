@@ -11,6 +11,7 @@ import {
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { inviteUser } from '../../src/commands/admin/invite-user';
 import { createLead } from '../../src/commands/crm/create-lead';
@@ -31,13 +32,13 @@ describe('a known customer and the colleague who looks after them (AUDIT M25)', 
     const owner = await createTestPrincipal('tele_caller_cc', [1]);
     const other = await createTestPrincipal('tele_caller_cc', [1]);
     const first = await asPrincipal(owner, (context) =>
-      runCommand(createLead, { context, audit }, newCustomer(1)),
+      runCommand(createLead, { context, audit, outbox }, newCustomer(1)),
     );
     await expect(
       asPrincipal(other, (context) =>
         runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: first.account.id },
         ),
       ),
@@ -50,7 +51,7 @@ describe('a known customer and the colleague who looks after them (AUDIT M25)', 
     const again = await asPrincipal(owner, (context) =>
       runCommand(
         createLead,
-        { context, audit },
+        { context, audit, outbox },
         { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: first.account.id },
       ),
     );
@@ -72,7 +73,7 @@ describe('the lead form keeps one customer shape (AUDIT M29)', () => {
       asPrincipal(cc, (context) =>
         runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { ...newCustomer(1), existingAccountId: newId() },
         ),
       ),
@@ -89,7 +90,7 @@ describe('a lead is also a customer write (AUDIT L9)', () => {
     };
     await expect(
       asPrincipal(leadsOnly, (context) =>
-        runCommand(createLead, { context, audit }, newCustomer(1)),
+        runCommand(createLead, { context, audit, outbox }, newCustomer(1)),
       ),
     ).rejects.toMatchObject({ code: 'forbidden', details: { permission: 'crm.account.write' } });
   });
@@ -108,7 +109,7 @@ describe('All-companies mode and teams (AUDIT M24)', () => {
     expect(caller.teamId).toBeUndefined();
     // as the lead action does: the request narrows to the lead's company
     const lead = await withRequestContext(caller, { entityIds: [2] }, (context) =>
-      runCommand(createLead, { context, audit }, newCustomer(2)),
+      runCommand(createLead, { context, audit, outbox }, newCustomer(2)),
     );
     expect(lead.teamId).toBe(team2);
     const [row] = await asMigrator(
@@ -123,7 +124,7 @@ describe('one owner contact per customer (AUDIT M20)', () => {
   it('refuses a second owner, and lists a lead whose owner has no main phone yet', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [3]);
     const lead = await asPrincipal(cc, (context) =>
-      runCommand(createLead, { context, audit }, newCustomer(3)),
+      runCommand(createLead, { context, audit, outbox }, newCustomer(3)),
     );
     const spouse = newId();
     await expect(
@@ -159,16 +160,16 @@ describe('inviting someone again (AUDIT M26)', () => {
       entityRoles: [{ entityId: 1, roleKey: 'accounts' as const }],
     };
     const first = await asPrincipal(exec, (context) =>
-      runCommand(inviteUser, { context, audit }, invite),
+      runCommand(inviteUser, { context, audit, outbox }, invite),
     );
     const second = await asPrincipal(exec, (context) =>
-      runCommand(inviteUser, { context, audit }, invite),
+      runCommand(inviteUser, { context, audit, outbox }, invite),
     );
     expect(second.id).toBe(first.id);
 
     await asMigrator((m) => m`update users set status = 'active' where id = ${first.id}`);
     await expect(
-      asPrincipal(exec, (context) => runCommand(inviteUser, { context, audit }, invite)),
+      asPrincipal(exec, (context) => runCommand(inviteUser, { context, audit, outbox }, invite)),
     ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'invite_email_taken' } });
 
     const active = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);

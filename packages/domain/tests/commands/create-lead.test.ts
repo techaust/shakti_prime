@@ -7,8 +7,9 @@ import {
   stageId,
 } from '@shakti/db/testing';
 import { IdSchema, newId } from '@shakti/contracts';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
@@ -40,14 +41,14 @@ describe('crm.lead.create', () => {
   it('is denied for a role without crm.lead.write', async () => {
     const hr = await createTestPrincipal('hr_admin', [1]);
     await expect(
-      asPrincipal(hr, (context) => runCommand(createLead, { context, audit }, input)),
+      asPrincipal(hr, (context) => runCommand(createLead, { context, audit, outbox }, input)),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('refuses an entity outside the request scope', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [2], { teamId });
     await expect(
-      asPrincipal(cc, (context) => runCommand(createLead, { context, audit }, input)),
+      asPrincipal(cc, (context) => runCommand(createLead, { context, audit, outbox }, input)),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
@@ -60,7 +61,7 @@ describe('crm.lead.create', () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     await expect(
       asPrincipal(cc, (context) =>
-        runCommand(createLead, { context, audit }, { ...input, pipelineKey: key }),
+        runCommand(createLead, { context, audit, outbox }, { ...input, pipelineKey: key }),
       ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
@@ -72,7 +73,7 @@ describe('crm.lead.create', () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     await expect(
       asPrincipal(cc, (context) =>
-        runCommand(createLead, { context, audit }, { ...input, pipelineKey: 'nope' }),
+        runCommand(createLead, { context, audit, outbox }, { ...input, pipelineKey: 'nope' }),
       ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
@@ -80,7 +81,7 @@ describe('crm.lead.create', () => {
     });
     await expect(
       asPrincipal(cc, (context) =>
-        runCommand(createLead, { context, audit }, { ...input, sourceCode: 'nope' }),
+        runCommand(createLead, { context, audit, outbox }, { ...input, sourceCode: 'nope' }),
       ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
@@ -90,7 +91,7 @@ describe('crm.lead.create', () => {
       asPrincipal(cc, (context) =>
         runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { ...input, contact: { ...input.contact, phone: '12' } },
         ),
       ),
@@ -100,9 +101,9 @@ describe('crm.lead.create', () => {
   it('creates the lead owned by the caller in the first stage, audits and emits', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1], { teamId });
     const recorded = memoryAuditSink();
-    const onEmit = vi.fn();
+    const emitted = memoryOutboxSink();
     const lead = await asPrincipal(cc, (context) =>
-      runCommand(createLead, { context, audit: recorded, onEmit }, input),
+      runCommand(createLead, { context, audit: recorded, outbox: emitted }, input),
     );
     expect(lead.ownerId).toBe(cc.id);
     expect(lead.teamId).toBe(teamId);
@@ -129,7 +130,7 @@ describe('crm.lead.create', () => {
     expect(recorded.records).toContainEqual(
       expect.objectContaining({ command: 'crm.lead.create' }),
     );
-    expect(onEmit).toHaveBeenCalledWith([
+    expect(emitted.records).toEqual([
       expect.objectContaining({ type: 'crm.lead.created', aggregateId: lead.id }),
     ]);
 
@@ -152,7 +153,7 @@ describe('crm.lead.create', () => {
     const first = await asPrincipal(cc1, (context) =>
       runCommand(
         createLead,
-        { context, audit },
+        { context, audit, outbox },
         { ...input, contact: { name: 'Shared customer', phone: '9876700100' } },
       ),
     );
@@ -166,22 +167,26 @@ describe('crm.lead.create', () => {
       asPrincipal(cc2, (context) =>
         runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { entityId: 2, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
         ),
       ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'account_missing' } });
     await expect(
       asPrincipal(cc2, (context) =>
-        runCommand(createLead, { context, audit }, { entityId: 2, pipelineKey: 'farmer_pumps' }),
+        runCommand(
+          createLead,
+          { context, audit, outbox },
+          { entityId: 2, pipelineKey: 'farmer_pumps' },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
 
-    const onEmit = vi.fn();
+    const emitted = memoryOutboxSink();
     const second = await asPrincipal(cc2, (context) =>
       runCommand(
         createLead,
-        { context, audit, onEmit },
+        { context, audit, outbox: emitted },
         {
           entityId: 2,
           pipelineKey: 'farmer_pumps',
@@ -195,7 +200,7 @@ describe('crm.lead.create', () => {
     expect(second.entityId).toBe(2);
     expect(second.ownerId).toBe(cc2.id);
     expect(second.siteId).not.toBeNull();
-    expect(onEmit).toHaveBeenCalledWith([
+    expect(emitted.records).toEqual([
       expect.objectContaining({ type: 'crm.lead.created', entityId: 2 }),
     ]);
 
@@ -226,7 +231,7 @@ describe('crm.lead.create', () => {
     const third = await asPrincipal(cc2, (context) =>
       runCommand(
         createLead,
-        { context, audit },
+        { context, audit, outbox },
         {
           entityId: 2,
           pipelineKey: 'farmer_pumps',
@@ -259,7 +264,7 @@ describe('crm.lead.create', () => {
       for (const n of [1, 2, 3]) {
         const lead = await runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { ...input, contact: { name: `Lead batch contact ${n}`, phone: `9876600${n}00` } },
         );
         ids.push(lead.id);
@@ -286,7 +291,7 @@ describe('crm.lead.create', () => {
       await asPrincipal(cc, (context) =>
         runCommand(
           createLead,
-          { context, audit },
+          { context, audit, outbox },
           { ...input, contact: { name: `Lead page contact ${n}`, phone: `9876500${n}00` } },
         ),
       );

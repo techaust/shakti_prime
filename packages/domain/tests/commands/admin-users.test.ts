@@ -9,9 +9,10 @@ import {
   createTestUser,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { resolvePrincipalFromGrants } from '../../src/auth/resolve-principal';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { inviteUser } from '../../src/commands/admin/invite-user';
 import { revokeSession } from '../../src/commands/admin/revoke-session';
@@ -49,7 +50,7 @@ describe('admin.user.invite', () => {
       asPrincipal(gm, (context) =>
         runCommand(
           inviteUser,
-          { context, audit },
+          { context, audit, outbox },
           {
             email: email(),
             displayName: 'Ravi',
@@ -64,7 +65,7 @@ describe('admin.user.invite', () => {
       asPrincipal(exec1, (context) =>
         runCommand(
           inviteUser,
-          { context, audit },
+          { context, audit, outbox },
           {
             email: email(),
             displayName: 'Ravi',
@@ -82,7 +83,7 @@ describe('admin.user.invite', () => {
       asPrincipal(exec, (context) =>
         runCommand(
           inviteUser,
-          { context, audit },
+          { context, audit, outbox },
           {
             email: existing.email.toUpperCase(),
             displayName: 'Dup',
@@ -97,7 +98,7 @@ describe('admin.user.invite', () => {
       asPrincipal(exec, (context) =>
         runCommand(
           inviteUser,
-          { context, audit },
+          { context, audit, outbox },
           {
             email: email(),
             displayName: 'Ravi',
@@ -111,12 +112,12 @@ describe('admin.user.invite', () => {
   it('creates the principal, the invited user and one role per entity, then audits and emits', async () => {
     const exec = await createTestPrincipal('executive');
     const recorded = memoryAuditSink();
-    const onEmit = vi.fn();
+    const emitted = memoryOutboxSink();
     const address = email();
     const dto = await asPrincipal(exec, (context) =>
       runCommand(
         inviteUser,
-        { context, audit: recorded, onEmit },
+        { context, audit: recorded, outbox: emitted },
         {
           email: ` ${address.toUpperCase()} `,
           displayName: 'Ravi Kumar',
@@ -144,7 +145,7 @@ describe('admin.user.invite', () => {
     expect(recorded.records).toContainEqual(
       expect.objectContaining({ command: 'admin.user.invite' }),
     );
-    expect(onEmit).toHaveBeenCalledWith([
+    expect(emitted.records).toEqual([
       expect.objectContaining({ type: 'admin.user.invited', entityId: 1 }),
       expect.objectContaining({ type: 'admin.user.invited', entityId: 3 }),
     ]);
@@ -163,19 +164,19 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
       asPrincipal(gm, (context) =>
         runCommand(
           setUserRoles,
-          { context, audit },
+          { context, audit, outbox },
           { userId: user.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
         ),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     await expect(
       asPrincipal(gm, (context) =>
-        runCommand(suspendUser, { context, audit }, { userId: user.id }),
+        runCommand(suspendUser, { context, audit, outbox }, { userId: user.id }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
     await expect(
       asPrincipal(gm, (context) =>
-        runCommand(reactivateUser, { context, audit }, { userId: user.id }),
+        runCommand(reactivateUser, { context, audit, outbox }, { userId: user.id }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
@@ -191,7 +192,7 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
       asPrincipal(exec1, (context) =>
         runCommand(
           setUserRoles,
-          { context, audit },
+          { context, audit, outbox },
           { userId: user.id, entityRoles: [{ entityId: 1, roleKey: 'store_manager' }] },
         ),
       ),
@@ -208,7 +209,7 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
       asPrincipal(exec1, (context) =>
         runCommand(
           setUserRoles,
-          { context, audit },
+          { context, audit, outbox },
           { userId: local.id, entityRoles: [{ entityId: 2, roleKey: 'accounts' }] },
         ),
       ),
@@ -219,7 +220,7 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
       asPrincipal(exec, (context) =>
         runCommand(
           setUserRoles,
-          { context, audit },
+          { context, audit, outbox },
           { userId: exec.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
         ),
       ),
@@ -235,7 +236,7 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     const dto = await asPrincipal(exec, (context) =>
       runCommand(
         setUserRoles,
-        { context, audit },
+        { context, audit, outbox },
         {
           userId: user.id,
           entityRoles: [
@@ -282,12 +283,16 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
 
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(suspendUser, { context, audit }, { userId: exec.id, reason: 'self' }),
+        runCommand(suspendUser, { context, audit, outbox }, { userId: exec.id, reason: 'self' }),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'self_suspend' } });
 
     const suspended = await asPrincipal(exec, (context) =>
-      runCommand(suspendUser, { context, audit }, { userId: user.id, reason: 'left the company' }),
+      runCommand(
+        suspendUser,
+        { context, audit, outbox },
+        { userId: user.id, reason: 'left the company' },
+      ),
     );
     expect(suspended.status).toBe('suspended');
     expect(await revokedIds(user.id)).toEqual([s1]);
@@ -297,21 +302,21 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     });
     // a repeated suspend (a double click) answers the current record and revokes nothing more
     const again = await asPrincipal(exec, (context) =>
-      runCommand(suspendUser, { context, audit }, { userId: user.id }),
+      runCommand(suspendUser, { context, audit, outbox }, { userId: user.id }),
     );
     expect(again.status).toBe('suspended');
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(suspendUser, { context, audit }, { userId: newId() }),
+        runCommand(suspendUser, { context, audit, outbox }, { userId: newId() }),
       ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'user_missing' } });
 
     const back = await asPrincipal(exec, (context) =>
-      runCommand(reactivateUser, { context, audit }, { userId: user.id }),
+      runCommand(reactivateUser, { context, audit, outbox }, { userId: user.id }),
     );
     expect(back.status).toBe('active');
     const backAgain = await asPrincipal(exec, (context) =>
-      runCommand(reactivateUser, { context, audit }, { userId: user.id }),
+      runCommand(reactivateUser, { context, audit, outbox }, { userId: user.id }),
     );
     expect(backAgain.status).toBe('active');
     expect(resolvePrincipalFromGrants(user.id, await loadUserGrants(user.id)).kind).toBe(
@@ -326,20 +331,20 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     const s2 = await addSession(user.id);
 
     const result = await asPrincipal(exec, (context) =>
-      runCommand(revokeSession, { context, audit }, { sessionId: s1 }),
+      runCommand(revokeSession, { context, audit, outbox }, { sessionId: s1 }),
     );
     expect(result).toEqual({ userId: user.id, revokedSessionIds: [s1] });
     expect(await revokedIds(user.id)).toEqual([s1]);
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(revokeSession, { context, audit }, { sessionId: s1 }),
+        runCommand(revokeSession, { context, audit, outbox }, { sessionId: s1 }),
       ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'session_missing' } });
 
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(
       asPrincipal(gm, (context) =>
-        runCommand(revokeSession, { context, audit }, { sessionId: s2 }),
+        runCommand(revokeSession, { context, audit, outbox }, { sessionId: s2 }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
@@ -357,18 +362,18 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
 
     await expect(
       asPrincipal(exec1, (context) =>
-        runCommand(suspendUser, { context, audit }, { userId: both.id }),
+        runCommand(suspendUser, { context, audit, outbox }, { userId: both.id }),
       ),
     ).rejects.toMatchObject(outside);
     await expect(
       asPrincipal(exec1, (context) =>
-        runCommand(revokeSession, { context, audit }, { sessionId: session }),
+        runCommand(revokeSession, { context, audit, outbox }, { sessionId: session }),
       ),
     ).rejects.toMatchObject(outside);
     await asMigrator((m) => m`update users set status = 'suspended' where id = ${both.id}`);
     await expect(
       asPrincipal(exec1, (context) =>
-        runCommand(reactivateUser, { context, audit }, { userId: both.id }),
+        runCommand(reactivateUser, { context, audit, outbox }, { userId: both.id }),
       ),
     ).rejects.toMatchObject(outside);
     expect(await revokedIds(both.id)).toEqual([]);
@@ -376,7 +381,7 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
     // someone who works only in that company is in scope
     const onlyOne = await createTestUser([{ entityId: 1, roleKey: 'field_engineer' }]);
     const suspended = await asPrincipal(exec1, (context) =>
-      runCommand(suspendUser, { context, audit }, { userId: onlyOne.id }),
+      runCommand(suspendUser, { context, audit, outbox }, { userId: onlyOne.id }),
     );
     expect(suspended.status).toBe('suspended');
   });
@@ -395,7 +400,7 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
     await expect(
       asPrincipal(exec, async (context) => {
         await context.tx.execute(suspendOthers);
-        return runCommand(suspendUser, { context, audit }, { userId: target.id });
+        return runCommand(suspendUser, { context, audit, outbox }, { userId: target.id });
       }),
     ).rejects.toMatchObject(lastExecutive);
     await expect(
@@ -403,7 +408,7 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
         await context.tx.execute(suspendOthers);
         return runCommand(
           setUserRoles,
-          { context, audit },
+          { context, audit, outbox },
           { userId: target.id, entityRoles: [{ entityId: 1, roleKey: 'accounts' }] },
         );
       }),

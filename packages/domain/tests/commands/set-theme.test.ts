@@ -2,6 +2,7 @@ import { asMigrator, asPrincipal, closeDb, createTestUser, principalFor } from '
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { setTheme } from '../../src/commands/profile/set-theme';
 
@@ -22,7 +23,9 @@ describe('profile.theme.set', () => {
   it('is denied to an agent principal, which holds no profile.write', async () => {
     const agent = principalFor('agent:triage', [1]);
     await expect(
-      asPrincipal(agent, (context) => runCommand(setTheme, { context, audit }, { theme: 'dark' })),
+      asPrincipal(agent, (context) =>
+        runCommand(setTheme, { context, audit, outbox }, { theme: 'dark' }),
+      ),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
@@ -31,7 +34,7 @@ describe('profile.theme.set', () => {
     const principal = principalFor('tele_caller_cc', [1], { id: user.id });
     await expect(
       asPrincipal(principal, (context) =>
-        runCommand(setTheme, { context, audit }, { theme: 'sepia' }),
+        runCommand(setTheme, { context, audit, outbox }, { theme: 'sepia' }),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
@@ -44,7 +47,7 @@ describe('profile.theme.set', () => {
     const principal = principalFor('tele_caller_cc', [1], { id: user.id });
 
     const dto = await asPrincipal(principal, (context) =>
-      runCommand(setTheme, { context, audit }, { theme: 'dark' }),
+      runCommand(setTheme, { context, audit, outbox }, { theme: 'dark' }),
     );
 
     expect(dto).toEqual({ theme: 'dark' });
@@ -63,7 +66,7 @@ describe('profile.theme.set', () => {
     const principal = principalFor('accounts', [1], { id: user.id });
     await expect(
       asPrincipal(principal, (context) =>
-        runCommand(setTheme, { context, audit }, { theme: 'light' }),
+        runCommand(setTheme, { context, audit, outbox }, { theme: 'light' }),
       ),
     ).rejects.toMatchObject({ code: 'not_found' });
     expect((await themeOf(user.id)).theme).toBe('system');

@@ -29,6 +29,7 @@ jobs:
       DATABASE_URL_MIGRATOR: ${{ secrets.DATABASE_URL_MIGRATOR }}
       APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
       AUTH_SERVICE_PASSWORD: ${{ secrets.AUTH_SERVICE_PASSWORD }}
+      OUTBOX_PUBLISHER_PASSWORD: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
       DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
     steps:
       - name: Only from main

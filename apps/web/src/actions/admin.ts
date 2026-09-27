@@ -28,7 +28,7 @@ import { auth } from '../auth/auth';
 import { clearSignInLock as clearLock, setPasswordMailFailed } from '../auth/create-auth';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
-import { parseInput, requestMeta } from './support';
+import { commandOptions, parseInput, requestMeta } from './support';
 
 /** Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. */
 
@@ -42,7 +42,7 @@ export async function inviteUser(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     inviteUserCommand,
     input,
-    { client: meta.client },
+    commandOptions(meta),
   );
   // The set-password link goes out through the auth module's own flow (no headers: an internal
   // call). Inviting someone still invited sends a fresh link, which withdraws the old one.
@@ -65,7 +65,7 @@ export async function setUserRoles(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     setUserRolesCommand,
     input,
-    { client: meta.client },
+    commandOptions(meta),
   );
   await forgetPrincipal(user.id);
   return user;
@@ -81,7 +81,7 @@ export async function suspendUser(rawInput: unknown): Promise<UserDto> {
     { requestId: meta.requestId },
     suspendUserCommand,
     input,
-    { client: meta.client },
+    commandOptions(meta),
   );
   await forgetPrincipal(user.id);
   return user;
@@ -92,9 +92,13 @@ export async function reactivateUser(rawInput: unknown): Promise<UserDto> {
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(ReactivateUserInput, rawInput);
   const meta = await requestMeta();
-  return executeCommand(principal, { requestId: meta.requestId }, reactivateUserCommand, input, {
-    client: meta.client,
-  });
+  return executeCommand(
+    principal,
+    { requestId: meta.requestId },
+    reactivateUserCommand,
+    input,
+    commandOptions(meta),
+  );
 }
 
 export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsDto> {
@@ -107,7 +111,7 @@ export async function revokeSession(rawInput: unknown): Promise<RevokedSessionsD
     { requestId: meta.requestId },
     revokeSessionCommand,
     input,
-    { client: meta.client },
+    commandOptions(meta),
   );
   await forgetPrincipal(result.userId);
   return result;

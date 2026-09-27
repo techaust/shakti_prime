@@ -32,12 +32,35 @@ export type { CatalogueFixture } from './catalogue-fixture';
 
 /** Migrate and seed. Idempotent, so every suite's globalSetup can call it. */
 export async function prepareDatabase(): Promise<void> {
-  for (const name of ['DATABASE_URL', 'DATABASE_URL_MIGRATOR', 'DATABASE_URL_AUTH']) {
+  for (const name of [
+    'DATABASE_URL',
+    'DATABASE_URL_MIGRATOR',
+    'DATABASE_URL_AUTH',
+    'DATABASE_URL_OUTBOX',
+  ]) {
     const url = process.env[name];
     if (url !== undefined && url !== '') assertLocalDatabase(url);
   }
   await runMigrations();
   await runSeeds();
+  // The suites write events but never run the publisher. Left pending, they would age past the
+  // readiness limit and turn a later run's readiness check down, so they are marked delivered.
+  await asMigrator(
+    (m) => m`update outbox_events set published_at = now()
+              where published_at is null and dead_lettered_at is null`,
+  );
+}
+
+/** Runs `fn` as `outbox_publisher`, the one role that may read `outbox_events` back. */
+export async function asOutboxPublisher<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
+  const url = requireEnv('DATABASE_URL_OUTBOX');
+  assertLocalDatabase(url);
+  const publisher = postgres(url, { max: 1, prepare: false });
+  try {
+    return await fn(publisher);
+  } finally {
+    await publisher.end();
+  }
 }
 
 /** Runs `fn` with a short-lived migrator connection (table owner, bypasses RLS) for fixtures. */
@@ -193,6 +216,13 @@ export const AUTH_TABLES = [
   'auth_verifications',
   'user_two_factor',
 ] as const;
+
+/**
+ * Platform tables the application may only insert into (docs/DATABASE.md §5): `app_user` cannot
+ * read them back, so the select-based loops do not apply. The outbox publisher reads and marks
+ * deliveries; asserted in outbox.test.ts.
+ */
+export const OUTBOX_TABLES = ['outbox_events'] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;

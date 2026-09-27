@@ -1,6 +1,12 @@
 import { sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
-import { AUTH_TABLES, closeDb, RLS_TABLES, withoutContext } from '../../src/testing/index';
+import {
+  AUTH_TABLES,
+  closeDb,
+  OUTBOX_TABLES,
+  RLS_TABLES,
+  withoutContext,
+} from '../../src/testing/index';
 
 afterAll(closeDb);
 
@@ -21,11 +27,13 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
       where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relispartition
       order by c.relname
     `);
-    expect(rows.map((r) => r.name)).toEqual([...RLS_TABLES, ...AUTH_TABLES].sort());
+    expect(rows.map((r) => r.name)).toEqual(
+      [...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES].sort(),
+    );
     expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
   });
 
-  it.each([...RLS_TABLES, ...AUTH_TABLES])(
+  it.each([...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES])(
     'does not own %s and the table forces RLS',
     async (table) => {
       const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`

@@ -5,3 +5,4 @@ export { closeDb } from './client';
 export * as schema from './schema/index';
 export { loadUserGrants } from './auth/user-grants';
 export type { UserGrantRow } from './auth/user-grants';
+export type { ClaimOutbox, OutboxLag, OutboxRow, OutboxUpdate } from './outbox-types';

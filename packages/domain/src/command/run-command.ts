@@ -1,6 +1,7 @@
 import {
   DomainError,
   hasGrant,
+  parseEventPayload,
   type PermissionKey,
   type Principal,
   type Scope,
@@ -9,7 +10,8 @@ import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
 import { redactForAudit } from '../audit/redact';
 import type { AuditRecord, AuditSink, ClientMeta } from '../audit/sink';
-import type { AuditChange, CommandContext, DomainEvent } from './context';
+import type { OutboxRecord, OutboxSink } from '../outbox/sink';
+import type { AuditChange, CommandContext } from './context';
 import type { Command } from './define-command';
 
 export interface RunOptions {
@@ -20,8 +22,8 @@ export interface RunOptions {
   audit: AuditSink;
   /** The caller's address and device, recorded on the audit row. */
   client?: ClientMeta;
-  /** Receives emitted events. Wired to `outbox_events` when that table exists. */
-  onEmit?: (events: readonly DomainEvent[]) => Promise<void> | void;
+  /** Where emitted events go (required since slice 3; `executeCommand` passes `outbox_events`). */
+  outbox: OutboxSink;
 }
 
 /**
@@ -177,7 +179,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   }
 
   const now = options.now ?? new Date();
-  const events: DomainEvent[] = [];
+  const events: OutboxRecord[] = [];
   const changes: AuditChange[] = [];
   const activeEntityId = context.entityIds.length === 1 ? context.entityIds[0] : undefined;
   const ctx: CommandContext = {
@@ -185,8 +187,21 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     entityIds: context.entityIds,
     activeEntityId,
     tx: context.tx,
+    // Checked against the catalogue here, so a bad event fails the command that emits it.
     emit: (event) => {
-      events.push(event);
+      const parsed = parseEventPayload(event.type, event.payload);
+      if (!parsed.ok) {
+        throw new DomainError(
+          'internal',
+          `${command.name} emitted an event outside the catalogue`,
+          {
+            eventType: event.type,
+            problem: parsed.problem,
+            issues: parsed.issues,
+          },
+        );
+      }
+      events.push({ ...event, payload: parsed.payload });
     },
     audit: (change) => {
       changes.push(change);
@@ -235,7 +250,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   // The audit and outbox writes share the transaction, so their failures translate the same way.
   try {
     await options.audit.write(context.tx, records);
-    if (events.length > 0) await options.onEmit?.(events);
+    await options.outbox.write(context.tx, events);
   } catch (e) {
     throw tag(
       translateDatabaseError(e, command.name, command.constraintReasons),

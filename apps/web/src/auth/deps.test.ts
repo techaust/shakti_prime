@@ -12,6 +12,10 @@ const GOOD: NodeJS.ProcessEnv = {
   UPSTASH_REDIS_REST_URL: 'https://example.upstash.io',
   UPSTASH_REDIS_REST_TOKEN: 'upstash-value',
   MAILER: 'log',
+  DATABASE_URL_OUTBOX: 'postgres://outbox_publisher:value@db.example.in:6543/postgres',
+  QSTASH_TOKEN: 'qstash-value',
+  QSTASH_CURRENT_SIGNING_KEY: 'qstash-current-value',
+  QSTASH_NEXT_SIGNING_KEY: 'qstash-next-value',
 };
 
 describe('productionConfigProblems (AUDIT M8, M9)', () => {
@@ -23,6 +27,13 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     expect(productionConfigProblems({ NODE_ENV: 'production' })[0]).toContain(
       'BETTER_AUTH_SECRET, BETTER_AUTH_URL',
     );
+  });
+
+  it('refuses to start without the outbox connection and the queue', () => {
+    const without = { ...GOOD, DATABASE_URL_OUTBOX: '', QSTASH_NEXT_SIGNING_KEY: '' };
+    expect(productionConfigProblems(without)).toEqual([
+      'missing DATABASE_URL_OUTBOX, QSTASH_NEXT_SIGNING_KEY',
+    ]);
   });
 
   it.each([

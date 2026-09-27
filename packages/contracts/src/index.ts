@@ -21,4 +21,6 @@ export * from './commands/admin/users';
 export * from './commands/profile/set-theme';
 export * from './api/error';
 export * from './api/health';
+export * from './api/workers';
+export * from './events/catalogue';
 export * from './templates/index';

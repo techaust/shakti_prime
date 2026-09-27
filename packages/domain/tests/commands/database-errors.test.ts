@@ -5,6 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from '../../src/command/define-command';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 
 afterAll(closeDb);
@@ -56,7 +57,7 @@ describe('database errors inside a command', () => {
   it('a unique violation answers conflict with the constraint named, never the SQL', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     const error = await asPrincipal(exec, (context) =>
-      runCommand(insertTier, { context, audit }, { code: 'retail' }),
+      runCommand(insertTier, { context, audit, outbox }, { code: 'retail' }),
     ).catch((e: unknown) => e);
     expect(error).toMatchObject({
       code: 'conflict',
@@ -72,7 +73,9 @@ describe('database errors inside a command', () => {
   it('a check violation answers validation_failed', async () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
-      asPrincipal(exec, (context) => runCommand(insertItem, { context, audit }, { hsn: 'abc' })),
+      asPrincipal(exec, (context) =>
+        runCommand(insertItem, { context, audit, outbox }, { hsn: 'abc' }),
+      ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
       details: { reason: 'database_rejected', sqlstate: '23514', constraint: 'items_hsn_check' },
@@ -87,7 +90,7 @@ describe('database errors inside a command', () => {
     const denied = defineCommand({ ...insertTier, minScope: 'own' });
     await expect(
       asPrincipal(cc, (context) =>
-        runCommand(denied, { context, audit }, { code: `t-${newId()}` }),
+        runCommand(denied, { context, audit, outbox }, { code: `t-${newId()}` }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden', details: { sqlstate: '42501' } });
   });

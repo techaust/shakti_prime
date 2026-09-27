@@ -8,8 +8,9 @@ import {
   tierId,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
+import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
 import { setPrice } from '../../src/commands/pricing/set-price';
 
@@ -56,7 +57,7 @@ describe('pricing.price.set', () => {
   it('is denied for a General Manager', async () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     await expect(
-      asPrincipal(gm, (context) => runCommand(setPrice, { context, audit }, input)),
+      asPrincipal(gm, (context) => runCommand(setPrice, { context, audit, outbox }, input)),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
@@ -64,12 +65,16 @@ describe('pricing.price.set', () => {
     const exec = await createTestPrincipal('executive', [1]);
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, priceListId: newId() }),
+        runCommand(setPrice, { context, audit, outbox }, { ...input, priceListId: newId() }),
       ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'price_list_missing' } });
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, priceListId: ids.entity2List }),
+        runCommand(
+          setPrice,
+          { context, audit, outbox },
+          { ...input, priceListId: ids.entity2List },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'price_list_missing' } });
   });
@@ -78,12 +83,16 @@ describe('pricing.price.set', () => {
     const exec = await createTestPrincipal('executive');
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, priceListId: ids.archivedList }),
+        runCommand(
+          setPrice,
+          { context, audit, outbox },
+          { ...input, priceListId: ids.archivedList },
+        ),
       ),
     ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'price_list_closed' } });
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, itemId: ids.inactiveItem }),
+        runCommand(setPrice, { context, audit, outbox }, { ...input, itemId: ids.inactiveItem }),
       ),
     ).rejects.toMatchObject({
       code: 'validation_failed',
@@ -91,12 +100,12 @@ describe('pricing.price.set', () => {
     });
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, kitId: ids.kit }),
+        runCommand(setPrice, { context, audit, outbox }, { ...input, kitId: ids.kit }),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
     await expect(
       asPrincipal(exec, (context) =>
-        runCommand(setPrice, { context, audit }, { ...input, price: '0.00' }),
+        runCommand(setPrice, { context, audit, outbox }, { ...input, price: '0.00' }),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
   });
@@ -104,9 +113,9 @@ describe('pricing.price.set', () => {
   it('sets a price, logs every change with the previous value, audits and emits', async () => {
     const exec = await createTestPrincipal('executive');
     const recorded = memoryAuditSink();
-    const onEmit = vi.fn();
+    const emitted = memoryOutboxSink();
     const first = await asPrincipal(exec, (context) =>
-      runCommand(setPrice, { context, audit: recorded, onEmit }, input),
+      runCommand(setPrice, { context, audit: recorded, outbox: emitted }, input),
     );
     expect(first).toMatchObject({
       priceListId: ids.sharedList,
@@ -129,14 +138,14 @@ describe('pricing.price.set', () => {
     expect(recorded.records).toContainEqual(
       expect.objectContaining({ command: 'pricing.price.set' }),
     );
-    expect(onEmit).toHaveBeenCalledWith([
+    expect(emitted.records).toEqual([
       expect.objectContaining({ type: 'pricing.price.changed', aggregateId: first.id }),
     ]);
 
     const second = await asPrincipal(exec, (context) =>
       runCommand(
         setPrice,
-        { context, audit },
+        { context, audit, outbox },
         { ...input, price: '1550.00', reason: 'season change' },
       ),
     );
@@ -146,7 +155,7 @@ describe('pricing.price.set', () => {
     const kitPrice = await asPrincipal(exec, (context) =>
       runCommand(
         setPrice,
-        { context, audit },
+        { context, audit, outbox },
         { priceListId: ids.sharedList, kitId: ids.kit, price: '9000.00' },
       ),
     );
@@ -176,7 +185,7 @@ describe('pricing.price.set', () => {
     await Promise.all(
       ['1601.00', '1602.00'].map((price) =>
         asPrincipal(exec, (context) =>
-          runCommand(setPrice, { context, audit }, { ...input, price }),
+          runCommand(setPrice, { context, audit, outbox }, { ...input, price }),
         ),
       ),
     );
@@ -208,7 +217,7 @@ describe('pricing.price.set', () => {
     const exec12 = await createTestPrincipal('executive', [1, 2]);
     for (const exec of [exec1, exec12]) {
       await expect(
-        asPrincipal(exec, (context) => runCommand(setPrice, { context, audit }, input)),
+        asPrincipal(exec, (context) => runCommand(setPrice, { context, audit, outbox }, input)),
       ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'price_list_group_scope' } });
     }
     // the database refuses the same write made directly, so the rule does not rest on the command
@@ -237,7 +246,7 @@ describe('pricing.price.set', () => {
     // a list of one company stays editable by an Executive acting for that company
     const exec2 = await createTestPrincipal('executive', [2]);
     const own = await asPrincipal(exec2, (context) =>
-      runCommand(setPrice, { context, audit }, { ...input, priceListId: ids.entity2List }),
+      runCommand(setPrice, { context, audit, outbox }, { ...input, priceListId: ids.entity2List }),
     );
     expect(own.entityId).toBe(2);
   });
