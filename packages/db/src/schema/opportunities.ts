@@ -56,8 +56,20 @@ export const opportunities = pgTable(
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),
     index('opportunities_account_idx').on(t.accountId),
-    index('opportunities_entity_owner_idx').on(t.entityId, t.ownerId),
-    index('opportunities_entity_team_idx').on(t.entityId, t.teamId),
+    // A caller with own or team scope pages their leads straight off these (AUDIT M33).
+    // `nullsFirst` matches the list's plain `order by … desc`, so the index serves the order.
+    index('opportunities_entity_owner_idx').on(
+      t.entityId,
+      t.ownerId,
+      t.updatedAt.desc().nullsFirst(),
+      t.id.desc().nullsFirst(),
+    ),
+    index('opportunities_entity_team_idx').on(
+      t.entityId,
+      t.teamId,
+      t.updatedAt.desc().nullsFirst(),
+      t.id.desc().nullsFirst(),
+    ),
     index('opportunities_keyset_idx').on(t.updatedAt, t.id),
     index('opportunities_pipeline_stage_idx').on(t.pipelineId, t.stageId),
     index('opportunities_site_idx').on(t.siteId),

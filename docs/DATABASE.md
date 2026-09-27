@@ -92,9 +92,13 @@ create policy accounts_read on accounts for select using (
   entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.account.read', owner_id, team_id));
 
 -- shared customer master (ADR 0008): accounts and contacts carry no entity; the relationship row is the root
-create policy accounts_read on accounts for select using (app.account_in_scope(id, 'crm.account.read'));
+create policy accounts_read on accounts for select using (
+  exists (select 1 from account_entities ae where ae.account_id = accounts.id));
 create policy accounts_insert on accounts for insert with check ((select app.has_perm('crm.account.write:own')));
-create policy contact_phones_read on contact_phones for select using (app.contact_in_scope(contact_id, 'crm.account.read'));
+create policy contact_phones_read on contact_phones for select using (
+  exists (select 1 from account_contacts ac where ac.contact_id = contact_phones.contact_id));
+-- reads use a plain EXISTS the planner can see into (an index probe for a page, a hash for a search);
+-- the definer helpers app.account_in_scope() / app.contact_in_scope() serve the write policies only
 
 -- child of an entity-scoped root: visible when the parent row is visible; the EXISTS runs under the parent's policies
 create policy customer_sites_read on customer_sites for select using (
@@ -284,7 +288,7 @@ Key columns only; every table also has the standard columns from §2.
 ## 8. Migrations
 1. Change the Drizzle schema in `packages/db/src/schema`.
 2. `pnpm db:generate` produces the numbered SQL migration; add a sibling hand-written migration for RLS policies, triggers, partitions or grants in the same sequence.
-3. Every new business table ships with: `entity_id` (or, for customer-master children, the `app.account_in_scope()` / `app.contact_in_scope()` predicate per ADR 0008), RLS enabled and forced, the standard policies, grants to `app_user`, a security-suite test, and its name in `SHARED_TABLES` or `ENTITY_TABLES` of the testing module so the fail-closed loop covers it.
+3. Every new business table ships with: `entity_id` (or, for customer-master children, an `exists` on `account_entities` or `account_contacts` for reads and the `app.account_in_scope()` / `app.contact_in_scope()` predicate for writes, per ADR 0008), RLS enabled and forced, the standard policies, grants to `app_user`, a security-suite test, and its name in `SHARED_TABLES` or `ENTITY_TABLES` of the testing module so the fail-closed loop covers it.
 4. Expand/contract for renames and type changes: add the new column, dual-write, backfill, switch reads, drop the old column in a later release.
 5. `pnpm db:migrate` runs in CI against a fresh database and against a copy of staging before deploy.
 6. Applied migrations are never edited.
