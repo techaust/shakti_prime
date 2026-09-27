@@ -66,7 +66,7 @@ export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer
 export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
 export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
-export { queryAudit, toAuditLogDto } from './queries/audit/query-audit';
+export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';
 export { listLeads, countLeads } from './queries/crm/list-leads';

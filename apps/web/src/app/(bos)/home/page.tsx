@@ -1,15 +1,11 @@
 import type { Metadata } from 'next';
-import { ThemeSchema } from '@shakti/contracts';
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentSession } from '../../../auth/current-principal';
-import {
-  ChangePasswordForm,
-  EntitySwitcher,
-  SignOutButton,
-} from '../../../components/auth/home-forms';
-import { ThemeSwitch } from '../../../components/theme';
+import { Page } from '../../../components/shell/page';
 import type { RoleNameKey } from '../../../i18n/types';
+import { visibleNav } from '../../../nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,40 +13,75 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('auth.home'))('title') };
 }
 
-const savedTheme = (value: string) => ThemeSchema.catch('system').parse(value);
-
-/** Signed-in landing until the app shell arrives in week 4: who you are, where you are, sign out. */
+/**
+ * The landing inside the shell: who you are, in which role and company, and a shortcut to every
+ * screen your grants open (the same list as the sidebar). The theme and the password change live
+ * on the profile screen, reached from the profile menu.
+ */
 export default async function HomePage() {
   const session = await currentSession();
   if (!session) redirect('/sign-in');
   if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
   if (!session.principal) redirect('/two-factor');
   const principal = session.principal;
-  const t = await getTranslations('auth.home');
+  const t = await getTranslations('home');
+  const auth = await getTranslations('auth.home');
+  const nav = await getTranslations('nav');
   const roles = await getTranslations('roles');
-  const active = principal.entityIds.length === 1 ? principal.entityIds[0] : undefined;
+  const active =
+    principal.entityIds.length === 1
+      ? session.access.entities.find((e) => e.entityId === principal.entityIds[0])
+      : undefined;
+  const shortcuts = visibleNav(principal.permissions).filter((item) => item.id !== 'home');
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-4 py-12">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
-          {t('title')}
-        </h1>
-        <p>{t('signedInAs', { name: session.access.name })}</p>
-        {/* A signed-in person always holds a staff role; agents never sign in here. */}
-        <p className="text-text-muted">
-          {t('role', { role: roles(principal.roleKey as RoleNameKey) })}
-        </p>
-      </div>
-      <EntitySwitcher
-        entities={session.access.entities.map((e) => ({
-          entityId: e.entityId,
-          label: e.entityName,
-        }))}
-        active={active}
-      />
-      <ThemeSwitch saved={savedTheme(session.access.theme)} />
-      <ChangePasswordForm />
-      <SignOutButton />
-    </main>
+    <Page
+      width="detail"
+      title={t('greeting', { name: session.access.name })}
+      description={
+        <>
+          {/* A signed-in person always holds a staff role; agents never sign in here. */}
+          <span className="block">
+            {auth('role', { role: roles(principal.roleKey as RoleNameKey) })}
+          </span>
+          <span className="block">
+            {active === undefined
+              ? t('allCompanies')
+              : t('company', { company: active.entityName })}
+          </span>
+        </>
+      }
+    >
+      <section aria-labelledby="home-shortcuts" className="flex flex-col gap-3">
+        <h2 id="home-shortcuts" className="text-h3">
+          {t('shortcutsTitle')}
+        </h2>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {shortcuts.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  className="bg-surface border-border hover:border-border-strong hover:bg-surface-2 flex h-full items-start gap-3 rounded-lg border p-4 transition-colors duration-(--motion-fast) ease-out"
+                >
+                  <span
+                    aria-hidden
+                    className="bg-accent-soft text-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+                  >
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="font-[590]">{nav(item.label)}</span>
+                    <span className="text-text-muted text-sm">
+                      {t(`hint.${item.label as Exclude<typeof item.label, 'home'>}`)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </Page>
   );
 }

@@ -3,4 +3,20 @@
  * rest of the catalogue, mail and role names included, stays on the server.
  * `client-namespaces.test.ts` checks every client component against this list.
  */
-export const CLIENT_NAMESPACES = ['app', 'auth', 'errors', 'errorPage', 'fields', 'theme'] as const;
+export const CLIENT_NAMESPACES = [
+  'app',
+  'auth',
+  'errors',
+  'errorPage',
+  'fields',
+  'nav',
+  'shell',
+  'theme',
+  'common',
+  'companies',
+  'priceMaster',
+  'leads',
+  'users',
+  'roles',
+  'activity',
+] as const;

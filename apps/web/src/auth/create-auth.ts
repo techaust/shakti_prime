@@ -27,6 +27,7 @@ import {
   TURNSTILE_SIGN_IN_ACTION,
   verifyTurnstile,
 } from './turnstile';
+import { SECURE_SESSION_COOKIE } from '../session-gate';
 
 /** Argon2id parameters from docs/SECURITY.md §2: m = 64 MiB, t = 3, p = 1. */
 // algorithm 2 is Argon2id in @node-rs/argon2 (a const enum, not importable under verbatimModuleSyntax).
@@ -490,7 +491,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
       defaultCookieAttributes: { secure, sameSite: 'lax', httpOnly: true, path: '/' },
       cookiePrefix: 'shakti',
       cookies: secure
-        ? { session_token: { name: '__Host-shakti-session', attributes: { path: '/' } } }
+        ? { session_token: { name: SECURE_SESSION_COOKIE, attributes: { path: '/' } } }
         : {},
     },
     hooks: {

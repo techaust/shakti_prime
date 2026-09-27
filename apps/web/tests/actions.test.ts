@@ -68,6 +68,7 @@ const {
   clearSignInLock,
   inviteUser,
   listAuditLog,
+  listAuditPeople,
   listUserSessions,
   listUsers,
   reactivateUser,
@@ -145,6 +146,19 @@ describe('server actions (AUDIT M41)', () => {
     expect(request.jar.has('entity')).toBe(false);
   });
 
+  it('the company switcher returns to the screen it was on, and only to a BOS screen', async () => {
+    const form = (returnTo: string) => {
+      const data = new FormData();
+      data.set('entityId', '1');
+      data.set('returnTo', returnTo);
+      return data;
+    };
+    request.session = { access: { entities: [{ entityId: 1 }] } };
+    await expect(switchEntity(form('/leads'))).rejects.toThrow('redirect /leads');
+    await expect(switchEntity(form('//evil.example/leads'))).rejects.toThrow('redirect /home');
+    await expect(switchEntity(form('/sign-in'))).rejects.toThrow('redirect /home');
+  });
+
   it('record the caller’s address, browser and request on the audit trail, read back by an Executive', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     request.principal = caller;
@@ -167,6 +181,7 @@ describe('server actions (AUDIT M41)', () => {
     );
     expect(page.items).toEqual([
       expect.objectContaining({
+        actorName: 'test tele_caller_cc',
         command: 'crm.lead.create',
         outcome: 'ok',
         entityId: 1,
@@ -259,15 +274,39 @@ describe('server actions (AUDIT M41)', () => {
     }
   });
 
-  it('keep the audit trail from a role without audit.read', async () => {
+  it('keep the audit trail and its people from a role without audit.read', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const now = Date.now();
-    await expect(
-      listAuditLog({
+    const window = {
+      from: new Date(now - 60_000).toISOString(),
+      to: new Date(now + 60_000).toISOString(),
+    };
+    await expect(listAuditLog(window)).resolves.toEqual({ ok: false, error: 'forbidden' });
+    await expect(listAuditPeople(window)).resolves.toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('offer the Activity log the people who acted in the window', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    // A name that sorts first, so the filter's cap of 500 never leaves this caller out.
+    const name = `Aa activity person ${caller.id.slice(-6)}`;
+    await asMigrator(
+      (m) => m`update principals set display_name = ${name} where id = ${caller.id}`,
+    );
+    request.principal = caller;
+    ok(await createLead(lead(1)));
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    const now = Date.now();
+    const people = ok(
+      await listAuditPeople({
         from: new Date(now - 60_000).toISOString(),
         to: new Date(now + 60_000).toISOString(),
       }),
-    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    );
+    expect(people).toContainEqual({ id: caller.id, name });
+    await expect(listAuditPeople({ from: 'yesterday', to: 'today' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
   });
 });
 
@@ -387,9 +426,15 @@ describe('command and query actions answer a result, never a thrown error (revie
     const lists = ok(await listPriceLists());
     const list = lists[0];
     if (list !== undefined) {
-      const rows = ok(await listPrices({ priceListId: list.id }));
-      for (const row of rows) expect(row).not.toHaveProperty('cost');
-      const item = rows[0];
+      const page = ok(await listPrices({ priceListId: list.id, limit: 2 }));
+      expect(page.items.length).toBeLessThanOrEqual(2);
+      for (const row of page.items) expect(row).not.toHaveProperty('cost');
+      if (page.nextCursor !== null) {
+        const next = ok(await listPrices({ priceListId: list.id, cursor: page.nextCursor }));
+        const seen = new Set(page.items.map((r) => r.itemId));
+        for (const row of next.items) expect(seen.has(row.itemId)).toBe(false);
+      }
+      const item = page.items[0];
       if (item !== undefined) {
         await expect(
           setPrice({ priceListId: list.id, itemId: item.itemId, price: '100.00' }),

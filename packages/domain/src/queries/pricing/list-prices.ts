@@ -2,14 +2,16 @@ import {
   DomainError,
   ItemUnitSchema,
   ListPricesInput,
+  PriceCursorSchema,
   PriceListDto,
+  PricePageDto,
   PriceRowDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { istCalendarDate } from '../../numbering/financial-year';
-import { parseQueryInput } from '../parse-input';
+import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
 type PricingContext = Pick<RequestContext, 'tx' | 'principal'>;
 
@@ -55,13 +57,16 @@ export async function listPriceLists(
 }
 
 /**
- * The active items with their price on one list, by name. Items not yet priced on the list come
- * back with a null price, so Price Master can set their first price. Never joins `item_costs`:
- * selling prices only (docs/SECURITY.md §4). The list itself must be readable to the caller.
+ * The active items with their price on one list, by name, a page at a time (keyset on name and
+ * id, docs/API.md §1). Items not yet priced on the list come back with a null price, so Price
+ * Master can set their first price. Never joins `item_costs`: selling prices only
+ * (docs/SECURITY.md §4). The list itself must be readable to the caller.
  */
-export async function listPrices(ctx: PricingContext, rawInput: unknown): Promise<PriceRowDto[]> {
+export async function listPrices(ctx: PricingContext, rawInput: unknown): Promise<PricePageDto> {
   const input = parseQueryInput(ListPricesInput, rawInput, 'pricing.prices.list');
   checkPermission(ctx.principal, 'pricing.read', 'entity');
+  const after =
+    input.cursor === undefined ? undefined : decodeCursor(PriceCursorSchema, input.cursor);
   const pl = schema.priceLists;
   const [list] = await ctx.tx
     .select({ id: pl.id })
@@ -87,17 +92,34 @@ export async function listPrices(ctx: PricingContext, rawInput: unknown): Promis
     })
     .from(i)
     .leftJoin(pli, and(eq(pli.itemId, i.id), eq(pli.priceListId, input.priceListId)))
-    .where(and(isNull(i.archivedAt), eq(i.isActive, true)))
-    .orderBy(asc(i.name), asc(i.id));
-  return rows.map((r) =>
-    PriceRowDto.parse({
-      itemId: r.itemId,
-      sku: r.sku,
-      name: r.name,
-      category: r.category,
-      unit: ItemUnitSchema.parse(r.unit),
-      price: r.price,
-      updatedAt: r.updatedAt?.toISOString() ?? null,
-    }),
-  );
+    .where(
+      and(
+        isNull(i.archivedAt),
+        eq(i.isActive, true),
+        after === undefined
+          ? undefined
+          : or(gt(i.name, after.name), and(eq(i.name, after.name), gt(i.id, after.id))),
+      ),
+    )
+    .orderBy(asc(i.name), asc(i.id))
+    .limit(input.limit + 1);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return PricePageDto.parse({
+    items: page.map((r) =>
+      PriceRowDto.parse({
+        itemId: r.itemId,
+        sku: r.sku,
+        name: r.name,
+        category: r.category,
+        unit: ItemUnitSchema.parse(r.unit),
+        price: r.price,
+        updatedAt: r.updatedAt?.toISOString() ?? null,
+      }),
+    ),
+    nextCursor:
+      rows.length > input.limit && last !== undefined
+        ? encodeCursor({ name: last.name, id: last.itemId })
+        : null,
+  });
 }

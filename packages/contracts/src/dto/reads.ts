@@ -98,5 +98,18 @@ export const PriceRowDto = z
   .strict();
 export type PriceRowDto = z.infer<typeof PriceRowDto>;
 
-export const ListPricesInput = z.object({ priceListId: IdSchema }).strict();
-export type ListPricesInput = z.infer<typeof ListPricesInput>;
+/** Price Master: one page of a list's items, by name. */
+export const PricePageDto = pageOf(PriceRowDto);
+export type PricePageDto = z.infer<typeof PricePageDto>;
+
+/** Keyset position of the prices list, ordered by item name then id. */
+export const PriceCursorSchema = z.object({ name: z.string().max(1000), id: IdSchema }).strict();
+
+export const ListPricesInput = z
+  .object({
+    priceListId: IdSchema,
+    cursor: z.string().max(2048).optional(),
+    limit: z.number().int().min(1).max(200).default(50),
+  })
+  .strict();
+export type ListPricesInput = z.input<typeof ListPricesInput>;

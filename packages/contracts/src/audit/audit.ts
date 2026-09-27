@@ -65,6 +65,8 @@ export const AuditLogDto = z
     entityId: EntityIdSchema.nullable(),
     actorPrincipalId: IdSchema.nullable(),
     actorKind: PrincipalKindSchema.nullable(),
+    /** The actor's display name, for the screen; null for a row with no actor. */
+    actorName: z.string().nullable(),
     onBehalfOfUserId: IdSchema.nullable(),
     command: z.string(),
     aggregateType: z.string().nullable(),
@@ -86,3 +88,23 @@ export const AuditPageDto = z
   .object({ items: z.array(AuditLogDto), nextCursor: z.string().nullable() })
   .strict();
 export type AuditPageDto = z.infer<typeof AuditPageDto>;
+
+/** The window of the Activity log's person filter: the same limits as the reader's window. */
+export const AuditPeopleInput = z
+  .object({ from: z.iso.datetime({ offset: true }), to: z.iso.datetime({ offset: true }) })
+  .strict()
+  .refine((q) => Date.parse(q.from) < Date.parse(q.to), {
+    message: 'from must be before to',
+    path: ['to'],
+  })
+  .refine((q) => Date.parse(q.to) - Date.parse(q.from) <= 93 * 24 * 60 * 60 * 1000, {
+    message: 'the window is at most 93 days',
+    path: ['from'],
+  });
+export type AuditPeopleInput = z.input<typeof AuditPeopleInput>;
+
+/** Someone who acted in the window, for the person filter of the Activity log. */
+export const AuditPersonDto = z.object({ id: IdSchema, name: z.string() }).strict();
+export type AuditPersonDto = z.infer<typeof AuditPersonDto>;
+export const AuditPeopleDto = z.array(AuditPersonDto);
+export type AuditPeopleDto = z.infer<typeof AuditPeopleDto>;
