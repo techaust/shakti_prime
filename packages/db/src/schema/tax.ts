@@ -55,6 +55,11 @@ export const compositeSupplyRules = pgTable(
       'composite_supply_rules_share_check',
       sql`${t.goodsSharePct} + ${t.servicesSharePct} = 100`,
     ),
+    // Shares and rates are percentages (AUDIT L3).
+    check(
+      'composite_supply_rules_range_check',
+      sql`${t.goodsSharePct} between 0 and 100 and ${t.servicesSharePct} between 0 and 100 and ${t.goodsRatePct} between 0 and 100 and ${t.servicesRatePct} between 0 and 100`,
+    ),
     check(
       'composite_supply_rules_effective_check',
       sql`${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom}`,

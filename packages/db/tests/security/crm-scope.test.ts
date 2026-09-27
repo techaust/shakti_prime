@@ -319,9 +319,10 @@ describe('an opportunity sits only in an entity its account deals with', () => {
       (
         m,
       ) => m`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, created_by)
-        values (${id}, ${entityId}, ${accountId}, ${siteId},
-                (select id from pipelines limit 1), (select id from pipeline_stages limit 1),
-                ${fx.principals.a.id}, ${fx.principals.a.id})`,
+        select ${id}, ${entityId}, ${accountId}, ${siteId}, s.pipeline_id, s.id,
+               ${fx.principals.a.id}, ${fx.principals.a.id}
+          -- a stage and its own pipeline (AUDIT L2)
+          from (select pipeline_id, id from pipeline_stages order by id limit 1) s`,
     );
 
   it('the trigger refuses a missing relationship and a site of another account, even for the table owner', async () => {
@@ -522,4 +523,23 @@ describe('the customer scope helpers answer only for their own permissions (AUDI
       );
     },
   );
+});
+
+describe('an opportunity stays on its own pipeline (AUDIT L2)', () => {
+  it('refuses a stage of another pipeline, even for the table owner', async () => {
+    const [pair] = await asMigrator(
+      (m) => m<{ pipeline: string; stage: string }[]>`
+        select p.id as pipeline, s.id as stage from pipelines p
+          join pipeline_stages s on s.pipeline_id <> p.id limit 1`,
+    );
+    await expect(
+      asMigrator(
+        (
+          m,
+        ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by)
+          values ('01990000-0000-7000-8000-0000000ffe20', 1, ${fx.accounts.a[0] ?? ''},
+                  ${pair?.pipeline ?? ''}, ${pair?.stage ?? ''}, ${fx.principals.a.id}, ${fx.principals.a.id})`,
+      ),
+    ).rejects.toMatchObject({ constraint_name: 'opportunities_stage_pipeline_fk' });
+  });
 });

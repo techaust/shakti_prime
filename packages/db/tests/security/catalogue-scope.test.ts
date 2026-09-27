@@ -312,6 +312,12 @@ describe('tax tables (tax.rates.write)', () => {
   });
 });
 
+/** A real financial year no earlier run has drawn from, most likely: `2437-38`. */
+function randomFinancialYear(): string {
+  const start = 2100 + Math.floor(Math.random() * 800);
+  return `${String(start)}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
 describe('document numbering', () => {
   const draw = (principal: Principal, entityId: number, fy: string) =>
     asPrincipal(principal, async ({ tx }) => {
@@ -320,6 +326,16 @@ describe('document numbering', () => {
       )) as unknown as { no: number }[];
       return rows[0]?.no;
     });
+
+  it('refuses a financial year that is not two consecutive years (AUDIT L5)', async () => {
+    await expect(draw(principalFor('executive', [1]), 1, '2026-29')).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        'constraint_name' in e.cause &&
+        e.cause.constraint_name === 'document_sequences_fy_check',
+    );
+  });
 
   it('series rows are readable in scope and never written directly', async () => {
     expect(await visibleIds(principalFor('tele_caller_cc', [1]), 'document_sequences')).toEqual([
@@ -335,7 +351,7 @@ describe('document numbering', () => {
 
   it('numbers are gapless and sequential within a series', async () => {
     const exec = principalFor('executive', [1]);
-    const fy = `${String(2100 + Math.floor(Math.random() * 800))}-00`;
+    const fy = randomFinancialYear();
     // Relative to the first draw: the random series may exist from an earlier run on this database.
     const first = (await draw(exec, 1, fy)) ?? Number.NaN;
     expect(Number.isInteger(first) && first >= 1).toBe(true);
@@ -345,7 +361,7 @@ describe('document numbering', () => {
 
   it('concurrent callers never share a number', async () => {
     const exec = principalFor('executive', [1]);
-    const fy = `${String(2100 + Math.floor(Math.random() * 800))}-01`;
+    const fy = randomFinancialYear();
     const numbers = await Promise.all(Array.from({ length: 10 }, () => draw(exec, 1, fy)));
     // Distinct and consecutive; the series may have been started by an earlier run on this database.
     const ascending = numbers.map((n) => n ?? Number.NaN).sort((a, b) => a - b);
@@ -355,7 +371,7 @@ describe('document numbering', () => {
 
   it('requires the permission that creates the document type', async () => {
     const cc = principalFor('tele_caller_cc', [1]);
-    const fy = `${String(2100 + Math.floor(Math.random() * 800))}-02`;
+    const fy = randomFinancialYear();
     await expect(draw(cc, 1, fy)).rejects.toSatisfy(
       (e: unknown) =>
         e instanceof Error &&

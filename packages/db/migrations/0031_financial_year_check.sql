@@ -1,0 +1,2 @@
+ALTER TABLE "document_sequences" DROP CONSTRAINT "document_sequences_fy_check";--> statement-breakpoint
+ALTER TABLE "document_sequences" ADD CONSTRAINT "document_sequences_fy_check" CHECK ("document_sequences"."fy" ~ '^[0-9]{4}-[0-9]{2}$' and right("document_sequences"."fy", 2)::int = (left("document_sequences"."fy", 4)::int + 1) % 100);

@@ -81,3 +81,25 @@ describe('the set of roles is fixed (AUDIT L17)', () => {
     ).rejects.toMatchObject({ constraint_name: 'roles_key_check' });
   });
 });
+
+describe('value ranges the database holds (AUDIT L3)', () => {
+  it('a composite-supply split stays within 0 to 100 on every share and rate', async () => {
+    await expect(
+      asMigrator(
+        (m) => m`insert into composite_supply_rules
+          (id, segment, goods_share_pct, services_share_pct, goods_rate_pct, services_rate_pct, effective_from)
+          values ('01990000-0000-7000-8000-0000000e1702', 'commercial_epc', 150.00, -50.00, 5.00, 18.00, '2031-04-01')`,
+      ),
+    ).rejects.toMatchObject({ constraint_name: 'composite_supply_rules_range_check' });
+  });
+
+  it('a site point is on the globe', async () => {
+    await expect(
+      asMigrator(
+        (m) => m`insert into customer_sites (id, account_id, type, lat, lng, created_by)
+          select '01990000-0000-7000-8000-0000000e1703', a.id, 'borewell', 95.0, 75.0, a.created_by
+            from accounts a limit 1`,
+      ),
+    ).rejects.toMatchObject({ constraint_name: 'customer_sites_point_check' });
+  });
+});

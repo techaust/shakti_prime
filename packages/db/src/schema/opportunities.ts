@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -53,6 +54,12 @@ export const opportunities = pgTable(
   },
   (t) => [
     check('opportunities_state_check', sql`${t.state} in ('open', 'won', 'lost')`),
+    // The stage belongs to the opportunity's own pipeline (AUDIT L2).
+    foreignKey({
+      name: 'opportunities_stage_pipeline_fk',
+      columns: [t.stageId, t.pipelineId],
+      foreignColumns: [pipelineStages.id, pipelineStages.pipelineId],
+    }),
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),
     index('opportunities_account_idx').on(t.accountId),

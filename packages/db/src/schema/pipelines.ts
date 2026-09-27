@@ -56,6 +56,8 @@ export const pipelineStages = pgTable(
   (t) => [
     unique('pipeline_stages_pipeline_key_unique').on(t.pipelineId, t.key),
     unique('pipeline_stages_pipeline_position_unique').on(t.pipelineId, t.position),
+    // The target of the opportunities (stage_id, pipeline_id) key (AUDIT L2).
+    unique('pipeline_stages_id_pipeline_unique').on(t.id, t.pipelineId),
     check('pipeline_stages_kind_check', sql`${t.kind} in ('open', 'won', 'lost')`),
   ],
 );
