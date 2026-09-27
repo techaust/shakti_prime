@@ -26,7 +26,7 @@ Date: 2026-09-26. Scope: everything built to commit 8a9b829: `packages/db` (migr
 - Command server actions throw `DomainError` for the week 4 forms to catch; Next.js masks thrown errors in production, so the forms will use a result envelope like the auth actions do. Recorded for week 4.
 - Team and entity coherence (`team_id` of another entity on a relationship or role) is checked in the commands, not by a constraint, because `teams.entity_id` is nullable for shared teams.
 - Whether a consent is per selling entity or group-wide is a workshop question (DPDP data fiduciary, DLT 160-series); the table is group-wide today.
-- No admin command resets a lost authenticator; backup codes are the recovery path. `admin.user.two_factor.reset` is listed for slice 1b.
+- No admin command resets a lost authenticator; backup codes are the recovery path. `admin.user.two_factor.reset` is listed for slice 1b; built in slice 1b part 1.
 - HIBP outages fail closed inside Better Auth with the generic sentence; acceptable until a provider wrapper with a timeout exists (Phase 1).
 
 ## Result
