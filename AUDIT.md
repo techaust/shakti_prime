@@ -793,6 +793,6 @@ Each is recorded in its pull request and in SECURITY or DATABASE, and each can b
 
 **Actions only you can take:**
 
-1. Branch rules (M45): move the repository to the client's organisation on a plan with rulesets, or upgrade to Pro; until then merge only on a green run and keep Vercel's automatic production deploys off.
+1. Branch rules (M45): move the repository to the client's organisation on a plan with rulesets, or upgrade to Pro. Until then the merge-on-green workflow (`.github/workflows/automerge.yml`, #32) merges a pull request only after CI passes on it, a direct push to `main` is still possible, and Vercel's automatic production deploys stay off.
 2. Hosted provisioning (`docs/runbooks/DEPLOY.md`): Supabase projects with the Data API off, the CA certificate, GitHub environments with their secrets, the Vercel project, Upstash.
 3. A mail provider before production: production refuses to start with `MAILER=log`.

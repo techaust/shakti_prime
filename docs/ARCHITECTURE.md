@@ -130,7 +130,7 @@ Every read also runs inside `withRequestContext()`, so RLS applies to reads and 
 - **Feature flags:** `feature_flags` table with per-entity and per-role overrides, read through one helper.
 - **Observability:** Sentry in every app; structured JSON logs with request ID, no PII; metrics for queue depth, DLQ size, connector heartbeat, WhatsApp quality, AI spend; uptime checks on the public site, the BOS and the ingest API.
 - **Environments:** `dev`, `staging`, `prod` as separate Supabase projects and Vercel environments; Supabase branching for pull-request previews; staging holds synthetic data only.
-- **Deployments:** GitHub Actions run lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite (contract tests join with the first `/api/v1` routes); Vercel deploys previews per PR and production from `main`; migrations run in a pre-deploy step with expand/contract; the field app ships via EAS with staged rollouts.
+- **Deployments:** GitHub Actions run lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite (contract tests join with the first `/api/v1` routes); a merge-on-green workflow merges a PR once that run passes and runs CI again on `main`; Vercel deploys previews per PR and production from `main`; migrations run in a pre-deploy step with expand/contract; the field app ships via EAS with staged rollouts.
 
 ## 13. Architecture decision records
 ADRs live in `docs/adr/` as `NNNN-title.md` (context, decision, consequences). Phase 0 records:
