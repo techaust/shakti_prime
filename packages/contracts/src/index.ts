@@ -4,6 +4,7 @@ export * from './permissions';
 export * from './roles';
 export * from './principal';
 export * from './auth/enums';
+export * from './audit/audit';
 export * from './crm/enums';
 export * from './crm/phone';
 export * from './catalogue/enums';

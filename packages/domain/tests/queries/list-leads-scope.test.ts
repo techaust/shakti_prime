@@ -1,5 +1,6 @@
 import { asPrincipal, closeDb, createTestPrincipal, createTestTeam } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
@@ -31,7 +32,11 @@ beforeAll(async () => {
     gm: await createTestPrincipal('general_manager', [4]),
   };
   const create = async (who: keyof typeof people) =>
-    (await asPrincipal(people[who], (context) => runCommand(createLead, { context }, lead(4)))).id;
+    (
+      await asPrincipal(people[who], (context) =>
+        runCommand(createLead, { context, audit }, lead(4)),
+      )
+    ).id;
   ids = {
     mine: await create('caller'),
     teammate: await create('teammate'),

@@ -28,6 +28,8 @@ export const inviteUser = defineCommand({
       .limit(1);
     if (taken?.status === 'invited') {
       await assertUserInScope(ctx, taken.id);
+      // A fresh link for someone already invited: recorded, with nothing changed.
+      ctx.audit({ aggregateType: 'user', aggregateId: taken.id, entityId: null });
       return loadUserDto(ctx.tx, taken.id);
     }
     if (taken) {
@@ -53,6 +55,18 @@ export const inviteUser = defineCommand({
       createdBy: ctx.principal.id,
     });
     await insertEntityRoles(ctx, id, rows);
+    ctx.audit({
+      aggregateType: 'user',
+      aggregateId: id,
+      entityId: null,
+      after: {
+        displayName: input.displayName,
+        email: input.email,
+        phone: input.phone ?? null,
+        status: 'invited',
+        entityRoles: rows,
+      },
+    });
 
     for (const r of rows) {
       ctx.emit({

@@ -9,6 +9,13 @@ import { requireEnv } from './env';
 import { probeReady } from './ready';
 import { authAccounts, authVerifications, sessions, users, userTwoFactor } from './schema/identity';
 
+/**
+ * The audit trail, for the sign-in and account events the auth module records. The connection
+ * may insert `auth.*` rows only and read nothing back (migration 0033). It is not part of
+ * `authSchema`, so the Better Auth adapter never sees it.
+ */
+export { auditLogs } from './schema/audit-logs';
+
 /** Keys are the Better Auth model names the adapter looks up (`user.modelName` and friends). */
 export const authSchema = {
   users,

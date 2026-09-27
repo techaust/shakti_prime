@@ -236,6 +236,24 @@ export const createLead = defineCommand({
       .returning();
     if (!opportunity) throw new DomainError('internal', 'opportunity insert returned no row');
 
+    ctx.audit({
+      aggregateType: 'opportunity',
+      aggregateId: opportunity.id,
+      entityId,
+      after: {
+        accountId: account.id,
+        contactId: contact.id,
+        existingAccount: input.existingAccountId !== undefined,
+        siteId,
+        pipelineId: pipeline.id,
+        stageId: stage.id,
+        ownerId: actor,
+        teamId,
+        sourceId,
+        consent: input.consent ?? null,
+      },
+    });
+
     ctx.emit({
       type: 'crm.lead.created',
       entityId,

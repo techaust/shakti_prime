@@ -1,0 +1,126 @@
+import { AUTH_AUDIT_EVENTS } from '@shakti/contracts';
+import { describe, expect, it } from 'vitest';
+import { isDeniedKey, maskValue, redactAuthEvent, redactForAudit } from './redact';
+
+/** Every field the design's deny list names, by its real column or request-body name. */
+const DENIED = {
+  password: 'Hunter2hunter2',
+  secret: 'JBSWY3DPEHPK3PXP',
+  backup_codes: ['aaaa-bbbb'],
+  backupCodes: ['cccc-dddd'],
+  token: 'session-abc',
+  identifier: 'reset-password:abc',
+  newPassword: 'Correct horse battery',
+  currentPassword: 'Old horse battery',
+  bank_json: { ifsc: 'HDFC0000001', account: '123456789012' },
+  api_key: 'live-key',
+  apiKey: 'live-key',
+  refreshTokenHash: 'deadbeef',
+};
+
+function keysDeep(value: unknown, out: string[] = []): string[] {
+  if (Array.isArray(value)) for (const v of value) keysDeep(v, out);
+  else if (value !== null && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      out.push(k);
+      keysDeep(v, out);
+    }
+  }
+  return out;
+}
+
+describe('redactForAudit', () => {
+  it('removes every denied field at any depth, in objects and arrays', () => {
+    const snapshot = {
+      name: 'Shakti Supreme',
+      ...DENIED,
+      nested: { ...DENIED, lines: [{ ...DENIED, qty: 2 }] },
+    };
+    const out = redactForAudit({ before: snapshot, after: snapshot });
+    const keys = keysDeep(out);
+    for (const denied of Object.keys(DENIED)) expect(keys).not.toContain(denied);
+    expect(out).toMatchObject({
+      before: { name: 'Shakti Supreme', nested: { lines: [{ qty: 2 }] } },
+    });
+  });
+
+  it('keeps business codes', () => {
+    expect(redactForAudit({ code: 'SS', stageCode: 'qualified' })).toEqual({
+      code: 'SS',
+      stageCode: 'qualified',
+    });
+  });
+
+  it('keeps only the last four characters of phones and emails, including in lists', () => {
+    const out = redactForAudit({
+      phone: '+919876543210',
+      email: 'owner@shaktisupreme.in',
+      phones: [{ e164: '+919812345678', isPrimary: true }],
+      whatsappNumber: 919800011122,
+    });
+    expect(out).toEqual({
+      phone: '********3210',
+      email: '********e.in',
+      phones: [{ e164: '********5678', isPrimary: true }],
+      whatsappNumber: '****',
+    });
+  });
+
+  it('masks a short value completely', () => {
+    expect(maskValue('1234')).toBe('****');
+    expect(maskValue('')).toBe('****');
+    expect(maskValue('12345')).toBe('*2345');
+  });
+
+  it('turns dates into ISO text and drops undefined fields', () => {
+    const at = new Date('2026-09-27T10:00:00.000Z');
+    expect(redactForAudit({ at, gone: undefined, n: null })).toEqual({
+      at: '2026-09-27T10:00:00.000Z',
+      n: null,
+    });
+  });
+
+  it('bounds very long text, long lists and deep nesting', () => {
+    const long = 'x'.repeat(5000);
+    const out = redactForAudit({ long, list: Array.from({ length: 500 }, (_, i) => i) }) as {
+      long: string;
+      list: number[];
+    };
+    expect(out.long.length).toBe(2001);
+    expect(out.list).toHaveLength(200);
+    let deep: Record<string, unknown> = { v: 1 };
+    for (let i = 0; i < 12; i++) deep = { d: deep };
+    expect(JSON.stringify(redactForAudit(deep))).toContain('[deep]');
+  });
+
+  it('matches denied names without regard to case or separators', () => {
+    for (const key of ['Password', 'NEW_PASSWORD', 'two-factor-secret', 'sessionToken']) {
+      expect(isDeniedKey(key)).toBe(true);
+    }
+    for (const key of ['code', 'brandName', 'upiId', 'status'])
+      expect(isDeniedKey(key)).toBe(false);
+  });
+});
+
+describe('redactAuthEvent', () => {
+  it('records only the allow-listed fields of each event', () => {
+    const body = {
+      email: 'gm@shaktisupreme.in',
+      password: 'Hunter2hunter2',
+      code: '123456',
+      token: 'reset-token',
+      newPassword: 'Correct horse battery',
+      method: 'totp',
+    };
+    for (const event of AUTH_AUDIT_EVENTS) {
+      const out = redactAuthEvent(event, body);
+      expect(Object.keys(out)).not.toContain('password');
+      expect(Object.keys(out)).not.toContain('code');
+      expect(Object.keys(out)).not.toContain('token');
+      expect(Object.keys(out)).not.toContain('newPassword');
+    }
+    expect(redactAuthEvent('auth.sign_in', body)).toEqual({ email: '********e.in' });
+    expect(redactAuthEvent('auth.two_factor.verify', body)).toEqual({ method: 'totp' });
+    expect(redactAuthEvent('auth.sign_out', body)).toEqual({});
+  });
+});

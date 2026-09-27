@@ -47,7 +47,9 @@ export const suspendUser = defineCommand({
       });
     }
     const executivesBefore = await lockExecutiveChanges(ctx);
-    if ((await targetStatus(ctx, input.userId)) === 'suspended') {
+    const status = await targetStatus(ctx, input.userId);
+    if (status === 'suspended') {
+      ctx.audit({ aggregateType: 'user', aggregateId: input.userId, entityId: null });
       return loadUserDto(ctx.tx, input.userId);
     }
     await ctx.tx
@@ -56,6 +58,13 @@ export const suspendUser = defineCommand({
       .where(eq(schema.users.id, input.userId));
     await assertAnExecutiveRemains(ctx, executivesBefore);
     const revoked = await revokeUserSessions(ctx, input.userId, 'suspended');
+    ctx.audit({
+      aggregateType: 'user',
+      aggregateId: input.userId,
+      entityId: null,
+      before: { status },
+      after: { status: 'suspended', revokedSessions: revoked.length },
+    });
     const dto = await loadUserDto(ctx.tx, input.userId);
     for (const r of dto.entityRoles) {
       ctx.emit({
@@ -79,12 +88,20 @@ export const reactivateUser = defineCommand({
   output: UserDto,
   async handler(ctx, input) {
     if ((await targetStatus(ctx, input.userId)) !== 'suspended') {
+      ctx.audit({ aggregateType: 'user', aggregateId: input.userId, entityId: null });
       return loadUserDto(ctx.tx, input.userId);
     }
     await ctx.tx
       .update(schema.users)
       .set({ status: 'active', updatedBy: ctx.principal.id })
       .where(eq(schema.users.id, input.userId));
+    ctx.audit({
+      aggregateType: 'user',
+      aggregateId: input.userId,
+      entityId: null,
+      before: { status: 'suspended' },
+      after: { status: 'active' },
+    });
     const dto = await loadUserDto(ctx.tx, input.userId);
     for (const r of dto.entityRoles) {
       ctx.emit({

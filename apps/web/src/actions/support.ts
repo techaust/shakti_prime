@@ -1,18 +1,17 @@
 import { DomainError, newId } from '@shakti/contracts';
+import type { ClientMeta } from '@shakti/domain';
 import { headers } from 'next/headers';
-
-/** A request id supplied by the platform, when it is safe to echo into logs. */
-const SAFE_ID = /^[\w.:-]{1,128}$/;
+import { clientMeta, platformRequestId } from '../auth/client-address';
 
 /**
  * One id per incoming request (AUDIT M35): Vercel's own request id when present, so a log line
  * from the database transaction and the platform's request log share it; otherwise a new one.
- * It is passed to `withRequestContext`, which sets `app.request_id` for the audit trail.
+ * It is passed to `withRequestContext`, which sets `app.request_id` for the audit trail, with the
+ * caller's address and browser, which the audit row records (docs/design/backend-weeks-3-5.md §3).
  */
-export async function requestId(): Promise<string> {
+export async function requestMeta(): Promise<{ requestId: string; client: ClientMeta }> {
   const h = await headers();
-  const given = h.get('x-request-id') ?? h.get('x-vercel-id');
-  return given !== null && SAFE_ID.test(given) ? given : newId();
+  return { requestId: platformRequestId(h) ?? newId(), client: clientMeta(h) };
 }
 
 /** The part of a Zod schema the parser needs; the contracts package owns Zod itself. */

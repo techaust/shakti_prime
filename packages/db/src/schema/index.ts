@@ -13,6 +13,7 @@ export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';
 export { taxRates, compositeSupplyRules } from './tax';
 export { documentSequences } from './document-sequences';
+export { auditLogs } from './audit-logs';
 export {
   users,
   sessions,

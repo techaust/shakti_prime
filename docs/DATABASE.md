@@ -131,7 +131,7 @@ Rules:
 | `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
 
 ## 5. Append-only tables
-`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`. The one exception is delivery bookkeeping (`outbox_events`, `webhook_inbox`): a separate role holds a column-level `update` on the delivery columns and the trigger allows only those columns to change.
+`stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`. Enforcement: `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`. The one exception is delivery bookkeeping (`outbox_events`, `webhook_inbox`): a separate role holds a column-level `update` on the delivery columns and the trigger allows only those columns to change. A partitioned append-only table keeps its partitions in a schema no request role may use (`audit_partitions` for `audit_logs`), so a partition is never read or written around the policies and grants on the parent.
 
 ## 6. Table catalogue
 Key columns only; every table also has the standard columns from §2.
@@ -274,7 +274,7 @@ Key columns only; every table also has the standard columns from §2.
 |---|---|
 | `outbox_events` (append-only) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`; the last four are updated only by the `outbox_publisher` role |
 | `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
-| `audit_logs` (partitioned, append-only) | `entity_id`, `actor_principal_id`, `command`, `aggregate`, `before_json`, `after_json`, `ip`, `device`, `request_id` |
+| `audit_logs` (partitioned, append-only; partitions in schema `audit_partitions`) | `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3) |
 | `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
 | `import_jobs`, `import_rows` | `mapping_json`, `state`, row `errors_json`, `committed_batch` |
 | `files` | `bucket`, `key`, `content_type`, `size`, `status` (`pending`, `scanning`, `masked`, `ready`, `rejected`), `scan_result`, `entity_id null` |

@@ -41,6 +41,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
 
   /**
    * Append-only ledgers take no update, and price history is written only by its trigger;
+   * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
    * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
    */
@@ -48,6 +49,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
   > = {
     price_change_log: { i: false, u: false },
+    audit_logs: { i: true, u: false },
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },

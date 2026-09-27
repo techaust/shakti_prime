@@ -5,7 +5,7 @@ import { executeCommand, setTheme as setThemeCommand } from '@shakti/domain';
 import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
 import { errorKey, toDomainError } from '../auth/errors';
 import type { FormState } from './auth';
-import { parseInput, requestId } from './support';
+import { parseInput, requestMeta } from './support';
 
 /**
  * Saves System, Light or Dark on the caller's profile (DESIGN.md §7). The screen has already
@@ -17,7 +17,10 @@ export async function saveTheme(rawInput: unknown): Promise<FormState> {
     const principal = await currentPrincipal();
     if (!principal) return { error: 'unauthorized' };
     const input = parseInput(SetThemeInput, rawInput);
-    await executeCommand(principal, { requestId: await requestId() }, setThemeCommand, input);
+    const meta = await requestMeta();
+    await executeCommand(principal, { requestId: meta.requestId }, setThemeCommand, input, {
+      client: meta.client,
+    });
     await forgetPrincipal(principal.id);
     return {};
   } catch (e) {

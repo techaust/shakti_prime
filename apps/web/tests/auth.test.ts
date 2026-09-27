@@ -843,3 +843,184 @@ describe('guards the audit found untested (AUDIT M41)', () => {
     expect(statuses[60]).toBe(429);
   });
 });
+
+interface AuthAuditRow {
+  command: string;
+  outcome: string;
+  actor_principal_id: string | null;
+  entity_id: number | null;
+  error_code: string | null;
+  input_json: Record<string, unknown> | null;
+  ip: string | null;
+}
+
+/** Sign-in and account events, oldest first, read as the table owner. */
+function authEvents(where: { actor?: string; ip?: string }): Promise<AuthAuditRow[]> {
+  return asMigrator(
+    (m) => m<AuthAuditRow[]>`
+      select command, outcome, actor_principal_id, entity_id, error_code, input_json, host(ip) as ip
+        from audit_logs
+       where command like 'auth.%'
+         and (${where.actor ?? null}::uuid is null or actor_principal_id = ${where.actor ?? null}::uuid)
+         and (${where.ip ?? null}::inet is null or ip = ${where.ip ?? null}::inet)
+       order by created_at, id
+    `,
+  );
+}
+
+describe('the audit trail of sign-in and account changes (docs/design/backend-weeks-3-5.md §2.6)', () => {
+  it('records password set, wrong and right passwords, sign-out and a password change', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    await expect(
+      signIn(user.email, 'wrong password here', { ip: '10.0.7.1' }),
+    ).rejects.toBeDefined();
+    const { cookie } = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.7.1' });
+    await auth.api.changePassword({
+      body: {
+        currentPassword: GOOD_PASSWORD,
+        newPassword: `${GOOD_PASSWORD} changed`,
+        revokeOtherSessions: true,
+      },
+      headers: clientHeaders({ cookie, ip: '10.0.7.1' }),
+      returnHeaders: true,
+    });
+    const after = await signIn(user.email, `${GOOD_PASSWORD} changed`, { ip: '10.0.7.1' });
+    await auth.api.signOut({ headers: clientHeaders({ cookie: after.cookie, ip: '10.0.7.1' }) });
+
+    const rows = await authEvents({ actor: user.id });
+    expect(rows.map((r) => [r.command, r.outcome])).toEqual([
+      ['auth.password.set', 'ok'],
+      ['auth.sign_in', 'failed'],
+      ['auth.sign_in', 'ok'],
+      ['auth.password.change', 'ok'],
+      ['auth.sign_in', 'ok'],
+      ['auth.sign_out', 'ok'],
+    ]);
+    expect(rows[1]).toMatchObject({
+      error_code: 'INVALID_EMAIL_OR_PASSWORD',
+      ip: '10.0.7.1',
+      entity_id: null,
+    });
+    expect(rows[2]?.input_json).toEqual({ email: '********test', detail: 'complete' });
+    expect(rows[3]?.input_json).toEqual({ revokeOtherSessions: true });
+    const text = JSON.stringify(rows);
+    expect(text).not.toContain(user.email);
+    expect(text).not.toContain(GOOD_PASSWORD);
+  });
+
+  it('records a sign-in for an unknown address without an actor, and a locked account as refused', async () => {
+    // An address of its own, so rows left by an earlier run of the suite are not counted.
+    const octet = () => 1 + Math.floor(Math.random() * 250);
+    const stranger = `10.${octet()}.${octet()}.${octet()}`;
+    await expect(
+      signIn('nobody-here@shakti.test', 'wrong password here', { ip: stranger }),
+    ).rejects.toBeDefined();
+    expect(await authEvents({ ip: stranger })).toEqual([
+      expect.objectContaining({
+        command: 'auth.sign_in',
+        outcome: 'failed',
+        actor_principal_id: null,
+        input_json: { email: '********test' },
+      }),
+    ]);
+
+    const user = await inviteAndSetPassword([{ entityId: 2, roleKey: 'store_manager' }]);
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        signIn(user.email, 'wrong password here', { ip: '10.0.7.3' }),
+      ).rejects.toBeDefined();
+    }
+    await expect(signIn(user.email, GOOD_PASSWORD, { ip: '10.0.7.3' })).rejects.toSatisfy(
+      (e) => code(e) === 'account_locked',
+    );
+    const last = (await authEvents({ actor: user.id, ip: '10.0.7.3' })).at(-1);
+    expect(last).toMatchObject({
+      command: 'auth.sign_in',
+      outcome: 'denied',
+      error_code: 'ACCOUNT_LOCKED',
+      input_json: { email: '********test', detail: 'locked' },
+    });
+  });
+
+  it('records the authenticator set-up and each code, never the code itself', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'general_manager' }]);
+    const first = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.7.4' });
+    const enrol = await auth.api.enableTwoFactor({
+      body: { password: GOOD_PASSWORD, method: 'totp' },
+      headers: clientHeaders({ cookie: first.cookie, ip: '10.0.7.4' }),
+    });
+    if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
+    const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
+    await expect(
+      auth.api.verifyTOTP({
+        body: { code: '000000' },
+        headers: clientHeaders({ cookie: first.cookie, ip: '10.0.7.4' }),
+      }),
+    ).rejects.toBeDefined();
+    const good = totpCode(secret, new Date());
+    await auth.api.verifyTOTP({
+      body: { code: good },
+      headers: clientHeaders({ cookie: first.cookie, ip: '10.0.7.4' }),
+    });
+
+    const rows = await authEvents({ actor: user.id, ip: '10.0.7.4' });
+    expect(rows.map((r) => [r.command, r.outcome, r.input_json])).toEqual([
+      ['auth.sign_in', 'ok', { email: '********test', detail: 'complete' }],
+      ['auth.two_factor.enable', 'ok', {}],
+      ['auth.two_factor.verify', 'failed', { method: 'totp' }],
+      ['auth.two_factor.verify', 'ok', { method: 'totp' }],
+    ]);
+    const text = JSON.stringify(rows);
+    expect(text).not.toContain(good);
+    expect(text).not.toContain(secret);
+  });
+});
+
+describe('the audit trail of backup codes and forgotten passwords', () => {
+  it('records new backup codes, a sign-in with one and a request for a new password', async () => {
+    const ip = '10.0.7.5';
+    const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'accounts' }]);
+    const first = await signIn(user.email, GOOD_PASSWORD, { ip });
+    const enrol = await auth.api.enableTwoFactor({
+      body: { password: GOOD_PASSWORD, method: 'totp' },
+      headers: clientHeaders({ cookie: first.cookie, ip }),
+    });
+    if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
+    const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
+    const verified = await auth.api.verifyTOTP({
+      body: { code: totpCode(secret, new Date()) },
+      headers: clientHeaders({ cookie: first.cookie, ip }),
+      returnHeaders: true,
+    });
+    const enrolledCookie = cookieHeader(verified.headers) || first.cookie;
+
+    const fresh = await auth.api.generateBackupCodes({
+      body: { password: GOOD_PASSWORD },
+      headers: clientHeaders({ cookie: enrolledCookie, ip }),
+    });
+    const backup = fresh.backupCodes[0] ?? '';
+    const challenge = await signIn(user.email, GOOD_PASSWORD, { ip });
+    await auth.api.verifyBackupCode({
+      body: { code: backup },
+      headers: clientHeaders({ cookie: challenge.cookie, ip }),
+    });
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+      headers: clientHeaders({ ip, turnstile: 'ok:reset' }),
+    });
+
+    const rows = await authEvents({ actor: user.id, ip });
+    expect(rows.map((r) => [r.command, r.outcome, r.input_json])).toEqual([
+      ['auth.sign_in', 'ok', { email: '********test', detail: 'complete' }],
+      ['auth.two_factor.enable', 'ok', {}],
+      ['auth.two_factor.verify', 'ok', { method: 'totp' }],
+      ['auth.backup_codes.regenerate', 'ok', {}],
+      ['auth.sign_in', 'ok', { email: '********test', detail: 'code_required' }],
+      ['auth.two_factor.verify', 'ok', { method: 'backup_code' }],
+      ['auth.password.reset_requested', 'ok', { email: '********test' }],
+    ]);
+    const text = JSON.stringify(rows);
+    expect(text).not.toContain(backup);
+    expect(text).not.toContain(user.email);
+  });
+});
