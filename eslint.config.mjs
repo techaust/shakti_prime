@@ -230,7 +230,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    // The web components follow the same React, hooks and accessibility rules as the app.
+    files: ['apps/web/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}'],
     extends: [...nextVitals, ...nextTs],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     settings: { next: { rootDir: 'apps/web' } },
@@ -238,7 +239,12 @@ export default tseslint.config(
   {
     // Every word a user reads comes from the message catalogue, where the copy lint checks it
     // (DESIGN.md §11.4); text written straight into JSX would bypass it (AUDIT L32).
-    files: ['apps/web/src/app/**/*.tsx', 'apps/web/src/components/**/*.tsx'],
+    files: [
+      'apps/web/src/app/**/*.tsx',
+      'apps/web/src/components/**/*.tsx',
+      'packages/ui/src/**/*.tsx',
+    ],
+    ignores: ['**/*.test.tsx'],
     rules: {
       'react/jsx-no-literals': [
         'error',

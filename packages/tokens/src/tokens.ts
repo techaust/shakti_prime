@@ -114,6 +114,10 @@ export const scale = {
   row: { comfortable: 40, compact: 32 },
   control: { desktop: 36, phone: 44 },
   focusRing: { width: 2, offset: 2 },
+  /** The app shell (DESIGN.md §5): sidebar open and collapsed to icons, and the top bar. */
+  shell: { sidebar: 240, sidebarCollapsed: 56, topbar: 48 },
+  /** Content widths (DESIGN.md §5): forms and detail pages; grids and boards use the full width. */
+  content: { form: 720, detail: 1200 },
 } as const;
 
 /** Every colour token, aliases resolved, for one theme. */

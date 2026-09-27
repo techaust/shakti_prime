@@ -1,24 +1,39 @@
 'use server';
 
-import { DomainError, UpdateEntityInput, type EntityDto } from '@shakti/contracts';
-import { executeCommand, updateEntity as updateEntityCommand } from '@shakti/domain';
-import { currentPrincipal } from '../auth/current-principal';
-import { commandOptions, parseInput, requestMeta } from './support';
+import { UpdateEntityInput, type EntityDto } from '@shakti/contracts';
+import {
+  executeCommand,
+  executeQuery,
+  listEntities as listEntitiesQuery,
+  updateEntity as updateEntityCommand,
+} from '@shakti/domain';
+import { toResult, type ActionResult } from './result';
+import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. No business logic here. */
 export async function updateEntity(
   rawInput: unknown,
   idempotencyKey?: unknown,
-): Promise<EntityDto> {
-  const principal = await currentPrincipal();
-  if (!principal) throw new DomainError('unauthorized');
-  const input = parseInput(UpdateEntityInput, rawInput);
-  const meta = await requestMeta();
-  return executeCommand(
-    principal,
-    { entityIds: [input.entityId], requestId: meta.requestId },
-    updateEntityCommand,
-    input,
-    commandOptions(meta, idempotencyKey),
-  );
+): Promise<ActionResult<EntityDto>> {
+  return toResult('updateEntity', async () => {
+    const principal = await signedIn();
+    const input = parseInput(UpdateEntityInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      updateEntityCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Settings › Companies: the companies the caller can see. */
+export async function listEntities(): Promise<ActionResult<EntityDto[]>> {
+  return toResult('listEntities', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, listEntitiesQuery);
+  });
 }

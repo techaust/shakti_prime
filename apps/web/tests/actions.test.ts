@@ -1,10 +1,11 @@
-import type { Principal } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
 import {
   asMigrator,
   asOutboxPublisher,
   closeDb,
   createTestPrincipal,
+  createTestTeam,
   createTestUser,
 } from '@shakti/db/testing';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -60,8 +61,21 @@ vi.mock('../src/auth/current-principal', () => ({
 }));
 
 const { switchEntity } = await import('../src/actions/auth');
-const { createLead } = await import('../src/actions/crm');
-const { listAuditLog, resetTwoFactor, setUserRoles } = await import('../src/actions/admin');
+const { createLead, leadFormOptions, listLeads } = await import('../src/actions/crm');
+const { listEntities, updateEntity } = await import('../src/actions/org');
+const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
+const {
+  clearSignInLock,
+  inviteUser,
+  listAuditLog,
+  listUserSessions,
+  listUsers,
+  reactivateUser,
+  resetTwoFactor,
+  revokeSession,
+  setUserRoles,
+  suspendUser,
+} = await import('../src/actions/admin');
 const { defaultAuthDeps } = await import('../src/auth/deps');
 
 afterAll(async () => {
@@ -76,6 +90,12 @@ beforeEach(() => {
   request.headers = new Headers();
 });
 
+/** The data of a result that must have succeeded. */
+function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T {
+  if (!result.ok) throw new Error(`expected success, got ${result.error}`);
+  return result.data;
+}
+
 const lead = (entityId: number) => ({
   entityId,
   pipelineKey: 'farmer_pumps',
@@ -85,21 +105,26 @@ const lead = (entityId: number) => ({
 
 describe('server actions (AUDIT M41)', () => {
   it('ask who is calling before reading the input', async () => {
-    await expect(createLead({ nonsense: true })).rejects.toMatchObject({ code: 'unauthorized' });
+    await expect(createLead({ nonsense: true })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
   });
 
   it('narrow the request to the company named in the input', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
-    await expect(createLead(lead(2))).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(createLead(lead(2))).resolves.toEqual({ ok: false, error: 'forbidden' });
   });
 
   it('drop the cached principal of a user whose roles change', async () => {
     request.principal = await createTestPrincipal('executive');
     const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
-    await setUserRoles({
-      userId: target.id,
-      entityRoles: [{ entityId: 1, roleKey: 'store_manager' }],
-    });
+    ok(
+      await setUserRoles({
+        userId: target.id,
+        entityRoles: [{ entityId: 1, roleKey: 'store_manager' }],
+      }),
+    );
     expect(request.forgotten).toEqual([target.id]);
   });
 
@@ -129,15 +154,17 @@ describe('server actions (AUDIT M41)', () => {
       'user-agent': 'Mozilla/5.0 (Linux; Android 14) Chrome/140',
       'x-request-id': requestId,
     });
-    const created = await createLead(lead(1));
+    const created = ok(await createLead(lead(1)));
 
     request.principal = await createTestPrincipal('executive');
     const now = Date.now();
-    const page = await listAuditLog({
-      from: new Date(now - 60_000).toISOString(),
-      to: new Date(now + 60_000).toISOString(),
-      actorPrincipalId: caller.id,
-    });
+    const page = ok(
+      await listAuditLog({
+        from: new Date(now - 60_000).toISOString(),
+        to: new Date(now + 60_000).toISOString(),
+        actorPrincipalId: caller.id,
+      }),
+    );
     expect(page.items).toEqual([
       expect.objectContaining({
         command: 'crm.lead.create',
@@ -153,7 +180,7 @@ describe('server actions (AUDIT M41)', () => {
 
   it('store the events of a change with it and have the publisher deliver them after the commit', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
-    const created = await createLead(lead(1));
+    const created = ok(await createLead(lead(1)));
     const [row, ...more] = await asOutboxPublisher(
       (p) => p<
         { type: string; entity_id: number; payload_json: unknown; published_at: Date | null }[]
@@ -174,11 +201,12 @@ describe('server actions (AUDIT M41)', () => {
   it('act once for a form sent twice with one key, and refuse a key that is not one', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const key = crypto.randomUUID();
-    const first = await createLead(lead(1), key);
-    const repeat = await createLead(lead(1), key);
+    const first = ok(await createLead(lead(1), key));
+    const repeat = ok(await createLead(lead(1), key));
     expect(repeat.id).toBe(first.id);
-    await expect(createLead(lead(1), 'not-a-key')).rejects.toMatchObject({
-      code: 'validation_failed',
+    await expect(createLead(lead(1), 'not-a-key')).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
     });
   });
 
@@ -194,7 +222,7 @@ describe('server actions (AUDIT M41)', () => {
     );
     const send = vi.spyOn(defaultAuthDeps().mailer, 'send');
     try {
-      const user = await resetTwoFactor({ userId: target.id });
+      const user = ok(await resetTwoFactor({ userId: target.id }));
       expect(user.twoFactorEnabled).toBe(false);
       expect(request.forgotten).toEqual([target.id]);
       expect(send).toHaveBeenCalledTimes(1);
@@ -204,7 +232,7 @@ describe('server actions (AUDIT M41)', () => {
       expect(mail?.text).toMatch(/^Hello Meena,/);
 
       // Nothing left to reset: the answer is the same and no second email goes out.
-      await resetTwoFactor({ userId: target.id });
+      ok(await resetTwoFactor({ userId: target.id }));
       expect(send).toHaveBeenCalledTimes(1);
     } finally {
       send.mockRestore();
@@ -224,7 +252,7 @@ describe('server actions (AUDIT M41)', () => {
       .spyOn(defaultAuthDeps().mailer, 'send')
       .mockRejectedValue(new Error('mail provider down'));
     try {
-      const user = await resetTwoFactor({ userId: target.id });
+      const user = ok(await resetTwoFactor({ userId: target.id }));
       expect(user.twoFactorEnabled).toBe(false);
     } finally {
       send.mockRestore();
@@ -239,6 +267,138 @@ describe('server actions (AUDIT M41)', () => {
         from: new Date(now - 60_000).toISOString(),
         to: new Date(now + 60_000).toISOString(),
       }),
-    ).rejects.toMatchObject({ code: 'forbidden' });
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+  });
+});
+
+describe('command and query actions answer a result, never a thrown error (review 3)', () => {
+  it('name the field of an input problem', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const bad = { ...lead(1), contact: { name: 'Field check customer', phone: '12' } };
+    await expect(createLead(bad)).resolves.toEqual({
+      ok: false,
+      error: 'validation_failed',
+      field: 'contact.phone',
+    });
+  });
+
+  it('create a lead from All companies with the caller team in the chosen company (AUDIT M24)', async () => {
+    const team1 = await createTestTeam(1, 'form path team 1');
+    const team2 = await createTestTeam(2, 'form path team 2');
+    request.principal = await createTestPrincipal('tele_caller_cc', [1, 2], {
+      entityTeams: [
+        { entityId: 1, teamId: team1 },
+        { entityId: 2, teamId: team2 },
+      ],
+    });
+    const created = ok(await createLead(lead(2), crypto.randomUUID()));
+    expect(created.entityId).toBe(2);
+    expect(created.teamId).toBe(team2);
+  });
+
+  it('list leads a page at a time, and give the lead form its choices', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [3]);
+    const a = ok(await createLead(lead(3)));
+    const b = ok(await createLead(lead(3)));
+    const first = ok(await listLeads({ limit: 1 }));
+    expect(first.items.map((l) => l.id)).toEqual([b.id]);
+    expect(first.nextCursor).not.toBeNull();
+    const second = ok(await listLeads({ limit: 1, cursor: first.nextCursor ?? '' }));
+    expect(second.items.map((l) => l.id)).toEqual([a.id]);
+    const options = ok(await leadFormOptions());
+    expect(options.pipelines.map((p) => p.key)).toContain('farmer_pumps');
+    expect(options.sources.length).toBeGreaterThan(0);
+  });
+
+  it('list team members and their sign-ins for an Executive only', async () => {
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(listUsers({})).resolves.toEqual({ ok: false, error: 'forbidden' });
+
+    request.principal = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
+    const session = newId();
+    await asMigrator(
+      (m) => m`insert into sessions (id, user_id, token, expires_at)
+               values (${session}, ${target.id}, ${`t-${session}`}, now() + interval '1 day')`,
+    );
+    const page = ok(await listUsers({ limit: 5 }));
+    expect(page.items.length).toBeGreaterThan(0);
+    const sessions = ok(await listUserSessions({ userId: target.id }));
+    expect(sessions.map((s) => s.id)).toEqual([session]);
+
+    const revoked = ok(await revokeSession({ sessionId: session }, crypto.randomUUID()));
+    expect(revoked.revokedSessionIds).toEqual([session]);
+    await expect(revokeSession({ sessionId: session })).resolves.toEqual({
+      ok: false,
+      error: 'session_missing',
+    });
+  });
+
+  it('suspend and reactivate a person, and lift a sign-in lock', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'store_manager' }]);
+    const suspended = ok(await suspendUser({ userId: target.id }, crypto.randomUUID()));
+    expect(suspended.status).toBe('suspended');
+    const back = ok(await reactivateUser({ userId: target.id }, crypto.randomUUID()));
+    expect(back.status).toBe('active');
+    await expect(clearSignInLock({ userId: target.id })).resolves.toEqual({ ok: true, data: null });
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(clearSignInLock({ userId: target.id })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+
+  it('invite a person, and refuse the email of someone already active', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const email = `invite-${crypto.randomUUID().slice(0, 8)}@shakti.test`;
+    const invite = {
+      email,
+      displayName: 'Invited colleague',
+      entityRoles: [{ entityId: 1, roleKey: 'accounts' }],
+    };
+    const invited = ok(await inviteUser(invite, crypto.randomUUID()));
+    expect(invited).toMatchObject({ email, status: 'invited' });
+    const active = await createTestUser([{ entityId: 1, roleKey: 'accounts' }]);
+    await expect(inviteUser({ ...invite, email: active.email })).resolves.toEqual({
+      ok: false,
+      error: 'invite_email_taken',
+    });
+  });
+
+  it('read companies and refuse a company change to someone without the permission', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const companies = ok(await listEntities());
+    expect(companies.map((c) => c.id)).toEqual([1]);
+    await expect(updateEntity({ entityId: 1, brandName: 'Unchanged name' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    request.principal = await createTestPrincipal('executive');
+    await expect(updateEntity({ entityId: 1, upiId: 'not a upi' })).resolves.toEqual({
+      ok: false,
+      error: 'validation_failed',
+      field: 'upiId',
+    });
+  });
+
+  it('read price lists and prices, and keep price changes to an Executive', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const lists = ok(await listPriceLists());
+    const list = lists[0];
+    if (list !== undefined) {
+      const rows = ok(await listPrices({ priceListId: list.id }));
+      for (const row of rows) expect(row).not.toHaveProperty('cost');
+      const item = rows[0];
+      if (item !== undefined) {
+        await expect(
+          setPrice({ priceListId: list.id, itemId: item.itemId, price: '100.00' }),
+        ).resolves.toEqual({ ok: false, error: 'forbidden' });
+      }
+    }
+    await expect(listPrices({ priceListId: 'nope' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
   });
 });

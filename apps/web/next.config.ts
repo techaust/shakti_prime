@@ -19,7 +19,13 @@ const SECURITY_HEADERS = [
 
 const config: NextConfig = {
   typedRoutes: true,
-  transpilePackages: ['@shakti/contracts', '@shakti/db', '@shakti/domain', '@shakti/tokens'],
+  transpilePackages: [
+    '@shakti/contracts',
+    '@shakti/db',
+    '@shakti/domain',
+    '@shakti/tokens',
+    '@shakti/ui',
+  ],
   serverExternalPackages: ['postgres', '@node-rs/argon2'],
   poweredByHeader: false,
   headers() {

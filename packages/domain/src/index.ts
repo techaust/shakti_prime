@@ -56,6 +56,9 @@ export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
+export { listUsers, listUserSessions } from './queries/admin/list-users';
+export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
+export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
 export {
   documentPrefix,

@@ -104,6 +104,11 @@
   --control-phone: 2.75rem;
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
+  --sidebar-width: 15rem;
+  --sidebar-collapsed: 3.5rem;
+  --topbar-height: 3rem;
+  --content-form: 45rem;
+  --content-detail: 75rem;
 }
 
 @media (prefers-color-scheme: dark) {
