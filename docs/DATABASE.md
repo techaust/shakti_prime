@@ -292,6 +292,7 @@ Key columns only; every table also has the standard columns from §2.
 4. Expand/contract for renames and type changes: add the new column, dual-write, backfill, switch reads, drop the old column in a later release.
 5. `pnpm db:migrate` runs in CI against a fresh database and against a copy of staging before deploy.
 6. Applied migrations are never edited.
+7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate through the workflow in `docs/runbooks/DEPLOY.md`, which also covers indexes built `concurrently`.
 
 ## 9. Seeds and test data
 - `packages/db/seeds` holds synthetic entities, roles, permissions, tiers, tax rates (current GST rates with effective dates), a small catalogue, sample pipelines and 200 synthetic leads across four entities.

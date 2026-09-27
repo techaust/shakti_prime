@@ -6,6 +6,7 @@ import { ROLE_KEYS, type RoleKey } from '@shakti/contracts';
 import { and, inArray, isNotNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { connectionOptions } from '../src/connection';
 import { requireEnv } from '../src/env';
 import {
   entities,
@@ -27,7 +28,12 @@ import { grantsForRole } from './role-permissions';
 import { ROLE_SEED, roleId } from './roles';
 
 export async function runSeeds(): Promise<void> {
-  const client = postgres(requireEnv('DATABASE_URL_MIGRATOR'), { max: 1, prepare: false });
+  const url = requireEnv('DATABASE_URL_MIGRATOR');
+  const client = postgres(url, {
+    ...connectionOptions(url, 'shakti-seed'),
+    max: 1,
+    prepare: false,
+  });
   const db = drizzle(client);
   try {
     await db.transaction(async (tx) => {

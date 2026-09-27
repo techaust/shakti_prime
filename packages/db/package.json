@@ -16,6 +16,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx seeds/index.ts",
+    "db:verify": "tsx src/migrate.ts --verify",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:security": "vitest run --config vitest.security.config.ts"

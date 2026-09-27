@@ -79,7 +79,7 @@ Grants: `app_user` may insert (policy: `actor_principal_id = app.user_id()`) and
 - `before_json` and `after_json` come from the handler through `ctx.audit({ aggregateType, aggregateId, before, after })`; commands that touch several aggregates call it once per aggregate.
 
 ### 3.3 Redaction
-`redactForAudit()` applies a deny list per table before serialisation: `password_hash`, `totp_secret_enc`, `token_hash`, `refresh_token_hash`, `code_hash`, `bank_json`, `api_key` are removed; phone numbers and emails keep only the last four characters; `input_json` is the parsed command input after the same pass. Aadhaar never exists in any table (BLUEPRINT §7.5), so nothing about it can reach the audit. The suite asserts the deny list on a synthetic before/after that contains every listed field.
+`redactForAudit()` records an allow-list of fields per auth endpoint and applies a deny-by-pattern pass to command input (AUDIT M16), built from the real column and body names: `password`, `secret`, `backup_codes`, `token`, `identifier` and the request fields `newPassword`, `currentPassword`, `code` are removed, as are `bank_json` and `api_key`; phone numbers and emails keep only the last four characters; `input_json` is the parsed command input after the same pass. Aadhaar never exists in any table (BLUEPRINT §7.5), so nothing about it can reach the audit. The suite asserts the deny list on a synthetic before/after that contains every listed field.
 
 ### 3.4 Reading
 `audit.query(ctx, { entityId?, aggregate?, actor?, from, to, cursor })` with keyset pagination (text-form cursor, as in `listLeads`). Views of sensitive documents (Phase 1) and exports are recorded through the same runner path as commands with an empty change set.

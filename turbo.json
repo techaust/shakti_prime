@@ -28,7 +28,8 @@
         "UPSTASH_REDIS_REST_URL",
         "UPSTASH_REDIS_REST_TOKEN",
         "MAILER",
-        "ALLOW_REMOTE_TEST_DB"
+        "ALLOW_REMOTE_TEST_DB",
+        "DATABASE_CA_CERT"
       ]
     },
     "db:generate": {

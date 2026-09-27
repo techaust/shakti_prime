@@ -16,6 +16,7 @@
     "db:generate": "pnpm --filter @shakti/db db:generate",
     "db:migrate": "pnpm --filter @shakti/db db:migrate",
     "db:seed": "pnpm --filter @shakti/db db:seed",
+    "db:verify": "pnpm --filter @shakti/db db:verify",
     "copy-lint": "pnpm --filter @shakti/copy-lint start",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

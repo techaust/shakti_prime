@@ -3,13 +3,16 @@
 // code goes through withRequestContext() (CLAUDE.md, ADR 0002, ADR 0004).
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { connectionOptions } from './connection';
 import { requireEnv } from './env';
 import * as schema from './schema/index';
 
 let pool: ReturnType<typeof postgres> | undefined;
 
 export function sqlClient(): ReturnType<typeof postgres> {
-  pool ??= postgres(requireEnv('DATABASE_URL'), {
+  const url = requireEnv('DATABASE_URL');
+  pool ??= postgres(url, {
+    ...connectionOptions(url, 'shakti-app'),
     // Supavisor transaction mode: no prepared statements, modest pool (docs/DATABASE.md §1).
     prepare: false,
     max: 10,

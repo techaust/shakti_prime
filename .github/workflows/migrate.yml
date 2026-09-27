@@ -1,0 +1,47 @@
+name: Migrate a hosted database
+
+# Applies the migrations to staging or production from a reviewed commit on main, then checks
+# every migration is applied as it is on disk (docs/runbooks/DEPLOY.md, AUDIT L24). The database
+# credentials and CA certificate are secrets of the GitHub environment; nothing runs until they
+# are set, and production can require a reviewer in the environment's protection rules.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which database
+        type: choice
+        options: [staging, production]
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Migrate ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: migrate-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      DATABASE_URL_MIGRATOR: ${{ secrets.DATABASE_URL_MIGRATOR }}
+      APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
+      AUTH_SERVICE_PASSWORD: ${{ secrets.AUTH_SERVICE_PASSWORD }}
+      DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
+    steps:
+      - name: Only from main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo 'Run this from main, so only reviewed migrations reach a hosted database.'
+          exit 1
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:verify

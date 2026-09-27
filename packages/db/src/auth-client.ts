@@ -4,6 +4,7 @@
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { connectionOptions } from './connection';
 import { requireEnv } from './env';
 import { probeReady } from './ready';
 import { authAccounts, authVerifications, sessions, users, userTwoFactor } from './schema/identity';
@@ -20,7 +21,9 @@ export const authSchema = {
 let pool: ReturnType<typeof postgres> | undefined;
 
 function authSqlClient(): ReturnType<typeof postgres> {
-  pool ??= postgres(requireEnv('DATABASE_URL_AUTH'), {
+  const url = requireEnv('DATABASE_URL_AUTH');
+  pool ??= postgres(url, {
+    ...connectionOptions(url, 'shakti-auth'),
     prepare: false,
     max: 5,
     idle_timeout: 20,
