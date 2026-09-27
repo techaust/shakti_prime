@@ -49,6 +49,14 @@ for (const catalogue of config.catalogues) {
 }
 
 for (const templateDir of config.templateDirs) {
+  // A configured folder that is not there would be skipped in silence, leaving nothing checked.
+  if (!existsSync(join(repoRoot, templateDir))) {
+    findings.push({
+      file: templateDir,
+      issue: { key: '*', locale: '*', reason: 'configured template folder is missing' },
+    });
+    continue;
+  }
   for (const file of jsonFiles(join(repoRoot, templateDir))) {
     for (const [key, value] of flatten(readJson(file))) {
       for (const issue of checkString(key, value, 'template', config.limits)) {
