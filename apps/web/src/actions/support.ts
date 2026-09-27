@@ -1,8 +1,16 @@
-import { DomainError, IdempotencyKeySchema, newId } from '@shakti/contracts';
+import { DomainError, IdempotencyKeySchema, newId, type Principal } from '@shakti/contracts';
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
+import { currentPrincipal } from '../auth/current-principal';
 import { nudgeOutbox } from '../workers/outbox';
+
+/** The caller of an action; `unauthorized` when nobody is signed in. */
+export async function signedIn(): Promise<Principal> {
+  const principal = await currentPrincipal();
+  if (!principal) throw new DomainError('unauthorized');
+  return principal;
+}
 
 /**
  * One id per incoming request (AUDIT M35): Vercel's own request id when present, so a log line
