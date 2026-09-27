@@ -8,6 +8,7 @@ import {
   groupFinderMarks,
   qrCoverBox,
   scanQrCodes,
+  toGray,
   type Raster,
 } from './qr-cover';
 
@@ -31,22 +32,23 @@ function fillRect(image: Raster, x: number, y: number, w: number, h: number, sha
 }
 
 /** Draws a QR code of `text` with its top-left module at (x, y); returns its outer extent. */
-function drawQr(image: Raster, text: string, x: number, y: number, module: number): Box {
+function drawQr(image: Raster, text: string, x: number, y: number, pitch: number): Box {
   const { modules } = QRCode.create(text, { errorCorrectionLevel: 'M' });
   for (let row = 0; row < modules.size; row++) {
     for (let col = 0; col < modules.size; col++) {
-      if (modules.get(row, col)) fillRect(image, x + col * module, y + row * module, module, module, 20);
+      if (modules.get(row, col))
+        fillRect(image, x + col * pitch, y + row * pitch, pitch, pitch, 20);
     }
   }
-  const side = modules.size * module;
+  const side = modules.size * pitch;
   return { x0: x, y0: y, x1: x + side, y1: y + side };
 }
 
 /** One 7-module finder mark with its top-left corner at (x, y). */
-function drawFinder(image: Raster, x: number, y: number, module: number) {
-  fillRect(image, x, y, 7 * module, 7 * module, 20);
-  fillRect(image, x + module, y + module, 5 * module, 5 * module, 245);
-  fillRect(image, x + 2 * module, y + 2 * module, 3 * module, 3 * module, 20);
+function drawFinder(image: Raster, x: number, y: number, pitch: number) {
+  fillRect(image, x, y, 7 * pitch, 7 * pitch, 20);
+  fillRect(image, x + pitch, y + pitch, 5 * pitch, 5 * pitch, 245);
+  fillRect(image, x + 2 * pitch, y + 2 * pitch, 3 * pitch, 3 * pitch, 20);
 }
 
 function contains(outer: Box, inner: Box, margin = 0): boolean {
@@ -141,7 +143,9 @@ describe('scanQrCodes', () => {
     expect(scan.uncovered).toBe(0);
     expect(scan.boxes.some((b) => contains(b, code, 4 * 4))).toBe(true);
     cover(image, scan.boxes);
-    expect(jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' })).toBeNull();
+    expect(
+      jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' }),
+    ).toBeNull();
   });
 
   it('covers every code on the photo, a small one in a corner as well', () => {
@@ -152,7 +156,9 @@ describe('scanQrCodes', () => {
     expect(scan.boxes.some((b) => contains(b, large, 8))).toBe(true);
     expect(scan.boxes.some((b) => contains(b, small, 8))).toBe(true);
     cover(image, scan.boxes);
-    expect(jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' })).toBeNull();
+    expect(
+      jsQR(image.data, image.width, image.height, { inversionAttempts: 'attemptBoth' }),
+    ).toBeNull();
   });
 
   it('covers a code it cannot decode from its three finder marks', () => {
@@ -194,18 +200,14 @@ describe('groupFinderMarks', () => {
     drawFinder(image, 40 + 20 * 5, 40, 5);
     drawFinder(image, 40, 40 + 20 * 5, 5);
     drawFinder(image, 320, 320, 5);
-    const gray = {
-      data: new Uint8ClampedArray(image.width * image.height).map((_, i) => image.data[i * 4]!),
-      width: image.width,
-      height: image.height,
-    };
-    const marks = findFinderMarks(gray);
+    const marks = findFinderMarks(toGray(image));
     expect(marks).toHaveLength(4);
     const { codes, loose } = groupFinderMarks(marks);
     expect(codes).toHaveLength(1);
     expect(loose).toHaveLength(1);
     // The stray mark's centre, 3.5 modules in from its corner, within a pixel.
-    expect(Math.abs(loose[0]!.x - (320 + 17.5))).toBeLessThanOrEqual(1);
-    expect(Math.abs(loose[0]!.y - (320 + 17.5))).toBeLessThanOrEqual(1);
+    const [stray] = loose;
+    expect(Math.abs((stray?.x ?? 0) - (320 + 17.5))).toBeLessThanOrEqual(1);
+    expect(Math.abs((stray?.y ?? 0) - (320 + 17.5))).toBeLessThanOrEqual(1);
   });
 });

@@ -32,9 +32,9 @@ describe('reviewCause', () => {
     expect(reviewCause({ ...base, expect: ['aadhaar'], aadhaarFound: true, qrUncovered: 1 })).toBe(
       'qr_not_covered',
     );
-    expect(
-      reviewCause({ ...base, readText: 'Aadhaar', aadhaarFound: true, qrUncovered: 2 }),
-    ).toBe('qr_not_covered');
+    expect(reviewCause({ ...base, readText: 'Aadhaar', aadhaarFound: true, qrUncovered: 2 })).toBe(
+      'qr_not_covered',
+    );
   });
 
   it('keeps an Aadhaar upload whose number and QR codes were all covered', () => {
