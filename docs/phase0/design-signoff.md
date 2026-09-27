@@ -80,7 +80,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 34 | On desktop, the side menu (240 wide) can shrink to icons to give more room | | | |
 
 ### 3.7 Words on screen
-The writing rules are in `DESIGN.md` §11. Check the words on the preview page and the screens already built (sign-in, forgotten password, home, team members, activity log, leads, companies and Price Master).
+The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads` and `/leads/new`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), Price Master (`/price-master`) and imports (`/imports`). The sign-off runs once all of these are on the main app.
 
 | # | Check | Yes | Notes |
 |---|---|---|---|
