@@ -1,0 +1,123 @@
+import { hasGrant, type PermissionGrant } from '@shakti/contracts';
+import {
+  Building2,
+  FileUp,
+  House,
+  IndianRupee,
+  ListTodo,
+  Palette,
+  ScrollText,
+  UserPlus,
+  UsersRound,
+  type LucideIcon,
+} from 'lucide-react';
+import type { Route } from 'next';
+import type en from '../messages/en.json';
+
+/** A screen's name in the menu, under `nav.*`. */
+export type NavLabelKey = keyof (typeof en)['nav'];
+
+/** The sidebar's sections: daily work, then administration, then the design preview. */
+export type NavGroup = 'work' | 'admin' | 'more';
+
+export interface NavItem {
+  id: string;
+  /** A typed route: `next build` fails when a listed screen has no page. */
+  href: Route;
+  label: NavLabelKey;
+  icon: LucideIcon;
+  group: NavGroup;
+  /**
+   * Every grant the screen needs, each at the narrowest scope that still lets its main query or
+   * command run (docs/SECURITY.md §3.2). Empty: everyone who is signed in.
+   */
+  requires: readonly PermissionGrant[];
+}
+
+/**
+ * The single list of BOS screens (DESIGN.md §5, BLUEPRINT §11.1): the sidebar, the phone menu,
+ * the command palette's "Go to" group and the home shortcuts all read it. An item is shown when
+ * the principal's own grants allow it, never by role name; the screen and the command behind it
+ * check again, so hiding an item is a courtesy, not the guard.
+ */
+export const NAV_ITEMS: readonly NavItem[] = [
+  { id: 'home', href: '/home', label: 'home', icon: House, group: 'work', requires: [] },
+  {
+    id: 'leads',
+    href: '/leads',
+    label: 'leads',
+    icon: ListTodo,
+    group: 'work',
+    // listLeads narrows an own-scope reader to their own leads.
+    requires: [{ key: 'crm.lead.read', scope: 'own' }],
+  },
+  {
+    id: 'leads-new',
+    href: '/leads/new',
+    label: 'newLead',
+    icon: UserPlus,
+    group: 'work',
+    // crm.lead.create writes the customer as well as the lead.
+    requires: [
+      { key: 'crm.lead.write', scope: 'own' },
+      { key: 'crm.account.write', scope: 'own' },
+    ],
+  },
+  {
+    id: 'price-master',
+    href: '/price-master',
+    label: 'priceMaster',
+    icon: IndianRupee,
+    group: 'work',
+    requires: [{ key: 'pricing.read', scope: 'entity' }],
+  },
+  {
+    id: 'imports',
+    href: '/imports',
+    label: 'imports',
+    icon: FileUp,
+    group: 'work',
+    requires: [{ key: 'imports.write', scope: 'entity' }],
+  },
+  {
+    id: 'admin-users',
+    href: '/admin/users',
+    label: 'adminUsers',
+    icon: UsersRound,
+    group: 'admin',
+    requires: [{ key: 'admin.users.write', scope: 'all' }],
+  },
+  {
+    id: 'admin-activity',
+    href: '/admin/activity',
+    label: 'adminActivity',
+    icon: ScrollText,
+    group: 'admin',
+    requires: [{ key: 'audit.read', scope: 'entity' }],
+  },
+  {
+    id: 'settings-companies',
+    href: '/settings/companies',
+    label: 'settingsCompanies',
+    icon: Building2,
+    group: 'admin',
+    // org.entity.update
+    requires: [{ key: 'admin.entities.write', scope: 'all' }],
+  },
+  { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
+];
+
+/** The screens these grants open, in menu order. */
+export function visibleNav(grants: readonly PermissionGrant[]): NavItem[] {
+  return NAV_ITEMS.filter((item) => item.requires.every((g) => hasGrant(grants, g.key, g.scope)));
+}
+
+/** The menu item a path belongs to: the longest matching `href`, so `/leads/new` is not Leads. */
+export function activeNavId(pathname: string, items: readonly NavItem[]): string | undefined {
+  let best: NavItem | undefined;
+  for (const item of items) {
+    const matches = pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (matches && (best === undefined || item.href.length > best.href.length)) best = item;
+  }
+  return best?.id;
+}

@@ -1,7 +1,20 @@
-import { aliases, colors, contrastRatio, scale, type Theme } from '@shakti/tokens';
+import {
+  aliases,
+  colors,
+  contrastRatio,
+  resolve,
+  scale,
+  shadows,
+  type Theme,
+} from '@shakti/tokens';
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import { Button, Field, TextInput } from '../../../components/form';
+import { getMessages, getTranslations } from 'next-intl/server';
+import { redirect } from 'next/navigation';
+import type { ReactNode } from 'react';
+import { currentSession } from '../../../auth/current-principal';
+import { ComponentGallery, type DesignCopy } from '../../../components/design/component-gallery';
+import { Page } from '../../../components/shell/page';
+import { visibleNav } from '../../../nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +31,10 @@ const TYPE_ROLES = [
   'h3',
   'body',
   'body-dense',
+  'body-phone',
   'caption',
   'numeric',
 ] as const;
-const STATUSES = ['success', 'warning', 'danger', 'info'] as const;
 const STAGES = [
   'stage-new',
   'stage-contacted',
@@ -30,43 +43,60 @@ const STAGES = [
   'stage-won',
   'stage-lost',
 ] as const satisfies readonly (keyof typeof aliases)[];
+/** The status scales of DESIGN.md §2.4 other than the lead stages, each with its meaning. */
+const ALIAS_GROUPS = [
+  { group: 'sla', names: ['sla-ok', 'sla-warn', 'sla-breach'] },
+  { group: 'stock', names: ['stock-healthy', 'stock-low', 'stock-out', 'stock-reserved'] },
+  { group: 'auto', names: ['auto-suggest', 'auto-approve', 'auto-automatic'] },
+] as const;
+const ENTITY_DOTS = ['entity-1', 'entity-2', 'entity-3', 'entity-4'] as const;
 const CHARTS = Object.keys(aliases).filter((name) => name.startsWith('chart-'));
+const SPACES = Object.entries(scale.space);
+const RADII = Object.entries(scale.radius);
+const MOTIONS = Object.entries(scale.motion);
 
 /**
- * Every colour, text size and control in light and dark side by side (DESIGN.md §2.1, §8), for
- * the design review. Each colour shows its contrast ratio against a card surface.
+ * Every token and every `@shakti/ui` component in light and dark side by side (DESIGN.md §2.1,
+ * §8, §10), for the design review: each colour with its contrast on a card, the status scales,
+ * type sizes, spacing, corners, shadows, motion and focus, and the §2.5 contrast pairs.
  */
 export default async function DesignPage() {
+  const session = await currentSession();
+  if (!session) redirect('/sign-in');
+  if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
+  if (!session.principal) redirect('/two-factor');
   const t = await getTranslations('design');
+  const copy: DesignCopy = (await getMessages()).design;
+  const navIds = visibleNav(session.principal.permissions).map((item) => item.id);
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-12">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
-          {t('title')}
-        </h1>
-        <p className="text-text-muted">{t('intro')}</p>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+    <Page title={t('title')} description={t('intro')}>
+      <div className="grid gap-6 xl:grid-cols-2">
         {THEMES.map((theme) => (
-          <ThemePanel key={theme} theme={theme} />
+          <ThemePanel key={theme} theme={theme} copy={copy} navIds={navIds} />
         ))}
       </div>
-    </main>
+    </Page>
   );
 }
 
-async function ThemePanel({ theme }: { theme: Theme }) {
+async function ThemePanel({
+  theme,
+  copy,
+  navIds,
+}: {
+  theme: Theme;
+  copy: DesignCopy;
+  navIds: readonly string[];
+}) {
   const t = await getTranslations('design');
   const surface = colors.surface[theme];
+  const resolved = resolve(theme);
   return (
     <section
       aria-labelledby={`design-${theme}`}
-      className={`theme-${theme} bg-bg text-text border-border flex flex-col gap-8 rounded-[var(--radius-xl)] border p-6`}
+      className={`theme-${theme} bg-bg text-text border-border flex min-w-0 flex-col gap-8 rounded-xl border p-4 sm:p-6`}
     >
-      <h2
-        id={`design-${theme}`}
-        className="text-[length:var(--font-h2-size)] leading-[var(--font-h2-line)] font-[590]"
-      >
+      <h2 id={`design-${theme}`} className="text-h2 tracking-[-0.01em]">
         {t(theme)}
       </h2>
 
@@ -75,11 +105,11 @@ async function ThemePanel({ theme }: { theme: Theme }) {
           {Object.entries(colors).map(([name, value]) => (
             <li
               key={name}
-              className="bg-surface border-border flex items-center gap-3 rounded-[var(--radius-md)] border p-2"
+              className="bg-surface border-border flex items-center gap-3 rounded-md border p-2"
             >
               <span
                 aria-hidden
-                className="border-border size-8 shrink-0 rounded-[var(--radius-sm)] border"
+                className="border-border size-8 shrink-0 rounded-sm border"
                 style={{ background: `var(--${name})` }}
               />
               <span className="flex min-w-0 flex-col">
@@ -94,6 +124,53 @@ async function ThemePanel({ theme }: { theme: Theme }) {
             </li>
           ))}
         </ul>
+      </Section>
+
+      <Section title={t('aliases')}>
+        <AliasList title={t('aliasGroup.stage')}>
+          {STAGES.map((stage) => (
+            <AliasItem
+              key={stage}
+              name={stage}
+              label={t(`stage.${stage}`)}
+              value={t('aliasValue', { name: stage, hex: resolved[stage] })}
+            />
+          ))}
+        </AliasList>
+        {ALIAS_GROUPS.map(({ group, names }) => (
+          <AliasList key={group} title={t(`aliasGroup.${group}`)}>
+            {names.map((name) => (
+              <AliasItem
+                key={name}
+                name={name}
+                label={t(`alias.${name}`)}
+                value={t('aliasValue', { name, hex: resolved[name] })}
+              />
+            ))}
+          </AliasList>
+        ))}
+        <AliasList title={t('aliasGroup.entity')}>
+          {ENTITY_DOTS.map((name) => (
+            <AliasItem
+              key={name}
+              name={name}
+              value={t('aliasValue', { name, hex: resolved[name] })}
+            />
+          ))}
+        </AliasList>
+      </Section>
+
+      <Section title={t('charts')}>
+        <div className="flex h-24 items-end gap-2">
+          {CHARTS.map((chart, i) => (
+            <span
+              key={chart}
+              aria-hidden
+              className="flex-1 rounded-t-sm"
+              style={{ background: `var(--${chart})`, height: `${String(40 + i * 10)}%` }}
+            />
+          ))}
+        </div>
       </Section>
 
       <Section title={t('type')}>
@@ -121,85 +198,114 @@ async function ThemePanel({ theme }: { theme: Theme }) {
         </ul>
       </Section>
 
-      <Section title={t('buttons')}>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button">{t('primary')}</Button>
-          <Button type="button" variant="secondary">
-            {t('secondary')}
-          </Button>
-          <Button type="button" variant="link">
-            {t('link')}
-          </Button>
-          <Button type="button" disabled>
-            {t('unavailable')}
-          </Button>
-        </div>
-      </Section>
-
-      <Section title={t('fields')}>
-        <div className="bg-surface border-border flex flex-col gap-4 rounded-[var(--radius-lg)] border p-4">
-          <Field label={t('fieldLabel')} id={`design-${theme}-name`}>
-            <TextInput id={`design-${theme}-name`} placeholder={t('fieldHint')} />
-          </Field>
-          <Field label={t('fieldErrorLabel')} id={`design-${theme}-phone`}>
-            <TextInput
-              id={`design-${theme}-phone`}
-              defaultValue={t('fieldErrorValue')}
-              className="border-danger"
-              aria-invalid
-            />
-          </Field>
-          <p className="text-danger text-sm">{t('fieldError')}</p>
-        </div>
-      </Section>
-
-      <Section title={t('statuses')}>
-        <div className="flex flex-wrap gap-2">
-          {STATUSES.map((status) => (
-            <span
-              key={status}
-              className="rounded-full px-2.5 py-0.5 text-xs font-[510]"
-              style={{ background: `var(--${status}-soft)`, color: `var(--${status})` }}
-            >
-              {t(`status.${status}`)}
-            </span>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {STAGES.map((stage) => (
-            <span key={stage} className="inline-flex items-center gap-1.5 text-sm">
+      <Section title={t('measures')}>
+        <h4 className="text-text-subtle text-xs font-[510]">{t('spacing')}</h4>
+        <ul className="flex flex-col gap-1.5">
+          {SPACES.map(([step, px]) => (
+            <li key={step} className="flex items-center gap-3">
               <span
                 aria-hidden
-                className="size-2 rounded-full"
-                style={{ background: `var(--${stage})` }}
+                className="bg-accent h-3 shrink-0 rounded-sm"
+                style={{ width: `var(--space-${step})` }}
               />
-              {t(`stage.${stage}`)}
-            </span>
+              <span className="text-text-muted text-xs tabular-nums">
+                {t('pxValue', { name: `space-${step}`, px })}
+              </span>
+            </li>
           ))}
+        </ul>
+
+        <h4 className="text-text-subtle text-xs font-[510]">{t('radius')}</h4>
+        <ul className="flex flex-wrap gap-4">
+          {RADII.map(([name, px]) => (
+            <li key={name} className="flex flex-col items-center gap-1.5">
+              <span
+                aria-hidden
+                className="bg-surface-2 border-border-strong size-12 border"
+                style={{ borderRadius: `var(--radius-${name})` }}
+              />
+              <span className="text-text-muted text-xs tabular-nums">
+                {t('pxValue', { name: `radius-${name}`, px })}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <h4 className="text-text-subtle text-xs font-[510]">{t('shadows')}</h4>
+        <ul className="flex flex-wrap gap-4">
+          {Object.keys(shadows).map((name) => (
+            <li
+              key={name}
+              className="bg-surface border-border flex h-16 w-32 items-center justify-center rounded-lg border text-xs"
+              style={{ boxShadow: `var(--${name})` }}
+            >
+              {name}
+            </li>
+          ))}
+        </ul>
+
+        <h4 className="text-text-subtle text-xs font-[510]">{t('motion')}</h4>
+        <p className="text-text-muted text-xs">{t('motionHint')}</p>
+        <ul className="flex flex-wrap gap-4">
+          {MOTIONS.map(([name, ms]) => (
+            <li key={name} className="flex flex-col items-start gap-1.5">
+              <span
+                aria-hidden
+                className="bg-surface-2 border-border hover:bg-accent-soft size-12 rounded-md border transition-[translate,background-color] ease-out hover:translate-x-4"
+                style={{ transitionDuration: `var(--motion-${name})` }}
+              />
+              <span className="text-text-muted text-xs tabular-nums">
+                {t('msValue', { name: `motion-${name}`, ms })}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <h4 className="text-text-subtle text-xs font-[510]">{t('focus')}</h4>
+        <div className="flex items-center gap-4">
+          <span
+            aria-hidden
+            className="bg-surface border-border-strong outline-focus h-9 w-32 rounded-md border outline-2 outline-offset-2"
+          />
+          <span className="text-text-muted text-xs">
+            {t('focusValue', { width: scale.focusRing.width, offset: scale.focusRing.offset })}
+          </span>
         </div>
       </Section>
 
-      <Section title={t('charts')}>
-        <div className="flex h-24 items-end gap-2">
-          {CHARTS.map((chart, i) => (
-            <span
-              key={chart}
-              aria-hidden
-              className="flex-1 rounded-t-[var(--radius-sm)]"
-              style={{ background: `var(--${chart})`, height: `${String(40 + i * 10)}%` }}
-            />
-          ))}
-        </div>
-      </Section>
+      <ComponentGallery theme={theme} copy={copy} navIds={navIds} />
     </section>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-text-muted text-sm font-[590]">{title}</h3>
       {children}
     </div>
+  );
+}
+
+function AliasList({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h4 className="text-text-subtle text-xs font-[510]">{title}</h4>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1.5">{children}</ul>
+    </div>
+  );
+}
+
+function AliasItem({ name, label, value }: { name: string; label?: string; value: string }) {
+  return (
+    <li className="inline-flex items-center gap-1.5 text-sm">
+      <span
+        aria-hidden
+        className="size-2.5 rounded-full"
+        style={{ background: `var(--${name})` }}
+      />
+      {label === undefined ? null : <span>{label}</span>}
+      <span className="text-text-subtle text-xs tabular-nums">{value}</span>
+    </li>
   );
 }

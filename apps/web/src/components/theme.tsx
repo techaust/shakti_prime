@@ -33,9 +33,20 @@ export function ThemeSync({ saved }: { saved: Theme }) {
   return null;
 }
 
-/** System, Light or Dark (DESIGN.md §7). The screen switches at once; the profile keeps it. */
-export function ThemeSwitch({ saved }: { saved: Theme }) {
-  const t = useTranslations('theme');
+/**
+ * The theme choice behind the switch on the profile screen and the profile menu: the screen
+ * switches at once, the profile keeps it, and a refused save puts the previous choice back and
+ * names the reason (a catalogue key under `errors`).
+ */
+export function useThemeChoice(
+  saved: Theme,
+  /** Called with the reason when the profile refuses the choice (the profile menu shows a toast). */
+  onError?: (key: ErrorKey) => void,
+): {
+  chosen: Theme;
+  choose: (theme: Theme) => void;
+  error: ErrorKey | undefined;
+} {
   const errors = useTranslations('errors');
   const { setTheme } = useTheme();
   const [chosen, setChosen] = useState<Theme>(saved);
@@ -55,9 +66,20 @@ export function ThemeSwitch({ saved }: { saved: Theme }) {
       setTheme(before);
       rememberOnThisDevice(before);
       const key = result.error as ErrorKey;
-      setError(errors.has(key) ? key : 'internal');
+      const known: ErrorKey = errors.has(key) ? key : 'internal';
+      setError(known);
+      onError?.(known);
     });
   }
+
+  return { chosen, choose, error };
+}
+
+/** System, Light or Dark (DESIGN.md §7). The screen switches at once; the profile keeps it. */
+export function ThemeSwitch({ saved }: { saved: Theme }) {
+  const t = useTranslations('theme');
+  const errors = useTranslations('errors');
+  const { chosen, choose, error } = useThemeChoice(saved);
 
   return (
     <fieldset className="flex flex-col gap-2">

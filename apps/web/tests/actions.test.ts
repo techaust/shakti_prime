@@ -146,6 +146,19 @@ describe('server actions (AUDIT M41)', () => {
     expect(request.jar.has('entity')).toBe(false);
   });
 
+  it('the company switcher returns to the screen it was on, and only to a BOS screen', async () => {
+    const form = (returnTo: string) => {
+      const data = new FormData();
+      data.set('entityId', '1');
+      data.set('returnTo', returnTo);
+      return data;
+    };
+    request.session = { access: { entities: [{ entityId: 1 }] } };
+    await expect(switchEntity(form('/leads'))).rejects.toThrow('redirect /leads');
+    await expect(switchEntity(form('//evil.example/leads'))).rejects.toThrow('redirect /home');
+    await expect(switchEntity(form('/sign-in'))).rejects.toThrow('redirect /home');
+  });
+
   it('record the caller’s address, browser and request on the audit trail, read back by an Executive', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     request.principal = caller;

@@ -9,6 +9,8 @@ export const CLIENT_NAMESPACES = [
   'errors',
   'errorPage',
   'fields',
+  'nav',
+  'shell',
   'theme',
   'common',
   'companies',

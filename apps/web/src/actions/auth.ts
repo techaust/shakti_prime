@@ -12,6 +12,7 @@ import { errorKey, toDomainError } from '../auth/errors';
 import { reportUnexpected } from '../log';
 import { finishEnrolment } from '../auth/session-principal';
 import { TURNSTILE_HEADER } from '../auth/turnstile';
+import { safeReturnPath } from '../session-gate';
 
 /**
  * State of a form action: a catalogue key under `errors`, or nothing when it succeeded. An
@@ -227,7 +228,11 @@ export async function changePassword(
   return { done: true };
 }
 
-/** The entity switcher: an entity the user holds a role in, or "All companies". */
+/**
+ * The entity switcher: an entity the user holds a role in, or "All companies". The top bar sends
+ * the screen it was on as `returnTo`, so the person stays where they were; only a BOS screen on
+ * this site is accepted, anything else lands on Home.
+ */
 export async function switchEntity(formData: FormData): Promise<void> {
   const session = await currentSession();
   if (!session) redirect('/sign-in');
@@ -244,5 +249,5 @@ export async function switchEntity(formData: FormData): Promise<void> {
       path: '/',
     });
   }
-  redirect('/home');
+  redirect(safeReturnPath(field(formData, 'returnTo') || undefined));
 }
