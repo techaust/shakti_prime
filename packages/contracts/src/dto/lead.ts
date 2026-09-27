@@ -22,13 +22,15 @@ export const LeadDto = z
         name: z.string(),
       })
       .strict(),
+    /** The customer's owner contact; null only while none is recorded (AUDIT M20). */
     contact: z
       .object({
         id: IdSchema,
         name: z.string(),
-        phone: E164Schema,
+        phone: E164Schema.nullable(),
       })
-      .strict(),
+      .strict()
+      .nullable(),
     updatedAt: z.iso.datetime(),
   })
   .strict();

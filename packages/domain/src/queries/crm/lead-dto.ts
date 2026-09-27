@@ -9,8 +9,8 @@ type ContactRow = Pick<typeof schema.contacts.$inferSelect, 'id' | 'name'>;
 export function toLeadDto(
   opportunity: OpportunityRow,
   account: AccountRow,
-  contact: ContactRow,
-  phone: string,
+  contact: ContactRow | null,
+  phone: string | null,
 ): LeadDto {
   return LeadDto.parse({
     id: opportunity.id,
@@ -23,7 +23,7 @@ export function toLeadDto(
     teamId: opportunity.teamId,
     siteId: opportunity.siteId,
     account: { id: account.id, type: account.type, name: account.name },
-    contact: { id: contact.id, name: contact.name, phone },
+    contact: contact === null ? null : { id: contact.id, name: contact.name, phone },
     updatedAt: opportunity.updatedAt.toISOString(),
   });
 }

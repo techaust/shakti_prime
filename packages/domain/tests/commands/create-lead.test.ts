@@ -108,7 +108,7 @@ describe('crm.lead.create', () => {
     expect(lead.entityId).toBe(1);
     expect(lead.stageId).toBe(stageId(1, 1));
     expect(lead.state).toBe('open');
-    expect(lead.contact.phone).toBe('+919876543210');
+    expect(lead.contact?.phone).toBe('+919876543210');
     expect(lead.account.name).toBe('Lead test contact');
     expect(lead.siteId).not.toBeNull();
     expect(Object.keys(lead).sort()).toEqual([
@@ -237,7 +237,7 @@ describe('crm.lead.create', () => {
       (m) =>
         m<
           { n: number }[]
-        >`select count(*)::int as n from consents where contact_id = ${first.contact.id} and text_version = 'v2'`,
+        >`select count(*)::int as n from consents where contact_id = ${first.contact?.id ?? ''} and text_version = 'v2'`,
     );
     expect(consent?.n).toBe(1);
     const [again] = await asMigrator(

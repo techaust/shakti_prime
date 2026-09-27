@@ -7,6 +7,8 @@ export const TURNSTILE_HEADER = 'x-turnstile-token';
 
 /** The action the sign-in widget declares; an answer for any other widget is refused. */
 export const TURNSTILE_SIGN_IN_ACTION = 'sign-in';
+/** The action the forgotten-password widget declares. */
+export const TURNSTILE_RESET_ACTION = 'reset';
 
 /** Cloudflare's published test secrets answer for any hostname and action. */
 const TEST_SECRET = /^[123]x0+AA$/;

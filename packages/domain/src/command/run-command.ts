@@ -122,6 +122,9 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
   }
 
   checkPermission(context.principal, command.permission, command.minScope ?? 'own');
+  for (const also of command.alsoRequires ?? []) {
+    checkPermission(context.principal, also.permission, also.minScope);
+  }
 
   const now = options.now ?? new Date();
   const events: DomainEvent[] = [];

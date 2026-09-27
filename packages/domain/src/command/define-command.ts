@@ -9,6 +9,8 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   permission: PermissionKey;
   /** Narrowest scope that satisfies the guard. Row visibility is then decided by RLS. */
   minScope?: Scope;
+  /** Further permissions the command needs, each at its own narrowest scope (AUDIT L9). */
+  alsoRequires?: readonly { permission: PermissionKey; minScope: Scope }[];
   input: I;
   /** A strict DTO. Anything the handler returns beyond it is an error, never a leak. */
   output: O;

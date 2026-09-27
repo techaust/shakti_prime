@@ -167,6 +167,9 @@ export function resolvePrincipalFromGrants(
     entityIds: selected.map((e) => e.entityId),
     permissions: intersectGrants(selected),
     ...(team ? { teamId: team } : {}),
+    entityTeams: selected.flatMap((e) =>
+      e.teamId ? [{ entityId: e.entityId, teamId: e.teamId }] : [],
+    ),
   };
   return { kind: 'principal', principal, access };
 }

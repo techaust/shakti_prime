@@ -65,6 +65,13 @@ export const CreateLeadInput = z
     (v) =>
       v.existingAccountId !== undefined || (v.contact !== undefined && v.account !== undefined),
     { message: 'contact and account are required for a new customer', path: ['contact'] },
+  )
+  // A known customer keeps its own contact: a name and phone sent with it would be stored
+  // nowhere, and a consent would attach to someone else (AUDIT M29).
+  .refine(
+    (v) =>
+      v.existingAccountId === undefined || (v.contact === undefined && v.account === undefined),
+    { message: 'a known customer takes no new contact or account', path: ['existingAccountId'] },
   );
 
 export type CreateLeadInput = z.infer<typeof CreateLeadInput>;

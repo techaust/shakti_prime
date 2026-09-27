@@ -3,12 +3,14 @@ import { schema } from '@shakti/db';
 import { eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { loadUserDto } from '../../queries/admin/user-dto';
-import { insertEntityRoles, resolveEntityRoles } from './shared';
+import { assertUserInScope, insertEntityRoles, resolveEntityRoles } from './shared';
 
 /**
  * `admin.user.invite`: creates the principal, the `invited` user and one role per entity. The
  * server action then asks the auth module for a set-password link and mails it; the first
- * sign-in moves the user to `active`. There is no self sign-up.
+ * sign-in moves the user to `active`. There is no self sign-up. Inviting someone who is still
+ * `invited` answers that user unchanged, so the action sends them a fresh link (AUDIT M26); their
+ * roles change through `admin.user.roles.set`.
  */
 export const inviteUser = defineCommand({
   name: 'admin.user.invite',
@@ -20,10 +22,14 @@ export const inviteUser = defineCommand({
   constraintReasons: { users_email_unique: 'invite_email_taken' },
   async handler(ctx, input) {
     const [taken] = await ctx.tx
-      .select({ id: schema.users.id })
+      .select({ id: schema.users.id, status: schema.users.status })
       .from(schema.users)
       .where(eq(schema.users.email, input.email))
       .limit(1);
+    if (taken?.status === 'invited') {
+      await assertUserInScope(ctx, taken.id);
+      return loadUserDto(ctx.tx, taken.id);
+    }
     if (taken) {
       throw new DomainError('conflict', 'email already belongs to a user', {
         reason: 'invite_email_taken',

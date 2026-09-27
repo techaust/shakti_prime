@@ -4,6 +4,9 @@ import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 
+/** What `app.attach_account_entity()` found (migration 0026). */
+type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';
+
 /**
  * `crm.lead.create`: an opportunity in the first open stage of the chosen pipeline, owned by the
  * caller, for a new customer (contact with its phone, account, optional site and consent) or for
@@ -15,6 +18,8 @@ export const createLead = defineCommand({
   name: 'crm.lead.create',
   permission: 'crm.lead.write',
   minScope: 'own',
+  // A lead creates or attaches a customer, which is a customer write too (ADR 0008, AUDIT L9).
+  alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
   input: CreateLeadInput,
   output: LeadDto,
   async handler(ctx, input) {
@@ -87,11 +92,19 @@ export const createLead = defineCommand({
       // The caller may not see this customer yet; the helper checks the caller's right to attach
       // their entity and writes the relationship, owned by the caller (docs/DATABASE.md §4.2).
       const attached = (await ctx.tx.execute(
-        sql`select app.attach_account_entity(${input.existingAccountId}::uuid, ${entityId}::smallint) as ok`,
-      )) as unknown as { ok: boolean }[];
-      if (attached[0]?.ok !== true) {
+        sql`select app.attach_account_entity(${input.existingAccountId}::uuid, ${entityId}::smallint) as status`,
+      )) as unknown as { status: AttachStatus }[];
+      const status = attached[0]?.status ?? 'missing';
+      if (status === 'missing') {
         throw new DomainError('not_found', 'account is not available', {
           reason: 'account_missing',
+        });
+      }
+      // A colleague already looks after this customer in this company: the enquiry goes to them
+      // or their team lead, rather than a second lead nobody else can see (AUDIT M25).
+      if (status === 'held_by_other') {
+        throw new DomainError('conflict', 'customer is looked after by a colleague', {
+          reason: 'customer_held_by_colleague',
         });
       }
       const [row] = await ctx.tx

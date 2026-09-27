@@ -358,13 +358,21 @@ describe('an opportunity sits only in an entity its account deals with', () => {
     const attach = (p: Principal, account: string, entityId: number) =>
       asPrincipal(p, async ({ tx }) => {
         const rows = (await tx.execute(
-          sql`select app.attach_account_entity(${account}::uuid, ${entityId}::smallint) as ok`,
-        )) as unknown as { ok: boolean }[];
-        return rows[0]?.ok;
+          sql`select app.attach_account_entity(${account}::uuid, ${entityId}::smallint) as status`,
+        )) as unknown as { status: string }[];
+        return rows[0]?.status;
       });
-    expect(await attach(fx.principals.c, target, 1)).toBe(true);
+    expect(await attach(fx.principals.c, target, 1)).toBe('attached');
+    // asking again reports the relationship the caller now holds (AUDIT M25)
+    expect(await attach(fx.principals.c, target, 1)).toBe('already_yours');
+    // a colleague on another team is told it is held, and learns nothing more; the GM sees it
+    expect(await attach(fx.principals.a, target, 1)).toBe('held_by_other');
+    expect(await visibleIds(fx.principals.a, 'accounts')).not.toContain(target);
+    expect(await attach(fx.principals.gm, target, 1)).toBe('already_yours');
     expect(await visibleIds(fx.principals.c, 'accounts')).toContain(target);
-    expect(await attach(fx.principals.c, '01990000-0000-7000-8000-0000000fee99', 1)).toBe(false);
+    expect(await attach(fx.principals.c, '01990000-0000-7000-8000-0000000fee99', 1)).toBe(
+      'missing',
+    );
     const causeIncludes = (text: string) => (e: unknown) =>
       e instanceof Error && e.cause instanceof Error && e.cause.message.includes(text);
     await expect(attach(fx.principals.c, target, 2)).rejects.toSatisfy(

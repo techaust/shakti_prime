@@ -61,6 +61,8 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   } catch (e) {
     return failure('signIn', e);
   }
+  // A company chosen by whoever used this browser before does not narrow this person (AUDIT L10).
+  (await cookies()).delete(ACTIVE_ENTITY_COOKIE);
   redirect(twoFactor ? '/two-factor' : '/home');
 }
 
@@ -70,7 +72,27 @@ export async function signOut(): Promise<void> {
   } catch {
     // an already-ended session signs out all the same
   }
+  (await cookies()).delete(ACTIVE_ENTITY_COOKIE);
   redirect('/sign-in');
+}
+
+/**
+ * "Forgot your password?" (AUDIT M26): sends a set-password link when the email belongs to a
+ * staff account. The answer is the same either way, so the screen does not reveal who has one.
+ */
+export async function requestNewPassword(
+  _prev: SetPasswordState,
+  formData: FormData,
+): Promise<SetPasswordState> {
+  try {
+    await auth.api.requestPasswordReset({
+      body: { email: field(formData, 'email').trim().toLowerCase(), redirectTo: '/set-password' },
+      headers: await requestHeaders(field(formData, 'cf-turnstile-response')),
+    });
+  } catch (e) {
+    return failure('requestNewPassword', e);
+  }
+  return { done: true };
 }
 
 export async function setPassword(

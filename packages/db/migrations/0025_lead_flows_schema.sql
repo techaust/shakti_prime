@@ -1,0 +1,2 @@
+ALTER TABLE "account_contacts" ALTER COLUMN "role" DROP DEFAULT;--> statement-breakpoint
+CREATE UNIQUE INDEX "account_contacts_one_owner" ON "account_contacts" USING btree ("account_id") WHERE "account_contacts"."role" = 'owner';

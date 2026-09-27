@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { actorsRequired, archivable, timestamps } from './columns';
@@ -88,13 +89,17 @@ export const accountContacts = pgTable(
     contactId: uuid('contact_id')
       .notNull()
       .references(() => contacts.id),
-    role: text('role').notNull().default('owner'),
+    // Named on every link (AUDIT M20): one owner per customer; family and staff take other roles.
+    role: text('role').notNull(),
     ...timestamps,
     ...actorsRequired,
   },
   (t) => [
     primaryKey({ columns: [t.accountId, t.contactId] }),
     index('account_contacts_contact_idx').on(t.contactId),
+    uniqueIndex('account_contacts_one_owner')
+      .on(t.accountId)
+      .where(sql`${t.role} = 'owner'`),
     check(
       'account_contacts_role_check',
       sql`${t.role} in ('owner', 'family', 'manager', 'accountant', 'other')`,

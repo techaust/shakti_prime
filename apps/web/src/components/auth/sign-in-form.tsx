@@ -1,54 +1,16 @@
 'use client';
 
-import Script from 'next/script';
 import { useTranslations } from 'next-intl';
-import { useActionState, useEffect, useRef, type RefObject } from 'react';
+import Link from 'next/link';
+import { useActionState } from 'react';
 import { signIn, type FormState } from '../../actions/auth';
 import { TURNSTILE_SIGN_IN_ACTION } from '../../auth/turnstile';
 import { Button, Field, FormError, TextInput } from '../form';
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: { sitekey: string; action: string }) => string;
-      reset: (widgetId: string) => void;
-    };
-    onTurnstileReady?: (() => void) | undefined;
-  }
-}
-
-/**
- * The bot-check widget is rendered by hand: a token is accepted once by Cloudflare, so after a
- * failed attempt the widget is reset for a fresh one, and the widget survives a client-side
- * navigation back to this screen.
- */
-function useTurnstile(siteKey: string, attempt: unknown): RefObject<HTMLDivElement | null> {
-  const container = useRef<HTMLDivElement>(null);
-  const widgetId = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    const render = () => {
-      if (container.current === null || widgetId.current !== undefined) return;
-      widgetId.current = window.turnstile?.render(container.current, {
-        sitekey: siteKey,
-        action: TURNSTILE_SIGN_IN_ACTION,
-      });
-    };
-    if (window.turnstile) render();
-    else window.onTurnstileReady = render;
-    return () => {
-      if (window.onTurnstileReady === render) window.onTurnstileReady = undefined;
-    };
-  }, [siteKey]);
-  useEffect(() => {
-    if (widgetId.current !== undefined) window.turnstile?.reset(widgetId.current);
-  }, [attempt]);
-  return container;
-}
+import { TurnstileWidget } from './turnstile-widget';
 
 export function SignInForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
   const t = useTranslations('auth.signIn');
   const [state, action, pending] = useActionState<FormState, FormData>(signIn, {});
-  const widget = useTurnstile(turnstileSiteKey, state);
   const invalid = state.error !== undefined;
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -72,15 +34,21 @@ export function SignInForm({ turnstileSiteKey }: { turnstileSiteKey: string }) {
           required
         />
       </Field>
-      <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady&render=explicit"
-        strategy="afterInteractive"
+      <TurnstileWidget
+        siteKey={turnstileSiteKey}
+        action={TURNSTILE_SIGN_IN_ACTION}
+        attempt={state}
       />
-      <div ref={widget} />
       <FormError errorKey={state.error} reference={state.reference} />
       <Button type="submit" pending={pending}>
         {pending ? t('working') : t('submit')}
       </Button>
+      <Link
+        href="/forgot-password"
+        className="text-accent-text inline-flex min-h-9 items-center self-start text-sm underline-offset-4 hover:underline max-md:min-h-11"
+      >
+        {t('forgot')}
+      </Link>
     </form>
   );
 }
