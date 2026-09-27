@@ -555,6 +555,7 @@
     },
     "state": {
       "open": "Open",
+      "nurture": "Follow up later",
       "won": "Won",
       "lost": "Lost"
     },

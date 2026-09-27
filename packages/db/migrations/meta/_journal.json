@@ -302,6 +302,20 @@
       "when": 1790530802953,
       "tag": "0042_files_purposes",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790536622486,
+      "tag": "0043_week5_commands_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790536700394,
+      "tag": "0044_week5_commands",
+      "breakpoints": true
     }
   ]
 }

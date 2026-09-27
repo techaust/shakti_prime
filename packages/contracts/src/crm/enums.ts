@@ -24,7 +24,7 @@ export type Segment = z.infer<typeof SegmentSchema>;
 export const StageKindSchema = z.enum(['open', 'won', 'lost']);
 export type StageKind = z.infer<typeof StageKindSchema>;
 
-export const OpportunityStateSchema = z.enum(['open', 'won', 'lost']);
+export const OpportunityStateSchema = z.enum(['open', 'nurture', 'won', 'lost']);
 export type OpportunityState = z.infer<typeof OpportunityStateSchema>;
 
 /**

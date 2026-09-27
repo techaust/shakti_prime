@@ -32,6 +32,8 @@ export const accounts = pgTable(
     type: text('type').notNull(),
     name: text('name').notNull(),
     gstin: text('gstin'),
+    /** Two-digit GST state code of the billing address; place of supply falls back to it (design §6). */
+    billingStateCode: text('billing_state_code'),
     tierId: uuid('tier_id').references(() => priceTiers.id),
     ...archivable,
     ...timestamps,
@@ -45,6 +47,10 @@ export const accounts = pgTable(
     check(
       'accounts_gstin_check',
       sql`${t.gstin} is null or ${t.gstin} ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'`,
+    ),
+    check(
+      'accounts_billing_state_code_check',
+      sql`${t.billingStateCode} is null or ${t.billingStateCode} ~ '^[0-9]{2}$'`,
     ),
     index('accounts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('accounts_tier_idx').on(t.tierId),
@@ -121,6 +127,8 @@ export const customerSites = pgTable(
     tehsil: text('tehsil'),
     district: text('district'),
     pin: text('pin'),
+    /** Two-digit GST state code of the site; the first choice for place of supply (design §6). */
+    stateCode: text('state_code'),
     lat: numeric('lat', { precision: 9, scale: 6 }),
     lng: numeric('lng', { precision: 9, scale: 6 }),
     technicalJson: jsonb('technical_json').notNull().default({}),
@@ -136,6 +144,10 @@ export const customerSites = pgTable(
       sql`(${t.lat} is null or ${t.lat} between -90 and 90) and (${t.lng} is null or ${t.lng} between -180 and 180)`,
     ),
     check('customer_sites_pin_check', sql`${t.pin} is null or ${t.pin} ~ '^[1-9][0-9]{5}$'`),
+    check(
+      'customer_sites_state_code_check',
+      sql`${t.stateCode} is null or ${t.stateCode} ~ '^[0-9]{2}$'`,
+    ),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
   ],

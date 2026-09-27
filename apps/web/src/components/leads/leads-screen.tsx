@@ -20,6 +20,7 @@ import { useQuery } from '../screens/use-command';
 
 const STATE_TONE: Record<LeadDto['state'], StatusTone> = {
   open: 'accent',
+  nurture: 'info',
   won: 'success',
   lost: 'neutral',
 };

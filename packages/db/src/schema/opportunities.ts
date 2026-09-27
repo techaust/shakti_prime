@@ -21,7 +21,8 @@ import { teams } from './teams';
 
 /**
  * A sale on a pipeline for an account and site (docs/BLUEPRINT.md §6.2). Scope root for
- * `crm.lead.*`. `state` is written only by the opportunity state machine (Phase 1). The trigger
+ * `crm.lead.*`. `state` and `state_changed_at` are written only by the opportunity commands through
+ * the opportunity state machine (design §7.2). The trigger
  * `app.ensure_account_entity()` refuses an entity that has no `account_entities` row (ADR 0008).
  */
 export const opportunities = pgTable(
@@ -47,13 +48,15 @@ export const opportunities = pgTable(
     sourceId: uuid('source_id').references(() => leadSources.id),
     campaignJson: jsonb('campaign_json').notNull().default({}),
     state: text('state').notNull().default('open'),
+    /** When `state` last changed; the reopen window of a lost lead counts from here. */
+    stateChangedAt: timestamp('state_changed_at', { withTimezone: true }).notNull().defaultNow(),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
   },
   (t) => [
-    check('opportunities_state_check', sql`${t.state} in ('open', 'won', 'lost')`),
+    check('opportunities_state_check', sql`${t.state} in ('open', 'nurture', 'won', 'lost')`),
     // The stage belongs to the opportunity's own pipeline (AUDIT L2).
     foreignKey({
       name: 'opportunities_stage_pipeline_fk',
