@@ -169,6 +169,17 @@ describe('server actions (AUDIT M41)', () => {
     expect(row?.published_at).toBeInstanceOf(Date);
   });
 
+  it('act once for a form sent twice with one key, and refuse a key that is not one', async () => {
+    request.principal = await createTestPrincipal('tele_caller_cc', [1]);
+    const key = crypto.randomUUID();
+    const first = await createLead(lead(1), key);
+    const repeat = await createLead(lead(1), key);
+    expect(repeat.id).toBe(first.id);
+    await expect(createLead(lead(1), 'not-a-key')).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
+  });
+
   it('keep the audit trail from a role without audit.read', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const now = Date.now();

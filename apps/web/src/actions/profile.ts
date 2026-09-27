@@ -12,7 +12,7 @@ import { commandOptions, parseInput, requestMeta } from './support';
  * switched; this keeps the choice for every device. Returns a catalogue key instead of throwing,
  * because Next.js masks thrown errors in production.
  */
-export async function saveTheme(rawInput: unknown): Promise<FormState> {
+export async function saveTheme(rawInput: unknown, idempotencyKey?: unknown): Promise<FormState> {
   try {
     const principal = await currentPrincipal();
     if (!principal) return { error: 'unauthorized' };
@@ -23,7 +23,7 @@ export async function saveTheme(rawInput: unknown): Promise<FormState> {
       { requestId: meta.requestId },
       setThemeCommand,
       input,
-      commandOptions(meta),
+      commandOptions(meta, idempotencyKey),
     );
     await forgetPrincipal(principal.id);
     return {};

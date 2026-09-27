@@ -1,4 +1,4 @@
-import { DomainError, newId } from '@shakti/contracts';
+import { DomainError, IdempotencyKeySchema, newId } from '@shakti/contracts';
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
@@ -17,10 +17,20 @@ export async function requestMeta(): Promise<{ requestId: string; client: Client
 
 /**
  * The options every action passes to `executeCommand`: the caller's address and browser for the
- * audit row, and the nudge that has the outbox publisher deliver the command's events at once.
+ * audit row, the nudge that has the outbox publisher deliver the command's events at once, and
+ * the form's idempotency key when it sent one, so a double submit acts once (docs/API.md §1).
  */
-export function commandOptions(meta: { client: ClientMeta }): ExecuteOptions {
-  return { client: meta.client, onCommitted: nudgeOutbox };
+export function commandOptions(
+  meta: { client: ClientMeta },
+  idempotencyKey?: unknown,
+): ExecuteOptions {
+  return {
+    client: meta.client,
+    onCommitted: nudgeOutbox,
+    ...(idempotencyKey === undefined
+      ? {}
+      : { idempotencyKey: parseInput(IdempotencyKeySchema, idempotencyKey) }),
+  };
 }
 
 /** The part of a Zod schema the parser needs; the contracts package owns Zod itself. */

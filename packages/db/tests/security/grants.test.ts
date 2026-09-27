@@ -4,6 +4,7 @@ import {
   AUTH_TABLES,
   closeDb,
   OUTBOX_TABLES,
+  PRINCIPAL_TABLES,
   RLS_TABLES,
   withoutContext,
 } from '../../src/testing/index';
@@ -28,12 +29,12 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
       order by c.relname
     `);
     expect(rows.map((r) => r.name)).toEqual(
-      [...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES].sort(),
+      [...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES, ...PRINCIPAL_TABLES].sort(),
     );
     expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
   });
 
-  it.each([...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES])(
+  it.each([...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES, ...PRINCIPAL_TABLES])(
     'does not own %s and the table forces RLS',
     async (table) => {
       const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`

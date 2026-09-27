@@ -6,7 +6,7 @@ import { currentPrincipal } from '../auth/current-principal';
 import { commandOptions, parseInput, requestMeta } from './support';
 
 /** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. */
-export async function createLead(rawInput: unknown): Promise<LeadDto> {
+export async function createLead(rawInput: unknown, idempotencyKey?: unknown): Promise<LeadDto> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
   const input = parseInput(CreateLeadInput, rawInput);
@@ -16,6 +16,6 @@ export async function createLead(rawInput: unknown): Promise<LeadDto> {
     { entityIds: [input.entityId], requestId: meta.requestId },
     createLeadCommand,
     input,
-    commandOptions(meta),
+    commandOptions(meta, idempotencyKey),
   );
 }

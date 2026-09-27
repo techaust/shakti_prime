@@ -253,6 +253,20 @@
       "when": 1790507478686,
       "tag": "0035_outbox_events_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790513499690,
+      "tag": "0036_idempotency_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1790513501380,
+      "tag": "0037_idempotency_keys_rls",
+      "breakpoints": true
     }
   ]
 }

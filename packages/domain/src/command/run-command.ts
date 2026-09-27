@@ -9,6 +9,8 @@ import {
 import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
 import { redactForAudit } from '../audit/redact';
+import { inputHash } from '../idempotency/hash';
+import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
 import type { AuditRecord, AuditSink, ClientMeta } from '../audit/sink';
 import type { OutboxRecord, OutboxSink } from '../outbox/sink';
 import type { AuditChange, CommandContext } from './context';
@@ -24,6 +26,13 @@ export interface RunOptions {
   client?: ClientMeta;
   /** Where emitted events go (required since slice 3; `executeCommand` passes `outbox_events`). */
   outbox: OutboxSink;
+  /**
+   * The caller's key for this call (docs/API.md §1). With one, the command acts once per caller
+   * and key: a repeat with the same input replays the first answer, with other input it is refused.
+   */
+  idempotencyKey?: string;
+  /** Where keys live; `idempotency_keys` unless a test passes the in-memory store. */
+  idempotency?: IdempotencyStore;
 }
 
 /**
@@ -103,7 +112,11 @@ const SQLSTATE_CODES: Record<string, DomainError['code']> = {
 };
 
 /** The reasons the runner itself gives; each has a sentence in the catalogue (AUDIT M30). */
-export const RUNNER_REASONS = ['concurrent_change', 'database_rejected'] as const;
+export const RUNNER_REASONS = [
+  'concurrent_change',
+  'database_rejected',
+  'idempotency_mismatch',
+] as const;
 
 /** A PostgreSQL SQLSTATE: five digits or capitals. Driver codes such as ECONNREFUSED are not. */
 const SQLSTATE = /^[0-9A-Z]{5}$/;
@@ -178,6 +191,50 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     throw tag(e, 'guard', parsed.data);
   }
 
+  // A key is claimed after the guard, so a refused caller learns nothing about an earlier call,
+  // and before the handler, so a repeat never runs it twice (docs/design/backend-weeks-3-5.md §5).
+  const key = options.idempotencyKey;
+  const store = options.idempotency ?? databaseIdempotencyStore;
+  if (key !== undefined) {
+    const hash = inputHash(command.name, parsed.data);
+    let claim: Awaited<ReturnType<IdempotencyStore['claim']>>;
+    try {
+      claim = await store.claim(context.tx, {
+        principalId: context.principal.id,
+        key,
+        command: command.name,
+        inputHash: hash,
+      });
+    } catch (e) {
+      throw tag(
+        translateDatabaseError(e, command.name, command.constraintReasons),
+        'handler',
+        parsed.data,
+      );
+    }
+    if (claim.kind === 'seen') {
+      if (claim.command !== command.name || claim.inputHash !== hash) {
+        throw tag(
+          new DomainError('conflict', `${command.name} got a used key with other input`, {
+            reason: 'idempotency_mismatch',
+          }),
+          'handler',
+          parsed.data,
+        );
+      }
+      // Nothing changes on a replay, so it writes no audit row and no event.
+      const replay = command.output.safeParse(claim.response);
+      if (!replay.success) {
+        throw tag(
+          new DomainError('internal', `${command.name} stored an answer outside its DTO`),
+          'handler',
+          parsed.data,
+        );
+      }
+      return replay.data;
+    }
+  }
+
   const now = options.now ?? new Date();
   const events: OutboxRecord[] = [];
   const changes: AuditChange[] = [];
@@ -247,10 +304,11 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     after: 'after' in change ? redactForAudit(change.after) : null,
   }));
 
-  // The audit and outbox writes share the transaction, so their failures translate the same way.
+  // The audit, outbox and key writes share the transaction, so their failures translate alike.
   try {
     await options.audit.write(context.tx, records);
     await options.outbox.write(context.tx, events);
+    if (key !== undefined) await store.complete(context.tx, context.principal.id, key, output.data);
   } catch (e) {
     throw tag(
       translateDatabaseError(e, command.name, command.constraintReasons),
