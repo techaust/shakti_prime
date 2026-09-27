@@ -7,6 +7,7 @@ import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { CLIENT_NAMESPACES } from '../i18n/client-namespaces';
+import { requestNonce } from '../nonce';
 import { THEME_COOKIE } from '../theme';
 import './globals.css';
 import { Providers } from './providers';
@@ -43,7 +44,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body>
-        <Providers defaultTheme={saved.success ? saved.data : 'system'}>
+        <Providers
+          defaultTheme={saved.success ? saved.data : 'system'}
+          nonce={await requestNonce()}
+        >
           <NextIntlClientProvider messages={clientMessages}>{children}</NextIntlClientProvider>
         </Providers>
       </body>

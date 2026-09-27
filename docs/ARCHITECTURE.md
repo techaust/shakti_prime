@@ -60,7 +60,7 @@ apps/tally-connector ─► packages/contracts
 - Turborepo tasks: `build`, `typecheck`, `test`, `test:security` (`lint`, `format:check` and `copy-lint` run at the root; `db:*` scripts call the db workspace directly; `test:e2e` arrives with Playwright in Phase 1).
 
 ## 4. Request lifecycle (web)
-1. **Edge:** Vercel routes the request; the proxy (`proxy.ts`, week 4 with the app shell) reads the Better Auth session cookie and the theme cookie and applies CSP nonces. Until then `next.config.ts` sets the security headers and the `(bos)` layout redirects a request without a usable session.
+1. **Edge:** Vercel routes the request; the proxy (`apps/web/src/proxy.ts`) gives every page request a fresh nonce and the Content-Security-Policy that trusts it (JSON routes get a fixed policy from `next.config.ts`, which also sets the other security headers). The `(bos)` layout redirects a request without a usable session; the app shell in week 4 moves the session check into the proxy.
 2. **Server action or route handler** validates the input with the Zod contract from `packages/contracts`.
 3. **`withRequestContext(principal, entityScope, fn)`** opens a transaction and calls `set_config` for `app.user_id`, `app.entity_ids`, `app.role`, `app.permissions`, `app.request_id` (all transaction-local).
 4. **Command** runs inside the transaction: permission guard → state machine → business logic → writes → `ctx.emit()` appends `outbox_events` rows in the same transaction.
