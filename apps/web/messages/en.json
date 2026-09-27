@@ -222,5 +222,42 @@
     "tooShort": "Please use at least {min} characters.",
     "pattern": "Please check the format and try again.",
     "invalid": "Please check this and try again."
+  },
+  "print": {
+    "quote": {
+      "title": "Quotation",
+      "number": "Quotation number",
+      "date": "Date",
+      "validUntil": "Valid until",
+      "for": "Quotation for",
+      "placeOfSupply": "Place of supply",
+      "gstin": "GSTIN",
+      "phone": "Phone",
+      "email": "Email",
+      "columns": {
+        "position": "No.",
+        "item": "Item",
+        "hsn": "HSN",
+        "quantity": "Qty",
+        "rate": "Rate (₹)",
+        "gst": "GST",
+        "amount": "Amount (₹)"
+      },
+      "taxable": "Taxable value",
+      "tax": "{tax} at {rate}",
+      "rounding": "Rounding",
+      "total": "Total",
+      "inWords": "Amount in words",
+      "terms": "Terms",
+      "signatory": "For {entity}",
+      "preparedBy": "Prepared by {name}",
+      "scan": "Scan to open this quotation",
+      "page": "Page {page} of {total}"
+    },
+    "label": {
+      "serial": "Serial number",
+      "item": "Item code",
+      "scan": "Scan for warranty"
+    }
   }
 }
