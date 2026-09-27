@@ -839,6 +839,171 @@
     }
   },
   "imports": {
+    "title": "Imports",
+    "intro": "Add many leads at once from a spreadsheet, and see the files added before.",
+    "add": "New import",
+    "caption": "Imports",
+    "empty": "No imports yet. Add a spreadsheet of leads to start.",
+    "columns": {
+      "file": "File",
+      "status": "Status",
+      "total": "Rows in file",
+      "valid": "Ready to add",
+      "committed": "Leads added",
+      "company": "Company",
+      "startedBy": "Started by",
+      "started": "Started"
+    },
+    "state": {
+      "uploaded": "Columns to match",
+      "mapped": "Rows to check",
+      "previewed": "Ready to add",
+      "committing": "Adding",
+      "committed": "Added",
+      "rolled_back": "Undone",
+      "failed": "Stopped"
+    },
+    "formerMember": "A former team member",
+    "fileSize": {
+      "kb": "{value} KB",
+      "mb": "{value} MB"
+    },
+    "steps": {
+      "label": "Steps of this import",
+      "upload": "Choose the file",
+      "map": "Match the columns",
+      "check": "Check the rows",
+      "add": "Add the leads",
+      "status": {
+        "done": "done",
+        "current": "current step",
+        "next": "still to come"
+      }
+    },
+    "upload": {
+      "title": "New import",
+      "intro": "Choose a spreadsheet of leads. You match its columns and check every row before anything is added.",
+      "noCompany": "You can't add imports in the companies you are viewing. Switch company or ask your manager.",
+      "company": "Company",
+      "companyHelper": "The leads are added to this company.",
+      "choose": "Choose one",
+      "kind": "What the file holds",
+      "kinds": {
+        "leads": "Leads"
+      },
+      "file": "Spreadsheet file",
+      "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
+      "chosen": "{name}, {size}",
+      "submit": "Read the file",
+      "cancel": "Cancel",
+      "done": "We read {rows} rows from {file}."
+    },
+    "job": {
+      "title": "Import of {file}",
+      "meta": "{company}, {rows} rows, started {date}",
+      "back": "All imports"
+    },
+    "map": {
+      "title": "Match the columns",
+      "intro": "Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.",
+      "template": "Saved column layout",
+      "templateNone": "Match the columns myself",
+      "templateHelper": "Use a layout you saved from an earlier file.",
+      "column": "Column in your file",
+      "notInFile": "Not in the file",
+      "everyRow": "For rows with this empty",
+      "leaveEmpty": "Leave empty",
+      "firstRow": "Top row of the file: {value}",
+      "firstRowEmpty": "Top row of the file: empty",
+      "saveAs": "Save this layout as",
+      "saveAsHelper": "Give it a name to use it again for the next file. Leave it empty to skip.",
+      "problems": {
+        "columnRequired": "Choose the column that holds this.",
+        "columnRepeated": "This column is chosen for another detail too. Choose each column once.",
+        "pipelineRequired": "Choose the column that holds the line of business, or one line of business for every row."
+      },
+      "fixProblems": "Some details need attention. Check the marked ones.",
+      "submit": "Check the rows",
+      "cancel": "Cancel"
+    },
+    "check": {
+      "title": "Check the rows",
+      "intro": "Every row was checked the way a new lead is checked. Only the rows that are ready are added.",
+      "mappedIntro": "The columns are matched. Check the rows to see which ones can be added.",
+      "check": "Check the rows",
+      "counts": {
+        "label": "Rows of this file",
+        "total": "Rows in the file",
+        "valid": "Ready to add",
+        "invalid": "Need correcting",
+        "skipped": "Repeated in the file",
+        "committed": "Added"
+      },
+      "view": "Show",
+      "views": {
+        "attention": "Rows that need correcting",
+        "valid": "Rows ready to add",
+        "skipped": "Rows repeated in the file",
+        "committed": "Rows added",
+        "all": "All rows"
+      },
+      "caption": "Rows of this file",
+      "columns": {
+        "row": "Row",
+        "name": "Customer name",
+        "phone": "Mobile number",
+        "status": "Status",
+        "findings": "What we found"
+      },
+      "rowState": {
+        "pending": "Not checked yet",
+        "valid": "Ready",
+        "invalid": "Needs correcting",
+        "committed": "Added",
+        "skipped": "Repeated",
+        "rolled_back": "Taken back"
+      },
+      "finding": {
+        "field": "{field}: {sentence}",
+        "sameAsRow": "Same mobile number as row {row}. Only the first of them is added.",
+        "customer": "Already a customer: {name}. Check this before adding, so nobody is entered twice.",
+        "customerHidden": "Already a customer you can't see. Ask your manager before adding.",
+        "none": "Nothing to correct"
+      },
+      "empty": "No rows to show here.",
+      "notRecorded": "Not in the file",
+      "remap": "Change the columns",
+      "commit": "Add {count} leads",
+      "commitHelper": "{count} rows that need correcting or are repeated are left out."
+    },
+    "progress": {
+      "title": "Adding the leads",
+      "count": "{done} of {total} leads added",
+      "label": "Leads added so far",
+      "intro": "You can leave this page. Adding carries on, and the list of imports shows where it stands.",
+      "stalled": "Adding has not moved for a while. Carry on from where it stopped.",
+      "resume": "Carry on adding"
+    },
+    "failed": {
+      "title": "Adding stopped",
+      "intro": "{done} of {total} leads were added. A row among ready rows {from} to {to} could not be added, so those rows were taken back.",
+      "next": "Undo the import, correct the marked row in your file and add the file again."
+    },
+    "done": {
+      "title": "Leads added",
+      "intro": "{count} leads were added from this file.",
+      "rolledBackTitle": "Import undone",
+      "rolledBackIntro": "The leads from this file were taken back. The customers stay in your customer list.",
+      "viewLeads": "See the leads",
+      "another": "Start another import",
+      "rollback": "Undo this import"
+    },
+    "rollbackDialog": {
+      "title": "Undo this import?",
+      "intro": "This takes back the {count} leads this file added. The customers stay in your customer list, because other leads may belong to them. You can't reverse this.",
+      "submit": "Undo import",
+      "done": "The leads from {file} were taken back."
+    },
     "fields": {
       "contactName": "Customer name",
       "phone": "Mobile number",
