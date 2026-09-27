@@ -20,6 +20,7 @@ export * from './commands/org/update-entity';
 export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';
 export * from './commands/pricing/set-price';
+export * from './commands/tax/set-tax';
 export * from './commands/admin/users';
 export * from './commands/profile/set-theme';
 export * from './imports/enums';

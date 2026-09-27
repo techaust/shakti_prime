@@ -27,6 +27,8 @@ export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
 export { setPrice } from './commands/pricing/set-price';
+export { setTaxRate } from './commands/tax/set-tax-rate';
+export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';
 export { setUserRoles } from './commands/admin/set-user-roles';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';

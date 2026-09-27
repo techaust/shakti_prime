@@ -19,6 +19,8 @@ import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
 import { setTheme } from '../commands/profile/set-theme';
+import { setCompositeRule } from '../commands/tax/set-composite-rule';
+import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
 
 /** Every command the system can perform, by name. Agents, voice and imports call through here. */
@@ -32,6 +34,8 @@ export const commands = {
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
   [setPrice.name]: setPrice,
+  [setTaxRate.name]: setTaxRate,
+  [setCompositeRule.name]: setCompositeRule,
   [inviteUser.name]: inviteUser,
   [setUserRoles.name]: setUserRoles,
   [suspendUser.name]: suspendUser,
