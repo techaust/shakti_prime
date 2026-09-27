@@ -27,6 +27,37 @@ export type StageKind = z.infer<typeof StageKindSchema>;
 export const OpportunityStateSchema = z.enum(['open', 'nurture', 'won', 'lost']);
 export type OpportunityState = z.infer<typeof OpportunityStateSchema>;
 
+/** Why a lead is lost (design §7.2 `lose`); a code, so reports can count them. */
+export const OpportunityLostReasonSchema = z.enum([
+  'price_too_high',
+  'bought_elsewhere',
+  'not_interested',
+  'not_reachable',
+  'no_budget',
+  'not_eligible',
+  'duplicate',
+  'other',
+]);
+export type OpportunityLostReason = z.infer<typeof OpportunityLostReasonSchema>;
+
+/** Why a lead is parked on the nurture cadence (design §7.2 `nurture`). */
+export const OpportunityNurtureReasonSchema = z.enum([
+  'not_ready_yet',
+  'waiting_for_funds',
+  'waiting_for_subsidy',
+  'waiting_for_season',
+  'other',
+]);
+export type OpportunityNurtureReason = z.infer<typeof OpportunityNurtureReasonSchema>;
+
+/**
+ * The lead details a stage's exit rules may require (`stage_exit_rules_json`:
+ * `{ "requiredFields": [...] }`, CRM-05): a site, its village, PIN and GST state code, and the
+ * lead's source.
+ */
+export const StageExitFieldSchema = z.enum(['site', 'village', 'pin', 'stateCode', 'source']);
+export type StageExitField = z.infer<typeof StageExitFieldSchema>;
+
 /**
  * The language of a customer's calls: the voice agent and the caller-script variant. Screens,
  * messages and documents are always English (ADR 0014).

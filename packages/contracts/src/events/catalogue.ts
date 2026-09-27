@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
+import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { ImportKindSchema } from '../imports/enums';
 
@@ -31,6 +32,46 @@ const eventCatalogue = {
         sourceCode: Code.nullable(),
         existingAccount: z.boolean(),
       })
+      .strict(),
+  },
+  'crm.opportunity.stage_moved': {
+    subscribed: false,
+    payload: z
+      .object({
+        fromStageId: IdSchema,
+        toStageId: IdSchema,
+        toStageKey: Code,
+        /** The target stage is `qualified`: the handover worker assigns a Lead Converter. */
+        handover: z.boolean(),
+      })
+      .strict(),
+  },
+  'crm.opportunity.assigned': {
+    subscribed: false,
+    payload: z
+      .object({
+        ownerId: IdSchema,
+        teamId: IdSchema.nullable(),
+        lockHours: z.number().int().min(1).max(720),
+      })
+      .strict(),
+  },
+  'crm.opportunity.nurtured': {
+    subscribed: false,
+    payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
+  },
+  'crm.opportunity.reopened': {
+    subscribed: false,
+    payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
+  },
+  'crm.opportunity.won': {
+    subscribed: false,
+    payload: z.object({ stageId: IdSchema }).strict(),
+  },
+  'crm.opportunity.lost': {
+    subscribed: false,
+    payload: z
+      .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })
       .strict(),
   },
   'pricing.price.changed': {

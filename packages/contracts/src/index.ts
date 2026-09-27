@@ -18,6 +18,7 @@ export * from './dto/user';
 export * from './dto/reads';
 export * from './commands/org/update-entity';
 export * from './commands/crm/create-lead';
+export * from './commands/crm/opportunity';
 export * from './commands/pricing/set-price';
 export * from './commands/admin/users';
 export * from './commands/profile/set-theme';
