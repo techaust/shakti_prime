@@ -12,6 +12,7 @@ import { rawDb } from '../client';
 import { withRequestContext, type RequestContext } from '../context';
 import { requireEnv } from '../env';
 import { runMigrations } from '../migrate';
+import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
@@ -31,13 +32,19 @@ export type { CatalogueFixture } from './catalogue-fixture';
 
 /** Migrate and seed. Idempotent, so every suite's globalSetup can call it. */
 export async function prepareDatabase(): Promise<void> {
+  for (const name of ['DATABASE_URL', 'DATABASE_URL_MIGRATOR', 'DATABASE_URL_AUTH']) {
+    const url = process.env[name];
+    if (url !== undefined && url !== '') assertLocalDatabase(url);
+  }
   await runMigrations();
   await runSeeds();
 }
 
 /** Runs `fn` with a short-lived migrator connection (table owner, bypasses RLS) for fixtures. */
 export async function asMigrator<T>(fn: (sql: postgres.Sql) => Promise<T>): Promise<T> {
-  const migrator = postgres(requireEnv('DATABASE_URL_MIGRATOR'), { max: 1, prepare: false });
+  const url = requireEnv('DATABASE_URL_MIGRATOR');
+  assertLocalDatabase(url);
+  const migrator = postgres(url, { max: 1, prepare: false });
   try {
     return await fn(migrator);
   } finally {

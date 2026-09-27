@@ -27,7 +27,8 @@
         "TURNSTILE_SECRET_KEY",
         "UPSTASH_REDIS_REST_URL",
         "UPSTASH_REDIS_REST_TOKEN",
-        "MAILER"
+        "MAILER",
+        "ALLOW_REMOTE_TEST_DB"
       ]
     },
     "db:generate": {

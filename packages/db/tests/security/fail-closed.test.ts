@@ -24,8 +24,13 @@ describe('RLS fails closed', () => {
     '%s returns zero rows when the context has an empty entity scope',
     async (table) => {
       const principal = principalFor('executive', []);
+      // Shared teams (no entity) are visible to everyone; only entity teams must disappear.
+      const query =
+        table === 'teams'
+          ? sql`select count(*)::int as n from teams where entity_id is not null`
+          : countRows(table);
       const n = await asPrincipal(principal, async ({ tx }) => {
-        const rows = (await tx.execute(countRows(table))) as unknown as { n: number }[];
+        const rows = (await tx.execute(query)) as unknown as { n: number }[];
         return rows[0]?.n;
       });
       if ((ENTITY_TABLES as readonly string[]).includes(table)) expect(n).toBe(0);

@@ -1,4 +1,10 @@
-import { asPrincipal, closeDb, createTestPrincipal, principalFor } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  principalFor,
+} from '@shakti/db/testing';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { runCommand } from '../../src/command/run-command';
 import { updateEntity } from '../../src/commands/org/update-entity';
@@ -42,36 +48,46 @@ describe('org.entity.update', () => {
   });
 
   it('updates an entity in scope, audits, emits and returns only the DTO', async () => {
+    // Entity 1 is shared seed data that an Executive may have edited (GSTIN, UPI); the test
+    // asserts relative to what is there and puts the brand name back even if it fails.
+    const [before] = await asMigrator(
+      (m) =>
+        m<
+          { brand_name: string; gstin: string | null; upi_id: string | null }[]
+        >`select brand_name, gstin, upi_id from entities where id = 1`,
+    );
+    if (!before) throw new Error('entity 1 is seeded');
     const exec = await createTestPrincipal('executive', [1]);
     const onAudit = vi.fn();
     const onEmit = vi.fn();
-    const dto = await asPrincipal(exec, (context) =>
-      runCommand(
-        updateEntity,
-        { context, onAudit, onEmit },
-        { entityId: 1, brandName: 'Shakti Supreme Solar' },
-      ),
-    );
-    expect(dto).toEqual({
-      id: 1,
-      code: 'SS',
-      legalName: 'Shakti Supreme',
-      brandName: 'Shakti Supreme Solar',
-      stateCode: '08',
-      gstin: null,
-      upiId: null,
-    });
-    expect(onAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ command: 'org.entity.update', principalId: exec.id }),
-    );
-    expect(onEmit).toHaveBeenCalledWith([
-      expect.objectContaining({ type: 'org.entity.updated', entityId: 1 }),
-    ]);
-
-    const restored = await asPrincipal(exec, (context) =>
-      runCommand(updateEntity, { context }, { entityId: 1, brandName: 'Shakti Supreme' }),
-    );
-    expect(restored.brandName).toBe('Shakti Supreme');
+    try {
+      const dto = await asPrincipal(exec, (context) =>
+        runCommand(
+          updateEntity,
+          { context, onAudit, onEmit },
+          { entityId: 1, brandName: `${before.brand_name} Solar` },
+        ),
+      );
+      expect(dto).toEqual({
+        id: 1,
+        code: 'SS',
+        legalName: 'Shakti Supreme',
+        brandName: `${before.brand_name} Solar`,
+        stateCode: '08',
+        gstin: before.gstin,
+        upiId: before.upi_id,
+      });
+      expect(onAudit).toHaveBeenCalledWith(
+        expect.objectContaining({ command: 'org.entity.update', principalId: exec.id }),
+      );
+      expect(onEmit).toHaveBeenCalledWith([
+        expect.objectContaining({ type: 'org.entity.updated', entityId: 1 }),
+      ]);
+    } finally {
+      await asMigrator(
+        (m) => m`update entities set brand_name = ${before.brand_name} where id = 1`,
+      );
+    }
   });
 });
 
