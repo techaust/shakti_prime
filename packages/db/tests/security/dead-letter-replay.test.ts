@@ -8,6 +8,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  principalFor,
   withoutContext,
 } from '../../src/testing/index';
 
@@ -81,7 +82,8 @@ describe('app.replay_dead_letter() (integrations.dlq.replay, design §4.4)', () 
   it('refuses a caller without the permission, and a call with no context', async () => {
     const id = await deadLetter();
     for (const role of ['general_manager', 'accounts', 'agent:triage'] as const) {
-      const principal = await createTestPrincipal(role, [1, 2, 3, 4]);
+      // No principals row: an agent row would change the agent count fail-closed.test.ts checks.
+      const principal = principalFor(role);
       expect(await failure(replay(principal, id)), role).toMatch(/integrations\.dlq\.replay/);
     }
     expect(

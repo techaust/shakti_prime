@@ -5,6 +5,7 @@ import {
   catalogueFixture,
   closeDb,
   createTestPrincipal,
+  principalFor,
   type CatalogueFixture,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
@@ -81,7 +82,8 @@ describe('tax.rate.set', () => {
   it('is denied to a role without tax.rates.write, and to an agent', async () => {
     const day = dates();
     for (const role of ['tele_caller_cc', 'agent:sizing'] as const) {
-      const principal = await createTestPrincipal(role, [1]);
+      // No principals row: an agent row would change the agent count fail-closed.test.ts checks.
+      const principal = principalFor(role, [1]);
       await expect(
         run(principal, setTaxRate, { hsn: hsn(), ratePct: '18.00', effectiveFrom: day(0) }),
       ).rejects.toMatchObject({ code: 'forbidden' });
