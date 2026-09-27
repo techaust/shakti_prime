@@ -64,16 +64,16 @@ apps/tally-connector ─► packages/contracts
 2. **Server action or route handler** validates the input with the Zod contract from `packages/contracts`.
 3. **`withRequestContext(principal, entityScope, fn)`** opens a transaction and calls `set_config` for `app.user_id`, `app.entity_ids`, `app.role`, `app.permissions`, `app.request_id` (all transaction-local).
 4. **Command** runs inside the transaction: permission guard → state machine → business logic → writes → `ctx.emit()` appends `outbox_events` rows in the same transaction.
-5. **Commit.** After commit, the outbox publisher (pg_cron every few seconds, plus an immediate nudge from the action) pushes pending events to QStash.
+5. **Commit.** After commit, the outbox publisher (a QStash schedule every 10 seconds, plus an immediate nudge from the action) pushes pending events to QStash.
 6. **Response** is the command's DTO. Server components re-render; Realtime broadcasts refresh other users' screens.
 
-Every read also runs inside `withRequestContext()`, so RLS applies to reads and writes alike. There is no code path that touches the database with a connection that has no context.
+Every read also runs inside `withRequestContext()`, so RLS applies to reads and writes alike. The connections without a request context are named and fenced: the auth module's `auth_service` connection (identity tables only), the migrator, seed and bootstrap scripts (table owner, never in a request), the readiness probe (`select 1`), and `app.user_grants()`, a definer function that resolves the signed-in user's own grants. ESLint keeps every other module off them.
 
 ## 5. Domain command layer
 - **Definition:** `defineCommand({ name, permission, minScope?, input, output, constraintReasons?, handler })`. The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
 - **Context:** `{ principal, entityIds, activeEntityId, tx, emit, now, requestId }`. `principal` is a user, an agent service principal or a voice session acting as a user.
 - **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')`; from week 3 slice 2 they are audited as `outcome = denied`.
-- **State machines:** `packages/domain/state-machines/*` define states, transitions, guards, side effects and permitted actors for opportunity, quote, sales order, dispatch, project flows, subsidy gates, loan, warranty claim, document filing, expense claim, Playbook directive and Tally voucher. Commands call `transition(machine, record, event, ctx)`.
+- **State machines** (specified in week 5, built with each module): `packages/domain/src/state-machines/*` define states, transitions, guards, side effects and permitted actors for opportunity, quote, sales order, dispatch, project flows, subsidy gates, loan, warranty claim, document filing, expense claim, Playbook directive and Tally voucher. Commands call `transition(machine, record, event, ctx)`.
 - **Calculators:** TDH, kW sizing, kit availability, credit check, job-cost roll-up, incentive rules and the tax engine are pure functions with fixture-based tests.
 - **DTOs:** each command declares an output schema. Cost fields exist only in DTOs of commands whose permission is `finance.cost.read` or `procurement.rate.read`.
 - **Audit:** the command runner calls an audit hook (command, actor, entities, input, request ID) for every successful mutating command today; week 3 slice 2 persists it to `audit_logs` with before/after, IP, device and denied and failed outcomes.

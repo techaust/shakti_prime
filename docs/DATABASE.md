@@ -75,44 +75,47 @@ create policy entity_update on opportunities for update
   using (entity_id = any ((select app.entity_ids())::int[]))
   with check (entity_id = any ((select app.entity_ids())::int[]));
 
--- ownership scope example (own / team / entity)
-create policy owner_scope on opportunities for select using (
-  entity_id = any ((select app.entity_ids())::int[]) and (
-    (select app.has_perm('crm.lead.read:entity'))
-    or ((select app.has_perm('crm.lead.read:team')) and team_id = current_setting('app.team_id', true)::uuid)
-    or ((select app.has_perm('crm.lead.read:own')) and owner_id = current_setting('app.user_id', true)::uuid)
-  ));
+-- scope root (the live opportunities_read): own / team / entity stated inline, each permission test
+-- wrapped in a subselect so it runs once per query; app.team_id() and app.user_id() are null, never
+-- an empty string cast to uuid, when the setting is absent
+create policy opportunities_read on opportunities for select using (
+  entity_id = any ((select app.entity_ids())::int[])
+  and ((select app.has_perm('crm.lead.read:entity'))
+    or ((select app.has_perm('crm.lead.read:team')) and team_id = (select app.team_id()))
+    or ((select app.has_perm('crm.lead.read:own')) and owner_id = (select app.user_id()))));
+-- write policies of a scope root use the helper: app.scope_ok('crm.lead.write', owner_id, team_id)
 
 -- restricted table policy (cost permission required in addition to entity)
 create policy cost_gate on item_costs for select using (
   entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('finance.cost.read:entity')));
 
--- scope root with the helper (accounts, contacts and opportunities carry owner_id and team_id)
-create policy accounts_read on accounts for select using (
-  entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.account.read', owner_id, team_id));
-
--- shared customer master (ADR 0008): accounts and contacts carry no entity; the relationship row is the root
+-- shared customer master (ADR 0008): accounts and contacts carry no entity; account_entities is the root,
+-- with the same inline scope as opportunities_read on crm.account.read
 create policy accounts_read on accounts for select using (
   exists (select 1 from account_entities ae where ae.account_id = accounts.id));
 create policy accounts_insert on accounts for insert with check ((select app.has_perm('crm.account.write:own')));
 create policy contact_phones_read on contact_phones for select using (
   exists (select 1 from account_contacts ac where ac.contact_id = contact_phones.contact_id));
+create policy contact_phones_update on contact_phones for update
+  using (app.contact_in_scope(contact_id, 'crm.account.write'))
+  with check (app.contact_in_scope(contact_id, 'crm.account.write'));
 -- reads use a plain EXISTS the planner can see into (an index probe for a page, a hash for a search);
 -- the definer helpers app.account_in_scope() / app.contact_in_scope() serve the write policies only
 
--- child of an entity-scoped root: visible when the parent row is visible; the EXISTS runs under the parent's policies
-create policy customer_sites_read on customer_sites for select using (
-  entity_id = any ((select app.entity_ids())::int[])
-  and exists (select 1 from accounts a where a.id = customer_sites.account_id));
-
--- child writes: the parent must be inside the caller's *write* scope (the EXISTS alone only proves it is readable)
-create policy customer_sites_insert on customer_sites for insert with check (
-  entity_id = any ((select app.entity_ids())::int[])
-  and exists (select 1 from accounts a where a.id = customer_sites.account_id
-              and app.scope_ok('crm.account.write', a.owner_id, a.team_id)));
+-- child of a scoped parent (the live price_list_items): visible when the parent row is visible, because
+-- the EXISTS runs under the parent's own policies; a write also needs the write permission
+create policy price_list_items_read on price_list_items for select using (
+  (select app.has_perm('pricing.read:entity'))
+  and exists (select 1 from price_lists l where l.id = price_list_items.price_list_id));
+create policy price_list_items_insert on price_list_items for insert with check (
+  (select app.has_perm('pricing.write:entity'))
+  and exists (select 1 from price_lists l where l.id = price_list_items.price_list_id
+              and (l.entity_id is not null or (select app.request_covers_group()))));
+-- a child of an owned parent adds the parent's write scope to the EXISTS:
+--   and app.scope_ok('<module>.write', p.owner_id, p.team_id)
 ```
 Rules:
-- The subselect form makes the setting an initplan, evaluated once per query.
+- A subselect around a setting or a permission test makes it an initplan, evaluated once per query. A function called with the row's columns (`app.scope_ok()`, a definer helper) runs once per row and hides the predicate from the planner, so a read policy on a large table states its scope inline or uses a plain `exists`, and the helpers serve write policies. The batch 10 pull request records the measurements on 50,000 customers.
 - Every policy is fail-closed: a missing setting yields `null`, and `= any(null)` is never true.
 - `FORCE ROW LEVEL SECURITY` on every business table so even the owner is subject to policies during tests.
 - The security suite asserts, for every table, that a connection with no context reads zero rows and that each role × entity pair reads only its rows.
@@ -295,7 +298,7 @@ Key columns only; every table also has the standard columns from §2.
 7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate through the workflow in `docs/runbooks/DEPLOY.md`, which also covers indexes built `concurrently`.
 
 ## 9. Seeds and test data
-- `packages/db/seeds` holds synthetic entities, roles, permissions, tiers, tax rates (current GST rates with effective dates), a small catalogue, sample pipelines and 200 synthetic leads across four entities.
+- `packages/db/seeds` holds the four entities, the permission catalogue, the roles and their grants (the matrix in SECURITY §3.2), the agent principals, the pipelines with their stages, the lead sources and the price tiers. Tax rates and the number format are workshop inputs and are not seeded; the security suite creates its own catalogue, customers and leads as fixtures.
 - Re-running the seed keeps Admin edits: it writes only code-owned columns (keys, codes, kinds, segments, channels, permission descriptions) and adds missing rows, placing a new stage last when its position is taken. A role no Executive has customised (`roles.customised_at` null) gets the permission matrix as a set; a customised role keeps its grants and gains only permissions created after the customisation. Role keys are a fixed set (`roles_key_check`); every list-valued check equals its contract enum, which a security test compares.
 - The security suite seeds one user per role per entity and asserts row visibility per table.
 - Staging is refreshed from seeds plus anonymised structure only; production PII never leaves production.
