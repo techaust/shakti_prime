@@ -9,7 +9,12 @@ import {
 } from '@shakti/contracts';
 import en from '../../messages/en.json';
 import { logger } from '../log';
-import { JwksResponse, RealtimeTokenResponse, realtimeChannels } from './claims';
+import {
+  JwksResponse,
+  RealtimeTokenRequest,
+  RealtimeTokenResponse,
+  realtimeChannels,
+} from './claims';
 import { publicKeyList, signingKeys, SigningKeyError, type Env, type SigningKeys } from './keys';
 import { bosIssuer, mintRealtimeToken, openIdConfiguration } from './token';
 
@@ -47,6 +52,22 @@ async function keysOrFailure(env: Env, requestId: string): Promise<SigningKeys |
     logger.log('error', 'realtime.keys_invalid', { requestId, problem });
   }
   return failure('integration_unavailable', requestId);
+}
+
+/** The call carries no fields (`RealtimeTokenRequest`): an empty body or `{}` only. */
+async function bodyIsEmpty(request: Request): Promise<boolean> {
+  let text: string;
+  try {
+    text = await request.text();
+  } catch {
+    return false;
+  }
+  if (text.trim() === '') return true;
+  try {
+    return RealtimeTokenRequest.safeParse(JSON.parse(text)).success;
+  } catch {
+    return false;
+  }
 }
 
 export interface TokenRouteDeps {
@@ -99,6 +120,7 @@ export async function issueRealtimeToken(
   ) {
     return failure('forbidden', requestId);
   }
+  if (!(await bodyIsEmpty(request))) return failure('validation_failed', requestId);
 
   const keys = await keysOrFailure(env, requestId);
   if (keys instanceof Response) return keys;

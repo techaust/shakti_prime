@@ -78,6 +78,21 @@ describe('POST /api/v1/realtime/token', () => {
     expect(error.message).toMatch(/authenticator app/);
   });
 
+  it('accepts an empty body or an empty object, and refuses any field', async () => {
+    const vars = await env();
+    const call = (body: string) =>
+      issueRealtimeToken(
+        new Request(TOKEN_URL, { method: 'POST', headers: { origin: ISSUER }, body }),
+        { principal: () => Promise.resolve(person), env: vars },
+      );
+    expect((await call('{}')).status).toBe(200);
+    for (const body of ['{"entity_ids":[1]}', 'not json', '[]']) {
+      const response = await call(body);
+      expect(response.status).toBe(400);
+      expect((await envelope(response)).code).toBe('validation_failed');
+    }
+  });
+
   it('refuses a call from another site', async () => {
     const response = await issueRealtimeToken(post({ origin: 'https://elsewhere.test' }), {
       principal: () => Promise.resolve(person),

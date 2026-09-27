@@ -212,8 +212,30 @@ describe('the claims shape (as the published contract fixes it)', () => {
     ['an agent role', { ...good, bos_role: 'agent:triage' }],
     ['no entities', { ...good, entity_ids: [] }],
     ['a subject that is not a UUIDv7', { ...good, sub: 'someone' }],
+    ['a token id that is not a UUID', { ...good, jti: 'abc' }],
   ])('refuses %s', (_name, claims) => {
-    expect(() => RealtimeClaims.parse(claims)).toThrow(ClaimsError);
+    expect(RealtimeClaims.safeParse(claims).success).toBe(false);
+  });
+});
+
+describe('the key list shape', () => {
+  it.each([
+    ['no keys', { keys: [] }],
+    ['three keys', { keys: [{}, {}, {}] }],
+    [
+      'an RSA key',
+      { keys: [{ kty: 'RSA', crv: 'P-256', x: 'a', y: 'b', kid: 'k', alg: 'ES256', use: 'sig' }] },
+    ],
+    [
+      'a private part',
+      {
+        keys: [
+          { kty: 'EC', crv: 'P-256', x: 'a', y: 'b', d: 'c', kid: 'k', alg: 'ES256', use: 'sig' },
+        ],
+      },
+    ],
+  ])('refuses %s', (_name, list) => {
+    expect(() => JwksResponse.parse(list)).toThrow(ClaimsError);
   });
 });
 

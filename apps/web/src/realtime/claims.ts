@@ -1,29 +1,23 @@
-import {
-  EntityIdSchema,
-  IdSchema,
-  StaffRoleKeySchema,
-  type EntityId,
-  type StaffRoleKey,
-} from '@shakti/contracts';
+import { TOKEN_AUDIENCES, TOKEN_LIFETIMES, type RealtimeClaims } from '@shakti/contracts';
 
 /**
- * The Realtime token's shapes, kept beside the route until the published contracts land
- * (`packages/contracts/src/api/realtime.ts` and `common.ts` on the contracts branch). Field names,
- * the audience and the lifetime match those contracts exactly, and each schema here has the same
- * name and a `parse()` of the same meaning, so switching is an import change. apps/web has no
- * direct zod dependency, so the checks are written out, reusing the contract id schemas.
+ * The Realtime token's shapes. The claims, the token answer and the empty call body are the
+ * published contracts (`packages/contracts/src/api/realtime.ts`); the key list and the discovery
+ * document are read only by Supabase and the spike, so their checks stay here. apps/web has no
+ * direct zod dependency, so those two are written out.
  */
+export { RealtimeClaims, RealtimeTokenRequest, RealtimeTokenResponse } from '@shakti/contracts';
 
 /** `TOKEN_AUDIENCES.realtime`. Mobile tokens use `shakti-mobile`, voice tokens `shakti-voice`. */
-export const REALTIME_AUDIENCE = 'shakti-realtime';
+export const REALTIME_AUDIENCE = TOKEN_AUDIENCES.realtime;
 /** `TOKEN_LIFETIMES.realtimeMax`: a Realtime token never lives longer than 15 minutes. */
-export const REALTIME_TOKEN_MAX_SECONDS = 15 * 60;
+export const REALTIME_TOKEN_MAX_SECONDS = TOKEN_LIFETIMES.realtimeMax;
 /** The one algorithm of every token the BOS signs (ADR 0003). */
 export const BOS_JWT_ALGORITHM = 'ES256';
 
 export class ClaimsError extends Error {
   constructor(field: string) {
-    super(`realtime token field ${field} is not valid`);
+    super(`realtime document field ${field} is not valid`);
     this.name = 'ClaimsError';
   }
 }
@@ -43,70 +37,10 @@ function onlyKeys(value: Json, allowed: readonly string[], what: string): void {
   }
 }
 
-function seconds(value: unknown, field: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw new ClaimsError(field);
-  }
-  return value;
-}
-
 function url(value: unknown, field: string): string {
   if (typeof value !== 'string' || !URL.canParse(value)) throw new ClaimsError(field);
   return value;
 }
-
-/**
- * Claims exactly as ADR 0003 fixes them. Supabase reads `role` as the Postgres role for its Data
- * API, so it is always `authenticated`, which holds nothing on application objects (AUDIT M1,
- * M15); the BOS role travels as `bos_role`.
- */
-export interface RealtimeClaims {
-  iss: string;
-  sub: string;
-  iat: number;
-  exp: number;
-  jti?: string;
-  aud: typeof REALTIME_AUDIENCE;
-  role: 'authenticated';
-  bos_role: StaffRoleKey;
-  entity_ids: EntityId[];
-}
-
-const CLAIM_KEYS = ['iss', 'sub', 'iat', 'exp', 'jti', 'aud', 'role', 'bos_role', 'entity_ids'];
-
-export const RealtimeClaims = {
-  parse(value: unknown): RealtimeClaims {
-    const claims = object(value, 'claims');
-    onlyKeys(claims, CLAIM_KEYS, 'claims');
-    const sub = IdSchema.safeParse(claims.sub);
-    const bosRole = StaffRoleKeySchema.safeParse(claims.bos_role);
-    const entityIds = Array.isArray(claims.entity_ids)
-      ? claims.entity_ids.map((e) => EntityIdSchema.safeParse(e))
-      : [];
-    const iat = seconds(claims.iat, 'iat');
-    const exp = seconds(claims.exp, 'exp');
-    if (!sub.success) throw new ClaimsError('sub');
-    if (claims.aud !== REALTIME_AUDIENCE) throw new ClaimsError('aud');
-    if (claims.role !== 'authenticated') throw new ClaimsError('role');
-    if (!bosRole.success) throw new ClaimsError('bos_role');
-    if (entityIds.length === 0 || entityIds.some((e) => !e.success)) {
-      throw new ClaimsError('entity_ids');
-    }
-    if (exp <= iat || exp - iat > REALTIME_TOKEN_MAX_SECONDS) throw new ClaimsError('exp');
-    if (claims.jti !== undefined && typeof claims.jti !== 'string') throw new ClaimsError('jti');
-    return {
-      iss: url(claims.iss, 'iss'),
-      sub: sub.data,
-      iat,
-      exp,
-      ...(typeof claims.jti === 'string' ? { jti: claims.jti } : {}),
-      aud: REALTIME_AUDIENCE,
-      role: 'authenticated',
-      bos_role: bosRole.data,
-      entity_ids: entityIds.flatMap((e) => (e.success ? [e.data] : [])),
-    };
-  },
-};
 
 /** The channels the Realtime policies let a holder of these claims join. */
 export function realtimeChannels(claims: Pick<RealtimeClaims, 'sub' | 'entity_ids'>): string[] {
@@ -115,34 +49,6 @@ export function realtimeChannels(claims: Pick<RealtimeClaims, 'sub' | 'entity_id
     ...claims.entity_ids.flatMap((e) => [`entity:${String(e)}:queue`, `entity:${String(e)}:board`]),
   ];
 }
-
-const CHANNEL = /^(user:[0-9a-f-]{36}|entity:\d{1,5}:(queue|board))$/;
-const COMPACT_JWT = /^[\w-]+\.[\w-]+\.[\w-]+$/;
-
-/** `POST /api/v1/realtime/token`: the token, when it stops working and the channels it opens. */
-export interface RealtimeTokenResponse {
-  token: string;
-  expiresAt: string;
-  channels: string[];
-}
-
-export const RealtimeTokenResponse = {
-  parse(value: unknown): RealtimeTokenResponse {
-    const body = object(value, 'response');
-    onlyKeys(body, ['token', 'expiresAt', 'channels'], 'response');
-    if (typeof body.token !== 'string' || !COMPACT_JWT.test(body.token)) {
-      throw new ClaimsError('token');
-    }
-    if (typeof body.expiresAt !== 'string' || Number.isNaN(Date.parse(body.expiresAt))) {
-      throw new ClaimsError('expiresAt');
-    }
-    const channels = Array.isArray(body.channels) ? body.channels : [];
-    if (channels.length === 0 || !channels.every((c) => typeof c === 'string' && CHANNEL.test(c))) {
-      throw new ClaimsError('channels');
-    }
-    return { token: body.token, expiresAt: body.expiresAt, channels: channels as string[] };
-  },
-};
 
 /** One public signing key as the key list publishes it: P-256, never a private part. */
 export interface PublicSigningJwk {

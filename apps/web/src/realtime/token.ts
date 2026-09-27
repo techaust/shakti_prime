@@ -75,6 +75,7 @@ export async function mintRealtimeToken(
     REALTIME_TOKEN_MAX_SECONDS,
   );
   if (ttl <= 0) throw new DomainError('internal', 'a Realtime token needs a positive lifetime');
+  const jti = newId();
   const claims = RealtimeClaims.parse({
     iss: options.issuer,
     sub: principal.id,
@@ -84,9 +85,9 @@ export async function mintRealtimeToken(
     entity_ids: [...new Set(principal.entityIds)].sort((a, b) => a - b),
     iat,
     exp: iat + ttl,
-    jti: newId(),
+    jti,
   });
-  const token = await new SignJWT({ ...claims })
+  const token = await new SignJWT({ ...claims, jti })
     .setProtectedHeader({ alg: BOS_JWT_ALGORITHM, kid: keys.current.kid, typ: 'JWT' })
     .sign(keys.current.privateKey);
   return { token, claims, expiresAt: new Date(claims.exp * 1000) };
