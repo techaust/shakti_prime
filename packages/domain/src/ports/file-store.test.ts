@@ -26,7 +26,9 @@ describe('file stores', () => {
     await store.put('imports/1/a.csv', bytes, 'text/csv');
     expect(await store.get('imports/1/a.csv')).toEqual(bytes);
     expect(await store.get('imports/1/missing.csv')).toBeUndefined();
-    await expect(store.put('imports/1/a.csv', bytes, 'text/csv')).rejects.toThrow();
+    // A second put of the same key keeps the first bytes and succeeds.
+    await store.put('imports/1/a.csv', Uint8Array.from([9]), 'text/csv');
+    expect(await store.get('imports/1/a.csv')).toEqual(bytes);
   });
 
   it.each(['../secret', '/etc/passwd', 'imports/../../x', 'a\\b', 'imports//x', '', 'a/.hidden'])(

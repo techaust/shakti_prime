@@ -132,7 +132,7 @@
     "import_too_many_rows": "This file has more than 50,000 rows. Split it into smaller files and add them one at a time.",
     "import_too_many_columns": "This file has more than 50 columns. Remove the columns you don't need and try again.",
     "import_cell_too_long": "Some cells in this file hold too much text. Keep each cell to a name, a number or a short note, and try again.",
-    "import_file_duplicate": "This file is already saved. Refresh the page to see it.",
+    "import_file_duplicate": "This file was already added for this company. Open the import that used it, or correct the file and add it again.",
     "import_job_missing": "We couldn't find this import. It may belong to another company.",
     "import_job_state": "This import has moved on since you opened it. Refresh the page to see where it stands.",
     "import_mapping_column_missing": "A column you chose is not in this file. Match each field to a column of this file.",

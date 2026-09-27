@@ -8,9 +8,10 @@ const INSERT_CHUNK = 1000;
 
 /**
  * `imports.job.create` (IMP-01): the uploaded file's record, the job in `uploaded`, and one
- * pending row per data row of the file with what the file said. Parsing and storing the bytes
- * happen before, in the server action; the audit row records the file and the counts, never the
- * rows, which carry customers' names and numbers in columns the redaction cannot recognise.
+ * pending row per data row of the file with what the file said. The server action parses the
+ * bytes before and stores them after the commit; the audit row records the file and the counts,
+ * never the rows, which carry customers' names and numbers in columns the redaction cannot
+ * recognise. The same file (bucket and key, named by its content) cannot start a second job.
  */
 export const createImportJob = defineCommand({
   name: 'imports.job.create',
@@ -23,7 +24,6 @@ export const createImportJob = defineCommand({
     kind: input.kind,
     format: input.format,
     file: {
-      id: input.file.id,
       name: input.file.name,
       contentType: input.file.contentType,
       size: input.file.size,
@@ -36,10 +36,11 @@ export const createImportJob = defineCommand({
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const actor = ctx.principal.id;
+    const fileId = newId();
 
     // No `returning`: the file row is read back with the job below.
     await ctx.tx.insert(schema.files).values({
-      id: input.file.id,
+      id: fileId,
       entityId: input.entityId,
       purpose: 'import',
       bucket: input.file.bucket,
@@ -58,7 +59,7 @@ export const createImportJob = defineCommand({
         id: newId(),
         entityId: input.entityId,
         kind: input.kind,
-        fileId: input.file.id,
+        fileId,
         format: input.format,
         columnsJson: input.columns,
         state: 'uploaded',
@@ -88,7 +89,7 @@ export const createImportJob = defineCommand({
       after: {
         state: job.state,
         kind: job.kind,
-        fileId: input.file.id,
+        fileId,
         format: job.format,
         totalRows: job.totalRows,
       },
@@ -96,7 +97,7 @@ export const createImportJob = defineCommand({
 
     return toImportJobDto({
       job,
-      file: { id: input.file.id, name: input.file.name, size: input.file.size },
+      file: { id: fileId, name: input.file.name, size: input.file.size },
     });
   },
 });

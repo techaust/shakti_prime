@@ -62,9 +62,12 @@ const kindImplemented = (kind: z.infer<typeof ImportKindSchema>) =>
   (IMPLEMENTED_IMPORT_KINDS as readonly string[]).includes(kind);
 
 /**
- * `imports.job.create`: the stored file and its parsed rows become a job in `uploaded` (IMP-01).
- * The server action stores the bytes through the file store and parses them first; the rows
- * never reach the audit trail (the command records a summary instead).
+ * `imports.job.create`: the uploaded file and its parsed rows become a job in `uploaded` (IMP-01).
+ * The server action parses the bytes first and stores them after the command commits, under a
+ * key named by their SHA-256, so a refused call leaves no file behind and the same file cannot
+ * start a second job in the company. The file's id is made by the command, so a repeat with the
+ * same idempotency key has the same input and replays. The rows never reach the audit trail (the
+ * command records a summary instead).
  */
 export const CreateImportJobInput = z
   .object({
@@ -72,7 +75,6 @@ export const CreateImportJobInput = z
     kind: ImportKindSchema.refine(kindImplemented, { message: 'this kind cannot be imported yet' }),
     file: z
       .object({
-        id: IdSchema,
         name: z.string().trim().min(1).max(200),
         contentType: z.string().trim().min(1).max(120),
         size: z.number().int().min(1).max(IMPORT_LIMITS.maxFileBytes),

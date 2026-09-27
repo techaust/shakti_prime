@@ -10,6 +10,10 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 export interface FileStore {
   /** The name recorded as `files.bucket`. */
   readonly bucket: string;
+  /**
+   * Stores bytes under a key once. Keys are named by their content (an import file's SHA-256), so
+   * a key that already holds bytes is left as it is and the call still succeeds.
+   */
   put(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
   /** The bytes under `key`, or undefined when nothing is stored there. */
   get(key: string): Promise<Uint8Array | undefined>;
@@ -32,7 +36,7 @@ export function memoryFileStore(bucket = 'memory'): FileStore & {
     objects,
     put(key, bytes, contentType) {
       assertFileKey(key);
-      objects.set(key, { bytes: new Uint8Array(bytes), contentType });
+      if (!objects.has(key)) objects.set(key, { bytes: new Uint8Array(bytes), contentType });
       return Promise.resolve();
     },
     get(key) {
@@ -61,7 +65,12 @@ export function localDiskFileStore(root: string, bucket = 'local'): FileStore {
     async put(key, bytes) {
       const path = pathFor(key);
       await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, bytes, { flag: 'wx' });
+      try {
+        await writeFile(path, bytes, { flag: 'wx' });
+      } catch (e) {
+        // Already stored: the key names the content, so the bytes there are these bytes.
+        if (!(e instanceof Error && 'code' in e && e.code === 'EEXIST')) throw e;
+      }
     },
     async get(key) {
       try {

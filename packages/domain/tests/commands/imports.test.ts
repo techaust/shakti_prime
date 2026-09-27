@@ -52,7 +52,6 @@ async function fileInput(entityId: number, csv: string) {
     entityId,
     kind: 'leads' as const,
     file: {
-      id,
       name: 'fair-leads.csv',
       contentType: 'text/csv',
       size: bytes.length,
@@ -117,7 +116,7 @@ describe('imports: permission and entity', () => {
     const input = await fileInput(1, 'Name,Mobile\nRam,9876543210\n');
     await expect(run(caller, createImportJob, input)).rejects.toMatchObject({ code: 'forbidden' });
     const [row] = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from files where id = ${input.file.id}`,
+      (m) => m<{ n: number }[]>`select count(*)::int as n from files where key = ${input.file.key}`,
     );
     expect(row?.n).toBe(0);
   });
@@ -157,7 +156,7 @@ describe('imports: create, map and preview', () => {
       format: 'csv',
       columns: ['Name', 'Mobile', 'Village'],
       totalRows: 2,
-      file: { id: input.file.id, name: 'fair-leads.csv' },
+      file: { name: 'fair-leads.csv' },
       createdBy: gm.id,
     });
     const rows = await rowsOf(gm, job.id);
@@ -171,6 +170,25 @@ describe('imports: create, map and preview', () => {
     );
     expect(row?.input_json).toMatchObject({ rows: 2, columns: 3, kind: 'leads' });
     expect(JSON.stringify(row?.input_json)).not.toContain('Sita');
+  });
+
+  it('replays a repeat with the same key, and refuses the same file for a second job', async () => {
+    const input = await fileInput(1, `Name,Mobile\nTwice,${phone()}\n`);
+    const key = newId();
+    const once = (idempotencyKey?: string) =>
+      asPrincipal(gm, (context) =>
+        runCommand(
+          createImportJob,
+          { context, audit, outbox, ...(idempotencyKey === undefined ? {} : { idempotencyKey }) },
+          input,
+        ),
+      );
+    const first = await once(key);
+    expect((await once(key)).id).toBe(first.id);
+    await expect(once()).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'import_file_duplicate' },
+    });
   });
 
   it('maps from a new mapping, saves it as a template, and maps another job from it', async () => {
