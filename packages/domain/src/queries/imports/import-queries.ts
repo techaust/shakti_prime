@@ -1,14 +1,19 @@
 import {
+  DomainError,
+  IdSchema,
+  ImportJobPage,
   ImportRowDto,
   ImportRowPage,
   ImportTemplateDto,
   type GetImportJobInput,
   type ImportJobDto,
+  type ListImportJobsInput,
   type ListImportRowsInput,
   type ListImportTemplatesInput,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
 import {
   assertEntityInScope,
@@ -57,20 +62,119 @@ export async function listImportRows(
     .limit(input.limit + 1);
   const page = rows.slice(0, input.limit);
   const last = page[page.length - 1];
+  const dtos = page.map((row) =>
+    ImportRowDto.parse({
+      rowNo: row.rowNo,
+      state: row.state,
+      raw: row.rawJson,
+      errors: row.errorsJson,
+      dedupe: row.dedupeJson,
+      createdType: row.createdType,
+      createdId: row.createdId,
+      committedBatch: row.committedBatch,
+    }),
+  );
   return ImportRowPage.parse({
-    rows: page.map((row) =>
-      ImportRowDto.parse({
-        rowNo: row.rowNo,
-        state: row.state,
-        raw: row.rawJson,
-        errors: row.errorsJson,
-        dedupe: row.dedupeJson,
-        createdType: row.createdType,
-        createdId: row.createdId,
-        committedBatch: row.committedBatch,
-      }),
-    ),
+    rows: dtos,
     nextAfter: rows.length > input.limit && last !== undefined ? last.rowNo : null,
+    customers: await customerNames(
+      ctx,
+      dtos.flatMap((row) => row.dedupe?.existing.map((e) => e.accountId) ?? []),
+    ),
+  });
+}
+
+/**
+ * The names of the customers a page of dedupe suggestions points at. RLS on `accounts` decides:
+ * a customer the caller can no longer see has no name here, and the screen says so plainly.
+ */
+async function customerNames(
+  ctx: QueryContext,
+  accountIds: readonly string[],
+): Promise<Record<string, string>> {
+  if (accountIds.length === 0) return {};
+  const a = schema.accounts;
+  const rows = await ctx.tx
+    .select({ id: a.id, name: a.name })
+    .from(a)
+    .where(inArray(a.id, [...new Set(accountIds)]));
+  return Object.fromEntries(rows.map((row) => [row.id, row.name]));
+}
+
+/** `created_at` is the Postgres text form of the timestamp, so no microsecond is lost. */
+const JobCursorSchema = z
+  .object({
+    createdAt: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/),
+    id: IdSchema,
+  })
+  .strict();
+
+function decodeJobCursor(cursor: string): { createdAt: string; id: string } {
+  try {
+    return JobCursorSchema.parse(JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')));
+  } catch {
+    throw new DomainError('validation_failed', 'cursor is not valid', { cursor });
+  }
+}
+
+function encodeJobCursor(createdAt: string, id: string): string {
+  return Buffer.from(JSON.stringify({ createdAt, id }), 'utf8').toString('base64url');
+}
+
+/**
+ * The import jobs of one company, or of every company of the request, newest first, keyset
+ * paginated by `(created_at, id)` on the `(entity_id, created_at)` index. RLS decides the rows;
+ * the people who started them are named from `principals`, which every signed-in person reads.
+ */
+export async function listImportJobs(
+  ctx: QueryContext,
+  input: ListImportJobsInput,
+): Promise<ImportJobPage> {
+  checkPermission(ctx.principal, 'imports.write', 'entity');
+  if (input.entityId !== undefined) assertEntityInScope(ctx.entityIds, input.entityId);
+  const entityIds = input.entityId === undefined ? [...ctx.entityIds] : [input.entityId];
+  const after = input.cursor === undefined ? undefined : decodeJobCursor(input.cursor);
+  const j = schema.importJobs;
+  const f = schema.files;
+  const p = schema.principals;
+  const rows = await ctx.tx
+    .select({
+      job: j,
+      file: { id: f.id, name: f.name, size: f.size },
+      createdAtText: sql<string>`${j.createdAt}::text`,
+      creator: p.displayName,
+    })
+    .from(j)
+    .innerJoin(f, eq(f.id, j.fileId))
+    .leftJoin(p, eq(p.id, j.createdBy))
+    .where(
+      and(
+        inArray(j.entityId, entityIds),
+        after === undefined
+          ? undefined
+          : or(
+              lt(j.createdAt, sql`${after.createdAt}::timestamptz`),
+              and(eq(j.createdAt, sql`${after.createdAt}::timestamptz`), lt(j.id, after.id)),
+            ),
+      ),
+    )
+    .orderBy(desc(j.createdAt), desc(j.id))
+    .limit(input.limit + 1);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  const creators: Record<string, string> = {};
+  for (const row of page) {
+    if (row.creator !== null) creators[row.job.createdBy] = row.creator;
+  }
+  return ImportJobPage.parse({
+    items: page.map((row) => toImportJobDto({ job: row.job, file: row.file })),
+    creators,
+    nextCursor:
+      rows.length > input.limit && last !== undefined
+        ? encodeJobCursor(last.createdAtText, last.job.id)
+        : null,
   });
 }
 

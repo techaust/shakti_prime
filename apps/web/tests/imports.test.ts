@@ -59,8 +59,15 @@ vi.mock('@upstash/qstash', async (original) => ({
   },
 }));
 
-const { commitImportJob, mapImportJob, previewImportJob, rollbackImportJob, uploadImportFile } =
-  await import('../src/actions/imports');
+const {
+  commitImportJob,
+  listImportJobs,
+  listImportRows,
+  mapImportJob,
+  previewImportJob,
+  rollbackImportJob,
+  uploadImportFile,
+} = await import('../src/actions/imports');
 const { POST } = await import('../src/app/api/v1/workers/imports/commit/route');
 const { importRunId, scheduleImportCommit } = await import('../src/workers/imports');
 
@@ -191,6 +198,38 @@ describe('the upload action', () => {
     request.store = undefined;
     const result = await uploadImportFile(uploadForm(`Name,Mobile\nRam,${phone()}\n`));
     expect(result).toMatchObject({ ok: false, error: 'import_store_unavailable' });
+  });
+});
+
+describe('the list of imports', () => {
+  it('shows the new job among the newest, with the name of the person who started it', async () => {
+    const job = ok(
+      await uploadImportFile(
+        uploadForm(`Name,Mobile
+Lakshmi,${phone()}
+`),
+      ),
+    );
+    const page = ok(await listImportJobs({ entityId: 1, limit: 5 }));
+    // Other suites add jobs to this company at the same time, so the newest few are searched.
+    expect(page.items.some((j) => j.id === job.id)).toBe(true);
+    expect(page.creators[gm.id]).toBeTruthy();
+    // Without a company, every company being viewed; this caller views only the first.
+    const all = ok(await listImportJobs({}));
+    expect(all.items.some((j) => j.id === job.id)).toBe(true);
+  });
+
+  it('refuses someone who may not import, and a company outside their view', async () => {
+    expect(await listImportJobs({ entityId: 2 })).toEqual({ ok: false, error: 'forbidden' });
+    request.principal = principalFor('tele_caller_cc', [1]);
+    expect(await listImportJobs({ entityId: 1 })).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('answers the rows of a previewed job with their findings', async () => {
+    const job = await previewedJob(['Parvati']);
+    const page = ok(await listImportRows({ entityId: 1, jobId: job.id }));
+    expect(page).toMatchObject({ nextAfter: null, customers: {} });
+    expect(page.rows.map((r) => r.state)).toEqual(['valid']);
   });
 });
 

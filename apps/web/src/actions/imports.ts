@@ -5,6 +5,7 @@ import {
   DomainError,
   GetImportJobInput,
   IMPORT_LIMITS,
+  ListImportJobsInput,
   ListImportRowsInput,
   ListImportTemplatesInput,
   MapImportJobInput,
@@ -13,6 +14,7 @@ import {
   UploadImportFileInput,
   type ImportFormat,
   type ImportJobDto,
+  type ImportJobPage,
   type ImportRowPage,
   type ImportTemplateDto,
 } from '@shakti/contracts';
@@ -23,6 +25,7 @@ import {
   executeCommand,
   executeQuery,
   getImportJob as getImportJobQuery,
+  listImportJobs as listImportJobsQuery,
   listImportRows as listImportRowsQuery,
   listImportTemplates as listImportTemplatesQuery,
   mapImportJob as mapImportJobCommand,
@@ -225,6 +228,23 @@ export async function getImportJob(rawInput: unknown): Promise<ActionResult<Impo
     const { requestId } = await requestMeta();
     return executeQuery(principal, { entityIds: [input.entityId], requestId }, (ctx) =>
       getImportJobQuery(ctx, input),
+    );
+  });
+}
+
+/**
+ * The import screen's list: one company's jobs, or those of every company being viewed when no
+ * company is named, newest first, a page at a time.
+ */
+export async function listImportJobs(rawInput: unknown): Promise<ActionResult<ImportJobPage>> {
+  return toResult('listImportJobs', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListImportJobsInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
+      (ctx) => listImportJobsQuery(ctx, input),
     );
   });
 }
