@@ -75,7 +75,7 @@ export const sessions = pgTable(
     index('sessions_user_idx').on(t.userId),
     check(
       'sessions_revoked_reason_check',
-      sql`${t.revokedReason} is null or ${t.revokedReason} in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'absolute_expiry')`,
+      sql`${t.revokedReason} is null or ${t.revokedReason} in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'totp_reset', 'absolute_expiry')`,
     ),
   ],
 );

@@ -1,5 +1,5 @@
-import { asMigrator, closeDb, createTestUser } from '@shakti/db/testing';
-import { memoryKeyValue, memoryMailer } from '@shakti/domain';
+import { asMigrator, closeDb, createTestPrincipal, createTestUser } from '@shakti/db/testing';
+import { executeCommand, memoryKeyValue, memoryMailer, resetTwoFactor } from '@shakti/domain';
 import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -378,6 +378,50 @@ describe('authenticator app for Executive, GM and Accounts', () => {
         headers: clientHeaders({ cookie: second.cookie }),
       }),
     ).rejects.toSatisfy((e) => code(e) === 'backup_code_incorrect');
+  });
+
+  it('after an Executive resets a lost app, the password signs in and a new app must be set up', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'accounts' }]);
+    const first = await signIn(user.email, GOOD_PASSWORD);
+    const enrol = await auth.api.enableTwoFactor({
+      body: { password: GOOD_PASSWORD, method: 'totp' },
+      headers: clientHeaders({ cookie: first.cookie }),
+    });
+    if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
+    const verified = await auth.api.verifyTOTP({
+      body: { code: totpCode(new URL(enrol.totpURI).searchParams.get('secret') ?? '', new Date()) },
+      headers: clientHeaders({ cookie: first.cookie }),
+      returnHeaders: true,
+    });
+    const enrolledCookie = cookieHeader(verified.headers) || first.cookie;
+    expect((await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.6' })).response).toMatchObject({
+      twoFactorRedirect: true,
+    });
+
+    const exec = await createTestPrincipal('executive');
+    await executeCommand(exec, {}, resetTwoFactor, { userId: user.id });
+    await invalidatePrincipal(keyValue, user.id);
+
+    // every earlier sign-in has ended
+    expect(
+      await resolveSessionPrincipal(clientHeaders({ cookie: enrolledCookie }), undefined, deps),
+    ).toBeUndefined();
+    // the password alone signs in, and the app stays closed until a new authenticator is set up
+    const after = await signIn(user.email, GOOD_PASSWORD, { ip: '10.0.0.7' });
+    expect(after.response).not.toHaveProperty('twoFactorRedirect');
+    const pending = await resolveSessionPrincipal(
+      clientHeaders({ cookie: after.cookie }),
+      undefined,
+      deps,
+    );
+    expect(() => requirePrincipal(pending)).toThrow(
+      expect.objectContaining({ code: 'unauthorized', details: { reason: 'totp_required' } }),
+    );
+    const again = await auth.api.enableTwoFactor({
+      body: { password: GOOD_PASSWORD, method: 'totp' },
+      headers: clientHeaders({ cookie: after.cookie }),
+    });
+    expect(again.method).toBe('totp');
   });
 });
 

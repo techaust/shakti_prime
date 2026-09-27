@@ -147,7 +147,7 @@ Key columns only; every table also has the standard columns from §2.
 | `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
 | `auth_accounts` | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
 | `auth_verifications` | Better Auth verification store for set-password and reset links; `auth_service` only |
-| `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only |
+| `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled` |
 | `sessions` | Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason` |
 | `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
 | `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron |

@@ -1,6 +1,7 @@
 import type { Principal } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
 import {
+  asMigrator,
   asOutboxPublisher,
   closeDb,
   createTestPrincipal,
@@ -60,7 +61,8 @@ vi.mock('../src/auth/current-principal', () => ({
 
 const { switchEntity } = await import('../src/actions/auth');
 const { createLead } = await import('../src/actions/crm');
-const { listAuditLog, setUserRoles } = await import('../src/actions/admin');
+const { listAuditLog, resetTwoFactor, setUserRoles } = await import('../src/actions/admin');
+const { defaultAuthDeps } = await import('../src/auth/deps');
 
 afterAll(async () => {
   await closeOutboxDb();
@@ -178,6 +180,55 @@ describe('server actions (AUDIT M41)', () => {
     await expect(createLead(lead(1), 'not-a-key')).rejects.toMatchObject({
       code: 'validation_failed',
     });
+  });
+
+  it('reset a lost authenticator app, drop the cached principal and tell the user once', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+      twoFactorEnabled: true,
+      name: 'Meena',
+    });
+    await asMigrator(
+      (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
+               values (${crypto.randomUUID()}, ${target.id}, 'sealed', 'sealed')`,
+    );
+    const send = vi.spyOn(defaultAuthDeps().mailer, 'send');
+    try {
+      const user = await resetTwoFactor({ userId: target.id });
+      expect(user.twoFactorEnabled).toBe(false);
+      expect(request.forgotten).toEqual([target.id]);
+      expect(send).toHaveBeenCalledTimes(1);
+      const [mail] = send.mock.calls[0] ?? [];
+      expect(mail?.to).toBe(target.email);
+      expect(mail?.subject).toBe('Your Shakti Prime authenticator app was reset');
+      expect(mail?.text).toMatch(/^Hello Meena,/);
+
+      // Nothing left to reset: the answer is the same and no second email goes out.
+      await resetTwoFactor({ userId: target.id });
+      expect(send).toHaveBeenCalledTimes(1);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
+  it('keep a reset when the notice email fails', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+      twoFactorEnabled: true,
+    });
+    await asMigrator(
+      (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
+               values (${crypto.randomUUID()}, ${target.id}, 'sealed', 'sealed')`,
+    );
+    const send = vi
+      .spyOn(defaultAuthDeps().mailer, 'send')
+      .mockRejectedValue(new Error('mail provider down'));
+    try {
+      const user = await resetTwoFactor({ userId: target.id });
+      expect(user.twoFactorEnabled).toBe(false);
+    } finally {
+      send.mockRestore();
+    }
   });
 
   it('keep the audit trail from a role without audit.read', async () => {

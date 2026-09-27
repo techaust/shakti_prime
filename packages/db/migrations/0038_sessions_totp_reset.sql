@@ -1,0 +1,2 @@
+ALTER TABLE "sessions" DROP CONSTRAINT "sessions_revoked_reason_check";--> statement-breakpoint
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_revoked_reason_check" CHECK ("sessions"."revoked_reason" is null or "sessions"."revoked_reason" in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'totp_reset', 'absolute_expiry'));
