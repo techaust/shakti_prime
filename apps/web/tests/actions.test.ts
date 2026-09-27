@@ -68,6 +68,7 @@ const {
   clearSignInLock,
   inviteUser,
   listAuditLog,
+  listAuditPeople,
   listUserSessions,
   listUsers,
   reactivateUser,
@@ -167,6 +168,7 @@ describe('server actions (AUDIT M41)', () => {
     );
     expect(page.items).toEqual([
       expect.objectContaining({
+        actorName: 'test tele_caller_cc',
         command: 'crm.lead.create',
         outcome: 'ok',
         entityId: 1,
@@ -259,15 +261,39 @@ describe('server actions (AUDIT M41)', () => {
     }
   });
 
-  it('keep the audit trail from a role without audit.read', async () => {
+  it('keep the audit trail and its people from a role without audit.read', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const now = Date.now();
-    await expect(
-      listAuditLog({
+    const window = {
+      from: new Date(now - 60_000).toISOString(),
+      to: new Date(now + 60_000).toISOString(),
+    };
+    await expect(listAuditLog(window)).resolves.toEqual({ ok: false, error: 'forbidden' });
+    await expect(listAuditPeople(window)).resolves.toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('offer the Activity log the people who acted in the window', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    // A name that sorts first, so the filter's cap of 500 never leaves this caller out.
+    const name = `Aa activity person ${caller.id.slice(-6)}`;
+    await asMigrator(
+      (m) => m`update principals set display_name = ${name} where id = ${caller.id}`,
+    );
+    request.principal = caller;
+    ok(await createLead(lead(1)));
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    const now = Date.now();
+    const people = ok(
+      await listAuditPeople({
         from: new Date(now - 60_000).toISOString(),
         to: new Date(now + 60_000).toISOString(),
       }),
-    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    );
+    expect(people).toContainEqual({ id: caller.id, name });
+    await expect(listAuditPeople({ from: 'yesterday', to: 'today' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
   });
 });
 

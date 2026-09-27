@@ -1,12 +1,14 @@
 import {
   AuditCursorSchema,
   AuditPageDto,
+  AuditPeopleDto,
+  AuditPeopleInput,
   AuditQueryInput,
   DomainError,
   type AuditLogDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, gte, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNotNull, lt, or, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 
 type AuditContext = Pick<RequestContext, 'tx' | 'principal'>;
@@ -41,9 +43,16 @@ export async function queryAudit(ctx: AuditContext, rawInput: unknown): Promise<
   const after = input.cursor === undefined ? undefined : decodeCursor(input.cursor);
   const a = schema.auditLogs;
 
+  const p = schema.principals;
   const rows = await ctx.tx
-    .select({ row: a, createdAtText: sql<string>`${a.createdAt}::text` })
+    .select({
+      row: a,
+      createdAtText: sql<string>`${a.createdAt}::text`,
+      actorName: p.displayName,
+    })
     .from(a)
+    // Every signed-in person may read principals' names (migration 0002), so the join hides no row.
+    .leftJoin(p, eq(p.id, a.actorPrincipalId))
     .where(
       and(
         gte(a.createdAt, new Date(input.from)),
@@ -70,7 +79,7 @@ export async function queryAudit(ctx: AuditContext, rawInput: unknown): Promise<
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return AuditPageDto.parse({
-    items: page.map(({ row }) => toAuditLogDto(row)),
+    items: page.map(({ row, actorName }) => toAuditLogDto(row, actorName)),
     nextCursor:
       rows.length > input.limit && last !== undefined
         ? encodeCursor(last.createdAtText, last.row.id)
@@ -78,12 +87,16 @@ export async function queryAudit(ctx: AuditContext, rawInput: unknown): Promise<
   });
 }
 
-export function toAuditLogDto(row: typeof schema.auditLogs.$inferSelect): AuditLogDto {
+export function toAuditLogDto(
+  row: typeof schema.auditLogs.$inferSelect,
+  actorName: string | null = null,
+): AuditLogDto {
   return {
     id: row.id,
     entityId: row.entityId,
     actorPrincipalId: row.actorPrincipalId,
     actorKind: row.actorKind as AuditLogDto['actorKind'],
+    actorName,
     onBehalfOfUserId: row.onBehalfOfUserId,
     command: row.command,
     aggregateType: row.aggregateType,
@@ -98,4 +111,38 @@ export function toAuditLogDto(row: typeof schema.auditLogs.$inferSelect): AuditL
     requestId: row.requestId,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+/**
+ * The people who acted in a window, by name, for the Activity log's person filter
+ * (`audit.read`). Read from the audit rows themselves, so RLS offers only the people whose rows
+ * the caller may see, and the window keeps the planner to those months' partitions.
+ */
+export async function listAuditPeople(
+  ctx: AuditContext,
+  rawInput: unknown,
+): Promise<AuditPeopleDto> {
+  const parsed = AuditPeopleInput.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new DomainError('validation_failed', 'invalid input for audit.people', {
+      issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+    });
+  }
+  checkPermission(ctx.principal, 'audit.read', 'entity');
+  const a = schema.auditLogs;
+  const p = schema.principals;
+  const rows = await ctx.tx
+    .selectDistinct({ id: p.id, name: p.displayName })
+    .from(a)
+    .innerJoin(p, eq(p.id, a.actorPrincipalId))
+    .where(
+      and(
+        gte(a.createdAt, new Date(parsed.data.from)),
+        lt(a.createdAt, new Date(parsed.data.to)),
+        isNotNull(a.actorPrincipalId),
+      ),
+    )
+    .orderBy(asc(p.displayName), asc(p.id))
+    .limit(500);
+  return AuditPeopleDto.parse(rows);
 }

@@ -3,6 +3,7 @@
 import {
   ClearSignInLockInput,
   type AuditPageDto,
+  type AuditPeopleDto,
   DomainError,
   InviteUserInput,
   ReactivateUserInput,
@@ -20,6 +21,7 @@ import {
   executeCommand,
   executeQuery,
   inviteUser as inviteUserCommand,
+  listAuditPeople as listAuditPeopleQuery,
   listUserSessions as listUserSessionsQuery,
   listUsers as listUsersQuery,
   loadUserDto,
@@ -233,5 +235,16 @@ export async function listAuditLog(rawInput: unknown): Promise<ActionResult<Audi
     const principal = await signedIn();
     const { requestId } = await requestMeta();
     return executeQuery(principal, { requestId }, (context) => queryAudit(context, rawInput));
+  });
+}
+
+/** The people who acted in a window, for the Activity log's person filter (`audit.read`). */
+export async function listAuditPeople(rawInput: unknown): Promise<ActionResult<AuditPeopleDto>> {
+  return toResult('listAuditPeople', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) =>
+      listAuditPeopleQuery(context, rawInput),
+    );
   });
 }
