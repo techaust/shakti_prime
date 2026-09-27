@@ -257,6 +257,47 @@ describe('the link tables cannot widen scope by a direct write (review 3)', () =
     });
   });
 
+  it("a site or a consent cannot be added to another entity's customer", async () => {
+    const hiddenAccount = fx.accounts.d[0] ?? '';
+    const hiddenContact = fx.contacts.d[0] ?? '';
+    await expect(
+      asPrincipal(fx.principals.c, ({ tx }) =>
+        tx.execute(sql`insert into customer_sites (id, account_id, type, village, created_by)
+          values ('01990000-0000-7000-8000-0000000fe030', ${hiddenAccount}, 'borewell', 'Probe', ${fx.principals.c.id})`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+    await expect(
+      asPrincipal(fx.principals.c, ({ tx }) =>
+        tx.execute(sql`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+          values ('01990000-0000-7000-8000-0000000fe031', ${hiddenContact}, 'call', 'service', 'walk_in_form', 'v1', now(), ${fx.principals.c.id})`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+  });
+
+  // The update policies carry the same account and contact clauses as the inserts (AUDIT M40).
+  it('an existing relationship cannot be re-pointed at an account the caller does not see', async () => {
+    const hidden = fx.accounts.d[0] ?? '';
+    expect(await visibleIds(fx.principals.c, 'accounts')).not.toContain(hidden);
+    await expect(
+      asPrincipal(fx.principals.c, ({ tx }) =>
+        tx.execute(sql`update account_entities set account_id = ${hidden}
+          where account_id = ${fx.accounts.c[0] ?? ''} and entity_id = 1`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+    expect(await visibleIds(fx.principals.c, 'accounts')).not.toContain(hidden);
+  });
+
+  it("an existing contact link cannot be re-pointed at another entity's contact", async () => {
+    const foreignContact = fx.contacts.d[0] ?? '';
+    await expect(
+      asPrincipal(fx.principals.a, ({ tx }) =>
+        tx.execute(sql`update account_contacts set contact_id = ${foreignContact}
+          where account_id = ${fx.accounts.a[0] ?? ''} and contact_id = ${fx.contacts.a[0] ?? ''}`),
+      ),
+    ).rejects.toSatisfy(rlsRefused);
+    expect(await visibleIds(fx.principals.a, 'contacts')).not.toContain(foreignContact);
+  });
+
   it('a contact has one primary phone', async () => {
     await expect(
       asPrincipal(fx.principals.a, ({ tx }) =>

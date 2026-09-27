@@ -113,6 +113,23 @@ describe('cost gate on item_costs (finance.cost.read)', () => {
       ),
     ).toBe(0);
   });
+
+  // The entity term of the cost write checks (AUDIT M40): a cost holder in entity 1 cannot
+  // write entity 2's costs, by insert or by moving a row there.
+  it('Accounts cannot insert a cost row for another entity or move one there', async () => {
+    const accounts = principalFor('accounts', [1]);
+    await expect(
+      asPrincipal(accounts, ({ tx }) =>
+        tx.execute(sql`insert into item_costs (id, item_id, entity_id, moving_avg_cost)
+          values (${`${CATALOGUE_FIXTURE_PREFIX}fffc`}, ${fx.items.cable}, 2, 1.0000)`),
+      ),
+    ).rejects.toSatisfy(rlsError);
+    await expect(
+      asPrincipal(accounts, ({ tx }) =>
+        tx.execute(sql`update item_costs set entity_id = 2 where id = ${fx.costs.e1[1] ?? ''}`),
+      ),
+    ).rejects.toSatisfy(rlsError);
+  });
 });
 
 describe('catalogue masters', () => {
@@ -188,6 +205,12 @@ describe('price lists (pricing.read / pricing.write)', () => {
         sql`update price_list_items set price = price where id = ${fx.priceListItems.dealerPump} returning id`,
       ),
     ).toBe(0);
+    await expect(
+      asPrincipal(principalFor('executive', [1]), ({ tx }) =>
+        tx.execute(sql`insert into price_list_items (id, price_list_id, item_id, price)
+          values (${`${CATALOGUE_FIXTURE_PREFIX}fffb`}, ${fx.priceLists.dealerEntity2}, ${fx.items.cable}, 10.00)`),
+      ),
+    ).rejects.toSatisfy(rlsError);
   });
 });
 
@@ -290,9 +313,11 @@ describe('document numbering', () => {
   it('numbers are gapless and sequential within a series', async () => {
     const exec = principalFor('executive', [1]);
     const fy = `${String(2100 + Math.floor(Math.random() * 800))}-00`;
-    expect(await draw(exec, 1, fy)).toBe(1);
-    expect(await draw(exec, 1, fy)).toBe(2);
-    expect(await draw(exec, 1, fy)).toBe(3);
+    // Relative to the first draw: the random series may exist from an earlier run on this database.
+    const first = (await draw(exec, 1, fy)) ?? Number.NaN;
+    expect(Number.isInteger(first) && first >= 1).toBe(true);
+    expect(await draw(exec, 1, fy)).toBe(first + 1);
+    expect(await draw(exec, 1, fy)).toBe(first + 2);
   });
 
   it('concurrent callers never share a number', async () => {
@@ -314,7 +339,8 @@ describe('document numbering', () => {
         e.cause instanceof Error &&
         e.cause.message.includes('permission finance.proforma.write:own required'),
     );
-    expect(await draw(principalFor('accounts', [1]), 1, fy)).toBe(1);
+    const drawn = await draw(principalFor('accounts', [1]), 1, fy);
+    expect(Number.isInteger(drawn) && (drawn ?? 0) >= 1).toBe(true);
   });
 
   it('refuses an entity outside the scope and any call without a context', async () => {

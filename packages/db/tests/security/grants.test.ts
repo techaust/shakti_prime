@@ -12,6 +12,19 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row).toEqual({ rolsuper: false, rolbypassrls: false });
   });
 
+  // The loops below cover only the listed tables. A table missing from the lists would escape
+  // every fail-closed and privilege check, so the lists are compared with the catalogue (AUDIT H3).
+  it('lists every table in public, and every table there forces RLS', async () => {
+    const rows = await withoutContext<{ name: string; enabled: boolean; forced: boolean }>(sql`
+      select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relispartition
+      order by c.relname
+    `);
+    expect(rows.map((r) => r.name)).toEqual([...RLS_TABLES, ...AUTH_TABLES].sort());
+    expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
+  });
+
   it.each([...RLS_TABLES, ...AUTH_TABLES])(
     'does not own %s and the table forces RLS',
     async (table) => {

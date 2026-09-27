@@ -29,7 +29,8 @@ async function seededGrants(roleKey: (typeof ROLE_KEYS)[number]) {
   });
 }
 
-describe('seeded matrix equals docs/SECURITY.md §3.2', () => {
+// The transcription is compared with the document itself in src/permission-matrix.test.ts.
+describe('role_permissions holds exactly the seeded matrix', () => {
   it.each(ROLE_KEYS)('%s', async (roleKey) => {
     const expected = grantsForRole(roleKey)
       .map((g) => ({ key: g.key, scope: g.scope }))
