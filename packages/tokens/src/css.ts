@@ -91,7 +91,7 @@ export function renderTokensCss(): string {
  * shadcn/ui names its neutral hover fill `--accent`, which the Shakti indigo already owns. The
  * neutral takes the name `highlight` instead, and `--accent-foreground` is never declared, so a
  * pasted shadcn class `text-accent-foreground` styles nothing and the packages/ui source check
- * (`no-shadcn-accent.test.ts`) catches it; `bg-accent` stays the indigo fill.
+ * (`packages/ui/src/source-rules.test.ts`) catches it; `bg-accent` stays the indigo fill.
  */
 const SHADCN_ALIASES: Readonly<Record<string, string>> = {
   background: 'bg',
