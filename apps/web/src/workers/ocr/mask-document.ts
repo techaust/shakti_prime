@@ -1,12 +1,14 @@
 // OCR masking of customer document photos (BLUEPRINT §5 and §7.5, SECURITY.md §5,
 // ARCHITECTURE §9). Reads the photo, finds Aadhaar and bank account numbers, covers the hidden
-// digits with opaque boxes, and hands back only the masked image, the masked text and the
-// last four digits. The caller's buffer is overwritten with zeros once it has been read, and
+// digits and every QR code with opaque boxes, and hands back only the masked image, the masked
+// text and the last four digits. The caller's buffer is overwritten with zeros once it has been read, and
 // nothing here writes to disk or to a log.
 import sharp from 'sharp';
 import { createWorker, PSM, type Page, type Worker } from 'tesseract.js';
 import type { MaskedText } from '@shakti/domain';
 import { planMasks, scrubHiddenDigits, type Box, type MaskPlan, type OcrLine } from './plan-masks';
+import { scanQrCodes } from './qr-cover';
+import { reviewCause, type ExpectedNumber, type ReviewCause } from './review';
 
 export interface DocumentMaskerOptions {
   /**
@@ -22,7 +24,7 @@ export interface MaskRequest {
    * file expects `aadhaar`, a passbook or cancelled-cheque slot `bank_account`. When one of
    * them is not found, nothing is kept. Leave empty for a photo of unknown kind (WhatsApp).
    */
-  expect?: ('aadhaar' | 'bank_account')[];
+  expect?: ExpectedNumber[];
 }
 
 export type MaskOutcome =
@@ -31,7 +33,10 @@ export type MaskOutcome =
       status: 'masked' | 'clean';
       /** JPEG, metadata removed, the same size and orientation as the upright photo. */
       image: Buffer;
+      /** Rectangles drawn: hidden digits and QR codes. */
       rects: number;
+      /** QR codes covered, and where (positions only; what a code held is never kept). */
+      qr: { covered: number; decoded: number; estimated: number; boxes: Box[] };
       timings: MaskTimings;
     } & MaskedText)
   | {
@@ -41,11 +46,14 @@ export type MaskOutcome =
        * text are returned and the upload goes back to a person to retake or mask by hand.
        */
       status: 'needs_review';
+      cause: ReviewCause;
       timings: MaskTimings;
     };
 
 export interface MaskTimings {
   prepareMs: number;
+  /** Finding the QR codes. */
+  qrMs: number;
   ocrMs: number;
   maskMs: number;
   totalMs: number;
@@ -57,11 +65,6 @@ export interface DocumentMasker {
   mask(photo: Buffer, request?: MaskRequest): Promise<MaskOutcome>;
   close(): Promise<void>;
 }
-
-// Words that mark a photo as an Aadhaar card or letter, including the ways a blurred photo
-// is misread ("Aadhasr", "Andhaer", "Government of Indie").
-const AADHAAR_HINTS =
-  /\b(?:aadh|adhaa|andha[ae])[a-z]*|uidai|unique\s+identif|gov[a-z]*\s+of\s+ind|\bvid\b|enrolment/i;
 
 // Upscale small photos so digits reach the height the OCR engine reads best.
 const MIN_WIDTH = 1600;
@@ -173,6 +176,18 @@ export async function createDocumentMasker(
       };
       const prepareMs = performance.now() - started;
 
+      // Every QR code on the photo is located and covered, whatever it holds: an Aadhaar QR
+      // code can carry the full number. The decoded pixels are wiped once scanned.
+      const qrStarted = performance.now();
+      const pixels = await sharp(upright.data).ensureAlpha().raw().toBuffer();
+      const qr = scanQrCodes({
+        data: new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.length),
+        width,
+        height,
+      });
+      pixels.fill(0);
+      const qrMs = performance.now() - qrStarted;
+
       const ocrStarted = performance.now();
       const plans: MaskPlan[] = [];
       const rects: Box[] = [];
@@ -193,22 +208,25 @@ export async function createDocumentMasker(
       const ocrMs = performance.now() - ocrStarted;
 
       const maskStarted = performance.now();
-      const aadhaarFound = plans.some(
-        (p) => p.masked.counts.aadhaar + p.masked.counts.aadhaar_unverified > 0,
-      );
-      const bankFound = plans.some((p) => p.masked.counts.bank_account > 0);
-      const expected = request.expect ?? [];
-      const missing =
-        ((expected.includes('aadhaar') || AADHAAR_HINTS.test(readText)) && !aadhaarFound) ||
-        (expected.includes('bank_account') && !bankFound);
-      if (missing) {
+      const cause = reviewCause({
+        expect: request.expect ?? [],
+        readText,
+        aadhaarFound: plans.some(
+          (p) => p.masked.counts.aadhaar + p.masked.counts.aadhaar_unverified > 0,
+        ),
+        bankFound: plans.some((p) => p.masked.counts.bank_account > 0),
+        qrUncovered: qr.uncovered,
+      });
+      if (cause) {
         upright.data.fill(0);
         const maskMs = performance.now() - maskStarted;
         return {
           status: 'needs_review',
-          timings: { prepareMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
+          cause,
+          timings: { prepareMs, qrMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
         };
       }
+      rects.push(...qr.boxes);
 
       // The text and the last four digits come from the reading that found the most; digits
       // another reading found to be hidden are scrubbed from it as well.
@@ -227,9 +245,15 @@ export async function createDocumentMasker(
         status: rects.length > 0 ? 'masked' : 'clean',
         image,
         rects: rects.length,
+        qr: {
+          covered: qr.boxes.length,
+          decoded: qr.decoded,
+          estimated: qr.estimated,
+          boxes: qr.boxes,
+        },
         ...best.masked,
         text,
-        timings: { prepareMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
+        timings: { prepareMs, qrMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
       };
     },
     async close() {
