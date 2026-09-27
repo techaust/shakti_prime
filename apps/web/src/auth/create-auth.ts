@@ -283,6 +283,19 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     }
   }
 
+  /** The person a set-password link was sent to, while the link is still unused. */
+  async function resetLinkUserId(body: unknown): Promise<string | undefined> {
+    const token = (body as { token?: unknown } | undefined)?.token;
+    if (typeof token !== 'string' || token === '') return undefined;
+    const v = authSchema.auth_verifications;
+    const [row] = await authDb()
+      .select({ value: v.value })
+      .from(v)
+      .where(eq(v.identifier, hashIdentifier(`${RESET_PREFIX}${token}`)))
+      .limit(1);
+    return row?.value;
+  }
+
   async function userByEmail(email: string) {
     const u = authSchema.users;
     const [row] = await authDb()
@@ -409,13 +422,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         verify: ({ hash: stored, password }) => verify(stored, password),
       },
       // The first password set through an invite link activates the user.
-      onPasswordReset: async ({ user }, request) => {
-        await audit({
-          event: 'auth.password.set',
-          outcome: 'ok',
-          actorId: user.id,
-          headers: request?.headers,
-        });
+      onPasswordReset: async ({ user }) => {
         await authDb()
           .update(authSchema.users)
           .set({ status: 'active', emailVerified: true })
@@ -494,6 +501,11 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
             ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH
               ? await secondFactorUserId(ctx)
               : (await getSessionFromCtx(ctx).catch(() => null))?.user.id;
+          if (actorId !== undefined) requestActors.set(ctx.headers, actorId);
+        }
+        if (ctx.headers !== undefined && ctx.path === RESET_PATH) {
+          // The link names its person only until it is used, so it is read before the endpoint.
+          const actorId = await resetLinkUserId(ctx.body);
           if (actorId !== undefined) requestActors.set(ctx.headers, actorId);
         }
         const address = clientAddress(ctx.headers);
@@ -622,11 +634,14 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           });
           return;
         }
-        // A link that worked is recorded by onPasswordReset, which knows whose it was.
         if (ctx.path === RESET_PATH) {
-          if (failed) {
-            await audit({ event: 'auth.password.set', outcome, errorCode, headers: ctx.headers });
-          }
+          await audit({
+            event: 'auth.password.set',
+            outcome,
+            actorId: ctx.headers === undefined ? undefined : requestActors.get(ctx.headers),
+            errorCode,
+            headers: ctx.headers,
+          });
           return;
         }
         const event = SESSION_EVENTS[ctx.path];

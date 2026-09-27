@@ -99,7 +99,11 @@ async function inviteAndSetPassword(
   const mail = mailer.sent.at(-1);
   const token = /reset-password\/([^?\s]+)/.exec(mail?.text ?? '')?.[1];
   if (token === undefined) throw new Error('no set-password link in the mail');
-  await auth.api.resetPassword({ body: { newPassword: password, token } });
+  // Headers as the set-password screen sends them, so the audit row has its address.
+  await auth.api.resetPassword({
+    body: { newPassword: password, token },
+    headers: clientHeaders(),
+  });
   return user;
 }
 
@@ -896,6 +900,8 @@ describe('the audit trail of sign-in and account changes (docs/design/backend-we
       ['auth.sign_in', 'ok'],
       ['auth.sign_out', 'ok'],
     ]);
+    // The set-password row carries the address of the screen that sent it.
+    expect(rows[0]).toMatchObject({ ip: '10.0.0.1', error_code: null });
     expect(rows[1]).toMatchObject({
       error_code: 'INVALID_EMAIL_OR_PASSWORD',
       ip: '10.0.7.1',
