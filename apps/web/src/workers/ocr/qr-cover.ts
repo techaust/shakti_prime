@@ -4,8 +4,9 @@
 // is wiped as soon as the code is located and is never kept, compared or logged.
 //
 // Pure: works on pixels in memory. Two ways of locating a code:
-// 1. Decoding it with jsQR, on the whole photo, a smaller and a larger copy, and overlapping
-//    tiles so a small code in a corner is found too. Each located code is painted out of the
+// 1. Decoding it with jsQR, on the whole photo and a smaller copy of a large one; when finder
+//    marks are still left after that, on nine overlapping tiles as well (enlarged on a small
+//    photo), so a small code in a corner is found too. Each located code is painted out of the
 //    working copy and the pass repeats, so a second code on the same photo is found.
 // 2. Finding the three square finder marks of a code jsQR could not decode (blurred, torn,
 //    partly shaded). Three marks at the corners of a square locate the code as well; a finder
@@ -178,24 +179,33 @@ function paint(gray: Gray, box: Box): void {
 interface Pass {
   crop: Box;
   scale: number;
+  /** Also try light-on-dark codes (doubles the time of a pass that finds nothing). */
+  invert: boolean;
 }
 
-/** The whole photo, a smaller and a larger copy, and overlapping tiles for small codes. */
-function passesFor(width: number, height: number): Pass[] {
+/** The whole photo, and a smaller copy of a large one (a big, soft code reads better small). */
+function wholePasses(width: number, height: number): Pass[] {
   const whole = { x0: 0, y0: 0, x1: width, y1: height };
   const longest = Math.max(width, height);
-  const passes: Pass[] = [{ crop: whole, scale: 1 }];
-  if (longest > 1300) passes.push({ crop: whole, scale: 1000 / longest });
-  const tileScale = longest < 1600 ? 2 : 1;
-  if (tileScale > 1) passes.push({ crop: whole, scale: tileScale });
-  // Nine tiles, each half the photo a side, overlapping by half.
+  const passes: Pass[] = [{ crop: whole, scale: 1, invert: true }];
+  if (longest > 1300) passes.push({ crop: whole, scale: 1000 / longest, invert: false });
+  return passes;
+}
+
+/**
+ * Nine tiles, each half the photo a side and overlapping by half, enlarged on a small photo:
+ * a small code in a corner is found here when the whole photo does not show it.
+ */
+function tilePasses(width: number, height: number): Pass[] {
+  const scale = Math.max(width, height) < 1300 ? 2 : 1;
   const tw = Math.ceil(width / 2);
   const th = Math.ceil(height / 2);
+  const passes: Pass[] = [];
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
       const x0 = Math.min(width - tw, Math.round((col * width) / 4));
       const y0 = Math.min(height - th, Math.round((row * height) / 4));
-      passes.push({ crop: { x0, y0, x1: x0 + tw, y1: y0 + th }, scale: tileScale });
+      passes.push({ crop: { x0, y0, x1: x0 + tw, y1: y0 + th }, scale, invert: true });
     }
   }
   return passes;
@@ -207,7 +217,9 @@ function decodeCodes(work: Gray, pass: Pass, boxes: Box[]): number {
   for (let i = 0; i < MAX_CODES_PER_PASS; i++) {
     const pixels = view(work, pass.crop, pass.scale);
     const rgba = toRgba(pixels);
-    const code = jsQR(rgba, pixels.width, pixels.height, { inversionAttempts: 'attemptBoth' });
+    const code = jsQR(rgba, pixels.width, pixels.height, {
+      inversionAttempts: pass.invert ? 'attemptBoth' : 'dontInvert',
+    });
     rgba.fill(0);
     pixels.data.fill(0);
     if (!code) break;
@@ -439,11 +451,20 @@ export function scanQrCodes(image: Raster): QrScan {
   const bounds = { width: image.width, height: image.height };
   const boxes: Box[] = [];
   let decoded = 0;
-  for (const pass of passesFor(image.width, image.height)) {
+  for (const pass of wholePasses(image.width, image.height)) {
     decoded += decodeCodes(work, pass, boxes);
   }
+  // Finder marks left on the photo mean a code the whole-photo passes did not decode: look for
+  // it tile by tile, then look for marks again. A photo with none is spared the tiles.
+  let marks = findFinderMarks(work);
+  if (marks.length > 0) {
+    for (const pass of tilePasses(image.width, image.height)) {
+      decoded += decodeCodes(work, pass, boxes);
+    }
+    marks = findFinderMarks(work);
+  }
 
-  const { codes, loose } = groupFinderMarks(findFinderMarks(work));
+  const { codes, loose } = groupFinderMarks(marks);
   work.data.fill(0);
   for (const code of codes) {
     const pitch = (code.corner.pitch + code.b.pitch + code.c.pitch) / 3;
