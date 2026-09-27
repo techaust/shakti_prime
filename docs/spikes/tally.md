@@ -13,7 +13,7 @@
 | Heartbeat, batch and snapshot read as untrusted input through the published connector contract (`packages/contracts/src/api/connector.ts`): at most 500 vouchers, a batch from the server's cursor (`fromAlterId`) to `maxAlterId` with every row inside that range and each GUID once, amounts as two-decimal strings (`SignedMoneySchema` for ledger sides); purchase and debit-note vouchers are the restricted ones for `tally_purchase_vouchers` | `apps/web/src/integrations/tally/payloads.ts` |
 | A spike-only reader of Tally's XML server (vouchers after an AlterID, the GUID snapshot) standing in for the connector | `apps/web/src/integrations/tally/tally-xml.ts` |
 | Fixture tests (signing and skew, tampering, rotation, payload problems, XML export, the fixture through the cursor and snapshot rules) | `apps/web/src/integrations/tally/tally.test.ts`, `packages/domain/src/tally/sync-rules.test.ts` |
-| Spike script | `pnpm --filter web spike:tally` |
+| Spike script | `apps/web/scripts/spike/tally-read.ts`, run with `pnpm --filter web spike:tally` |
 
 Not built, by design: the `/api/v1/connector/tally/*` routes and every table they would write (`tally_vouchers`, `tally_purchase_vouchers`, tombstones, heartbeats, connectors and their keys) belong to Phase 5; no migration is added. The Windows connector (`apps/tally-connector`) is Phase 5.
 

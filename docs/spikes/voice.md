@@ -13,7 +13,7 @@
 | Timing: one turn = transcript, reply, speech of the first sentence (then the rest); `firstAudioMs` = transcript + first sentence + its speech, the measure the 1.5 s target applies to; nearest-rank p50 and p95 | `apps/web/src/integrations/voice/latency.ts` |
 | Twelve Roman-Hinglish checklist lines (brand, HP, lakh and crore, kW, subsidy scheme, model code, date and time, document number, depth, recording notice, handoff) with what to listen for | `apps/web/src/integrations/voice/pronunciation-checklist.ts` |
 | Fixture tests (stream parsing across chunks, request shapes, error mapping, token claims, turn arithmetic, checklist has no Devanagari) | `apps/web/src/integrations/voice/voice.test.ts` |
-| Spike script: `latency` and `pronunciation` | `pnpm --filter web spike:voice -- latency` or `-- pronunciation` |
+| Spike script: `latency` and `pronunciation` | `apps/web/scripts/spike/voice-latency.ts`, run with `pnpm --filter web spike:voice -- latency` or `-- pronunciation` |
 
 No SDK is added: all three vendors are called with `fetch`. The real voice worker (LiveKit Agents, streaming speech, barge-in) is Phase 4; this spike measures the vendors, not WebRTC media. A batch speech-to-text call on the whole recording is slower than the streaming recogniser the worker will use, so `firstAudioMs` here is an upper bound.
 

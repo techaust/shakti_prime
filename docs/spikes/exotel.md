@@ -10,7 +10,7 @@
 | Click-to-dial wrapper: `POST /v1/Accounts/{sid}/Calls/connect.json` with basic auth, 8 s timeout, never retried (a timeout does not prove the phones did not ring); `checkDial` runs first and a refused dial never reaches Exotel; status read with two retries | `apps/web/src/integrations/exotel/client.ts` |
 | Callback verification: Exotel posts no signature header, so each dial gets its own StatusCallback address carrying the BOS call id, an expiry (24 h) and an HMAC-SHA256 of both under `EXOTEL_CALLBACK_SECRET`; the worker also matches the CallSid to the stored call. JSON and form bodies are read through the published `ExotelCallStatusWebhook` contract (`packages/contracts/src/api/webhooks-exotel.ts`). | `apps/web/src/integrations/exotel/status-callback.ts` |
 | Fixture tests (dial form, auth, error codes, no retry on dial, retry on read, refusals, signed address, JSON and form callbacks) | `apps/web/src/integrations/exotel/exotel.test.ts`, `packages/domain/src/telecom/dial-policy.test.ts` |
-| Spike script | `pnpm --filter web spike:exotel` (`-- --dry-run` checks the rules only) |
+| Spike script | `apps/web/scripts/spike/exotel-dial.ts`, run with `pnpm --filter web spike:exotel` (`-- --dry-run` checks the rules only) |
 
 Not built, by design: the webhook route, `webhook_inbox`, `calls` and the dial command (Phase 1). DND scrubbing itself (the NCPR lookup) is an input to `checkDial`; the scrub provider is chosen with the DLT registration.
 
