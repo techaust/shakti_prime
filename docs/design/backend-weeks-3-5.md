@@ -123,6 +123,8 @@ Full decision record in ADR 0007. Summary of the engine surface in `packages/dom
 
 Rules: integer paise inside; half-up rounding to the paisa per line and per tax amount; CGST and SGST rounded independently from the half rate; document total rounded to the rupee with `round_off`; item rate overrides HSN rate; composite supply only for lines flagged as works contract in `residential_rooftop` and `commercial_epc` with an effective rule; every line snapshots `tax_rate_id` and `composite_rule_id`. Place of supply: site state, else account GSTIN state, else entity state, which needs `customer_sites.state_code` and `accounts.billing_state_code` (DATABASE §6.2 edited). The CA confirms the method at the workshop against a golden set of worked examples that becomes the fixture file.
 
+Built (2026-09-27, branch `feat/tax-and-machines`): the engine in `packages/domain/src/tax` with its boundary shapes in `packages/contracts/src/tax/engine.ts`, integer paise in `packages/domain/src/money/paise.ts`, fixture tables in `tax.test.ts` and the golden set in `golden.test.ts`, which awaits the CA (§12 q1); the defaults the workshop may change live in `packages/domain/src/workshop-defaults.ts` only; the commands that load the rows and call the engine come with the quote slice.
+
 ## 7. State machines (week 5 specifications and runtime)
 
 ### 7.1 Runtime
@@ -169,6 +171,8 @@ States: `draft`, `confirmed`, `partially_dispatched`, `dispatched`, `invoiced`, 
 | `cancel` | draft, confirmed → cancelled | `sales.order.cancel` | reason; nothing dispatched | release reservations |
 
 Exposure is per entity (`dealer_outstanding` is keyed by account and entity). Until Tally sync, outstanding is entered manually (Phase 1 note in the blueprint).
+
+Built (2026-09-27, branch `feat/tax-and-machines`): the runtime in `packages/domain/src/state-machines/define-machine.ts`; the thirteen machines of BLUEPRINT §19 item 2 as data in `packages/domain/src/state-machines/machines` (opportunity, quote and sales order as §7.2 to §7.4, plus a proposed `credit.release` event that sets `credit_release_by`; the other ten with every state or event the documents do not name marked proposed); the dealer credit check in `packages/domain/src/sales/credit-check.ts`; the specifications generated into `docs/state-machines/` by `pnpm --filter @shakti/domain machines:docs` and checked for staleness by a unit test. The commands that persist transitions, and `nurture` in the `opportunities.state` check constraint and `OpportunityStateSchema`, come with the week 5 command slices.
 
 ## 8. Import framework (week 5)
 

@@ -10,7 +10,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:security": "vitest run --config vitest.security.config.ts"
+    "test:security": "vitest run --config vitest.security.config.ts",
+    "machines:docs": "tsx scripts/machines-docs.ts"
   },
   "dependencies": {
     "@shakti/contracts": "workspace:*",

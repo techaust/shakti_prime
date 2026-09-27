@@ -117,6 +117,7 @@ export type {
   TransitionSpec,
 } from './state-machines/define-machine';
 export { MACHINE_REASONS, MACHINES } from './state-machines/registry';
+export { renderAll } from './state-machines/render';
 export { opportunityMachine } from './state-machines/machines/opportunity';
 export type { OpportunityParams, OpportunityRecord } from './state-machines/machines/opportunity';
 export { quoteMachine, quoteValidUntil } from './state-machines/machines/quote';

@@ -1,6 +1,6 @@
 # ADR 0007 — Deterministic tax engine with effective-dated rates and composite-supply valuation
 
-**Status:** Proposed (drafted 2026-09-27 for the week 5 build; the CA confirms place of supply and rounding at the discovery workshop) · **Blueprint:** §1, §5, §6.3, §8.3 · **Architecture:** §5 · **Design:** docs/design/backend-weeks-3-5.md §6
+**Status:** Proposed (drafted 2026-09-27 for the week 5 build; built 2026-09-27 on `feat/tax-and-machines`; the golden set in `packages/domain/src/tax/golden.test.ts` awaits the CA, who confirms place of supply and rounding at the discovery workshop) · **Blueprint:** §1, §5, §6.3, §8.3 · **Architecture:** §5 · **Design:** docs/design/backend-weeks-3-5.md §6
 
 ## Context
 Every quote, sales order and proforma line carries GST. Rates change on notification dates, solar EPC and rooftop contracts are valued as a 70:30 goods/services composite supply, and the split between CGST+SGST and IGST depends on the entity's state against the place of supply. The blueprint requires a deterministic engine whose result is snapshotted per line with the rate version used, so a later rate change never alters an issued document.
