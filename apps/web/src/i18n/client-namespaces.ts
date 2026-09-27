@@ -12,4 +12,5 @@ export const CLIENT_NAMESPACES = [
   'theme',
   'common',
   'companies',
+  'priceMaster',
 ] as const;

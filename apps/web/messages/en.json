@@ -342,6 +342,54 @@
     "submit": "Save changes",
     "done": "{name} is updated."
   },
+  "priceMaster": {
+    "title": "Price Master",
+    "intro": "Selling prices on each price list. Quotes take their prices from here, and every change is logged.",
+    "list": "Price list",
+    "listOption": "{tier} · {company} · version {version}",
+    "shared": "All companies",
+    "openFrom": "Prices from {from}",
+    "openBetween": "Prices from {from} to {to}",
+    "open": "Open",
+    "ended": "Ended",
+    "endedNote": "This price list has ended, so its prices can no longer change.",
+    "caption": "Prices on this list",
+    "empty": "No active items to price yet. Items appear here once they are added to the catalogue.",
+    "noLists": "There are no price lists yet. An Executive starts the first one.",
+    "columns": {
+      "item": "Item",
+      "code": "Item code",
+      "category": "Category",
+      "unit": "Unit",
+      "price": "Price",
+      "updated": "Last changed",
+      "actions": "Actions"
+    },
+    "notPriced": "Not priced",
+    "setPrice": "Set price",
+    "setPriceFor": "Set the price of {item}",
+    "dialog": {
+      "title": "Set the price of {item}",
+      "intro": "The new price applies to quotes made from now on. Quotes already made keep their price.",
+      "current": "Current price: {price}",
+      "price": "Price in rupees",
+      "priceHelper": "The selling price for one {unit}, with paise if needed",
+      "priceWrong": "Enter the price in rupees, such as 24750 or 24750.50.",
+      "reason": "Reason for the change",
+      "reasonHelper": "Optional. Kept with the price history.",
+      "submit": "Save price",
+      "done": "Price saved for {item}."
+    },
+    "unit": {
+      "nos": "piece",
+      "set": "set",
+      "metre": "metre",
+      "kg": "kilogram",
+      "litre": "litre",
+      "kw": "kW",
+      "hour": "hour"
+    }
+  },
   "print": {
     "quote": {
       "title": "Quotation",
