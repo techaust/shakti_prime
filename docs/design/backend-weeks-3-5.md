@@ -1,6 +1,6 @@
 # Backend design: Phase 0 weeks 3 to 5
 
-Date: 2026-09-27. Status: the parts marked built (slice 1, ADR 0008, slice 2, slice 3, slice 4, slice 1b part 1) are built; slice 1 and ADR 0008 are reviewed; the remaining slices are the design for approval. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
+Date: 2026-09-27. Status: the parts marked built (slice 1, ADR 0008, slice 2, slice 3, slice 4, slice 1b part 1, the tax engine in §6, the state-machine runtime and machines in §7) are built; slice 1 and ADR 0008 are reviewed; the remaining slices are the design for approval. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so; where it changes a documented line, the line has been edited and is listed in §11.
 
 Decisions taken with the client on 2026-09-27:
 - **Mixed roles in "All entities" view:** the narrowest role wins. The request carries only the grants every one of the user's roles holds; the user switches to a single entity to use a wider role there.
@@ -199,7 +199,7 @@ Every command follows the existing pattern: strict input and DTO in contracts, `
 - SECURITY §3.2: `imports.write` row added.
 - API §1: idempotency keys stored for 7 days in `idempotency_keys` with Redis in front; a repeat with a different body answers `conflict`.
 - ARCHITECTURE §6: outbox column names aligned with ADR 0005; ADR 0007 linked in §13.
-- DATABASE §6.1: `users.status` values, `mobile_devices`, `totp_recovery_codes`, `idempotency_keys` rows; §6.2: `customer_sites.state_code`, `accounts.billing_state_code`; §6.4: `quotes.round_off`, `quote_lines.goods_taxable` and `services_taxable`; §6.10: `outbox_events` delivery columns and the publisher role; §5: the publisher's column-level update as the one exception to append-only.
+- DATABASE §6.1: `users.status` values, `mobile_devices`, `user_two_factor`, `idempotency_keys` rows; §6.2: `customer_sites.state_code`, `accounts.billing_state_code`; §6.4: `quotes.round_off`, `quote_lines.goods_taxable` and `services_taxable`; §6.10: `outbox_events` delivery columns and the publisher role; §5: the publisher's column-level update as the one exception to append-only.
 
 ## 12. Open questions for the discovery workshop
 

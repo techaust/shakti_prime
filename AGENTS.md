@@ -49,7 +49,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Formatting and linting: Prettier + ESLint with the repo config. CI fails on warnings.
 - Comments explain *why*, not *what*. No commented-out code.
 - Errors are typed: `DomainError` with a stable `code` from `packages/contracts/src/errors.ts`.
-- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). Lakh/crore grouping and DD-MM-YYYY dates in IST exist in `apps/web/src/print/format.ts` (`formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates), and integer-paise arithmetic in `packages/domain/src/money/paise.ts`; the screens use the print formatters until the shared `formatIst()` helpers and the `Money` value object arrive with the first screen that needs them (week 4 and Phase 1).
+- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). Lakh/crore grouping and DD-MM-YYYY dates in IST exist in `apps/web/src/print/format.ts` (`formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates), and integer-paise arithmetic in `packages/domain/src/money/paise.ts`; the shared `formatIst()` helpers for screens and the `Money` value object arrive with the first screen that needs them (week 4 and Phase 1).
 
 ## 4a. Product copy
 Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `DESIGN.md` §11:
