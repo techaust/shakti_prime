@@ -42,6 +42,8 @@
     "account_missing": "We couldn't find this customer. Search again or create a new customer.",
     "self_role_change": "You can't change your own roles. Ask another Executive.",
     "user_roles_outside_scope": "This person also works in a company you are not viewing. Switch to all companies and try again.",
+    "last_executive": "This would leave no one who can manage the whole group. Make another person an Executive first.",
+    "price_list_group_scope": "This price list is shared by all companies. Switch to all companies to change it.",
     "no_access": "Your account has no access at the moment. Ask your manager.",
     "backup_code_incorrect": "That backup code didn't work. Check it and try again, or use a code from your app.",
     "code_attempts_exhausted": "Too many wrong codes. Sign in again and try with a fresh code.",

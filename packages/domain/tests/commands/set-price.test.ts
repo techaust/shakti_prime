@@ -66,7 +66,7 @@ describe('pricing.price.set', () => {
   });
 
   it('refuses a closed list, an inactive item and an ambiguous target', async () => {
-    const exec = await createTestPrincipal('executive', [1]);
+    const exec = await createTestPrincipal('executive');
     await expect(
       asPrincipal(exec, (context) =>
         runCommand(setPrice, { context }, { ...input, priceListId: ids.archivedList }),
@@ -93,7 +93,7 @@ describe('pricing.price.set', () => {
   });
 
   it('sets a price, logs every change with the previous value, audits and emits', async () => {
-    const exec = await createTestPrincipal('executive', [1]);
+    const exec = await createTestPrincipal('executive');
     const onAudit = vi.fn();
     const onEmit = vi.fn();
     const first = await asPrincipal(exec, (context) =>
@@ -154,6 +154,45 @@ describe('pricing.price.set', () => {
       { old_price: null, new_price: '1500.00', reason: null, changed_by: exec.id },
       { old_price: '1500.00', new_price: '1550.00', reason: 'season change', changed_by: exec.id },
     ]);
+  });
+
+  it('changes a shared list only for a request acting for every company (AUDIT H2)', async () => {
+    const exec1 = await createTestPrincipal('executive', [1]);
+    const exec12 = await createTestPrincipal('executive', [1, 2]);
+    for (const exec of [exec1, exec12]) {
+      await expect(
+        asPrincipal(exec, (context) => runCommand(setPrice, { context }, input)),
+      ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'price_list_group_scope' } });
+    }
+    // the database refuses the same write made directly, so the rule does not rest on the command
+    const direct = await asPrincipal(exec1, async ({ tx }) => {
+      const updated = (await tx.execute(sql`
+        update price_list_items set price = 1.00
+        where price_list_id = ${ids.sharedList} returning id
+      `)) as unknown as { id: string }[];
+      return updated.length;
+    });
+    expect(direct).toBe(0);
+    await expect(
+      asPrincipal(exec1, ({ tx }) =>
+        tx.execute(sql`
+          insert into price_list_items (id, price_list_id, item_id, price)
+          values (${newId()}, ${ids.sharedList}, ${ids.inactiveItem}, 1.00)
+        `),
+      ),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('row-level security'),
+    );
+
+    // a list of one company stays editable by an Executive acting for that company
+    const exec2 = await createTestPrincipal('executive', [2]);
+    const own = await asPrincipal(exec2, (context) =>
+      runCommand(setPrice, { context }, { ...input, priceListId: ids.entity2List }),
+    );
+    expect(own.entityId).toBe(2);
   });
 
   it('is visible to price readers and hidden from roles without pricing.read', async () => {

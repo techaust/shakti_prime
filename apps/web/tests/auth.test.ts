@@ -446,4 +446,40 @@ describe('session limits', () => {
       auth.api.signOut({ headers: clientHeaders({ cookie: second.cookie }) }),
     ).resolves.toBeDefined();
   });
+
+  it('a browser still holding an ended session can sign in and set a password again', async () => {
+    const ip = '10.0.7.1';
+    const user = await inviteAndSetPassword([{ entityId: 3, roleKey: 'project_manager' }]);
+    const stale = await signIn(user.email, GOOD_PASSWORD, { ip });
+    const resolved = await resolveSessionPrincipal(
+      clientHeaders({ cookie: stale.cookie }),
+      undefined,
+      deps,
+    );
+    await asMigrator(
+      (m) =>
+        m`update sessions set revoked_at = now(), revoked_reason = 'admin' where id = ${resolved?.session.sessionId ?? ''}`,
+    );
+
+    const again = await signIn(user.email, GOOD_PASSWORD, { ip, cookie: stale.cookie });
+    const live = await resolveSessionPrincipal(
+      clientHeaders({ cookie: again.cookie }),
+      undefined,
+      deps,
+    );
+    expect(live?.principal).toBeDefined();
+
+    await auth.api.requestPasswordReset({
+      body: { email: user.email, redirectTo: '/set-password' },
+      headers: clientHeaders({ ip, cookie: stale.cookie }),
+    });
+    const token = /reset-password\/([^?\s]+)/.exec(mailer.sent.at(-1)?.text ?? '')?.[1];
+    expect(token).toBeDefined();
+    await expect(
+      auth.api.resetPassword({
+        body: { newPassword: `${GOOD_PASSWORD} anew`, token: token ?? '' },
+        headers: clientHeaders({ ip, cookie: stale.cookie }),
+      }),
+    ).resolves.toMatchObject({ status: true });
+  });
 });

@@ -30,6 +30,19 @@ const SIGN_IN_PATH = '/sign-in/email';
 const RESET_REQUEST_PATH = '/request-password-reset';
 const SIGN_OUT_PATH = '/sign-out';
 
+/**
+ * Paths that neither read nor need the current session. A browser still holding the cookie of a
+ * session the app has ended must be able to sign in or set a password again, rather than be
+ * refused until the cookie expires (AUDIT H1). Route templates, as Better Auth reports ctx.path.
+ */
+const SESSION_FREE_PATHS: ReadonlySet<string> = new Set([
+  SIGN_OUT_PATH,
+  SIGN_IN_PATH,
+  RESET_REQUEST_PATH,
+  '/reset-password',
+  '/reset-password/:token',
+]);
+
 /** Our own error codes on top of Better Auth's; the actions map them to catalogue keys. */
 export const AUTH_ERROR_CODES = {
   BOT_CHECK_FAILED: 'BOT_CHECK_FAILED',
@@ -120,7 +133,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
   async function refuseRevokedSession(
     ctx: Parameters<Parameters<typeof createAuthMiddleware>[0]>[0],
   ) {
-    if (ctx.headers === undefined || ctx.path === SIGN_OUT_PATH) return;
+    if (ctx.headers === undefined || SESSION_FREE_PATHS.has(ctx.path)) return;
     const session = await getSessionFromCtx(ctx).catch(() => null);
     if (!session) return;
     const s = authSchema.sessions;

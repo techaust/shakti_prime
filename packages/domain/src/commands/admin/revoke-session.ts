@@ -2,6 +2,7 @@ import { DomainError, RevokedSessionsDto, RevokeSessionInput } from '@shakti/con
 import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { assertUserInScope } from './shared';
 
 /** `admin.session.revoke`: forces one session out. The row stays for the sessions screen. */
 export const revokeSession = defineCommand({
@@ -12,6 +13,17 @@ export const revokeSession = defineCommand({
   output: RevokedSessionsDto,
   async handler(ctx, input) {
     const s = schema.sessions;
+    const [live] = await ctx.tx
+      .select({ userId: s.userId })
+      .from(s)
+      .where(and(eq(s.id, input.sessionId), isNull(s.revokedAt)))
+      .limit(1);
+    if (!live) {
+      throw new DomainError('not_found', 'no live session with that id', {
+        reason: 'session_missing',
+      });
+    }
+    await assertUserInScope(ctx, live.userId);
     const [row] = await ctx.tx
       .update(s)
       .set({ revokedAt: ctx.now, revokedReason: input.reason })
