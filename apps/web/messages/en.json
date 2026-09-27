@@ -171,12 +171,10 @@
     },
     "home": {
       "title": "Welcome",
-      "signedInAs": "Signed in as {name}",
       "role": "Role: {role}",
       "companies": "Companies you can see",
       "allCompanies": "All companies",
-      "signOut": "Sign out",
-      "switch": "Switch"
+      "signOut": "Sign out"
     },
     "changePassword": {
       "title": "Change your password",
@@ -211,6 +209,7 @@
     "mainMenu": "Main menu",
     "adminHeading": "Admin",
     "openMenu": "Open menu",
+    "closeMenu": "Close menu",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
     "search": "Go to a page",
@@ -220,7 +219,7 @@
     "paletteInput": "Type the name of a page",
     "paletteEmpty": "No page has that name. Check the spelling and try again.",
     "paletteGoto": "Go to",
-    "companyMenu": "Choose a company",
+    "companyMenu": "Showing {company}. Choose a company",
     "profileMenu": "Your account",
     "profile": "Your profile",
     "changePassword": "Change password",

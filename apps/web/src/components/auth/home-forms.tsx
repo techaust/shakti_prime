@@ -3,59 +3,8 @@
 import { PASSWORD_MIN_LENGTH } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
-import { changePassword, signOut, switchEntity, type SetPasswordState } from '../../actions/auth';
-import {
-  blockWhilePending,
-  Button,
-  Field,
-  FormError,
-  SubmitButton,
-  TextInput,
-  useFormFeedback,
-} from '../form';
-import { useForgetThemeOnThisDevice } from '../theme';
-
-export function SignOutButton() {
-  const t = useTranslations('auth.home');
-  const forgetTheme = useForgetThemeOnThisDevice();
-  return (
-    <form action={signOut} onSubmit={forgetTheme}>
-      {/* Sign out and Switch show that they are working, like every other button (AUDIT L38). */}
-      <SubmitButton variant="secondary">{t('signOut')}</SubmitButton>
-    </form>
-  );
-}
-
-export function EntitySwitcher({
-  entities,
-  active,
-}: {
-  entities: { entityId: number; label: string }[];
-  active: number | undefined;
-}) {
-  const t = useTranslations('auth.home');
-  return (
-    <form action={switchEntity} className="flex flex-col gap-2">
-      <label htmlFor="entityId" className="text-text-muted text-sm">
-        {t('companies')}
-      </label>
-      <select
-        id="entityId"
-        name="entityId"
-        defaultValue={active === undefined ? '' : String(active)}
-        className="bg-surface border-border-strong h-9 rounded-[var(--radius-md)] border px-3 max-md:h-11"
-      >
-        <option value="">{t('allCompanies')}</option>
-        {entities.map((e) => (
-          <option key={e.entityId} value={String(e.entityId)}>
-            {e.label}
-          </option>
-        ))}
-      </select>
-      <SubmitButton variant="secondary">{t('switch')}</SubmitButton>
-    </form>
-  );
-}
+import { changePassword, type SetPasswordState } from '../../actions/auth';
+import { blockWhilePending, Button, Field, FormError, TextInput, useFormFeedback } from '../form';
 
 export function ChangePasswordForm() {
   const t = useTranslations('auth.changePassword');

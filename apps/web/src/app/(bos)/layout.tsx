@@ -1,23 +1,47 @@
+import { ThemeSchema } from '@shakti/contracts';
+import { getTranslations } from 'next-intl/server';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { ThemeSchema } from '@shakti/contracts';
 import { currentSession } from '../../auth/current-principal';
+import { AppShell } from '../../components/shell/app-shell';
+import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
 import { ThemeSync } from '../../components/theme';
+import type { RoleNameKey } from '../../i18n/types';
+import { visibleNav } from '../../nav';
 
 /**
- * The BOS route group: nobody reaches a screen without a usable session. Pages check again,
- * because a layout does not re-run on every client navigation. The app shell (sidebar, top bar,
- * entity switcher) is built in week 4.
+ * The BOS route group: nobody reaches a screen without a usable session. The proxy has already
+ * sent a request without a session cookie to sign-in; this is the full check. Pages check again,
+ * because a layout does not re-run on every client navigation. The shell shows only the screens
+ * the principal's own grants open.
  */
 export default async function BosLayout({ children }: { children: ReactNode }) {
   const session = await currentSession();
   if (!session) redirect('/sign-in');
   if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
   if (!session.principal) redirect('/two-factor');
+  const principal = session.principal;
+  const roles = await getTranslations('roles');
+  const theme = ThemeSchema.catch('system').parse(session.access.theme);
+  const collapsed = isSidebarCollapsed((await cookies()).get(SIDEBAR_COOKIE)?.value);
   return (
     <>
-      <ThemeSync saved={ThemeSchema.catch('system').parse(session.access.theme)} />
-      {children}
+      <ThemeSync saved={theme} />
+      <AppShell
+        // A signed-in person always holds a staff role; agents never sign in here.
+        user={{ name: session.access.name, role: roles(principal.roleKey as RoleNameKey) }}
+        companies={session.access.entities.map((e) => ({
+          entityId: e.entityId,
+          label: e.entityName,
+        }))}
+        activeCompany={principal.entityIds.length === 1 ? principal.entityIds[0] : undefined}
+        navIds={visibleNav(principal.permissions).map((item) => item.id)}
+        theme={theme}
+        sidebarCollapsed={collapsed}
+      >
+        {children}
+      </AppShell>
     </>
   );
 }

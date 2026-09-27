@@ -11,6 +11,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
+import type { Route } from 'next';
 import type en from '../messages/en.json';
 
 /** A screen's name in the menu, under `nav.*`. */
@@ -21,7 +22,8 @@ export type NavGroup = 'work' | 'admin' | 'more';
 
 export interface NavItem {
   id: string;
-  href: string;
+  /** A typed route: `next build` fails when a listed screen has no page. */
+  href: Route;
   label: NavLabelKey;
   icon: LucideIcon;
   group: NavGroup;
