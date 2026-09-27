@@ -41,6 +41,14 @@ beforeAll(async () => {
   );
 });
 
+// Close this run's lists, so the next run may open its own for the same tier (AUDIT M19).
+afterAll(async () => {
+  await asMigrator(
+    (m) =>
+      m`update price_lists set archived_at = now() where id in (${ids.sharedList}, ${ids.entity2List}) and archived_at is null`,
+  );
+});
+
 const input = { priceListId: ids.sharedList, itemId: ids.item, price: '1500.00' };
 
 describe('pricing.price.set', () => {
@@ -154,6 +162,36 @@ describe('pricing.price.set', () => {
       { old_price: null, new_price: '1500.00', reason: null, changed_by: exec.id },
       { old_price: '1500.00', new_price: '1550.00', reason: 'season change', changed_by: exec.id },
     ]);
+  });
+
+  it('two changes of one price at once each log the price they replaced (AUDIT M18)', async () => {
+    const exec = await createTestPrincipal('executive');
+    await Promise.all(
+      ['1601.00', '1602.00'].map((price) =>
+        asPrincipal(exec, (context) => runCommand(setPrice, { context }, { ...input, price })),
+      ),
+    );
+    const log = await asMigrator(
+      (m) => m<{ old_price: string; new_price: string }[]>`
+        select l.old_price, l.new_price from price_change_log l
+          join price_list_items i on i.id = l.price_list_item_id
+         where i.price_list_id = ${ids.sharedList} and i.item_id = ${ids.item}
+           and l.new_price in (1601.00, 1602.00)`,
+    );
+    expect(log).toHaveLength(2);
+    // one change replaced the other: the second logged the first's price, not the same old one
+    const [a, b] = log;
+    expect(a?.old_price === b?.new_price || b?.old_price === a?.new_price).toBe(true);
+  });
+
+  it('refuses a second live list for the same tier and company on the same days (AUDIT M19)', async () => {
+    await expect(
+      asMigrator(
+        (m) =>
+          m`insert into price_lists (id, tier_id, entity_id, version, effective_from)
+            values (${newId()}, ${tierId('commercial')}, null, ${version()}, '2026-06-01')`,
+      ),
+    ).rejects.toMatchObject({ constraint_name: 'price_lists_no_overlap' });
   });
 
   it('changes a shared list only for a request acting for every company (AUDIT H2)', async () => {

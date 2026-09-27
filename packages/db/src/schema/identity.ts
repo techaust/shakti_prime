@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { actors, timestamps } from './columns';
@@ -131,7 +132,7 @@ export const userTwoFactor = pgTable(
     failedVerificationCount: integer('failed_verification_count').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
   },
-  (t) => [index('user_two_factor_user_idx').on(t.userId)],
+  (t) => [uniqueIndex('user_two_factor_user_unique').on(t.userId)],
 );
 
 /** The user's role in one entity. The rows here are the entities the user may see. */

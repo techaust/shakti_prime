@@ -30,7 +30,7 @@ Supabase Postgres 17 (Mumbai), extensions `pgvector`, `pg_trgm`, `btree_gist`, `
 | `app_user` | All application connections | `SELECT/INSERT/UPDATE` per table; `UPDATE/DELETE` revoked on append-only tables; no `BYPASSRLS`; not the table owner; role settings `statement_timeout 30s`, `lock_timeout 10s`, `idle_in_transaction_session_timeout 30s` |
 | `auth_service` | The auth module only (Better Auth's adapter and session bookkeeping in `apps/web/src/auth`) | Full access to `sessions`, `auth_accounts`, `auth_verifications`, `user_two_factor`; `SELECT/UPDATE` on `users`; nothing on any business table; no `BYPASSRLS`; the same three timeouts as `app_user` |
 | `readonly_reporter` | Materialised-view refresh and exports | `SELECT` only, RLS applies; no access to the auth module's tables |
-| Service role | Never in request paths | Reserved for Supabase dashboard operations |
+| `anon`, `authenticated`, `service_role` (Supabase API roles) | Never | No privilege on any application table, sequence or function, now or by default; the Data API is switched off on every hosted project; no role may create temporary objects |
 
 Agent principals and voice sessions are application-level principals, not database roles. They connect as `app_user` with their own request context.
 
@@ -167,7 +167,7 @@ Key columns only; every table also has the standard columns from §2.
 | `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` |
 | `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` |
 | `lead_sources` | `code`, `channel`, `cost_model` |
-| `consents` | `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`; `evidence_file_id` arrives with documents in Phase 1; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series) |
+| `consents` | `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`; only `withdrawn_at` may change after the insert, and a withdrawal stands; `evidence_file_id` arrives with documents in Phase 1; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series) |
 | `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` |
 | `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists |
 | `referral_partners`, `commission_accruals` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
@@ -180,9 +180,9 @@ Key columns only; every table also has the standard columns from §2.
 | `pump_curves` | `item_id`, `head_m`, `flow_lph`, one point per row; head bounds are derived by the sizing calculator |
 | `kits`, `kit_components` | `kit_id`, `item_id`, `qty` |
 | `price_tiers` | `code` (`retail`, `dealer`, `commercial`) |
-| `price_lists` | `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to`, `approved_by` |
+| `price_lists` | `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by`; an exclusion constraint allows one live list per tier and company on any day |
 | `price_list_items` | `price_list_id`, `item_id` or `kit_id`, `price` |
-| `price_change_log` (append-only) | `price_list_item_id`, `old_price`, `new_price`, `changed_by` |
+| `price_change_log` (append-only) | `price_list_item_id`, `old_price`, `new_price`, `reason`, `changed_by`; written only by a trigger on `price_list_items`, with the reason from the transaction setting `app.price_reason` |
 | `tax_rates` | `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item |
 | `composite_supply_rules` | `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment |
 

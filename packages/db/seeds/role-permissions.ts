@@ -287,7 +287,6 @@ export const AGENT_MATRIX: Record<AgentRoleKey, readonly PermissionGrant[]> = {
     { key: 'crm.account.read', scope: 'entity' },
     { key: 'projects.read', scope: 'entity' },
     { key: 'inventory.stock.read', scope: 'entity' },
-    { key: 'agents.inbox.act', scope: 'entity' },
   ],
 };
 

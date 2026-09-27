@@ -43,7 +43,7 @@ export async function catalogueFixture(): Promise<CatalogueFixture> {
     await m.begin(async (tx) => {
       // Remove a previous run in dependency order. The append-only trigger is paused for the log.
       await tx`alter table price_change_log disable trigger price_change_log_append_only`;
-      await tx`delete from price_change_log where id::text like ${like}`;
+      await tx`delete from price_change_log where id::text like ${like} or price_list_item_id::text like ${like}`;
       await tx`alter table price_change_log enable trigger price_change_log_append_only`;
       await tx`delete from price_list_items where id::text like ${like}`;
       await tx`delete from price_lists where id::text like ${like}`;
@@ -75,12 +75,15 @@ export async function catalogueFixture(): Promise<CatalogueFixture> {
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from) values
         (${fx.priceLists.sharedRetail}, ${tierId('retail')}, null, 1, '2026-04-01'),
         (${fx.priceLists.dealerEntity2}, ${tierId('dealer')}, 2, 1, '2026-04-01')`;
+      // The fixed log row below stands in for the history the database writes on a price change.
+      await tx`alter table price_list_items disable trigger price_list_items_log_change`;
       await tx`insert into price_list_items (id, price_list_id, item_id, kit_id, price) values
         (${fx.priceListItems.sharedPump}, ${fx.priceLists.sharedRetail}, ${fx.items.pump}, null, 1500.00),
         (${fx.priceListItems.sharedKit}, ${fx.priceLists.sharedRetail}, null, ${fx.kit}, 4000.00),
         (${fx.priceListItems.dealerPump}, ${fx.priceLists.dealerEntity2}, ${fx.items.pump}, null, 1300.00)`;
       await tx`insert into price_change_log (id, price_list_item_id, old_price, new_price, changed_by) values
         (${fx.priceChangeLog}, ${fx.priceListItems.sharedPump}, null, 1500.00, ${fx.execPrincipalId})`;
+      await tx`alter table price_list_items enable trigger price_list_items_log_change`;
       await tx`insert into tax_rates (id, hsn, rate_pct, effective_from, source_ref) values
         (${fx.taxRate}, '8413', 5.00, '2025-09-22', 'fixture')`;
       await tx`insert into composite_supply_rules (id, segment, goods_share_pct, services_share_pct, goods_rate_pct, services_rate_pct, effective_from) values

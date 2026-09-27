@@ -95,6 +95,13 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'admin.entities.write',
   'admin.integrations.write',
   'admin.flags.write',
+  // Human approval and control of the agents themselves (AUDIT M13): an agent never approves its
+  // own "Needs approval" actions, changes autonomy, stops agents, or releases credit.
+  'agents.inbox.act',
+  'agents.autonomy.write',
+  'agents.killswitch',
+  'knowledge.playbook.approve',
+  'sales.credit.release',
 ] as const satisfies readonly PermissionKey[];
 
 export function permissionModule(key: PermissionKey): string {
