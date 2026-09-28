@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { Avatar, initials } from './avatar';
 import { BoardCard, BoardColumn } from './board';
 import { Button } from './button';
 import { isPaletteShortcut } from './command-palette';
@@ -178,5 +179,49 @@ describe('BoardColumn and BoardCard', () => {
     );
     expect(card).toContain('draggable="false"');
     expect(card).not.toContain('role="img"');
+  });
+
+  it('show the owner’s initials in a circle named with their full name', () => {
+    const card = renderToStaticMarkup(
+      <BoardCard
+        title="Customer"
+        subtitle="Village"
+        age="Opened today"
+        owner="With Priya Deshmukh"
+        ownerName="Priya Deshmukh"
+      />,
+    );
+    expect(card).toContain('role="img" aria-label="Priya Deshmukh"');
+    expect(card).toContain('<span aria-hidden="true">PD</span>');
+    expect(card).toContain('rounded-full');
+  });
+});
+
+describe('initials', () => {
+  it('takes the first letter of a one-word name', () => {
+    expect(initials('Priya')).toBe('P');
+    expect(initials('suresh')).toBe('S');
+  });
+
+  it('takes the first letters of the first and last words', () => {
+    expect(initials('Priya Deshmukh')).toBe('PD');
+    expect(initials('Ramesh Kumar Patil')).toBe('RP');
+  });
+
+  it('ignores extra spaces', () => {
+    expect(initials('  Asha   Rani  ')).toBe('AR');
+    expect(initials('\tAsha\n')).toBe('A');
+  });
+
+  it('treats dots as word breaks, as in initialled names', () => {
+    expect(initials('R. K. Sharma')).toBe('RS');
+    expect(initials('R.K.Sharma')).toBe('RS');
+    expect(initials('Sharma R.')).toBe('SR');
+  });
+
+  it('draws nothing for a name with no letters', () => {
+    expect(initials('')).toBe('');
+    expect(initials(' . ')).toBe('');
+    expect(renderToStaticMarkup(<Avatar name="  " />)).toBe('');
   });
 });

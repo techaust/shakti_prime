@@ -419,6 +419,7 @@ function Card({
       }
       age={t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
       owner={lead.ownerName === null ? t('noOwner') : t('owner', { name: lead.ownerName })}
+      ownerName={lead.ownerName ?? undefined}
       sla={lead.sla === null ? undefined : { tone: lead.sla, label: t(`sla.${lead.sla}`) }}
       dragId={draggable ? lead.id : undefined}
       onDragStart={onDragStart}

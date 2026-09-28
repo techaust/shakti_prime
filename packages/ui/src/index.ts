@@ -66,6 +66,7 @@ export {
   type GridSort,
   type SortDirection,
 } from './data-grid-state';
+export { Avatar, initials } from './avatar';
 export {
   BoardCard,
   BoardColumn,
