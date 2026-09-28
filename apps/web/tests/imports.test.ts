@@ -112,6 +112,16 @@ function keyOf(csv: string): string {
   return `imports/1/${createHash('sha256').update(csv).digest('hex')}.csv`;
 }
 
+/** How many file records the first company holds for this content. */
+async function filesRecorded(csv: string): Promise<number> {
+  const sha256 = createHash('sha256').update(csv).digest('hex');
+  const [row] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from files
+     where entity_id = 1 and sha256 = ${sha256}`,
+  );
+  return row?.n ?? -1;
+}
+
 function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T {
   if (!result.ok) throw new Error(`the action failed with ${result.error}`);
   return result.data;
@@ -165,7 +175,7 @@ describe('the upload action', () => {
     expect(files.objects.size).toBe(0);
   });
 
-  it('records the job and its rows, then stores the file under its content', async () => {
+  it('stores the file under its content, then records the job and its rows', async () => {
     const csv = `Name,Mobile,Village\nGopal,${phone()},Churu\nMeera,${phone()},\n`;
     const job = ok(await uploadImportFile(uploadForm(csv), newId()));
     expect(job).toMatchObject({
@@ -178,12 +188,40 @@ describe('the upload action', () => {
     expect(files.objects.get(keyOf(csv))?.contentType).toBe('text/csv');
   });
 
-  it('stores nothing when the command refuses the file', async () => {
+  it('keeps the stored copy when the command refuses the file, and the next upload reuses it', async () => {
     const csv = `Name,Mobile\nKishan,${phone()}\n`;
-    // Items cannot be imported yet: the command refuses after the file was read.
+    // Items cannot be imported yet: the command refuses after the file was read and stored.
     const result = await uploadImportFile(uploadForm(csv, 'items.csv', 'items'));
     expect(result).toMatchObject({ ok: false, error: 'validation_failed' });
-    expect(files.objects.size).toBe(0);
+    expect(await filesRecorded(csv)).toBe(0);
+    expect([...files.objects.keys()]).toEqual([keyOf(csv)]);
+
+    // The same file as leads: the bytes already there are the bytes of this file.
+    ok(await uploadImportFile(uploadForm(csv)));
+    expect(await filesRecorded(csv)).toBe(1);
+    expect([...files.objects.keys()]).toEqual([keyOf(csv)]);
+  });
+
+  it('records nothing when the file cannot be saved, so the same file can be tried again', async () => {
+    const csv = `Name,Mobile\nSundar,${phone()}\n`;
+    request.store = {
+      bucket: 'memory',
+      put: () => Promise.reject(new Error('the disk is full')),
+      get: () => Promise.resolve(undefined),
+    };
+    const failed = await uploadImportFile(uploadForm(csv), newId());
+    expect(failed).toMatchObject({ ok: false, error: 'import_store_failed' });
+    expect(failed.ok ? undefined : failed.reference).toEqual(expect.any(String));
+    expect(await filesRecorded(csv)).toBe(0);
+
+    // Once the store keeps files again, the same file is added rather than refused as a repeat.
+    request.store = files;
+    expect(ok(await uploadImportFile(uploadForm(csv), newId()))).toMatchObject({
+      state: 'uploaded',
+      totalRows: 1,
+    });
+    expect(await filesRecorded(csv)).toBe(1);
+    expect(files.objects.get(keyOf(csv))?.contentType).toBe('text/csv');
   });
 
   it('refuses the same file a second time and keeps the first copy', async () => {

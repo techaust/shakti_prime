@@ -52,9 +52,12 @@ const CONTENT_TYPES: Record<ImportFormat, string> = {
 
 /**
  * The upload form (`entityId`, `kind`, `file`): the caller's right to import is checked first,
- * then the file is read and checked against the limits, `imports.job.create` records the file
- * and its rows, and only then are the bytes stored, under a key named by their SHA-256, so a
- * refused or failed call leaves no file behind. Until the S3 store arrives (Phase 1) a hosted
+ * then the file is read and checked against the limits, the bytes are stored under a key named by
+ * their SHA-256, and only then does `imports.job.create` record the file and its rows. A job
+ * therefore never names bytes the store does not hold: a failed save refuses the upload with
+ * nothing recorded, and the person can try again. A command refused after the save leaves the
+ * bytes in the store unreferenced, which is harmless: the key names the content, so the next upload
+ * of the same file in that company reuses them. Until the S3 store arrives (Phase 1) a hosted
  * deployment has no store and refuses uploads.
  */
 export async function uploadImportFile(
@@ -93,8 +96,18 @@ export async function uploadImportFile(
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     const key = `imports/${String(input.entityId)}/${sha256}.${parsed.format}`;
     const contentType = CONTENT_TYPES[parsed.format];
+    try {
+      await store.put(key, bytes, contentType);
+    } catch (error) {
+      throw new DomainError(
+        'integration_unavailable',
+        'the file store did not keep the file',
+        { reason: 'import_store_failed', entityId: input.entityId },
+        { cause: error },
+      );
+    }
     const meta = await requestMeta();
-    const job = await executeCommand(
+    return executeCommand(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       createImportJob,
@@ -115,17 +128,6 @@ export async function uploadImportFile(
       },
       commandOptions(meta, idempotencyKey),
     );
-    // The rows are in the job already; the bytes are the record of what was uploaded.
-    try {
-      await store.put(key, bytes, contentType);
-    } catch (error) {
-      logger.log('error', 'imports.file_store_failed', {
-        jobId: job.id,
-        fileId: job.file.id,
-        error,
-      });
-    }
-    return job;
   });
 }
 
