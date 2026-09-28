@@ -1,4 +1,4 @@
-import { DomainError, ResetTwoFactorInput, UserDto } from '@shakti/contracts';
+import { DomainError, ResetTwoFactorInput, TwoFactorResetDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
@@ -10,14 +10,15 @@ import { assertUserInScope, lockExecutiveChanges, revokeUserSessions } from './s
  * together with their backup codes (review 3). Every session of the user is revoked, and a user
  * whose role requires an authenticator enrols a new one at the next sign-in. The write goes through
  * `app.reset_two_factor()`, because the request role cannot touch the two-factor store itself.
- * A user with no authenticator is answered as is, so a repeated click is harmless.
+ * A user with no authenticator is answered as is, so a repeated click is harmless; the answer says
+ * whether this call removed an app, so the action emails the user only then.
  */
 export const resetTwoFactor = defineCommand({
   name: 'admin.user.two_factor.reset',
   permission: 'admin.users.write',
   minScope: 'all',
   input: ResetTwoFactorInput,
-  output: UserDto,
+  output: TwoFactorResetDto,
   auditFields: ['twoFactorEnabled', 'revokedSessions'],
   async handler(ctx, input) {
     if (input.userId === ctx.principal.id) {
@@ -37,7 +38,7 @@ export const resetTwoFactor = defineCommand({
     await assertUserInScope(ctx, input.userId);
     if (!user.twoFactorEnabled) {
       ctx.audit({ aggregateType: 'user', aggregateId: input.userId, entityId: null });
-      return loadUserDto(ctx.tx, input.userId);
+      return { user: await loadUserDto(ctx.tx, input.userId), authenticatorRemoved: false };
     }
     await ctx.tx.execute(sql`select app.reset_two_factor(${input.userId}::uuid)`);
     const revoked = await revokeUserSessions(ctx, input.userId, 'totp_reset');
@@ -58,6 +59,6 @@ export const resetTwoFactor = defineCommand({
         payload: { revokedSessions: revoked.length },
       });
     }
-    return dto;
+    return { user: dto, authenticatorRemoved: true };
   },
 });

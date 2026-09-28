@@ -340,6 +340,40 @@ describe('server actions (AUDIT M41)', () => {
     }
   });
 
+  it('tell the user once when two resets race, and once for a form sent twice', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const enrolled = async () => {
+      const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+        twoFactorEnabled: true,
+      });
+      await asMigrator(
+        (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
+                 values (${crypto.randomUUID()}, ${target.id}, 'sealed', 'sealed')`,
+      );
+      return target;
+    };
+    const send = vi.spyOn(defaultAuthDeps().mailer, 'send');
+    try {
+      // Two tabs, two keys: the command decides in its own transaction which one removed the app.
+      const raced = await enrolled();
+      const both = await Promise.all([
+        resetTwoFactor({ userId: raced.id }, crypto.randomUUID()),
+        resetTwoFactor({ userId: raced.id }, crypto.randomUUID()),
+      ]);
+      for (const result of both) expect(ok(result).twoFactorEnabled).toBe(false);
+      expect(send.mock.calls.filter(([mail]) => mail.to === raced.email)).toHaveLength(1);
+
+      // One form sent twice with one key replays the first answer, and sends no second email.
+      const repeated = await enrolled();
+      const key = crypto.randomUUID();
+      ok(await resetTwoFactor({ userId: repeated.id }, key));
+      ok(await resetTwoFactor({ userId: repeated.id }, key));
+      expect(send.mock.calls.filter(([mail]) => mail.to === repeated.email)).toHaveLength(1);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
   it('keep the audit trail and its people from a role without audit.read', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const now = Date.now();

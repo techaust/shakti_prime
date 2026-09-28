@@ -30,7 +30,6 @@ import {
   listAuditPeople as listAuditPeopleQuery,
   listUserSessions as listUserSessionsQuery,
   listUsers as listUsersQuery,
-  loadUserDto,
   queryAudit,
   reactivateUser as reactivateUserCommand,
   replayDeadLetter as replayDeadLetterCommand,
@@ -184,10 +183,38 @@ export async function revokeSession(
   });
 }
 
+/** How long a form's key can replay its answer (`idempotency_keys` keeps a key seven days). */
+const NOTICE_KEY_SECONDS = 7 * 24 * 60 * 60;
+
+/**
+ * True unless this caller's form key has already sent its notice: a replay answers the first
+ * call's result, which still says an app was removed. Without a key there is no replay. When the
+ * store cannot answer, the notice goes out: a second email is better than none.
+ */
+async function firstNotice(
+  principalId: string,
+  key: string | undefined,
+  requestId: string,
+): Promise<boolean> {
+  if (key === undefined) return true;
+  try {
+    const sends = await defaultAuthDeps().keyValue.incr(
+      `two-factor-reset-notice:${principalId}:${key}`,
+      NOTICE_KEY_SECONDS,
+    );
+    return sends === 1;
+  } catch (error) {
+    logger.log('warn', 'mail.two_factor_reset_repeat_unknown', { requestId, error });
+    return true;
+  }
+}
+
 /**
  * Removes a lost authenticator app (Executive only). The user is told by email when an app was
- * actually removed; a failed email is logged and leaves the reset in place, because the user is
- * already signed out and the Executive has spoken to them before resetting (docs/SECURITY.md §2).
+ * actually removed, which the command decides in its own transaction; a failed email is logged
+ * and leaves the reset in place, because the user is already signed out and the Executive has
+ * spoken to them before resetting (docs/SECURITY.md §2). A form sent twice with one key replays
+ * the first answer, so the email goes out once per key.
  */
 export async function resetTwoFactor(
   rawInput: unknown,
@@ -197,18 +224,19 @@ export async function resetTwoFactor(
     const principal = await signedIn();
     const input = parseInput(ResetTwoFactorInput, rawInput);
     const meta = await requestMeta();
-    const before = await executeQuery(principal, { requestId: meta.requestId }, ({ tx }) =>
-      loadUserDto(tx, input.userId),
-    );
-    const user = await executeCommand(
+    const options = commandOptions(meta, idempotencyKey);
+    const { user, authenticatorRemoved } = await executeCommand(
       principal,
       { requestId: meta.requestId },
       resetTwoFactorCommand,
       input,
-      commandOptions(meta, idempotencyKey),
+      options,
     );
     await forgetPrincipal(user.id);
-    if (before.twoFactorEnabled && !user.twoFactorEnabled) {
+    if (
+      authenticatorRemoved &&
+      (await firstNotice(principal.id, options.idempotencyKey, meta.requestId))
+    ) {
       try {
         await defaultAuthDeps().mailer.send(
           twoFactorResetMail({ email: user.email, name: user.displayName }),

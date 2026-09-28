@@ -97,7 +97,9 @@ describe('admin.user.two_factor.reset (review 3)', () => {
     const dto = await asPrincipal(exec, (context) =>
       runCommand(resetTwoFactor, { context, audit, outbox }, { userId: user.id }),
     );
-    expect(dto.twoFactorEnabled).toBe(false);
+    expect(dto.user.twoFactorEnabled).toBe(false);
+    // Decided in the command's own transaction, so the action emails the user only now.
+    expect(dto.authenticatorRemoved).toBe(true);
     expect(await twoFactorState(user.id)).toEqual({ enabled: false, apps: 0 });
     expect(await sessionReasons(user.id)).toEqual(['totp_reset']);
 
@@ -125,6 +127,29 @@ describe('admin.user.two_factor.reset (review 3)', () => {
         payload: { revokedSessions: 1, v: 1 },
       })),
     );
+
+    // A second reset finds nothing to remove and says so.
+    const again = await asPrincipal(exec, (context) =>
+      runCommand(resetTwoFactor, { context, audit, outbox }, { userId: user.id }),
+    );
+    expect(again.authenticatorRemoved).toBe(false);
+  });
+
+  it('reports a removal to one of two resets racing for the same app', async () => {
+    const [exec1, exec2] = await Promise.all([
+      createTestPrincipal('executive'),
+      createTestPrincipal('executive'),
+    ]);
+    const { user } = await enrolledUser([{ entityId: 3, roleKey: 'accounts' }]);
+    const results = await Promise.all(
+      [exec1, exec2].map((exec) =>
+        asPrincipal(exec, (context) =>
+          runCommand(resetTwoFactor, { context, audit, outbox }, { userId: user.id }),
+        ),
+      ),
+    );
+    expect(results.map((r) => r.authenticatorRemoved).sort()).toEqual([false, true]);
+    expect(await twoFactorState(user.id)).toEqual({ enabled: false, apps: 0 });
   });
 
   it('answers a user with no authenticator app as is, changing nothing', async () => {
@@ -138,7 +163,7 @@ describe('admin.user.two_factor.reset (review 3)', () => {
     const dto = await asPrincipal(exec, (context) =>
       runCommand(resetTwoFactor, { context, audit, outbox }, { userId: user.id }),
     );
-    expect(dto.twoFactorEnabled).toBe(false);
+    expect(dto).toMatchObject({ user: { twoFactorEnabled: false }, authenticatorRemoved: false });
     expect(await sessionReasons(user.id)).toEqual([null]);
   });
 });
