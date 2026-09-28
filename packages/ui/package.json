@@ -4,6 +4,9 @@
   "private": true,
   "description": "Web components on the DESIGN.md patterns (shadcn/ui based): every colour from @shakti/tokens, every word from the caller",
   "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
