@@ -100,6 +100,13 @@ async function liveLeadCount(ids: readonly string[]): Promise<number> {
   return row?.n ?? -1;
 }
 
+async function jobStateOf(jobId: string): Promise<string | undefined> {
+  const [row] = await asMigrator(
+    (m) => m<{ state: string }[]>`select state from import_jobs where id = ${jobId}`,
+  );
+  return row?.state;
+}
+
 let gm: Principal;
 let gm2: Principal;
 let executive: Principal;
@@ -132,6 +139,82 @@ describe('imports: permission and entity', () => {
     await expect(
       run(gm2, mapImportJob, { entityId: 2, jobId: job.id, mapping }),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'import_job_missing' } });
+  });
+
+  it('refuses preview, commit, batch and rollback to a role without imports.write', async () => {
+    const job = await previewedJob(gm, [`Guarded,${phone()},Sikar`]);
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    for (const command of [
+      previewImportJob,
+      commitImportJob,
+      commitImportBatch,
+      rollbackImportJob,
+    ]) {
+      await expect(
+        run(caller, command as Command<z.ZodType, z.ZodType>, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+  });
+
+  it('refuses preview, commit, batch and rollback for another company', async () => {
+    const job = await previewedJob(gm, [`Other company,${phone()},Churu`]);
+    for (const command of [
+      previewImportJob,
+      commitImportJob,
+      commitImportBatch,
+      rollbackImportJob,
+    ]) {
+      const guarded = command as Command<z.ZodType, z.ZodType>;
+      // A company outside the caller's request is refused before the job is looked up.
+      await expect(run(gm2, guarded, { entityId: 1, jobId: job.id })).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+      // Their own company does not reach a job that belongs to another one.
+      await expect(run(gm2, guarded, { entityId: 2, jobId: job.id })).rejects.toMatchObject({
+        code: 'not_found',
+        details: { reason: 'import_job_missing' },
+      });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+  });
+
+  it('refuses commit and batch without the lead and customer rights, and rollback without the lead right', async () => {
+    const without = (key: string): Principal => ({
+      ...gm,
+      permissions: gm.permissions.filter((p) => p.key !== key),
+    });
+    const noLeadWrite = without('crm.lead.write');
+    const noAccountWrite = without('crm.account.write');
+    // Both callers still hold imports.write, so only the extra rights can refuse them.
+    expect(noLeadWrite.permissions.some((p) => p.key === 'imports.write')).toBe(true);
+    expect(noAccountWrite.permissions.some((p) => p.key === 'imports.write')).toBe(true);
+
+    const job = await previewedJob(gm, [`Needs rights,${phone()},Nagaur`]);
+    for (const caller of [noLeadWrite, noAccountWrite]) {
+      await expect(
+        run(caller, commitImportJob, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    for (const caller of [noLeadWrite, noAccountWrite]) {
+      await expect(
+        run(caller, commitImportBatch, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('committing');
+
+    await run(gm, commitImportBatch, { entityId: 1, jobId: job.id });
+    await expect(
+      run(noLeadWrite, rollbackImportJob, { entityId: 1, jobId: job.id }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await jobStateOf(job.id)).toBe('committed');
+    // The customer right is not needed to undo: rollback archives leads and leaves customers.
+    expect(
+      (await run(noAccountWrite, rollbackImportJob, { entityId: 1, jobId: job.id })).state,
+    ).toBe('rolled_back');
   });
 
   it('refuses a kind that cannot be imported yet', async () => {
