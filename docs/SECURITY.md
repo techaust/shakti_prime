@@ -20,13 +20,13 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 
 ## 2. Identity and authentication
 - **Passwords:** Argon2id (m = 64 MiB, t = 3, p = 1); minimum 12 characters; breached-password check.
-- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms. The exponential lockout in Redis applies to one account from one address, so a stranger who knows an email cannot keep its owner out and one office address is not locked for everyone behind it; the account-wide count only escalates, emailing the owner at every tenth failure; per-address request caps bound what one address tries across accounts; an Executive can lift an account's locks through the audited command `admin.user.lock.clear`. The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
+- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms. The exponential lockout in Redis applies to one account from one address, so a stranger who knows an email cannot keep its owner out and one office address is not locked for everyone behind it; the account-wide count only escalates, emailing the owner at every tenth failure; per-address request caps bound what one address tries across accounts, requests whose address cannot be read share one count per path, so a missing address never lifts a cap, and the server's own calls (an invitation) are not counted; an Executive can lift an account's locks through the audited command `admin.user.lock.clear`. The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
 - **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. A revoked or expired session is refused on every auth route and in-process call, not only in `currentPrincipal()`; no device is ever remembered past the second factor. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token. The session cookie is `__Host-` prefixed in production. Per-address request caps bound the password-hashing and mail-sending endpoints on top of the sign-in lockout.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, `__Host-` prefix.
-- **2FA:** TOTP required for Executive, GM and Accounts; each code verifies once; five wrong codes lock the second factor for an hour; the sign-in lock clears and the last sign-in is recorded only after the second factor; recovery codes; recovery email via SES only; a user who has lost both the app and the backup codes is reset by an Executive (`admin.user.two_factor.reset`, never their own account) only after the Executive has confirmed who is asking by phone or in person, and the reset signs the user out everywhere, emails them and makes them set up a new app at the next sign-in.
-- **Set-password links:** stored hashed; an invitation lasts 24 h and a forgotten-password link 1 h; a new link withdraws the person's earlier ones; attempts are capped per link and per address. Staff ask for a new link on the "Forgot your password?" screen (Turnstile, the same answer whether or not the email has an account); an Executive re-sends an invitation by inviting the person again, and is told when the email did not go out.
+- **2FA:** TOTP required for Executive, GM and Accounts; each code verifies once; five wrong codes lock the second factor for an hour; the sign-in lock clears and the last sign-in is recorded only after the second factor; recovery codes; recovery email via SES only; a user who has lost both the app and the backup codes is reset by an Executive (`admin.user.two_factor.reset`, never their own account) only after the Executive has confirmed who is asking by phone or in person, and the reset signs the user out everywhere, emails them (only when the reset removed an app, and once per form submission) and makes them set up a new app at the next sign-in.
+- **Set-password links:** stored hashed; an invitation lasts 24 h and a forgotten-password link 1 h; a new link withdraws the person's earlier ones; attempts are capped per link and per address. Staff ask for a new link on the "Forgot your password?" screen (Turnstile, the same answer and the same wait whether or not the email has an account: the mail goes out after the answer, and a mail that fails is logged, never shown); an Executive re-sends an invitation by inviting the person again, and is told when the email did not go out.
 - **Endpoints:** the auth module serves over HTTP only the link a set-password email opens; every other auth endpoint answers not found over HTTP and is reached by the screens' server actions in-process.
-- **Deployment guard:** a hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mailer that would log message bodies; readiness reports both database connections, the key-value store (a write and read back), the configuration and the outbox (down when an event has waited more than five minutes).
+- **Deployment guard:** a hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mailer that would log message bodies; readiness checks both database connections, the key-value store (a write and read back), the configuration and the outbox (down when a due event has waited more than five minutes since it became due); the public route answers only ready or not ready, capped at 20 calls a minute per address, and names the failing check in the log alone.
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.
 - **Voice:** a 5-minute user-scoped token per session so the worker acts as the speaking user.
 - **Realtime:** BOS-signed ES256 JWT (≤ 15 min) registered as a Supabase third-party provider; Realtime-only claims.
@@ -91,6 +91,8 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle.
 
+GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) carry no company, so `tax.rates.write` writes them only in a request that acts for every active company (migration 0048), as shared price lists are written.
+
 ### 3.3 Agent principals
 | Principal | Permissions |
 |---|---|
@@ -121,6 +123,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Cost columns live in side tables (`item_costs`, `stock_movement_costs`, `job_cost_entries`, `tally_purchase_vouchers`) so operational tables carry no cost data.
 - Exports are permission-gated commands and audited with the row count and filter.
 - Materialised views with margins are readable only through commands that require `finance.cost.read`.
+- Search candidates: ⌘K lead search finds its candidates through the definer `app.lead_search_ids()` (migration 0052), which applies the same scope rules as the read policies of leads and customers, returns lead ids only and never more than 200, and the search then reads those leads under RLS.
 
 ## 5. Data protection (DPDP Act 2023, Rules 2025)
 - **Consent:** per channel, purpose and source with evidence; opt-out honoured by humans and agents; consent text versions stored.
@@ -153,7 +156,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - CSP with nonces; CSRF origin checks on server actions; Zod validation on every input; output encoding by React.
 - Uploads: pre-signed URLs with type and size limits; malware scan before `ready`; images re-encoded; PDFs sanitised.
 - Secrets only in Vercel, EAS and the connector's encrypted local store; none in the repo, `tooling.json` or `.mcp.json`.
-- Logging: structured JSON; request IDs; no phone numbers, Aadhaar digits, bank details or message bodies; log redaction tested.
+- Logging: structured JSON; request IDs; no phone numbers, Aadhaar digits, bank details or message bodies; log redaction tested. Every logged value passes the redaction in `packages/domain/src/ports/logger.ts`: secret-named fields and the Aadhaar, UID, PAN, account number and IFSC fields are removed; in free text, email addresses are replaced, a phone number keeps its last four digits and a twelve-digit number (as Aadhaar numbers are printed) is hidden in full.
 - Supply chain: Dependabot (weekly, grouped; minor and patch bumps merge automatically once CI passes, majors wait for the owner's review), `pnpm audit --audit-level=moderate` and a gitleaks secret scan over the history in CI; CodeQL once the repository has GitHub Advanced Security; pinned lockfile; provenance-checked releases for the connector.
 - Staging holds synthetic data only.
 
@@ -175,9 +178,9 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 
 ## 11. Security test suite
 Runs on every PR against real Postgres. Items 1 to 3 run today, and item 5 for the token route; each other item joins with its feature in the phase named (TESTING.md §3):
-1. For every business table and every role × entity pair: only that entity's rows are visible; no context ⇒ zero rows.
+1. For every business table and every role × entity pair: only that entity's rows are visible (`role-entity-matrix.test.ts`, every role in every company); no context ⇒ zero rows (`fail-closed.test.ts`).
 2. Cost fields absent from every DTO unless the command requires a cost permission; GM sees no rates and no margins; Inventory Manager sees rates and no margins; purchase vouchers gated.
-3. Agent principals cannot call cost, admin or sensitive-document commands. The sensitive-document commands join the sweep when they are registered, with the document vault in Phase 4.
+3. Agent principals cannot call cost, admin, audit, integrations, tax, price, catalogue or sensitive-document commands, and no seeded agent role holds those permissions. The sensitive-document commands join the sweep when they are registered, with the document vault in Phase 4.
 4. Voice tokens act only as the issuing user and expire. Phase 2, with live voice.
 5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels. The token route's tests run today; the channel-policy check runs with the hosted Supabase dev project (`pnpm --filter web realtime-spike`).
 6. Vector retrieval respects sensitivity per role. Phase 1, with the Knowledge Vault.

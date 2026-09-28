@@ -1,6 +1,6 @@
 # Spike: Chromium A4 PDFs and QR labels
 
-**Week 6, ROADMAP §2.** Result: **passed on the development laptop.** Deployment (Vercel function or a separate worker) is still open and is the question for ADR 0009.
+**Week 6, ROADMAP §2.** Result: **the rendering checks passed on the development laptop.** A scan of printed labels with a phone and the client's handheld scanner is still to do, and deployment (Vercel function or a separate worker) is open and is the question for ADR 0009.
 
 Run it with `pnpm spike:print` (once per machine first: `pnpm --filter web exec playwright-core install chromium-headless-shell`). The raw numbers are in [results/print.json](results/print.json); the PDFs and PNGs go to `apps/web/.spike-output/print/` (ignored by git).
 

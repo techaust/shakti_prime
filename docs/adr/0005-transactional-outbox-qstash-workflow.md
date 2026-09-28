@@ -8,11 +8,11 @@ State changes trigger work that must not run inside the request: WhatsApp messag
 ## Decision
 A **transactional outbox** in Postgres, delivered by **Upstash QStash**, with **Upstash Workflow** for durable multi-step flows.
 
-- Commands append to `outbox_events(id, sequence, entity_id, type, aggregate_type, aggregate_id, payload_json, created_at, published_at, attempts, last_error, dead_lettered_at)` through `ctx.emit()` in the same transaction as the write. The table is append-only for `app_user`; the delivery columns are updated only by the `outbox_publisher` role.
-- A publisher claims unpublished rows with `FOR UPDATE SKIP LOCKED`, publishes them to QStash topics by event type and marks them published. It is nudged immediately after a command commits and runs from a QStash schedule every minute (QStash schedules are minute-granular). Delivery is at-least-once.
+- Commands append to `outbox_events(id, sequence, entity_id, type, aggregate_type, aggregate_id, payload_json, created_at, published_at, attempts, last_error, dead_lettered_at, next_attempt_at, claimed_until)` through `ctx.emit()` in the same transaction as the write. The table is append-only for `app_user`; the delivery columns are updated only by the `outbox_publisher` role.
+- A publisher leases due rows with `FOR UPDATE SKIP LOCKED` in one short statement, publishes them with no transaction open to the QStash URL group `evt-<type>` of each event type, and records the outcomes under its lease in a second short transaction. It is nudged immediately after a command commits and runs from a QStash schedule every minute (QStash schedules are minute-granular). Delivery is at-least-once.
 - Workers are route handlers under `/api/v1/workers/*` on Vercel `bom1`. Each verifies the QStash signature with the current and next signing keys, checks the event ID in Upstash Redis for idempotency, runs a command and returns `200` on success or a retryable `5xx`.
 - Multi-day flows (nurture cadences, document chasing, subsidy gate follow-ups, agent runs) are Upstash Workflows with named steps, so a restart resumes at the last completed step.
-- Retries with backoff, then a dead-letter queue surfaced on the Integration Health page with replay.
+- Retries with exponential backoff (1 minute doubling to an hour, with jitter), then after ten attempts a dead-letter queue surfaced on the Integration Health page with replay.
 - Inbound provider webhooks use the mirror pattern: verify signature → insert `webhook_inbox` → return `200` → QStash worker processes idempotently by provider event ID.
 - pg_cron handles pure-SQL schedules (materialised-view refresh, retention, partition creation); QStash schedules handle jobs that call external services.
 

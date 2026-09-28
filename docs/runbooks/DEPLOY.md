@@ -3,7 +3,7 @@
 How the BOS reaches staging and production: the database, its secrets, the first sign-in and the web app. Nothing here runs until the hosted projects exist (ROADMAP §2); each step names who does it.
 
 ## 1. Before the first deploy (once per environment)
-1. **Supabase project** in Mumbai, on the paid tier for production. In the project settings, switch the Data API off (or expose no schema): the BOS never uses it, and the API roles hold nothing on application objects (DATABASE §3).
+1. **Supabase project** in Mumbai, on the paid tier for production. In the project settings, switch the Data API off (or expose no schema): the BOS never uses it, and the API roles hold nothing on application objects (DATABASE §3). Never enable `pg_trgm` from the dashboard's extensions page: the migrations create it in `public` (0003), the lead search (`app.lead_search_ids()`, 0052) calls it there, and the dashboard would place it in the `extensions` schema.
 2. **Database roles.** The migrator connects as the project's `postgres` role. Choose long random passwords for `app_user`, `auth_service` and `outbox_publisher`; the migrator creates the roles on its first run.
 3. **CA certificate.** Download the Supabase root certificate from the project's database settings and store its PEM text as the secret `DATABASE_CA_CERT`. Every pool refuses a hosted connection without it.
 4. **GitHub environment** (`staging`, `production`) with these secrets: `DATABASE_URL_MIGRATOR`, `APP_USER_PASSWORD`, `AUTH_SERVICE_PASSWORD`, `OUTBOX_PUBLISHER_PASSWORD`, `DATABASE_CA_CERT`. For `production`, require a reviewer in the environment's protection rules.
@@ -18,20 +18,20 @@ How the BOS reaches staging and production: the database, its secrets, the first
    - `BOS_JWT_CURRENT_KEY` (and `BOS_JWT_NEXT_KEY` during a rotation) once Realtime is switched on: a private key from `pnpm --silent --filter web realtime-keys`, never stored anywhere else; without it `/api/v1/realtime/token` and `/.well-known/jwks.json` answer unavailable and nothing else changes;
    - `MAILER=log` on staging. Production needs the Amazon SES mailer first (the client's domain verified, production access granted, a send-only IAM user): it refuses to start with `log`.
 
-   A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, which requires every variable of its `PRODUCTION_ENV` list: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `MAILER`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`), and `/api/v1/health/ready` reports which dependency is down.
+   A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, which requires every variable of its `PRODUCTION_ENV` list: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `MAILER`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`), and `/api/v1/health/ready` answers 503 while a dependency is down, naming it only in the `health.not_ready` log line.
 
 ## 2. Every deploy
 1. Merge to `main` only on a green CI run; the merge-on-green workflow (`.github/workflows/automerge.yml`) merges a pull request only after CI passes on its latest commit, and runs CI again on `main`.
-2. **Migrate** from GitHub: Actions › *Migrate a hosted database* › Run workflow › choose the environment. It runs only from `main`, applies the migrations under an advisory lock, then runs `pnpm db:verify`, which fails when a migration on disk is not applied exactly as written.
+2. **Migrate** from GitHub: Actions › *Migrate a hosted database* › Run workflow › choose the environment. It runs only from `main`, applies the migrations under an advisory lock, then runs `pnpm db:verify`, which fails when a migration on disk is not applied exactly as written. After it, `select jobname from cron.job` lists the three scheduled jobs: `audit-logs-partitions`, `idempotency-keys-purge` and `outbox-events-purge` (DATABASE §7).
 3. **Seed** when the permission catalogue, roles, pipelines, tiers or lead sources changed: run `pnpm db:seed` with the environment's `DATABASE_URL_MIGRATOR` and `DATABASE_CA_CERT`. It keeps every Admin edit (DATABASE §9).
-4. **Promote** the Vercel deployment of that commit, then open `/api/v1/health/ready` and confirm every check reads `ok`.
+4. **Promote** the Vercel deployment of that commit, then open `/api/v1/health/ready` and confirm it answers 200 with `status: ok`; on a 503, the `health.not_ready` log line with the same request id names the check that is down.
 5. **Outbox schedule** (first deploy of an environment, and whenever `BETTER_AUTH_URL` changes): run `pnpm --filter web qstash-schedule` with the environment's QStash variables and `BETTER_AUTH_URL`. It creates or updates the schedule `outbox-publish`, which calls the publisher every minute.
 
 ## 3. A migration that builds an index concurrently
 `create index concurrently` cannot run inside the migrator's transaction. Write the migration with a plain `create index if not exists`, and before running the workflow, build the same index by hand on the hosted database with `create index concurrently if not exists …` under the same name. The migration then finds it and does nothing, without locking the table.
 
 ## 4. The first Executive
-With the migrator's URL and the CA certificate in the environment, run:
+With `DATABASE_URL_MIGRATOR`, `DATABASE_URL_AUTH`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` and the CA certificate of the environment set, run:
 
 ```
 pnpm --filter web invite-executive -- --email <address> --name "<name>"

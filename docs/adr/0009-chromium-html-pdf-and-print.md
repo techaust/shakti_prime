@@ -1,6 +1,6 @@
 # ADR 0009 — Chromium-rendered HTML for PDFs and print
 
-**Status:** Proposed (2026-09-27; the week 6 Chromium spike on A4 PDFs and QR labels passed, `docs/spikes/print.md`; the hosting choice below is open) · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
+**Status:** Proposed (2026-09-27; the week 6 Chromium spike on A4 PDFs and QR labels passed its rendering checks, `docs/spikes/print.md`; the hosting choice below and a phone and scanner check of printed labels are open) · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
 
 ## Context
 The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp. A separate PDF library (drawing primitives or a React PDF renderer) would mean a second layout system beside the web app's CSS, a second set of fonts and tokens, and templates the on-screen print view cannot share. Documents are English only (ADR 0014), so no Devanagari shaping is needed.
