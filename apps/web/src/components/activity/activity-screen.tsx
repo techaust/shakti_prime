@@ -9,6 +9,7 @@ import {
   Field,
   Select,
   StatusBadge,
+  useFocusTargets,
   type DataGridColumn,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
@@ -81,6 +82,8 @@ export function ActivityScreen({
   const [problem, setProblem] = useState<WindowProblem | undefined>();
   const [loadingMore, setLoadingMore] = useState(false);
   const [open, setOpen] = useState<AuditLogDto | undefined>();
+  // Focus goes back to the row's View button, in the table or the phone card that shows.
+  const viewButtons = useFocusTargets<string>();
   const reader = useQuery<AuditPageDto>();
   const peopleReader = useQuery<AuditPeopleDto>();
   // The filters whose rows are wanted: an answer for filters changed since is dropped.
@@ -174,6 +177,7 @@ export function ActivityScreen({
       align: 'end',
       cell: (r) => (
         <Button
+          ref={viewButtons.ref(r.id)}
           variant="secondary"
           size="sm"
           aria-label={t('viewLabel', {
@@ -266,6 +270,7 @@ export function ActivityScreen({
           row={open}
           companies={companies}
           closeLabel={common('close')}
+          returnFocusTo={() => [viewButtons.get(open.id)]}
           onClose={() => {
             setOpen(undefined);
           }}

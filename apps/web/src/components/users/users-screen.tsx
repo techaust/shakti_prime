@@ -16,7 +16,9 @@ import {
   SheetContent,
   StatusBadge,
   toast,
+  useFocusTargets,
   type DataGridColumn,
+  type FocusTargets,
   type StatusTone,
 } from '@shakti/ui';
 import { Ellipsis } from 'lucide-react';
@@ -49,6 +51,9 @@ const STATUS_TONE: Record<UserStatus, StatusTone> = {
 };
 
 const PAGE_SIZE = 50;
+
+/** The Invite button's key among the places focus returns to; user ids are UUIDs. */
+const INVITE = 'invite';
 
 type Open =
   | { kind: 'invite' }
@@ -109,6 +114,14 @@ export function UsersScreen({
   const close = () => {
     setOpen(undefined);
   };
+  // A row's dialogs and sheet open from its menu, whose item has gone when they close: focus
+  // goes back to the row's Actions button, and for the invite dialog (or a row that has gone) to
+  // the Invite button (DESIGN.md §6, Dialog).
+  const places = useFocusTargets<string>();
+  const returnFocusTo = () => [
+    open === undefined || open.kind === 'invite' ? [] : places.get(open.user.id),
+    places.get(INVITE),
+  ];
   const replace = (user: UserDto) => {
     setRows((all) => all.map((u) => (u.id === user.id ? user : u)));
   };
@@ -185,7 +198,7 @@ export function UsersScreen({
       id: 'actions',
       header: <span className="sr-only">{t('columns.actions')}</span>,
       align: 'end',
-      cell: (u) => <RowMenu user={u} selfId={selfId} onOpen={setOpen} />,
+      cell: (u) => <RowMenu user={u} selfId={selfId} focusTargets={places} onOpen={setOpen} />,
     },
   ];
 
@@ -194,6 +207,7 @@ export function UsersScreen({
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex justify-end">
         <Button
+          ref={places.ref(INVITE)}
           onClick={() => {
             setOpen({ kind: 'invite' });
           }}
@@ -245,7 +259,7 @@ export function UsersScreen({
         }}
       >
         {dialog === undefined ? null : (
-          <DialogContent closeLabel={common('close')}>
+          <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
             {dialog.kind === 'invite' ? (
               <InviteForm
                 companies={companies}
@@ -320,7 +334,7 @@ export function UsersScreen({
         }}
       >
         {open?.kind === 'sessions' ? (
-          <SheetContent closeLabel={common('close')}>
+          <SheetContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
             <SessionsSheet user={open.user} />
           </SheetContent>
         ) : null}
@@ -333,10 +347,13 @@ export function UsersScreen({
 function RowMenu({
   user,
   selfId,
+  focusTargets,
   onOpen,
 }: {
   user: UserDto;
   selfId: string;
+  /** Files the Actions button, so focus comes back to it when the dialog closes. */
+  focusTargets: FocusTargets<string>;
   onOpen: (open: Open) => void;
 }) {
   const t = useTranslations('users.menu');
@@ -354,7 +371,7 @@ function RowMenu({
   return (
     // Not modal, so the dialog it opens takes focus cleanly when the menu closes.
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild ref={focusTargets.ref(user.id)}>
         <Button
           variant="ghost"
           size="icon"

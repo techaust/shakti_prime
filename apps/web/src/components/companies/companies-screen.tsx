@@ -1,7 +1,14 @@
 'use client';
 
 import type { EntityDto } from '@shakti/contracts';
-import { Button, DataGrid, EmptyState, toast, type DataGridColumn } from '@shakti/ui';
+import {
+  Button,
+  DataGrid,
+  EmptyState,
+  toast,
+  useFocusTargets,
+  type DataGridColumn,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -18,6 +25,8 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
   const common = useTranslations('common');
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<EntityDto | undefined>();
+  // Focus goes back to the row's Edit button, in the table or the phone card that shows.
+  const editButtons = useFocusTargets<number>();
 
   const columns: DataGridColumn<EntityDto>[] = [
     { id: 'name', header: t('columns.name'), cell: (c) => c.legalName, primary: true },
@@ -47,6 +56,7 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
       align: 'end',
       cell: (c) => (
         <Button
+          ref={editButtons.ref(c.id)}
           variant="secondary"
           size="sm"
           aria-label={common('rowActions', { name: c.legalName })}
@@ -73,6 +83,7 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
         <EditCompanyDialog
           company={editing}
           closeLabel={common('close')}
+          returnFocusTo={() => [editButtons.get(editing.id)]}
           onSaved={(saved) => {
             setRows((all) => all.map((c) => (c.id === saved.id ? saved : c)));
             setEditing(undefined);

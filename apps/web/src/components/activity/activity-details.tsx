@@ -8,6 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
   StatusBadge,
+  type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
@@ -50,11 +51,14 @@ export function ActivityDetailsSheet({
   row,
   companies,
   closeLabel,
+  returnFocusTo,
   onClose,
 }: {
   row: AuditLogDto;
   companies: Record<number, string>;
   closeLabel: string;
+  /** Where focus goes when the sheet closes: the row's View button. */
+  returnFocusTo: ReturnFocusTo;
   onClose: () => void;
 }) {
   return (
@@ -64,7 +68,7 @@ export function ActivityDetailsSheet({
         if (!isOpen) onClose();
       }}
     >
-      <SheetContent closeLabel={closeLabel}>
+      <SheetContent closeLabel={closeLabel} returnFocusTo={returnFocusTo}>
         <ActivityDetails row={row} companies={companies} />
       </SheetContent>
     </Sheet>

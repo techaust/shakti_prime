@@ -16,6 +16,7 @@ import {
   DialogTitle,
   Field,
   Select,
+  type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react';
@@ -41,13 +42,15 @@ export type DialogKind = 'move' | 'assign' | 'nurture' | 'reopen' | 'win' | 'los
 
 /**
  * The dialog of one card action, loaded on demand by the leads board and shown while it is
- * mounted; closing it (Escape, the close button, Cancel) calls `onCancel`.
+ * mounted; closing it (Escape, the close button, Cancel) calls `onCancel`. It opens from a menu
+ * item that has gone by the time it closes, so the board names where focus returns.
  */
 export function BoardDialog({
   kind,
   lead,
   stages,
   closeLabel,
+  returnFocusTo,
   onDone,
   onCancel,
 }: {
@@ -55,6 +58,7 @@ export function BoardDialog({
   lead: BoardLeadDto;
   stages: readonly PipelineStageDto[];
   closeLabel: string;
+  returnFocusTo: ReturnFocusTo;
   onDone: (result: OpportunityDto, ownerName?: string) => void;
   onCancel: () => void;
 }) {
@@ -66,7 +70,7 @@ export function BoardDialog({
         if (!isOpen) onCancel();
       }}
     >
-      <DialogContent closeLabel={closeLabel}>
+      <DialogContent closeLabel={closeLabel} returnFocusTo={returnFocusTo}>
         {kind === 'move' ? (
           <MoveForm {...props} stages={stages} />
         ) : kind === 'assign' ? (
