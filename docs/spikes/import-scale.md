@@ -1,41 +1,70 @@
 # Spike: importing 50,000 leads
 
-**Design §8 and IMP-01** ("50k rows in < 5 min"). Result: **the upload and the preview meet the target on the development laptop; the commit does not, by a wide margin.** One in-process worker commits about 11 leads a second, so 50,000 rows would take about 74 minutes. Design §8's five minutes assumes four concurrent batch workers on the hosted stack (Phase 1: QStash workers in `bom1` next to Supabase Mumbai); the arithmetic below shows that four workers at today's cost per row still would not reach it.
+**Design §8 and IMP-01** ("50k rows in < 5 min"). Result: **met on the development laptop with one worker.** 50,000 made-up leads went through upload, preview and commit in 3 minutes 25 seconds, the commit alone in 3 minutes 4 seconds (272 rows a second), and the rollback took 8 seconds. The first run of this spike committed about 11 rows a second, which would have taken over an hour. The difference is the set-based batch described below. The hosted stack (QStash workers in `bom1`, Supabase Mumbai, the 40-second limit per worker call) is not measured here; that is Phase 1.
 
-Run it with `pnpm spike:import` (options: `-- --rows 50000 --commit-rows 1000 --batch 500 --budget 420`). It needs the local Docker Postgres and refuses any other database. The raw numbers are in [results/import-scale.json](results/import-scale.json). It is not part of CI.
+Run it with `pnpm spike:import` (options: `-- --rows 50000 --batch 500 --budget 420`). It needs the local Docker Postgres and refuses any other database. The numbers are in [results/import-scale.json](results/import-scale.json), and those of the first run in [results/import-scale-before.json](results/import-scale-before.json). It is not part of CI.
 
 ## What it does
 | Step | How |
 |---|---|
 | File | A made-up CSV built in memory: invented names and villages put together from syllables, made-up mobile numbers starting with 7, columns Name, Mobile and Village (1.86 MB for 50,000 rows) |
 | Caller | A General Manager of Shakti Supreme made with the testing helpers, which is why the script lives in `packages/domain/tests/spike/import-scale.ts` |
-| Full file | `imports.job.create` → `imports.job.map` → `imports.job.preview` through `executeCommand`, with RLS, the audit rows and the dedupe suggestions (phone, then name and village); the job is left previewed |
-| Commit sample | A second file of 1,000 rows through the same steps, then `imports.job.commit` and `imports.job.commit_batch` in batches of 500, each batch one transaction as the import worker runs it, then `imports.job.rollback` so the sample's leads are archived again |
+| Commands | `imports.job.create` → `imports.job.map` → `imports.job.preview` → `imports.job.commit` → `imports.job.commit_batch` in batches of 500 (one transaction each, as the import worker runs them) → `imports.job.rollback`, all through `executeCommand` as `app_user`, with RLS, the audit rows, the events and the dedupe suggestions (phone, then name and village) |
 | Round trip | The median of fifty `select 1` in one transaction |
 
+## Where the time went
+Profiled on 500 committed rows with `pg_stat_statements` and a Node CPU profile, the database otherwise quiet:
+
+| Measure | Result |
+|---|---|
+| Commit of 500 rows, wall time | 23.1 s (21.6 rows a second, 46 ms a row) |
+| Time the database spent executing statements in that run | 1.9 s, 8 % of the wall time |
+| Statements a row | 12: the pipeline, first open stage and lead source lookups, the idempotency key's claim and answer, and 7 inserts (account, company relationship, contact, account link, phone, site, opportunity) |
+| Slowest statements | the inserts into `account_contacts` and `opportunities` at 0.5 ms each; the others 0.2 to 0.4 ms |
+| Node CPU profile | 10.5 s of 15.4 s idle, waiting on the database; the JavaScript work (validation, input hashes, the lead answer) under 1 s |
+
+Each row ran `crm.lead.create` through `ctx.run` inside the batch's savepoint, one statement at a time. The statements are cheap; the cost is the round trip of each one between Node and the database (about 3.5 ms a statement at the time, including the driver's work), twelve times a row. The audit is already one row a batch, the events one insert a batch, and no numbering function is called for a lead, so none of those was the cost.
+
+## What changed
+`imports.job.commit_batch` now makes the whole batch in a few statements (`commitLeadBatch` in `packages/domain/src/imports/commit-leads.ts`):
+- The lookups are made once for the batch.
+- The 500 keys `import:{job}:{row}` are claimed in one insert, with the input hash `crm.lead.create` would store.
+- The account, company relationship, contact, account link, phone, site and opportunity rows go in as seven multi-row inserts, in the command's order, as `app_user` under the same policies.
+- The keys' answers (the lead each key replays) are written in one update, and one `crm.lead.created` event is emitted a row.
+
+That is about 13 statements a batch instead of about 6,000.
+
+The guarantees stay as they were:
+- A batch is still all or nothing (IMP-01: "a failed batch leaves no partial data").
+- If anything in the batch is not a plain new lead (a known customer, a consent, a key used before, a row that no longer parses) or the database refuses a row, the savepoint takes the batch back. The batch then runs again row by row through `crm.lead.create`, which stops at the row at fault and records it as before.
+- Each row is still a customer of its own, as a lead typed in is. A matching phone or name stays a suggestion.
+
+The security suite covers these cases (`packages/domain/tests/commands/imports.test.ts`):
+- a bad row at the end of a batch and one in the middle;
+- rows sharing a customer's number, name and village with each other and with an existing customer;
+- the replay of a row's key through `crm.lead.create`.
+
 ## Numbers
-Windows 11 laptop, Node 24.19, Docker Postgres 17 on `127.0.0.1:54322`, one connection, in process. Other workstreams were running their test suites on the same machine and database, so treat the times as upper bounds. Run of 28-09-2026:
+Windows 11 laptop, Node 24.19, Docker Postgres 17 on `127.0.0.1:54322`, one connection, in process.
 
-| Measure | Rows | Time | Rate |
-|---|---|---|---|
-| Round trip to the database | | 1.36 ms | |
-| Parse the CSV | 50,000 | 0.13 s | |
-| Create the job (store the rows) | 50,000 | 25.1 s | 1,994 rows/s |
-| Map | 50,000 | 0.33 s | |
-| Preview (validate every row, dedupe by phone and by name and village, write the findings) | 50,000 | 29.9 s | 1,673 rows/s |
-| Commit, batches of 500 (one `crm.lead.create` per row inside the batch's savepoint) | 1,000 | 89.0 s | 11.2 rows/s, 89 ms a row |
-| Roll back the committed rows | 1,000 | 0.78 s | 1,282 rows/s |
+| Measure | First run (row by row) | Set-based batch |
+|---|---|---|
+| Round trip to the database | 1.36 ms | 1.39 ms |
+| Create the job, 50,000 rows | 25.1 s | 12.3 s |
+| Preview, 50,000 rows | 29.9 s (1,673 rows/s) | 9.1 s (5,525 rows/s) |
+| Commit | 1,000 rows in 89.0 s (11.2 rows/s, 89 ms a row) | 50,000 rows in 183.9 s (272 rows/s, 4 ms a row) |
+| One batch of 500 | 34.6 to 54.5 s | median 1.3 s, slowest 17.2 s |
+| Roll back | 1,000 rows in 0.78 s | 50,000 rows in 8.3 s |
+| Upload, preview and commit of 50,000 rows | about 75 minutes (projected) | 3 min 25 s (measured) |
 
-An earlier run the same morning, with the round trip at 0.94 ms, committed the same sample at 13.1 rows a second. Earlier still, while the machine was under heavy load from the other suites and a statement took 8 to 20 ms, one lead took about 0.46 s and a batch of 500 did not finish within four minutes. The commit rate follows the time of a statement closely.
+The first run's create and preview times were taken while other workstreams ran their test suites on the same database. The set-based run had the database to itself, so the create and preview gains in the table are mostly that, not a code change. The commit gain is the code change: row by row on the same quiet database, 500 rows committed at 21.6 rows a second. The slowest batch (17.2 s) was one of a few slow ones between 20,000 and 25,000 rows, and between 35,000 and 40,000; the database's own background work at those moments was not recorded.
 
 ## What the numbers mean
-- **Upload and preview: within the target.** Create and preview together took 55 seconds for 50,000 rows.
-- **Commit: about 74 minutes for 50,000 rows** at 11.2 rows a second with one worker (projected, not run: 50,000 ÷ 11.2 = 4,452 s). Batches of one job run one after another today, because the job row is locked per batch (design §8, "Built"). The five-minute target needs about 167 rows a second.
-- **Four hosted workers (Phase 1).** Design §8 counts on four concurrent batch workers. At 89 ms a row that is about 45 rows a second, so about 18 minutes for 50,000 rows, still above five. A hosted round trip within `bom1` should be close to the local one, so it is not expected to change this much. Reaching the target needs a lower cost per row as well as the workers; where the 89 ms goes (the statements of `crm.lead.create`, the policies they pass, the savepoint and the idempotency key per row) was not profiled in this spike.
-- **Rollback is fast.** Archiving is one statement per chunk of 500, not one command per lead.
+- **The five-minute target is met locally with one worker.** Design §8's four concurrent batch workers are not needed for it at this rate. Batches of one job still run one after another, because the job row is locked per batch.
+- **Hosted.** A QStash call may run 40 seconds, so each worker call fits about 25 batches at the median rate. A hosted round trip within `bom1` should be close to the local one, but that has to be measured on the hosted stack in Phase 1.
+- **The row-by-row path is still there.** A batch that holds a bad row costs its set-based try plus the row-by-row run of up to 500 rows, about 25 seconds at the old rate, once, before the job stops.
 
 ## Not covered
 - The hosted stack: QStash workers, Supabase Mumbai and the 40-second limit per worker call.
-- Four concurrent batch workers on one job, which the job lock does not allow today.
-- A commit of all 50,000 rows: at the measured rate it would take over an hour on the shared local database, so the spike commits a sample and projects.
-- Files with invalid or repeated rows, and a job whose batch fails: the security suite covers those paths (`packages/domain/tests/commands/imports.test.ts`).
+- Concurrent batch workers on one job, which the job lock does not allow.
+- Files with invalid or repeated rows at scale; the security suite covers those paths on small files.
