@@ -324,7 +324,7 @@
     "light": "Light",
     "dark": "Dark",
     "highContrast": "Higher contrast",
-    "highContrastHint": "Darker text and stronger outlines, easier to read on a phone in sunlight. Kept on your profile, so it follows you to every device."
+    "highContrastHint": "Sharper text and stronger outlines, easier to read on a phone in sunlight. Kept on your profile, so it follows you to every device."
   },
   "design": {
     "title": "Design preview",

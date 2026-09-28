@@ -107,9 +107,13 @@ export function CommandPalette({
               {status ?? ''}
             </div>
             <Command.List className="max-h-[min(24rem,60dvh)] overflow-y-auto p-2">
-              <Command.Empty className="text-text-muted px-3 py-6 text-center">
-                {emptyLabel}
-              </Command.Empty>
+              {/* cmdk leaves force-mounted items out of its count, so a search that found
+                  something of its own must not show the empty message. */}
+              {groups.some((g) => g.prefiltered === true && g.items.length > 0) ? null : (
+                <Command.Empty className="text-text-muted px-3 py-6 text-center">
+                  {emptyLabel}
+                </Command.Empty>
+              )}
               {groups
                 .filter((g) => g.items.length > 0)
                 .map((group) => (
@@ -124,8 +128,8 @@ export function CommandPalette({
                         key={item.id}
                         value={`${group.id}:${item.id} ${item.label}`}
                         // A match found by the caller's own search may not read like the typed
-                        // text (a phone's last digits find a name), so it carries the text as a
-                        // keyword: the palette then counts it and does not claim nothing matched.
+                        // text (a phone's last digits find a name), so it is always shown and
+                        // carries the text as a keyword for cmdk's ranking.
                         keywords={
                           group.prefiltered === true
                             ? [...(item.keywords ?? []), query]
