@@ -394,7 +394,7 @@ export function DataGrid<T>({
                       data-selected={isTicked || undefined}
                       className={cn(
                         'border-border hover:bg-surface-2 border-b last:border-b-0',
-                        isTicked && 'bg-highlight',
+                        isTicked && 'bg-accent-soft',
                         rowHeight,
                       )}
                     >
@@ -443,7 +443,7 @@ export function DataGrid<T>({
                   key={key}
                   className={cn(
                     'border-border bg-surface flex flex-col gap-2 rounded-lg border p-4',
-                    selectable?.selected.has(key) === true && 'bg-highlight',
+                    selectable?.selected.has(key) === true && 'bg-accent-soft',
                   )}
                 >
                   {primary === undefined && selectable === undefined ? null : (
