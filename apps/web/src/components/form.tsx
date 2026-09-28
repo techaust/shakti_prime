@@ -11,10 +11,13 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { ErrorKey } from '../i18n/types';
 
-/** Minimal form primitives on the DESIGN.md §6 rules; the component library arrives in week 4. */
+/**
+ * Form primitives on the DESIGN.md §6 rules for the public sign-in screens, the error screen and
+ * the set-password and two-factor flows, written before the component library `@shakti/ui`; the
+ * signed-in screens use `@shakti/ui`.
+ */
 
 export function Field({ label, id, children }: { label: string; id: string; children: ReactNode }) {
   return (
@@ -129,12 +132,6 @@ export function Button({
       {children}
     </button>
   );
-}
-
-/** A submit button that shows the form's own pending state, for forms without action state. */
-export function SubmitButton(props: Omit<ComponentProps<typeof Button>, 'type' | 'pending'>) {
-  const { pending } = useFormStatus();
-  return <Button {...props} type="submit" pending={pending} />;
 }
 
 /** Stops a submit while one is on its way, for forms whose button shows pending. */

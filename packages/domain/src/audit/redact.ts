@@ -85,7 +85,7 @@ export function redactForAudit(value: unknown): unknown {
  * The fields each auth event may record. Anything else in the request (the password, the
  * one-time code, the link token) is never looked at.
  */
-const AUTH_EVENT_FIELDS: Readonly<Record<AuthAuditEvent, readonly string[]>> = {
+export const AUTH_EVENT_FIELDS: Readonly<Record<AuthAuditEvent, readonly string[]>> = {
   'auth.sign_in': ['email', 'detail'],
   'auth.two_factor.verify': ['method'],
   'auth.sign_out': [],

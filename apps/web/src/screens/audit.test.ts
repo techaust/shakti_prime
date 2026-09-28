@@ -1,5 +1,12 @@
-import { AUTH_AUDIT_EVENTS, AuditQueryInput, EVENT_TYPES, SegmentSchema } from '@shakti/contracts';
-import { commands } from '@shakti/domain';
+import {
+  AUTH_AUDIT_EVENTS,
+  AuditQueryInput,
+  ContrastSchema,
+  EVENT_TYPES,
+  SavedViewScreenSchema,
+  SegmentSchema,
+} from '@shakti/contracts';
+import { AUTH_EVENT_FIELDS, commands } from '@shakti/domain';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import {
@@ -78,12 +85,6 @@ describe('every recorded action and event has a name', () => {
     expect(recorded.length).toBeGreaterThan(30);
     expect(recorded.filter((command) => actionKey(command) === 'other')).toEqual([]);
     for (const command of recorded) expect(actions[actionKey(command)], command).toBeTruthy();
-  });
-
-  it('names the saved list views and the live updates connection of the branches to come', () => {
-    for (const command of ['profile.view.save', 'profile.view.delete', 'realtime.token.issue']) {
-      expect(actionKey(command), command).not.toBe('other');
-    }
   });
 
   it('has a label for every name it gives, and no label it does not use', () => {
@@ -179,33 +180,54 @@ describe('what changed', () => {
     expect(wordsOf('sign_in')).toBe('Sign in');
   });
 
-  it('names every field a command or a sign-in event records, other than ids', () => {
-    // The keys of every `ctx.audit()` before and after in packages/domain/src/commands (the tax
-    // rows spread their DTOs, the import preview its row counts) and the auth events' allow-lists.
+  it('names every field a command or a sign-in event records, and nothing else', () => {
+    // Each command lists the fields its `ctx.audit()` calls record (`auditFields`, which the
+    // runner holds it to in the domain suites), and each auth event its allow-list; so a new
+    // audited field without a name here fails this test the day it is added.
     const recorded = [
-      // admin.user.*, admin.session.revoke, profile.theme.set
-      ...['displayName', 'email', 'phone', 'status', 'entityRoles', 'revokedSessions'],
-      ...['twoFactorEnabled', 'theme', 'revokedAt', 'revokedReason'],
-      // auth events
-      ...['detail', 'method', 'revokeOtherSessions'],
-      // org.entity.update, pricing.price.set
-      ...['brandName', 'upiId', 'price', 'reason'],
-      // crm.lead.create and the crm.opportunity.* moves
-      ...['existingAccount', 'consent', 'state', 'lockedUntil', 'handover'],
-      ...['lostReason', 'nurtureReason'],
-      // tax.rate.set, tax.composite.set
-      ...['hsn', 'ratePct', 'effectiveFrom', 'effectiveTo', 'sourceRef', 'segment'],
-      ...['goodsSharePct', 'servicesSharePct', 'goodsRatePct', 'servicesRatePct'],
-      // imports.job.*
-      ...['kind', 'name', 'format', 'mapping', 'totalRows', 'validRows', 'invalidRows'],
-      ...['skippedRows', 'suggested', 'batch', 'fromRow', 'toRow', 'rows', 'committedRows'],
-      ...['batches', 'rolledBackRows', 'archived', 'failedBatch', 'failedRow', 'errorCode'],
-      // integrations.dlq.replay
-      ...['eventType', 'attempts', 'deadLetteredAt'],
+      ...new Set([
+        ...Object.values(commands).flatMap((command) => command.auditFields),
+        ...Object.values(AUTH_EVENT_FIELDS).flat(),
+      ]),
     ];
+    expect(recorded.length).toBeGreaterThan(50);
     expect(recorded.filter((key) => !isNamedField(key))).toEqual([]);
+    expect(NAMED_FIELDS.filter((key) => !recorded.includes(key))).toEqual([]);
     const rows = auditChanges(null, Object.fromEntries(recorded.map((key) => [key, 'x'])));
     expect(rows.filter((r) => r.field === undefined)).toEqual([]);
+    // Every one is shown, including a named field that ends like an id (the UPI ID).
+    expect(rows.map((r) => r.field).sort()).toEqual([...recorded].sort());
+  });
+
+  it('reads the contrast, a role, a saved view’s list and its settings, never raw data', () => {
+    const rows = auditChanges(
+      { contrast: 'standard', screen: 'leads', settings: null },
+      {
+        contrast: 'high',
+        bosRole: 'general_manager',
+        screen: 'leads',
+        settings: {
+          columns: { hidden: ['phone', 'village'] },
+          sort: { columnId: 'name', direction: 'asc' },
+          filters: { stage: 'new' },
+          density: 'compact',
+        },
+      },
+    );
+    expect(rows.map((r) => [r.field, r.before, r.after])).toEqual([
+      ['bosRole', { kind: 'empty' }, { kind: 'role', value: 'general_manager' }],
+      ['contrast', { kind: 'contrast', value: 'standard' }, { kind: 'contrast', value: 'high' }],
+      [
+        'screen',
+        { kind: 'code', group: 'screen', value: 'leads' },
+        { kind: 'code', group: 'screen', value: 'leads' },
+      ],
+      [
+        'settings',
+        { kind: 'empty' },
+        { kind: 'viewSettings', hidden: 2, filters: 1, sorted: true, density: 'compact' },
+      ],
+    ]);
   });
 
   it('has a label for every named field, and no label for a field it does not name', () => {
@@ -218,6 +240,8 @@ describe('what changed', () => {
     expect(Object.keys(values.signInDetail).sort()).toEqual([...SIGN_IN_DETAILS].sort());
     expect(Object.keys(values.method).sort()).toEqual([...CONFIRM_METHODS].sort());
     expect(Object.keys(values.segment).sort()).toEqual([...SegmentSchema.options].sort());
+    expect(Object.keys(values.contrast).sort()).toEqual([...ContrastSchema.options].sort());
+    expect(Object.keys(values.screen).sort()).toEqual([...SavedViewScreenSchema.options].sort());
   });
 
   it('reads lead moves, tax rates and import runs as values, not raw data', () => {

@@ -11,6 +11,7 @@ export const revokeSession = defineCommand({
   minScope: 'all',
   input: RevokeSessionInput,
   output: RevokedSessionsDto,
+  auditFields: ['revokedAt', 'revokedReason'],
   async handler(ctx, input) {
     const s = schema.sessions;
     const [live] = await ctx.tx

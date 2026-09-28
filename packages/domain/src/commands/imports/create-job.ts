@@ -19,6 +19,7 @@ export const createImportJob = defineCommand({
   minScope: 'entity',
   input: CreateImportJobInput,
   output: ImportJobDto,
+  auditFields: ['state', 'kind', 'format', 'totalRows'],
   auditInput: (input) => ({
     entityId: input.entityId,
     kind: input.kind,

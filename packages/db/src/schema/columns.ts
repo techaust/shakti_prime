@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import { timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { principals } from './principals';
 
@@ -28,5 +27,3 @@ export const actorsRequired = {
 export const archivable = {
   archivedAt: timestamp('archived_at', { withTimezone: true }),
 };
-
-export const nowSql = sql`now()`;

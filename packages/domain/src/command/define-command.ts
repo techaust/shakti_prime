@@ -22,6 +22,13 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
    * like any other input; left out, the whole parsed input is recorded.
    */
   auditInput?: (input: z.output<I>) => unknown;
+  /**
+   * Every top-level key the handler's `ctx.audit()` calls record in `before` or `after`, other
+   * than ids (`id`, `…Id`, `…Ids`); `[]` when they record none. The Activity log gives each one
+   * a name on screen (a test in `apps/web` checks the labels against these lists), and the runner
+   * refuses an undeclared key outside production, so a list cannot fall behind its command.
+   */
+  auditFields: readonly string[];
   handler: (ctx: CommandContext, input: z.output<I>) => Promise<z.input<O>>;
 }
 

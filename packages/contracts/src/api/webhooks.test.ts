@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { API_FIXTURES } from './fixtures';
 import { ExotelCallStatusWebhook, ExotelIncomingWebhook } from './webhooks-exotel';
-import { GoogleLeadFormWebhook } from './webhooks-google';
+import { GOOGLE_LEAD_COLUMNS, GoogleLeadFormWebhook } from './webhooks-google';
 import { LiveKitWebhook } from './webhooks-livekit';
 import { MetaSignatureHeaderSchema, WhatsAppWebhook } from './webhooks-meta';
 
@@ -53,6 +53,14 @@ describe('Google lead form webhook', () => {
     const body = API_FIXTURES['webhooks.google'].request as Json;
     expect((GoogleLeadFormWebhook.parse({ ...body, asset_id: 9 }) as Json).asset_id).toBe(9);
     expect(GoogleLeadFormWebhook.safeParse({ ...body, google_key: undefined }).success).toBe(false);
+  });
+
+  it('carries only standard columns the normaliser maps, in the recorded form', () => {
+    const { user_column_data: columns } = GoogleLeadFormWebhook.parse(
+      API_FIXTURES['webhooks.google'].request,
+    ) as { user_column_data: { column_id: string }[] };
+    const known: readonly string[] = GOOGLE_LEAD_COLUMNS;
+    expect(columns.map((c) => c.column_id).filter((id) => !known.includes(id))).toEqual([]);
   });
 });
 

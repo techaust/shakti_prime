@@ -19,6 +19,7 @@ export const setContrast = defineCommand({
   minScope: 'own',
   input: SetContrastInput,
   output: ContrastDto,
+  auditFields: ['contrast'],
   async handler(ctx, input) {
     const [current] = await ctx.tx
       .select({ contrast: schema.users.contrast })

@@ -28,6 +28,7 @@ export const moveOpportunityStage = defineCommand({
   minScope: 'own',
   input: MoveOpportunityStageInput,
   output: OpportunityDto,
+  auditFields: ['handover'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);

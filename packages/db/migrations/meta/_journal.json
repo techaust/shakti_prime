@@ -330,6 +330,13 @@
       "when": 1790574079513,
       "tag": "0046_profile_contrast",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790577875166,
+      "tag": "0047_entity_address_and_definer_guards",
+      "breakpoints": true
     }
   ]
 }

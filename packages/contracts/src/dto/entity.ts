@@ -11,6 +11,11 @@ export const EntityDto = z
     stateCode: z.string().length(2),
     gstin: z.string().nullable(),
     upiId: z.string().nullable(),
+    /** The registered address (workshop pack SALE-2); its state is `stateCode`. */
+    addressLine1: z.string().nullable(),
+    addressLine2: z.string().nullable(),
+    city: z.string().nullable(),
+    pin: z.string().nullable(),
   })
   .strict();
 

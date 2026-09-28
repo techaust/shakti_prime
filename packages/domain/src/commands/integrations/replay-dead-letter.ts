@@ -31,6 +31,7 @@ export const replayDeadLetter = defineCommand({
   alsoRequires: [{ permission: 'admin.integrations.write', minScope: 'all' }],
   input: IntegrationReplayRequest,
   output: IntegrationReplayResponse,
+  auditFields: ['attempts', 'deadLetteredAt', 'eventType'],
   async handler(ctx, input) {
     const rows = (await ctx.tx.execute(sql`
       select event_entity_id, event_type, previous_attempts,

@@ -40,6 +40,7 @@ export const suspendUser = defineCommand({
   minScope: 'all',
   input: SuspendUserInput,
   output: UserDto,
+  auditFields: ['status', 'revokedSessions'],
   async handler(ctx, input) {
     if (input.userId === ctx.principal.id) {
       throw new DomainError('validation_failed', 'a user cannot suspend themselves', {
@@ -86,6 +87,7 @@ export const reactivateUser = defineCommand({
   minScope: 'all',
   input: ReactivateUserInput,
   output: UserDto,
+  auditFields: ['status'],
   async handler(ctx, input) {
     if ((await targetStatus(ctx, input.userId)) !== 'suspended') {
       ctx.audit({ aggregateType: 'user', aggregateId: input.userId, entityId: null });

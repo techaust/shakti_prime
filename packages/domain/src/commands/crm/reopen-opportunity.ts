@@ -22,6 +22,7 @@ export const reopenOpportunity = defineCommand({
   minScope: 'own',
   input: ReopenOpportunityInput,
   output: OpportunityDto,
+  auditFields: ['state'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);

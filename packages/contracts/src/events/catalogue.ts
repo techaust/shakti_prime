@@ -22,7 +22,24 @@ const Code = z.string().trim().min(1).max(40);
 const eventCatalogue = {
   'org.entity.updated': {
     subscribed: false,
-    payload: z.object({ fields: z.array(z.enum(['brandName', 'upiId'])).min(1) }).strict(),
+    payload: z
+      .object({
+        fields: z
+          .array(
+            z.enum([
+              'brandName',
+              'upiId',
+              'gstin',
+              'stateCode',
+              'addressLine1',
+              'addressLine2',
+              'city',
+              'pin',
+            ]),
+          )
+          .min(1),
+      })
+      .strict(),
   },
   'crm.lead.created': {
     subscribed: false,

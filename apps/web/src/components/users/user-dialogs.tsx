@@ -314,7 +314,7 @@ export function LiftLockForm(props: {
   return (
     <ConfirmForm
       {...props}
-      action={(input: unknown) => clearSignInLock(input)}
+      action={clearSignInLock}
       title={t('title', { name: props.user.displayName })}
       intro={t('intro')}
       submit={t('submit')}

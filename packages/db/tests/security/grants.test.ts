@@ -188,12 +188,28 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
         cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
         left join pg_roles r on r.oid = a.grantee
        where p.prosecdef and n.nspname in ('app', 'public')
-         and p.prorettype <> 'trigger'::regtype
          and a.privilege_type = 'EXECUTE'
          and (a.grantee = 0 or r.rolname = 'readonly_reporter')
     `);
     expect(
       rows.filter((r) => !(r.grantee === 'readonly_reporter' && REPORTER_HELPERS.includes(r.fn))),
+    ).toEqual([]);
+  });
+
+  it('every security-definer function, trigger functions included, is closed to everyone and to reporting (final audit)', async () => {
+    // Read through the privilege check itself, so a grant inherited through public counts too.
+    const rows = await withoutContext<{ fn: string; pub: boolean; reporter: boolean }>(sql`
+      select p.oid::regprocedure::text as fn,
+             has_function_privilege('public', p.oid, 'EXECUTE') as pub,
+             has_function_privilege('readonly_reporter', p.oid, 'EXECUTE') as reporter
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where p.prosecdef and n.nspname in ('app', 'public')
+       order by 1
+    `);
+    expect(rows.map((r) => r.fn)).toContain('app.ensure_account_entity()');
+    expect(rows.filter((r) => r.pub)).toEqual([]);
+    expect(
+      rows.filter((r) => r.reporter && !REPORTER_HELPERS.includes(r.fn.replace(/\(.*$/, ''))),
     ).toEqual([]);
   });
 

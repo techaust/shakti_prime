@@ -8,6 +8,7 @@ import {
   countAs,
   principalFor,
   SHARED_TABLES,
+  withoutContext,
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
@@ -385,6 +386,71 @@ describe('an opportunity sits only in an entity its account deals with', () => {
     await asMigrator(
       (m) => m`delete from account_entities where account_id = ${target} and entity_id = 1`,
     );
+  });
+
+  it('attach_account_entity also needs crm.account.write, as the direct insert does (final audit)', async () => {
+    const target = fx.accounts.d[0] ?? '';
+    const c = fx.principals.c;
+    const leadsOnly: Principal = {
+      ...c,
+      permissions: c.permissions.filter((g) => g.key !== 'crm.account.write'),
+    };
+    expect(leadsOnly.permissions.some((g) => g.key === 'crm.lead.write')).toBe(true);
+    const refused = asPrincipal(leadsOnly, ({ tx }) =>
+      tx.execute(sql`select app.attach_account_entity(${target}::uuid, 1::smallint) as status`),
+    );
+    await expect(refused).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        (e.cause as Error & { code?: string }).code === '42501' &&
+        e.cause.message.includes('crm.account.write'),
+    );
+    const [held] = await asMigrator(
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from account_entities
+          where account_id = ${target} and entity_id = 1`,
+    );
+    expect(held?.n).toBe(0);
+  });
+
+  it('the link helpers answer only a signed-in caller who may write customers (final audit)', async () => {
+    // account d[0] has a relationship and contact d[0] a link; an unknown id has neither.
+    const unknown = '01990000-0000-7000-8000-0000000fee98';
+    const ask = (p: Principal) =>
+      asPrincipal(p, async ({ tx }) => {
+        const rows = (await tx.execute(sql`
+          select app.account_unclaimed(${unknown}::uuid) as new_account,
+                 app.account_unclaimed(${fx.accounts.d[0] ?? ''}::uuid) as held_account,
+                 app.contact_unlinked(${unknown}::uuid) as new_contact,
+                 app.contact_unlinked(${fx.contacts.d[0] ?? ''}::uuid) as linked_contact
+        `)) as unknown as Record<string, boolean>[];
+        return rows[0];
+      });
+    expect(await ask(fx.principals.c)).toEqual({
+      new_account: true,
+      held_account: false,
+      new_contact: true,
+      linked_contact: false,
+    });
+    const c = fx.principals.c;
+    const leadsOnly: Principal = {
+      ...c,
+      permissions: c.permissions.filter((g) => g.key !== 'crm.account.write'),
+    };
+    const none = {
+      new_account: false,
+      held_account: false,
+      new_contact: false,
+      linked_contact: false,
+    };
+    expect(await ask(leadsOnly)).toEqual(none);
+    expect(await ask(principalFor('hr_admin', [1]))).toEqual(none);
+    const [anonymous] = await withoutContext<Record<string, boolean>>(sql`
+      select app.account_unclaimed(${unknown}::uuid) as new_account,
+             app.contact_unlinked(${unknown}::uuid) as new_contact
+    `);
+    expect(anonymous).toEqual({ new_account: false, new_contact: false });
   });
 });
 

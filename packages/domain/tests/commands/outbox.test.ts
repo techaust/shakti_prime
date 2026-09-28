@@ -30,6 +30,7 @@ function eventsOf(aggregateId: string): Promise<EventRow[]> {
 const emitThenMaybeFail = defineCommand({
   name: 'test.outbox.emit',
   permission: 'crm.lead.read',
+  auditFields: [],
   input: z.object({ aggregateId: z.string(), fail: z.boolean() }).strict(),
   output: z.object({}).strict(),
   handler: (ctx, input) => {
@@ -137,6 +138,7 @@ describe('events of a command (ADR 0005, docs/design/backend-weeks-3-5.md §4.1)
     const quiet = defineCommand({
       name: 'test.outbox.quiet',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({}).strict(),
       handler: () => Promise.resolve({}),

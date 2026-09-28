@@ -11,7 +11,12 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState, useTransition } from 'react';
 import { formatDateTime } from '../../screens/format';
-import { formatCount, JOB_STATE_TONE, type RowView } from '../../screens/import-wizard';
+import {
+  formatCount,
+  isCommitting,
+  JOB_STATE_TONE,
+  type RowView,
+} from '../../screens/import-wizard';
 import { CheckPanel, CommitPanel, OutcomePanel, ProgressPanel } from './job-panels';
 import { ImportSteps } from './import-steps';
 import { MapStep, type PipelineChoice } from './map-step';
@@ -107,12 +112,12 @@ export function JobScreen({
               }}
               onDone={refresh}
             />
-          ) : job.state === 'committing' ? (
+          ) : isCommitting(job.state) ? (
             <ProgressPanel job={job} refreshing={refreshing} onChanged={refresh} />
           ) : (
             <OutcomePanel job={job} batchSize={batchSize} onDone={refresh} />
           )}
-          {job.state === 'committing' ? null : (
+          {isCommitting(job.state) ? null : (
             <RowsGrid job={job} initial={initialRows} initialView={initialView} />
           )}
         </>

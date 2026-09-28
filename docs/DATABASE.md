@@ -140,7 +140,7 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.1 Org and identity
 | Table | Key columns |
 |---|---|
-| `entities` | `id smallint`, `code`, `legal_name`, `brand_name`, `gstin`, `state_code`, `upi_id`; `letterhead_file_id` and `bank_json` (encrypted) arrive with documents in Phase 1 |
+| `entities` | `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1 |
 | `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
 | `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
 | `principals` | `id`, `kind` (`user`, `agent`, `voice_session`), `display_name` |

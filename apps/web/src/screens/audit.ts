@@ -50,8 +50,7 @@ export function auditWindow(
 
 /**
  * Commands and sign-in events with a name on screen, by the key of that name in the catalogue:
- * every command in the domain registry and every auth event (a test derives both lists), plus
- * the commands of branches not merged yet (saved list views, the live updates connection).
+ * every command in the domain registry and every auth event (a test derives both lists).
  */
 const ACTIONS = {
   'crm.lead.create': 'leadCreate',
@@ -78,6 +77,7 @@ const ACTIONS = {
   'admin.user.reactivate': 'userReactivate',
   'admin.session.revoke': 'sessionRevoke',
   'admin.user.two_factor.reset': 'twoFactorReset',
+  'admin.user.lock.clear': 'signInLockClear',
   'profile.theme.set': 'themeSet',
   'profile.view.save': 'viewSave',
   'profile.view.delete': 'viewDelete',
@@ -145,6 +145,17 @@ export type ChangeValue =
   | { kind: 'time'; iso: string }
   | { kind: 'userStatus'; value: string }
   | { kind: 'theme'; value: string }
+  | { kind: 'contrast'; value: string }
+  | { kind: 'role'; value: string }
+  | {
+      kind: 'viewSettings';
+      /** How many columns the view hides. */
+      hidden: number;
+      /** How many columns it filters on. */
+      filters: number;
+      sorted: boolean;
+      density: string;
+    }
   | { kind: 'endReason'; value: string }
   | { kind: 'roles'; roles: { entityId: number; roleKey: string }[] }
   | { kind: 'date'; iso: string }
@@ -173,6 +184,7 @@ const CODE_GROUPS = [
   'signInDetail',
   'method',
   'eventType',
+  'screen',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -189,8 +201,8 @@ export function oneOf<T extends string>(list: readonly T[], value: string): valu
 
 /**
  * The fields with a name on screen, in the order they are listed, and how their values read:
- * every field a command or a sign-in event writes to the audit trail (`ctx.audit()` across
- * `packages/domain/src/commands`, and the auth events' allow-lists) other than ids. Pairs rather
+ * every field a command or a sign-in event writes to the audit trail other than ids, which is
+ * every command's `auditFields` and the auth events' allow-lists (a test reads both). Pairs rather
  * than an object, so no source line reads like a domain error's reason.
  */
 const FIELD_KINDS = [
@@ -200,11 +212,22 @@ const FIELD_KINDS = [
   ['phone', 'text'],
   ['status', 'userStatus'],
   ['entityRoles', 'roles'],
+  ['bosRole', 'role'],
   ['revokedSessions', 'number'],
   ['twoFactorEnabled', 'yesNo'],
   ['theme', 'theme'],
+  ['contrast', 'contrast'],
+  // Saved list views
+  ['screen', 'screen'],
+  ['settings', 'viewSettings'],
   ['brandName', 'text'],
   ['upiId', 'text'],
+  ['gstin', 'text'],
+  ['stateCode', 'text'],
+  ['addressLine1', 'text'],
+  ['addressLine2', 'text'],
+  ['city', 'text'],
+  ['pin', 'text'],
   ['price', 'money'],
   ['reason', 'text'],
   ['revokedAt', 'time'],
@@ -286,9 +309,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** An id is an internal reference; the screen names records, never their ids. */
+/**
+ * An id is an internal reference; the screen names records, never their ids. A named field wins
+ * over the pattern, so the UPI ID (`upiId`) is shown like any other company detail.
+ */
 function isReference(key: string): boolean {
-  return key === 'id' || /Ids?$/.test(key);
+  return !KIND_OF.has(key) && (key === 'id' || /Ids?$/.test(key));
 }
 
 /**
@@ -336,6 +362,22 @@ function mappingOf(value: Record<string, unknown>): ChangeValue {
     : { kind: 'mapping', columns, defaults };
 }
 
+/**
+ * A saved view's settings (`SavedViewSettings`) as a short description: how many columns it hides
+ * and filters on, whether it sorts, and its row height. Column ids and filter text are the grid's
+ * own and are never shown. Read field by field, so an older shape still reads.
+ */
+function viewSettingsOf(value: Record<string, unknown>): ChangeValue {
+  const hidden = isRecord(value.columns) ? value.columns.hidden : undefined;
+  return {
+    kind: 'viewSettings',
+    hidden: Array.isArray(hidden) ? hidden.length : 0,
+    filters: isRecord(value.filters) ? Object.keys(value.filters).length : 0,
+    sorted: isRecord(value.sort),
+    density: typeof value.density === 'string' ? value.density : 'comfortable',
+  };
+}
+
 function known(field: FieldKey, value: unknown): ChangeValue {
   const kind = KIND_OF.get(field);
   // A side that does not carry the field at all (the before of a new record) shows nothing.
@@ -346,6 +388,8 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     if (kind === 'money') return { kind: 'money', amount: value };
     if (kind === 'userStatus') return { kind: 'userStatus', value };
     if (kind === 'theme') return { kind: 'theme', value };
+    if (kind === 'contrast') return { kind: 'contrast', value };
+    if (kind === 'role') return { kind: 'role', value };
     if (kind === 'endReason') return { kind: 'endReason', value };
     if (kind === 'date') return { kind: 'date', iso: value };
     if (kind === 'percent') return { kind: 'percent', value };
@@ -357,6 +401,7 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'viewSettings') return isRecord(value) ? viewSettingsOf(value) : EMPTY;
   if (kind === 'roles' && Array.isArray(value)) {
     return {
       kind: 'roles',

@@ -16,6 +16,7 @@ export const setPrice = defineCommand({
   minScope: 'entity',
   input: SetPriceInput,
   output: PriceListItemDto,
+  auditFields: ['price', 'reason'],
   async handler(ctx, input) {
     const pl = schema.priceLists;
     const [list] = await ctx.tx

@@ -14,6 +14,7 @@ afterAll(closeDb);
 const insertTier = defineCommand({
   name: 'test.tier.insert',
   permission: 'pricing.write',
+  auditFields: [],
   minScope: 'entity',
   input: z.object({ code: z.string() }).strict(),
   output: z.object({ id: z.string() }).strict(),
@@ -34,6 +35,7 @@ const insertTier = defineCommand({
 const insertItem = defineCommand({
   name: 'test.item.insert',
   permission: 'catalogue.write',
+  auditFields: [],
   minScope: 'entity',
   input: z.object({ hsn: z.string() }).strict(),
   output: z.object({ id: z.string() }).strict(),

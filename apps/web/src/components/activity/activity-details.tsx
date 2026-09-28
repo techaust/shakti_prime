@@ -1,12 +1,14 @@
 'use client';
 
 import {
+  ContrastSchema,
   IMPLEMENTED_IMPORT_KINDS,
   ImportJobStateSchema,
   LeadImportFieldSchema,
   OpportunityLostReasonSchema,
   OpportunityNurtureReasonSchema,
   OpportunityStateSchema,
+  SavedViewScreenSchema,
   SegmentSchema,
   SessionRevokeReasonSchema,
   ThemeSchema,
@@ -197,6 +199,21 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         const choice = ThemeSchema.safeParse(value.value);
         return choice.success ? theme(choice.data) : wordsOf(value.value);
       }
+      case 'contrast': {
+        const choice = ContrastSchema.safeParse(value.value);
+        return choice.success ? t(`values.contrast.${choice.data}`) : wordsOf(value.value);
+      }
+      case 'role':
+        return roles.has(value.value as RoleNameKey)
+          ? roles(value.value as RoleNameKey)
+          : wordsOf(value.value);
+      case 'viewSettings':
+        return t('values.viewSettings', {
+          hidden: value.hidden,
+          filters: value.filters,
+          sorted: value.sorted ? 'yes' : 'no',
+          density: value.density,
+        });
       case 'endReason': {
         const ended = SessionRevokeReasonSchema.safeParse(value.value);
         return ended.success ? users(`sessions.reason.${ended.data}`) : wordsOf(value.value);
@@ -277,6 +294,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         const name = eventNameKey(value);
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
+      }
+      case 'screen': {
+        const screen = SavedViewScreenSchema.safeParse(value);
+        return screen.success ? t(`values.screen.${screen.data}`) : wordsOf(value);
       }
     }
   };

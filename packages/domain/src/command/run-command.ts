@@ -103,6 +103,30 @@ export function auditedInput<I extends z.ZodType, O extends z.ZodType>(
   return redactForAudit(command.auditInput === undefined ? input : command.auditInput(input));
 }
 
+/** An id is an internal reference: the Activity log never names it, so it needs no declaring. */
+const REFERENCE_KEY = /^id$|Ids?$/;
+
+/**
+ * The keys of a change's `before` and `after` that the command does not list in `auditFields`,
+ * ids aside. Read by the runner, which refuses them outside production (see `auditFields`).
+ */
+export function undeclaredAuditFields(
+  declared: readonly string[],
+  change: Pick<AuditChange, 'before' | 'after'>,
+): string[] {
+  const keys = [change.before, change.after].flatMap((side) =>
+    typeof side === 'object' && side !== null && !Array.isArray(side) ? Object.keys(side) : [],
+  );
+  return [...new Set(keys)].filter((k) => !REFERENCE_KEY.test(k) && !declared.includes(k)).sort();
+}
+
+/**
+ * Outside production a change with an undeclared field fails the command, so the tests of every
+ * command keep its list true. In production the row is written as it is: the Activity log shows
+ * an unnamed field in plain words, which is better than refusing the change.
+ */
+const STRICT_AUDIT_FIELDS = process.env.NODE_ENV !== 'production';
+
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
 export function checkPermission(
   principal: Principal,
@@ -285,6 +309,14 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
       events.push({ ...event, payload: parsed.payload });
     },
     audit: (change) => {
+      if (STRICT_AUDIT_FIELDS) {
+        const undeclared = undeclaredAuditFields(command.auditFields, change);
+        if (undeclared.length > 0) {
+          throw new DomainError('internal', `${command.name} audited fields it does not declare`, {
+            fields: undeclared,
+          });
+        }
+      }
       changes.push(change);
     },
     now,

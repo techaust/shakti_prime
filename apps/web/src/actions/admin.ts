@@ -1,5 +1,9 @@
 'use server';
 
+// The Team members, sessions and Activity log screens call these actions, except
+// `replayDeadLetter`: its screen, the Integration Health page, comes in Phase 1
+// (docs/design/backend-weeks-3-5.md §4.4).
+
 import {
   ClearSignInLockInput,
   type AuditPageDto,
@@ -19,7 +23,7 @@ import {
   type UserPageDto,
 } from '@shakti/contracts';
 import {
-  checkPermission,
+  clearSignInLock as clearSignInLockCommand,
   executeCommand,
   executeQuery,
   inviteUser as inviteUserCommand,
@@ -139,7 +143,8 @@ export async function reactivateUser(
 /**
  * Sends a failed message to other systems again (Executive only, design §4.4): the dead-lettered
  * event goes back in the queue with its attempts cleared, and the publisher's next run, at most a
- * minute away, sends it.
+ * minute away, sends it. No screen calls it yet: the Integration Health page and its replay
+ * route come in Phase 1 (docs/design/backend-weeks-3-5.md §4.4).
  */
 export async function replayDeadLetter(
   rawInput: unknown,
@@ -216,16 +221,26 @@ export async function resetTwoFactor(
   });
 }
 
-/** Lifts every sign-in lock on a staff member's account, for a user administrator only. */
-export async function clearSignInLock(rawInput: unknown): Promise<ActionResult<null>> {
+/**
+ * Lifts every sign-in lock on a staff member's account (Executive only, AUDIT M6). The command
+ * checks the permission and the person and records it in the Activity log; the lock itself lives
+ * in the shared store, so it is lifted after the commit, as the other actions send their emails.
+ * A repeat with the same key answers the stored person and lifts the lock again, which is harmless.
+ */
+export async function clearSignInLock(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<null>> {
   return toResult('clearSignInLock', async () => {
     const principal = await signedIn();
-    checkPermission(principal, 'admin.users.write', 'all');
     const input = parseInput(ClearSignInLockInput, rawInput);
-    const user = await executeQuery(
+    const meta = await requestMeta();
+    const user = await executeCommand(
       principal,
-      { requestId: (await requestMeta()).requestId },
-      ({ tx }) => loadUserDto(tx, input.userId),
+      { requestId: meta.requestId },
+      clearSignInLockCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
     );
     await clearLock(defaultAuthDeps(), user.email);
     return null;

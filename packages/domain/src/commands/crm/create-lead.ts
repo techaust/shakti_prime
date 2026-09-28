@@ -22,6 +22,7 @@ export const createLead = defineCommand({
   alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
   input: CreateLeadInput,
   output: LeadDto,
+  auditFields: ['existingAccount', 'consent'],
   async handler(ctx, input) {
     if (!ctx.entityIds.includes(input.entityId)) {
       throw new DomainError('forbidden', 'entity outside the request scope', {

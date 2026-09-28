@@ -1,3 +1,4 @@
+import { closeAuthDb } from '@shakti/db/auth';
 import { ErrorEnvelope } from '@shakti/contracts';
 import { asMigrator, closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
@@ -50,6 +51,7 @@ beforeAll(async () => {
   };
 });
 afterAll(async () => {
+  await closeAuthDb();
   vi.unstubAllGlobals();
   await closeDb();
 });

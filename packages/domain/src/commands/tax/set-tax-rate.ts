@@ -15,6 +15,7 @@ export const setTaxRate = defineCommand({
   minScope: 'entity',
   input: SetTaxRateInput,
   output: TaxRateRowSchema,
+  auditFields: ['hsn', 'ratePct', 'effectiveFrom', 'effectiveTo', 'sourceRef'],
   constraintReasons: {
     tax_rates_hsn_period_excl: 'tax_rate_overlap',
     tax_rates_item_period_excl: 'tax_rate_overlap',

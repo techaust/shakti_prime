@@ -22,6 +22,7 @@ export const winOpportunity = defineCommand({
   minScope: 'own',
   input: WinOpportunityInput,
   output: OpportunityDto,
+  auditFields: ['state'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);
