@@ -47,9 +47,13 @@ const rows: Lead[] = [
 
 describe('column chooser rules', () => {
   it('never hides the primary column or one without a name to show', () => {
-    expect(canHideColumn(columns[0]!, columns)).toBe(false);
-    expect(canHideColumn(columns[1]!, columns)).toBe(true);
-    expect(canHideColumn(columns[3]!, columns)).toBe(false);
+    const [customer, village, , actions] = columns;
+    if (customer === undefined || village === undefined || actions === undefined) {
+      throw new Error('columns listed above');
+    }
+    expect(canHideColumn(customer, columns)).toBe(false);
+    expect(canHideColumn(village, columns)).toBe(true);
+    expect(canHideColumn(actions, columns)).toBe(false);
     expect(visibleColumns(columns, ['customer', 'village', 'actions']).map((c) => c.id)).toEqual([
       'customer',
       'kw',
