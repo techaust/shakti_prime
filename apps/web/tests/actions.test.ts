@@ -776,7 +776,7 @@ describe('tax and appearance actions answer a result, never a thrown error', () 
   })();
 
   it('setTaxRate records a rate for Accounts and refuses anyone else', async () => {
-    request.principal = await createTestPrincipal('accounts', [1]);
+    request.principal = await createTestPrincipal('accounts');
     const code = hsn();
     const rate = ok(
       await setTaxRate({ hsn: code, ratePct: '12.00', effectiveFrom: farDay(0) }, newId()),
@@ -786,6 +786,12 @@ describe('tax and appearance actions answer a result, never a thrown error', () 
     await expect(
       setTaxRate({ hsn: code, itemId: newId(), ratePct: '12.00', effectiveFrom: farDay(1) }),
     ).resolves.toMatchObject({ ok: false, error: 'validation_failed' });
+
+    // Rates price every company, so Accounts acting for one company is told to switch (0048).
+    request.principal = await createTestPrincipal('accounts', [1]);
+    await expect(
+      setTaxRate({ hsn: hsn(), ratePct: '18.00', effectiveFrom: farDay(2) }),
+    ).resolves.toEqual({ ok: false, error: 'tax_group_scope' });
 
     request.principal = await createTestPrincipal('general_manager', [1]);
     await expect(
@@ -798,7 +804,7 @@ describe('tax and appearance actions answer a result, never a thrown error', () 
   });
 
   it('setCompositeRule records a split for Accounts and refuses shares that miss 100', async () => {
-    request.principal = await createTestPrincipal('accounts', [1]);
+    request.principal = await createTestPrincipal('accounts');
     const split = {
       segment: 'dealer_wholesale',
       goodsSharePct: '70.00',

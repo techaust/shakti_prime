@@ -1,5 +1,5 @@
 import { newId } from '@shakti/contracts';
-import { loadUserGrants } from '@shakti/db';
+import { loadUserGrants } from '@shakti/db/grants';
 import {
   asMigrator,
   asPrincipal,
@@ -31,6 +31,19 @@ async function addSession(userId: string): Promise<string> {
       values (${id}, ${userId}, ${`tok-${id}`}, now() + interval '12 hours')`,
   );
   return id;
+}
+
+/** Waits until a transaction is queued on an advisory lock, the admin changes' serialising lock. */
+async function waitForLockWaiter(): Promise<void> {
+  for (let i = 0; i < 100; i += 1) {
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from pg_locks where locktype = 'advisory' and not granted`,
+    );
+    if ((row?.n ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('no change queued on the lock');
 }
 
 async function revokedIds(userId: string): Promise<string[]> {
@@ -234,6 +247,42 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
     ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'self_role_change' } });
   });
 
+  it('role.set checks the scope after the lock, so a role given in another company meanwhile survives', async () => {
+    const exec1 = await createTestPrincipal('executive', [1]);
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    let pending: Promise<unknown> | undefined;
+    // Another change holds the lock and gives the user a company-2 role; the narrowed Executive's
+    // change waits for it, then sees the new role and is refused instead of removing it.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`select pg_advisory_xact_lock(hashtext('admin.executives'))`;
+        await tx`insert into user_entity_roles (id, user_id, entity_id, role_id)
+          values (${newId()}, ${user.id}, 2, (select id from roles where key = 'accounts'))`;
+        pending = asPrincipal(exec1, (context) =>
+          runCommand(
+            setUserRoles,
+            { context, audit, outbox },
+            { userId: user.id, entityRoles: [{ entityId: 1, roleKey: 'store_manager' }] },
+          ),
+        ).catch((e: unknown) => e);
+        await waitForLockWaiter();
+      }),
+    );
+    expect(await pending).toMatchObject({
+      code: 'conflict',
+      details: { reason: 'user_roles_outside_scope', entityIds: [2] },
+    });
+    const roles = await asMigrator(
+      (m) => m<{ entity_id: number; key: string }[]>`
+        select uer.entity_id, r.key from user_entity_roles uer join roles r on r.id = uer.role_id
+         where uer.user_id = ${user.id} order by uer.entity_id`,
+    );
+    expect(roles).toEqual([
+      { entity_id: 1, key: 'tele_caller_cc' },
+      { entity_id: 2, key: 'accounts' },
+    ]);
+  });
+
   it('replaces the roles, revokes every live session and the next resolution sees the new grants', async () => {
     const exec = await createTestPrincipal('executive');
     const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
@@ -425,5 +474,36 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
       (m) => m<{ status: string }[]>`select status from users where id = ${target.id}`,
     );
     expect(row?.status).toBe('active');
+  });
+
+  it('counts the Executives of every company for an Executive narrowed to one company (0049)', async () => {
+    const exec1 = await createTestPrincipal('executive', [1]);
+    const target = await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    const elsewhere = await createTestUser([{ entityId: 2, roleKey: 'executive' }]);
+    const demote = {
+      userId: target.id,
+      entityRoles: [{ entityId: 1, roleKey: 'accounts' as const }],
+    };
+    const rollback = new Error('rollback');
+
+    // The only other active Executive works in company 2, which this request cannot read: the
+    // guard still counts them, so the demotion goes through (and is rolled back here).
+    await expect(
+      asPrincipal(exec1, async (context) => {
+        await context.tx.execute(sql`update users set status = 'suspended'
+          where status = 'active' and id not in (${target.id}, ${elsewhere.id})`);
+        await runCommand(setUserRoles, { context, audit, outbox }, demote);
+        throw rollback;
+      }),
+    ).rejects.toBe(rollback);
+
+    // With no other active Executive anywhere, the same demotion is refused.
+    await expect(
+      asPrincipal(exec1, async (context) => {
+        await context.tx.execute(sql`update users set status = 'suspended'
+          where status = 'active' and id <> ${target.id}`);
+        return runCommand(setUserRoles, { context, audit, outbox }, demote);
+      }),
+    ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'last_executive' } });
   });
 });

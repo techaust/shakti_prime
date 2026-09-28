@@ -3,16 +3,24 @@
 // customer shared by companies 1 and 2 (ADR 0008), and the group-wide rows (`entity_id null`) of
 // the tables that allow them. Fixed ids so the fixture is re-creatable, except the audit rows,
 // which are append-only and get new ids each run. Values are test data, never copy.
+// `user_entity_roles` is the one table whose policy also shows the caller's own rows in any
+// company (0049), so the owner holds a role in every company, as does a second person.
 import { newId } from '@shakti/contracts';
 import { ALL_ENTITY_IDS } from '../../seeds/entities';
 import { PIPELINE_SEED, stageId } from '../../seeds/pipelines';
 import { tierId } from '../../seeds/price-tiers';
+import { roleId } from '../../seeds/roles';
 import { asMigrator, type ENTITY_TABLES } from './index';
 
 /** Prefix for fixture ids; four hex characters follow. */
 export const ENTITY_MATRIX_FIXTURE_PREFIX = '01990000-0000-7000-8000-0000000b';
 const P = ENTITY_MATRIX_FIXTURE_PREFIX;
 const id = (n: number): string => `${P}${n.toString(16).padStart(4, '0')}`;
+
+const OWNER_ID = id(0x0001);
+/** Names no audit row, so unlike the owner it is removed with the fixture. */
+const OTHER_USER_ID = id(0x0007);
+const MATRIX_ROLE = roleId('tele_caller_cc');
 
 /** The command the fixture's audit rows carry, so a reader can tell them from real ones. */
 export const ENTITY_MATRIX_AUDIT_COMMAND = 'test.entity_matrix';
@@ -50,6 +58,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   import_mapping_templates: 'x.id::text',
   import_jobs: 'x.id::text',
   import_rows: "x.job_id::text || '/' || x.row_no::text",
+  user_entity_roles: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -60,21 +69,36 @@ export interface MatrixRow {
   key: string;
   /** The companies whose members may see the row; `null` for a group-wide row. */
   entities: readonly number[] | null;
+  /**
+   * The row is the acting principal's own (the matrix acts as `ownerId`), which a table's
+   * `ownRows` rule shows in any company.
+   */
+  ownedByActor?: true;
 }
 
 export interface EntityMatrixFixture {
-  /** A `principals` row that owns every CRM fixture row; the matrix acts as this principal. */
+  /**
+   * A `principals` and `users` row that owns every CRM fixture row and holds a role in every
+   * company; the matrix acts as this principal.
+   */
   ownerId: string;
+  /** A second person with a role in every company, whose rows the owner sees only in context. */
+  otherUserId: string;
   /** The owner's team in each company, which owns that company's CRM fixture rows. */
   teamIds: Readonly<Record<number, string>>;
   rows: Readonly<Record<MatrixTable, readonly MatrixRow[]>>;
 }
 
-/** Removes every fixture row but the audit rows (append-only) and the owner they name. */
+/**
+ * Removes every fixture row but the audit rows (append-only) and the owner's `principals` row
+ * they name.
+ */
 export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      await tx`delete from user_entity_roles where id::text like ${like}`;
+      await tx`delete from users where id::text like ${like}`;
       await tx`delete from import_rows where job_id::text like ${like}`;
       await tx`delete from import_jobs where id::text like ${like}`;
       await tx`delete from import_mapping_templates where id::text like ${like}`;
@@ -94,6 +118,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from pipeline_stages where id::text like ${like}`;
       await tx`delete from pipelines where id::text like ${like}`;
       await tx`delete from teams where id::text like ${like}`;
+      await tx`delete from principals where id = ${OTHER_USER_ID}`;
     }),
   );
 }
@@ -106,7 +131,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
 export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   await removeEntityMatrixFixture();
 
-  const ownerId = id(0x0001);
+  const ownerId = OWNER_ID;
+  const otherUserId = OTHER_USER_ID;
   const groupTeam = id(0x0002);
   const item = id(0x0003);
   const groupPipeline = id(0x0004);
@@ -147,6 +173,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     import_mapping_templates: [],
     import_jobs: [],
     import_rows: [],
+    user_entity_roles: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -163,6 +190,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     m.begin(async (tx) => {
       await tx`insert into principals (id, kind, display_name)
         values (${ownerId}, 'user', 'entity matrix owner') on conflict (id) do nothing`;
+      await tx`insert into principals (id, kind, display_name)
+        values (${otherUserId}, 'user', 'entity matrix other user')`;
+      await tx`insert into users (id, name, email) values
+        (${ownerId}, 'entity matrix owner', 'entity-matrix-owner@shakti.test'),
+        (${otherUserId}, 'entity matrix other user', 'entity-matrix-other@shakti.test')`;
       await tx`insert into teams (id, entity_id, name) values (${groupTeam}, null, 'matrix group team')`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
@@ -193,6 +225,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const pipelineE = per(e, 0x0e);
         const stageE = per(e, 0x0f);
         const priceList = per(e, 0x10);
+        const ownerRole = per(e, 0x11);
+        const otherRole = per(e, 0x12);
         const audit = newId();
         const only = [e];
 
@@ -230,6 +264,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${stageE}, ${pipelineE}, ${e}, ${`matrix-${e.toString()}`}, ${`matrix stage ${e}`}, 1)`;
         await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
           values (${priceList}, ${tierId('dealer')}, ${e}, 9000, '2090-01-01', now())`;
+        await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
+          (${ownerRole}, ${ownerId}, ${e}, ${MATRIX_ROLE}, ${team}, ${ownerId}),
+          (${otherRole}, ${otherUserId}, ${e}, ${MATRIX_ROLE}, null, ${ownerId})`;
 
         rows.entities.push({ key: e.toString(), entities: only });
         rows.teams.push({ key: team, entities: only });
@@ -251,6 +288,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.pipelines.push({ key: pipelineE, entities: only });
         rows.pipeline_stages.push({ key: stageE, entities: only });
         rows.price_lists.push({ key: priceList, entities: only });
+        rows.user_entity_roles.push(
+          { key: ownerRole, entities: only, ownedByActor: true },
+          { key: otherRole, entities: only },
+        );
       }
 
       // The shared customer: one account, contact and site, related to companies 1 and 2.
@@ -271,5 +312,5 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     }),
   );
 
-  return { ownerId, teamIds, rows };
+  return { ownerId, otherUserId, teamIds, rows };
 }

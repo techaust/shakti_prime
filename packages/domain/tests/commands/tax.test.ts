@@ -1,4 +1,4 @@
-import type { Principal } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -28,7 +28,8 @@ let fx: CatalogueFixture;
 
 beforeAll(async () => {
   fx = await catalogueFixture();
-  accounts = await createTestPrincipal('accounts', [1]);
+  // Tax rows price every company, so only Accounts acting for all of them may write (0048).
+  accounts = await createTestPrincipal('accounts');
 });
 
 afterAll(async () => {
@@ -56,6 +57,9 @@ async function rule(principal: Principal, input: Record<string, unknown>) {
   created.rules.add(row.id);
   return row;
 }
+
+const refusedByPolicy = (e: unknown) =>
+  e instanceof Error && e.cause instanceof Error && e.cause.message.includes('row-level security');
 
 /** An HSN code no earlier run used. */
 function hsn(): string {
@@ -118,9 +122,8 @@ describe('tax.rate.set', () => {
     ]);
   });
 
-  it('a rate set by Accounts of one company applies to every company', async () => {
-    const other = await createTestPrincipal('accounts', [2]);
-    const row = await rate(other, { hsn: hsn(), ratePct: '18.00', effectiveFrom: dates()(0) });
+  it('a rate set by Accounts acting for every company applies to every company', async () => {
+    const row = await rate(accounts, { hsn: hsn(), ratePct: '18.00', effectiveFrom: dates()(0) });
     const seen = await asPrincipal(
       await createTestPrincipal('tele_caller_cc', [1]),
       async ({ tx }) =>
@@ -129,6 +132,37 @@ describe('tax.rate.set', () => {
         }[],
     );
     expect(seen.map((r) => r.id)).toEqual([row.id]);
+  });
+
+  it('is refused to Accounts or the Executive acting for fewer than every company, by the command and by the database', async () => {
+    const code = hsn();
+    const day = dates();
+    for (const [role, entityIds] of [
+      ['accounts', [1]],
+      ['accounts', [2]],
+      ['executive', [1, 2, 3]],
+    ] as const) {
+      const principal = await createTestPrincipal(role, entityIds);
+      await expect(
+        run(principal, setTaxRate, { hsn: code, ratePct: '18.00', effectiveFrom: day(0) }),
+      ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'tax_group_scope' } });
+    }
+    const narrow = await createTestPrincipal('accounts', [1]);
+    await expect(
+      asPrincipal(narrow, ({ tx }) =>
+        tx.execute(sql`insert into tax_rates (id, hsn, rate_pct, effective_from, created_by)
+          values (${newId()}, ${code}, 18.00, ${day(0)}, ${narrow.id})`),
+      ),
+    ).rejects.toSatisfy(refusedByPolicy);
+    const open = await rate(accounts, { hsn: code, ratePct: '12.00', effectiveFrom: day(0) });
+    const changed = await asPrincipal(narrow, async ({ tx }) => {
+      const rows = (await tx.execute(sql`
+        update tax_rates set rate_pct = 28.00 where id = ${open.id} returning id
+      `)) as unknown as { id: string }[];
+      return rows.length;
+    });
+    expect(changed).toBe(0);
+    expect(await effectiveTo('tax_rates', open.id)).toBeNull();
   });
 
   it('refuses an overlapping period with tax_rate_overlap and changes nothing', async () => {
@@ -221,6 +255,37 @@ describe('tax.composite.set', () => {
     // Close the open split so no later run or suite meets an open period on this segment.
     await rule(accounts, { ...split, effectiveFrom: day(20), effectiveTo: day(30) });
     expect(await effectiveTo('composite_supply_rules', second.id)).toBe(day(20));
+  });
+
+  it('is refused to Accounts acting for one company, by the command and by the database', async () => {
+    const day = dates();
+    const split = {
+      segment: SEGMENT,
+      goodsSharePct: '70.00',
+      servicesSharePct: '30.00',
+      goodsRatePct: '5.00',
+      servicesRatePct: '18.00',
+    };
+    const narrow = await createTestPrincipal('accounts', [1]);
+    await expect(
+      run(narrow, setCompositeRule, { ...split, effectiveFrom: day(0), effectiveTo: day(5) }),
+    ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'tax_group_scope' } });
+    await expect(
+      asPrincipal(narrow, ({ tx }) =>
+        tx.execute(sql`insert into composite_supply_rules
+          (id, segment, goods_share_pct, services_share_pct, goods_rate_pct, services_rate_pct,
+           effective_from, effective_to, created_by)
+          values (${newId()}, ${SEGMENT}, 70.00, 30.00, 5.00, 18.00, ${day(0)}, ${day(5)}, ${narrow.id})`),
+      ),
+    ).rejects.toSatisfy(refusedByPolicy);
+    const closed = await rule(accounts, { ...split, effectiveFrom: day(0), effectiveTo: day(5) });
+    const changed = await asPrincipal(narrow, async ({ tx }) => {
+      const rows = (await tx.execute(sql`
+        update composite_supply_rules set goods_rate_pct = 12.00 where id = ${closed.id} returning id
+      `)) as unknown as { id: string }[];
+      return rows.length;
+    });
+    expect(changed).toBe(0);
   });
 
   it('rejects shares that do not add up to 100', async () => {

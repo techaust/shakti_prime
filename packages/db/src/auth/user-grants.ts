@@ -20,7 +20,9 @@ export interface UserGrantRow {
 /**
  * Loads what principal resolution needs (docs/design/backend-weeks-3-5.md §2.3). Runs on the
  * application connection through a security-definer function, so it needs no request context and
- * returns no secret column. An unknown user yields an empty array.
+ * returns no secret column. An unknown user yields an empty array. It answers for any user id, so
+ * it is reached only through `@shakti/db/grants`, which the lint fences to principal resolution in
+ * apps/web/src/auth and the import worker.
  */
 export async function loadUserGrants(userId: string): Promise<UserGrantRow[]> {
   const rows = (await rawDb().execute(sql`

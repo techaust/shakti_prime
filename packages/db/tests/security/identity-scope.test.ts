@@ -132,15 +132,27 @@ describe('the application role and the identity tables', () => {
     expect(await revoke(principalFor('executive'))).toBe(1);
   });
 
-  it('user roles: readable with any context, written only with admin.users.write:all', async () => {
+  it('user roles: read in the companies of the request or as your own, written only with admin.users.write:all', async () => {
     const gm = principalFor('general_manager', [1]);
-    const seen = await asPrincipal(gm, async ({ tx }) => {
-      const rows = (await tx.execute(
-        sql`select count(*)::int as n from user_entity_roles where user_id = ${user.id}`,
-      )) as unknown as { n: number }[];
-      return rows[0]?.n;
-    });
-    expect(seen).toBe(2);
+    const seen = (principal: Principal) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select entity_id from user_entity_roles where user_id = ${user.id} order by entity_id`,
+        )) as unknown as { entity_id: number }[];
+        return rows.map((r) => r.entity_id);
+      });
+    expect(await seen(gm)).toEqual([1]);
+    expect(await seen(principalFor('general_manager', [1, 2]))).toEqual([1, 2]);
+    expect(await seen(principalFor('executive', [3]))).toEqual([]);
+    for (const agent of ['agent:concierge', 'agent:triage', 'agent:chief'] as const) {
+      expect(await seen(principalFor(agent, [3, 4]))).toEqual([]);
+    }
+    // a person always reads their own roles, whichever company they act for
+    expect(await seen(principalFor('accounts', [1], { id: user.id }))).toEqual([1, 2]);
+    const [hidden] = await withoutContext<{ n: number }>(
+      sql`select count(*)::int as n from user_entity_roles`,
+    );
+    expect(hidden?.n).toBe(0);
     await expect(
       asPrincipal(gm, ({ tx }) =>
         tx.execute(sql`update users set name = 'renamed' where id = ${user.id}`),
@@ -167,6 +179,114 @@ describe('the application role and the identity tables', () => {
       sql`select count(*)::int as n from users`,
     );
     expect(noContext?.n).toBe(0);
+  });
+
+  it('user roles: an administrator acting for some companies writes roles in those companies only (0049)', async () => {
+    const rollback = new Error('rollback');
+    /** Rows the statement touched as `principal`, always rolled back; -1 when RLS refused it. */
+    const touched = async (principal: Principal, statement: ReturnType<typeof sql>) => {
+      let n: number | undefined;
+      try {
+        await asPrincipal(principal, async ({ tx }) => {
+          n = ((await tx.execute(statement)) as unknown as unknown[]).length;
+          throw rollback;
+        });
+      } catch (e) {
+        if (e === rollback && n !== undefined) return n;
+        if (
+          e instanceof Error &&
+          e.cause instanceof Error &&
+          e.cause.message.includes('row-level security')
+        ) {
+          return -1;
+        }
+        throw e;
+      }
+      throw new Error('the statement neither ran nor failed');
+    };
+    const give = (entityId: number) =>
+      sql`insert into user_entity_roles (id, user_id, entity_id, role_id)
+          values (${newId()}, ${user.id}, ${entityId}, (select id from roles where key = 'accounts'))
+          returning id`;
+    const change = sql`update user_entity_roles set role_id = (select id from roles where key = 'executive')
+      where user_id = ${user.id} returning entity_id`;
+    const remove = sql`delete from user_entity_roles where user_id = ${user.id} returning entity_id`;
+
+    const exec1 = principalFor('executive', [1]);
+    expect(await touched(exec1, give(3))).toBe(-1);
+    expect(await touched(exec1, change)).toBe(1);
+    expect(await touched(exec1, remove)).toBe(1);
+    const exec2 = principalFor('executive', [2]);
+    expect(await touched(exec2, remove)).toBe(1);
+    // moving a company-1 row into company 3 leaves the request's companies: refused
+    expect(
+      await touched(
+        exec1,
+        sql`update user_entity_roles set entity_id = 3 where user_id = ${user.id} returning id`,
+      ),
+    ).toBe(-1);
+
+    const execAll = principalFor('executive');
+    expect(await touched(execAll, give(3))).toBe(1);
+    expect(await touched(execAll, remove)).toBe(2);
+
+    const [still] = await asMigrator(
+      (m) =>
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from user_entity_roles where user_id = ${user.id}`,
+    );
+    expect(still?.n).toBe(2);
+  });
+
+  it('the admin helpers answer only a user administrator (0049)', async () => {
+    const notAdmin = (e: unknown) => {
+      const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
+      return cause instanceof Error && cause.message.includes('admin.users.write:all is required');
+    };
+    const outside = (principal: Principal) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select app.user_roles_outside_request(${user.id}::uuid) as ids`,
+        )) as unknown as { ids: number[] }[];
+        return rows[0]?.ids;
+      });
+    const executives = (principal: Principal) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select app.active_executive_count() as n`,
+        )) as unknown as { n: number }[];
+        return rows[0]?.n;
+      });
+    expect(await outside(principalFor('executive', [1]))).toEqual([2]);
+    expect(await outside(principalFor('executive', [3]))).toEqual([1, 2]);
+    expect(await outside(principalFor('executive'))).toEqual([]);
+    // An active Executive of company 1 only; one acting for company 3 still counts them, and the
+    // expected total is read past the policies, since the suites add Executives as they run.
+    await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    const [truth] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(distinct u.id)::int as n
+         from users u
+         join user_entity_roles uer on uer.user_id = u.id
+         join roles r on r.id = uer.role_id
+        where u.status = 'active' and r.key = 'executive'`,
+    );
+    expect(truth?.n).toBeGreaterThan(0);
+    expect(await executives(principalFor('executive', [3]))).toBe(truth?.n);
+    for (const role of ['general_manager', 'accounts', 'agent:chief'] as const) {
+      await expect(outside(principalFor(role, [1]))).rejects.toSatisfy(notAdmin);
+      await expect(executives(principalFor(role, [1]))).rejects.toSatisfy(notAdmin);
+    }
+    await expect(withoutContext(sql`select app.active_executive_count()`)).rejects.toSatisfy(
+      notAdmin,
+    );
+    const [priv] = await withoutContext<{ reporter: boolean; pub: boolean }>(sql`
+      select has_function_privilege('readonly_reporter', 'app.user_roles_outside_request(uuid)', 'execute')
+          or has_function_privilege('readonly_reporter', 'app.active_executive_count()', 'execute') as reporter,
+             has_function_privilege('public', 'app.user_roles_outside_request(uuid)', 'execute')
+          or has_function_privilege('public', 'app.active_executive_count()', 'execute') as pub
+    `);
+    expect(priv).toEqual({ reporter: false, pub: false });
   });
 
   it('staff email, phone and sign-in state: own row, or user administrators only (AUDIT M3)', async () => {

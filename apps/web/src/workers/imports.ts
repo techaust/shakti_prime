@@ -4,7 +4,7 @@ import {
   type ImportCommitWorkerBody,
   type Principal,
 } from '@shakti/contracts';
-import { loadUserGrants } from '@shakti/db';
+import { loadUserGrants } from '@shakti/db/grants';
 import { commitImportBatch, executeCommand, resolvePrincipalFromGrants } from '@shakti/domain';
 import { hostedRuntime } from '../auth/deps';
 import { logger } from '../log';

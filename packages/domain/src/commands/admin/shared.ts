@@ -64,16 +64,15 @@ export async function resolveEntityRoles(
 /**
  * Refuses a target who holds a role in an entity outside the request scope. Users and their
  * sessions belong to no single entity, so acting on one reaches every company they work in; an
- * admin role held in one company must not reach the others (fix P, AUDIT H2).
+ * admin role held in one company must not reach the others (fix P, AUDIT H2). The read policy on
+ * `user_entity_roles` shows only the request's companies, so the definer
+ * `app.user_roles_outside_request()` answers which other companies the person works in (0049).
  */
 export async function assertUserInScope(ctx: CommandContext, userId: string): Promise<void> {
-  const held = await ctx.tx
-    .select({ entityId: schema.userEntityRoles.entityId })
-    .from(schema.userEntityRoles)
-    .where(eq(schema.userEntityRoles.userId, userId));
-  const outside = [...new Set(held.map((r) => r.entityId))].filter(
-    (id) => !ctx.entityIds.includes(id),
-  );
+  const [row] = (await ctx.tx.execute(
+    sql`select app.user_roles_outside_request(${userId}::uuid) as outside`,
+  )) as unknown as { outside: number[] | null }[];
+  const outside = row?.outside ?? [];
   if (outside.length > 0) {
     throw new DomainError('conflict', 'user holds roles outside the request scope', {
       reason: 'user_roles_outside_scope',
@@ -82,13 +81,11 @@ export async function assertUserInScope(ctx: CommandContext, userId: string): Pr
   }
 }
 
+/** Active Executives across the group, through a definer: RLS shows the request's companies only. */
 async function countActiveExecutives(ctx: CommandContext): Promise<number> {
-  const [row] = await ctx.tx
-    .select({ count: sql<number>`count(distinct ${schema.users.id})::int` })
-    .from(schema.users)
-    .innerJoin(schema.userEntityRoles, eq(schema.userEntityRoles.userId, schema.users.id))
-    .innerJoin(schema.roles, eq(schema.roles.id, schema.userEntityRoles.roleId))
-    .where(and(eq(schema.users.status, 'active'), eq(schema.roles.key, 'executive')));
+  const [row] = (await ctx.tx.execute(
+    sql`select app.active_executive_count() as count`,
+  )) as unknown as { count: number }[];
   return row?.count ?? 0;
 }
 

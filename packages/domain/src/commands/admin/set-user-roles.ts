@@ -1,6 +1,6 @@
 import { DomainError, SetUserRolesInput, UserDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { loadUserDto } from '../../queries/admin/user-dto';
 import {
@@ -13,12 +13,14 @@ import {
 } from './shared';
 
 /**
- * `admin.user.role.set`: replaces the user's access list and signs them out everywhere, so the
- * next request resolves the new grants (docs/SECURITY.md §2, rotation on privilege change).
- * The list is replaced as a whole, so the caller's request scope must cover every entity the
- * user holds today; a caller narrowed to one company is told to switch to all companies first.
- * Nobody edits their own roles. Changes that could remove an Executive are serialised and refused
- * when none would remain, since two Executives could otherwise demote each other at once.
+ * `admin.user.role.set`: replaces the user's roles in the companies of the request and signs them
+ * out everywhere, so the next request resolves the new grants (docs/SECURITY.md §2, rotation on
+ * privilege change). The caller's request scope must cover every entity the user holds today; a
+ * caller narrowed to one company is told to switch to all companies first. The check runs after
+ * the lock, so a role given in another company meanwhile is seen, and the replacement touches
+ * only rows in the request's companies, so a role elsewhere is never removed. Nobody edits their
+ * own roles. Changes that could remove an Executive are serialised and refused when none would
+ * remain, since two Executives could otherwise demote each other at once.
  */
 export const setUserRoles = defineCommand({
   name: 'admin.user.role.set',
@@ -46,19 +48,20 @@ export const setUserRoles = defineCommand({
         reason: 'user_offboarded',
       });
     }
+    // Every change to an existing person's roles takes this lock, so the scope check below cannot be
+    // overtaken by a role given in another company before this command writes.
+    const executivesBefore = await lockExecutiveChanges(ctx);
     await assertUserInScope(ctx, input.userId);
     const rows = await resolveEntityRoles(ctx, input.entityRoles);
 
-    const executivesBefore = await lockExecutiveChanges(ctx);
     const uer = schema.userEntityRoles;
+    const inRequest = and(eq(uer.userId, input.userId), inArray(uer.entityId, [...ctx.entityIds]));
     const before = await ctx.tx
       .select({ entityId: uer.entityId, roleId: uer.roleId, teamId: uer.teamId })
       .from(uer)
-      .where(eq(uer.userId, input.userId))
+      .where(inRequest)
       .orderBy(uer.entityId);
-    await ctx.tx
-      .delete(schema.userEntityRoles)
-      .where(eq(schema.userEntityRoles.userId, input.userId));
+    await ctx.tx.delete(uer).where(inRequest);
     await insertEntityRoles(ctx, input.userId, rows);
     await assertAnExecutiveRemains(ctx, executivesBefore);
     await ctx.tx
