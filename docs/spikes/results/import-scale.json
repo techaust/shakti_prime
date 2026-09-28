@@ -1,66 +1,66 @@
 {
-  "ranAt": "2026-09-28T05:04:31.591Z",
+  "ranAt": "2026-09-28T05:13:01.315Z",
   "database": "local Docker Postgres 17 on Windows (127.0.0.1:54322), shared with the test suites, in process, one connection",
-  "roundTripMs": 1.62,
-  "batchSize": 10,
-  "budgetSeconds": 60,
+  "roundTripMs": 1.36,
+  "batchSize": 500,
+  "budgetSeconds": 420,
   "fullFile": {
     "rows": 50000,
     "parse": {
-      "seconds": 0.12,
+      "seconds": 0.13,
       "bytes": 1860392
     },
     "create": {
-      "seconds": 15.58,
-      "rowsPerSecond": 3209
+      "seconds": 25.08,
+      "rowsPerSecond": 1994
     },
     "map": {
-      "seconds": 0.23
+      "seconds": 0.33
     },
     "preview": {
-      "seconds": 22.74,
-      "rowsPerSecond": 2199,
+      "seconds": 29.89,
+      "rowsPerSecond": 1673,
       "validRows": 50000,
       "invalidRows": 0,
       "skippedRows": 0
     },
-    "jobId": "01a0e666-7eb1-709e-90c1-fe79cc50848c",
+    "jobId": "01a0e66e-45dc-7418-b012-5649cdda4c91",
     "jobState": "previewed"
   },
   "commitSample": {
-    "rows": 20,
+    "rows": 1000,
     "parse": {
-      "seconds": 0,
-      "bytes": 749
+      "seconds": 0.01,
+      "bytes": 36707
     },
     "create": {
-      "seconds": 0.1,
-      "rowsPerSecond": 200
+      "seconds": 0.2,
+      "rowsPerSecond": 5000
     },
     "map": {
-      "seconds": 0.09
+      "seconds": 0.04
     },
     "preview": {
-      "seconds": 0.16,
-      "rowsPerSecond": 125,
-      "validRows": 20,
+      "seconds": 0.32,
+      "rowsPerSecond": 3125,
+      "validRows": 1000,
       "invalidRows": 0,
       "skippedRows": 0
     },
     "commit": {
-      "rows": 20,
-      "seconds": 4.42,
-      "committedRows": 20,
+      "rows": 1000,
+      "seconds": 89.03,
+      "committedRows": 1000,
       "state": "committed",
       "batches": 2,
-      "rowsPerSecond": 4.5,
-      "msPerRow": 221,
-      "batchSecondsMedian": 3.37,
-      "batchSecondsMax": 3.37,
-      "projectedSecondsFor50k": 11050,
+      "rowsPerSecond": 11.2,
+      "msPerRow": 89,
+      "batchSecondsMedian": 54.45,
+      "batchSecondsMax": 54.45,
+      "projectedSecondsFor50k": 4452,
       "rollback": {
-        "seconds": 0.1,
-        "rowsPerSecond": 200,
+        "seconds": 0.78,
+        "rowsPerSecond": 1282,
         "state": "rolled_back"
       }
     }
