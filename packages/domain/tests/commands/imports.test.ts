@@ -141,17 +141,21 @@ describe('imports: permission and entity', () => {
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'import_job_missing' } });
   });
 
-  it('refuses preview, commit, batch and rollback to a role without imports.write', async () => {
+  it('refuses map, preview, commit, batch and rollback to a role without imports.write', async () => {
     const job = await previewedJob(gm, [`Guarded,${phone()},Sikar`]);
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
-    for (const command of [
-      previewImportJob,
-      commitImportJob,
-      commitImportBatch,
-      rollbackImportJob,
-    ]) {
+    const ref = { entityId: 1, jobId: job.id };
+    const calls: [unknown, unknown][] = [
+      // A valid mapping, so the refusal comes from the permission and not from the input.
+      [mapImportJob, { ...ref, mapping }],
+      [previewImportJob, ref],
+      [commitImportJob, ref],
+      [commitImportBatch, ref],
+      [rollbackImportJob, ref],
+    ];
+    for (const [command, input] of calls) {
       await expect(
-        run(caller, command as Command<z.ZodType, z.ZodType>, { entityId: 1, jobId: job.id }),
+        run(caller, command as Command<z.ZodType, z.ZodType>, input),
       ).rejects.toMatchObject({ code: 'forbidden' });
     }
     expect(await jobStateOf(job.id)).toBe('previewed');

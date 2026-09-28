@@ -157,9 +157,10 @@ describe('admin.user.invite', () => {
 });
 
 describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
-  it('role.set, suspend and reactivate are denied for a General Manager', async () => {
+  it('role.set, suspend, reactivate and session revoke are denied for a General Manager', async () => {
     const gm = await createTestPrincipal('general_manager', [1]);
     const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    const session = await addSession(user.id);
     await expect(
       asPrincipal(gm, (context) =>
         runCommand(
@@ -179,6 +180,12 @@ describe('admin.user.role.set, suspend, reactivate and session revoke', () => {
         runCommand(reactivateUser, { context, audit, outbox }, { userId: user.id }),
       ),
     ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      asPrincipal(gm, (context) =>
+        runCommand(revokeSession, { context, audit, outbox }, { sessionId: session }),
+      ),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await revokedIds(user.id)).toEqual([]);
   });
 
   it('role.set refuses a scope that does not cover every entity the user holds, and self changes', async () => {
