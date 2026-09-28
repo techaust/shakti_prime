@@ -33,6 +33,7 @@ function numberArg(name: string, fallback: number): number {
 
 const ROWS = Math.min(numberArg('rows', IMPORT_LIMITS.maxRows), IMPORT_LIMITS.maxRows);
 const BUDGET_SECONDS = numberArg('budget', 420);
+const BATCH = Math.min(numberArg('batch', IMPORT_LIMITS.batchSize), IMPORT_LIMITS.batchSize);
 const ENTITY = 1;
 
 // Syllables put together, so no row names a real person or place.
@@ -55,6 +56,10 @@ function csv(rows: number): string {
   return `${lines.join('\n')}\n`;
 }
 
+function log(line: string): void {
+  process.stdout.write(`${line}\n`);
+}
+
 function seconds(from: number): number {
   return Math.round((performance.now() - from) / 10) / 100;
 }
@@ -69,7 +74,7 @@ async function main(): Promise<void> {
   const scope = { entityIds: [ENTITY] };
   const result: Record<string, unknown> = {
     rows: ROWS,
-    batchSize: IMPORT_LIMITS.batchSize,
+    batchSize: BATCH,
     budgetSeconds: BUDGET_SECONDS,
     database: 'local Docker Postgres 17 (127.0.0.1:54322), shared with the test suites',
     ranAt: new Date().toISOString(),
@@ -79,7 +84,7 @@ async function main(): Promise<void> {
   const bytes = new TextEncoder().encode(csv(ROWS));
   const parsed = await parseImportFile(bytes);
   result.parse = { seconds: seconds(t), bytes: bytes.length };
-  console.log(`parsed ${String(parsed.rows.length)} rows in ${String(seconds(t))} s`);
+  log(`parsed ${String(parsed.rows.length)} rows in ${String(seconds(t))} s`);
 
   t = performance.now();
   const job = await executeCommand(gm, scope, createImportJob, {
@@ -102,7 +107,7 @@ async function main(): Promise<void> {
   });
   const createSecs = seconds(t);
   result.create = { seconds: createSecs, rowsPerSecond: rate(ROWS, createSecs) };
-  console.log(`create: ${String(createSecs)} s`);
+  log(`create: ${String(createSecs)} s`);
 
   t = performance.now();
   await executeCommand(gm, scope, mapImportJob, {
@@ -128,7 +133,7 @@ async function main(): Promise<void> {
     invalidRows: previewed.invalidRows,
     skippedRows: previewed.skippedRows,
   };
-  console.log(
+  log(
     `preview: ${String(previewSecs)} s, ${String(rate(ROWS, previewSecs))} rows/s, ${String(previewed.validRows)} valid`,
   );
 
@@ -143,11 +148,11 @@ async function main(): Promise<void> {
     current = await executeCommand(gm, scope, commitImportBatch, {
       entityId: ENTITY,
       jobId: job.id,
-      batchSize: IMPORT_LIMITS.batchSize,
+      batchSize: BATCH,
     });
     batchTimes.push(seconds(b));
-    if (batchTimes.length % 10 === 0) {
-      console.log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
+    if (batchTimes.length % 10 === 0 || batchTimes.length <= 3) {
+      log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
     }
   }
   const commitSecs = seconds(t);
@@ -162,7 +167,7 @@ async function main(): Promise<void> {
     batchSecondsMax: sorted[sorted.length - 1] ?? 0,
     finishedWithinBudget: current.state === 'committed',
   };
-  console.log(
+  log(
     `commit: ${String(current.committedRows)} rows in ${String(commitSecs)} s, ${String(rate(current.committedRows, commitSecs))} rows/s, ${current.state}`,
   );
 
@@ -178,13 +183,13 @@ async function main(): Promise<void> {
       rowsPerSecond: rate(current.committedRows, rollbackSecs),
       state: rolled.state,
     };
-    console.log(`rollback: ${String(rollbackSecs)} s, ${rolled.state}`);
+    log(`rollback: ${String(rollbackSecs)} s, ${rolled.state}`);
   } else {
     result.rollback = { skipped: true, jobId: job.id, jobState: current.state };
   }
 
   writeFileSync(resultFile, `${JSON.stringify(result, null, 2)}\n`);
-  console.log(`wrote ${resultFile}`);
+  log(`wrote ${resultFile}`);
 }
 
 try {
