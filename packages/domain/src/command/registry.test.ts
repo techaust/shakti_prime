@@ -21,14 +21,10 @@ describe('the command registry (AUDIT L16)', () => {
     expect(Object.keys(commands).sort()).toEqual([...names].sort());
   });
 
-  it('each declares its audit fields once, and no id among them', () => {
+  it('each declares its audit fields once', () => {
     for (const command of Object.values(commands)) {
       const fields = command.auditFields;
       expect(new Set(fields).size, command.name).toBe(fields.length);
-      expect(
-        fields.filter((f) => /^id$|Ids?$/.test(f)),
-        command.name,
-      ).toEqual([]);
     }
   });
 

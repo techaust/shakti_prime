@@ -195,6 +195,8 @@ describe('what changed', () => {
     expect(NAMED_FIELDS.filter((key) => !recorded.includes(key))).toEqual([]);
     const rows = auditChanges(null, Object.fromEntries(recorded.map((key) => [key, 'x'])));
     expect(rows.filter((r) => r.field === undefined)).toEqual([]);
+    // Every one is shown, including a named field that ends like an id (the UPI ID).
+    expect(rows.map((r) => r.field).sort()).toEqual([...recorded].sort());
   });
 
   it('reads the contrast, a role, a saved view’s list and its settings, never raw data', () => {

@@ -303,9 +303,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** An id is an internal reference; the screen names records, never their ids. */
+/**
+ * An id is an internal reference; the screen names records, never their ids. A named field wins
+ * over the pattern, so the UPI ID (`upiId`) is shown like any other company detail.
+ */
 function isReference(key: string): boolean {
-  return key === 'id' || /Ids?$/.test(key);
+  return !KIND_OF.has(key) && (key === 'id' || /Ids?$/.test(key));
 }
 
 /**
