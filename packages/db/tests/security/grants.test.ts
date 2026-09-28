@@ -161,9 +161,6 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
 });
 
 describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
-  /** Policy helpers the reporting role's own policies call; every other definer function refuses it. */
-  const REPORTER_HELPERS = ['app.account_in_scope', 'app.contact_in_scope'];
-
   it('every security-definer function searches pg_temp last or nothing at all', async () => {
     const rows = await withoutContext<{ fn: string; path: string | null }>(sql`
       select n.nspname || '.' || p.proname as fn,
@@ -180,7 +177,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
     expect(unsafe).toEqual([]);
   });
 
-  it('no security-definer function is executable by everyone or, beyond its helpers, by reporting', async () => {
+  it('no security-definer function is executable by everyone or by reporting', async () => {
     const rows = await withoutContext<{ fn: string; grantee: string }>(sql`
       select n.nspname || '.' || p.proname as fn, coalesce(r.rolname, 'public') as grantee
         from pg_proc p
@@ -191,9 +188,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
          and a.privilege_type = 'EXECUTE'
          and (a.grantee = 0 or r.rolname = 'readonly_reporter')
     `);
-    expect(
-      rows.filter((r) => !(r.grantee === 'readonly_reporter' && REPORTER_HELPERS.includes(r.fn))),
-    ).toEqual([]);
+    expect(rows).toEqual([]);
   });
 
   it('every security-definer function, trigger functions included, is closed to everyone and to reporting (final audit)', async () => {
@@ -208,9 +203,26 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
     `);
     expect(rows.map((r) => r.fn)).toContain('app.ensure_account_entity()');
     expect(rows.filter((r) => r.pub)).toEqual([]);
-    expect(
-      rows.filter((r) => r.reporter && !REPORTER_HELPERS.includes(r.fn.replace(/\(.*$/, ''))),
-    ).toEqual([]);
+    expect(rows.filter((r) => r.reporter)).toEqual([]);
+  });
+
+  it('the customer scope helpers serve write policies only, so reporting may not call them (0050)', async () => {
+    const helpers = ['app.account_in_scope(uuid,text)', 'app.contact_in_scope(uuid,text)'];
+    for (const fn of helpers) {
+      const [row] = await withoutContext<{ app: boolean; reporter: boolean; pub: boolean }>(sql`
+        select has_function_privilege('app_user', ${fn}, 'EXECUTE') as app,
+               has_function_privilege('readonly_reporter', ${fn}, 'EXECUTE') as reporter,
+               has_function_privilege('public', ${fn}, 'EXECUTE') as pub
+      `);
+      expect(row, fn).toEqual({ app: true, reporter: false, pub: false });
+    }
+    // no read policy calls them: reads use a plain exists (docs/DATABASE.md §4.2)
+    const readers = await withoutContext<{ policy: string }>(sql`
+      select tablename || '.' || policyname as policy from pg_policies
+       where cmd in ('SELECT', 'ALL')
+         and coalesce(qual, '') || coalesce(with_check, '') ~ '(account|contact)_in_scope'
+    `);
+    expect(readers).toEqual([]);
   });
 
   it('no session may create temporary objects', async () => {

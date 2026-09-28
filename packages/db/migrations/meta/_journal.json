@@ -351,6 +351,13 @@
       "when": 1790595961264,
       "tag": "0049_user_roles_company_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790596283645,
+      "tag": "0050_customer_helpers_revoke_reporting",
+      "breakpoints": true
     }
   ]
 }
