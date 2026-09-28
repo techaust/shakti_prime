@@ -1,19 +1,25 @@
 import {
   aliases,
-  colors,
+  colorsFor,
   contrastRatio,
   resolve,
   scale,
   shadows,
+  type Contrast,
   type Theme,
 } from '@shakti/tokens';
 import type { Metadata } from 'next';
 import { getMessages, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { ComponentGallery, type DesignCopy } from '../../../components/design/component-gallery';
+import { BoardPreview } from '../../../components/design/pattern-previews';
+import { PrintPreview } from '../../../components/design/print-preview';
 import { Page } from '../../../components/shell/page';
 import { navRequires, visibleNav } from '../../../nav';
 import { screenAccess, screenTitle } from '../../../screens/access';
+import { spikeLabels, spikeQuote } from '../../../print/fixtures/spike-documents';
+import { renderLabelsHtml } from '../../../print/label-template';
+import { renderQuote } from '../../../print/quote-template';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +28,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('design'), t('title'));
 }
 
-const THEMES: readonly Theme[] = ['light', 'dark'];
+/** The standard themes, then their high-contrast variants for field phones (DESIGN.md §2.1). */
+const PANELS: readonly { theme: Theme; contrast: Contrast }[] = [
+  { theme: 'light', contrast: 'standard' },
+  { theme: 'dark', contrast: 'standard' },
+  { theme: 'light', contrast: 'high' },
+  { theme: 'dark', contrast: 'high' },
+];
 const TYPE_ROLES = [
   'display',
   'h1',
@@ -55,45 +67,87 @@ const RADII = Object.entries(scale.radius);
 const MOTIONS = Object.entries(scale.motion);
 
 /**
- * Every token and every `@shakti/ui` component in light and dark side by side (DESIGN.md §2.1,
- * §8, §10), for the design review: each colour with its contrast on a card, the status scales,
- * type sizes, spacing, corners, shadows, motion and focus, and the §2.5 contrast pairs.
+ * Every token and every `@shakti/ui` component in light and dark side by side, and again in the
+ * high-contrast variants (DESIGN.md §2.1, §8, §10), for the design review: each colour with its
+ * contrast on a card, the status scales, type sizes, spacing, corners, shadows, motion and focus,
+ * the §2.5 contrast pairs, the kanban column and card, and the print preview, which is light only.
  */
 export default async function DesignPage() {
   const { principal } = await screenAccess(navRequires('design'));
   const t = await getTranslations('design');
   const copy: DesignCopy = (await getMessages()).design;
   const navIds = visibleNav(principal.permissions).map((item) => item.id);
+  // The print spike's quotation lines and label, rendered by the real templates, with no invented
+  // person, phone number or company identifier (DESIGN.md §11.1 rule 3): the customer is a place,
+  // and company details the workshop has not supplied read as not recorded. The screen's own font
+  // stands in for the embedded one (the page may load fonts only from the app).
+  const fill = copy.printFill;
+  const spike = spikeQuote();
+  const quote = {
+    ...spike,
+    entity: {
+      ...spike.entity,
+      addressLines: [fill.companyPlace],
+      gstin: fill.notRecorded,
+      phone: fill.notRecorded,
+      email: fill.notRecorded,
+    },
+    customer: {
+      name: fill.customer,
+      addressLines: [fill.customerAddress],
+      placeOfSupply: spike.customer.placeOfSupply,
+    },
+    preparedBy: fill.preparedBy,
+  };
+  const [quoteDoc, labelHtml] = await Promise.all([
+    renderQuote(quote, { fonts: 'viewer' }),
+    renderLabelsHtml(spikeLabels(1), '100x50', { fonts: 'viewer' }),
+  ]);
+  const card = { customerName: fill.customer, village: fill.cardDetail, ownerName: fill.cardOwner };
   return (
     <Page title={t('title')} description={t('intro')}>
       <div className="grid gap-6 xl:grid-cols-2">
-        {THEMES.map((theme) => (
-          <ThemePanel key={theme} theme={theme} copy={copy} navIds={navIds} />
+        {PANELS.map(({ theme, contrast }) => (
+          <ThemePanel
+            key={`${theme}-${contrast}`}
+            theme={theme}
+            contrast={contrast}
+            copy={copy}
+            navIds={navIds}
+            card={card}
+          />
         ))}
       </div>
+      <PrintPreview copy={copy} quoteHtml={quoteDoc.html} labelHtml={labelHtml} />
     </Page>
   );
 }
 
 async function ThemePanel({
   theme,
+  contrast,
   copy,
   navIds,
+  card,
 }: {
   theme: Theme;
+  contrast: Contrast;
   copy: DesignCopy;
   navIds: readonly string[];
+  card: { customerName: string; village: string; ownerName: string };
 }) {
   const t = await getTranslations('design');
+  const colors = colorsFor(contrast);
   const surface = colors.surface[theme];
-  const resolved = resolve(theme);
+  const resolved = resolve(theme, contrast);
+  const panel = contrast === 'high' ? `${theme}-high` : theme;
   return (
     <section
-      aria-labelledby={`design-${theme}`}
-      className={`theme-${theme} bg-bg text-text border-border flex min-w-0 flex-col gap-8 rounded-xl border p-4 sm:p-6`}
+      aria-labelledby={`design-${panel}`}
+      className={`theme-${panel} bg-bg text-text border-border flex min-w-0 flex-col gap-8 rounded-xl border p-4 sm:p-6`}
     >
-      <h2 id={`design-${theme}`} className="text-h2 tracking-[-0.01em]">
-        {t(theme)}
+      <h2 id={`design-${panel}`} className="text-h2 tracking-[-0.01em]">
+        {contrast === 'high' ? t(theme === 'light' ? 'lightHigh' : 'darkHigh') : t(theme)}
       </h2>
 
       <Section title={t('colours')}>
@@ -269,7 +323,9 @@ async function ThemePanel({
         </div>
       </Section>
 
-      <ComponentGallery theme={theme} copy={copy} navIds={navIds} />
+      <ComponentGallery theme={theme} contrast={contrast} copy={copy} navIds={navIds} />
+
+      <BoardPreview copy={copy} card={card} />
     </section>
   );
 }

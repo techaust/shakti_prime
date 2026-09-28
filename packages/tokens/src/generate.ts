@@ -85,11 +85,23 @@ export function lchToHex(colour: Lch): string {
     .toUpperCase()}`;
 }
 
+/** From this contrast input on, a theme is a high-contrast variant with the stricter minimums. */
+export const HIGH_CONTRAST_FROM = 60;
+
+/**
+ * The contrast minimums a theme is generated to meet (DESIGN.md §2.5): body text and UI colours
+ * (outlines, icons, placeholders). The high-contrast variant for field phones in daylight asks
+ * 7:1 for text (WCAG AAA) and 4.5:1 for everything that carries meaning on its own.
+ */
+export function contrastMinimums(contrast: number): { text: number; ui: number } {
+  return contrast >= HIGH_CONTRAST_FROM ? { text: 7, ui: 4.5 } : { text: 4.5, ui: 3 };
+}
+
 /**
  * The colour of the given hue and chroma nearest to `background` in lightness that reaches
  * `ratio` against it, moving darker or lighter.
  */
-function reach(
+export function reach(
   background: string,
   ratio: number,
   hue: number,
@@ -150,21 +162,45 @@ export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, strin
   const surface3 = neutral(surfaceL + sign * 6.4 * spread);
   const border = neutral(surfaceL + sign * (dark ? 10 : 9.5) * spread);
 
-  const textTarget = 4.5 + inputs.contrast * 0.04;
+  const min = contrastMinimums(inputs.contrast);
+  const textTarget = Math.max(4.5 + inputs.contrast * 0.04, min.text + 0.1);
   const text = neutral(dark ? 97.5 : 11, dark ? 1.2 : 3);
   const textMuted = reach(surface2, textTarget, accent.h, tint, toward);
-  const textSubtle = reach(surface2, 3 + inputs.contrast * 0.02, accent.h, tint, toward);
+  const textSubtle = reach(
+    surface2,
+    Math.max(3 + inputs.contrast * 0.02, min.ui + 0.1),
+    accent.h,
+    tint,
+    toward,
+  );
   // Inputs are identified by their outline alone, so it must reach 3:1 (WCAG 1.4.11).
-  const borderStrong = reach(surface, 3.2, accent.h, tint, toward);
+  const borderStrong = reach(surface, Math.max(3.2, min.ui + 0.2), accent.h, tint, toward);
 
-  const accentFg = '#FFFFFF';
-  const accentHex = inputs.accent.toUpperCase();
-  // Hover is one step darker in both themes, so the white label on it stays above AA.
-  const accentHover = lchToHex({ l: accent.l - 6, c: accent.c, h: accent.h });
+  // The accent fill carries a white label. When white on the accent input misses the text
+  // minimum (only the high-contrast variants), a light theme deepens the fill until it passes;
+  // a dark one lightens it and labels it in the page's own near-black, because a fill deep
+  // enough for white would no longer stand out from the dark surface.
+  const white = '#FFFFFF';
+  const input = inputs.accent.toUpperCase();
+  const labelFits = contrastRatio(white, input) >= min.text;
+  const accentHex = labelFits
+    ? input
+    : dark
+      ? reach(bg, min.text + 0.1, accent.h, accent.c, 'lighter')
+      : reach(white, min.text + 0.1, accent.h, accent.c, 'darker');
+  const accentFg = labelFits || !dark ? white : bg;
+  const fill = hexToLch(accentHex);
+  // Hover is one step away from the label in both themes, so the label on it stays above the
+  // minimum: darker under white, lighter under a dark label.
+  const accentHover = lchToHex({
+    l: accentFg === white ? fill.l - 6 : fill.l + 6,
+    c: fill.c,
+    h: fill.h,
+  });
   const accentText =
-    contrastRatio(accentHex, surface) >= 4.5 && contrastRatio(accentHex, surface2) >= 4.5
+    contrastRatio(accentHex, surface) >= min.text && contrastRatio(accentHex, surface2) >= min.text
       ? accentHex
-      : reach(surface2, 4.6, accent.h, accent.c, toward);
+      : reach(surface2, min.text + 0.1, accent.h, accent.c, toward);
   const accentSoft = lchToHex({ l: dark ? 20 : 95, c: dark ? 18 : 10, h: accent.h });
 
   return {

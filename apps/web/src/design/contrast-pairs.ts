@@ -1,8 +1,12 @@
 import {
+  contrastMinimums,
   contrastRatio,
+  highContrastInputs,
   resolve,
+  themeInputs,
   type AliasToken,
   type ColorToken,
+  type Contrast,
   type Theme,
 } from '@shakti/tokens';
 
@@ -11,8 +15,11 @@ type Token = ColorToken | AliasToken;
 export interface ContrastPair {
   fg: Token;
   bg: Token;
-  /** 4.5 for body text, 3 for large text, lines and icons (DESIGN.md §2.5). */
-  min: 4.5 | 3;
+  /**
+   * Body text, or a UI colour (large text, lines, icons). Standard themes ask 4.5:1 and 3:1
+   * (DESIGN.md §2.5); the high-contrast variant 7:1 and 4.5:1 (`contrastMinimums`).
+   */
+  kind: 'text' | 'ui';
 }
 
 /**
@@ -21,57 +28,66 @@ export interface ContrastPair {
  * the colours that carry meaning on their own (outlines, focus, status dots).
  */
 export const CONTRAST_PAIRS: readonly ContrastPair[] = [
-  { fg: 'text', bg: 'surface', min: 4.5 },
-  { fg: 'text', bg: 'bg', min: 4.5 },
-  { fg: 'text', bg: 'surface-2', min: 4.5 },
-  { fg: 'text-muted', bg: 'surface', min: 4.5 },
-  { fg: 'text-muted', bg: 'surface-2', min: 4.5 },
-  { fg: 'accent-text', bg: 'surface', min: 4.5 },
-  { fg: 'accent-text', bg: 'surface-2', min: 4.5 },
-  { fg: 'accent-fg', bg: 'accent', min: 4.5 },
-  { fg: 'accent-fg', bg: 'accent-hover', min: 4.5 },
-  { fg: 'text', bg: 'accent-soft', min: 4.5 },
-  { fg: 'success', bg: 'success-soft', min: 4.5 },
-  { fg: 'warning', bg: 'warning-soft', min: 4.5 },
-  { fg: 'danger', bg: 'danger-soft', min: 4.5 },
-  { fg: 'info', bg: 'info-soft', min: 4.5 },
-  { fg: 'text-subtle', bg: 'surface', min: 3 },
-  { fg: 'text-subtle', bg: 'surface-2', min: 3 },
-  { fg: 'border-strong', bg: 'surface', min: 3 },
-  { fg: 'border-strong', bg: 'bg', min: 3 },
-  { fg: 'accent', bg: 'surface', min: 3 },
-  { fg: 'focus', bg: 'surface', min: 3 },
-  { fg: 'focus', bg: 'bg', min: 3 },
-  { fg: 'danger', bg: 'surface', min: 3 },
-  { fg: 'success', bg: 'surface', min: 3 },
-  { fg: 'warning', bg: 'surface', min: 3 },
-  { fg: 'info', bg: 'surface', min: 3 },
-  { fg: 'stage-contacted', bg: 'surface', min: 3 },
-  { fg: 'stage-quoted', bg: 'surface', min: 3 },
+  { fg: 'text', bg: 'surface', kind: 'text' },
+  { fg: 'text', bg: 'bg', kind: 'text' },
+  { fg: 'text', bg: 'surface-2', kind: 'text' },
+  { fg: 'text-muted', bg: 'surface', kind: 'text' },
+  { fg: 'text-muted', bg: 'surface-2', kind: 'text' },
+  { fg: 'accent-text', bg: 'surface', kind: 'text' },
+  { fg: 'accent-text', bg: 'surface-2', kind: 'text' },
+  { fg: 'accent-fg', bg: 'accent', kind: 'text' },
+  { fg: 'accent-fg', bg: 'accent-hover', kind: 'text' },
+  { fg: 'text', bg: 'accent-soft', kind: 'text' },
+  { fg: 'success', bg: 'success-soft', kind: 'text' },
+  { fg: 'warning', bg: 'warning-soft', kind: 'text' },
+  { fg: 'danger', bg: 'danger-soft', kind: 'text' },
+  { fg: 'info', bg: 'info-soft', kind: 'text' },
+  { fg: 'text-subtle', bg: 'surface', kind: 'ui' },
+  { fg: 'text-subtle', bg: 'surface-2', kind: 'ui' },
+  { fg: 'border-strong', bg: 'surface', kind: 'ui' },
+  { fg: 'border-strong', bg: 'bg', kind: 'ui' },
+  { fg: 'accent', bg: 'surface', kind: 'ui' },
+  { fg: 'focus', bg: 'surface', kind: 'ui' },
+  { fg: 'focus', bg: 'bg', kind: 'ui' },
+  { fg: 'danger', bg: 'surface', kind: 'ui' },
+  { fg: 'success', bg: 'surface', kind: 'ui' },
+  { fg: 'warning', bg: 'surface', kind: 'ui' },
+  { fg: 'info', bg: 'surface', kind: 'ui' },
+  { fg: 'stage-contacted', bg: 'surface', kind: 'ui' },
+  { fg: 'stage-quoted', bg: 'surface', kind: 'ui' },
 ];
 
 export interface ContrastRow extends ContrastPair {
   id: string;
+  /** The ratio this pair needs at this contrast level. */
+  min: number;
   fgHex: string;
   bgHex: string;
   ratio: number;
   passes: boolean;
 }
 
-/** Every pair with its measured ratio in one theme, from the generated values. */
-export function contrastRows(theme: Theme): ContrastRow[] {
-  const values = resolve(theme);
+/**
+ * Every pair with its measured ratio in one theme at one contrast level, from the generated
+ * values, against the minimum that level asks for.
+ */
+export function contrastRows(theme: Theme, contrast: Contrast = 'standard'): ContrastRow[] {
+  const values = resolve(theme, contrast);
+  const inputs = contrast === 'high' ? highContrastInputs : themeInputs;
+  const minimums = contrastMinimums(inputs[theme].contrast);
   return CONTRAST_PAIRS.map((pair) => {
     const fgHex = values[pair.fg];
     const bgHex = values[pair.bg];
     const ratio = contrastRatio(fgHex, bgHex);
+    const min = minimums[pair.kind];
     return {
       ...pair,
       id: `${pair.fg}/${pair.bg}`,
+      min,
       fgHex,
       bgHex,
       ratio,
-      passes: ratio >= pair.min,
+      passes: ratio >= min,
     };
   });
 }

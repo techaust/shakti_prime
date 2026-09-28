@@ -3,7 +3,9 @@
 import {
   DeleteViewInput,
   SaveViewInput,
+  SetContrastInput,
   SetThemeInput,
+  type ContrastDto,
   type DeletedViewDto,
   type SavedViewDto,
   type ThemeDto,
@@ -14,6 +16,7 @@ import {
   executeQuery,
   listSavedViews as listSavedViewsQuery,
   saveView as saveViewCommand,
+  setContrast as setContrastCommand,
   setTheme as setThemeCommand,
 } from '@shakti/domain';
 import { forgetPrincipal } from '../auth/current-principal';
@@ -38,6 +41,31 @@ export async function saveTheme(
       principal,
       { requestId: meta.requestId },
       setThemeCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+    await forgetPrincipal(principal.id);
+    return saved;
+  });
+}
+
+/**
+ * Saves Higher contrast on or off on the caller's profile (DESIGN.md §2.1), so it follows them to
+ * every device as the theme does. The screen has already switched and the cookie mirrors the
+ * choice for the first paint; the cached principal is dropped so the next page reads it back.
+ */
+export async function saveContrast(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ContrastDto>> {
+  return toResult('saveContrast', async () => {
+    const principal = await signedIn();
+    const input = parseInput(SetContrastInput, rawInput);
+    const meta = await requestMeta();
+    const saved = await executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      setContrastCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

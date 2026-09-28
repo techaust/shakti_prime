@@ -20,7 +20,7 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 |---|---|---|---|
 | Base | `#FFFFFF` | `#08090A` | The page background. The neutral ladder (surfaces, borders, text) steps away from it in lightness, carrying a trace of the accent's hue. |
 | Accent | `#5E6AD2` | `#5E6AD2` | Fills, focus and selection. Hover, text and soft tints are derived from it. |
-| Contrast | 30 | 30 | The spread of the ladder, from 0 to 100. Higher values darken text and borders in light and lighten them in dark. The high-contrast variant for field phones uses a higher value. |
+| Contrast | 30 | 30 | The spread of the ladder, from 0 to 100. Higher values darken text and borders in light and lighten them in dark. The high-contrast variant for field phones uses 70, with 7:1 for text and 4.5:1 for outlines and icons; each person turns it on with "Higher contrast" on their profile. |
 
 `packages/tokens` runs the generator at build time. The `/design` page shows every generated value with its contrast ratio, and CI fails when a pair misses the ratios in §2.5.
 
@@ -39,7 +39,7 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--accent` | Accent | Buttons, active states, links on surfaces |
 | `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
 | `--accent-text` | Accent, adjusted to AA on `--surface` (lighter in dark) | Accent-coloured text |
-| `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`) | Text on accent fills |
+| `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
 | `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |
 

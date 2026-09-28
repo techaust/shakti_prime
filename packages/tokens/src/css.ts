@@ -1,15 +1,15 @@
 // Generates the CSS delivered to the web app (DESIGN.md §8). Pure functions so the
 // stale-file test can compare the committed output with a fresh render.
-import { aliases, colors, scale, shadows, type Theme } from './tokens';
+import { aliases, colors, colorsFor, scale, shadows, type Contrast, type Theme } from './tokens';
 
 /** Pixels at the browser default text size, emitted in rem so a user's own setting scales them. */
 const rem = (px: number) => `${String(px / 16)}rem`;
 
 const HEADER = '/* Generated from packages/tokens/src/tokens.ts. Do not edit by hand. */\n';
 
-function themeBlock(theme: Theme, indent: string): string {
+function themeBlock(theme: Theme, indent: string, contrast: Contrast = 'standard'): string {
   const lines: string[] = [];
-  for (const [name, value] of Object.entries(colors))
+  for (const [name, value] of Object.entries(colorsFor(contrast)))
     lines.push(`${indent}--${name}: ${value[theme]};`);
   for (const [name, value] of Object.entries(shadows))
     lines.push(`${indent}--${name}: ${value[theme]};`);
@@ -54,7 +54,14 @@ function staticBlock(indent: string): string {
   return lines.join('\n');
 }
 
-/** `tokens.css`: light on :root, dark under the system media query and under an explicit override. */
+/** The attribute the app sets on `<html>` for the high-contrast variant (DESIGN.md §2.1). */
+export const HIGH_CONTRAST_SELECTOR = '[data-contrast="high"]';
+
+/**
+ * `tokens.css`: light on :root, dark under the system media query and under an explicit override;
+ * then the high-contrast variant of each under `data-contrast="high"`, whose selectors are one
+ * attribute more specific, so they win over the standard block of the same theme.
+ */
 export function renderTokensCss(): string {
   return [
     HEADER,
@@ -81,6 +88,31 @@ export function renderTokensCss(): string {
     '',
     '.theme-dark {',
     themeBlock('dark', '  '),
+    aliasBlock('  '),
+    '}',
+    '',
+    '/* The high-contrast variant for field phones in daylight: 7:1 for text, 4.5:1 for outlines. */',
+    `:root${HIGH_CONTRAST_SELECTOR} {`,
+    themeBlock('light', '  ', 'high'),
+    '}',
+    '',
+    '@media (prefers-color-scheme: dark) {',
+    `  :root${HIGH_CONTRAST_SELECTOR}:not([data-theme="light"]) {`,
+    themeBlock('dark', '    ', 'high'),
+    '  }',
+    '}',
+    '',
+    `:root${HIGH_CONTRAST_SELECTOR}[data-theme="dark"] {`,
+    themeBlock('dark', '  ', 'high'),
+    '}',
+    '',
+    '.theme-light-high {',
+    themeBlock('light', '  ', 'high'),
+    aliasBlock('  '),
+    '}',
+    '',
+    '.theme-dark-high {',
+    themeBlock('dark', '  ', 'high'),
     aliasBlock('  '),
     '}',
     '',

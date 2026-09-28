@@ -1,11 +1,10 @@
 'use client';
 
-import type { Theme } from '@shakti/tokens';
+import type { Contrast, Theme } from '@shakti/tokens';
 import {
   Button,
   CommandPalette,
   DataGrid,
-  DateInput,
   Dialog,
   DialogClose,
   DialogContent,
@@ -45,6 +44,7 @@ import type en from '../../../messages/en.json';
 import { contrastRows, formatRatio, type ContrastRow } from '../../design/contrast-pairs';
 import { NAV_ITEMS } from '../../nav';
 import { GridViewsPreview } from './grid-views-preview';
+import { DateInputPreview, UndoToastButton } from './pattern-previews';
 
 /**
  * The design namespace, handed over by the server page as plain strings: only this page needs
@@ -83,10 +83,13 @@ function Swatch({ hex }: { hex: string }) {
  */
 export function ComponentGallery({
   theme,
+  contrast = 'standard',
   copy,
   navIds,
 }: {
   theme: Theme;
+  /** The high-contrast panels measure their pairs against the stricter minimums. */
+  contrast?: Contrast;
   copy: DesignCopy;
   /** The screens this person may open: the palette lists them as it does in the top bar. */
   navIds: readonly string[];
@@ -94,10 +97,11 @@ export function ComponentGallery({
   const nav = useTranslations('nav');
   const shell = useTranslations('shell');
   const router = useRouter();
-  const id = (name: string) => `design-${theme}-${name}`;
-  const themeClass = `theme-${theme}`;
+  const panel = contrast === 'high' ? `${theme}-high` : theme;
+  const id = (name: string) => `design-${panel}-${name}`;
+  const themeClass = `theme-${panel}`;
 
-  const rows = useMemo(() => contrastRows(theme), [theme]);
+  const rows = useMemo(() => contrastRows(theme, contrast), [theme, contrast]);
   const [shown, setShown] = useState(PAGE_SIZE);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -190,9 +194,7 @@ export function ComponentGallery({
               <option value="surface">{copy.selectSurface}</option>
             </Select>
           </Field>
-          <Field id={id('visit')} label={copy.dateLabel} helper={copy.dateHint}>
-            <DateInput name="visit" />
-          </Field>
+          <DateInputPreview id={id('visit')} copy={copy} />
           <Field
             id={id('notes')}
             label={copy.notesLabel}
@@ -306,6 +308,7 @@ export function ComponentGallery({
           >
             {copy.showToast}
           </Button>
+          <UndoToastButton copy={copy} />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

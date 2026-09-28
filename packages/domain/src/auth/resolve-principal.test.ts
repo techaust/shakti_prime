@@ -8,6 +8,7 @@ const base: Omit<
 > = {
   status: 'active',
   theme: 'dark',
+  contrast: 'standard',
   name: 'Asha',
   email: 'asha@shakti.test',
   twoFactorEnabled: true,

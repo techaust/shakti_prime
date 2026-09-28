@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, luminance } from './contrast';
-import { resolve, type Theme } from './tokens';
-
-const AA_TEXT = 4.5;
-const AA_UI = 3;
+import {
+  contrastMinimums,
+  highContrastInputs,
+  resolve,
+  themeInputs,
+  type Contrast,
+  type Theme,
+} from './tokens';
 
 describe('contrast helpers', () => {
   it('matches the WCAG reference values', () => {
@@ -14,8 +18,42 @@ describe('contrast helpers', () => {
   });
 });
 
-describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.5', (theme) => {
-  const t = resolve(theme);
+const LEVELS: [Theme, Contrast][] = [
+  ['light', 'standard'],
+  ['dark', 'standard'],
+  ['light', 'high'],
+  ['dark', 'high'],
+];
+
+describe('the high-contrast variant (DESIGN.md §2.1)', () => {
+  it('asks 7:1 for text and 4.5:1 for outlines and icons, and the standard themes AA', () => {
+    expect(contrastMinimums(30)).toEqual({ text: 4.5, ui: 3 });
+    expect(contrastMinimums(highContrastInputs.light.contrast)).toEqual({ text: 7, ui: 4.5 });
+    expect(contrastMinimums(highContrastInputs.dark.contrast)).toEqual({ text: 7, ui: 4.5 });
+  });
+
+  it.each<Theme>(['light', 'dark'])(
+    'keeps the %s base and moves every text colour further from it',
+    (theme) => {
+      const standard = resolve(theme);
+      const high = resolve(theme, 'high');
+      expect(high.bg).toBe(standard.bg);
+      for (const token of ['text-muted', 'text-subtle', 'border-strong', 'accent-text'] as const) {
+        expect(contrastRatio(high[token], high.bg)).toBeGreaterThan(
+          contrastRatio(standard[token], standard.bg),
+        );
+      }
+    },
+  );
+});
+
+describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, contrast) => {
+  const t = resolve(theme, contrast);
+  const min = contrastMinimums(
+    (contrast === 'high' ? highContrastInputs : themeInputs)[theme].contrast,
+  );
+  const AA_TEXT = min.text;
+  const AA_UI = min.ui;
 
   it.each([
     ['text', 'surface'],
@@ -32,7 +70,7 @@ describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.5', (theme
     ['danger', 'danger-soft'],
     ['info', 'info-soft'],
     ['text', 'accent-soft'],
-  ] as const)('body text %s on %s is at least 4.5:1', (fg, bg) => {
+  ] as const)(`body text %s on %s is at least ${String(min.text)}:1`, (fg, bg) => {
     expect(contrastRatio(t[fg], t[bg])).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
@@ -52,7 +90,7 @@ describe.each<Theme>(['light', 'dark'])('%s theme meets DESIGN.md §2.5', (theme
     ['info', 'surface'],
     ['stage-contacted', 'surface'],
     ['stage-quoted', 'surface'],
-  ] as const)('UI colour %s on %s is at least 3:1', (fg, bg) => {
+  ] as const)(`UI colour %s on %s is at least ${String(min.ui)}:1`, (fg, bg) => {
     expect(contrastRatio(t[fg], t[bg])).toBeGreaterThanOrEqual(AA_UI);
   });
 

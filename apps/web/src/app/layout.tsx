@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { CLIENT_NAMESPACES } from '../i18n/client-namespaces';
 import { requestNonce } from '../nonce';
-import { THEME_COOKIE } from '../theme';
+import { CONTRAST_COOKIE, HIGH_CONTRAST, isHighContrast, THEME_COOKIE } from '../theme';
 import './globals.css';
 import { Providers } from './providers';
 
@@ -37,12 +37,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  // The profile's theme, mirrored in a cookie so the first paint on a device already uses it.
-  const saved = ThemeSchema.safeParse((await cookies()).get(THEME_COOKIE)?.value);
+  // The profile's theme, mirrored in a cookie so the first paint on a device already uses it, and
+  // this device's higher-contrast choice.
+  const jar = await cookies();
+  const saved = ThemeSchema.safeParse(jar.get(THEME_COOKIE)?.value);
+  const high = isHighContrast(jar.get(CONTRAST_COOKIE)?.value);
   const messages = await getMessages();
   const clientMessages = Object.fromEntries(CLIENT_NAMESPACES.map((ns) => [ns, messages[ns]]));
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={inter.variable}
+      data-contrast={high ? HIGH_CONTRAST : undefined}
+      suppressHydrationWarning
+    >
       <body>
         <Providers
           defaultTheme={saved.success ? saved.data : 'system'}

@@ -6,7 +6,7 @@ import { printCopy } from './copy';
 import { formatAmount, formatDate, formatRupees } from './format';
 import { html, trusted, type Html } from './html';
 import { qrSvg } from './qr';
-import { baseCss, interFontFaces, lightColor } from './styles';
+import { baseCss, interFontFaces, lightColor, type TemplateOptions } from './styles';
 import type { PdfOptions } from './renderer';
 
 export interface QuoteLinePrint {
@@ -134,7 +134,10 @@ function lineRow(line: QuoteLinePrint, index: number): Html {
   </tr>`;
 }
 
-export async function renderQuote(quote: QuotePrint): Promise<PrintDocument> {
+export async function renderQuote(
+  quote: QuotePrint,
+  options: TemplateOptions = {},
+): Promise<PrintDocument> {
   const t = printCopy();
   const qr = await qrSvg(quote.link);
   const page = html`<!doctype html>
@@ -147,7 +150,7 @@ export async function renderQuote(quote: QuotePrint): Promise<PrintDocument> {
         />
         <title>${t('quote.title')} ${quote.number}</title>
         <style>
-          ${trusted(baseCss())}${trusted(css)}
+          ${trusted(baseCss(options))}${trusted(css)}
         </style>
       </head>
       <body>
@@ -255,7 +258,7 @@ export async function renderQuote(quote: QuotePrint): Promise<PrintDocument> {
       format: 'A4',
       margin: MARGIN,
       headerTemplate: '<span></span>',
-      footerTemplate: footer(quote),
+      footerTemplate: options.fonts === 'viewer' ? '<span></span>' : footer(quote),
     },
   };
 }

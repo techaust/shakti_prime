@@ -23,8 +23,35 @@ describe('generated CSS', () => {
     );
     expect(css).toContain(':root[data-theme="dark"] {');
     expect(css).toContain('color-scheme: light;');
-    // the system query, the explicit override and the scoped .theme-dark block
-    expect(css.match(/color-scheme: dark;/g)).toHaveLength(3);
+    // the system query, the explicit override and the scoped block, standard and high contrast
+    expect(css.match(/color-scheme: dark;/g)).toHaveLength(6);
+  });
+
+  it('declares the high-contrast variant of both themes under data-contrast="high"', () => {
+    const css = renderTokensCss();
+    expect(css).toContain(':root[data-contrast="high"] {');
+    expect(css).toContain(
+      '@media (prefers-color-scheme: dark) {\n  :root[data-contrast="high"]:not([data-theme="light"]) {',
+    );
+    expect(css).toContain(':root[data-contrast="high"][data-theme="dark"] {');
+    expect(css).toContain('.theme-light-high {');
+    expect(css).toContain('.theme-dark-high {');
+    // Each variant comes after the standard block it refines, so the cascade order agrees with
+    // the higher specificity.
+    expect(css.indexOf(':root[data-contrast="high"] {')).toBeGreaterThan(
+      css.indexOf(':root[data-theme="dark"] {'),
+    );
+  });
+
+  it('keeps the standard themes unchanged by the high-contrast variant', () => {
+    const css = renderTokensCss();
+    const root = css.slice(css.indexOf(':root {'), css.indexOf('}', css.indexOf(':root {')));
+    const high = css.slice(
+      css.indexOf(':root[data-contrast="high"] {'),
+      css.indexOf('}', css.indexOf(':root[data-contrast="high"] {')),
+    );
+    expect(root).toContain('--accent: #5E6AD2;');
+    expect(high).not.toContain('--accent: #5E6AD2;');
   });
 
   it('offers scoped light and dark blocks for side-by-side previews', () => {
@@ -35,7 +62,12 @@ describe('generated CSS', () => {
 
   it('declares the aliases again in each scoped block, so they resolve to that theme', () => {
     const css = renderTokensCss();
-    for (const scope of ['.theme-light {', '.theme-dark {']) {
+    for (const scope of [
+      '.theme-light {',
+      '.theme-dark {',
+      '.theme-light-high {',
+      '.theme-dark-high {',
+    ]) {
       const block = css.slice(css.indexOf(scope), css.indexOf('}', css.indexOf(scope)));
       expect(block).toContain('--chart-2: var(--info);');
       expect(block).toContain('--stage-new: var(--text-subtle);');

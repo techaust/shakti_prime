@@ -18,12 +18,18 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * Admin › Team members: for a user administrator (`admin.users.write` for the whole group) only;
  * anyone else meets the not-found screen. Invitations and role changes cover the companies being
- * viewed, as the commands require.
+ * viewed, as the commands require. `?invite=1` (the ⌘K palette's "Invite a person") opens the
+ * invite dialog straight away.
  */
-export default async function TeamMembersPage() {
+export default async function TeamMembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { principal, access } = await screenAccess(navRequires('admin-users'));
   const t = await getTranslations('users');
   const page = await listUsers({ limit: 50 });
+  const { invite } = await searchParams;
   const viewed = access.entities
     .filter((e) => principal.entityIds.includes(e.entityId))
     .map((e) => ({ id: e.entityId, name: e.entityName }));
@@ -36,6 +42,7 @@ export default async function TeamMembersPage() {
           companies={viewed}
           companyNames={companyNames(access)}
           roleKeys={[...STAFF_ROLE_KEYS]}
+          startInviting={invite === '1'}
         />
       ) : (
         <FailureMessage failure={firstFailure(page)} />

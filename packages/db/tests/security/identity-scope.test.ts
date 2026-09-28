@@ -217,6 +217,7 @@ describe('the application role and the identity tables', () => {
     expect(rows.length).toBeGreaterThan(2);
     expect(new Set(rows.map((r) => r.entity_id))).toEqual(new Set([1, 2]));
     expect(Object.keys(rows[0] ?? {}).sort()).toEqual([
+      'contrast',
       'email',
       'entity_id',
       'entity_name',

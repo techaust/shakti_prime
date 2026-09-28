@@ -22,6 +22,7 @@ import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
+import { setContrast } from '../commands/profile/set-contrast';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
@@ -47,6 +48,7 @@ export const commands = {
   [resetTwoFactor.name]: resetTwoFactor,
   [replayDeadLetter.name]: replayDeadLetter,
   [setTheme.name]: setTheme,
+  [setContrast.name]: setContrast,
   [saveView.name]: saveView,
   [deleteView.name]: deleteView,
   [issueRealtimeToken.name]: issueRealtimeToken,

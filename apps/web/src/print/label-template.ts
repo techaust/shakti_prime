@@ -3,7 +3,7 @@
 import { printCopy } from './copy';
 import { html, trusted } from './html';
 import { qrSvg } from './qr';
-import { baseCss } from './styles';
+import { baseCss, type TemplateOptions } from './styles';
 
 export type LabelSize = '50x25' | '100x50';
 
@@ -50,7 +50,11 @@ const css: Record<LabelSize, string> = {
 };
 
 /** One HTML document holding every label, one per page. */
-export async function renderLabelsHtml(labels: LabelPrint[], size: LabelSize): Promise<string> {
+export async function renderLabelsHtml(
+  labels: LabelPrint[],
+  size: LabelSize,
+  options: TemplateOptions = {},
+): Promise<string> {
   const t = printCopy();
   const codes = await Promise.all(labels.map((l) => qrSvg(l.qrPayload)));
   return html`<!doctype html>
@@ -62,7 +66,7 @@ export async function renderLabelsHtml(labels: LabelPrint[], size: LabelSize): P
           content="default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:"
         />
         <style>
-          ${trusted(baseCss())}${trusted(css[size])}
+          ${trusted(baseCss(options))}${trusted(css[size])}
         </style>
       </head>
       <body>

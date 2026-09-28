@@ -27,6 +27,8 @@ export interface EntityGrants {
 export interface UserAccess {
   status: string;
   theme: string;
+  /** Standard or high (DESIGN.md §2.1), kept per person like the theme. */
+  contrast: string;
   name: string;
   email: string;
   twoFactorEnabled: boolean;
@@ -36,6 +38,7 @@ export interface UserAccess {
 const UserAccessSchema = z.object({
   status: z.string(),
   theme: z.string(),
+  contrast: z.string(),
   name: z.string(),
   email: z.string(),
   twoFactorEnabled: z.boolean(),
@@ -83,6 +86,7 @@ export function groupUserGrants(rows: readonly UserGrantRow[]): UserAccess | und
   return {
     status: first.status,
     theme: first.theme,
+    contrast: first.contrast,
     name: first.name,
     email: first.email,
     twoFactorEnabled: first.twoFactorEnabled,
