@@ -90,6 +90,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      # First-load JavaScript of every page against apps/web/js-budget.json (BLUEPRINT §11.4).
+      - name: JavaScript budget per page
+        run: pnpm --filter web js-budget
 
   supply-chain:
     name: Secrets and advisories

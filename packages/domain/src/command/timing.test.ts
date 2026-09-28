@@ -74,7 +74,13 @@ describe('timed', () => {
         durationMs: 5,
         requestId: 'r2',
       },
-      { name: 'listLeads', outcome: 'failed', errorCode: 'internal', durationMs: 5, requestId: 'r3' },
+      {
+        name: 'listLeads',
+        outcome: 'failed',
+        errorCode: 'internal',
+        durationMs: 5,
+        requestId: 'r3',
+      },
     ]);
   });
 

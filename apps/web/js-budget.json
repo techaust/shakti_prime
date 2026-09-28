@@ -1,0 +1,82 @@
+{
+  "description": "First-load JavaScript budgets per page, gzip, in kB of 1,000 bytes (BLUEPRINT §11.4). A page not named here gets defaultKb. Checked by pnpm --filter web js-budget after pnpm build; how it measures is in scripts/js-budget.ts.",
+  "defaultKb": 250,
+  "routes": {
+    "/": {
+      "maxKb": 185,
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (175.9 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+    },
+    "/_not-found": {
+      "maxKb": 185,
+      "reason": "The page shown for an address that does not exist, public like the sign-in pages, kept near its measured size (175.9 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+    },
+    "/admin/activity": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.7 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/admin/users": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.6 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/design": {
+      "maxKb": 390,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 367.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/forgot-password": {
+      "maxKb": 195,
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.1 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+    },
+    "/home": {
+      "maxKb": 380,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 358.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/imports": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 364.2 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/imports/[entityId]/[jobId]": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.9 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/imports/new": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/leads": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.3 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/leads/board": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.9 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/leads/new": {
+      "maxKb": 380,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 360.6 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/price-master": {
+      "maxKb": 385,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 363.1 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/set-password": {
+      "maxKb": 300,
+      "reason": "Public page, over the 250 kB target: the set-password form loads the whole @shakti/contracts entry with Zod (about 104 kB) for the password rules. Measured 285.6 kB on 28-09-2026, plus 5 %. Lower it when the form imports only the rules it needs."
+    },
+    "/settings/companies": {
+      "maxKb": 380,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 360.5 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/settings/profile": {
+      "maxKb": 380,
+      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 359.3 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+    },
+    "/sign-in": {
+      "maxKb": 195,
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.1 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+    },
+    "/two-factor": {
+      "maxKb": 195,
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (184.3 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+    }
+  }
+}
