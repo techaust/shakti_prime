@@ -1,6 +1,6 @@
 import { AssignOpportunityInput, DomainError, OpportunityDto } from '@shakti/contracts';
-import { schema } from '@shakti/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { schema, type RequestTx } from '@shakti/db';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import {
@@ -21,6 +21,11 @@ const HOUR_MS = 3_600_000;
  * for the pipeline's `lock_hours` (the workshop default when the pipeline has none). While the
  * lock runs only a holder of `crm.lead.assign` at team scope or wider may reassign it. The update
  * policy then asks the caller's own write scope to cover the new owner or team.
+ *
+ * Whoever may read a lead may read its customer: when the previous owner of the lead looked after
+ * the customer in that company, the relationship moves with the lead to the new owner and their
+ * team (`app.hand_over_customer()`, 0055), with an audit row of its own. A relationship someone
+ * else holds is left as it is.
  */
 export const assignOpportunity = defineCommand({
   name: 'crm.opportunity.assign',
@@ -64,6 +69,16 @@ export const assignOpportunity = defineCommand({
       teamId: assignee.teamId,
       lockedUntil,
     });
+    const handover = await handOverCustomer(ctx.tx, row.id, row.ownerId);
+    if (handover.status === 'moved' && handover.relationshipId !== null) {
+      ctx.audit({
+        aggregateType: 'account_entity',
+        aggregateId: handover.relationshipId,
+        entityId: row.entityId,
+        before: { ownerId: row.ownerId, teamId: handover.previousTeamId },
+        after: { ownerId: input.ownerId, teamId: assignee.teamId },
+      });
+    }
     auditOpportunity(
       ctx,
       row,
@@ -84,3 +99,21 @@ export const assignOpportunity = defineCommand({
     return toOpportunityDto(updated);
   },
 });
+
+/** What `app.hand_over_customer()` did with the customer's relationship in the lead's company. */
+interface Handover {
+  status: 'moved' | 'unchanged' | 'held_by_other' | 'missing';
+  relationshipId: string | null;
+  previousTeamId: string | null;
+}
+
+async function handOverCustomer(
+  tx: RequestTx,
+  opportunityId: string,
+  previousOwnerId: string | null,
+): Promise<Handover> {
+  const rows = (await tx.execute(sql`
+    select status, relationship_id as "relationshipId", previous_team_id as "previousTeamId"
+      from app.hand_over_customer(${opportunityId}::uuid, ${previousOwnerId}::uuid)`)) as unknown as Handover[];
+  return rows[0] ?? { status: 'missing', relationshipId: null, previousTeamId: null };
+}
