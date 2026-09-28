@@ -1,16 +1,35 @@
 // Single source of the design tokens in DESIGN.md §2–§4 and §8.
 // `tokens.css` and `tailwind.css` are generated from this file by `pnpm --filter @shakti/tokens build`.
 // The Android app and chart code import this object directly.
-import { generateTheme, GENERATED_TOKENS, type GeneratedToken, type ThemeInputs } from './generate';
+import { contrastRatio } from './contrast';
+import {
+  contrastMinimums,
+  generateTheme,
+  GENERATED_TOKENS,
+  hexToLch,
+  reach,
+  type GeneratedToken,
+  type ThemeInputs,
+} from './generate';
 
 export { contrastRatio } from './contrast';
+export { contrastMinimums } from './generate';
 
 export type Theme = 'light' | 'dark';
+
+/** Standard, or the high-contrast variant for field phones in daylight (DESIGN.md §2.1). */
+export type Contrast = 'standard' | 'high';
 
 /** The three inputs each theme is generated from (DESIGN.md §2.1). Linear's default indigo. */
 export const themeInputs: Record<Theme, ThemeInputs> = {
   light: { base: '#FFFFFF', accent: '#5E6AD2', contrast: 30 },
   dark: { base: '#08090A', accent: '#5E6AD2', contrast: 30 },
+};
+
+/** The high-contrast variant: the same base and accent with a wider ladder. */
+export const highContrastInputs: Record<Theme, ThemeInputs> = {
+  light: { ...themeInputs.light, contrast: 70 },
+  dark: { ...themeInputs.dark, contrast: 70 },
 };
 
 /** Fixed hues, not generated, checked by the same contrast test (DESIGN.md §2.3, §2.4). */
@@ -29,18 +48,70 @@ const fixed = {
 type FixedToken = keyof typeof fixed;
 export type ColorToken = GeneratedToken | FixedToken;
 
-function buildColors(): Record<ColorToken, Record<Theme, string>> {
-  const light = generateTheme(themeInputs.light);
-  const dark = generateTheme(themeInputs.dark);
+/** Each status colour's soft tint, which its text sits on (DESIGN.md §2.5). */
+const SOFT: Partial<Record<FixedToken, FixedToken>> = {
+  success: 'success-soft',
+  warning: 'warning-soft',
+  danger: 'danger-soft',
+  info: 'info-soft',
+};
+
+/**
+ * A fixed hue at a theme's minimums: the same hue and chroma, moved away from what it sits on
+ * until it meets them. Status text must reach the text minimum on its soft tint (and so on the
+ * surface, which lies further away); the other hues, the UI minimum on the surface; the tints
+ * stay as they are. A hue that already passes is kept, so the standard themes keep DESIGN.md
+ * §2.3 exactly and only the high-contrast variant moves.
+ */
+function strengthen(
+  name: FixedToken,
+  theme: Theme,
+  surface: string,
+  min: { text: number; ui: number },
+): string {
+  const value = fixed[name][theme];
+  if (name.endsWith('-soft')) return value;
+  const soft = SOFT[name];
+  const [against, ratio] = soft === undefined ? [surface, min.ui] : [fixed[soft][theme], min.text];
+  if (contrastRatio(value, against) >= ratio) return value;
+  const lch = hexToLch(value);
+  return reach(against, ratio + 0.1, lch.h, lch.c, theme === 'dark' ? 'lighter' : 'darker');
+}
+
+function buildColors(
+  inputs: Record<Theme, ThemeInputs>,
+): Record<ColorToken, Record<Theme, string>> {
+  const light = generateTheme(inputs.light);
+  const dark = generateTheme(inputs.dark);
   const out = {} as Record<ColorToken, Record<Theme, string>>;
   for (const name of GENERATED_TOKENS) out[name] = { light: light[name], dark: dark[name] };
-  for (const [name, value] of Object.entries(fixed) as [FixedToken, (typeof fixed)[FixedToken]][])
-    out[name] = { light: value.light, dark: value.dark };
+  for (const name of Object.keys(fixed) as FixedToken[]) {
+    out[name] = {
+      light: strengthen(name, 'light', light.surface, contrastMinimums(inputs.light.contrast)),
+      dark: strengthen(name, 'dark', dark.surface, contrastMinimums(inputs.dark.contrast)),
+    };
+  }
   return out;
 }
 
 /** Colour tokens with a concrete value per theme (DESIGN.md §2.2, §2.3). */
-export const colors: Readonly<Record<ColorToken, Readonly<Record<Theme, string>>>> = buildColors();
+export const colors: Readonly<Record<ColorToken, Readonly<Record<Theme, string>>>> =
+  buildColors(themeInputs);
+
+/**
+ * The high-contrast variant of every colour token, for field phones in daylight (DESIGN.md
+ * §2.1): generated from `highContrastInputs`, with the fixed hues moved to the variant's
+ * minimums (`contrastMinimums`: 7:1 for text, 4.5:1 for outlines and icons).
+ */
+export const highContrastColors: Readonly<Record<ColorToken, Readonly<Record<Theme, string>>>> =
+  buildColors(highContrastInputs);
+
+/** The colour tokens of one contrast level. */
+export function colorsFor(
+  contrast: Contrast,
+): Readonly<Record<ColorToken, Readonly<Record<Theme, string>>>> {
+  return contrast === 'high' ? highContrastColors : colors;
+}
 
 /**
  * Tokens that point at another token (DESIGN.md §2.4). Emitted as `var(--x)` in CSS and
@@ -120,10 +191,14 @@ export const scale = {
   content: { form: 720, detail: 1200 },
 } as const;
 
-/** Every colour token, aliases resolved, for one theme. */
-export function resolve(theme: Theme): Record<ColorToken | AliasToken, string> {
+/** Every colour token, aliases resolved, for one theme at one contrast level. */
+export function resolve(
+  theme: Theme,
+  contrast: Contrast = 'standard',
+): Record<ColorToken | AliasToken, string> {
+  const palette = colorsFor(contrast);
   const out: Record<string, string> = {};
-  for (const [name, value] of Object.entries(colors)) out[name] = value[theme];
-  for (const [name, target] of Object.entries(aliases)) out[name] = colors[target][theme];
+  for (const [name, value] of Object.entries(palette)) out[name] = value[theme];
+  for (const [name, target] of Object.entries(aliases)) out[name] = palette[target][theme];
   return out;
 }
