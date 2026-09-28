@@ -1,15 +1,7 @@
 'use client';
 
 import type { Theme } from '@shakti/contracts';
-import {
-  Button,
-  cn,
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  Toaster,
-  usePaletteShortcut,
-} from '@shakti/ui';
+import { Button, cn, Toaster, usePaletteShortcut } from '@shakti/ui';
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -35,6 +27,9 @@ const ShellPalette = dynamic(() => import('./shell-palette').then((m) => m.Shell
 function preloadPalette(): void {
   void import('./shell-palette');
 }
+
+/** The phone menu's sheet, likewise fetched when the menu is first opened. */
+const PhoneMenu = dynamic(() => import('./phone-menu').then((m) => m.PhoneMenu));
 
 /** ⌘K on a Mac, Ctrl K elsewhere; the server draws Ctrl K and the browser corrects it. */
 function useIsMac(): boolean {
@@ -105,6 +100,8 @@ export function AppShell({
   const items = useMemo(() => NAV_ITEMS.filter((i) => navIds.includes(i.id)), [navIds]);
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mounted from the first opening on, so the menu then behaves like any sheet.
+  const [menuWanted, setMenuWanted] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Mounted from the first opening on, so the palette keeps its state like any dialog.
@@ -166,21 +163,26 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-bg border-border sticky top-0 z-30 flex h-topbar shrink-0 items-center gap-2 border-b px-4 md:px-6">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t('openMenu')}
-              aria-expanded={menuOpen}
-              onClick={() => {
-                setMenuOpen(true);
-              }}
-              className="-ml-2 md:hidden"
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('openMenu')}
+            aria-expanded={menuOpen}
+            onClick={() => {
+              setMenuWanted(true);
+              setMenuOpen(true);
+            }}
+            className="-ml-2 md:hidden"
+          >
+            <Menu aria-hidden />
+          </Button>
+          {menuWanted ? (
+            <PhoneMenu
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              title={t('mainMenu')}
+              closeLabel={t('closeMenu')}
             >
-              <Menu aria-hidden />
-            </Button>
-            <SheetContent side="left" closeLabel={t('closeMenu')} className="w-72 gap-2 p-2">
-              <SheetTitle className="sr-only">{t('mainMenu')}</SheetTitle>
               <Brand collapsed={false} />
               <SidebarNav
                 items={items}
@@ -188,8 +190,8 @@ export function AppShell({
                   setMenuOpen(false);
                 }}
               />
-            </SheetContent>
-          </Sheet>
+            </PhoneMenu>
+          ) : null}
 
           <CompanySwitcher companies={companies} active={activeCompany} />
 

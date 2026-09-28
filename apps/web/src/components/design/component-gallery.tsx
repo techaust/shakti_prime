@@ -3,7 +3,6 @@
 import type { Contrast, Theme } from '@shakti/tokens';
 import {
   Button,
-  CommandPalette,
   DataGrid,
   Dialog,
   DialogClose,
@@ -38,6 +37,7 @@ import {
 } from '@shakti/ui';
 import { CalendarCheck, Inbox, Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type ReactNode } from 'react';
 import type en from '../../../messages/en.json';
@@ -45,6 +45,12 @@ import { contrastRows, formatRatio, type ContrastRow } from '../../design/contra
 import { NAV_ITEMS } from '../../nav';
 import { GridViewsPreview } from './grid-views-preview';
 import { DateInputPreview, UndoToastButton } from './pattern-previews';
+
+/**
+ * The palette preview uses the same component as the top bar, cmdk and all, fetched when the
+ * preview is first opened rather than with the page.
+ */
+const CommandPalette = dynamic(() => import('./palette-preview').then((m) => m.CommandPalette));
 
 /**
  * The design namespace, handed over by the server page as plain strings: only this page needs
@@ -104,6 +110,7 @@ export function ComponentGallery({
   const rows = useMemo(() => contrastRows(theme, contrast), [theme, contrast]);
   const [shown, setShown] = useState(PAGE_SIZE);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteWanted, setPaletteWanted] = useState(false);
   const [query, setQuery] = useState('');
 
   const columns: DataGridColumn<ContrastRow>[] = [
@@ -331,24 +338,27 @@ export function ComponentGallery({
           <Button
             variant="secondary"
             onClick={() => {
+              setPaletteWanted(true);
               setPaletteOpen(true);
             }}
           >
             {copy.openPalette}
           </Button>
-          <CommandPalette
-            open={paletteOpen}
-            onOpenChange={(open) => {
-              setPaletteOpen(open);
-              if (!open) setQuery('');
-            }}
-            groups={palette}
-            title={shell('paletteTitle')}
-            inputLabel={shell('paletteInput')}
-            emptyLabel={shell('paletteEmpty')}
-            query={query}
-            onQueryChange={setQuery}
-          />
+          {paletteWanted ? (
+            <CommandPalette
+              open={paletteOpen}
+              onOpenChange={(open) => {
+                setPaletteOpen(open);
+                if (!open) setQuery('');
+              }}
+              groups={palette}
+              title={shell('paletteTitle')}
+              inputLabel={shell('paletteInput')}
+              emptyLabel={shell('paletteEmpty')}
+              query={query}
+              onQueryChange={setQuery}
+            />
+          ) : null}
         </div>
       </Section>
 

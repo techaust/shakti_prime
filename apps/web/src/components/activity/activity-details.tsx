@@ -1,7 +1,14 @@
 'use client';
 
 import type { AuditLogDto } from '@shakti/contracts';
-import { SheetDescription, SheetHeader, SheetTitle, StatusBadge } from '@shakti/ui';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  StatusBadge,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { ErrorKey, RoleNameKey } from '../../i18n/types';
@@ -34,6 +41,35 @@ import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
+
+/**
+ * The Activity log's detail sheet for one row, loaded on demand by the log screen and shown while
+ * it is mounted; closing it calls `onClose`.
+ */
+export function ActivityDetailsSheet({
+  row,
+  companies,
+  closeLabel,
+  onClose,
+}: {
+  row: AuditLogDto;
+  companies: Record<number, string>;
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet
+      open
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onClose();
+      }}
+    >
+      <SheetContent closeLabel={closeLabel}>
+        <ActivityDetails row={row} companies={companies} />
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 /**
  * One recorded action in a side sheet: who, when, where from, the result and, field by field,

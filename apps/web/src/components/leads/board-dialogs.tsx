@@ -8,6 +8,8 @@ import type {
 } from '@shakti/contracts';
 import {
   Button,
+  Dialog,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -33,6 +35,53 @@ import {
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+
+/** The board's dialogs, one per card action. */
+export type DialogKind = 'move' | 'assign' | 'nurture' | 'reopen' | 'win' | 'lose';
+
+/**
+ * The dialog of one card action, loaded on demand by the leads board and shown while it is
+ * mounted; closing it (Escape, the close button, Cancel) calls `onCancel`.
+ */
+export function BoardDialog({
+  kind,
+  lead,
+  stages,
+  closeLabel,
+  onDone,
+  onCancel,
+}: {
+  kind: DialogKind;
+  lead: BoardLeadDto;
+  stages: readonly PipelineStageDto[];
+  closeLabel: string;
+  onDone: (result: OpportunityDto, ownerName?: string) => void;
+  onCancel: () => void;
+}) {
+  const props = { lead, onDone, onCancel };
+  return (
+    <Dialog
+      open
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel();
+      }}
+    >
+      <DialogContent closeLabel={closeLabel}>
+        {kind === 'move' ? (
+          <MoveForm {...props} stages={stages} />
+        ) : kind === 'assign' ? (
+          <AssignForm {...props} />
+        ) : kind === 'nurture' ? (
+          <NurtureForm {...props} />
+        ) : kind === 'lose' ? (
+          <LoseForm {...props} />
+        ) : (
+          <ConfirmForm {...props} kind={kind} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /** What every board dialog is given: the lead, and what to do when it is done or cancelled. */
 interface DialogProps {
