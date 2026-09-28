@@ -71,7 +71,9 @@ export async function listLeads(rawInput: unknown): Promise<ActionResult<LeadPag
     const principal = await signedIn();
     const input = parseInput(ListLeadsInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listLeadsQuery(context, input));
+    return executeQuery(principal, { requestId }, (context) => listLeadsQuery(context, input), {
+      name: 'listLeads',
+    });
   });
 }
 
@@ -88,6 +90,7 @@ export async function listBoardLeads(rawInput: unknown): Promise<ActionResult<Le
       principal,
       input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
       (context) => listBoardLeadsQuery(context, input),
+      { name: 'listBoardLeads' },
     );
   });
 }
@@ -107,6 +110,7 @@ export async function listBoardStageLeads(
       principal,
       input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
       (context) => listBoardStageLeadsQuery(context, input),
+      { name: 'listBoardStageLeads' },
     );
   });
 }
@@ -119,8 +123,11 @@ export async function listLeadAssignees(
     const principal = await signedIn();
     const input = parseInput(ListLeadAssigneesInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { entityIds: [input.entityId], requestId }, (context) =>
-      listLeadAssigneesQuery(context, input),
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => listLeadAssigneesQuery(context, input),
+      { name: 'listLeadAssignees' },
     );
   });
 }
@@ -132,10 +139,15 @@ export async function leadFormOptions(): Promise<
   return toResult('leadFormOptions', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, async (context) => ({
-      pipelines: await listPipelines(context),
-      sources: await listLeadSources(context),
-    }));
+    return executeQuery(
+      principal,
+      { requestId },
+      async (context) => ({
+        pipelines: await listPipelines(context),
+        sources: await listLeadSources(context),
+      }),
+      { name: 'leadFormOptions' },
+    );
   });
 }
 

@@ -16,6 +16,7 @@ import {
   Select,
   StatusBadge,
   toast,
+  useFocusTargets,
   type DataGridColumn,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
@@ -56,6 +57,8 @@ export function PriceMasterScreen({
   const [rows, setRows] = useState<PriceRowDto[]>(initialPage?.items ?? []);
   const [nextCursor, setNextCursor] = useState(initialPage?.nextCursor ?? null);
   const [pricing, setPricing] = useState<PriceRowDto | undefined>();
+  // Focus goes back to the row's Set price button, in the table or the phone card that shows.
+  const setPriceButtons = useFocusTargets<string>();
   const { load, pending, failure } = useQuery<PricePageDto>();
   const [loadingMore, setLoadingMore] = useState(false);
   // The list and the order whose prices are wanted: an answer for a list or an order chosen
@@ -173,6 +176,7 @@ export function PriceMasterScreen({
       hideable: false,
       cell: (r) => (
         <Button
+          ref={setPriceButtons.ref(r.itemId)}
           variant="secondary"
           size="sm"
           aria-label={t('setPriceFor', { item: r.name })}
@@ -248,7 +252,10 @@ export function PriceMasterScreen({
         }}
       >
         {pricing === undefined ? null : (
-          <DialogContent closeLabel={common('close')}>
+          <DialogContent
+            closeLabel={common('close')}
+            returnFocusTo={() => [setPriceButtons.get(pricing.itemId)]}
+          >
             <SetPriceForm
               row={pricing}
               priceListId={list.id}

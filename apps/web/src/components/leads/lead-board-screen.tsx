@@ -20,7 +20,9 @@ import {
   Select,
   StatusBadge,
   toast,
+  useFocusTargets,
   type BoardLoadMore,
+  type FocusTargets,
   type StatusTone,
 } from '@shakti/ui';
 import { Ellipsis } from 'lucide-react';
@@ -103,6 +105,17 @@ export function LeadBoardScreen({
   const columns = boardColumns(stages, board, states);
   const [phoneStage, setPhoneStage] = useState(() => columns[0]?.stage.id);
   const stageNames = new Map(stages.map((s) => [s.id, s.name]));
+  // Where focus goes when a card's dialog closes: the card's Actions button where it now shows,
+  // else the heading of the column it was opened from, else the board (DESIGN.md §6, Dialog).
+  const actionButtons = useFocusTargets<string>();
+  const columnSections = useFocusTargets<string>();
+  const boardRegion = useFocusTargets<'board'>();
+  const returnFocusTo = (lead: BoardLeadDto) => () => [
+    actionButtons.get(lead.id),
+    columnSections.get(lead.stageId).map(columnHeading),
+    columnSections.get(phoneStage ?? '').map(columnHeading),
+    boardRegion.get('board'),
+  ];
 
   function go(change: { entityId?: number; pipelineKey?: string; show?: BoardShow }) {
     router.push(
@@ -268,6 +281,8 @@ export function LeadBoardScreen({
       </p>
 
       <div
+        ref={boardRegion.ref('board')}
+        tabIndex={-1}
         className="flex items-start gap-3 overflow-x-auto pb-2 max-md:block max-md:overflow-visible"
         aria-busy={move.pending}
       >
@@ -281,6 +296,7 @@ export function LeadBoardScreen({
             hiddenOnPhone={column.stage.id !== phoneStage}
             over={over === column.stage.id}
             dropZone={dropZone(column.stage)}
+            sectionRef={columnSections.ref(column.stage.id)}
           >
             {column.cards.map((lead) => (
               <Card
@@ -301,6 +317,7 @@ export function LeadBoardScreen({
                     lead={lead}
                     can={can}
                     label={common('rowActions', { name: lead.customerName })}
+                    focusTargets={actionButtons}
                     onOpen={(kind) => {
                       open(kind, lead);
                     }}
@@ -318,6 +335,7 @@ export function LeadBoardScreen({
           lead={dialog.lead}
           stages={stages}
           closeLabel={common('close')}
+          returnFocusTo={returnFocusTo(dialog.lead)}
           onCancel={close}
           onDone={(result, ownerName) => {
             const name = dialog.lead.customerName;
@@ -347,6 +365,7 @@ function Column({
   hiddenOnPhone,
   over,
   dropZone,
+  sectionRef,
   children,
 }: {
   column: StageColumn;
@@ -357,6 +376,8 @@ function Column({
   hiddenOnPhone: boolean;
   over: boolean;
   dropZone: Pick<ComponentProps<'section'>, 'onDragOver' | 'onDragLeave' | 'onDrop'>;
+  /** Files the column, so focus can go to its heading when a card has left it. */
+  sectionRef: ComponentProps<'section'>['ref'];
   children: ReactNode;
 }) {
   const t = useTranslations('leads.board');
@@ -387,6 +408,7 @@ function Column({
       hiddenOnPhone={hiddenOnPhone}
       highlighted={over}
       loadMore={loadMore}
+      ref={sectionRef}
       {...dropZone}
     >
       {cards.length === 0 ? null : children}
@@ -444,11 +466,14 @@ function CardMenu({
   lead,
   can,
   label,
+  focusTargets,
   onOpen,
 }: {
   lead: BoardLeadDto;
   can: { write: boolean; assign: boolean };
   label: string;
+  /** Files the Actions button, so focus comes back to it when the dialog closes. */
+  focusTargets: FocusTargets<string>;
   onOpen: (kind: DialogKind) => void;
 }) {
   const t = useTranslations('leads.board');
@@ -466,7 +491,7 @@ function CardMenu({
   return (
     // Not modal, so the dialog it opens takes focus cleanly when the menu closes.
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild ref={focusTargets.ref(lead.id)}>
         <Button variant="ghost" size="icon" aria-label={label} className="-mt-1 -mr-1 shrink-0">
           <Ellipsis aria-hidden />
         </Button>
@@ -482,4 +507,10 @@ function CardMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** A column's heading, named by the column's `aria-labelledby`; it takes focus (`tabIndex -1`). */
+function columnHeading(section: HTMLElement): HTMLElement | null {
+  const id = section.getAttribute('aria-labelledby');
+  return id === null ? null : document.getElementById(id);
 }

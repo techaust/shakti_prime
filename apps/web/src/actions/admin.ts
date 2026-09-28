@@ -280,7 +280,9 @@ export async function listUsers(rawInput: unknown): Promise<ActionResult<UserPag
   return toResult('listUsers', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listUsersQuery(context, rawInput));
+    return executeQuery(principal, { requestId }, (context) => listUsersQuery(context, rawInput), {
+      name: 'listUsers',
+    });
   });
 }
 
@@ -289,8 +291,11 @@ export async function listUserSessions(rawInput: unknown): Promise<ActionResult<
   return toResult('listUserSessions', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) =>
-      listUserSessionsQuery(context, rawInput),
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listUserSessionsQuery(context, rawInput),
+      { name: 'listUserSessions' },
     );
   });
 }
@@ -303,7 +308,9 @@ export async function listAuditLog(rawInput: unknown): Promise<ActionResult<Audi
   return toResult('listAuditLog', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => queryAudit(context, rawInput));
+    return executeQuery(principal, { requestId }, (context) => queryAudit(context, rawInput), {
+      name: 'listAuditLog',
+    });
   });
 }
 
@@ -312,8 +319,11 @@ export async function listAuditPeople(rawInput: unknown): Promise<ActionResult<A
   return toResult('listAuditPeople', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) =>
-      listAuditPeopleQuery(context, rawInput),
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listAuditPeopleQuery(context, rawInput),
+      { name: 'listAuditPeople' },
     );
   });
 }

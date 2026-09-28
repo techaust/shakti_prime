@@ -28,6 +28,7 @@ import {
   Input,
   Skeleton,
   toast,
+  useFocusTargets,
 } from '@shakti/ui';
 import { Bookmark } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -78,6 +79,10 @@ export function ViewsMenu({
   const [open, setOpen] = useState<Open | undefined>();
   const { load, pending, failure } = useQuery<SavedViewDto[]>();
   const active = views?.find((v) => v.id === activeId);
+  // The dialogs open from menu items that have gone when they close: focus goes back to the
+  // Views button (DESIGN.md §6, Dialog).
+  const trigger = useFocusTargets<'views'>();
+  const returnFocusTo = () => [trigger.get('views')];
 
   function readViews(isOpen: boolean) {
     if (!isOpen || pending || (views !== undefined && failure === undefined)) return;
@@ -99,7 +104,7 @@ export function ViewsMenu({
   return (
     <>
       <DropdownMenu modal={false} onOpenChange={readViews}>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild ref={trigger.ref('views')}>
           <Button variant="secondary" size="sm">
             <Bookmark aria-hidden />
             <span className="max-w-40 truncate">{active?.name ?? t('viewsButton')}</span>
@@ -190,7 +195,7 @@ export function ViewsMenu({
         }}
       >
         {open === undefined ? null : (
-          <DialogContent closeLabel={common('close')}>
+          <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
             {open === 'save' || (open === 'rename' && active !== undefined) ? (
               <NameForm
                 store={store}

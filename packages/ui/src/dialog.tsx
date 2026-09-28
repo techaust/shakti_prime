@@ -4,6 +4,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 import { cn } from './cn';
+import { returnFocusHandler, type ReturnFocusTo } from './return-focus';
 
 /** Dialogs for confirmations and short forms (DESIGN.md §6); side sheets for records. */
 export const Dialog = DialogPrimitive.Root;
@@ -37,17 +38,28 @@ function CloseButton({ label }: { label: string }) {
   );
 }
 
+/**
+ * Where focus goes when the dialog closes, best first (`return-focus.ts`). A dialog opened from a
+ * menu item needs it: without it focus falls to the page, because the item has gone by then.
+ */
+interface ReturnFocusProps {
+  returnFocusTo?: ReturnFocusTo | undefined;
+}
+
 export function DialogContent({
   className,
   children,
   closeLabel,
+  returnFocusTo,
+  onCloseAutoFocus,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> & { closeLabel: string }) {
+}: ComponentProps<typeof DialogPrimitive.Content> & { closeLabel: string } & ReturnFocusProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
       <DialogPrimitive.Content
         {...props}
+        onCloseAutoFocus={returnFocusHandler(returnFocusTo, onCloseAutoFocus)}
         className={cn(
           'bg-surface text-text border-border shadow-2 fixed top-1/2 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-xl border p-6',
           'data-[state=open]:animate-dialog-in max-h-[calc(100dvh-2rem)] overflow-y-auto focus:outline-none',
@@ -91,17 +103,20 @@ export function SheetContent({
   className,
   children,
   closeLabel,
+  returnFocusTo,
+  onCloseAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
   side?: 'left' | 'right';
   closeLabel: string;
   children: ReactNode;
-}) {
+} & ReturnFocusProps) {
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
       <DialogPrimitive.Content
         {...props}
+        onCloseAutoFocus={returnFocusHandler(returnFocusTo, onCloseAutoFocus)}
         className={cn(
           'bg-surface text-text border-border shadow-2 fixed inset-y-0 z-50 flex w-[min(24rem,calc(100%-3rem))] flex-col gap-4 overflow-y-auto p-6 focus:outline-none',
           side === 'right'

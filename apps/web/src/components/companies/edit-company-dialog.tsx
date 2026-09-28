@@ -11,6 +11,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { SyntheticEvent } from 'react';
@@ -27,11 +28,14 @@ import { useCommand } from '../screens/use-command';
 export function EditCompanyDialog({
   company,
   closeLabel,
+  returnFocusTo,
   onSaved,
   onClose,
 }: {
   company: EntityDto;
   closeLabel: string;
+  /** Where focus goes when the dialog closes: the row's Edit button. */
+  returnFocusTo: ReturnFocusTo;
   onSaved: (company: EntityDto) => void;
   onClose: () => void;
 }) {
@@ -42,7 +46,7 @@ export function EditCompanyDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent closeLabel={closeLabel}>
+      <DialogContent closeLabel={closeLabel} returnFocusTo={returnFocusTo}>
         <EditCompanyForm company={company} onSaved={onSaved} onCancel={onClose} />
       </DialogContent>
     </Dialog>
