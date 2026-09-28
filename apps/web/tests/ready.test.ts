@@ -1,7 +1,8 @@
 import { closeAuthDb } from '@shakti/db/auth';
-import { ErrorEnvelope, ReadyResponse, type ReadyChecks } from '@shakti/contracts';
+import { ErrorEnvelope, newId, ReadyResponse, type ReadyChecks } from '@shakti/contracts';
 import { closeDb } from '@shakti/db';
 import { closeOutboxDb } from '@shakti/db/outbox';
+import { asMigrator } from '@shakti/db/testing';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import * as clientAddressModule from '../src/auth/client-address';
 import { defaultAuthDeps } from '../src/auth/deps';
@@ -114,5 +115,76 @@ describe('GET /api/v1/health/ready', () => {
       'health.not_ready',
       expect.objectContaining({ requestId: 'r-store', capUnavailable: true }),
     );
+  });
+});
+
+describe('the outbox check (docs/design/backend-weeks-3-5.md §4.2)', () => {
+  /** A pending event written as the table owner, its moments given as intervals from now. */
+  async function pendingEvent(
+    createdAgo: string,
+    extra: { attempts?: number; nextAttempt?: string; deadLettered?: boolean } = {},
+  ): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (m) => m`
+        insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id, payload_json,
+                                   created_at, attempts, next_attempt_at, dead_lettered_at)
+        values (${id}, 1, 'admin.user.reactivated', 'user', ${newId()}, '{"v": 1}'::jsonb,
+                now() - ${createdAgo}::interval, ${extra.attempts ?? 0},
+                now() + ${extra.nextAttempt ?? null}::interval,
+                ${extra.deadLettered === true ? new Date() : null})`,
+    );
+    return id;
+  }
+
+  /** Marks the rows delivered, so no later check waits on them. A dead letter stays as it is. */
+  async function deliver(ids: readonly string[]): Promise<void> {
+    await asMigrator(
+      (m) => m`update outbox_events set published_at = now()
+                where id = any(${[...ids]}::uuid[]) and dead_lettered_at is null`,
+    );
+  }
+
+  it('stays ok while an event backs off after failing, and logs the counts instead', async () => {
+    const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+    const ids = [
+      await pendingEvent('3 hours', { attempts: 6, nextAttempt: '20 minutes' }),
+      await pendingEvent('4 hours', { attempts: 10, deadLettered: true }),
+    ];
+    try {
+      expect((await readiness.checkReadiness()).outbox).toBe('ok');
+      const response = await ready({ 'x-forwarded-for': address() });
+      expect(response.status).toBe(200);
+      expect(log).toHaveBeenCalledWith(
+        'warn',
+        'outbox.backlog',
+        expect.objectContaining({
+          retrying: expect.any(Number) as number,
+          deadLettered: expect.any(Number) as number,
+        }),
+      );
+      const [, , fields] = log.mock.calls.find(([, event]) => event === 'outbox.backlog') ?? [];
+      expect(fields?.retrying).toBeGreaterThanOrEqual(1);
+      expect(fields?.deadLettered).toBeGreaterThanOrEqual(1);
+    } finally {
+      await deliver(ids);
+    }
+  });
+
+  it('turns down when a due event has waited more than five minutes: the publisher is not running', async () => {
+    const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);
+    const stuck = await pendingEvent('6 minutes');
+    try {
+      expect((await readiness.checkReadiness()).outbox).toBe('down');
+      const response = await ready({ 'x-request-id': 'r-outbox', 'x-forwarded-for': address() });
+      expect(response.status).toBe(503);
+      expect(log).toHaveBeenCalledWith('warn', 'health.not_ready', {
+        requestId: 'r-outbox',
+        checks: { ...ALL_OK, outbox: 'down' },
+      });
+    } finally {
+      await deliver([stuck]);
+    }
+    expect((await readiness.checkReadiness()).outbox).toBe('ok');
   });
 });
