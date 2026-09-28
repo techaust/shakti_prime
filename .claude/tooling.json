@@ -41,7 +41,7 @@
       "type": "plugin",
       "phase": 0,
       "install": "Anthropic plugin directory: \"github\" (by GitHub)",
-      "signIn": "GitHub sign-in"
+      "signIn": "Fine-grained personal access token for this repository in the Windows user variable GITHUB_PERSONAL_ACCESS_TOKEN (no browser sign-in)"
     },
     {
       "name": "vercel",
