@@ -1,14 +1,8 @@
 import type { PaletteSearchDto, PermissionGrant } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { NAV_ITEMS, visibleNav } from '../nav';
-import {
-  canSearch,
-  foundCount,
-  leadHref,
-  paletteSections,
-  searchText,
-  visibleActions,
-} from './palette';
+import { NAV_ITEMS } from '../nav';
+import { canSearch, visibleActions, visibleNav } from './menu-access';
+import { foundCount, leadHref, paletteSections, searchText } from './palette';
 
 const id = (n: number) => `01990000-0000-7000-8000-${String(n).padStart(12, '0')}`;
 

@@ -8,8 +8,7 @@ import { AppShell } from '../../components/shell/app-shell';
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
 import { ContrastSync, ThemeSync } from '../../components/theme';
 import type { RoleNameKey } from '../../i18n/types';
-import { visibleNav } from '../../nav';
-import { canSearch, visibleActions } from '../../screens/palette';
+import { canSearch, visibleActions, visibleNav } from '../../screens/menu-access';
 import { CONTRAST_COOKIE, isHighContrast } from '../../theme';
 
 /**

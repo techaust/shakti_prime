@@ -1,12 +1,10 @@
 'use client';
 
-import {
-  OpportunityLostReasonSchema,
-  OpportunityNurtureReasonSchema,
-  type BoardLeadDto,
-  type LeadAssigneeDto,
-  type OpportunityDto,
-  type PipelineStageDto,
+import type {
+  BoardLeadDto,
+  LeadAssigneeDto,
+  OpportunityDto,
+  PipelineStageDto,
 } from '@shakti/contracts';
 import {
   Button,
@@ -28,6 +26,10 @@ import {
   winOpportunity,
   moveOpportunityStage,
 } from '../../actions/crm';
+import {
+  OPPORTUNITY_LOST_REASONS,
+  OPPORTUNITY_NURTURE_REASONS,
+} from '../../screens/contract-values';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -208,11 +210,11 @@ function ReasonForm({ lead, onDone, onCancel, kind }: DialogProps & { kind: 'nur
   const [needsReason, setNeedsReason] = useState(false);
   const reasons =
     kind === 'nurture'
-      ? OpportunityNurtureReasonSchema.options.map((code) => ({
+      ? OPPORTUNITY_NURTURE_REASONS.map((code) => ({
           code,
           label: board(`nurtureReason.${code}`),
         }))
-      : OpportunityLostReasonSchema.options.map((code) => ({
+      : OPPORTUNITY_LOST_REASONS.map((code) => ({
           code,
           label: board(`lostReason.${code}`),
         }));

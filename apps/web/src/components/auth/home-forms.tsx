@@ -1,9 +1,9 @@
 'use client';
 
-import { PASSWORD_MIN_LENGTH } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { changePassword, type SetPasswordState } from '../../actions/auth';
+import { PASSWORD_MIN_LENGTH } from '../../screens/contract-values';
 import { blockWhilePending, Button, Field, FormError, TextInput, useFormFeedback } from '../form';
 
 export function ChangePasswordForm() {

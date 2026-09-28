@@ -1,20 +1,6 @@
 'use client';
 
-import {
-  ContrastSchema,
-  IMPLEMENTED_IMPORT_KINDS,
-  ImportJobStateSchema,
-  LeadImportFieldSchema,
-  OpportunityLostReasonSchema,
-  OpportunityNurtureReasonSchema,
-  OpportunityStateSchema,
-  SavedViewScreenSchema,
-  SegmentSchema,
-  SessionRevokeReasonSchema,
-  ThemeSchema,
-  UserStatusSchema,
-  type AuditLogDto,
-} from '@shakti/contracts';
+import type { AuditLogDto } from '@shakti/contracts';
 import { SheetDescription, SheetHeader, SheetTitle, StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
@@ -31,7 +17,21 @@ import {
   type ChangeValue,
   type CodeGroup,
 } from '../../screens/audit';
+import {
+  CONTRASTS,
+  IMPLEMENTED_IMPORT_KINDS,
+  IMPORT_JOB_STATES,
+  OPPORTUNITY_LOST_REASONS,
+  OPPORTUNITY_NURTURE_REASONS,
+  OPPORTUNITY_STATES,
+  SAVED_VIEW_SCREENS,
+  SEGMENTS,
+  SESSION_REVOKE_REASONS,
+  THEMES,
+  USER_STATUSES,
+} from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
+import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
 
@@ -192,16 +192,16 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
           </span>
         );
       case 'userStatus': {
-        const status = UserStatusSchema.safeParse(value.value);
-        return status.success ? users(`status.${status.data}`) : wordsOf(value.value);
+        const status = value.value;
+        return oneOf(USER_STATUSES, status) ? users(`status.${status}`) : wordsOf(status);
       }
       case 'theme': {
-        const choice = ThemeSchema.safeParse(value.value);
-        return choice.success ? theme(choice.data) : wordsOf(value.value);
+        const choice = value.value;
+        return oneOf(THEMES, choice) ? theme(choice) : wordsOf(choice);
       }
       case 'contrast': {
-        const choice = ContrastSchema.safeParse(value.value);
-        return choice.success ? t(`values.contrast.${choice.data}`) : wordsOf(value.value);
+        const choice = value.value;
+        return oneOf(CONTRASTS, choice) ? t(`values.contrast.${choice}`) : wordsOf(choice);
       }
       case 'role':
         return roles.has(value.value as RoleNameKey)
@@ -215,8 +215,10 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
           density: value.density,
         });
       case 'endReason': {
-        const ended = SessionRevokeReasonSchema.safeParse(value.value);
-        return ended.success ? users(`sessions.reason.${ended.data}`) : wordsOf(value.value);
+        const ended = value.value;
+        return oneOf(SESSION_REVOKE_REASONS, ended)
+          ? users(`sessions.reason.${ended}`)
+          : wordsOf(ended);
       }
       case 'roles':
         return value.roles.length === 0 ? (
@@ -244,8 +246,7 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
 function useLeadFieldName(): (field: string) => string {
   const imports = useTranslations('imports');
   return (field) => {
-    const known = LeadImportFieldSchema.safeParse(field);
-    return known.success ? imports(`fields.${known.data}`) : wordsOf(field);
+    return oneOf(LEAD_IMPORT_FIELDS, field) ? imports(`fields.${field}`) : wordsOf(field);
   };
 }
 
@@ -261,29 +262,25 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   return (group, value) => {
     switch (group) {
       case 'state': {
-        const lead = OpportunityStateSchema.safeParse(value);
-        if (lead.success) return leads(`state.${lead.data}`);
-        const job = ImportJobStateSchema.safeParse(value);
-        return job.success ? imports(`state.${job.data}`) : wordsOf(value);
+        if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
+        return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
-      case 'lostReason': {
-        const lost = OpportunityLostReasonSchema.safeParse(value);
-        return lost.success ? leads(`board.lostReason.${lost.data}`) : wordsOf(value);
-      }
-      case 'nurtureReason': {
-        const later = OpportunityNurtureReasonSchema.safeParse(value);
-        return later.success ? leads(`board.nurtureReason.${later.data}`) : wordsOf(value);
-      }
+      case 'lostReason':
+        return oneOf(OPPORTUNITY_LOST_REASONS, value)
+          ? leads(`board.lostReason.${value}`)
+          : wordsOf(value);
+      case 'nurtureReason':
+        return oneOf(OPPORTUNITY_NURTURE_REASONS, value)
+          ? leads(`board.nurtureReason.${value}`)
+          : wordsOf(value);
       case 'importKind':
         return oneOf(IMPLEMENTED_IMPORT_KINDS, value)
           ? imports(`upload.kinds.${value}`)
           : wordsOf(value);
       case 'fileType':
         return value.toUpperCase();
-      case 'segment': {
-        const segment = SegmentSchema.safeParse(value);
-        return segment.success ? t(`values.segment.${segment.data}`) : wordsOf(value);
-      }
+      case 'segment':
+        return oneOf(SEGMENTS, value) ? t(`values.segment.${value}`) : wordsOf(value);
       case 'errorCode':
         return errors.has(value as ErrorKey) ? errors(value as ErrorKey) : errors('internal');
       case 'signInDetail':
@@ -295,10 +292,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
       }
-      case 'screen': {
-        const screen = SavedViewScreenSchema.safeParse(value);
-        return screen.success ? t(`values.screen.${screen.data}`) : wordsOf(value);
-      }
+      case 'screen':
+        return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
     }
   };
 }

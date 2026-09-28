@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import en from '../messages/en.json';
-import { activeNavId, NAV_ITEMS, navRequires, visibleNav } from './nav';
+import { activeNavId, NAV_ITEMS, navRequires } from './nav';
+import { visibleNav } from './screens/menu-access';
 import { isBosPath } from './session-gate';
 
 const ids = (grants: readonly PermissionGrant[]) => visibleNav(grants).map((i) => i.id);

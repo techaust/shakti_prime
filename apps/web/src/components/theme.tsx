@@ -1,17 +1,16 @@
 'use client';
 
-import { ThemeSchema, type Theme } from '@shakti/contracts';
+import type { Theme } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveContrast, saveTheme } from '../actions/profile';
 import { settle } from './screens/settle';
 import type { ErrorKey } from '../i18n/types';
+import { THEMES } from '../screens/contract-values';
 import { contrastCookie, HIGH_CONTRAST, themeCookie } from '../theme';
 import { FailureMessage } from './screens/failure';
 import { useCommand } from './screens/use-command';
-
-const THEMES = ThemeSchema.options;
 
 function rememberOnThisDevice(theme: Theme | undefined): void {
   document.cookie = themeCookie(theme, window.location.protocol === 'https:');

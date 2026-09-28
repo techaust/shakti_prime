@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  PRICE_SORT_COLUMNS,
-  type PriceListDto,
-  type PricePageDto,
-  type PriceRowDto,
-  type PriceSort,
-} from '@shakti/contracts';
+import type { PriceListDto, PricePageDto, PriceRowDto, PriceSort } from '@shakti/contracts';
 import {
   Button,
   DataGrid,
@@ -27,6 +21,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { listPrices, setPrice } from '../../actions/pricing';
+import { PRICE_SORT_COLUMNS } from '../../screens/contract-values';
 import { formatDate, formatRupees, moneyFromTyped } from '../../screens/format';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';

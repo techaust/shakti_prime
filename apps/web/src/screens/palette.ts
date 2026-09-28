@@ -2,17 +2,16 @@
 // group holds is decided here from the caller's grants and the search's answer; the shell only
 // adds the words and the icons.
 
-import {
-  hasGrant,
-  SEARCH_MIN_CHARS,
-  type LeadSearchHitDto,
-  type PaletteSearchDto,
-  type PermissionGrant,
-  type PersonSearchHitDto,
+import type {
+  LeadSearchHitDto,
+  PaletteSearchDto,
+  PermissionGrant,
+  PersonSearchHitDto,
 } from '@shakti/contracts';
 import type { Route } from 'next';
 import type en from '../../messages/en.json';
 import type { NavItem } from '../nav';
+import { SEARCH_MIN_CHARS } from './contract-values';
 import { boardHref } from './lead-board';
 
 /** How long typing must pause before the palette searches, so each key press is not a read. */
@@ -56,16 +55,6 @@ export const PALETTE_ACTIONS: readonly PaletteAction[] = [
     requires: [{ key: 'admin.users.write', scope: 'all' }],
   },
 ];
-
-/** The actions these grants allow, in palette order. */
-export function visibleActions(grants: readonly PermissionGrant[]): PaletteAction[] {
-  return PALETTE_ACTIONS.filter((a) => a.requires.every((g) => hasGrant(grants, g.key, g.scope)));
-}
-
-/** Whether these grants can search anything: leads, or team members for a user administrator. */
-export function canSearch(grants: readonly PermissionGrant[]): boolean {
-  return hasGrant(grants, 'crm.lead.read', 'own') || hasGrant(grants, 'admin.users.write', 'all');
-}
 
 /** The text to search for, or undefined while fewer than two characters are typed. */
 export function searchText(query: string): string | undefined {
