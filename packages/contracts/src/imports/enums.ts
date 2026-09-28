@@ -33,6 +33,10 @@ export const ImportRowStateSchema = z.enum([
 ]);
 export type ImportRowState = z.infer<typeof ImportRowStateSchema>;
 
+/** `import_rows.created_type`: what a committed row made. Only leads are imported today. */
+export const ImportCreatedTypeSchema = z.enum(['opportunity']);
+export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
+
 /** `files.status` (docs/DATABASE.md §6.10); scanning and masking arrive with document uploads. */
 export const FileStatusSchema = z.enum(['pending', 'scanning', 'masked', 'ready', 'rejected']);
 export type FileStatus = z.infer<typeof FileStatusSchema>;

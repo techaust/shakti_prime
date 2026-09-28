@@ -9,6 +9,7 @@ import {
   DocTypeSchema,
   FilePurposeSchema,
   FileStatusSchema,
+  ImportCreatedTypeSchema,
   ImportFormatSchema,
   ImportJobStateSchema,
   ImportKindSchema,
@@ -55,6 +56,7 @@ const PAIRS: Record<string, readonly string[]> = {
   import_jobs_kind_check: ImportKindSchema.options,
   import_jobs_state_check: ImportJobStateSchema.options,
   import_mapping_templates_kind_check: ImportKindSchema.options,
+  import_rows_created_type_check: ImportCreatedTypeSchema.options,
   import_rows_state_check: ImportRowStateSchema.options,
   items_unit_check: ItemUnitSchema.options,
   lead_sources_channel_check: LeadChannelSchema.options,
@@ -72,10 +74,14 @@ const PAIRS: Record<string, readonly string[]> = {
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {
   it('every list-valued check is paired, and each pair holds the same values', async () => {
+    // Postgres renders `in ('a', 'b')` as `= ANY (ARRAY[...])`, but a one-value `in ('a')` as a
+    // plain `col = 'a'::text`, so both forms count as a value list.
     const rows = await withoutContext<{ name: string; def: string }>(sql`
       select c.conname as name, pg_get_constraintdef(c.oid) as def
         from pg_constraint c join pg_namespace n on n.oid = c.connamespace
-       where n.nspname = 'public' and c.contype = 'c' and pg_get_constraintdef(c.oid) like '%ARRAY[%'
+       where n.nspname = 'public' and c.contype = 'c'
+         and (pg_get_constraintdef(c.oid) like '%ARRAY[%'
+              or pg_get_constraintdef(c.oid) ~ '[a-z_]+ = ''[^'']*''::text')
        order by 1
     `);
     expect(rows.map((r) => r.name)).toEqual(Object.keys(PAIRS).sort());

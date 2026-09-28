@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ImportMappingSchema } from '../commands/imports/jobs';
 import { EntityIdSchema, IdSchema } from '../ids';
 import {
+  ImportCreatedTypeSchema,
   ImportFormatSchema,
   ImportJobStateSchema,
   ImportKindSchema,
@@ -72,7 +73,7 @@ export const ImportRowDto = z
     raw: z.record(z.string(), z.string()),
     errors: z.array(ImportRowErrorDto),
     dedupe: ImportDedupeDto.nullable(),
-    createdType: z.string().nullable(),
+    createdType: ImportCreatedTypeSchema.nullable(),
     createdId: IdSchema.nullable(),
     committedBatch: z.number().int().min(1).nullable(),
   })
