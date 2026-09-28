@@ -13,6 +13,7 @@ import en from '../../messages/en.json';
 import { clientMeta } from '../auth/client-address';
 import { countRequest, type CapRule } from '../auth/request-cap';
 import { logger } from '../log';
+import { declaredTooLarge, readTextWithin } from '../request-body';
 import { incomingRequestId } from '../request-id';
 import {
   JwksResponse,
@@ -71,14 +72,21 @@ async function keysOrFailure(env: Env, requestId: string): Promise<SigningKeys |
   return failure('integration_unavailable', requestId);
 }
 
+/**
+ * The most a body with no fields can take: `{}` with some white space. The request carries no
+ * fields, so anything longer is refused unread.
+ */
+const EMPTY_BODY_MAX_BYTES = 64;
+
 /** The call carries no fields (`RealtimeTokenRequest`): an empty body or `{}` only. */
 async function bodyIsEmpty(request: Request): Promise<boolean> {
-  let text: string;
+  let text: string | undefined;
   try {
-    text = await request.text();
+    text = await readTextWithin(request, EMPTY_BODY_MAX_BYTES);
   } catch {
     return false;
   }
+  if (text === undefined) return false;
   if (text.trim() === '') return true;
   try {
     return RealtimeTokenRequest.safeParse(JSON.parse(text)).success;
@@ -124,6 +132,10 @@ export async function issueRealtimeToken(
     return failure('integration_unavailable', requestId);
   }
   if (request.headers.get('origin') !== issuer) return failure('forbidden', requestId);
+  // A body this call never takes is refused before the session is looked up or anything is read.
+  if (declaredTooLarge(request.headers, EMPTY_BODY_MAX_BYTES)) {
+    return failure('validation_failed', requestId);
+  }
 
   let principal: Principal | undefined;
   try {

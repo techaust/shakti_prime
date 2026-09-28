@@ -6,6 +6,7 @@ import {
 } from '@shakti/contracts';
 import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
+import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { IMPORT_RUN_BUDGET_MS, runImportCommit } from '../../../../../../workers/imports';
 import {
@@ -31,7 +32,12 @@ export async function POST(request: Request): Promise<Response> {
   const config = qstashConfig();
   if (config === undefined) return failure('integration_unavailable', 503, requestId, headers);
 
-  const text = await request.text();
+  // Only a few ids ever come in: a larger body is refused before it is read (request-body.ts).
+  const text = await readTextWithin(request, WORKER_BODY_MAX_BYTES);
+  if (text === undefined) {
+    logger.log('warn', 'imports.commit_too_large', { requestId });
+    return failure('validation_failed', 400, requestId, { ...headers, ...NO_RETRY });
+  }
   const signed = await verifyQStashSignature(
     config,
     request.headers.get('upstash-signature'),

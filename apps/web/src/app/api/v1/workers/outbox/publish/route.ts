@@ -1,6 +1,7 @@
 import { ErrorEnvelope, OutboxPublishResponse, type ErrorCode } from '@shakti/contracts';
 import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
+import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { publishOutbox } from '../../../../../../workers/outbox';
 import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
@@ -24,7 +25,12 @@ export async function POST(request: Request): Promise<Response> {
   const config = qstashConfig();
   if (config === undefined) return failure('integration_unavailable', 503, requestId, headers);
 
-  const body = await request.text();
+  // Only a few ids ever come in: a larger body is refused before it is read (request-body.ts).
+  const body = await readTextWithin(request, WORKER_BODY_MAX_BYTES);
+  if (body === undefined) {
+    logger.log('warn', 'outbox.publish_too_large', { requestId });
+    return failure('validation_failed', 400, requestId, { ...headers, ...NO_RETRY });
+  }
   const signed = await verifyQStashSignature(
     config,
     request.headers.get('upstash-signature'),
@@ -44,8 +50,14 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
+/** QStash stops retrying a message whose answer carries this header. */
+const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
+
 function failure(
-  code: Extract<ErrorCode, 'integration_unavailable' | 'unauthorized' | 'internal'>,
+  code: Extract<
+    ErrorCode,
+    'integration_unavailable' | 'unauthorized' | 'validation_failed' | 'internal'
+  >,
   status: number,
   requestId: string,
   headers: Record<string, string>,

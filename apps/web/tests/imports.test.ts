@@ -419,6 +419,36 @@ describe('POST /api/v1/workers/imports/commit', () => {
     expect(hosted.headers.get('x-request-id')).toBe(platform);
   });
 
+  it('refuses a body larger than a worker call carries, reading none of a declared one', async () => {
+    const body = JSON.stringify({ jobId: newId(), entityId: 1, userId: newId() });
+    const declared = new Request(ROUTE_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'upstash-signature': sign(body),
+        'content-length': '1048576',
+      },
+      body,
+    });
+    const refused = await POST(declared);
+    expect(refused.status).toBe(400);
+    expect(refused.headers.get('upstash-nonretryable-error')).toBe('true');
+    expect(ErrorEnvelope.parse(await refused.json()).error.code).toBe('validation_failed');
+    expect(declared.bodyUsed).toBe(false);
+
+    const big = JSON.stringify({ jobId: newId(), pad: 'x'.repeat(8 * 1024) });
+    const streamed = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'upstash-signature': sign(big) },
+        body: new Blob([big]).stream(),
+        duplex: 'half',
+      } as RequestInit),
+    );
+    expect(streamed.status).toBe(400);
+    expect(ErrorEnvelope.parse(await streamed.json()).error.code).toBe('validation_failed');
+  });
+
   /** A job the command has moved to committing, with no worker started for it yet. */
   async function committingJob(names: string[]): Promise<ImportJobDto> {
     const job = await previewedJob(names);

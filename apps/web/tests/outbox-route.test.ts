@@ -157,4 +157,31 @@ describe('POST /api/v1/workers/outbox/publish', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('x-request-id')).toBe(platform);
   });
+
+  it('refuses a body larger than a worker call carries, reading none of a declared one, and runs nothing', async () => {
+    const id = await pendingRow();
+    const declared = new Request(ROUTE_URL, {
+      method: 'POST',
+      headers: { 'upstash-signature': sign('{}'), 'content-length': '1048576' },
+      body: '{}',
+    });
+    const refused = await POST(declared);
+    expect(refused.status).toBe(400);
+    expect(refused.headers.get('upstash-nonretryable-error')).toBe('true');
+    expect(ErrorEnvelope.parse(await refused.json()).error.code).toBe('validation_failed');
+    expect(declared.bodyUsed).toBe(false);
+
+    // Sent without a length, it is read only as far as the cap.
+    const big = JSON.stringify({ pad: 'x'.repeat(8 * 1024) });
+    const streamed = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: { 'upstash-signature': sign(big) },
+        body: new Blob([big]).stream(),
+        duplex: 'half',
+      } as RequestInit),
+    );
+    expect(streamed.status).toBe(400);
+    expect(await publishedAt(id)).toBeNull();
+  });
 });
