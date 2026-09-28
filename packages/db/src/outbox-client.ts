@@ -48,26 +48,38 @@ interface LeasedRow {
 
 /** The two short transactions of a publisher run, as `outbox_publisher`. */
 export const postgresOutboxLeaseStore: OutboxLeaseStore = {
-  async lease(limit, leaseSeconds) {
+  async lease(limit, leaseSeconds, maxAttempts) {
     // One statement, so the row locks last only as long as it does. Due: never tried or past its
-    // backoff, and not leased to a live run. The lease's exact text names this run afterwards; it
-    // goes back as text, because the driver would round a timestamp parameter to milliseconds.
+    // backoff, and not leased to a live run. A due row whose attempts are spent can only be one
+    // whose last run died or gave no outcome, so it is dead-lettered here rather than tried
+    // again; every other row is leased with its attempt counted now, so a run that dies after
+    // this commit has still used one. The answer carries the attempts before this one. The
+    // lease's exact text names this run afterwards; it goes back as text, because the driver
+    // would round a timestamp parameter to milliseconds.
     const leased = await outboxSql()<LeasedRow[]>`
       with due as (
-        select id
+        select id, attempts
           from outbox_events
          where published_at is null and dead_lettered_at is null
            and (next_attempt_at is null or next_attempt_at <= now())
            and (claimed_until is null or claimed_until <= now())
          order by sequence
          limit ${limit}
-           for update skip locked)
+           for update skip locked),
+      spent as (
+        update outbox_events o
+           set dead_lettered_at = now(), last_error = 'no_outcome', next_attempt_at = null,
+               claimed_until = null
+          from due
+         where o.id = due.id and due.attempts >= ${maxAttempts}::int
+        returning o.id)
       update outbox_events o
-         set claimed_until = now() + ${leaseSeconds}::int * interval '1 second'
+         set attempts = due.attempts + 1,
+             claimed_until = now() + ${leaseSeconds}::int * interval '1 second'
         from due
-       where o.id = due.id
+       where o.id = due.id and due.attempts < ${maxAttempts}::int
       returning o.id, o.sequence::text as sequence, o.entity_id, o.type, o.aggregate_type,
-                o.aggregate_id, o.payload_json, o.attempts, o.created_at,
+                o.aggregate_id, o.payload_json, due.attempts, o.created_at,
                 o.claimed_until::text as lease`;
     const rows: OutboxRow[] = leased
       .map((r) => ({
@@ -122,8 +134,9 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
         changed += retried.count;
       }
       if (release.length > 0) {
+        // A released row was not tried, so the attempt its lease counted is given back.
         const freed = await tx`
-          update outbox_events set claimed_until = null
+          update outbox_events set claimed_until = null, attempts = attempts - 1
            where id = any(${[...release]}::uuid[]) and claimed_until = ${lease}::text::timestamptz`;
         changed += freed.count;
       }

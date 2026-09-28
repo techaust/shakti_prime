@@ -88,18 +88,34 @@ async function anyCustomerRow(who: Principal): Promise<number> {
   });
 }
 
+/** How a lead written by `withLeadOf` stands: open by default, or won, lost or archived. */
+interface LeadShape {
+  state?: 'open' | 'won' | 'lost';
+  archived?: boolean;
+}
+
+/** The stage of the seeded first pipeline for each state: New, Won and Lost. */
+const STAGE_POSITION = { open: 1, won: 5, lost: 6 } as const;
+
 /**
  * Runs `read` while `who` owns a lead of `customer` in company 1, written with the migrator and
  * removed afterwards (M has no lead of its own).
  */
-async function withLeadOf<T>(who: Principal, customer: Customer, read: () => Promise<T>) {
+async function withLeadOf<T>(
+  who: Principal,
+  customer: Customer,
+  read: () => Promise<T>,
+  shape: LeadShape = {},
+) {
   const lead = newId();
   const pipeline = PIPELINE_SEED[0];
+  const state = shape.state ?? 'open';
   await asMigrator(
     (
       db,
-    ) => db`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
-      values (${lead}, 1, ${customer.account}, ${pipeline?.id ?? ''}, ${stageId(1, 1)}, ${who.id}, ${who.teamId ?? null}, ${x.id})`,
+    ) => db`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, state, owner_id, team_id, created_by, archived_at)
+      values (${lead}, 1, ${customer.account}, ${pipeline?.id ?? ''}, ${stageId(1, STAGE_POSITION[state])}, ${state}, ${who.id}, ${who.teamId ?? null}, ${x.id},
+              ${shape.archived === true ? new Date() : null})`,
   );
   try {
     return await read();
@@ -275,5 +291,45 @@ describe('a customer is readable through a lead the caller can read in that comp
     // The request's companies are the only other thing it chooses, and every choice was tried
     // above. A person given the same lead reads the customer, so the path itself is open.
     expect(await withLeadOf(y, m, () => reads(y, m))).toEqual(seesAll([1]));
+  });
+});
+
+describe('an archived lead gives no read of its customer (0059)', () => {
+  it('a person reads a customer through an open, won or lost lead, and not through an archived one', async () => {
+    for (const state of ['open', 'won', 'lost'] as const) {
+      expect(await withLeadOf(y, m, () => reads(y, m), { state }), state).toEqual(seesAll([1]));
+    }
+    for (const state of ['open', 'won', 'lost'] as const) {
+      expect(
+        await withLeadOf(y, m, () => reads(y, m), { state, archived: true }),
+        `archived ${state}`,
+      ).toEqual(NOTHING);
+    }
+    // The customer's holder still reads it by their own scope, archived leads or not.
+    expect(await withLeadOf(y, m, () => reads(x, m), { archived: true })).toEqual(seesAll([1]));
+  });
+});
+
+describe('app.attach_account_entity() pins an empty search path (0059)', () => {
+  it('is a definer with an empty search path, executable by the application role only', async () => {
+    const [row] = await withoutContext<{
+      definer: boolean;
+      config: string[];
+      app: boolean;
+      reporter: boolean;
+      pub: boolean;
+    }>(sql`
+      select p.prosecdef as definer, p.proconfig as config,
+             has_function_privilege('app_user', p.oid, 'execute') as app,
+             has_function_privilege('readonly_reporter', p.oid, 'execute') as reporter,
+             has_function_privilege('public', p.oid, 'execute') as pub
+        from pg_proc p where p.oid = 'app.attach_account_entity(uuid, smallint)'::regprocedure`);
+    expect(row).toEqual({
+      definer: true,
+      config: ['search_path=""'],
+      app: true,
+      reporter: false,
+      pub: false,
+    });
   });
 });

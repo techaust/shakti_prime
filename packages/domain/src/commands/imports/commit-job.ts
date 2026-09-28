@@ -8,9 +8,10 @@ import {
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
-import { commitLeadBatch } from '../../imports/commit-leads';
+import { commitLeadBatch, RowByRowNeeded } from '../../imports/commit-leads';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
+import { jsonLogger, type Logger } from '../../ports/logger';
 import { createLead } from '../crm/create-lead';
 import {
   assertEntityInScope,
@@ -28,6 +29,37 @@ function isHeldByColleague(error: unknown): boolean {
     error.code === 'conflict' &&
     error.details?.reason === 'customer_held_by_colleague'
   );
+}
+
+/**
+ * How a batch keeps to the import worker's time. The row-by-row path runs `crm.lead.create` once
+ * a row and can take far longer than the set-based one, so between rows it looks at the time
+ * since the batch began; once `budgetMs` has passed it stops, keeps the rows done so far as this
+ * batch and leaves the rest for the next one. At least one row is always done, so every batch
+ * moves the job on. The worker stops taking batches after `IMPORT_RUN_BUDGET_MS`
+ * (apps/web/src/workers/imports.ts); that and this together stay inside the route's 60 seconds.
+ * `logger` records why a batch went row by row. Tests shorten the budget and read the log.
+ */
+export const importBatchSettings: { budgetMs: number; now: () => number; logger: Logger } = {
+  budgetMs: 15_000,
+  now: () => performance.now(),
+  logger: jsonLogger(),
+};
+
+/**
+ * Why the set-based path gave the batch up, for the log: the fixed phrase of `RowByRowNeeded`, or
+ * the code of a refusal or a database error. Never an error message, which may carry a value
+ * from the file.
+ */
+function setBasedReason(error: unknown): string {
+  if (error instanceof RowByRowNeeded) return error.why;
+  if (error instanceof DomainError) return error.code;
+  for (let e: unknown = error, depth = 0; e instanceof Error && depth < 4; depth += 1) {
+    const code = (e as Error & { code?: unknown }).code;
+    if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return `database_${code}`;
+    e = e.cause;
+  }
+  return 'unknown';
 }
 
 /** Committing creates leads and customers, so it needs those rights as well (AUDIT L9). */
@@ -84,9 +116,12 @@ export const commitImportJob = defineCommand({
  * customer in the company (`customer_held_by_colleague`) is marked invalid with that reason, and
  * the rest of the batch goes on. Any other row that fails rolls the whole batch back, and the job
  * stops there as `failed` with the batch and the row recorded; the rows committed by earlier
- * batches stay until the job is rolled back. When no valid row is left the job is `committed`. One audit row per
- * batch records the job, the row range and the counts; the leads write no row of their own
- * (design §8), and their events are stored only when the batch commits.
+ * batches stay until the job is rolled back. The row-by-row path keeps to the time budget of
+ * `importBatchSettings`: when it runs out, the rows done so far are the batch and the rest wait
+ * for the next. When no valid row is left the job is `committed`. Each batch takes the next
+ * number from the job's count of batches, a batch whose every row was refused included. One audit
+ * row per batch records the job, the row range and the counts; the leads write no row of their
+ * own (design §8), and their events are stored only when the batch commits.
  */
 export const commitImportBatch = defineCommand({
   name: 'imports.job.commit_batch',
@@ -111,16 +146,12 @@ export const commitImportBatch = defineCommand({
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     if (jobState(loaded.job) !== 'committing') return toImportJobDto(loaded);
+    const started = importBatchSettings.now();
     const job = loaded.job;
     const kind = job.kind as ImportKind;
     const actor = ctx.principal.id;
     const r = schema.importRows;
-
-    const [last] = await ctx.tx
-      .select({ n: sql<number>`coalesce(max(${r.committedBatch}), 0)::int` })
-      .from(r)
-      .where(eq(r.jobId, job.id));
-    const batchNo = (last?.n ?? 0) + 1;
+    const batchNo = job.batchCount + 1;
 
     const rows = await ctx.tx
       .select({ rowNo: r.rowNo, input: r.normalisedJson })
@@ -143,7 +174,7 @@ export const commitImportBatch = defineCommand({
         entityId: job.entityId,
         aggregateType: 'import_job',
         aggregateId: job.id,
-        payload: { kind, committedRows: job.committedRows, batches: Math.max(batchNo - 1, 1) },
+        payload: { kind, committedRows: job.committedRows, batches: Math.max(job.batchCount, 1) },
       });
       return toImportJobDto(committed);
     }
@@ -169,20 +200,37 @@ export const commitImportBatch = defineCommand({
     let failedRow: number | undefined;
     // The rows the command refused for a customer a colleague looks after (row by row only).
     let refused: number[] = [];
+    // The rows this batch went through: all of them, unless the time ran out row by row.
+    let done = rows;
     try {
       try {
         // The whole batch in a few statements (docs/spikes/import-scale.md).
         await ctx.savepoint(async (sp) => {
           await markCommitted(sp, await commitLeadBatch(ctx, sp, job.id, rows));
         });
-      } catch {
+      } catch (setBasedError) {
         // Something in the batch is not a plain new lead, or a row was refused: the savepoint
         // took the batch back, and the rows run again one by one through `crm.lead.create`,
         // which stops at the row at fault exactly as it always has.
+        importBatchSettings.logger.log(
+          setBasedError instanceof RowByRowNeeded ? 'info' : 'warn',
+          'imports.batch_row_by_row',
+          {
+            jobId: job.id,
+            batch: batchNo,
+            rows: rows.length,
+            reason: setBasedReason(setBasedError),
+          },
+        );
         await ctx.savepoint(async (sp) => {
           const created: { rowNo: number; id: string }[] = [];
           const heldRows: number[] = [];
-          for (const row of rows) {
+          for (const [index, row] of rows.entries()) {
+            if (index > 0 && importBatchSettings.now() - started >= importBatchSettings.budgetMs) {
+              // Out of time: the rows so far are this batch, the rest wait for the next one.
+              done = rows.slice(0, index);
+              break;
+            }
             failedRow = row.rowNo;
             try {
               // Each row in a savepoint of its own, so a refused row leaves no claimed key.
@@ -216,6 +264,7 @@ export const commitImportBatch = defineCommand({
       const failed = await updateJob(ctx.tx, loaded, {
         state: 'failed',
         failedBatch: batchNo,
+        batchCount: batchNo,
         updatedBy: actor,
       });
       ctx.audit({
@@ -241,11 +290,12 @@ export const commitImportBatch = defineCommand({
       return toImportJobDto(failed);
     }
 
-    const committedRows = job.committedRows + rows.length - refused.length;
+    const committedRows = job.committedRows + done.length - refused.length;
     const remaining = await countRows(ctx.tx, job.id, 'valid');
-    const done = remaining === 0;
+    const finished = remaining === 0;
     const after = await updateJob(ctx.tx, loaded, {
       committedRows,
+      batchCount: batchNo,
       // A refused row is no longer valid: it is counted with the rows the preview found invalid.
       ...(refused.length > 0
         ? {
@@ -253,27 +303,27 @@ export const commitImportBatch = defineCommand({
             invalidRows: job.invalidRows + refused.length,
           }
         : {}),
-      ...(done ? { state: 'committed' as const } : {}),
+      ...(finished ? { state: 'committed' as const } : {}),
       updatedBy: actor,
     });
-    const first = rows[0]?.rowNo ?? 0;
-    const lastRow = rows[rows.length - 1]?.rowNo ?? first;
+    const first = done[0]?.rowNo ?? 0;
+    const lastRow = done[done.length - 1]?.rowNo ?? first;
     ctx.audit({
       aggregateType: 'import_job',
       aggregateId: job.id,
       entityId: job.entityId,
       before: { state: 'committing', committedRows: job.committedRows },
       after: {
-        state: done ? 'committed' : 'committing',
+        state: finished ? 'committed' : 'committing',
         batch: batchNo,
         fromRow: first,
         toRow: lastRow,
-        rows: rows.length,
+        rows: done.length,
         committedRows,
         ...(refused.length > 0 ? { refusedRows: refused.length } : {}),
       },
     });
-    if (done) {
+    if (finished) {
       ctx.emit({
         type: 'imports.job.committed',
         entityId: job.entityId,

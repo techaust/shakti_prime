@@ -66,6 +66,11 @@ export const importJobs = pgTable(
     skippedRows: integer('skipped_rows').notNull().default(0),
     committedRows: integer('committed_rows').notNull().default(0),
     failedBatch: integer('failed_batch'),
+    /**
+     * Batches the commit has run, one whose every row was refused included, so each batch takes
+     * the next number and `imports.job.committed` counts them right.
+     */
+    batchCount: integer('batch_count').notNull().default(0),
     ...timestamps,
     ...actorsRequired,
   },
@@ -83,6 +88,7 @@ export const importJobs = pgTable(
           and ${t.committedRows} <= ${t.validRows}`,
     ),
     check('import_jobs_failed_batch_check', sql`${t.failedBatch} is null or ${t.failedBatch} >= 1`),
+    check('import_jobs_batch_count_check', sql`${t.batchCount} >= 0`),
     // A job uses a file and a template of its own entity (docs/DATABASE.md §2).
     foreignKey({
       name: 'import_jobs_file_entity_fk',

@@ -27,13 +27,14 @@ function memoryStore(rows: OutboxRow[], options: { failRecord?: boolean } = {}) 
   const recorded: { lease: string; updates: readonly OutboxUpdate[]; release: string[] }[] = [];
   let open = false;
   let leases = 0;
-  const seen: { limit?: number; leaseSeconds?: number } = {};
+  const seen: { limit?: number; leaseSeconds?: number; maxAttempts?: number } = {};
   const store: OutboxLeaseStore = {
-    async lease(limit, leaseSeconds) {
+    async lease(limit, leaseSeconds, maxAttempts) {
       open = true;
       log.push('lease');
       seen.limit = limit;
       seen.leaseSeconds = leaseSeconds;
+      seen.maxAttempts = maxAttempts;
       await Promise.resolve();
       open = false;
       leases += 1;
@@ -52,6 +53,16 @@ function memoryStore(rows: OutboxRow[], options: { failRecord?: boolean } = {}) 
   return { store, log, recorded, seen, isOpen: () => open };
 }
 
+/** The publisher's allowance of attempts (OUTBOX_MAX_ATTEMPTS in @shakti/domain). */
+const MAX_ATTEMPTS = 10;
+
+/** The claim as the publisher calls it, with its allowance of attempts. */
+function claimWith(store: OutboxLeaseStore, leaseSeconds?: number) {
+  const claim = leasedClaim(store, leaseSeconds);
+  return (limit: number, deliver: Parameters<typeof claim>[1]) =>
+    claim(limit, deliver, MAX_ATTEMPTS);
+}
+
 const publishedAll = (rows: readonly OutboxRow[]): OutboxUpdate[] =>
   rows.map((r) => ({ id: r.id, outcome: 'published' }));
 
@@ -60,7 +71,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
     const rows = [row(), row()];
     const m = memoryStore(rows);
     let openWhileDelivering: boolean | undefined;
-    const claimed = await leasedClaim(m.store)(100, (given) => {
+    const claimed = await claimWith(m.store)(100, (given) => {
       m.log.push('deliver');
       openWhileDelivering = m.isOpen();
       return Promise.resolve(publishedAll(given));
@@ -68,7 +79,11 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
     expect(claimed).toBe(2);
     expect(m.log).toEqual(['lease', 'deliver', 'record']);
     expect(openWhileDelivering).toBe(false);
-    expect(m.seen).toEqual({ limit: 100, leaseSeconds: OUTBOX_LEASE_SECONDS });
+    expect(m.seen).toEqual({
+      limit: 100,
+      leaseSeconds: OUTBOX_LEASE_SECONDS,
+      maxAttempts: MAX_ATTEMPTS,
+    });
     expect(m.recorded).toEqual([{ lease: 'lease-1', updates: publishedAll(rows), release: [] }]);
   });
 
@@ -84,14 +99,14 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
       deadLetter: false,
       retryInSeconds: 60,
     };
-    await leasedClaim(m.store)(10, () => Promise.resolve([failure]));
+    await claimWith(m.store)(10, () => Promise.resolve([failure]));
     expect(m.recorded).toEqual([{ lease: 'lease-1', updates: [failure], release: [silent?.id] }]);
   });
 
   it('neither delivers nor records when nothing is due', async () => {
     const m = memoryStore([]);
     let delivered = false;
-    const claimed = await leasedClaim(m.store)(10, () => {
+    const claimed = await claimWith(m.store)(10, () => {
       delivered = true;
       return Promise.resolve([]);
     });
@@ -104,7 +119,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
     const rows = [row(), row()];
     const m = memoryStore(rows);
     await expect(
-      leasedClaim(m.store)(10, () => Promise.reject(new Error('the run was cut short'))),
+      claimWith(m.store)(10, () => Promise.reject(new Error('the run was cut short'))),
     ).rejects.toThrow('the run was cut short');
     expect(m.recorded).toEqual([{ lease: 'lease-1', updates: [], release: rows.map((r) => r.id) }]);
   });
@@ -112,7 +127,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
   it('keeps the delivery error when the release fails too; the lease runs out on its own', async () => {
     const m = memoryStore([row()], { failRecord: true });
     await expect(
-      leasedClaim(m.store)(10, () => Promise.reject(new Error('the run was cut short'))),
+      claimWith(m.store)(10, () => Promise.reject(new Error('the run was cut short'))),
     ).rejects.toThrow('the run was cut short');
   });
 
@@ -120,7 +135,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
     const rows = [row()];
     const m1 = memoryStore(rows);
     await expect(
-      leasedClaim(m1.store)(10, () =>
+      claimWith(m1.store)(10, () =>
         Promise.resolve([{ id: 'someone-else', outcome: 'published' as const }]),
       ),
     ).rejects.toThrow(/did not claim/);
@@ -128,7 +143,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
 
     const m2 = memoryStore(rows);
     await expect(
-      leasedClaim(m2.store)(10, (given) =>
+      claimWith(m2.store)(10, (given) =>
         Promise.resolve([...publishedAll(given), ...publishedAll(given)]),
       ),
     ).rejects.toThrow(/twice/);
@@ -137,16 +152,27 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
 
   it('refuses a limit outside 1 to 500 before touching the store', async () => {
     const m = memoryStore([row()]);
-    const claim = leasedClaim(m.store);
+    const claim = claimWith(m.store);
     for (const limit of [0, 501, 1.5]) {
       await expect(claim(limit, () => Promise.resolve([]))).rejects.toThrow(/between 1 and 500/);
     }
     expect(m.log).toEqual([]);
   });
 
+  it('refuses an allowance of attempts outside 1 to 100 before touching the store', async () => {
+    const m = memoryStore([row()]);
+    const claim = leasedClaim(m.store);
+    for (const maxAttempts of [0, 101, 2.5, Number.NaN]) {
+      await expect(claim(1, () => Promise.resolve([]), maxAttempts)).rejects.toThrow(
+        /between 1 and 100/,
+      );
+    }
+    expect(m.log).toEqual([]);
+  });
+
   it('passes its own lease length to the store', async () => {
     const m = memoryStore([row()]);
-    await leasedClaim(m.store, 5)(1, (given) => Promise.resolve(publishedAll(given)));
+    await claimWith(m.store, 5)(1, (given) => Promise.resolve(publishedAll(given)));
     expect(m.seen.leaseSeconds).toBe(5);
   });
 });

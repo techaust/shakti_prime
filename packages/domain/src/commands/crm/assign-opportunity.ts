@@ -18,14 +18,18 @@ const HOUR_MS = 3_600_000;
 /**
  * `crm.opportunity.assign` (design §7.2): an open lead goes to a person whose role in the lead's
  * company works on leads (`crm.lead.write`), with that person's team there, and stays with them
- * for the pipeline's `lock_hours` (the workshop default when the pipeline has none). While the
- * lock runs only a holder of `crm.lead.assign` at team scope or wider may reassign it. The update
- * policy then asks the caller's own write scope to cover the new owner or team.
+ * for the pipeline's `lock_hours` (the workshop default when the pipeline has none). The person
+ * must be active: an invited, suspended or offboarded person is refused (`app.user_is_active()`,
+ * 0059, since the caller reads no other person's users row). While the lock runs only a holder of
+ * `crm.lead.assign` at team scope or wider may reassign it. The update policy then asks the
+ * caller's own write scope to cover the new owner or team.
  *
  * Whoever may read a lead may read its customer: when the previous owner of the lead looked after
  * the customer in that company, the relationship moves with the lead to the new owner and their
  * team (`app.hand_over_customer()`, 0055), with an audit row of its own. A relationship someone
- * else holds is left as it is.
+ * else holds is left as it is, and so is every relationship when an agent hands the lead over
+ * (0059): agents never write the customer master (SECURITY §3.3), and the new owner reads the
+ * customer through the lead (0057).
  */
 export const assignOpportunity = defineCommand({
   name: 'crm.opportunity.assign',
@@ -48,7 +52,13 @@ export const assignOpportunity = defineCommand({
       .from(uer)
       .innerJoin(p, and(eq(p.id, uer.userId), eq(p.kind, 'user'), isNull(p.archivedAt)))
       .innerJoin(rp, and(eq(rp.roleId, uer.roleId), eq(rp.permissionKey, 'crm.lead.write')))
-      .where(and(eq(uer.userId, input.ownerId), eq(uer.entityId, row.entityId)))
+      .where(
+        and(
+          eq(uer.userId, input.ownerId),
+          eq(uer.entityId, row.entityId),
+          sql`app.user_is_active(${uer.userId})`,
+        ),
+      )
       .limit(1);
     if (!assignee) {
       throw new DomainError('validation_failed', 'the new owner does not work on leads here', {

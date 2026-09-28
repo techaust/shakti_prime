@@ -44,7 +44,11 @@ export { issueRealtimeToken } from './commands/realtime/issue-token';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';
-export { commitImportBatch, commitImportJob } from './commands/imports/commit-job';
+export {
+  commitImportBatch,
+  commitImportJob,
+  importBatchSettings,
+} from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
 export {
   getImportJob,

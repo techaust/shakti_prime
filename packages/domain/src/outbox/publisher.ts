@@ -4,8 +4,10 @@ import type { EventPublisher, PublishResult } from '../ports/event-publisher';
 import { outboxRetryDelaySeconds } from './backoff';
 
 /**
- * After this many failed attempts an event is dead-lettered and waits for a replay. With the
- * backoff (./backoff.ts) the last attempt comes about four hours after the first.
+ * After this many attempts an event is dead-lettered and waits for a replay. With the backoff
+ * (./backoff.ts) the last attempt comes about four hours after the first. The claim counts each
+ * lease as an attempt, so a run that dies before it records an outcome uses one up too, and an
+ * event whose runs keep dying is dead-lettered by the claim once they are spent.
  */
 export const OUTBOX_MAX_ATTEMPTS = 10;
 /** Rows one run claims; one batch call to the queue carries them all. */
@@ -39,12 +41,14 @@ export async function runOutboxPublisher(
     failed: 0,
     deadLettered: 0,
   };
-  counts.claimed = await options.claim(options.limit ?? OUTBOX_BATCH_SIZE, async (rows) => {
+  const deliver = async (rows: readonly OutboxRow[]): Promise<OutboxUpdate[]> => {
     const updates: OutboxUpdate[] = [];
     const toSend: DeliveredEvent[] = [];
     const byId = new Map(rows.map((r) => [r.id, r]));
 
     const fail = (row: OutboxRow, error: string, now = false) => {
+      // The attempts before this run and this one, which the claim has already counted in the
+      // table: recording the same number counts it once.
       const attempts = row.attempts + 1;
       const deadLetter = now || attempts >= OUTBOX_MAX_ATTEMPTS;
       const lastError = error.slice(0, ERROR_MAX_LENGTH);
@@ -106,6 +110,11 @@ export async function runOutboxPublisher(
       }
     }
     return updates;
-  });
+  };
+  counts.claimed = await options.claim(
+    options.limit ?? OUTBOX_BATCH_SIZE,
+    deliver,
+    OUTBOX_MAX_ATTEMPTS,
+  );
   return counts;
 }

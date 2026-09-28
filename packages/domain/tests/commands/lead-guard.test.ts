@@ -2,6 +2,7 @@ import { newId, type ImportJobDto, type PermissionGrant, type Principal } from '
 import {
   AGENT_PRINCIPAL_SEED,
   asMigrator,
+  asOutboxPublisher,
   asPrincipal,
   closeDb,
   createTestPrincipal,
@@ -20,12 +21,17 @@ import { executeCommand } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
 import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { createLead } from '../../src/commands/crm/create-lead';
-import { commitImportBatch, commitImportJob } from '../../src/commands/imports/commit-job';
+import {
+  commitImportBatch,
+  commitImportJob,
+  importBatchSettings,
+} from '../../src/commands/imports/commit-job';
 import { createImportJob } from '../../src/commands/imports/create-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
 import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { memoryLogger } from '../../src/ports/logger';
 import { listImportRows } from '../../src/queries/imports/import-queries';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 
@@ -338,18 +344,40 @@ describe('crm.opportunity.assign takes the customer with the lead (0055)', () =>
     });
   });
 
-  it('is done for the triage agent too, which holds no customer permission', async () => {
+  it('is not done for the triage agent, which may not write customers; the new owner reads the customer through the lead (0059)', async () => {
     const fromUser = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc', teamId }]);
     const toUser = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc', teamId }]);
     const from = principalFor('tele_caller_cc', [1], { id: fromUser.id, teamId });
     const to = principalFor('tele_caller_cc', [1], { id: toUser.id, teamId });
     const lead = await run(from, createLead, newCustomer(1, digits()));
+    const before = await relationship(lead.account.id);
     // The seeded agent: a new agent principal would change the group's list of agents.
     const seeded = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage');
     const triage = principalFor('agent:triage', [1], { id: seeded?.id ?? '' });
-    await run(triage, assignOpportunity, { entityId: 1, opportunityId: lead.id, ownerId: to.id });
+    const requestId = newId();
+    const moved = await executeCommand(triage, { entityIds: [1], requestId }, assignOpportunity, {
+      entityId: 1,
+      opportunityId: lead.id,
+      ownerId: to.id,
+    });
+    // The lead moves; the customer master is left as it was (SECURITY §3.3).
+    expect(moved.ownerId).toBe(to.id);
+    expect(await relationship(lead.account.id)).toEqual(before);
+    expect(before?.owner).toBe(from.id);
+    const types = await asMigrator(
+      (m) => m<{ type: string }[]>`
+        select aggregate_type as type from audit_logs where request_id = ${requestId}`,
+    );
+    expect(types.map((t) => t.type)).toEqual(['opportunity']);
+    // The new owner reads the customer through the lead (0057), and so does the previous owner,
+    // who still looks after it.
     expect(await reads(to, lead.account.id)).toEqual({ account: 1, site: 1, contact: 1, phone: 1 });
-    expect((await relationship(lead.account.id))?.owner).toBe(to.id);
+    expect(await reads(from, lead.account.id)).toEqual({
+      account: 1,
+      site: 1,
+      contact: 1,
+      phone: 1,
+    });
   });
 
   it('leaves a relationship someone other than the previous owner holds as it is', async () => {
@@ -429,5 +457,246 @@ describe('a known customer in All-companies mode (0057)', () => {
         select count(*)::int as n from account_entities where account_id = ${known.account.id}`,
     );
     expect(links?.n).toBe(2);
+  });
+});
+
+describe('two new leads at once with one new number (0059)', () => {
+  /** Advisory locks some session is waiting for, read past the policies. */
+  async function waitingOnANumber(): Promise<number> {
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from pg_locks where locktype = 'advisory' and not granted`,
+    );
+    return row?.n ?? 0;
+  }
+
+  async function until(check: () => Promise<boolean>): Promise<void> {
+    for (let i = 0; i < 100; i += 1) {
+      if (await check()) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error('the condition never held');
+  }
+
+  /**
+   * Makes a lead for `phone` as `owner` and keeps its transaction open until `release` is called,
+   * as a colleague's save still running would.
+   */
+  function heldOpen(phone: string) {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let made: () => void = () => undefined;
+    const written = new Promise<void>((resolve) => {
+      made = resolve;
+    });
+    const done = asPrincipal(owner, async (context) => {
+      const lead = await runCommand(createLead, { context, audit, outbox }, newCustomer(1, phone));
+      made();
+      await released;
+      return lead;
+    });
+    return { done, written, release };
+  }
+
+  /** Whether `promise` has settled, without waiting for it. */
+  function settledFlag(promise: Promise<unknown>): () => boolean {
+    let settled = false;
+    promise.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    return () => settled;
+  }
+
+  it('the second waits for the first to commit, then finds its customer', async () => {
+    const phone = digits();
+    const first = heldOpen(phone);
+    await first.written;
+    const second = run(colleague, createLead, newCustomer(1, phone));
+    const settled = settledFlag(second);
+    await until(async () => (await waitingOnANumber()) > 0);
+    expect(settled()).toBe(false);
+    first.release();
+    await first.done;
+    await expect(second).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'customer_held_by_colleague' },
+    });
+    expect(await customersWith(phone)).toBe(1);
+    expect(await leadsOwnedBy(colleague.id)).toBe(0);
+  });
+
+  it('an import row with that number waits too, and is marked for the colleague’s customer', async () => {
+    const phone = digits();
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Race Held,${phone},Sikar`,
+      `Race Free,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const first = heldOpen(phone);
+    await first.written;
+    const batch = run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+    const settled = settledFlag(batch);
+    await until(async () => (await waitingOnANumber()) > 0);
+    expect(settled()).toBe(false);
+    first.release();
+    await first.done;
+    await expect(batch).resolves.toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+      invalidRows: 1,
+    });
+    expect(await customersWith(phone)).toBe(1);
+  });
+});
+
+describe('import batches: their numbers, why one goes row by row, and its time (0059)', () => {
+  /** Each row of the job as it stands, read past the policies, in file order. */
+  async function rowsOf(jobId: string) {
+    return asMigrator(
+      (m) => m<{ name: string; state: string; batch: number | null }[]>`
+        select raw_json->>'Name' as name, state, committed_batch as batch
+          from import_rows where job_id = ${jobId} order by row_no`,
+    );
+  }
+
+  async function batchCountOf(jobId: string): Promise<number | undefined> {
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`select batch_count as n from import_jobs where id = ${jobId}`,
+    );
+    return row?.n;
+  }
+
+  async function committedEvent(jobId: string) {
+    const [row] = await asOutboxPublisher(
+      (p) => p<{ payload: Record<string, unknown> }[]>`
+        select payload_json as payload from outbox_events
+         where aggregate_id = ${jobId} and type = 'imports.job.committed'`,
+    );
+    return row?.payload;
+  }
+
+  /** The batch numbers and row counts of the job's audit rows, oldest first. */
+  async function auditedBatches(jobId: string) {
+    const rows = await asMigrator(
+      (m) => m<{ after: Record<string, unknown> }[]>`
+        select after_json as after from audit_logs
+         where aggregate_id = ${jobId} and command = 'imports.job.commit_batch'
+         order by created_at, id`,
+    );
+    return rows.map((r) => ({ batch: r.after.batch, rows: r.after.rows }));
+  }
+
+  it('a batch whose every row was refused still takes its number, and the count is right', async () => {
+    const [heldOne, heldTwo] = [digits(), digits()];
+    await run(owner, createLead, newCustomer(1, heldOne));
+    await run(owner, createLead, newCustomer(1, heldTwo));
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Numbered Held One,${heldOne},Sikar`,
+      `Numbered Held Two,${heldTwo},Sikar`,
+      `Numbered Free,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const first = await run(importer, commitImportBatch, {
+      entityId: 1,
+      jobId: job.id,
+      batchSize: 2,
+    });
+    expect(first).toMatchObject({ state: 'committing', committedRows: 0, invalidRows: 2 });
+    const second = await run(importer, commitImportBatch, {
+      entityId: 1,
+      jobId: job.id,
+      batchSize: 2,
+    });
+    expect(second).toMatchObject({ state: 'committed', committedRows: 1 });
+    expect(await rowsOf(job.id)).toEqual([
+      { name: 'Numbered Held One', state: 'invalid', batch: null },
+      { name: 'Numbered Held Two', state: 'invalid', batch: null },
+      { name: 'Numbered Free', state: 'committed', batch: 2 },
+    ]);
+    expect(await batchCountOf(job.id)).toBe(2);
+    expect(await auditedBatches(job.id)).toEqual([
+      { batch: 1, rows: 2 },
+      { batch: 2, rows: 1 },
+    ]);
+    expect(await committedEvent(job.id)).toMatchObject({ committedRows: 1, batches: 2 });
+  });
+
+  it('logs why a batch went row by row, with no value from the file', async () => {
+    const held = digits();
+    await run(owner, createLead, newCustomer(1, held));
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Logged Free,${digits()},Sikar`,
+      `Logged Held,${held},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const saved = importBatchSettings.logger;
+    const log = memoryLogger();
+    importBatchSettings.logger = log;
+    try {
+      await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+    } finally {
+      importBatchSettings.logger = saved;
+    }
+    expect(log.entries).toEqual([
+      {
+        level: 'info',
+        event: 'imports.batch_row_by_row',
+        fields: {
+          jobId: job.id,
+          batch: 1,
+          rows: 2,
+          reason: 'a customer a colleague looks after',
+        },
+      },
+    ]);
+    const line = JSON.stringify(log.entries);
+    expect(line).not.toContain(held.slice(-6));
+    expect(line).not.toContain('Logged');
+  });
+
+  it('stops a row-by-row batch when its time runs out and leaves the rest for the next one', async () => {
+    const held = digits();
+    await run(owner, createLead, newCustomer(1, held));
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Timed First,${digits()},Sikar`,
+      `Timed Held,${held},Sikar`,
+      `Timed Third,${digits()},Sikar`,
+      `Timed Fourth,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const saved = importBatchSettings.budgetMs;
+    // No time at all: a row-by-row batch does its first row and stops there.
+    importBatchSettings.budgetMs = 0;
+    try {
+      const one = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+      expect(one).toMatchObject({ state: 'committing', committedRows: 1, invalidRows: 0 });
+      const two = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+      expect(two).toMatchObject({ state: 'committing', committedRows: 1, invalidRows: 1 });
+      // The rest is plain, so the set-based path takes it whole, time or no time.
+      const three = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+      expect(three).toMatchObject({ state: 'committed', committedRows: 3, invalidRows: 1 });
+    } finally {
+      importBatchSettings.budgetMs = saved;
+    }
+    expect(await rowsOf(job.id)).toEqual([
+      { name: 'Timed First', state: 'committed', batch: 1 },
+      { name: 'Timed Held', state: 'invalid', batch: null },
+      { name: 'Timed Third', state: 'committed', batch: 3 },
+      { name: 'Timed Fourth', state: 'committed', batch: 3 },
+    ]);
+    expect(await auditedBatches(job.id)).toEqual([
+      { batch: 1, rows: 1 },
+      { batch: 2, rows: 1 },
+      { batch: 3, rows: 2 },
+    ]);
+    expect(await batchCountOf(job.id)).toBe(3);
+    expect(await committedEvent(job.id)).toMatchObject({ committedRows: 3, batches: 3 });
   });
 });
