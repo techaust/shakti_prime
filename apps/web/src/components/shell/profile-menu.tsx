@@ -33,8 +33,11 @@ export function ProfileMenu({ name, role, theme }: { name: string; role: string;
   const themes = useTranslations('theme');
   const home = useTranslations('auth.home');
   const errors = useTranslations('errors');
-  const { chosen, choose } = useThemeChoice(theme, (key) => {
-    toast.error(errors(key));
+  const app = useTranslations('app');
+  const { chosen, choose } = useThemeChoice(theme, (key, reference) => {
+    toast.error(errors(key), {
+      ...(reference === undefined ? {} : { description: app('reference', { reference }) }),
+    });
   });
   const forgetTheme = useForgetThemeOnThisDevice();
   const [signingOut, startSignOut] = useTransition();
