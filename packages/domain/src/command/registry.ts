@@ -19,6 +19,7 @@ import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
+import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
@@ -45,6 +46,8 @@ export const commands = {
   [resetTwoFactor.name]: resetTwoFactor,
   [replayDeadLetter.name]: replayDeadLetter,
   [setTheme.name]: setTheme,
+  [saveView.name]: saveView,
+  [deleteView.name]: deleteView,
   [createImportJob.name]: createImportJob,
   [mapImportJob.name]: mapImportJob,
   [previewImportJob.name]: previewImportJob,

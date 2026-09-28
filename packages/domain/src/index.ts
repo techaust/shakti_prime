@@ -36,6 +36,8 @@ export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { setTheme } from './commands/profile/set-theme';
+export { deleteView, saveView } from './commands/profile/saved-views';
+export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { createImportJob } from './commands/imports/create-job';
 export { mapImportJob } from './commands/imports/map-job';
 export { previewImportJob } from './commands/imports/preview-job';

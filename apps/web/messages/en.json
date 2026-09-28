@@ -149,7 +149,10 @@
     "import_template_name_taken": "A saved column layout already has this name. Choose a different name.",
     "import_nothing_to_commit": "None of the rows can be added. Correct the file and add it again.",
     "import_rollback_blocked": "Some leads from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
-    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now."
+    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
+    "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
+    "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
+    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device."
   },
   "auth": {
     "signIn": {
