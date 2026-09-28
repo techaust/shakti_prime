@@ -4,7 +4,7 @@ import {
   type AgentRoleKey,
   type PermissionKey,
 } from '@shakti/contracts';
-import { AGENT_MATRIX, asPrincipal, closeDb, principalFor } from '@shakti/db/testing';
+import { AGENT_MATRIX, asMigrator, asPrincipal, closeDb, principalFor } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -16,16 +16,20 @@ afterAll(closeDb);
 
 /**
  * SECURITY §11 item 3: no agent principal may call a command that needs an admin, cost, audit,
- * integrations or tax-rate permission. The commands are read from the registry, so a new one
- * that needs such a permission is covered the day it is registered.
+ * integrations, tax-rate, price or catalogue permission (SECURITY §3.3: agents make no price
+ * edits). The commands are read from the registry, so a new one that needs such a permission is
+ * covered the day it is registered.
  */
+const PRICE_AND_CATALOGUE_EDITS: readonly PermissionKey[] = ['pricing.write', 'catalogue.write'];
+
 function isRestricted(key: PermissionKey): boolean {
   return (
     (AGENT_FORBIDDEN_PERMISSIONS as readonly PermissionKey[]).includes(key) ||
     key.startsWith('admin.') ||
     key.startsWith('audit.') ||
     key.startsWith('integrations.') ||
-    key === 'tax.rates.write'
+    key === 'tax.rates.write' ||
+    PRICE_AND_CATALOGUE_EDITS.includes(key)
   );
 }
 
@@ -61,6 +65,12 @@ const INPUTS: Record<string, unknown> = {
   'admin.user.two_factor.reset': { userId: newId() },
   'integrations.dlq.replay': { eventId: newId() },
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
+  'pricing.price.set': {
+    priceListId: newId(),
+    itemId: newId(),
+    price: '1500.00',
+    reason: 'Refused price edit',
+  },
   'tax.composite.set': {
     segment: 'residential_rooftop',
     goodsSharePct: '70.00',
@@ -72,7 +82,7 @@ const INPUTS: Record<string, unknown> = {
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
 };
 
-describe('agent principals cannot call admin, cost, audit, integrations or tax commands', () => {
+describe('agent principals cannot call admin, cost, audit, integrations, tax, price or catalogue commands', () => {
   it('finds the restricted commands in the registry, each with a valid input here', () => {
     expect(RESTRICTED.length).toBeGreaterThan(0);
     expect(RESTRICTED.map((c) => c.name)).toEqual(Object.keys(INPUTS).sort());
@@ -90,6 +100,29 @@ describe('agent principals cannot call admin, cost, audit, integrations or tax c
       const held = AGENT_MATRIX[agent].map((g) => g.key).filter(isRestricted);
       expect({ agent, held }).toEqual({ agent, held: [] });
     }
+  });
+
+  it('no agent role in the seeded database holds a restricted permission', async () => {
+    // The matrix above is the seed's source; this reads what the seed actually wrote.
+    const rows = await asMigrator(
+      (m) => m<{ role: string; permission: PermissionKey }[]>`
+        select r.key as role, rp.permission_key as permission
+          from role_permissions rp
+          join roles r on r.id = rp.role_id
+         where r.key like 'agent:%'
+         order by r.key, rp.permission_key`,
+    );
+    expect(new Set(rows.map((r) => r.role))).toEqual(new Set(AGENTS));
+    const held = rows.filter((r) => isRestricted(r.permission));
+    expect(held).toEqual([]);
+    for (const key of PRICE_AND_CATALOGUE_EDITS) {
+      expect(rows.filter((r) => r.permission === key)).toEqual([]);
+    }
+  });
+
+  it('holds price and catalogue edits to the restricted set', () => {
+    for (const key of PRICE_AND_CATALOGUE_EDITS) expect(isRestricted(key)).toBe(true);
+    expect(RESTRICTED.map((c) => c.name)).toContain('pricing.price.set');
   });
 
   for (const agent of AGENTS) {
