@@ -1001,6 +1001,32 @@ describe('a forgotten-password request answered before it runs', () => {
   });
 });
 
+describe("Better Auth's own log lines", () => {
+  it('reach the logger without the fields that name a person, whatever logger is behind the port', () => {
+    // A logger that keeps what it is handed as it is, so nothing but the auth module scrubs it.
+    const raw: Record<string, unknown>[] = [];
+    const logged = createAuth(
+      {
+        keyValue,
+        mailer,
+        fetch: fetchStub,
+        now: () => clock,
+        turnstileSecretKey: 'secret',
+        logger: {
+          log: (_level, _event, fields = {}) => {
+            raw.push({ ...fields });
+          },
+        },
+      },
+      { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
+    );
+    logged.options.logger.log('warn', 'user lookup', {
+      user: { id: 'u-1', name: 'Asha Meena', email: 'asha.meena@shakti.test' },
+    });
+    expect(raw).toEqual([{ message: 'user lookup', args: [{ user: { id: 'u-1' } }] }]);
+  });
+});
+
 describe('guards the audit found untested (AUDIT M41)', () => {
   it("the auth route's own hook refuses a session past the absolute limit, and records why", async () => {
     const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'store_manager' }]);

@@ -21,6 +21,7 @@ import { recordAuthEvent, type AuthEvent } from './audit-events';
 import { generateBackupCodes } from './backup-codes';
 import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
+import { withoutPersonFields } from './library-log';
 import { mailTranslator } from './mail-copy';
 import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
@@ -368,10 +369,11 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     disabledPaths: HTTP_DISABLED_PATHS,
     // Better Auth's own messages and HTTP failures go through the redacting logger: its default
     // logger prints a failed query with its bound values, set-password links included (AUDIT M10).
+    // A user row among its arguments loses the fields that name the person first.
     logger: {
       level: 'warn',
       log: (level, message, ...args) => {
-        log.log(level, 'auth.library', { message, args });
+        log.log(level, 'auth.library', { message, args: withoutPersonFields(args) });
       },
     },
     onAPIError: {

@@ -1,4 +1,5 @@
 import type { AuthAuditEvent } from '@shakti/contracts';
+import { IDENTITY_KEYS, redactText } from '../ports/logger';
 
 /**
  * Redaction for the audit trail (docs/design/backend-weeks-3-5.md §3.3, AUDIT M16). The audit
@@ -7,6 +8,11 @@ import type { AuthAuditEvent } from '@shakti/contracts';
  * email addresses keep only their last four characters. Business codes (an entity, item or
  * stage `code`) are kept; the one-time codes of sign-in never reach a command,
  * and the auth events record only the fields their allow-list names.
+ *
+ * Field names alone miss a number typed where it does not belong, such as an Aadhaar number in a
+ * name, village or address field, so every other text value is scrubbed as a log line is
+ * (`redactText`): twelve-digit numbers go in full, phone numbers keep their last four digits, and
+ * email addresses, set-password links and credentials are replaced.
  */
 
 /** Field names, compared without case or underscores, that are removed wherever they appear. */
@@ -21,15 +27,7 @@ const DENIED_KEYS = new Set([
   'bankjson',
   'apikey',
   // Identity numbers never reach the audit trail (CLAUDE.md, docs/SECURITY.md §5).
-  'aadhaar',
-  'aadhaarnumber',
-  'uid',
-  'pan',
-  'pannumber',
-  'accountnumber',
-  'bankaccountnumber',
-  'ifsc',
-  'ifsccode',
+  ...IDENTITY_KEYS,
 ]);
 
 /** Any field whose name carries one of these words is removed as well. */
@@ -66,7 +64,8 @@ function walk(value: unknown, depth: number, masked: boolean): unknown {
   if (depth > MAX_DEPTH) return '[deep]';
   if (typeof value === 'string') {
     if (masked) return maskValue(value);
-    return value.length > MAX_TEXT ? `${value.slice(0, MAX_TEXT)}…` : value;
+    const text = redactText(value);
+    return text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}…` : text;
   }
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return masked ? '****' : value;
