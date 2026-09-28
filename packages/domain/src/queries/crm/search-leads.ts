@@ -1,0 +1,85 @@
+import {
+  LeadSearchHitDto,
+  OpportunityStateSchema,
+  SearchInput,
+  type LeadSearchHitDto as LeadSearchHit,
+} from '@shakti/contracts';
+import { schema, type RequestContext } from '@shakti/db';
+import { and, desc, eq, exists, ilike, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { checkPermission } from '../../command/run-command';
+import { parseQueryInput } from '../parse-input';
+import { containsPattern, phoneDigits } from '../search-text';
+import { scopeFilter } from './list-leads';
+
+type SearchContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
+
+/**
+ * The ⌘K search for leads (DESIGN.md §6, Command palette): the newest-changed leads the caller
+ * can see whose customer name, a contact's name or the site's village holds the typed text, or,
+ * when the text is digits, one of whose contacts' phones ends with them. The same own, team and
+ * company narrowing as the leads list (`scopeFilter`, AUDIT M33); RLS still decides every row.
+ * Bounded by `limit` (at most 20), newest change first. The names and villages are served by
+ * their trigram indexes; a phone's last digits are not indexed and are only tested on the leads
+ * the scope already allows.
+ */
+export async function searchLeads(ctx: SearchContext, rawInput: unknown): Promise<LeadSearchHit[]> {
+  const input = parseQueryInput(SearchInput, rawInput, 'crm.lead.search');
+  checkPermission(ctx.principal, 'crm.lead.read', 'own');
+  const pattern = containsPattern(input.q);
+  const digits = phoneDigits(input.q);
+
+  const o = schema.opportunities;
+  const a = schema.accounts;
+  const cs = schema.customerSites;
+  const pl = schema.pipelines;
+  const ac = schema.accountContacts;
+  const c = schema.contacts;
+  const ph = schema.contactPhones;
+
+  const contactNamed = exists(
+    ctx.tx
+      .select({ one: sql`1` })
+      .from(ac)
+      .innerJoin(c, eq(c.id, ac.contactId))
+      .where(and(eq(ac.accountId, o.accountId), ilike(c.name, pattern))),
+  );
+  const phoneEnds =
+    digits === undefined
+      ? undefined
+      : exists(
+          ctx.tx
+            .select({ one: sql`1` })
+            .from(ac)
+            .innerJoin(ph, eq(ph.contactId, ac.contactId))
+            .where(and(eq(ac.accountId, o.accountId), like(ph.e164, `%${digits}`))),
+        );
+
+  const rows = await ctx.tx
+    .select({
+      id: o.id,
+      entityId: o.entityId,
+      state: o.state,
+      pipelineKey: pl.key,
+      customerName: a.name,
+      village: cs.village,
+    })
+    .from(o)
+    // A lead's customer is always readable to whoever reads the lead (AUDIT M25).
+    .innerJoin(a, eq(a.id, o.accountId))
+    .innerJoin(pl, eq(pl.id, o.pipelineId))
+    .leftJoin(cs, eq(cs.id, o.siteId))
+    .where(
+      and(
+        isNull(o.archivedAt),
+        inArray(o.entityId, [...ctx.entityIds]),
+        scopeFilter(ctx),
+        or(ilike(a.name, pattern), ilike(cs.village, pattern), contactNamed, phoneEnds),
+      ),
+    )
+    .orderBy(desc(o.updatedAt), desc(o.id))
+    .limit(input.limit);
+
+  return rows.map((r) =>
+    LeadSearchHitDto.parse({ ...r, state: OpportunityStateSchema.parse(r.state) }),
+  );
+}
