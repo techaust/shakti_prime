@@ -12,14 +12,14 @@
 | Fixture tests (dial form, auth, error codes, no retry on dial, retry on read, refusals, signed address, JSON and form callbacks) | `apps/web/src/integrations/exotel/exotel.test.ts`, `packages/domain/src/telecom/dial-policy.test.ts` |
 | Spike script | `apps/web/scripts/spike/exotel-dial.ts`, run with `pnpm --filter web spike:exotel` (`-- --dry-run` checks the rules only) |
 
-Not built, by design: the webhook route, `webhook_inbox`, `calls` and the dial command (Phase 1). DND scrubbing itself (the NCPR lookup) is an input to `checkDial`; the scrub provider is chosen with the DLT registration.
+Not built, by design: the webhook route, `webhook_inbox`, `calls` and the dial command (Phase 2). DND scrubbing itself (the NCPR lookup) is an input to `checkDial`; the scrub provider is chosen with the DLT registration.
 
 ## 2. What the user supplies
 1. An Exotel account on the Mumbai cluster with KYC done, and its **Account SID, API key and API token** (Settings › API).
 2. The entity's **DLT registration** (Principal Entity) and at least one **ExoPhone in the 140 series** and one in the **160 series** mapped to it. Until the 160 number is allotted, only the promotional path can be run.
 3. **Two phones you hold**: one acting as the tele-caller (rung first), one as the customer. Neither may be a customer's number.
 4. A value for `EXOTEL_CALLBACK_SECRET`: at least 32 random characters, generated on your machine, never committed.
-5. An https address that receives the status callback for inspection (`EXOTEL_SPIKE_CALLBACK_BASE`), for example a tunnel to a local listener; the route itself arrives in Phase 1. The script requires it, even for `--dry-run`, and reads the final state by polling as well, so the result does not depend on the callback arriving.
+5. An https address that receives the status callback for inspection (`EXOTEL_SPIKE_CALLBACK_BASE`), for example a tunnel to a local listener; the route itself arrives in Phase 2. The script requires it, even for `--dry-run`, and reads the final state by polling as well, so the result does not depend on the callback arriving.
 
 Environment for the script: `EXOTEL_ACCOUNT_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_TOKEN`, `EXOTEL_SUBDOMAIN` (optional, default `api.in.exotel.com`), `EXOTEL_CALLBACK_SECRET`, `EXOTEL_SPIKE_AGENT_NUMBER`, `EXOTEL_SPIKE_CUSTOMER_NUMBER`, `EXOTEL_SPIKE_CALLER_ID`, `EXOTEL_SPIKE_PURPOSE` (`promotional` or `service`), `EXOTEL_SPIKE_CONSENT=yes` for a service call, `EXOTEL_SPIKE_ON_DND=yes` to test a DND refusal, `EXOTEL_SPIKE_CALLBACK_BASE`.
 

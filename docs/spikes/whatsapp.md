@@ -11,7 +11,7 @@
 | Fixture tests (template and text request shapes, error mapping, handshake, signature on raw bytes versus a re-serialised body, event parsing) | `apps/web/src/integrations/whatsapp/whatsapp.test.ts` with `fixtures/*.json` |
 | Spike script: `send` (template, then optional text, timed) and `listen` (a local receiver that answers the handshake, checks signatures and prints ids and states, never bodies) | `apps/web/scripts/spike/whatsapp.ts`, run with `pnpm --filter web spike:whatsapp -- send` or `-- listen` |
 
-Not built, by design: the webhook route, `webhook_inbox`, `whatsapp_messages` and the messaging worker with its window, opt-out, template and tier checks (Phase 1, docs/API.md §6).
+Not built, by design: the webhook route, `webhook_inbox`, `whatsapp_messages` and the messaging worker with its window, opt-out, template and tier checks (Phase 2, docs/API.md §6).
 
 ## 2. What the user supplies
 1. A **Meta developer app** of type Business with the WhatsApp product added, linked to the Shakti **Business portfolio** (business verification can follow; the test number works before it).

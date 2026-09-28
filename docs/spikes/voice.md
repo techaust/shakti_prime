@@ -15,10 +15,10 @@
 | Fixture tests (stream parsing across chunks, request shapes, error mapping, token claims, turn arithmetic, checklist has no Devanagari) | `apps/web/src/integrations/voice/voice.test.ts` |
 | Spike script: `latency` and `pronunciation` | `apps/web/scripts/spike/voice-latency.ts`, run with `pnpm --filter web spike:voice -- latency` or `-- pronunciation` |
 
-No SDK is added: all three vendors are called with `fetch`. The real voice worker (LiveKit Agents, streaming speech, barge-in) is Phase 4; this spike measures the vendors, not WebRTC media. A batch speech-to-text call on the whole recording is slower than the streaming recogniser the worker will use, so `firstAudioMs` here is an upper bound.
+No SDK is added: all three vendors are called with `fetch`. The real voice worker (LiveKit Agents, streaming speech, barge-in) is Phase 2; this spike measures the vendors, not WebRTC media. A batch speech-to-text call on the whole recording is slower than the streaming recogniser the worker will use, so `firstAudioMs` here is an upper bound.
 
 ## 2. What the user supplies
-1. **20 to 30 recordings** of Shakti executives asking business questions (ROADMAP §5 client input): WAV, 16 kHz mono, 3 to 10 s each, one question per file, in a local folder outside the repository (`VOICE_SPIKE_AUDIO_DIR`). They stay on your machine and are sent only to Sarvam.
+1. **20 to 30 recordings** of Shakti executives asking business questions (ROADMAP §10 client input): WAV, 16 kHz mono, 3 to 10 s each, one question per file, in a local folder outside the repository (`VOICE_SPIKE_AUDIO_DIR`). They stay on your machine and are sent only to Sarvam.
 2. A **Sarvam AI** account and API subscription key (`SARVAM_API_KEY`); optionally `SARVAM_STT_MODEL`, `SARVAM_TTS_MODEL`, `SARVAM_TTS_SPEAKER` to compare voices. Confirm Sarvam's data-retention terms before sending recordings.
 3. A **Claude API key** for the Shakti workspace (`ANTHROPIC_API_KEY`).
 4. A **LiveKit Cloud** project in the India region: `LIVEKIT_URL` (`wss://…livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
