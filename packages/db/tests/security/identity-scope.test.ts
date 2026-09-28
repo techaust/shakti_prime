@@ -261,7 +261,18 @@ describe('the application role and the identity tables', () => {
     expect(await outside(principalFor('executive', [1]))).toEqual([2]);
     expect(await outside(principalFor('executive', [3]))).toEqual([1, 2]);
     expect(await outside(principalFor('executive'))).toEqual([]);
-    expect(await executives(principalFor('executive', [3]))).toBeGreaterThan(0);
+    // An active Executive of company 1 only; one acting for company 3 still counts them, and the
+    // expected total is read past the policies, since the suites add Executives as they run.
+    await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    const [truth] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(distinct u.id)::int as n
+         from users u
+         join user_entity_roles uer on uer.user_id = u.id
+         join roles r on r.id = uer.role_id
+        where u.status = 'active' and r.key = 'executive'`,
+    );
+    expect(truth?.n).toBeGreaterThan(0);
+    expect(await executives(principalFor('executive', [3]))).toBe(truth?.n);
     for (const role of ['general_manager', 'accounts', 'agent:chief'] as const) {
       await expect(outside(principalFor(role, [1]))).rejects.toSatisfy(notAdmin);
       await expect(executives(principalFor(role, [1]))).rejects.toSatisfy(notAdmin);
