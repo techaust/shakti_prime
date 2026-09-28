@@ -1,12 +1,17 @@
-import { AuditQueryInput } from '@shakti/contracts';
+import { AuditQueryInput, SegmentSchema } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
+import en from '../../messages/en.json';
 import {
   ACTION_FILTERS,
   actionKey,
   auditChanges,
   auditWindow,
+  CONFIRM_METHODS,
   defaultWindow,
+  isNamedField,
   istToday,
+  NAMED_FIELDS,
+  SIGN_IN_DETAILS,
   wordsOf,
 } from './audit';
 
@@ -139,5 +144,96 @@ describe('what changed', () => {
   it('writes a field name in plain words', () => {
     expect(wordsOf('textVersion')).toBe('Text version');
     expect(wordsOf('sign_in')).toBe('Sign in');
+  });
+
+  it('names every field a command or a sign-in event records, other than ids', () => {
+    // The keys of every `ctx.audit()` before and after in packages/domain/src/commands (the tax
+    // rows spread their DTOs, the import preview its row counts) and the auth events' allow-lists.
+    const recorded = [
+      // admin.user.*, admin.session.revoke, profile.theme.set
+      ...['displayName', 'email', 'phone', 'status', 'entityRoles', 'revokedSessions'],
+      ...['twoFactorEnabled', 'theme', 'revokedAt', 'revokedReason'],
+      // auth events
+      ...['detail', 'method', 'revokeOtherSessions'],
+      // org.entity.update, pricing.price.set
+      ...['brandName', 'upiId', 'price', 'reason'],
+      // crm.lead.create and the crm.opportunity.* moves
+      ...['existingAccount', 'consent', 'state', 'lockedUntil', 'handover'],
+      ...['lostReason', 'nurtureReason'],
+      // tax.rate.set, tax.composite.set
+      ...['hsn', 'ratePct', 'effectiveFrom', 'effectiveTo', 'sourceRef', 'segment'],
+      ...['goodsSharePct', 'servicesSharePct', 'goodsRatePct', 'servicesRatePct'],
+      // imports.job.*
+      ...['kind', 'name', 'format', 'mapping', 'totalRows', 'validRows', 'invalidRows'],
+      ...['skippedRows', 'suggested', 'batch', 'fromRow', 'toRow', 'rows', 'committedRows'],
+      ...['batches', 'rolledBackRows', 'archived', 'failedBatch', 'failedRow', 'errorCode'],
+      // integrations.dlq.replay
+      ...['eventType', 'attempts', 'deadLetteredAt'],
+    ];
+    expect(recorded.filter((key) => !isNamedField(key))).toEqual([]);
+    const rows = auditChanges(null, Object.fromEntries(recorded.map((key) => [key, 'x'])));
+    expect(rows.filter((r) => r.field === undefined)).toEqual([]);
+  });
+
+  it('has a label for every named field, and no label for a field it does not name', () => {
+    const labels: Readonly<Record<string, string>> = en.activity.fields;
+    expect(Object.keys(labels).sort()).toEqual([...NAMED_FIELDS].sort());
+  });
+
+  it('has words for every coded value it reads from its own catalogue', () => {
+    const values = en.activity.values;
+    expect(Object.keys(values.signInDetail).sort()).toEqual([...SIGN_IN_DETAILS].sort());
+    expect(Object.keys(values.method).sort()).toEqual([...CONFIRM_METHODS].sort());
+    expect(Object.keys(values.segment).sort()).toEqual([...SegmentSchema.options].sort());
+  });
+
+  it('reads lead moves, tax rates and import runs as values, not raw data', () => {
+    const lead = auditChanges(
+      { state: 'open', stageId: 's1', lockedUntil: null },
+      { state: 'lost', stageId: 's2', lostReason: 'price_too_high', handover: false },
+    );
+    expect(lead.map((r) => [r.field, r.before, r.after])).toEqual([
+      [
+        'state',
+        { kind: 'code', group: 'state', value: 'open' },
+        { kind: 'code', group: 'state', value: 'lost' },
+      ],
+      ['lockedUntil', { kind: 'empty' }, { kind: 'empty' }],
+      ['handover', { kind: 'empty' }, { kind: 'yesNo', value: false }],
+      [
+        'lostReason',
+        { kind: 'empty' },
+        { kind: 'code', group: 'lostReason', value: 'price_too_high' },
+      ],
+    ]);
+
+    const rate = auditChanges(null, {
+      id: 'r1',
+      hsn: '8413',
+      ratePct: '12.00',
+      effectiveFrom: '2026-10-01',
+      effectiveTo: null,
+      closedRateId: 'r0',
+    });
+    expect(rate.map((r) => [r.field, r.after])).toEqual([
+      ['hsn', { kind: 'text', text: '8413' }],
+      ['ratePct', { kind: 'percent', value: '12.00' }],
+      ['effectiveFrom', { kind: 'date', iso: '2026-10-01' }],
+      ['effectiveTo', { kind: 'empty' }],
+    ]);
+
+    const mapped = auditChanges(
+      { state: 'uploaded', templateId: null, mapping: null },
+      {
+        state: 'mapped',
+        templateId: 't1',
+        mapping: { columns: { phone: 'Mobile', contactName: '' }, defaults: { siteType: 'farm' } },
+      },
+    );
+    expect(mapped.find((r) => r.field === 'mapping')?.after).toEqual({
+      kind: 'mapping',
+      columns: [{ field: 'phone', column: 'Mobile' }],
+      defaults: [{ field: 'siteType', value: 'farm' }],
+    });
   });
 });
