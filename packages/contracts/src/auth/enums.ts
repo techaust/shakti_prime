@@ -10,6 +10,10 @@ export type UserStatus = z.infer<typeof UserStatusSchema>;
 export const ThemeSchema = z.enum(['system', 'light', 'dark']);
 export type Theme = z.infer<typeof ThemeSchema>;
 
+/** Contrast preference (DESIGN.md §2.1): standard, or the higher contrast for field phones. */
+export const ContrastSchema = z.enum(['standard', 'high']);
+export type ContrastPreference = z.infer<typeof ContrastSchema>;
+
 /** Roles that must enrol an authenticator app before they can act (docs/SECURITY.md §2). */
 export const TOTP_REQUIRED_ROLES: readonly StaffRoleKey[] = [
   'executive',

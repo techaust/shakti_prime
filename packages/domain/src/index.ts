@@ -36,6 +36,7 @@ export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { setTheme } from './commands/profile/set-theme';
+export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
 export { listSavedViews, toSavedViewDto } from './queries/profile/saved-views';
 export { issueRealtimeToken } from './commands/realtime/issue-token';

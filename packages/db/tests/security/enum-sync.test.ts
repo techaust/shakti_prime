@@ -26,6 +26,7 @@ import {
   SiteTypeSchema,
   StageKindSchema,
   ThemeSchema,
+  ContrastSchema,
   USER_STATUSES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -70,6 +71,7 @@ const PAIRS: Record<string, readonly string[]> = {
   sessions_revoked_reason_check: SESSION_REVOKE_REASONS,
   users_status_check: USER_STATUSES,
   users_theme_check: ThemeSchema.options,
+  users_contrast_check: ContrastSchema.options,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

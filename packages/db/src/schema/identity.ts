@@ -38,6 +38,8 @@ export const users = pgTable(
     image: text('image'),
     phone: text('phone'),
     theme: text('theme').notNull().default('system'),
+    /** Higher contrast for phones in daylight (DESIGN.md §2.1), kept per person like the theme. */
+    contrast: text('contrast').notNull().default('standard'),
     status: text('status').notNull().default('invited'),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
@@ -47,6 +49,7 @@ export const users = pgTable(
   (t) => [
     check('users_email_lower_check', sql`${t.email} = lower(${t.email})`),
     check('users_theme_check', sql`${t.theme} in ('system', 'light', 'dark')`),
+    check('users_contrast_check', sql`${t.contrast} in ('standard', 'high')`),
     check(
       'users_status_check',
       sql`${t.status} in ('invited', 'active', 'suspended', 'offboarded')`,
