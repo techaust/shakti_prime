@@ -61,7 +61,7 @@ Every vendor is asked, in addition to its own questions:
 ### 3.5 Sentry — error monitoring
 - **Used for:** error and performance monitoring of the web app, the Android app, the Tally connector and the voice worker.
 - **Plan to quote:** Team.
-- **Ask:** the included error and performance-event volumes and overage prices; the data-storage region (Sentry offers the US and the EU); personal-data scrubbing on the server side; the data processing agreement.
+- **Ask:** the included error and performance-event volumes and overage prices; the plan for the existing organisation, which stays in the US region (the owner's decision of 28-09-2026); personal-data scrubbing on the server side; the data processing agreement.
 - **Blueprint estimate:** about US$26 a month.
 
 ### 3.6 Anthropic — AI models

@@ -17,7 +17,7 @@ export interface WorkshopDefaults {
 
 /**
  * Every default the tax engine and the state machines use in place of an answer the discovery
- * workshop has not yet given (docs/design/backend-weeks-3-5.md §12, BLUEPRINT §19). The workshop
+ * workshop has not yet given (docs/design/backend-weeks-3-5.md §11, BLUEPRINT §19). The workshop
  * changes a value here and nowhere else; the state-machine documents list these values, so
  * regenerate them (`pnpm --filter @shakti/domain machines:docs`) after a change.
  *
@@ -27,15 +27,15 @@ export interface WorkshopDefaults {
  */
 export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   tax: {
-    /** Design §12 q1 (CA): site state, else the state in the account's GSTIN, else the entity's. */
+    /** Design §11 q1 (CA): site state, else the state in the account's GSTIN, else the entity's. */
     placeOfSupplyOrder: ['site', 'account_gstin', 'entity'],
-    /** Design §12 q1 (CA): the document total rounds to the whole rupee, the difference in `round_off`. */
+    /** Design §11 q1 (CA): the document total rounds to the whole rupee, the difference in `round_off`. */
     roundDocumentToRupee: true,
     /** Design §6: composite supply applies to works-contract lines in these segments only. */
     compositeSegments: ['residential_rooftop', 'commercial_epc'],
   },
   opportunity: {
-    /** Design §12 q2: how long an assignment locks the owner (per pipeline later). */
+    /** Design §11 q2: how long an assignment locks the owner (per pipeline later). */
     handoverLockHours: 48,
     /** Design §7.2: a lost opportunity may be reopened within this many days. */
     reopenWindowDays: 30,
@@ -45,7 +45,7 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     validityDays: 15,
   },
   credit: {
-    /** Design §12 q3: dealer exposure counts confirmed orders not yet paid. */
+    /** Design §11 q3: dealer exposure counts confirmed orders not yet paid. */
     exposureCountsConfirmedOrders: true,
   },
   dispatch: {

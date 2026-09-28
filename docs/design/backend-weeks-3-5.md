@@ -125,7 +125,7 @@ Full decision record in ADR 0007. Summary of the engine surface in `packages/dom
 
 Rules: integer paise inside; half-up rounding to the paisa per line and per tax amount; CGST and SGST rounded independently from the half rate; document total rounded to the rupee with `round_off`; item rate overrides HSN rate; composite supply only for lines flagged as works contract in `residential_rooftop` and `commercial_epc` with an effective rule; every line snapshots `tax_rate_id` and `composite_rule_id`. Place of supply: site state, else account GSTIN state, else entity state, which needs `customer_sites.state_code` and `accounts.billing_state_code` (DATABASE §6.2). The CA confirms the method at the workshop against a golden set of worked examples that becomes the fixture file.
 
-Built (2026-09-27, branch `feat/tax-and-machines`): the engine in `packages/domain/src/tax` with its boundary shapes in `packages/contracts/src/tax/engine.ts`, integer paise in `packages/domain/src/money/paise.ts`, fixture tables in `tax.test.ts` and the golden set in `golden.test.ts`, which awaits the CA (§12 q1); the defaults the workshop may change live in `packages/domain/src/workshop-defaults.ts` only; the commands that load the rows and call the engine come with the quote slice.
+Built (2026-09-27, branch `feat/tax-and-machines`): the engine in `packages/domain/src/tax` with its boundary shapes in `packages/contracts/src/tax/engine.ts`, integer paise in `packages/domain/src/money/paise.ts`, fixture tables in `tax.test.ts` and the golden set in `golden.test.ts`, which awaits the CA (§11 q1); the defaults the workshop may change live in `packages/domain/src/workshop-defaults.ts` only; the commands that load the rows and call the engine come with the quote slice.
 
 Built (2026-09-28, branch `feat/week5-commands`, migrations 0043 and 0044): `tax.rate.set` and `tax.composite.set` (`tax.rates.write`, Accounts and Executive) record a rate or a goods and services split from a date, end the open row before it, refuse an overlapping period (`tax_rate_overlap`, `composite_rule_overlap`) and shares that do not add up to 100, and are audited for no one company; `customer_sites.state_code` and `accounts.billing_state_code` hold the two-digit GST state codes for place of supply; server actions in `apps/web/src/actions/tax.ts`.
 
@@ -204,7 +204,7 @@ Built (2026-09-28, branch `feat/week5-commands`): `integrations.dlq.replay` (§4
 - Domain unit tests: lockout schedule, session timeouts, refresh reuse detection, redaction deny list, tax engine fixture tables and golden set, every state-machine transition and every illegal one, credit check cases (limit, overdue, release), import validation and batch rollback.
 - Spike notes: Realtime JWT with latency and pass or fail.
 
-## 12. Open questions for the discovery workshop
+## 11. Open questions for the discovery workshop
 
 1. CA: place of supply rule and rounding method in §6 (ADR 0007), plus the golden examples.
 2. Handover lock period per pipeline (default 48 h) and the nurture cadence.

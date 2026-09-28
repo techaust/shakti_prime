@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WORKSHOP_DEFAULTS } from './workshop-defaults';
 
 // These are the defaults the user approved with design §6 to §8 until the workshop answers
-// (docs/design/backend-weeks-3-5.md §12). A change here is a workshop decision: update this test
+// (docs/design/backend-weeks-3-5.md §11). A change here is a workshop decision: update this test
 // and regenerate the state-machine documents with it.
 describe('workshop defaults', () => {
   it('hold the approved values', () => {

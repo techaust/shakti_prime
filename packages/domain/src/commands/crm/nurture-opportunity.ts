@@ -12,7 +12,7 @@ import {
 
 /**
  * `crm.opportunity.nurture` (design §7.2): an open lead is parked with a reason code. The event
- * asks for the nurture cadence; its schedule is a workshop input (design §12 q2) and runs as a
+ * asks for the nurture cadence; its schedule is a workshop input (design §11 q2) and runs as a
  * Workflow once the cadence is agreed.
  */
 export const nurtureOpportunity = defineCommand({
