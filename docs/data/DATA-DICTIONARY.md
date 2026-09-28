@@ -419,7 +419,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_entity_roles
 
-**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows, and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the two tables with a delete grant for `app_user`, with `saved_views` (§6.10), where each person deletes only their own rows
+**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the two tables with a delete grant for `app_user`, with `saved_views` (§6.10), where each person deletes only their own rows
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -469,7 +469,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_two_factor
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled`
+**Catalogue entry** (DATABASE.md §6.1): Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account and a person who holds a role outside the request's companies, 0059), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -599,7 +599,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_entities
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller, including a new customer typed with that customer's number in the lead form or an import (`app.lead_phone_status()`, reason `customer_held_by_colleague`); a row is readable at the caller's `crm.account.read` scope, or to a person (never an agent: role key `agent:%` or principal kind `agent`) who can read one of that customer's leads in the same company (0057), and the customer tables follow it through `account_entities` and `account_contacts`; its owner and team move with a lead handed over by its holder (`app.hand_over_customer()`, 0055); a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write:own` and `crm.account.write:own`. `account_contacts` follows the same rule for contacts (review 3)
+**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller, including a new customer typed with that customer's number in the lead form or an import (`app.lead_phone_status()`, reason `customer_held_by_colleague`); a new customer's number is held with a transaction advisory lock keyed `lead-phone:<company>:<number>` while it is checked, so two leads typed at once with one new number cannot both find it free; a row is readable at the caller's `crm.account.read` scope, or to a person (never an agent: role key `agent:%` or principal kind `agent`) who can read one of that customer's leads that is not archived in the same company (0057, 0059), and the customer tables follow it through `account_entities` and `account_contacts`; its owner and team move with a lead handed over by its holder (`app.hand_over_customer()`, 0055), never when an agent hands the lead over (0059); a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write:own` and `crm.account.write:own`. `account_contacts` follows the same rule for contacts (review 3)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1770,7 +1770,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_jobs
 
-**Catalogue entry** (DATABASE.md §6.10): `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`; `imports.write` in the entity; only the working columns are updatable; no delete
+**Catalogue entry** (DATABASE.md §6.10): `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1937,7 +1937,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### outbox_events
 
-**Catalogue entry** (DATABASE.md §6.10; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at` (when a failed event is due again after its backoff), `claimed_until` (the lease of the publisher run sending it); the last six are updated only by the `outbox_publisher` role, except that `app.replay_dead_letter()` (`integrations.dlq.replay`) puts a dead letter back in the queue with its attempts, error, backoff and lease cleared, the one change the append-only trigger allows on a dead-lettered row; events published more than 30 days ago are deleted by the retention purge (§5, §7)
+**Catalogue entry** (DATABASE.md §6.10; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at` (when a failed event is due again after its backoff), `claimed_until` (the lease of the publisher run sending it); the last six are updated only by the `outbox_publisher` role, except that `app.replay_dead_letter()` (`integrations.dlq.replay`) puts a dead letter back in the queue with its attempts, error, backoff and lease cleared, the one change the append-only trigger allows on a dead-lettered row, and only as the owner of that function (0059); each lease counts an attempt and a release gives it back (docs/design/backend-weeks-3-5.md §4.2); events published more than 30 days ago are deleted by the retention purge (§5, §7)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

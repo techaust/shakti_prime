@@ -41,12 +41,15 @@ pnpm + Turborepo monorepo.
 | `pnpm db:verify`                             | Check applied migrations against the journal hashes                                                                        |
 | `pnpm coverage`                              | Unit test coverage summary per workspace (report only)                                                                     |
 | `pnpm build`                                 | Production build of the workspaces with a build step (`web`, `@shakti/tokens`)                                             |
+| `pnpm --filter web js-budget`                | After `pnpm build`: first-load JavaScript per page against `apps/web/js-budget.json`                                       |
 | `pnpm format`                                | Prettier write                                                                                                             |
 | `pnpm --filter web dev`                      | Run the web app locally                                                                                                    |
 | `pnpm db:docs`                               | Regenerate the ERD and data dictionary in `docs/data`                                                                      |
 | `pnpm --filter @shakti/domain machines:docs` | Regenerate the state-machine specifications in `docs/state-machines`                                                       |
 | `pnpm spike:print`                           | Print spike: A4 PDFs and QR label sheets with headless Chromium (`docs/spikes/print.md`)                                   |
 | `pnpm spike:ocr`                             | OCR masking spike on document photos (`docs/spikes/ocr.md`)                                                                |
+| `pnpm spike:import`                          | Import scale spike: 50,000 lead rows uploaded, previewed and committed (`docs/spikes/import-scale.md`)                     |
+| `pnpm spike:lists`                           | List, board, search and Activity log latency at 50,000 leads (`docs/spikes/lists.md`)                                      |
 | `pnpm --filter web spike:exotel`             | Exotel click-to-dial spike (`docs/spikes/exotel.md`)                                                                       |
 | `pnpm --filter web spike:whatsapp`           | WhatsApp sandbox send and receive spike (`docs/spikes/whatsapp.md`)                                                        |
 | `pnpm --filter web spike:voice`              | Speech latency and pronunciation spike (`docs/spikes/voice.md`)                                                            |
@@ -56,4 +59,4 @@ pnpm + Turborepo monorepo.
 | `pnpm --filter web qstash-schedule`          | Create or update the minute schedule of the outbox publisher                                                               |
 | `pnpm --filter web invite-executive`         | Print a set-password link for the first Executive                                                                          |
 
-CI runs lint, format, copy lint, typecheck, unit tests, a check that generated files are committed, the production build, a secret scan, a dependency audit at moderate severity, the migration hash check and the security suite on every pull request and every push to `main`. A pull request merges itself once CI passes on its latest commit (`.github/workflows/automerge.yml`, `AGENTS.md` §8); the `hold` label stops that. Deploying to a hosted environment follows `docs/runbooks/DEPLOY.md`.
+CI runs lint, format, copy lint, typecheck, unit tests, a check that generated files are committed, the production build with the JavaScript budget per page, a secret scan, a dependency audit at moderate severity, the migration hash check and the security suite on every pull request and every push to `main`. A pull request merges itself once CI passes on its latest commit (`.github/workflows/automerge.yml`, `AGENTS.md` §8); the `hold` label stops that. Deploying to a hosted environment follows `docs/runbooks/DEPLOY.md`.

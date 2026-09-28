@@ -28,7 +28,7 @@ Recorded in `docs/spikes/print.md`, with the raw numbers in `docs/spikes/results
 
 | Measure | Result |
 |---|---|
-| Browser launch, warm | 0.4 to 0.5 s (23.3 s the first time on a machine, while the new binary was scanned) |
+| Browser launch, warm | 0.5 s (523 ms in the result file); 23.3 s seen once, the first time on the machine, while the new binary was scanned, and not in the result file |
 | First document after launch | 1.7 s |
 | 1-page quotation, median of 5 warm renders | 1.0 s, 161 KB |
 | 5-page quotation (70 lines), median of 5 warm renders | 1.4 s (about 0.28 s a page), 253 KB |

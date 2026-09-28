@@ -1,5 +1,5 @@
 {
-  "ranAt": "2026-09-28T15:22:29.101Z",
+  "ranAt": "2026-09-28T21:22:28.773Z",
   "machine": {
     "node": "v24.19.0",
     "platform": "win32 x64",
@@ -7,16 +7,16 @@
     "memoryGb": 8
   },
   "database": "local Docker Postgres 17 (supabase/postgres), in process, one connection, as app_user under RLS",
-  "roundTripMs": 0.64,
+  "roundTripMs": 1.48,
   "seed": {
     "leads": 50000,
     "companies": 4,
     "callersPerCompany": 10,
     "leadsPerCaller": 1250,
-    "seconds": 97.18,
+    "seconds": 63.73,
     "path": "commitLeadBatch (the import commit set-based path), 500 rows a transaction",
-    "openLeadsInDatabase": 50113,
-    "auditRowsLast30Days": 112
+    "openLeadsInDatabase": 50197,
+    "auditRowsLast30Days": 710
   },
   "method": {
     "warmupRuns": 5,
@@ -36,65 +36,65 @@
     "executive": {
       "leadsFirstPage": {
         "runs": 50,
-        "p50": 32.9,
-        "p95": 41.9,
-        "max": 44.7,
+        "p50": 19.1,
+        "p95": 35.4,
+        "max": 44.9,
         "rows": 50,
         "overTarget": false
       },
       "leadsLaterPage": {
         "runs": 50,
-        "p50": 33.7,
-        "p95": 51.1,
-        "max": 61.3,
+        "p50": 18.8,
+        "p95": 26.3,
+        "max": 31.9,
         "rows": 50,
         "overTarget": false
       },
       "board": {
         "runs": 50,
-        "p50": 145.4,
-        "p95": 215.9,
-        "max": 379.8,
+        "p50": 95.6,
+        "p95": 293.4,
+        "max": 307.3,
         "rows": 400,
         "overTarget": false
       },
       "searchName": {
         "runs": 50,
-        "p50": 45.7,
-        "p95": 50.9,
-        "max": 61.1,
+        "p50": 50.7,
+        "p95": 98.2,
+        "max": 217.3,
         "rows": 8,
         "overTarget": false
       },
       "searchNameLeadsOnly": {
         "runs": 50,
-        "p50": 45.3,
-        "p95": 77.2,
-        "max": 232.6,
+        "p50": 66,
+        "p95": 208.8,
+        "max": 343.7,
         "rows": 8,
         "overTarget": false
       },
       "searchVillage": {
         "runs": 50,
-        "p50": 75.7,
-        "p95": 97.1,
-        "max": 135.3,
+        "p50": 88.8,
+        "p95": 211.4,
+        "max": 254.6,
         "rows": 8,
         "overTarget": false
       },
       "searchPhoneLast4": {
         "runs": 50,
-        "p50": 29.3,
-        "p95": 39.5,
-        "max": 51.2,
+        "p50": 35.3,
+        "p95": 54.5,
+        "max": 70,
         "rows": 5,
         "overTarget": false
       },
       "auditFirstPage": {
         "runs": 50,
-        "p50": 14.9,
-        "p95": 35.2,
-        "max": 104.9,
+        "p50": 7,
+        "p95": 11.9,
+        "max": 12.8,
         "rows": 50,
         "overTarget": false
       }
@@ -102,65 +102,65 @@
     "generalManager": {
       "leadsFirstPage": {
         "runs": 50,
-        "p50": 25.2,
-        "p95": 34,
-        "max": 44.8,
+        "p50": 17.9,
+        "p95": 26.5,
+        "max": 30,
         "rows": 50,
         "overTarget": false
       },
       "leadsLaterPage": {
         "runs": 50,
-        "p50": 25.5,
-        "p95": 31.8,
-        "max": 38.6,
+        "p50": 22.5,
+        "p95": 45.8,
+        "max": 115.9,
         "rows": 50,
         "overTarget": false
       },
       "board": {
         "runs": 50,
-        "p50": 68.4,
-        "p95": 82.4,
-        "max": 88,
+        "p50": 41.9,
+        "p95": 52.2,
+        "max": 56,
         "rows": 400,
         "overTarget": false
       },
       "searchName": {
         "runs": 50,
-        "p50": 37.7,
-        "p95": 44.6,
-        "max": 53,
+        "p50": 44.5,
+        "p95": 56,
+        "max": 67.2,
         "rows": 8,
         "overTarget": false
       },
       "searchNameLeadsOnly": {
         "runs": 50,
-        "p50": 38.9,
-        "p95": 47,
-        "max": 47.8,
+        "p50": 44.3,
+        "p95": 48.3,
+        "max": 50.9,
         "rows": 8,
         "overTarget": false
       },
       "searchVillage": {
         "runs": 50,
-        "p50": 62.5,
-        "p95": 109,
-        "max": 147,
+        "p50": 53.4,
+        "p95": 65.2,
+        "max": 73.2,
         "rows": 8,
         "overTarget": false
       },
       "searchPhoneLast4": {
         "runs": 50,
-        "p50": 42.3,
-        "p95": 64.3,
-        "max": 75.2,
+        "p50": 32,
+        "p95": 38.5,
+        "max": 47.1,
         "rows": 2,
         "overTarget": false
       },
       "auditFirstPage": {
         "runs": 50,
-        "p50": 13.3,
-        "p95": 49.1,
-        "max": 111.4,
+        "p50": 6.6,
+        "p95": 9.9,
+        "max": 13.3,
         "rows": 50,
         "overTarget": false
       }
@@ -168,57 +168,57 @@
     "teleCaller": {
       "leadsFirstPage": {
         "runs": 50,
-        "p50": 42.6,
-        "p95": 86,
-        "max": 106.3,
+        "p50": 17.7,
+        "p95": 23.2,
+        "max": 26.5,
         "rows": 50,
         "overTarget": false
       },
       "leadsLaterPage": {
         "runs": 50,
-        "p50": 35,
-        "p95": 84.7,
-        "max": 253.9,
+        "p50": 17.7,
+        "p95": 19.5,
+        "max": 21.6,
         "rows": 50,
         "overTarget": false
       },
       "board": {
         "runs": 50,
-        "p50": 69.5,
-        "p95": 105.5,
-        "max": 125.2,
+        "p50": 47.5,
+        "p95": 108.1,
+        "max": 114.1,
         "rows": 400,
         "overTarget": false
       },
       "searchName": {
         "runs": 50,
-        "p50": 80.2,
-        "p95": 134.7,
-        "max": 291.7,
+        "p50": 109.2,
+        "p95": 506.3,
+        "max": 553.9,
         "rows": 8,
-        "overTarget": false
+        "overTarget": true
       },
       "searchNameLeadsOnly": {
         "runs": 50,
-        "p50": 75.7,
-        "p95": 95.4,
-        "max": 103.1,
+        "p50": 78.4,
+        "p95": 91.7,
+        "max": 93.3,
         "rows": 8,
         "overTarget": false
       },
       "searchVillage": {
         "runs": 50,
-        "p50": 40.5,
-        "p95": 46.5,
-        "max": 58.2,
+        "p50": 45.9,
+        "p95": 365.6,
+        "max": 482.1,
         "rows": 8,
-        "overTarget": false
+        "overTarget": true
       },
       "searchPhoneLast4": {
         "runs": 50,
-        "p50": 25.1,
-        "p95": 30.3,
-        "max": 32.5,
+        "p50": 31.8,
+        "p95": 34.9,
+        "max": 56.1,
         "rows": 1,
         "overTarget": false
       },
