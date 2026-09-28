@@ -6,7 +6,7 @@ import { safeEqual } from '../http';
  * The Meta webhook for WhatsApp (docs/API.md §3.4, `GET/POST /webhooks/meta/whatsapp`): the
  * verification handshake, the `X-Hub-Signature-256` check over the raw body, and the events the
  * worker needs from a payload. The route verifies, stores the raw body in `webhook_inbox` and
- * answers 200; the worker reads it with `parseWhatsAppWebhook()` (both arrive in Phase 1).
+ * answers 200; the worker reads it with `parseWhatsAppWebhook()` (both arrive in Phase 2).
  * Message text is untrusted customer input and is never logged.
  */
 

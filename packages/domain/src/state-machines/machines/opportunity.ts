@@ -112,7 +112,7 @@ export const opportunityMachine = defineMachine<
   stateNotes: {
     open: 'Being worked; stage moves and assignment happen here.',
     nurture:
-      'Parked on a nurture cadence; the check constraint and contract enum gain `nurture` with the first opportunity command.',
+      'Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); `crm.opportunity.reopen` brings it back to open.',
     won: 'Closed with an accepted quote or a confirmed order.',
     lost: 'Closed without a sale; may be reopened for a limited time.',
   },
@@ -152,7 +152,7 @@ export const opportunityMachine = defineMachine<
         { key: 'set_owner', description: 'set `owner_id` and `team_id`' },
         {
           key: 'lock_owner',
-          description: `set \`locked_until\` = now + ${String(WORKSHOP_DEFAULTS.opportunity.handoverLockHours)} h (workshop default, per pipeline later)`,
+          description: `set \`locked_until\` = now + the pipeline's \`lock_hours\` (${String(WORKSHOP_DEFAULTS.opportunity.handoverLockHours)} h, the workshop default, when the pipeline has none)`,
         },
       ],
     },

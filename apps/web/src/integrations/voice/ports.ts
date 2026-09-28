@@ -1,6 +1,6 @@
 /**
  * The three steps of a spoken turn (BLUEPRINT §9.2): speech to text, a reply from the model, text
- * to speech. The voice worker (Phase 4, LiveKit Agents) streams all three; the spike times each
+ * to speech. The voice worker (Phase 2, LiveKit Agents) streams all three; the spike times each
  * behind these interfaces so vendors can be swapped without touching the measurement.
  */
 

@@ -102,8 +102,8 @@ export async function createTestTeam(entityId: number | null, name = 'team'): Pr
 
 /**
  * A principal that also exists as a `principals` row, for commands that stamp `created_by` and
- * `updated_by`. Users are created by the auth layer, which does not exist yet, so the row is
- * written with the migrator connection.
+ * `updated_by`, without the `users` row and sign-in of a real person (`createTestUser` makes
+ * those). The row is written with the migrator connection.
  */
 export async function createTestPrincipal(
   roleKey: RoleKey,

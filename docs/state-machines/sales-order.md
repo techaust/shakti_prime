@@ -16,7 +16,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `confirmed` | – | – |
 | `partially_dispatched` | – | Some lines delivered; backorders stay open. |
 | `dispatched` | – | – |
-| `invoiced` | – | Linked to the Tally sales voucher (Phase 2 sync). |
+| `invoiced` | – | Linked to the Tally sales voucher (Phase 5 sync). |
 | `closed` | terminal | – |
 | `cancelled` | terminal | – |
 
@@ -40,7 +40,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 - `create`: The platform creates the draft when a quote is accepted; a dealer order is created by a person.
 - `dispatch.partial`: Driven by the dispatch machine (Phase 3) when a dispatch is delivered and lines remain; the e-way bill gate is on the dispatch.
 - `dispatch.complete`: Driven by the dispatch machine when the last line is delivered.
-- `invoice`: Tally sync (Phase 2) links the voucher by Buyer Order No.
+- `invoice`: Tally sync (Phase 5) links the voucher by Buyer Order No.
 
 ## Diagram
 

@@ -2,7 +2,7 @@
 
 <!-- Generated from packages/domain/src/state-machines by `pnpm --filter @shakti/domain machines:docs`. Do not edit by hand. -->
 
-The reconciliation state of a `tally_vouchers` row (a state column is added with the Phase 2 connector); a tombstone is also written to the append-only `tally_voucher_tombstones`.
+The reconciliation state of a `tally_vouchers` row (a state column is added with the Phase 5 connector); a tombstone is also written to the append-only `tally_voucher_tombstones`.
 
 Sources: BLUEPRINT §8.8, §19 item 2; PRD FIN-02, FIN-03; DATABASE §6.7.
 

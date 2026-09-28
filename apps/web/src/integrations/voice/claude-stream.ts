@@ -12,7 +12,7 @@ import type { ReplyModel } from './ports';
 /**
  * The reply step of the latency spike: Claude's Messages API over plain HTTP with streaming
  * (server-sent events), timing the first text and the first full sentence. The voice worker will
- * use the Anthropic SDK inside the LiveKit worker (Phase 4); this harness uses fetch because the
+ * use the Anthropic SDK inside the LiveKit worker (Phase 2); this harness uses fetch because the
  * spike takes no new dependency. The model comes from `VOICE_SPIKE_MODEL`, defaulting to the
  * blueprint's choice for live voice (§9.2). This harness calls the API directly for timing only;
  * production calls go through the provider wrapper of ADR 0011, which owns the model choice.
