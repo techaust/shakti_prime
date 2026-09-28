@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { ImportMappingSchema } from '../commands/imports/jobs';
 import { EntityIdSchema, IdSchema } from '../ids';
 import {
+  ImportCreatedTypeSchema,
+  ImportDedupeMatchSchema,
   ImportFormatSchema,
   ImportJobStateSchema,
   ImportKindSchema,
@@ -55,12 +57,24 @@ export type ImportRowErrorDto = z.infer<typeof ImportRowErrorDto>;
 
 /**
  * Possible duplicates of a row: an earlier row of the same file with the same phone, and
- * customers the caller can already see with that phone. Suggestions only.
+ * customers the caller can already see with that phone or with the same name in the same
+ * village, each with the reason it was suggested. Suggestions only.
  */
 export const ImportDedupeDto = z
   .object({
     inFileRowNo: z.number().int().min(1).nullable(),
-    existing: z.array(z.object({ accountId: IdSchema, contactId: IdSchema }).strict()).max(5),
+    existing: z
+      .array(
+        z
+          .object({
+            accountId: IdSchema,
+            contactId: IdSchema,
+            /** Rows previewed before name and village matching were suggested by phone only. */
+            matchedBy: ImportDedupeMatchSchema.default('phone'),
+          })
+          .strict(),
+      )
+      .max(5),
   })
   .strict();
 export type ImportDedupeDto = z.infer<typeof ImportDedupeDto>;
@@ -72,7 +86,7 @@ export const ImportRowDto = z
     raw: z.record(z.string(), z.string()),
     errors: z.array(ImportRowErrorDto),
     dedupe: ImportDedupeDto.nullable(),
-    createdType: z.string().nullable(),
+    createdType: ImportCreatedTypeSchema.nullable(),
     createdId: IdSchema.nullable(),
     committedBatch: z.number().int().min(1).nullable(),
   })

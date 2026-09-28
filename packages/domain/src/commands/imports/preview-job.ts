@@ -9,7 +9,12 @@ import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
-import { checkLeadRow, firstRowByPhone, type LeadRowLookups } from '../../imports/leads';
+import {
+  checkLeadRow,
+  firstRowByPhone,
+  nameVillageKey,
+  type LeadRowLookups,
+} from '../../imports/leads';
 import {
   assertEntityInScope,
   jobState,
@@ -69,7 +74,7 @@ async function existingByPhone(
       const list = found.get(row.phone) ?? [];
       const seen = list.some((m) => m.accountId === row.accountId && m.contactId === row.contactId);
       if (!seen && list.length < MAX_SUGGESTIONS) {
-        list.push({ accountId: row.accountId, contactId: row.contactId });
+        list.push({ accountId: row.accountId, contactId: row.contactId, matchedBy: 'phone' });
       }
       found.set(row.phone, list);
     }
@@ -77,9 +82,76 @@ async function existingByPhone(
   return found;
 }
 
+function pairKey(pair: { name: string; village: string }): string {
+  return `${pair.village}\u0000${pair.name}`;
+}
+
+/**
+ * Customers the caller can see whose contact has the row's name and whose site is in the row's
+ * village, compared through `matchKey` on both sides: the second dedupe suggestion of design §8,
+ * for the many farmers a file lists without the number the office already has.
+ */
+async function existingByNameAndVillage(
+  tx: RequestTx,
+  pairs: readonly { name: string; village: string }[],
+): Promise<Map<string, ImportDedupeDto['existing']>> {
+  const found = new Map<string, ImportDedupeDto['existing']>();
+  const unique = [...new Map(pairs.map((p) => [pairKey(p), p])).values()];
+  for (let start = 0; start < unique.length; start += CHUNK) {
+    const wanted = JSON.stringify(unique.slice(start, start + CHUNK));
+    const rows = (await tx.execute(sql`
+      with wanted as (
+        select distinct x.village, x.name from jsonb_to_recordset(${wanted}::jsonb) as x(village text, name text)
+      )
+      select distinct w.village, w.name, ac.account_id as "accountId", ac.contact_id as "contactId"
+        from customer_sites s
+        join wanted w on regexp_replace(lower(s.village), '[^a-z0-9]+', '', 'g') = w.village
+        join accounts a on a.id = s.account_id and a.archived_at is null
+        join account_contacts ac on ac.account_id = s.account_id
+        join contacts c on c.id = ac.contact_id and c.archived_at is null
+       where s.archived_at is null
+         and regexp_replace(lower(c.name), '[^a-z0-9]+', '', 'g') = w.name
+       order by w.village, w.name, "accountId", "contactId"`)) as unknown as {
+      village: string;
+      name: string;
+      accountId: string;
+      contactId: string;
+    }[];
+    for (const row of rows) {
+      const key = pairKey(row);
+      const list = found.get(key) ?? [];
+      if (list.length < MAX_SUGGESTIONS) {
+        list.push({
+          accountId: row.accountId,
+          contactId: row.contactId,
+          matchedBy: 'name_village',
+        });
+      }
+      found.set(key, list);
+    }
+  }
+  return found;
+}
+
+/** Phone matches first, then name and village matches of another customer, five at most. */
+function suggestions(
+  byPhone: ImportDedupeDto['existing'],
+  byNameVillage: ImportDedupeDto['existing'],
+): ImportDedupeDto['existing'] {
+  const merged = [...byPhone];
+  for (const match of byNameVillage) {
+    const seen = merged.some(
+      (m) => m.accountId === match.accountId && m.contactId === match.contactId,
+    );
+    if (!seen && merged.length < MAX_SUGGESTIONS) merged.push(match);
+  }
+  return merged;
+}
+
 /**
  * `imports.job.preview` (IMP-01): every row through the `crm.lead.create` input and the
- * entity's pipelines and lead sources, with dedupe suggestions by phone. A repeat of an earlier
+ * entity's pipelines and lead sources, with dedupe suggestions by phone and by name and village,
+ * each labelled with its reason. A repeat of an earlier
  * row of the same file is skipped; a match with an existing customer is only suggested, and the
  * row still imports as a new lead.
  */
@@ -116,6 +188,12 @@ export const previewImportJob = defineCommand({
       ctx.tx,
       checked.flatMap((c) => (c.check.phone === null ? [] : [c.check.phone])),
     );
+    const pairs = new Map<number, { name: string; village: string }>();
+    for (const { rowNo, check } of checked) {
+      const pair = check.input === null ? null : nameVillageKey(check.input);
+      if (pair !== null) pairs.set(rowNo, pair);
+    }
+    const namesakes = await existingByNameAndVillage(ctx.tx, [...pairs.values()]);
 
     const findings: RowFinding[] = checked.map(({ rowNo, check }) => {
       if (check.state === 'invalid') {
@@ -128,7 +206,11 @@ export const previewImportJob = defineCommand({
         };
       }
       const inFileRowNo = repeats.get(rowNo) ?? null;
-      const matches = existing.get(check.phone) ?? [];
+      const pair = pairs.get(rowNo);
+      const matches = suggestions(
+        existing.get(check.phone) ?? [],
+        pair === undefined ? [] : (namesakes.get(pairKey(pair)) ?? []),
+      );
       return {
         row_no: rowNo,
         state: inFileRowNo === null ? 'valid' : 'skipped',

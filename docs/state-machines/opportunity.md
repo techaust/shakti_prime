@@ -13,7 +13,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | State | Kind | Notes |
 |---|---|---|
 | `open` | initial | Being worked; stage moves and assignment happen here. |
-| `nurture` | – | Parked on a nurture cadence; the check constraint and contract enum gain `nurture` with the first opportunity command. |
+| `nurture` | – | Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); `crm.opportunity.reopen` brings it back to open. |
 | `won` | terminal | Closed with an accepted quote or a confirmed order. |
 | `lost` | – | Closed without a sale; may be reopened for a limited time. |
 
@@ -23,7 +23,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 |---|---|---|---|---|
 | `create` *(proposed)* | (new) → `open` | `crm.lead.write` or the platform | – | – |
 | `stage.move` | `open` → `open` | `crm.lead.write` | the target stage belongs to the opportunity pipeline; the exit rules of the current stage are met (its required fields are filled) | `set_stage`: update `stage_id`; `handover_if_qualified`: when the target stage is `qualified`, run the handover: weighted round-robin over Lead Converters by presence, capacity, language and segment (TEL-02), within 10 s |
-| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + 48 h (workshop default, per pipeline later) |
+| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none) |
 | `nurture` | `open` → `nurture` | `crm.lead.write` | a reason is given | `schedule_nurture`: schedule the nurture cadence (Workflow; cadence is a workshop input) |
 | `reopen` | `nurture`, `lost` → `open` | `crm.lead.write` | from lost: lost within the last 30 days | `first_open_stage`: stage = the first open stage |
 | `win` | `open` → `won` | `crm.lead.write` | an accepted quote or a confirmed sales order references the opportunity | – |

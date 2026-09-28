@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:security": "vitest run --config vitest.security.config.ts",
-    "machines:docs": "tsx scripts/machines-docs.ts"
+    "machines:docs": "tsx scripts/machines-docs.ts",
+    "spike:import": "tsx tests/spike/import-scale.ts"
   },
   "dependencies": {
     "@shakti/contracts": "workspace:*",

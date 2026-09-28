@@ -5,7 +5,7 @@ import { defaultHttpDeps, jsonBody, ProviderError, providerFetch, type HttpDeps 
  * LiveKit Cloud (BLUEPRINT §9.2): the access tokens LiveKit expects (HS256 over the API secret)
  * and the room service over its HTTP API, without the server SDK. The spike uses the room service
  * to time the round trip to the LiveKit region from Mumbai; the media path itself is measured with
- * the Agents worker in Phase 4.
+ * the Agents worker in Phase 2.
  */
 
 export interface LiveKitConfig {

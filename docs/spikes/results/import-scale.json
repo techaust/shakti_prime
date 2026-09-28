@@ -1,0 +1,43 @@
+{
+  "ranAt": "2026-09-28T05:45:06.022Z",
+  "database": "local Docker Postgres 17 on Windows (127.0.0.1:54322), shared with the test suites, in process, one connection",
+  "roundTripMs": 1.39,
+  "batchSize": 500,
+  "budgetSeconds": 420,
+  "rows": 50000,
+  "parse": {
+    "seconds": 0.12,
+    "bytes": 1860392
+  },
+  "create": {
+    "seconds": 12.32,
+    "rowsPerSecond": 4058
+  },
+  "map": {
+    "seconds": 0.23
+  },
+  "preview": {
+    "seconds": 9.05,
+    "rowsPerSecond": 5525,
+    "validRows": 50000,
+    "invalidRows": 0,
+    "skippedRows": 0
+  },
+  "jobId": "01a0e68b-a3fa-703e-886f-91159bf70752",
+  "commit": {
+    "seconds": 183.93,
+    "committedRows": 50000,
+    "state": "committed",
+    "batches": 100,
+    "rowsPerSecond": 271.8,
+    "msPerRow": 4,
+    "batchSecondsMedian": 1.3,
+    "batchSecondsMax": 17.22,
+    "projectedSecondsFor50k": 184,
+    "rollback": {
+      "seconds": 8.34,
+      "rowsPerSecond": 5995,
+      "state": "rolled_back"
+    }
+  }
+}

@@ -69,9 +69,14 @@ export function RowsGrid({
       case 'sameAsRow':
         return t('finding.sameAsRow', { row: formatCount(f.rowNo) });
       case 'customer':
+        if (f.matchedBy === 'name_village') {
+          return f.name === undefined
+            ? t('finding.customerHiddenByNameVillage')
+            : t('finding.customerByNameVillage', { name: f.name });
+        }
         return f.name === undefined
-          ? t('finding.customerHidden')
-          : t('finding.customer', { name: f.name });
+          ? t('finding.customerHiddenByPhone')
+          : t('finding.customerByPhone', { name: f.name });
     }
   }
 

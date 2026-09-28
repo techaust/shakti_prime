@@ -99,7 +99,7 @@ export const salesOrderMachine = defineMachine<
   terminal: ['closed', 'cancelled'],
   stateNotes: {
     partially_dispatched: 'Some lines delivered; backorders stay open.',
-    invoiced: 'Linked to the Tally sales voucher (Phase 2 sync).',
+    invoiced: 'Linked to the Tally sales voucher (Phase 5 sync).',
   },
   transitions: [
     {
@@ -163,7 +163,7 @@ export const salesOrderMachine = defineMachine<
       permission: null,
       system: true,
       guard: voucherLinked,
-      note: 'Tally sync (Phase 2) links the voucher by Buyer Order No.',
+      note: 'Tally sync (Phase 5) links the voucher by Buyer Order No.',
     },
     {
       from: ['invoiced'],

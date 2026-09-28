@@ -100,6 +100,13 @@ async function liveLeadCount(ids: readonly string[]): Promise<number> {
   return row?.n ?? -1;
 }
 
+async function jobStateOf(jobId: string): Promise<string | undefined> {
+  const [row] = await asMigrator(
+    (m) => m<{ state: string }[]>`select state from import_jobs where id = ${jobId}`,
+  );
+  return row?.state;
+}
+
 let gm: Principal;
 let gm2: Principal;
 let executive: Principal;
@@ -132,6 +139,82 @@ describe('imports: permission and entity', () => {
     await expect(
       run(gm2, mapImportJob, { entityId: 2, jobId: job.id, mapping }),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'import_job_missing' } });
+  });
+
+  it('refuses preview, commit, batch and rollback to a role without imports.write', async () => {
+    const job = await previewedJob(gm, [`Guarded,${phone()},Sikar`]);
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    for (const command of [
+      previewImportJob,
+      commitImportJob,
+      commitImportBatch,
+      rollbackImportJob,
+    ]) {
+      await expect(
+        run(caller, command as Command<z.ZodType, z.ZodType>, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+  });
+
+  it('refuses preview, commit, batch and rollback for another company', async () => {
+    const job = await previewedJob(gm, [`Other company,${phone()},Churu`]);
+    for (const command of [
+      previewImportJob,
+      commitImportJob,
+      commitImportBatch,
+      rollbackImportJob,
+    ]) {
+      const guarded = command as Command<z.ZodType, z.ZodType>;
+      // A company outside the caller's request is refused before the job is looked up.
+      await expect(run(gm2, guarded, { entityId: 1, jobId: job.id })).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+      // Their own company does not reach a job that belongs to another one.
+      await expect(run(gm2, guarded, { entityId: 2, jobId: job.id })).rejects.toMatchObject({
+        code: 'not_found',
+        details: { reason: 'import_job_missing' },
+      });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+  });
+
+  it('refuses commit and batch without the lead and customer rights, and rollback without the lead right', async () => {
+    const without = (key: string): Principal => ({
+      ...gm,
+      permissions: gm.permissions.filter((p) => p.key !== key),
+    });
+    const noLeadWrite = without('crm.lead.write');
+    const noAccountWrite = without('crm.account.write');
+    // Both callers still hold imports.write, so only the extra rights can refuse them.
+    expect(noLeadWrite.permissions.some((p) => p.key === 'imports.write')).toBe(true);
+    expect(noAccountWrite.permissions.some((p) => p.key === 'imports.write')).toBe(true);
+
+    const job = await previewedJob(gm, [`Needs rights,${phone()},Nagaur`]);
+    for (const caller of [noLeadWrite, noAccountWrite]) {
+      await expect(
+        run(caller, commitImportJob, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('previewed');
+
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    for (const caller of [noLeadWrite, noAccountWrite]) {
+      await expect(
+        run(caller, commitImportBatch, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    expect(await jobStateOf(job.id)).toBe('committing');
+
+    await run(gm, commitImportBatch, { entityId: 1, jobId: job.id });
+    await expect(
+      run(noLeadWrite, rollbackImportJob, { entityId: 1, jobId: job.id }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await jobStateOf(job.id)).toBe('committed');
+    // The customer right is not needed to undo: rollback archives leads and leaves customers.
+    expect(
+      (await run(noAccountWrite, rollbackImportJob, { entityId: 1, jobId: job.id })).state,
+    ).toBe('rolled_back');
   });
 
   it('refuses a kind that cannot be imported yet', async () => {
@@ -271,8 +354,50 @@ describe('imports: create, map and preview', () => {
     expect(rows[3]?.dedupe).toEqual({ inFileRowNo: 1, existing: [] });
     expect(rows[4]?.dedupe).toEqual({
       inFileRowNo: null,
-      existing: [{ accountId: existing.account.id, contactId: existing.contact?.id }],
+      existing: [
+        { accountId: existing.account.id, contactId: existing.contact?.id, matchedBy: 'phone' },
+      ],
     });
+  });
+
+  it('suggests a customer with the same name in the same village, and says why', async () => {
+    // Letters and digits only, so the name and village differ from every earlier run's.
+    const tag = newId().replace(/-/g, '').slice(-10);
+    const village = `Bhadra ${tag}`;
+    const known = phone();
+    const namesake = await run(gm, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Gopal Ram ${tag}`, phone: known },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    // Only company 2 sees this one, so company 1's preview must not suggest it.
+    const elsewhere = await run(gm2, createLead, {
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Hidden Ram ${tag}`, phone: phone() },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    const job = await previewedJob(gm, [
+      // Another number, the same name and village written differently.
+      `GOPAL-RAM ${tag.toUpperCase()},${phone()},bhadra  ${tag}.`,
+      // The same number as well: one suggestion, by phone.
+      `Gopal Ram ${tag},${known},${village}`,
+      // The same name elsewhere, and a name from another company here: no suggestion.
+      `Gopal Ram ${tag},${phone()},Nohar ${tag}`,
+      `Hidden Ram ${tag},${phone()},${village}`,
+    ]);
+    const rows = await rowsOf(gm, job.id);
+    const match = { accountId: namesake.account.id, contactId: namesake.contact?.id };
+    expect(rows.map((r) => r.dedupe)).toEqual([
+      { inFileRowNo: null, existing: [{ ...match, matchedBy: 'name_village' }] },
+      { inFileRowNo: null, existing: [{ ...match, matchedBy: 'phone' }] },
+      null,
+      null,
+    ]);
+    expect(elsewhere.account.id).not.toBe(namesake.account.id);
   });
 
   it('refuses a preview before a mapping, and a commit before a preview', async () => {
@@ -445,6 +570,136 @@ describe('imports: commit and rollback', () => {
     await expect(run(gm, commitImportJob, { entityId: 1, jobId: job.id })).rejects.toMatchObject({
       code: 'conflict',
     });
+  });
+
+  it('stops at a bad row in the middle of a batch, records that row, and keeps nothing of the batch', async () => {
+    const tag = newId().replace(/-/g, '').slice(-8);
+    const names = [1, 2, 3, 4, 5].map((n) => `Middle ${tag} ${String(n)}`);
+    const job = await previewedJob(
+      gm,
+      names.map((n) => `${n},${phone()},Sikar`),
+    );
+    // Row 3 turns bad after the preview; rows 1 and 2 before it and 4 and 5 after it are fine.
+    await asMigrator(
+      (
+        m,
+      ) => m`update import_rows set normalised_json = jsonb_set(normalised_json, '{pipelineKey}', '"retired_pipeline"')
+                where job_id = ${job.id} and row_no = 3`,
+    );
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    const requestId = newId();
+    const failed = await executeCommand(gm, { entityIds: [1], requestId }, commitImportBatch, {
+      entityId: 1,
+      jobId: job.id,
+      batchSize: 5,
+    });
+    expect(failed).toMatchObject({ state: 'failed', failedBatch: 1, committedRows: 0 });
+
+    const rows = await rowsOf(gm, job.id);
+    expect(rows.map((r) => [r.state, r.createdId, r.errors])).toEqual([
+      ['valid', null, []],
+      ['valid', null, []],
+      ['valid', null, [{ field: 'row', code: 'commit_failed' }]],
+      ['valid', null, []],
+      ['valid', null, []],
+    ]);
+    const [audited] = await asMigrator(
+      (m) => m<{ after_json: Record<string, unknown> }[]>`
+        select after_json from audit_logs where request_id = ${requestId} and command = 'imports.job.commit_batch'`,
+    );
+    expect(audited?.after_json).toMatchObject({ state: 'failed', failedBatch: 1, failedRow: 3 });
+    // Nothing of the batch is left: no customer, no lead, no key.
+    const [left] = await asMigrator(
+      (m) => m<{ contacts: number; keys: number }[]>`
+        select (select count(*)::int from contacts where name = any(${names})) as contacts,
+               (select count(*)::int from idempotency_keys where principal_id = ${gm.id}
+                  and key = any(${[1, 2, 3, 4, 5].map((n) => importRowKey(job.id, n))})) as keys`,
+    );
+    expect(left).toEqual({ contacts: 0, keys: 0 });
+  });
+
+  it('commits rows that share a customer with each other and with an existing one, each as its own lead', async () => {
+    const tag = newId().replace(/-/g, '').slice(-8);
+    const village = `Sardar ${tag}`;
+    const known = phone();
+    const existing = await run(gm, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Mohan ${tag}`, phone: known },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    const twin = phone();
+    const job = await previewedJob(gm, [
+      // The existing customer's name, village and number.
+      `Mohan ${tag},${known},${village}`,
+      // The same name and village as the row above and the existing customer, another number.
+      `Mohan ${tag},${phone()},${village}`,
+      `Kishan ${tag},${twin},${village}`,
+      `Kishan again ${tag},${phone()},${village}`,
+    ]);
+    // Row 4 takes row 3's number after the preview, so two rows of one batch share a phone too.
+    await asMigrator(
+      (
+        m,
+      ) => m`update import_rows set normalised_json = jsonb_set(normalised_json, '{contact,phone}', to_jsonb(${`+91${twin}`}::text))
+                where job_id = ${job.id} and row_no = 4`,
+    );
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    const committed: string[] = [];
+    const done = await executeCommand(
+      gm,
+      { entityIds: [1] },
+      commitImportBatch,
+      { entityId: 1, jobId: job.id },
+      {
+        onCommitted: (events) => {
+          committed.push(...events.map((e) => e.type));
+        },
+      },
+    );
+    expect(done).toMatchObject({ state: 'committed', committedRows: 4 });
+    expect(committed).toEqual([
+      'crm.lead.created',
+      'crm.lead.created',
+      'crm.lead.created',
+      'crm.lead.created',
+      'imports.job.committed',
+    ]);
+
+    const rows = await rowsOf(gm, job.id);
+    const ids = rows.map((r) => r.createdId ?? '');
+    expect(await liveLeadCount(ids)).toBe(4);
+    // Each row is a customer of its own, as a lead typed in is; the existing one is untouched.
+    const leads = await asMigrator(
+      (m) => m<{ account_id: string; phones: string[] }[]>`
+        select o.account_id,
+               array(select cp.e164 from account_contacts ac join contact_phones cp on cp.contact_id = ac.contact_id
+                      where ac.account_id = o.account_id) as phones
+          from opportunities o where o.id = any(${ids}::uuid[]) order by o.created_at, o.id`,
+    );
+    expect(new Set(leads.map((l) => l.account_id)).size).toBe(4);
+    expect(leads.map((l) => l.account_id)).not.toContain(existing.account.id);
+    expect(leads.filter((l) => l.phones.includes(`+91${twin}`))).toHaveLength(2);
+    const [kept] = await asMigrator(
+      (m) => m<{ opportunities: number }[]>`
+        select count(*)::int as opportunities from opportunities where account_id = ${existing.account.id}`,
+    );
+    expect(kept?.opportunities).toBe(1);
+
+    // Each row's key holds the lead a repeat of `crm.lead.create` with that key replays.
+    const [stored] = await asMigrator(
+      (m) => m<{ normalised_json: unknown }[]>`
+        select normalised_json from import_rows where job_id = ${job.id} and row_no = 1`,
+    );
+    const replay = await asPrincipal(gm, (context) =>
+      runCommand(
+        createLead,
+        { context, audit, outbox, idempotencyKey: importRowKey(job.id, 1) },
+        stored?.normalised_json,
+      ),
+    );
+    expect(replay.id).toBe(rows[0]?.createdId);
   });
 
   it('rolls back newest first, archiving every lead the job created', async () => {

@@ -21,6 +21,7 @@
     "copy-lint": "pnpm --filter @shakti/copy-lint start",
     "spike:print": "pnpm --filter web spike:print",
     "spike:ocr": "pnpm --filter web spike:ocr",
+    "spike:import": "pnpm --filter @shakti/domain spike:import",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "coverage": "pnpm -r --filter @shakti/contracts --filter @shakti/domain --filter @shakti/db --filter @shakti/tokens --filter web exec vitest run --coverage --coverage.reporter=text-summary"

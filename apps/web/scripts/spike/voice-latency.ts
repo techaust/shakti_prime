@@ -22,7 +22,7 @@ import { liveKitConfig, liveKitRooms } from '../../src/integrations/voice/liveki
 import { PRONUNCIATION_CHECKLIST } from '../../src/integrations/voice/pronunciation-checklist';
 import { sarvamConfig, sarvamSpeech } from '../../src/integrations/voice/sarvam';
 
-/** The spoken-reply instruction for the spike; the real one comes with the voice agent (Phase 4). */
+/** The spoken-reply instruction for the spike; the real one comes with the voice agent (Phase 2). */
 const SYSTEM = [
   'You are the voice assistant of the Shakti group, which sells pumps, solar systems and',
   'agricultural equipment in India. The person speaking is a Shakti executive.',

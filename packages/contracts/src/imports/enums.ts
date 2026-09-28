@@ -33,6 +33,17 @@ export const ImportRowStateSchema = z.enum([
 ]);
 export type ImportRowState = z.infer<typeof ImportRowStateSchema>;
 
+/** `import_rows.created_type`: what a committed row made. Only leads are imported today. */
+export const ImportCreatedTypeSchema = z.enum(['opportunity']);
+export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
+
+/**
+ * Why the preview suggests an existing customer for a row (design §8): the same mobile number,
+ * or the same name in the same village once case, spaces and punctuation are set aside.
+ */
+export const ImportDedupeMatchSchema = z.enum(['phone', 'name_village']);
+export type ImportDedupeMatch = z.infer<typeof ImportDedupeMatchSchema>;
+
 /** `files.status` (docs/DATABASE.md §6.10); scanning and masking arrive with document uploads. */
 export const FileStatusSchema = z.enum(['pending', 'scanning', 'masked', 'ready', 'rejected']);
 export type FileStatus = z.infer<typeof FileStatusSchema>;

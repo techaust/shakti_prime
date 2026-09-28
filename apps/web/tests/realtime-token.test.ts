@@ -1,5 +1,5 @@
 import { ErrorEnvelope } from '@shakti/contracts';
-import { closeDb, createTestUser } from '@shakti/db/testing';
+import { asMigrator, closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createAuth, type Auth } from '../src/auth/create-auth';
@@ -7,6 +7,7 @@ import { requirePrincipal, resolveSessionPrincipal } from '../src/auth/session-p
 import { TURNSTILE_HEADER } from '../src/auth/turnstile';
 import { JwksResponse, RealtimeTokenResponse } from '../src/realtime/claims';
 import { issueRealtimeToken, jwksDocument } from '../src/realtime/handlers';
+import { issueGrantThroughCommand } from '../src/realtime/issue';
 import type { Env } from '../src/realtime/keys';
 import { newSigningKeyJson } from '../src/realtime/test-keys';
 import { verifyRealtimeToken } from '../src/realtime/token';
@@ -97,8 +98,24 @@ const call = (principal: ReturnType<typeof principalFrom>) =>
       method: 'POST',
       headers: { origin: ISSUER },
     }),
-    { principal, env, now: () => clock },
+    { principal, issue: issueGrantThroughCommand, env, now: () => clock },
   );
+
+async function auditRowsOf(jti: string) {
+  return asMigrator(
+    (m) => m<
+      {
+        command: string;
+        outcome: string;
+        actor_principal_id: string;
+        entity_id: number | null;
+        request_id: string;
+        after_json: Record<string, unknown>;
+      }[]
+    >`select command, outcome, actor_principal_id, entity_id, request_id, after_json
+        from audit_logs where aggregate_type = 'realtime_token' and aggregate_id = ${jti}`,
+  );
+}
 
 describe('POST /api/v1/realtime/token with a real session', () => {
   it('names the signed-in person, their entities and their role', async () => {
@@ -125,6 +142,17 @@ describe('POST /api/v1/realtime/token with a real session', () => {
       role: 'authenticated',
       aud: 'shakti-realtime',
     });
+    // realtime.token.issue wrote one row for this token, under the route's request id.
+    expect(await auditRowsOf(claims.jti ?? '')).toEqual([
+      {
+        command: 'realtime.token.issue',
+        outcome: 'ok',
+        actor_principal_id: user.id,
+        entity_id: null,
+        request_id: response.headers.get('x-request-id'),
+        after_json: { entityIds: [1, 2], bosRole: 'tele_caller_cc' },
+      },
+    ]);
   });
 
   it('narrows the entities to the one the person switched to', async () => {

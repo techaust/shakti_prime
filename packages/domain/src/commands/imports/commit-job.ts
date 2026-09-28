@@ -5,9 +5,10 @@ import {
   ImportJobDto,
   type ImportKind,
 } from '@shakti/contracts';
-import { schema } from '@shakti/db';
+import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { commitLeadBatch } from '../../imports/commit-leads';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { createLead } from '../crm/create-lead';
@@ -66,8 +67,10 @@ export const commitImportJob = defineCommand({
 
 /**
  * `imports.job.commit_batch` (design §8): the next valid rows of a committing job, in file
- * order, each through `crm.lead.create` with the idempotency key `import:{job}:{row}`, inside
- * one savepoint. A row that fails rolls the whole batch back, and the job stops there as
+ * order, each made as `crm.lead.create` makes it, with the idempotency key `import:{job}:{row}`,
+ * inside one savepoint: first set-based for the whole batch (`commitLeadBatch`), and row by row
+ * through `crm.lead.create` when the batch holds anything else or a row is refused, so the row at
+ * fault is the one recorded. A row that fails rolls the whole batch back, and the job stops there as
  * `failed` with the batch and the row recorded; the rows committed by earlier batches stay until
  * the job is rolled back. When no valid row is left the job is `committed`. One audit row per
  * batch records the job, the row range and the counts; the leads write no row of their own
@@ -121,27 +124,40 @@ export const commitImportBatch = defineCommand({
       return toImportJobDto(committed);
     }
 
+    const markCommitted = (sp: RequestTx, created: readonly { rowNo: number; id: string }[]) =>
+      sp.execute(sql`
+        update import_rows r
+           set state = 'committed', created_type = 'opportunity', created_id = x.id,
+               committed_batch = ${batchNo}, updated_by = ${actor}
+          from jsonb_to_recordset(${JSON.stringify(created)}::jsonb) as x("rowNo" int, id uuid)
+         where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
+
     let failedRow: number | undefined;
     try {
-      await ctx.savepoint(async (sp) => {
-        const created: { rowNo: number; id: string }[] = [];
-        for (const row of rows) {
-          failedRow = row.rowNo;
-          const lead = await ctx.run(createLead, row.input, {
-            tx: sp,
-            idempotencyKey: importRowKey(job.id, row.rowNo),
-            auditedByCaller: true,
-          });
-          created.push({ rowNo: row.rowNo, id: lead.id });
-        }
-        failedRow = undefined;
-        await sp.execute(sql`
-          update import_rows r
-             set state = 'committed', created_type = 'opportunity', created_id = x.id,
-                 committed_batch = ${batchNo}, updated_by = ${actor}
-            from jsonb_to_recordset(${JSON.stringify(created)}::jsonb) as x("rowNo" int, id uuid)
-           where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
-      });
+      try {
+        // The whole batch in a few statements (docs/spikes/import-scale.md).
+        await ctx.savepoint(async (sp) => {
+          await markCommitted(sp, await commitLeadBatch(ctx, sp, job.id, rows));
+        });
+      } catch {
+        // Something in the batch is not a plain new lead, or a row was refused: the savepoint
+        // took the batch back, and the rows run again one by one through `crm.lead.create`,
+        // which stops at the row at fault exactly as it always has.
+        await ctx.savepoint(async (sp) => {
+          const created: { rowNo: number; id: string }[] = [];
+          for (const row of rows) {
+            failedRow = row.rowNo;
+            const lead = await ctx.run(createLead, row.input, {
+              tx: sp,
+              idempotencyKey: importRowKey(job.id, row.rowNo),
+              auditedByCaller: true,
+            });
+            created.push({ rowNo: row.rowNo, id: lead.id });
+          }
+          failedRow = undefined;
+          await markCommitted(sp, created);
+        });
+      }
     } catch (error) {
       // The savepoint is gone and the batch with it; what is left is to record where it stopped.
       if (failedRow !== undefined) {

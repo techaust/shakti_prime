@@ -56,6 +56,8 @@ export interface MintedToken {
  * Signs a Realtime token for a signed-in user with the current key (ADR 0003). The claims name the
  * user, the entities in the principal's scope and the BOS role; `role` is `authenticated`, which
  * holds nothing on application objects, so the token opens Realtime channels and nothing else.
+ * The route does not call this: it signs the grant `realtime.token.issue` settled and audited
+ * (`signRealtimeGrant`). The spike script and the token tests mint directly.
  */
 export async function mintRealtimeToken(
   principal: Principal,
@@ -68,6 +70,28 @@ export async function mintRealtimeToken(
   if (principal.entityIds.length === 0) {
     throw new DomainError('forbidden', 'a Realtime token needs at least one entity in scope');
   }
+  return signRealtimeGrant(
+    {
+      jti: newId(),
+      sub: principal.id,
+      bos_role: principal.roleKey,
+      entity_ids: [...new Set(principal.entityIds)].sort((a, b) => a - b),
+    },
+    keys,
+    options,
+  );
+}
+
+/**
+ * Signs the claims `realtime.token.issue` settled (and audited) with the current key: the grant
+ * names the person, their role, their entities and the token's id; the issuer, the times, the
+ * audience and `role: authenticated` are added here (ADR 0003).
+ */
+export async function signRealtimeGrant(
+  grant: { jti: string; sub: string; bos_role: string; entity_ids: readonly number[] },
+  keys: SigningKeys,
+  options: MintOptions,
+): Promise<MintedToken> {
   const now = options.now ?? new Date();
   const iat = Math.floor(now.getTime() / 1000);
   const ttl = Math.min(
@@ -75,14 +99,14 @@ export async function mintRealtimeToken(
     REALTIME_TOKEN_MAX_SECONDS,
   );
   if (ttl <= 0) throw new DomainError('internal', 'a Realtime token needs a positive lifetime');
-  const jti = newId();
+  const { jti } = grant;
   const claims = RealtimeClaims.parse({
     iss: options.issuer,
-    sub: principal.id,
+    sub: grant.sub,
     aud: REALTIME_AUDIENCE,
     role: 'authenticated',
-    bos_role: principal.roleKey,
-    entity_ids: [...new Set(principal.entityIds)].sort((a, b) => a - b),
+    bos_role: grant.bos_role,
+    entity_ids: [...grant.entity_ids],
     iat,
     exp: iat + ttl,
     jti,
