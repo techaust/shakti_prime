@@ -36,15 +36,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm copy-lint
-      # Generated files are committed as generated (AUDIT M47): the design-token CSS and the
-      # migrations must match their sources, or a stale file ships.
+      # Generated files are committed as generated (AUDIT M47): the design-token CSS, the app
+      # icon in the accent colour and the migrations must match their sources, or a stale file
+      # ships.
       - name: Generated files are up to date
         run: |
           pnpm --filter @shakti/tokens build
           pnpm db:generate
-          git status --porcelain -- packages/tokens/src packages/db/migrations
-          git diff --exit-code -- packages/tokens/src packages/db/migrations
-          test -z "$(git status --porcelain -- packages/tokens/src packages/db/migrations)"
+          git status --porcelain -- packages/tokens/src apps/web/src/app/icon.svg packages/db/migrations
+          git diff --exit-code -- packages/tokens/src apps/web/src/app/icon.svg packages/db/migrations
+          test -z "$(git status --porcelain -- packages/tokens/src apps/web/src/app/icon.svg packages/db/migrations)"
 
   typecheck:
     name: Typecheck
