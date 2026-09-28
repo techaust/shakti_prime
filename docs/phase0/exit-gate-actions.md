@@ -10,14 +10,14 @@ The Phase 0 build and document work is merged into `main` and passes CI. The exi
 | All seven spikes passed, with written results and latency numbers | Partly met | Print and QR labels passed; OCR masking passed on generated photos. Tally, Exotel, WhatsApp and voice have harnesses ready to run; Realtime needs the hosted dev project. Each `docs/spikes/*.md` says what it needs |
 | ERD, data dictionary, state machines, permission matrix and API contracts reviewed | Waiting | The developer and the client review `docs/data/`, `docs/state-machines/` (the items marked proposed), SECURITY §3.2 and `packages/contracts/src/api` |
 | Vendor quotes confirm the §13 cost figures | Waiting | The developer sends the requests in `docs/phase0/vendor-quotes.md` and records the answers |
-| Phase 0 tooling installed and verified; `currentPhase` set to 1 | Waiting | The developer signs in again to the GitHub MCP server; `currentPhase` moves to 1 when the other items close |
+| Phase 0 tooling installed and verified; `currentPhase` set to 1 | Tooling met | Every tool is installed and passed a live call on 28-09-2026; `currentPhase` moves to 1 when the other items close |
 
 ## The developer
 - Create the Supabase dev and staging projects (Mumbai), the Vercel project in `bom1`, and Upstash Redis and QStash (`docs/runbooks/DEPLOY.md`). Once staging exists, apply every migration to a copy of staging before it reaches production (AGENTS §10).
 - Send the vendor quote requests and record the answers (`docs/phase0/vendor-quotes.md`).
 - Open the vendor sandboxes each spike needs: Exotel with DLT numbers, Meta WhatsApp, LiveKit, Sarvam and Anthropic (`docs/spikes/*.md`), then run the Realtime, Exotel, WhatsApp, voice and Tally spikes and record their numbers.
 - Choose a mail provider before production.
-- Move the repository to a plan or organisation that protects `main` (AUDIT M45), and sign in again to the GitHub MCP server.
+- Move the repository to a plan or organisation that protects `main` (AUDIT M45); when it moves, make a new GitHub token for that organisation.
 - Review the ERD, data dictionary, permission matrix, contracts and the proposed state-machine items with the client.
 - Start the Meta App Review for Lead Ads access and the Google Lead Form setup, needed by Phase 2 (ROADMAP §10).
 
