@@ -14,6 +14,7 @@ import {
   Field,
   Input,
   Select,
+  sortRows,
   StatusBadge,
   toast,
   type DataGridColumn,
@@ -25,6 +26,8 @@ import { formatDate, formatRupees, moneyFromTyped } from '../../screens/format';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+import { useGridView } from '../screens/use-grid-view';
+import { ViewsMenu } from '../screens/views-menu';
 
 const PAGE_SIZE = 50;
 
@@ -54,6 +57,7 @@ export function PriceMasterScreen({
   const [pricing, setPricing] = useState<PriceRowDto | undefined>();
   const { load, pending, failure } = useQuery<PricePageDto>();
   const [loadingMore, setLoadingMore] = useState(false);
+  const view = useGridView({ density: 'compact' });
   // The list whose prices are wanted: an answer for a list chosen before it is dropped.
   const wanted = useRef(initialListId);
 
@@ -99,15 +103,27 @@ export function PriceMasterScreen({
 
   const unitName = (row: PriceRowDto) => t(`unit.${row.unit}`);
   const columns: DataGridColumn<PriceRowDto>[] = [
-    { id: 'item', header: t('columns.item'), cell: (r) => r.name, primary: true },
-    { id: 'code', header: t('columns.code'), cell: (r) => r.sku },
-    { id: 'category', header: t('columns.category'), cell: (r) => r.category },
-    { id: 'unit', header: t('columns.unit'), cell: unitName },
+    {
+      id: 'item',
+      header: t('columns.item'),
+      cell: (r) => r.name,
+      sortValue: (r) => r.name,
+      primary: true,
+    },
+    { id: 'code', header: t('columns.code'), cell: (r) => r.sku, sortValue: (r) => r.sku },
+    {
+      id: 'category',
+      header: t('columns.category'),
+      cell: (r) => r.category,
+      sortValue: (r) => r.category,
+    },
+    { id: 'unit', header: t('columns.unit'), cell: unitName, sortValue: unitName },
     {
       id: 'price',
       header: t('columns.price'),
       align: 'end',
       numeric: true,
+      sortValue: (r) => (r.price === null ? null : Number(r.price)),
       cell: (r) =>
         r.price === null ? (
           <span className="text-text-muted">{t('notPriced')}</span>
@@ -119,6 +135,7 @@ export function PriceMasterScreen({
       id: 'updated',
       header: t('columns.updated'),
       cell: (r) => (r.updatedAt === null ? common('notSet') : formatDate(r.updatedAt)),
+      sortValue: (r) => (r.updatedAt === null ? null : Date.parse(r.updatedAt)),
     },
   ];
   if (canSetPrices && list.open) {
@@ -126,6 +143,7 @@ export function PriceMasterScreen({
       id: 'actions',
       header: t('columns.actions'),
       align: 'end',
+      hideable: false,
       cell: (r) => (
         <Button
           variant="secondary"
@@ -177,10 +195,18 @@ export function PriceMasterScreen({
       <DataGrid
         caption={t('caption')}
         columns={columns}
-        rows={rows}
+        rows={sortRows(rows, columns, view.grid.sort)}
         rowKey={(r) => r.itemId}
         loading={pending && !loadingMore}
-        density="compact"
+        {...view.grid}
+        toolbar={
+          <ViewsMenu
+            screen="price_lists"
+            current={view.settings}
+            standard={view.standard}
+            onApply={view.apply}
+          />
+        }
         empty={<EmptyState message={t('empty')} />}
         loadMore={
           nextCursor === null

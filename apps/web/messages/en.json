@@ -149,7 +149,10 @@
     "import_template_name_taken": "A saved column layout already has this name. Choose a different name.",
     "import_nothing_to_commit": "None of the rows can be added. Correct the file and add it again.",
     "import_rollback_blocked": "Some leads from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
-    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now."
+    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
+    "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
+    "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
+    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device."
   },
   "auth": {
     "signIn": {
@@ -425,7 +428,52 @@
     "close": "Close",
     "emptyStates": "Empty states and loading",
     "emptyMessage": "No calls due right now. New leads appear here as they come in.",
-    "emptyAction": "Add a lead"
+    "emptyAction": "Add a lead",
+    "gridViews": {
+      "title": "Sorting, columns, selection and saved views",
+      "intro": "These rows show how a list behaves; they are not records. Views saved here stay on this page only and are gone when you leave it.",
+      "caption": "Pump enquiries by village",
+      "colVillage": "Village",
+      "colProduct": "Product",
+      "colSize": "Size",
+      "colCompany": "Company",
+      "colStage": "Stage",
+      "size": "{hp} HP",
+      "selectAll": "Select all loaded enquiries",
+      "selectRow": "Select the enquiry from {village}",
+      "rows": {
+        "chomu": {
+          "village": "Chomu",
+          "product": "Solar submersible pump",
+          "company": "Agro Solar Hub"
+        },
+        "kishangarh": {
+          "village": "Kishangarh Renwal",
+          "product": "Surface pump",
+          "company": "Shakti Motor Pumps"
+        },
+        "phagi": {
+          "village": "Phagi",
+          "product": "Solar submersible pump",
+          "company": "Agro Solar Hub"
+        },
+        "bassi": {
+          "village": "Bassi",
+          "product": "Borewell submersible pump",
+          "company": "Shakti Supreme"
+        },
+        "dudu": {
+          "village": "Dudu",
+          "product": "Solar surface pump",
+          "company": "Agro Solar Hub"
+        },
+        "sanganer": {
+          "village": "Sanganer",
+          "product": "Monoblock pump",
+          "company": "Shakti Motor Pumps"
+        }
+      }
+    }
   },
   "errorPage": {
     "title": "Something went wrong on our side",
@@ -473,6 +521,39 @@
       "mac": "Mac",
       "linux": "Linux",
       "other": "another device"
+    },
+    "grid": {
+      "columnsButton": "Columns",
+      "rowHeight": "Row height",
+      "comfortable": "Comfortable",
+      "compact": "Compact",
+      "selected": "{count, plural, one {{shown} selected} other {{shown} selected}}",
+      "viewsButton": "Views",
+      "viewsTitle": "Your saved views",
+      "viewsNone": "You have no saved views on this screen yet.",
+      "standardView": "Standard view",
+      "saveNewView": "Save as a new view",
+      "updateView": "Update this view",
+      "renameView": "Rename this view",
+      "deleteView": "Delete this view",
+      "viewName": "View name",
+      "viewNameHelper": "Up to 60 characters, such as Hot leads or This week.",
+      "viewNameMissing": "Enter a name for the view.",
+      "saveDialogTitle": "Save this view",
+      "saveDialogIntro": "A view keeps the columns, order and row height you see now. Only you see your saved views.",
+      "renameDialogTitle": "Rename {name}",
+      "updateDialogTitle": "Update {name}",
+      "updateDialogIntro": "The view will keep the columns, order and row height you see now.",
+      "deleteDialogTitle": "Delete {name}",
+      "deleteDialogIntro": "The view is removed for you on every device. The list itself does not change.",
+      "saveViewSubmit": "Save view",
+      "renameViewSubmit": "Rename view",
+      "updateViewSubmit": "Update view",
+      "deleteViewSubmit": "Delete view",
+      "viewSaved": "{name} is saved.",
+      "viewUpdated": "{name} now shows what you see.",
+      "viewRenamed": "The view is now called {name}.",
+      "viewDeleted": "{name} is deleted."
     }
   },
   "companies": {
