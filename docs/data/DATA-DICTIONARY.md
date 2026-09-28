@@ -55,7 +55,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### entities
 
-**Catalogue entry** (DATABASE.md §6.1): `id smallint`, `code`, `legal_name`, `brand_name`, `gstin`, `state_code`, `upi_id`; `letterhead_file_id` and `bank_json` (encrypted) arrive with documents in Phase 1
+**Catalogue entry** (DATABASE.md §6.1): `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

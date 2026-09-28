@@ -13,5 +13,9 @@ export function toEntityDto(row: EntityRow): EntityDto {
     stateCode: row.stateCode,
     gstin: row.gstin,
     upiId: row.upiId,
+    addressLine1: row.addressLine1,
+    addressLine2: row.addressLine2,
+    city: row.city,
+    pin: row.pin,
   });
 }

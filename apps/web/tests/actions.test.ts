@@ -654,6 +654,15 @@ describe('command and query actions answer a result, never a thrown error (revie
       error: 'validation_failed',
       field: 'upiId',
     });
+    // Entity 1 is registered in state 08: a GSTIN of another state is named under the GSTIN.
+    await expect(
+      updateEntity({ entityId: 1, gstin: '27ABCDE1234F1Z5' }, crypto.randomUUID()),
+    ).resolves.toEqual({ ok: false, error: 'gstin_state_mismatch', field: 'gstin' });
+    await expect(updateEntity({ entityId: 1, pin: '12345' })).resolves.toEqual({
+      ok: false,
+      error: 'validation_failed',
+      field: 'pin',
+    });
   });
 
   it('read price lists and prices, and keep price changes to an Executive', async () => {
