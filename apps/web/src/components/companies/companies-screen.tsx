@@ -49,7 +49,12 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
     {
       id: 'upi',
       header: t('columns.upi'),
-      cell: (c) => <span className="break-all">{c.upiId ?? common('notSet')}</span>,
+      cell: (c) =>
+        c.upiId === null ? (
+          <span className="whitespace-nowrap">{common('notSet')}</span>
+        ) : (
+          <span className="break-words">{c.upiId}</span>
+        ),
     },
   ];
   if (canEdit) {
