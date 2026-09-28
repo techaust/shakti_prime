@@ -42,7 +42,8 @@ describe('GET /api/v1/health/ready', () => {
     expect(response.headers.get('x-request-id')).toBe('r-1');
     expect(response.headers.get('cache-control')).toBe('no-store');
     const body: unknown = await response.json();
-    expect(ReadyResponse.parse(body)).toEqual({ status: 'ok', time: expect.any(String) });
+    // The contract is strict, so a body naming any check would not parse.
+    expect(ReadyResponse.parse(body).status).toBe('ok');
     expect(body).not.toHaveProperty('checks');
   });
 

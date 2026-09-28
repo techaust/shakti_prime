@@ -2,6 +2,7 @@ import { closeAuthDb } from '@shakti/db/auth';
 import { closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { createHmac } from 'node:crypto';
+import type * as NextServer from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The sign-in and account form actions of `actions/auth.ts`, driven as the screens call them,
@@ -26,7 +27,7 @@ const request = vi.hoisted((): RequestState => ({
 }));
 
 vi.mock('next/server', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('next/server')>()),
+  ...(await importOriginal<typeof NextServer>()),
   after: (task: Promise<unknown>) => {
     request.background.push(task);
   },
@@ -80,7 +81,10 @@ const {
 
 const delivered = memoryMailer();
 /** A mail service the tests can hold up or fail, to prove the forgot-password answer waits for neither. */
-const outgoing: { hold?: Promise<void>; fail: boolean } = { fail: false };
+const outgoing: { hold: Promise<void> | undefined; fail: boolean } = {
+  hold: undefined,
+  fail: false,
+};
 const mailer = {
   sent: delivered.sent,
   async send(message: Parameters<typeof delivered.send>[0]): Promise<void> {
