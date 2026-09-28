@@ -172,7 +172,8 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
  * The request context is read-only (`readOnly`) before the query's first statement. The function
  * is handed the transaction, and a write made through it would skip the guard, the audit trail and
  * the outbox, so Postgres refuses any insert, update, delete or sequence step there (SQLSTATE
- * 25006), even after a `commit` the function issues itself.
+ * 25006). A function that ends the transaction itself (`commit`) loses the RLS settings with it,
+ * so a write after that is refused by row security instead (SQLSTATE 42501).
  */
 export function executeQuery<T>(
   principal: Principal,

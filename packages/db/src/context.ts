@@ -20,21 +20,19 @@ export interface RequestContext {
 
 export interface RequestOptions {
   /**
-   * A read: the transaction is read-only from its first statement, and so is the connection
-   * until the call ends, so a `commit` issued inside cannot be followed by a write on the same
-   * connection either. The connection goes back to the pool as it came.
+   * A read: the transaction is read-only from its first statement. The setting is local to the
+   * transaction, as every setting here is: through Supavisor in transaction mode a server
+   * connection passes to another client when the transaction ends (docs/DATABASE.md §1).
    */
   readOnly?: boolean;
 }
 
 /**
- * A read's extra settings, in the request's first statement (no extra round trip): this
- * transaction read-only (as `set transaction read only`), and the connection's default for any
- * transaction after it, until the call resets it.
+ * A read's extra setting, in the request's first statement (no extra round trip): this
+ * transaction read-only, as `set transaction read only` makes it, and nothing beyond it.
  */
-const READ_ONLY_SETTINGS = sql`,
-        set_config('transaction_read_only', 'on', true),
-        set_config('default_transaction_read_only', 'on', false)`;
+const READ_ONLY_SETTING = sql`,
+        set_config('transaction_read_only', 'on', true)`;
 
 /** Postgres int[] literal for `app.entity_ids`, e.g. `{1,2}`. Empty scope yields `{}`, which denies. */
 export function entityIdsLiteral(entityIds: readonly number[]): string {
@@ -46,11 +44,10 @@ export function entityIdsLiteral(entityIds: readonly number[]): string {
  * Opens a transaction and sets the transaction-local settings every RLS policy reads. A request
  * that narrows to entities the principal does not hold is refused before any query runs.
  *
- * With `readOnly`, the same first statement also makes the transaction read-only and sets the
- * connection's default for new transactions to read-only. A statement that ends the transaction
- * early (`commit`) therefore leaves the rest of the call on a connection where every statement is
- * its own read-only transaction; the default is reset when the call ends, whichever way it ends
- * (a rolled-back transaction reverts it by itself).
+ * With `readOnly`, the same first statement also makes the transaction read-only. Every setting
+ * is transaction-local, so nothing outlives the transaction on a pooled server connection. A
+ * function that ends the transaction early (`commit`) takes the RLS settings with it, so a write
+ * after that is refused by row security, which fails closed without them.
  */
 export async function withRequestContext<T>(
   principal: Principal,
@@ -66,7 +63,6 @@ export async function withRequestContext<T>(
     });
   }
   const requestId = scope.requestId ?? newId();
-  const readOnly = options.readOnly === true;
   // A request narrowed to one entity acts with the caller's team there, even when the principal
   // was resolved in All-companies mode, where no single team applies (AUDIT M24).
   const only = requested.length === 1 ? requested[0] : undefined;
@@ -84,15 +80,8 @@ export async function withRequestContext<T>(
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
         set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
-        set_config('DateStyle', 'ISO, YMD', true)${readOnly ? READ_ONLY_SETTINGS : sql``}
+        set_config('DateStyle', 'ISO, YMD', true)${options.readOnly === true ? READ_ONLY_SETTING : sql``}
     `);
-    const ctx = { principal: acting, entityIds: requested, requestId, tx };
-    if (!readOnly) return fn(ctx);
-    try {
-      return await fn(ctx);
-    } finally {
-      // In an aborted transaction this fails, and the rollback reverts the default instead.
-      await tx.execute(sql`reset default_transaction_read_only`).catch(() => undefined);
-    }
+    return fn({ principal: acting, entityIds: requested, requestId, tx });
   });
 }

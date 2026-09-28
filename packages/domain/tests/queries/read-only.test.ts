@@ -98,32 +98,23 @@ describe('executeQuery runs in a read-only transaction', () => {
     ).toBeDefined();
   });
 
-  it('refuses a write after a commit the query issues itself, settings restored or not', async () => {
+  it('refuses a write after a commit the query issues itself: row security fails closed', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const name = `Read only ${newId().slice(-8)}`;
-    const insert = sql`
-      insert into saved_views (id, principal_id, screen, name, settings_json)
-      values (${newId()}, ${caller.id}, 'leads', ${name}, '{}'::jsonb)`;
-    // Ending the transaction early leaves the connection read-only, not writable.
-    expect(
-      await refusal(caller, async ({ tx }) => {
-        await tx.execute(sql`commit`);
-        return tx.execute(insert);
-      }),
-    ).toBe('25006');
-    // Nor does putting back the settings row security reads make the write pass: it is the
-    // connection's read-only default that refuses it, not the missing settings.
-    expect(
-      await refusal(caller, async ({ tx }) => {
-        await tx.execute(sql`commit`);
-        await tx.execute(sql`select set_config('app.user_id', ${caller.id}, false)`);
-        return tx.execute(insert);
-      }),
-    ).toBe('25006');
+    // Ending the transaction early ends its read-only setting and its RLS settings together, so
+    // the write that follows has no request context and row security refuses it (42501); a
+    // read-only refusal (25006) would do as well.
+    const state = await refusal(caller, async ({ tx }) => {
+      await tx.execute(sql`commit`);
+      return tx.execute(sql`
+        insert into saved_views (id, principal_id, screen, name, settings_json)
+        values (${newId()}, ${caller.id}, 'leads', ${name}, '{}'::jsonb)`);
+    });
+    expect(['42501', '25006']).toContain(state);
     expect(await viewsNamed(name)).toBe(0);
   });
 
-  it('leaves every pooled connection writable for the commands after it', async () => {
+  it("never changes a pooled connection's default, so every connection stays writable", async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     // Reads that end normally, that fail, and that end their own transaction early.
     await executeQuery(caller, {}, ({ tx }) => tx.execute(sql`select 1`), { name: 't', logger });
@@ -134,12 +125,15 @@ describe('executeQuery runs in a read-only transaction', () => {
     });
     // More sequential contexts than the pool holds connections, so each one is seen.
     for (let i = 0; i < 12; i += 1) {
+      // Through Supavisor in transaction mode a server connection passes to another client, so a
+      // read leaves nothing at session level: the default was never set on any connection.
       const [row] = await asPrincipal(caller, ({ tx }) =>
-        tx.execute<{ now_ro: string; default_ro: string }>(sql`
+        tx.execute<{ now_ro: string; default_ro: string; source: string }>(sql`
           select current_setting('transaction_read_only') as now_ro,
-                 current_setting('default_transaction_read_only') as default_ro`),
+                 setting as default_ro, source
+            from pg_settings where name = 'default_transaction_read_only'`),
       );
-      expect(row).toEqual({ now_ro: 'off', default_ro: 'off' });
+      expect(row).toEqual({ now_ro: 'off', default_ro: 'off', source: 'default' });
     }
   });
 });
