@@ -15,6 +15,7 @@ import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/a
 import { nextCookies } from 'better-auth/next-js';
 import { haveIBeenPwned, twoFactor } from 'better-auth/plugins';
 import { and, eq, isNull, like, ne } from 'drizzle-orm';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import { recordAuthEvent, type AuthEvent } from './audit-events';
 import { generateBackupCodes } from './backup-codes';
@@ -461,12 +462,27 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         }
         const t = mailTranslator();
         const kind = invited ? 'setPassword' : 'resetPassword';
+        const message = {
+          to: user.email,
+          subject: t(`${kind}.subject`),
+          text: t(`${kind}.body`, { name: user.name, url }),
+        };
+        const defer = resetMailDeferral.getStore();
+        if (defer !== undefined) {
+          // "Forgot your password?": the answer does not wait for the mail, so how long it takes
+          // does not say whether the address has an account. A failure is logged, never shown;
+          // nobody reads the invite's failure marker for this send, so none is left.
+          defer(
+            Promise.resolve()
+              .then(() => deps.mailer.send(message))
+              .catch((error: unknown) => {
+                log.log('error', 'auth.mail_failed', { kind, error });
+              }),
+          );
+          return;
+        }
         try {
-          await deps.mailer.send({
-            to: user.email,
-            subject: t(`${kind}.subject`),
-            text: t(`${kind}.body`, { name: user.name, url }),
-          });
+          await deps.mailer.send(message);
         } catch (error) {
           // Better Auth logs and swallows a failed send, so the invite action could not tell
           // the Executive; the failure is recorded for it to read (AUDIT M26).
@@ -697,6 +713,23 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/** Where a set-password mail goes when the caller must not wait for it (see below). */
+const resetMailDeferral = new AsyncLocalStorage<(task: Promise<void>) => void>();
+
+/**
+ * Runs a password-reset request whose mail is handed to `defer` instead of being awaited: the
+ * "Forgot your password?" screen, which answers the same for every address, so the send must not
+ * lengthen the answer for an address that has an account. `defer` keeps the platform running the
+ * send after the answer (`after()` in a server action). An invite does not use this: it waits for
+ * the mail, so it can tell the Executive when the mail did not go out (AUDIT M26).
+ */
+export function withResetMailInBackground<T>(
+  defer: (task: Promise<void>) => void,
+  request: () => Promise<T>,
+): Promise<T> {
+  return resetMailDeferral.run(defer, request);
+}
 
 const MAIL_FAILED_SECONDS = 5 * 60;
 const mailFailedKey = (userId: string) => `mail-failed:${userId}`;

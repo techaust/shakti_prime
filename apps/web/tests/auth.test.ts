@@ -1,6 +1,12 @@
 import { closeAuthDb } from '@shakti/db/auth';
 import { asMigrator, closeDb, createTestPrincipal, createTestUser } from '@shakti/db/testing';
-import { executeCommand, memoryKeyValue, memoryMailer, resetTwoFactor } from '@shakti/domain';
+import {
+  executeCommand,
+  memoryKeyValue,
+  memoryLogger,
+  memoryMailer,
+  resetTwoFactor,
+} from '@shakti/domain';
 import { createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -8,6 +14,7 @@ import {
   createAuth,
   HTTP_DISABLED_PATHS,
   setPasswordMailFailed,
+  withResetMailInBackground,
   type Auth,
 } from '../src/auth/create-auth';
 import * as clientAddressModule from '../src/auth/client-address';
@@ -891,6 +898,50 @@ describe('an invitation email that does not go out (AUDIT M26)', () => {
     });
     expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(true);
     expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(false);
+  });
+});
+
+describe('a forgotten-password mail sent in the background', () => {
+  it('is handed off rather than awaited; a failure is logged, never thrown or left for an invite', async () => {
+    const log = memoryLogger();
+    const failing = createAuth(
+      {
+        keyValue,
+        mailer: { send: () => Promise.reject(new Error('mail service down')) },
+        fetch: fetchStub,
+        now: () => clock,
+        turnstileSecretKey: 'secret',
+        logger: log,
+      },
+      { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
+    );
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'store_manager' }]);
+    const handedOff: Promise<void>[] = [];
+    const answer = await withResetMailInBackground(
+      (task) => handedOff.push(task),
+      () =>
+        failing.api.requestPasswordReset({
+          body: { email: user.email, redirectTo: '/set-password' },
+          headers: clientHeaders({ ip: '10.0.9.9', turnstile: 'ok:reset' }),
+        }),
+    );
+    expect(answer).toMatchObject({ status: true });
+    expect(handedOff).toHaveLength(1);
+    await expect(Promise.all(handedOff)).resolves.toBeDefined();
+    expect(log.entries.map((e) => e.event)).toContain('auth.mail_failed');
+    expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(false);
+
+    // An address with no account hands off nothing and answers the same.
+    const none = await withResetMailInBackground(
+      (task) => handedOff.push(task),
+      () =>
+        failing.api.requestPasswordReset({
+          body: { email: `nobody-${user.id}@shakti.test`, redirectTo: '/set-password' },
+          headers: clientHeaders({ ip: '10.0.9.9', turnstile: 'ok:reset' }),
+        }),
+    );
+    expect(none).toEqual(answer);
+    expect(handedOff).toHaveLength(1);
   });
 });
 
