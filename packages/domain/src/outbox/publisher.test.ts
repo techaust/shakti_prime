@@ -152,3 +152,32 @@ describe('runOutboxPublisher', () => {
     expect(counts.claimed).toBe(2);
   });
 });
+
+describe('runOutboxPublisher backoff', () => {
+  it('makes a failed event due again after the wait for its attempt count', async () => {
+    const first = row();
+    const later = row({ attempts: 5 });
+    const { claim, seen } = claimOf([first, later]);
+    await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher(() => 'http_503'),
+      random: () => 0.5,
+    });
+    expect(seen.updates).toEqual([
+      expect.objectContaining({ id: first.id, attempts: 1, retryInSeconds: 60 }),
+      expect.objectContaining({ id: later.id, attempts: 6, retryInSeconds: 32 * 60 }),
+    ]);
+  });
+
+  it('gives a dead letter no next attempt', async () => {
+    const tired = row({ attempts: OUTBOX_MAX_ATTEMPTS - 1 });
+    const stray = row({ type: 'crm.lead.vanished' });
+    const { claim, seen } = claimOf([tired, stray]);
+    await runOutboxPublisher({ claim, publisher: memoryEventPublisher(() => 'http_404') });
+    expect(seen.updates).toHaveLength(2);
+    for (const update of seen.updates) {
+      expect(update).toMatchObject({ outcome: 'failed', deadLetter: true });
+      expect(update).not.toHaveProperty('retryInSeconds');
+    }
+  });
+});
