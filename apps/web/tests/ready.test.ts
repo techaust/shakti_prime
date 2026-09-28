@@ -1,3 +1,4 @@
+import { closeAuthDb } from '@shakti/db/auth';
 import { ErrorEnvelope, ReadyResponse } from '@shakti/contracts';
 import { closeDb } from '@shakti/db';
 import { closeOutboxDb } from '@shakti/db/outbox';
@@ -6,6 +7,7 @@ import * as readiness from '../src/auth/readiness';
 import { GET } from '../src/app/api/v1/health/ready/route';
 
 afterAll(async () => {
+  await closeAuthDb();
   await closeOutboxDb();
   await closeDb();
 });

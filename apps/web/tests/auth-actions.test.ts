@@ -1,3 +1,4 @@
+import { closeAuthDb } from '@shakti/db/auth';
 import { closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { createHmac } from 'node:crypto';
@@ -98,6 +99,7 @@ beforeAll(() => {
   request.auth = auth;
 });
 afterAll(async () => {
+  await closeAuthDb();
   vi.unstubAllGlobals();
   await closeDb();
 });

@@ -11,7 +11,6 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { ErrorKey } from '../i18n/types';
 
 /**
@@ -133,12 +132,6 @@ export function Button({
       {children}
     </button>
   );
-}
-
-/** A submit button that shows the form's own pending state, for forms without action state. */
-export function SubmitButton(props: Omit<ComponentProps<typeof Button>, 'type' | 'pending'>) {
-  const { pending } = useFormStatus();
-  return <Button {...props} type="submit" pending={pending} />;
 }
 
 /** Stops a submit while one is on its way, for forms whose button shows pending. */

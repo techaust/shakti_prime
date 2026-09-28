@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { ErrorEnvelope } from './error';
 import { API_FIXTURES, fixtureJwt, MOBILE_CLAIMS } from './fixtures';
 import {
   MobileAccessClaims,
+  MobileAuthReasonSchema,
   MobileRefreshRequest,
   MobileTokenRequest,
   MobileTokenResponse,
@@ -38,6 +40,19 @@ describe('field app sign-in', () => {
     const pair = API_FIXTURES['auth.mobile.token'].response as Record<string, unknown>;
     const hs = fixtureJwt('HS256', MOBILE_CLAIMS);
     expect(MobileTokenResponse.safeParse({ ...pair, accessToken: hs }).success).toBe(false);
+  });
+
+  it('names why a refresh was refused with one of its own reasons', () => {
+    const refused = ErrorEnvelope.parse({
+      error: {
+        code: 'unauthorized',
+        message: 'Please sign in again.',
+        details: { reason: 'refresh_reused' },
+        requestId: 'req-0001',
+      },
+    });
+    expect(MobileAuthReasonSchema.parse(refused.error.details?.reason)).toBe('refresh_reused');
+    expect(MobileAuthReasonSchema.safeParse('session_expired').success).toBe(false);
   });
 });
 

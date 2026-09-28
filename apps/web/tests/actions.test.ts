@@ -1,3 +1,4 @@
+import { closeAuthDb } from '@shakti/db/auth';
 import { newId, type Principal } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
 import {
@@ -104,6 +105,7 @@ const { screenAccess, screenTitle } = await import('../src/screens/access');
 const { navRequires } = await import('../src/nav');
 
 afterAll(async () => {
+  await closeAuthDb();
   await closeOutboxDb();
   await closeDb();
 });
