@@ -59,8 +59,7 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'),
   (t) => t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),
   (t) => t.replace(/(?<![\w+])\+\d{8,15}(?!\w)/g, (m) => `+${lastFour(m.slice(1))}`),
-  (t) =>
-    t.replace(/(?<!\w|[\da-f]-)\d{4}[ -]?\d{4}[ -]?\d{4}(?!\w|-[\da-f])/gi, '[number]'),
+  (t) => t.replace(/(?<!\w|[\da-f]-)\d{4}[ -]?\d{4}[ -]?\d{4}(?!\w|-[\da-f])/gi, '[number]'),
   (t) => t.replace(/(?<!\w)[6-9]\d{9}(?!\w)/g, lastFour),
 ];
 

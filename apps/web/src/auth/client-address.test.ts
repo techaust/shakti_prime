@@ -3,7 +3,10 @@ import { platformRequestId } from './client-address';
 
 describe('platformRequestId', () => {
   it("prefers the platform's id to one the caller chose", () => {
-    const headers = new Headers({ 'x-vercel-id': 'bom1::abcde-1727430000000', 'x-request-id': 'mine' });
+    const headers = new Headers({
+      'x-vercel-id': 'bom1::abcde-1727430000000',
+      'x-request-id': 'mine',
+    });
     expect(platformRequestId(headers)).toBe('bom1::abcde-1727430000000');
   });
 

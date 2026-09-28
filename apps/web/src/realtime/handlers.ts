@@ -8,9 +8,10 @@ import {
   type Principal,
   type RealtimeTokenGrant,
 } from '@shakti/contracts';
-import type { ClientMeta } from '@shakti/domain';
+import type { ClientMeta, KeyValue } from '@shakti/domain';
 import en from '../../messages/en.json';
 import { clientMeta } from '../auth/client-address';
+import { countRequest, type CapRule } from '../auth/request-cap';
 import { logger } from '../log';
 import {
   JwksResponse,
@@ -30,7 +31,19 @@ const DISCOVERY_MAX_AGE_SECONDS = 3600;
 
 const NO_STORE = 'no-store';
 
-function failure(code: ErrorCode, requestId: string, details?: { reason: string }): Response {
+/**
+ * Tokens one person may be issued in five minutes. A token lasts 15 minutes and each open screen
+ * asks for its own, so this leaves room for many tabs and reconnects; each issue is audited, so
+ * a runaway client must not fill the Activity log.
+ */
+export const REALTIME_TOKEN_CAP: CapRule = { window: 5 * 60, max: 20 };
+
+function failure(
+  code: ErrorCode,
+  requestId: string,
+  details?: { reason: string },
+  extraHeaders: Readonly<Record<string, string>> = {},
+): Response {
   const catalogue: Readonly<Record<string, string>> = en.errors;
   // A reason with its own sentence reads better than the code's general one (the one catalogue is
   // English, ADR 0014, and a route handler has no request locale to resolve).
@@ -40,7 +53,7 @@ function failure(code: ErrorCode, requestId: string, details?: { reason: string 
   });
   return Response.json(body, {
     status: ERROR_HTTP_STATUS[code],
-    headers: { 'cache-control': NO_STORE, 'x-request-id': requestId },
+    headers: { 'cache-control': NO_STORE, 'x-request-id': requestId, ...extraHeaders },
   });
 }
 
@@ -84,6 +97,8 @@ export interface TokenRouteDeps {
     principal: Principal,
     meta: { requestId: string; client: ClientMeta },
   ) => Promise<RealtimeTokenGrant>;
+  /** The shared store that counts each person's tokens against `REALTIME_TOKEN_CAP`. */
+  keyValue: KeyValue;
   env?: Env;
   now?: () => Date;
 }
@@ -91,7 +106,10 @@ export interface TokenRouteDeps {
 /**
  * `POST /api/v1/realtime/token` (docs/API.md §3.1): a Realtime token for the signed-in person.
  * A call from another site is refused even with the cookie: the token is only for the BOS's own
- * screens.
+ * screens. So is a call with no `Origin` at all: a browser always sends one on a POST, so only a
+ * hand-made request lacks it. (Server actions let a missing `Origin` through with a warning; this
+ * route is stricter because the session cookie is its only credential until the field app's
+ * bearer tokens exist, and a bearer caller will be exempt from the check.)
  */
 export async function issueRealtimeToken(
   request: Request,
@@ -104,8 +122,7 @@ export async function issueRealtimeToken(
     logger.log('error', 'realtime.issuer_missing', { requestId });
     return failure('integration_unavailable', requestId);
   }
-  const origin = request.headers.get('origin');
-  if (origin !== null && origin !== issuer) return failure('forbidden', requestId);
+  if (request.headers.get('origin') !== issuer) return failure('forbidden', requestId);
 
   let principal: Principal | undefined;
   try {
@@ -131,6 +148,24 @@ export async function issueRealtimeToken(
   ) {
     return failure('forbidden', requestId);
   }
+
+  let counted: Awaited<ReturnType<typeof countRequest>>;
+  try {
+    counted = await countRequest(
+      deps.keyValue,
+      `realtime-token:${principal.id}`,
+      REALTIME_TOKEN_CAP,
+    );
+  } catch (error) {
+    logger.log('error', 'realtime.cap_failed', { requestId, error });
+    return failure('integration_unavailable', requestId);
+  }
+  if (!counted.allowed) {
+    return failure('rate_limited', requestId, undefined, {
+      'retry-after': String(counted.retryAfter),
+    });
+  }
+
   if (!(await bodyIsEmpty(request))) return failure('validation_failed', requestId);
 
   const keys = await keysOrFailure(env, requestId);
