@@ -14,6 +14,7 @@ import {
   EmptyState,
   Sheet,
   SheetContent,
+  sortRows,
   StatusBadge,
   toast,
   type DataGridColumn,
@@ -27,6 +28,8 @@ import { formatDateTime } from '../../screens/format';
 import { userActions } from '../../screens/user-roles';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
+import { useGridView } from '../screens/use-grid-view';
+import { ViewsMenu } from '../screens/views-menu';
 import { SessionsSheet } from './sessions-sheet';
 import {
   InviteForm,
@@ -75,6 +78,7 @@ export function UsersScreen({
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
   const [open, setOpen] = useState<Open | undefined>();
   const { load, pending, failure } = useQuery<UserPageDto>();
+  const view = useGridView({ density: 'comfortable' });
 
   const close = () => {
     setOpen(undefined);
@@ -100,15 +104,18 @@ export function UsersScreen({
       header: t('columns.name'),
       primary: true,
       cell: (u) => (u.id === selfId ? t('you', { name: u.displayName }) : u.displayName),
+      sortValue: (u) => u.displayName,
     },
     {
       id: 'email',
       header: t('columns.email'),
       cell: (u) => <span className="break-all">{u.email}</span>,
+      sortValue: (u) => u.email,
     },
     {
       id: 'status',
       header: t('columns.status'),
+      sortValue: (u) => t(`status.${u.status}`),
       cell: (u) => (
         <StatusBadge tone={STATUS_TONE[u.status]}>{t(`status.${u.status}`)}</StatusBadge>
       ),
@@ -136,12 +143,14 @@ export function UsersScreen({
       id: 'authenticator',
       header: t('columns.authenticator'),
       cell: (u) => (u.twoFactorEnabled ? t('authenticatorOn') : t('authenticatorOff')),
+      sortValue: (u) => (u.twoFactorEnabled ? t('authenticatorOn') : t('authenticatorOff')),
     },
     {
       id: 'lastSignIn',
       header: t('columns.lastSignIn'),
       numeric: true,
       cell: (u) => (u.lastLoginAt === null ? common('never') : formatDateTime(u.lastLoginAt)),
+      sortValue: (u) => (u.lastLoginAt === null ? null : Date.parse(u.lastLoginAt)),
     },
     {
       id: 'actions',
@@ -167,8 +176,17 @@ export function UsersScreen({
       <DataGrid
         caption={t('caption')}
         columns={columns}
-        rows={rows}
+        rows={sortRows(rows, columns, view.grid.sort)}
         rowKey={(u) => u.id}
+        {...view.grid}
+        toolbar={
+          <ViewsMenu
+            screen="team_members"
+            current={view.settings}
+            standard={view.standard}
+            onApply={view.apply}
+          />
+        }
         empty={
           <EmptyState
             message={t('empty')}
