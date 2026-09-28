@@ -44,6 +44,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type en from '../../../messages/en.json';
 import { contrastRows, formatRatio, type ContrastRow } from '../../design/contrast-pairs';
 import { NAV_ITEMS } from '../../nav';
+import { GridViewsPreview } from './grid-views-preview';
 
 /**
  * The design namespace, handed over by the server page as plain strings: only this page needs
@@ -252,6 +253,10 @@ export function ComponentGallery({
           rowKey={(r) => r.id}
           empty={<EmptyState icon={<CalendarCheck />} message={copy.failingEmpty} />}
         />
+      </Section>
+
+      <Section title={copy.gridViews.title}>
+        <GridViewsPreview copy={copy.gridViews} stages={copy.stage} />
       </Section>
 
       <Section title={copy.overlays}>

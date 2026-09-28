@@ -428,7 +428,52 @@
     "close": "Close",
     "emptyStates": "Empty states and loading",
     "emptyMessage": "No calls due right now. New leads appear here as they come in.",
-    "emptyAction": "Add a lead"
+    "emptyAction": "Add a lead",
+    "gridViews": {
+      "title": "Sorting, columns, selection and saved views",
+      "intro": "These rows show how a list behaves; they are not records. Views saved here stay on this page only and are gone when you leave it.",
+      "caption": "Pump enquiries by village",
+      "colVillage": "Village",
+      "colProduct": "Product",
+      "colSize": "Size",
+      "colCompany": "Company",
+      "colStage": "Stage",
+      "size": "{hp} HP",
+      "selectAll": "Select all loaded enquiries",
+      "selectRow": "Select the enquiry from {village}",
+      "rows": {
+        "chomu": {
+          "village": "Chomu",
+          "product": "Solar submersible pump",
+          "company": "Agro Solar Hub"
+        },
+        "kishangarh": {
+          "village": "Kishangarh Renwal",
+          "product": "Surface pump",
+          "company": "Shakti Motor Pumps"
+        },
+        "phagi": {
+          "village": "Phagi",
+          "product": "Solar submersible pump",
+          "company": "Agro Solar Hub"
+        },
+        "bassi": {
+          "village": "Bassi",
+          "product": "Borewell submersible pump",
+          "company": "Shakti Supreme"
+        },
+        "dudu": {
+          "village": "Dudu",
+          "product": "Solar surface pump",
+          "company": "Agro Solar Hub"
+        },
+        "sanganer": {
+          "village": "Sanganer",
+          "product": "Monoblock pump",
+          "company": "Shakti Motor Pumps"
+        }
+      }
+    }
   },
   "errorPage": {
     "title": "Something went wrong on our side",
