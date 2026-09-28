@@ -12,8 +12,10 @@ import { memoryLogger } from '../ports/logger';
 import { defineCommand } from './define-command';
 import { executeCommand, executeQuery } from './execute';
 import type { Clock } from './timing';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 
-const audited = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const audited = vi.hoisted(() => ({ rows: [] as unknown[], statements: [] as unknown[] }));
 
 vi.mock('@shakti/db', async (importOriginal) => ({
   ...(await importOriginal<typeof DbModule>()),
@@ -26,7 +28,13 @@ vi.mock('@shakti/db', async (importOriginal) => ({
       principal,
       entityIds: scope.entityIds ?? principal.entityIds,
       requestId: scope.requestId ?? 'generated',
-      tx: undefined as unknown as RequestContext['tx'],
+      // The statements a call runs on the transaction itself, in order.
+      tx: {
+        execute: (statement: unknown) => {
+          audited.statements.push(statement);
+          return Promise.resolve([]);
+        },
+      } as unknown as RequestContext['tx'],
     }),
 }));
 
@@ -194,5 +202,21 @@ describe('executeQuery timing', () => {
         },
       },
     ]);
+  });
+
+  it('turns the transaction read-only before the query runs, so the query cannot write', async () => {
+    audited.statements.length = 0;
+    const order: string[] = [];
+    await executeQuery(
+      principal(),
+      { requestId: 'r' },
+      () => {
+        order.push(...audited.statements.map((s) => new PgDialect().sqlToQuery(s as SQL).sql));
+        order.push('query');
+        return Promise.resolve(1);
+      },
+      { name: 'listLeads', logger: memoryLogger(), clock: fakeClock(0) },
+    );
+    expect(order).toEqual(['set transaction read only', 'query']);
   });
 });
