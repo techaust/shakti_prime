@@ -74,7 +74,7 @@ async function existingByPhone(
       const list = found.get(row.phone) ?? [];
       const seen = list.some((m) => m.accountId === row.accountId && m.contactId === row.contactId);
       if (!seen && list.length < MAX_SUGGESTIONS) {
-        list.push({ accountId: row.accountId, contactId: row.contactId, reason: 'phone' });
+        list.push({ accountId: row.accountId, contactId: row.contactId, matchedBy: 'phone' });
       }
       found.set(row.phone, list);
     }
@@ -121,7 +121,11 @@ async function existingByNameAndVillage(
       const key = pairKey(row);
       const list = found.get(key) ?? [];
       if (list.length < MAX_SUGGESTIONS) {
-        list.push({ accountId: row.accountId, contactId: row.contactId, reason: 'name_village' });
+        list.push({
+          accountId: row.accountId,
+          contactId: row.contactId,
+          matchedBy: 'name_village',
+        });
       }
       found.set(key, list);
     }

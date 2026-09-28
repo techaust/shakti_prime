@@ -1,5 +1,5 @@
 import type {
-  ImportDedupeReason,
+  ImportDedupeMatch,
   ImportJobDto,
   ImportJobState,
   ImportMapping,
@@ -294,7 +294,7 @@ export function initialRowView(
 export type RowFinding =
   | { kind: 'error'; field: LeadImportField | 'row'; code: ImportRowErrorCode }
   | { kind: 'sameAsRow'; rowNo: number }
-  | { kind: 'customer'; name: string | undefined; reason: ImportDedupeReason };
+  | { kind: 'customer'; name: string | undefined; matchedBy: ImportDedupeMatch };
 
 /** A row's findings: what is wrong with it, then who it may already be. */
 export function rowFindings(
@@ -317,7 +317,7 @@ export function rowFindings(
       findings.push({
         kind: 'customer',
         name: customers[match.accountId],
-        reason: match.reason,
+        matchedBy: match.matchedBy,
       });
     }
   }

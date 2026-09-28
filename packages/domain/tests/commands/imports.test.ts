@@ -355,7 +355,7 @@ describe('imports: create, map and preview', () => {
     expect(rows[4]?.dedupe).toEqual({
       inFileRowNo: null,
       existing: [
-        { accountId: existing.account.id, contactId: existing.contact?.id, reason: 'phone' },
+        { accountId: existing.account.id, contactId: existing.contact?.id, matchedBy: 'phone' },
       ],
     });
   });
@@ -392,8 +392,8 @@ describe('imports: create, map and preview', () => {
     const rows = await rowsOf(gm, job.id);
     const match = { accountId: namesake.account.id, contactId: namesake.contact?.id };
     expect(rows.map((r) => r.dedupe)).toEqual([
-      { inFileRowNo: null, existing: [{ ...match, reason: 'name_village' }] },
-      { inFileRowNo: null, existing: [{ ...match, reason: 'phone' }] },
+      { inFileRowNo: null, existing: [{ ...match, matchedBy: 'name_village' }] },
+      { inFileRowNo: null, existing: [{ ...match, matchedBy: 'phone' }] },
       null,
       null,
     ]);

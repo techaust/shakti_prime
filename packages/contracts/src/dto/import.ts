@@ -3,7 +3,7 @@ import { ImportMappingSchema } from '../commands/imports/jobs';
 import { EntityIdSchema, IdSchema } from '../ids';
 import {
   ImportCreatedTypeSchema,
-  ImportDedupeReasonSchema,
+  ImportDedupeMatchSchema,
   ImportFormatSchema,
   ImportJobStateSchema,
   ImportKindSchema,
@@ -70,7 +70,7 @@ export const ImportDedupeDto = z
             accountId: IdSchema,
             contactId: IdSchema,
             /** Rows previewed before name and village matching were suggested by phone only. */
-            reason: ImportDedupeReasonSchema.default('phone'),
+            matchedBy: ImportDedupeMatchSchema.default('phone'),
           })
           .strict(),
       )
