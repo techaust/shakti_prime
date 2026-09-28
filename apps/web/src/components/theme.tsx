@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveTheme } from '../actions/profile';
 import { settle } from './screens/settle';
 import type { ErrorKey } from '../i18n/types';
-import { themeCookie } from '../theme';
+import { contrastCookie, HIGH_CONTRAST, themeCookie } from '../theme';
 
 const THEMES = ThemeSchema.options;
 
@@ -132,4 +132,55 @@ export function useForgetThemeOnThisDevice(): () => void {
     setTheme('system');
     rememberOnThisDevice(undefined);
   };
+}
+
+/**
+ * Higher contrast (DESIGN.md §2.1): darker text and stronger outlines for phones used outdoors.
+ * It switches at once and is kept on this device; a browser that blocks cookies keeps it for
+ * this page only.
+ */
+export function ContrastSwitch({ saved }: { saved: boolean }) {
+  const t = useTranslations('theme');
+  const [high, setHigh] = useState(saved);
+
+  function choose(next: boolean) {
+    setHigh(next);
+    const root = document.documentElement;
+    if (next) root.dataset.contrast = HIGH_CONTRAST;
+    else delete root.dataset.contrast;
+    try {
+      document.cookie = contrastCookie(next, window.location.protocol === 'https:');
+    } catch {
+      // the choice lasts until the page is reloaded
+    }
+  }
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="high-contrast" className="font-[510]">
+          {t('highContrast')}
+        </label>
+        <p id="high-contrast-hint" className="text-text-muted text-sm">
+          {t('highContrastHint')}
+        </p>
+      </div>
+      <button
+        id="high-contrast"
+        type="button"
+        role="switch"
+        aria-checked={high}
+        aria-describedby="high-contrast-hint"
+        onClick={() => {
+          choose(!high);
+        }}
+        className="bg-surface-3 border-border-strong aria-checked:bg-accent aria-checked:border-accent focus-visible:outline-focus relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors duration-(--motion-fast) ease-out focus-visible:outline-2 focus-visible:outline-offset-2 before:absolute before:-inset-2.5"
+      >
+        <span
+          aria-hidden
+          className={`bg-surface border-border-strong shadow-1 inline-block size-5 rounded-full border transition-transform duration-(--motion-fast) ease-out ${high ? 'translate-x-5' : 'translate-x-0.5'}`}
+        />
+      </button>
+    </div>
+  );
 }

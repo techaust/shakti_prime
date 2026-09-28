@@ -322,7 +322,9 @@
     "label": "Appearance",
     "system": "Same as device",
     "light": "Light",
-    "dark": "Dark"
+    "dark": "Dark",
+    "highContrast": "Higher contrast",
+    "highContrastHint": "Darker text and stronger outlines, easier to read on a phone in sunlight. Kept on this device only."
   },
   "design": {
     "title": "Design preview",
