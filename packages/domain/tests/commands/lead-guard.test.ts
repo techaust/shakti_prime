@@ -375,4 +375,59 @@ describe('crm.opportunity.assign takes the customer with the lead (0055)', () =>
     );
     expect(types.map((t) => t.type)).toEqual(['opportunity']);
   });
+
+  it('two callers with a lead each both read the customer after a handover (0057)', async () => {
+    const fromUser = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc', teamId }]);
+    const toUser = await createTestUser([
+      { entityId: 1, roleKey: 'tele_caller_lc', teamId: otherTeamId },
+    ]);
+    const from = principalFor('tele_caller_cc', [1], { id: fromUser.id, teamId });
+    const to = principalFor('tele_caller_lc', [1], { id: toUser.id, teamId: otherTeamId });
+    const first = await run(from, createLead, newCustomer(1, digits()));
+    const accountId = first.account.id;
+    const second = await run(from, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: accountId,
+    });
+    const gm = await createTestPrincipal('general_manager', [1]);
+    await run(gm, assignOpportunity, { entityId: 1, opportunityId: second.id, ownerId: to.id });
+    // The relationship went with the lead; the previous owner keeps the first lead and reads the
+    // customer through it.
+    expect((await relationship(accountId))?.owner).toBe(to.id);
+    expect(await reads(to, accountId)).toEqual({ account: 1, site: 1, contact: 1, phone: 1 });
+    expect(await reads(from, accountId)).toEqual({ account: 1, site: 1, contact: 1, phone: 1 });
+  });
+});
+
+describe('a known customer in All-companies mode (0057)', () => {
+  it('is judged in the lead’s company only, so a relationship in another company does not pass the routing', async () => {
+    const holder = await createTestPrincipal('tele_caller_cc', [1], { teamId });
+    const caller = await createTestPrincipal('tele_caller_cc', [1, 2]);
+    const known = await run(holder, createLead, newCustomer(1, digits()));
+    const existing = (entityId: number) => ({
+      entityId,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: known.account.id,
+    });
+    // The caller takes the customer on in company 2, acting there.
+    const inTwo = await asPrincipal({ ...caller, entityIds: [2] }, (context) =>
+      runCommand(createLead, { context, audit, outbox }, existing(2)),
+    );
+    expect(inTwo.account.id).toBe(known.account.id);
+    // Acting for both companies, a lead in company 1, where the holder looks after the customer,
+    // goes to the holder; before 0057 the caller's company-2 relationship answered already_yours.
+    await expect(run(caller, createLead, existing(1))).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'customer_held_by_colleague' },
+    });
+    // A repeat enquiry in company 2, the caller's own there, still goes through.
+    const again = await run(caller, createLead, existing(2));
+    expect(again.account.id).toBe(known.account.id);
+    const [links] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from account_entities where account_id = ${known.account.id}`,
+    );
+    expect(links?.n).toBe(2);
+  });
 });

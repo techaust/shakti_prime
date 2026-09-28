@@ -197,8 +197,8 @@ beforeAll(async () => {
   }
   // A customer of company 1 that company 2 also serves (ADR 0008).
   await newLead(people.gm2, 2, '', '', { existingAccountId: mine.account.id });
-  // A lead handed to the caller whose customer's relationship the teammate still owns: the caller
-  // reads the lead but not the customer, and the search joins the customer.
+  // A lead handed to the caller whose customer's relationship the teammate still owns: since 0057
+  // the caller reads the customer through the lead, and the search finds it.
   const handed = await newLead(people.teammate, 1, `${tag} Handed`, village);
   // An archived lead, which the search never shows.
   const archived = await newLead(people.caller, 1, `${tag} Kept`, village);
@@ -234,6 +234,7 @@ const CALLERS = [
   'tele-caller, teammate',
   'agent that reads leads and customers',
   'agent that reads leads only',
+  'co-pilot agent, reads leads only',
 ] as const;
 
 function caller(label: (typeof CALLERS)[number]): Principal {
@@ -254,6 +255,8 @@ function caller(label: (typeof CALLERS)[number]): Principal {
       return principalFor('agent:chief', ALL_ENTITY_IDS);
     case 'agent that reads leads only':
       return principalFor('agent:triage', [1, 2]);
+    case 'co-pilot agent, reads leads only':
+      return principalFor('agent:copilot', ALL_ENTITY_IDS);
   }
 }
 
@@ -276,8 +279,9 @@ describe('the lead search through app.lead_search_ids() answers as the query it 
         compared += before.length;
       }
     }
-    // The texts do find leads for every caller that reads customers.
-    if (label !== 'agent that reads leads only') expect(compared).toBeGreaterThan(0);
+    // The texts do find leads for every caller that reads customers. An agent never reads a
+    // customer through its leads (0057), so the agents that read leads only find none.
+    if (!label.includes('reads leads only')) expect(compared).toBeGreaterThan(0);
   });
 
   it('finds the seeded leads it should, so the comparison is not of two empty answers', async () => {
@@ -286,8 +290,11 @@ describe('the lead search through app.lead_search_ids() answers as the query it 
       expect.arrayContaining([tag, `${tag} Joshi`, `Shri ${tag}`, `${tag} Patil`]),
     );
     const { after: own } = await bothAnswers(people.caller, tag, 20);
-    // The handed lead's customer is not readable to the caller; the archived lead is never shown.
-    expect(own.map((h) => h.customerName).sort()).toEqual([tag, `${tag} Joshi`].sort());
+    // The handed lead's customer is readable through the lead (0057); the archived lead is never
+    // shown.
+    expect(own.map((h) => h.customerName).sort()).toEqual(
+      [tag, `${tag} Joshi`, `${tag} Handed`].sort(),
+    );
     const { after: company2 } = await bothAnswers(people.gm2, tag, 20);
     expect(company2.every((h) => h.entityId === 2)).toBe(true);
     expect(company2).toHaveLength(3);
