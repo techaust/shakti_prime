@@ -29,6 +29,21 @@ export {
   IDENTITY_FIXTURE_USER_ID,
 } from './catalogue-fixture';
 export type { CatalogueFixture } from './catalogue-fixture';
+export {
+  entityMatrixFixture,
+  removeEntityMatrixFixture,
+  ENTITY_MATRIX_AUDIT_COMMAND,
+  ENTITY_MATRIX_FIXTURE_PREFIX,
+  GROUP_WIDE_SHARED_TABLES,
+  MATRIX_ROW_KEY,
+} from './entity-matrix-fixture';
+export type {
+  EntityMatrixFixture,
+  EntityTable,
+  GroupWideSharedTable,
+  MatrixRow,
+  MatrixTable,
+} from './entity-matrix-fixture';
 
 /** Migrate and seed. Idempotent, so every suite's globalSetup can call it. */
 export async function prepareDatabase(): Promise<void> {
