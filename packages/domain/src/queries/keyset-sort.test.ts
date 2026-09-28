@@ -14,8 +14,13 @@ const keys: SortKeys<'name' | 'seen' | 'on'> = {
   on: { expr: sql`"is_on"`, type: 'boolean', nullable: false },
 };
 const id = sql`"id"`;
-const byName = keysetOrder(keys, id, undefined, { column: 'name', direction: 'asc' });
-const bySeenDown = keysetOrder(keys, id, { column: 'seen', direction: 'desc' }, byName);
+type Column = 'name' | 'seen' | 'on';
+const listOrder: { column: Column; direction: 'asc' | 'desc' } = {
+  column: 'name',
+  direction: 'asc',
+};
+const byName = keysetOrder(keys, id, undefined, listOrder);
+const bySeenDown = keysetOrder(keys, id, { column: 'seen', direction: 'desc' }, listOrder);
 
 describe('keysetOrder', () => {
   it('takes the asked-for column, or the list’s own order', () => {
@@ -61,7 +66,7 @@ describe('afterCursor and nextCursor', () => {
     expect(() => afterCursor(bySeenDown, named)).toThrow(
       expect.objectContaining({ code: 'validation_failed' }),
     );
-    const onOrder = keysetOrder(keys, id, { column: 'on', direction: 'asc' }, byName);
+    const onOrder = keysetOrder(keys, id, { column: 'on', direction: 'asc' }, listOrder);
     const forged = encodeCursor({ s: 'on.asc', v: 'yes', id: newId() });
     expect(() => afterCursor(onOrder, forged)).toThrow(
       expect.objectContaining({ code: 'validation_failed' }),

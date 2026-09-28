@@ -31,8 +31,11 @@ const MIN_ID = '00000000-0000-7000-8000-000000000000';
 const MAX_ID = 'ffffffff-ffff-7fff-bfff-ffffffffffff';
 /** A count range no other run uses. */
 const base = 100_000_000 + Math.floor(Math.random() * 800_000_000);
-/** A day in the far future no other run uses, as epoch milliseconds. */
-const day = Date.UTC(2900, 0, 1) + Math.floor(Math.random() * 36_000) * 86_400_000;
+/**
+ * A day in the last century no other run uses, as epoch milliseconds: in the past, so these rows
+ * never come first in a list other suites read newest first.
+ */
+const day = Date.UTC(1900, 0, 1) + Math.floor(Math.random() * 36_000) * 86_400_000;
 const when = (seconds: number) => new Date(day + seconds * 1000).toISOString();
 
 type Direction = 'asc' | 'desc';

@@ -534,7 +534,9 @@ describe('command and query actions answer a result, never a thrown error (revie
   });
 
   it('search the palette for leads and, for an Executive only, team members', async () => {
-    const tag = `palette${newId().slice(-8)}`;
+    // Long and random: the search also matches by spelling, and short tags that share the
+    // "palette" start would resemble the ones earlier runs left behind.
+    const tag = `palette${newId().slice(-12)}${newId().slice(-12)}`;
     request.principal = await createTestPrincipal('tele_caller_cc', [3]);
     const created = ok(
       await createLead({ ...lead(3), contact: { name: `Kamla ${tag}`, phone: '9812345678' } }),
