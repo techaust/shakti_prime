@@ -82,6 +82,7 @@ const ACTIONS = {
   'profile.view.save': 'viewSave',
   'profile.view.delete': 'viewDelete',
   'realtime.token.issue': 'liveUpdatesOpen',
+  'profile.contrast.set': 'contrastSet',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',

@@ -26,6 +26,7 @@ const principal: Principal = {
 const access: UserAccess = {
   status: 'active',
   theme: 'system',
+  contrast: 'standard',
   name: 'Suman Rathore',
   email: 'suman@shakti.example',
   twoFactorEnabled: true,

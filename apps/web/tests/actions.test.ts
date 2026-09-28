@@ -80,6 +80,7 @@ const {
 } = await import('../src/actions/crm');
 const { listEntities, updateEntity } = await import('../src/actions/org');
 const { searchPalette } = await import('../src/actions/search');
+const { saveContrast } = await import('../src/actions/profile');
 const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
 const {
   clearSignInLock,
@@ -501,6 +502,35 @@ describe('command and query actions answer a result, never a thrown error (revie
     const options = ok(await leadFormOptions());
     expect(options.pipelines.map((p) => p.key)).toContain('farmer_pumps');
     expect(options.sources.length).toBeGreaterThan(0);
+  });
+
+  it('save the contrast on the caller profile once per key and drop the cached principal', async () => {
+    await expect(saveContrast({ contrast: 'high' })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
+    const user = await createTestUser([{ entityId: 1, roleKey: 'field_engineer' }]);
+    request.principal = principalFor('field_engineer', [1], { id: user.id });
+    const key = crypto.randomUUID();
+    expect(ok(await saveContrast({ contrast: 'high' }, key))).toEqual({ contrast: 'high' });
+    expect(ok(await saveContrast({ contrast: 'high' }, key))).toEqual({ contrast: 'high' });
+    expect(request.forgotten).toContain(user.id);
+    const [row] = await asMigrator(
+      (m) => m<{ contrast: string }[]>`select contrast from users where id = ${user.id}`,
+    );
+    expect(row?.contrast).toBe('high');
+    const [audit] = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from audit_logs
+        where actor_principal_id = ${user.id} and command = 'profile.contrast.set' and outcome = 'ok'`,
+    );
+    expect(audit?.n).toBe(1);
+    await expect(saveContrast({ contrast: 'maximum' })).resolves.toMatchObject({
+      ok: false,
+      field: 'contrast',
+    });
+    expect(ok(await saveContrast({ contrast: 'standard' }, crypto.randomUUID()))).toEqual({
+      contrast: 'standard',
+    });
   });
 
   it('search the palette for leads and, for an Executive only, team members', async () => {

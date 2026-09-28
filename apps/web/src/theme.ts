@@ -9,10 +9,9 @@ export const THEME_STORAGE_KEY = 'theme';
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 
 /**
- * The higher-contrast choice (DESIGN.md §2.1, the variant for field phones in daylight), kept on
- * this device only: the profile's theme column allows System, Light and Dark and nothing else,
- * so a per-person setting waits for its own column. A cookie, not browser storage, so the server
- * draws the first paint in it.
+ * Mirror of the profile's higher-contrast choice (DESIGN.md §2.1, the variant for field phones in
+ * daylight) for server rendering, as `THEME_COOKIE` mirrors the theme: a cookie, not browser
+ * storage, so the server draws the first paint in it. The profile (`users.contrast`) is the record.
  */
 export const CONTRAST_COOKIE = 'contrast';
 

@@ -376,6 +376,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
       additionalFields: {
         phone: { type: 'string', required: false, input: false },
         theme: { type: 'string', required: false, input: false, defaultValue: 'system' },
+        contrast: { type: 'string', required: false, input: false, defaultValue: 'standard' },
         status: { type: 'string', required: false, input: false, defaultValue: 'invited' },
         lastLoginAt: { type: 'date', required: false, input: false },
       },
