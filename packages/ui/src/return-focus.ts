@@ -15,32 +15,82 @@ export type FocusCandidate = HTMLElement | null | undefined;
 /** Read when the dialog closes, after the screen has redrawn, so moved elements are found. */
 export type ReturnFocusTo = () => readonly (FocusCandidate | readonly FocusCandidate[])[];
 
-/** What the pattern reads of an element, so the rules run without a browser in the tests. */
-type Focusable = Pick<HTMLElement, 'isConnected' | 'getClientRects'> & { disabled?: unknown };
+/**
+ * What the pattern reads of an element, so the rules run without a browser in the tests. The
+ * optional parts are always there on a real element; a stand-in may leave them out.
+ */
+type Focusable = Pick<HTMLElement, 'isConnected' | 'getClientRects'> & {
+  disabled?: unknown;
+  tabIndex?: number;
+  hasAttribute?: (name: string) => boolean;
+  matches?: (selectors: string) => boolean;
+  closest?: (selectors: string) => unknown;
+  checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
+};
 
-/** On the page, shown (not `display: none`, as a hidden phone column is) and not disabled. */
+/** Ancestors, the element included, that keep everything inside them from taking focus. */
+const BLOCKED_INSIDE = '[inert], [aria-disabled="true"]';
+
+/** Shown: not `display: none` (as a hidden phone column is) and not `visibility: hidden`. */
+function shown(el: Focusable): boolean {
+  if (el.getClientRects().length === 0) return false;
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ visibilityProperty: true });
+  }
+  // A browser without checkVisibility still reports the visibility the element ends up with.
+  if (typeof Element === 'function' && el instanceof Element) {
+    return getComputedStyle(el).visibility === 'visible';
+  }
+  return true;
+}
+
+/**
+ * On the page, shown, not disabled (itself, by a disabled fieldset or by `aria-disabled`), not
+ * inside an `inert` part of the page, and focusable at all: a control, or an element given a
+ * `tabindex`, as a fallback heading is.
+ */
 export function canTakeFocus(el: Focusable): boolean {
-  return el.isConnected && el.getClientRects().length > 0 && el.disabled !== true;
+  if (!el.isConnected || !shown(el)) return false;
+  if (el.disabled === true || el.matches?.(':disabled') === true) return false;
+  if (el.closest !== undefined && el.closest(BLOCKED_INSIDE) !== null) return false;
+  const reachable = el.tabIndex === undefined || el.tabIndex >= 0;
+  return reachable || el.hasAttribute?.('tabindex') === true;
+}
+
+/** The places that can take focus now, in the order given. */
+export function focusableCandidates(
+  candidates: readonly (FocusCandidate | readonly FocusCandidate[])[],
+): HTMLElement[] {
+  const found: HTMLElement[] = [];
+  for (const entry of candidates) {
+    const group: readonly FocusCandidate[] = Array.isArray(entry)
+      ? (entry as readonly FocusCandidate[])
+      : [entry as FocusCandidate];
+    for (const el of group) {
+      if (el !== null && el !== undefined && canTakeFocus(el)) found.push(el);
+    }
+  }
+  return found;
 }
 
 /** The first of the places, in order, that can take focus now. */
 export function firstFocusable(
   candidates: readonly (FocusCandidate | readonly FocusCandidate[])[],
 ): HTMLElement | undefined {
-  for (const entry of candidates) {
-    const group: readonly FocusCandidate[] = Array.isArray(entry)
-      ? (entry as readonly FocusCandidate[])
-      : [entry as FocusCandidate];
-    for (const el of group) {
-      if (el !== null && el !== undefined && canTakeFocus(el)) return el;
-    }
-  }
-  return undefined;
+  return focusableCandidates(candidates)[0];
+}
+
+/** Whether focus is on the element now; a stand-in without a document never has it. */
+function holdsFocus(el: HTMLElement): boolean {
+  const doc = (el as { ownerDocument?: Pick<Document, 'activeElement'> | null }).ownerDocument;
+  return doc?.activeElement === el;
 }
 
 /**
  * The dialog's `onCloseAutoFocus`: the caller's own handler first, then focus to the first place
- * that can take it. When none can, Radix's own return runs unchanged.
+ * that takes it. A place that looked able but did not take focus is passed over for the next.
+ * Radix's own return is stopped only once focus has landed, so when no place takes it, that
+ * return runs unchanged.
  */
 export function returnFocusHandler(
   returnFocusTo: ReturnFocusTo | undefined,
@@ -49,10 +99,13 @@ export function returnFocusHandler(
   return (event) => {
     onCloseAutoFocus?.(event);
     if (event.defaultPrevented || returnFocusTo === undefined) return;
-    const target = firstFocusable(returnFocusTo());
-    if (target === undefined) return;
-    event.preventDefault();
-    target.focus();
+    for (const target of focusableCandidates(returnFocusTo())) {
+      target.focus();
+      if (holdsFocus(target)) {
+        event.preventDefault();
+        return;
+      }
+    }
   };
 }
 
@@ -67,12 +120,24 @@ export interface FocusTargets<K> {
   get: (key: K) => HTMLElement[];
 }
 
+type FocusRef = (el: HTMLElement | null) => (() => void) | undefined;
+
 export function createFocusTargets<K>(): FocusTargets<K> {
   const filed = new Map<K, HTMLElement[]>();
-  const refs = new Map<K, (el: HTMLElement | null) => (() => void) | undefined>();
+  const refs = new Map<K, FocusRef>();
+  /**
+   * A key with nothing left on the page is dropped with its ref, so a long-lived screen does not
+   * keep an entry for every row it ever drew. `ref` names the ref whose element left: the key's
+   * ref is dropped only while it is still that one.
+   */
+  const forget = (key: K, ref?: FocusRef) => {
+    filed.delete(key);
+    if (ref === undefined || refs.get(key) === ref) refs.delete(key);
+  };
+  const connected = (key: K) => (filed.get(key) ?? []).filter((el) => el.isConnected);
   const onPage = (key: K) => {
-    const kept = (filed.get(key) ?? []).filter((el) => el.isConnected);
-    if (kept.length === 0) filed.delete(key);
+    const kept = connected(key);
+    if (kept.length === 0) forget(key);
     else filed.set(key, kept);
     return kept;
   };
@@ -80,15 +145,19 @@ export function createFocusTargets<K>(): FocusTargets<K> {
     ref(key) {
       let ref = refs.get(key);
       if (ref === undefined) {
-        ref = (el) => {
+        const made: FocusRef = (el) => {
           if (el === null) return undefined;
-          filed.set(key, [el, ...onPage(key).filter((e) => e !== el)]);
+          // An element attached through this ref keeps it the key's one ref, even when the key's
+          // last other element has just left and dropped it (a card moved to another column).
+          refs.set(key, made);
+          filed.set(key, [el, ...connected(key).filter((e) => e !== el)]);
           return () => {
             const rest = (filed.get(key) ?? []).filter((e) => e !== el);
-            if (rest.length === 0) filed.delete(key);
+            if (rest.length === 0) forget(key, made);
             else filed.set(key, rest);
           };
         };
+        ref = made;
         refs.set(key, ref);
       }
       return ref;
