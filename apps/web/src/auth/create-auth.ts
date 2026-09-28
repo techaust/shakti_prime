@@ -15,12 +15,14 @@ import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/a
 import { nextCookies } from 'better-auth/next-js';
 import { haveIBeenPwned, twoFactor } from 'better-auth/plugins';
 import { and, eq, isNull, like, ne } from 'drizzle-orm';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'node:crypto';
 import { recordAuthEvent, type AuthEvent } from './audit-events';
 import { generateBackupCodes } from './backup-codes';
 import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
+import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
   TURNSTILE_HEADER,
   TURNSTILE_RESET_ACTION,
@@ -135,7 +137,7 @@ const AUTH_ERROR_CODES = {
  * before hook, so they hold for the HTTP routes and for in-process calls alike. The set-password
  * cap is also counted per link (AUDIT M27), so one office can onboard a whole team.
  */
-const RATE_LIMIT_RULES: Record<string, { window: number; max: number }> = {
+const RATE_LIMIT_RULES: Record<string, CapRule> = {
   [SIGN_IN_PATH]: { window: 15 * 60, max: 100 },
   [RESET_REQUEST_PATH]: { window: 15 * 60, max: 3 },
   [RESET_PATH]: { window: 15 * 60, max: 30 },
@@ -207,19 +209,26 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     );
 
   /** Fixed-window cap per key, counted in the shared store. */
-  async function cap(key: string, rule: { window: number; max: number }): Promise<void> {
+  async function cap(key: string, rule: CapRule): Promise<void> {
     if (!capsOn) return;
-    const count = await deps.keyValue.incr(`cap:${key}`, rule.window);
-    if (count > rule.max) throw tooMany(rule.window);
+    const counted = await countRequest(deps.keyValue, key, rule);
+    if (!counted.allowed) throw tooMany(counted.retryAfter);
   }
 
+  /**
+   * A call without headers comes from our own server code (an invite), never from a client, so
+   * only calls with headers are counted per address. One whose address cannot be read is counted
+   * under a key shared per path, so an unreadable address never lifts the cap.
+   */
   async function applyRequestCaps(
     path: string,
-    address: string | undefined,
+    headers: Headers | undefined,
     body: unknown,
   ): Promise<void> {
     const rule = RATE_LIMIT_RULES[path];
-    if (rule !== undefined && address !== undefined) await cap(`${path}:${address}`, rule);
+    if (rule !== undefined && headers !== undefined) {
+      await cap(`${path}:${addressKey(clientAddress(headers))}`, rule);
+    }
     if (path === RESET_PATH) {
       const token = (body as { token?: unknown } | undefined)?.token;
       if (typeof token === 'string') await cap(`${path}:link:${sha256(token)}`, RESET_PER_LINK);
@@ -453,12 +462,27 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
         }
         const t = mailTranslator();
         const kind = invited ? 'setPassword' : 'resetPassword';
+        const message = {
+          to: user.email,
+          subject: t(`${kind}.subject`),
+          text: t(`${kind}.body`, { name: user.name, url }),
+        };
+        const defer = resetMailDeferral.getStore();
+        if (defer !== undefined) {
+          // "Forgot your password?": the answer does not wait for the mail, so how long it takes
+          // does not say whether the address has an account. A failure is logged, never shown;
+          // nobody reads the invite's failure marker for this send, so none is left.
+          defer(
+            Promise.resolve()
+              .then(() => deps.mailer.send(message))
+              .catch((error: unknown) => {
+                log.log('error', 'auth.mail_failed', { kind, error });
+              }),
+          );
+          return;
+        }
         try {
-          await deps.mailer.send({
-            to: user.email,
-            subject: t(`${kind}.subject`),
-            text: t(`${kind}.body`, { name: user.name, url }),
-          });
+          await deps.mailer.send(message);
         } catch (error) {
           // Better Auth logs and swallows a failed send, so the invite action could not tell
           // the Executive; the failure is recorded for it to read (AUDIT M26).
@@ -511,7 +535,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           if (actorId !== undefined) requestActors.set(ctx.headers, actorId);
         }
         const address = clientAddress(ctx.headers);
-        await applyRequestCaps(ctx.path, address, ctx.body);
+        await applyRequestCaps(ctx.path, ctx.headers, ctx.body);
         if (ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH) {
           const body = ctx.body as { trustDevice?: unknown } | undefined;
           if (body?.trustDevice === true) {
@@ -689,6 +713,23 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/** Where a set-password mail goes when the caller must not wait for it (see below). */
+const resetMailDeferral = new AsyncLocalStorage<(task: Promise<void>) => void>();
+
+/**
+ * Runs a password-reset request whose mail is handed to `defer` instead of being awaited: the
+ * "Forgot your password?" screen, which answers the same for every address, so the send must not
+ * lengthen the answer for an address that has an account. `defer` keeps the platform running the
+ * send after the answer (`after()` in a server action). An invite does not use this: it waits for
+ * the mail, so it can tell the Executive when the mail did not go out (AUDIT M26).
+ */
+export function withResetMailInBackground<T>(
+  defer: (task: Promise<void>) => void,
+  request: () => Promise<T>,
+): Promise<T> {
+  return resetMailDeferral.run(defer, request);
+}
 
 const MAIL_FAILED_SECONDS = 5 * 60;
 const mailFailedKey = (userId: string) => `mail-failed:${userId}`;

@@ -7,7 +7,7 @@ import { createAuth, type Auth } from '../src/auth/create-auth';
 import { requirePrincipal, resolveSessionPrincipal } from '../src/auth/session-principal';
 import { TURNSTILE_HEADER } from '../src/auth/turnstile';
 import { JwksResponse, RealtimeTokenResponse } from '../src/realtime/claims';
-import { issueRealtimeToken, jwksDocument } from '../src/realtime/handlers';
+import { issueRealtimeToken, jwksDocument, REALTIME_TOKEN_CAP } from '../src/realtime/handlers';
 import { issueGrantThroughCommand } from '../src/realtime/issue';
 import type { Env } from '../src/realtime/keys';
 import { newSigningKeyJson } from '../src/realtime/test-keys';
@@ -94,14 +94,27 @@ function principalFrom(cookie: string | undefined, activeEntity?: number) {
     );
 }
 
-const call = (principal: ReturnType<typeof principalFrom>) =>
-  issueRealtimeToken(
-    new Request(`${ISSUER}/api/v1/realtime/token`, {
-      method: 'POST',
-      headers: { origin: ISSUER },
-    }),
-    { principal, issue: issueGrantThroughCommand, env, now: () => clock },
+const call = (
+  principal: ReturnType<typeof principalFrom>,
+  headers: Record<string, string> = { origin: ISSUER },
+) =>
+  issueRealtimeToken(new Request(`${ISSUER}/api/v1/realtime/token`, { method: 'POST', headers }), {
+    principal,
+    issue: issueGrantThroughCommand,
+    keyValue,
+    env,
+    now: () => clock,
+  });
+
+/** How many tokens the audit trail shows issued to this person. */
+async function tokensAuditedFor(userId: string): Promise<number> {
+  const [row] = await asMigrator(
+    (m) => m<{ n: number }[]>`
+      select count(*)::int as n from audit_logs
+       where command = 'realtime.token.issue' and actor_principal_id = ${userId}`,
   );
+  return row?.n ?? 0;
+}
 
 async function auditRowsOf(jti: string) {
   return asMigrator(
@@ -185,5 +198,24 @@ describe('POST /api/v1/realtime/token with a real session', () => {
     expect(ErrorEnvelope.parse(await response.json()).error.details).toEqual({
       reason: 'totp_required',
     });
+  });
+
+  it('refuses a call with the session cookie but no Origin, and audits nothing', async () => {
+    const { user, cookie } = await signedInCookie([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    const response = await call(principalFrom(cookie), {});
+    expect(response.status).toBe(403);
+    expect(ErrorEnvelope.parse(await response.json()).error.code).toBe('forbidden');
+    expect(await tokensAuditedFor(user.id)).toBe(0);
+  });
+
+  it('caps the tokens one person is issued, so the Activity log cannot be flooded', async () => {
+    const { user, cookie } = await signedInCookie([{ entityId: 2, roleKey: 'field_engineer' }]);
+    for (let i = 0; i < REALTIME_TOKEN_CAP.max; i += 1) {
+      expect((await call(principalFrom(cookie))).status).toBe(200);
+    }
+    const refused = await call(principalFrom(cookie));
+    expect(refused.status).toBe(429);
+    expect(ErrorEnvelope.parse(await refused.json()).error.code).toBe('rate_limited');
+    expect(await tokensAuditedFor(user.id)).toBe(REALTIME_TOKEN_CAP.max);
   });
 });

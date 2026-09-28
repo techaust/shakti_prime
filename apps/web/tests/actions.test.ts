@@ -229,6 +229,36 @@ describe('server actions (AUDIT M41)', () => {
     ]);
   });
 
+  it('record the platform’s request id, never one the caller chose, and no unsafe id', async () => {
+    const auditedRequestIds = async (actorPrincipalId: string) => {
+      request.principal = await createTestPrincipal('executive');
+      const now = Date.now();
+      const page = ok(
+        await listAuditLog({
+          from: new Date(now - 60_000).toISOString(),
+          to: new Date(now + 60_000).toISOString(),
+          actorPrincipalId,
+        }),
+      );
+      return page.items.map((item) => item.requestId);
+    };
+
+    const onVercel = await createTestPrincipal('tele_caller_cc', [1]);
+    request.principal = onVercel;
+    const platformId = `bom1::${onVercel.id}`;
+    request.headers = new Headers({ 'x-vercel-id': platformId, 'x-request-id': 'chosen-id' });
+    ok(await createLead(lead(1)));
+    expect(await auditedRequestIds(onVercel.id)).toEqual([platformId]);
+
+    const unsafe = await createTestPrincipal('tele_caller_cc', [1]);
+    request.principal = unsafe;
+    request.headers = new Headers({ 'x-request-id': 'chosen id with spaces' });
+    ok(await createLead(lead(1)));
+    const [made] = await auditedRequestIds(unsafe.id);
+    expect(made).not.toBe('chosen id with spaces');
+    expect(made).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it('store the events of a change with it and have the publisher deliver them after the commit', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const created = ok(await createLead(lead(1)));
@@ -305,6 +335,40 @@ describe('server actions (AUDIT M41)', () => {
     try {
       const user = ok(await resetTwoFactor({ userId: target.id }));
       expect(user.twoFactorEnabled).toBe(false);
+    } finally {
+      send.mockRestore();
+    }
+  });
+
+  it('tell the user once when two resets race, and once for a form sent twice', async () => {
+    request.principal = await createTestPrincipal('executive');
+    const enrolled = async () => {
+      const target = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+        twoFactorEnabled: true,
+      });
+      await asMigrator(
+        (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
+                 values (${crypto.randomUUID()}, ${target.id}, 'sealed', 'sealed')`,
+      );
+      return target;
+    };
+    const send = vi.spyOn(defaultAuthDeps().mailer, 'send');
+    try {
+      // Two tabs, two keys: the command decides in its own transaction which one removed the app.
+      const raced = await enrolled();
+      const both = await Promise.all([
+        resetTwoFactor({ userId: raced.id }, crypto.randomUUID()),
+        resetTwoFactor({ userId: raced.id }, crypto.randomUUID()),
+      ]);
+      for (const result of both) expect(ok(result).twoFactorEnabled).toBe(false);
+      expect(send.mock.calls.filter(([mail]) => mail.to === raced.email)).toHaveLength(1);
+
+      // One form sent twice with one key replays the first answer, and sends no second email.
+      const repeated = await enrolled();
+      const key = crypto.randomUUID();
+      ok(await resetTwoFactor({ userId: repeated.id }, key));
+      ok(await resetTwoFactor({ userId: repeated.id }, key));
+      expect(send.mock.calls.filter(([mail]) => mail.to === repeated.email)).toHaveLength(1);
     } finally {
       send.mockRestore();
     }

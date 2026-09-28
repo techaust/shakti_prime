@@ -2,6 +2,7 @@ import { closeAuthDb } from '@shakti/db/auth';
 import { closeDb, createTestUser } from '@shakti/db/testing';
 import { memoryKeyValue, memoryMailer } from '@shakti/domain';
 import { createHmac } from 'node:crypto';
+import type * as NextServer from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The sign-in and account form actions of `actions/auth.ts`, driven as the screens call them,
@@ -14,13 +15,28 @@ interface RequestState {
   headers: Headers;
   jar: Map<string, string>;
   auth: unknown;
+  /** What the actions handed to `after()`: work the platform finishes after the answer. */
+  background: Promise<unknown>[];
 }
 
 const request = vi.hoisted((): RequestState => ({
   headers: new Headers(),
   jar: new Map(),
   auth: undefined,
+  background: [],
 }));
+
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof NextServer>()),
+  after: (task: Promise<unknown>) => {
+    request.background.push(task);
+  },
+}));
+
+/** Lets the work handed to `after()` finish, as the platform does once the answer is sent. */
+async function finishBackground(): Promise<void> {
+  await Promise.all(request.background.splice(0));
+}
 
 vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(request.headers),
@@ -63,7 +79,20 @@ const {
   verifyTwoFactor,
 } = await import('../src/actions/auth');
 
-const mailer = memoryMailer();
+const delivered = memoryMailer();
+/** A mail service the tests can hold up or fail, to prove the forgot-password answer waits for neither. */
+const outgoing: { hold: Promise<void> | undefined; fail: boolean } = {
+  hold: undefined,
+  fail: false,
+};
+const mailer = {
+  sent: delivered.sent,
+  async send(message: Parameters<typeof delivered.send>[0]): Promise<void> {
+    if (outgoing.hold !== undefined) await outgoing.hold;
+    if (outgoing.fail) throw new Error('mail service down');
+    await delivered.send(message);
+  },
+};
 // Long enough to satisfy Better Auth, low-entropy so the secret scan does not mistake it for a key.
 const TEST_AUTH_SECRET = 'test-only-secret-for-the-form-actions-test-only';
 const GOOD_PASSWORD = 'monsoon pump 2026 river';
@@ -145,6 +174,7 @@ function lastLinkSecret(): string {
 async function personWithPassword(roleKey: 'tele_caller_cc' | 'accounts') {
   const user = await createTestUser([{ entityId: 1, roleKey }], { status: 'invited' });
   await requestNewPassword({}, form({ email: user.email, 'cf-turnstile-response': 'ok:reset' }));
+  await finishBackground();
   const done = await setPassword(
     {},
     form({ password: GOOD_PASSWORD, confirm: GOOD_PASSWORD, token: lastLinkSecret() }),
@@ -194,6 +224,47 @@ describe('requestNewPassword and setPassword', () => {
         form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'ok:reset' }),
       ),
     ).resolves.toEqual({ done: true });
+  });
+
+  it('answers before the mail goes out, so an account and no account take as long', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }], {
+      status: 'invited',
+    });
+    const sentBefore = mailer.sent.length;
+    let release: () => void = () => undefined;
+    outgoing.hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    try {
+      // The mail service is held up: the answer comes all the same, with the mail still waiting.
+      await expect(
+        requestNewPassword({}, form({ email: user.email, 'cf-turnstile-response': 'ok:reset' })),
+      ).resolves.toEqual({ done: true });
+      expect(mailer.sent.length).toBe(sentBefore);
+      expect(request.background).toHaveLength(1);
+    } finally {
+      release();
+      outgoing.hold = undefined;
+    }
+    await finishBackground();
+    expect(mailer.sent.at(-1)?.to).toBe(user.email);
+    expect(lastLinkSecret()).not.toBe('');
+  });
+
+  it('never shows the person a mail that did not go out', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }], {
+      status: 'invited',
+    });
+    outgoing.fail = true;
+    try {
+      await expect(
+        requestNewPassword({}, form({ email: user.email, 'cf-turnstile-response': 'ok:reset' })),
+      ).resolves.toEqual({ done: true });
+      // The failure is logged by the auth module, and the platform's background work ends quietly.
+      await expect(finishBackground()).resolves.toBeUndefined();
+    } finally {
+      outgoing.fail = false;
+    }
   });
 
   it('refuses a password the person did not repeat, a short one and a stale link', async () => {

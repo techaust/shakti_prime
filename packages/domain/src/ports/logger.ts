@@ -25,17 +25,47 @@ const SECRET_KEYS = new Set([
   'backupCodes',
 ]);
 
-/** Link and token shapes that may appear inside free text. */
-const SECRET_TEXT: readonly [RegExp, string][] = [
-  [/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'],
-  [/\bparams:[\s\S]*$/, 'params: [redacted]'],
-  [/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'],
-  [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'],
+/**
+ * Identity-number fields, compared without case or separators, that never reach a log line
+ * (AGENTS.md §9): Aadhaar, PAN, bank account and IFSC.
+ */
+const IDENTITY_KEYS = new Set([
+  'aadhaar',
+  'aadhaarnumber',
+  'uid',
+  'pan',
+  'pannumber',
+  'accountnumber',
+  'bankaccountnumber',
+  'ifsc',
+  'ifsccode',
+]);
+
+const isSecretKey = (key: string): boolean =>
+  SECRET_KEYS.has(key) || IDENTITY_KEYS.has(key.toLowerCase().replace(/[_-]/g, ''));
+
+/** The last four digits of a phone number, the rest starred. */
+const lastFour = (digits: string): string => `${'*'.repeat(digits.length - 4)}${digits.slice(-4)}`;
+
+/**
+ * Link, token and personal-number shapes that may appear inside free text. A phone number keeps
+ * its last four digits; twelve digits, as Aadhaar numbers are printed, are replaced in full. The
+ * number shapes must stand alone, so the digit runs inside ids (a UUID's groups) are left intact.
+ * International numbers go first, so `+91` and ten digits is not read as twelve digits.
+ */
+const SECRET_TEXT: readonly ((text: string) => string)[] = [
+  (t) => t.replace(/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'),
+  (t) => t.replace(/\bparams:[\s\S]*$/, 'params: [redacted]'),
+  (t) => t.replace(/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'),
+  (t) => t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),
+  (t) => t.replace(/(?<![\w+])\+\d{8,15}(?!\w)/g, (m) => `+${lastFour(m.slice(1))}`),
+  (t) => t.replace(/(?<!\w|[\da-f]-)\d{4}[ -]?\d{4}[ -]?\d{4}(?!\w|-[\da-f])/gi, '[number]'),
+  (t) => t.replace(/(?<!\w)[6-9]\d{9}(?!\w)/g, lastFour),
 ];
 
 export function redactText(text: string): string {
   let out = text;
-  for (const [pattern, replacement] of SECRET_TEXT) out = out.replace(pattern, replacement);
+  for (const scrub of SECRET_TEXT) out = scrub(out);
   return out;
 }
 
@@ -48,7 +78,7 @@ export function redact(value: unknown, depth = 0): unknown {
   if (value !== null && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [key, v] of Object.entries(value)) {
-      out[key] = SECRET_KEYS.has(key) ? '[redacted]' : redact(v, depth + 1);
+      out[key] = isSecretKey(key) ? '[redacted]' : redact(v, depth + 1);
     }
     return out;
   }

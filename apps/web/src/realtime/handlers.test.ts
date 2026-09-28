@@ -5,12 +5,14 @@ import {
   StaffRoleKeySchema,
   type Principal,
 } from '@shakti/contracts';
+import { memoryKeyValue } from '@shakti/domain';
 import { describe, expect, it } from 'vitest';
 import { JwksResponse, OpenIdConfiguration, RealtimeTokenResponse } from './claims';
 import {
   issueRealtimeToken,
   jwksDocument,
   openIdConfigurationDocument,
+  REALTIME_TOKEN_CAP,
   type TokenRouteDeps,
 } from './handlers';
 import type { Env } from './keys';
@@ -69,6 +71,7 @@ describe('POST /api/v1/realtime/token', () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(person),
       issue,
+      keyValue: memoryKeyValue(),
       env: vars,
     });
     expect(response.status).toBe(200);
@@ -90,6 +93,7 @@ describe('POST /api/v1/realtime/token', () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(undefined),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(response.status).toBe(401);
@@ -104,6 +108,7 @@ describe('POST /api/v1/realtime/token', () => {
       principal: () =>
         Promise.reject(new DomainError('unauthorized', 'totp', { reason: 'totp_required' })),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(response.status).toBe(401);
@@ -117,7 +122,7 @@ describe('POST /api/v1/realtime/token', () => {
     const call = (body: string) =>
       issueRealtimeToken(
         new Request(TOKEN_URL, { method: 'POST', headers: { origin: ISSUER }, body }),
-        { principal: () => Promise.resolve(person), issue, env: vars },
+        { principal: () => Promise.resolve(person), issue, keyValue: memoryKeyValue(), env: vars },
       );
     expect((await call('{}')).status).toBe(200);
     for (const body of ['{"entity_ids":[1]}', 'not json', '[]']) {
@@ -131,9 +136,60 @@ describe('POST /api/v1/realtime/token', () => {
     const response = await issueRealtimeToken(post({ origin: 'https://elsewhere.test' }), {
       principal: () => Promise.resolve(person),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(response.status).toBe(403);
+  });
+
+  it('refuses a call with no Origin, which no browser sends on a POST, and issues nothing', async () => {
+    const before = issued.length;
+    const response = await issueRealtimeToken(post({}), {
+      principal: () => Promise.resolve(person),
+      issue,
+      keyValue: memoryKeyValue(),
+      env: await env(),
+    });
+    expect(response.status).toBe(403);
+    expect((await envelope(response)).code).toBe('forbidden');
+    expect(issued.length).toBe(before);
+  });
+
+  it('caps the tokens one person is issued, answering how long to wait', async () => {
+    const vars = await env();
+    const keyValue = memoryKeyValue();
+    const callAs = (caller: Principal) =>
+      issueRealtimeToken(post(), {
+        principal: () => Promise.resolve(caller),
+        issue,
+        keyValue,
+        env: vars,
+      });
+    for (let i = 0; i < REALTIME_TOKEN_CAP.max; i += 1) {
+      expect((await callAs(person)).status).toBe(200);
+    }
+    const before = issued.length;
+    const refused = await callAs(person);
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get('retry-after')).toBe(String(REALTIME_TOKEN_CAP.window));
+    expect((await envelope(refused)).code).toBe('rate_limited');
+    // Nothing is issued, so nothing is audited, past the cap.
+    expect(issued.length).toBe(before);
+    // Someone else is counted on their own.
+    expect((await callAs({ ...person, id: newId() })).status).toBe(200);
+  });
+
+  it('answers unavailable, issuing nothing, when the person cannot be counted', async () => {
+    const before = issued.length;
+    const response = await issueRealtimeToken(post(), {
+      principal: () => Promise.resolve(person),
+      issue,
+      keyValue: { ...memoryKeyValue(), incr: () => Promise.reject(new Error('store down')) },
+      env: await env(),
+    });
+    expect(response.status).toBe(503);
+    expect((await envelope(response)).code).toBe('integration_unavailable');
+    expect(issued.length).toBe(before);
   });
 
   it('refuses an agent, and a person with no entity in scope', async () => {
@@ -144,6 +200,7 @@ describe('POST /api/v1/realtime/token', () => {
       const response = await issueRealtimeToken(post(), {
         principal: () => Promise.resolve(caller),
         issue,
+        keyValue: memoryKeyValue(),
         env: await env(),
       });
       expect(response.status).toBe(403);
@@ -155,6 +212,7 @@ describe('POST /api/v1/realtime/token', () => {
       const response = await issueRealtimeToken(post(), {
         principal: () => Promise.resolve(person),
         issue,
+        keyValue: memoryKeyValue(),
         env: vars,
       });
       expect(response.status).toBe(503);
@@ -166,6 +224,7 @@ describe('POST /api/v1/realtime/token', () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.reject(new Error('database down')),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(response.status).toBe(500);
@@ -176,20 +235,28 @@ describe('POST /api/v1/realtime/token', () => {
     await issueRealtimeToken(post({ origin: 'https://elsewhere.test' }), {
       principal: () => Promise.resolve(person),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     await issueRealtimeToken(post(), {
       principal: () => Promise.resolve({ ...person, entityIds: [] }),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     await issueRealtimeToken(
       new Request(TOKEN_URL, { method: 'POST', headers: { origin: ISSUER }, body: '[]' }),
-      { principal: () => Promise.resolve(person), issue, env: await env() },
+      {
+        principal: () => Promise.resolve(person),
+        issue,
+        keyValue: memoryKeyValue(),
+        env: await env(),
+      },
     );
     await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(person),
       issue,
+      keyValue: memoryKeyValue(),
       env: await env(false),
     });
     expect(issued.length).toBe(before);
@@ -199,6 +266,7 @@ describe('POST /api/v1/realtime/token', () => {
     const refused = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(person),
       issue: () => Promise.reject(new DomainError('forbidden', 'refused')),
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(refused.status).toBe(403);
@@ -206,6 +274,7 @@ describe('POST /api/v1/realtime/token', () => {
     const failed = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(person),
       issue: () => Promise.reject(new Error('database down')),
+      keyValue: memoryKeyValue(),
       env: await env(),
     });
     expect(failed.status).toBe(500);

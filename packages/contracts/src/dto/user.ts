@@ -30,6 +30,19 @@ export const UserDto = z
   .strict();
 export type UserDto = z.infer<typeof UserDto>;
 
+/**
+ * What `admin.user.two_factor.reset` reports: the user as they are now, and whether this call
+ * removed an authenticator app, decided in the command's own transaction, so the action emails
+ * the user only when there was one to remove.
+ */
+export const TwoFactorResetDto = z
+  .object({
+    user: UserDto,
+    authenticatorRemoved: z.boolean(),
+  })
+  .strict();
+export type TwoFactorResetDto = z.infer<typeof TwoFactorResetDto>;
+
 /** A session as the admin sessions screen sees it. The token column is never selected. */
 export const SessionDto = z
   .object({

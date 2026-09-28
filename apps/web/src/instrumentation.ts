@@ -16,19 +16,24 @@ export async function register(): Promise<void> {
  */
 export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
-  const [{ logger }, { referenceFromDigest }] = await Promise.all([
+  const [{ logger }, { referenceFromDigest }, { platformRequestId }] = await Promise.all([
     import('./log'),
     import('./reference'),
+    import('./auth/client-address'),
   ]);
   const digest =
     typeof error === 'object' && error !== null && 'digest' in error ? error.digest : undefined;
-  const header = (name: string) => {
-    const value = request.headers[name];
-    return typeof value === 'string' ? value : undefined;
-  };
+  // The same choice and check as the audit trail: the platform's id first, a caller's only when
+  // the platform set none, and never a header that is unsafe to write into a log line.
+  const requestId = platformRequestId({
+    get: (name) => {
+      const value = request.headers[name];
+      return typeof value === 'string' ? value : null;
+    },
+  });
   logger.log('error', 'request.failed', {
     reference: typeof digest === 'string' ? referenceFromDigest(digest) : undefined,
-    requestId: header('x-request-id') ?? header('x-vercel-id'),
+    requestId,
     method: request.method,
     path: request.path.split('?')[0],
     route: context.routePath,

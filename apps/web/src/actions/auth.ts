@@ -3,9 +3,11 @@
 import { EntityIdSchema, PASSWORD_MIN_LENGTH, PasswordSchema } from '@shakti/contracts';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 import { toDataURL } from 'qrcode';
 import { auth } from '../auth/auth';
 import { normaliseBackupCode } from '../auth/backup-codes';
+import { withResetMailInBackground } from '../auth/create-auth';
 import { ACTIVE_ENTITY_COOKIE, currentSession, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
 import { errorKey, toDomainError } from '../auth/errors';
@@ -102,17 +104,29 @@ export async function signOut(): Promise<void> {
 
 /**
  * "Forgot your password?" (AUDIT M26): sends a set-password link when the email belongs to a
- * staff account. The answer is the same either way, so the screen does not reveal who has one.
+ * staff account. The answer is the same either way, so the screen does not reveal who has one:
+ * the mail goes out after the answer, so the wait is the same too, and a mail that fails is
+ * logged, never shown. The bot check and the per-address cap still run before the answer.
  */
 export async function requestNewPassword(
   _prev: SetPasswordState,
   formData: FormData,
 ): Promise<SetPasswordState> {
   try {
-    await auth.api.requestPasswordReset({
-      body: { email: field(formData, 'email').trim().toLowerCase(), redirectTo: '/set-password' },
-      headers: await requestHeaders(field(formData, 'cf-turnstile-response')),
-    });
+    const headers = await requestHeaders(field(formData, 'cf-turnstile-response'));
+    await withResetMailInBackground(
+      (task) => {
+        after(task);
+      },
+      () =>
+        auth.api.requestPasswordReset({
+          body: {
+            email: field(formData, 'email').trim().toLowerCase(),
+            redirectTo: '/set-password',
+          },
+          headers,
+        }),
+    );
   } catch (e) {
     return failure('requestNewPassword', e);
   }
