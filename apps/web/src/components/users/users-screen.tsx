@@ -1,6 +1,12 @@
 'use client';
 
-import type { UserDto, UserPageDto, UserStatus } from '@shakti/contracts';
+import {
+  USER_SORT_COLUMNS,
+  type UserDto,
+  type UserPageDto,
+  type UserSort,
+  type UserStatus,
+} from '@shakti/contracts';
 import {
   Button,
   DataGrid,
@@ -14,7 +20,6 @@ import {
   EmptyState,
   Sheet,
   SheetContent,
-  sortRows,
   StatusBadge,
   toast,
   type DataGridColumn,
@@ -22,11 +27,12 @@ import {
 } from '@shakti/ui';
 import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { listUsers } from '../../actions/admin';
 import { formatDateTime } from '../../screens/format';
 import { userActions } from '../../screens/user-roles';
 import { FailureMessage } from '../screens/failure';
+import { sortInput, toListSort } from '../screens/list-sort';
 import { useQuery } from '../screens/use-command';
 import { useGridView } from '../screens/use-grid-view';
 import { ViewsMenu } from '../screens/views-menu';
@@ -46,6 +52,8 @@ const STATUS_TONE: Record<UserStatus, StatusTone> = {
   suspended: 'warning',
   offboarded: 'neutral',
 };
+
+const PAGE_SIZE = 50;
 
 type Open =
   | { kind: 'invite' }
@@ -83,7 +91,25 @@ export function UsersScreen({
     startInviting ? { kind: 'invite' } : undefined,
   );
   const { load, pending, failure } = useQuery<UserPageDto>();
-  const view = useGridView({ density: 'comfortable' });
+  // The order the rows on screen were read in; an answer read in an older order is dropped.
+  const sorted = useRef<UserSort | undefined>(undefined);
+  const view = useGridView({
+    density: 'comfortable',
+    onSortChange: (next) => {
+      const sort = toListSort(next, USER_SORT_COLUMNS);
+      sorted.current = sort;
+      setRows([]);
+      setNextCursor(null);
+      load(
+        () => listUsers({ limit: PAGE_SIZE, ...sortInput(sort) }),
+        (page) => {
+          if (sorted.current !== sort) return;
+          setRows(page.items);
+          setNextCursor(page.nextCursor);
+        },
+      );
+    },
+  });
 
   const close = () => {
     setOpen(undefined);
@@ -94,33 +120,36 @@ export function UsersScreen({
 
   function loadMore() {
     if (nextCursor === null) return;
+    const sort = sorted.current;
     load(
-      () => listUsers({ limit: 50, cursor: nextCursor }),
+      () => listUsers({ limit: PAGE_SIZE, cursor: nextCursor, ...sortInput(sort) }),
       (page) => {
+        if (sorted.current !== sort) return;
         setRows((all) => [...all, ...page.items.filter((u) => !all.some((x) => x.id === u.id))]);
         setNextCursor(page.nextCursor);
       },
     );
   }
 
+  // Sorted on the server over the whole team (`USER_SORT_COLUMNS`); the status is not, because
+  // its shown words come from the message catalogue.
   const columns: DataGridColumn<UserDto>[] = [
     {
       id: 'name',
       header: t('columns.name'),
       primary: true,
       cell: (u) => (u.id === selfId ? t('you', { name: u.displayName }) : u.displayName),
-      sortValue: (u) => u.displayName,
+      sortable: true,
     },
     {
       id: 'email',
       header: t('columns.email'),
       cell: (u) => <span className="break-all">{u.email}</span>,
-      sortValue: (u) => u.email,
+      sortable: true,
     },
     {
       id: 'status',
       header: t('columns.status'),
-      sortValue: (u) => t(`status.${u.status}`),
       cell: (u) => (
         <StatusBadge tone={STATUS_TONE[u.status]}>{t(`status.${u.status}`)}</StatusBadge>
       ),
@@ -148,14 +177,14 @@ export function UsersScreen({
       id: 'authenticator',
       header: t('columns.authenticator'),
       cell: (u) => (u.twoFactorEnabled ? t('authenticatorOn') : t('authenticatorOff')),
-      sortValue: (u) => (u.twoFactorEnabled ? t('authenticatorOn') : t('authenticatorOff')),
+      sortable: true,
     },
     {
       id: 'lastSignIn',
       header: t('columns.lastSignIn'),
       numeric: true,
       cell: (u) => (u.lastLoginAt === null ? common('never') : formatDateTime(u.lastLoginAt)),
-      sortValue: (u) => (u.lastLoginAt === null ? null : Date.parse(u.lastLoginAt)),
+      sortable: true,
     },
     {
       id: 'actions',
@@ -181,8 +210,9 @@ export function UsersScreen({
       <DataGrid
         caption={t('caption')}
         columns={columns}
-        rows={sortRows(rows, columns, view.grid.sort)}
+        rows={rows}
         rowKey={(u) => u.id}
+        loading={pending && rows.length === 0}
         {...view.grid}
         toolbar={
           <ViewsMenu

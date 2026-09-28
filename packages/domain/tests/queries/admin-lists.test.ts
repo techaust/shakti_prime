@@ -45,7 +45,7 @@ beforeAll(async () => {
 });
 
 // A position just before this run's names, so the paging reads this run's people only.
-const start = encodeCursor({ name: tag, id: newId() });
+const start = encodeCursor({ s: 'name.asc', v: tag, id: newId() });
 
 /** Every page of the list from the first person of this run on. */
 async function mine(entityIds: number[], limit = 2) {

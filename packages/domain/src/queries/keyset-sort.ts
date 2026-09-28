@@ -45,6 +45,19 @@ export function keysetOrder<K extends string>(
 
 const sortName = (order: KeysetOrder) => `${order.name}.${order.direction}`;
 
+/**
+ * The text forms a cursor value may take for each type, so a forged cursor is refused as one
+ * rather than failing in the database. A timestamp is Postgres's own text form (microseconds
+ * kept) or an ISO 8601 one.
+ */
+const VALUE_FORMS: Record<SortKey['type'], RegExp> = {
+  text: /^[\s\S]*$/,
+  timestamptz: /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/,
+  numeric: /^-?\d{1,14}(\.\d{1,4})?$/,
+  integer: /^-?\d{1,10}$/,
+  boolean: /^(true|false)$/,
+};
+
 /** The sort value of a row as Postgres text, selected beside the row for its cursor. */
 export function sortText(order: KeysetOrder): SQL<string | null> {
   return sql<string | null>`(${order.key.expr})::text`;
@@ -69,14 +82,19 @@ export function orderTerms(order: KeysetOrder): SQL[] {
 export function afterCursor(order: KeysetOrder, cursor: string | undefined): SQL | undefined {
   if (cursor === undefined) return undefined;
   const after = decodeCursor(SortCursorSchema, cursor);
+  const { expr, type, nullable } = order.key;
   if (after.s !== sortName(order)) {
     throw new DomainError('validation_failed', 'cursor belongs to another sort', { cursor });
   }
-  const { expr, type, nullable } = order.key;
+  if (after.v !== null && !VALUE_FORMS[type].test(after.v)) {
+    throw new DomainError('validation_failed', 'cursor is not valid', { cursor });
+  }
   const cmp = order.direction === 'asc' ? sql`>` : sql`<`;
   const idAfter = sql`${order.id} ${cmp} ${after.id}::uuid`;
   if (after.v === null) return and(isNull(expr), idAfter);
-  const value = sql`${after.v}::${sql.raw(type)}`;
+  // Sent as text and cast in SQL: the driver would otherwise encode the text by the inferred
+  // type (the text "true" becomes a false boolean, a timestamp loses its microseconds).
+  const value = sql`${after.v}::text::${sql.raw(type)}`;
   const beyond = sql`(${expr}, ${order.id}) ${cmp} (${value}, ${after.id}::uuid)`;
   return nullable ? or(beyond, isNull(expr)) : beyond;
 }
