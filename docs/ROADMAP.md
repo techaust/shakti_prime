@@ -34,7 +34,7 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 **Exit gate checklist:**
 - [x] Security suite green for every table in the core schema, including fail-closed and cost-gate tests
 - [ ] `DESIGN.md` and preview page signed off by the client
-- [ ] All six spikes passed with written results and latency numbers
+- [ ] All seven spikes (Tally, Exotel, WhatsApp, voice, Realtime, PDF and labels, OCR) passed with written results and latency numbers
 - [ ] ERD, data dictionary, state machines, permission matrix and API contracts reviewed
 - [ ] Vendor quotes confirm the §13 cost figures
 - [ ] Phase 0 tooling installed and verified; `currentPhase` set to 1 in `.claude/tooling.json`
