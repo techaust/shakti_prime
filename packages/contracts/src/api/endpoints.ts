@@ -485,8 +485,8 @@ export const API_ENDPOINTS = {
     auth: 'none',
     idempotencyKey: false,
     response: ReadyResponse,
-    // 503 with the checks when a dependency is down.
-    errors: ['integration_unavailable'],
+    // 503 when a dependency is down, naming none (the checks are logged); 429 past the cap.
+    errors: ['integration_unavailable', 'rate_limited'],
   },
 } as const satisfies Record<string, ApiEndpoint>;
 

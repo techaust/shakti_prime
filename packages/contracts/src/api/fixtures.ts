@@ -825,10 +825,6 @@ export const API_FIXTURES: Record<
     response: { status: 'ok', time: '2026-09-27T05:06:40.000Z' },
   },
   'health.ready': {
-    response: {
-      status: 'ok',
-      checks: { database: 'ok', auth_database: 'ok', key_value: 'ok', config: 'ok', outbox: 'ok' },
-      time: '2026-09-27T05:06:40.000Z',
-    },
+    response: { status: 'ok', time: '2026-09-27T05:06:40.000Z' },
   },
 };
