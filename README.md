@@ -20,7 +20,7 @@ pnpm + Turborepo monorepo.
 
 1. Node 24 and Corepack: `corepack enable` (pnpm is pinned in `package.json`).
 2. Docker Desktop, then `docker compose up -d --wait` for local Postgres on port 54322.
-3. `cp .env.example .env` (local Postgres, the auth module's connection, Better Auth, Cloudflare's Turnstile test keys; Upstash left empty uses an in-memory store; `MAILER=console` prints invite links to the terminal)
+3. `cp .env.example .env` (local Postgres, the auth module's connection, Better Auth, Cloudflare's Turnstile test keys; Upstash left empty uses an in-memory store; locally the console mailer prints invite links to the terminal)
 4. `pnpm install`
 5. `pnpm db:migrate` then `pnpm db:seed`
 6. First sign-in: `pnpm --filter web invite-executive -- --email <you> --name "<name>"` prints the set-password link (add `--force` when the suites have already created Executive users), then `pnpm --filter web dev` and open the link.
