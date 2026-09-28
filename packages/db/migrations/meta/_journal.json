@@ -344,6 +344,13 @@
       "when": 1790595755628,
       "tag": "0048_tax_group_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790595961264,
+      "tag": "0049_user_roles_company_scope",
+      "breakpoints": true
     }
   ]
 }
