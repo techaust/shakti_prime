@@ -144,7 +144,7 @@ Key columns only; every table also has the standard columns from §2.
 | `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
 | `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
 | `principals` | `id`, `kind` (`user`, `agent`, `voice_session`), `display_name` |
-| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
+| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at` |
 | `auth_accounts` | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
 | `auth_verifications` | Better Auth verification store for set-password and reset links; `auth_service` only |
 | `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled` |
