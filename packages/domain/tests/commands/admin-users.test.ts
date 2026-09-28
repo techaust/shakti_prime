@@ -35,12 +35,20 @@ async function addSession(userId: string): Promise<string> {
   return id;
 }
 
-/** Waits until a transaction is queued on an advisory lock, the admin changes' serialising lock. */
+/**
+ * Waits until a transaction is queued on the admin changes' serialising lock, the advisory lock
+ * keyed `hashtext('admin.executives')` in this database. A one-number advisory key is held in
+ * pg_locks as its high half (`classid`) and low half (`objid`), with `objsubid` 1; any other
+ * advisory lock anywhere in the cluster is left out.
+ */
 async function waitForLockWaiter(): Promise<void> {
   for (let i = 0; i < 100; i += 1) {
     const [row] = await asMigrator(
       (m) => m<{ n: number }[]>`
-        select count(*)::int as n from pg_locks where locktype = 'advisory' and not granted`,
+        select count(*)::int as n from pg_locks
+         where locktype = 'advisory' and not granted and objsubid = 1
+           and database = (select oid from pg_database where datname = current_database())
+           and ((classid::bigint << 32) | objid::bigint) = hashtext('admin.executives')::bigint`,
     );
     if ((row?.n ?? 0) > 0) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
