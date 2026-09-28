@@ -84,7 +84,17 @@ export const commitImportBatch = defineCommand({
   alsoRequires: LEAD_WRITE,
   input: CommitImportBatchInput,
   output: ImportJobDto,
-  auditFields: ['state', 'batch', 'fromRow', 'toRow', 'rows', 'committedRows', 'failedBatch', 'failedRow', 'errorCode'],
+  auditFields: [
+    'state',
+    'batch',
+    'fromRow',
+    'toRow',
+    'rows',
+    'committedRows',
+    'failedBatch',
+    'failedRow',
+    'errorCode',
+  ],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
