@@ -1,6 +1,7 @@
 import { newId } from '@shakti/contracts';
 import { loadUserGrants } from '@shakti/db/grants';
 import {
+  ALL_ENTITY_IDS,
   asMigrator,
   asPrincipal,
   closeDb,
@@ -8,7 +9,8 @@ import {
   createTestTeam,
   createTestUser,
 } from '@shakti/db/testing';
-import { sql } from 'drizzle-orm';
+import type { RequestTx } from '@shakti/db';
+import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { resolvePrincipalFromGrants } from '../../src/auth/resolve-principal';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
@@ -485,13 +487,24 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
       entityRoles: [{ entityId: 1, roleKey: 'accounts' as const }],
     };
     const rollback = new Error('rollback');
+    // The setup suspends people of every company inside this request's transaction, which a
+    // request for company 1 may not do (0056): it widens the transaction to every company for
+    // that one statement, and the command then runs for company 1 as before.
+    const suspendAllBut = async (tx: RequestTx, keep: SQL) => {
+      await tx.execute(
+        sql`select set_config('app.entity_ids', ${`{${ALL_ENTITY_IDS.join(',')}}`}, true)`,
+      );
+      await tx.execute(
+        sql`update users set status = 'suspended' where status = 'active' and ${keep}`,
+      );
+      await tx.execute(sql`select set_config('app.entity_ids', '{1}', true)`);
+    };
 
     // The only other active Executive works in company 2, which this request cannot read: the
     // guard still counts them, so the demotion goes through (and is rolled back here).
     await expect(
       asPrincipal(exec1, async (context) => {
-        await context.tx.execute(sql`update users set status = 'suspended'
-          where status = 'active' and id not in (${target.id}, ${elsewhere.id})`);
+        await suspendAllBut(context.tx, sql`id not in (${target.id}, ${elsewhere.id})`);
         await runCommand(setUserRoles, { context, audit, outbox }, demote);
         throw rollback;
       }),
@@ -500,8 +513,7 @@ describe('admin commands stay inside the request scope (AUDIT H2)', () => {
     // With no other active Executive anywhere, the same demotion is refused.
     await expect(
       asPrincipal(exec1, async (context) => {
-        await context.tx.execute(sql`update users set status = 'suspended'
-          where status = 'active' and id <> ${target.id}`);
+        await suspendAllBut(context.tx, sql`id <> ${target.id}`);
         return runCommand(setUserRoles, { context, audit, outbox }, demote);
       }),
     ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'last_executive' } });
