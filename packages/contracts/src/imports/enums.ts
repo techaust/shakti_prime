@@ -55,6 +55,20 @@ export type ImportFormat = z.infer<typeof ImportFormatSchema>;
 /** Limits of one import file (IMP-01: 50,000 rows within five minutes). */
 export const IMPORT_LIMITS = {
   maxFileBytes: 10 * 1024 * 1024,
+  /**
+   * The most an Excel workbook may hold once unpacked, counted over every part of the file before
+   * the spreadsheet reader opens it, so a small file that unpacks into gigabytes is refused. A
+   * workbook at the row and column limits with short cells unpacks to about 86 MB, and a
+   * 50,000-row lead list of ten columns to about 40 MB (measured with ExcelJS 4.4), so 100 MB
+   * admits the files the other limits allow in practice.
+   */
+  maxUnzippedBytes: 100 * 1024 * 1024,
+  /**
+   * The most one part of a workbook over 1 MB unpacked may grow when unpacked. Worksheet parts
+   * unpack to 13 to 17 times their packed size (measured); deflate allows about 1,000 times,
+   * which only a crafted file reaches.
+   */
+  maxZipRatio: 100,
   maxRows: 50_000,
   maxColumns: 50,
   maxCellLength: 500,
