@@ -4,14 +4,17 @@ import { listEntities } from '../../../../actions/org';
 import { CompaniesScreen } from '../../../../components/companies/companies-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { screenAccess } from '../../../../screens/access';
+import { screenAccess, screenTitle } from '../../../../screens/access';
 import { navRequires } from '../../../../nav';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('companies'))('title') };
+  return screenTitle(
+    navRequires('settings-companies'),
+    (await getTranslations('companies'))('title'),
+  );
 }
 
 /** Settings › Companies: every company the caller works in; an Executive edits their details. */

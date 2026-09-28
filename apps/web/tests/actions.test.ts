@@ -97,7 +97,7 @@ const {
 const { setCompositeRule, setTaxRate } = await import('../src/actions/tax');
 const { saveTheme } = await import('../src/actions/profile');
 const { defaultAuthDeps } = await import('../src/auth/deps');
-const { screenAccess } = await import('../src/screens/access');
+const { screenAccess, screenTitle } = await import('../src/screens/access');
 const { navRequires } = await import('../src/nav');
 
 afterAll(async () => {
@@ -701,6 +701,15 @@ describe('screen guards match the menu', () => {
   it('a tele-caller opening Settings › Companies by its address gets the not-found screen', async () => {
     request.session = session(await createTestPrincipal('tele_caller_cc', [1]));
     await expect(screenAccess(navRequires('settings-companies'))).rejects.toThrow('not found');
+  });
+
+  it('the browser tab names Settings › Companies only for a caller who may open it', async () => {
+    request.session = session(await createTestPrincipal('tele_caller_cc', [1]));
+    await expect(screenTitle(navRequires('settings-companies'), 'Companies')).resolves.toEqual({});
+    request.session = session(await createTestPrincipal('executive'));
+    await expect(screenTitle(navRequires('settings-companies'), 'Companies')).resolves.toEqual({
+      title: 'Companies',
+    });
   });
 
   it('an Executive opens Settings › Companies', async () => {

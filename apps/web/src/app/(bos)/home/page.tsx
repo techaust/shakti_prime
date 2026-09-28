@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { Page } from '../../../components/shell/page';
 import type { RoleNameKey } from '../../../i18n/types';
 import { navRequires, visibleNav } from '../../../nav';
-import { screenAccess } from '../../../screens/access';
+import { screenAccess, screenTitle } from '../../../screens/access';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('auth.home'))('title') };
+  return screenTitle(navRequires('home'), (await getTranslations('auth.home'))('title'));
 }
 
 /**

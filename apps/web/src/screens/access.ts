@@ -6,6 +6,7 @@ import {
   type Scope,
 } from '@shakti/contracts';
 import type { UserAccess } from '@shakti/domain';
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { currentSession } from '../auth/current-principal';
 
@@ -34,15 +35,35 @@ export async function screenAccess(
   if (!session.principal) redirect('/two-factor');
   const principal = session.principal;
   const can = (key: PermissionKey, scope: Scope) => hasGrant(principal.permissions, key, scope);
-  const needed: readonly PermissionGrant[] =
-    required === undefined ? [] : 'key' in required ? [required] : required;
-  if (!needed.every((g) => can(g.key, g.scope))) notFound();
+  if (!holdsAll(principal, required)) notFound();
   return {
     principal,
     access: session.access,
     activeEntityId: principal.entityIds.length === 1 ? principal.entityIds[0] : undefined,
     can,
   };
+}
+
+function holdsAll(
+  principal: Principal,
+  required: PermissionGrant | readonly PermissionGrant[] | undefined,
+): boolean {
+  const needed: readonly PermissionGrant[] =
+    required === undefined ? [] : 'key' in required ? [required] : required;
+  return needed.every((g) => hasGrant(principal.permissions, g.key, g.scope));
+}
+
+/**
+ * A screen's browser-tab title, given only to a caller who may open the screen: anyone else gets
+ * the app's own name, as the not-found screen does, so the tab does not name a screen the
+ * address hides.
+ */
+export async function screenTitle(
+  required: PermissionGrant | readonly PermissionGrant[] | undefined,
+  title: string,
+): Promise<Metadata> {
+  const principal = (await currentSession())?.principal;
+  return principal && holdsAll(principal, required) ? { title } : {};
 }
 
 /** Company names by id, from the companies the caller holds a role in. */

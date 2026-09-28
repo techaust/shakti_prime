@@ -13,13 +13,13 @@ import type { ReactNode } from 'react';
 import { ComponentGallery, type DesignCopy } from '../../../components/design/component-gallery';
 import { Page } from '../../../components/shell/page';
 import { navRequires, visibleNav } from '../../../nav';
-import { screenAccess } from '../../../screens/access';
+import { screenAccess, screenTitle } from '../../../screens/access';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('design');
-  return { title: t('title') };
+  return screenTitle(navRequires('design'), t('title'));
 }
 
 const THEMES: readonly Theme[] = ['light', 'dark'];

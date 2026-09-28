@@ -5,13 +5,13 @@ import { getTranslations } from 'next-intl/server';
 import { UploadForm } from '../../../../components/imports/upload-form';
 import { ImportSteps } from '../../../../components/imports/import-steps';
 import { Page } from '../../../../components/shell/page';
-import { screenAccess } from '../../../../screens/access';
+import { screenAccess, screenTitle } from '../../../../screens/access';
 import { navRequires } from '../../../../nav';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('imports.upload'))('title') };
+  return screenTitle(navRequires('imports'), (await getTranslations('imports.upload'))('title'));
 }
 
 /**

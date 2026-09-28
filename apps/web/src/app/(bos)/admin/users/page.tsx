@@ -5,14 +5,14 @@ import { listUsers } from '../../../../actions/admin';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { UsersScreen } from '../../../../components/users/users-screen';
-import { companyNames, screenAccess } from '../../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../../screens/access';
 import { navRequires } from '../../../../nav';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('users'))('title') };
+  return screenTitle(navRequires('admin-users'), (await getTranslations('users'))('title'));
 }
 
 /**

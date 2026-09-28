@@ -6,14 +6,14 @@ import { listImportJobs } from '../../../actions/imports';
 import { ImportsScreen } from '../../../components/imports/imports-screen';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
 import { navRequires } from '../../../nav';
 import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('imports'))('title') };
+  return screenTitle(navRequires('imports'), (await getTranslations('imports'))('title'));
 }
 
 /**

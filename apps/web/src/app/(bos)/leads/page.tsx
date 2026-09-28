@@ -7,14 +7,14 @@ import { LeadsScreen } from '../../../components/leads/leads-screen';
 import { LeadsViewSwitch } from '../../../components/leads/view-switch';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
 import { navRequires } from '../../../nav';
 import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('leads'))('title') };
+  return screenTitle(navRequires('leads'), (await getTranslations('leads'))('title'));
 }
 
 /** Leads: the leads the caller can see, newest change first, a page at a time. */

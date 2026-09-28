@@ -4,12 +4,12 @@ import { getTranslations } from 'next-intl/server';
 import { ChangePasswordForm } from '../../../../components/auth/home-forms';
 import { Page } from '../../../../components/shell/page';
 import { ThemeSwitch } from '../../../../components/theme';
-import { screenAccess } from '../../../../screens/access';
+import { screenAccess, screenTitle } from '../../../../screens/access';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('profile'))('title') };
+  return screenTitle(undefined, (await getTranslations('profile'))('title'));
 }
 
 /** The person's own settings, from the profile menu: the theme and the password change. */
