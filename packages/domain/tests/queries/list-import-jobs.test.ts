@@ -174,7 +174,7 @@ describe('listImportRows', () => {
       listImportRows(ctx, { entityId: 1, jobId: job.id, limit: 50 }),
     );
     expect(page.rows[0]?.dedupe?.existing).toEqual([
-      { accountId: existing.account.id, contactId: existing.contact?.id },
+      { accountId: existing.account.id, contactId: existing.contact?.id, reason: 'phone' },
     ]);
     expect(page.customers).toEqual({ [existing.account.id]: customerName });
   });

@@ -150,6 +150,23 @@ export function checkLeadRow(
 }
 
 /**
+ * A name or village as the dedupe compares it: lower case, with spaces and punctuation dropped,
+ * so `Ram Lal`, `RAMLAL` and `Ram-Lal.` agree. The database side applies the same rule
+ * (`regexp_replace(lower(x), '[^a-z0-9]+', '', 'g')`); letters outside a to z drop out on both
+ * sides, and a value with nothing left is not compared.
+ */
+export function matchKey(value: string | undefined | null): string {
+  return (value ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/** The name and village of a valid row, as compared keys; null when the row has no village. */
+export function nameVillageKey(input: CreateLeadInput): { name: string; village: string } | null {
+  const name = matchKey(input.contact?.name);
+  const village = matchKey(input.site?.village);
+  return name === '' || village === '' ? null : { name, village };
+}
+
+/**
  * Earlier rows of the same file with the same phone: the first keeps its place and each repeat
  * points back at it, so one person is not imported twice from one file.
  */

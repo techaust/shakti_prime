@@ -219,9 +219,9 @@ describe('the rows of the check step', () => {
         dedupe: {
           inFileRowNo: 2,
           existing: [
-            { accountId, contactId: newId() },
-            { accountId, contactId: newId() },
-            { accountId: unseen, contactId: newId() },
+            { accountId, contactId: newId(), reason: 'phone' },
+            { accountId, contactId: newId(), reason: 'name_village' },
+            { accountId: unseen, contactId: newId(), reason: 'name_village' },
           ],
         },
       },
@@ -230,8 +230,8 @@ describe('the rows of the check step', () => {
     expect(findings).toEqual([
       { kind: 'error', field: 'phone', code: 'phone_invalid' },
       { kind: 'sameAsRow', rowNo: 2 },
-      { kind: 'customer', name: 'Shree Farm' },
-      { kind: 'customer', name: undefined },
+      { kind: 'customer', name: 'Shree Farm', reason: 'phone' },
+      { kind: 'customer', name: undefined, reason: 'name_village' },
     ]);
     expect(rowFindings({ errors: [], dedupe: null }, {})).toEqual([]);
   });

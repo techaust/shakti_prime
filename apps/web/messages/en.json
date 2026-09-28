@@ -1265,8 +1265,10 @@
       "finding": {
         "field": "{field}: {sentence}",
         "sameAsRow": "Same mobile number as row {row}. Only the first of them is added.",
-        "customer": "Already a customer: {name}. Check this before adding, so nobody is entered twice.",
-        "customerHidden": "Already a customer you can't see. Ask your manager before adding."
+        "customerByPhone": "Same mobile number as a customer: {name}. Check this before adding, so nobody is entered twice.",
+        "customerByNameVillage": "Same name and village as a customer: {name}. Check this before adding, so nobody is entered twice.",
+        "customerHiddenByPhone": "Same mobile number as a customer you can't see. Ask your manager before adding.",
+        "customerHiddenByNameVillage": "Same name and village as a customer you can't see. Ask your manager before adding."
       },
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",

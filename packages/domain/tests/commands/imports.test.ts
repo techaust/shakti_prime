@@ -354,8 +354,50 @@ describe('imports: create, map and preview', () => {
     expect(rows[3]?.dedupe).toEqual({ inFileRowNo: 1, existing: [] });
     expect(rows[4]?.dedupe).toEqual({
       inFileRowNo: null,
-      existing: [{ accountId: existing.account.id, contactId: existing.contact?.id }],
+      existing: [
+        { accountId: existing.account.id, contactId: existing.contact?.id, reason: 'phone' },
+      ],
     });
+  });
+
+  it('suggests a customer with the same name in the same village, and says why', async () => {
+    // Letters and digits only, so the name and village differ from every earlier run's.
+    const tag = newId().replace(/-/g, '').slice(-10);
+    const village = `Bhadra ${tag}`;
+    const known = phone();
+    const namesake = await run(gm, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Gopal Ram ${tag}`, phone: known },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    // Only company 2 sees this one, so company 1's preview must not suggest it.
+    const elsewhere = await run(gm2, createLead, {
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Hidden Ram ${tag}`, phone: phone() },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    const job = await previewedJob(gm, [
+      // Another number, the same name and village written differently.
+      `GOPAL-RAM ${tag.toUpperCase()},${phone()},bhadra  ${tag}.`,
+      // The same number as well: one suggestion, by phone.
+      `Gopal Ram ${tag},${known},${village}`,
+      // The same name elsewhere, and a name from another company here: no suggestion.
+      `Gopal Ram ${tag},${phone()},Nohar ${tag}`,
+      `Hidden Ram ${tag},${phone()},${village}`,
+    ]);
+    const rows = await rowsOf(gm, job.id);
+    const match = { accountId: namesake.account.id, contactId: namesake.contact?.id };
+    expect(rows.map((r) => r.dedupe)).toEqual([
+      { inFileRowNo: null, existing: [{ ...match, reason: 'name_village' }] },
+      { inFileRowNo: null, existing: [{ ...match, reason: 'phone' }] },
+      null,
+      null,
+    ]);
+    expect(elsewhere.account.id).not.toBe(namesake.account.id);
   });
 
   it('refuses a preview before a mapping, and a commit before a preview', async () => {

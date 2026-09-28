@@ -1,6 +1,13 @@
 import { LeadImportMappingSchema, type LeadImportMapping } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { checkLeadRow, enumWord, firstRowByPhone, leadCandidate } from './leads';
+import {
+  checkLeadRow,
+  enumWord,
+  firstRowByPhone,
+  leadCandidate,
+  matchKey,
+  nameVillageKey,
+} from './leads';
 
 const mapping: LeadImportMapping = LeadImportMappingSchema.parse({
   columns: {
@@ -108,6 +115,28 @@ describe('leads import rows', () => {
       [3, 1],
       [5, 1],
     ]);
+  });
+
+  it('compares names and villages without case, spaces or punctuation', () => {
+    expect(matchKey(' Ram Lal ')).toBe('ramlal');
+    expect(matchKey('RAM-LAL.')).toBe('ramlal');
+    expect(matchKey(undefined)).toBe('');
+    const input = (name: string, village?: string) =>
+      ({
+        entityId: 1,
+        pipelineKey: 'farmer_pumps',
+        sourceCode: 'import',
+        contact: { name, phone: '+919876543210', preferredLanguage: 'hinglish' },
+        account: { type: 'farm' },
+        ...(village === undefined ? {} : { site: { type: 'borewell', village } }),
+      }) as Parameters<typeof nameVillageKey>[0];
+    expect(nameVillageKey(input('Ram Lal', 'Sri Ganganagar'))).toEqual({
+      name: 'ramlal',
+      village: 'sriganganagar',
+    });
+    // No village, or nothing left to compare, is no match at all.
+    expect(nameVillageKey(input('Ram Lal'))).toBeNull();
+    expect(nameVillageKey(input('..', 'Sikar'))).toBeNull();
   });
 
   it('reads enum words as people type them', () => {
