@@ -19,7 +19,7 @@ Week 4 (tokens, UI base, app shell) is front-end and is not in this document.
 ## 2. Identity and authentication (week 3)
 
 ### 2.1 Tables
-All under RLS, forced; the one delete grant to `app_user` is on `user_entity_roles`, as the policies below say. Auth tables are touched by the auth module through a dedicated Postgres role `auth_service` (login, `nobypassrls`, grants on these tables only, no business table). `app_user` reads them for principal resolution and admin screens and writes them only through admin commands.
+All under RLS, forced; among these tables the one delete grant to `app_user` is on `user_entity_roles`, as the policies below say. Auth tables are touched by the auth module through a dedicated Postgres role `auth_service` (login, `nobypassrls`, grants on these tables only, no business table). `app_user` reads them for principal resolution and admin screens and writes them only through admin commands.
 
 | Table | Columns | Notes |
 |---|---|---|
