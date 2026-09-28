@@ -1,6 +1,6 @@
 import { DomainError, hasGrant, LeadAssigneeDto, ListLeadAssigneesInput } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { parseQueryInput } from '../parse-input';
 
@@ -19,9 +19,11 @@ function teamIn(ctx: AssigneeContext, entityId: number): string | undefined {
 
 /**
  * Who the caller may hand a lead to in one company (`crm.opportunity.assign`, design §7.2): the
- * people whose role there works on leads (`crm.lead.write`), as the command checks, narrowed to
- * what the caller's `crm.lead.assign` scope reaches: the whole company, their own team, or only
- * themselves. The command and the update policy still decide; this only offers sensible choices.
+ * active people whose role there works on leads (`crm.lead.write`), as the command checks,
+ * narrowed to what the caller's `crm.lead.assign` scope reaches: the whole company, their own
+ * team, or only themselves. The command and the update policy still decide; this only offers
+ * sensible choices. Whether a person is active comes from `app.user_is_active()` (0059), since
+ * the caller reads no other person's users row.
  */
 export async function listLeadAssignees(
   ctx: AssigneeContext,
@@ -51,7 +53,7 @@ export async function listLeadAssignees(
     .from(uer)
     .innerJoin(p, and(eq(p.id, uer.userId), eq(p.kind, 'user'), isNull(p.archivedAt)))
     .innerJoin(rp, and(eq(rp.roleId, uer.roleId), eq(rp.permissionKey, 'crm.lead.write')))
-    .where(and(eq(uer.entityId, input.entityId), reach))
+    .where(and(eq(uer.entityId, input.entityId), reach, sql`app.user_is_active(${p.id})`))
     .orderBy(asc(p.displayName), asc(p.id))
     .limit(MAX_ASSIGNEES);
   return rows.map((r) => LeadAssigneeDto.parse(r));

@@ -256,8 +256,20 @@ describe('listLeadAssignees', () => {
   let converter: string;
   let otherConverter: string;
   let hrPerson: string;
+  let inactive: string[];
 
   beforeAll(async () => {
+    inactive = [];
+    for (const status of ['invited', 'suspended', 'offboarded']) {
+      inactive.push(
+        (
+          await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_lc', teamId: team }], {
+            name: `${first} board ${status} converter ${tag}`,
+            status,
+          })
+        ).id,
+      );
+    }
     converter = (
       await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_lc', teamId: team }], {
         name: `${first} board converter ${tag}`,
@@ -302,5 +314,13 @@ describe('listLeadAssignees', () => {
     expect(found).toEqual(expect.arrayContaining([converter, otherConverter]));
     expect(found).not.toContain(hrPerson);
     expect(found.indexOf(converter)).toBeLessThan(found.indexOf(otherConverter));
+  });
+
+  it('offers only people who are active: never an invited, suspended or offboarded one (0059)', async () => {
+    for (const who of [gm, teamLead]) {
+      const found = (await assignees(who)).map((p) => p.id);
+      expect(found).toContain(converter);
+      for (const id of inactive) expect(found).not.toContain(id);
+    }
   });
 });

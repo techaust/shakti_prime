@@ -317,6 +317,26 @@ describe('the opportunity commands (design §7.2)', () => {
       }
     });
 
+    it('refuses a person who is not active: invited, suspended or offboarded (0059)', async () => {
+      const id = await newLead();
+      for (const status of ['invited', 'suspended', 'offboarded']) {
+        const person = (
+          await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc', teamId }], { status })
+        ).id;
+        await expect(
+          run(gm, assignOpportunity, { entityId: 1, opportunityId: id, ownerId: person }),
+          status,
+        ).rejects.toMatchObject({
+          code: 'validation_failed',
+          details: { reason: 'assignee_not_eligible' },
+        });
+      }
+      // The same lead goes to an active person.
+      await expect(
+        run(gm, assignOpportunity, { entityId: 1, opportunityId: id, ownerId: converter }),
+      ).resolves.toMatchObject({ ownerId: converter });
+    });
+
     it('lets a team lead assign only within their own team', async () => {
       const id = await newLead();
       const lead = await createTestPrincipal('sales_team_lead', [1], { teamId });

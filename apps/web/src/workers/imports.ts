@@ -12,10 +12,12 @@ import { nudgeOutbox } from './outbox';
 import { publishImportCommit, qstashConfig } from './qstash';
 
 /**
- * How long one hosted worker call keeps committing batches before it hands the rest to a fresh
- * call, well inside the route's `maxDuration`.
+ * How long one hosted worker call keeps starting batches before it hands the rest to a fresh
+ * call. A batch started just inside it may still run for its own budget
+ * (`importBatchSettings.budgetMs`, 15 seconds, after which a row-by-row batch stops between rows),
+ * so the two together stay well inside the route's `maxDuration` of 60 seconds.
  */
-export const IMPORT_RUN_BUDGET_MS = 40_000;
+export const IMPORT_RUN_BUDGET_MS = 35_000;
 
 /**
  * Batches one run commits in the dev server, where no queue exists: a small file finishes before

@@ -100,6 +100,7 @@ export async function updateJob(
       | 'skippedRows'
       | 'committedRows'
       | 'failedBatch'
+      | 'batchCount'
       | 'updatedBy'
     >
   >,
