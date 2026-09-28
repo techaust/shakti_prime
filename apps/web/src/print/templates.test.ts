@@ -36,6 +36,17 @@ describe('print styles', () => {
     expect(css).toContain(`--text:${lightColor('text')};`);
     expect(css).toContain('color-scheme:light');
   });
+
+  it('leave the font to the viewer for an on-screen preview, still light', async () => {
+    expect(baseCss({ fonts: 'viewer' })).not.toContain('@font-face');
+    expect(baseCss({ fonts: 'viewer' })).toContain(`--bg:${lightColor('bg')};`);
+    const { html: page, options } = await renderQuote(spikeQuote(1), { fonts: 'viewer' });
+    expect(page).not.toContain('@font-face');
+    expect(page).toContain(en.print.quote.title);
+    expect(options.footerTemplate).not.toContain('@font-face');
+    const labels = await renderLabelsHtml(spikeLabels(1), '100x50', { fonts: 'viewer' });
+    expect(labels).not.toContain('@font-face');
+  });
 });
 
 describe('quotation template', () => {

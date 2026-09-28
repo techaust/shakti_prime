@@ -10,8 +10,12 @@ export interface DateInputProps extends Omit<
 > {
   /** The starting date as `YYYY-MM-DD`. */
   defaultValue?: string;
-  /** Called with `YYYY-MM-DD` once a real date is typed, and with undefined otherwise. */
-  onValueChange?: (iso: string | undefined) => void;
+  /**
+   * Called with `YYYY-MM-DD` once a real date is typed, and with undefined otherwise; the second
+   * argument is the text as shown, so a form can tell a date still being typed (fewer than ten
+   * characters) from one that does not exist.
+   */
+  onValueChange?: (iso: string | undefined, text: string) => void;
   invalid?: boolean | undefined;
 }
 
@@ -43,7 +47,7 @@ export function DateInput({
         onChange={(e) => {
           const next = maskDmy(e.currentTarget.value);
           setText(next);
-          onValueChange?.(parseDmy(next));
+          onValueChange?.(parseDmy(next), next);
         }}
       />
       {name === undefined ? null : <input type="hidden" name={name} value={iso ?? ''} />}

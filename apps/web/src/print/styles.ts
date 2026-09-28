@@ -46,11 +46,20 @@ export function lightColor(name: ColorToken): string {
 
 const px = (n: number) => `${n}px`;
 
+/**
+ * How a template gets Inter: embedded from the files in this folder (every printed document), or
+ * left to the viewer's own fonts, for an on-screen preview inside the app, whose policy lets a
+ * page load fonts only from the app itself and whose server need not read the font files.
+ */
+export interface TemplateOptions {
+  fonts?: 'embedded' | 'viewer';
+}
+
 /** Base rules shared by the quote and the labels. */
-export function baseCss(): string {
+export function baseCss(options: TemplateOptions = {}): string {
   const f = scale.font;
   return `
-${interFontFaces()}
+${options.fonts === 'viewer' ? '' : interFontFaces()}
 :root{${lightTokens()}color-scheme:light;}
 *{box-sizing:border-box;}
 html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}

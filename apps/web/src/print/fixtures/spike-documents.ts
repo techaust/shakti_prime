@@ -1,5 +1,6 @@
-// Spike and test data for the print templates (ROADMAP §2 week 6). Used only by
-// `scripts/spike/print.ts` and the print tests; never shipped, never shown to a user. The
+// Spike and test data for the print templates (ROADMAP §2 week 6). Used by
+// `scripts/spike/print.ts`, the print tests and the print preview on the `/design` page (the
+// design review's view of the templates, titled as a preview); never on a document. The
 // customer, addresses and numbers are made up; the amounts are worked out here in whole
 // paise only so the rendered documents read consistently. In the product every amount comes
 // from the Price Master snapshot and the tax engine in packages/domain.
