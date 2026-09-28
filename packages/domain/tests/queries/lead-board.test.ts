@@ -1,5 +1,6 @@
 import { newId, type Principal } from '@shakti/contracts';
 import {
+  asMigrator,
   asPrincipal,
   closeDb,
   createTestPrincipal,
@@ -15,7 +16,7 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../../src/commands/crm/move-opportunity-stage';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { listBoardLeads } from '../../src/queries/crm/list-board-leads';
+import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 
 afterAll(closeDb);
@@ -158,6 +159,96 @@ describe('listBoardLeads (DESIGN.md §6, Kanban board)', () => {
     expect(forLead).toEqual(expect.arrayContaining([ids.a, ids.c, ids.teammate]));
     const forGm = (await board(gm, { entityId: ENTITY })).items.map((l) => l.id);
     expect(forGm).toEqual(expect.arrayContaining([ids.a, ids.c, ids.teammate]));
+  });
+});
+
+describe('listBoardStageLeads (a column’s Load more)', () => {
+  const NEW = stageId(1, 1);
+  let pager: Principal;
+  let pagerTeammate: Principal;
+  let pagerLead: Principal;
+  /** The pager's five leads in New, newest first: they share one change time, so by id. */
+  let five: string[];
+
+  const page = (who: Principal, input: object) =>
+    asPrincipal(who, (ctx) =>
+      listBoardStageLeads(ctx, { pipelineKey: 'farmer_pumps', stageId: NEW, ...input }),
+    );
+
+  beforeAll(async () => {
+    const pagingTeam = await createTestTeam(ENTITY, 'board paging team');
+    pager = await createTestPrincipal('tele_caller_cc', [ENTITY], { teamId: pagingTeam });
+    pagerTeammate = await createTestPrincipal('tele_caller_cc', [ENTITY], { teamId: pagingTeam });
+    pagerLead = await createTestPrincipal('sales_team_lead', [ENTITY], { teamId: pagingTeam });
+    const created: string[] = [];
+    for (const n of [1, 2, 3, 4, 5]) created.push(await newLead(pager, `Board page ${tag} ${n}`));
+    // One statement changes all five, so they share `now()` to the microsecond: only the id
+    // orders them, and a cursor that dropped the microseconds or the id would skip some.
+    await asMigrator(
+      (m) => m`update opportunities set updated_at = now() where id in ${m(created)}`,
+    );
+    five = [...created].sort().reverse();
+  });
+
+  it('shows the first page of each stage and where a stage with more continues', async () => {
+    const shown = await board(pager, { limit: 2 });
+    expect(shown.perStage).toBe(2);
+    expect(shown.items.map((l) => l.id)).toEqual(five.slice(0, 2));
+    expect(shown.counts).toEqual([{ stageId: NEW, count: 5 }]);
+    expect(shown.more.map((m) => m.stageId)).toEqual([NEW]);
+    expect(new Set(shown.items.map((l) => l.updatedAt)).size).toBe(1);
+    // A board with room for every card offers no more.
+    expect((await board(pager)).more).toEqual([]);
+  });
+
+  it('continues a stage page by page, every card once, across a shared change time', async () => {
+    const first = await board(pager, { limit: 2 });
+    const read = [...first.items.map((l) => l.id)];
+    let cursor: string | null = first.more[0]?.cursor ?? null;
+    let pages = 0;
+    while (cursor !== null && pages < 10) {
+      const next = await page(pager, { cursor, limit: 2 });
+      expect(next.stageId).toBe(NEW);
+      expect(next.items.every((l) => l.stageId === NEW && l.ownerId === pager.id)).toBe(true);
+      read.push(...next.items.map((l) => l.id));
+      cursor = next.nextCursor;
+      pages += 1;
+    }
+    expect(pages).toBe(2);
+    expect(read).toEqual(five);
+  });
+
+  it('keeps the own and team narrowing of the board', async () => {
+    const cursor = (await board(pager, { limit: 2 })).more[0]?.cursor ?? '';
+    // A teammate with own scope sees none of the pager's cards, on the board or past it.
+    expect((await board(pagerTeammate)).items.map((l) => l.id)).toEqual([]);
+    expect((await page(pagerTeammate, { cursor })).items).toEqual([]);
+    // The team lead and the General Manager continue with the pager's remaining cards.
+    for (const reader of [pagerLead, gm]) {
+      const next = await page(reader, { cursor, limit: 3, entityId: ENTITY });
+      expect(next.items.map((l) => l.id)).toEqual(five.slice(2));
+    }
+  });
+
+  it('shows another company nothing, and refuses a company outside the request', async () => {
+    const cursor = (await board(pager, { limit: 2 })).more[0]?.cursor ?? '';
+    const elsewhere = await createTestPrincipal('general_manager', [2]);
+    const theirs = await page(elsewhere, { cursor, limit: 100 });
+    expect(theirs.items.filter((l) => five.includes(l.id))).toEqual([]);
+    expect(theirs.items.every((l) => l.entityId === 2)).toBe(true);
+    await expect(page(elsewhere, { cursor, entityId: ENTITY })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('is refused without crm.lead.read, and for a cursor it did not give', async () => {
+    const hr = await createTestPrincipal('hr_admin', [ENTITY]);
+    const cursor = (await board(pager, { limit: 2 })).more[0]?.cursor ?? '';
+    await expect(page(hr, { cursor })).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(page(pager, { cursor: 'not a cursor' })).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
+    await expect(page(pager, {})).rejects.toMatchObject({ code: 'validation_failed' });
   });
 });
 

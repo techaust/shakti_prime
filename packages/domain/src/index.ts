@@ -86,7 +86,7 @@ export { listEntities } from './queries/org/list-entities';
 export { toEntityDto } from './queries/org/entity-dto';
 export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
-export { BOARD_CARDS_PER_STAGE, listBoardLeads } from './queries/crm/list-board-leads';
+export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { searchLeads } from './queries/crm/search-leads';
 export { searchPeople } from './queries/admin/search-people';

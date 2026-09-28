@@ -1,30 +1,67 @@
 import {
   BoardLeadDto,
+  BoardStagePageDto,
   DomainError,
   LeadBoardDto,
   ListBoardLeadsInput,
+  ListBoardStageLeadsInput,
   OpportunityStateSchema,
+  type BoardStageCursorDto,
+  type OpportunityState,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
+import {
+  afterCursor,
+  keysetOrder,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
 import { scopeFilter } from './list-leads';
 
 type BoardContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
-/** Cards per stage: a column past this shows its count and the newest cards. */
-export const BOARD_CARDS_PER_STAGE = 100;
+/**
+ * A board reads each stage newest change first by `(updated_at, id)`, the order of the leads
+ * list, so its cursors take the same text form (`keyset-sort.ts`): rows changed in one
+ * transaction share a timestamp to the microsecond, and the id keeps their order.
+ */
+const BOARD_SORT_KEYS: SortKeys<'updated'> = {
+  updated: { expr: schema.opportunities.updatedAt, type: 'timestamptz', nullable: false },
+};
+const boardOrder = () =>
+  keysetOrder(BOARD_SORT_KEYS, schema.opportunities.id, undefined, {
+    column: 'updated',
+    direction: 'desc',
+  });
+
+/** What one card is read from, and its place in the stage's order. */
+interface CardRow {
+  id: string;
+  entityId: number;
+  stageId: string;
+  state: string;
+  accountId: string;
+  siteId: string | null;
+  ownerId: string | null;
+  stateChangedAt: Date;
+  updatedAt: Date;
+  sortValue: string | null;
+}
 
 /**
- * The leads board of one pipeline (DESIGN.md §6): per stage, how many leads the caller can see
- * under the status filter, and the newest `BOARD_CARDS_PER_STAGE` of them with only what a card
- * shows. RLS decides the rows; `scopeFilter` only lets the owner and team indexes serve an own or
- * team reader (AUDIT M33). The cards are found on `opportunities` alone and their customers,
- * sites and owners fetched after for that bounded set (AUDIT M31).
+ * The leads a board shows: the permission, the company, the pipeline and the statuses as one
+ * filter. RLS decides the rows; `scopeFilter` only lets the owner and team indexes serve an own
+ * or team reader (AUDIT M33).
  */
-export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Promise<LeadBoardDto> {
-  const input = parseQueryInput(ListBoardLeadsInput, rawInput, 'crm.lead.board');
+async function boardScope(
+  ctx: BoardContext,
+  input: { entityId?: number | undefined; pipelineKey: string; states: OpportunityState[] },
+): Promise<{ pipelineId: string; where: SQL | undefined }> {
   checkPermission(ctx.principal, 'crm.lead.read', 'own');
   if (input.entityId !== undefined && !ctx.entityIds.includes(input.entityId)) {
     throw new DomainError('forbidden', 'entity outside the request scope', {
@@ -49,13 +86,30 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
   }
 
   const o = schema.opportunities;
-  const where = and(
-    isNull(o.archivedAt),
-    eq(o.pipelineId, pipeline.id),
-    inArray(o.entityId, entityIds),
-    inArray(o.state, input.states),
-    scopeFilter(ctx),
-  );
+  return {
+    pipelineId: pipeline.id,
+    where: and(
+      isNull(o.archivedAt),
+      eq(o.pipelineId, pipeline.id),
+      inArray(o.entityId, entityIds),
+      inArray(o.state, input.states),
+      scopeFilter(ctx),
+    ),
+  };
+}
+
+/**
+ * The leads board of one pipeline (DESIGN.md §6): per stage, how many leads the caller can see
+ * under the status filter, the newest `limit` of them (`BOARD_PAGE_SIZE` unless asked) with only
+ * what a card shows, and for each stage with more, the cursor its "Load more" continues from
+ * (`listBoardStageLeads`). The cards are found on `opportunities` alone and their customers,
+ * sites and owners fetched after for that bounded set (AUDIT M31).
+ */
+export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Promise<LeadBoardDto> {
+  const input = parseQueryInput(ListBoardLeadsInput, rawInput, 'crm.lead.board');
+  const { pipelineId, where } = await boardScope(ctx, input);
+  const o = schema.opportunities;
+  const order = boardOrder();
 
   const counts = await ctx.tx
     .select({ stageId: o.stageId, count: sql<number>`count(*)::int` })
@@ -63,6 +117,7 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
     .where(where)
     .groupBy(o.stageId);
 
+  // One row past the page in each stage says whether the stage has more.
   const ranked = ctx.tx
     .select({
       id: o.id,
@@ -74,6 +129,7 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
       ownerId: o.ownerId,
       stateChangedAt: o.stateChangedAt,
       updatedAt: o.updatedAt,
+      sortValue: sortText(order).as('sort_value'),
       rank: sql<number>`row_number() over (partition by ${o.stageId} order by ${o.updatedAt} desc, ${o.id} desc)`.as(
         'rank',
       ),
@@ -84,9 +140,76 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
   const rows = await ctx.tx
     .select()
     .from(ranked)
-    .where(lte(ranked.rank, BOARD_CARDS_PER_STAGE))
+    .where(lte(ranked.rank, input.limit + 1))
     .orderBy(desc(ranked.updatedAt), desc(ranked.id));
 
+  const shown = rows.filter((r) => r.rank <= input.limit);
+  const more: BoardStageCursorDto[] = [];
+  for (const past of rows.filter((r) => r.rank > input.limit)) {
+    const last = shown.filter((r) => r.stageId === past.stageId).at(-1);
+    const cursor = nextCursor(
+      order,
+      true,
+      last === undefined ? undefined : { value: last.sortValue, id: last.id },
+    );
+    if (cursor !== null) more.push({ stageId: past.stageId, cursor });
+  }
+
+  return LeadBoardDto.parse({
+    pipelineId,
+    counts: counts.map((c) => ({ stageId: c.stageId, count: c.count })),
+    perStage: input.limit,
+    items: await cardsOf(ctx, shown),
+    more,
+  });
+}
+
+/**
+ * The next page of one stage (the column's "Load more"): the cards after the cursor the board or
+ * the previous page gave, under the same filter and in the same order, and the cursor after them.
+ * A cursor made for another order is refused as `validation_failed`.
+ */
+export async function listBoardStageLeads(
+  ctx: BoardContext,
+  rawInput: unknown,
+): Promise<BoardStagePageDto> {
+  const input = parseQueryInput(ListBoardStageLeadsInput, rawInput, 'crm.lead.board');
+  const { where } = await boardScope(ctx, input);
+  const o = schema.opportunities;
+  const order = boardOrder();
+  const rows = await ctx.tx
+    .select({
+      id: o.id,
+      entityId: o.entityId,
+      stageId: o.stageId,
+      state: o.state,
+      accountId: o.accountId,
+      siteId: o.siteId,
+      ownerId: o.ownerId,
+      stateChangedAt: o.stateChangedAt,
+      updatedAt: o.updatedAt,
+      sortValue: sortText(order),
+    })
+    .from(o)
+    .where(and(where, eq(o.stageId, input.stageId), afterCursor(order, input.cursor)))
+    .orderBy(...orderTerms(order))
+    .limit(input.limit + 1);
+
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return BoardStagePageDto.parse({
+    stageId: input.stageId,
+    items: await cardsOf(ctx, page),
+    nextCursor: nextCursor(
+      order,
+      rows.length > input.limit,
+      last === undefined ? undefined : { value: last.sortValue, id: last.id },
+    ),
+  });
+}
+
+/** The cards of a bounded set of leads, with their customers, villages and owners' names. */
+async function cardsOf(ctx: BoardContext, rows: readonly CardRow[]): Promise<BoardLeadDto[]> {
   // One transaction answers one statement at a time, so these run in turn.
   const customers = await namesOf(
     ctx,
@@ -100,33 +223,27 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
     ctx,
     rows.flatMap((r) => (r.ownerId === null ? [] : [r.ownerId])),
   );
-
-  return LeadBoardDto.parse({
-    pipelineId: pipeline.id,
-    counts: counts.map((c) => ({ stageId: c.stageId, count: c.count })),
-    perStage: BOARD_CARDS_PER_STAGE,
-    // A lead's customer is always readable to whoever reads the lead (AUDIT M25); one that is
-    // not is left out rather than shown half-empty, as the leads list does.
-    items: rows.flatMap((r) => {
-      const customerName = customers.get(r.accountId);
-      if (customerName === undefined) return [];
-      return [
-        BoardLeadDto.parse({
-          id: r.id,
-          entityId: r.entityId,
-          stageId: r.stageId,
-          state: OpportunityStateSchema.parse(r.state),
-          customerName,
-          village: r.siteId === null ? null : (villages.get(r.siteId) ?? null),
-          ownerId: r.ownerId,
-          ownerName: r.ownerId === null ? null : (owners.get(r.ownerId) ?? null),
-          stateChangedAt: r.stateChangedAt.toISOString(),
-          // No SLA rules exist yet (they arrive with the tele-calling queues in Phase 1).
-          sla: null,
-          updatedAt: r.updatedAt.toISOString(),
-        }),
-      ];
-    }),
+  // A lead's customer is always readable to whoever reads the lead (AUDIT M25); one that is not
+  // is left out rather than shown half-empty, as the leads list does.
+  return rows.flatMap((r) => {
+    const customerName = customers.get(r.accountId);
+    if (customerName === undefined) return [];
+    return [
+      BoardLeadDto.parse({
+        id: r.id,
+        entityId: r.entityId,
+        stageId: r.stageId,
+        state: OpportunityStateSchema.parse(r.state),
+        customerName,
+        village: r.siteId === null ? null : (villages.get(r.siteId) ?? null),
+        ownerId: r.ownerId,
+        ownerName: r.ownerId === null ? null : (owners.get(r.ownerId) ?? null),
+        stateChangedAt: r.stateChangedAt.toISOString(),
+        // No SLA rules exist yet (they arrive with the tele-calling queues in Phase 1).
+        sla: null,
+        updatedAt: r.updatedAt.toISOString(),
+      }),
+    ];
   });
 }
 
