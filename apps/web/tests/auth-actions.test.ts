@@ -224,6 +224,12 @@ describe('requestNewPassword and setPassword', () => {
         form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'ok:reset' }),
       ),
     ).resolves.toEqual({ done: true });
+    // So is a malformed address: once the checks pass, nothing the person typed changes the answer.
+    await expect(
+      requestNewPassword({}, form({ email: 'nobody', 'cf-turnstile-response': 'ok:reset' })),
+    ).resolves.toEqual({ done: true });
+    // The requests themselves, refused one included, end quietly after the answers.
+    await expect(finishBackground()).resolves.toBeUndefined();
   });
 
   it('answers before the mail goes out, so an account and no account take as long', async () => {

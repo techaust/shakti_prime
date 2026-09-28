@@ -7,7 +7,7 @@ import { after } from 'next/server';
 import { toDataURL } from 'qrcode';
 import { auth } from '../auth/auth';
 import { normaliseBackupCode } from '../auth/backup-codes';
-import { withResetMailInBackground } from '../auth/create-auth';
+import { requestResetInBackground } from '../auth/create-auth';
 import { ACTIVE_ENTITY_COOKIE, currentSession, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
 import { errorKey, toDomainError } from '../auth/errors';
@@ -104,9 +104,10 @@ export async function signOut(): Promise<void> {
 
 /**
  * "Forgot your password?" (AUDIT M26): sends a set-password link when the email belongs to a
- * staff account. The answer is the same either way, so the screen does not reveal who has one:
- * the mail goes out after the answer, so the wait is the same too, and a mail that fails is
- * logged, never shown. The bot check and the per-address cap still run before the answer.
+ * staff account. The answer is the same either way, so the screen does not reveal who has one.
+ * The wait is the same too: the answer waits only for the per-address cap and the bot check,
+ * which refuse before anything reads the account; finding the account, storing the link and the
+ * mail run after the answer, and a failure there is logged, never shown.
  */
 export async function requestNewPassword(
   _prev: SetPasswordState,
@@ -114,7 +115,7 @@ export async function requestNewPassword(
 ): Promise<SetPasswordState> {
   try {
     const headers = await requestHeaders(field(formData, 'cf-turnstile-response'));
-    await withResetMailInBackground(
+    await requestResetInBackground(
       (task) => {
         after(task);
       },

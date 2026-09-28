@@ -68,9 +68,8 @@ describe('executeQuery runs in a read-only transaction', () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const name = `Read only ${newId().slice(-8)}`;
     expect(
-      await refusal(
-        caller,
-        ({ tx }) => tx.execute(sql`
+      await refusal(caller, ({ tx }) =>
+        tx.execute(sql`
           insert into saved_views (id, principal_id, screen, name, settings_json)
           values (${newId()}, ${caller.id}, 'leads', ${name}, '{}'::jsonb)
         `),
