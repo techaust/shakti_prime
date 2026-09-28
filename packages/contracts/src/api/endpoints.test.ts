@@ -78,7 +78,7 @@ describe('the /api/v1 endpoint catalogue', () => {
     let checked = 0;
     let inSection3 = false;
     for (const line of apiDoc.split(/\r?\n/)) {
-      if (/^## /.test(line)) inSection3 = /^## 3\b/.test(line);
+      if (line.startsWith('## ')) inSection3 = /^## 3\b/.test(line);
       if (!inSection3) continue;
       const row = /^\| (GET|POST|GET\/POST) \| `([^`]+)`/.exec(line);
       if (row?.[1] === undefined || row[2] === undefined) continue;
