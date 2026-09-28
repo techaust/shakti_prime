@@ -25,6 +25,7 @@ const FIELDS = ['entityId', 'kind', 'file'] as const;
 const FILE_REASONS: readonly string[] = [
   'import_file_empty',
   'import_file_too_large',
+  'import_workbook_too_large',
   'import_file_type',
   'import_file_unreadable',
   'import_no_header',

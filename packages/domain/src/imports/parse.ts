@@ -1,6 +1,7 @@
 import { DomainError, IMPORT_LIMITS, type ImportFormat } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
+import { checkZipArchive } from './zip-guard';
 
 /** An import file read into a header and data rows, every cell a trimmed string. */
 export interface ParsedImportFile {
@@ -15,6 +16,8 @@ export interface ParsedImportFile {
 
 export interface ParseLimits {
   maxFileBytes: number;
+  maxUnzippedBytes: number;
+  maxZipRatio: number;
   maxRows: number;
   maxColumns: number;
   maxCellLength: number;
@@ -25,6 +28,7 @@ export interface ParseLimits {
 /** The reasons a file is refused; each has a sentence in the message catalogue. */
 export type ImportFileReason =
   | 'import_file_too_large'
+  | 'import_workbook_too_large'
   | 'import_file_empty'
   | 'import_file_type'
   | 'import_file_unreadable'
@@ -86,6 +90,9 @@ export function cellText(value: unknown): string {
 }
 
 async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[][]> {
+  // The packed size was checked; what the parts unpack to is checked before anything unpacks.
+  const verdict = checkZipArchive(bytes, limits);
+  if (!verdict.ok) throw refuse(verdict.reason, verdict.why);
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
@@ -152,8 +159,8 @@ export function uniqueColumns(
 
 /**
  * Reads an uploaded CSV or XLSX file (docs/design/backend-weeks-3-5.md §8): size and type
- * checks, the first sheet of a workbook, header detection, and the row, column and cell limits.
- * A file outside the limits is refused whole with a reason the screen can explain.
+ * checks, what a workbook unpacks to (`checkZipArchive`), the first sheet of a workbook, header
+ * detection, and the row, column and cell limits. A file outside the limits is refused whole with a reason the screen can explain.
  */
 export async function parseImportFile(
   bytes: Uint8Array,
