@@ -3,7 +3,7 @@
 // behaviour on real Postgres is covered by the security suite under tests/.
 import { newId, type Principal } from '@shakti/contracts';
 import type * as DbModule from '@shakti/db';
-import type { RequestContext, RequestScope } from '@shakti/db';
+import type { RequestContext, RequestOptions, RequestScope } from '@shakti/db';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type * as AuditSinkModule from '../audit/sink';
@@ -12,10 +12,8 @@ import { memoryLogger } from '../ports/logger';
 import { defineCommand } from './define-command';
 import { executeCommand, executeQuery } from './execute';
 import type { Clock } from './timing';
-import { PgDialect } from 'drizzle-orm/pg-core';
-import type { SQL } from 'drizzle-orm';
 
-const audited = vi.hoisted(() => ({ rows: [] as unknown[], statements: [] as unknown[] }));
+const audited = vi.hoisted(() => ({ rows: [] as unknown[], contexts: [] as unknown[] }));
 
 vi.mock('@shakti/db', async (importOriginal) => ({
   ...(await importOriginal<typeof DbModule>()),
@@ -23,19 +21,17 @@ vi.mock('@shakti/db', async (importOriginal) => ({
     principal: Principal,
     scope: RequestScope,
     fn: (context: RequestContext) => Promise<T>,
-  ): Promise<T> =>
-    fn({
+    options: RequestOptions = {},
+  ): Promise<T> => {
+    // The options each call opened its context with, in order.
+    audited.contexts.push(options);
+    return fn({
       principal,
       entityIds: scope.entityIds ?? principal.entityIds,
       requestId: scope.requestId ?? 'generated',
-      // The statements a call runs on the transaction itself, in order.
-      tx: {
-        execute: (statement: unknown) => {
-          audited.statements.push(statement);
-          return Promise.resolve([]);
-        },
-      } as unknown as RequestContext['tx'],
-    }),
+      tx: undefined as unknown as RequestContext['tx'],
+    });
+  },
 }));
 
 vi.mock('../audit/sink', async (importOriginal) => ({
@@ -204,19 +200,23 @@ describe('executeQuery timing', () => {
     ]);
   });
 
-  it('turns the transaction read-only before the query runs, so the query cannot write', async () => {
-    audited.statements.length = 0;
-    const order: string[] = [];
-    await executeQuery(
+  it('opens a read-only context for a query, and a read-write one for a command', async () => {
+    audited.contexts.length = 0;
+    await executeQuery(principal(), { requestId: 'r' }, () => Promise.resolve(1), {
+      name: 'listLeads',
+      logger: memoryLogger(),
+      clock: fakeClock(0),
+    });
+    await executeCommand(
       principal(),
-      { requestId: 'r' },
-      () => {
-        order.push(...audited.statements.map((s) => new PgDialect().sqlToQuery(s as SQL).sql));
-        order.push('query');
-        return Promise.resolve(1);
+      { requestId: 'c' },
+      echo,
+      { phone: '1' },
+      {
+        logger: memoryLogger(),
+        clock: fakeClock(0),
       },
-      { name: 'listLeads', logger: memoryLogger(), clock: fakeClock(0) },
     );
-    expect(order).toEqual(['set transaction read only', 'query']);
+    expect(audited.contexts).toEqual([{ readOnly: true }, {}]);
   });
 });

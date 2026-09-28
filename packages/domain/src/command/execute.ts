@@ -1,6 +1,5 @@
 import { DomainError, newId, type Principal } from '@shakti/contracts';
 import { withRequestContext, type RequestContext, type RequestScope } from '@shakti/db';
-import { sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import { redactForAudit } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
@@ -170,9 +169,10 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
  * The one way the web app reads data: a query from this package inside the caller's context,
  * timed into one log line (`query.completed`) like a command.
  *
- * The transaction turns read-only before the query's first statement. The function is handed the
- * transaction, and a write made through it would skip the guard, the audit trail and the outbox,
- * so Postgres refuses any insert, update, delete or sequence step there (SQLSTATE 25006).
+ * The request context is read-only (`readOnly`) before the query's first statement. The function
+ * is handed the transaction, and a write made through it would skip the guard, the audit trail and
+ * the outbox, so Postgres refuses any insert, update, delete or sequence step there (SQLSTATE
+ * 25006), even after a `commit` the function issues itself.
  */
 export function executeQuery<T>(
   principal: Principal,
@@ -186,10 +186,6 @@ export function executeQuery<T>(
     options.name ?? (query.name === '' ? 'anonymous' : query.name),
     requestId,
     timingOptions(options.logger, options.clock),
-    () =>
-      withRequestContext(principal, { ...scope, requestId }, async (context) => {
-        await context.tx.execute(sql`set transaction read only`);
-        return query(context);
-      }),
+    () => withRequestContext(principal, { ...scope, requestId }, query, { readOnly: true }),
   );
 }

@@ -2,7 +2,7 @@
 // to it cannot write around the command runner, its guard, the audit trail and the outbox.
 import { newId, type Principal } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { asMigrator, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
@@ -96,5 +96,50 @@ describe('executeQuery runs in a read-only transaction', () => {
     expect(
       await refusal(caller, ({ tx }) => tx.execute(sql`set transaction read write`)),
     ).toBeDefined();
+  });
+
+  it('refuses a write after a commit the query issues itself, settings restored or not', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    const name = `Read only ${newId().slice(-8)}`;
+    const insert = sql`
+      insert into saved_views (id, principal_id, screen, name, settings_json)
+      values (${newId()}, ${caller.id}, 'leads', ${name}, '{}'::jsonb)`;
+    // Ending the transaction early leaves the connection read-only, not writable.
+    expect(
+      await refusal(caller, async ({ tx }) => {
+        await tx.execute(sql`commit`);
+        return tx.execute(insert);
+      }),
+    ).toBe('25006');
+    // Nor does putting back the settings row security reads make the write pass: it is the
+    // connection's read-only default that refuses it, not the missing settings.
+    expect(
+      await refusal(caller, async ({ tx }) => {
+        await tx.execute(sql`commit`);
+        await tx.execute(sql`select set_config('app.user_id', ${caller.id}, false)`);
+        return tx.execute(insert);
+      }),
+    ).toBe('25006');
+    expect(await viewsNamed(name)).toBe(0);
+  });
+
+  it('leaves every pooled connection writable for the commands after it', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    // Reads that end normally, that fail, and that end their own transaction early.
+    await executeQuery(caller, {}, ({ tx }) => tx.execute(sql`select 1`), { name: 't', logger });
+    await refusal(caller, ({ tx }) => tx.execute(sql`select 1/0`));
+    await refusal(caller, async ({ tx }) => {
+      await tx.execute(sql`commit`);
+      return tx.execute(sql`select 1`);
+    });
+    // More sequential contexts than the pool holds connections, so each one is seen.
+    for (let i = 0; i < 12; i += 1) {
+      const [row] = await asPrincipal(caller, ({ tx }) =>
+        tx.execute<{ now_ro: string; default_ro: string }>(sql`
+          select current_setting('transaction_read_only') as now_ro,
+                 current_setting('default_transaction_read_only') as default_ro`),
+      );
+      expect(row).toEqual({ now_ro: 'off', default_ro: 'off' });
+    }
   });
 });
