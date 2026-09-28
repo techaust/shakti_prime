@@ -77,3 +77,6 @@ Desktop.ini
 # Claude Code local state
 .claude/settings.local.json
 .claude/worktrees/
+
+# Playwright MCP browser session files
+.playwright-mcp/
