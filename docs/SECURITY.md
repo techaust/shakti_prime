@@ -26,7 +26,7 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 - **2FA:** TOTP required for Executive, GM and Accounts; each code verifies once; five wrong codes lock the second factor for an hour; the sign-in lock clears and the last sign-in is recorded only after the second factor; recovery codes; recovery email via SES only; a user who has lost both the app and the backup codes is reset by an Executive (`admin.user.two_factor.reset`, never their own account) only after the Executive has confirmed who is asking by phone or in person, and the reset signs the user out everywhere, emails them and makes them set up a new app at the next sign-in.
 - **Set-password links:** stored hashed; an invitation lasts 24 h and a forgotten-password link 1 h; a new link withdraws the person's earlier ones; attempts are capped per link and per address. Staff ask for a new link on the "Forgot your password?" screen (Turnstile, the same answer whether or not the email has an account); an Executive re-sends an invitation by inviting the person again, and is told when the email did not go out.
 - **Endpoints:** the auth module serves over HTTP only the link a set-password email opens; every other auth endpoint answers not found over HTTP and is reached by the screens' server actions in-process.
-- **Deployment guard:** a hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mailer that would log message bodies; readiness reports both database connections, the key-value store (a write and read back) and the configuration.
+- **Deployment guard:** a hosted runtime refuses to start with a missing variable, a published or short `BETTER_AUTH_SECRET`, a non-https base URL, Cloudflare's Turnstile test keys, or a mailer that would log message bodies; readiness reports both database connections, the key-value store (a write and read back), the configuration and the outbox (down when an event has waited more than five minutes).
 - **Mobile:** 15-minute access tokens, rotating refresh tokens in the Android Keystore, per-device revocation, minimum-version gate.
 - **Voice:** a 5-minute user-scoped token per session so the worker acts as the speaking user.
 - **Realtime:** BOS-signed ES256 JWT (≤ 15 min) registered as a Supabase third-party provider; Realtime-only claims.
@@ -102,6 +102,18 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 | `agent:chief` | Read across modules at entity scope for briefings and anomalies; no cost permissions, no writes except Agent Inbox items |
 
 No agent principal holds `procurement.rate.read`, `finance.cost.read`, `documents.sensitive.read`, `knowledge.vault.read.exec`, any admin permission, or the human controls (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch`, `knowledge.playbook.approve`, `sales.credit.release`). The Triage and Co-pilot agents work on opportunity data without customer names or phone numbers; they hold no `crm.account.*` permission. Ask the Business and voice Ask run as the user.
+
+### 3.4 Voice principals
+A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" session (blueprint §9.2, ADR 0010). It is not an agent: it acts as the speaking user.
+
+| Rule | Source |
+|---|---|
+| Only a user holding `voice.use` (Executive and GM, §3.2) can start a session through `POST /voice/session`; Executives and GMs first | Blueprint §9.2, ADR 0010 |
+| The worker calls `/api/v1` with a 5-minute BOS token for the speaking user (`VoiceTokenClaims`, `aud: shakti-voice`, `sid` = the session), so every tool call is a command run with that user's own grants and entity scope, under RLS and cost masking; the worker holds no database credentials and no service role | Blueprint §9.2, ADR 0010 |
+| Command mode proposes actions that the user confirms with a tap before they run | Blueprint §9.2 |
+| A recording question before every session (`consentRecording`), a visible listening indicator, PII masking before any model call, and per-user daily minute and spend caps checked when the session starts (`voice_cap_reached`) and enforced by the worker during it | Blueprint §9.2, ADR 0010 |
+| Proposed: the principal never carries `finance.cost.read` or `procurement.rate.read`, even for an Executive, so a spoken answer never reads out a cost or supplier rate; cost figures stay on the screen reports that run under the viewer's own permissions | Proposed, from the blueprint's cost masking for voice (§9.2) |
+| Proposed: each command a session runs is audited with `actor_kind = voice_session` and the speaking user in `on_behalf_of_user_id` | Proposed (`audit_logs`, DATABASE §6.10) |
 
 ## 4. Data isolation
 - RLS on every business table with fail-closed policies (`docs/DATABASE.md` §4); `FORCE ROW LEVEL SECURITY`; `app_user` is not the owner and has no `BYPASSRLS`.

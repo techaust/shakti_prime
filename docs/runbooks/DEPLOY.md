@@ -18,7 +18,7 @@ How the BOS reaches staging and production: the database, its secrets, the first
    - `BOS_JWT_CURRENT_KEY` (and `BOS_JWT_NEXT_KEY` during a rotation) once Realtime is switched on: a private key from `pnpm --silent --filter web realtime-keys`, never stored anywhere else; without it `/api/v1/realtime/token` and `/.well-known/jwks.json` answer unavailable and nothing else changes;
    - `MAILER=log` on staging. Production needs the mail provider first: it refuses to start with `log`.
 
-   A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()`), and `/api/v1/health/ready` reports which dependency is down.
+   A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, which requires every variable of its `PRODUCTION_ENV` list: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `MAILER`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`), and `/api/v1/health/ready` reports which dependency is down.
 
 ## 2. Every deploy
 1. Merge to `main` only on a green CI run; the merge-on-green workflow (`.github/workflows/automerge.yml`) merges a pull request only after CI passes on its latest commit, and runs CI again on `main`.

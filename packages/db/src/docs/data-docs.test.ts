@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseCatalogue, parseMigrations, readSources, renderDataDocs } from './data-docs';
+import {
+  inferReference,
+  parseCatalogue,
+  parseMigrations,
+  plannedColumns,
+  readSources,
+  renderDataDocs,
+} from './data-docs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const read = (file: string) => readFileSync(join(repoRoot, 'docs', 'data', file), 'utf8');
@@ -28,6 +35,46 @@ describe('the ERD and data dictionary (docs/data)', () => {
     expect(docs.dictionary).toContain('| `quotes` |');
     expect(docs.dictionary).toContain('| `employees` |');
     expect(docs.dictionary).not.toMatch(/^\| `opportunities` \|/m);
+  });
+
+  it('draw the planned tables per section, related by their documented *_id columns', () => {
+    const planned = docs.erd.slice(docs.erd.indexOf('## Planned tables'));
+    expect(planned).toContain('### Sales');
+    expect(planned).toContain('  quotes {');
+    expect(planned).toContain('  quote_lines }o--|| quotes : "quote_id"');
+    expect(planned).toContain('  sales_orders }o--o| quotes : "quote_id"');
+    expect(planned).toContain('  quotes }o--|| customer_sites : "site_id"');
+    expect(planned).not.toContain('  opportunities {');
+  });
+});
+
+describe('planned tables', () => {
+  const known = new Set(['quotes', 'files', 'customer_sites', 'stock_movements', 'quote_lines']);
+
+  it('reads the documented columns, leaving out value lists, remarks and other tables', () => {
+    const columns = plannedColumns(
+      {
+        table: 'quotes',
+        section: '6.4 Sales',
+        qualifier: null,
+        note: '`site_id null`, `state` (`draft`, `sent`), `pdf_file_id`, `embedding vector(1024)`, price columns as `quote_lines`; `later` after the list',
+      },
+      known,
+    );
+    expect(columns).toEqual([
+      { name: 'site_id', type: 'uuid', nullable: true, references: 'customer_sites' },
+      { name: 'state', type: null, nullable: false, references: null },
+      { name: 'pdf_file_id', type: 'uuid', nullable: false, references: 'files' },
+      { name: 'embedding', type: 'vector(1024)', nullable: false, references: null },
+    ]);
+  });
+
+  it('finds a table from an id column name, an alias or a self reference', () => {
+    expect(inferReference('x', 'receipt_file_id', known)).toBe('files');
+    expect(inferReference('x', 'site_id', known)).toBe('customer_sites');
+    expect(inferReference('stock_movements', 'reverses_id', known)).toBe('stock_movements');
+    expect(inferReference('x', 'provider_call_id', known)).toBeNull();
+    expect(inferReference('x', 'caller_id', known)).toBeNull();
   });
 });
 

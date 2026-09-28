@@ -34,13 +34,15 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 **Exit gate checklist:**
 - [x] Security suite green for every table in the core schema, including fail-closed and cost-gate tests
 - [ ] `DESIGN.md` and preview page signed off by the client
-- [ ] All six spikes passed with written results and latency numbers
+- [ ] All seven spikes (Tally, Exotel, WhatsApp, voice, Realtime, PDF and labels, OCR) passed with written results and latency numbers
 - [ ] ERD, data dictionary, state machines, permission matrix and API contracts reviewed
 - [ ] Vendor quotes confirm the §13 cost figures
 - [ ] Phase 0 tooling installed and verified; `currentPhase` set to 1 in `.claude/tooling.json`
 
 ## 3. Phase 1 — MVP (12–14 weeks)
 **Scope:** non-integration ingestion (walk-in, import, manual, referral codes); dedupe; four pipelines with stage-exit rules; CC and LC workspaces with manual call logging; round-robin handover; targets and leaderboards; Price Master tiers with the minimal catalogue (items, HSN, tax rates, kits as saleable bundles, pump curves); sizing calculators; quotes with PDF; sales orders; dealer credit with manual outstanding; notifications; Knowledge Vault uploads with embeddings; data migration; Triage agent in shadow mode.
+
+**Carried from Phase 0** (recorded in `DESIGN.md` §5, §6 and §10 and `docs/design/backend-weeks-3-5.md`): the top-bar notifications and the Agent Inbox; the caller workspace; the quote and sales-order tables and commands; imports of customers, the S3 store with pre-signed uploads and four concurrent import workers; the `system:workers` principal and the workers' event-id check; audit partition detach and retention runs; Playwright visual snapshots.
 
 **Exit gate:** 2-week parallel run with legacy sheets; migration counts reconciled; UAT sign-off per role; Playwright E2E for the CC, LC, Store Manager and Executive paths; Phase 1 tooling (Playwright, Sentry, AWS) confirmed.
 

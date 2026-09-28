@@ -148,6 +148,125 @@ export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
   return entries;
 }
 
+// --- Planned tables --------------------------------------------------------------------------
+
+export interface PlannedColumn {
+  name: string;
+  /** The type DATABASE.md states, or the one its §2 naming conventions fix, or null. */
+  type: string | null;
+  /** DATABASE.md writes `column null` for a column that may be empty. */
+  nullable: boolean;
+  /** The table a `*_id` column refers to, inferred from its name. */
+  references: string | null;
+}
+
+/**
+ * `*_id` stems whose table is not the plain plural of the stem. Everything else resolves by
+ * pluralising the stem, then its shorter tails (`receipt_file_id` → `files`).
+ */
+const REFERENCE_ALIASES: Record<string, string> = {
+  so: 'sales_orders',
+  so_line: 'sales_order_lines',
+  po: 'purchase_orders',
+  site: 'customer_sites',
+  location: 'org_locations',
+  tier: 'price_tiers',
+  channel: 'entity_channels',
+  thread: 'whatsapp_threads',
+  disposition: 'call_dispositions',
+  source: 'lead_sources',
+  stage: 'pipeline_stages',
+  composite_rule: 'composite_supply_rules',
+  flow_template: 'project_flow_templates',
+  application: 'subsidy_applications',
+  claim: 'expense_claims',
+  receipt: 'goods_receipts',
+  movement: 'stock_movements',
+  cost_entry: 'job_cost_entries',
+  voucher: 'tally_vouchers',
+  run: 'agent_runs',
+};
+
+function pluralCandidates(stem: string): string[] {
+  const plurals = [`${stem}s`, `${stem}es`];
+  if (stem.endsWith('y')) plurals.push(`${stem.slice(0, -1)}ies`);
+  return plurals;
+}
+
+/** The table a `*_id` column names, or null when its name does not lead to one. */
+export function inferReference(
+  table: string,
+  column: string,
+  knownTables: ReadonlySet<string>,
+): string | null {
+  if (column === 'reverses_id') return table;
+  if (!column.endsWith('_id') || column.startsWith('provider_') || column === 'ref_id') return null;
+  const words = column.slice(0, -'_id'.length).split('_');
+  for (let i = 0; i < words.length; i += 1) {
+    const stem = words.slice(i).join('_');
+    const alias = REFERENCE_ALIASES[stem];
+    if (alias !== undefined && knownTables.has(alias)) return alias;
+    const found = pluralCandidates(stem).find((t) => knownTables.has(t));
+    if (found !== undefined) return found;
+  }
+  return null;
+}
+
+/** The type DATABASE.md §2 fixes by a column's name, when it fixes one. */
+function conventionalType(column: string, references: string | null): string | null {
+  if (column === 'entity_id') return 'smallint';
+  if (references !== null) return 'uuid';
+  if (column.endsWith('_at')) return 'timestamptz';
+  if (column.startsWith('is_')) return 'boolean';
+  if (column.endsWith('_json')) return 'jsonb';
+  return null;
+}
+
+/** Removes every bracketed aside that is not inside a code span (value lists, remarks). */
+function withoutAsides(text: string): string {
+  let out = '';
+  let depth = 0;
+  let inCode = false;
+  for (const ch of text) {
+    if (ch === '`' && depth === 0) inCode = !inCode;
+    if (!inCode && ch === '(') depth += 1;
+    if (depth === 0) out += ch;
+    if (!inCode && ch === ')' && depth > 0) depth -= 1;
+  }
+  return out;
+}
+
+/**
+ * The columns a planned table's catalogue note documents: the code spans of its key-column list
+ * (the note up to its first semicolon), leaving out value lists in brackets and the names of
+ * other tables. A note that does not open with a column documents none.
+ */
+export function plannedColumns(
+  entry: CatalogueEntry,
+  knownTables: ReadonlySet<string>,
+): PlannedColumn[] {
+  const note = withoutAsides(entry.note).trim();
+  if (!note.startsWith('`')) return [];
+  const list = note.split(';')[0] ?? '';
+  const columns: PlannedColumn[] = [];
+  for (const span of list.matchAll(/`([^`]+)`/g)) {
+    const parsed = /^([a-z_][a-z0-9_]*)(?: (.+))?$/.exec(span[1] ?? '');
+    const name = parsed?.[1];
+    if (name === undefined || knownTables.has(name) || columns.some((c) => c.name === name)) {
+      continue;
+    }
+    const stated = parsed?.[2];
+    const references = inferReference(entry.table, name, knownTables);
+    columns.push({
+      name,
+      type: stated !== undefined && stated !== 'null' ? stated : conventionalType(name, references),
+      nullable: stated === 'null',
+      references,
+    });
+  }
+  return columns;
+}
+
 // --- Hand-written SQL ------------------------------------------------------------------------
 
 export interface PolicyInfo {
@@ -462,16 +581,35 @@ export function renderDataDocs(sources: DataDocSources): DataDocs {
   const catalogue = parseCatalogue(sources.databaseDoc);
   const sql = parseMigrations(sources.migrations);
   const modules = groupModules([...tables.keys()], catalogue);
+  const known = new Set([...tables.keys(), ...catalogue.map((e) => e.table)]);
+  const planned = catalogue
+    .filter((e) => !tables.has(e.table))
+    .map((entry) => ({ entry, columns: plannedColumns(entry, known) }));
   return {
-    erd: renderErd(sources, tables, modules),
-    dictionary: renderDictionary(sources, tables, modules, catalogue, sql),
+    erd: renderErd(sources, tables, modules, planned),
+    dictionary: renderDictionary(sources, tables, modules, catalogue, planned, sql),
   };
+}
+
+interface PlannedTable {
+  entry: CatalogueEntry;
+  columns: PlannedColumn[];
+}
+
+/** `6.4 Sales` → `Sales`. */
+const sectionTitle = (section: string): string => section.replace(/^[\d.]+\s+/, '');
+
+/** Planned tables by DATABASE.md §6 section, in the catalogue's order. */
+function plannedSections(planned: readonly PlannedTable[]): [string, PlannedTable[]][] {
+  const sections = [...new Set(planned.map((p) => p.entry.section))];
+  return sections.map((section) => [section, planned.filter((p) => p.entry.section === section)]);
 }
 
 function renderErd(
   sources: DataDocSources,
   tables: Map<string, SnapshotTable>,
   modules: Module[],
+  planned: readonly PlannedTable[],
 ): string {
   const out = header(
     sources,
@@ -479,7 +617,7 @@ function renderErd(
     'The tables built so far, one diagram per module; a table another module owns appears as a name only.',
   );
   out.push(
-    'Every table also carries `created_by` and `updated_by`, which reference `principals`; those links are left out of the diagrams. Column meanings, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are listed there under "Planned tables".',
+    'Every table also carries `created_by` and `updated_by`, which reference `principals`; those links are left out of the diagrams. Column meanings, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their DATABASE.md §6 entries.',
     '',
   );
   for (const module of modules) {
@@ -529,6 +667,35 @@ function renderErd(
     }
     out.push('```', '');
   }
+
+  out.push(
+    '## Planned tables',
+    '',
+    "Tables DATABASE.md §6 documents that no migration has created yet, one diagram per section. Each shows the columns its entry names and the standard `id` of DATABASE.md §2. A type comes from the entry or from the §2 naming conventions (`entity_id` smallint, other `*_id` references uuid, `*_at` timestamptz, `is_*` boolean, `*_json` jsonb); a column whose type neither fixes shows `untyped`. A relationship is inferred from a `*_id` column's name and drawn to the table it names; the migration that builds the table fixes the real keys, and the table then moves to its module above.",
+    '',
+  );
+  for (const [section, entries] of plannedSections(planned)) {
+    out.push(`### ${sectionTitle(section)}`, '', '```mermaid', 'erDiagram');
+    for (const { entry, columns } of entries) {
+      out.push(`  ${entry.table} {`);
+      if (!columns.some((c) => c.name === 'id')) out.push('    uuid id PK');
+      for (const column of columns) {
+        const key = column.references === null ? '' : ' FK';
+        const nullable = column.nullable ? ' "null"' : '';
+        out.push(`    ${mermaidType(column.type ?? 'untyped')} ${column.name}${key}${nullable}`);
+      }
+      out.push('  }');
+    }
+    for (const { entry, columns } of entries) {
+      for (const column of columns) {
+        if (column.references === null) continue;
+        const self = column.references === entry.table;
+        const right = column.nullable || self ? 'o|' : '||';
+        out.push(`  ${entry.table} }o--${right} ${column.references} : "${column.name}"`);
+      }
+    }
+    out.push('```', '');
+  }
   return `${out.join('\n').trimEnd()}\n`;
 }
 
@@ -537,6 +704,7 @@ function renderDictionary(
   tables: Map<string, SnapshotTable>,
   modules: Module[],
   catalogue: CatalogueEntry[],
+  planned: readonly PlannedTable[],
   sql: Map<string, SqlTableInfo>,
 ): string {
   const out = header(
@@ -561,16 +729,23 @@ function renderDictionary(
 
   out.push('## Planned tables', '');
   out.push(
-    'Tables DATABASE.md §6 documents that no migration has created yet, with the columns documented for them. Each gains a full entry above when its migration lands.',
+    'Tables DATABASE.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](ERD.md#planned-tables) draws them. Each gains a full entry above when its migration lands.',
     '',
   );
-  const planned = catalogue.filter((e) => !tables.has(e.table));
-  const sections = [...new Set(planned.map((e) => e.section))];
-  for (const section of sections) {
-    out.push(`### ${section}`, '', '| Table | Documented columns |', '|---|---|');
-    for (const entry of planned.filter((e) => e.section === section)) {
+  for (const [section, entries] of plannedSections(planned)) {
+    out.push(
+      `### ${section}`,
+      '',
+      '| Table | Documented columns | Refers to (inferred) |',
+      '|---|---|---|',
+    );
+    for (const { entry, columns } of entries) {
       const qualifier = entry.qualifier === null ? '' : ` (${entry.qualifier})`;
-      out.push(`| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.note)} |`);
+      const refs = columns
+        .filter((c) => c.references !== null)
+        .map((c) => `\`${c.name}\` → \`${c.references ?? ''}\``)
+        .join(', ');
+      out.push(`| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.note)} | ${cell(refs)} |`);
     }
     out.push('');
   }

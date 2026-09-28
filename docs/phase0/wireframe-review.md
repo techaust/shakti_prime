@@ -11,14 +11,16 @@ Two things are reviewed together:
 **Screens in the review system** (real sign-in, real saving, entries in the activity log). The sessions run once all of these are on the main app; the development team confirms that, and shares the full address, before the first session:
 | Screen | Address | What it does | Roles that see it |
 |---|---|---|---|
-| Home | `/home` | The person's start page, with the System, Light and Dark theme switch | All roles |
+| Home | `/home` | The person's start page | All roles |
+| Your profile | `/settings/profile` | The System, Light and Dark theme switch and the password change, from the profile menu | All roles |
 | Leads | `/leads` | List with search and filters | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
+| Leads board | `/leads/board` | Leads by stage: drag a card to another stage, or use the card's menu to move, assign, follow up later, reopen, win or lose | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
 | Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
-| Companies | `/settings/companies` | Name, GSTIN, state, letterhead and bank details per company | Executive |
+| Companies | `/settings/companies` | Name, GSTIN and state per company, with the brand name and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
 | Price Master | `/price-master` | Prices per tier with start dates and history | Executive edits; most roles can view |
-| Imports | `/imports` | Upload a spreadsheet of leads, customers or items, match its columns, check the rows, then add them | Executive, General Manager |
+| Imports | `/imports` | Upload a spreadsheet of leads, match its columns, check the rows, then add them (customers and items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
 **The clickable prototype** (`docs/phase0/prototype/index.html`, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
@@ -26,7 +28,6 @@ Two things are reviewed together:
 |---|---|
 | Role home pages | All eleven roles |
 | Cold-calling workspace: queue, script, number-key call outcomes, next lead | Tele-caller (cold calling), Sales Team Lead |
-| Lead-converter workspace: board by stage | Tele-caller (converter), Sales Team Lead, General Manager |
 | Customer page (Account 360) | Tele-callers, Store Manager, General Manager, Project Manager, Executive |
 | Quote builder | Tele-caller (converter), Store Manager, Executive, Accounts |
 | Sales orders: list and detail | Tele-caller (converter), General Manager, Inventory Manager, Accounts, Executive |
@@ -96,8 +97,8 @@ One or two people for each of the eleven roles; two where the role has many peop
 | # | Task | Where | Done when |
 |---|---|---|---|
 | T1 | "Which caller in your team has made the most calls today, and who is behind target?" | Prototype, Team lead home | Both named |
-| T2 | "Nisha, a converter, is on leave today. Move one of her leads to another converter." | Prototype, lead-converter board | Lead reassigned from the card |
-| T3 | "Find the leads that have been in Contacted for more than three days." | Prototype, lead-converter board | The age on the cards is used |
+| T2 | "A converter is on leave today. Move one of their leads to another converter." | App, Leads board | Lead reassigned from the card |
+| T3 | "Find the leads that have been in Contacted for more than three days." | App, Leads board | The age on the cards is used |
 | T4 | "Show me all the leads of your team from the walk-in source." | App, Leads | Filter applied |
 
 ### 4.4 Tele-caller, cold calling
@@ -112,7 +113,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 ### 4.5 Tele-caller, lead converter
 | # | Task | Where | Done when |
 |---|---|---|---|
-| L1 | "Move Sita Devi's lead from Qualified to Quoted." | Prototype, lead-converter board | Card moved |
+| L1 | "Move a lead from Qualified to Quoted." | App, Leads board | Card moved |
 | L2 | "Make a quote for a 7.5 HP solar pump kit for a farmer, and tell me the total with GST." | Prototype, quote builder | Line added and total read out |
 | L3 | "Open the customer and tell me what was said on the last call." | Prototype, customer page | The summary found in the timeline |
 | L4 | "The customer accepted the quote. Turn it into a sales order." | Prototype, quote builder and Sales orders | Sales order opened |

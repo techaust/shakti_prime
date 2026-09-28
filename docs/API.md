@@ -30,7 +30,7 @@ Blueprint reference: §4, §10. The BOS has two entry surfaces: **server actions
 | Voice agent | The BOS mints a 5-minute user-scoped token when a voice session starts; the worker sends it as `Authorization: Bearer` so every command runs as the speaking user |
 | Tally connector | Per-connector key; every request carries `X-Connector-Id`, `X-Timestamp` and `X-Signature` (HMAC-SHA256 over method, path, timestamp and body); 5-minute clock skew window |
 | Website ingest | Per-entity ingest key in `X-Ingest-Key` plus a Cloudflare Turnstile token in the body |
-| Provider webhooks | Provider signature verification (Meta `X-Hub-Signature-256`, Exotel signature, Google Lead Form key) before any processing |
+| Provider webhooks | Provider signature verification before any processing: Meta `X-Hub-Signature-256`, the Google Lead Form key, and for Exotel, which sends no signature header, a StatusCallback address per call that carries the BOS call id, an expiry and an HMAC-SHA256 of both under `EXOTEL_CALLBACK_SECRET` (`apps/web/src/integrations/exotel/status-callback.ts`) |
 | Workers | QStash signature (`Upstash-Signature`) verified with the current and next signing keys |
 
 Every authenticated call runs inside `withRequestContext()` with the caller's principal and entity scope.
@@ -72,7 +72,7 @@ Provider payloads are loose schemas: unknown keys are kept, and only the fields 
 | GET/POST | `/webhooks/meta/whatsapp` | Meta WhatsApp Cloud API | Verification handshake on GET; messages, statuses, template updates on POST | `webhooks-meta.ts`: `MetaVerifyQuery` (GET answers the challenge as text, `forbidden` on a wrong verify token); `WhatsAppWebhook` (`messages`, `statuses`, `message_template_status_update`, `phone_number_quality_update`; other fields acknowledged); `MetaSignatureHeaderSchema` |
 | POST | `/webhooks/meta/leadgen` | Meta Lead Ads | Lead ID → fetched with the page token → normalised | `MetaLeadgenWebhook`; the fetched lead parses with `MetaLeadDetails` |
 | POST | `/webhooks/google/leadform` | Google Lead Form | Key in payload | `webhooks-google.ts`: `GoogleLeadFormWebhook` (`google_key` compared in constant time; `is_test` stored, no lead) |
-| POST | `/webhooks/exotel/call-status` | Exotel | Call state, duration, recording URL | `webhooks-exotel.ts`: `ExotelCallStatusWebhook` (`CustomField` carries `calls.id`); the authentication method is fixed by the week 6 Exotel spike |
+| POST | `/webhooks/exotel/call-status` | Exotel | Call state, duration, recording URL | `webhooks-exotel.ts`: `ExotelCallStatusWebhook` (`CustomField` carries `calls.id`); authenticated by the signed per-call callback address (§2) and the CallSid the dial returned |
 | POST | `/webhooks/exotel/incoming` | Exotel | Inbound call → screen-pop event | `ExotelIncomingWebhook` (Passthru applet) |
 | POST | `/webhooks/livekit` | LiveKit | Room and participant events | `webhooks-livekit.ts`: `LiveKitWebhook`; `Authorization` JWT from the API secret with the body's SHA-256 |
 
@@ -109,13 +109,21 @@ Every worker verifies the QStash signature (`Upstash-Signature`) with the curren
 ### 3.7 Operations
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/health` | none | Liveness; `HealthResponse` in `health.ts` |
-| GET | `/health/ready` | none | `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down; `ReadyResponse` in `health.ts` |
+| GET | `/health` | none | Liveness (built); `HealthResponse` in `health.ts` |
+| GET | `/health/ready` | none | Readiness (built): `database`, `auth_database`, `key_value` (a write and read back), `config` and `outbox` (down when an event has waited more than five minutes); 503 with the checks when one is down; `ReadyResponse` in `health.ts` |
 | GET | `/admin/integrations?cursor=&limit=` | session (admin.integrations.write) | Integration Health: webhook inbox stats per provider, dead-lettered events (paged by the cursor), connector heartbeat, WhatsApp quality and tier, AI spend per agent; `IntegrationHealthQuery` and `IntegrationHealthResponse` in `admin-integrations.ts`; errors `validation_failed`, `unauthorized`, `forbidden` |
 | POST | `/admin/integrations/replay` | session (admin.integrations.write) | Replay a dead-lettered event (`integrations.dlq.replay`): back in the queue with its attempts reset, audited; `IntegrationReplayRequest` (`eventId`) and `IntegrationReplayResponse` (`{ eventId, requeued, attempts: 0 }`) in `admin-integrations.ts`; errors `validation_failed`, `unauthorized`, `forbidden`, `not_found`, `conflict` (`not_dead_lettered`); the command and its server action `replayDeadLetter` are built (migration 0044), the route comes with the Integration Health page |
 
+### 3.8 Public signing keys (outside `/api/v1`)
+Served at the site root for Supabase Realtime, which trusts the BOS as a third-party token issuer (ADR 0003); both are built.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/.well-known/jwks.json` | none | The BOS public ES256 signing keys that verify Realtime tokens |
+| GET | `/.well-known/openid-configuration` | none | The issuer's discovery document, naming the key list |
+
 ## 4. Server actions (web)
-- Live in `apps/web/src/actions/<module>.ts`, one exported function per command, each a thin wrapper: resolve the caller from the session → `parseInput()` with the contract → `executeCommand()` or `executeQuery()` (which open `withRequestContext()`) → return DTO.
+- Live in `apps/web/src/actions/<module>.ts`, one exported function per command or query, each a thin wrapper: resolve the caller from the session → `parseInput()` with the contract → `executeCommand()` or `executeQuery()` (which open `withRequestContext()`) → answer the `ActionResult` envelope (`apps/web/src/actions/result.ts`): `{ ok: true, data }` with the DTO, or `{ ok: false, error, field?, reference? }` naming a catalogue sentence, because Next.js masks errors thrown from a server action in production. The Better Auth actions in `actions/auth.ts` answer a `{ error }` form state instead.
 - No business logic in actions. No direct database access in components.
 - Reads for pages use typed query functions in `packages/domain/src/queries`, called through `executeQuery()`.
 
@@ -123,11 +131,20 @@ Every worker verifies the QStash signature (`Upstash-Signature`) with the curren
 `packages/contracts` layout:
 ```
 src/
-  commands/<module>/<command>.ts   input + output schemas, named after the command
+  api/                             route request/response schemas for /api/v1, the endpoint catalogue and fixtures
+  audit/                           audit outcomes, auth audit events and the audit log DTO
+  auth/                            user status, theme and other identity enumerations
+  catalogue/                       item, price-tier and money enumerations
+  commands/<module>/<file>.ts      command input + output schemas, named after the command or its group
+  crm/                             CRM enumerations and phone normalisation
   dto/                             shared DTOs (never include restricted fields unless suffixed `WithCost`)
-  events/                          outbox event names and payloads
-  api/                             route request/response schemas for /api/v1
+  events/                          outbox event catalogue and payloads
+  imports/                         import kinds, statuses and other import enumerations
+  numbering/                       document types numbered from `document_sequences`
+  tax/                             shapes that cross the tax engine's boundary
+  templates/                       WhatsApp and email templates, caller scripts and voice prompts
   errors.ts                        error codes
+  ids.ts, principal.ts, roles.ts, permissions.ts   IDs, the principal, staff roles and the permission catalogue
 ```
 Example:
 ```ts

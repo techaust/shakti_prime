@@ -16,6 +16,12 @@ This file tells any coding agent (Claude Code, or any other tool that reads `AGE
 | `docs/ROADMAP.md` | Phases, deliverables, exit-gate checklists, parallel workstreams. |
 | `DESIGN.md` | Design tokens, typography, component patterns, theme behaviour. |
 | `docs/adr/` | Architecture decision records. |
+| `docs/TESTING.md` | Test strategy, suite layout, generated-file checks, how to run one test. |
+| `docs/data/` | The generated ERD and data dictionary (`pnpm db:docs`). |
+| `docs/state-machines/` | State-machine specifications, one file per machine. |
+| `docs/spikes/` | Integration spike plans and results. |
+| `docs/phase0/` | Phase 0 workshop pack, wireframe review, design sign-off and vendor quotes. |
+| `AUDIT.md` | The production-readiness audit and its resolution record. |
 
 Read order for any task: `CLAUDE.md` → the relevant `docs/BLUEPRINT.md` section → the module document above → the code.
 
@@ -28,16 +34,18 @@ Read order for any task: `CLAUDE.md` → the relevant `docs/BLUEPRINT.md` sectio
 6. **Report honestly.** Say what was verified and how. If tests fail or a step was skipped, say so with the output.
 
 ## 3. Repository layout
+The planned layout (blueprint §5); the apps marked planned are created in the phase that needs them.
 ```
 apps/web              Next.js App Router: (public), (bos), /api/v1
-apps/field            Expo Android app for field staff
-apps/tally-connector  Windows service (Node) that reads Tally and pushes to the BOS
-apps/voice-agent      LiveKit Agents worker
+apps/field            Expo Android app for field staff (planned, Phase 4)
+apps/tally-connector  Windows service (Node) that reads Tally and pushes to the BOS (planned, Phase 5)
+apps/voice-agent      LiveKit Agents worker (planned, Phase 2)
 packages/domain       commands, state machines, calculators, tax engine (no framework imports)
 packages/db           Drizzle schema, migrations, RLS SQL, seeds
 packages/contracts    Zod schemas shared by web, field app, connector, voice agent
 packages/ui           web components (shadcn/ui based)
 packages/tokens       design tokens (CSS variables + JS export) for web and Android
+tools/copy-lint       the product-copy lint run in CI
 docs/                 blueprint, module docs, ADRs
 ```
 Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator.
@@ -49,7 +57,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Formatting and linting: Prettier + ESLint with the repo config. CI fails on warnings.
 - Comments explain *why*, not *what*. No commented-out code.
 - Errors are typed: `DomainError` with a stable `code` from `packages/contracts/src/errors.ts`.
-- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). Lakh/crore grouping and DD-MM-YYYY dates in IST exist in `apps/web/src/print/format.ts` (`formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates), and integer-paise arithmetic in `packages/domain/src/money/paise.ts`; the shared `formatIst()` helpers for screens and the `Money` value object arrive with the first screen that needs them (week 4 and Phase 1).
+- Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`). Formatting helpers: `apps/web/src/print/format.ts` (lakh/crore grouping and DD-MM-YYYY dates in IST: `formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates), `apps/web/src/screens/format.ts` (the screens' formats: those two plus `formatDateTime()`, `formatPhone()`, `formatCount()` and `moneyFromTyped()`), `packages/ui/src/date.ts` (the DD-MM-YYYY date input: `parseDmy()`, `formatDmy()`, `maskDmy()`) and `packages/domain/src/money/paise.ts` (integer-paise arithmetic).
 
 ## 4a. Product copy
 Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `DESIGN.md` §11:

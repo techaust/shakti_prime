@@ -50,19 +50,6 @@
     },
     "db:generate": {
       "cache": false
-    },
-    "db:migrate": {
-      "cache": false,
-      "env": [
-        "DATABASE_URL_MIGRATOR",
-        "APP_USER_PASSWORD",
-        "AUTH_SERVICE_PASSWORD",
-        "OUTBOX_PUBLISHER_PASSWORD"
-      ]
-    },
-    "db:seed": {
-      "cache": false,
-      "env": ["DATABASE_URL_MIGRATOR"]
     }
   }
 }

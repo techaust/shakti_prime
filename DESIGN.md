@@ -94,7 +94,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - **Focus:** always visible: 2 px `--focus` ring with 2 px offset.
 
 ## 5. Layout
-- **App shell:** 240 px sidebar (collapsible to 56 px icons), 48 px top bar with entity switcher, ⌘K search, notifications, Agent Inbox, Talk to Shakti mic, profile.
+- **App shell:** 240 px sidebar (collapsible to 56 px icons), 48 px top bar with entity switcher, ⌘K search, notifications, Agent Inbox, Talk to Shakti mic, profile. The top-bar notifications arrive in Phase 1 with the notification centre, the Agent Inbox in Phase 1 with the Triage agent, and the Talk to Shakti mic in Phase 2 with live voice.
 - **Content widths:** forms max 720 px; detail pages max 1200 px; grids and boards full width.
 - **Breakpoints:** `sm` 640, `md` 768, `lg` 1024, `xl` 1280. Below `md` the sidebar becomes a sheet and tables become card lists.
 - **Density modes:** `comfortable` (default) and `compact` (queues, grids). Row heights 40 / 32 px.
@@ -103,7 +103,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 ## 6. Component patterns
 | Component | Rules |
 |---|---|
-| Button | Primary (accent fill), secondary (surface + border), ghost, danger. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
+| Button | Five variants: primary (accent fill), secondary (surface + border), ghost, danger, link (text style). Sizes default, sm and icon. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
 | Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. |
@@ -113,8 +113,8 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Toast | Bottom-right desktop, top on phone; 4 s; actions allowed ("Undo", "Open"). |
 | Empty state | One sentence, one primary action. |
 | Skeletons | On every list and detail while loading; never spinners for content. |
-| Caller workspace | Keyboard-first: number keys for dispositions, `N` next lead, `D` dial, `/` search. |
-| Scheduling board | Day/week columns per engineer; conflicts outlined in `--danger`; unassigned queue on the right; map toggle. |
+| Caller workspace | Keyboard-first: number keys for dispositions, `N` next lead, `D` dial, `/` search. Built in Phase 1. |
+| Scheduling board | Day/week columns per engineer; conflicts outlined in `--danger`; unassigned queue on the right; map toggle. Built in Phase 4. |
 | Print templates | Light theme only, entity letterhead, A4 with 15 mm margins, Inter embedded, QR block bottom-right. |
 | Public landing page | The root of the domain: product name, one line on what it does, and a "Staff sign in" button to `/sign-in`, which forwards a signed-in user to `/home`. The page reads no session and follows the visitor's system theme. |
 
@@ -162,7 +162,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 10. Quality checks
 - Contrast check over both themes in CI.
-- Playwright visual snapshots of the role home pages, caller workspace, quote builder, scheduling board and print templates in light and dark.
+- Playwright visual snapshots of the role home pages, caller workspace, quote builder, scheduling board and print templates in light and dark, from Phase 1, each screen joining as it is built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Copy lint over the message catalogue, templates, caller scripts, voice prompts and print files (§11).
 
@@ -197,7 +197,7 @@ The people who use Shakti Prime are tele-callers, store staff, engineers in the 
 
 ### 11.4 Where copy lives and how it is checked
 - All user-facing strings sit in the `next-intl` catalogue (`apps/web/messages/en.json`) and the field app catalogue, keyed by screen and purpose. Nothing is inlined in components.
-- WhatsApp and email templates live in `packages/contracts/templates` in English with their approved Meta template names. Caller scripts and voice prompts live beside them in two variants, `hinglish` and `en`.
+- WhatsApp and email templates live in `packages/contracts/src/templates` in English with their approved Meta template names. Caller scripts and voice prompts live beside them in two variants, `hinglish` and `en`.
 - Print and PDF templates take every string from the catalogue.
 - The copy lint runs in CI over the catalogue, templates, caller scripts, voice prompts and print files: it fails on any banned word or placeholder pattern, on any Devanagari character, and on any string longer than the layout allows for its key.
 - Copy review is part of the UAT sign-off per role: a real user of that role reads every screen, and a tele-caller reads every Hinglish script aloud.

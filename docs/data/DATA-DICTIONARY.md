@@ -1978,137 +1978,137 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ## Planned tables
 
-Tables DATABASE.md §6 documents that no migration has created yet, with the columns documented for them. Each gains a full entry above when its migration lands.
+Tables DATABASE.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](ERD.md#planned-tables) draws them. Each gains a full entry above when its migration lands.
 
 ### 6.1 Org and identity
 
-| Table | Documented columns |
-|---|---|
-| `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
-| `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
-| `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
-| `business_calendar` | `date`, `is_holiday`, `entity_id null` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` | `entity_id` → `entities` |
+| `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` | `entity_id` → `entities` |
+| `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` | `user_id` → `users` |
+| `business_calendar` | `date`, `is_holiday`, `entity_id null` | `entity_id` → `entities` |
 
 ### 6.2 CRM
 
-| Table | Documented columns |
-|---|---|
-| `activities` (partitioned by month) | `entity_id`, `opportunity_id`, `account_id`, `type`, `actor_principal_id`, `payload_json` |
-| `tasks` | `assignee_id`, `due_at`, `state` |
-| `calls` | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` |
-| `call_dispositions` | `code`, `label`, `next_action` |
-| `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` |
-| `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` |
-| `tags` | `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; a lead carries its tags in the link table `opportunity_tags` (`opportunity_id`, `tag_id`, `entity_id`, composite foreign key to the lead), which follows the child-table template, and a tag of one company is never put on another company's lead |
-| `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` |
-| `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists |
-| `referral_partners` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
-| `commission_accruals` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `activities` (partitioned by month) | `entity_id`, `opportunity_id`, `account_id`, `type`, `actor_principal_id`, `payload_json` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `account_id` → `accounts`, `actor_principal_id` → `principals` |
+| `tasks` | `assignee_id`, `due_at`, `state` |  |
+| `calls` | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `recording_file_id` → `files`, `transcript_file_id` → `files`, `disposition_id` → `call_dispositions` |
+| `call_dispositions` | `code`, `label`, `next_action` |  |
+| `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` | `entity_id` → `entities`, `account_id` → `accounts`, `contact_phone_id` → `contact_phones`, `channel_id` → `entity_channels` |
+| `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` | `thread_id` → `whatsapp_threads`, `file_id` → `files` |
+| `tags` | `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; a lead carries its tags in the link table `opportunity_tags` (`opportunity_id`, `tag_id`, `entity_id`, composite foreign key to the lead), which follows the child-table template, and a tag of one company is never put on another company's lead | `entity_id` → `entities` |
+| `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` | `account_id` → `accounts`, `opportunity_id` → `opportunities` |
+| `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists | `account_id` → `accounts`, `masked_file_id` → `files` |
+| `referral_partners` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
+| `commission_accruals` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
 
 ### 6.4 Sales
 
-| Table | Documented columns |
-|---|---|
-| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` |
-| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` |
-| `quote_versions` | `quote_id`, `version`, `snapshot_json` |
-| `sales_orders` | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` |
-| `sales_order_lines` | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` |
-| `dealer_terms` | `account_id`, `tier_id`, `credit_limit`, `credit_days` |
-| `targets` | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `account_id` → `accounts`, `site_id` → `customer_sites`, `tier_id` → `price_tiers`, `price_list_id` → `price_lists`, `pdf_file_id` → `files` |
+| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` | `quote_id` → `quotes`, `item_id` → `items`, `kit_id` → `kits`, `tax_rate_id` → `tax_rates`, `composite_rule_id` → `composite_supply_rules` |
+| `quote_versions` | `quote_id`, `version`, `snapshot_json` | `quote_id` → `quotes` |
+| `sales_orders` | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` | `entity_id` → `entities`, `quote_id` → `quotes`, `account_id` → `accounts` |
+| `sales_order_lines` | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` | `so_id` → `sales_orders`, `item_id` → `items` |
+| `dealer_terms` | `account_id`, `tier_id`, `credit_limit`, `credit_days` | `account_id` → `accounts`, `tier_id` → `price_tiers` |
+| `targets` | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` | `entity_id` → `entities` |
 
 ### 6.5 Inventory and logistics
 
-| Table | Documented columns |
-|---|---|
-| `warehouses` | `location_id`, `code` |
-| `bins` | `location_id`, `code` |
-| `stock_movements` (append-only) | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` |
-| `stock_movement_costs` (restricted, append-only) | `movement_id`, `unit_cost` |
-| `stock_balances` | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) |
-| `reservations` | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` |
-| `serials` | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` |
-| `surplus_pool` | `project_id`, `item_id`, `qty`, `state` |
-| `vendors` | `name`, `gstin`, `terms_json` |
-| `vendor_quotes` (restricted) | `vendor_id`, `item_id`, `rate`, `valid_until` |
-| `purchase_orders` | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` |
-| `po_lines` | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` |
-| `goods_receipts` | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` |
-| `goods_receipt_lines` | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row |
-| `dispatches` | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` |
-| `dispatch_lines` | `dispatch_id`, `so_line_id`, `qty`, serials |
-| `delivery_challans` | `dispatch_id`, `challan_no`, `pdf_file_id` |
-| `eway_bills` | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` |
-| `warranty_claims` | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `warehouses` | `location_id`, `code` | `location_id` → `org_locations` |
+| `bins` | `location_id`, `code` | `location_id` → `org_locations` |
+| `stock_movements` (append-only) | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` | `entity_id` → `entities`, `item_id` → `items`, `serial_id` → `serials`, `from_bin_id` → `bins`, `to_bin_id` → `bins`, `reverses_id` → `stock_movements` |
+| `stock_movement_costs` (restricted, append-only) | `movement_id`, `unit_cost` | `movement_id` → `stock_movements` |
+| `stock_balances` | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) | `warehouse_id` → `warehouses`, `bin_id` → `bins`, `item_id` → `items` |
+| `reservations` | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` | `so_line_id` → `sales_order_lines`, `item_id` → `items` |
+| `serials` | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` | `item_id` → `items`, `bin_id` → `bins`, `customer_site_id` → `customer_sites` |
+| `surplus_pool` | `project_id`, `item_id`, `qty`, `state` | `project_id` → `projects`, `item_id` → `items` |
+| `vendors` | `name`, `gstin`, `terms_json` |  |
+| `vendor_quotes` (restricted) | `vendor_id`, `item_id`, `rate`, `valid_until` | `vendor_id` → `vendors`, `item_id` → `items` |
+| `purchase_orders` | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` | `entity_id` → `entities`, `vendor_id` → `vendors` |
+| `po_lines` | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` | `po_id` → `purchase_orders`, `entity_id` → `entities`, `item_id` → `items` |
+| `goods_receipts` | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` | `entity_id` → `entities`, `po_id` → `purchase_orders`, `warehouse_id` → `warehouses` |
+| `goods_receipt_lines` | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row | `receipt_id` → `goods_receipts`, `entity_id` → `entities`, `po_line_id` → `po_lines`, `item_id` → `items`, `bin_id` → `bins` |
+| `dispatches` | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` | `entity_id` → `entities`, `so_id` → `sales_orders` |
+| `dispatch_lines` | `dispatch_id`, `so_line_id`, `qty`, serials | `dispatch_id` → `dispatches`, `so_line_id` → `sales_order_lines` |
+| `delivery_challans` | `dispatch_id`, `challan_no`, `pdf_file_id` | `dispatch_id` → `dispatches`, `pdf_file_id` → `files` |
+| `eway_bills` | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` | `dispatch_id` → `dispatches` |
+| `warranty_claims` | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` | `serial_id` → `serials`, `account_id` → `accounts`, `replacement_serial_id` → `serials`, `cost_entry_id` → `job_cost_entries` |
 
 ### 6.6 Projects and field
 
-| Table | Documented columns |
-|---|---|
-| `projects` | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` |
-| `project_flow_templates` | `segment`, `steps_json` (editable by Executives) |
-| `project_milestones` | `project_id`, `code`, `state`, `due_at`, `done_at` |
-| `subsidy_applications` | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` |
-| `subsidy_gates` | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` |
-| `surveys` | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` |
-| `survey_photos` | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` |
-| `checklists` | `project_id`, `items_json`, `signed_off_by` |
-| `qc_inspections` | `project_id`, `items_json`, `signed_off_by` |
-| `schedule_slots` | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` |
-| `documents` | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file |
-| `document_requirements` | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing |
-| `cmc_register` | `project_id`, `starts_on`, `ends_on`, `state` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `projects` | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `account_id` → `accounts`, `site_id` → `customer_sites`, `flow_template_id` → `project_flow_templates`, `pm_user_id` → `users` |
+| `project_flow_templates` | `segment`, `steps_json` (editable by Executives) |  |
+| `project_milestones` | `project_id`, `code`, `state`, `due_at`, `done_at` | `project_id` → `projects` |
+| `subsidy_applications` | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` | `project_id` → `projects` |
+| `subsidy_gates` | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` | `application_id` → `subsidy_applications` |
+| `surveys` | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` | `entity_id` → `entities`, `project_id` → `projects` |
+| `survey_photos` | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` | `survey_id` → `surveys`, `entity_id` → `entities`, `file_id` → `files` |
+| `checklists` | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
+| `qc_inspections` | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
+| `schedule_slots` | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` | `project_id` → `projects` |
+| `documents` | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file | `entity_id` → `entities`, `project_id` → `projects`, `account_id` → `accounts`, `file_id` → `files` |
+| `document_requirements` | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing | `entity_id` → `entities`, `flow_template_id` → `project_flow_templates` |
+| `cmc_register` | `project_id`, `starts_on`, `ends_on`, `state` | `project_id` → `projects` |
 
 ### 6.7 Finance and costing
 
-| Table | Documented columns |
-|---|---|
-| `proformas` | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` |
-| `payment_milestones` | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` |
-| `payments` (append-only) | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` |
-| `tally_vouchers` | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` |
-| `tally_purchase_vouchers` (restricted) | same shape for `purchase` and `debit_note` |
-| `tally_voucher_tombstones` (append-only) | `voucher_guid`, `detected_at`, `reversal_applied_at` |
-| `tally_ledgers` | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |
-| `reconciliation_links` | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` |
-| `unlinked_vouchers` | review queue rows |
-| `dealer_outstanding` | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` |
-| `job_cost_entries` (restricted) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` |
-| `expense_claims` | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` |
-| `expense_lines` | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `proformas` | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `pdf_file_id` → `files` |
+| `payment_milestones` | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` | `so_id` → `sales_orders`, `project_id` → `projects` |
+| `payments` (append-only) | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` | `entity_id` → `entities`, `account_id` → `accounts`, `tally_voucher_id` → `tally_vouchers`, `reverses_id` → `payments` |
+| `tally_vouchers` | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` | `entity_id` → `entities` |
+| `tally_purchase_vouchers` (restricted) | same shape for `purchase` and `debit_note` |  |
+| `tally_voucher_tombstones` (append-only) | `voucher_guid`, `detected_at`, `reversal_applied_at` |  |
+| `tally_ledgers` | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |  |
+| `reconciliation_links` | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` | `voucher_id` → `tally_vouchers` |
+| `unlinked_vouchers` | review queue rows |  |
+| `dealer_outstanding` | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` | `account_id` → `accounts`, `entity_id` → `entities` |
+| `job_cost_entries` (restricted) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` | `project_id` → `projects`, `so_id` → `sales_orders` |
+| `expense_claims` | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` | `entity_id` → `entities`, `employee_id` → `employees` |
+| `expense_lines` | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` | `claim_id` → `expense_claims`, `entity_id` → `entities`, `receipt_file_id` → `files`, `project_id` → `projects` |
 
 ### 6.8 HR
 
-| Table | Documented columns |
-|---|---|
-| `employees` | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` |
-| `attendance_events` | `type`, `geo`, `selfie_file_id`, `site_id null` |
-| `shifts` | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` |
-| `leave_types` | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` |
-| `leave_requests` | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` |
-| `holidays` | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check |
-| `incentive_rules` | `rule_json` |
-| `incentive_accruals` | `released_on_event` |
-| `salary_sheets` | `period`, `file_id` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `employees` | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` | `entity_id` → `entities`, `user_id` → `users`, `shift_id` → `shifts`, `office_location_id` → `org_locations` |
+| `attendance_events` | `type`, `geo`, `selfie_file_id`, `site_id null` | `selfie_file_id` → `files`, `site_id` → `customer_sites` |
+| `shifts` | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` | `entity_id` → `entities` |
+| `leave_types` | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` | `entity_id` → `entities` |
+| `leave_requests` | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` | `entity_id` → `entities`, `employee_id` → `employees`, `leave_type_id` → `leave_types` |
+| `holidays` | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check | `entity_id` → `entities`, `location_id` → `org_locations` |
+| `incentive_rules` | `rule_json` |  |
+| `incentive_accruals` | `released_on_event` |  |
+| `salary_sheets` | `period`, `file_id` | `file_id` → `files` |
 
 ### 6.9 AI and voice
 
-| Table | Documented columns |
-|---|---|
-| `knowledge_files` | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` |
-| `knowledge_chunks` | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` |
-| `playbook_directives` | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` |
-| `agent_configs` | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |
-| `agent_runs` | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` |
-| `agent_actions` (append-only) | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` |
-| `agent_evals` | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |
-| `voice_sessions` | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `knowledge_files` | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` | `entity_id` → `entities`, `file_id` → `files` |
+| `knowledge_chunks` | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` | `file_id` → `files`, `entity_id` → `entities` |
+| `playbook_directives` | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` | `source_file_id` → `files` |
+| `agent_configs` | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |  |
+| `agent_runs` | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` | `principal_id` → `principals` |
+| `agent_actions` (append-only) | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` | `run_id` → `agent_runs` |
+| `agent_evals` | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |  |
+| `voice_sessions` | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` | `user_id` → `users`, `audio_file_id` → `files`, `transcript_file_id` → `files` |
 
 ### 6.10 Platform
 
-| Table | Documented columns |
-|---|---|
-| `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
-| `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
-| `feature_flags` | `key`, `enabled`, `overrides_json` |
-| `privacy_incidents` | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |
+| Table | Documented columns | Refers to (inferred) |
+|---|---|---|
+| `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |  |
+| `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` | `user_id` → `users` |
+| `feature_flags` | `key`, `enabled`, `overrides_json` |  |
+| `privacy_incidents` | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |  |
