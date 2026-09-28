@@ -1,11 +1,11 @@
 'use client';
 
-import { ThemeSchema, type Theme, type ThemeDto } from '@shakti/contracts';
+import { ThemeSchema, type Theme } from '@shakti/contracts';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveTheme } from '../actions/profile';
-import type { ActionResult } from '../actions/result';
+import { settle } from './screens/settle';
 import type { ErrorKey } from '../i18n/types';
 import { themeCookie } from '../theme';
 
@@ -70,13 +70,7 @@ export function useThemeChoice(
     // next change is a new one.
     const idempotencyKey = crypto.randomUUID();
     startTransition(async () => {
-      let result: ActionResult<ThemeDto>;
-      try {
-        result = await saveTheme({ theme }, idempotencyKey);
-      } catch {
-        // The action never throws; a rejected call means its answer never arrived.
-        result = { ok: false, error: 'internal' };
-      }
+      const result = await settle(() => saveTheme({ theme }, idempotencyKey));
       if (result.ok) return;
       setChosen(before);
       setTheme(before);
