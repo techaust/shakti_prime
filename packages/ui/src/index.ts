@@ -34,6 +34,7 @@ export {
 } from './dialog';
 export {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -43,7 +44,28 @@ export {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './dropdown-menu';
-export { DataGrid, type DataGridColumn, type DataGridProps, type LoadMore } from './data-grid';
+export {
+  DataGrid,
+  type ColumnChooser,
+  type DataGridColumn,
+  type DataGridProps,
+  type DataGridSelection,
+  type DensityChoice,
+  type LoadMore,
+} from './data-grid';
+export {
+  canHideColumn,
+  columnLabel,
+  nextSort,
+  sortRows,
+  toggleAllSelection,
+  toggleColumn,
+  toggleRowSelection,
+  visibleColumns,
+  type GridDensity,
+  type GridSort,
+  type SortDirection,
+} from './data-grid-state';
 export { Toaster, toast, TOAST_DURATION_MS, useIsPhone } from './toast';
 export {
   CommandPalette,

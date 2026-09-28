@@ -1,6 +1,7 @@
 'use client';
 
 import * as Menu from '@radix-ui/react-dropdown-menu';
+import { Check } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
@@ -51,6 +52,24 @@ export function DropdownMenuRadioItem({
       </span>
       {children}
     </Menu.RadioItem>
+  );
+}
+
+/** A menu item that is ticked or not, such as a column in the column chooser. */
+export function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Menu.CheckboxItem>) {
+  return (
+    <Menu.CheckboxItem {...props} className={cn(itemClasses, 'pl-8', className)}>
+      <span className="absolute left-2 inline-flex size-4 items-center justify-center">
+        <Menu.ItemIndicator>
+          <Check aria-hidden />
+        </Menu.ItemIndicator>
+      </span>
+      {children}
+    </Menu.CheckboxItem>
   );
 }
 
