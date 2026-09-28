@@ -4,7 +4,7 @@ import {
   type Principal,
   type SessionRevokeReason,
 } from '@shakti/contracts';
-import { loadUserGrants } from '@shakti/db';
+import { loadUserGrants } from '@shakti/db/grants';
 import { authDb, authSchema } from '@shakti/db/auth';
 import { resolvePrincipalFromGrants, type KeyValue, type UserAccess } from '@shakti/domain';
 import { APIError } from 'better-auth/api';

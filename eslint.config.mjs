@@ -35,6 +35,13 @@ const rawClientImport = {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
+    // app.user_grants() answers for any user before a request context exists: it builds the
+    // principal, so only the code that resolves one may call it.
+    {
+      name: '@shakti/db/grants',
+      message:
+        "Loading a user's grants belongs to principal resolution (apps/web/src/auth) and the import worker.",
+    },
     // A connection opened by hand would skip the request context and RLS settings (AUDIT M12).
     {
       name: 'postgres',
@@ -59,6 +66,8 @@ const rawClientImport = {
         '**/db/src/outbox-client.ts',
         '**/db/src/bootstrap',
         '**/db/src/bootstrap.ts',
+        '**/db/src/auth/user-grants',
+        '**/db/src/auth/user-grants.ts',
       ],
       message:
         'Use withRequestContext() from @shakti/db. The raw client and the testing helpers are restricted to packages/db/src and test files.',
@@ -77,7 +86,7 @@ const webDatabaseNames = {
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
-  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap)|postgres|drizzle-orm\\/postgres-js)$/';
+  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|postgres|drizzle-orm\\/postgres-js)$/';
 
 const restrictedSyntax = [
   // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
@@ -193,7 +202,8 @@ export default tseslint.config(
     },
   },
   {
-    // The auth module is the one caller of the auth_service connection (docs/DATABASE.md §3).
+    // The auth module is the one caller of the auth_service connection (docs/DATABASE.md §3),
+    // and resolves the principal from the user's grants.
     files: ['apps/web/src/auth/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
@@ -201,7 +211,9 @@ export default tseslint.config(
         'error',
         {
           paths: [
-            ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/auth'),
+            ...rawClientImport.paths.filter(
+              (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/grants',
+            ),
             webDatabaseNames,
           ],
           patterns: rawClientImport.patterns,
@@ -219,6 +231,24 @@ export default tseslint.config(
         {
           paths: [
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
+            webDatabaseNames,
+          ],
+          patterns: rawClientImport.patterns,
+        },
+      ],
+    },
+  },
+  {
+    // The import worker resolves the person who asked for the commit as they stand now.
+    files: ['apps/web/src/workers/imports.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            ...rawClientImport.paths.filter(
+              (p) => p.name !== '@shakti/db/outbox' && p.name !== '@shakti/db/grants',
+            ),
             webDatabaseNames,
           ],
           patterns: rawClientImport.patterns,

@@ -10,6 +10,7 @@
     "./schema": "./src/schema/index.ts",
     "./auth": "./src/auth-client.ts",
     "./outbox": "./src/outbox-client.ts",
+    "./grants": "./src/auth/user-grants.ts",
     "./bootstrap": "./src/bootstrap.ts",
     "./testing": "./src/testing/index.ts"
   },

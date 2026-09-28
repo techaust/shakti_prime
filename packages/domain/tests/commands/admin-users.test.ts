@@ -1,5 +1,5 @@
 import { newId } from '@shakti/contracts';
-import { loadUserGrants } from '@shakti/db';
+import { loadUserGrants } from '@shakti/db/grants';
 import {
   asMigrator,
   asPrincipal,
