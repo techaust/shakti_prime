@@ -12,7 +12,7 @@ Two things are reviewed together:
 | Screen | Address | What it does | Roles that see it |
 |---|---|---|---|
 | Home | `/home` | The person's start page | All roles |
-| Your profile | `/settings/profile` | The System, Light and Dark theme switch and the password change, from the profile menu | All roles |
+| Your profile | `/settings/profile` | The System, Light and Dark theme switch, the Higher contrast switch and the password change, from the profile menu | All roles |
 | Leads | `/leads` | List with search and filters | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Leads board | `/leads/board` | Leads by stage: drag a card to another stage, or use the card's menu to move, assign, follow up later, reopen, win or lose | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |

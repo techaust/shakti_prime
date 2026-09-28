@@ -14,7 +14,7 @@ Phase 0 ends only when the group signs off the design system (ROADMAP §2, exit-
 
 ## 2. How to open the pages
 1. Sign in, then open `/design` (the development team shares the full address).
-2. The theme switch on the Your profile page (`/settings/profile`, from the profile menu) offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use.
+2. The theme switch on the Your profile page (`/settings/profile`, from the profile menu) offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use. Below it, **Higher contrast** turns on the high-contrast variant for phones used in sunlight, also kept on the person's profile.
 3. Do every check below in **Light**, then again in **Dark**. On the phone, also check **System** with the phone's own dark mode turned on and off: the screen should change without a reload and without a white flash.
 
 ## 3. Checklist
