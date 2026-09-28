@@ -29,10 +29,18 @@ function reversed(digits: string): string {
  * phones ends with them. The same own, team and company narrowing as the leads list
  * (`scopeFilter`, AUDIT M33); RLS still decides every row. Bounded by `limit` (at most 20): a
  * name or village that is the text comes first, then one that starts with it, then the closest
- * in spelling, then the newest change. The names and villages are served by their trigram
- * indexes. A phone's last digits are a prefix of the number written backwards
- * (`contact_phones.e164_reversed`), which its own index serves, so the customers with such a phone
- * are found once for the whole search rather than tested lead by lead (0051).
+ * in spelling, then the newest change.
+ *
+ * Under the policies Postgres will not use `ilike` or pg_trgm's operators (not leakproof) as an
+ * index condition, so on its own this query would test every lead in the caller's scope (1.3 s
+ * for an Executive at 50,000 leads, docs/spikes/lists.md). The candidates therefore come first
+ * from `app.lead_search_ids()` (0052), a security-definer lookup that uses the trigram indexes on
+ * the customer, contact and village names and the index on the phone written backwards
+ * (`contact_phones.e164_reversed`, 0051), keeps to the leads and customers the caller may read
+ * as the policies do, and returns the ids of the first `limit` matches in this query's order
+ * (never more than 200). This query then reads only those leads, under the policies, with all its
+ * own conditions and its order, so what the caller sees is exactly what RLS allows and what the
+ * search found before.
  */
 export async function searchLeads(ctx: SearchContext, rawInput: unknown): Promise<LeadSearchHit[]> {
   const { query } = await leadSearchQuery(ctx, rawInput);
@@ -99,6 +107,11 @@ export async function leadSearchQuery(ctx: SearchContext, rawInput: unknown) {
   const tier = sql<number>`greatest(${matchTier(q, a.name)}, ${matchTier(q, cs.village)}, ${bestContact((n) => matchTier(q, n))})`;
   const closeness = sql<number>`greatest(${similarityTo(q, a.name)}, ${similarityTo(q, cs.village)}, ${bestContact((n) => similarityTo(q, n))})`;
 
+  // The candidates, found through the indexes by the definer lookup (0052), then read here under
+  // the policies and tested against every condition below.
+  const phoneReversed = digits === undefined ? null : reversed(digits);
+  const candidates = sql`${o.id} in (select candidate from app.lead_search_ids(${q}::text, ${bySpelling}::boolean, ${phoneReversed}::text, ${input.limit}::integer) as candidate)`;
+
   const query = ctx.tx
     .select({
       id: o.id,
@@ -115,6 +128,7 @@ export async function leadSearchQuery(ctx: SearchContext, rawInput: unknown) {
     .leftJoin(cs, eq(cs.id, o.siteId))
     .where(
       and(
+        candidates,
         isNull(o.archivedAt),
         inArray(o.entityId, [...ctx.entityIds]),
         scopeFilter(ctx),
