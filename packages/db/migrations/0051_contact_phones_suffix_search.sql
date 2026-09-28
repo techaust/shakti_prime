@@ -1,0 +1,2 @@
+ALTER TABLE "contact_phones" ADD COLUMN "e164_reversed" text GENERATED ALWAYS AS (reverse(e164)) STORED;--> statement-breakpoint
+CREATE INDEX "contact_phones_e164_reversed_idx" ON "contact_phones" USING btree ("e164_reversed" text_pattern_ops);

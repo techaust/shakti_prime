@@ -43,6 +43,11 @@ export const contactPhones = pgTable(
       .notNull()
       .references(() => contacts.id),
     e164: text('e164').notNull(),
+    // The number written backwards, so a search by its last digits is a prefix match the index
+    // below serves. A plain column, not reverse() in the query: RLS runs a search's own filter
+    // only after the policies unless every function in it is leakproof, and reverse() and LIKE
+    // are not, while starts_with (^@) is.
+    e164Reversed: text('e164_reversed').generatedAlwaysAs(sql`reverse(e164)`),
     isPrimary: boolean('is_primary').notNull().default(false),
     isWhatsapp: boolean('is_whatsapp').notNull().default(false),
     dndCheckedAt: timestamp('dnd_checked_at', { withTimezone: true }),
@@ -58,5 +63,7 @@ export const contactPhones = pgTable(
       .on(t.contactId)
       .where(sql`${t.isPrimary}`),
     index('contact_phones_e164_idx').on(t.e164),
+    // ⌘K search by a phone's last digits: `e164_reversed ^@ <digits reversed>` (search-leads.ts).
+    index('contact_phones_e164_reversed_idx').on(t.e164Reversed.op('text_pattern_ops')),
   ],
 );
