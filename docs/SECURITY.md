@@ -103,7 +103,7 @@ GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) ca
 | `agent:orchestrator` | `projects.read/write:entity`, `projects.schedule.write:entity` (suggest), `documents.write:entity`, message requests |
 | `agent:chief` | Read across modules at entity scope for briefings and anomalies; no cost permissions, no writes except Agent Inbox items |
 
-No agent principal holds `procurement.rate.read`, `finance.cost.read`, `documents.sensitive.read`, `knowledge.vault.read.exec`, any admin permission, or the human controls (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch`, `knowledge.playbook.approve`, `sales.credit.release`). The Triage and Co-pilot agents work on opportunity data without customer names or phone numbers; they hold no `crm.account.*` permission. Ask the Business and voice Ask run as the user.
+No agent principal holds `procurement.rate.read`, `finance.cost.read`, `documents.sensitive.read`, `knowledge.vault.read.exec`, any admin permission, or the human controls (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch`, `knowledge.playbook.approve`, `sales.credit.release`). The Triage and Co-pilot agents work on opportunity data without customer names or phone numbers; they hold no `crm.account.*` permission, and the rule that lets a person read the customer of a lead they can read never applies to an agent principal (0057). Ask the Business and voice Ask run as the user.
 
 ### 3.4 Voice principals
 A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" session (blueprint §9.2, ADR 0010). It is not an agent: it acts as the speaking user.
@@ -121,6 +121,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - RLS on every business table with fail-closed policies (`docs/DATABASE.md` §4); `FORCE ROW LEVEL SECURITY`; `app_user` is not the owner and has no `BYPASSRLS`.
 - Two cost permissions enforced in RLS and in DTOs: `procurement.rate.read` (supplier rates, PO values, purchase vouchers) and `finance.cost.read` (item costs, job costs, margins).
 - Cost columns live in side tables (`item_costs`, `stock_movement_costs`, `job_cost_entries`, `tally_purchase_vouchers`) so operational tables carry no cost data.
+- Customers (ADR 0008): a person sees a customer in a company through the relationship at their `crm.account.read` scope or through one of its leads there that they can read; an agent only through `crm.account.read`. A new lead or import row whose number belongs to a customer a colleague looks after in the company is refused and routed (`customer_held_by_colleague`), judged in that company only, so the All-companies view cannot get round it. Administrators update people and revoke sessions only for people who work solely in the request's companies, in RLS as well as in the commands (0055 to 0057).
 - Exports are permission-gated commands and audited with the row count and filter.
 - Materialised views with margins are readable only through commands that require `finance.cost.read`.
 - Search candidates: ⌘K lead search finds its candidates through the definer `app.lead_search_ids()` (migration 0052), which applies the same scope rules as the read policies of leads and customers, returns lead ids only and never more than 200, and the search then reads those leads under RLS.

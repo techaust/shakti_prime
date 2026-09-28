@@ -371,7 +371,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### sessions
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`
+**Catalogue entry** (DATABASE.md §6.1): Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`; revoked by an administrator only for a person who holds no role outside the request's companies, apart from the caller's own sessions (0056)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -499,7 +499,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### users
 
-**Catalogue entry** (DATABASE.md §6.1): `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`
+**Catalogue entry** (DATABASE.md §6.1): `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`; an administrator updates a person only when that person holds no role outside the request's companies, apart from the caller's own row (0056)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -599,7 +599,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_entities
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller; a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write:own` and `crm.account.write:own`. `account_contacts` follows the same rule for contacts (review 3)
+**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller, including a new customer typed with that customer's number in the lead form or an import (`app.lead_phone_status()`, reason `customer_held_by_colleague`); a row is readable at the caller's `crm.account.read` scope, or to a person (never an agent: role key `agent:%` or principal kind `agent`) who can read one of that customer's leads in the same company (0057), and the customer tables follow it through `account_entities` and `account_contacts`; its owner and team move with a lead handed over by its holder (`app.hand_over_customer()`, 0055); a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write:own` and `crm.account.write:own`. `account_contacts` follows the same rule for contacts (review 3)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
