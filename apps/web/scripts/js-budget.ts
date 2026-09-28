@@ -76,7 +76,7 @@ export function parseRouteStats(json: unknown): RouteStat[] {
     }
     return {
       route: row.route,
-      chunks: [...new Set((row.firstLoadChunkPaths as string[]).map(normaliseChunk))],
+      chunks: [...new Set(row.firstLoadChunkPaths.map(normaliseChunk))],
     };
   });
 }

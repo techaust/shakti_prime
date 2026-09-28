@@ -2,9 +2,12 @@
 // and the outbox sink replaced by in-memory ones, so no database is needed. The commands' own
 // behaviour on real Postgres is covered by the security suite under tests/.
 import { newId, type Principal } from '@shakti/contracts';
+import type * as DbModule from '@shakti/db';
 import type { RequestContext, RequestScope } from '@shakti/db';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import type * as AuditSinkModule from '../audit/sink';
+import type * as OutboxSinkModule from '../outbox/sink';
 import { memoryLogger } from '../ports/logger';
 import { defineCommand } from './define-command';
 import { executeCommand, executeQuery } from './execute';
@@ -13,7 +16,7 @@ import type { Clock } from './timing';
 const audited = vi.hoisted(() => ({ rows: [] as unknown[] }));
 
 vi.mock('@shakti/db', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@shakti/db')>()),
+  ...(await importOriginal<typeof DbModule>()),
   withRequestContext: <T>(
     principal: Principal,
     scope: RequestScope,
@@ -28,7 +31,7 @@ vi.mock('@shakti/db', async (importOriginal) => ({
 }));
 
 vi.mock('../audit/sink', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../audit/sink')>()),
+  ...(await importOriginal<typeof AuditSinkModule>()),
   databaseAuditSink: {
     write: (_tx: unknown, records: readonly unknown[]) => {
       audited.rows.push(...records);
@@ -38,7 +41,7 @@ vi.mock('../audit/sink', async (importOriginal) => ({
 }));
 
 vi.mock('../outbox/sink', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../outbox/sink')>()),
+  ...(await importOriginal<typeof OutboxSinkModule>()),
   databaseOutboxSink: { write: () => Promise.resolve() },
 }));
 
