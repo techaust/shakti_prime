@@ -1,6 +1,7 @@
 import type { BoardLeadDto, LeadBoardDto, PipelineStageDto } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  appendStagePage,
   applyChange,
   boardChoice,
   boardColumns,
@@ -9,6 +10,7 @@ import {
   cardActions,
   daysSince,
   moveDecision,
+  stageCursor,
   stageTone,
   statesFor,
 } from './lead-board';
@@ -56,6 +58,7 @@ function boardOf(items: BoardLeadDto[], counts?: LeadBoardDto['counts']): LeadBo
     perStage: 100,
     items,
     counts: counts ?? [...tally].map(([stageId, count]) => ({ stageId, count })),
+    more: [],
   };
 }
 
@@ -192,6 +195,68 @@ describe('applyChange', () => {
 
   it('leaves the board alone for a lead it does not show', () => {
     expect(applyChange(board, { ...moved, id: id(999) }, ['open'])).toBe(board);
+  });
+});
+
+describe('a column’s Load more', () => {
+  const [a, b, c, d] = [card(4, 1), card(3, 1), card(2, 1), card(1, 1)] as const;
+  const other = card(5, 2);
+  const board: LeadBoardDto = {
+    ...boardOf(
+      [other, a, b],
+      [
+        { stageId: id(1), count: 4 },
+        { stageId: id(2), count: 1 },
+      ],
+    ),
+    perStage: 2,
+    more: [{ stageId: id(1), cursor: 'after-b' }],
+  };
+
+  it('knows which stages continue, and from where', () => {
+    expect(stageCursor(board, id(1))).toBe('after-b');
+    expect(stageCursor(board, id(2))).toBeUndefined();
+  });
+
+  it('puts the next page after the stage’s cards and moves its cursor on', () => {
+    const after = appendStagePage(board, { stageId: id(1), items: [c], nextCursor: 'after-c' });
+    expect(boardColumns(STAGES, after, ['open'])[0]?.cards.map((l) => l.id)).toEqual([
+      a.id,
+      b.id,
+      c.id,
+    ]);
+    expect(after.more).toEqual([{ stageId: id(1), cursor: 'after-c' }]);
+    // The counts stay: they were the whole stage all along.
+    expect(after.counts).toBe(board.counts);
+  });
+
+  it('forgets the cursor after the last page, and never shows a card twice', () => {
+    const after = appendStagePage(board, { stageId: id(1), items: [b, d], nextCursor: null });
+    expect(after.items.map((l) => l.id)).toEqual([other.id, a.id, b.id, d.id]);
+    expect(stageCursor(after, id(1))).toBeUndefined();
+  });
+
+  it('keeps the other stages’ cursors, and keeps a moved card’s place', () => {
+    const two = { ...board, more: [...board.more, { stageId: id(2), cursor: 'after-e' }] };
+    const after = appendStagePage(two, { stageId: id(1), items: [], nextCursor: null });
+    expect(after.more).toEqual([{ stageId: id(2), cursor: 'after-e' }]);
+    const moved = applyChange(
+      two,
+      {
+        id: a.id,
+        entityId: 1,
+        pipelineId: id(50),
+        stageId: id(2),
+        state: 'open',
+        stateChangedAt: a.stateChangedAt,
+        ownerId: a.ownerId,
+        teamId: null,
+        lockedUntil: null,
+        updatedAt: '2026-09-28T04:30:00.000Z',
+      },
+      ['open'],
+    );
+    expect(moved.more).toEqual(two.more);
   });
 });
 

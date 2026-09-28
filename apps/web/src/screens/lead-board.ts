@@ -4,6 +4,7 @@
 
 import type {
   BoardLeadDto,
+  BoardStagePageDto,
   LeadBoardDto,
   OpportunityDto,
   OpportunityState,
@@ -197,6 +198,30 @@ export function applyChange(
     ...board,
     counts: [...counts].map(([stageId, count]) => ({ stageId, count })),
     items: stays ? [after, ...others] : others,
+  };
+}
+
+/** Where a stage's "Load more" continues from, or undefined when the board shows all its cards. */
+export function stageCursor(
+  board: Pick<LeadBoardDto, 'more'>,
+  stageId: string,
+): string | undefined {
+  return board.more.find((m) => m.stageId === stageId)?.cursor;
+}
+
+/**
+ * The board after one more page of a stage: its cards go after those already shown (they are
+ * older), a card already on the board is not shown twice (it moved there while the page was on
+ * its way), and the stage continues from the page's cursor, or has no more.
+ */
+export function appendStagePage(board: LeadBoardDto, page: BoardStagePageDto): LeadBoardDto {
+  const shown = new Set(board.items.map((l) => l.id));
+  const more = board.more.filter((m) => m.stageId !== page.stageId);
+  if (page.nextCursor !== null) more.push({ stageId: page.stageId, cursor: page.nextCursor });
+  return {
+    ...board,
+    items: [...board.items, ...page.items.filter((l) => !shown.has(l.id))],
+    more,
   };
 }
 

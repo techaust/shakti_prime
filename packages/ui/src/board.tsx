@@ -1,8 +1,10 @@
 'use client';
 
-import { Children, useId, type ComponentProps, type ReactNode } from 'react';
+import { Children, useEffect, useId, useRef, type ComponentProps, type ReactNode } from 'react';
 import { Avatar } from './avatar';
+import { Button } from './button';
 import { cn } from './cn';
+import { Skeleton } from './skeleton';
 
 /** The six lead-stage colours (DESIGN.md §2.4), for a column's 3 px top bar. */
 export type BoardStageTone = 'new' | 'contacted' | 'qualified' | 'quoted' | 'won' | 'lost';
@@ -45,11 +47,27 @@ export interface BoardColumnProps extends Omit<ComponentProps<'section'>, 'title
   headingLevel?: 'h2' | 'h3' | 'h4';
   /** The cards, each a `BoardCard`. */
   children?: ReactNode;
+  /** The column's "Load more", while the stage holds more cards than it shows. */
+  loadMore?: BoardLoadMore | undefined;
+}
+
+/** A column's "Load more" (DESIGN.md §6: keyset pages, never numbered ones). */
+export interface BoardLoadMore {
+  /** The button's words, such as "Load more". */
+  label: ReactNode;
+  /** The button's full name for screen readers, naming the stage; it starts with `label`. */
+  accessibleLabel?: string | undefined;
+  /** How many cards show out of how many, such as "Showing the newest 100 of 240 leads". */
+  status: ReactNode;
+  onLoadMore: () => void;
+  /** While the next page is on its way: the button waits and skeleton cards hold its place. */
+  pending: boolean;
 }
 
 /**
  * A kanban column (DESIGN.md §6, Kanban board): the stage colour on a 3 px top bar, the stage's
- * name and count, then its cards, or a sentence when it holds none. Drop handlers and other
+ * name and count, then its cards, or a sentence when it holds none, and a "Load more" at the foot
+ * while the stage holds more cards than it shows. Drop handlers and other
  * section attributes pass through, so the screen decides what a drop means. Every word comes
  * from the caller's catalogue.
  */
@@ -64,9 +82,21 @@ export function BoardColumn({
   headingLevel: Heading = 'h2',
   className,
   children,
+  loadMore,
   ...props
 }: BoardColumnProps) {
   const headingId = useId();
+  const statusId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  // After the last page the button goes; focus moves to the column's heading, not the page top.
+  const pressed = useRef(false);
+  const more = loadMore !== undefined;
+  useEffect(() => {
+    if (more || !pressed.current) return;
+    pressed.current = false;
+    const active = document.activeElement;
+    if (active === null || active === document.body) heading.current?.focus();
+  }, [more]);
   return (
     <section
       aria-labelledby={headingId}
@@ -80,7 +110,7 @@ export function BoardColumn({
     >
       <div aria-hidden className={cn('h-[3px]', STAGE_BAR[tone])} />
       <header className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
-        <Heading id={headingId} className="text-sm font-semibold">
+        <Heading id={headingId} ref={heading} tabIndex={-1} className="text-sm font-semibold">
           {title}
         </Heading>
         <span className="text-text-muted text-xs tabular-nums">{count}</span>
@@ -89,7 +119,40 @@ export function BoardColumn({
       {Children.count(children) === 0 ? (
         <p className="text-text-subtle px-3 pt-1 pb-3 text-sm">{emptyLabel}</p>
       ) : (
-        <ul className="flex flex-col gap-2 p-2">{children}</ul>
+        <ul className="flex flex-col gap-2 p-2">
+          {children}
+          {loadMore?.pending === true ? (
+            <>
+              <li aria-hidden>
+                <Skeleton className="h-row" />
+              </li>
+              <li aria-hidden>
+                <Skeleton className="h-row" />
+              </li>
+            </>
+          ) : null}
+        </ul>
+      )}
+      {loadMore === undefined ? null : (
+        <footer className="flex flex-col gap-2 px-2 pb-2">
+          <p id={statusId} role="status" className="text-text-subtle px-1 text-xs tabular-nums">
+            {loadMore.status}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            aria-label={loadMore.accessibleLabel}
+            aria-describedby={statusId}
+            pending={loadMore.pending}
+            onClick={() => {
+              pressed.current = true;
+              loadMore.onLoadMore();
+            }}
+          >
+            {loadMore.label}
+          </Button>
+        </footer>
       )}
     </section>
   );

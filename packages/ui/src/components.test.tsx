@@ -153,7 +153,7 @@ describe('BoardColumn and BoardCard', () => {
       </BoardColumn>,
     );
     expect(html).toContain('bg-stage-contacted');
-    expect(html).toMatch(/<h2 id="[^"]+" class="[^"]*">Contacted<\/h2>/);
+    expect(html).toMatch(/<h2 id="[^"]+" tabindex="-1" class="[^"]*">Contacted<\/h2>/);
     expect(html).toContain('1 lead');
     expect(html).toContain('draggable="true"');
     expect(html).toContain('role="img" aria-label="Due soon"');
