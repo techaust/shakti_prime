@@ -13,17 +13,28 @@ import {
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
 import { CompanySwitcher, type CompanyOption } from './company-switcher';
 import { ProfileMenu } from './profile-menu';
-import { ShellPalette } from './shell-palette';
 import { rememberSidebar } from './sidebar-state';
 import { SidebarNav } from './sidebar-nav';
 
 const noSubscribe = () => () => undefined;
+
+/**
+ * The ⌘K palette (cmdk, its dialog and the search) is not part of a screen's first load: it is
+ * fetched when first opened, and a pointer over the search button or focus on it starts the
+ * download a moment earlier. The shortcut itself is always listening.
+ */
+const ShellPalette = dynamic(() => import('./shell-palette').then((m) => m.ShellPalette));
+
+function preloadPalette(): void {
+  void import('./shell-palette');
+}
 
 /** ⌘K on a Mac, Ctrl K elsewhere; the server draws Ctrl K and the browser corrects it. */
 function useIsMac(): boolean {
@@ -96,6 +107,8 @@ export function AppShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Mounted from the first opening on, so the palette keeps its state like any dialog.
+  const [paletteWanted, setPaletteWanted] = useState(false);
 
   // A followed link closes the phone menu, including the browser's back and forward buttons.
   if (menuPath !== pathname) {
@@ -104,6 +117,7 @@ export function AppShell({
   }
 
   const togglePalette = useCallback(() => {
+    setPaletteWanted(true);
     setPaletteOpen((open) => !open);
   }, []);
   usePaletteShortcut(togglePalette);
@@ -185,6 +199,8 @@ export function AppShell({
               aria-label={t('search')}
               aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
               onClick={togglePalette}
+              onPointerEnter={preloadPalette}
+              onFocus={preloadPalette}
               className="text-text-muted h-8 w-full max-w-72 justify-start gap-2 px-2.5 font-normal max-md:size-control-phone max-md:w-auto max-md:justify-center max-md:border-0 max-md:bg-transparent"
             >
               <Search aria-hidden />
@@ -207,13 +223,15 @@ export function AppShell({
         </main>
       </div>
 
-      <ShellPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        nav={items}
-        actionIds={actionIds}
-        searchable={searchable}
-      />
+      {paletteWanted ? (
+        <ShellPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          nav={items}
+          actionIds={actionIds}
+          searchable={searchable}
+        />
+      ) : null}
       <Toaster
         label={t('notifications')}
         theme={resolvedTheme === 'dark' ? 'dark' : resolvedTheme === 'light' ? 'light' : 'system'}

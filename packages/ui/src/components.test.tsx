@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { Avatar, initials } from './avatar';
 import { BoardCard, BoardColumn } from './board';
 import { Button } from './button';
-import { isPaletteShortcut } from './command-palette';
 import { DataGrid, type DataGridColumn } from './data-grid';
 import { DateInput } from './date-input';
 import { EmptyState } from './empty-state';
 import { Field } from './field';
 import { Input, Select } from './input';
+import { isPaletteShortcut } from './palette-shortcut';
 import { StatusBadge } from './status-badge';
 
 describe('Button', () => {

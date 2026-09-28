@@ -3,7 +3,7 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Command } from 'cmdk';
 import { Search } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from './cn';
 import { DialogOverlay } from './dialog';
 
@@ -27,26 +27,6 @@ export interface PaletteGroup {
    * they are, not filtered again by the palette.
    */
   prefiltered?: boolean;
-}
-
-/** True for ⌘K on a Mac and Ctrl+K elsewhere. */
-export function isPaletteShortcut(e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey'>) {
-  return e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey);
-}
-
-/** Opens the palette on ⌘K or Ctrl+K anywhere on the page. */
-export function usePaletteShortcut(toggle: () => void): void {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!isPaletteShortcut(e)) return;
-      e.preventDefault();
-      toggle();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [toggle]);
 }
 
 /**
