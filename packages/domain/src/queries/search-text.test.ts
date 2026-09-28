@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { containsPattern, phoneDigits } from './search-text';
+import {
+  containsPattern,
+  matchesBySimilarity,
+  phoneDigits,
+  startsWithPattern,
+} from './search-text';
+
+describe('startsWithPattern', () => {
+  it('finds the text at the start, with typed wildcards literal', () => {
+    expect(startsWithPattern('Ram')).toBe('Ram%');
+    expect(startsWithPattern('50%')).toBe('50\\%%');
+    expect(startsWithPattern('a_b')).toBe('a\\_b%');
+  });
+});
+
+describe('matchesBySimilarity', () => {
+  it('matches names of three characters or more by spelling similarity', () => {
+    expect(matchesBySimilarity('Rmesh')).toBe(true);
+    expect(matchesBySimilarity('Ram')).toBe(true);
+  });
+
+  it('keeps shorter text and phone digits to the exact match', () => {
+    expect(matchesBySimilarity('Ra')).toBe(false);
+    expect(matchesBySimilarity(' Ra ')).toBe(false);
+    expect(matchesBySimilarity('98765')).toBe(false);
+    expect(matchesBySimilarity('+91 98765 43210')).toBe(false);
+  });
+});
 
 describe('containsPattern', () => {
   it('finds the text anywhere', () => {
