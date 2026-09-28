@@ -42,6 +42,8 @@ interface TableRule {
   read: Rule;
   /** Who sees a group-wide row; absent where the table has none. */
   group?: Rule;
+  /** Who sees their own rows (`ownedByActor`) in every company; absent where the table has none. */
+  ownRows?: Rule;
   /** A visible row that breaks isolation for someone acting in company `e`, over the alias `x`. */
   leak: (e: number, groupVisible: boolean) => SQL;
 }
@@ -94,6 +96,13 @@ const RULES: Record<MatrixTable, TableRule> = {
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
   import_jobs: { read: IMPORTS, leak: otherCompany },
   import_rows: { read: IMPORTS, leak: otherCompany },
+  // 0049: every role reads the role map of the acting company, and its own roles in any company
+  // (the profile and the company switcher), never another person's role in another company.
+  user_entity_roles: {
+    read: CONTEXT,
+    ownRows: CONTEXT,
+    leak: (e) => sql`x.entity_id <> ${e} and x.user_id <> ${fx.ownerId}`,
+  },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {
@@ -176,6 +185,21 @@ describe('every role acting in one company sees only that company (SECURITY §11
       const groupWide = fx.rows[table].some((r) => r.entities === null);
       expect({ table, groupWide }).toEqual({ table, groupWide: RULES[table].group !== undefined });
     }
+    // A table whose policy shows the caller's own rows holds, in every company, one of the
+    // actor's rows and one of someone else's, so both halves of the policy are observed.
+    for (const table of TABLES) {
+      const own = fx.rows[table].filter((r) => r.ownedByActor === true);
+      if (RULES[table].ownRows === undefined) {
+        expect({ table, own: own.length }).toEqual({ table, own: 0 });
+        continue;
+      }
+      const lacking = ALL_ENTITY_IDS.filter(
+        (e) =>
+          !own.some((r) => r.entities?.includes(e) === true) ||
+          !fx.rows[table].some((r) => r.ownedByActor !== true && r.entities?.includes(e) === true),
+      );
+      expect({ table, lacking }).toEqual({ table, lacking: [] });
+    }
   });
 
   it('the fixture wrote every row it names', async () => {
@@ -200,9 +224,13 @@ describe('every role acting in one company sees only that company (SECURITY §11
         const rule = RULES[table];
         const readsOwn = allows(principal, rule.read);
         const readsGroup = allows(principal, rule.group);
+        const readsOwnRows = allows(principal, rule.ownRows);
         const expected = fx.rows[table]
           .filter((r) =>
-            r.entities === null ? readsGroup : readsOwn && r.entities.includes(entityId),
+            r.entities === null
+              ? readsGroup
+              : (readsOwn && r.entities.includes(entityId)) ||
+                (readsOwnRows && r.ownedByActor === true),
           )
           .map((r) => r.key)
           .sort();
@@ -212,7 +240,7 @@ describe('every role acting in one company sees only that company (SECURITY §11
           problems.push({ table, expected, seen: got.seen });
         }
         if (got.leaked !== 0) problems.push({ table, rowsOfAnotherCompany: got.leaked });
-        if (!readsOwn && !readsGroup && got.total !== 0) {
+        if (!readsOwn && !readsGroup && !readsOwnRows && got.total !== 0) {
           problems.push({ table, withoutReadPermission: got.total });
         }
       }
