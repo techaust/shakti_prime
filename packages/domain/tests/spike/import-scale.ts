@@ -1,14 +1,19 @@
-// Import scale spike (design §8, IMP-01): `pnpm spike:import [-- --rows 50000 --budget 420]`.
-// Builds a made-up leads file in memory (invented names, made-up mobile numbers, invented
-// villages), then runs imports.job.create → map → preview → commit → commit_batch (500 rows a
-// batch, one transaction each, as the worker does) → rollback through executeCommand against the
-// local database only (prepareDatabase refuses any other host), and reports rows per second for
-// each step. The commit stops at the time budget; a job left committing is reported as such and
-// is not rolled back (a job can be rolled back only once it has finished). Writes
-// docs/spikes/results/import-scale.json. Not part of CI. It lives under tests/ because it creates
-// its caller with the testing helpers, which scripts outside the tests may not import.
-import { IMPORT_LIMITS, newId, type ImportJobDto } from '@shakti/contracts';
-import { closeDb, createTestPrincipal, prepareDatabase } from '@shakti/db/testing';
+// Import scale spike (design §8, IMP-01): `pnpm spike:import`, options
+// `-- --rows 50000 --commit-rows 1000 --batch 500 --budget 420`.
+// Builds made-up leads files in memory (invented names and villages, made-up mobile numbers) and
+// runs the real commands in process through executeCommand, against the local database only
+// (prepareDatabase refuses any other host):
+//   1. the full file (`--rows`, 50,000 by default): imports.job.create → map → preview, timed;
+//      the job is left previewed, as a person who looked at the rows and stopped would leave it;
+//   2. a commit sample (`--commit-rows`): create → map → preview → commit → commit_batch in
+//      batches (one transaction each, as the worker runs them) until committed or the time budget
+//      runs out, then imports.job.rollback so the sample's leads are archived again.
+// Every lead is its own crm.lead.create with about twenty statements, so the commit rate is set
+// by the round trip to the database, which the spike measures too. Writes
+// docs/spikes/results/import-scale.json. Not part of CI. It lives under tests/ because it
+// creates its caller with the testing helpers, which scripts outside the tests may not import.
+import { IMPORT_LIMITS, newId, type ImportJobDto, type Principal } from '@shakti/contracts';
+import { asMigrator, closeDb, createTestPrincipal, prepareDatabase } from '@shakti/db/testing';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -32,24 +37,25 @@ function numberArg(name: string, fallback: number): number {
 }
 
 const ROWS = Math.min(numberArg('rows', IMPORT_LIMITS.maxRows), IMPORT_LIMITS.maxRows);
-const BUDGET_SECONDS = numberArg('budget', 420);
+const COMMIT_ROWS = Math.min(numberArg('commit-rows', 1000), ROWS);
 const BATCH = Math.min(numberArg('batch', IMPORT_LIMITS.batchSize), IMPORT_LIMITS.batchSize);
+const BUDGET_SECONDS = numberArg('budget', 420);
 const ENTITY = 1;
 
 // Syllables put together, so no row names a real person or place.
-const FIRST = ['Ravo', 'Kelu', 'Mira', 'Tanvi', 'Joru', 'Pavi', 'Sanko', 'Dilu', 'Heru', 'Nimo'];
-const LAST = ['Kantar', 'Velori', 'Dharvik', 'Sumel', 'Tordan', 'Pakhri', 'Lovant', 'Minder'];
-const PLACE = ['Kheru', 'Balvan', 'Soti', 'Mandor', 'Rupal', 'Tikhal', 'Veraj', 'Gondi'];
+const FIRST = ['Ravok', 'Keluv', 'Mivra', 'Tanvor', 'Joruk', 'Pavid', 'Sanko', 'Dilum', 'Herav'];
+const LAST = ['Kantarvi', 'Velorin', 'Dharvik', 'Sumelok', 'Tordan', 'Pakhrin', 'Lovantu'];
+const PLACE = ['Kherovan', 'Balvanti', 'Sotikul', 'Mandravi', 'Rupalko', 'Tikhalam', 'Verajun'];
 
-/** A made-up Indian mobile number from the row number: unique within the file. */
+/** A made-up Indian mobile number from the row number: unique within a file of 50,000 rows. */
 function mobile(n: number): string {
   return `7${String(100_000_000 + ((n * 7_919) % 900_000_000)).padStart(9, '0')}`;
 }
 
-function csv(rows: number): string {
+function csv(rows: number, offset: number): string {
   const lines = ['Name,Mobile,Village'];
-  for (let i = 0; i < rows; i++) {
-    const name = `${FIRST[i % FIRST.length] ?? ''} ${LAST[Math.floor(i / 10) % LAST.length] ?? ''}`;
+  for (let i = offset; i < offset + rows; i++) {
+    const name = `${FIRST[i % FIRST.length] ?? ''} ${LAST[Math.floor(i / 9) % LAST.length] ?? ''}`;
     const village = `${PLACE[i % PLACE.length] ?? ''} ${String(Math.floor(i / 64) % 250)}`;
     lines.push(`${name},${mobile(i + 1)},${village}`);
   }
@@ -68,23 +74,30 @@ function rate(rows: number, secs: number): number {
   return secs === 0 ? 0 : Math.round(rows / secs);
 }
 
-async function main(): Promise<void> {
-  await prepareDatabase();
-  const gm = await createTestPrincipal('general_manager', [ENTITY]);
-  const scope = { entityIds: [ENTITY] };
-  const result: Record<string, unknown> = {
-    rows: ROWS,
-    batchSize: BATCH,
-    budgetSeconds: BUDGET_SECONDS,
-    database: 'local Docker Postgres 17 (127.0.0.1:54322), shared with the test suites',
-    ranAt: new Date().toISOString(),
-  };
+/** The median time of one statement inside a transaction, in milliseconds. */
+async function roundTripMs(): Promise<number> {
+  const times: number[] = [];
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      for (let i = 0; i < 50; i++) {
+        const t = performance.now();
+        await tx`select 1`;
+        times.push(performance.now() - t);
+      }
+    }),
+  );
+  times.sort((a, b) => a - b);
+  return Math.round((times[Math.floor(times.length / 2)] ?? 0) * 100) / 100;
+}
 
+const scope = { entityIds: [ENTITY] };
+
+/** Parse, create, map and preview a made-up file; the job ends previewed. */
+async function previewedJob(gm: Principal, rows: number, offset: number) {
   let t = performance.now();
-  const bytes = new TextEncoder().encode(csv(ROWS));
+  const bytes = new TextEncoder().encode(csv(rows, offset));
   const parsed = await parseImportFile(bytes);
-  result.parse = { seconds: seconds(t), bytes: bytes.length };
-  log(`parsed ${String(parsed.rows.length)} rows in ${String(seconds(t))} s`);
+  const parse = { seconds: seconds(t), bytes: bytes.length };
 
   t = performance.now();
   const job = await executeCommand(gm, scope, createImportJob, {
@@ -94,10 +107,8 @@ async function main(): Promise<void> {
       name: 'import-scale-spike.csv',
       contentType: 'text/csv',
       size: bytes.length,
-      sha256: createHash('sha256')
-        .update(bytes)
-        .update(newId()) // a new job each run: the same file may not start a second job
-        .digest('hex'),
+      // A new job each run: the same file may not start a second job in a company.
+      sha256: createHash('sha256').update(bytes).update(newId()).digest('hex'),
       bucket: 'memory',
       key: `imports/${String(ENTITY)}/${newId()}`,
     },
@@ -106,8 +117,6 @@ async function main(): Promise<void> {
     rows: parsed.rows,
   });
   const createSecs = seconds(t);
-  result.create = { seconds: createSecs, rowsPerSecond: rate(ROWS, createSecs) };
-  log(`create: ${String(createSecs)} s`);
 
   t = performance.now();
   await executeCommand(gm, scope, mapImportJob, {
@@ -118,7 +127,7 @@ async function main(): Promise<void> {
       defaults: { pipelineKey: 'farmer_pumps', accountType: 'farm', siteType: 'borewell' },
     },
   });
-  result.map = { seconds: seconds(t) };
+  const mapSecs = seconds(t);
 
   t = performance.now();
   const previewed = await executeCommand(gm, scope, previewImportJob, {
@@ -126,67 +135,97 @@ async function main(): Promise<void> {
     jobId: job.id,
   });
   const previewSecs = seconds(t);
-  result.preview = {
-    seconds: previewSecs,
-    rowsPerSecond: rate(ROWS, previewSecs),
-    validRows: previewed.validRows,
-    invalidRows: previewed.invalidRows,
-    skippedRows: previewed.skippedRows,
+  const timings = {
+    rows,
+    parse,
+    create: { seconds: createSecs, rowsPerSecond: rate(rows, createSecs) },
+    map: { seconds: mapSecs },
+    preview: {
+      seconds: previewSecs,
+      rowsPerSecond: rate(rows, previewSecs),
+      validRows: previewed.validRows,
+      invalidRows: previewed.invalidRows,
+      skippedRows: previewed.skippedRows,
+    },
   };
   log(
-    `preview: ${String(previewSecs)} s, ${String(rate(ROWS, previewSecs))} rows/s, ${String(previewed.validRows)} valid`,
+    `${String(rows)} rows: create ${String(createSecs)} s (${String(timings.create.rowsPerSecond)} rows/s), preview ${String(previewSecs)} s (${String(timings.preview.rowsPerSecond)} rows/s), ${String(previewed.validRows)} valid`,
   );
+  return { job: previewed, timings };
+}
 
-  t = performance.now();
+async function main(): Promise<void> {
+  await prepareDatabase();
+  const gm = await createTestPrincipal('general_manager', [ENTITY]);
+  const rtt = await roundTripMs();
+  log(`database round trip: ${String(rtt)} ms`);
+  const result: Record<string, unknown> = {
+    ranAt: new Date().toISOString(),
+    database:
+      'local Docker Postgres 17 on Windows (127.0.0.1:54322), shared with the test suites, in process, one connection',
+    roundTripMs: rtt,
+    batchSize: BATCH,
+    budgetSeconds: BUDGET_SECONDS,
+  };
+
+  // 1. The full file, as far as the preview.
+  const full = await previewedJob(gm, ROWS, 0);
+  result.fullFile = { ...full.timings, jobId: full.job.id, jobState: full.job.state };
+
+  // 2. The commit sample, committed batch by batch and then rolled back.
+  const sample = await previewedJob(gm, COMMIT_ROWS, ROWS);
+  const jobId = sample.job.id;
+  let t = performance.now();
   let current: ImportJobDto = await executeCommand(gm, scope, commitImportJob, {
     entityId: ENTITY,
-    jobId: job.id,
+    jobId,
   });
   const batchTimes: number[] = [];
   while (current.state === 'committing' && seconds(t) < BUDGET_SECONDS) {
     const b = performance.now();
     current = await executeCommand(gm, scope, commitImportBatch, {
       entityId: ENTITY,
-      jobId: job.id,
+      jobId,
       batchSize: BATCH,
     });
     batchTimes.push(seconds(b));
-    if (batchTimes.length % 10 === 0 || batchTimes.length <= 3) {
-      log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
-    }
+    log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
   }
   const commitSecs = seconds(t);
   const sorted = [...batchTimes].sort((a, b) => a - b);
-  result.commit = {
+  const commitRate = current.committedRows / Math.max(commitSecs, 0.01);
+  const commit: Record<string, unknown> = {
+    rows: COMMIT_ROWS,
     seconds: commitSecs,
     committedRows: current.committedRows,
     state: current.state,
     batches: batchTimes.length,
-    rowsPerSecond: rate(current.committedRows, commitSecs),
+    rowsPerSecond: Math.round(commitRate * 10) / 10,
+    msPerRow:
+      current.committedRows === 0 ? null : Math.round((commitSecs * 1000) / current.committedRows),
     batchSecondsMedian: sorted[Math.floor(sorted.length / 2)] ?? 0,
     batchSecondsMax: sorted[sorted.length - 1] ?? 0,
-    finishedWithinBudget: current.state === 'committed',
+    projectedSecondsFor50k:
+      commitRate === 0 ? null : Math.round(IMPORT_LIMITS.maxRows / commitRate),
   };
   log(
-    `commit: ${String(current.committedRows)} rows in ${String(commitSecs)} s, ${String(rate(current.committedRows, commitSecs))} rows/s, ${current.state}`,
+    `commit: ${String(current.committedRows)} rows in ${String(commitSecs)} s, ${String(commit.rowsPerSecond)} rows/s, ${current.state}`,
   );
 
-  if (current.state === 'committed' && !process.argv.includes('--keep')) {
+  if (current.state === 'committed') {
     t = performance.now();
-    const rolled = await executeCommand(gm, scope, rollbackImportJob, {
-      entityId: ENTITY,
-      jobId: job.id,
-    });
+    const rolled = await executeCommand(gm, scope, rollbackImportJob, { entityId: ENTITY, jobId });
     const rollbackSecs = seconds(t);
-    result.rollback = {
+    commit.rollback = {
       seconds: rollbackSecs,
       rowsPerSecond: rate(current.committedRows, rollbackSecs),
       state: rolled.state,
     };
     log(`rollback: ${String(rollbackSecs)} s, ${rolled.state}`);
   } else {
-    result.rollback = { skipped: true, jobId: job.id, jobState: current.state };
+    commit.rollback = { skipped: true, jobState: current.state, jobId };
   }
+  result.commitSample = { ...sample.timings, commit };
 
   writeFileSync(resultFile, `${JSON.stringify(result, null, 2)}\n`);
   log(`wrote ${resultFile}`);
