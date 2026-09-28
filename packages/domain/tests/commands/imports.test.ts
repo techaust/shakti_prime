@@ -572,6 +572,136 @@ describe('imports: commit and rollback', () => {
     });
   });
 
+  it('stops at a bad row in the middle of a batch, records that row, and keeps nothing of the batch', async () => {
+    const tag = newId().replace(/-/g, '').slice(-8);
+    const names = [1, 2, 3, 4, 5].map((n) => `Middle ${tag} ${String(n)}`);
+    const job = await previewedJob(
+      gm,
+      names.map((n) => `${n},${phone()},Sikar`),
+    );
+    // Row 3 turns bad after the preview; rows 1 and 2 before it and 4 and 5 after it are fine.
+    await asMigrator(
+      (
+        m,
+      ) => m`update import_rows set normalised_json = jsonb_set(normalised_json, '{pipelineKey}', '"retired_pipeline"')
+                where job_id = ${job.id} and row_no = 3`,
+    );
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    const requestId = newId();
+    const failed = await executeCommand(gm, { entityIds: [1], requestId }, commitImportBatch, {
+      entityId: 1,
+      jobId: job.id,
+      batchSize: 5,
+    });
+    expect(failed).toMatchObject({ state: 'failed', failedBatch: 1, committedRows: 0 });
+
+    const rows = await rowsOf(gm, job.id);
+    expect(rows.map((r) => [r.state, r.createdId, r.errors])).toEqual([
+      ['valid', null, []],
+      ['valid', null, []],
+      ['valid', null, [{ field: 'row', code: 'commit_failed' }]],
+      ['valid', null, []],
+      ['valid', null, []],
+    ]);
+    const [audited] = await asMigrator(
+      (m) => m<{ after_json: Record<string, unknown> }[]>`
+        select after_json from audit_logs where request_id = ${requestId} and command = 'imports.job.commit_batch'`,
+    );
+    expect(audited?.after_json).toMatchObject({ state: 'failed', failedBatch: 1, failedRow: 3 });
+    // Nothing of the batch is left: no customer, no lead, no key.
+    const [left] = await asMigrator(
+      (m) => m<{ contacts: number; keys: number }[]>`
+        select (select count(*)::int from contacts where name = any(${names})) as contacts,
+               (select count(*)::int from idempotency_keys where principal_id = ${gm.id}
+                  and key = any(${[1, 2, 3, 4, 5].map((n) => importRowKey(job.id, n))})) as keys`,
+    );
+    expect(left).toEqual({ contacts: 0, keys: 0 });
+  });
+
+  it('commits rows that share a customer with each other and with an existing one, each as its own lead', async () => {
+    const tag = newId().replace(/-/g, '').slice(-8);
+    const village = `Sardar ${tag}`;
+    const known = phone();
+    const existing = await run(gm, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Mohan ${tag}`, phone: known },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village },
+    });
+    const twin = phone();
+    const job = await previewedJob(gm, [
+      // The existing customer's name, village and number.
+      `Mohan ${tag},${known},${village}`,
+      // The same name and village as the row above and the existing customer, another number.
+      `Mohan ${tag},${phone()},${village}`,
+      `Kishan ${tag},${twin},${village}`,
+      `Kishan again ${tag},${phone()},${village}`,
+    ]);
+    // Row 4 takes row 3's number after the preview, so two rows of one batch share a phone too.
+    await asMigrator(
+      (
+        m,
+      ) => m`update import_rows set normalised_json = jsonb_set(normalised_json, '{contact,phone}', to_jsonb(${`+91${twin}`}::text))
+                where job_id = ${job.id} and row_no = 4`,
+    );
+    await run(gm, commitImportJob, { entityId: 1, jobId: job.id });
+    const committed: string[] = [];
+    const done = await executeCommand(
+      gm,
+      { entityIds: [1] },
+      commitImportBatch,
+      { entityId: 1, jobId: job.id },
+      {
+        onCommitted: (events) => {
+          committed.push(...events.map((e) => e.type));
+        },
+      },
+    );
+    expect(done).toMatchObject({ state: 'committed', committedRows: 4 });
+    expect(committed).toEqual([
+      'crm.lead.created',
+      'crm.lead.created',
+      'crm.lead.created',
+      'crm.lead.created',
+      'imports.job.committed',
+    ]);
+
+    const rows = await rowsOf(gm, job.id);
+    const ids = rows.map((r) => r.createdId ?? '');
+    expect(await liveLeadCount(ids)).toBe(4);
+    // Each row is a customer of its own, as a lead typed in is; the existing one is untouched.
+    const leads = await asMigrator(
+      (m) => m<{ account_id: string; phones: string[] }[]>`
+        select o.account_id,
+               array(select cp.e164 from account_contacts ac join contact_phones cp on cp.contact_id = ac.contact_id
+                      where ac.account_id = o.account_id) as phones
+          from opportunities o where o.id = any(${ids}::uuid[]) order by o.created_at, o.id`,
+    );
+    expect(new Set(leads.map((l) => l.account_id)).size).toBe(4);
+    expect(leads.map((l) => l.account_id)).not.toContain(existing.account.id);
+    expect(leads.filter((l) => l.phones.includes(`+91${twin}`))).toHaveLength(2);
+    const [kept] = await asMigrator(
+      (m) => m<{ opportunities: number }[]>`
+        select count(*)::int as opportunities from opportunities where account_id = ${existing.account.id}`,
+    );
+    expect(kept?.opportunities).toBe(1);
+
+    // Each row's key holds the lead a repeat of `crm.lead.create` with that key replays.
+    const [stored] = await asMigrator(
+      (m) => m<{ normalised_json: unknown }[]>`
+        select normalised_json from import_rows where job_id = ${job.id} and row_no = 1`,
+    );
+    const replay = await asPrincipal(gm, (context) =>
+      runCommand(
+        createLead,
+        { context, audit, outbox, idempotencyKey: importRowKey(job.id, 1) },
+        stored?.normalised_json,
+      ),
+    );
+    expect(replay.id).toBe(rows[0]?.createdId);
+  });
+
   it('rolls back newest first, archiving every lead the job created', async () => {
     const job = await previewedJob(
       gm,
