@@ -1,3 +1,5 @@
+import type * as DialogPrimitive from '@radix-ui/react-dialog';
+import type * as MenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -34,11 +36,11 @@ const { inPlace } = vi.hoisted(() => ({
   inPlace: ({ children }: { children?: ReactNode }) => children,
 }));
 vi.mock('@radix-ui/react-dialog', async (original) => ({
-  ...(await original<typeof import('@radix-ui/react-dialog')>()),
+  ...(await original<typeof DialogPrimitive>()),
   Portal: inPlace,
 }));
 vi.mock('@radix-ui/react-dropdown-menu', async (original) => ({
-  ...(await original<typeof import('@radix-ui/react-dropdown-menu')>()),
+  ...(await original<typeof MenuPrimitive>()),
   Portal: inPlace,
 }));
 

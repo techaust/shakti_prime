@@ -119,9 +119,8 @@ describe('BoardColumn Load more', () => {
 
   it('shows how many cards show of how many, and a button named for the stage', () => {
     const html = column(false);
-    const status = html.match(
-      /<p id="([^"]+)" role="status"[^>]*>Showing the newest 100 of 240 leads<\/p>/,
-    );
+    const status =
+      /<p id="([^"]+)" role="status"[^>]*>Showing the newest 100 of 240 leads<\/p>/.exec(html);
     expect(status).not.toBeNull();
     expect(html).toMatch(
       new RegExp(
