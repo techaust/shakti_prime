@@ -17,7 +17,7 @@ This pack lists every question the system needs the group to answer before or du
 
 ## Part A — Decisions already taken
 
-These are settled and built. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be.
+These are settled. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be. Built today: A1.1 to A1.5 (the call language is stored on each contact; the scripts and voice it steers come in Phases 1 and 2), A2.1, A2.2, A2.4 (in the assistants' permissions; the first assistant, lead sorting, starts in Phase 1) and A2.5, and in A2.3 the fixed set of roles and the updates that keep an edited role's changes (the screen where an Executive edits a role is not built yet). In A3, the mandatory authenticator app is built, the price lists and tiers are built, and the masking of card photos is built while the document store that keeps them arrives with projects in Phase 4; the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead are settled but arrive with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
 
 ### A1. Taken by the group on 27-09-2026
 | # | Decision | What it means day to day |
@@ -33,7 +33,7 @@ These were needed to finish the security work. Each is a small change if the gro
 
 | # | Decision | Alternative if the group prefers |
 |---|---|---|
-| A2.1 | **A customer looked after by a colleague is routed to that colleague.** If a tele-caller creates a lead for a customer another caller in the same company already looks after, the lead goes to the colleague who owns the relationship. | The lead owner could see the customer, or the relationship could move with the lead. |
+| A2.1 | **A customer looked after by a colleague is routed to that colleague.** If a tele-caller tries to create a lead for a customer another caller in the same company already looks after, the system stops and asks them to have their team lead pass the enquiry to the colleague who owns the relationship. | The lead owner could see the customer, or the relationship could move with the lead. |
 | A2.2 | **One owner contact per customer.** A farm or household has exactly one owner contact; family members are added as "family" contacts. | Allow two owner contacts (for example husband and wife). This can create duplicate leads. |
 | A2.3 | **Roles are fixed; their permissions are editable.** The eleven roles stay; an Executive can change what each role may do, and an edited role keeps its changes after every update. | Allow new custom roles. |
 | A2.4 | **AI assistants for lead sorting and caller help work without customer names and phone numbers.** | Let them see names and phones, which makes their suggestions easier to read but widens who sees personal data. |
