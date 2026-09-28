@@ -565,6 +565,14 @@ erDiagram
     timestamptz next_attempt_at "null"
     timestamptz claimed_until "null"
   }
+  retention_runs {
+    uuid id PK
+    text job
+    timestamptz started_at
+    timestamptz finished_at "null"
+    integer rows_affected "null"
+    text error "null"
+  }
   saved_views {
     uuid id PK
     uuid principal_id FK
@@ -587,20 +595,6 @@ erDiagram
   import_rows }o--|| import_jobs : "job_id, entity_id"
   outbox_events }o--|| entities : "entity_id"
   saved_views }o--|| principals : "principal_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  retention_runs {
-    uuid id PK
-    text job
-    timestamptz started_at
-    timestamptz finished_at "null"
-    integer rows_affected "null"
-    text error "null"
-  }
 ```
 
 ## Planned tables
