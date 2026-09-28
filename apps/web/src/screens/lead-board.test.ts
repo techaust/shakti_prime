@@ -9,7 +9,7 @@ import {
   cardActions,
   daysSince,
   moveDecision,
-  stageBarClass,
+  stageTone,
   statesFor,
 } from './lead-board';
 
@@ -197,9 +197,9 @@ describe('applyChange', () => {
 
 describe('stage colours and age', () => {
   it('uses the stage token by key, and the kind’s token for a stage added later', () => {
-    expect(stageBarClass({ key: 'qualified', kind: 'open' })).toBe('bg-stage-qualified');
-    expect(stageBarClass({ key: 'site_visit', kind: 'open' })).toBe('bg-stage-new');
-    expect(stageBarClass({ key: 'order_placed', kind: 'won' })).toBe('bg-stage-won');
+    expect(stageTone({ key: 'qualified', kind: 'open' })).toBe('qualified');
+    expect(stageTone({ key: 'site_visit', kind: 'open' })).toBe('new');
+    expect(stageTone({ key: 'order_placed', kind: 'won' })).toBe('won');
   });
 
   it('counts whole days, never below zero', () => {

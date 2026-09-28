@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { BoardCard, BoardColumn } from './board';
 import { Button } from './button';
 import { isPaletteShortcut } from './command-palette';
 import { DataGrid, type DataGridColumn } from './data-grid';
@@ -133,5 +134,49 @@ describe('isPaletteShortcut', () => {
     expect(isPaletteShortcut({ key: 'K', metaKey: false, ctrlKey: true })).toBe(true);
     expect(isPaletteShortcut({ key: 'k', metaKey: false, ctrlKey: false })).toBe(false);
     expect(isPaletteShortcut({ key: 'j', metaKey: true, ctrlKey: false })).toBe(false);
+  });
+});
+
+describe('BoardColumn and BoardCard', () => {
+  it('draw the stage colour on the top bar, the heading, count and cards', () => {
+    const html = renderToStaticMarkup(
+      <BoardColumn title="Contacted" tone="contacted" count="1 lead" emptyLabel="None here">
+        <BoardCard
+          title="Customer"
+          subtitle="Village"
+          age="Open for 2 days"
+          owner="With Priya"
+          sla={{ tone: 'warn', label: 'Due soon' }}
+          dragId="lead-1"
+        />
+      </BoardColumn>,
+    );
+    expect(html).toContain('bg-stage-contacted');
+    expect(html).toMatch(/<h2 id="[^"]+" class="[^"]*">Contacted<\/h2>/);
+    expect(html).toContain('1 lead');
+    expect(html).toContain('draggable="true"');
+    expect(html).toContain('role="img" aria-label="Due soon"');
+    expect(html).toContain('bg-sla-warn');
+    expect(html).not.toContain('None here');
+  });
+
+  it('say so when a stage is empty, and leave a card without a drag id in place', () => {
+    const empty = renderToStaticMarkup(
+      <BoardColumn
+        title="New"
+        tone="new"
+        count="0 leads"
+        emptyLabel="None here"
+        headingLevel="h4"
+      />,
+    );
+    expect(empty).toContain('None here');
+    expect(empty).toContain('<h4');
+    expect(empty).not.toContain('<ul');
+    const card = renderToStaticMarkup(
+      <BoardCard title="Customer" subtitle="Village" age="Opened today" owner="Nobody yet" />,
+    );
+    expect(card).toContain('draggable="false"');
+    expect(card).not.toContain('role="img"');
   });
 });

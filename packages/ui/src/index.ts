@@ -66,6 +66,14 @@ export {
   type GridSort,
   type SortDirection,
 } from './data-grid-state';
+export {
+  BoardCard,
+  BoardColumn,
+  type BoardCardProps,
+  type BoardColumnProps,
+  type BoardSlaTone,
+  type BoardStageTone,
+} from './board';
 export { Toaster, toast, TOAST_DURATION_MS, useIsPhone } from './toast';
 export {
   CommandPalette,

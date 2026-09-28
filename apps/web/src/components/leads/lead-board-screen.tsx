@@ -7,8 +7,9 @@ import type {
   PipelineStageDto,
 } from '@shakti/contracts';
 import {
+  BoardCard,
+  BoardColumn,
   Button,
-  cn,
   Dialog,
   DialogContent,
   DropdownMenu,
@@ -25,7 +26,7 @@ import {
 import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { useId, useState, type DragEvent, type ReactNode } from 'react';
+import { useState, type ComponentProps, type DragEvent, type ReactNode } from 'react';
 import { moveOpportunityStage } from '../../actions/crm';
 import {
   applyChange,
@@ -36,10 +37,9 @@ import {
   daysSince,
   formatCount,
   moveDecision,
-  SLA_DOT,
-  stageBarClass,
+  stageTone,
   statesFor,
-  type BoardColumn,
+  type BoardColumn as StageColumn,
   type BoardShow,
 } from '../../screens/lead-board';
 import { FailureMessage } from '../screens/failure';
@@ -139,7 +139,9 @@ export function LeadBoardScreen({
     });
   }
 
-  function dropZone(stage: PipelineStageDto) {
+  function dropZone(
+    stage: PipelineStageDto,
+  ): Pick<ComponentProps<'section'>, 'onDragOver' | 'onDragLeave' | 'onDrop'> {
     if (!can.write) return {};
     return {
       onDragOver: (e: DragEvent<HTMLElement>) => {
@@ -352,50 +354,32 @@ function Column({
   dropZone,
   children,
 }: {
-  column: BoardColumn;
+  column: StageColumn;
   perStage: number;
   hiddenOnPhone: boolean;
   over: boolean;
-  dropZone: Record<string, unknown>;
+  dropZone: Pick<ComponentProps<'section'>, 'onDragOver' | 'onDragLeave' | 'onDrop'>;
   children: ReactNode;
 }) {
   const t = useTranslations('leads.board');
-  const headingId = useId();
   const { stage, count, cards } = column;
   return (
-    <section
-      aria-labelledby={headingId}
-      className={cn(
-        'bg-surface-2 border-border flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border max-md:w-full',
-        hiddenOnPhone && 'max-md:hidden',
-        over && 'ring-focus ring-2',
-      )}
+    <BoardColumn
+      title={stage.name}
+      tone={stageTone(stage)}
+      count={t('count', { count, shown: formatCount(count) })}
+      note={
+        count > cards.length && cards.length >= perStage
+          ? t('partial', { count, shown: formatCount(cards.length), total: formatCount(count) })
+          : undefined
+      }
+      emptyLabel={t('emptyColumn')}
+      hiddenOnPhone={hiddenOnPhone}
+      highlighted={over}
       {...dropZone}
     >
-      <div aria-hidden className={cn('h-[3px]', stageBarClass(stage))} />
-      <header className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
-        <h2 id={headingId} className="text-sm font-[590]">
-          {stage.name}
-        </h2>
-        <span className="text-text-muted text-xs tabular-nums">
-          {t('count', { count, shown: formatCount(count) })}
-        </span>
-      </header>
-      {count > cards.length && cards.length >= perStage ? (
-        <p className="text-text-subtle px-3 pb-1 text-xs">
-          {t('partial', {
-            count,
-            shown: formatCount(cards.length),
-            total: formatCount(count),
-          })}
-        </p>
-      ) : null}
-      {cards.length === 0 ? (
-        <p className="text-text-subtle px-3 pt-1 pb-3 text-sm">{t('emptyColumn')}</p>
-      ) : (
-        <ul className="flex flex-col gap-2 p-2">{children}</ul>
-      )}
-    </section>
+      {cards.length === 0 ? null : children}
+    </BoardColumn>
   );
 }
 
@@ -422,47 +406,24 @@ function Card({
   const days = daysSince(lead.stateChangedAt, now);
   const ageKey = lead.state === 'open' ? 'open' : lead.state === 'nurture' ? 'nurture' : 'closed';
   return (
-    <li
-      draggable={draggable}
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', lead.id);
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart();
-      }}
+    <BoardCard
+      title={lead.customerName}
+      subtitle={lead.village ?? t('villageUnknown')}
+      menu={menu}
+      badge={
+        showState ? (
+          <StatusBadge tone={STATE_TONE[lead.state]} className="self-start">
+            {leads(`state.${lead.state}`)}
+          </StatusBadge>
+        ) : undefined
+      }
+      age={t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
+      owner={lead.ownerName === null ? t('noOwner') : t('owner', { name: lead.ownerName })}
+      sla={lead.sla === null ? undefined : { tone: lead.sla, label: t(`sla.${lead.sla}`) }}
+      dragId={draggable ? lead.id : undefined}
+      onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={cn(
-        'bg-surface border-border flex flex-col gap-1 rounded-lg border p-3',
-        draggable && 'cursor-grab active:cursor-grabbing',
-      )}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 font-[510] break-words">{lead.customerName}</p>
-        {menu}
-      </div>
-      <p className="text-text-muted text-sm break-words">{lead.village ?? t('villageUnknown')}</p>
-      {showState ? (
-        <StatusBadge tone={STATE_TONE[lead.state]} className="self-start">
-          {leads(`state.${lead.state}`)}
-        </StatusBadge>
-      ) : null}
-      <div className="text-text-subtle flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
-        <span className="tabular-nums">
-          {t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
-        </span>
-        <span className="flex min-w-0 items-center gap-1.5">
-          {lead.sla === null ? null : (
-            <span
-              role="img"
-              aria-label={t(`sla.${lead.sla}`)}
-              className={cn('size-2 shrink-0 rounded-full', SLA_DOT[lead.sla])}
-            />
-          )}
-          <span className="break-words">
-            {lead.ownerName === null ? t('noOwner') : t('owner', { name: lead.ownerName })}
-          </span>
-        </span>
-      </div>
-    </li>
+    />
   );
 }
 

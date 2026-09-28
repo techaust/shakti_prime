@@ -10,6 +10,7 @@ import type {
   PipelineDto,
   PipelineStageDto,
 } from '@shakti/contracts';
+import type { BoardStageTone } from '@shakti/ui';
 
 /** What the board's filter offers: open leads by default, or one of the other statuses, or all. */
 export const BOARD_SHOW = ['open', 'nurture', 'won', 'lost', 'all'] as const;
@@ -72,29 +73,22 @@ export function boardHref(choice: {
   return query === '' ? '/leads/board' : `/leads/board?${query}`;
 }
 
+const STAGE_TONES: readonly BoardStageTone[] = [
+  'new',
+  'contacted',
+  'qualified',
+  'quoted',
+  'won',
+  'lost',
+];
+
 /**
- * The colour bar of a stage (DESIGN.md §2.4): the six stage tokens by the stage's key; a stage an
- * Executive added later takes the colour of its kind. Whole class names, so the style build sees them.
+ * The colour of a stage's bar (DESIGN.md §2.4): the six stage tokens by the stage's key; a stage
+ * an Executive added later takes the colour of its kind (an open stage the colour of New).
  */
-const STAGE_BAR: Record<string, string> = {
-  new: 'bg-stage-new',
-  contacted: 'bg-stage-contacted',
-  qualified: 'bg-stage-qualified',
-  quoted: 'bg-stage-quoted',
-  won: 'bg-stage-won',
-  lost: 'bg-stage-lost',
-};
-
-export function stageBarClass(stage: Pick<PipelineStageDto, 'key' | 'kind'>): string {
-  return STAGE_BAR[stage.key] ?? STAGE_BAR[stage.kind === 'open' ? 'new' : stage.kind] ?? '';
+export function stageTone(stage: Pick<PipelineStageDto, 'key' | 'kind'>): BoardStageTone {
+  return STAGE_TONES.find((t) => t === stage.key) ?? (stage.kind === 'open' ? 'new' : stage.kind);
 }
-
-/** The SLA dot's colour by its status (DESIGN.md §2.4). */
-export const SLA_DOT: Record<NonNullable<BoardLeadDto['sla']>, string> = {
-  ok: 'bg-sla-ok',
-  warn: 'bg-sla-warn',
-  breach: 'bg-sla-breach',
-};
 
 export interface BoardColumn {
   stage: PipelineStageDto;
