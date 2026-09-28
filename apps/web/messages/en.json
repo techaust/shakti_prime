@@ -330,7 +330,7 @@
   },
   "design": {
     "title": "Design preview",
-    "intro": "Every colour, text size, measure and control in the light and dark themes and their higher-contrast versions. Each colour shows how readable it is on a card: text needs 4.5 or more (7 with higher contrast), lines and icons need 3 or more (4.5 with higher contrast).",
+    "intro": "Every colour, text size, measure and control in the light and dark themes and their higher-contrast versions. Each colour shows how readable it is on a card: text needs 4.5 or more (7 with higher contrast), lines and icons need 3 or more (4.5 with higher contrast). Figures, places and product sizes on this page show formats; none of them is a record.",
     "light": "Light",
     "dark": "Dark",
     "lightHigh": "Light, higher contrast",
@@ -511,7 +511,8 @@
       "customerAddress": "Tehsil Chomu, District Jaipur, Rajasthan 303702",
       "preparedBy": "the Agro Solar Hub sales team",
       "cardDetail": "Solar submersible pump, 7.5 HP",
-      "cardOwner": "Sales team"
+      "cardOwner": "Sales team",
+      "terms": "The terms of sale are not recorded yet."
     }
   },
   "errorPage": {

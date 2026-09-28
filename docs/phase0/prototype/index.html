@@ -396,7 +396,7 @@
         orders: { label: 'Sales orders', icon: 'box' },
         credit: { label: 'Dealer credit', icon: 'shield' },
         leads: { label: 'Leads', icon: 'list', app: true },
-        price: { label: 'Price Master', icon: 'tag', app: true },
+        price: { label: 'Price lists', icon: 'tag', app: true },
         team: { label: 'Team members', icon: 'users', app: true },
         activity: { label: 'Activity log', icon: 'clock', app: true },
         companies: { label: 'Companies', icon: 'building', app: true },
@@ -759,7 +759,7 @@
           <div class="notice" style="margin-top:16px">
             <p><strong>This is a prototype.</strong> Nothing you do here is saved, sent or seen by anyone. Buttons show what would happen, and the screens reset when the page is reloaded.</p>
             <p>Every person, village, phone number and amount is invented. Prices, tax rates, document numbers and call outcomes are shown in one possible form; the real ones are set at the discovery workshop.</p>
-            <p>Some screens already work in the review system: Leads, Price Master, Team members, Activity log and Companies. They are marked "In the app" in the menu.</p>
+            <p>Some screens already work in the review system: Leads, Price lists, Team members, Activity log and Companies. They are marked "In the app" in the menu.</p>
           </div>
           <h2 style="margin-top:28px">Choose a role</h2>
           <p class="muted">You will see the screens that role works with. You can change role at any time from the menu.</p>
@@ -1126,11 +1126,11 @@
               <div class="card"><div class="form-grid">
                 <div class="field"><label for="q-cust">Customer</label><select class="input" id="q-cust" data-act="q-cust">${ACCOUNTS.map((x) => `<option value="${x.id}" ${x.id === q.acct ? 'selected' : ''}>${esc(x.name)}, ${esc(x.place)}</option>`).join('')}</select></div>
                 <div class="field"><label for="q-co">Selling company</label><select class="input" id="q-co" data-act="q-co">${COMPANIES.map((c) => `<option value="${c.code}" ${c.code === q.co ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
-                <div class="field full"><label>Price tier</label><div class="row">${badge(TIER[tier], 'accent')}<span class="help">Set by the customer type (${esc(a.type)}). Prices come from the Price Master and cannot be changed on a quote.</span></div></div>
+                <div class="field full"><label>Price tier</label><div class="row">${badge(TIER[tier], 'accent')}<span class="help">Set by the customer type (${esc(a.type)}). Prices come from the price lists and cannot be changed on a quote.</span></div></div>
               </div></div>
               <div class="card"><div class="card-head"><h3>Items</h3></div>
                 <div class="table-wrap"><table class="dg"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th><th></th></tr></thead><tbody>
-                ${t.rows.length ? t.rows.map((r, i) => `<tr><td class="lead" data-label="">${esc(r.name)}</td><td class="num" data-label="Qty"><input class="input" style="width:64px;text-align:right;height:30px" type="number" min="1" value="${r.qty}" data-act="q-qty" data-i="${i}" aria-label="Quantity" /></td><td class="num" data-label="Price"><span class="locked" title="From the Price Master">${icon('lock')}${inr(r.price)}</span></td><td class="num" data-label="Amount">${inr(r.amount)}</td><td data-label=""><button class="btn ghost sm" data-act="q-remove" data-i="${i}" aria-label="Remove ${esc(r.name)}">${icon('x')}</button></td></tr>`).join('') : `<tr><td colspan="5" data-label=""><div class="empty"><p>Add the first item to start the quote.</p></div></td></tr>`}
+                ${t.rows.length ? t.rows.map((r, i) => `<tr><td class="lead" data-label="">${esc(r.name)}</td><td class="num" data-label="Qty"><input class="input" style="width:64px;text-align:right;height:30px" type="number" min="1" value="${r.qty}" data-act="q-qty" data-i="${i}" aria-label="Quantity" /></td><td class="num" data-label="Price"><span class="locked" title="From the price list">${icon('lock')}${inr(r.price)}</span></td><td class="num" data-label="Amount">${inr(r.amount)}</td><td data-label=""><button class="btn ghost sm" data-act="q-remove" data-i="${i}" aria-label="Remove ${esc(r.name)}">${icon('x')}</button></td></tr>`).join('') : `<tr><td colspan="5" data-label=""><div class="empty"><p>Add the first item to start the quote.</p></div></td></tr>`}
                 </tbody></table></div>
                 <div class="row" style="margin-top:12px"><select class="input grow" id="q-add" aria-label="Item to add" style="max-width:360px">${ITEMS.map((i) => `<option value="${i.code}">${esc(i.name)}</option>`).join('')}</select><button class="btn" data-act="q-add">${icon('plus')}Add item</button></div>
               </div>
