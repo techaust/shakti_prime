@@ -14,23 +14,57 @@ export interface OutboxRow {
 
 /**
  * What one delivery attempt did to a claimed row. A failure counts one more attempt and keeps a
- * short code of what went wrong; `deadLetter` stops further attempts.
+ * short code of what went wrong; `deadLetter` stops further attempts, and otherwise the row is
+ * due again `retryInSeconds` from now (the backoff), or at once when that is left out.
  */
 export type OutboxUpdate =
   | { id: string; outcome: 'published' }
-  | { id: string; outcome: 'failed'; attempts: number; lastError: string; deadLetter: boolean };
+  | {
+      id: string;
+      outcome: 'failed';
+      attempts: number;
+      lastError: string;
+      deadLetter: boolean;
+      retryInSeconds?: number;
+    };
 
 /**
- * Claims up to `limit` pending rows in delivery order, hands them to `deliver` while they are
- * locked, then applies its updates in the same transaction. Rows another run holds are skipped.
+ * Claims up to `limit` due rows in delivery order and leases them to this run, then hands them to
+ * `deliver` outside any transaction, so no row lock is held while the queue is called; the
+ * outcomes are recorded afterwards in a second short transaction. Rows another run has leased
+ * are skipped; a lease that has run out (the run died) makes its rows due again. Answers how many
+ * rows were claimed.
  */
 export type ClaimOutbox = (
   limit: number,
   deliver: (rows: readonly OutboxRow[]) => Promise<readonly OutboxUpdate[]>,
 ) => Promise<number>;
 
-/** How far behind delivery is: the oldest pending event's age and the dead-letter count. */
+/**
+ * The two short transactions behind `ClaimOutbox`. `lease` marks up to `limit` due rows as in
+ * flight until `leaseSeconds` from now and answers them with the lease that names this run;
+ * `record` applies the outcomes and releases the rows named in `release`, touching only rows that
+ * still carry that lease, and answers how many rows it changed.
+ */
+export interface OutboxLeaseStore {
+  lease(limit: number, leaseSeconds: number): Promise<{ lease: string; rows: OutboxRow[] }>;
+  record(
+    lease: string,
+    updates: readonly OutboxUpdate[],
+    release: readonly string[],
+  ): Promise<number>;
+}
+
+/**
+ * How far behind delivery is. `oldestPendingSeconds` is the age of the oldest undelivered event;
+ * `oldestDueSeconds` is how long the event that has been due longest has waited since it became
+ * due (created, backoff passed and no live lease), which grows only when no publisher runs.
+ * `retrying` counts events waiting out their backoff, `inFlight` those leased to a run.
+ */
 export interface OutboxLag {
   oldestPendingSeconds: number | null;
+  oldestDueSeconds: number | null;
+  retrying: number;
+  inFlight: number;
   deadLettered: number;
 }

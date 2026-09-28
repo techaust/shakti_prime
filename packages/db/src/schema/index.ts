@@ -15,6 +15,7 @@ export { taxRates, compositeSupplyRules } from './tax';
 export { documentSequences } from './document-sequences';
 export { auditLogs } from './audit-logs';
 export { outboxEvents } from './outbox-events';
+export { retentionRuns } from './retention-runs';
 export { idempotencyKeys } from './idempotency-keys';
 export { savedViews } from './saved-views';
 export { files } from './files';

@@ -251,6 +251,14 @@ export const OUTBOX_TABLES = ['outbox_events'] as const;
  */
 export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
 
+/**
+ * Platform tables of no company that only a database job writes and only a permission at scope
+ * `all` reads (docs/DATABASE.md §7): no request role inserts, updates or deletes them, and most
+ * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
+ * the entity loops (scoped by company) apply. Asserted in retention.test.ts.
+ */
+export const PLATFORM_TABLES = ['retention_runs'] as const;
+
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;
 

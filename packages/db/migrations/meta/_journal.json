@@ -372,6 +372,20 @@
       "when": 1790606527887,
       "tag": "0052_lead_search_candidates",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790612533055,
+      "tag": "0053_outbox_backoff_lease_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1790612535691,
+      "tag": "0054_outbox_reliability",
+      "breakpoints": true
     }
   ]
 }
