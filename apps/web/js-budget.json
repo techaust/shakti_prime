@@ -4,71 +4,71 @@
   "routes": {
     "/": {
       "maxKb": 185,
-      "reason": "Public page opened on phones before sign-in, kept near its measured size (175.8 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (175.9 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/_not-found": {
       "maxKb": 185,
-      "reason": "The page shown for an address that does not exist, public like the sign-in pages, kept near its measured size (175.8 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+      "reason": "The page shown for an address that does not exist, public like the sign-in pages, kept near its measured size (175.9 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/admin/activity": {
-      "maxKb": 280,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 10 kB); the contracts and Zod no longer reach the browser. Measured 263.9 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the Activity log grid and its filters (about 10 kB). Measured 253.3 kB on 28-09-2026, plus 5 %. Its detail sheet loads when a row is first opened; the rest is the grid and filters, so going lower means a smaller shell or grid."
     },
     "/admin/users": {
-      "maxKb": 280,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 8 kB); the contracts and Zod no longer reach the browser. Measured 262.2 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the team grid, its row menu, saved views and the user dialogs (about 15 kB). Measured 257.9 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog, the user dialogs and the sessions sheet); loading them on first opening would save about 5 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/design": {
-      "maxKb": 280,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 10 kB); the contracts and Zod no longer reach the browser. Measured 264.0 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the design board, which shows every component on one page (about 18 kB). Measured 261.4 kB on 28-09-2026, plus 5 %. The search palette preview loads when first opened; the rest is the board, which shows every component on purpose."
     },
     "/forgot-password": {
       "maxKb": 195,
       "reason": "Public page opened on phones before sign-in, kept near its measured size (183.0 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/home": {
-      "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB); the contracts and Zod no longer reach the browser. Measured 254.1 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the shortcuts and the password form. Measured 243.1 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/imports": {
-      "maxKb": 275,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 7 kB); the contracts and Zod no longer reach the browser. Measured 260.7 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the imports grid and saved views (about 13 kB). Measured 256.2 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog); loading them on first opening would save about 3 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/imports/[entityId]/[jobId]": {
-      "maxKb": 280,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 8 kB); the contracts and Zod no longer reach the browser. Measured 262.5 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the import job steps, column matching, checks and rows grid (about 14 kB). Measured 257.3 kB on 28-09-2026, plus 5 %. Its dialog is small and the rest (steps, column matching, checks, rows grid) is the screen itself, so going lower means a smaller shell or a split of the job screen."
     },
     "/imports/new": {
-      "maxKb": 275,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 5 kB); the contracts and Zod no longer reach the browser. Measured 259.0 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 265,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the upload form (about 6 kB). Measured 248.8 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/leads": {
-      "maxKb": 275,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 5 kB); the contracts and Zod no longer reach the browser. Measured 258.9 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the leads grid and saved views (about 11 kB). Measured 254.3 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog); loading them on first opening would save about 3 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/leads/board": {
-      "maxKb": 275,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 6 kB); the contracts and Zod no longer reach the browser. Measured 260.5 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 265,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the board, its cards and card menus (about 7 kB). Measured 250.3 kB on 28-09-2026, plus 5 %. Its dialogs load when first opened; the rest is the board itself, so going lower means a smaller shell."
     },
     "/leads/new": {
-      "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 2 kB); the contracts and Zod no longer reach the browser. Measured 256.3 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the new lead form (about 3 kB). Measured 246.2 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/price-master": {
-      "maxKb": 275,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 6 kB); the contracts and Zod no longer reach the browser. Measured 259.8 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the price grid, saved views and the price dialog (about 12 kB). Measured 255.5 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog and the price dialog); loading them on first opening would save about 3 to 4 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/set-password": {
       "maxKb": 195,
-      "reason": "Public page opened on phones before sign-in, kept near its measured size (181.8 kB on 28-09-2026, plus 5 %) rather than the 250 kB default. Its form reads the password length from screens/contract-values.ts, so it no longer loads the contracts and Zod."
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (181.8 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/settings/companies": {
-      "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB), plus its own screen code (about 2 kB); the contracts and Zod no longer reach the browser. Measured 256.2 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the companies grid (about 4 kB). Measured 247.4 kB on 28-09-2026, plus 5 %. The edit dialog, the search palette and the phone menu load when first opened."
     },
     "/settings/profile": {
-      "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the whole UI kit through its index (Radix dialog and menu, toasts, the palette's cmdk, tailwind-merge: about 63 kB, because Turbopack cannot drop the kit's unused modules) and the app shell (about 14 kB); the contracts and Zod no longer reach the browser. Measured 255.0 kB on 28-09-2026, plus 5 %. Lower it when the UI kit loads per component."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the theme and contrast choices (about 1 kB). Measured 244.0 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/sign-in": {
       "maxKb": 195,
