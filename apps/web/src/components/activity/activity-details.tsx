@@ -21,6 +21,7 @@ import {
   actionKey,
   auditChanges,
   CONFIRM_METHODS,
+  eventNameKey,
   oneOf,
   SIGN_IN_DETAILS,
   wordsOf,
@@ -272,10 +273,11 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(SIGN_IN_DETAILS, value) ? t(`values.signInDetail.${value}`) : wordsOf(value);
       case 'method':
         return oneOf(CONFIRM_METHODS, value) ? t(`values.method.${value}`) : wordsOf(value);
-      case 'eventType':
-        // An update's type is a dotted code such as `crm.opportunity.won`; its words are enough
-        // for the person reading the log to tell updates apart.
-        return wordsOf(value.replaceAll('.', ' '));
+      case 'eventType': {
+        const name = eventNameKey(value);
+        // A type the catalogue does not know yet reads in plain words, not as its dotted code.
+        return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
+      }
     }
   };
 }

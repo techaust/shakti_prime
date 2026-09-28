@@ -1,4 +1,5 @@
-import { AuditQueryInput, SegmentSchema } from '@shakti/contracts';
+import { AUTH_AUDIT_EVENTS, AuditQueryInput, EVENT_TYPES, SegmentSchema } from '@shakti/contracts';
+import { commands } from '@shakti/domain';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import {
@@ -8,6 +9,7 @@ import {
   auditWindow,
   CONFIRM_METHODS,
   defaultWindow,
+  eventNameKey,
   isNamedField,
   istToday,
   NAMED_FIELDS,
@@ -64,6 +66,37 @@ describe('recorded actions', () => {
     expect(actionKey('auth.sign_in')).toBe('signIn');
     expect(actionKey('inventory.stock.move')).toBe('other');
     expect(ACTION_FILTERS.map((a) => a.command)).toContain('admin.user.two_factor.reset');
+  });
+});
+
+describe('every recorded action and event has a name', () => {
+  const actions: Readonly<Record<string, string>> = en.activity.actions;
+  const events: Readonly<Record<string, string>> = en.activity.events;
+
+  it('names every command in the registry and every sign-in and account event', () => {
+    const recorded = [...Object.keys(commands), ...AUTH_AUDIT_EVENTS];
+    expect(recorded.length).toBeGreaterThan(30);
+    expect(recorded.filter((command) => actionKey(command) === 'other')).toEqual([]);
+    for (const command of recorded) expect(actions[actionKey(command)], command).toBeTruthy();
+  });
+
+  it('names the saved list views and the live updates connection of the branches to come', () => {
+    for (const command of ['profile.view.save', 'profile.view.delete', 'realtime.token.issue']) {
+      expect(actionKey(command), command).not.toBe('other');
+    }
+  });
+
+  it('has a label for every name it gives, and no label it does not use', () => {
+    const keys = new Set([...ACTION_FILTERS.map((a) => a.key), 'other']);
+    expect(Object.keys(actions).sort()).toEqual([...keys].sort());
+  });
+
+  it('names every event type of the catalogue, and reads an unknown one in plain words', () => {
+    const keys = EVENT_TYPES.map((type) => eventNameKey(type));
+    expect(keys.filter((key) => key === undefined)).toEqual([]);
+    expect(new Set(keys).size).toBe(EVENT_TYPES.length);
+    expect(Object.keys(events).sort()).toEqual([...keys].sort());
+    expect(eventNameKey('inventory.stock.moved')).toBeUndefined();
   });
 });
 

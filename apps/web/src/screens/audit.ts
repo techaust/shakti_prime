@@ -1,6 +1,8 @@
 // The Activity log's date window and its reading of a change (docs/design/backend-weeks-3-5.md
 // §3.4). Pure functions, so the screen and its tests share them.
 
+import { isEventType, type EventType } from '@shakti/contracts';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
@@ -46,11 +48,30 @@ export function auditWindow(
   return { ok: true, from: `${from}T00:00:00+05:30`, to: `${addDays(to, 1)}T00:00:00+05:30` };
 }
 
-/** Commands and sign-in events with a name on screen, by the key of that name in the catalogue. */
+/**
+ * Commands and sign-in events with a name on screen, by the key of that name in the catalogue:
+ * every command in the domain registry and every auth event (a test derives both lists), plus
+ * the commands of branches not merged yet (saved list views, the live updates connection).
+ */
 const ACTIONS = {
   'crm.lead.create': 'leadCreate',
+  'crm.opportunity.stage.move': 'opportunityStageMove',
+  'crm.opportunity.assign': 'opportunityAssign',
+  'crm.opportunity.nurture': 'opportunityNurture',
+  'crm.opportunity.reopen': 'opportunityReopen',
+  'crm.opportunity.win': 'opportunityWin',
+  'crm.opportunity.lose': 'opportunityLose',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
+  'tax.rate.set': 'taxRateSet',
+  'tax.composite.set': 'compositeRuleSet',
+  'imports.job.create': 'importCreate',
+  'imports.job.map': 'importMap',
+  'imports.job.preview': 'importPreview',
+  'imports.job.commit': 'importCommit',
+  'imports.job.commit_batch': 'importCommitBatch',
+  'imports.job.rollback': 'importRollback',
+  'integrations.dlq.replay': 'deadLetterReplay',
   'admin.user.invite': 'userInvite',
   'admin.user.role.set': 'userRoles',
   'admin.user.suspend': 'userSuspend',
@@ -58,6 +79,9 @@ const ACTIONS = {
   'admin.session.revoke': 'sessionRevoke',
   'admin.user.two_factor.reset': 'twoFactorReset',
   'profile.theme.set': 'themeSet',
+  'profile.view.save': 'viewSave',
+  'profile.view.delete': 'viewDelete',
+  'realtime.token.issue': 'liveUpdatesOpen',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -76,6 +100,38 @@ export const ACTION_FILTERS = Object.entries(ACTIONS).map(([command, key]) => ({
 /** The catalogue key naming a recorded action; `other` for one without a name yet. */
 export function actionKey(command: string): ActionKey {
   return (ACTIONS as Record<string, ActionKey | undefined>)[command] ?? 'other';
+}
+
+/**
+ * Every event the system sends on, by the key of its name under `activity.events`. Typed against
+ * the event catalogue, so a new event without a name fails the typecheck.
+ */
+const EVENT_NAMES = {
+  'org.entity.updated': 'entityUpdated',
+  'crm.lead.created': 'leadCreated',
+  'crm.opportunity.stage_moved': 'opportunityStageMoved',
+  'crm.opportunity.assigned': 'opportunityAssigned',
+  'crm.opportunity.nurtured': 'opportunityNurtured',
+  'crm.opportunity.reopened': 'opportunityReopened',
+  'crm.opportunity.won': 'opportunityWon',
+  'crm.opportunity.lost': 'opportunityLost',
+  'pricing.price.changed': 'priceChanged',
+  'auth.session.revoked': 'sessionRevoked',
+  'admin.user.invited': 'userInvited',
+  'admin.user.suspended': 'userSuspended',
+  'admin.user.two_factor_reset': 'twoFactorReset',
+  'admin.user.reactivated': 'userReactivated',
+  'admin.user.roles_changed': 'userRolesChanged',
+  'imports.job.committed': 'importCommitted',
+  'imports.job.failed': 'importFailed',
+  'imports.job.rolled_back': 'importRolledBack',
+} as const satisfies Record<EventType, string>;
+
+export type EventNameKey = (typeof EVENT_NAMES)[EventType];
+
+/** The catalogue key naming an event type; undefined for a type the catalogue does not know. */
+export function eventNameKey(type: string): EventNameKey | undefined {
+  return isEventType(type) ? EVENT_NAMES[type] : undefined;
 }
 
 /** A value of a change, as the detail sheet shows it. */
