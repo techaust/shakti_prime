@@ -15,9 +15,11 @@ interface RequestState {
   auth: unknown;
 }
 
-const request = vi.hoisted(
-  (): RequestState => ({ headers: new Headers(), jar: new Map(), auth: undefined }),
-);
+const request = vi.hoisted((): RequestState => ({
+  headers: new Headers(),
+  jar: new Map(),
+  auth: undefined,
+}));
 
 vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(request.headers),
@@ -138,9 +140,9 @@ function lastLinkSecret(): string {
 }
 
 /** An invited person who has chosen a password through the two form actions. */
-async function personWithPassword(roleKey: string) {
+async function personWithPassword(roleKey: 'tele_caller_cc' | 'accounts') {
   const user = await createTestUser([{ entityId: 1, roleKey }], { status: 'invited' });
-  await requestNewPassword({}, form({ email: user.email, 'cf-turnstile-response': 'ok' }));
+  await requestNewPassword({}, form({ email: user.email, 'cf-turnstile-response': 'ok:reset' }));
   const done = await setPassword(
     {},
     form({ password: GOOD_PASSWORD, confirm: GOOD_PASSWORD, token: lastLinkSecret() }),
@@ -181,11 +183,14 @@ describe('requestNewPassword and setPassword', () => {
       {},
       form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'no' }),
     );
-    expect(refused.error).toEqual(expect.any(String));
+    expect(refused.error).toBe('bot_check_failed');
     expect(refused.done).toBeUndefined();
     // An address with no account gets the same answer, so the screen reveals nothing.
     await expect(
-      requestNewPassword({}, form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'ok' })),
+      requestNewPassword(
+        {},
+        form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'ok:reset' }),
+      ),
     ).resolves.toEqual({ done: true });
   });
 
@@ -279,20 +284,17 @@ describe('changePassword', () => {
 });
 
 describe('the authenticator app and backup codes', () => {
-  it('refuses to begin without the right password, and a wrong code or backup code', async () => {
-    await expect(beginTwoFactor({}, form({ password: GOOD_PASSWORD }))).resolves.toMatchObject({
-      error: expect.any(String),
+  it('refuses to begin without a session or the right password, and a code before setup', async () => {
+    await expect(beginTwoFactor({}, form({ password: GOOD_PASSWORD }))).resolves.toEqual({
+      error: 'unauthorized',
     });
     const user = await personWithPassword('accounts');
     setRequest(await sessionCookie(user.email));
-    await expect(
-      beginTwoFactor({}, form({ password: 'not the password' })),
-    ).resolves.toMatchObject({ error: 'password_incorrect' });
-    await expect(verifyTwoFactor({}, form({ code: '000000' }))).resolves.toMatchObject({
-      error: expect.any(String),
-    });
-    await expect(verifyBackupCode({}, form({ code: 'not-a-code' }))).resolves.toMatchObject({
-      error: expect.any(String),
+    await expect(beginTwoFactor({}, form({ password: 'not the password' }))).resolves.toMatchObject(
+      { error: 'password_incorrect' },
+    );
+    await expect(verifyTwoFactor({}, form({ code: '000000' }))).resolves.toEqual({
+      error: 'authenticator_missing',
     });
   });
 
@@ -308,6 +310,10 @@ describe('the authenticator app and backup codes', () => {
     expect(secret).not.toBe('');
 
     setRequest(cookie);
+    await expect(verifyTwoFactor({}, form({ code: '000000' }))).resolves.toEqual({
+      error: 'code_incorrect',
+    });
+    // Typed with a space, as people copy it from the app; the enrolment then opens Home.
     await expect(
       verifyTwoFactor({}, form({ code: totpCode(secret, new Date()).replace(/^(\d{3})/, '$1 ') })),
     ).rejects.toThrow('redirect /home');
@@ -320,6 +326,9 @@ describe('the authenticator app and backup codes', () => {
     });
     expect(response).toMatchObject({ twoFactorRedirect: true });
     setRequest(cookieHeader(headers));
+    await expect(verifyBackupCode({}, form({ code: 'not-a-code' }))).resolves.toEqual({
+      error: 'backup_code_incorrect',
+    });
     await expect(
       verifyBackupCode({}, form({ code: begun.backupCodes?.[0] ?? '' })),
     ).rejects.toThrow('redirect /home');
