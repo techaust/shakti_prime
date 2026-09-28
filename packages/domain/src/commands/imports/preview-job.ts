@@ -161,6 +161,7 @@ export const previewImportJob = defineCommand({
   minScope: 'entity',
   input: PreviewImportJobInput,
   output: ImportJobDto,
+  auditFields: ['state', 'validRows', 'invalidRows', 'skippedRows', 'suggested'],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);

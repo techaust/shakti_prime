@@ -30,6 +30,7 @@ export const saveView = defineCommand({
   minScope: 'own',
   input: SaveViewInput,
   output: SavedViewDto,
+  auditFields: ['screen', 'name', 'settings'],
   constraintReasons: { saved_views_name_unique: 'saved_view_name_taken' },
   async handler(ctx, input) {
     const owner = ctx.principal.id;
@@ -101,6 +102,7 @@ export const deleteView = defineCommand({
   minScope: 'own',
   input: DeleteViewInput,
   output: DeletedViewDto,
+  auditFields: ['screen', 'name', 'settings'],
   async handler(ctx, input) {
     const [row] = await ctx.tx
       .delete(v)

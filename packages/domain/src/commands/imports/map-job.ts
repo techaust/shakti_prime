@@ -29,6 +29,7 @@ export const mapImportJob = defineCommand({
   minScope: 'entity',
   input: MapImportJobInput,
   output: ImportJobDto,
+  auditFields: ['state', 'kind', 'name', 'mapping'],
   constraintReasons: { import_mapping_templates_name_unique: 'import_template_name_taken' },
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);

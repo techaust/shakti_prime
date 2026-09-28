@@ -18,6 +18,7 @@ export const clearSignInLock = defineCommand({
   minScope: 'all',
   input: ClearSignInLockInput,
   output: UserDto,
+  auditFields: [],
   async handler(ctx, input) {
     if (input.userId === ctx.principal.id) {
       throw new DomainError('validation_failed', 'a user cannot lift their own sign-in lock', {

@@ -24,6 +24,7 @@ export const rollbackImportJob = defineCommand({
   alsoRequires: [{ permission: 'crm.lead.write', minScope: 'own' }],
   input: RollbackImportJobInput,
   output: ImportJobDto,
+  auditFields: ['state', 'committedRows', 'rolledBackRows', 'archived', 'batches'],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);

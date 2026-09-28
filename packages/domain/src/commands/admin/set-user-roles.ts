@@ -26,6 +26,7 @@ export const setUserRoles = defineCommand({
   minScope: 'all',
   input: SetUserRolesInput,
   output: UserDto,
+  auditFields: ['entityRoles', 'revokedSessions'],
   async handler(ctx, input) {
     if (input.userId === ctx.principal.id) {
       throw new DomainError('validation_failed', 'a user cannot change their own roles', {

@@ -21,6 +21,7 @@ export const nurtureOpportunity = defineCommand({
   minScope: 'own',
   input: NurtureOpportunityInput,
   output: OpportunityDto,
+  auditFields: ['state', 'nurtureReason'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);

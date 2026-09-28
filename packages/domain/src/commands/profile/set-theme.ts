@@ -14,6 +14,7 @@ export const setTheme = defineCommand({
   minScope: 'own',
   input: SetThemeInput,
   output: ThemeDto,
+  auditFields: ['theme'],
   async handler(ctx, input) {
     const [current] = await ctx.tx
       .select({ theme: schema.users.theme })

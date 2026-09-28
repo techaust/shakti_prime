@@ -5,7 +5,13 @@ import { defineCommand } from './define-command';
 import { memoryAuditSink } from '../audit/sink';
 import { memoryIdempotencyStore } from '../idempotency/store';
 import { memoryOutboxSink } from '../outbox/sink';
-import { checkPermission, failureOf, runCommand, translateDatabaseError } from './run-command';
+import {
+  checkPermission,
+  failureOf,
+  runCommand,
+  translateDatabaseError,
+  undeclaredAuditFields,
+} from './run-command';
 import { fakeContext as context, type Principal } from './test-support';
 
 function principal(overrides: Partial<Principal> = {}): Principal {
@@ -22,6 +28,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
 const echo = defineCommand({
   name: 'test.echo',
   permission: 'crm.lead.read',
+  auditFields: [],
   input: z.object({ value: z.string() }).strict(),
   output: z.object({ value: z.string() }).strict(),
   handler: (_ctx, input) => Promise.resolve({ value: input.value }),
@@ -86,6 +93,7 @@ describe('runCommand', () => {
     const failing = defineCommand({
       name: 'test.failing',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({ value: z.string() }).strict(),
       output: z.object({}).strict(),
       handler: () => Promise.reject(new DomainError('conflict', 'taken', { reason: 'x' })),
@@ -105,6 +113,7 @@ describe('runCommand', () => {
     const changing = defineCommand({
       name: 'test.change',
       permission: 'crm.lead.read',
+      auditFields: ['status', 'email', 'token', 'n'],
       input: z.object({ phone: z.string(), password: z.string() }).strict(),
       output: z.object({}).strict(),
       handler: (ctx) => {
@@ -176,6 +185,7 @@ describe('runCommand', () => {
     const emitting = defineCommand({
       name: 'test.emit',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({ ok: z.literal(true) }).strict(),
       handler: (ctx) => {
@@ -230,6 +240,7 @@ describe('runCommand', () => {
     const bad = defineCommand({
       name: 'test.bad_event',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({}).strict(),
       handler: (ctx) => {
@@ -279,6 +290,7 @@ describe('runCommand', () => {
     const entityWide = defineCommand({
       name: 'test.entity_wide',
       permission: 'crm.lead.read',
+      auditFields: [],
       minScope: 'entity',
       input: z.object({}).strict(),
       output: z.object({}).strict(),
@@ -309,6 +321,7 @@ describe('runCommand', () => {
     const cmd = defineCommand({
       name: 'test.sink',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({}).strict(),
       handler: () => Promise.resolve({}),
@@ -343,6 +356,7 @@ describe('runCommand', () => {
     const leaky = defineCommand({
       name: 'test.leaky',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({ name: z.string() }).strict(),
       handler: () => Promise.resolve({ name: 'x', movingAvgCost: '123.00' } as { name: string }),
@@ -362,6 +376,7 @@ describe('runCommand', () => {
     const probe = defineCommand({
       name: 'test.probe',
       permission: 'crm.lead.read',
+      auditFields: [],
       input: z.object({}).strict(),
       output: z.object({ active: z.number().nullable() }).strict(),
       handler: (ctx) => Promise.resolve({ active: ctx.activeEntityId ?? null }),
@@ -394,6 +409,7 @@ describe('runCommand with an idempotency key', () => {
   const counted = defineCommand({
     name: 'test.counted',
     permission: 'crm.lead.read',
+    auditFields: [],
     input: z.object({ value: z.string() }).strict(),
     output: z.object({ value: z.string(), run: z.number() }).strict(),
     handler: (ctx, input) => {
@@ -479,6 +495,7 @@ describe('commands inside commands and audit summaries', () => {
   const outer = defineCommand({
     name: 'test.outer',
     permission: 'crm.lead.read',
+    auditFields: [],
     input: z.object({ values: z.array(z.string()), failAt: z.number().optional() }).strict(),
     output: z.object({ count: z.number() }).strict(),
     auditInput: (input) => ({ values: input.values.length }),
@@ -550,6 +567,7 @@ describe('savepoints and summarised inner commands', () => {
   const noisy = defineCommand({
     name: 'test.noisy',
     permission: 'crm.lead.read',
+    auditFields: ['value'],
     input: z.object({ value: z.string(), fail: z.boolean().default(false) }).strict(),
     output: z.object({ value: z.string() }).strict(),
     handler: (ctx, input) => {
@@ -570,6 +588,7 @@ describe('savepoints and summarised inner commands', () => {
   const batches = defineCommand({
     name: 'test.batches',
     permission: 'crm.lead.read',
+    auditFields: [],
     input: z.object({ summarised: z.boolean() }).strict(),
     output: z.object({ failed: z.number() }).strict(),
     async handler(ctx, input) {
@@ -623,5 +642,40 @@ describe('savepoints and summarised inner commands', () => {
       'admin.user.reactivated',
       'admin.user.reactivated',
     ]);
+  });
+});
+
+describe('declared audit fields', () => {
+  it('names the keys of a change a command does not declare, ids aside', () => {
+    expect(
+      undeclaredAuditFields(['status'], {
+        before: { status: 'open', ownerId: 'x' },
+        after: { status: 'closed', lockedUntil: null, entityIds: [1], id: 'y' },
+      }),
+    ).toEqual(['lockedUntil']);
+    expect(undeclaredAuditFields([], { before: null })).toEqual([]);
+  });
+
+  it('refuses a command that records a field it does not declare, before anything is written', async () => {
+    const audit = memoryAuditSink();
+    const quiet = defineCommand({
+      name: 'test.quiet',
+      permission: 'crm.lead.read',
+      auditFields: ['status'],
+      input: z.object({}).strict(),
+      output: z.object({}).strict(),
+      handler: (ctx) => {
+        ctx.audit({
+          aggregateType: 'thing',
+          aggregateId: 'a',
+          after: { status: 'x', colour: 'y' },
+        });
+        return Promise.resolve({});
+      },
+    });
+    await expect(
+      runCommand(quiet, { context: context(principal()), audit, outbox: memoryOutboxSink() }, {}),
+    ).rejects.toMatchObject({ code: 'internal', details: { fields: ['colour'] } });
+    expect(audit.records).toEqual([]);
   });
 });

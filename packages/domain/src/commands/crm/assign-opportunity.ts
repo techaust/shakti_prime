@@ -29,6 +29,7 @@ export const assignOpportunity = defineCommand({
   alsoRequires: [{ permission: 'crm.lead.write', minScope: 'own' }],
   input: AssignOpportunityInput,
   output: OpportunityDto,
+  auditFields: ['lockedUntil'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);

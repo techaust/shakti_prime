@@ -22,6 +22,7 @@ export const loseOpportunity = defineCommand({
   minScope: 'own',
   input: LoseOpportunityInput,
   output: OpportunityDto,
+  auditFields: ['state', 'lostReason'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const row = await lockOpportunity(ctx, input);

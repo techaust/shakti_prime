@@ -15,6 +15,7 @@ export const updateEntity = defineCommand({
   minScope: 'all',
   input: UpdateEntityInput,
   output: EntityDto,
+  auditFields: ['brandName', 'upiId'],
   async handler(ctx, input) {
     const patch: Partial<typeof schema.entities.$inferInsert> = {};
     if (input.brandName !== undefined) patch.brandName = input.brandName;

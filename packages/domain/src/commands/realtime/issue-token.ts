@@ -22,6 +22,7 @@ export const issueRealtimeToken = defineCommand({
   minScope: 'own',
   input: IssueRealtimeTokenInput,
   output: RealtimeTokenGrant,
+  auditFields: ['bosRole'],
   handler(ctx) {
     const { principal } = ctx;
     if (principal.kind !== 'user' || isAgentRole(principal.roleKey)) {

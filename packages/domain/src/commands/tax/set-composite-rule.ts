@@ -20,6 +20,7 @@ export const setCompositeRule = defineCommand({
   minScope: 'entity',
   input: SetCompositeRuleInput,
   output: CompositeRuleRowSchema,
+  auditFields: ['segment', 'goodsSharePct', 'servicesSharePct', 'goodsRatePct', 'servicesRatePct', 'effectiveFrom', 'effectiveTo'],
   constraintReasons: {
     composite_supply_rules_period_excl: 'composite_rule_overlap',
     composite_supply_rules_share_check: 'composite_share_total',
