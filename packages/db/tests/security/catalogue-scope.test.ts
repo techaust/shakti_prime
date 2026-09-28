@@ -286,12 +286,42 @@ describe('tax tables (tax.rates.write)', () => {
       [fx.compositeRule],
     );
     const statement = sql`update tax_rates set source_ref = source_ref where id = ${fx.taxRate} returning id`;
-    expect(await updated(principalFor('accounts', [1]), statement)).toBe(1);
-    expect(await updated(principalFor('general_manager', [1]), statement)).toBe(0);
+    expect(await updated(principalFor('accounts'), statement)).toBe(1);
+    expect(await updated(principalFor('executive'), statement)).toBe(1);
+    expect(await updated(principalFor('general_manager'), statement)).toBe(0);
+  });
+
+  it('are written only by a request acting for every company, since one row prices all of them (0048)', async () => {
+    const rate = sql`update tax_rates set source_ref = source_ref where id = ${fx.taxRate} returning id`;
+    const split = sql`update composite_supply_rules set segment = segment
+      where id = ${fx.compositeRule} returning id`;
+    for (const entityIds of [[1], [2], [1, 2, 3]]) {
+      for (const role of ['accounts', 'executive'] as const) {
+        const principal = principalFor(role, entityIds);
+        expect(await updated(principal, rate)).toBe(0);
+        expect(await updated(principal, split)).toBe(0);
+        await expect(
+          asPrincipal(principal, ({ tx }) =>
+            tx.execute(sql`insert into tax_rates (id, hsn, rate_pct, effective_from, effective_to)
+              values (${`${CATALOGUE_FIXTURE_PREFIX}15f2`}, '8413', 12.00, '2023-01-01', '2023-04-01')`),
+          ),
+        ).rejects.toSatisfy(rlsError);
+        await expect(
+          asPrincipal(principal, ({ tx }) =>
+            tx.execute(sql`insert into composite_supply_rules
+              (id, segment, goods_share_pct, services_share_pct, goods_rate_pct, services_rate_pct,
+               effective_from, effective_to)
+              values (${`${CATALOGUE_FIXTURE_PREFIX}15f3`}, 'commercial_epc', 70.00, 30.00, 5.00, 18.00,
+                      '2023-01-01', '2023-04-01')`),
+          ),
+        ).rejects.toSatisfy(rlsError);
+      }
+    }
+    expect(await updated(principalFor('accounts'), split)).toBe(1);
   });
 
   it('two rates for one HSN cannot overlap in time', async () => {
-    const accounts = principalFor('accounts', [1]);
+    const accounts = principalFor('accounts');
     await expect(
       asPrincipal(accounts, ({ tx }) =>
         tx.execute(sql`insert into tax_rates (id, hsn, rate_pct, effective_from)

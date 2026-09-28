@@ -337,6 +337,13 @@
       "when": 1790577875166,
       "tag": "0047_entity_address_and_definer_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790595755628,
+      "tag": "0048_tax_group_scope",
+      "breakpoints": true
     }
   ]
 }

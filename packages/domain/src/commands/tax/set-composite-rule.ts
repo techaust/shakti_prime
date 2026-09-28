@@ -7,12 +7,14 @@ import {
 import { schema } from '@shakti/db';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { assertTaxGroupScope } from './group-scope';
 
 /**
  * `tax.composite.set` (design §6, ADR 0007): the goods and services split of a composite supply
  * for a segment from a date. The rule that was open-ended ends where the new one starts; any
  * other overlap is refused by the exclusion constraint, which answers `composite_rule_overlap`.
- * Rules are shared by every company, so the audit rows belong to no one company.
+ * Rules are shared by every company, so the audit rows belong to no one company, and only a request
+ * acting for every company may record one (`tax_group_scope`).
  */
 export const setCompositeRule = defineCommand({
   name: 'tax.composite.set',
@@ -34,6 +36,7 @@ export const setCompositeRule = defineCommand({
     composite_supply_rules_share_check: 'composite_share_total',
   },
   async handler(ctx, input) {
+    await assertTaxGroupScope(ctx);
     const cr = schema.compositeSupplyRules;
     const actor = ctx.principal.id;
     const [open] = await ctx.tx

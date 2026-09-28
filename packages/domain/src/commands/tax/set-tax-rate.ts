@@ -2,12 +2,14 @@ import { DomainError, newId, SetTaxRateInput, TaxRateRowSchema } from '@shakti/c
 import { schema } from '@shakti/db';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { assertTaxGroupScope } from './group-scope';
 
 /**
  * `tax.rate.set` (design §6, SAL-02): the one way a GST rate is recorded. The rate of an HSN code
  * or an item that was open-ended ends where the new one starts; any other overlap is refused by
  * the table's exclusion constraints, which answer `tax_rate_overlap`. Rates are shared by every
- * company, so the audit rows belong to no one company. Quotes keep the rate they were made with.
+ * company, so the audit rows belong to no one company, and only a request acting for every company
+ * may record one (`tax_group_scope`). Quotes keep the rate they were made with.
  */
 export const setTaxRate = defineCommand({
   name: 'tax.rate.set',
@@ -21,6 +23,7 @@ export const setTaxRate = defineCommand({
     tax_rates_item_period_excl: 'tax_rate_overlap',
   },
   async handler(ctx, input) {
+    await assertTaxGroupScope(ctx);
     if (input.itemId !== undefined) {
       const [item] = await ctx.tx
         .select({ id: schema.items.id })
