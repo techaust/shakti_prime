@@ -1,7 +1,14 @@
 import type { Principal } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { asPrincipal, closeDb, principalFor, withoutContext } from '../../src/testing/index';
+import {
+  AGENT_PRINCIPAL_SEED,
+  asPrincipal,
+  closeDb,
+  createTestUser,
+  principalFor,
+  withoutContext,
+} from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
 // The two definers of 0055: app.lead_phone_status(), which tells crm.lead.create and the import
@@ -14,6 +21,7 @@ import { crmFixture, type CrmFixture } from '../fixtures/crm';
 const PHONE = (n: number) => `+9198000${String(10000 + n)}`;
 const STATUS = 'app.lead_phone_status(text, smallint)';
 const HANDOVER = 'app.hand_over_customer(uuid, uuid)';
+const ACTIVE = 'app.user_is_active(uuid)';
 
 let fx: CrmFixture;
 
@@ -199,5 +207,80 @@ describe('app.hand_over_customer(): who may call it and what it moves', () => {
     expect(await inRollback(fx.principals.l, [handOver(lead, fx.principals.a.id)])).toEqual([
       { status: 'unchanged', previousTeamId: null },
     ]);
+  });
+
+  it('never moves a relationship for an agent, whose lead handover leaves the customer as it is (0059)', async () => {
+    const lead = fx.leads.b[0] ?? '';
+    const triageId = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage')?.id ?? '';
+    const handOverFull = sql`select status, relationship_id as "relationshipId"
+      from app.hand_over_customer(${lead}::uuid, ${fx.principals.b.id}::uuid)`;
+    // The seeded Triage agent, as it acts: the lead moves, the relationship does not.
+    const triage = principalFor('agent:triage', [1], { id: triageId });
+    expect(await inRollback(triage, [giveLead(lead, fx.principals.a), handOverFull])).toEqual([
+      { status: 'unchanged', relationshipId: null },
+    ]);
+    // Either marker is enough: an agent role key under a person's id, and the agent's own
+    // principal row under a staff role key that could otherwise move it.
+    const agentKey = principalFor('agent:triage', [1], { id: fx.principals.l.id });
+    const agentRow = principalFor('sales_team_lead', [1], { id: triageId, teamId: fx.teams.t1 });
+    for (const who of [agentKey, agentRow]) {
+      expect(await inRollback(who, [giveLead(lead, fx.principals.a), handOverFull])).toEqual([
+        { status: 'unchanged', relationshipId: null },
+      ]);
+    }
+    // The same handover by the team lead moves it, so the path itself is open.
+    expect(
+      await inRollback(fx.principals.l, [
+        giveLead(lead, fx.principals.a),
+        handOver(lead, fx.principals.b.id),
+      ]),
+    ).toEqual([{ status: 'moved', previousTeamId: fx.teams.t1 }]);
+  });
+});
+
+describe('app.user_is_active(): leads go only to people who can work (0059)', () => {
+  const activeCall = (userId: string) => sql`select app.user_is_active(${userId}::uuid) as active`;
+  const active = async (principal: Principal, userId: string) =>
+    asPrincipal(principal, async ({ tx }) => {
+      const [row] = (await tx.execute(activeCall(userId))) as unknown as { active: boolean }[];
+      return row?.active;
+    });
+
+  it('only the application role may call it, a definer with an empty search path', async () => {
+    expect(await grantsOf(ACTIVE)).toEqual({
+      app: true,
+      auth: false,
+      outbox: false,
+      reporter: false,
+      pub: false,
+    });
+    const shape = await shapeOf(ACTIVE);
+    expect(shape?.result).toBe('boolean');
+    expect(shape?.definer).toBe(true);
+    expect(shape?.config).toContain('search_path=""');
+  });
+
+  it('refuses a caller who may not hand out leads, and a call with no request', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    expect(await failure(active(principalFor('hr_admin', [1]), user.id))).toMatch(
+      /permission crm.lead.assign:own required/,
+    );
+    expect(await failure(withoutContext(activeCall(user.id)))).toMatch(
+      /permission crm.lead.assign:own required/,
+    );
+  });
+
+  it('answers yes only for an active person with a role in a company of the request', async () => {
+    const gm = principalFor('general_manager', [1]);
+    const role = [{ entityId: 1, roleKey: 'tele_caller_cc' as const }];
+    expect(await active(gm, (await createTestUser(role)).id)).toBe(true);
+    for (const status of ['invited', 'suspended', 'offboarded']) {
+      expect(await active(gm, (await createTestUser(role, { status })).id), status).toBe(false);
+    }
+    // Active, but working only in company 2: nothing is said about them to company 1.
+    const elsewhere = await createTestUser([{ entityId: 2, roleKey: 'tele_caller_cc' }]);
+    expect(await active(gm, elsewhere.id)).toBe(false);
+    expect(await active(principalFor('general_manager', [2]), elsewhere.id)).toBe(true);
+    expect(await active(gm, (await createTestUser([])).id)).toBe(false);
   });
 });

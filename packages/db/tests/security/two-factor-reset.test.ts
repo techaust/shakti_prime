@@ -23,10 +23,10 @@ async function failure(promise: Promise<unknown>): Promise<string> {
   throw new Error('expected the statement to fail');
 }
 
-async function enrolledUser(): Promise<string> {
-  const user = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
-    twoFactorEnabled: true,
-  });
+async function enrolledUser(
+  entityRoles: Parameters<typeof createTestUser>[0] = [{ entityId: 1, roleKey: 'accounts' }],
+): Promise<string> {
+  const user = await createTestUser(entityRoles, { twoFactorEnabled: true });
   await asMigrator(
     (m) => m`insert into user_two_factor (id, user_id, secret, backup_codes)
              values (${newId()}, ${user.id}, 'sealed', 'sealed')`,
@@ -87,6 +87,35 @@ describe('app.reset_two_factor() is the only request path to the two-factor stor
     expect(await state(userId)).toEqual({ enabled: false, apps: 0 });
     expect(await reset(exec, userId)).toBe(false);
     expect(await reset(exec, newId())).toBe(false);
+  });
+
+  it('keeps to the request’s companies: a person who also works elsewhere needs an administrator acting there too (0059)', async () => {
+    const userId = await enrolledUser([
+      { entityId: 1, roleKey: 'accounts' },
+      { entityId: 2, roleKey: 'tele_caller_cc' },
+    ]);
+    const exec1 = await createTestPrincipal('executive', [1]);
+    expect(await failure(reset(exec1, userId))).toMatch(/outside the request/);
+    expect(await state(userId)).toEqual({ enabled: true, apps: 1 });
+    // Acting for both companies the person works in, or for all of them, the reset goes through.
+    const exec12 = await createTestPrincipal('executive', [1, 2]);
+    expect(await reset(exec12, userId)).toBe(true);
+    expect(await state(userId)).toEqual({ enabled: false, apps: 0 });
+    const other = await enrolledUser([
+      { entityId: 1, roleKey: 'accounts' },
+      { entityId: 2, roleKey: 'tele_caller_cc' },
+    ]);
+    expect(await reset(await createTestPrincipal('executive'), other)).toBe(true);
+  });
+
+  it('a person with no role is changed only by an administrator acting for the whole group (0059)', async () => {
+    const userId = await enrolledUser([]);
+    for (const ids of [[1], [1, 2, 3]]) {
+      const exec = await createTestPrincipal('executive', ids);
+      expect(await failure(reset(exec, userId)), ids.join()).toMatch(/outside the request/);
+    }
+    expect(await state(userId)).toEqual({ enabled: true, apps: 1 });
+    expect(await reset(await createTestPrincipal('executive'), userId)).toBe(true);
   });
 
   it('leaves the application role without any privilege on the store itself', async () => {

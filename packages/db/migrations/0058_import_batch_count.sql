@@ -1,0 +1,2 @@
+ALTER TABLE "import_jobs" ADD COLUMN "batch_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "import_jobs" ADD CONSTRAINT "import_jobs_batch_count_check" CHECK ("import_jobs"."batch_count" >= 0);

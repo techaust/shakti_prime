@@ -80,10 +80,7 @@ describe('outbox retention (docs/DATABASE.md §7)', () => {
     const pending = await event({ created: '40 days', nextAttempt: '1 day' });
     const dead = await event({ created: '40 days', deadLettered: '39 days' });
 
-    const [answer] = await asMigrator(
-      (m) => m<{ n: number | null }[]>`select app.purge_outbox_events() as n`,
-    );
-    expect(answer?.n).toBeGreaterThanOrEqual(1);
+    await asMigrator((m) => m`call app.purge_outbox_events()`);
     expect(await exists(old)).toBe(false);
     expect(await exists(recent)).toBe(true);
     expect(await exists(pending)).toBe(true);
@@ -103,8 +100,42 @@ describe('outbox retention (docs/DATABASE.md §7)', () => {
           from retention_runs where job = 'outbox-events-purge'
          order by started_at desc limit 1`,
     );
-    expect(run).toEqual({ rows_affected: answer?.n, error: null, finished: true, ordered: true });
+    expect(run).toMatchObject({ error: null, finished: true, ordered: true });
+    expect(run?.rows_affected).toBeGreaterThanOrEqual(1);
     await deliverOurs();
+  });
+
+  it('a failed run stays recorded with its error and is reported as failed (0059)', async () => {
+    const old = await event({ created: '40 days', published: '31 days' });
+    const [{ since } = { since: '' }] = await asMigrator(
+      (m) => m<{ since: string }[]>`select clock_timestamp()::text as since`,
+    );
+    // Another transaction holds the event, so the purge cannot remove it in time.
+    let message = '';
+    await asMigrator((holder) =>
+      holder.begin(async (tx) => {
+        await tx`select id from outbox_events where id = ${old} for update`;
+        message = await failure(
+          asMigrator(async (m) => {
+            await m`set lock_timeout = '300ms'`;
+            await m`call app.purge_outbox_events()`;
+          }),
+        );
+      }),
+    );
+    // The caller, pg_cron included, sees the run fail.
+    expect(message).toMatch(/outbox-events-purge failed: .*lock timeout/);
+    // The run is recorded, finished, with the error and no count, and nothing was removed.
+    const runs = await asMigrator(
+      (m) => m<{ rows_affected: number | null; error: string | null; finished: boolean }[]>`
+        select rows_affected, error, finished_at is not null as finished
+          from retention_runs
+         where job = 'outbox-events-purge' and started_at >= ${since}::timestamptz`,
+    );
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ rows_affected: null, finished: true });
+    expect(runs[0]?.error).toMatch(/lock timeout/);
+    expect(await exists(old)).toBe(true);
   });
 
   it('runs every night from pg_cron', async () => {
@@ -112,8 +143,35 @@ describe('outbox retention (docs/DATABASE.md §7)', () => {
       (m) => m<{ schedule: string; command: string }[]>`
         select schedule, command from cron.job where jobname = 'outbox-events-purge'`,
     );
-    expect(job).toEqual({ schedule: '45 2 * * *', command: 'select app.purge_outbox_events()' });
+    expect(job).toEqual({ schedule: '45 2 * * *', command: 'call app.purge_outbox_events()' });
   });
+
+  it('pg_cron runs that command, which commits its own run record, to the end (0059)', async () => {
+    // The job's own command on a schedule of seconds, under a name of this run, so the nightly
+    // job is left as it is. A procedure that commits works only as a statement of its own, which
+    // is how pg_cron sends it.
+    const name = `outbox-events-purge-check-${newId().slice(-8)}`;
+    const [{ id } = { id: 0 }] = await asMigrator(
+      (m) => m<{ id: number }[]>`
+        select cron.schedule(${name}, '1 seconds', 'call app.purge_outbox_events()')::int as id`,
+    );
+    try {
+      let status: string | undefined;
+      for (let i = 0; i < 40 && status === undefined; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const [done] = await asMigrator(
+          (m) => m<{ status: string }[]>`
+            select status from cron.job_run_details
+             where jobid = ${id} and status in ('succeeded', 'failed')
+             order by start_time limit 1`,
+        );
+        status = done?.status;
+      }
+      expect(status).toBe('succeeded');
+    } finally {
+      await asMigrator((m) => m`select cron.unschedule(${name})`);
+    }
+  }, 30_000);
 
   it('refuses any other delete, the owner included: without the job, or a row it must keep', async () => {
     const old = await event({ created: '40 days', published: '31 days' });
@@ -167,7 +225,7 @@ describe('outbox retention (docs/DATABASE.md §7)', () => {
     expect(
       await failure(
         asPrincipal(principalFor('executive'), ({ tx }) =>
-          tx.execute(sql`select app.purge_outbox_events()`),
+          tx.execute(sql`call app.purge_outbox_events()`),
         ),
       ),
     ).toMatch(/permission denied/);
@@ -211,7 +269,7 @@ describe('retention_runs (docs/DATABASE.md §7)', () => {
   });
 
   it('is read with audit.read at scope all only, and never without a context or a company', async () => {
-    await asMigrator((m) => m`select app.purge_outbox_events()`);
+    await asMigrator((m) => m`call app.purge_outbox_events()`);
     const count = (
       roleKey: 'executive' | 'general_manager' | 'accounts' | 'tele_caller_cc',
       ids = [1],

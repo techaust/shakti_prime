@@ -162,6 +162,39 @@ describe('app.replay_dead_letter() (integrations.dlq.replay, design §4.4)', () 
     expect((await row(id))?.dead_lettered_at).toBeInstanceOf(Date);
   });
 
+  it('the publisher connection cannot revive a dead letter, even with the replay setting naming it (0059)', async () => {
+    const id = await deadLetter();
+    const withSetting = (reset: 'whole' | 'with backoff') =>
+      asOutboxPublisher((p) =>
+        p.begin(async (tx) => {
+          await tx`select set_config('app.dlq_replay', ${id}, true)`;
+          if (reset === 'whole') {
+            await tx`update outbox_events
+                        set dead_lettered_at = null, attempts = 0, last_error = null,
+                            next_attempt_at = null, claimed_until = null
+                      where id = ${id}`;
+          } else {
+            await tx`update outbox_events
+                        set dead_lettered_at = null, attempts = 0, last_error = null,
+                            next_attempt_at = now()
+                      where id = ${id}`;
+          }
+        }),
+      );
+    expect(await failure(withSetting('whole'))).toMatch(/changes only by a replay/);
+    expect(await failure(withSetting('with backoff'))).toMatch(/changes only by a replay/);
+    expect(await row(id)).toMatchObject({ attempts: 10, last_error: 'http_404' });
+    expect((await row(id))?.dead_lettered_at).toBeInstanceOf(Date);
+
+    // The replay definer still puts it back.
+    const executive = await createTestPrincipal('executive');
+    await replay(executive, id);
+    expect(await row(id)).toMatchObject({ attempts: 0, dead_lettered_at: null });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now() where id = ${id}`,
+    );
+  });
+
   it('still refuses a change outside the delivery columns, and a delete, on any event', async () => {
     const id = await deadLetter();
     expect(
