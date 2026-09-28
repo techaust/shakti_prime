@@ -166,19 +166,19 @@ export async function beginTwoFactor(
 }
 
 export async function verifyTwoFactor(_prev: FormState, formData: FormData): Promise<FormState> {
-  const before = await currentSession();
-  let issued: Headers;
+  // Everything that can fail sits inside the try: a thrown error would reach the screen masked in
+  // production. Only `redirect` stays outside, because it works by throwing.
   try {
+    const before = await currentSession();
     const result = await auth.api.verifyTOTP({
       body: { code: field(formData, 'code').replaceAll(/\s+/g, '') },
       headers: await headers(),
       returnHeaders: true,
     });
-    issued = result.headers;
+    await finishEnrolment(before, result.headers, defaultAuthDeps().keyValue);
   } catch (e) {
     return failure('verifyTwoFactor', e);
   }
-  await finishEnrolment(before, issued, defaultAuthDeps().keyValue);
   redirect('/home');
 }
 
@@ -207,9 +207,9 @@ export async function changePassword(
       field: 'newPassword',
     };
   }
-  const session = await currentSession();
-  if (!session || session.blocked !== undefined) return { error: 'unauthorized' };
   try {
+    const session = await currentSession();
+    if (!session || session.blocked !== undefined) return { error: 'unauthorized' };
     await auth.api.changePassword({
       body: {
         currentPassword: field(formData, 'currentPassword'),
@@ -218,36 +218,45 @@ export async function changePassword(
       },
       headers: await headers(),
     });
+    await forgetPrincipal(session.session.userId);
   } catch (e) {
     return failure('changePassword', e, {
       ...passwordFields('newPassword'),
       password_incorrect: 'currentPassword',
     });
   }
-  await forgetPrincipal(session.session.userId);
   return { done: true };
 }
 
 /**
  * The entity switcher: an entity the user holds a role in, or "All companies". The top bar sends
  * the screen it was on as `returnTo`, so the person stays where they were; only a BOS screen on
- * this site is accepted, anything else lands on Home.
+ * this site is accepted, anything else lands on Home. A failure is answered as a form state, which
+ * the switcher shows as a toast, rather than thrown to a masked error screen.
  */
-export async function switchEntity(formData: FormData): Promise<void> {
-  const session = await currentSession();
-  if (!session) redirect('/sign-in');
-  const raw = field(formData, 'entityId');
-  const jar = await cookies();
-  const parsed = EntityIdSchema.safeParse(Number(raw));
-  if (raw === '' || !parsed.success) {
-    jar.delete(ACTIVE_ENTITY_COOKIE);
-  } else if (session.access.entities.some((e) => e.entityId === parsed.data)) {
-    jar.set(ACTIVE_ENTITY_COOKIE, String(parsed.data), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-    });
+export async function switchEntity(formData: FormData): Promise<FormState> {
+  let signedIn: boolean;
+  try {
+    const session = await currentSession();
+    signedIn = session !== undefined;
+    if (session) {
+      const raw = field(formData, 'entityId');
+      const jar = await cookies();
+      const parsed = EntityIdSchema.safeParse(Number(raw));
+      if (raw === '' || !parsed.success) {
+        jar.delete(ACTIVE_ENTITY_COOKIE);
+      } else if (session.access.entities.some((e) => e.entityId === parsed.data)) {
+        jar.set(ACTIVE_ENTITY_COOKIE, String(parsed.data), {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+        });
+      }
+    }
+  } catch (e) {
+    return failure('switchEntity', e);
   }
+  if (!signedIn) redirect('/sign-in');
   redirect(safeReturnPath(field(formData, 'returnTo') || undefined));
 }

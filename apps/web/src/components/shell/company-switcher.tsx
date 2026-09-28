@@ -9,12 +9,14 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
+  toast,
 } from '@shakti/ui';
 import { ChevronsUpDown, Layers } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import { useTransition } from 'react';
 import { switchEntity } from '../../actions/auth';
+import type { ErrorKey } from '../../i18n/types';
 import { entityDotClass } from './sidebar-state';
 
 export interface CompanyOption {
@@ -44,6 +46,8 @@ export function CompanySwitcher({
 }) {
   const t = useTranslations('auth.home');
   const shell = useTranslations('shell');
+  const errors = useTranslations('errors');
+  const app = useTranslations('app');
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const current = companies.find((c) => c.entityId === active);
@@ -64,7 +68,14 @@ export function CompanySwitcher({
     form.set('entityId', value === ALL ? '' : value);
     form.set('returnTo', pathname);
     startTransition(async () => {
-      await switchEntity(form);
+      const result = await switchEntity(form);
+      if (result.error === undefined) return;
+      const key = result.error as ErrorKey;
+      toast.error(errors(errors.has(key) ? key : 'internal'), {
+        ...(result.reference === undefined
+          ? {}
+          : { description: app('reference', { reference: result.reference }) }),
+      });
     });
   }
 
