@@ -16,7 +16,7 @@ How the BOS reaches staging and production: the database, its secrets, the first
    - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`;
    - `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` (and `QSTASH_URL` when the QStash region is not the default);
    - `BOS_JWT_CURRENT_KEY` (and `BOS_JWT_NEXT_KEY` during a rotation) once Realtime is switched on: a private key from `pnpm --silent --filter web realtime-keys`, never stored anywhere else; without it `/api/v1/realtime/token` and `/.well-known/jwks.json` answer unavailable and nothing else changes;
-   - `MAILER=log` on staging. Production needs the mail provider first: it refuses to start with `log`.
+   - `MAILER=log` on staging. Production needs the Amazon SES mailer first (the client's domain verified, production access granted, a send-only IAM user): it refuses to start with `log`.
 
    A deployment with a missing or unsafe value refuses to start (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, which requires every variable of its `PRODUCTION_ENV` list: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `MAILER`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`), and `/api/v1/health/ready` reports which dependency is down.
 

@@ -16,7 +16,7 @@ The Phase 0 build and document work is merged into `main` and passes CI. The exi
 - Create the Supabase dev and staging projects (Mumbai), the Vercel project in `bom1`, and Upstash Redis and QStash (`docs/runbooks/DEPLOY.md`). Once staging exists, apply every migration to a copy of staging before it reaches production (AGENTS §10).
 - Send the vendor quote requests and record the answers (`docs/phase0/vendor-quotes.md`).
 - Open the vendor sandboxes each spike needs: Exotel with DLT numbers, Meta WhatsApp, LiveKit, Sarvam and Anthropic (`docs/spikes/*.md`), then run the Realtime, Exotel, WhatsApp, voice and Tally spikes and record their numbers.
-- Choose a mail provider before production.
+- Set up Amazon SES in Mumbai before production (BLUEPRINT §135, ADR 0003): verify the client's domain with DKIM, SPF and DMARC, ask AWS for production access, and create a send-only IAM user for each environment. The SES mailer behind the `Mailer` port is a small Phase 1 slice.
 - Move the repository to a plan or organisation that protects `main` (AUDIT M45); when it moves, make a new GitHub token for that organisation.
 - Review the ERD, data dictionary, permission matrix, contracts and the proposed state-machine items with the client.
 - Start the Meta App Review for Lead Ads access and the Google Lead Form setup, needed by Phase 2 (ROADMAP §10).
