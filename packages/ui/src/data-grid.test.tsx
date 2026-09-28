@@ -164,6 +164,33 @@ describe('DataGrid options', () => {
     expect(html).not.toMatch(/<th[^>]*aria-sort[^>]*><span class="sr-only">Actions/);
   });
 
+  it('offers a sort button on a column its list query sorts, and keeps the rows as given', () => {
+    // A server-sorted grid: only `sortable` columns, no `sortValue`, rows in the query's order.
+    const served: DataGridColumn<Lead>[] = [
+      { id: 'customer', header: 'Customer', primary: true, cell: (r) => r.customer },
+      { id: 'village', header: 'Village', cell: (r) => r.village ?? '', sortable: true },
+    ];
+    const html = render({
+      columns: served,
+      sort: { columnId: 'village', direction: 'asc' },
+      onSortChange: () => undefined,
+    });
+    expect(html).toContain('aria-sort="ascending"');
+    expect(html.match(/aria-sort=/g)?.length).toBe(1);
+    expect(html).not.toMatch(/<button type="button"[^>]*>Customer/);
+    // The rows keep the order they were given in, whatever the sort says.
+    const order = ['Ramesh Patil', 'anita Deshmukh', 'Suresh Jadhav'].map((name) =>
+      html.indexOf(name),
+    );
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('shows skeleton rows, not the empty message, while a new order is on its way', () => {
+    const html = render({ rows: [], loading: true, empty: 'No leads' });
+    expect(html).not.toContain('No leads');
+    expect(html).toContain('aria-busy="true"');
+  });
+
   it('shows plain headers and no toolbar when the caller asks for none of the options', () => {
     const html = render({});
     expect(html).not.toContain('aria-sort');

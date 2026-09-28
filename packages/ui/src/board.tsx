@@ -1,6 +1,7 @@
 'use client';
 
 import { Children, useId, type ComponentProps, type ReactNode } from 'react';
+import { Avatar } from './avatar';
 import { cn } from './cn';
 
 /** The six lead-stage colours (DESIGN.md §2.4), for a column's 3 px top bar. */
@@ -107,6 +108,8 @@ export interface BoardCardProps {
   age: ReactNode;
   /** Who works on the lead. */
   owner: ReactNode;
+  /** The owner's full name, for the avatar beside `owner`; none while nobody owns the lead. */
+  ownerName?: string | undefined;
   /** The SLA dot and what it means, read out by screen readers; none while no rule applies. */
   sla?: { tone: BoardSlaTone; label: string } | undefined;
   /** When set, the card can be dragged to another column and carries this id. */
@@ -116,8 +119,9 @@ export interface BoardCardProps {
 }
 
 /**
- * A kanban card (DESIGN.md §6): name, village, age, owner and the SLA dot. It is dragged only
- * when the screen passes `dragId`; the menu and badge come from the screen.
+ * A kanban card (DESIGN.md §6): name, village, age, owner with their avatar, and the SLA dot. It
+ * is dragged only when the screen passes `dragId`; the menu and badge come from the screen. The
+ * size in kW or HP joins the card when leads carry a product line (Phase 1, with quotes).
  */
 export function BoardCard({
   title,
@@ -126,6 +130,7 @@ export function BoardCard({
   badge,
   age,
   owner,
+  ownerName,
   sla,
   dragId,
   onDragStart,
@@ -163,6 +168,7 @@ export function BoardCard({
               className={cn('size-2 shrink-0 rounded-full', SLA_DOT[sla.tone])}
             />
           )}
+          {ownerName === undefined ? null : <Avatar name={ownerName} />}
           <span className="break-words">{owner}</span>
         </span>
       </div>

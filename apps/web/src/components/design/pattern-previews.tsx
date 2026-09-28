@@ -97,6 +97,7 @@ export function BoardPreview({ copy, card }: { copy: DesignCopy; card: BoardPrev
             subtitle={card.village}
             age={t('age.open', { count: days, shown: formatCount(days) })}
             owner={t('owner', { name: card.ownerName })}
+            ownerName={card.ownerName}
             sla={{ tone: 'warn', label: t('sla.warn') }}
           />
         </BoardColumn>

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ItemUnitSchema, MoneySchema } from '../catalogue/enums';
 import { SegmentSchema, StageKindSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { LeadSortSchema, PriceSortSchema, UserSortSchema } from './list-sort';
 import { SessionDto, UserDto } from './user';
 
 /** A page of a keyset-paginated list: `nextCursor` is null on the last page (docs/API.md §1). */
@@ -16,14 +17,12 @@ export type UserPageDto = z.infer<typeof UserPageDto>;
 export const SessionListDto = z.array(SessionDto);
 export type SessionListDto = z.infer<typeof SessionListDto>;
 
-/** Keyset position of the users list, ordered by name then id. */
-export const UserCursorSchema = z.object({ name: z.string().max(200), id: IdSchema }).strict();
-
-/** Filters of the users list. */
+/** Filters of the users list: by name unless another order is asked for. */
 export const ListUsersInput = z
   .object({
     cursor: z.string().max(512).optional(),
     limit: z.number().int().min(1).max(100).default(50),
+    sort: UserSortSchema.optional(),
   })
   .strict();
 export type ListUsersInput = z.input<typeof ListUsersInput>;
@@ -55,11 +54,12 @@ export type PipelineDto = z.infer<typeof PipelineDto>;
 export const LeadSourceDto = z.object({ code: z.string(), name: z.string() }).strict();
 export type LeadSourceDto = z.infer<typeof LeadSourceDto>;
 
-/** Leads list: the next page after a cursor. */
+/** Leads list: the next page after a cursor, newest change first unless asked otherwise. */
 export const ListLeadsInput = z
   .object({
     cursor: z.string().max(512).optional(),
     limit: z.number().int().min(1).max(200).default(50),
+    sort: LeadSortSchema.optional(),
   })
   .strict();
 export type ListLeadsInput = z.input<typeof ListLeadsInput>;
@@ -102,14 +102,13 @@ export type PriceRowDto = z.infer<typeof PriceRowDto>;
 export const PricePageDto = pageOf(PriceRowDto);
 export type PricePageDto = z.infer<typeof PricePageDto>;
 
-/** Keyset position of the prices list, ordered by item name then id. */
-export const PriceCursorSchema = z.object({ name: z.string().max(1000), id: IdSchema }).strict();
-
+/** One price list's items, by item name unless another order is asked for. */
 export const ListPricesInput = z
   .object({
     priceListId: IdSchema,
     cursor: z.string().max(2048).optional(),
     limit: z.number().int().min(1).max(200).default(50),
+    sort: PriceSortSchema.optional(),
   })
   .strict();
 export type ListPricesInput = z.input<typeof ListPricesInput>;

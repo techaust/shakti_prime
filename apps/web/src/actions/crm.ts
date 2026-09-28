@@ -62,20 +62,13 @@ export async function createLead(
   });
 }
 
-/** Leads the caller can see, newest change first; the next page after `cursor`. */
+/** Leads the caller can see, newest change first or in `sort`; the next page after `cursor`. */
 export async function listLeads(rawInput: unknown): Promise<ActionResult<LeadPage>> {
   return toResult('listLeads', async () => {
     const principal = await signedIn();
     const input = parseInput(ListLeadsInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) =>
-      listLeadsQuery(
-        context,
-        input.cursor === undefined
-          ? { limit: input.limit }
-          : { limit: input.limit, cursor: input.cursor },
-      ),
-    );
+    return executeQuery(principal, { requestId }, (context) => listLeadsQuery(context, input));
   });
 }
 

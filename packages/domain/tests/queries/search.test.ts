@@ -18,14 +18,25 @@ import { searchLeads } from '../../src/queries/crm/search-leads';
 afterAll(closeDb);
 
 // Every name and village carries this run's tag, so earlier runs never answer these searches.
-const tag = `srch${newId().slice(-8)}`;
+// The tag is 24 random characters: the search also matches by spelling similarity, and two long
+// random tags never resemble each other, while two short ones sometimes do.
+const newTag = () => `t${newId().slice(-12)}${newId().slice(-12)}`;
+const tag = newTag();
+/** The tag with one character dropped: no longer contained in a name, only close in spelling. */
+const misspelt = (text: string) => `${text.slice(0, 10)}${text.slice(11)}`;
 const phone = () => `95${String(Math.floor(10_000_000 + Math.random() * 89_999_999))}`;
 
 let people: Record<'caller' | 'teammate' | 'teamLead' | 'gm' | 'other', Principal>;
 let ids: { mine: string; teammate: string; otherCompany: string };
 let myPhone: string;
 
-async function newLead(owner: Principal, entityId: number, name: string, tel: string) {
+async function newLead(
+  owner: Principal,
+  entityId: number,
+  name: string,
+  tel: string,
+  village = `Village ${tag}`,
+) {
   const lead = await asPrincipal(owner, (context) =>
     runCommand(
       createLead,
@@ -35,7 +46,7 @@ async function newLead(owner: Principal, entityId: number, name: string, tel: st
         pipelineKey: 'farmer_pumps',
         contact: { name, phone: tel },
         account: { type: 'farm' },
-        site: { type: 'borewell', village: `Village ${tag}`, pin: '422001' },
+        site: { type: 'borewell', village, pin: '422001' },
       },
     ),
   );
@@ -125,9 +136,50 @@ describe('searchLeads (DESIGN.md §6, Command palette)', () => {
   });
 
   it('treats typed wildcards as the characters themselves, and keeps to the limit', async () => {
-    expect(await found(people.gm, `${tag}%`)).toEqual([]);
-    expect(await found(people.gm, `_${tag}`)).toEqual([]);
+    // As wildcards, "R%" and "_a" would both find "Ramesh"; two characters are too short to be
+    // matched by spelling, so only the letters count.
+    expect(await found(people.caller, 'R%')).toEqual([]);
+    expect(await found(people.caller, '_a')).toEqual([]);
     expect(await search(people.gm, tag, 1)).toHaveLength(1);
+  });
+});
+
+describe('searchLeads by spelling (DESIGN.md §9, trigram matching)', () => {
+  it('finds a name spelt with a letter dropped or changed', async () => {
+    expect(await found(people.caller, 'Rmesh')).toEqual([ids.mine]);
+    expect(await found(people.caller, 'ramash')).toEqual([ids.mine]);
+    expect(await found(people.gm, misspelt(tag))).toEqual([ids.teammate, ids.mine]);
+  });
+
+  it('finds nothing for a word that is far off, or shares only an ending', async () => {
+    expect(await found(people.caller, 'Zqxvbn')).toEqual([]);
+    expect(await found(people.caller, 'Mahesh')).toEqual([]);
+    expect(await found(people.gm, 'Zqxvbn Wlkjh')).toEqual([]);
+  });
+
+  it('keeps the same own, team and company narrowing for a match by spelling', async () => {
+    expect(await found(people.teammate, 'Rmesh')).toEqual([]);
+    const forLead = await found(people.teamLead, 'Rmesh');
+    expect(forLead).toContain(ids.mine);
+    expect(forLead).not.toContain(ids.otherCompany);
+    expect(await found(people.other, misspelt(tag))).toEqual([ids.otherCompany]);
+    const narrowed = await asPrincipal(principalFor('general_manager', [2]), (ctx) =>
+      searchLeads(ctx, { q: `Rmesh ${misspelt(tag)}` }),
+    );
+    expect(narrowed.map((h) => h.id)).toEqual([ids.otherCompany]);
+  });
+
+  it('puts the exact name first, then names that start with it, then the closest', async () => {
+    const sorter = await createTestPrincipal('tele_caller_cc', [1]);
+    const place = `Village ${newTag()}`;
+    // Made in the reverse of the expected order, so newest-first alone would invert it.
+    const exact = await newLead(sorter, 1, 'Ramesh', phone(), place);
+    const starts = await newLead(sorter, 1, 'Rameshwar', phone(), place);
+    const contains = await newLead(sorter, 1, 'Shri Ramesh', phone(), place);
+    const closer = await newLead(sorter, 1, 'Ramessh Rao', phone(), place);
+    const close = await newLead(sorter, 1, 'Rameesh', phone(), place);
+    await newLead(sorter, 1, 'Suresh', phone(), place);
+    expect(await found(sorter, 'Ramesh')).toEqual([exact, starts, contains, closer, close]);
   });
 });
 
@@ -158,5 +210,26 @@ describe('searchPeople', () => {
     expect(Object.keys(hits[0] ?? {}).sort()).toEqual(['displayName', 'email', 'id']);
     const all = await findPeople(principalFor('executive', [1, 2]), tag);
     expect(all.map((h) => h.id)).toEqual([person, elsewhere]);
+  });
+
+  it('finds staff by a name spelt differently, within the companies being viewed', async () => {
+    const hits = await findPeople(principalFor('executive', [1]), misspelt(tag));
+    expect(hits.map((h) => h.id)).toEqual([person]);
+    const all = await findPeople(principalFor('executive', [1, 2]), `Aasha ${misspelt(tag)}`);
+    expect(all.map((h) => h.id)).toEqual([person, elsewhere]);
+    expect(await findPeople(principalFor('executive', [1, 2]), 'Zqxvbn Wlkjh')).toEqual([]);
+  });
+
+  it('puts the exact name first, then names that start with it, then the closest', async () => {
+    const own = newTag();
+    const make = async (name: string) =>
+      (await createTestUser([{ entityId: 1, roleKey: 'accounts' }], { name })).id;
+    // By name alone the order would be Anil, Meera, then the two that are the text.
+    const close = await make(`Anil ${misspelt(own)}`);
+    const contains = await make(`Meera ${own}`);
+    const starts = await make(`${own} Joshi`);
+    const exact = await make(own);
+    const hits = await findPeople(principalFor('executive', [1]), own);
+    expect(hits.map((h) => h.id)).toEqual([exact, starts, contains, close]);
   });
 });

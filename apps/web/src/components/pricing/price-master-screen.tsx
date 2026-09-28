@@ -1,6 +1,12 @@
 'use client';
 
-import type { PriceListDto, PricePageDto, PriceRowDto } from '@shakti/contracts';
+import {
+  PRICE_SORT_COLUMNS,
+  type PriceListDto,
+  type PricePageDto,
+  type PriceRowDto,
+  type PriceSort,
+} from '@shakti/contracts';
 import {
   Button,
   DataGrid,
@@ -14,7 +20,6 @@ import {
   Field,
   Input,
   Select,
-  sortRows,
   StatusBadge,
   toast,
   type DataGridColumn,
@@ -25,6 +30,7 @@ import { listPrices, setPrice } from '../../actions/pricing';
 import { formatDate, formatRupees, moneyFromTyped } from '../../screens/format';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
+import { sortInput, toListSort } from '../screens/list-sort';
 import { useCommand, useQuery } from '../screens/use-command';
 import { useGridView } from '../screens/use-grid-view';
 import { ViewsMenu } from '../screens/views-menu';
@@ -57,9 +63,20 @@ export function PriceMasterScreen({
   const [pricing, setPricing] = useState<PriceRowDto | undefined>();
   const { load, pending, failure } = useQuery<PricePageDto>();
   const [loadingMore, setLoadingMore] = useState(false);
-  const view = useGridView({ density: 'compact' });
-  // The list whose prices are wanted: an answer for a list chosen before it is dropped.
-  const wanted = useRef(initialListId);
+  // The list and the order whose prices are wanted: an answer for a list or an order chosen
+  // before is dropped.
+  const wanted = useRef<{ listId: string | undefined; sort: PriceSort | undefined }>({
+    listId: initialListId,
+    sort: undefined,
+  });
+  const view = useGridView({
+    density: 'compact',
+    onSortChange: (next) => {
+      if (wanted.current.listId !== undefined) {
+        readFirstPage(wanted.current.listId, toListSort(next, PRICE_SORT_COLUMNS));
+      }
+    },
+  });
 
   const list = lists.find((l) => l.id === listId);
   if (list === undefined) return <EmptyState message={t('noLists')} />;
@@ -71,29 +88,42 @@ export function PriceMasterScreen({
       version: l.version,
     });
 
-  function chooseList(id: string) {
-    setListId(id);
-    wanted.current = id;
+  /** The first page of a list in an order, replacing the rows on screen. */
+  function readFirstPage(id: string, sort: PriceSort | undefined) {
+    const asked = { listId: id, sort };
+    wanted.current = asked;
     setRows([]);
     setNextCursor(null);
     setLoadingMore(false);
     load(
-      () => listPrices({ priceListId: id, limit: PAGE_SIZE }),
+      () => listPrices({ priceListId: id, limit: PAGE_SIZE, ...sortInput(sort) }),
       (page) => {
-        if (wanted.current !== id) return;
+        if (wanted.current !== asked) return;
         setRows(page.items);
         setNextCursor(page.nextCursor);
       },
     );
   }
 
+  function chooseList(id: string) {
+    setListId(id);
+    readFirstPage(id, wanted.current.sort);
+  }
+
   function loadMore() {
     if (list === undefined || nextCursor === null) return;
+    const asked = wanted.current;
     setLoadingMore(true);
     load(
-      () => listPrices({ priceListId: list.id, limit: PAGE_SIZE, cursor: nextCursor }),
+      () =>
+        listPrices({
+          priceListId: list.id,
+          limit: PAGE_SIZE,
+          cursor: nextCursor,
+          ...sortInput(asked.sort),
+        }),
       (page) => {
-        if (wanted.current !== list.id) return;
+        if (wanted.current !== asked) return;
         setRows((all) => [...all, ...page.items]);
         setNextCursor(page.nextCursor);
         setLoadingMore(false);
@@ -102,28 +132,30 @@ export function PriceMasterScreen({
   }
 
   const unitName = (row: PriceRowDto) => t(`unit.${row.unit}`);
+  // Sorted on the server over the whole list (`PRICE_SORT_COLUMNS`); the unit is not, because
+  // its shown name comes from the message catalogue.
   const columns: DataGridColumn<PriceRowDto>[] = [
     {
       id: 'item',
       header: t('columns.item'),
       cell: (r) => r.name,
-      sortValue: (r) => r.name,
+      sortable: true,
       primary: true,
     },
-    { id: 'code', header: t('columns.code'), cell: (r) => r.sku, sortValue: (r) => r.sku },
+    { id: 'code', header: t('columns.code'), cell: (r) => r.sku, sortable: true },
     {
       id: 'category',
       header: t('columns.category'),
       cell: (r) => r.category,
-      sortValue: (r) => r.category,
+      sortable: true,
     },
-    { id: 'unit', header: t('columns.unit'), cell: unitName, sortValue: unitName },
+    { id: 'unit', header: t('columns.unit'), cell: unitName },
     {
       id: 'price',
       header: t('columns.price'),
       align: 'end',
       numeric: true,
-      sortValue: (r) => (r.price === null ? null : Number(r.price)),
+      sortable: true,
       cell: (r) =>
         r.price === null ? (
           <span className="text-text-muted">{t('notPriced')}</span>
@@ -135,7 +167,7 @@ export function PriceMasterScreen({
       id: 'updated',
       header: t('columns.updated'),
       cell: (r) => (r.updatedAt === null ? common('notSet') : formatDate(r.updatedAt)),
-      sortValue: (r) => (r.updatedAt === null ? null : Date.parse(r.updatedAt)),
+      sortable: true,
     },
   ];
   if (canSetPrices && list.open) {
@@ -195,7 +227,7 @@ export function PriceMasterScreen({
       <DataGrid
         caption={t('caption')}
         columns={columns}
-        rows={sortRows(rows, columns, view.grid.sort)}
+        rows={rows}
         rowKey={(r) => r.itemId}
         loading={pending && !loadingMore}
         {...view.grid}

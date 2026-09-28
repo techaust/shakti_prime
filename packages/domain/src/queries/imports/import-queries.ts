@@ -1,6 +1,4 @@
 import {
-  DomainError,
-  IdSchema,
   ImportJobPage,
   ImportMappingSchema,
   ImportRowDto,
@@ -8,15 +6,23 @@ import {
   ImportTemplateDto,
   type GetImportJobInput,
   type ImportJobDto,
+  type ImportJobSort,
   type ListImportJobsInput,
   type ListImportRowsInput,
   type ListImportTemplatesInput,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, desc, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { assertEntityInScope, loadJob, toImportJobDto } from '../../commands/imports/shared';
+import {
+  afterCursor,
+  keysetOrder,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 
 type QueryContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -97,32 +103,31 @@ async function customerNames(
   return Object.fromEntries(rows.map((row) => [row.id, row.name]));
 }
 
-/** `created_at` is the Postgres text form of the timestamp, so no microsecond is lost. */
-const JobCursorSchema = z
-  .object({
-    createdAt: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/),
-    id: IdSchema,
-  })
-  .strict();
-
-function decodeJobCursor(cursor: string): { createdAt: string; id: string } {
-  try {
-    return JobCursorSchema.parse(JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')));
-  } catch {
-    throw new DomainError('validation_failed', 'cursor is not valid', { cursor });
-  }
-}
-
-function encodeJobCursor(createdAt: string, id: string): string {
-  return Buffer.from(JSON.stringify({ createdAt, id }), 'utf8').toString('base64url');
-}
+/**
+ * The columns the imports list sorts by (`IMPORT_JOB_SORT_COLUMNS`). A company's jobs number in
+ * the hundreds, so the joined file and starter names sort without an index of their own. "Valid"
+ * is empty until the rows are checked, as the screen shows it, and a starter who is no longer a
+ * principal is empty too; both come last either way. The status and the company are left out:
+ * their shown names come from the message catalogue and the session, not from these tables.
+ */
+const IMPORT_JOB_SORT_KEYS: SortKeys<ImportJobSort['column']> = {
+  file: { expr: schema.files.name, type: 'text', nullable: false },
+  total: { expr: schema.importJobs.totalRows, type: 'integer', nullable: false },
+  valid: {
+    expr: sql`(case when ${schema.importJobs.state} in ('uploaded', 'mapped') then null else ${schema.importJobs.validRows} end)`,
+    type: 'integer',
+    nullable: true,
+  },
+  committed: { expr: schema.importJobs.committedRows, type: 'integer', nullable: false },
+  startedBy: { expr: schema.principals.displayName, type: 'text', nullable: true },
+  started: { expr: schema.importJobs.createdAt, type: 'timestamptz', nullable: false },
+};
 
 /**
- * The import jobs of one company, or of every company of the request, newest first, keyset
- * paginated by `(created_at, id)` on the `(entity_id, created_at)` index. RLS decides the rows;
- * the people who started them are named from `principals`, which every signed-in person reads.
+ * The import jobs of one company, or of every company of the request, newest first unless `sort`
+ * asks for another column, keyset paginated by the sort value and id (by default on the
+ * `(entity_id, created_at)` index). RLS decides the rows; the people who started them are named
+ * from `principals`, which every signed-in person reads.
  */
 export async function listImportJobs(
   ctx: QueryContext,
@@ -131,32 +136,25 @@ export async function listImportJobs(
   checkPermission(ctx.principal, 'imports.write', 'entity');
   if (input.entityId !== undefined) assertEntityInScope(ctx.entityIds, input.entityId);
   const entityIds = input.entityId === undefined ? [...ctx.entityIds] : [input.entityId];
-  const after = input.cursor === undefined ? undefined : decodeJobCursor(input.cursor);
   const j = schema.importJobs;
   const f = schema.files;
   const p = schema.principals;
+  const order = keysetOrder(IMPORT_JOB_SORT_KEYS, j.id, input.sort, {
+    column: 'started',
+    direction: 'desc',
+  });
   const rows = await ctx.tx
     .select({
       job: j,
       file: { id: f.id, name: f.name, size: f.size },
-      createdAtText: sql<string>`${j.createdAt}::text`,
+      sortValue: sortText(order),
       creator: p.displayName,
     })
     .from(j)
     .innerJoin(f, eq(f.id, j.fileId))
     .leftJoin(p, eq(p.id, j.createdBy))
-    .where(
-      and(
-        inArray(j.entityId, entityIds),
-        after === undefined
-          ? undefined
-          : or(
-              lt(j.createdAt, sql`${after.createdAt}::timestamptz`),
-              and(eq(j.createdAt, sql`${after.createdAt}::timestamptz`), lt(j.id, after.id)),
-            ),
-      ),
-    )
-    .orderBy(desc(j.createdAt), desc(j.id))
+    .where(and(inArray(j.entityId, entityIds), afterCursor(order, input.cursor)))
+    .orderBy(...orderTerms(order))
     .limit(input.limit + 1);
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
@@ -167,10 +165,11 @@ export async function listImportJobs(
   return ImportJobPage.parse({
     items: page.map((row) => toImportJobDto({ job: row.job, file: row.file })),
     creators,
-    nextCursor:
-      rows.length > input.limit && last !== undefined
-        ? encodeJobCursor(last.createdAtText, last.job.id)
-        : null,
+    nextCursor: nextCursor(
+      order,
+      rows.length > input.limit,
+      last === undefined ? undefined : { value: last.sortValue, id: last.job.id },
+    ),
   });
 }
 

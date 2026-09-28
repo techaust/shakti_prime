@@ -1,22 +1,20 @@
-import { DomainError, hasGrant, IdSchema, type LeadDto } from '@shakti/contracts';
+import { hasGrant, type LeadDto, type LeadSort } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
-import { z } from 'zod';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import {
+  afterCursor,
+  keysetOrder,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 import { toLeadDto } from './lead-dto';
 
-/** `updatedAt` is the Postgres text form of the timestamp so no microsecond is lost. */
-const CursorSchema = z
-  .object({
-    updatedAt: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/),
-    id: IdSchema,
-  })
-  .strict();
-
 export interface ListLeadsOptions {
-  cursor?: string;
-  limit?: number;
+  cursor?: string | undefined;
+  limit?: number | undefined;
+  sort?: LeadSort | undefined;
 }
 
 export interface LeadPage {
@@ -24,20 +22,13 @@ export interface LeadPage {
   nextCursor: string | null;
 }
 
-function decodeCursor(cursor: string): { updatedAt: string; id: string } {
-  try {
-    const parsed = CursorSchema.parse(
-      JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')),
-    );
-    return { updatedAt: parsed.updatedAt, id: parsed.id };
-  } catch {
-    throw new DomainError('validation_failed', 'cursor is not valid', { cursor });
-  }
-}
-
-function encodeCursor(updatedAt: string, id: string): string {
-  return Buffer.from(JSON.stringify({ updatedAt, id }), 'utf8').toString('base64url');
-}
+/**
+ * The columns the leads list sorts by (`LEAD_SORT_COLUMNS`): only the last change, which the
+ * `(updated_at, id)` indexes serve for every scope.
+ */
+const LEAD_SORT_KEYS: SortKeys<LeadSort['column']> = {
+  updated: { expr: schema.opportunities.updatedAt, type: 'timestamptz', nullable: false },
+};
 
 type LeadContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
@@ -58,38 +49,37 @@ export function scopeFilter(ctx: LeadContext) {
 }
 
 /**
- * Leads visible to the caller, newest change first, keyset-paginated by `(updated_at, id)`
- * (docs/DATABASE.md §7). RLS decides the rows; this query only shapes them. The page of leads is
- * found first, on `opportunities` alone, and only its customers are fetched after (AUDIT M31):
- * joining every visible customer before the limit grows with the company, not with the page.
- * The cursor carries the timestamp as Postgres text: rows written in one transaction share
- * `now()` to the microsecond, and a millisecond cursor would skip them at a page boundary.
+ * Leads visible to the caller, newest change first unless `sort` asks for the oldest,
+ * keyset-paginated by `(updated_at, id)` (docs/DATABASE.md §7). RLS decides the rows; this query
+ * only shapes them. The page of leads is found first, on `opportunities` alone, and only its
+ * customers are fetched after (AUDIT M31): joining every visible customer before the limit grows
+ * with the company, not with the page. The cursor carries the timestamp as Postgres text: rows
+ * written in one transaction share `now()` to the microsecond, and a millisecond cursor would
+ * skip them at a page boundary.
  */
 export async function listLeads(
   ctx: LeadContext,
   options: ListLeadsOptions = {},
 ): Promise<LeadPage> {
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
-  const after = options.cursor === undefined ? undefined : decodeCursor(options.cursor);
   const o = schema.opportunities;
+  const order = keysetOrder(LEAD_SORT_KEYS, o.id, options.sort, {
+    column: 'updated',
+    direction: 'desc',
+  });
 
   const rows = await ctx.tx
-    .select({ opportunity: o, updatedAtText: sql<string>`${o.updatedAt}::text` })
+    .select({ opportunity: o, sortValue: sortText(order) })
     .from(o)
     .where(
       and(
         isNull(o.archivedAt),
         inArray(o.entityId, [...ctx.entityIds]),
         scopeFilter(ctx),
-        after === undefined
-          ? undefined
-          : or(
-              lt(o.updatedAt, sql`${after.updatedAt}::timestamptz`),
-              and(eq(o.updatedAt, sql`${after.updatedAt}::timestamptz`), lt(o.id, after.id)),
-            ),
+        afterCursor(order, options.cursor),
       ),
     )
-    .orderBy(desc(o.updatedAt), desc(o.id))
+    .orderBy(...orderTerms(order))
     .limit(limit + 1);
 
   const page = rows.slice(0, limit);
@@ -107,10 +97,11 @@ export async function listLeads(
         ? []
         : [toLeadDto(r.opportunity, customer.account, customer.contact, customer.phone)];
     }),
-    nextCursor:
-      rows.length > limit && last !== undefined
-        ? encodeCursor(last.updatedAtText, last.opportunity.id)
-        : null,
+    nextCursor: nextCursor(
+      order,
+      rows.length > limit,
+      last === undefined ? undefined : { value: last.sortValue, id: last.opportunity.id },
+    ),
   };
 }
 

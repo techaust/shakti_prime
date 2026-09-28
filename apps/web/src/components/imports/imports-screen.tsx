@@ -1,26 +1,31 @@
 'use client';
 
-import type { ImportJobDto, ImportJobPage } from '@shakti/contracts';
 import {
-  Button,
-  DataGrid,
-  EmptyState,
-  sortRows,
-  StatusBadge,
-  type DataGridColumn,
-} from '@shakti/ui';
+  IMPORT_JOB_SORT_COLUMNS,
+  type ImportJobDto,
+  type ImportJobPage,
+  type ImportJobSort,
+} from '@shakti/contracts';
+import { Button, DataGrid, EmptyState, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { listImportJobs } from '../../actions/imports';
 import { formatDateTime } from '../../screens/format';
 import { formatCount, jobHref, JOB_STATE_TONE } from '../../screens/import-wizard';
 import { FailureMessage } from '../screens/failure';
+import { sortInput, toListSort } from '../screens/list-sort';
 import { useQuery } from '../screens/use-command';
 import { useGridView } from '../screens/use-grid-view';
 import { ViewsMenu } from '../screens/views-menu';
 
-/** Imports: the files added before, newest first, each opening at the step it waits at. */
+const PAGE_SIZE = 25;
+
+/**
+ * Imports: the files added before, newest first, each opening at the step it waits at. Sorted
+ * on the server over every job (`IMPORT_JOB_SORT_COLUMNS`); the status and the company are not,
+ * because their shown names do not come from the jobs.
+ */
 export function ImportsScreen({
   initial,
   companies,
@@ -36,13 +41,34 @@ export function ImportsScreen({
   const [creators, setCreators] = useState(initial.creators);
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
   const { load, pending, failure } = useQuery<ImportJobPage>();
-  const view = useGridView({ density: 'compact' });
+  // The order the rows on screen were read in; an answer read in an older order is dropped.
+  const sorted = useRef<ImportJobSort | undefined>(undefined);
+  const view = useGridView({
+    density: 'compact',
+    onSortChange: (next) => {
+      const sort = toListSort(next, IMPORT_JOB_SORT_COLUMNS);
+      sorted.current = sort;
+      setRows([]);
+      setNextCursor(null);
+      load(
+        () => listImportJobs({ limit: PAGE_SIZE, ...sortInput(sort) }),
+        (page) => {
+          if (sorted.current !== sort) return;
+          setRows(page.items);
+          setCreators((all) => ({ ...all, ...page.creators }));
+          setNextCursor(page.nextCursor);
+        },
+      );
+    },
+  });
 
   function loadMore() {
     if (nextCursor === null) return;
+    const sort = sorted.current;
     load(
-      () => listImportJobs({ limit: 25, cursor: nextCursor }),
+      () => listImportJobs({ limit: PAGE_SIZE, cursor: nextCursor, ...sortInput(sort) }),
       (page) => {
+        if (sorted.current !== sort) return;
         setRows((all) => [...all, ...page.items.filter((j) => !all.some((x) => x.id === j.id))]);
         setCreators((all) => ({ ...all, ...page.creators }));
         setNextCursor(page.nextCursor);
@@ -57,7 +83,7 @@ export function ImportsScreen({
       primary: true,
       // A file name has no spaces to wrap at: keep the column readable and break only if needed.
       className: 'min-w-48',
-      sortValue: (j) => j.file.name,
+      sortable: true,
       cell: (j) => (
         <Link href={jobHref(j)} className="text-accent-text wrap-anywhere hover:underline">
           {j.file.name}
@@ -67,7 +93,6 @@ export function ImportsScreen({
     {
       id: 'status',
       header: t('columns.status'),
-      sortValue: (j) => t(`state.${j.state}`),
       cell: (j) => (
         <StatusBadge tone={JOB_STATE_TONE[j.state]}>{t(`state.${j.state}`)}</StatusBadge>
       ),
@@ -78,7 +103,7 @@ export function ImportsScreen({
       align: 'end',
       numeric: true,
       cell: (j) => formatCount(j.totalRows),
-      sortValue: (j) => j.totalRows,
+      sortable: true,
     },
     {
       id: 'valid',
@@ -86,7 +111,7 @@ export function ImportsScreen({
       align: 'end',
       numeric: true,
       cell: (j) => (j.state === 'uploaded' || j.state === 'mapped' ? '' : formatCount(j.validRows)),
-      sortValue: (j) => (j.state === 'uploaded' || j.state === 'mapped' ? null : j.validRows),
+      sortable: true,
     },
     {
       id: 'committed',
@@ -94,7 +119,7 @@ export function ImportsScreen({
       align: 'end',
       numeric: true,
       cell: (j) => formatCount(j.committedRows),
-      sortValue: (j) => j.committedRows,
+      sortable: true,
     },
   ];
   if (showCompany) {
@@ -102,7 +127,6 @@ export function ImportsScreen({
       id: 'company',
       header: t('columns.company'),
       cell: (j) => companies[j.entityId] ?? '',
-      sortValue: (j) => companies[j.entityId] ?? null,
     });
   }
   columns.push(
@@ -110,14 +134,14 @@ export function ImportsScreen({
       id: 'startedBy',
       header: t('columns.startedBy'),
       cell: (j) => creators[j.createdBy] ?? t('formerMember'),
-      sortValue: (j) => creators[j.createdBy] ?? null,
+      sortable: true,
     },
     {
       id: 'started',
       header: t('columns.started'),
       numeric: true,
       cell: (j) => formatDateTime(j.createdAt),
-      sortValue: (j) => Date.parse(j.createdAt),
+      sortable: true,
     },
   );
 
@@ -127,8 +151,9 @@ export function ImportsScreen({
       <DataGrid
         caption={t('caption')}
         columns={columns}
-        rows={sortRows(rows, columns, view.grid.sort)}
+        rows={rows}
         rowKey={(j) => j.id}
+        loading={pending && rows.length === 0}
         {...view.grid}
         toolbar={
           <ViewsMenu

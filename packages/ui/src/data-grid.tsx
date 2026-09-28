@@ -105,10 +105,11 @@ export interface DataGridProps<T> {
   densityChoice?: DensityChoice | undefined;
   /**
    * The order shown by the sortable headers (a single chevron, `aria-sort`). The grid does not
-   * reorder rows itself: the caller sorts them, through the query's order when the query takes
-   * one, otherwise over the loaded rows with `sortRows`. No list query takes an order yet, so
-   * every grid today sorts the rows loaded so far, and "Load more" adds the next page in the
-   * query's own order before the sort is applied again.
+   * reorder rows itself: the caller gives them in order. A keyset-paged list asks its query for
+   * the order when the sort changes and reads the first page again, so the order covers every
+   * row and "Load more" continues it; only its columns marked `sortable` that the query can
+   * sort by show a sort button. A grid that holds all its rows in memory sorts them with
+   * `sortRows` and each column's `sortValue`.
    */
   sort?: GridSort | null | undefined;
   onSortChange?: ((sort: GridSort | null) => void) | undefined;

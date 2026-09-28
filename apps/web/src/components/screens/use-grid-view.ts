@@ -3,7 +3,8 @@
 import type { SavedViewSettings } from '@shakti/contracts';
 import type { ColumnChooser, DensityChoice, GridDensity, GridSort } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { sameSort } from './list-sort';
 
 export interface GridView {
   /** What the Views menu saves: the grid as the person sees it now. */
@@ -23,12 +24,18 @@ export interface GridView {
 
 /**
  * How one grid looks right now (DESIGN.md §6): hidden columns, sort and row height, which the
- * Views menu saves and applies. The sort is over the loaded rows (`sortRows`), because no list
- * query takes an order yet.
+ * Views menu saves and applies. A list screen passes `onSortChange` and reads its first page
+ * again in the new order from the server whenever the sort changes, from a header or from an
+ * applied view, so the order covers every row and not only those loaded; a grid that holds all
+ * its rows in memory (`/design`) sorts them itself with `sortRows`.
  */
 export function useGridView({
   density: initialDensity = 'compact',
-}: { density?: GridDensity } = {}): GridView {
+  onSortChange,
+}: {
+  density?: GridDensity;
+  onSortChange?: (sort: GridSort | null) => void;
+} = {}): GridView {
   const t = useTranslations('common.grid');
   const [hidden, setHidden] = useState<string[]>([]);
   const [sort, setSort] = useState<GridSort | null>(null);
@@ -42,11 +49,16 @@ export function useGridView({
     () => ({ columns: { hidden: [] }, sort: null, filters: {}, density: initialDensity }),
     [initialDensity],
   );
-  const apply = useCallback((next: SavedViewSettings) => {
+  const changeSort = (next: GridSort | null) => {
+    if (sameSort(next, sort)) return;
+    setSort(next);
+    onSortChange?.(next);
+  };
+  const apply = (next: SavedViewSettings) => {
     setHidden(next.columns.hidden);
-    setSort(next.sort);
     setDensity(next.density);
-  }, []);
+    changeSort(next.sort);
+  };
 
   return {
     settings,
@@ -62,7 +74,7 @@ export function useGridView({
       },
       columnChooser: { label: t('columnsButton'), hidden, onHiddenChange: setHidden },
       sort,
-      onSortChange: setSort,
+      onSortChange: changeSort,
     },
   };
 }

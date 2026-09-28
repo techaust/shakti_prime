@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../../crm/enums';
+import { ImportJobSortSchema } from '../../dto/list-sort';
 import { EntityIdSchema, IdSchema } from '../../ids';
 import {
   IMPLEMENTED_IMPORT_KINDS,
@@ -180,13 +181,15 @@ export type ListImportRowsInput = z.infer<typeof ListImportRowsInput>;
 
 /**
  * The import screen's list: the jobs of one company, or of every company of the request when
- * `entityId` is left out, newest first, keyset-paginated by the opaque `cursor` of the last page.
+ * `entityId` is left out, newest first unless another order is asked for, keyset-paginated by the
+ * opaque `cursor` of the last page.
  */
 export const ListImportJobsInput = z
   .object({
     entityId: EntityIdSchema.optional(),
     cursor: z.string().min(1).max(512).optional(),
     limit: z.number().int().min(1).max(100).default(25),
+    sort: ImportJobSortSchema.optional(),
   })
   .strict();
 export type ListImportJobsInput = z.infer<typeof ListImportJobsInput>;
