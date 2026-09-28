@@ -200,7 +200,6 @@ export const SHARED_TABLES = [
   'tax_rates',
   'composite_supply_rules',
   'users',
-  'user_entity_roles',
 ] as const;
 
 /** Tables scoped by `app.entity_ids` (and, for CRM roots and children, by ownership). */
@@ -222,6 +221,8 @@ export const ENTITY_TABLES = [
   'import_mapping_templates',
   'import_jobs',
   'import_rows',
+  // read in the request's companies or as the caller's own rows (0049)
+  'user_entity_roles',
 ] as const;
 
 /**
