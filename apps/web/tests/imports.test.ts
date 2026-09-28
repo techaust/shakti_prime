@@ -61,7 +61,9 @@ vi.mock('@upstash/qstash', async (original) => ({
 
 const {
   commitImportJob,
+  getImportJob,
   listImportJobs,
+  listImportTemplates,
   listImportRows,
   mapImportJob,
   previewImportJob,
@@ -230,6 +232,54 @@ Lakshmi,${phone()}
     const page = ok(await listImportRows({ entityId: 1, jobId: job.id }));
     expect(page).toMatchObject({ nextAfter: null, customers: {} });
     expect(page.rows.map((r) => r.state)).toEqual(['valid']);
+  });
+});
+
+describe('one import and the saved column matchings', () => {
+  it('answers one job to someone who may import, and refuses anyone else', async () => {
+    const job = await previewedJob(['Savitri']);
+    expect(ok(await getImportJob({ entityId: 1, jobId: job.id }))).toMatchObject({
+      id: job.id,
+      state: 'previewed',
+      validRows: 1,
+    });
+    await expect(getImportJob({ entityId: 1, jobId: 'not-a-job' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    await expect(getImportJob({ entityId: 2, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    request.principal = principalFor('tele_caller_cc', [1]);
+    await expect(getImportJob({ entityId: 1, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    request.principal = undefined;
+    await expect(getImportJob({ entityId: 1, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
+  });
+
+  it('lists a matching saved from a job, and refuses someone who may not import', async () => {
+    const csv = `Name,Mobile,Village\nGanga,${phone()},Sikar\n`;
+    const job = ok(await uploadImportFile(uploadForm(csv)));
+    const name = `Fair leads ${newId()}`;
+    ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping, saveAsTemplate: { name } }));
+    const templates = ok(await listImportTemplates({ entityId: 1, kind: 'leads' }));
+    expect(templates.find((t) => t.name === name)).toMatchObject({ kind: 'leads', mapping });
+
+    await expect(listImportTemplates({ entityId: 1, kind: 'soap' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    request.principal = principalFor('tele_caller_cc', [1]);
+    await expect(listImportTemplates({ entityId: 1, kind: 'leads' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
   });
 });
 
