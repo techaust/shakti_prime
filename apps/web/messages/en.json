@@ -1064,9 +1064,13 @@
       "phone": "Phone",
       "status": "Status",
       "entityRoles": "Roles",
+      "bosRole": "Role",
       "revokedSessions": "Devices signed out",
       "twoFactorEnabled": "Authenticator app set up",
       "theme": "Appearance",
+      "contrast": "Contrast",
+      "screen": "List",
+      "settings": "What the view keeps",
       "brandName": "Brand name",
       "upiId": "UPI ID",
       "price": "Price",
@@ -1136,7 +1140,18 @@
         "residential_rooftop": "Home rooftop solar",
         "commercial_epc": "Commercial solar projects",
         "dealer_wholesale": "Dealers and wholesale"
-      }
+      },
+      "contrast": {
+        "standard": "Standard",
+        "high": "Higher contrast"
+      },
+      "screen": {
+        "leads": "Leads",
+        "team_members": "Team members",
+        "price_lists": "Price lists",
+        "imports": "Imports"
+      },
+      "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}"
     }
   },
   "print": {

@@ -21,6 +21,17 @@ describe('the command registry (AUDIT L16)', () => {
     expect(Object.keys(commands).sort()).toEqual([...names].sort());
   });
 
+  it('each declares its audit fields once, and no id among them', () => {
+    for (const command of Object.values(commands)) {
+      const fields = command.auditFields;
+      expect(new Set(fields).size, command.name).toBe(fields.length);
+      expect(
+        fields.filter((f) => /^id$|Ids?$/.test(f)),
+        command.name,
+      ).toEqual([]);
+    }
+  });
+
   it('names follow module.resource.action and refuse an unknown name', () => {
     for (const name of Object.keys(commands)) expect(name).toMatch(/^[a-z]+(\.[a-z_]+){2,3}$/);
     expect(() => getCommand('crm.lead.delete')).toThrow(

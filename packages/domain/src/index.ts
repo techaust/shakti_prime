@@ -3,7 +3,7 @@ export type { AnyCommand, Command } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
 export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
-export { redactAuthEvent, redactForAudit } from './audit/redact';
+export { AUTH_EVENT_FIELDS, redactAuthEvent, redactForAudit } from './audit/redact';
 export { auditDevice, auditIp, databaseAuditSink, memoryAuditSink } from './audit/sink';
 export type { AuditRecord, AuditSink, ClientMeta } from './audit/sink';
 export { databaseOutboxSink, memoryOutboxSink } from './outbox/sink';
