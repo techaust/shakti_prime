@@ -93,8 +93,46 @@ describe('redactForAudit', () => {
     expect(JSON.stringify(redactForAudit(deep))).toContain('[deep]');
   });
 
+  it('removes Aadhaar, PAN, bank account and IFSC fields at any depth and in any case', () => {
+    const identity = {
+      aadhaar: '234567890123',
+      Aadhaar: '234567890123',
+      aadhaar_number: '234567890123',
+      uid: '234567890123',
+      UID: '234567890123',
+      pan: 'ABCDE1234F',
+      PAN: 'ABCDE1234F',
+      account_number: '50100012345678',
+      accountNumber: '50100012345678',
+      ACCOUNT_NUMBER: '50100012345678',
+      ifsc: 'HDFC0000001',
+      IFSC: 'HDFC0000001',
+      ifscCode: 'HDFC0000001',
+    };
+    const snapshot = {
+      name: 'Ramesh Patel',
+      village: 'Khedbrahma',
+      ...identity,
+      kyc: { ...identity, documents: [{ kind: 'aadhaar', ...identity }] },
+    };
+    const out = redactForAudit({ before: snapshot, after: { ...snapshot, village: 'Idar' } });
+    const keys = keysDeep(out);
+    for (const removed of Object.keys(identity)) expect(keys).not.toContain(removed);
+    expect(out).toEqual({
+      before: {
+        name: 'Ramesh Patel',
+        village: 'Khedbrahma',
+        kyc: { documents: [{ kind: 'aadhaar' }] },
+      },
+      after: { name: 'Ramesh Patel', village: 'Idar', kyc: { documents: [{ kind: 'aadhaar' }] } },
+    });
+  });
+
   it('matches denied names without regard to case or separators', () => {
     for (const key of ['Password', 'NEW_PASSWORD', 'two-factor-secret', 'sessionToken']) {
+      expect(isDeniedKey(key)).toBe(true);
+    }
+    for (const key of ['Aadhaar', 'uid', 'PAN', 'account-number', 'bankAccountNumber', 'IFSC']) {
       expect(isDeniedKey(key)).toBe(true);
     }
     for (const key of ['code', 'brandName', 'upiId', 'status'])

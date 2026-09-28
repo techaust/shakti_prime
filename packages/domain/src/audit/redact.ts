@@ -2,9 +2,10 @@ import type { AuthAuditEvent } from '@shakti/contracts';
 
 /**
  * Redaction for the audit trail (docs/design/backend-weeks-3-5.md §3.3, AUDIT M16). The audit
- * keeps what changed, never a credential: secret-named fields are removed at any depth, and
- * phone numbers and email addresses keep only their last four characters. Business codes (an
- * entity, item or stage `code`) are kept; the one-time codes of sign-in never reach a command,
+ * keeps what changed, never a credential or an identity number: secret-named fields and the
+ * Aadhaar, PAN, bank account and IFSC fields are removed at any depth, and phone numbers and
+ * email addresses keep only their last four characters. Business codes (an entity, item or
+ * stage `code`) are kept; the one-time codes of sign-in never reach a command,
  * and the auth events record only the fields their allow-list names.
  */
 
@@ -19,6 +20,16 @@ const DENIED_KEYS = new Set([
   'identifier',
   'bankjson',
   'apikey',
+  // Identity numbers never reach the audit trail (CLAUDE.md, docs/SECURITY.md §5).
+  'aadhaar',
+  'aadhaarnumber',
+  'uid',
+  'pan',
+  'pannumber',
+  'accountnumber',
+  'bankaccountnumber',
+  'ifsc',
+  'ifsccode',
 ]);
 
 /** Any field whose name carries one of these words is removed as well. */
