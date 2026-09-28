@@ -28,7 +28,8 @@ import {
   isStalled,
 } from '../../screens/import-wizard';
 import { FailureMessage } from '../screens/failure';
-import { useCommand } from '../screens/use-command';
+import { useCommand, type CommandFailure } from '../screens/use-command';
+import { checkProgress } from './progress-check';
 
 /** How often the screen asks how far adding has come. */
 const POLL_MS = 3000;
@@ -216,27 +217,39 @@ export function ProgressPanel({
   // When the rows added last changed; set when the first check starts, not while rendering.
   const lastChange = useRef<{ rows: number; at: number } | undefined>(undefined);
   const resume = useCommand(commitImportJob);
+  // A check that failed or never answered: shown, and the checks stop until the page is read again.
+  const [checkFailure, setCheckFailure] = useState<CommandFailure | undefined>();
 
   useEffect(() => {
     let stopped = false;
     lastChange.current ??= { rows: job.committedRows, at: Date.now() };
     const timer = window.setInterval(() => {
-      void getImportJob({ entityId: job.entityId, jobId: job.id }).then((result) => {
-        if (stopped || !result.ok) return;
-        const next = result.data;
-        if (next.state !== 'committing') {
-          stopped = true;
-          window.clearInterval(timer);
-          onChanged();
-          return;
-        }
-        const now = Date.now();
-        const last = lastChange.current ?? { rows: next.committedRows, at: now };
-        lastChange.current =
-          next.committedRows === last.rows ? last : { rows: next.committedRows, at: now };
-        setCurrent(next);
-        setStalled(isStalled(lastChange.current.at, now));
-      });
+      void checkProgress(() => getImportJob({ entityId: job.entityId, jobId: job.id })).then(
+        (check) => {
+          if (stopped) return;
+          if (check.kind !== 'moving') {
+            stopped = true;
+            window.clearInterval(timer);
+            if (check.kind === 'finished') {
+              onChanged();
+              return;
+            }
+            setCheckFailure((previous) => ({
+              error: check.error,
+              reference: check.reference,
+              attempt: (previous?.attempt ?? 0) + 1,
+            }));
+            return;
+          }
+          const next = check.job;
+          const now = Date.now();
+          const last = lastChange.current ?? { rows: next.committedRows, at: now };
+          lastChange.current =
+            next.committedRows === last.rows ? last : { rows: next.committedRows, at: now };
+          setCurrent(next);
+          setStalled(isStalled(lastChange.current.at, now));
+        },
+      );
     }, POLL_MS);
     return () => {
       stopped = true;
@@ -247,6 +260,7 @@ export function ProgressPanel({
   return (
     <Panel title={t('title')} intro={t('intro')}>
       <Progress job={current} />
+      <FailureMessage failure={checkFailure} />
       {stalled ? (
         <>
           <p className="text-text-muted text-sm">{t('stalled')}</p>
