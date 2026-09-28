@@ -55,7 +55,11 @@ async function newLead(pipelineKey = 'farmer_pumps', owner: Principal = caller):
   const lead = await run(owner, createLead, {
     entityId: 1,
     pipelineKey,
-    contact: { name: 'Opportunity test customer', phone: '9811122233' },
+    // A number no earlier lead has: one a colleague's customer has is refused (0055).
+    contact: {
+      name: 'Opportunity test customer',
+      phone: `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+    },
     account: { type: 'farm' },
     site: { type: 'borewell', village: 'Opportunity test village', pin: '422001' },
   });

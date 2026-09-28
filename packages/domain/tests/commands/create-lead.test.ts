@@ -16,10 +16,20 @@ import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 
 afterAll(closeDb);
 
+/**
+ * A mobile number no earlier run used: the suites never clean the CRM tables, and a number a
+ * colleague's customer already has is refused (0055). Written with a space, as a caller types it.
+ */
+function phone(): { typed: string; e164: string } {
+  const digits = `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+  return { typed: `${digits.slice(0, 5)} ${digits.slice(5)}`, e164: `+91${digits}` };
+}
+
+const typed = phone();
 const input = {
   entityId: 1,
   pipelineKey: 'farmer_pumps',
-  contact: { name: 'Lead test contact', phone: '98765 43210' },
+  contact: { name: 'Lead test contact', phone: typed.typed },
   account: { type: 'farm' as const },
   site: { type: 'borewell' as const, village: 'Lead test village', pin: '302001' },
   consent: {
@@ -110,7 +120,7 @@ describe('crm.lead.create', () => {
     expect(lead.entityId).toBe(1);
     expect(lead.stageId).toBe(stageId(1, 1));
     expect(lead.state).toBe('open');
-    expect(lead.contact?.phone).toBe('+919876543210');
+    expect(lead.contact?.phone).toBe(typed.e164);
     expect(lead.account.name).toBe('Lead test contact');
     expect(lead.siteId).not.toBeNull();
     expect(Object.keys(lead).sort()).toEqual([
@@ -154,7 +164,7 @@ describe('crm.lead.create', () => {
       runCommand(
         createLead,
         { context, audit, outbox },
-        { ...input, contact: { name: 'Shared customer', phone: '9876700100' } },
+        { ...input, contact: { name: 'Shared customer', phone: phone().typed } },
       ),
     );
     const accountId = first.account.id;
@@ -265,7 +275,7 @@ describe('crm.lead.create', () => {
         const lead = await runCommand(
           createLead,
           { context, audit, outbox },
-          { ...input, contact: { name: `Lead batch contact ${n}`, phone: `9876600${n}00` } },
+          { ...input, contact: { name: `Lead batch contact ${n}`, phone: phone().typed } },
         );
         ids.push(lead.id);
       }
@@ -292,7 +302,7 @@ describe('crm.lead.create', () => {
         runCommand(
           createLead,
           { context, audit, outbox },
-          { ...input, contact: { name: `Lead page contact ${n}`, phone: `9876500${n}00` } },
+          { ...input, contact: { name: `Lead page contact ${n}`, phone: phone().typed } },
         ),
       );
     }

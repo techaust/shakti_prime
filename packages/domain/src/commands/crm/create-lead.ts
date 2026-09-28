@@ -1,11 +1,36 @@
 import { CreateLeadInput, DomainError, LeadDto, newId } from '@shakti/contracts';
-import { schema } from '@shakti/db';
+import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 
 /** What `app.attach_account_entity()` found (migration 0026). */
 type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';
+
+/** What `app.lead_phone_status()` found (migration 0055): a status only, never the customer. */
+export type PhoneStatus = 'clear' | 'held_by_other';
+
+/**
+ * Whether the mobile number of a new customer already belongs to a customer the company deals
+ * with through a relationship the caller may not write, so a colleague looks after them there.
+ */
+export async function phoneStatus(
+  tx: RequestTx,
+  phone: string,
+  entityId: number,
+): Promise<PhoneStatus> {
+  const rows = (await tx.execute(
+    sql`select app.lead_phone_status(${phone}::text, ${entityId}::smallint) as status`,
+  )) as unknown as { status: PhoneStatus }[];
+  return rows[0]?.status ?? 'clear';
+}
+
+/** The refusal of a lead for a customer a colleague looks after in that company (AUDIT M25). */
+export function heldByColleague(): DomainError {
+  return new DomainError('conflict', 'customer is looked after by a colleague', {
+    reason: 'customer_held_by_colleague',
+  });
+}
 
 /**
  * `crm.lead.create`: an opportunity in the first open stage of the chosen pipeline, owned by the
@@ -103,11 +128,7 @@ export const createLead = defineCommand({
       }
       // A colleague already looks after this customer in this company: the enquiry goes to them
       // or their team lead, rather than a second lead nobody else can see (AUDIT M25).
-      if (status === 'held_by_other') {
-        throw new DomainError('conflict', 'customer is looked after by a colleague', {
-          reason: 'customer_held_by_colleague',
-        });
-      }
+      if (status === 'held_by_other') throw heldByColleague();
       const [row] = await ctx.tx
         .select({
           account: {
@@ -149,6 +170,13 @@ export const createLead = defineCommand({
       const accountInput = input.account;
       if (contactInput === undefined || accountInput === undefined) {
         throw new DomainError('validation_failed', 'contact and account are required');
+      }
+      // A number that belongs to a customer a colleague looks after in this company is that
+      // customer, not a new one: the enquiry goes to the colleague as on the known-customer path,
+      // rather than a second customer that splits their consent and DND history. The import
+      // commit asks the same question for a whole batch (`commitLeadBatch`).
+      if ((await phoneStatus(ctx.tx, contactInput.phone, entityId)) === 'held_by_other') {
+        throw heldByColleague();
       }
       // No `returning` here: the row becomes visible only once its relationship row exists, and
       // Postgres applies the select policy to returned rows.

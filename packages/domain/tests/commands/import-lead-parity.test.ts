@@ -1,10 +1,11 @@
-import { IdSchema, newId, type Principal } from '@shakti/contracts';
+import { IdSchema, newId, type PermissionGrant, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  grantsForRole,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
@@ -93,9 +94,13 @@ const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
  * their place (`account#0`, the caller as `actor`), other new ids and times blanked, and ids both
  * paths share (pipeline, stage, source, team) kept as they are.
  */
-async function snapshot(actor: string, made: readonly { rowNo: number; id: string }[]) {
+async function snapshot(
+  actor: string,
+  made: readonly { rowNo: number; id: string }[],
+  job: string = jobId,
+) {
   const ids = made.map((m) => m.id);
-  const keys = made.map((m) => importRowKey(jobId, m.rowNo));
+  const keys = made.map((m) => importRowKey(job, m.rowNo));
   const raw = await asMigrator(async (m) => {
     const opportunities = await m<Row[]>`select * from opportunities where id = any(${ids})`;
     const accountIds = opportunities.map((o) => o.account_id as string);
@@ -266,5 +271,72 @@ describe('an import batch set-based and row by row', () => {
         run(importerA, setBased, { jobId: newId(), rows: [{ rowNo: 2, input }] }),
       ).rejects.toBeInstanceOf(RowByRowNeeded);
     }
+  });
+
+  it('gives the answer crm.lead.create gives for a number a colleague’s customer has (0055)', async () => {
+    const known = phone();
+    const colleague = await createTestPrincipal('tele_caller_cc', [1]);
+    await asPrincipal(colleague, (context) =>
+      runCommand(
+        createLead,
+        { context, audit, outbox },
+        {
+          entityId: 1,
+          pipelineKey: 'farmer_pumps',
+          contact: { name: 'Known number', phone: known },
+          account: { type: 'farm' },
+        },
+      ),
+    );
+    const rows = [
+      {
+        rowNo: 2,
+        input: {
+          entityId: 1,
+          pipelineKey: 'farmer_pumps',
+          contact: { name: 'Known number again', phone: known },
+          account: { type: 'farm' },
+          site: { type: 'borewell', village: 'Churu' },
+        },
+      },
+      {
+        rowNo: 3,
+        input: {
+          entityId: 1,
+          pipelineKey: 'farmer_pumps',
+          contact: { name: 'New number', phone: phone() },
+          account: { type: 'farm' },
+        },
+      },
+    ];
+
+    // Importers who may act for the colleague (company scope) make a new customer both ways, as
+    // the command does, and leave the same rows behind.
+    const knownJob = newId();
+    const a = await run(importerA, setBased, { jobId: knownJob, rows });
+    const b = await run(importerB, rowByRow, { jobId: knownJob, rows });
+    const left = await snapshot(importerA.id, a, knownJob);
+    const right = await snapshot(importerB.id, b, knownJob);
+    expect(left.opportunities).toHaveLength(2);
+    for (const table of Object.keys(right)) expect(left[table], table).toEqual(right[table]);
+
+    // An importer whose customer scope is their own may not: the set-based path leaves the batch
+    // to the row-by-row path, which refuses the row exactly as crm.lead.create refuses it.
+    const permissions: PermissionGrant[] = grantsForRole('general_manager').map((g) =>
+      g.key.startsWith('crm.lead.') || g.key.startsWith('crm.account.')
+        ? { key: g.key, scope: 'own' }
+        : g,
+    );
+    const narrow = await createTestPrincipal('general_manager', [1], { teamId, permissions });
+    const refused = { code: 'conflict', details: { reason: 'customer_held_by_colleague' } };
+    await expect(run(narrow, setBased, { jobId: newId(), rows })).rejects.toBeInstanceOf(
+      RowByRowNeeded,
+    );
+    await expect(run(narrow, rowByRow, { jobId: newId(), rows })).rejects.toMatchObject(refused);
+    await expect(
+      asPrincipal(narrow, (context) =>
+        runCommand(createLead, { context, audit, outbox }, rows[0]?.input),
+      ),
+    ).rejects.toMatchObject(refused);
   });
 });

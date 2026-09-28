@@ -283,6 +283,7 @@ const FIELD_KINDS = [
   ['archived', 'number'],
   ['failedBatch', 'number'],
   ['failedRow', 'number'],
+  ['refusedRows', 'number'],
   ['errorCode', 'errorCode'],
   // Messages the system sends on
   ['eventType', 'eventType'],
