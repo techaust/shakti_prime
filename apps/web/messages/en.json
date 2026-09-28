@@ -447,7 +447,7 @@
     "undoneToastBody": "The lead is back in New.",
     "board": "Kanban board",
     "print": "Print preview",
-    "printIntro": "Printed documents are always light, whatever the screen shows. These are the quotation and the large product label as they print, filled in with made-up details for this preview and shown at a reduced size.",
+    "printIntro": "Printed documents are always light, whatever the screen shows. These are the quotation and the large product label as they print, shown at a reduced size for a pump enquiry at Rampura, Chomu that is not a real record. Company details that are not recorded yet say so.",
     "printQuote": "Print preview: quotation, A4",
     "printLabel": "Print preview: product label, 100 by 50 mm",
     "menuOpen": "Open",
@@ -501,6 +501,15 @@
           "company": "Shakti Motor Pumps"
         }
       }
+    },
+    "printFill": {
+      "notRecorded": "Not recorded yet",
+      "companyPlace": "Jaipur, Rajasthan",
+      "customer": "Rampura, Chomu",
+      "customerAddress": "Tehsil Chomu, District Jaipur, Rajasthan 303702",
+      "preparedBy": "the Agro Solar Hub sales team",
+      "cardDetail": "Solar submersible pump, 7.5 HP",
+      "cardOwner": "Sales team"
     }
   },
   "errorPage": {

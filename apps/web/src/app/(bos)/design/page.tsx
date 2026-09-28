@@ -77,18 +77,33 @@ export default async function DesignPage() {
   const t = await getTranslations('design');
   const copy: DesignCopy = (await getMessages()).design;
   const navIds = visibleNav(principal.permissions).map((item) => item.id);
-  // The print spike's made-up quotation and label, rendered by the real templates; the screen's
-  // own font stands in for the embedded one (the page may load fonts only from the app).
-  const quote = spikeQuote();
+  // The print spike's quotation lines and label, rendered by the real templates, with no invented
+  // person, phone number or company identifier (DESIGN.md §11.1 rule 3): the customer is a place,
+  // and company details the workshop has not supplied read as not recorded. The screen's own font
+  // stands in for the embedded one (the page may load fonts only from the app).
+  const fill = copy.printFill;
+  const spike = spikeQuote();
+  const quote = {
+    ...spike,
+    entity: {
+      ...spike.entity,
+      addressLines: [fill.companyPlace],
+      gstin: fill.notRecorded,
+      phone: fill.notRecorded,
+      email: fill.notRecorded,
+    },
+    customer: {
+      name: fill.customer,
+      addressLines: [fill.customerAddress],
+      placeOfSupply: spike.customer.placeOfSupply,
+    },
+    preparedBy: fill.preparedBy,
+  };
   const [quoteDoc, labelHtml] = await Promise.all([
     renderQuote(quote, { fonts: 'viewer' }),
     renderLabelsHtml(spikeLabels(1), '100x50', { fonts: 'viewer' }),
   ]);
-  const card = {
-    customerName: quote.customer.name,
-    village: quote.customer.addressLines[0] ?? '',
-    ownerName: quote.preparedBy,
-  };
+  const card = { customerName: fill.customer, village: fill.cardDetail, ownerName: fill.cardOwner };
   return (
     <Page title={t('title')} description={t('intro')}>
       <div className="grid gap-6 xl:grid-cols-2">
