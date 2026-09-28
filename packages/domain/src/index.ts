@@ -34,6 +34,7 @@ export { setUserRoles } from './commands/admin/set-user-roles';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
+export { clearSignInLock } from './commands/admin/clear-sign-in-lock';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { setTheme } from './commands/profile/set-theme';
 export { setContrast } from './commands/profile/set-contrast';

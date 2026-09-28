@@ -9,6 +9,7 @@ import {
   createTestUser,
   principalFor,
 } from '@shakti/db/testing';
+import { createSignInGuard } from '@shakti/domain';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Server actions outside a Next.js request (AUDIT M41): the request headers and cookies, the
@@ -583,15 +584,40 @@ describe('command and query actions answer a result, never a thrown error (revie
   });
 
   it('suspend and reactivate a person, and lift a sign-in lock', async () => {
-    request.principal = await createTestPrincipal('executive');
+    const exec = await createTestPrincipal('executive');
+    request.principal = exec;
     const target = await createTestUser([{ entityId: 1, roleKey: 'store_manager' }]);
     const suspended = ok(await suspendUser({ userId: target.id }, crypto.randomUUID()));
     expect(suspended.status).toBe('suspended');
     const back = ok(await reactivateUser({ userId: target.id }, crypto.randomUUID()));
     expect(back.status).toBe('active');
-    await expect(clearSignInLock({ userId: target.id })).resolves.toEqual({ ok: true, data: null });
+    // Lock the account the way failed sign-ins do, then lift it through the command.
+    const guard = createSignInGuard(defaultAuthDeps().keyValue);
+    for (let i = 0; i < 6; i += 1) await guard.recordFailure(target.email, '10.0.9.1');
+    await expect(guard.check(target.email, '10.0.9.1')).rejects.toBeDefined();
+    const key = crypto.randomUUID();
+    await expect(clearSignInLock({ userId: target.id }, key)).resolves.toEqual({
+      ok: true,
+      data: null,
+    });
+    await expect(guard.check(target.email, '10.0.9.1')).resolves.toBeUndefined();
+    // A repeat with the same key is answered from the first call and records nothing more.
+    await expect(clearSignInLock({ userId: target.id }, key)).resolves.toEqual({
+      ok: true,
+      data: null,
+    });
+    const recorded = await asMigrator(
+      (m) => m<{ actor: string; entity: number | null }[]>`
+        select actor_principal_id as actor, entity_id as entity from audit_logs
+         where aggregate_id = ${target.id} and command = 'admin.user.lock.clear'`,
+    );
+    expect(recorded).toEqual([{ actor: exec.id, entity: null }]);
+    await expect(clearSignInLock({ userId: exec.id }, crypto.randomUUID())).resolves.toEqual({
+      ok: false,
+      error: 'self_lock_clear',
+    });
     request.principal = await createTestPrincipal('general_manager', [1]);
-    await expect(clearSignInLock({ userId: target.id })).resolves.toEqual({
+    await expect(clearSignInLock({ userId: target.id }, crypto.randomUUID())).resolves.toEqual({
       ok: false,
       error: 'forbidden',
     });

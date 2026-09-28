@@ -78,6 +78,7 @@ const ACTIONS = {
   'admin.user.reactivate': 'userReactivate',
   'admin.session.revoke': 'sessionRevoke',
   'admin.user.two_factor.reset': 'twoFactorReset',
+  'admin.user.lock.clear': 'signInLockClear',
   'profile.theme.set': 'themeSet',
   'profile.view.save': 'viewSave',
   'profile.view.delete': 'viewDelete',

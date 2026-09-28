@@ -1,4 +1,5 @@
 import { DomainError } from '@shakti/contracts';
+import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setUserRoles } from '../commands/admin/set-user-roles';
@@ -46,6 +47,7 @@ export const commands = {
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,
   [resetTwoFactor.name]: resetTwoFactor,
+  [clearSignInLock.name]: clearSignInLock,
   [replayDeadLetter.name]: replayDeadLetter,
   [setTheme.name]: setTheme,
   [setContrast.name]: setContrast,

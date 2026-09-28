@@ -46,6 +46,7 @@ const AGENTS = Object.keys(AGENT_MATRIX) as AgentRoleKey[];
  */
 const INPUTS: Record<string, unknown> = {
   'admin.session.revoke': { sessionId: newId() },
+  'admin.user.lock.clear': { userId: newId() },
   'admin.user.invite': {
     email: 'agent-refusal@shakti.test',
     displayName: 'Refused invite',
