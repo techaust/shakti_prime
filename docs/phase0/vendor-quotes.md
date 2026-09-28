@@ -53,7 +53,7 @@ Every vendor is asked, in addition to its own questions:
 - **Blueprint estimate:** US$20–60 a month.
 
 ### 3.4 AWS — file storage, encryption and security email
-- **Used for:** S3 file storage in Mumbai (`ap-south-1`) with KMS encryption and 15-minute download links; nightly database copies kept 30 days; call recordings kept 12 months; SES for password-reset, sign-in code and security-alert emails only. The fallback host for the voice worker (ECS Fargate in Mumbai) if the live-voice vendor cannot run it in India.
+- **Used for:** S3 file storage in Mumbai (`ap-south-1`) with KMS encryption and 15-minute download links; nightly database copies kept 30 days; call recordings kept 12 months; SES for password-reset, invitation and two-factor recovery emails and security alerts only. The fallback host for the voice worker (ECS Fargate in Mumbai) if the live-voice vendor cannot run it in India.
 - **Volumes:** at the development team's estimate, call recordings of about 100 GB a month, about 1.2 TB at the 12-month retention; documents and photos a further few hundred GB a year; a few thousand emails a month.
 - **Ask:** billing through AWS's Indian entity with a GST invoice; SES production access in Mumbai; KMS key and request charges; a budget alert set up with the account.
 - **Blueprint estimate:** US$15–40 a month.

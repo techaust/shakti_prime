@@ -16,8 +16,9 @@ export const maxDuration = 60;
 /**
  * The outbox publisher (docs/design/backend-weeks-3-5.md §4.2, docs/API.md §3.6). Only QStash
  * calls it, from the minute schedule and from the nudge after a command: every call must carry a
- * valid signature for this route and body. A 500 makes QStash retry; the rows stay pending, and
- * any the failed run had leased are due again when their lease runs out.
+ * valid signature for this route and body. A 500 makes QStash retry; the rows stay pending: a
+ * delivery that throws releases the run's leased rows at once, and the rows of a run that dies are
+ * due again when their lease runs out.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);

@@ -38,8 +38,8 @@ Windows 11 laptop, Node 24.19, playwright-core 1.63 with `chromium-headless-shel
 
 | Measure | Time | Size |
 |---|---|---|
-| Browser launch, warm machine | 0.4 to 0.5 s | |
-| Browser launch, first ever on the machine | 23.3 s (disk and antivirus scan of the new binary; not repeated) | |
+| Browser launch, warm machine | 0.5 s (523 ms in the result file) | |
+| Browser launch, first ever on the machine | 23.3 s, seen once and not in the result file (disk and antivirus scan of the new binary) | |
 | First document after launch | 1.7 s | |
 | 1-page quotation, median of 5 warm renders | 1.0 s | 161 KB |
 | 5-page quotation, median of 5 warm renders | 1.4 s, about 0.28 s per page | 253 KB |

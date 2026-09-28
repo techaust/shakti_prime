@@ -48,7 +48,7 @@ packages/tokens       design tokens (CSS variables + JS export) for web and Andr
 tools/copy-lint       the product-copy lint run in CI
 docs/                 blueprint, module docs, ADRs
 ```
-Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator.
+Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator. `apps/web` reaches the database only through `executeCommand()` and `executeQuery()` from `packages/domain`; `executeQuery()` runs in a read-only transaction, so a write through it fails (SQLSTATE 25006). ESLint fences the rest: `apps/web` names neither `withRequestContext` nor the schema (from `@shakti/db`, from `@shakti/db/schema` or by a dynamic `import()`) nor any file of `packages/db/src` by a relative path, and outside tests `require` under any name, `createRequire` and the `module` package are refused; `apps/web/src/lint-fences.test.ts` proves the fences.
 
 ## 4. Language and style
 - TypeScript strict everywhere; no `any`, no non-null assertions without a comment explaining why.
@@ -107,7 +107,7 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1. The test strategy, the suite layout, the generated-file checks and how to run one test are in `docs/TESTING.md`.
+Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build with the JavaScript budget per page, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1. The test strategy, the suite layout, the generated-file checks and how to run one test are in `docs/TESTING.md`.
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `docs/<name>`, `spike/<name>`, `chore/<name>`, `phase-<n>/<name>`.
