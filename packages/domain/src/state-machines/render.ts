@@ -173,7 +173,7 @@ export function renderIndex(machines: readonly AnyMachine[]): string {
     '',
     '## Workshop defaults',
     '',
-    'Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.md §12); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.',
+    'Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.md §11); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.',
     '',
     '| Setting | Default |',
     '|---|---|',

@@ -8,8 +8,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - **Identity:** [`auth_accounts`](#auth_accounts), [`auth_verifications`](#auth_verifications), [`sessions`](#sessions), [`user_entity_roles`](#user_entity_roles), [`user_two_factor`](#user_two_factor), [`users`](#users)
 - **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_sites`](#customer_sites), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines)
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
-- **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`outbox_events`](#outbox_events), [`saved_views`](#saved_views)
-- **Other:** [`retention_runs`](#retention_runs)
+- **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`outbox_events`](#outbox_events), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -420,7 +419,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_entity_roles
 
-**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; replaced as a set by `admin.user.role.set`; one of the two tables with a delete grant for `app_user`, with `saved_views` (§6.10), where each person deletes only their own rows
+**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows, and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the two tables with a delete grant for `app_user`, with `saved_views` (§6.10), where each person deletes only their own rows
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -600,7 +599,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_entities
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller; a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write`. `account_contacts` follows the same rule for contacts (review 3)
+**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`; written by the lead command and by `app.attach_account_entity()`, which answers `attached`, `already_yours`, `held_by_other` or `missing`; a customer a colleague already looks after in the caller's company is routed to that colleague or the team lead, never opened to the caller; a direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, which checks `crm.lead.write:own` and `crm.account.write:own`. `account_contacts` follows the same rule for contacts (review 3)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -748,7 +747,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### contact_phones
 
-**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `e164`, `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`
+**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1116,7 +1115,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### composite_supply_rules
 
-**Catalogue entry** (DATABASE.md §6.3): `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment
+**Catalogue entry** (DATABASE.md §6.3): `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment; written as `tax_rates` is (0048)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1568,7 +1567,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tax_rates
 
-**Catalogue entry** (DATABASE.md §6.3): `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item
+**Catalogue entry** (DATABASE.md §6.3): `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item; carries no company, so it is written with `tax.rates.write` only by a request that acts for every active company (0048)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1936,7 +1935,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### outbox_events
 
-**Catalogue entry** (DATABASE.md §6.10; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`; the last four are updated only by the `outbox_publisher` role, except that `app.replay_dead_letter()` (`integrations.dlq.replay`) puts a dead letter back in the queue with its attempts and error cleared, the one change the append-only trigger allows on a dead-lettered row
+**Catalogue entry** (DATABASE.md §6.10; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json`, `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at` (when a failed event is due again after its backoff), `claimed_until` (the lease of the publisher run sending it); the last six are updated only by the `outbox_publisher` role, except that `app.replay_dead_letter()` (`integrations.dlq.replay`) puts a dead letter back in the queue with its attempts, error, backoff and lease cleared, the one change the append-only trigger allows on a dead-lettered row; events published more than 30 days ago are deleted by the retention purge (§5, §7)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1989,6 +1988,37 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `outbox_events_publisher_read` (select, to outbox_publisher): using `true`
 - `outbox_events_publisher_update` (update, to outbox_publisher): using `true`; with check `true`
 
+### retention_runs
+
+**Catalogue entry** (DATABASE.md §6.10): `job` (a pg_cron job name such as `outbox-events-purge`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `job` | text | no |  |  |
+| `started_at` | timestamp with time zone | no | `now()` |  |
+| `finished_at` | timestamp with time zone | yes |  |  |
+| `rows_affected` | integer | yes |  |  |
+| `error` | text | yes |  |  |
+
+**Primary key**
+
+- (`id`)
+
+**Check constraints**
+
+- `retention_runs_error_length_check`: `char_length("retention_runs"."error") <= 500`
+- `retention_runs_job_check`: `"retention_runs"."job" ~ '^[a-z]+(-[a-z]+)*$'`
+- `retention_runs_rows_affected_check`: `"retention_runs"."rows_affected" >= 0`
+
+**Indexes**
+
+- `retention_runs_job_started_idx` (btree): `job, started_at desc`
+
+**Row-level security:** enabled and forced; 1 policy.
+
+- `retention_runs_read` (select, to app_user): using `(select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0`
+
 ### saved_views
 
 **Catalogue entry** (DATABASE.md §6.10): `principal_id`, `screen` (`leads`, `team_members`, `price_lists`, `imports`), `name` (1 to 60 characters, trimmed, unique per person and screen), `settings_json` (`columns`, `sort`, `filters`, `density`); each person reads, writes and deletes their own views only, in any company; written by `profile.view.save` and `profile.view.delete` (migration 0045)
@@ -2031,39 +2061,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `saved_views_insert` (insert, to app_user): with check `principal_id = (select app.user_id())`
 - `saved_views_read` (select, to app_user): using `principal_id = (select app.user_id())`
 - `saved_views_update` (update, to app_user): using `principal_id = (select app.user_id())`; with check `principal_id = (select app.user_id())`
-
-## Other
-
-### retention_runs
-
-**Catalogue entry:** none in DATABASE.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `job` | text | no |  |  |
-| `started_at` | timestamp with time zone | no | `now()` |  |
-| `finished_at` | timestamp with time zone | yes |  |  |
-| `rows_affected` | integer | yes |  |  |
-| `error` | text | yes |  |  |
-
-**Primary key**
-
-- (`id`)
-
-**Check constraints**
-
-- `retention_runs_error_length_check`: `char_length("retention_runs"."error") <= 500`
-- `retention_runs_job_check`: `"retention_runs"."job" ~ '^[a-z]+(-[a-z]+)*$'`
-- `retention_runs_rows_affected_check`: `"retention_runs"."rows_affected" >= 0`
-
-**Indexes**
-
-- `retention_runs_job_started_idx` (btree): `job, started_at desc`
-
-**Row-level security:** enabled and forced; 1 policy.
-
-- `retention_runs_read` (select, to app_user): using `(select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0`
 
 ## Planned tables
 

@@ -13,7 +13,7 @@ import { placeOfSupply } from './place-of-supply';
 import { resolveRate } from './resolve-rate';
 
 /*
- * GOLDEN SET, AWAITING CA CONFIRMATION (docs/design/backend-weeks-3-5.md §12 q1, ADR 0007).
+ * GOLDEN SET, AWAITING CA CONFIRMATION (docs/design/backend-weeks-3-5.md §11 q1, ADR 0007).
  *
  * Worked examples computed by hand with the method of ADR 0007: half-up to the paisa per line and
  * per tax head, CGST and SGST each from half the rate, the document rounded to the rupee with
@@ -181,7 +181,7 @@ const GOLDEN: GoldenCase[] = [
   },
 ];
 
-describe('golden set, awaiting CA confirmation (design §12 q1)', () => {
+describe('golden set, awaiting CA confirmation (design §11 q1)', () => {
   it.each(GOLDEN)('$name', (golden) => {
     const supply = placeOfSupply({
       siteStateCode: golden.siteStateCode,

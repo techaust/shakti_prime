@@ -22,7 +22,7 @@ The Phase 0 state-machine specifications (BLUEPRINT §19 item 2). Each machine i
 
 ## Workshop defaults
 
-Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.md §12); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.
+Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.md §11); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.
 
 | Setting | Default |
 |---|---|

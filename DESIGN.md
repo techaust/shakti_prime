@@ -82,6 +82,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Numeric | Inter, `font-variant-numeric: tabular-nums` | as body | 510 |
 
 - Inter is self-hosted through `next/font` as a variable font with the optical-size axis, so headings get the display cut and the in-between weights 510 and 590 that Linear uses. `font-family: Inter, system-ui, sans-serif`.
+- The three weights are tokens, `--weight-normal` 400, `--weight-medium` 510 and `--weight-semibold` 590, and no other weight is used.
 - The root font size stays at the browser default, so a user's own text-size setting is respected; the body size is set on `body`.
 - Letter spacing: 0 for body, `-0.01em` for headings ≥ 20 px.
 - Never below 12 px. On phone layouts (below `md`), body is 15 / 22.
@@ -106,10 +107,10 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Button | Five variants: primary (accent fill), secondary (surface + border), ghost, danger, link (text style). Sizes default, sm and icon. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
-| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. The kW or HP arrives with the product lines of quotes (Phase 1). |
+| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. The kW or HP arrives with the product lines of quotes (Phase 1). |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
 | Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Document numbers join the search with quotes and orders (Phase 1), serials with inventory (Phase 3). |
-| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. |
+| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it; for a dialog opened from a menu item, that is the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. |
 | Toast | Bottom-right desktop, top on phone; 4 s; actions allowed ("Undo", "Open"). |
 | Empty state | One sentence, one primary action. |
 | Skeletons | On every list and detail while loading; never spinners for content. |
@@ -164,6 +165,9 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - Contrast check over both themes in CI.
 - Playwright visual snapshots of the role home pages, caller workspace, quote builder, scheduling board and print templates in light and dark, from Phase 1, each screen joining as it is built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
+- Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
+- A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
+- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip): public pages measure 176 to 184 kB, staff pages 243 to 261 kB (the framework about 176 kB and the shared app shell about 67 kB); 5 of the 13 staff pages meet the 250 kB aim, and bringing the grid pages under it needs a smaller shell or grid (Phase 1).
 - Copy lint over the message catalogue, which also holds the print strings, and the template JSON files under `packages/contracts/src/templates` (none yet; the first arrive in Phase 2); caller scripts and voice prompts join it when they exist (§11.4).
 
 ## 11. Voice and copy

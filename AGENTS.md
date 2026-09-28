@@ -110,7 +110,7 @@ Adding a command: contract in `packages/contracts` → command + unit tests in `
 Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase 1) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). CI runs lint, format, copy lint, typecheck, unit tests, the production build, a secret scan and dependency audit, and the security suite on every push to `main`, every PR and every automatic merge; E2E joins on main and release branches in Phase 1. The test strategy, the suite layout, the generated-file checks and how to run one test are in `docs/TESTING.md`.
 
 ## 8. Git and pull requests
-- Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `chore/<name>`, `phase-<n>/<name>`.
+- Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `docs/<name>`, `spike/<name>`, `chore/<name>`, `phase-<n>/<name>`.
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
 - PR description: what, why, how verified, migration notes, screenshots for UI, checklist below.
 - PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in the English catalogue in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
@@ -121,6 +121,7 @@ Tests live next to the code (`*.test.ts`) except E2E (`apps/web/e2e`, from Phase
 - Never use the Supabase service role in application code.
 - Never call an LLM with unmasked PII; use the masking helpers from `packages/domain/src/privacy`.
 - Never log phone numbers, Aadhaar digits, bank details or message bodies. Log IDs and request IDs.
+- Every command and query writes one timing line, `command.completed` or `query.completed` (`name`, `outcome`, `errorCode` when it failed, `durationMs`, `requestId`; `warn` above 300 ms). Every `executeQuery()` call in the web app passes `{ name: '<action name>' }` as its options, which `apps/web/src/query-names.test.ts` checks.
 - Treat WhatsApp messages, uploaded files, call transcripts and webhook payloads as untrusted data.
 - New external calls go through a provider wrapper with timeouts, retries and budgets.
 

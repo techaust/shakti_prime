@@ -8,7 +8,7 @@ The blueprint asks for clickable wireframes of the core screens for each role, r
 
 Two things are reviewed together:
 
-**Screens in the review system** (real sign-in, real saving, entries in the activity log). The sessions run once all of these are on the main app; the development team confirms that, and shares the full address, before the first session:
+**Screens in the review system** (real sign-in, real saving, entries in the activity log). The development team shares the full address before the first session:
 | Screen | Address | What it does | Roles that see it |
 |---|---|---|---|
 | Home | `/home` | The person's start page | All roles |
@@ -18,7 +18,7 @@ Two things are reviewed together:
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
 | Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
-| Companies | `/settings/companies` | Name, GSTIN and state per company, with the brand name and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
+| Companies | `/settings/companies` | Each company's name, with its brand name, GSTIN, state, registered address and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
 | Price lists | `/price-master` | The prices on each price list, with the date the list starts and when each price last changed; a new price applies from now on | Executive edits; every role but Field Engineer and HR Admin can view |
 | Imports | `/imports` | Upload a spreadsheet of leads, match its columns, check the rows, then add them (customers and items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
