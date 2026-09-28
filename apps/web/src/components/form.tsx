@@ -14,7 +14,11 @@ import {
 import { useFormStatus } from 'react-dom';
 import type { ErrorKey } from '../i18n/types';
 
-/** Minimal form primitives on the DESIGN.md §6 rules; the component library arrives in week 4. */
+/**
+ * Form primitives on the DESIGN.md §6 rules for the public sign-in screens, the error screen and
+ * the set-password and two-factor flows, written before the component library `@shakti/ui`; the
+ * signed-in screens use `@shakti/ui`.
+ */
 
 export function Field({ label, id, children }: { label: string; id: string; children: ReactNode }) {
   return (

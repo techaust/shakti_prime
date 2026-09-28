@@ -11,7 +11,8 @@ import { CursorSchema } from './common';
 
 /**
  * What the app keeps offline. Each record's shape is the DTO of its module, contracted with that
- * module in Phase 2; the sync envelope carries it as an object the app's local store validates.
+ * module in its own phase (inventory in Phase 3, projects and field in Phase 4, docs/ROADMAP.md);
+ * the sync envelope carries it as an object the app's local store validates.
  */
 export const SYNC_COLLECTIONS = [
   'schedule_slots',
