@@ -106,9 +106,9 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Button | Five variants: primary (accent fill), secondary (surface + border), ghost, danger, link (text style). Sizes default, sm and icon. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
-| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. |
+| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. The kW or HP arrives with the product lines of quotes (Phase 1). |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
-| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. |
+| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Document numbers join the search with quotes and orders (Phase 1), serials with inventory (Phase 3). |
 | Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. |
 | Toast | Bottom-right desktop, top on phone; 4 s; actions allowed ("Undo", "Open"). |
 | Empty state | One sentence, one primary action. |
@@ -122,13 +122,13 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - Default **System**; override **Light / Dark** from the profile menu, stored on the user profile and mirrored in a cookie for server rendering.
 - `next-themes` with `attribute="data-theme"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`; inline pre-paint script prevents a flash.
 - `color-scheme` is set on `:root` so native controls match. `<meta name="theme-color">` per scheme.
-- Logos: light and dark variants per entity. Photos and maps get a 6% dim overlay in dark mode.
+- Logos: light and dark variants per entity, arriving with the letterhead in Phase 1. Photos and maps get a 6% dim overlay in dark mode, applied when they first appear with projects and the field app in Phase 4.
 - The Android app reads the phone setting via `useColorScheme` and honours the same override from the profile.
 - The public website follows the visitor's system setting.
 
 ## 8. Token delivery
 `packages/tokens` holds the three theme inputs (§2.1), the fixed status and chart hues, and the LCH generator. Its build writes:
-- `tokens.css`: `:root` light values, dark values under `:root:not([data-theme="light"])` inside `@media (prefers-color-scheme: dark)`, and again under `:root[data-theme="dark"]`; `.theme-light` and `.theme-dark` classes carry each theme on one element, so the `/design` page shows both side by side.
+- `tokens.css`: `:root` light values, dark values under `:root:not([data-theme="light"])` inside `@media (prefers-color-scheme: dark)`, and again under `:root[data-theme="dark"]`; `.theme-light` and `.theme-dark` classes carry each theme on one element, so the `/design` page shows both side by side; the high-contrast variant (§2.1) repeats the pattern under `:root[data-contrast="high"]`, with its system-dark and explicit-dark blocks, and in the `.theme-light-high` and `.theme-dark-high` classes.
 - `tailwind.css`: Tailwind v4 `@theme` mapping (`--color-bg: var(--bg)` …) and shadcn/ui variable aliases (`--background`, `--foreground`, `--primary`, `--primary-foreground`, `--muted`, `--border`, `--ring`, `--destructive`).
 - a typed object of the generated values, exported from the package for the Android app (NativeWind) and for chart colours.
 
@@ -164,7 +164,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - Contrast check over both themes in CI.
 - Playwright visual snapshots of the role home pages, caller workspace, quote builder, scheduling board and print templates in light and dark, from Phase 1, each screen joining as it is built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
-- Copy lint over the message catalogue, templates, caller scripts, voice prompts and print files (§11).
+- Copy lint over the message catalogue, which also holds the print strings, and the template JSON files under `packages/contracts/src/templates` (none yet; the first arrive in Phase 2); caller scripts and voice prompts join it when they exist (§11.4).
 
 ## 11. Voice and copy
 The people who use Shakti Prime are tele-callers, store staff, engineers in the field, accountants, managers and farmers on WhatsApp. Copy is written for them. This rule covers every word a user can read or hear: screen labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, and the voice assistant's replies. Screens, messages, emails and documents are in English; Hinglish is used only in the spoken channels of §11.5.
@@ -172,7 +172,7 @@ The people who use Shakti Prime are tele-callers, store staff, engineers in the 
 ### 11.1 Rules
 1. **Plain language.** Everyday words, short sentences, one idea per message, active voice. Say what happened, then what to do. English at a reading level a new tele-caller understands on day one.
 2. **No technical words, ever.** The user never sees error codes, HTTP statuses, stack traces, table or column names, internal command names, vendor names, or developer vocabulary. Every domain error code maps to a plain sentence in the message catalogue. If the system cannot explain a failure simply, it says "Something went wrong on our side. Please try again in a minute." and shows a short reference number the support person can look up.
-3. **Final, product-specific copy only.** No placeholder, sample, dummy or generic text anywhere a user can see it: no "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example", "Insert text here", and no invented names, phone numbers or amounts in templates, previews, seeds shown to users, screenshots or PDFs. Every string is the wording the product ships with.
+3. **Final, product-specific copy only.** No placeholder, sample, dummy or generic text anywhere a user can see it: no "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example", "Insert text here", and no invented names, phone numbers or amounts in templates, previews, seeds shown to users, screenshots or PDFs. Every string is the wording the product ships with. The one exception is the `/design` preview: to show formats it may use invented figures, places and product sizes, and it says on the page that they are not records; it never shows an invented person, phone number or company identifier.
 4. **Consistent names.** One name per thing across the whole product: Lead, Customer, Site, Quote, Sales Order, Dispatch, Project, Proforma, Payment, Engineer visit, Price list, Stock, Kit, Serial number, Warranty claim. Never mix "opportunity" and "lead", or "SO" and "Sales Order", on screen.
 5. **Numbers and dates the Indian way.** ₹ with lakh and crore grouping, DD-MM-YYYY, 24-hour IST, kW and HP with a space ("5 HP", "3.3 kW").
 6. **Respectful and direct.** Customers are addressed by name with "ji" ("Ramesh ji") and, in Hinglish, as "aap"; staff messages use first names. No exclamation marks, no jargon, no blame ("Please check the phone number" rather than "Invalid input").
@@ -199,7 +199,7 @@ The people who use Shakti Prime are tele-callers, store staff, engineers in the 
 - All user-facing strings sit in the `next-intl` catalogue (`apps/web/messages/en.json`) and the field app catalogue, keyed by screen and purpose. Nothing is inlined in components.
 - WhatsApp and email templates live in `packages/contracts/src/templates` in English with their approved Meta template names. Caller scripts and voice prompts live beside them in two variants, `hinglish` and `en`.
 - Print and PDF templates take every string from the catalogue.
-- The copy lint runs in CI over the catalogue, templates, caller scripts, voice prompts and print files: it fails on any banned word or placeholder pattern, on any Devanagari character, and on any string longer than the layout allows for its key.
+- The copy lint (`tools/copy-lint`) runs in CI over the catalogue, which holds the print strings too, and the template JSON files under `packages/contracts/src/templates`, of which there are none yet (the first templates arrive in Phase 2); caller scripts and voice prompts join it when they exist. It fails on any banned word or placeholder pattern, an exclamation mark or a Devanagari character, and on a string over the length set for its key in `tools/copy-lint/copy-lint.config.json`: 24 characters for the button keys listed there, 60 for titles and 30 for the product name.
 - Copy review is part of the UAT sign-off per role: a real user of that role reads every screen, and a tele-caller reads every Hinglish script aloud.
 
 ### 11.5 Hinglish for spoken channels
