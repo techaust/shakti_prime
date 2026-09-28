@@ -41,7 +41,7 @@ interface Deps {
  * row, a row past the 7-day absolute limit (docs/SECURITY.md §2) or an unknown session answers
  * undefined. `last_seen_at` is written at most once a minute.
  */
-export async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
+async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
   // A session the app has ended is refused by the auth routes themselves (create-auth.ts). Only
   // that refusal means "signed out"; a database or network failure is an outage and reaches the
   // error screen, instead of sending the person round the sign-in page (AUDIT M36).
@@ -128,7 +128,7 @@ export function requirePrincipal(resolved: ResolvedSession | undefined): Princip
  * The session token named by a response's session cookie. Better Auth re-issues the session on
  * enrolment, so the request's own cookie is stale by then; the fresh token is in `set-cookie`.
  */
-export function sessionTokenFromSetCookie(headers: Headers): string | undefined {
+function sessionTokenFromSetCookie(headers: Headers): string | undefined {
   for (const cookie of headers.getSetCookie()) {
     const pair = cookie.split(';')[0] ?? '';
     const at = pair.indexOf('=');

@@ -121,7 +121,7 @@ export const HTTP_DISABLED_PATHS = [
 ];
 
 /** Our own error codes on top of Better Auth's; the actions map them to catalogue keys. */
-export const AUTH_ERROR_CODES = {
+const AUTH_ERROR_CODES = {
   BOT_CHECK_FAILED: 'BOT_CHECK_FAILED',
   BOT_CHECK_UNAVAILABLE: 'BOT_CHECK_UNAVAILABLE',
   ACCOUNT_LOCKED: 'ACCOUNT_LOCKED',

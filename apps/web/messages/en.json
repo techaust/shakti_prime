@@ -178,7 +178,7 @@
     },
     "twoFactor": {
       "enrolTitle": "Set up your authenticator app",
-      "enrolIntro": "Your role needs a second check at sign-in. Install an authenticator app such as Google Authenticator or Microsoft Authenticator on your phone, then confirm your password to begin.",
+      "enrolIntro": "Your role needs a second check at sign-in. Install an authenticator app from your phone's app store, then confirm your password to begin.",
       "password": "Your password",
       "start": "Begin setup",
       "scanTitle": "Scan this with your authenticator app",
@@ -330,7 +330,7 @@
   },
   "design": {
     "title": "Design preview",
-    "intro": "Every colour, text size, measure and control in the light and dark themes and their higher-contrast versions. Each colour shows how readable it is on a card: text needs 4.5 or more (7 with higher contrast), lines and icons need 3 or more (4.5 with higher contrast).",
+    "intro": "Every colour, text size, measure and control in the light and dark themes and their higher-contrast versions. Each colour shows how readable it is on a card: text needs 4.5 or more (7 with higher contrast), lines and icons need 3 or more (4.5 with higher contrast). Figures, places and product sizes on this page show formats; none of them is a record.",
     "light": "Light",
     "dark": "Dark",
     "lightHigh": "Light, higher contrast",
@@ -386,7 +386,7 @@
     "fieldLabel": "Customer name",
     "fieldHint": "Full name, as the customer writes it",
     "fieldErrorLabel": "Mobile number",
-    "fieldErrorValue": "98290",
+    "fieldErrorValue": "98",
     "fieldError": "Please check the phone number. Enter the 10-digit mobile number.",
     "selectLabel": "Pump type",
     "selectSubmersible": "Submersible",
@@ -447,7 +447,7 @@
     "undoToastBody": "The lead is moved to Contacted.",
     "undo": "Undo",
     "undoneToastBody": "The lead is back in New.",
-    "board": "Kanban board",
+    "board": "Lead board",
     "print": "Print preview",
     "printIntro": "Printed documents are always light, whatever the screen shows. These are the quotation and the large product label as they print, shown at a reduced size for a pump enquiry at Rampura, Chomu that is not a real record. Company details that are not recorded yet say so.",
     "printQuote": "Print preview: quotation, A4",
@@ -511,7 +511,8 @@
       "customerAddress": "Tehsil Chomu, District Jaipur, Rajasthan 303702",
       "preparedBy": "the Agro Solar Hub sales team",
       "cardDetail": "Solar submersible pump, 7.5 HP",
-      "cardOwner": "Sales team"
+      "cardOwner": "Sales team",
+      "terms": "The terms of sale are not recorded yet."
     }
   },
   "errorPage": {
@@ -597,7 +598,7 @@
   },
   "companies": {
     "title": "Companies",
-    "intro": "The companies in the group and the details printed on their quotes and payment requests.",
+    "intro": "The companies in the group and the details printed on their quotes and payment links.",
     "caption": "Companies",
     "empty": "You don't work in any company yet. Ask an Executive to give you a role.",
     "columns": {
@@ -611,7 +612,7 @@
     },
     "edit": "Edit",
     "editTitle": "Edit {name}",
-    "editIntro": "These details appear on quotes and payment requests from now on.",
+    "editIntro": "These details appear on quotes and payment links from now on.",
     "brandName": "Brand name",
     "brandNameHelper": "The name customers know the company by, 2 to 80 characters",
     "upiId": "UPI ID",
@@ -798,7 +799,7 @@
       },
       "assignDialog": {
         "title": "Assign {name}",
-        "intro": "Choose who works on this lead next. It stays with them for two days before anyone else can take it.",
+        "intro": "Choose who works on this lead next. It stays with them for a set time before anyone else can take it.",
         "person": "Person",
         "loading": "Finding the people you can choose.",
         "none": "No one you can hand this lead to works in this company.",

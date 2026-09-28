@@ -3,7 +3,7 @@ import { parseUserAccess, type KeyValue, type UserAccess } from '@shakti/domain'
 import { logger } from '../log';
 
 /** How long a resolved principal is cached, and how long a user's version counter lives. */
-export const PRINCIPAL_CACHE_SECONDS = 60;
+const PRINCIPAL_CACHE_SECONDS = 60;
 const VERSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface CachedPrincipal {

@@ -7,7 +7,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
 /** The longest window the audit reader accepts, in days (`AuditQueryInput`). */
-export const MAX_WINDOW_DAYS = 93;
+const MAX_WINDOW_DAYS = 93;
 
 /** Today's calendar date in India, as `YYYY-MM-DD`. */
 export function istToday(now: Date): string {

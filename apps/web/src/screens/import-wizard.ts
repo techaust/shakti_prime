@@ -56,7 +56,7 @@ export const LEAD_IMPORT_FIELDS = [
 ] as const satisfies readonly LeadImportField[];
 
 /** Fields a value chosen on screen can fill for every row whose cell is empty. */
-export const DEFAULTABLE_FIELDS = [
+const DEFAULTABLE_FIELDS = [
   'pipelineKey',
   'accountType',
   'preferredLanguage',
@@ -140,7 +140,7 @@ export function initialDraft(job: Pick<ImportJobDto, 'mapping' | 'columns'>): Ma
   return { columns: guessColumns(job.columns), defaults: {} };
 }
 
-export function draftOf(mapping: ImportMapping): MappingDraft {
+function draftOf(mapping: ImportMapping): MappingDraft {
   const defaults: MappingDraft['defaults'] = {};
   for (const field of DEFAULTABLE_FIELDS) {
     const value = mapping.defaults[field];

@@ -12,14 +12,14 @@ Two things are reviewed together:
 | Screen | Address | What it does | Roles that see it |
 |---|---|---|---|
 | Home | `/home` | The person's start page | All roles |
-| Your profile | `/settings/profile` | The System, Light and Dark theme switch and the password change, from the profile menu | All roles |
-| Leads | `/leads` | List with search and filters | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
-| Leads board | `/leads/board` | Leads by stage: drag a card to another stage, or use the card's menu to move, assign, follow up later, reopen, win or lose | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
+| Your profile | `/settings/profile` | The System, Light and Dark theme switch, the Higher contrast switch and the password change, from the profile menu | All roles |
+| Leads | `/leads` | List with search and filters | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager, Project Manager, Accounts |
+| Leads board | `/leads/board` | Leads by stage: drag a card to another stage, or use the card's menu to move, assign, follow up later, reopen, win or lose | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager, Project Manager, Accounts |
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
 | Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
 | Companies | `/settings/companies` | Name, GSTIN and state per company, with the brand name and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
-| Price Master | `/price-master` | Prices per tier with start dates and history | Executive edits; most roles can view |
+| Price lists | `/price-master` | The prices on each price list, with the date the list starts and when each price last changed; a new price applies from now on | Executive edits; every role but Field Engineer and HR Admin can view |
 | Imports | `/imports` | Upload a spreadsheet of leads, match its columns, check the rows, then add them (customers and items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
@@ -41,7 +41,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 
 | Role | Their job in the system (PRD §2) | Reviewers | Names |
 |---|---|---|---|
-| Executive | Direction, approvals, Price Master, AI assistant settings, profit and margins | 1 | |
+| Executive | Direction, approvals, price lists, AI assistant settings, profit and margins | 1 | |
 | General Manager | Operations, response times, escalations; no cost figures | 1 | |
 | Sales Team Lead | Supervising callers, reassigning leads, targets | 1–2 | |
 | Tele-caller, cold calling | The calling queue and qualifying leads | 2 | |
@@ -80,7 +80,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 | # | Task | Where | Done when |
 |---|---|---|---|
 | E1 | "From your home page, tell me which company brought in the most sales order value this month, and how many leads are waiting for a first call." | Prototype, Executive home | Both figures read out correctly |
-| E2 | "Set a new retail price for the 5 HP solar pump kit, starting on the 1st of next month." | App, Price Master | Price saved with the right start date |
+| E2 | "Set a new retail price for the 5 HP solar pump kit, to apply from now on, and say why." | App, Price lists | Price saved on the Retail list with a reason |
 | E3 | "Find who changed a price in the last seven days." | App, Activity log | The right entry is opened |
 | E4 | "A dealer's order is on hold for credit. Release it and say why." | Prototype, Dealer credit | Release given with a reason |
 | E5 | "Add a new tele-caller to Agro Solar Hub." | App, Team members | Invitation sent with the right role and company |
@@ -98,8 +98,8 @@ One or two people for each of the eleven roles; two where the role has many peop
 |---|---|---|---|
 | T1 | "Which caller in your team has made the most calls today, and who is behind target?" | Prototype, Team lead home | Both named |
 | T2 | "A converter is on leave today. Move one of their leads to another converter." | App, Leads board | Lead reassigned from the card |
-| T3 | "Find the leads that have been in Contacted for more than three days." | App, Leads board | The age on the cards is used |
-| T4 | "Show me all the leads of your team from the walk-in source." | App, Leads | Filter applied |
+| T3 | "Find the leads in Contacted that have been open for more than three days." | App, Leads board | The "Open for" days on the cards in the Contacted column are used |
+| T4 | "A customer from Chomu called back, but you only remember that his name sounds like Ramesh. Find his lead." | App, Search or go to (Ctrl K) | The lead is found by a half-remembered name or the village |
 
 ### 4.4 Tele-caller, cold calling
 | # | Task | Where | Done when |
@@ -123,7 +123,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 |---|---|---|---|
 | S1 | "A farmer walks in asking about a solar pump. Record him while he is standing at the counter." | Prototype, walk-in quick form on the Store home | Saved in under 30 seconds |
 | S2 | "Show me the walk-ins you recorded today." | Prototype, Store home | List found |
-| S3 | "The farmer asks the price of the 3 HP kit. Find it." | App, Price Master | Price read out for the Retail tier |
+| S3 | "The farmer asks the price of the 3 HP kit. Find it." | App, Price lists | Price read out for the Retail tier |
 
 ### 4.7 Inventory Manager
 | # | Task | Where | Done when |
@@ -131,7 +131,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 | I1 | "Which items are low or out of stock?" | Prototype, Inventory home | Items named |
 | I2 | "Which sales orders are waiting for stock before they can be dispatched?" | Prototype, Inventory home | Orders named |
 | I3 | "Open one of those sales orders and tell me what is still to be dispatched." | Prototype, sales order detail | Remaining quantities read |
-| I4 | "Find the current dealer price of a 5 HP pump controller." | App, Price Master | Price read out |
+| I4 | "Find the current dealer price of a 5 HP pump controller." | App, Price lists | Price read out |
 
 ### 4.8 Project Manager
 | # | Task | Where | Done when |

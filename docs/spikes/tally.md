@@ -18,7 +18,7 @@
 Not built, by design: the `/api/v1/connector/tally/*` routes and every table they would write (`tally_vouchers`, `tally_purchase_vouchers`, tombstones, heartbeats, connectors and their keys) belong to Phase 5; no migration is added. The Windows connector (`apps/tally-connector`) is Phase 5.
 
 ## 2. What the user supplies
-1. The **Tally discovery visit** (ROADMAP §5): the Tally Prime version, the companies and which entity each belongs to, whether "Buyer Order No." is filled on sales vouchers, and how cancellations and deletions are done in practice.
+1. The **Tally discovery visit** (ROADMAP §10): the Tally Prime version, the companies and which entity each belongs to, whether "Buyer Order No." is filled on sales vouchers, and how cancellations and deletions are done in practice.
 2. A **copy of one company** (restored backup) on a Windows machine with Tally Prime running and its XML server enabled on port 9000 (F1 › Settings › Connectivity › "TallyPrime acts as Server"). Never the live books.
 3. Access to run the script on that machine or one on the same network: `TALLY_URL` (for example `http://localhost:9000`), `TALLY_COMPANY` (the exact company name), `TALLY_ENTITY_CODE` (`SS`, `SMP`, `ASH` or `RCREF`), `TALLY_CONNECTOR_ID` (a UUID) and `TALLY_CONNECTOR_KEY` (a spike key of at least 32 random characters, generated there), optionally `TALLY_SPIKE_SINCE` (an AlterID; default 0 reads everything).
 

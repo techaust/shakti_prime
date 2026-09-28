@@ -40,7 +40,7 @@ pnpm + Turborepo monorepo.
 | `pnpm db:seed`                               | Seed org and reference data; safe to re-run                                              |
 | `pnpm db:verify`                             | Check applied migrations against the journal hashes                                      |
 | `pnpm coverage`                              | Unit test coverage summary per workspace (report only)                                   |
-| `pnpm build`                                 | Production build of every workspace                                                      |
+| `pnpm build`                                 | Production build of the workspaces with a build step (`web`, `@shakti/tokens`)           |
 | `pnpm format`                                | Prettier write                                                                           |
 | `pnpm --filter web dev`                      | Run the web app locally                                                                  |
 | `pnpm db:docs`                               | Regenerate the ERD and data dictionary in `docs/data`                                    |

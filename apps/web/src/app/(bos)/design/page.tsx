@@ -97,6 +97,7 @@ export default async function DesignPage() {
       addressLines: [fill.customerAddress],
       placeOfSupply: spike.customer.placeOfSupply,
     },
+    terms: [fill.terms],
     preparedBy: fill.preparedBy,
   };
   const [quoteDoc, labelHtml] = await Promise.all([

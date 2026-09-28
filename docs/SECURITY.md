@@ -20,7 +20,7 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 
 ## 2. Identity and authentication
 - **Passwords:** Argon2id (m = 64 MiB, t = 3, p = 1); minimum 12 characters; breached-password check.
-- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms. The exponential lockout in Redis applies to one account from one address, so a stranger who knows an email cannot keep its owner out and one office address is not locked for everyone behind it; the account-wide count only escalates, emailing the owner at every tenth failure; per-address request caps bound what one address tries across accounts; an Executive can lift an account's locks. The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
+- **Bot and brute-force controls:** Cloudflare Turnstile on login and public forms. The exponential lockout in Redis applies to one account from one address, so a stranger who knows an email cannot keep its owner out and one office address is not locked for everyone behind it; the account-wide count only escalates, emailing the owner at every tenth failure; per-address request caps bound what one address tries across accounts; an Executive can lift an account's locks through the audited command `admin.user.lock.clear`. The trade-off: a spread-out guessing attempt meets Turnstile, the caps and the owner's alert rather than a hard lock. A suspended account locks like an active one, so the lock does not reveal it, and no session is created for an inactive user.
 - **Sessions:** database sessions with rotation on privilege change; idle timeout 12 h; absolute 7 d; admins can force logout; a role change revokes sessions. A revoked or expired session is refused on every auth route and in-process call, not only in `currentPrincipal()`; no device is ever remembered past the second factor. The session token column is readable by the auth module's database role only; application code sees session metadata, never the token. The session cookie is `__Host-` prefixed in production. Per-address request caps bound the password-hashing and mail-sending endpoints on top of the sign-in lockout.
 - **Cookies:** HttpOnly, Secure, SameSite=Lax, `__Host-` prefix.
 - **2FA:** TOTP required for Executive, GM and Accounts; each code verifies once; five wrong codes lock the second factor for an hour; the sign-in lock clears and the last sign-in is recorded only after the second factor; recovery codes; recovery email via SES only; a user who has lost both the app and the backup codes is reset by an Executive (`admin.user.two_factor.reset`, never their own account) only after the Executive has confirmed who is asking by phone or in person, and the reset signs the user out everywhere, emails them and makes them set up a new app at the next sign-in.
@@ -174,14 +174,14 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - **Access review:** quarterly review of roles and agent autonomy settings by an Executive.
 
 ## 11. Security test suite
-Runs on every PR against real Postgres:
+Runs on every PR against real Postgres. Items 1 to 3 run today, and item 5 for the token route; each other item joins with its feature in the phase named (TESTING.md §3):
 1. For every business table and every role × entity pair: only that entity's rows are visible; no context ⇒ zero rows.
 2. Cost fields absent from every DTO unless the command requires a cost permission; GM sees no rates and no margins; Inventory Manager sees rates and no margins; purchase vouchers gated.
-3. Agent principals cannot call cost, admin or sensitive-document commands.
-4. Voice tokens act only as the issuing user and expire.
-5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels.
-6. Vector retrieval respects sensitivity per role.
-7. WhatsApp documents file only against the sending customer.
-8. Masking: Aadhaar digits never appear in storage, logs or LLM payloads (assertion on captured requests).
-9. Webhooks: invalid signatures rejected; duplicates ignored.
-10. Dial command: blocked outside TRAI hours, for DND without consent, and on the wrong number series.
+3. Agent principals cannot call cost, admin or sensitive-document commands. The sensitive-document commands join the sweep when they are registered, with the document vault in Phase 4.
+4. Voice tokens act only as the issuing user and expire. Phase 2, with live voice.
+5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels. The token route's tests run today; the channel-policy check runs with the hosted Supabase dev project (`pnpm --filter web realtime-spike`).
+6. Vector retrieval respects sensitivity per role. Phase 1, with the Knowledge Vault.
+7. WhatsApp documents file only against the sending customer. Phase 4, with the document vault's WhatsApp filing.
+8. Masking: Aadhaar digits never appear in storage, logs or LLM payloads (assertion on captured requests). Phase 4, with the document vault that stores the OCR worker's masked copies; the worker's masking rules have unit tests today.
+9. Webhooks: invalid signatures rejected; duplicates ignored. Phase 2, with the webhook routes.
+10. Dial command: blocked outside TRAI hours, for DND without consent, and on the wrong number series. Phase 2, with click-to-dial.

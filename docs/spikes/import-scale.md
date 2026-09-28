@@ -45,7 +45,7 @@ The security suite covers these cases (`packages/domain/tests/commands/imports.t
 - the replay of a row's key through `crm.lead.create`.
 
 ## Numbers
-Windows 11 laptop, Node 24.19, Docker Postgres 17 on `127.0.0.1:54322`, one connection, in process.
+Windows 11 laptop, Node 24.19, Docker Postgres 17 on `127.0.0.1:54322`, shared with the test suites, one connection, in process.
 
 | Measure | First run (row by row) | Set-based batch |
 |---|---|---|
@@ -57,7 +57,7 @@ Windows 11 laptop, Node 24.19, Docker Postgres 17 on `127.0.0.1:54322`, one conn
 | Roll back | 1,000 rows in 0.78 s | 50,000 rows in 8.3 s |
 | Upload, preview and commit of 50,000 rows | about 75 minutes (projected) | 3 min 25 s (measured) |
 
-The first run's create and preview times were taken while other workstreams ran their test suites on the same database. The set-based run had the database to itself, so the create and preview gains in the table are mostly that, not a code change. The commit gain is the code change: row by row on the same quiet database, 500 rows committed at 21.6 rows a second. The slowest batch (17.2 s) was one of a few slow ones between 20,000 and 25,000 rows, and between 35,000 and 40,000; the database's own background work at those moments was not recorded.
+Both runs used the local database the test suites share, as both result files record. The first run's create and preview times were taken while other workstreams ran their test suites on it; what else ran during the set-based run was not recorded, so the create and preview gains in the table are not claimed as a code change. The commit gain is the code change: row by row, in the profile above with the database otherwise quiet, 500 rows committed at 21.6 rows a second, against 272 rows a second set-based. The slowest batch (17.2 s) was one of a few slow ones between 20,000 and 25,000 rows, and between 35,000 and 40,000; what else ran on the database at those moments was not recorded.
 
 ## What the numbers mean
 - **The five-minute target is met locally with one worker.** Design §8's four concurrent batch workers are not needed for it at this rate. Batches of one job still run one after another, because the job row is locked per batch.

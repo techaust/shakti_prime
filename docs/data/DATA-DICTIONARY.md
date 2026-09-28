@@ -419,7 +419,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_entity_roles
 
-**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; replaced as a set by `admin.user.role.set`, the one table with a delete grant for `app_user`
+**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; replaced as a set by `admin.user.role.set`; one of the two tables with a delete grant for `app_user`, with `saved_views` (§6.10), where each person deletes only their own rows
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
