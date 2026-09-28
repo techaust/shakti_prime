@@ -11,8 +11,6 @@ import {
   BoardCard,
   BoardColumn,
   Button,
-  Dialog,
-  DialogContent,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,6 +25,7 @@ import {
 } from '@shakti/ui';
 import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useState, type ComponentProps, type DragEvent, type ReactNode } from 'react';
 import { listBoardStageLeads, moveOpportunityStage } from '../../actions/crm';
@@ -48,9 +47,10 @@ import {
 } from '../../screens/lead-board';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
-import { AssignForm, ConfirmForm, LoseForm, MoveForm, NurtureForm } from './board-dialogs';
+import type { DialogKind } from './board-dialogs';
 
-type DialogKind = 'move' | 'assign' | 'nurture' | 'reopen' | 'win' | 'lose';
+/** A card's dialogs (move, assign, nurture, lose, win, reopen), fetched when one first opens. */
+const BoardDialog = dynamic(() => import('./board-dialogs').then((m) => m.BoardDialog));
 
 const STATE_TONE: Record<BoardLeadDto['state'], StatusTone> = {
   open: 'accent',
@@ -312,64 +312,27 @@ export function LeadBoardScreen({
         ))}
       </div>
 
-      <Dialog
-        open={dialog !== undefined}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) close();
-        }}
-      >
-        {dialog === undefined ? null : (
-          <DialogContent closeLabel={common('close')}>
-            <BoardDialog
-              kind={dialog.kind}
-              lead={dialog.lead}
-              stages={stages}
-              onCancel={close}
-              onDone={(result, ownerName) => {
-                const name = dialog.lead.customerName;
-                const message =
-                  dialog.kind === 'move'
-                    ? t('moveDialog.done', { name, stage: stageNames.get(result.stageId) ?? '' })
-                    : dialog.kind === 'assign'
-                      ? t('assignDialog.done', { name, person: ownerName ?? '' })
-                      : t(`${dialog.kind}Dialog.done`, { name });
-                done(message)(result, ownerName);
-              }}
-            />
-          </DialogContent>
-        )}
-      </Dialog>
+      {dialog === undefined ? null : (
+        <BoardDialog
+          kind={dialog.kind}
+          lead={dialog.lead}
+          stages={stages}
+          closeLabel={common('close')}
+          onCancel={close}
+          onDone={(result, ownerName) => {
+            const name = dialog.lead.customerName;
+            const message =
+              dialog.kind === 'move'
+                ? t('moveDialog.done', { name, stage: stageNames.get(result.stageId) ?? '' })
+                : dialog.kind === 'assign'
+                  ? t('assignDialog.done', { name, person: ownerName ?? '' })
+                  : t(`${dialog.kind}Dialog.done`, { name });
+            done(message)(result, ownerName);
+          }}
+        />
+      )}
     </div>
   );
-}
-
-function BoardDialog({
-  kind,
-  lead,
-  stages,
-  onDone,
-  onCancel,
-}: {
-  kind: DialogKind;
-  lead: BoardLeadDto;
-  stages: readonly PipelineStageDto[];
-  onDone: (result: OpportunityDto, ownerName?: string) => void;
-  onCancel: () => void;
-}) {
-  const props = { lead, onDone, onCancel };
-  switch (kind) {
-    case 'move':
-      return <MoveForm {...props} stages={stages} />;
-    case 'assign':
-      return <AssignForm {...props} />;
-    case 'nurture':
-      return <NurtureForm {...props} />;
-    case 'lose':
-      return <LoseForm {...props} />;
-    case 'reopen':
-    case 'win':
-      return <ConfirmForm {...props} kind={kind} />;
-  }
 }
 
 /**

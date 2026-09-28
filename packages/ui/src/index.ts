@@ -77,10 +77,5 @@ export {
   type BoardStageTone,
 } from './board';
 export { Toaster, toast, TOAST_DURATION_MS, useIsPhone } from './toast';
-export {
-  CommandPalette,
-  isPaletteShortcut,
-  usePaletteShortcut,
-  type PaletteGroup,
-  type PaletteItem,
-} from './command-palette';
+export { CommandPalette, type PaletteGroup, type PaletteItem } from './command-palette';
+export { isPaletteShortcut, usePaletteShortcut } from './palette-shortcut';

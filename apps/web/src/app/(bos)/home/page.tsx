@@ -3,7 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Page } from '../../../components/shell/page';
 import type { RoleNameKey } from '../../../i18n/types';
-import { navRequires, visibleNav } from '../../../nav';
+import { navRequires } from '../../../nav';
+import { visibleNav } from '../../../screens/menu-access';
 import { screenAccess, screenTitle } from '../../../screens/access';
 
 export const dynamic = 'force-dynamic';

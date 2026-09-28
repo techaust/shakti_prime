@@ -1,15 +1,15 @@
 'use client';
 
-import {
-  OpportunityLostReasonSchema,
-  OpportunityNurtureReasonSchema,
-  type BoardLeadDto,
-  type LeadAssigneeDto,
-  type OpportunityDto,
-  type PipelineStageDto,
+import type {
+  BoardLeadDto,
+  LeadAssigneeDto,
+  OpportunityDto,
+  PipelineStageDto,
 } from '@shakti/contracts';
 import {
   Button,
+  Dialog,
+  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -28,9 +28,60 @@ import {
   winOpportunity,
   moveOpportunityStage,
 } from '../../actions/crm';
+import {
+  OPPORTUNITY_LOST_REASONS,
+  OPPORTUNITY_NURTURE_REASONS,
+} from '../../screens/contract-values';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
+
+/** The board's dialogs, one per card action. */
+export type DialogKind = 'move' | 'assign' | 'nurture' | 'reopen' | 'win' | 'lose';
+
+/**
+ * The dialog of one card action, loaded on demand by the leads board and shown while it is
+ * mounted; closing it (Escape, the close button, Cancel) calls `onCancel`.
+ */
+export function BoardDialog({
+  kind,
+  lead,
+  stages,
+  closeLabel,
+  onDone,
+  onCancel,
+}: {
+  kind: DialogKind;
+  lead: BoardLeadDto;
+  stages: readonly PipelineStageDto[];
+  closeLabel: string;
+  onDone: (result: OpportunityDto, ownerName?: string) => void;
+  onCancel: () => void;
+}) {
+  const props = { lead, onDone, onCancel };
+  return (
+    <Dialog
+      open
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel();
+      }}
+    >
+      <DialogContent closeLabel={closeLabel}>
+        {kind === 'move' ? (
+          <MoveForm {...props} stages={stages} />
+        ) : kind === 'assign' ? (
+          <AssignForm {...props} />
+        ) : kind === 'nurture' ? (
+          <NurtureForm {...props} />
+        ) : kind === 'lose' ? (
+          <LoseForm {...props} />
+        ) : (
+          <ConfirmForm {...props} kind={kind} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 /** What every board dialog is given: the lead, and what to do when it is done or cancelled. */
 interface DialogProps {
@@ -208,11 +259,11 @@ function ReasonForm({ lead, onDone, onCancel, kind }: DialogProps & { kind: 'nur
   const [needsReason, setNeedsReason] = useState(false);
   const reasons =
     kind === 'nurture'
-      ? OpportunityNurtureReasonSchema.options.map((code) => ({
+      ? OPPORTUNITY_NURTURE_REASONS.map((code) => ({
           code,
           label: board(`nurtureReason.${code}`),
         }))
-      : OpportunityLostReasonSchema.options.map((code) => ({
+      : OPPORTUNITY_LOST_REASONS.map((code) => ({
           code,
           label: board(`lostReason.${code}`),
         }));

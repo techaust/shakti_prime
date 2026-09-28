@@ -1,7 +1,7 @@
 // The Activity log's date window and its reading of a change (docs/design/backend-weeks-3-5.md
 // §3.4). Pure functions, so the screen and its tests share them.
 
-import { isEventType, type EventType } from '@shakti/contracts';
+import type { EventType } from '@shakti/contracts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
@@ -132,7 +132,15 @@ export type EventNameKey = (typeof EVENT_NAMES)[EventType];
 
 /** The catalogue key naming an event type; undefined for a type the catalogue does not know. */
 export function eventNameKey(type: string): EventNameKey | undefined {
-  return isEventType(type) ? EVENT_NAMES[type] : undefined;
+  return isNamedEvent(type) ? EVENT_NAMES[type] : undefined;
+}
+
+/**
+ * The names are keyed by every event type and no other (the `satisfies` above), so a name here
+ * means a type of the catalogue; the catalogue itself, with its schemas, stays off the browser.
+ */
+function isNamedEvent(type: string): type is EventType {
+  return Object.hasOwn(EVENT_NAMES, type);
 }
 
 /** A value of a change, as the detail sheet shows it. */

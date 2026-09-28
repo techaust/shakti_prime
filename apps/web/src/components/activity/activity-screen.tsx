@@ -8,12 +8,11 @@ import {
   EmptyState,
   Field,
   Select,
-  Sheet,
-  SheetContent,
   StatusBadge,
   type DataGridColumn,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { listAuditLog, listAuditPeople } from '../../actions/admin';
 import { ACTION_FILTERS, actionKey, auditWindow, type WindowProblem } from '../../screens/audit';
@@ -21,8 +20,12 @@ import { formatDateTime } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useQuery } from '../screens/use-command';
-import { ActivityDetails } from './activity-details';
 import { OUTCOME_TONE, OUTCOMES } from './outcome';
+
+/** The detail sheet of one row, fetched when a row is first opened rather than with the page. */
+const ActivityDetailsSheet = dynamic(() =>
+  import('./activity-details').then((m) => m.ActivityDetailsSheet),
+);
 
 const PAGE_SIZE = 50;
 
@@ -258,18 +261,16 @@ export function ActivityScreen({
             : { label: common('loadMore'), onLoadMore: loadMore, pending: loadingMore }
         }
       />
-      <Sheet
-        open={open !== undefined}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) setOpen(undefined);
-        }}
-      >
-        {open === undefined ? null : (
-          <SheetContent closeLabel={common('close')}>
-            <ActivityDetails row={open} companies={companies} />
-          </SheetContent>
-        )}
-      </Sheet>
+      {open === undefined ? null : (
+        <ActivityDetailsSheet
+          row={open}
+          companies={companies}
+          closeLabel={common('close')}
+          onClose={() => {
+            setOpen(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

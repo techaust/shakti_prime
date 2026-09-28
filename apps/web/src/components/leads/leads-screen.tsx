@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  LEAD_SORT_COLUMNS,
-  type LeadDto,
-  type LeadSort,
-  type PipelineDto,
-} from '@shakti/contracts';
+import type { LeadDto, LeadSort, PipelineDto } from '@shakti/contracts';
 import type { LeadPage } from '@shakti/domain';
 import {
   Button,
@@ -19,6 +14,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { listLeads } from '../../actions/crm';
+import { LEAD_SORT_COLUMNS } from '../../screens/contract-values';
 import { formatDateTime, formatPhone } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { sortInput, toListSort } from '../screens/list-sort';

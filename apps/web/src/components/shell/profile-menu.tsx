@@ -1,6 +1,6 @@
 'use client';
 
-import { ThemeSchema, type Theme } from '@shakti/contracts';
+import type { Theme } from '@shakti/contracts';
 import {
   Button,
   DropdownMenu,
@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useTransition } from 'react';
 import { signOut } from '../../actions/auth';
+import { isTheme, THEMES } from '../../screens/contract-values';
 import { useForgetThemeOnThisDevice, useThemeChoice } from '../theme';
 
 const THEME_ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
@@ -66,11 +67,10 @@ export function ProfileMenu({ name, role, theme }: { name: string; role: string;
           <DropdownMenuRadioGroup
             value={chosen}
             onValueChange={(value) => {
-              const parsed = ThemeSchema.safeParse(value);
-              if (parsed.success) choose(parsed.data);
+              if (isTheme(value)) choose(value);
             }}
           >
-            {ThemeSchema.options.map((option) => {
+            {THEMES.map((option) => {
               const Icon = THEME_ICONS[option];
               return (
                 <DropdownMenuRadioItem

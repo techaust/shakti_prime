@@ -1,16 +1,12 @@
 'use client';
 
-import {
-  IMPORT_JOB_SORT_COLUMNS,
-  type ImportJobDto,
-  type ImportJobPage,
-  type ImportJobSort,
-} from '@shakti/contracts';
+import type { ImportJobDto, ImportJobPage, ImportJobSort } from '@shakti/contracts';
 import { Button, DataGrid, EmptyState, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { listImportJobs } from '../../actions/imports';
+import { IMPORT_JOB_SORT_COLUMNS } from '../../screens/contract-values';
 import { formatDateTime } from '../../screens/format';
 import { formatCount, jobHref, JOB_STATE_TONE } from '../../screens/import-wizard';
 import { FailureMessage } from '../screens/failure';

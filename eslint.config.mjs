@@ -133,6 +133,59 @@ const frameworkImports = {
   ],
 };
 
+// Every module of @shakti/contracts loads Zod, about 90 kB (gzip) a phone would download on every
+// screen (BLUEPRINT §11.4, the per-page JavaScript budget in apps/web/js-budget.json). Code that
+// runs in the browser takes only types from the contracts (`import type`, which the build erases);
+// the values it needs are copied in apps/web/src/screens/contract-values.ts, whose test keeps them
+// equal to the contracts. The rule checks every 'use client' file, and with `everyFile` every file
+// of the folders whose modules the browser loads.
+const CONTRACTS_MODULE = /^@shakti\/contracts(\/|$)/;
+const browserContractTypes = {
+  meta: {
+    type: 'problem',
+    schema: [
+      {
+        type: 'object',
+        properties: { everyFile: { type: 'boolean' } },
+        additionalProperties: false,
+      },
+    ],
+    messages: {
+      value:
+        'Browser code imports only types from @shakti/contracts (every module of it loads Zod). Use `import type`, and take a value from apps/web/src/screens/contract-values.ts.',
+    },
+  },
+  create(context) {
+    const everyFile = context.options[0]?.everyFile === true;
+    const prologue = [];
+    for (const statement of context.sourceCode.ast.body) {
+      if (statement.type !== 'ExpressionStatement' || typeof statement.directive !== 'string')
+        break;
+      prologue.push(statement.directive);
+    }
+    if (!everyFile && !prologue.includes('use client')) return {};
+    const check = (node, kind) => {
+      if (node.source && CONTRACTS_MODULE.test(String(node.source.value)) && kind !== 'type') {
+        context.report({ node, messageId: 'value' });
+      }
+    };
+    return {
+      ImportDeclaration: (node) => {
+        check(node, node.importKind);
+      },
+      ExportNamedDeclaration: (node) => {
+        check(node, node.exportKind);
+      },
+      ExportAllDeclaration: (node) => {
+        check(node, node.exportKind);
+      },
+      ImportExpression: (node) => {
+        check(node, 'value');
+      },
+    };
+  },
+};
+
 export default tseslint.config(
   {
     ignores: [
@@ -273,6 +326,30 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Browser code takes only types from the contracts (see browserContractTypes above).
+    files: ['apps/web/src/**/*.{ts,tsx}', 'packages/ui/src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    plugins: { shakti: { rules: { 'browser-contract-types': browserContractTypes } } },
+    rules: { 'shakti/browser-contract-types': 'error' },
+  },
+  {
+    // The folders whose modules client components import, with or without 'use client'. The
+    // shell's grant checks run on the server, in screens/menu-access.ts, as do the page guards.
+    files: [
+      'apps/web/src/components/**/*.{ts,tsx}',
+      'apps/web/src/screens/**/*.ts',
+      'apps/web/src/nav.ts',
+      'apps/web/src/theme.ts',
+      'packages/ui/src/**/*.{ts,tsx}',
+    ],
+    ignores: [
+      '**/*.test.{ts,tsx}',
+      'apps/web/src/screens/access.ts',
+      'apps/web/src/screens/menu-access.ts',
+    ],
+    rules: { 'shakti/browser-contract-types': ['error', { everyFile: true }] },
   },
   {
     // The web components follow the same React, hooks and accessibility rules as the app.

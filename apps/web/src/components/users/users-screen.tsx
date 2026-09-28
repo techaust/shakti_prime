@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  USER_SORT_COLUMNS,
-  type UserDto,
-  type UserPageDto,
-  type UserSort,
-  type UserStatus,
-} from '@shakti/contracts';
+import type { UserDto, UserPageDto, UserSort, UserStatus } from '@shakti/contracts';
 import {
   Button,
   DataGrid,
@@ -29,6 +23,7 @@ import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { listUsers } from '../../actions/admin';
+import { USER_SORT_COLUMNS } from '../../screens/contract-values';
 import { formatDateTime } from '../../screens/format';
 import { userActions } from '../../screens/user-roles';
 import { FailureMessage } from '../screens/failure';

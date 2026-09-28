@@ -1,6 +1,6 @@
 'use client';
 
-import { newId, type SavedViewDto } from '@shakti/contracts';
+import type { SavedViewDto } from '@shakti/contracts';
 import {
   DataGrid,
   EmptyState,
@@ -65,7 +65,8 @@ function pageViewStore(): ViewStore {
         return Promise.resolve({ ok: false, error: 'saved_view_name_taken' });
       }
       const view: SavedViewDto = {
-        id: input.id ?? newId(),
+        // The preview keeps its views in memory, so any unique id serves.
+        id: input.id ?? crypto.randomUUID(),
         screen: input.screen,
         name,
         settings: input.settings,

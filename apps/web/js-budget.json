@@ -11,72 +11,72 @@
       "reason": "The page shown for an address that does not exist, public like the sign-in pages, kept near its measured size (175.9 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/admin/activity": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.7 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the Activity log grid and its filters (about 10 kB). Measured 253.3 kB on 28-09-2026, plus 5 %. Its detail sheet loads when a row is first opened; the rest is the grid and filters, so going lower means a smaller shell or grid."
     },
     "/admin/users": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.6 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the team grid, its row menu, saved views and the user dialogs (about 15 kB). Measured 257.9 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog, the user dialogs and the sessions sheet); loading them on first opening would save about 5 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/design": {
-      "maxKb": 390,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 367.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the design board, which shows every component on one page (about 18 kB). Measured 261.4 kB on 28-09-2026, plus 5 %. The search palette preview loads when first opened; the rest is the board, which shows every component on purpose."
     },
     "/forgot-password": {
       "maxKb": 195,
-      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.1 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.0 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/home": {
-      "maxKb": 380,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 358.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the shortcuts and the password form. Measured 243.1 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/imports": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 364.2 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the imports grid and saved views (about 13 kB). Measured 256.2 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog); loading them on first opening would save about 3 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/imports/[entityId]/[jobId]": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 365.9 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 275,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the import job steps, column matching, checks and rows grid (about 14 kB). Measured 257.3 kB on 28-09-2026, plus 5 %. Its dialog is small and the rest (steps, column matching, checks, rows grid) is the screen itself, so going lower means a smaller shell or a split of the job screen."
     },
     "/imports/new": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.4 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 265,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the upload form (about 6 kB). Measured 248.8 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/leads": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.3 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the leads grid and saved views (about 11 kB). Measured 254.3 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog); loading them on first opening would save about 3 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/leads/board": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 362.9 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 265,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the board, its cards and card menus (about 7 kB). Measured 250.3 kB on 28-09-2026, plus 5 %. Its dialogs load when first opened; the rest is the board itself, so going lower means a smaller shell."
     },
     "/leads/new": {
-      "maxKb": 380,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 360.6 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the new lead form (about 3 kB). Measured 246.2 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/price-master": {
-      "maxKb": 385,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 363.1 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the price grid, saved views and the price dialog (about 12 kB). Measured 255.5 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog and the price dialog); loading them on first opening would save about 3 to 4 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
     "/set-password": {
-      "maxKb": 300,
-      "reason": "Public page, over the 250 kB target: the set-password form loads the whole @shakti/contracts entry with Zod (about 104 kB) for the password rules. Measured 285.6 kB on 28-09-2026, plus 5 %. Lower it when the form imports only the rules it needs."
+      "maxKb": 195,
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (181.8 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/settings/companies": {
-      "maxKb": 380,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 360.5 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the companies grid (about 4 kB). Measured 247.4 kB on 28-09-2026, plus 5 %. The edit dialog, the search palette and the phone menu load when first opened."
     },
     "/settings/profile": {
-      "maxKb": 380,
-      "reason": "Staff screen, over the 250 kB target: every staff page loads the app shell (menu, company switcher, search palette, toasts: about 63 kB) and the whole @shakti/contracts entry with Zod (about 104 kB). Measured 359.3 kB on 28-09-2026, plus 5 %. Lower it when those shared chunks shrink."
+      "maxKb": 260,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the theme and contrast choices (about 1 kB). Measured 244.0 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
     },
     "/sign-in": {
       "maxKb": 195,
-      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.1 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (183.0 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     },
     "/two-factor": {
       "maxKb": 195,
-      "reason": "Public page opened on phones before sign-in, kept near its measured size (184.3 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
+      "reason": "Public page opened on phones before sign-in, kept near its measured size (184.2 kB on 28-09-2026, plus 5 %) rather than the 250 kB default."
     }
   }
 }

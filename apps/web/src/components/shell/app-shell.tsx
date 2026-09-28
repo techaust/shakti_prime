@@ -1,29 +1,35 @@
 'use client';
 
 import type { Theme } from '@shakti/contracts';
-import {
-  Button,
-  cn,
-  Sheet,
-  SheetContent,
-  SheetTitle,
-  Toaster,
-  usePaletteShortcut,
-} from '@shakti/ui';
+import { Button, cn, Toaster, usePaletteShortcut } from '@shakti/ui';
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
 import { CompanySwitcher, type CompanyOption } from './company-switcher';
 import { ProfileMenu } from './profile-menu';
-import { ShellPalette } from './shell-palette';
 import { rememberSidebar } from './sidebar-state';
 import { SidebarNav } from './sidebar-nav';
 
 const noSubscribe = () => () => undefined;
+
+/**
+ * The ⌘K palette (cmdk, its dialog and the search) is not part of a screen's first load: it is
+ * fetched when first opened, and a pointer over the search button or focus on it starts the
+ * download a moment earlier. The shortcut itself is always listening.
+ */
+const ShellPalette = dynamic(() => import('./shell-palette').then((m) => m.ShellPalette));
+
+function preloadPalette(): void {
+  void import('./shell-palette');
+}
+
+/** The phone menu's sheet, likewise fetched when the menu is first opened. */
+const PhoneMenu = dynamic(() => import('./phone-menu').then((m) => m.PhoneMenu));
 
 /** ⌘K on a Mac, Ctrl K elsewhere; the server draws Ctrl K and the browser corrects it. */
 function useIsMac(): boolean {
@@ -94,8 +100,12 @@ export function AppShell({
   const items = useMemo(() => NAV_ITEMS.filter((i) => navIds.includes(i.id)), [navIds]);
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mounted from the first opening on, so the menu then behaves like any sheet.
+  const [menuWanted, setMenuWanted] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Mounted from the first opening on, so the palette keeps its state like any dialog.
+  const [paletteWanted, setPaletteWanted] = useState(false);
 
   // A followed link closes the phone menu, including the browser's back and forward buttons.
   if (menuPath !== pathname) {
@@ -104,6 +114,7 @@ export function AppShell({
   }
 
   const togglePalette = useCallback(() => {
+    setPaletteWanted(true);
     setPaletteOpen((open) => !open);
   }, []);
   usePaletteShortcut(togglePalette);
@@ -152,21 +163,26 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-bg border-border sticky top-0 z-30 flex h-topbar shrink-0 items-center gap-2 border-b px-4 md:px-6">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t('openMenu')}
-              aria-expanded={menuOpen}
-              onClick={() => {
-                setMenuOpen(true);
-              }}
-              className="-ml-2 md:hidden"
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('openMenu')}
+            aria-expanded={menuOpen}
+            onClick={() => {
+              setMenuWanted(true);
+              setMenuOpen(true);
+            }}
+            className="-ml-2 md:hidden"
+          >
+            <Menu aria-hidden />
+          </Button>
+          {menuWanted ? (
+            <PhoneMenu
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              title={t('mainMenu')}
+              closeLabel={t('closeMenu')}
             >
-              <Menu aria-hidden />
-            </Button>
-            <SheetContent side="left" closeLabel={t('closeMenu')} className="w-72 gap-2 p-2">
-              <SheetTitle className="sr-only">{t('mainMenu')}</SheetTitle>
               <Brand collapsed={false} />
               <SidebarNav
                 items={items}
@@ -174,8 +190,8 @@ export function AppShell({
                   setMenuOpen(false);
                 }}
               />
-            </SheetContent>
-          </Sheet>
+            </PhoneMenu>
+          ) : null}
 
           <CompanySwitcher companies={companies} active={activeCompany} />
 
@@ -185,6 +201,8 @@ export function AppShell({
               aria-label={t('search')}
               aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
               onClick={togglePalette}
+              onPointerEnter={preloadPalette}
+              onFocus={preloadPalette}
               className="text-text-muted h-8 w-full max-w-72 justify-start gap-2 px-2.5 font-normal max-md:size-control-phone max-md:w-auto max-md:justify-center max-md:border-0 max-md:bg-transparent"
             >
               <Search aria-hidden />
@@ -207,13 +225,15 @@ export function AppShell({
         </main>
       </div>
 
-      <ShellPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        nav={items}
-        actionIds={actionIds}
-        searchable={searchable}
-      />
+      {paletteWanted ? (
+        <ShellPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          nav={items}
+          actionIds={actionIds}
+          searchable={searchable}
+        />
+      ) : null}
       <Toaster
         label={t('notifications')}
         theme={resolvedTheme === 'dark' ? 'dark' : resolvedTheme === 'light' ? 'light' : 'system'}

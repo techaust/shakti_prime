@@ -15,7 +15,8 @@ import { ComponentGallery, type DesignCopy } from '../../../components/design/co
 import { BoardPreview } from '../../../components/design/pattern-previews';
 import { PrintPreview } from '../../../components/design/print-preview';
 import { Page } from '../../../components/shell/page';
-import { navRequires, visibleNav } from '../../../nav';
+import { navRequires } from '../../../nav';
+import { visibleNav } from '../../../screens/menu-access';
 import { screenAccess, screenTitle } from '../../../screens/access';
 import { spikeLabels, spikeQuote } from '../../../print/fixtures/spike-documents';
 import { renderLabelsHtml } from '../../../print/label-template';

@@ -1,4 +1,4 @@
-import { hasGrant, type PermissionGrant } from '@shakti/contracts';
+import type { PermissionGrant } from '@shakti/contracts';
 import {
   Building2,
   FileUp,
@@ -116,11 +116,6 @@ export function navRequires(id: string): readonly PermissionGrant[] {
   const item = NAV_ITEMS.find((i) => i.id === id);
   if (item === undefined) throw new Error(`no menu item ${id}`);
   return item.requires;
-}
-
-/** The screens these grants open, in menu order. */
-export function visibleNav(grants: readonly PermissionGrant[]): NavItem[] {
-  return NAV_ITEMS.filter((item) => item.requires.every((g) => hasGrant(grants, g.key, g.scope)));
 }
 
 /** The menu item a path belongs to: the longest matching `href`, so `/leads/new` is not Leads. */
