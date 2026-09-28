@@ -2,6 +2,7 @@
 
 import type {
   BoardLeadDto,
+  BoardStagePageDto,
   LeadBoardDto,
   OpportunityDto,
   PipelineStageDto,
@@ -21,14 +22,16 @@ import {
   Select,
   StatusBadge,
   toast,
+  type BoardLoadMore,
   type StatusTone,
 } from '@shakti/ui';
 import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState, type ComponentProps, type DragEvent, type ReactNode } from 'react';
-import { moveOpportunityStage } from '../../actions/crm';
+import { listBoardStageLeads, moveOpportunityStage } from '../../actions/crm';
 import {
+  appendStagePage,
   applyChange,
   BOARD_SHOW,
   boardColumns,
@@ -37,13 +40,14 @@ import {
   daysSince,
   formatCount,
   moveDecision,
+  stageCursor,
   stageTone,
   statesFor,
   type BoardColumn as StageColumn,
   type BoardShow,
 } from '../../screens/lead-board';
 import { FailureMessage } from '../screens/failure';
-import { useCommand } from '../screens/use-command';
+import { useCommand, useQuery } from '../screens/use-command';
 import { AssignForm, ConfirmForm, LoseForm, MoveForm, NurtureForm } from './board-dialogs';
 
 type DialogKind = 'move' | 'assign' | 'nurture' | 'reopen' | 'win' | 'lose';
@@ -94,6 +98,8 @@ export function LeadBoardScreen({
   const [over, setOver] = useState<string | undefined>();
   const [showDropFailure, setShowDropFailure] = useState(false);
   const move = useCommand(moveOpportunityStage);
+  const more = useQuery<BoardStagePageDto>();
+  const [loadingStage, setLoadingStage] = useState<string | undefined>();
   const columns = boardColumns(stages, board, states);
   const [phoneStage, setPhoneStage] = useState(() => columns[0]?.stage.id);
   const stageNames = new Map(stages.map((s) => [s.id, s.name]));
@@ -105,6 +111,24 @@ export function LeadBoardScreen({
         pipelineKey: change.pipelineKey ?? pipelineKey,
         show: change.show ?? show,
       }),
+    );
+  }
+
+  /** The next page of one stage, after the cards it shows; the board keeps its filter. */
+  function loadMore(stageId: string, cursor: string) {
+    setLoadingStage(stageId);
+    more.load(
+      () =>
+        listBoardStageLeads({
+          ...(entityId === undefined ? {} : { entityId }),
+          pipelineKey,
+          states,
+          stageId,
+          cursor,
+        }),
+      (page) => {
+        setBoard((b) => appendStagePage(b, page));
+      },
     );
   }
 
@@ -238,6 +262,7 @@ export function LeadBoardScreen({
       </div>
 
       {showDropFailure ? <FailureMessage failure={move.failure} /> : null}
+      <FailureMessage failure={more.failure} />
       <p role="status" className="sr-only">
         {move.pending ? t('moving') : ''}
       </p>
@@ -250,7 +275,9 @@ export function LeadBoardScreen({
           <Column
             key={column.stage.id}
             column={column}
-            perStage={board.perStage}
+            cursor={stageCursor(board, column.stage.id)}
+            loading={more.pending && loadingStage === column.stage.id}
+            onLoadMore={loadMore}
             hiddenOnPhone={column.stage.id !== phoneStage}
             over={over === column.stage.id}
             dropZone={dropZone(column.stage)}
@@ -345,37 +372,58 @@ function BoardDialog({
   }
 }
 
-/** One stage: its colour bar, name and count, then its cards; a drop target when the caller writes. */
+/**
+ * One stage: its colour bar, name and count, then its cards, and "Load more" while it holds more
+ * than it shows; a drop target when the caller writes.
+ */
 function Column({
   column,
-  perStage,
+  cursor,
+  loading,
+  onLoadMore,
   hiddenOnPhone,
   over,
   dropZone,
   children,
 }: {
   column: StageColumn;
-  perStage: number;
+  /** Where the stage continues, while it holds more cards than it shows. */
+  cursor: string | undefined;
+  loading: boolean;
+  onLoadMore: (stageId: string, cursor: string) => void;
   hiddenOnPhone: boolean;
   over: boolean;
   dropZone: Pick<ComponentProps<'section'>, 'onDragOver' | 'onDragLeave' | 'onDrop'>;
   children: ReactNode;
 }) {
   const t = useTranslations('leads.board');
+  const common = useTranslations('common');
   const { stage, count, cards } = column;
+  const loadMore: BoardLoadMore | undefined =
+    cursor === undefined
+      ? undefined
+      : {
+          label: common('loadMore'),
+          accessibleLabel: t('loadMoreIn', { stage: stage.name }),
+          status: t('partial', {
+            count,
+            shown: formatCount(cards.length),
+            total: formatCount(count),
+          }),
+          pending: loading,
+          onLoadMore: () => {
+            onLoadMore(stage.id, cursor);
+          },
+        };
   return (
     <BoardColumn
       title={stage.name}
       tone={stageTone(stage)}
       count={t('count', { count, shown: formatCount(count) })}
-      note={
-        count > cards.length && cards.length >= perStage
-          ? t('partial', { count, shown: formatCount(cards.length), total: formatCount(count) })
-          : undefined
-      }
       emptyLabel={t('emptyColumn')}
       hiddenOnPhone={hiddenOnPhone}
       highlighted={over}
+      loadMore={loadMore}
       {...dropZone}
     >
       {cards.length === 0 ? null : children}

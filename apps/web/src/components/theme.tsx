@@ -97,11 +97,11 @@ export function ThemeSwitch({ saved }: { saved: Theme }) {
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="text-text-muted mb-2 text-sm">{t('label')}</legend>
-      <div className="bg-surface-2 border-border inline-flex self-start rounded-[var(--radius-md)] border p-0.5">
+      <div className="bg-surface-2 border-border inline-flex self-start rounded-md border p-0.5">
         {THEMES.map((theme) => (
           <label
             key={theme}
-            className="text-text-muted has-[:checked]:bg-surface has-[:checked]:text-text has-[:checked]:shadow-1 has-[:focus-visible]:outline-focus inline-flex h-8 cursor-pointer items-center rounded-[var(--radius-sm)] px-3 font-[510] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 max-md:h-11"
+            className="text-text-muted has-[:checked]:bg-surface has-[:checked]:text-text has-[:checked]:shadow-1 has-[:focus-visible]:outline-focus inline-flex h-8 cursor-pointer items-center rounded-sm px-3 font-medium has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 max-md:h-11"
           >
             <input
               type="radio"
@@ -207,7 +207,7 @@ export function ContrastSwitch({ saved }: { saved: boolean }) {
     <div className="flex flex-col gap-2">
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor="high-contrast" className="font-[510]">
+          <label htmlFor="high-contrast" className="font-medium">
             {t('highContrast')}
           </label>
           <p id="high-contrast-hint" className="text-text-muted text-sm">

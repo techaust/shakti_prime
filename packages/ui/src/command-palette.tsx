@@ -121,7 +121,7 @@ export function CommandPalette({
                     key={group.id}
                     heading={group.heading}
                     forceMount={group.prefiltered === true}
-                    className="[&_[cmdk-group-heading]]:text-text-subtle [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-[510]"
+                    className="[&_[cmdk-group-heading]]:text-text-subtle [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium"
                   >
                     {group.items.map((item) => (
                       <Command.Item

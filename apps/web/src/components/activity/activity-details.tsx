@@ -114,7 +114,7 @@ export function ActivityDetails({
         )}
         {other.length === 0 ? null : (
           <>
-            <h4 className="font-[590]">{t('sheet.other')}</h4>
+            <h4 className="font-semibold">{t('sheet.other')}</h4>
             <ChangeList rows={other} companies={companies} />
           </>
         )}
@@ -133,7 +133,7 @@ function ChangeList({ rows, companies }: { rows: ChangeRow[]; companies: Record<
           key={c.field ?? c.label}
           className="border-border flex flex-col gap-1 rounded-lg border p-3 text-sm"
         >
-          <span className="font-[510]">
+          <span className="font-medium">
             {c.field === undefined ? c.label : t(`fields.${c.field}`)}
           </span>
           <span className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-2">

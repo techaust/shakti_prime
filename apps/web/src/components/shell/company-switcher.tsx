@@ -55,7 +55,7 @@ export function CompanySwitcher({
   const only = companies.length === 1 ? companies[0] : undefined;
   if (only !== undefined) {
     return (
-      <span className="text-text flex min-w-0 items-center gap-2 px-2 font-[510]">
+      <span className="text-text flex min-w-0 items-center gap-2 px-2 font-medium">
         <Dot entityId={only.entityId} />
         <span className="truncate">{only.label}</span>
       </span>

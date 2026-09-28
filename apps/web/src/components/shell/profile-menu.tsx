@@ -57,7 +57,7 @@ export function ProfileMenu({ name, role, theme }: { name: string; role: string;
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <div className="flex flex-col px-2 py-1.5">
-          <span className="truncate font-[510]">{name}</span>
+          <span className="truncate font-medium">{name}</span>
           <span className="text-text-muted truncate text-xs">{role}</span>
         </div>
         <DropdownMenuSeparator />

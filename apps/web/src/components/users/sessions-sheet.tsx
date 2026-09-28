@@ -109,7 +109,7 @@ function SessionItem({
   return (
     <li className="border-border bg-surface flex flex-col gap-2 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-[510]">{device}</span>
+        <span className="font-medium">{device}</span>
         <StatusBadge tone={live ? 'success' : 'neutral'}>
           {live ? t('active') : t('ended')}
         </StatusBadge>

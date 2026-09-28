@@ -41,7 +41,7 @@ function Brand({ collapsed }: { collapsed: boolean }) {
     <Link
       href="/home"
       className={cn(
-        'text-text flex h-topbar shrink-0 items-center gap-2 px-4 font-[590]',
+        'text-text flex h-topbar shrink-0 items-center gap-2 px-4 font-semibold',
         collapsed && 'justify-center px-0',
       )}
     >

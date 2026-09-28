@@ -72,6 +72,7 @@ export {
   BoardColumn,
   type BoardCardProps,
   type BoardColumnProps,
+  type BoardLoadMore,
   type BoardSlaTone,
   type BoardStageTone,
 } from './board';

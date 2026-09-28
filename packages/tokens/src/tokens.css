@@ -67,6 +67,9 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --weight-normal: 400;
+  --weight-medium: 510;
+  --weight-semibold: 590;
   --font-display-size: 1.875rem;
   --font-display-line: 2.25rem;
   --font-display-weight: 590;

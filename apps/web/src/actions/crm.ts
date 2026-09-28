@@ -4,6 +4,7 @@ import {
   AssignOpportunityInput,
   CreateLeadInput,
   ListBoardLeadsInput,
+  ListBoardStageLeadsInput,
   ListLeadAssigneesInput,
   ListLeadsInput,
   LoseOpportunityInput,
@@ -11,6 +12,7 @@ import {
   NurtureOpportunityInput,
   ReopenOpportunityInput,
   WinOpportunityInput,
+  type BoardStagePageDto,
   type LeadAssigneeDto,
   type LeadBoardDto,
   type LeadDto,
@@ -24,6 +26,7 @@ import {
   executeCommand,
   executeQuery,
   listBoardLeads as listBoardLeadsQuery,
+  listBoardStageLeads as listBoardStageLeadsQuery,
   listLeadAssignees as listLeadAssigneesQuery,
   listLeadSources,
   listLeads as listLeadsQuery,
@@ -85,6 +88,25 @@ export async function listBoardLeads(rawInput: unknown): Promise<ActionResult<Le
       principal,
       input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
       (context) => listBoardLeadsQuery(context, input),
+    );
+  });
+}
+
+/**
+ * The next cards of one stage of the board (its "Load more"), after the cursor the board or the
+ * previous page gave, read with the request narrowed to the board's company as the board is.
+ */
+export async function listBoardStageLeads(
+  rawInput: unknown,
+): Promise<ActionResult<BoardStagePageDto>> {
+  return toResult('listBoardStageLeads', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListBoardStageLeadsInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
+      (context) => listBoardStageLeadsQuery(context, input),
     );
   });
 }

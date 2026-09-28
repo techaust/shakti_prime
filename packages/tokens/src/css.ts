@@ -31,6 +31,8 @@ function staticBlock(indent: string): string {
     lines.push(`${indent}--space-${step}: ${rem(px)};`);
   for (const [step, px] of Object.entries(scale.radius))
     lines.push(`${indent}--radius-${step}: ${px}px;`);
+  for (const [name, weight] of Object.entries(scale.fontWeight))
+    lines.push(`${indent}--weight-${name}: ${String(weight)};`);
   for (const [role, font] of Object.entries(scale.font)) {
     lines.push(`${indent}--font-${role}-size: ${rem(font.size)};`);
     lines.push(`${indent}--font-${role}-line: ${rem(font.line)};`);
@@ -156,6 +158,11 @@ export function renderTailwindCss(): string {
   lines.push(`  --shadow-1: var(--shadow-1);`);
   lines.push(`  --shadow-2: var(--shadow-2);`);
   lines.push(`  --font-sans: var(--font-family);`);
+  // Only the design's weights (`font-medium` is 510, not Tailwind's 500): the default scale is
+  // cleared first, so a weight outside DESIGN.md §3 styles nothing.
+  lines.push('  --font-weight-*: initial;');
+  for (const name of Object.keys(scale.fontWeight))
+    lines.push(`  --font-weight-${name}: var(--weight-${name});`);
   for (const [name, px] of Object.entries(scale.breakpoint))
     lines.push(`  --breakpoint-${name}: ${px}px;`);
   // Shell and control sizes as spacing (`w-sidebar`, `h-topbar`, `h-control`) and the content

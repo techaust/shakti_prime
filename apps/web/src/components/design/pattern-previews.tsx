@@ -83,7 +83,7 @@ export function BoardPreview({ copy, card }: { copy: DesignCopy; card: BoardPrev
   const days = 2;
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-text-muted text-sm font-[590]">{copy.board}</h3>
+      <h3 className="text-text-muted text-sm font-semibold">{copy.board}</h3>
       <div className="flex items-start gap-3 overflow-x-auto pb-2 max-md:flex-col max-md:overflow-visible">
         <BoardColumn
           title={copy.stage['stage-new']}

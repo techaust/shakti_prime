@@ -66,7 +66,7 @@ export default async function HomePage() {
                     <Icon className="size-4" />
                   </span>
                   <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="font-[590]">{nav(item.label)}</span>
+                    <span className="font-semibold">{nav(item.label)}</span>
                     <span className="text-text-muted text-sm">
                       {t(`hint.${item.label as Exclude<typeof item.label, 'home'>}`)}
                     </span>

@@ -28,7 +28,7 @@ export function RolesField({
   const roles = useTranslations('roles');
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="text-text-muted mb-1 text-sm font-[510]">{t('legend')}</legend>
+      <legend className="text-text-muted mb-1 text-sm font-medium">{t('legend')}</legend>
       <p className="text-text-subtle text-xs">{t('helper')}</p>
       {companies.map((c, index) => (
         <Field
