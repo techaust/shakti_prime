@@ -1,15 +1,12 @@
 // Import scale spike (design §8, IMP-01): `pnpm spike:import`, options
-// `-- --rows 50000 --commit-rows 1000 --batch 500 --budget 420`.
-// Builds made-up leads files in memory (invented names and villages, made-up mobile numbers) and
+// `-- --rows 50000 --batch 500 --budget 420`.
+// Builds a made-up leads file in memory (invented names and villages, made-up mobile numbers) and
 // runs the real commands in process through executeCommand, against the local database only
-// (prepareDatabase refuses any other host):
-//   1. the full file (`--rows`, 50,000 by default): imports.job.create → map → preview, timed;
-//      the job is left previewed, as a person who looked at the rows and stopped would leave it;
-//   2. a commit sample (`--commit-rows`): create → map → preview → commit → commit_batch in
-//      batches (one transaction each, as the worker runs them) until committed or the time budget
-//      runs out, then imports.job.rollback so the sample's leads are archived again.
-// Every lead is its own crm.lead.create with about twenty statements, so the commit rate is set
-// by the round trip to the database, which the spike measures too. Writes
+// (prepareDatabase refuses any other host): imports.job.create → map → preview → commit →
+// commit_batch in batches (one transaction each, as the worker runs them) until the job is
+// committed or the time budget (`--budget`, seconds) runs out, then imports.job.rollback so the
+// leads are archived again (a job still committing is left as it is).
+// The commit rate follows the round trip to the database, which the spike measures too. Writes
 // docs/spikes/results/import-scale.json. Not part of CI. It lives under tests/ because it
 // creates its caller with the testing helpers, which scripts outside the tests may not import.
 import { IMPORT_LIMITS, newId, type ImportJobDto, type Principal } from '@shakti/contracts';
@@ -37,7 +34,6 @@ function numberArg(name: string, fallback: number): number {
 }
 
 const ROWS = Math.min(numberArg('rows', IMPORT_LIMITS.maxRows), IMPORT_LIMITS.maxRows);
-const COMMIT_ROWS = Math.min(numberArg('commit-rows', 1000), ROWS);
 const BATCH = Math.min(numberArg('batch', IMPORT_LIMITS.batchSize), IMPORT_LIMITS.batchSize);
 const BUDGET_SECONDS = numberArg('budget', 420);
 const ENTITY = 1;
@@ -168,13 +164,8 @@ async function main(): Promise<void> {
     budgetSeconds: BUDGET_SECONDS,
   };
 
-  // 1. The full file, as far as the preview.
-  const full = await previewedJob(gm, ROWS, 0);
-  result.fullFile = { ...full.timings, jobId: full.job.id, jobState: full.job.state };
-
-  // 2. The commit sample, committed batch by batch and then rolled back.
-  const sample = await previewedJob(gm, COMMIT_ROWS, ROWS);
-  const jobId = sample.job.id;
+  const file = await previewedJob(gm, ROWS, 0);
+  const jobId = file.job.id;
   let t = performance.now();
   let current: ImportJobDto = await executeCommand(gm, scope, commitImportJob, {
     entityId: ENTITY,
@@ -189,13 +180,14 @@ async function main(): Promise<void> {
       batchSize: BATCH,
     });
     batchTimes.push(seconds(b));
-    log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
+    if (batchTimes.length % 10 === 0) {
+      log(`commit: ${String(current.committedRows)} rows after ${String(seconds(t))} s`);
+    }
   }
   const commitSecs = seconds(t);
   const sorted = [...batchTimes].sort((a, b) => a - b);
   const commitRate = current.committedRows / Math.max(commitSecs, 0.01);
   const commit: Record<string, unknown> = {
-    rows: COMMIT_ROWS,
     seconds: commitSecs,
     committedRows: current.committedRows,
     state: current.state,
@@ -225,7 +217,7 @@ async function main(): Promise<void> {
   } else {
     commit.rollback = { skipped: true, jobState: current.state, jobId };
   }
-  result.commitSample = { ...sample.timings, commit };
+  Object.assign(result, file.timings, { jobId, commit });
 
   writeFileSync(resultFile, `${JSON.stringify(result, null, 2)}\n`);
   log(`wrote ${resultFile}`);
