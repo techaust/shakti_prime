@@ -14,7 +14,7 @@ Phase 0 ends only when the group signs off the design system (ROADMAP §2, exit-
 
 ## 2. How to open the pages
 1. Sign in, then open `/design` (the development team shares the full address).
-2. The theme switch on the home screen offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use.
+2. The theme switch on the Your profile page (`/settings/profile`, from the profile menu) offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use.
 3. Do every check below in **Light**, then again in **Dark**. On the phone, also check **System** with the phone's own dark mode turned on and off: the screen should change without a reload and without a white flash.
 
 ## 3. Checklist
@@ -80,7 +80,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 34 | On desktop, the side menu (240 wide) can shrink to icons to give more room | | | |
 
 ### 3.7 Words on screen
-The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads` and `/leads/new`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), Price Master (`/price-master`) and imports (`/imports`). The sign-off runs once all of these are on the main app.
+The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads`, `/leads/board` and `/leads/new`), your profile (`/settings/profile`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), Price Master (`/price-master`) and imports (`/imports`). The sign-off runs once all of these are on the main app.
 
 | # | Check | Yes | Notes |
 |---|---|---|---|
