@@ -247,6 +247,10 @@ describe('the audit row of a call that does not commit', () => {
     ).rejects.toMatchObject({ code: 'forbidden' });
     expect(logger.entries).toEqual([
       expect.objectContaining({ level: 'error', event: 'audit.write_failed' }),
+      expect.objectContaining({
+        event: 'command.completed',
+        fields: expect.objectContaining({ outcome: 'denied', requestId }) as unknown,
+      }),
     ]);
     expect(await rowsOf(requestId)).toEqual([]);
   });
