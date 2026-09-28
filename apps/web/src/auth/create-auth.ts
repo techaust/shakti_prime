@@ -21,6 +21,7 @@ import { generateBackupCodes } from './backup-codes';
 import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
 import { mailTranslator } from './mail-copy';
+import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
   TURNSTILE_HEADER,
   TURNSTILE_RESET_ACTION,
@@ -135,7 +136,7 @@ const AUTH_ERROR_CODES = {
  * before hook, so they hold for the HTTP routes and for in-process calls alike. The set-password
  * cap is also counted per link (AUDIT M27), so one office can onboard a whole team.
  */
-const RATE_LIMIT_RULES: Record<string, { window: number; max: number }> = {
+const RATE_LIMIT_RULES: Record<string, CapRule> = {
   [SIGN_IN_PATH]: { window: 15 * 60, max: 100 },
   [RESET_REQUEST_PATH]: { window: 15 * 60, max: 3 },
   [RESET_PATH]: { window: 15 * 60, max: 30 },
@@ -207,19 +208,26 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     );
 
   /** Fixed-window cap per key, counted in the shared store. */
-  async function cap(key: string, rule: { window: number; max: number }): Promise<void> {
+  async function cap(key: string, rule: CapRule): Promise<void> {
     if (!capsOn) return;
-    const count = await deps.keyValue.incr(`cap:${key}`, rule.window);
-    if (count > rule.max) throw tooMany(rule.window);
+    const counted = await countRequest(deps.keyValue, key, rule);
+    if (!counted.allowed) throw tooMany(counted.retryAfter);
   }
 
+  /**
+   * A call without headers comes from our own server code (an invite), never from a client, so
+   * only calls with headers are counted per address. One whose address cannot be read is counted
+   * under a key shared per path, so an unreadable address never lifts the cap.
+   */
   async function applyRequestCaps(
     path: string,
-    address: string | undefined,
+    headers: Headers | undefined,
     body: unknown,
   ): Promise<void> {
     const rule = RATE_LIMIT_RULES[path];
-    if (rule !== undefined && address !== undefined) await cap(`${path}:${address}`, rule);
+    if (rule !== undefined && headers !== undefined) {
+      await cap(`${path}:${addressKey(clientAddress(headers))}`, rule);
+    }
     if (path === RESET_PATH) {
       const token = (body as { token?: unknown } | undefined)?.token;
       if (typeof token === 'string') await cap(`${path}:link:${sha256(token)}`, RESET_PER_LINK);
@@ -511,7 +519,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           if (actorId !== undefined) requestActors.set(ctx.headers, actorId);
         }
         const address = clientAddress(ctx.headers);
-        await applyRequestCaps(ctx.path, address, ctx.body);
+        await applyRequestCaps(ctx.path, ctx.headers, ctx.body);
         if (ctx.path === VERIFY_TOTP_PATH || ctx.path === VERIFY_BACKUP_PATH) {
           const body = ctx.body as { trustDevice?: unknown } | undefined;
           if (body?.trustDevice === true) {

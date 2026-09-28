@@ -10,6 +10,7 @@ import {
   setPasswordMailFailed,
   type Auth,
 } from '../src/auth/create-auth';
+import * as clientAddressModule from '../src/auth/client-address';
 import { toDomainError } from '../src/auth/errors';
 import {
   finishEnrolment,
@@ -460,6 +461,45 @@ describe('request caps and cookie attributes', () => {
     expect(sessionCookie).toMatch(/; *Secure/i);
     expect(sessionCookie).toMatch(/; *HttpOnly/i);
     expect(sessionCookie).not.toMatch(/Domain=/i);
+  });
+
+  it('counts callers whose address cannot be read under one shared cap, and never an invite', async () => {
+    const capped = createAuth(
+      { keyValue, mailer, fetch: fetchStub, now: () => clock, turnstileSecretKey: 'secret' },
+      {
+        nextCookies: false,
+        baseURL: 'http://localhost:3000',
+        secret: TEST_AUTH_SECRET,
+        rateLimit: true,
+      },
+    );
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'field_engineer' }]);
+    // As on a host that forwards no address: the caps must still hold.
+    const unreadable = vi.spyOn(clientAddressModule, 'clientAddress').mockReturnValue(undefined);
+    try {
+      const request = (ip: string) =>
+        capped.api.requestPasswordReset({
+          body: { email: user.email, redirectTo: '/set-password' },
+          headers: clientHeaders({ ip, turnstile: 'ok:reset' }),
+        });
+      for (const ip of ['10.0.8.1', '10.0.8.2', '10.0.8.3']) await request(ip);
+      await expect(request('10.0.8.4')).rejects.toSatisfy((e) => code(e) === 'account_locked');
+      // Our own server code (an invite) sends no headers and is not counted.
+      await expect(
+        capped.api.requestPasswordReset({
+          body: { email: user.email, redirectTo: '/set-password' },
+        }),
+      ).resolves.toMatchObject({ status: true });
+    } finally {
+      unreadable.mockRestore();
+    }
+    // A caller whose address is known counts on its own.
+    await expect(
+      capped.api.requestPasswordReset({
+        body: { email: user.email, redirectTo: '/set-password' },
+        headers: clientHeaders({ ip: '10.0.8.5', turnstile: 'ok:reset' }),
+      }),
+    ).resolves.toMatchObject({ status: true });
   });
 });
 
