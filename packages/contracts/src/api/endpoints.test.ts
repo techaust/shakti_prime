@@ -71,6 +71,33 @@ describe('the /api/v1 endpoint catalogue', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  it('lists every error code docs/API.md §3 names for a route', () => {
+    const errorCodes = new Set<string>(ERROR_CODES);
+    const byRoute = new Map(entries.map(([id, e]) => [`${e.method} ${e.path}`, id]));
+    const missing: string[] = [];
+    let checked = 0;
+    let inSection3 = false;
+    for (const line of apiDoc.split(/\r?\n/)) {
+      if (/^## /.test(line)) inSection3 = /^## 3\b/.test(line);
+      if (!inSection3) continue;
+      const row = /^\| (GET|POST|GET\/POST) \| `([^`]+)`/.exec(line);
+      if (row?.[1] === undefined || row[2] === undefined) continue;
+      const path = row[2].split('?')[0] ?? row[2];
+      const named = [...line.matchAll(/`([a-z_]+)`/g)]
+        .map((m) => m[1] ?? '')
+        .filter((word) => errorCodes.has(word));
+      // A GET/POST row names the codes of both routes together (a webhook's handshake and its
+      // deliveries), so either route may list each one.
+      const ids = row[1].split('/').flatMap((method) => byRoute.get(`${method} ${path}`) ?? []);
+      if (ids.length === 0) continue;
+      checked += ids.length;
+      const listed = new Set<string>(ids.flatMap((id) => API_ENDPOINTS[id].errors));
+      for (const code of named) if (!listed.has(code)) missing.push(`${ids.join('/')}: ${code}`);
+    }
+    expect(checked).toBeGreaterThan(30);
+    expect(missing).toEqual([]);
+  });
+
   it('answers only with codes from the error catalogue', () => {
     for (const [, e] of entries) {
       for (const code of e.errors) expect(ERROR_CODES).toContain(code);

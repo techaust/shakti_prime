@@ -161,7 +161,8 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: RealtimeTokenRequest,
     response: RealtimeTokenResponse,
-    errors: AUTHED,
+    // A body with any field; signing keys or the issuer not configured (realtime/handlers.ts).
+    errors: ['validation_failed', ...AUTHED, 'integration_unavailable'],
   },
   'voice.session': {
     method: 'POST',
@@ -366,7 +367,8 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: ImportCommitWorkerBody,
     response: ImportCommitWorkerResponse,
-    errors: ['unauthorized', 'forbidden', 'integration_unavailable'],
+    // `validation_failed` for a signed body that is not an `ImportCommitWorkerBody`.
+    errors: ['validation_failed', 'unauthorized', 'forbidden', 'integration_unavailable'],
   },
   'workers.outbox.event': {
     method: 'POST',
@@ -483,7 +485,8 @@ export const API_ENDPOINTS = {
     auth: 'none',
     idempotencyKey: false,
     response: ReadyResponse,
-    errors: [],
+    // 503 with the checks when a dependency is down.
+    errors: ['integration_unavailable'],
   },
 } as const satisfies Record<string, ApiEndpoint>;
 
