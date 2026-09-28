@@ -31,7 +31,7 @@ export function ImportSteps({ state }: { state: ImportJobState | undefined }) {
               <span
                 aria-hidden
                 className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-[510] tabular-nums',
+                  'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium tabular-nums',
                   status === 'done' && 'bg-success-soft text-success',
                   status === 'current' && 'bg-accent text-accent-fg',
                   status === 'next' && 'bg-surface-2 text-text-muted',
@@ -42,7 +42,7 @@ export function ImportSteps({ state }: { state: ImportJobState | undefined }) {
               <span
                 className={cn(
                   'truncate text-sm',
-                  status === 'current' ? 'text-text font-[510]' : 'text-text-muted max-sm:sr-only',
+                  status === 'current' ? 'text-text font-medium' : 'text-text-muted max-sm:sr-only',
                 )}
               >
                 {t(step)}

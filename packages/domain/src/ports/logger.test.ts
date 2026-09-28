@@ -36,6 +36,26 @@ describe('redaction (AUDIT M10)', () => {
     for (const id of ids) expect(redactText(id)).toBe(id);
   });
 
+  it('keeps the last four digits of a mobile number written spaced or after 0, 91 or +91', () => {
+    const written = {
+      '98765 43210': '******3210',
+      '98765-43210': '******3210',
+      '098765 43210': '*******3210',
+      '09876543210': '*******3210',
+      '91 98765 43210': '********3210',
+      '91-9876543210': '********3210',
+      '+91 98765 43210': '********3210',
+      '+91-98765-43210': '********3210',
+    };
+    for (const [phone, masked] of Object.entries(written)) {
+      expect(redactText(`call ${phone} today`)).toBe(`call ${masked} today`);
+    }
+    // Not a mobile number: a landline-looking run, and a number inside a longer one.
+    for (const text of ['call 5123456789', 'ref 1098765 43210', 'id 98765 432109']) {
+      expect(redactText(text)).toBe(text);
+    }
+  });
+
   it('drops identity-number fields whatever their case or separators', () => {
     expect(
       redact({
@@ -47,7 +67,14 @@ describe('redaction (AUDIT M10)', () => {
         account_number: '50100012345678',
         accountNumber: '50100012345678',
         IFSC: 'HDFC0000001',
-        nested: { ifsc_code: 'HDFC0000001', bankAccountNumber: '50100012345678' },
+        nested: {
+          ifsc_code: 'HDFC0000001',
+          bankAccountNumber: '50100012345678',
+          aadhar: '234567890123',
+          aadhar_number: '234567890123',
+          pan_no: 'ABCDE1234F',
+          accountNo: '50100012345678',
+        },
       }),
     ).toEqual({
       requestId: 'r-1',
@@ -58,7 +85,14 @@ describe('redaction (AUDIT M10)', () => {
       account_number: '[redacted]',
       accountNumber: '[redacted]',
       IFSC: '[redacted]',
-      nested: { ifsc_code: '[redacted]', bankAccountNumber: '[redacted]' },
+      nested: {
+        ifsc_code: '[redacted]',
+        bankAccountNumber: '[redacted]',
+        aadhar: '[redacted]',
+        aadhar_number: '[redacted]',
+        pan_no: '[redacted]',
+        accountNo: '[redacted]',
+      },
     });
   });
 

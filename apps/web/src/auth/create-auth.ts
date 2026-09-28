@@ -7,7 +7,7 @@ import {
   SESSION_IDLE_SECONDS,
 } from '@shakti/contracts';
 import { authDb, authSchema } from '@shakti/db/auth';
-import { createSignInGuard } from '@shakti/domain';
+import { createSignInGuard, type Logger } from '@shakti/domain';
 import { logger as appLogger } from '../log';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -21,6 +21,7 @@ import { recordAuthEvent, type AuthEvent } from './audit-events';
 import { generateBackupCodes } from './backup-codes';
 import { ADDRESS_OPTIONS, clientAddress } from './client-address';
 import type { AuthDeps } from './deps';
+import { withoutPersonFields } from './library-log';
 import { mailTranslator } from './mail-copy';
 import { addressKey, countRequest, type CapRule } from './request-cap';
 import {
@@ -368,10 +369,11 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     disabledPaths: HTTP_DISABLED_PATHS,
     // Better Auth's own messages and HTTP failures go through the redacting logger: its default
     // logger prints a failed query with its bound values, set-password links included (AUDIT M10).
+    // A user row among its arguments loses the fields that name the person first.
     logger: {
       level: 'warn',
       log: (level, message, ...args) => {
-        log.log(level, 'auth.library', { message, args });
+        log.log(level, 'auth.library', { message, args: withoutPersonFields(args) });
       },
     },
     onAPIError: {
@@ -467,18 +469,15 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
           subject: t(`${kind}.subject`),
           text: t(`${kind}.body`, { name: user.name, url }),
         };
-        const defer = resetMailDeferral.getStore();
-        if (defer !== undefined) {
-          // "Forgot your password?": the answer does not wait for the mail, so how long it takes
-          // does not say whether the address has an account. A failure is logged, never shown;
-          // nobody reads the invite's failure marker for this send, so none is left.
-          defer(
-            Promise.resolve()
-              .then(() => deps.mailer.send(message))
-              .catch((error: unknown) => {
-                log.log('error', 'auth.mail_failed', { kind, error });
-              }),
-          );
+        if (resetInBackground.getStore() !== undefined) {
+          // "Forgot your password?": the person already has their answer (see
+          // requestResetInBackground). A failure is logged, never shown; nobody reads the
+          // invite's failure marker for this send, so none is left.
+          try {
+            await deps.mailer.send(message);
+          } catch (error) {
+            log.log('error', 'auth.mail_failed', { kind, error });
+          }
           return;
         }
         try {
@@ -570,7 +569,12 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
             code: AUTH_ERROR_CODES.BOT_CHECK_FAILED,
           });
         }
-        if (ctx.path !== SIGN_IN_PATH) return;
+        if (ctx.path !== SIGN_IN_PATH) {
+          // Every check that can refuse a reset request has passed, and none of them looked at
+          // the account: the person is answered now, the rest runs after (AUDIT M26).
+          resetInBackground.getStore()?.checked();
+          return;
+        }
         const body = ctx.body as { email?: unknown; password?: unknown } | undefined;
         if (typeof body?.email !== 'string' || body.email === '') return;
         const email = body.email;
@@ -714,21 +718,50 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
 
 export type Auth = ReturnType<typeof createAuth>;
 
-/** Where a set-password mail goes when the caller must not wait for it (see below). */
-const resetMailDeferral = new AsyncLocalStorage<(task: Promise<void>) => void>();
+/** Marks a reset request whose caller is answered once its checks pass (see below). */
+const resetInBackground = new AsyncLocalStorage<{ checked: () => void }>();
 
 /**
- * Runs a password-reset request whose mail is handed to `defer` instead of being awaited: the
- * "Forgot your password?" screen, which answers the same for every address, so the send must not
- * lengthen the answer for an address that has an account. `defer` keeps the platform running the
- * send after the answer (`after()` in a server action). An invite does not use this: it waits for
- * the mail, so it can tell the Executive when the mail did not go out (AUDIT M26).
+ * Runs a password-reset request for the "Forgot your password?" screen, which answers the same
+ * for every address, so nothing the answer waits for may depend on whether the address has an
+ * account. The promise settles as soon as the before hook has run the checks that refuse a
+ * request, the per-address cap and the bot check, neither of which reads the account: it rejects
+ * with their refusal, or resolves. Everything after them (finding the account, storing the link,
+ * withdrawing older ones, extending an invite's link, the mail and the audit row) is handed to
+ * `defer`, which keeps the platform running it after the answer (`after()` in a server action);
+ * a failure there is logged, never shown. An invite does not use this: it waits for the mail, so
+ * it can tell the Executive when the mail did not go out (AUDIT M26).
  */
-export function withResetMailInBackground<T>(
+export function requestResetInBackground(
   defer: (task: Promise<void>) => void,
-  request: () => Promise<T>,
-): Promise<T> {
-  return resetMailDeferral.run(defer, request);
+  request: () => Promise<unknown>,
+  log: Logger = appLogger,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let answered = false;
+    const checked = () => {
+      answered = true;
+      resolve();
+    };
+    const work = resetInBackground.run({ checked }, request);
+    defer(
+      work.then(
+        () => {
+          // A request that ran no checks (it carried no headers) is answered when it ends.
+          if (!answered) resolve();
+        },
+        (error: unknown) => {
+          if (!answered) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+            return;
+          }
+          // What the person typed was refused (an address that is not one): worth a warning only.
+          const refused = error instanceof APIError && error.statusCode < 500;
+          log.log(refused ? 'warn' : 'error', 'auth.reset_failed', { error });
+        },
+      ),
+    );
+  });
 }
 
 const MAIL_FAILED_SECONDS = 5 * 60;

@@ -18,6 +18,22 @@ export interface RequestContext {
   tx: RequestTx;
 }
 
+export interface RequestOptions {
+  /**
+   * A read: the transaction is read-only from its first statement. The setting is local to the
+   * transaction, as every setting here is: through Supavisor in transaction mode a server
+   * connection passes to another client when the transaction ends (docs/DATABASE.md §1).
+   */
+  readOnly?: boolean;
+}
+
+/**
+ * A read's extra setting, in the request's first statement (no extra round trip): this
+ * transaction read-only, as `set transaction read only` makes it, and nothing beyond it.
+ */
+const READ_ONLY_SETTING = sql`,
+        set_config('transaction_read_only', 'on', true)`;
+
 /** Postgres int[] literal for `app.entity_ids`, e.g. `{1,2}`. Empty scope yields `{}`, which denies. */
 export function entityIdsLiteral(entityIds: readonly number[]): string {
   return `{${entityIds.join(',')}}`;
@@ -27,11 +43,17 @@ export function entityIdsLiteral(entityIds: readonly number[]): string {
  * The single entry point for database access (docs/ARCHITECTURE.md §4, docs/DATABASE.md §4.1).
  * Opens a transaction and sets the transaction-local settings every RLS policy reads. A request
  * that narrows to entities the principal does not hold is refused before any query runs.
+ *
+ * With `readOnly`, the same first statement also makes the transaction read-only. Every setting
+ * is transaction-local, so nothing outlives the transaction on a pooled server connection. A
+ * function that ends the transaction early (`commit`) takes the RLS settings with it, so a write
+ * after that is refused by row security, which fails closed without them.
  */
 export async function withRequestContext<T>(
   principal: Principal,
   scope: RequestScope,
   fn: (ctx: RequestContext) => Promise<T>,
+  options: RequestOptions = {},
 ): Promise<T> {
   const requested = scope.entityIds ?? principal.entityIds;
   const outside = requested.filter((id) => !principal.entityIds.includes(id));
@@ -58,7 +80,7 @@ export async function withRequestContext<T>(
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
         set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
-        set_config('DateStyle', 'ISO, YMD', true)
+        set_config('DateStyle', 'ISO, YMD', true)${options.readOnly === true ? READ_ONLY_SETTING : sql``}
     `);
     return fn({ principal: acting, entityIds: requested, requestId, tx });
   });

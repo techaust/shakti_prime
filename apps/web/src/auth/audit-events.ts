@@ -1,7 +1,8 @@
 import { newId, type AuditOutcome, type AuthAuditEvent } from '@shakti/contracts';
 import { auditLogs, authDb } from '@shakti/db/auth';
 import { auditDevice, auditIp, redactAuthEvent, type Logger } from '@shakti/domain';
-import { clientMeta, platformRequestId } from './client-address';
+import { incomingRequestId } from '../request-id';
+import { clientMeta } from './client-address';
 
 export interface AuthEvent {
   event: AuthAuditEvent;
@@ -37,7 +38,7 @@ export async function recordAuthEvent(e: AuthEvent, logger: Logger): Promise<voi
         inputJson: redactAuthEvent(e.event, e.fields ?? {}),
         ip: auditIp(client.ip),
         device: auditDevice(client.device),
-        requestId: platformRequestId(e.headers) ?? newId(),
+        requestId: incomingRequestId(e.headers),
       });
   } catch (error) {
     logger.log('error', 'audit.write_failed', { command: e.event, outcome: e.outcome, error });

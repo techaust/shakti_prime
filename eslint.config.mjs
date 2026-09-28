@@ -83,10 +83,28 @@ const webDatabaseNames = {
   importNames: ['withRequestContext', 'schema', 'entityIdsLiteral'],
   message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
 };
+// The schema is also exported on its own path; it would let a screen build a write just the same.
+const webSchemaModule = {
+  name: '@shakti/db/schema',
+  message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
+};
+const webDatabasePaths = [webDatabaseNames, webSchemaModule];
+// A relative path into packages/db reaches the request context and the schema without the
+// package's name, so apps/web names no file there at all.
+const webDatabasePatterns = [
+  ...rawClientImport.patterns,
+  {
+    group: ['**/db/src', '**/db/src/**'],
+    message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
+  },
+];
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
   '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|postgres|drizzle-orm\\/postgres-js)$/';
+// The same files named by a relative path into packages/db/src rather than by the package name.
+const restrictedFile =
+  '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
 
 const restrictedSyntax = [
   // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
@@ -107,10 +125,44 @@ const restrictedSyntax = [
     message: 'A dynamic import of a database module passes around the import fences.',
   },
   {
+    selector: `ImportExpression[source.value=${restrictedFile}]`,
+    message: 'A dynamic import of a database file passes around the import fences.',
+  },
+  {
     selector: "CallExpression[callee.name='require']",
     message: 'Use import; require() passes around the import fences.',
   },
 ];
+
+// require reached another way (a copy under another name, module.require, createRequire) loads
+// any module without a trace of its name in an import, so outside tests none of them appears.
+const requireBypasses = [
+  {
+    selector: "Identifier[name='require']:not(CallExpression > Identifier.callee)",
+    message: 'Use import; require() under any name passes around the import fences.',
+  },
+  {
+    selector: "Identifier[name='createRequire']",
+    message: 'Use import; createRequire() builds a require() that passes around the import fences.',
+  },
+  {
+    selector: 'ImportDeclaration[source.value=/^(node:)?module$/]',
+    message:
+      'Use import; the module package builds a require() that passes around the import fences.',
+  },
+  {
+    selector: 'ImportExpression[source.value=/^(node:)?module$/]',
+    message:
+      'Use import; the module package builds a require() that passes around the import fences.',
+  },
+];
+
+// apps/web: the database package and its schema are not reached by a dynamic import either, since
+// importNames reads only static import names, nor is any file of packages/db/src.
+const webDatabaseImport = {
+  selector: 'ImportExpression[source.value=/^@shakti\\/db(\\/schema)?$|(^|\\/)db\\/src(\\/|$)/]',
+  message: 'apps/web uses executeCommand() and executeQuery() from @shakti/domain (AUDIT M12).',
+};
 
 // The fences above read the specifier as written, so a built one (a template, a variable, a
 // concatenation) would pass around them: outside tests, a dynamic import names its module
@@ -220,7 +272,7 @@ export default tseslint.config(
         { allowConstantLoopConditions: true },
       ],
       'no-restricted-imports': ['error', rawClientImport],
-      'no-restricted-syntax': ['error', ...restrictedSyntax, nonLiteralImport],
+      'no-restricted-syntax': ['error', ...restrictedSyntax, nonLiteralImport, ...requireBypasses],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
@@ -250,7 +302,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { paths: [...rawClientImport.paths, webDatabaseNames], patterns: rawClientImport.patterns },
+        { paths: [...rawClientImport.paths, ...webDatabasePaths], patterns: webDatabasePatterns },
       ],
     },
   },
@@ -267,9 +319,9 @@ export default tseslint.config(
             ...rawClientImport.paths.filter(
               (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/grants',
             ),
-            webDatabaseNames,
+            ...webDatabasePaths,
           ],
-          patterns: rawClientImport.patterns,
+          patterns: webDatabasePatterns,
         },
       ],
     },
@@ -284,9 +336,9 @@ export default tseslint.config(
         {
           paths: [
             ...rawClientImport.paths.filter((p) => p.name !== '@shakti/db/outbox'),
-            webDatabaseNames,
+            ...webDatabasePaths,
           ],
-          patterns: rawClientImport.patterns,
+          patterns: webDatabasePatterns,
         },
       ],
     },
@@ -302,9 +354,9 @@ export default tseslint.config(
             ...rawClientImport.paths.filter(
               (p) => p.name !== '@shakti/db/outbox' && p.name !== '@shakti/db/grants',
             ),
-            webDatabaseNames,
+            ...webDatabasePaths,
           ],
-          patterns: rawClientImport.patterns,
+          patterns: webDatabasePatterns,
         },
       ],
     },
@@ -320,10 +372,24 @@ export default tseslint.config(
             ...rawClientImport.paths.filter(
               (p) => p.name !== '@shakti/db/auth' && p.name !== '@shakti/db/bootstrap',
             ),
-            webDatabaseNames,
+            ...webDatabasePaths,
           ],
-          patterns: rawClientImport.patterns,
+          patterns: webDatabasePatterns,
         },
+      ],
+    },
+  },
+  {
+    // apps/web reaches the database package by no dynamic import either (webDatabaseImport).
+    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/scripts/**/*.ts'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax,
+        nonLiteralImport,
+        ...requireBypasses,
+        webDatabaseImport,
       ],
     },
   },

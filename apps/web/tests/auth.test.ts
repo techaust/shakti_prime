@@ -14,7 +14,7 @@ import {
   createAuth,
   HTTP_DISABLED_PATHS,
   setPasswordMailFailed,
-  withResetMailInBackground,
+  requestResetInBackground,
   type Auth,
 } from '../src/auth/create-auth';
 import * as clientAddressModule from '../src/auth/client-address';
@@ -901,8 +901,64 @@ describe('an invitation email that does not go out (AUDIT M26)', () => {
   });
 });
 
-describe('a forgotten-password mail sent in the background', () => {
-  it('is handed off rather than awaited; a failure is logged, never thrown or left for an invite', async () => {
+describe('a forgotten-password request answered before it runs', () => {
+  /** True while the work is still running: it cannot settle between the answer and this check. */
+  const stillRunning = (task: Promise<void>) =>
+    Promise.race([task.then(() => false), Promise.resolve().then(() => true)]);
+
+  it('answers once the checks pass, before the account is looked up, for an account and for none', async () => {
+    const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'store_manager' }]);
+    const sent = mailer.sent.length;
+    for (const email of [user.email, `nobody-${user.id}@shakti.test`]) {
+      const handedOff: Promise<void>[] = [];
+      await expect(
+        requestResetInBackground(
+          (task) => handedOff.push(task),
+          () =>
+            auth.api.requestPasswordReset({
+              body: { email, redirectTo: '/set-password' },
+              headers: clientHeaders({ ip: '10.0.9.8', turnstile: 'ok:reset' }),
+            }),
+        ),
+      ).resolves.toBeUndefined();
+      expect(handedOff).toHaveLength(1);
+      const [task] = handedOff;
+      if (task === undefined) throw new Error('nothing handed off');
+      // The lookup, the link, the mail and the audit row all wait on the database, after the answer.
+      expect(await stillRunning(task)).toBe(true);
+      await task;
+    }
+    expect(mailer.sent.slice(sent).map((m) => m.to)).toEqual([user.email]);
+  });
+
+  it('still refuses a failed bot check and a request over the cap, before the answer', async () => {
+    const capped = createAuth(
+      { keyValue, mailer, fetch: fetchStub, now: () => clock, turnstileSecretKey: 'secret' },
+      {
+        nextCookies: false,
+        baseURL: 'http://localhost:3000',
+        secret: TEST_AUTH_SECRET,
+        rateLimit: true,
+      },
+    );
+    const handedOff: Promise<void>[] = [];
+    const request = (turnstile: string) =>
+      requestResetInBackground(
+        (task) => handedOff.push(task),
+        () =>
+          capped.api.requestPasswordReset({
+            body: { email: 'nobody@shakti.test', redirectTo: '/set-password' },
+            headers: clientHeaders({ ip: '10.0.9.7', turnstile }),
+          }),
+      );
+    await expect(request('no')).rejects.toSatisfy((e) => code(e) === 'bot_check_failed');
+    for (let i = 0; i < 2; i += 1) await expect(request('ok:reset')).resolves.toBeUndefined();
+    await expect(request('ok:reset')).rejects.toSatisfy((e) => code(e) === 'account_locked');
+    // Every piece of work handed off ends quietly, the refused ones included.
+    await expect(Promise.all(handedOff)).resolves.toHaveLength(4);
+  });
+
+  it('logs a failure after the answer, never throws it or leaves it for an invite', async () => {
     const log = memoryLogger();
     const failing = createAuth(
       {
@@ -917,31 +973,57 @@ describe('a forgotten-password mail sent in the background', () => {
     );
     const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'store_manager' }]);
     const handedOff: Promise<void>[] = [];
-    const answer = await withResetMailInBackground(
-      (task) => handedOff.push(task),
-      () =>
-        failing.api.requestPasswordReset({
-          body: { email: user.email, redirectTo: '/set-password' },
-          headers: clientHeaders({ ip: '10.0.9.9', turnstile: 'ok:reset' }),
-        }),
-    );
-    expect(answer).toMatchObject({ status: true });
-    expect(handedOff).toHaveLength(1);
-    await expect(Promise.all(handedOff)).resolves.toBeDefined();
+    const ask = () =>
+      failing.api.requestPasswordReset({
+        body: { email: user.email, redirectTo: '/set-password' },
+        headers: clientHeaders({ ip: '10.0.9.9', turnstile: 'ok:reset' }),
+      });
+    await expect(
+      requestResetInBackground((task) => handedOff.push(task), ask, log),
+    ).resolves.toBeUndefined();
+    await expect(Promise.all(handedOff)).resolves.toHaveLength(1);
     expect(log.entries.map((e) => e.event)).toContain('auth.mail_failed');
     expect(await setPasswordMailFailed({ keyValue }, user.id)).toBe(false);
 
-    // An address with no account hands off nothing and answers the same.
-    const none = await withResetMailInBackground(
-      (task) => handedOff.push(task),
-      () =>
-        failing.api.requestPasswordReset({
-          body: { email: `nobody-${user.id}@shakti.test`, redirectTo: '/set-password' },
-          headers: clientHeaders({ ip: '10.0.9.9', turnstile: 'ok:reset' }),
-        }),
+    // Any other failure once the person has their answer is logged as well.
+    await expect(
+      requestResetInBackground(
+        (task) => handedOff.push(task),
+        async () => {
+          await ask();
+          throw new Error('lost after the answer');
+        },
+        log,
+      ),
+    ).resolves.toBeUndefined();
+    await expect(Promise.all(handedOff)).resolves.toHaveLength(2);
+    expect(log.entries.map((e) => e.event)).toContain('auth.reset_failed');
+  });
+});
+
+describe("Better Auth's own log lines", () => {
+  it('reach the logger without the fields that name a person, whatever logger is behind the port', () => {
+    // A logger that keeps what it is handed as it is, so nothing but the auth module scrubs it.
+    const raw: Record<string, unknown>[] = [];
+    const logged = createAuth(
+      {
+        keyValue,
+        mailer,
+        fetch: fetchStub,
+        now: () => clock,
+        turnstileSecretKey: 'secret',
+        logger: {
+          log: (_level, _event, fields = {}) => {
+            raw.push({ ...fields });
+          },
+        },
+      },
+      { nextCookies: false, baseURL: 'http://localhost:3000', secret: TEST_AUTH_SECRET },
     );
-    expect(none).toEqual(answer);
-    expect(handedOff).toHaveLength(1);
+    logged.options.logger.log('warn', 'user lookup', {
+      user: { id: 'u-1', name: 'Asha Meena', email: 'asha.meena@shakti.test' },
+    });
+    expect(raw).toEqual([{ message: 'user lookup', args: [{ user: { id: 'u-1' } }] }]);
   });
 });
 

@@ -7,26 +7,62 @@ import {
   type FocusCandidate,
 } from './return-focus';
 
+/** The page the stand-ins live on: which of them holds focus. */
+const page: { activeElement: unknown } = { activeElement: null };
+
+interface ElementState {
+  connected?: boolean;
+  /** Laid out at all (`display: none` is not). */
+  shown?: boolean;
+  /** `visibility: hidden`. */
+  invisible?: boolean;
+  disabled?: boolean;
+  /** Inside a disabled fieldset. */
+  fieldsetDisabled?: boolean;
+  /** Inside an `inert` part of the page, or an `aria-disabled="true"` one. */
+  blockedBy?: 'inert' | 'aria-disabled';
+  /** Not focusable at all: a plain element with no `tabindex`. */
+  plain?: boolean;
+  /** Given `tabindex="-1"`, as a fallback heading is. */
+  programmatic?: boolean;
+  /** Looks able but does not take focus when asked. */
+  refuses?: boolean;
+}
+
 /**
  * A stand-in for an element: on the page or not, shown or hidden, and how often it was focused.
  * `state` is read live, so a test can take an element off the page after filing it.
  */
 function element(
   name: string,
-  state: { connected?: boolean; shown?: boolean; disabled?: boolean } = {},
+  state: ElementState = {},
 ): HTMLElement & { name: string; focused: number } {
   const el = {
     name,
     focused: 0,
+    ownerDocument: page,
     get isConnected() {
       return state.connected ?? true;
     },
     get disabled() {
       return state.disabled ?? false;
     },
+    get tabIndex() {
+      return state.plain === true || state.programmatic === true ? -1 : 0;
+    },
+    hasAttribute: (attribute: string) => attribute === 'tabindex' && state.programmatic === true,
+    matches: (selectors: string) => selectors === ':disabled' && state.fieldsetDisabled === true,
+    closest: (selectors: string) => {
+      if (state.blockedBy === 'inert' && selectors.includes('[inert]')) return {};
+      if (state.blockedBy === 'aria-disabled' && selectors.includes('aria-disabled')) return {};
+      return null;
+    },
+    checkVisibility: (options?: { visibilityProperty?: boolean }) =>
+      (state.shown ?? true) && !(options?.visibilityProperty === true && state.invisible === true),
     getClientRects: () => ({ length: (state.shown ?? true) ? 1 : 0 }),
     focus() {
       el.focused += 1;
+      if (state.refuses !== true) page.activeElement = el;
     },
   };
   return el as unknown as HTMLElement & { name: string; focused: number };
@@ -43,6 +79,18 @@ describe('canTakeFocus', () => {
     expect(canTakeFocus(element('gone', { connected: false }))).toBe(false);
     expect(canTakeFocus(element('hidden column', { shown: false }))).toBe(false);
     expect(canTakeFocus(element('off', { disabled: true }))).toBe(false);
+  });
+
+  it('skips an element hidden by visibility, in a disabled fieldset, inert or aria-disabled', () => {
+    expect(canTakeFocus(element('invisible', { invisible: true }))).toBe(false);
+    expect(canTakeFocus(element('in a fieldset', { fieldsetDisabled: true }))).toBe(false);
+    expect(canTakeFocus(element('behind a modal', { blockedBy: 'inert' }))).toBe(false);
+    expect(canTakeFocus(element('greyed out', { blockedBy: 'aria-disabled' }))).toBe(false);
+  });
+
+  it('skips an element that is not focusable, and takes one given a tabindex', () => {
+    expect(canTakeFocus(element('plain text', { plain: true }))).toBe(false);
+    expect(canTakeFocus(element('column heading', { programmatic: true }))).toBe(true);
   });
 });
 
@@ -83,6 +131,22 @@ describe('returnFocusHandler', () => {
     where = moved;
     handler(closeEvent());
     expect(moved.focused).toBe(1);
+  });
+
+  it('passes over a place that did not take focus, and stops Radix only once focus has landed', () => {
+    const refusing = element('refusing', { refuses: true });
+    const heading = element('heading', { programmatic: true });
+    const event = closeEvent();
+    returnFocusHandler(() => [refusing, heading], undefined)(event);
+    expect(refusing.focused).toBe(1);
+    expect(heading.focused).toBe(1);
+    expect(page.activeElement).toBe(heading);
+    expect(event.defaultPrevented).toBe(true);
+
+    // When nothing takes focus, Radix's own return runs.
+    const nothing = closeEvent();
+    returnFocusHandler(() => [element('also refusing', { refuses: true })], undefined)(nothing);
+    expect(nothing.defaultPrevented).toBe(false);
   });
 
   it("leaves Radix's return alone when no place can take focus or none is named", () => {
@@ -144,6 +208,35 @@ describe('createFocusTargets', () => {
     targets.ref('lead-1')(remounted);
     oldState.connected = false;
     expect(targets.get('lead-1')).toEqual([remounted]);
+  });
+
+  it('drops a key and its ref once nothing is filed under it, and keeps a ref still in use', () => {
+    const targets = createFocusTargets<string>();
+    const first = targets.ref('lead-1');
+    const detach = first(element('first'));
+    detach?.();
+    // Dropped: the next row drawn under the key gets a fresh ref.
+    expect(targets.ref('lead-1')).not.toBe(first);
+
+    // A card moved to another column: the old button leaves as the new one arrives through the
+    // same ref, which stays the key's one ref.
+    const board = createFocusTargets<string>();
+    const ref = board.ref('lead-2');
+    const leave = ref(element('old'));
+    leave?.();
+    const moved = element('moved');
+    ref(moved);
+    expect(board.ref('lead-2')).toBe(ref);
+    expect(board.get('lead-2')).toEqual([moved]);
+
+    // A key whose elements all left the page without a cleanup is dropped when it is read.
+    const quiet = createFocusTargets<string>();
+    const state = { connected: true };
+    const kept = quiet.ref('row');
+    kept(element('row', state));
+    state.connected = false;
+    expect(quiet.get('row')).toEqual([]);
+    expect(quiet.ref('row')).not.toBe(kept);
   });
 
   it('ignores the null React passes to a ref without a cleanup', () => {

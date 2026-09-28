@@ -108,12 +108,16 @@ describe('Dialog', () => {
       if (content === undefined) throw new Error('the dialog content is missing');
       return content.props.onCloseAutoFocus;
     };
+    // The handler checks that focus landed, so the stand-in's page records where it is.
+    const page: { activeElement: unknown } = { activeElement: null };
     const actions = {
       focused: 0,
       isConnected: true,
+      ownerDocument: page,
       getClientRects: () => ({ length: 1 }),
       focus() {
         actions.focused += 1;
+        page.activeElement = actions;
       },
     };
     const returnFocusTo = () => [actions as unknown as HTMLElement];

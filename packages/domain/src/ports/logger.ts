@@ -26,17 +26,25 @@ const SECRET_KEYS = new Set([
 ]);
 
 /**
- * Identity-number fields, compared without case or separators, that never reach a log line
- * (AGENTS.md §9): Aadhaar, PAN, bank account and IFSC.
+ * Identity-number fields, compared without case or separators, that never reach a log line or the
+ * audit trail (AGENTS.md §9): Aadhaar, PAN, bank account and IFSC, under the spellings and short
+ * forms people give them.
  */
-const IDENTITY_KEYS = new Set([
+export const IDENTITY_KEYS: ReadonlySet<string> = new Set([
   'aadhaar',
+  'aadhar',
   'aadhaarnumber',
+  'aadharnumber',
+  'aadhaarno',
+  'aadharno',
   'uid',
   'pan',
   'pannumber',
+  'panno',
   'accountnumber',
+  'accountno',
   'bankaccountnumber',
+  'bankaccountno',
   'ifsc',
   'ifsccode',
 ]);
@@ -51,7 +59,9 @@ const lastFour = (digits: string): string => `${'*'.repeat(digits.length - 4)}${
  * Link, token and personal-number shapes that may appear inside free text. A phone number keeps
  * its last four digits; twelve digits, as Aadhaar numbers are printed, are replaced in full. The
  * number shapes must stand alone, so the digit runs inside ids (a UUID's groups) are left intact.
- * International numbers go first, so `+91` and ten digits is not read as twelve digits.
+ * International numbers go first, so `+91` and ten digits is not read as twelve digits. A mobile
+ * number is also found as people write it: spaced after five digits, and after a 0, 91 or +91
+ * (`98765 43210`, `098765 43210`, `91 98765 43210`, `+91-98765-43210`).
  */
 const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/reset-password[:/][\w-]+/g, 'reset-password:[redacted]'),
@@ -60,7 +70,10 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),
   (t) => t.replace(/(?<![\w+])\+\d{8,15}(?!\w)/g, (m) => `+${lastFour(m.slice(1))}`),
   (t) => t.replace(/(?<!\w|[\da-f]-)\d{4}[ -]?\d{4}[ -]?\d{4}(?!\w|-[\da-f])/gi, '[number]'),
-  (t) => t.replace(/(?<!\w)[6-9]\d{9}(?!\w)/g, lastFour),
+  (t) =>
+    t.replace(/(?<![\w+])(?:\+?91[ -]?|0)?[6-9]\d{4}[ -]?\d{5}(?!\w)/g, (m) =>
+      lastFour(m.replace(/\D/g, '')),
+    ),
 ];
 
 export function redactText(text: string): string {

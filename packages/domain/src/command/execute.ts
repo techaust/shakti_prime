@@ -168,6 +168,12 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
 /**
  * The one way the web app reads data: a query from this package inside the caller's context,
  * timed into one log line (`query.completed`) like a command.
+ *
+ * The request context is read-only (`readOnly`) before the query's first statement. The function
+ * is handed the transaction, and a write made through it would skip the guard, the audit trail and
+ * the outbox, so Postgres refuses any insert, update, delete or sequence step there (SQLSTATE
+ * 25006). A function that ends the transaction itself (`commit`) loses the RLS settings with it,
+ * so a write after that is refused by row security instead (SQLSTATE 42501).
  */
 export function executeQuery<T>(
   principal: Principal,
@@ -181,6 +187,6 @@ export function executeQuery<T>(
     options.name ?? (query.name === '' ? 'anonymous' : query.name),
     requestId,
     timingOptions(options.logger, options.clock),
-    () => withRequestContext(principal, { ...scope, requestId }, query),
+    () => withRequestContext(principal, { ...scope, requestId }, query, { readOnly: true }),
   );
 }

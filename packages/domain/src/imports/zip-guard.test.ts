@@ -1,9 +1,32 @@
 import { IMPORT_LIMITS } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
+import type * as Zlib from 'node:zlib';
 import { deflateRawSync } from 'node:zlib';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseImportFile } from './parse';
 import { checkZipArchive, type ZipLimits } from './zip-guard';
+
+/** Each unpacking the guard does: the ceiling it set, and what came out or that it stopped. */
+const unpacked = vi.hoisted(() => ({
+  calls: [] as { ceiling: number | undefined; made: number | 'stopped' }[],
+}));
+
+vi.mock('node:zlib', async (importOriginal) => {
+  const zlib = await importOriginal<typeof Zlib>();
+  return {
+    ...zlib,
+    inflateRawSync: (buffer: Zlib.InputType, options?: Zlib.ZlibOptions) => {
+      try {
+        const out = zlib.inflateRawSync(buffer, options);
+        unpacked.calls.push({ ceiling: options?.maxOutputLength, made: out.length });
+        return out;
+      } catch (error) {
+        unpacked.calls.push({ ceiling: options?.maxOutputLength, made: 'stopped' });
+        throw error;
+      }
+    },
+  };
+});
 
 /** One part of a ZIP made in memory; the declared sizes default to the true ones. */
 interface Part {
@@ -48,8 +71,18 @@ function deflated(content: Buffer): Buffer {
   return packed;
 }
 
-/** 120 MB of one repeated byte, which packs into about 120 KB: the shape of a zip bomb. */
-const BOMB = Buffer.alloc(120 * 2 ** 20);
+/**
+ * 120 MB of one repeated byte, which packs into about 120 KB: the shape of a zip bomb. It is made
+ * and packed once before the tests run, not when the file loads, and let go after them.
+ */
+let BOMB = Buffer.alloc(0);
+beforeAll(() => {
+  BOMB = Buffer.alloc(120 * 2 ** 20);
+  deflated(BOMB);
+}, 60_000);
+afterAll(() => {
+  BOMB = Buffer.alloc(0);
+});
 
 /** A ZIP laid out as the format describes it: local headers and data, directory, end record. */
 function zip(parts: Part[], shape: Shape = {}): Uint8Array {
@@ -186,7 +219,6 @@ describe('checkZipArchive', () => {
   });
 
   it('refuses a part that unpacks to more than its directory entry says, and stops there', () => {
-    const started = Date.now();
     const bytes = zip([
       {
         name: 'xl/worksheets/sheet1.xml',
@@ -194,10 +226,11 @@ describe('checkZipArchive', () => {
         declaredUnpacked: 1000,
       },
     ]);
+    unpacked.calls.length = 0;
     const verdict = checkZipArchive(bytes, limits);
     expect(verdict).toMatchObject({ ok: false, reason: 'import_file_unreadable' });
     // Unpacking stopped at the declared 1,000 bytes rather than making 120 MB.
-    expect(Date.now() - started).toBeLessThan(5000);
+    expect(unpacked.calls).toEqual([{ ceiling: 1000, made: 'stopped' }]);
     expect(
       verdictOf(zip([{ name: 'a.xml', content: text('<a/>'.repeat(10)), declaredUnpacked: 400 }])),
     ).toBe('import_file_unreadable');

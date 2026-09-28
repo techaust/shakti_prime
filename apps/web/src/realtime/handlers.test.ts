@@ -89,6 +89,27 @@ describe('POST /api/v1/realtime/token', () => {
     expect(body.channels).toEqual([`user:${person.id}`, 'entity:2:queue', 'entity:2:board']);
   });
 
+  it('carries the request id of the one rule: the platform id, else a safe id the caller sent', async () => {
+    const vars = await env();
+    const deps = {
+      principal: () => Promise.resolve(person),
+      issue,
+      keyValue: memoryKeyValue(),
+      env: vars,
+    };
+    const platform = await issueRealtimeToken(
+      post({ origin: ISSUER, 'x-vercel-id': 'bom1::rt-1', 'x-request-id': 'mine' }),
+      deps,
+    );
+    expect(platform.headers.get('x-request-id')).toBe('bom1::rt-1');
+    expect(issued.at(-1)?.requestId).toBe('bom1::rt-1');
+    const given = await issueRealtimeToken(post({ origin: ISSUER, 'x-request-id': 'rt-2' }), deps);
+    expect(given.headers.get('x-request-id')).toBe('rt-2');
+    const refused = await issueRealtimeToken(post({ 'x-request-id': 'rt-3' }), deps);
+    expect(refused.status).toBe(403);
+    expect((await envelope(refused)).requestId).toBe('rt-3');
+  });
+
   it('refuses a caller without a session', async () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(undefined),
@@ -130,6 +151,53 @@ describe('POST /api/v1/realtime/token', () => {
       expect(response.status).toBe(400);
       expect((await envelope(response)).code).toBe('validation_failed');
     }
+  });
+
+  it('refuses a body it never takes before looking up the caller or reading it', async () => {
+    const vars = await env();
+    let looked = 0;
+    const deps = {
+      principal: () => {
+        looked += 1;
+        return Promise.resolve(person);
+      },
+      issue,
+      keyValue: memoryKeyValue(),
+      env: vars,
+    };
+    const before = issued.length;
+    const declared = new Request(TOKEN_URL, {
+      method: 'POST',
+      headers: { origin: ISSUER, 'content-length': '1048576' },
+      body: '{}',
+    });
+    const refused = await issueRealtimeToken(declared, deps);
+    expect(refused.status).toBe(400);
+    expect((await envelope(refused)).code).toBe('validation_failed');
+    expect(declared.bodyUsed).toBe(false);
+    expect(looked).toBe(0);
+
+    // Sent with no length: read only as far as the cap, then refused.
+    const chunk = new TextEncoder().encode(' '.repeat(1024));
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const streamed = await issueRealtimeToken(
+      new Request(TOKEN_URL, {
+        method: 'POST',
+        headers: { origin: ISSUER },
+        body: endless,
+        duplex: 'half',
+      } as RequestInit),
+      deps,
+    );
+    expect(streamed.status).toBe(400);
+    expect(pulled).toBeLessThan(5);
+    expect(issued.length).toBe(before);
   });
 
   it('refuses a call from another site', async () => {

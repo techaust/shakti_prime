@@ -47,11 +47,15 @@ const tooLarge = (why: string): ZipVerdict => ({
  * The directory is read the way JSZip reads it (the last end-of-directory record, the directory
  * entries it points at, each part's data after its local header, of the directory's packed size),
  * so the bytes judged here are the bytes the reader later unpacks. Anything JSZip would read
- * differently or leniently is refused: ZIP64 records, several disks, bytes before or between the
- * parts and the directory, encryption, packing methods other than stored and deflate, and a part
- * whose unpacked size differs from its directory entry. The declared sizes must stay within the
- * limits, and each part is then unpacked with a ceiling of its declared size, so a part that lies
- * about its size is refused after producing no more than it declared.
+ * differently or leniently is refused: ZIP64 records, several disks, a directory that does not
+ * end exactly where the end record starts (JSZip would shift every offset by the difference),
+ * a local header or part data reaching into the directory, encryption, packing methods other than
+ * stored and deflate, and a part whose unpacked size differs from its directory entry. Bytes in
+ * front of the first part, between parts or between the last part and the directory are not
+ * refused: nothing is read from them, since each part is read at the offset its directory entry
+ * gives, where JSZip reads it too. The declared sizes must stay within the limits, and each part
+ * is then unpacked with a ceiling of its declared size, so a part that lies about its size is
+ * refused after producing no more than it declared.
  */
 export function checkZipArchive(bytes: Uint8Array, limits: ZipLimits): ZipVerdict {
   const data = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -83,7 +87,7 @@ export function checkZipArchive(bytes: Uint8Array, limits: ZipLimits): ZipVerdic
   if (disk !== 0 || directoryDisk !== 0 || entriesHere !== entries) {
     return unreadable('several disks');
   }
-  // The directory ends where the end record starts: no bytes put in front of or between them.
+  // The directory ends where the end record starts, so JSZip finds no extra bytes to shift by.
   if (directoryOffset + directorySize !== end) return unreadable('directory out of place');
   if (entries === 0) return unreadable('no parts');
 

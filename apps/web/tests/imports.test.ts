@@ -400,6 +400,53 @@ describe('POST /api/v1/workers/imports/commit', () => {
     const replaced = await call(body, sign(body), 'not safe to echo');
     expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
     expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+
+    // The platform's id wins over the caller's, as on every route and action.
+    const platform = `bom1::route-${newId()}`;
+    const hosted = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'upstash-signature': sign(body),
+          'x-vercel-id': platform,
+          'x-request-id': given,
+        },
+        body,
+      }),
+    );
+    expect(hosted.status).toBe(400);
+    expect(hosted.headers.get('x-request-id')).toBe(platform);
+  });
+
+  it('refuses a body larger than a worker call carries, reading none of a declared one', async () => {
+    const body = JSON.stringify({ jobId: newId(), entityId: 1, userId: newId() });
+    const declared = new Request(ROUTE_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'upstash-signature': sign(body),
+        'content-length': '1048576',
+      },
+      body,
+    });
+    const refused = await POST(declared);
+    expect(refused.status).toBe(400);
+    expect(refused.headers.get('upstash-nonretryable-error')).toBe('true');
+    expect(ErrorEnvelope.parse(await refused.json()).error.code).toBe('validation_failed');
+    expect(declared.bodyUsed).toBe(false);
+
+    const big = JSON.stringify({ jobId: newId(), pad: 'x'.repeat(8 * 1024) });
+    const streamed = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'upstash-signature': sign(big) },
+        body: new Blob([big]).stream(),
+        duplex: 'half',
+      } as RequestInit),
+    );
+    expect(streamed.status).toBe(400);
+    expect(ErrorEnvelope.parse(await streamed.json()).error.code).toBe('validation_failed');
   });
 
   /** A job the command has moved to committing, with no worker started for it yet. */
@@ -445,6 +492,28 @@ describe('POST /api/v1/workers/imports/commit', () => {
       committedRows: 2,
     });
     expect(await liveLeads(job.id)).toBe(2);
+  });
+
+  it("records each batch under the route's request id, as its answer and log carry it", async () => {
+    const job = await committingJob(['Traced one', 'Traced two']);
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: gm.id });
+    const given = `imports-trace-${newId()}`;
+    const response = await call(body, sign(body), given);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-request-id')).toBe(given);
+    const rows = await asMigrator(
+      (m) => m<{ command: string; outcome: string; request_id: string }[]>`
+        select command, outcome, request_id from audit_logs
+         where command = 'imports.job.commit_batch' and aggregate_id = ${job.id}`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toEqual({
+        command: 'imports.job.commit_batch',
+        outcome: 'ok',
+        request_id: given,
+      });
+    }
   });
 
   it('hands the next run to the queue with an id that names the job and its progress', async () => {

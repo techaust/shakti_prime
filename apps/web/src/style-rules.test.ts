@@ -34,13 +34,6 @@ const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
     value: 'max-w-[min(16rem,45vw)]',
     why: 'a long company name is cut short before it crowds the top bar on a phone',
   },
-  // The import screens belong to another change of this wave; these two become `font-medium`
-  // when it lands, and the entry goes with them.
-  {
-    name: 'components/imports/import-steps.tsx',
-    value: 'font-[510]',
-    why: 'pending: the import steps move to the weight token with the import screens',
-  },
 ];
 
 describe('web source rules', () => {

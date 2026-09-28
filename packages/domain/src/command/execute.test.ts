@@ -3,7 +3,7 @@
 // behaviour on real Postgres is covered by the security suite under tests/.
 import { newId, type Principal } from '@shakti/contracts';
 import type * as DbModule from '@shakti/db';
-import type { RequestContext, RequestScope } from '@shakti/db';
+import type { RequestContext, RequestOptions, RequestScope } from '@shakti/db';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type * as AuditSinkModule from '../audit/sink';
@@ -13,7 +13,7 @@ import { defineCommand } from './define-command';
 import { executeCommand, executeQuery } from './execute';
 import type { Clock } from './timing';
 
-const audited = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const audited = vi.hoisted(() => ({ rows: [] as unknown[], contexts: [] as unknown[] }));
 
 vi.mock('@shakti/db', async (importOriginal) => ({
   ...(await importOriginal<typeof DbModule>()),
@@ -21,13 +21,17 @@ vi.mock('@shakti/db', async (importOriginal) => ({
     principal: Principal,
     scope: RequestScope,
     fn: (context: RequestContext) => Promise<T>,
-  ): Promise<T> =>
-    fn({
+    options: RequestOptions = {},
+  ): Promise<T> => {
+    // The options each call opened its context with, in order.
+    audited.contexts.push(options);
+    return fn({
       principal,
       entityIds: scope.entityIds ?? principal.entityIds,
       requestId: scope.requestId ?? 'generated',
       tx: undefined as unknown as RequestContext['tx'],
-    }),
+    });
+  },
 }));
 
 vi.mock('../audit/sink', async (importOriginal) => ({
@@ -194,5 +198,25 @@ describe('executeQuery timing', () => {
         },
       },
     ]);
+  });
+
+  it('opens a read-only context for a query, and a read-write one for a command', async () => {
+    audited.contexts.length = 0;
+    await executeQuery(principal(), { requestId: 'r' }, () => Promise.resolve(1), {
+      name: 'listLeads',
+      logger: memoryLogger(),
+      clock: fakeClock(0),
+    });
+    await executeCommand(
+      principal(),
+      { requestId: 'c' },
+      echo,
+      { phone: '1' },
+      {
+        logger: memoryLogger(),
+        clock: fakeClock(0),
+      },
+    );
+    expect(audited.contexts).toEqual([{ readOnly: true }, {}]);
   });
 });

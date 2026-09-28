@@ -138,6 +138,52 @@ describe('redactForAudit', () => {
     for (const key of ['code', 'brandName', 'upiId', 'status'])
       expect(isDeniedKey(key)).toBe(false);
   });
+
+  it('removes the spellings and short forms people give identity fields', () => {
+    for (const key of [
+      'aadhar',
+      'Aadhar_Number',
+      'aadhaarNo',
+      'aadhar-no',
+      'PAN_No',
+      'accountNo',
+    ]) {
+      expect(isDeniedKey(key)).toBe(true);
+    }
+    expect(
+      redactForAudit({ name: 'Ramesh Patel', aadhar: '234567890123', panNo: 'ABCDE1234F' }),
+    ).toEqual({ name: 'Ramesh Patel' });
+  });
+
+  it('scrubs a number typed into a free-text field, in the input and in before and after', () => {
+    // A synthetic lead: the person typed an Aadhaar number, phones and an email where text goes.
+    const typed = {
+      name: 'Ramesh Patel 2345 6789 0123',
+      village: 'Idar, 234567890123',
+      address: 'Near the tank, call 98765 43210 or ramesh.patel@shakti.test',
+      notes: ['Aadhaar 2345-6789-0123 seen', 'alt 098765 43210'],
+      remarks: 'call +91 98123 45678',
+      // Business values keep their digits: an id, a pin code, a time and an amount.
+      id: '01928a3b-1234-7123-8123-123456789012',
+      pinCode: '383001',
+      at: '2026-09-27T10:00:00.000Z',
+      amount: '145000.00',
+    };
+    const out = redactForAudit({ input: typed, before: typed, after: typed });
+    const expected = {
+      name: 'Ramesh Patel [number]',
+      village: 'Idar, [number]',
+      address: 'Near the tank, call ******3210 or [email]',
+      notes: ['Aadhaar [number] seen', 'alt *******3210'],
+      remarks: 'call ********5678',
+      id: '01928a3b-1234-7123-8123-123456789012',
+      pinCode: '383001',
+      at: '2026-09-27T10:00:00.000Z',
+      amount: '145000.00',
+    };
+    expect(out).toEqual({ input: expected, before: expected, after: expected });
+    expect(JSON.stringify(out)).not.toMatch(/2345.?6789.?0123|98765.?43210|98123.?45678/);
+  });
 });
 
 describe('redactAuthEvent', () => {
