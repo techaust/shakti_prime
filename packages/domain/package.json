@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:security": "vitest run --config vitest.security.config.ts",
     "machines:docs": "tsx scripts/machines-docs.ts",
-    "spike:import": "tsx tests/spike/import-scale.ts"
+    "spike:import": "tsx tests/spike/import-scale.ts",
+    "spike:lists": "tsx tests/spike/lists.ts"
   },
   "dependencies": {
     "@shakti/contracts": "workspace:*",

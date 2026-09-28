@@ -130,6 +130,10 @@ describe('events of a command (ADR 0005, docs/design/backend-weeks-3-5.md §4.1)
     expect(await eventsOf(aggregateId)).toHaveLength(1);
     expect(logger.entries).toEqual([
       expect.objectContaining({ level: 'warn', event: 'outbox.nudge_failed' }),
+      expect.objectContaining({
+        event: 'command.completed',
+        fields: expect.objectContaining({ outcome: 'ok' }) as unknown,
+      }),
     ]);
   });
 

@@ -7,6 +7,7 @@ import { databaseOutboxSink, type OutboxRecord, type OutboxSink } from '../outbo
 import { jsonLogger, type Logger } from '../ports/logger';
 import type { Command } from './define-command';
 import { auditBase, auditedInput, failureOf, runCommand, type RunOptions } from './run-command';
+import { monotonicClock, timed, type Clock, type TimingOptions } from './timing';
 
 export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | 'outbox'> {
   /** Where a failure to record a refusal is reported; it never replaces the refusal itself. */
@@ -16,9 +17,30 @@ export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | '
    * outbox publisher here. Its failure is logged and never fails the command, which committed.
    */
   onCommitted?: (events: readonly OutboxRecord[]) => Promise<void> | void;
+  /** The clock the call's duration is measured with; tests pass a fake one. */
+  clock?: Clock;
+}
+
+export interface QueryOptions {
+  /** The query's name in its log line; the function's own name when left out. */
+  name?: string;
+  logger?: Logger;
+  clock?: Clock;
 }
 
 const defaultLogger = jsonLogger();
+
+/**
+ * Every call writes one timing line (BLUEPRINT §6.4, p95 < 300 ms). A test run makes thousands of
+ * calls, so the default logger keeps only the slow ones there; a logger passed in gets every line.
+ */
+function timingOptions(logger: Logger | undefined, clock: Clock | undefined): TimingOptions {
+  return {
+    logger: logger ?? defaultLogger,
+    clock: clock ?? monotonicClock,
+    quiet: logger === undefined && process.env.NODE_ENV === 'test',
+  };
+}
 
 /**
  * The one way the web app changes data (AUDIT M12): a request context for the caller, then the
@@ -28,6 +50,9 @@ const defaultLogger = jsonLogger();
  * A refused or failed call rolls its transaction back, audit row included, so the row that
  * records the refusal is written afterwards in a short transaction of its own
  * (docs/design/backend-weeks-3-5.md §3.2). Input that does not parse is not recorded: nothing ran.
+ *
+ * The whole call, refusal row and outbox nudge included, is timed into one log line with the
+ * command's name, outcome, duration and request id (`command.completed`).
  */
 export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   principal: Principal,
@@ -36,8 +61,21 @@ export async function executeCommand<I extends z.ZodType, O extends z.ZodType>(
   input: unknown,
   options: ExecuteOptions = {},
 ): Promise<z.output<O>> {
+  const { clock, ...rest } = options;
+  const requestId = scope.requestId ?? newId();
+  return timed('command', command.name, requestId, timingOptions(options.logger, clock), () =>
+    runInContext(principal, { ...scope, requestId }, command, input, rest),
+  );
+}
+
+async function runInContext<I extends z.ZodType, O extends z.ZodType>(
+  principal: Principal,
+  scoped: RequestScope,
+  command: Command<I, O>,
+  input: unknown,
+  options: Omit<ExecuteOptions, 'clock'>,
+): Promise<z.output<O>> {
   const { logger = defaultLogger, onCommitted, ...runOptions } = options;
-  const scoped: RequestScope = { ...scope, requestId: scope.requestId ?? newId() };
   const stored: OutboxRecord[] = [];
   const outbox: OutboxSink = {
     async write(tx, records) {
@@ -127,11 +165,22 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
   return reparsed.success ? auditedInput(command, reparsed.data) : null;
 }
 
-/** The one way the web app reads data: a query from this package inside the caller's context. */
+/**
+ * The one way the web app reads data: a query from this package inside the caller's context,
+ * timed into one log line (`query.completed`) like a command.
+ */
 export function executeQuery<T>(
   principal: Principal,
   scope: RequestScope,
   query: (context: RequestContext) => Promise<T>,
+  options: QueryOptions = {},
 ): Promise<T> {
-  return withRequestContext(principal, scope, query);
+  const requestId = scope.requestId ?? newId();
+  return timed(
+    'query',
+    options.name ?? (query.name === '' ? 'anonymous' : query.name),
+    requestId,
+    timingOptions(options.logger, options.clock),
+    () => withRequestContext(principal, { ...scope, requestId }, query),
+  );
 }

@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "js-budget": "tsx scripts/check-js-budget.ts",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
