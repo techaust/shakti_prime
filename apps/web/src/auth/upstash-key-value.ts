@@ -2,7 +2,7 @@ import type { KeyValue } from '@shakti/domain';
 import { Redis } from '@upstash/redis';
 
 /** Deadline for one Upstash call: the store sits on the path of every signed-in request. */
-export const UPSTASH_CALL_TIMEOUT_MS = 1000;
+const UPSTASH_CALL_TIMEOUT_MS = 1000;
 
 export interface UpstashConfig {
   url: string;

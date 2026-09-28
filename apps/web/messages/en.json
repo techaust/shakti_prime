@@ -799,7 +799,7 @@
       },
       "assignDialog": {
         "title": "Assign {name}",
-        "intro": "Choose who works on this lead next. It stays with them for two days before anyone else can take it.",
+        "intro": "Choose who works on this lead next. It stays with them for a set time before anyone else can take it.",
         "person": "Person",
         "loading": "Finding the people you can choose.",
         "none": "No one you can hand this lead to works in this company.",

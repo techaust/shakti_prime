@@ -99,7 +99,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 | T1 | "Which caller in your team has made the most calls today, and who is behind target?" | Prototype, Team lead home | Both named |
 | T2 | "A converter is on leave today. Move one of their leads to another converter." | App, Leads board | Lead reassigned from the card |
 | T3 | "Find the leads in Contacted that have been open for more than three days." | App, Leads board | The "Open for" days on the cards in the Contacted column are used |
-| T4 | "Show me all the leads of your team from the walk-in source." | App, Leads | Filter applied |
+| T4 | "A customer from Chomu called back, but you only remember that his name sounds like Ramesh. Find his lead." | App, Search or go to (Ctrl K) | The lead is found by a half-remembered name or the village |
 
 ### 4.4 Tele-caller, cold calling
 | # | Task | Where | Done when |

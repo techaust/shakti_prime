@@ -99,7 +99,7 @@ export function assertProductionConfig(env: NodeJS.ProcessEnv = process.env): vo
 }
 
 /** Upstash Redis when configured, otherwise the in-memory store (local development and CI). */
-export function upstashOrMemoryKeyValue(): KeyValue {
+function upstashOrMemoryKeyValue(): KeyValue {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url === undefined || url === '' || token === undefined || token === '') {
