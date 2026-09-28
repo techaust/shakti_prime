@@ -9,12 +9,11 @@ import {
 } from '@shakti/tokens';
 import type { Metadata } from 'next';
 import { getMessages, getTranslations } from 'next-intl/server';
-import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { currentSession } from '../../../auth/current-principal';
 import { ComponentGallery, type DesignCopy } from '../../../components/design/component-gallery';
 import { Page } from '../../../components/shell/page';
-import { visibleNav } from '../../../nav';
+import { navRequires, visibleNav } from '../../../nav';
+import { screenAccess } from '../../../screens/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,13 +60,10 @@ const MOTIONS = Object.entries(scale.motion);
  * type sizes, spacing, corners, shadows, motion and focus, and the §2.5 contrast pairs.
  */
 export default async function DesignPage() {
-  const session = await currentSession();
-  if (!session) redirect('/sign-in');
-  if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
-  if (!session.principal) redirect('/two-factor');
+  const { principal } = await screenAccess(navRequires('design'));
   const t = await getTranslations('design');
   const copy: DesignCopy = (await getMessages()).design;
-  const navIds = visibleNav(session.principal.permissions).map((item) => item.id);
+  const navIds = visibleNav(principal.permissions).map((item) => item.id);
   return (
     <Page title={t('title')} description={t('intro')}>
       <div className="grid gap-6 xl:grid-cols-2">

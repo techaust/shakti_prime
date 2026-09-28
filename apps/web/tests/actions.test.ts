@@ -47,6 +47,9 @@ vi.mock('next/navigation', () => ({
   redirect: (url: string) => {
     throw new Error(`redirect ${url}`);
   },
+  notFound: () => {
+    throw new Error('not found');
+  },
 }));
 
 vi.mock('../src/auth/current-principal', () => ({
@@ -91,6 +94,8 @@ const {
   suspendUser,
 } = await import('../src/actions/admin');
 const { defaultAuthDeps } = await import('../src/auth/deps');
+const { screenAccess } = await import('../src/screens/access');
+const { navRequires } = await import('../src/nav');
 
 afterAll(async () => {
   await closeOutboxDb();
@@ -170,6 +175,16 @@ describe('server actions (AUDIT M41)', () => {
     await expect(switchEntity(form('/leads'))).rejects.toThrow('redirect /leads');
     await expect(switchEntity(form('//evil.example/leads'))).rejects.toThrow('redirect /home');
     await expect(switchEntity(form('/sign-in'))).rejects.toThrow('redirect /home');
+  });
+
+  it('the company switcher answers a failure as a form state with a reference, not a throw', async () => {
+    // A session whose access cannot be read stands in for a failing session lookup.
+    request.session = { access: null };
+    const data = new FormData();
+    data.set('entityId', '1');
+    const state = await switchEntity(data);
+    expect(state.error).toBe('internal');
+    expect(state.reference).toMatch(/^[0-9A-Z]{6,}$/);
   });
 
   it('record the caller’s address, browser and request on the audit trail, read back by an Executive', async () => {
@@ -580,5 +595,37 @@ describe('command and query actions answer a result, never a thrown error (revie
       ok: false,
       error: 'validation_failed',
     });
+  });
+});
+
+describe('screen guards match the menu', () => {
+  const session = (principal: Principal) => ({ principal, access: { entities: [] } });
+
+  it('a tele-caller opening Settings › Companies by its address gets the not-found screen', async () => {
+    request.session = session(await createTestPrincipal('tele_caller_cc', [1]));
+    await expect(screenAccess(navRequires('settings-companies'))).rejects.toThrow('not found');
+  });
+
+  it('an Executive opens Settings › Companies', async () => {
+    const executive = await createTestPrincipal('executive');
+    request.session = session(executive);
+    await expect(screenAccess(navRequires('settings-companies'))).resolves.toMatchObject({
+      principal: { id: executive.id },
+    });
+  });
+
+  it('New lead needs the customer write grant as well as the lead write grant', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    request.session = session({
+      ...caller,
+      permissions: caller.permissions.filter((g) => g.key !== 'crm.account.write'),
+    });
+    await expect(screenAccess(navRequires('leads-new'))).rejects.toThrow('not found');
+    request.session = session(caller);
+    await expect(screenAccess(navRequires('leads-new'))).resolves.toBeDefined();
+  });
+
+  it('sends a caller with no session to sign in', async () => {
+    await expect(screenAccess(navRequires('home'))).rejects.toThrow('redirect /sign-in');
   });
 });

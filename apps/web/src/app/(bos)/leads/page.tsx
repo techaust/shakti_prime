@@ -8,6 +8,7 @@ import { LeadsViewSwitch } from '../../../components/leads/view-switch';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../screens/access';
+import { navRequires } from '../../../nav';
 import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Leads: the leads the caller can see, newest change first, a page at a time. */
 export default async function LeadsPage() {
-  const { principal, access, can } = await screenAccess({ key: 'crm.lead.read', scope: 'own' });
+  const { principal, access, can } = await screenAccess(navRequires('leads'));
   const t = await getTranslations('leads');
   const canAdd = can('crm.lead.write', 'own') && can('crm.account.write', 'own');
   const [page, options] = await Promise.all([listLeads({ limit: 50 }), leadFormOptions()]);

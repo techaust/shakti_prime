@@ -6,6 +6,7 @@ import { UploadForm } from '../../../../components/imports/upload-form';
 import { ImportSteps } from '../../../../components/imports/import-steps';
 import { Page } from '../../../../components/shell/page';
 import { screenAccess } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * mode the person chooses the company; only companies where their role may import are offered.
  */
 export default async function NewImportPage() {
-  const { principal, access } = await screenAccess({ key: 'imports.write', scope: 'entity' });
+  const { principal, access } = await screenAccess(navRequires('imports'));
   const t = await getTranslations('imports.upload');
   const companies = access.entities
     .filter(

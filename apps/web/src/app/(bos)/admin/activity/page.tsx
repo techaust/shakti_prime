@@ -5,6 +5,7 @@ import { ActivityScreen } from '../../../../components/activity/activity-screen'
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { auditWindow, defaultWindow } from '../../../../screens/audit';
 import { firstFailure } from '../../../../screens/result';
 
@@ -19,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * filters by date, result, action and person. The database decides which rows each person reads.
  */
 export default async function ActivityPage() {
-  const { access } = await screenAccess({ key: 'audit.read', scope: 'entity' });
+  const { access } = await screenAccess(navRequires('admin-activity'));
   const t = await getTranslations('activity');
   const dates = defaultWindow(new Date());
   const window = auditWindow(dates.from, dates.to);

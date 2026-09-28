@@ -6,6 +6,7 @@ import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { UsersScreen } from '../../../../components/users/users-screen';
 import { companyNames, screenAccess } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * viewed, as the commands require.
  */
 export default async function TeamMembersPage() {
-  const { principal, access } = await screenAccess({ key: 'admin.users.write', scope: 'all' });
+  const { principal, access } = await screenAccess(navRequires('admin-users'));
   const t = await getTranslations('users');
   const page = await listUsers({ limit: 50 });
   const viewed = access.entities

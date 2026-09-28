@@ -6,6 +6,7 @@ import { PriceMasterScreen } from '../../../components/pricing/price-master-scre
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
 import { companyNames, screenAccess } from '../../../screens/access';
+import { navRequires } from '../../../nav';
 import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * them, a page at a time. Only selling prices: no cost figure is read for this screen.
  */
 export default async function PriceMasterPage() {
-  const { access, can } = await screenAccess({ key: 'pricing.read', scope: 'entity' });
+  const { access, can } = await screenAccess(navRequires('price-master'));
   const t = await getTranslations('priceMaster');
   const lists = await listPriceLists();
   if (!lists.ok) {

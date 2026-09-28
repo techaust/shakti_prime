@@ -5,6 +5,7 @@ import { CompaniesScreen } from '../../../../components/companies/companies-scre
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
 import { screenAccess } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** Settings › Companies: every company the caller works in; an Executive edits their details. */
 export default async function CompaniesPage() {
-  const { can } = await screenAccess();
+  const { can } = await screenAccess(navRequires('settings-companies'));
   const t = await getTranslations('companies');
   const companies = await listEntities();
   return (

@@ -1,4 +1,10 @@
-import { hasGrant, type PermissionKey, type Principal, type Scope } from '@shakti/contracts';
+import {
+  hasGrant,
+  type PermissionGrant,
+  type PermissionKey,
+  type Principal,
+  type Scope,
+} from '@shakti/contracts';
 import type { UserAccess } from '@shakti/domain';
 import { notFound, redirect } from 'next/navigation';
 import { currentSession } from '../auth/current-principal';
@@ -16,18 +22,21 @@ export interface ScreenAccess {
  * The signed-in caller of a BOS screen. A page checks again, because a layout does not re-run on
  * every client navigation. A screen the caller may not use answers the not-found screen, so its
  * address tells nobody it exists; the actions and the database refuse on their own as well.
+ * `required` is one grant or every grant the screen needs; a menu screen passes
+ * `navRequires('<id>')`, the same grants the menu shows it for.
  */
-export async function screenAccess(required?: {
-  key: PermissionKey;
-  scope: Scope;
-}): Promise<ScreenAccess> {
+export async function screenAccess(
+  required?: PermissionGrant | readonly PermissionGrant[],
+): Promise<ScreenAccess> {
   const session = await currentSession();
   if (!session) redirect('/sign-in');
   if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
   if (!session.principal) redirect('/two-factor');
   const principal = session.principal;
   const can = (key: PermissionKey, scope: Scope) => hasGrant(principal.permissions, key, scope);
-  if (required !== undefined && !can(required.key, required.scope)) notFound();
+  const needed: readonly PermissionGrant[] =
+    required === undefined ? [] : 'key' in required ? [required] : required;
+  if (!needed.every((g) => can(g.key, g.scope))) notFound();
   return {
     principal,
     access: session.access,

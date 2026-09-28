@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { currentSession } from '../../../auth/current-principal';
 import { Page } from '../../../components/shell/page';
 import type { RoleNameKey } from '../../../i18n/types';
-import { visibleNav } from '../../../nav';
+import { navRequires, visibleNav } from '../../../nav';
+import { screenAccess } from '../../../screens/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,24 +18,20 @@ export async function generateMetadata(): Promise<Metadata> {
  * on the profile screen, reached from the profile menu.
  */
 export default async function HomePage() {
-  const session = await currentSession();
-  if (!session) redirect('/sign-in');
-  if (session.blocked !== undefined) redirect('/sign-in?reason=no_access');
-  if (!session.principal) redirect('/two-factor');
-  const principal = session.principal;
+  const { principal, access } = await screenAccess(navRequires('home'));
   const t = await getTranslations('home');
   const auth = await getTranslations('auth.home');
   const nav = await getTranslations('nav');
   const roles = await getTranslations('roles');
   const active =
     principal.entityIds.length === 1
-      ? session.access.entities.find((e) => e.entityId === principal.entityIds[0])
+      ? access.entities.find((e) => e.entityId === principal.entityIds[0])
       : undefined;
   const shortcuts = visibleNav(principal.permissions).filter((item) => item.id !== 'home');
   return (
     <Page
       width="detail"
-      title={t('greeting', { name: session.access.name })}
+      title={t('greeting', { name: access.name })}
       description={
         <>
           {/* A signed-in person always holds a staff role; agents never sign in here. */}
