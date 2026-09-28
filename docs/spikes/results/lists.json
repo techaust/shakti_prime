@@ -1,0 +1,230 @@
+{
+  "ranAt": "2026-09-28T13:43:44.411Z",
+  "machine": {
+    "node": "v24.19.0",
+    "platform": "win32 x64",
+    "cpus": "4 × 11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz",
+    "memoryGb": 8
+  },
+  "database": "local Docker Postgres 17 (supabase/postgres), in process, one connection, as app_user under RLS",
+  "roundTripMs": 0.69,
+  "seed": {
+    "leads": 50000,
+    "companies": 4,
+    "callersPerCompany": 10,
+    "leadsPerCaller": 1250,
+    "seconds": 54.6,
+    "path": "commitLeadBatch (the import commit set-based path), 500 rows a transaction",
+    "openLeadsInDatabase": 50107,
+    "auditRowsLast30Days": 535
+  },
+  "method": {
+    "warmupRuns": 5,
+    "timedRuns": 50,
+    "pageSize": 50,
+    "laterPage": 11,
+    "paletteHitsPerKind": 8,
+    "timing": "durationMs of the query.completed line of executeQuery: transaction, context settings and query, in process",
+    "targetP95Ms": 300,
+    "searchTerms": {
+      "name": "Kevok Kantarvi",
+      "village": "Gondovan",
+      "phoneLast4": "7919"
+    }
+  },
+  "results": {
+    "executive": {
+      "leadsFirstPage": {
+        "runs": 50,
+        "p50": 31.9,
+        "p95": 42,
+        "max": 44.9,
+        "rows": 50,
+        "overTarget": false
+      },
+      "leadsLaterPage": {
+        "runs": 50,
+        "p50": 31.4,
+        "p95": 42.2,
+        "max": 50.4,
+        "rows": 50,
+        "overTarget": false
+      },
+      "board": {
+        "runs": 50,
+        "p50": 127.2,
+        "p95": 146.3,
+        "max": 153.4,
+        "rows": 400,
+        "overTarget": false
+      },
+      "searchName": {
+        "runs": 50,
+        "p50": 1384.7,
+        "p95": 1436.9,
+        "max": 1538.4,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchNameLeadsOnly": {
+        "runs": 50,
+        "p50": 1362,
+        "p95": 1415.7,
+        "max": 1426.9,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchVillage": {
+        "runs": 50,
+        "p50": 1253,
+        "p95": 1307.2,
+        "max": 1308.6,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchPhoneLast4": {
+        "runs": 50,
+        "p50": 1347.1,
+        "p95": 2396.8,
+        "max": 4295.5,
+        "rows": 5,
+        "overTarget": true
+      },
+      "auditFirstPage": {
+        "runs": 50,
+        "p50": 42.4,
+        "p95": 174.3,
+        "max": 264.6,
+        "rows": 50,
+        "overTarget": false
+      }
+    },
+    "generalManager": {
+      "leadsFirstPage": {
+        "runs": 50,
+        "p50": 121.5,
+        "p95": 590,
+        "max": 1489.7,
+        "rows": 50,
+        "overTarget": true
+      },
+      "leadsLaterPage": {
+        "runs": 50,
+        "p50": 54.7,
+        "p95": 100.9,
+        "max": 124.5,
+        "rows": 50,
+        "overTarget": false
+      },
+      "board": {
+        "runs": 50,
+        "p50": 80.3,
+        "p95": 107.1,
+        "max": 128.1,
+        "rows": 400,
+        "overTarget": false
+      },
+      "searchName": {
+        "runs": 50,
+        "p50": 761.5,
+        "p95": 1162.8,
+        "max": 1446.2,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchNameLeadsOnly": {
+        "runs": 50,
+        "p50": 576.5,
+        "p95": 1153.4,
+        "max": 1704,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchVillage": {
+        "runs": 50,
+        "p50": 926.5,
+        "p95": 1615.9,
+        "max": 1647.8,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchPhoneLast4": {
+        "runs": 50,
+        "p50": 1260.2,
+        "p95": 2437.6,
+        "max": 2566.8,
+        "rows": 2,
+        "overTarget": true
+      },
+      "auditFirstPage": {
+        "runs": 50,
+        "p50": 397.8,
+        "p95": 644.3,
+        "max": 815.8,
+        "rows": 50,
+        "overTarget": true
+      }
+    },
+    "teleCaller": {
+      "leadsFirstPage": {
+        "runs": 50,
+        "p50": 259.5,
+        "p95": 495.8,
+        "max": 603.6,
+        "rows": 50,
+        "overTarget": true
+      },
+      "leadsLaterPage": {
+        "runs": 50,
+        "p50": 65.1,
+        "p95": 150.3,
+        "max": 403.9,
+        "rows": 50,
+        "overTarget": false
+      },
+      "board": {
+        "runs": 50,
+        "p50": 151.4,
+        "p95": 246.7,
+        "max": 273,
+        "rows": 400,
+        "overTarget": false
+      },
+      "searchName": {
+        "runs": 50,
+        "p50": 287.8,
+        "p95": 413.8,
+        "max": 509.2,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchNameLeadsOnly": {
+        "runs": 50,
+        "p50": 268.1,
+        "p95": 329.9,
+        "max": 436.7,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchVillage": {
+        "runs": 50,
+        "p50": 250.4,
+        "p95": 338.4,
+        "max": 395.7,
+        "rows": 8,
+        "overTarget": true
+      },
+      "searchPhoneLast4": {
+        "runs": 50,
+        "p50": 159.6,
+        "p95": 316.8,
+        "max": 662.3,
+        "rows": 1,
+        "overTarget": true
+      },
+      "auditFirstPage": {
+        "skipped": "the role may not read the Activity log"
+      }
+    }
+  }
+}

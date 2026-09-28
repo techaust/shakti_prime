@@ -168,8 +168,11 @@ async function seed(): Promise<Seeded> {
         const rows: { rowNo: number; input: unknown }[] = [];
         for (let i = 0; i < Math.min(BATCH, perCaller - done) && rowNo < LEADS; i++, rowNo++) {
           const lead = madeUpLead(rowNo);
-          // The first lead of the tele-caller the spike reads as: what the search cases type.
-          sample ??= { name: lead.name, village: lead.village, phoneLast4: lead.phone.slice(-4) };
+          // The second lead of the tele-caller the spike reads as (the first one's number ends
+          // in 0000): what the search cases type.
+          if (rowNo === 1) {
+            sample = { name: lead.name, village: lead.village, phoneLast4: lead.phone.slice(-4) };
+          }
           rows.push({ rowNo, input: { ...lead.input, entityId } });
         }
         const out = await withRequestContext(caller, { entityIds: [entityId] }, (context) =>
@@ -351,6 +354,13 @@ async function measure(principal: Principal, sample: Seeded['sample']) {
     'search, name',
     palette(principal, sample.name),
     hits,
+  );
+  // The leads half of the palette alone, to tell it from the people search an admin also runs.
+  cases.searchNameLeadsOnly = await timeCase(
+    principal,
+    'search, name, leads',
+    (context) => searchLeads(context, { q: sample.name, limit: PALETTE_HITS }),
+    (a) => a.length,
   );
   cases.searchVillage = await timeCase(
     principal,
