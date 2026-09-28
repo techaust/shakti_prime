@@ -33,6 +33,16 @@ export {
   SheetTrigger,
 } from './dialog';
 export {
+  canTakeFocus,
+  createFocusTargets,
+  firstFocusable,
+  returnFocusHandler,
+  useFocusTargets,
+  type FocusCandidate,
+  type FocusTargets,
+  type ReturnFocusTo,
+} from './return-focus';
+export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,

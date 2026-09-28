@@ -96,6 +96,42 @@ describe('Dialog', () => {
     expect(sheet('left')).toContain('left-0 border-r');
     expect(sheet('left')).toContain('role="dialog"');
   });
+
+  it('returns focus to the place the screen names when a dialog or sheet closes (WCAG 2.4.3)', () => {
+    /** The close auto-focus handler the component hands to Radix's dialog content. */
+    const closeHandler = (portal: ReactElement) => {
+      const parts = (portal.props as { children: ReactNode[] }).children;
+      const content = parts.find(
+        (part): part is ReactElement<{ onCloseAutoFocus: (event: Event) => void }> =>
+          isValidElement(part) && 'onCloseAutoFocus' in (part.props as object),
+      );
+      if (content === undefined) throw new Error('the dialog content is missing');
+      return content.props.onCloseAutoFocus;
+    };
+    const actions = {
+      focused: 0,
+      isConnected: true,
+      getClientRects: () => ({ length: 1 }),
+      focus() {
+        actions.focused += 1;
+      },
+    };
+    const returnFocusTo = () => [actions as unknown as HTMLElement];
+    for (const portal of [
+      DialogContent({ closeLabel: 'Close', returnFocusTo, children: null }),
+      SheetContent({ closeLabel: 'Close', returnFocusTo, children: null }),
+    ]) {
+      const event = new Event('focusScope.autoFocusOnUnmount', { cancelable: true });
+      closeHandler(portal)(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(actions.focused).toBe(2);
+
+    // Without a named place Radix's own return runs.
+    const event = new Event('focusScope.autoFocusOnUnmount', { cancelable: true });
+    closeHandler(DialogContent({ closeLabel: 'Close', children: null }))(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });
 
 describe('DropdownMenu', () => {
