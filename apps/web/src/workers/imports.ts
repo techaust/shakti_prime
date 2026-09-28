@@ -43,6 +43,11 @@ export interface ImportRunOptions {
   /** Stop after this many batches; unlimited when undefined. */
   maxBatches?: number | undefined;
   now?: () => number;
+  /**
+   * The request id of the call that started the run (the worker route's own), carried by every
+   * batch's audit rows and by the run's log lines, so the two can be read together.
+   */
+  requestId?: string | undefined;
 }
 
 /**
@@ -57,11 +62,14 @@ export async function runImportCommit(
   const now = options.now ?? Date.now;
   const started = now();
   const principal = await importPrincipal(body.userId, body.entityId);
+  const { requestId } = options;
   let batches = 0;
   for (;;) {
     const job = await executeCommand(
       principal,
-      { entityIds: [body.entityId] },
+      requestId === undefined
+        ? { entityIds: [body.entityId] }
+        : { entityIds: [body.entityId], requestId },
       commitImportBatch,
       { entityId: body.entityId, jobId: body.jobId },
       { onCommitted: nudgeOutbox },
@@ -74,7 +82,12 @@ export async function runImportCommit(
         committedRows: job.committedRows,
       });
     if (job.state !== 'committing') {
-      logger.log('info', 'imports.commit_run', { jobId: job.id, state: job.state, batches });
+      logger.log('info', 'imports.commit_run', {
+        requestId,
+        jobId: job.id,
+        state: job.state,
+        batches,
+      });
       return answer();
     }
     batches += 1;
@@ -82,7 +95,7 @@ export async function runImportCommit(
     const outOfBatches = options.maxBatches !== undefined && batches >= options.maxBatches;
     if (outOfTime || outOfBatches) {
       await scheduleImportCommit(body, job.committedRows, { background: true });
-      logger.log('info', 'imports.commit_continued', { jobId: job.id, batches });
+      logger.log('info', 'imports.commit_continued', { requestId, jobId: job.id, batches });
       return answer();
     }
   }

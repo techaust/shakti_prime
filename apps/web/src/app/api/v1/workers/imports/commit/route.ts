@@ -57,7 +57,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await runImportCommit(body, { budgetMs: IMPORT_RUN_BUDGET_MS });
+    const result = await runImportCommit(body, { budgetMs: IMPORT_RUN_BUDGET_MS, requestId });
     return Response.json(result, { headers });
   } catch (error) {
     if (error instanceof DomainError && error.code === 'forbidden') {

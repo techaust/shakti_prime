@@ -494,6 +494,28 @@ describe('POST /api/v1/workers/imports/commit', () => {
     expect(await liveLeads(job.id)).toBe(2);
   });
 
+  it("records each batch under the route's request id, as its answer and log carry it", async () => {
+    const job = await committingJob(['Traced one', 'Traced two']);
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: gm.id });
+    const given = `imports-trace-${newId()}`;
+    const response = await call(body, sign(body), given);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-request-id')).toBe(given);
+    const rows = await asMigrator(
+      (m) => m<{ command: string; outcome: string; request_id: string }[]>`
+        select command, outcome, request_id from audit_logs
+         where command = 'imports.job.commit_batch' and aggregate_id = ${job.id}`,
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toEqual({
+        command: 'imports.job.commit_batch',
+        outcome: 'ok',
+        request_id: given,
+      });
+    }
+  });
+
   it('hands the next run to the queue with an id that names the job and its progress', async () => {
     const body = { jobId: newId(), entityId: 1, userId: gm.id };
     await scheduleImportCommit(body, 500);
