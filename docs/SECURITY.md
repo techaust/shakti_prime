@@ -174,14 +174,14 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - **Access review:** quarterly review of roles and agent autonomy settings by an Executive.
 
 ## 11. Security test suite
-Runs on every PR against real Postgres:
+Runs on every PR against real Postgres. Items 1 to 3 run today, and item 5 for the token route; each other item joins with its feature in the phase named (TESTING.md §3):
 1. For every business table and every role × entity pair: only that entity's rows are visible; no context ⇒ zero rows.
 2. Cost fields absent from every DTO unless the command requires a cost permission; GM sees no rates and no margins; Inventory Manager sees rates and no margins; purchase vouchers gated.
-3. Agent principals cannot call cost, admin or sensitive-document commands.
-4. Voice tokens act only as the issuing user and expire.
-5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels.
-6. Vector retrieval respects sensitivity per role.
-7. WhatsApp documents file only against the sending customer.
-8. Masking: Aadhaar digits never appear in storage, logs or LLM payloads (assertion on captured requests).
-9. Webhooks: invalid signatures rejected; duplicates ignored.
-10. Dial command: blocked outside TRAI hours, for DND without consent, and on the wrong number series.
+3. Agent principals cannot call cost, admin or sensitive-document commands. The sensitive-document commands join the sweep when they are registered, with the document vault in Phase 4.
+4. Voice tokens act only as the issuing user and expire. Phase 2, with live voice.
+5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels. The token route's tests run today; the channel-policy check runs with the hosted Supabase dev project (`pnpm --filter web realtime-spike`).
+6. Vector retrieval respects sensitivity per role. Phase 1, with the Knowledge Vault.
+7. WhatsApp documents file only against the sending customer. Phase 4, with the document vault's WhatsApp filing.
+8. Masking: Aadhaar digits never appear in storage, logs or LLM payloads (assertion on captured requests). Phase 4, with the document vault that stores the OCR worker's masked copies; the worker's masking rules have unit tests today.
+9. Webhooks: invalid signatures rejected; duplicates ignored. Phase 2, with the webhook routes.
+10. Dial command: blocked outside TRAI hours, for DND without consent, and on the wrong number series. Phase 2, with click-to-dial.
