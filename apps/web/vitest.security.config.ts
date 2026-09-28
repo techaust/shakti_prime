@@ -9,5 +9,10 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 20_000,
     hookTimeout: 60_000,
+    // One file at a time. Locally, with no queue configured, every command a server action runs
+    // nudges the outbox publisher in process, which delivers any pending row in the shared
+    // database: a file running beside `outbox-route.test.ts` could deliver the row that test
+    // proves the route left alone. Sequential files keep each file's outbox rows its own.
+    fileParallelism: false,
   },
 });
