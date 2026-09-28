@@ -25,6 +25,7 @@ export * from './commands/tax/set-tax';
 export * from './commands/admin/users';
 export * from './commands/profile/set-theme';
 export * from './commands/profile/saved-views';
+export * from './commands/realtime/issue-token';
 export * from './imports/enums';
 export * from './commands/imports/jobs';
 export * from './dto/import';

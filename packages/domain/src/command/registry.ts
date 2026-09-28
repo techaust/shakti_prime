@@ -21,6 +21,7 @@ import { updateEntity } from '../commands/org/update-entity';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
+import { issueRealtimeToken } from '../commands/realtime/issue-token';
 import { setCompositeRule } from '../commands/tax/set-composite-rule';
 import { setTaxRate } from '../commands/tax/set-tax-rate';
 import type { AnyCommand } from './define-command';
@@ -48,6 +49,7 @@ export const commands = {
   [setTheme.name]: setTheme,
   [saveView.name]: saveView,
   [deleteView.name]: deleteView,
+  [issueRealtimeToken.name]: issueRealtimeToken,
   [createImportJob.name]: createImportJob,
   [mapImportJob.name]: mapImportJob,
   [previewImportJob.name]: previewImportJob,

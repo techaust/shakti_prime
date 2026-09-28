@@ -1,7 +1,18 @@
-import { DomainError, ErrorEnvelope, newId, type Principal } from '@shakti/contracts';
+import {
+  DomainError,
+  ErrorEnvelope,
+  newId,
+  StaffRoleKeySchema,
+  type Principal,
+} from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { JwksResponse, OpenIdConfiguration, RealtimeTokenResponse } from './claims';
-import { issueRealtimeToken, jwksDocument, openIdConfigurationDocument } from './handlers';
+import {
+  issueRealtimeToken,
+  jwksDocument,
+  openIdConfigurationDocument,
+  type TokenRouteDeps,
+} from './handlers';
 import type { Env } from './keys';
 import { newSigningKeyJson } from './test-keys';
 import { verifyRealtimeToken } from './token';
@@ -36,11 +47,28 @@ async function envelope(response: Response) {
   return ErrorEnvelope.parse(await response.json()).error;
 }
 
+/**
+ * Stands in for `realtime.token.issue`, which needs the database; the command and its audit row
+ * are tested in packages/domain and apps/web/tests. It records what it was asked to issue.
+ */
+const issued: { principal: Principal; requestId: string; jti: string }[] = [];
+const issue: TokenRouteDeps['issue'] = (principal, meta) => {
+  const jti = newId();
+  issued.push({ principal, requestId: meta.requestId, jti });
+  return Promise.resolve({
+    jti,
+    sub: principal.id,
+    bos_role: StaffRoleKeySchema.parse(principal.roleKey),
+    entity_ids: [...principal.entityIds],
+  });
+};
+
 describe('POST /api/v1/realtime/token', () => {
   it('issues a token that verifies against the published key list', async () => {
     const vars = await env();
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(person),
+      issue,
       env: vars,
     });
     expect(response.status).toBe(200);
@@ -50,6 +78,10 @@ describe('POST /api/v1/realtime/token', () => {
     const jwks = JwksResponse.parse(await (await jwksDocument(vars)).json());
     const claims = await verifyRealtimeToken(body.token, jwks, ISSUER);
     expect(claims).toMatchObject({ sub: person.id, entity_ids: [2], bos_role: 'field_engineer' });
+    // The token carries the id the command settled and audited, under the route's request id.
+    const last = issued.at(-1);
+    expect(claims.jti).toBe(last?.jti);
+    expect(response.headers.get('x-request-id')).toBe(last?.requestId);
     expect(new Date(body.expiresAt).getTime()).toBe(claims.exp * 1000);
     expect(body.channels).toEqual([`user:${person.id}`, 'entity:2:queue', 'entity:2:board']);
   });
@@ -57,6 +89,7 @@ describe('POST /api/v1/realtime/token', () => {
   it('refuses a caller without a session', async () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(undefined),
+      issue,
       env: await env(),
     });
     expect(response.status).toBe(401);
@@ -70,6 +103,7 @@ describe('POST /api/v1/realtime/token', () => {
     const response = await issueRealtimeToken(post(), {
       principal: () =>
         Promise.reject(new DomainError('unauthorized', 'totp', { reason: 'totp_required' })),
+      issue,
       env: await env(),
     });
     expect(response.status).toBe(401);
@@ -83,7 +117,7 @@ describe('POST /api/v1/realtime/token', () => {
     const call = (body: string) =>
       issueRealtimeToken(
         new Request(TOKEN_URL, { method: 'POST', headers: { origin: ISSUER }, body }),
-        { principal: () => Promise.resolve(person), env: vars },
+        { principal: () => Promise.resolve(person), issue, env: vars },
       );
     expect((await call('{}')).status).toBe(200);
     for (const body of ['{"entity_ids":[1]}', 'not json', '[]']) {
@@ -96,6 +130,7 @@ describe('POST /api/v1/realtime/token', () => {
   it('refuses a call from another site', async () => {
     const response = await issueRealtimeToken(post({ origin: 'https://elsewhere.test' }), {
       principal: () => Promise.resolve(person),
+      issue,
       env: await env(),
     });
     expect(response.status).toBe(403);
@@ -108,6 +143,7 @@ describe('POST /api/v1/realtime/token', () => {
     ]) {
       const response = await issueRealtimeToken(post(), {
         principal: () => Promise.resolve(caller),
+        issue,
         env: await env(),
       });
       expect(response.status).toBe(403);
@@ -118,6 +154,7 @@ describe('POST /api/v1/realtime/token', () => {
     for (const vars of [await env(false), { BETTER_AUTH_URL: ISSUER, BOS_JWT_CURRENT_KEY: '{}' }]) {
       const response = await issueRealtimeToken(post(), {
         principal: () => Promise.resolve(person),
+        issue,
         env: vars,
       });
       expect(response.status).toBe(503);
@@ -128,9 +165,50 @@ describe('POST /api/v1/realtime/token', () => {
   it('answers internal for an unexpected failure resolving the caller', async () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.reject(new Error('database down')),
+      issue,
       env: await env(),
     });
     expect(response.status).toBe(500);
+  });
+
+  it('issues nothing for a refused caller, a bad body or missing keys', async () => {
+    const before = issued.length;
+    await issueRealtimeToken(post({ origin: 'https://elsewhere.test' }), {
+      principal: () => Promise.resolve(person),
+      issue,
+      env: await env(),
+    });
+    await issueRealtimeToken(post(), {
+      principal: () => Promise.resolve({ ...person, entityIds: [] }),
+      issue,
+      env: await env(),
+    });
+    await issueRealtimeToken(
+      new Request(TOKEN_URL, { method: 'POST', headers: { origin: ISSUER }, body: '[]' }),
+      { principal: () => Promise.resolve(person), issue, env: await env() },
+    );
+    await issueRealtimeToken(post(), {
+      principal: () => Promise.resolve(person),
+      issue,
+      env: await env(false),
+    });
+    expect(issued.length).toBe(before);
+  });
+
+  it('answers forbidden when the command refuses, and internal when it fails', async () => {
+    const refused = await issueRealtimeToken(post(), {
+      principal: () => Promise.resolve(person),
+      issue: () => Promise.reject(new DomainError('forbidden', 'refused')),
+      env: await env(),
+    });
+    expect(refused.status).toBe(403);
+    expect((await envelope(refused)).code).toBe('forbidden');
+    const failed = await issueRealtimeToken(post(), {
+      principal: () => Promise.resolve(person),
+      issue: () => Promise.reject(new Error('database down')),
+      env: await env(),
+    });
+    expect(failed.status).toBe(500);
   });
 });
 

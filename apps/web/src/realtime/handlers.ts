@@ -6,8 +6,11 @@ import {
   newId,
   type ErrorCode,
   type Principal,
+  type RealtimeTokenGrant,
 } from '@shakti/contracts';
+import type { ClientMeta } from '@shakti/domain';
 import en from '../../messages/en.json';
+import { clientMeta } from '../auth/client-address';
 import { logger } from '../log';
 import {
   JwksResponse,
@@ -16,7 +19,7 @@ import {
   realtimeChannels,
 } from './claims';
 import { publicKeyList, signingKeys, SigningKeyError, type Env, type SigningKeys } from './keys';
-import { bosIssuer, mintRealtimeToken, openIdConfiguration } from './token';
+import { bosIssuer, openIdConfiguration, signRealtimeGrant } from './token';
 
 /**
  * How long a relying party may keep the key list. A rotation waits longer than this between
@@ -73,6 +76,14 @@ async function bodyIsEmpty(request: Request): Promise<boolean> {
 export interface TokenRouteDeps {
   /** The signed-in caller; undefined without a session. May throw `unauthorized` (`totp_required`). */
   principal: () => Promise<Principal | undefined>;
+  /**
+   * Settles and audits the claims through `realtime.token.issue` (`issueGrantThroughCommand` in
+   * the route); the route only signs what the command returned.
+   */
+  issue: (
+    principal: Principal,
+    meta: { requestId: string; client: ClientMeta },
+  ) => Promise<RealtimeTokenGrant>;
   env?: Env;
   now?: () => Date;
 }
@@ -125,8 +136,17 @@ export async function issueRealtimeToken(
   const keys = await keysOrFailure(env, requestId);
   if (keys instanceof Response) return keys;
 
+  let grant: RealtimeTokenGrant;
   try {
-    const minted = await mintRealtimeToken(principal, keys, {
+    grant = await deps.issue(principal, { requestId, client: clientMeta(request.headers) });
+  } catch (error) {
+    if (isDomainError(error) && error.code === 'forbidden') return failure('forbidden', requestId);
+    logger.log('error', 'realtime.issue_failed', { requestId, error });
+    return failure('internal', requestId);
+  }
+
+  try {
+    const minted = await signRealtimeGrant(grant, keys, {
       issuer,
       now: (deps.now ?? (() => new Date()))(),
     });
