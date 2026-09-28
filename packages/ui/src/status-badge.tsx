@@ -4,7 +4,7 @@ import { cn } from './cn';
 
 /** Status badge (DESIGN.md §6): a soft tint with the base status colour as text, 12 px. */
 export const statusBadgeVariants = cva(
-  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-xs font-[510] whitespace-nowrap',
+  'inline-flex h-5 items-center gap-1 rounded-sm px-1.5 text-xs font-medium whitespace-nowrap',
   {
     variants: {
       tone: {

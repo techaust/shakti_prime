@@ -58,7 +58,7 @@ const PAGE_SIZE = 8;
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-text-muted text-sm font-[590]">{title}</h3>
+      <h3 className="text-text-muted text-sm font-semibold">{title}</h3>
       {children}
     </div>
   );
@@ -236,7 +236,7 @@ export function ComponentGallery({
               : undefined
           }
         />
-        <h4 className="text-text-subtle text-xs font-[510]">{copy.loadingTitle}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{copy.loadingTitle}</h4>
         <DataGrid
           caption={copy.loadingCaption}
           columns={columns}
@@ -247,7 +247,7 @@ export function ComponentGallery({
           density="compact"
           empty={null}
         />
-        <h4 className="text-text-subtle text-xs font-[510]">{copy.failingTitle}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{copy.failingTitle}</h4>
         <DataGrid
           caption={copy.failingCaption}
           columns={columns}

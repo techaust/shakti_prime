@@ -186,7 +186,7 @@ export function EnrolForm() {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="font-[590]">{t('scanTitle')}</h2>
+        <h2 className="font-semibold">{t('scanTitle')}</h2>
         <p className="text-text-muted">{t('scanIntro')}</p>
         {/* eslint-disable-next-line @next/next/no-img-element -- a data URL generated per enrolment */}
         <img
@@ -196,7 +196,7 @@ export function EnrolForm() {
           height={220}
           // A QR code scans only on a light background, whatever the theme (DESIGN.md §7).
           style={{ backgroundColor: colors.surface.light }}
-          className="self-start rounded-[var(--radius-md)] p-2"
+          className="self-start rounded-md p-2"
         />
         <p className="text-text-muted text-sm">{t('secretLabel')}</p>
         {/* In groups of four, so it wraps and can be typed without losing the place (AUDIT L37). */}
@@ -206,7 +206,7 @@ export function EnrolForm() {
         <CopyButton text={key} label={t('copyKey')} />
       </section>
       <section className="flex flex-col gap-2">
-        <h2 className="font-[590]">{t('backupTitle')}</h2>
+        <h2 className="font-semibold">{t('backupTitle')}</h2>
         <p className="text-text-muted">{t('backupIntro')}</p>
         <ul className="grid grid-cols-2 gap-1 font-mono text-sm">
           {codes.map((code) => (
@@ -218,7 +218,7 @@ export function EnrolForm() {
           <a
             href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${codesText}\n`)}`}
             download={t('codesFile')}
-            className="bg-surface text-text border-border-strong hover:bg-surface-3 inline-flex h-9 items-center rounded-[var(--radius-md)] border px-4 font-[510] max-md:h-11"
+            className="bg-surface text-text border-border-strong hover:bg-surface-3 inline-flex h-9 items-center rounded-md border px-4 font-medium max-md:h-11"
           >
             {t('downloadCodes')}
           </a>

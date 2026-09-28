@@ -80,7 +80,7 @@ export function BoardColumn({
     >
       <div aria-hidden className={cn('h-[3px]', STAGE_BAR[tone])} />
       <header className="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
-        <Heading id={headingId} className="text-sm font-[590]">
+        <Heading id={headingId} className="text-sm font-semibold">
           {title}
         </Heading>
         <span className="text-text-muted text-xs tabular-nums">{count}</span>
@@ -153,7 +153,7 @@ export function BoardCard({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 font-[510] break-words">{title}</p>
+        <p className="min-w-0 font-medium break-words">{title}</p>
         {menu}
       </div>
       <p className="text-text-muted text-sm break-words">{subtitle}</p>

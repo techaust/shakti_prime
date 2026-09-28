@@ -54,7 +54,7 @@ export function Field({
   return (
     <FieldContext.Provider value={{ id, describedBy, invalid: hasError }}>
       <div className={cn('flex flex-col gap-1.5', className)}>
-        <label htmlFor={id} className="text-text-muted text-sm font-[510]">
+        <label htmlFor={id} className="text-text-muted text-sm font-medium">
           {label}
         </label>
         {children}

@@ -26,7 +26,7 @@ export function ChangePasswordForm() {
       onSubmit={blockWhilePending(pending)}
       className="flex flex-col gap-4"
     >
-      <h2 className="font-[590]">{t('title')}</h2>
+      <h2 className="font-semibold">{t('title')}</h2>
       <Field label={t('current')} id="currentPassword">
         <TextInput
           id="currentPassword"

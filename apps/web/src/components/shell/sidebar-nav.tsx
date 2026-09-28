@@ -37,7 +37,7 @@ export function SidebarNav({
               collapsed ? (
                 <span aria-hidden className="bg-border mx-2 h-px" />
               ) : (
-                <h2 className="text-text-subtle px-2 text-xs font-[510]">
+                <h2 className="text-text-subtle px-2 text-xs font-medium">
                   {shell('adminHeading')}
                 </h2>
               )
@@ -56,7 +56,7 @@ export function SidebarNav({
                         onNavigate?.();
                       }}
                       className={cn(
-                        'text-text-muted hover:bg-highlight hover:text-text flex h-8 items-center gap-2.5 rounded-md px-2 font-[510] max-md:h-control-phone',
+                        'text-text-muted hover:bg-highlight hover:text-text flex h-8 items-center gap-2.5 rounded-md px-2 font-medium max-md:h-control-phone',
                         'transition-colors duration-(--motion-fast) ease-out',
                         'aria-[current=page]:bg-highlight aria-[current=page]:text-text',
                         collapsed && 'justify-center px-0',

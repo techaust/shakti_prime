@@ -27,7 +27,7 @@ export function Avatar({ name, className }: { name: string; className?: string }
       aria-label={name.trim()}
       title={name.trim()}
       className={cn(
-        'bg-accent-soft text-accent-text inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs leading-none font-[590] select-none',
+        'bg-accent-soft text-accent-text inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs leading-none font-semibold select-none',
         className,
       )}
     >

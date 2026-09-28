@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./class-rules": "./src/class-rules.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

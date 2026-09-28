@@ -58,6 +58,10 @@
   --shadow-1: var(--shadow-1);
   --shadow-2: var(--shadow-2);
   --font-sans: var(--font-family);
+  --font-weight-*: initial;
+  --font-weight-normal: var(--weight-normal);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-semibold: var(--weight-semibold);
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;

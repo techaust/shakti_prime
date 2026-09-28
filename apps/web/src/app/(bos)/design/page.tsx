@@ -164,7 +164,7 @@ async function ThemePanel({
                 style={{ background: `var(--${name})` }}
               />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-[510]">{name}</span>
+                <span className="truncate text-sm font-medium">{name}</span>
                 <span className="text-text-muted text-xs tabular-nums">
                   {t('ratio', {
                     hex: value[theme],
@@ -250,7 +250,7 @@ async function ThemePanel({
       </Section>
 
       <Section title={t('measures')}>
-        <h4 className="text-text-subtle text-xs font-[510]">{t('spacing')}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{t('spacing')}</h4>
         <ul className="flex flex-col gap-1.5">
           {SPACES.map(([step, px]) => (
             <li key={step} className="flex items-center gap-3">
@@ -266,7 +266,7 @@ async function ThemePanel({
           ))}
         </ul>
 
-        <h4 className="text-text-subtle text-xs font-[510]">{t('radius')}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{t('radius')}</h4>
         <ul className="flex flex-wrap gap-4">
           {RADII.map(([name, px]) => (
             <li key={name} className="flex flex-col items-center gap-1.5">
@@ -282,7 +282,7 @@ async function ThemePanel({
           ))}
         </ul>
 
-        <h4 className="text-text-subtle text-xs font-[510]">{t('shadows')}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{t('shadows')}</h4>
         <ul className="flex flex-wrap gap-4">
           {Object.keys(shadows).map((name) => (
             <li
@@ -295,7 +295,7 @@ async function ThemePanel({
           ))}
         </ul>
 
-        <h4 className="text-text-subtle text-xs font-[510]">{t('motion')}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{t('motion')}</h4>
         <p className="text-text-muted text-xs">{t('motionHint')}</p>
         <ul className="flex flex-wrap gap-4">
           {MOTIONS.map(([name, ms]) => (
@@ -312,7 +312,7 @@ async function ThemePanel({
           ))}
         </ul>
 
-        <h4 className="text-text-subtle text-xs font-[510]">{t('focus')}</h4>
+        <h4 className="text-text-subtle text-xs font-medium">{t('focus')}</h4>
         <div className="flex items-center gap-4">
           <span
             aria-hidden
@@ -334,7 +334,7 @@ async function ThemePanel({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-text-muted text-sm font-[590]">{title}</h3>
+      <h3 className="text-text-muted text-sm font-semibold">{title}</h3>
       {children}
     </div>
   );
@@ -343,7 +343,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function AliasList({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <h4 className="text-text-subtle text-xs font-[510]">{title}</h4>
+      <h4 className="text-text-subtle text-xs font-medium">{title}</h4>
       <ul className="flex flex-wrap gap-x-4 gap-y-1.5">{children}</ul>
     </div>
   );

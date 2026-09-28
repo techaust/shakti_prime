@@ -161,22 +161,30 @@ export const shadows = {
 } as const;
 
 /**
+ * The three weights of the variable Inter cut (DESIGN.md §3): regular text, the 510 Linear uses
+ * for labels and numbers, and the 590 of headings. The type roles below take theirs from here,
+ * and `font-normal`, `font-medium` and `font-semibold` are the only weight utilities.
+ */
+const fontWeight = { normal: 400, medium: 510, semibold: 590 } as const;
+
+/**
  * Theme-independent tokens (DESIGN.md §3, §4, §5). Numeric values are pixels at the browser's
  * default text size; the CSS emits them in rem so a user's own text-size setting scales them.
  */
 export const scale = {
   space: { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48 },
   radius: { sm: 4, md: 6, lg: 8, xl: 12 },
+  fontWeight,
   font: {
-    display: { size: 30, line: 36, weight: 590 },
-    h1: { size: 24, line: 32, weight: 590 },
-    h2: { size: 20, line: 28, weight: 590 },
-    h3: { size: 16, line: 24, weight: 590 },
-    body: { size: 14, line: 20, weight: 400 },
-    'body-dense': { size: 13, line: 18, weight: 400 },
-    'body-phone': { size: 15, line: 22, weight: 400 },
-    caption: { size: 12, line: 16, weight: 400 },
-    numeric: { size: 14, line: 20, weight: 510 },
+    display: { size: 30, line: 36, weight: fontWeight.semibold },
+    h1: { size: 24, line: 32, weight: fontWeight.semibold },
+    h2: { size: 20, line: 28, weight: fontWeight.semibold },
+    h3: { size: 16, line: 24, weight: fontWeight.semibold },
+    body: { size: 14, line: 20, weight: fontWeight.normal },
+    'body-dense': { size: 13, line: 18, weight: fontWeight.normal },
+    'body-phone': { size: 15, line: 22, weight: fontWeight.normal },
+    caption: { size: 12, line: 16, weight: fontWeight.normal },
+    numeric: { size: 14, line: 20, weight: fontWeight.medium },
   },
   /** For native apps and charts; the web app loads Inter through next/font (`--font-inter`). */
   fontFamily: 'Inter, system-ui, sans-serif',

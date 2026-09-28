@@ -96,6 +96,24 @@ describe('generated CSS', () => {
     expect(css).not.toMatch(/^\s*--accent:/m);
   });
 
+  it('offers the three weights of DESIGN.md §3 as the only weight utilities', () => {
+    const tokens = renderTokensCss();
+    expect(tokens).toContain('--weight-normal: 400;');
+    expect(tokens).toContain('--weight-medium: 510;');
+    expect(tokens).toContain('--weight-semibold: 590;');
+    const tw = renderTailwindCss();
+    // Tailwind's own scale (500 for medium, 700 for bold) is cleared before the design's.
+    const reset = tw.indexOf('--font-weight-*: initial;');
+    expect(reset).toBeGreaterThan(-1);
+    expect(tw.indexOf('--font-weight-medium: var(--weight-medium);')).toBeGreaterThan(reset);
+    expect(tw).toContain('--font-weight-normal: var(--weight-normal);');
+    expect(tw).toContain('--font-weight-semibold: var(--weight-semibold);');
+    expect(tw.match(/--font-weight-[a-z]+:/g)).toHaveLength(3);
+    // The type roles carry the same values.
+    expect(tokens).toContain('--font-h1-weight: 590;');
+    expect(tokens).toContain('--font-numeric-weight: 510;');
+  });
+
   it('sizes the app shell and content widths from DESIGN.md §5', () => {
     const tokens = renderTokensCss();
     expect(tokens).toContain('--sidebar-width: 15rem;');

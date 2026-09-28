@@ -91,7 +91,7 @@ export function TextInput({
         e.currentTarget.setCustomValidity('');
         onInput?.(e);
       }}
-      className={`bg-surface border-border-strong text-text h-9 rounded-[var(--radius-md)] border px-3 max-md:h-11 ${className}`}
+      className={`bg-surface border-border-strong text-text h-9 rounded-md border px-3 max-md:h-11 ${className}`}
     />
   );
 }
@@ -127,7 +127,7 @@ export function Button({
         }
         onClick?.(e);
       }}
-      className={`rounded-[var(--radius-md)] font-[510] disabled:opacity-60 aria-disabled:opacity-60 ${look} ${className}`}
+      className={`rounded-md font-medium disabled:opacity-60 aria-disabled:opacity-60 ${look} ${className}`}
     >
       {children}
     </button>
@@ -184,9 +184,7 @@ export function Card({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
-          {title}
-        </h1>
+        <h1 className="text-h1">{title}</h1>
         {intro === undefined ? null : <p className="text-text-muted">{intro}</p>}
       </div>
       {children}

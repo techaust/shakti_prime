@@ -14,9 +14,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
     <html lang="en">
       <body>
         <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 px-4 py-12">
-          <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
-            {t.title}
-          </h1>
+          <h1 className="text-h1">{t.title}</h1>
           <p className="text-text-muted">{t.body}</p>
           {error.digest === undefined ? null : (
             <p className="text-text-muted tabular-nums">

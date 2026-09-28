@@ -21,9 +21,7 @@ export default function ErrorScreen({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-[length:var(--font-h1-size)] leading-[var(--font-h1-line)] font-[590]">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-text-muted">{t('body')}</p>
         {error.digest === undefined ? null : (
           <p className="text-text-muted tabular-nums">

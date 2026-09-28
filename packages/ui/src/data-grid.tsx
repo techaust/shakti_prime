@@ -155,7 +155,7 @@ function SortButton<T>({
         onSortChange(nextSort(sort, column.id));
       }}
       className={cn(
-        'group hover:text-text inline-flex h-full items-center gap-1 rounded-sm font-[510]',
+        'group hover:text-text inline-flex h-full items-center gap-1 rounded-sm font-medium',
         column.align === 'end' && 'flex-row-reverse',
         active && 'text-text',
       )}
@@ -359,7 +359,7 @@ export function DataGrid<T>({
                     scope="col"
                     aria-sort={ariaSort(sortable, sort, c.id)}
                     className={cn(
-                      'bg-surface-2 text-text-muted border-border sticky top-0 z-10 h-9 border-b px-3 text-xs font-[510] whitespace-nowrap',
+                      'bg-surface-2 text-text-muted border-border sticky top-0 z-10 h-9 border-b px-3 text-xs font-medium whitespace-nowrap',
                       alignClass(c.align),
                       c.className,
                     )}
@@ -408,7 +408,7 @@ export function DataGrid<T>({
                           className={cn(
                             'px-3 align-middle',
                             alignClass(c.align),
-                            c.numeric && 'font-[510] tabular-nums',
+                            c.numeric && 'font-medium tabular-nums',
                             c.className,
                           )}
                         >
@@ -451,7 +451,7 @@ export function DataGrid<T>({
                     <div className="flex items-start gap-3">
                       {selectRow(row, key)}
                       {primary === undefined ? null : (
-                        <div className="min-w-0 font-[510]">{primary.cell(row)}</div>
+                        <div className="min-w-0 font-medium">{primary.cell(row)}</div>
                       )}
                     </div>
                   )}
