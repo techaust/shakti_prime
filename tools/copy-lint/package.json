@@ -2,7 +2,7 @@
   "name": "@shakti/copy-lint",
   "version": "0.0.0",
   "private": true,
-  "description": "CI check over message catalogues and templates: banned words, placeholder text, language parity, length",
+  "description": "CI check over message catalogues and templates: banned words, placeholder text, Devanagari, exclamation marks, length",
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",

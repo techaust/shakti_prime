@@ -14,11 +14,11 @@ Date: 2026-09-27. Scope: `packages/db` (schema, migrations 0000 to 0008, `withRe
 
 ## Accepted as is (with reason)
 
-- `app.next_document_no()` writes its series row with `gen_random_uuid()` (version 4) rather than UUIDv7. Postgres 17 has no built-in v7 generator and the id is never exposed or ordered on. Revisit when the platform moves to Postgres 18.
+- `app.next_document_no()` writes its series row with `gen_random_uuid()` (version 4) rather than UUIDv7. Postgres 17 has no built-in v7 generator and the id is never exposed or ordered on. Revisit when the platform moves to Postgres 18. Changed: migration 0024 adds `app.uuid_v7()`, which the later definer functions use; `app.next_document_no()` (migration 0012) still writes `gen_random_uuid()`, as accepted here.
 - `principals` is readable by any request context (id, kind, display name). Needed for `created_by` and owner joins across the product; contains no contact data.
-- `ensureRoles()` re-applies the `app_user` password on every migration run. Acceptable in dev and CI; on the hosted environments the password is managed in Supabase and the statement should be conditional. Tracked for the week 3 environment setup.
+- `ensureRoles()` re-applies the `app_user` password on every migration run. Acceptable in dev and CI; on the hosted environments the password is managed in Supabase and the statement should be conditional. Tracked for the week 3 environment setup. Fixed: `ensureRoles()` in `packages/db/src/migrate.ts` sets a role's password only when it creates the role, or with `--rotate-passwords`.
 - `pricing.price.set` reads then writes the price list item. Two Executives pricing the same item at the same moment now get `conflict` (fix C) instead of a raw error; a retry succeeds. No `on conflict` rewrite needed.
-- Commands carry no idempotency key yet. Mobile and webhook callers can retry; `crm.lead.create` retried creates a duplicate lead. This is a design item for weeks 3 to 5 (idempotency keys on the runner, stored with the audit row), not a defect in the current slices, which are called only from tests and the server actions.
+- Commands carry no idempotency key yet. Mobile and webhook callers can retry; `crm.lead.create` retried creates a duplicate lead. This is a design item for weeks 3 to 5 (idempotency keys on the runner, stored with the audit row), not a defect in the current slices, which are called only from tests and the server actions. Fixed: `idempotency_keys` (migrations 0036 and 0037), claimed and completed in the command's own transaction by `runCommand` with `RunOptions.idempotencyKey`.
 - `readonly_reporter` holds `select` on `item_costs`. It has no request context and no `BYPASSRLS`, so it reads zero rows; reporting through it will need a context helper of its own.
 
 ## Already covered by the documents and the suite

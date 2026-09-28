@@ -20,10 +20,10 @@ Date: 2026-09-26. Scope: everything built to commit 8a9b829: `packages/db` (migr
 
 ## Accepted as is (with reason)
 
-- `onAudit` and `onEmit` are optional on the runner and no production caller passes them yet; emitted events are dropped until `audit_logs` (slice 2) and `outbox_events` (slice 3) land. Both are the next two items of work and the tests already pass sinks.
+- `onAudit` and `onEmit` are optional on the runner and no production caller passes them yet; emitted events are dropped until `audit_logs` (slice 2) and `outbox_events` (slice 3) land. Both are the next two items of work and the tests already pass sinks. Fixed: `runCommand` requires an `audit` sink and an `outbox` sink (`packages/domain/src/command/run-command.ts`), and `executeCommand` passes the database sinks (slices 2 and 3).
 - Lockout counters are read-modify-write on the key-value store; concurrent failures from a distributed attacker can undercount by a few. Turnstile bounds the rate; an `INCR`-based counter is a small follow-up. Built on `spike/realtime-and-harnesses`: the count uses the atomic `KeyValue.incr` beside the time of the latest failure, and `lockout.test.ts` checks that concurrent failures all count.
-- `DomainEvent.entityId` takes the first entity of the request for group-level admin events; the outbox design allows a null entity and will change the type with it.
-- Command server actions throw `DomainError` for the week 4 forms to catch; Next.js masks thrown errors in production, so the forms will use a result envelope like the auth actions do. Recorded for week 4.
+- `DomainEvent.entityId` takes the first entity of the request for group-level admin events; the outbox design allows a null entity and will change the type with it. Changed: `DomainEvent.entityId` is required and `outbox_events.entity_id` is not null (migration 0034), so each command names the entity its event belongs to (`packages/domain/src/command/context.ts`).
+- Command server actions throw `DomainError` for the week 4 forms to catch; Next.js masks thrown errors in production, so the forms will use a result envelope like the auth actions do. Recorded for week 4. Fixed: command and query actions answer the `ActionResult` envelope (`apps/web/src/actions/result.ts`).
 - Team and entity coherence (`team_id` of another entity on a relationship or role) is checked in the commands, not by a constraint, because `teams.entity_id` is nullable for shared teams.
 - Whether a consent is per selling entity or group-wide is a workshop question (DPDP data fiduciary, DLT 160-series); the table is group-wide today.
 - No admin command resets a lost authenticator; backup codes are the recovery path. `admin.user.two_factor.reset` is listed for slice 1b; built in slice 1b part 1.
