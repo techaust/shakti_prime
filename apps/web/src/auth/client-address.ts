@@ -12,11 +12,24 @@ export function clientAddress(headers: Headers | undefined): string | undefined 
   return getIP(headers, ADDRESS_OPTIONS) ?? undefined;
 }
 
-/** A request id supplied by the platform, when it is safe to echo into logs and the audit. */
+/** An id safe to echo into logs and the audit trail. */
 const SAFE_ID = /^[\w.:-]{1,128}$/;
 
-export function platformRequestId(headers: Headers | undefined): string | undefined {
-  const given = headers?.get('x-request-id') ?? headers?.get('x-vercel-id') ?? null;
+/** Anything that reads a request header by name: `Headers`, or a stand-in for a plain object. */
+export interface HeaderReader {
+  get(name: string): string | null;
+}
+
+/**
+ * The request id for logs and the audit trail. Vercel's own `x-vercel-id` wins whenever it is
+ * there, so a caller cannot choose the id an audit row carries on a hosted deployment; where the
+ * platform sets none (locally, in tests) a caller's `x-request-id` is taken if it is safe to echo.
+ * Undefined when neither is usable; the caller then makes a new one.
+ */
+export function platformRequestId(headers: HeaderReader | undefined): string | undefined {
+  if (headers === undefined) return undefined;
+  const platform = headers.get('x-vercel-id');
+  const given = platform ?? headers.get('x-request-id');
   return given !== null && SAFE_ID.test(given) ? given : undefined;
 }
 

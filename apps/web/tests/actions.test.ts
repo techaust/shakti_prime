@@ -229,6 +229,36 @@ describe('server actions (AUDIT M41)', () => {
     ]);
   });
 
+  it('record the platform’s request id, never one the caller chose, and no unsafe id', async () => {
+    const auditedRequestIds = async (actorPrincipalId: string) => {
+      request.principal = await createTestPrincipal('executive');
+      const now = Date.now();
+      const page = ok(
+        await listAuditLog({
+          from: new Date(now - 60_000).toISOString(),
+          to: new Date(now + 60_000).toISOString(),
+          actorPrincipalId,
+        }),
+      );
+      return page.items.map((item) => item.requestId);
+    };
+
+    const onVercel = await createTestPrincipal('tele_caller_cc', [1]);
+    request.principal = onVercel;
+    const platformId = `bom1::${onVercel.id}`;
+    request.headers = new Headers({ 'x-vercel-id': platformId, 'x-request-id': 'chosen-id' });
+    ok(await createLead(lead(1)));
+    expect(await auditedRequestIds(onVercel.id)).toEqual([platformId]);
+
+    const unsafe = await createTestPrincipal('tele_caller_cc', [1]);
+    request.principal = unsafe;
+    request.headers = new Headers({ 'x-request-id': 'chosen id with spaces' });
+    ok(await createLead(lead(1)));
+    const [made] = await auditedRequestIds(unsafe.id);
+    expect(made).not.toBe('chosen id with spaces');
+    expect(made).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it('store the events of a change with it and have the publisher deliver them after the commit', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const created = ok(await createLead(lead(1)));
