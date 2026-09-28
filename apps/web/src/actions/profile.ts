@@ -79,8 +79,11 @@ export async function listSavedViews(rawInput: unknown): Promise<ActionResult<Sa
   return toResult('listSavedViews', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) =>
-      listSavedViewsQuery(context, rawInput),
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listSavedViewsQuery(context, rawInput),
+      { name: 'listSavedViews' },
     );
   });
 }

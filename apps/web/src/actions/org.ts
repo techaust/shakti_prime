@@ -34,6 +34,6 @@ export async function listEntities(): Promise<ActionResult<EntityDto[]>> {
   return toResult('listEntities', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, listEntitiesQuery);
+    return executeQuery(principal, { requestId }, listEntitiesQuery, { name: 'listEntities' });
   });
 }

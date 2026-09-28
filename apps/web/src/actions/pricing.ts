@@ -40,7 +40,9 @@ export async function listPriceLists(): Promise<ActionResult<PriceListDto[]>> {
   return toResult('listPriceLists', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listPriceListsQuery(context));
+    return executeQuery(principal, { requestId }, (context) => listPriceListsQuery(context), {
+      name: 'listPriceLists',
+    });
   });
 }
 
@@ -49,6 +51,8 @@ export async function listPrices(rawInput: unknown): Promise<ActionResult<PriceP
   return toResult('listPrices', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listPricesQuery(context, rawInput));
+    return executeQuery(principal, { requestId }, (context) => listPricesQuery(context, rawInput), {
+      name: 'listPrices',
+    });
   });
 }

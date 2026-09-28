@@ -19,13 +19,18 @@ export async function searchPalette(rawInput: unknown): Promise<ActionResult<Pal
     const { q } = parseInput(PaletteSearchInput, rawInput);
     const { requestId } = await requestMeta();
     const grants = principal.permissions;
-    return executeQuery(principal, { requestId }, async (context) => ({
-      leads: hasGrant(grants, 'crm.lead.read', 'own')
-        ? await searchLeads(context, { q, limit: HITS_PER_KIND })
-        : [],
-      people: hasGrant(grants, 'admin.users.write', 'all')
-        ? await searchPeople(context, { q, limit: HITS_PER_KIND })
-        : [],
-    }));
+    return executeQuery(
+      principal,
+      { requestId },
+      async (context) => ({
+        leads: hasGrant(grants, 'crm.lead.read', 'own')
+          ? await searchLeads(context, { q, limit: HITS_PER_KIND })
+          : [],
+        people: hasGrant(grants, 'admin.users.write', 'all')
+          ? await searchPeople(context, { q, limit: HITS_PER_KIND })
+          : [],
+      }),
+      { name: 'searchPalette' },
+    );
   });
 }

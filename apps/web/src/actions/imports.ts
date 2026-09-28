@@ -201,6 +201,7 @@ export async function commitImportJob(
       principal,
       { entityIds: [job.entityId], requestId: meta.requestId },
       (ctx) => getImportJobQuery(ctx, { entityId: job.entityId, jobId: job.id }),
+      { name: 'commitImportJob.readBack' },
     );
   });
 }
@@ -228,8 +229,11 @@ export async function getImportJob(rawInput: unknown): Promise<ActionResult<Impo
     const principal = await signedIn();
     const input = parseInput(GetImportJobInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { entityIds: [input.entityId], requestId }, (ctx) =>
-      getImportJobQuery(ctx, input),
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (ctx) => getImportJobQuery(ctx, input),
+      { name: 'getImportJob' },
     );
   });
 }
@@ -247,6 +251,7 @@ export async function listImportJobs(rawInput: unknown): Promise<ActionResult<Im
       principal,
       input.entityId === undefined ? { requestId } : { entityIds: [input.entityId], requestId },
       (ctx) => listImportJobsQuery(ctx, input),
+      { name: 'listImportJobs' },
     );
   });
 }
@@ -256,8 +261,11 @@ export async function listImportRows(rawInput: unknown): Promise<ActionResult<Im
     const principal = await signedIn();
     const input = parseInput(ListImportRowsInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { entityIds: [input.entityId], requestId }, (ctx) =>
-      listImportRowsQuery(ctx, input),
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (ctx) => listImportRowsQuery(ctx, input),
+      { name: 'listImportRows' },
     );
   });
 }
@@ -269,8 +277,11 @@ export async function listImportTemplates(
     const principal = await signedIn();
     const input = parseInput(ListImportTemplatesInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { entityIds: [input.entityId], requestId }, (ctx) =>
-      listImportTemplatesQuery(ctx, input),
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (ctx) => listImportTemplatesQuery(ctx, input),
+      { name: 'listImportTemplates' },
     );
   });
 }
