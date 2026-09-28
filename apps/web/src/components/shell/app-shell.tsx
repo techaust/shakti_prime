@@ -4,23 +4,22 @@ import type { Theme } from '@shakti/contracts';
 import {
   Button,
   cn,
-  CommandPalette,
   Sheet,
   SheetContent,
   SheetTitle,
   Toaster,
   usePaletteShortcut,
-  type PaletteGroup,
 } from '@shakti/ui';
 import { Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
 import { CompanySwitcher, type CompanyOption } from './company-switcher';
 import { ProfileMenu } from './profile-menu';
+import { ShellPalette } from './shell-palette';
 import { rememberSidebar } from './sidebar-state';
 import { SidebarNav } from './sidebar-nav';
 
@@ -68,6 +67,8 @@ export function AppShell({
   companies,
   activeCompany,
   navIds,
+  actionIds,
+  searchable,
   theme,
   sidebarCollapsed,
   children,
@@ -77,13 +78,15 @@ export function AppShell({
   activeCompany: number | undefined;
   /** The ids of the `nav.ts` items the principal's grants open, from `visibleNav()`. */
   navIds: readonly string[];
+  /** The ids of the palette actions the principal's grants allow, from `visibleActions()`. */
+  actionIds: readonly string[];
+  /** Whether the palette may search leads or team members, from `canSearch()`. */
+  searchable: boolean;
   theme: Theme;
   sidebarCollapsed: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations('shell');
-  const nav = useTranslations('nav');
-  const router = useRouter();
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
   const isMac = useIsMac();
@@ -93,7 +96,6 @@ export function AppShell({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPath, setMenuPath] = useState(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [query, setQuery] = useState('');
 
   // A followed link closes the phone menu, including the browser's back and forward buttons.
   if (menuPath !== pathname) {
@@ -105,25 +107,6 @@ export function AppShell({
     setPaletteOpen((open) => !open);
   }, []);
   usePaletteShortcut(togglePalette);
-
-  const groups: PaletteGroup[] = [
-    {
-      id: 'goto',
-      heading: t('paletteGoto'),
-      items: items.map((item) => {
-        const Icon = item.icon;
-        return {
-          id: item.id,
-          label: nav(item.label),
-          keywords: [item.href],
-          icon: <Icon aria-hidden />,
-          onSelect: () => {
-            router.push(item.href);
-          },
-        };
-      }),
-    },
-  ];
 
   function toggleSidebar() {
     const next = !collapsed;
@@ -224,18 +207,12 @@ export function AppShell({
         </main>
       </div>
 
-      <CommandPalette
+      <ShellPalette
         open={paletteOpen}
-        onOpenChange={(open) => {
-          setPaletteOpen(open);
-          if (!open) setQuery('');
-        }}
-        groups={groups}
-        title={t('paletteTitle')}
-        inputLabel={t('paletteInput')}
-        emptyLabel={t('paletteEmpty')}
-        query={query}
-        onQueryChange={setQuery}
+        onOpenChange={setPaletteOpen}
+        nav={items}
+        actionIds={actionIds}
+        searchable={searchable}
       />
       <Toaster
         label={t('notifications')}

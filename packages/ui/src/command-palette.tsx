@@ -62,6 +62,7 @@ export function CommandPalette({
   emptyLabel,
   query,
   onQueryChange,
+  status,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,6 +74,11 @@ export function CommandPalette({
   emptyLabel: ReactNode;
   query: string;
   onQueryChange: (query: string) => void;
+  /**
+   * A sentence read out when it changes, such as how many matches a search found (WCAG 4.1.3).
+   * Screen readers only: the list itself shows the matches.
+   */
+  status?: string;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -97,6 +103,9 @@ export function CommandPalette({
                 className="placeholder:text-text-subtle h-12 w-full bg-transparent outline-none"
               />
             </div>
+            <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+              {status ?? ''}
+            </div>
             <Command.List className="max-h-[min(24rem,60dvh)] overflow-y-auto p-2">
               <Command.Empty className="text-text-muted px-3 py-6 text-center">
                 {emptyLabel}
@@ -114,7 +123,14 @@ export function CommandPalette({
                       <Command.Item
                         key={item.id}
                         value={`${group.id}:${item.id} ${item.label}`}
-                        keywords={item.keywords ?? []}
+                        // A match found by the caller's own search may not read like the typed
+                        // text (a phone's last digits find a name), so it carries the text as a
+                        // keyword: the palette then counts it and does not claim nothing matched.
+                        keywords={
+                          group.prefiltered === true
+                            ? [...(item.keywords ?? []), query]
+                            : (item.keywords ?? [])
+                        }
                         forceMount={group.prefiltered === true}
                         onSelect={() => {
                           onOpenChange(false);

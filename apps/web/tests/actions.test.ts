@@ -79,6 +79,7 @@ const {
   winOpportunity,
 } = await import('../src/actions/crm');
 const { listEntities, updateEntity } = await import('../src/actions/org');
+const { searchPalette } = await import('../src/actions/search');
 const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
 const {
   clearSignInLock,
@@ -500,6 +501,29 @@ describe('command and query actions answer a result, never a thrown error (revie
     const options = ok(await leadFormOptions());
     expect(options.pipelines.map((p) => p.key)).toContain('farmer_pumps');
     expect(options.sources.length).toBeGreaterThan(0);
+  });
+
+  it('search the palette for leads and, for an Executive only, team members', async () => {
+    const tag = `palette${newId().slice(-8)}`;
+    request.principal = await createTestPrincipal('tele_caller_cc', [3]);
+    const created = ok(
+      await createLead({ ...lead(3), contact: { name: `Kamla ${tag}`, phone: '9812345678' } }),
+    );
+    const found = ok(await searchPalette({ q: `kamla ${tag}` }));
+    expect(found.leads.map((l) => l.id)).toEqual([created.id]);
+    expect(found.people).toEqual([]);
+    await expect(searchPalette({ q: 'k' })).resolves.toMatchObject({ ok: false, field: 'q' });
+
+    request.principal = await createTestPrincipal('executive');
+    const person = await createTestUser([{ entityId: 1, roleKey: 'accounts' }], {
+      name: `Kamla ${tag} staff`,
+    });
+    const forExecutive = ok(await searchPalette({ q: tag }));
+    expect(forExecutive.people.map((p) => p.id)).toEqual([person.id]);
+    expect(forExecutive.leads.map((l) => l.id)).toContain(created.id);
+
+    request.principal = await createTestPrincipal('hr_admin', [1]);
+    expect(ok(await searchPalette({ q: tag }))).toEqual({ leads: [], people: [] });
   });
 
   it('list team members and their sign-ins for an Executive only', async () => {

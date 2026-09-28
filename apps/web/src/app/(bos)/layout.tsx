@@ -9,6 +9,7 @@ import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sideb
 import { ThemeSync } from '../../components/theme';
 import type { RoleNameKey } from '../../i18n/types';
 import { visibleNav } from '../../nav';
+import { canSearch, visibleActions } from '../../screens/palette';
 
 /**
  * The BOS route group: nobody reaches a screen without a usable session. The proxy has already
@@ -37,6 +38,8 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
         }))}
         activeCompany={principal.entityIds.length === 1 ? principal.entityIds[0] : undefined}
         navIds={visibleNav(principal.permissions).map((item) => item.id)}
+        actionIds={visibleActions(principal.permissions).map((action) => action.id)}
+        searchable={canSearch(principal.permissions)}
         theme={theme}
         sidebarCollapsed={collapsed}
       >

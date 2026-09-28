@@ -64,19 +64,24 @@ export function UsersScreen({
   companies,
   companyNames,
   roleKeys,
+  startInviting = false,
 }: {
   initial: UserPageDto;
   selfId: string;
   companies: { id: number; name: string }[];
   companyNames: Record<number, string>;
   roleKeys: string[];
+  /** Opens the invite dialog on arrival, for the palette's "Invite a person". */
+  startInviting?: boolean;
 }) {
   const t = useTranslations('users');
   const common = useTranslations('common');
   const roles = useTranslations('roles');
   const [rows, setRows] = useState(initial.items);
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
-  const [open, setOpen] = useState<Open | undefined>();
+  const [open, setOpen] = useState<Open | undefined>(
+    startInviting ? { kind: 'invite' } : undefined,
+  );
   const { load, pending, failure } = useQuery<UserPageDto>();
   const view = useGridView({ density: 'comfortable' });
 
