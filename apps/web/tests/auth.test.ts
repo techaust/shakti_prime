@@ -563,7 +563,11 @@ async function enrolledExecutive(entityId = 1) {
   });
   if (enrol.method !== 'totp') throw new Error('expected a totp enrolment');
   const secret = new URL(enrol.totpURI).searchParams.get('secret') ?? '';
-  // enrolment spends the code of the step before now, leaving now and the next step free
+  // enrolment spends the code of the step before now, leaving now and the next step free; near the
+  // end of a 30-second step that code would turn two steps old before the server checks it, so
+  // wait for the next step to begin
+  const intoStep = Date.now() % 30_000;
+  if (intoStep > 27_000) await new Promise((done) => setTimeout(done, 30_100 - intoStep));
   await auth.api.verifyTOTP({
     body: { code: totpCode(secret, new Date(Date.now() - 30_000)) },
     headers: clientHeaders({ cookie: first.cookie, ip: '10.0.9.1' }),
