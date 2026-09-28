@@ -196,7 +196,7 @@ describe('the application role and the identity tables', () => {
         if (
           e instanceof Error &&
           e.cause instanceof Error &&
-          /row-level security/.test(e.cause.message)
+          e.cause.message.includes('row-level security')
         ) {
           return -1;
         }

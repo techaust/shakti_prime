@@ -14,6 +14,13 @@ import { scopeFilter } from './list-leads';
 
 type SearchContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
+/** The typed digits backwards, the prefix of `contact_phones.e164_reversed` they end. */
+function reversed(digits: string): string {
+  let out = '';
+  for (const d of digits) out = d + out;
+  return out;
+}
+
 /**
  * The ⌘K search for leads (DESIGN.md §6, Command palette): the leads the caller can see whose
  * customer name, a contact's name or the site's village holds the typed text or, for three
@@ -79,7 +86,7 @@ export async function leadSearchQuery(ctx: SearchContext, rawInput: unknown) {
             .select({ accountId: ac.accountId })
             .from(ph)
             .innerJoin(ac, eq(ac.contactId, ph.contactId))
-            .where(sql`${ph.e164Reversed} ^@ ${[...digits].reverse().join('')}`),
+            .where(sql`${ph.e164Reversed} ^@ ${reversed(digits)}`),
         );
 
   // The best score among the lead's contacts' names, for the order.
