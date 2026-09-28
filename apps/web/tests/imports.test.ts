@@ -291,11 +291,28 @@ describe('POST /api/v1/workers/imports/commit', () => {
     return `${header}.${claims}.${signature}`;
   }
 
-  function call(body: string, signature?: string): Promise<Response> {
+  function call(body: string, signature?: string, requestId?: string): Promise<Response> {
     const headers = new Headers({ 'content-type': 'application/json' });
     if (signature !== undefined) headers.set('upstash-signature', signature);
+    if (requestId !== undefined) headers.set('x-request-id', requestId);
     return POST(new Request(ROUTE_URL, { method: 'POST', headers, body }));
   }
+
+  it("answers with the caller's well-formed request id, and a new one for any other", async () => {
+    const body = JSON.stringify({ jobId: 'not a job' });
+    const given = `imports-route-${newId()}`;
+    const kept = await call(body, sign(body), given);
+    expect(kept.status).toBe(400);
+    expect(kept.headers.get('x-request-id')).toBe(given);
+    expect(ErrorEnvelope.parse(await kept.json()).error).toMatchObject({
+      code: 'validation_failed',
+      requestId: given,
+    });
+
+    const replaced = await call(body, sign(body), 'not safe to echo');
+    expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
+    expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+  });
 
   /** A job the command has moved to committing, with no worker started for it yet. */
   async function committingJob(names: string[]): Promise<ImportJobDto> {

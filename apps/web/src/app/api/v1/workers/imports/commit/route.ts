@@ -2,11 +2,11 @@ import {
   DomainError,
   ErrorEnvelope,
   ImportCommitWorkerBody,
-  newId,
   type ErrorCode,
 } from '@shakti/contracts';
 import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
+import { incomingRequestId } from '../../../../../../request-id';
 import { IMPORT_RUN_BUDGET_MS, runImportCommit } from '../../../../../../workers/imports';
 import {
   IMPORT_COMMIT_PATH,
@@ -26,7 +26,7 @@ export const maxDuration = 60;
  * longer commit answers 403 and QStash is told not to retry.
  */
 export async function POST(request: Request): Promise<Response> {
-  const requestId = newId();
+  const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const config = qstashConfig();
   if (config === undefined) return failure('integration_unavailable', 503, requestId, headers);
