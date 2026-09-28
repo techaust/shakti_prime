@@ -30,9 +30,12 @@ function row(overrides: Partial<OutboxRow> = {}): OutboxRow {
 
 /** A claim over fixed rows that records the limit asked for and the updates returned. */
 function claimOf(rows: OutboxRow[]) {
-  const seen: { limit?: number; updates: readonly OutboxUpdate[] } = { updates: [] };
-  const claim: ClaimOutbox = async (limit, deliver) => {
+  const seen: { limit?: number; maxAttempts?: number; updates: readonly OutboxUpdate[] } = {
+    updates: [],
+  };
+  const claim: ClaimOutbox = async (limit, deliver, maxAttempts) => {
     seen.limit = limit;
+    seen.maxAttempts = maxAttempts;
     const claimed = rows.slice(0, limit);
     seen.updates = await deliver(claimed);
     return claimed.length;
@@ -59,6 +62,8 @@ describe('runOutboxPublisher', () => {
     });
     expect(seen.updates).toEqual(rows.map((r) => ({ id: r.id, outcome: 'published' })));
     expect(seen.limit).toBe(OUTBOX_BATCH_SIZE);
+    // The claim dead-letters an event whose runs kept dying once this many attempts are spent.
+    expect(seen.maxAttempts).toBe(OUTBOX_MAX_ATTEMPTS);
   });
 
   it('marks an event nobody listens to as delivered without sending it', async () => {

@@ -31,6 +31,13 @@ afterAll(async () => {
 /** Every row this file writes carries its own aggregate type, so other suites' rows never count. */
 const TAG = `test_outbox_${newId().slice(-8)}`;
 
+/** The publisher's allowance of attempts (OUTBOX_MAX_ATTEMPTS in @shakti/domain). */
+const MAX_ATTEMPTS = 10;
+
+/** The claim as the publisher calls it, with its allowance of attempts. */
+const claim = (limit: number, deliver: Parameters<typeof claimOutbox>[1]) =>
+  claimOutbox(limit, deliver, MAX_ATTEMPTS);
+
 /** The database's own message, whether the driver error is thrown bare or wrapped by Drizzle. */
 async function failure(promise: Promise<unknown>): Promise<string> {
   try {
@@ -197,7 +204,7 @@ describe('claimOutbox (docs/design/backend-weeks-3-5.md §4.2)', () => {
   it('claims pending events in delivery order and applies each outcome', async () => {
     const [published, failed, dead] = await seedRows(3);
     let seen: readonly OutboxRow[] = [];
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       seen = rows;
       return Promise.resolve([
         { id: published ?? '', outcome: 'published' as const },
@@ -258,14 +265,14 @@ describe('claimOutbox (docs/design/backend-weeks-3-5.md §4.2)', () => {
         .filter((r) => ours.includes(r.id))
         .map((r) => ({ id: r.id, outcome: 'published' as const }));
 
-    const runA = claimOutbox(500, async (rows) => {
+    const runA = claim(500, async (rows) => {
       first = rows.map((r) => r.id);
       started();
       await held;
       return publishOurs(rows);
     });
     await claimedFirst;
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       second = rows.map((r) => r.id);
       return Promise.resolve(publishOurs(rows));
     });
@@ -279,10 +286,10 @@ describe('claimOutbox (docs/design/backend-weeks-3-5.md §4.2)', () => {
   it('refuses an outcome for an event it did not claim and changes nothing', async () => {
     const [id] = await seedRows(1);
     await expect(
-      claimOutbox(500, () => Promise.resolve([{ id: newId(), outcome: 'published' as const }])),
+      claim(500, () => Promise.resolve([{ id: newId(), outcome: 'published' as const }])),
     ).rejects.toThrow(/did not claim/);
     expect(await rowAsPublisher(id ?? '')).toMatchObject({ published_at: null, attempts: 0 });
-    await claimOutbox(500, (rows) =>
+    await claim(500, (rows) =>
       Promise.resolve(
         rows.filter((r) => r.id === id).map((r) => ({ id: r.id, outcome: 'published' as const })),
       ),
@@ -293,7 +300,7 @@ describe('claimOutbox (docs/design/backend-weeks-3-5.md §4.2)', () => {
     await seedRows(1);
     const lag = await outboxLag();
     expect(lag.oldestPendingSeconds).not.toBeNull();
-    await claimOutbox(500, (rows) =>
+    await claim(500, (rows) =>
       Promise.resolve(
         rows
           .filter((r) => r.aggregateType === TAG)
@@ -383,7 +390,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
     const [id = ''] = await seedRows(1);
     let during: Awaited<ReturnType<typeof deliveryState>>;
     let lockedElsewhere: boolean | undefined;
-    await claimOutbox(500, async (rows) => {
+    await claim(500, async (rows) => {
       during = await deliveryState(id);
       // Another connection locks the row at once: the claim's transaction has committed.
       lockedElsewhere = await asOutboxPublisher((p) =>
@@ -403,7 +410,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
 
   it('does not claim a failed event again before its backoff has passed', async () => {
     const [id = ''] = await seedRows(1);
-    await claimOutbox(500, (rows) =>
+    await claim(500, (rows) =>
       Promise.resolve(rows.filter((r) => r.id === id).map((r) => failedOnce(r.id, 'http_503'))),
     );
     const failed = await deliveryState(id);
@@ -412,7 +419,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
     expect(failed?.due_in).toBeLessThanOrEqual(60);
 
     let offered = false;
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       offered = rows.some((r) => r.id === id);
       return publishTagged(rows.filter((r) => r.id !== id));
     });
@@ -423,12 +430,13 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
       (p) => p`update outbox_events set next_attempt_at = now() - interval '1 second'
                 where id = ${id}`,
     );
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       offered = rows.some((r) => r.id === id);
       return publishTagged(rows);
     });
     expect(offered).toBe(true);
-    expect(await deliveryState(id)).toMatchObject({ published: true, attempts: 1 });
+    // Two leases, two attempts: the failed one and the one that delivered it.
+    expect(await deliveryState(id)).toMatchObject({ published: true, attempts: 2 });
   });
 
   it('claims again a row whose lease ran out, and the run that lost it records nothing', async () => {
@@ -442,7 +450,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
       leased = resolve;
     });
     // The first run stalls after its claim, as a run whose function was stopped would.
-    const stalled = claimOutbox(500, async (rows) => {
+    const stalled = claim(500, async (rows) => {
       leased();
       await resumed;
       return rows.filter((r) => r.id === id).map((r) => failedOnce(r.id, 'TimeoutError'));
@@ -450,7 +458,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
     await claimedFirst;
 
     let offered = false;
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       offered = rows.some((r) => r.id === id);
       return publishTagged(rows.filter((r) => r.id !== id));
     });
@@ -460,7 +468,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
       (p) => p`update outbox_events set claimed_until = now() - interval '1 second'
                 where id = ${id}`,
     );
-    await claimOutbox(500, (rows) => {
+    await claim(500, (rows) => {
       offered = rows.some((r) => r.id === id);
       return publishTagged(rows);
     });
@@ -468,19 +476,102 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
 
     resume();
     await stalled;
+    // The stalled run's lease counted an attempt it never recorded, as a run that died would.
     expect(await deliveryState(id)).toMatchObject({
       published: true,
-      attempts: 0,
+      attempts: 2,
       due_in: null,
       leased_for: null,
     });
   });
 
+  it('counts a normal failure once: the lease counts the attempt and the outcome keeps that count', async () => {
+    const [id = ''] = await seedRows(1);
+    // As the publisher records a failure: the attempts before this run, and this one.
+    const failWithBackoff = (rows: readonly OutboxRow[]) =>
+      Promise.resolve(
+        rows
+          .filter((r) => r.id === id)
+          .map((r) => ({
+            id: r.id,
+            outcome: 'failed' as const,
+            attempts: r.attempts + 1,
+            lastError: 'http_503',
+            deadLetter: false,
+            retryInSeconds: 60,
+          })),
+      );
+    await claim(500, failWithBackoff);
+    expect(await deliveryState(id)).toMatchObject({ published: false, attempts: 1 });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set next_attempt_at = now() - interval '1 second'
+                where id = ${id}`,
+    );
+    await claim(500, failWithBackoff);
+    expect(await deliveryState(id)).toMatchObject({ published: false, attempts: 2 });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set next_attempt_at = null, published_at = now()
+                where id = ${id}`,
+    );
+  });
+
+  it('gives back the attempt of a row it releases, and of one a delivery left without an outcome', async () => {
+    const [id = ''] = await seedRows(1);
+    await expect(
+      claim(500, () => Promise.reject(new Error('the run was cut short'))),
+    ).rejects.toThrow('the run was cut short');
+    expect(await deliveryState(id)).toMatchObject({ attempts: 0, leased_for: null });
+    await claim(500, (rows) => publishTagged(rows.filter((r) => r.id !== id)));
+    expect(await deliveryState(id)).toMatchObject({ published: false, attempts: 0 });
+    await claim(500, publishTagged);
+  });
+
+  it('a run that dies after its lease still uses an attempt, so a crash loop is dead-lettered', async () => {
+    // One attempt short of the allowance, as nine runs that died would leave it.
+    const id = newId();
+    await asMigrator(
+      (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                          payload_json, attempts, last_error)
+               values (${id}, 1, 'admin.user.reactivated', ${TAG}, ${newId()}, '{"v": 1}'::jsonb,
+                       ${MAX_ATTEMPTS - 1}, 'http_503')`,
+    );
+    // The tenth run leases it and dies: nothing is recorded, and the lease runs out.
+    const crashed = await postgresOutboxLeaseStore.lease(500, OUTBOX_LEASE_SECONDS, MAX_ATTEMPTS);
+    const mine = crashed.rows.find((r) => r.id === id);
+    expect(mine?.attempts).toBe(MAX_ATTEMPTS - 1);
+    // Rows of other suites it took are handed back as a live run would.
+    await postgresOutboxLeaseStore.record(
+      crashed.lease,
+      [],
+      crashed.rows.map((r) => r.id).filter((other) => other !== id),
+    );
+    expect(await deliveryState(id)).toMatchObject({ published: false, attempts: MAX_ATTEMPTS });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set claimed_until = now() - interval '1 second'
+                where id = ${id}`,
+    );
+
+    // The next run does not take it again: its attempts are spent, so it is dead-lettered.
+    let offered = false;
+    await claim(500, (rows) => {
+      offered = rows.some((r) => r.id === id);
+      return publishTagged(rows);
+    });
+    expect(offered).toBe(false);
+    expect(await rowAsPublisher(id)).toMatchObject({
+      published_at: null,
+      attempts: MAX_ATTEMPTS,
+      last_error: 'no_outcome',
+    });
+    expect((await rowAsPublisher(id))?.dead_lettered_at).toBeInstanceOf(Date);
+    expect(await deliveryState(id)).toMatchObject({ due_in: null, leased_for: null });
+  });
+
   it('never leases one row to two runs claiming at the same moment', async () => {
     const ours = await seedRows(12);
     const [a, b] = await Promise.all([
-      postgresOutboxLeaseStore.lease(500, OUTBOX_LEASE_SECONDS),
-      postgresOutboxLeaseStore.lease(500, OUTBOX_LEASE_SECONDS),
+      postgresOutboxLeaseStore.lease(500, OUTBOX_LEASE_SECONDS, MAX_ATTEMPTS),
+      postgresOutboxLeaseStore.lease(500, OUTBOX_LEASE_SECONDS, MAX_ATTEMPTS),
     ]);
     const idsA = a.rows.map((r) => r.id);
     const idsB = b.rows.map((r) => r.id);
@@ -499,7 +590,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
 
   it('dead-letters with no next attempt and no lease left', async () => {
     const [id = ''] = await seedRows(1);
-    await claimOutbox(500, (rows) =>
+    await claim(500, (rows) =>
       Promise.resolve(
         rows
           .filter((r) => r.aggregateType === TAG)
