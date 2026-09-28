@@ -79,6 +79,39 @@ const webDatabaseNames = {
 const restrictedModule =
   '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap)|postgres|drizzle-orm\\/postgres-js)$/';
 
+const restrictedSyntax = [
+  // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
+  {
+    selector: 'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+    message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+  },
+  {
+    selector: 'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+    message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+  },
+  {
+    selector: 'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
+    message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
+  },
+  {
+    selector: `ImportExpression[source.value=${restrictedModule}]`,
+    message: 'A dynamic import of a database module passes around the import fences.',
+  },
+  {
+    selector: "CallExpression[callee.name='require']",
+    message: 'Use import; require() passes around the import fences.',
+  },
+];
+
+// The fences above read the specifier as written, so a built one (a template, a variable, a
+// concatenation) would pass around them: outside tests, a dynamic import names its module
+// as a plain string.
+const nonLiteralImport = {
+  selector: "ImportExpression[source.type!='Literal']",
+  message:
+    'A dynamic import names its module as a plain string; a built specifier passes around the import fences.',
+};
+
 // packages/domain and packages/contracts never import a framework (AGENTS.md §3).
 const frameworkImports = {
   ...rawClientImport,
@@ -125,32 +158,14 @@ export default tseslint.config(
         { allowConstantLoopConditions: true },
       ],
       'no-restricted-imports': ['error', rawClientImport],
-      // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
-          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
-        },
-        {
-          selector: 'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
-          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
-        },
-        {
-          selector: 'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.js$/]',
-          message: 'Relative imports have no .js extension (Turbopack does not resolve them).',
-        },
-        {
-          selector: `ImportExpression[source.value=${restrictedModule}]`,
-          message: 'A dynamic import of a database module passes around the import fences.',
-        },
-        {
-          selector: "CallExpression[callee.name='require']",
-          message: 'Use import; require() passes around the import fences.',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...restrictedSyntax, nonLiteralImport],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
+  },
+  {
+    // Tests may build a specifier (a fixture per case, a module reloaded under test).
+    files: ['packages/*/tests/**/*.ts', 'apps/*/tests/**/*.ts', '**/*.test.{ts,tsx}'],
+    rules: { 'no-restricted-syntax': ['error', ...restrictedSyntax] },
   },
   {
     files: [
