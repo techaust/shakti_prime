@@ -1,5 +1,10 @@
 'use server';
 
+// No screen calls these actions yet. The tax rates screen comes in Phase 1 with the minimal
+// catalogue (docs/ROADMAP.md §3: items, HSN, tax rates), once the workshop inputs PRICE-4 (the
+// HSN code and GST rate of each item) and PRICE-6 (the solar composite split) are answered and
+// the CA has confirmed the golden set (ADR 0007, docs/phase0/workshop-pack.md).
+
 import {
   SetCompositeRuleInput,
   SetTaxRateInput,

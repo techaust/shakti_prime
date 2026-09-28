@@ -1,5 +1,9 @@
 'use server';
 
+// The Team members, sessions and Activity log screens call these actions, except
+// `replayDeadLetter`: its screen, the Integration Health page, comes in Phase 1
+// (docs/design/backend-weeks-3-5.md §4.4).
+
 import {
   ClearSignInLockInput,
   type AuditPageDto,
@@ -139,7 +143,8 @@ export async function reactivateUser(
 /**
  * Sends a failed message to other systems again (Executive only, design §4.4): the dead-lettered
  * event goes back in the queue with its attempts cleared, and the publisher's next run, at most a
- * minute away, sends it.
+ * minute away, sends it. No screen calls it yet: the Integration Health page and its replay
+ * route come in Phase 1 (docs/design/backend-weeks-3-5.md §4.4).
  */
 export async function replayDeadLetter(
   rawInput: unknown,
