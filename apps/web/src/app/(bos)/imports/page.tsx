@@ -6,13 +6,14 @@ import { listImportJobs } from '../../../actions/imports';
 import { ImportsScreen } from '../../../components/imports/imports-screen';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
+import { navRequires } from '../../../nav';
 import { firstFailure } from '../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('imports'))('title') };
+  return screenTitle(navRequires('imports'), (await getTranslations('imports'))('title'));
 }
 
 /**
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * viewed, newest first, and the way to add another.
  */
 export default async function ImportsPage() {
-  const { principal, access } = await screenAccess({ key: 'imports.write', scope: 'entity' });
+  const { principal, access } = await screenAccess(navRequires('imports'));
   const t = await getTranslations('imports');
   const page = await listImportJobs({ limit: 25 });
   return (

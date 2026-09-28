@@ -57,9 +57,10 @@ function sign(body: string, options: { key?: string; url?: string } = {}): strin
   return `${header}.${claims}.${signature}`;
 }
 
-function call(body: string, signature?: string): Promise<Response> {
+function call(body: string, signature?: string, requestId?: string): Promise<Response> {
   const headers = new Headers({ 'content-type': 'application/json' });
   if (signature !== undefined) headers.set('upstash-signature', signature);
+  if (requestId !== undefined) headers.set('x-request-id', requestId);
   return POST(new Request(ROUTE_URL, { method: 'POST', headers, body }));
 }
 
@@ -121,5 +122,21 @@ describe('POST /api/v1/workers/outbox/publish', () => {
     expect(counts.skipped).toBeGreaterThanOrEqual(1);
     // Nobody listens to this event yet: delivered without being sent.
     expect(await publishedAt(id)).toEqual(expect.any(Date));
+  });
+
+  it("answers with the caller's well-formed request id, and a new one for any other", async () => {
+    const given = `outbox-route-${newId()}`;
+    const kept = await call('{}', sign('{}'), given);
+    expect(kept.status).toBe(200);
+    expect(kept.headers.get('x-request-id')).toBe(given);
+
+    const refused = await call('{}', undefined, given);
+    expect(refused.status).toBe(401);
+    expect(refused.headers.get('x-request-id')).toBe(given);
+    expect(ErrorEnvelope.parse(await refused.json()).error.requestId).toBe(given);
+
+    const replaced = await call('{}', sign('{}'), 'not safe to echo');
+    expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
+    expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
   });
 });

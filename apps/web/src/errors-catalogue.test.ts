@@ -9,17 +9,31 @@ import { REASONS } from './auth/errors';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Files whose `reason: '…'` is not a reason a person meets. The recorded API examples carry a
+ * provider's own field of that name (a sync conflict's `state_changed`), which the screens never
+ * show as an error.
+ */
+const NOT_ERROR_REASONS = new Set([join(here, '../../../packages/contracts/src/api/fixtures.ts')]);
+
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) return sourceFiles(path);
-    return /\.tsx?$/.test(name) && !name.endsWith('.test.ts') ? [path] : [];
+    return /\.tsx?$/.test(name) && !name.endsWith('.test.ts') && !NOT_ERROR_REASONS.has(path)
+      ? [path]
+      : [];
   });
 }
 
-/** Every `reason: '…'` a domain error or an action names in the source. */
+/** Every `reason: '…'` a domain error, a contract, the database layer or an action names. */
 function reasonsInSource(): string[] {
-  const roots = [join(here, '../../../packages/domain/src'), here];
+  const roots = [
+    join(here, '../../../packages/domain/src'),
+    join(here, '../../../packages/contracts/src'),
+    join(here, '../../../packages/db/src'),
+    here,
+  ];
   const found = new Set<string>();
   for (const file of roots.flatMap(sourceFiles)) {
     for (const match of readFileSync(file, 'utf8').matchAll(/reason: '([a-z_]+)'/g)) {
@@ -57,7 +71,13 @@ describe('every error a person can meet has a sentence (AUDIT M30)', () => {
     }
   });
 
-  it('every reason written in the domain and web source, and every auth reason', () => {
+  it('leaves out only the recorded API examples, which the scan would otherwise read', () => {
+    for (const file of NOT_ERROR_REASONS) {
+      expect(readFileSync(file, 'utf8')).toMatch(/reason: '[a-z_]+'/);
+    }
+  });
+
+  it('every reason written in the domain, contracts, database and web source, and every auth reason', () => {
     const reasons = [...reasonsInSource(), ...Object.values(REASONS).map((r) => r.reason)];
     expect(reasons.length).toBeGreaterThan(20);
     const missing = reasons.filter((reason) => !(reason in catalogue));

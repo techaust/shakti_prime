@@ -61,7 +61,9 @@ vi.mock('@upstash/qstash', async (original) => ({
 
 const {
   commitImportJob,
+  getImportJob,
   listImportJobs,
+  listImportTemplates,
   listImportRows,
   mapImportJob,
   previewImportJob,
@@ -233,6 +235,54 @@ Lakshmi,${phone()}
   });
 });
 
+describe('one import and the saved column matchings', () => {
+  it('answers one job to someone who may import, and refuses anyone else', async () => {
+    const job = await previewedJob(['Savitri']);
+    expect(ok(await getImportJob({ entityId: 1, jobId: job.id }))).toMatchObject({
+      id: job.id,
+      state: 'previewed',
+      validRows: 1,
+    });
+    await expect(getImportJob({ entityId: 1, jobId: 'not-a-job' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    await expect(getImportJob({ entityId: 2, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    request.principal = principalFor('tele_caller_cc', [1]);
+    await expect(getImportJob({ entityId: 1, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    request.principal = undefined;
+    await expect(getImportJob({ entityId: 1, jobId: job.id })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
+  });
+
+  it('lists a matching saved from a job, and refuses someone who may not import', async () => {
+    const csv = `Name,Mobile,Village\nGanga,${phone()},Sikar\n`;
+    const job = ok(await uploadImportFile(uploadForm(csv)));
+    const name = `Fair leads ${newId()}`;
+    ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping, saveAsTemplate: { name } }));
+    const templates = ok(await listImportTemplates({ entityId: 1, kind: 'leads' }));
+    expect(templates.find((t) => t.name === name)).toMatchObject({ kind: 'leads', mapping });
+
+    await expect(listImportTemplates({ entityId: 1, kind: 'soap' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    request.principal = principalFor('tele_caller_cc', [1]);
+    await expect(listImportTemplates({ entityId: 1, kind: 'leads' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+  });
+});
+
 describe('an import from start to finish, with no queue', () => {
   it('commits the leads in this process and rolls them back', async () => {
     const previewed = await previewedJob(['Bhanwar', 'Kamla', 'Ramesh']);
@@ -291,11 +341,28 @@ describe('POST /api/v1/workers/imports/commit', () => {
     return `${header}.${claims}.${signature}`;
   }
 
-  function call(body: string, signature?: string): Promise<Response> {
+  function call(body: string, signature?: string, requestId?: string): Promise<Response> {
     const headers = new Headers({ 'content-type': 'application/json' });
     if (signature !== undefined) headers.set('upstash-signature', signature);
+    if (requestId !== undefined) headers.set('x-request-id', requestId);
     return POST(new Request(ROUTE_URL, { method: 'POST', headers, body }));
   }
+
+  it("answers with the caller's well-formed request id, and a new one for any other", async () => {
+    const body = JSON.stringify({ jobId: 'not a job' });
+    const given = `imports-route-${newId()}`;
+    const kept = await call(body, sign(body), given);
+    expect(kept.status).toBe(400);
+    expect(kept.headers.get('x-request-id')).toBe(given);
+    expect(ErrorEnvelope.parse(await kept.json()).error).toMatchObject({
+      code: 'validation_failed',
+      requestId: given,
+    });
+
+    const replaced = await call(body, sign(body), 'not safe to echo');
+    expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
+    expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+  });
 
   /** A job the command has moved to committing, with no worker started for it yet. */
   async function committingJob(names: string[]): Promise<ImportJobDto> {

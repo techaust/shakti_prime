@@ -17,6 +17,10 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/DATABASE.md", "$TURBO_ROOT$/docs/data/**"]
     },
+    "@shakti/tokens#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/apps/web/src/app/icon.svg"]
+    },
     "@shakti/contracts#test": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/API.md"]

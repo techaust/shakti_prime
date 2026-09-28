@@ -1,15 +1,13 @@
-import { ErrorEnvelope, newId, ReadyResponse } from '@shakti/contracts';
+import { ErrorEnvelope, ReadyResponse } from '@shakti/contracts';
 import en from '../../../../../../messages/en.json';
 import { checkReadiness } from '../../../../../auth/readiness';
+import { incomingRequestId } from '../../../../../request-id';
 
 export const dynamic = 'force-dynamic';
 
 /** Readiness: dependency checks (docs/API.md §3.7). */
-const REQUEST_ID = /^[\w.-]{1,128}$/;
-
 export async function GET(request: Request): Promise<Response> {
-  const given = request.headers.get('x-request-id');
-  const requestId = given !== null && REQUEST_ID.test(given) ? given : newId();
+  const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const checks = await checkReadiness();
   const time = new Date().toISOString();

@@ -10,7 +10,8 @@ import type { ActionResult } from '../../../../../actions/result';
 import { JobScreen } from '../../../../../components/imports/job-screen';
 import { FailureMessage } from '../../../../../components/screens/failure';
 import { Page } from '../../../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../../../screens/access';
+import { navRequires } from '../../../../../nav';
 import { initialRowView, rowStateOf } from '../../../../../screens/import-wizard';
 import { pipelinesFor } from '../../../../../screens/lead-form';
 import { firstFailure } from '../../../../../screens/result';
@@ -25,7 +26,7 @@ interface Params {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('imports'))('title') };
+  return screenTitle(navRequires('imports'), (await getTranslations('imports'))('title'));
 }
 
 /** The answer a read gives when it is not needed for this state of the job. */
@@ -37,7 +38,7 @@ const notNeeded = <T,>(data: T): Promise<ActionResult<T>> => Promise.resolve({ o
  * step needs; after each change the screen asks for the page again.
  */
 export default async function ImportJobPage({ params }: { params: Promise<Params> }) {
-  const { access } = await screenAccess({ key: 'imports.write', scope: 'entity' });
+  const { access } = await screenAccess(navRequires('imports'));
   const { entityId: rawEntityId, jobId } = await params;
   const entityId = Number(rawEntityId);
   if (!Number.isInteger(entityId) || entityId < 1 || entityId > 32_767 || !UUID.test(jobId)) {

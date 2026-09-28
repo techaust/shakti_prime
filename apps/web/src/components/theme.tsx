@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { saveTheme } from '../actions/profile';
+import { settle } from './screens/settle';
 import type { ErrorKey } from '../i18n/types';
 import { themeCookie } from '../theme';
 
@@ -40,17 +41,22 @@ export function ThemeSync({ saved }: { saved: Theme }) {
  */
 export function useThemeChoice(
   saved: Theme,
-  /** Called with the reason when the profile refuses the choice (the profile menu shows a toast). */
-  onError?: (key: ErrorKey) => void,
+  /**
+   * Called with the reason, and the support reference of an unexpected failure, when the profile
+   * refuses the choice (the profile menu shows a toast).
+   */
+  onError?: (key: ErrorKey, reference?: string) => void,
 ): {
   chosen: Theme;
   choose: (theme: Theme) => void;
   error: ErrorKey | undefined;
+  reference: string | undefined;
 } {
   const errors = useTranslations('errors');
   const { setTheme } = useTheme();
   const [chosen, setChosen] = useState<Theme>(saved);
   const [error, setError] = useState<ErrorKey | undefined>();
+  const [reference, setReference] = useState<string | undefined>();
   const [, startTransition] = useTransition();
 
   function choose(theme: Theme) {
@@ -59,27 +65,32 @@ export function useThemeChoice(
     setTheme(theme);
     rememberOnThisDevice(theme);
     setError(undefined);
+    setReference(undefined);
+    // One idempotency key per change: a repeated delivery of this change is kept once, and the
+    // next change is a new one.
+    const idempotencyKey = crypto.randomUUID();
     startTransition(async () => {
-      const result = await saveTheme({ theme });
-      if (result.error === undefined) return;
+      const result = await settle(() => saveTheme({ theme }, idempotencyKey));
+      if (result.ok) return;
       setChosen(before);
       setTheme(before);
       rememberOnThisDevice(before);
-      const key = result.error as ErrorKey;
-      const known: ErrorKey = errors.has(key) ? key : 'internal';
+      const known: ErrorKey = errors.has(result.error) ? result.error : 'internal';
       setError(known);
-      onError?.(known);
+      setReference(result.reference);
+      onError?.(known, result.reference);
     });
   }
 
-  return { chosen, choose, error };
+  return { chosen, choose, error, reference };
 }
 
 /** System, Light or Dark (DESIGN.md §7). The screen switches at once; the profile keeps it. */
 export function ThemeSwitch({ saved }: { saved: Theme }) {
   const t = useTranslations('theme');
   const errors = useTranslations('errors');
-  const { chosen, choose, error } = useThemeChoice(saved);
+  const app = useTranslations('app');
+  const { chosen, choose, error, reference } = useThemeChoice(saved);
 
   return (
     <fieldset className="flex flex-col gap-2">
@@ -107,6 +118,7 @@ export function ThemeSwitch({ saved }: { saved: Theme }) {
       {error !== undefined && (
         <p role="alert" className="text-danger text-sm">
           {errors(error)}
+          {reference !== undefined && ` ${app('reference', { reference })}`}
         </p>
       )}
     </fieldset>

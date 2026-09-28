@@ -1,7 +1,10 @@
 import { PERMISSION_KEYS, type PermissionGrant } from '@shakti/contracts';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import en from '../messages/en.json';
-import { activeNavId, NAV_ITEMS, visibleNav } from './nav';
+import { activeNavId, NAV_ITEMS, navRequires, visibleNav } from './nav';
 import { isBosPath } from './session-gate';
 
 const ids = (grants: readonly PermissionGrant[]) => visibleNav(grants).map((i) => i.id);
@@ -63,5 +66,39 @@ describe('activeNavId', () => {
     expect(activeNavId('/leads/new', NAV_ITEMS)).toBe('leads-new');
     expect(activeNavId('/admin/users', NAV_ITEMS)).toBe('admin-users');
     expect(activeNavId('/settings/profile', NAV_ITEMS)).toBeUndefined();
+  });
+});
+
+describe('page guards', () => {
+  const pages = join(dirname(fileURLToPath(import.meta.url)), 'app', '(bos)');
+  const pageSource = (href: string) => readFileSync(join(pages, href, 'page.tsx'), 'utf8');
+
+  it("every menu screen's page checks the grants the menu shows it for", () => {
+    for (const item of NAV_ITEMS) {
+      expect(pageSource(item.href), item.id).toContain(`screenAccess(navRequires('${item.id}'))`);
+    }
+  });
+
+  it('no page reads the session by hand', () => {
+    const hand = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) return hand(path);
+        return name === 'page.tsx' && readFileSync(path, 'utf8').includes('currentSession(')
+          ? [path]
+          : [];
+      });
+    expect(hand(pages)).toEqual([]);
+  });
+
+  it('navRequires answers the menu grants and refuses an unknown screen', () => {
+    expect(navRequires('settings-companies')).toEqual([
+      { key: 'admin.entities.write', scope: 'all' },
+    ]);
+    expect(navRequires('leads-new')).toEqual([
+      { key: 'crm.lead.write', scope: 'own' },
+      { key: 'crm.account.write', scope: 'own' },
+    ]);
+    expect(() => navRequires('nowhere')).toThrow();
   });
 });

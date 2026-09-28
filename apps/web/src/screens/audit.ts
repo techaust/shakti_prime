@@ -1,6 +1,8 @@
 // The Activity log's date window and its reading of a change (docs/design/backend-weeks-3-5.md
 // §3.4). Pure functions, so the screen and its tests share them.
 
+import { isEventType, type EventType } from '@shakti/contracts';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
@@ -46,11 +48,30 @@ export function auditWindow(
   return { ok: true, from: `${from}T00:00:00+05:30`, to: `${addDays(to, 1)}T00:00:00+05:30` };
 }
 
-/** Commands and sign-in events with a name on screen, by the key of that name in the catalogue. */
+/**
+ * Commands and sign-in events with a name on screen, by the key of that name in the catalogue:
+ * every command in the domain registry and every auth event (a test derives both lists), plus
+ * the commands of branches not merged yet (saved list views, the live updates connection).
+ */
 const ACTIONS = {
   'crm.lead.create': 'leadCreate',
+  'crm.opportunity.stage.move': 'opportunityStageMove',
+  'crm.opportunity.assign': 'opportunityAssign',
+  'crm.opportunity.nurture': 'opportunityNurture',
+  'crm.opportunity.reopen': 'opportunityReopen',
+  'crm.opportunity.win': 'opportunityWin',
+  'crm.opportunity.lose': 'opportunityLose',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
+  'tax.rate.set': 'taxRateSet',
+  'tax.composite.set': 'compositeRuleSet',
+  'imports.job.create': 'importCreate',
+  'imports.job.map': 'importMap',
+  'imports.job.preview': 'importPreview',
+  'imports.job.commit': 'importCommit',
+  'imports.job.commit_batch': 'importCommitBatch',
+  'imports.job.rollback': 'importRollback',
+  'integrations.dlq.replay': 'deadLetterReplay',
   'admin.user.invite': 'userInvite',
   'admin.user.role.set': 'userRoles',
   'admin.user.suspend': 'userSuspend',
@@ -58,6 +79,9 @@ const ACTIONS = {
   'admin.session.revoke': 'sessionRevoke',
   'admin.user.two_factor.reset': 'twoFactorReset',
   'profile.theme.set': 'themeSet',
+  'profile.view.save': 'viewSave',
+  'profile.view.delete': 'viewDelete',
+  'realtime.token.issue': 'liveUpdatesOpen',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -78,6 +102,38 @@ export function actionKey(command: string): ActionKey {
   return (ACTIONS as Record<string, ActionKey | undefined>)[command] ?? 'other';
 }
 
+/**
+ * Every event the system sends on, by the key of its name under `activity.events`. Typed against
+ * the event catalogue, so a new event without a name fails the typecheck.
+ */
+const EVENT_NAMES = {
+  'org.entity.updated': 'entityUpdated',
+  'crm.lead.created': 'leadCreated',
+  'crm.opportunity.stage_moved': 'opportunityStageMoved',
+  'crm.opportunity.assigned': 'opportunityAssigned',
+  'crm.opportunity.nurtured': 'opportunityNurtured',
+  'crm.opportunity.reopened': 'opportunityReopened',
+  'crm.opportunity.won': 'opportunityWon',
+  'crm.opportunity.lost': 'opportunityLost',
+  'pricing.price.changed': 'priceChanged',
+  'auth.session.revoked': 'sessionRevoked',
+  'admin.user.invited': 'userInvited',
+  'admin.user.suspended': 'userSuspended',
+  'admin.user.two_factor_reset': 'twoFactorReset',
+  'admin.user.reactivated': 'userReactivated',
+  'admin.user.roles_changed': 'userRolesChanged',
+  'imports.job.committed': 'importCommitted',
+  'imports.job.failed': 'importFailed',
+  'imports.job.rolled_back': 'importRolledBack',
+} as const satisfies Record<EventType, string>;
+
+export type EventNameKey = (typeof EVENT_NAMES)[EventType];
+
+/** The catalogue key naming an event type; undefined for a type the catalogue does not know. */
+export function eventNameKey(type: string): EventNameKey | undefined {
+  return isEventType(type) ? EVENT_NAMES[type] : undefined;
+}
+
 /** A value of a change, as the detail sheet shows it. */
 export type ChangeValue =
   | { kind: 'empty' }
@@ -89,13 +145,55 @@ export type ChangeValue =
   | { kind: 'userStatus'; value: string }
   | { kind: 'theme'; value: string }
   | { kind: 'endReason'; value: string }
-  | { kind: 'roles'; roles: { entityId: number; roleKey: string }[] };
+  | { kind: 'roles'; roles: { entityId: number; roleKey: string }[] }
+  | { kind: 'date'; iso: string }
+  | { kind: 'percent'; value: string }
+  | { kind: 'code'; group: CodeGroup; value: string }
+  | {
+      kind: 'mapping';
+      /** Each lead field filled from a column of the file. */
+      columns: { field: string; column: string }[];
+      /** Each lead field given one value for every row. */
+      defaults: { field: string; value: string }[];
+    };
 
 /**
- * The fields with a name on screen, in the order they are listed, and how their values read.
- * Pairs rather than an object, so no source line reads like a domain error's reason.
+ * Coded values the sheet reads through a catalogue of their own (the component knows which),
+ * falling back to the code in plain words for a value the catalogue does not name yet.
+ */
+const CODE_GROUPS = [
+  'state',
+  'lostReason',
+  'nurtureReason',
+  'importKind',
+  'fileType',
+  'segment',
+  'errorCode',
+  'signInDetail',
+  'method',
+  'eventType',
+] as const;
+export type CodeGroup = (typeof CODE_GROUPS)[number];
+const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
+
+/** How a sign-in went, as the sign-in hook records it (`apps/web/src/auth/create-auth.ts`). */
+export const SIGN_IN_DETAILS = ['locked', 'inactive', 'code_required', 'complete'] as const;
+/** What confirmed a sign-in: the authenticator app or a backup code. */
+export const CONFIRM_METHODS = ['totp', 'backup_code'] as const;
+
+/** Whether `value` is one of `list`, narrowing it for a typed catalogue key. */
+export function oneOf<T extends string>(list: readonly T[], value: string): value is T {
+  return (list as readonly string[]).includes(value);
+}
+
+/**
+ * The fields with a name on screen, in the order they are listed, and how their values read:
+ * every field a command or a sign-in event writes to the audit trail (`ctx.audit()` across
+ * `packages/domain/src/commands`, and the auth events' allow-lists) other than ids. Pairs rather
+ * than an object, so no source line reads like a domain error's reason.
  */
 const FIELD_KINDS = [
+  // People, companies, prices, devices and new leads
   ['displayName', 'text'],
   ['email', 'text'],
   ['phone', 'text'],
@@ -112,11 +210,65 @@ const FIELD_KINDS = [
   ['revokedReason', 'endReason'],
   ['existingAccount', 'yesNo'],
   ['consent', 'recorded'],
+  // Sign-in
+  ['detail', 'signInDetail'],
+  ['method', 'method'],
+  ['revokeOtherSessions', 'yesNo'],
+  // Lead moves
+  ['state', 'state'],
+  ['lockedUntil', 'time'],
+  ['handover', 'yesNo'],
+  ['lostReason', 'lostReason'],
+  ['nurtureReason', 'nurtureReason'],
+  // Tax
+  ['hsn', 'text'],
+  ['segment', 'segment'],
+  ['ratePct', 'percent'],
+  ['goodsSharePct', 'percent'],
+  ['servicesSharePct', 'percent'],
+  ['goodsRatePct', 'percent'],
+  ['servicesRatePct', 'percent'],
+  ['effectiveFrom', 'date'],
+  ['effectiveTo', 'date'],
+  ['sourceRef', 'text'],
+  // Imports
+  ['kind', 'importKind'],
+  ['name', 'text'],
+  ['format', 'fileType'],
+  ['mapping', 'mapping'],
+  ['totalRows', 'number'],
+  ['validRows', 'number'],
+  ['invalidRows', 'number'],
+  ['skippedRows', 'number'],
+  ['suggested', 'number'],
+  ['batch', 'number'],
+  ['fromRow', 'number'],
+  ['toRow', 'number'],
+  ['rows', 'number'],
+  ['committedRows', 'number'],
+  ['batches', 'number'],
+  ['rolledBackRows', 'number'],
+  ['archived', 'number'],
+  ['failedBatch', 'number'],
+  ['failedRow', 'number'],
+  ['errorCode', 'errorCode'],
+  // Messages the system sends on
+  ['eventType', 'eventType'],
+  ['attempts', 'number'],
+  ['deadLetteredAt', 'time'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
 type FieldKind = (typeof FIELD_KINDS)[number][1];
 const KIND_OF: ReadonlyMap<string, FieldKind> = new Map(FIELD_KINDS);
+
+/** Every field with a name on screen, in the order the sheet lists them. */
+export const NAMED_FIELDS: readonly FieldKey[] = FIELD_KINDS.map(([field]) => field);
+
+/** Whether a key has a name on screen; any other key falls back to `wordsOf`. */
+export function isNamedField(key: string): key is FieldKey {
+  return KIND_OF.has(key);
+}
 
 export interface ChangeRow {
   /** A field with a name in the catalogue, or undefined for one listed under Other details. */
@@ -138,7 +290,11 @@ function isReference(key: string): boolean {
   return key === 'id' || /Ids?$/.test(key);
 }
 
-/** `textVersion` → `Text version`, `sign_in` → `Sign in`. */
+/**
+ * `textVersion` → `Text version`, `sign_in` → `Sign in`. Only the fallback for a key or a code no
+ * catalogue names yet: every field the commands record has its own label under
+ * `activity.fields`.
+ */
 export function wordsOf(key: string): string {
   const words = key
     .replaceAll(/[_-]+/g, ' ')
@@ -164,6 +320,21 @@ function plain(value: unknown): ChangeValue {
   return EMPTY;
 }
 
+/** An import's column matching (`LeadImportMappingSchema`): columns, then fixed values. */
+function mappingOf(value: Record<string, unknown>): ChangeValue {
+  const pairs = (raw: unknown) =>
+    isRecord(raw)
+      ? Object.entries(raw).flatMap(([field, v]) =>
+          typeof v === 'string' && v !== '' ? [[field, v] as const] : [],
+        )
+      : [];
+  const columns = pairs(value.columns).map(([field, column]) => ({ field, column }));
+  const defaults = pairs(value.defaults).map(([field, v]) => ({ field, value: v }));
+  return columns.length === 0 && defaults.length === 0
+    ? EMPTY
+    : { kind: 'mapping', columns, defaults };
+}
+
 function known(field: FieldKey, value: unknown): ChangeValue {
   const kind = KIND_OF.get(field);
   // A side that does not carry the field at all (the before of a new record) shows nothing.
@@ -175,7 +346,16 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     if (kind === 'userStatus') return { kind: 'userStatus', value };
     if (kind === 'theme') return { kind: 'theme', value };
     if (kind === 'endReason') return { kind: 'endReason', value };
+    if (kind === 'date') return { kind: 'date', iso: value };
+    if (kind === 'percent') return { kind: 'percent', value };
+    if (kind !== undefined && IS_CODE.has(kind)) {
+      return { kind: 'code', group: kind as CodeGroup, value };
+    }
   }
+  if (kind === 'percent' && typeof value === 'number') {
+    return { kind: 'percent', value: String(value) };
+  }
+  if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
   if (kind === 'roles' && Array.isArray(value)) {
     return {
       kind: 'roles',

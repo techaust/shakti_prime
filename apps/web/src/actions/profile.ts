@@ -6,6 +6,7 @@ import {
   SetThemeInput,
   type DeletedViewDto,
   type SavedViewDto,
+  type ThemeDto,
 } from '@shakti/contracts';
 import {
   deleteView as deleteViewCommand,
@@ -15,24 +16,25 @@ import {
   saveView as saveViewCommand,
   setTheme as setThemeCommand,
 } from '@shakti/domain';
-import { currentPrincipal, forgetPrincipal } from '../auth/current-principal';
-import { errorKey, toDomainError } from '../auth/errors';
-import type { FormState } from './auth';
+import { forgetPrincipal } from '../auth/current-principal';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
  * Saves System, Light or Dark on the caller's profile (DESIGN.md §7). The screen has already
- * switched; this keeps the choice for every device. Returns a catalogue key instead of throwing,
- * because Next.js masks thrown errors in production.
+ * switched; this keeps the choice for every device. It answers an `ActionResult` instead of
+ * throwing, because Next.js masks thrown errors in production, and an unexpected failure is
+ * logged with the reference the person reads to support.
  */
-export async function saveTheme(rawInput: unknown, idempotencyKey?: unknown): Promise<FormState> {
-  try {
-    const principal = await currentPrincipal();
-    if (!principal) return { error: 'unauthorized' };
+export async function saveTheme(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ThemeDto>> {
+  return toResult('saveTheme', async () => {
+    const principal = await signedIn();
     const input = parseInput(SetThemeInput, rawInput);
     const meta = await requestMeta();
-    await executeCommand(
+    const saved = await executeCommand(
       principal,
       { requestId: meta.requestId },
       setThemeCommand,
@@ -40,10 +42,8 @@ export async function saveTheme(rawInput: unknown, idempotencyKey?: unknown): Pr
       commandOptions(meta, idempotencyKey),
     );
     await forgetPrincipal(principal.id);
-    return {};
-  } catch (e) {
-    return { error: errorKey(toDomainError(e)) };
-  }
+    return saved;
+  });
 }
 
 /** The caller's own saved views of one grid, for the Views menu (DESIGN.md §6). */

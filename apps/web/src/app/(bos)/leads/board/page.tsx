@@ -7,14 +7,15 @@ import { LeadBoardScreen } from '../../../../components/leads/lead-board-screen'
 import { LeadsViewSwitch } from '../../../../components/leads/view-switch';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { boardChoice, statesFor } from '../../../../screens/lead-board';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('leads'))('title') };
+  return screenTitle(navRequires('leads'), (await getTranslations('leads'))('title'));
 }
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -26,7 +27,7 @@ const one = (value: string | string[] | undefined) => (Array.isArray(value) ? va
  * address carries the company, pipeline and status filter, so a board can be bookmarked.
  */
 export default async function LeadsBoardPage({ searchParams }: { searchParams: SearchParams }) {
-  const { principal, access, can } = await screenAccess({ key: 'crm.lead.read', scope: 'own' });
+  const { principal, access, can } = await screenAccess(navRequires('leads'));
   const t = await getTranslations('leads');
   const params = await searchParams;
   const canAdd = can('crm.lead.write', 'own') && can('crm.account.write', 'own');

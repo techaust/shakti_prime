@@ -6,13 +6,14 @@ import { leadFormOptions } from '../../../../actions/crm';
 import { NewLeadForm } from '../../../../components/leads/new-lead-form';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { screenAccess } from '../../../../screens/access';
+import { screenAccess, screenTitle } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('leads.new'))('title') };
+  return screenTitle(navRequires('leads-new'), (await getTranslations('leads.new'))('title'));
 }
 
 /**
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * mode the person chooses the company; only companies where their role may add leads are offered.
  */
 export default async function NewLeadPage() {
-  const { principal, access } = await screenAccess({ key: 'crm.lead.write', scope: 'own' });
+  const { principal, access } = await screenAccess(navRequires('leads-new'));
   const t = await getTranslations('leads.new');
   const companies = access.entities
     .filter(

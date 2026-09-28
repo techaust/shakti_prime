@@ -4,14 +4,15 @@ import { listAuditLog, listAuditPeople } from '../../../../actions/admin';
 import { ActivityScreen } from '../../../../components/activity/activity-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { companyNames, screenAccess } from '../../../../screens/access';
+import { companyNames, screenAccess, screenTitle } from '../../../../screens/access';
+import { navRequires } from '../../../../nav';
 import { auditWindow, defaultWindow } from '../../../../screens/audit';
 import { firstFailure } from '../../../../screens/result';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('activity'))('title') };
+  return screenTitle(navRequires('admin-activity'), (await getTranslations('activity'))('title'));
 }
 
 /**
@@ -19,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * filters by date, result, action and person. The database decides which rows each person reads.
  */
 export default async function ActivityPage() {
-  const { access } = await screenAccess({ key: 'audit.read', scope: 'entity' });
+  const { access } = await screenAccess(navRequires('admin-activity'));
   const t = await getTranslations('activity');
   const dates = defaultWindow(new Date());
   const window = auditWindow(dates.from, dates.to);

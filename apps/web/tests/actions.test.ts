@@ -7,6 +7,7 @@ import {
   createTestPrincipal,
   createTestTeam,
   createTestUser,
+  principalFor,
 } from '@shakti/db/testing';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,6 +47,9 @@ vi.mock('next/headers', () => ({
 vi.mock('next/navigation', () => ({
   redirect: (url: string) => {
     throw new Error(`redirect ${url}`);
+  },
+  notFound: () => {
+    throw new Error('not found');
   },
 }));
 
@@ -90,7 +94,11 @@ const {
   setUserRoles,
   suspendUser,
 } = await import('../src/actions/admin');
+const { setCompositeRule, setTaxRate } = await import('../src/actions/tax');
+const { saveTheme } = await import('../src/actions/profile');
 const { defaultAuthDeps } = await import('../src/auth/deps');
+const { screenAccess, screenTitle } = await import('../src/screens/access');
+const { navRequires } = await import('../src/nav');
 
 afterAll(async () => {
   await closeOutboxDb();
@@ -170,6 +178,16 @@ describe('server actions (AUDIT M41)', () => {
     await expect(switchEntity(form('/leads'))).rejects.toThrow('redirect /leads');
     await expect(switchEntity(form('//evil.example/leads'))).rejects.toThrow('redirect /home');
     await expect(switchEntity(form('/sign-in'))).rejects.toThrow('redirect /home');
+  });
+
+  it('the company switcher answers a failure as a form state with a reference, not a throw', async () => {
+    // A session whose access cannot be read stands in for a failing session lookup.
+    request.session = { access: null };
+    const data = new FormData();
+    data.set('entityId', '1');
+    const state = await switchEntity(data);
+    expect(state.error).toBe('internal');
+    expect(state.reference).toMatch(/^[0-9A-Z]{6,}$/);
   });
 
   it('record the caller’s address, browser and request on the audit trail, read back by an Executive', async () => {
@@ -580,5 +598,140 @@ describe('command and query actions answer a result, never a thrown error (revie
       ok: false,
       error: 'validation_failed',
     });
+  });
+});
+
+describe('tax and appearance actions answer a result, never a thrown error', () => {
+  // Tax rows are shared by every company and the suites never clean shared tables, so each rate
+  // has an HSN code of its own and each split a closed period far from any real one; both are
+  // removed afterwards, as in the domain tax suite.
+  const created = { rates: [] as string[], rules: [] as string[] };
+  afterAll(async () => {
+    await asMigrator(async (m) => {
+      await m`delete from tax_rates where id = any(${created.rates}::uuid[])`;
+      await m`delete from composite_supply_rules where id = any(${created.rules}::uuid[])`;
+    });
+  });
+  const hsn = () => String(10_000_000 + Math.floor(Math.random() * 89_999_999));
+  const farDay = (() => {
+    const start = Date.UTC(3000 + Math.floor(Math.random() * 5000), 0, 1);
+    return (days: number) => new Date(start + days * 86_400_000).toISOString().slice(0, 10);
+  })();
+
+  it('setTaxRate records a rate for Accounts and refuses anyone else', async () => {
+    request.principal = await createTestPrincipal('accounts', [1]);
+    const code = hsn();
+    const rate = ok(
+      await setTaxRate({ hsn: code, ratePct: '12.00', effectiveFrom: farDay(0) }, newId()),
+    );
+    created.rates.push(rate.id);
+    expect(rate).toMatchObject({ hsn: code, ratePct: '12.00', effectiveTo: null });
+    await expect(
+      setTaxRate({ hsn: code, itemId: newId(), ratePct: '12.00', effectiveFrom: farDay(1) }),
+    ).resolves.toMatchObject({ ok: false, error: 'validation_failed' });
+
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(
+      setTaxRate({ hsn: hsn(), ratePct: '18.00', effectiveFrom: farDay(2) }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    request.principal = undefined;
+    await expect(
+      setTaxRate({ hsn: hsn(), ratePct: '18.00', effectiveFrom: farDay(2) }),
+    ).resolves.toEqual({ ok: false, error: 'unauthorized' });
+  });
+
+  it('setCompositeRule records a split for Accounts and refuses shares that miss 100', async () => {
+    request.principal = await createTestPrincipal('accounts', [1]);
+    const split = {
+      segment: 'dealer_wholesale',
+      goodsSharePct: '70.00',
+      servicesSharePct: '30.00',
+      goodsRatePct: '5.00',
+      servicesRatePct: '18.00',
+    };
+    const rule = ok(
+      await setCompositeRule(
+        { ...split, effectiveFrom: farDay(10), effectiveTo: farDay(20) },
+        newId(),
+      ),
+    );
+    created.rules.push(rule.id);
+    expect(rule).toMatchObject({ goodsSharePct: '70.00', effectiveTo: farDay(20) });
+    await expect(
+      setCompositeRule({ ...split, servicesSharePct: '20.00', effectiveFrom: farDay(30) }),
+    ).resolves.toMatchObject({ ok: false, error: 'validation_failed' });
+
+    request.principal = await createTestPrincipal('general_manager', [1]);
+    await expect(
+      setCompositeRule({ ...split, effectiveFrom: farDay(40), effectiveTo: farDay(50) }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('saveTheme keeps the choice on the profile once per key and drops the cached principal', async () => {
+    // The theme is saved on the caller's own user row, so the caller is a real user.
+    const user = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    const caller = principalFor('tele_caller_cc', [1], { id: user.id });
+    request.principal = caller;
+    const key = newId();
+    await expect(saveTheme({ theme: 'dark' }, key)).resolves.toEqual({
+      ok: true,
+      data: { theme: 'dark' },
+    });
+    // The same change delivered again is answered from the key, not saved twice.
+    await expect(saveTheme({ theme: 'dark' }, key)).resolves.toEqual({
+      ok: true,
+      data: { theme: 'dark' },
+    });
+    expect(request.forgotten).toContain(caller.id);
+    await expect(saveTheme({ theme: 'sepia' })).resolves.toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    request.principal = undefined;
+    await expect(saveTheme({ theme: 'light' })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
+  });
+});
+
+describe('screen guards match the menu', () => {
+  const session = (principal: Principal) => ({ principal, access: { entities: [] } });
+
+  it('a tele-caller opening Settings › Companies by its address gets the not-found screen', async () => {
+    request.session = session(await createTestPrincipal('tele_caller_cc', [1]));
+    await expect(screenAccess(navRequires('settings-companies'))).rejects.toThrow('not found');
+  });
+
+  it('the browser tab names Settings › Companies only for a caller who may open it', async () => {
+    request.session = session(await createTestPrincipal('tele_caller_cc', [1]));
+    await expect(screenTitle(navRequires('settings-companies'), 'Companies')).resolves.toEqual({});
+    request.session = session(await createTestPrincipal('executive'));
+    await expect(screenTitle(navRequires('settings-companies'), 'Companies')).resolves.toEqual({
+      title: 'Companies',
+    });
+  });
+
+  it('an Executive opens Settings › Companies', async () => {
+    const executive = await createTestPrincipal('executive');
+    request.session = session(executive);
+    await expect(screenAccess(navRequires('settings-companies'))).resolves.toMatchObject({
+      principal: { id: executive.id },
+    });
+  });
+
+  it('New lead needs the customer write grant as well as the lead write grant', async () => {
+    const caller = await createTestPrincipal('tele_caller_cc', [1]);
+    request.session = session({
+      ...caller,
+      permissions: caller.permissions.filter((g) => g.key !== 'crm.account.write'),
+    });
+    await expect(screenAccess(navRequires('leads-new'))).rejects.toThrow('not found');
+    request.session = session(caller);
+    await expect(screenAccess(navRequires('leads-new'))).resolves.toBeDefined();
+  });
+
+  it('sends a caller with no session to sign in', async () => {
+    await expect(screenAccess(navRequires('home'))).rejects.toThrow('redirect /sign-in');
   });
 });

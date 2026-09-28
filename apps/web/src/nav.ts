@@ -107,6 +107,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];
 
+/**
+ * The grants a menu screen's page checks through `screenAccess()`, read from the same list as the
+ * menu, so the page guard and the menu cannot drift apart (a page test checks every item's page
+ * asks for its own id).
+ */
+export function navRequires(id: string): readonly PermissionGrant[] {
+  const item = NAV_ITEMS.find((i) => i.id === id);
+  if (item === undefined) throw new Error(`no menu item ${id}`);
+  return item.requires;
+}
+
 /** The screens these grants open, in menu order. */
 export function visibleNav(grants: readonly PermissionGrant[]): NavItem[] {
   return NAV_ITEMS.filter((item) => item.requires.every((g) => hasGrant(grants, g.key, g.scope)));

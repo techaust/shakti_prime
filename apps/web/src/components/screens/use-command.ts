@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useTransition } from 'react';
 import type { ActionResult } from '../../actions/result';
+import { settle } from './settle';
 
 /** A failed answer as a form shows it: the catalogue key, the reference and the field. */
 export interface CommandFailure {
@@ -16,7 +17,8 @@ export interface CommandFailure {
  * Runs a command action from a form or a confirmation (docs/API.md §1): one idempotency key per
  * rendered form, sent as the action's second argument, so a double press or a retry after a lost
  * answer acts once. A form is rendered afresh (a dialog opens again, a page loads) for the next
- * change, which gives it a new key; after a failure the key stays, because nothing was stored.
+ * change, which gives it a new key; after a failure the key stays, because nothing was stored. A
+ * call whose answer never arrives is shown as the `internal` sentence, not the error boundary.
  */
 export function useCommand<T, I = unknown>(
   action: (input: I, idempotencyKey?: unknown) => Promise<ActionResult<T>>,
@@ -28,7 +30,7 @@ export function useCommand<T, I = unknown>(
   const run = useCallback(
     (input: I, onDone: (data: T) => void) => {
       startTransition(async () => {
-        const result = await action(input, key);
+        const result = await settle(() => action(input, key));
         if (result.ok) {
           setFailure(undefined);
           setKey(crypto.randomUUID());
@@ -58,7 +60,7 @@ export function useQuery<T>() {
   const [failure, setFailure] = useState<CommandFailure | undefined>();
   const load = useCallback((read: () => Promise<ActionResult<T>>, onDone: (data: T) => void) => {
     startTransition(async () => {
-      const result = await read();
+      const result = await settle(read);
       if (result.ok) {
         setFailure(undefined);
         onDone(result.data);

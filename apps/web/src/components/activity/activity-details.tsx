@@ -1,6 +1,13 @@
 'use client';
 
 import {
+  IMPLEMENTED_IMPORT_KINDS,
+  ImportJobStateSchema,
+  LeadImportFieldSchema,
+  OpportunityLostReasonSchema,
+  OpportunityNurtureReasonSchema,
+  OpportunityStateSchema,
+  SegmentSchema,
   SessionRevokeReasonSchema,
   ThemeSchema,
   UserStatusSchema,
@@ -13,11 +20,16 @@ import type { ErrorKey, RoleNameKey } from '../../i18n/types';
 import {
   actionKey,
   auditChanges,
+  CONFIRM_METHODS,
+  eventNameKey,
+  oneOf,
+  SIGN_IN_DETAILS,
   wordsOf,
   type ChangeRow,
   type ChangeValue,
+  type CodeGroup,
 } from '../../screens/audit';
-import { formatDateTime, formatRupees } from '../../screens/format';
+import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
 
@@ -140,6 +152,8 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const users = useTranslations('users');
   const roles = useTranslations('roles');
   const theme = useTranslations('theme');
+  const code = useCodeText();
+  const leadField = useLeadFieldName();
   const text = (() => {
     switch (value.kind) {
       case 'empty':
@@ -154,6 +168,27 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return /^-?\d+(\.\d{1,2})?$/.test(value.amount) ? formatRupees(value.amount) : value.amount;
       case 'time':
         return formatDateTime(value.iso);
+      case 'date':
+        return /^\d{4}-\d{2}-\d{2}$/.test(value.iso) ? formatDate(value.iso) : value.iso;
+      case 'percent':
+        return t('values.percent', { value: value.value });
+      case 'code':
+        return code(value.group, value.value);
+      case 'mapping':
+        return (
+          <span className="flex flex-col">
+            {value.columns.map((c) => (
+              <span key={`column-${c.field}`}>
+                {t('values.mappingColumn', { field: leadField(c.field), column: c.column })}
+              </span>
+            ))}
+            {value.defaults.map((d) => (
+              <span key={`default-${d.field}`}>
+                {t('values.mappingDefault', { field: leadField(d.field), value: wordsOf(d.value) })}
+              </span>
+            ))}
+          </span>
+        );
       case 'userStatus': {
         const status = UserStatusSchema.safeParse(value.value);
         return status.success ? users(`status.${status.data}`) : wordsOf(value.value);
@@ -186,4 +221,63 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
     }
   })();
   return <span className="min-w-0 break-words">{text}</span>;
+}
+
+/** A lead field of an import's column matching, by its name on the import screens. */
+function useLeadFieldName(): (field: string) => string {
+  const imports = useTranslations('imports');
+  return (field) => {
+    const known = LeadImportFieldSchema.safeParse(field);
+    return known.success ? imports(`fields.${known.data}`) : wordsOf(field);
+  };
+}
+
+/**
+ * A coded value in words, from the catalogue that names it on its own screen; a code no
+ * catalogue names yet reads in plain words rather than as raw data.
+ */
+function useCodeText(): (group: CodeGroup, value: string) => string {
+  const t = useTranslations('activity');
+  const leads = useTranslations('leads');
+  const imports = useTranslations('imports');
+  const errors = useTranslations('errors');
+  return (group, value) => {
+    switch (group) {
+      case 'state': {
+        const lead = OpportunityStateSchema.safeParse(value);
+        if (lead.success) return leads(`state.${lead.data}`);
+        const job = ImportJobStateSchema.safeParse(value);
+        return job.success ? imports(`state.${job.data}`) : wordsOf(value);
+      }
+      case 'lostReason': {
+        const lost = OpportunityLostReasonSchema.safeParse(value);
+        return lost.success ? leads(`board.lostReason.${lost.data}`) : wordsOf(value);
+      }
+      case 'nurtureReason': {
+        const later = OpportunityNurtureReasonSchema.safeParse(value);
+        return later.success ? leads(`board.nurtureReason.${later.data}`) : wordsOf(value);
+      }
+      case 'importKind':
+        return oneOf(IMPLEMENTED_IMPORT_KINDS, value)
+          ? imports(`upload.kinds.${value}`)
+          : wordsOf(value);
+      case 'fileType':
+        return value.toUpperCase();
+      case 'segment': {
+        const segment = SegmentSchema.safeParse(value);
+        return segment.success ? t(`values.segment.${segment.data}`) : wordsOf(value);
+      }
+      case 'errorCode':
+        return errors.has(value as ErrorKey) ? errors(value as ErrorKey) : errors('internal');
+      case 'signInDetail':
+        return oneOf(SIGN_IN_DETAILS, value) ? t(`values.signInDetail.${value}`) : wordsOf(value);
+      case 'method':
+        return oneOf(CONFIRM_METHODS, value) ? t(`values.method.${value}`) : wordsOf(value);
+      case 'eventType': {
+        const name = eventNameKey(value);
+        // A type the catalogue does not know yet reads in plain words, not as its dotted code.
+        return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
+      }
+    }
+  };
 }

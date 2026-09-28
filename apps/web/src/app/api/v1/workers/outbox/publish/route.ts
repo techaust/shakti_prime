@@ -1,6 +1,7 @@
-import { ErrorEnvelope, newId, OutboxPublishResponse, type ErrorCode } from '@shakti/contracts';
+import { ErrorEnvelope, OutboxPublishResponse, type ErrorCode } from '@shakti/contracts';
 import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
+import { incomingRequestId } from '../../../../../../request-id';
 import { publishOutbox } from '../../../../../../workers/outbox';
 import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
 
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * valid signature for this route and body. A 500 makes QStash retry; the rows stay pending.
  */
 export async function POST(request: Request): Promise<Response> {
-  const requestId = newId();
+  const requestId = incomingRequestId(request.headers);
   const headers = { 'cache-control': 'no-store', 'x-request-id': requestId };
   const config = qstashConfig();
   if (config === undefined) return failure('integration_unavailable', 503, requestId, headers);

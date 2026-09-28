@@ -1,12 +1,19 @@
-import { AuditQueryInput } from '@shakti/contracts';
+import { AUTH_AUDIT_EVENTS, AuditQueryInput, EVENT_TYPES, SegmentSchema } from '@shakti/contracts';
+import { commands } from '@shakti/domain';
 import { describe, expect, it } from 'vitest';
+import en from '../../messages/en.json';
 import {
   ACTION_FILTERS,
   actionKey,
   auditChanges,
   auditWindow,
+  CONFIRM_METHODS,
   defaultWindow,
+  eventNameKey,
+  isNamedField,
   istToday,
+  NAMED_FIELDS,
+  SIGN_IN_DETAILS,
   wordsOf,
 } from './audit';
 
@@ -59,6 +66,37 @@ describe('recorded actions', () => {
     expect(actionKey('auth.sign_in')).toBe('signIn');
     expect(actionKey('inventory.stock.move')).toBe('other');
     expect(ACTION_FILTERS.map((a) => a.command)).toContain('admin.user.two_factor.reset');
+  });
+});
+
+describe('every recorded action and event has a name', () => {
+  const actions: Readonly<Record<string, string>> = en.activity.actions;
+  const events: Readonly<Record<string, string>> = en.activity.events;
+
+  it('names every command in the registry and every sign-in and account event', () => {
+    const recorded = [...Object.keys(commands), ...AUTH_AUDIT_EVENTS];
+    expect(recorded.length).toBeGreaterThan(30);
+    expect(recorded.filter((command) => actionKey(command) === 'other')).toEqual([]);
+    for (const command of recorded) expect(actions[actionKey(command)], command).toBeTruthy();
+  });
+
+  it('names the saved list views and the live updates connection of the branches to come', () => {
+    for (const command of ['profile.view.save', 'profile.view.delete', 'realtime.token.issue']) {
+      expect(actionKey(command), command).not.toBe('other');
+    }
+  });
+
+  it('has a label for every name it gives, and no label it does not use', () => {
+    const keys = new Set([...ACTION_FILTERS.map((a) => a.key), 'other']);
+    expect(Object.keys(actions).sort()).toEqual([...keys].sort());
+  });
+
+  it('names every event type of the catalogue, and reads an unknown one in plain words', () => {
+    const keys = EVENT_TYPES.map((type) => eventNameKey(type));
+    expect(keys.filter((key) => key === undefined)).toEqual([]);
+    expect(new Set(keys).size).toBe(EVENT_TYPES.length);
+    expect(Object.keys(events).sort()).toEqual([...keys].sort());
+    expect(eventNameKey('inventory.stock.moved')).toBeUndefined();
   });
 });
 
@@ -139,5 +177,96 @@ describe('what changed', () => {
   it('writes a field name in plain words', () => {
     expect(wordsOf('textVersion')).toBe('Text version');
     expect(wordsOf('sign_in')).toBe('Sign in');
+  });
+
+  it('names every field a command or a sign-in event records, other than ids', () => {
+    // The keys of every `ctx.audit()` before and after in packages/domain/src/commands (the tax
+    // rows spread their DTOs, the import preview its row counts) and the auth events' allow-lists.
+    const recorded = [
+      // admin.user.*, admin.session.revoke, profile.theme.set
+      ...['displayName', 'email', 'phone', 'status', 'entityRoles', 'revokedSessions'],
+      ...['twoFactorEnabled', 'theme', 'revokedAt', 'revokedReason'],
+      // auth events
+      ...['detail', 'method', 'revokeOtherSessions'],
+      // org.entity.update, pricing.price.set
+      ...['brandName', 'upiId', 'price', 'reason'],
+      // crm.lead.create and the crm.opportunity.* moves
+      ...['existingAccount', 'consent', 'state', 'lockedUntil', 'handover'],
+      ...['lostReason', 'nurtureReason'],
+      // tax.rate.set, tax.composite.set
+      ...['hsn', 'ratePct', 'effectiveFrom', 'effectiveTo', 'sourceRef', 'segment'],
+      ...['goodsSharePct', 'servicesSharePct', 'goodsRatePct', 'servicesRatePct'],
+      // imports.job.*
+      ...['kind', 'name', 'format', 'mapping', 'totalRows', 'validRows', 'invalidRows'],
+      ...['skippedRows', 'suggested', 'batch', 'fromRow', 'toRow', 'rows', 'committedRows'],
+      ...['batches', 'rolledBackRows', 'archived', 'failedBatch', 'failedRow', 'errorCode'],
+      // integrations.dlq.replay
+      ...['eventType', 'attempts', 'deadLetteredAt'],
+    ];
+    expect(recorded.filter((key) => !isNamedField(key))).toEqual([]);
+    const rows = auditChanges(null, Object.fromEntries(recorded.map((key) => [key, 'x'])));
+    expect(rows.filter((r) => r.field === undefined)).toEqual([]);
+  });
+
+  it('has a label for every named field, and no label for a field it does not name', () => {
+    const labels: Readonly<Record<string, string>> = en.activity.fields;
+    expect(Object.keys(labels).sort()).toEqual([...NAMED_FIELDS].sort());
+  });
+
+  it('has words for every coded value it reads from its own catalogue', () => {
+    const values = en.activity.values;
+    expect(Object.keys(values.signInDetail).sort()).toEqual([...SIGN_IN_DETAILS].sort());
+    expect(Object.keys(values.method).sort()).toEqual([...CONFIRM_METHODS].sort());
+    expect(Object.keys(values.segment).sort()).toEqual([...SegmentSchema.options].sort());
+  });
+
+  it('reads lead moves, tax rates and import runs as values, not raw data', () => {
+    const lead = auditChanges(
+      { state: 'open', stageId: 's1', lockedUntil: null },
+      { state: 'lost', stageId: 's2', lostReason: 'price_too_high', handover: false },
+    );
+    expect(lead.map((r) => [r.field, r.before, r.after])).toEqual([
+      [
+        'state',
+        { kind: 'code', group: 'state', value: 'open' },
+        { kind: 'code', group: 'state', value: 'lost' },
+      ],
+      ['lockedUntil', { kind: 'empty' }, { kind: 'empty' }],
+      ['handover', { kind: 'empty' }, { kind: 'yesNo', value: false }],
+      [
+        'lostReason',
+        { kind: 'empty' },
+        { kind: 'code', group: 'lostReason', value: 'price_too_high' },
+      ],
+    ]);
+
+    const rate = auditChanges(null, {
+      id: 'r1',
+      hsn: '8413',
+      ratePct: '12.00',
+      effectiveFrom: '2026-10-01',
+      effectiveTo: null,
+      closedRateId: 'r0',
+    });
+    expect(rate.map((r) => [r.field, r.after])).toEqual([
+      ['hsn', { kind: 'text', text: '8413' }],
+      ['ratePct', { kind: 'percent', value: '12.00' }],
+      ['effectiveFrom', { kind: 'date', iso: '2026-10-01' }],
+      ['effectiveTo', { kind: 'empty' }],
+    ]);
+
+    const mapped = auditChanges(
+      { state: 'uploaded', templateId: null, mapping: null },
+      {
+        state: 'mapped',
+        templateId: 't1',
+        mapping: { columns: { phone: 'Mobile', contactName: '' }, defaults: { siteType: 'farm' } },
+      },
+    );
+    expect(mapped.find((r) => r.field === 'mapping')?.after).toEqual({
+      kind: 'mapping',
+      columns: [{ field: 'phone', column: 'Mobile' }],
+      defaults: [{ field: 'siteType', value: 'farm' }],
+    });
   });
 });
