@@ -1141,6 +1141,7 @@
       "archived": "Leads removed",
       "failedBatch": "Group that stopped",
       "failedRow": "Row that stopped",
+      "refusedRows": "Rows for a colleague's customer",
       "errorCode": "What went wrong",
       "eventType": "Update sent on",
       "attempts": "Tries to send",
@@ -1404,7 +1405,8 @@
       "phone_invalid": "Please check the phone number. Enter the 10-digit mobile number.",
       "pipeline_unknown": "This pipeline is not set up for this company. Use one from the list.",
       "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
-      "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again."
+      "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
+      "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them."
     }
   }
 }

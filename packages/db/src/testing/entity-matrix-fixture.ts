@@ -74,6 +74,11 @@ export interface MatrixRow {
    * `ownRows` rule shows in any company.
    */
   ownedByActor?: true;
+  /**
+   * For a customer row, the companies where the customer has a lead (0057): whoever reads one of
+   * those leads reads the row, acting in that company.
+   */
+  leadIn?: readonly number[];
 }
 
 export interface EntityMatrixFixture {
@@ -147,6 +152,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     phone: id(0x0505),
     site: id(0x0506),
     consent: id(0x0507),
+    // A lead in company 2 only: a reader of leads sees the customer acting in company 2, never
+    // in company 1, where the customer has no lead.
+    opportunity: id(0x0508),
   };
   const per = (e: number, offset: number): string => id((e << 8) | offset);
   const teamIds: Record<number, string> = {};
@@ -155,17 +163,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const rows: Record<MatrixTable, MatrixRow[]> = {
     entities: [],
     teams: [{ key: groupTeam, entities: null }],
-    contacts: [{ key: shared.contact, entities: [1, 2] }],
-    contact_phones: [{ key: shared.phone, entities: [1, 2] }],
-    accounts: [{ key: shared.account, entities: [1, 2] }],
+    contacts: [{ key: shared.contact, entities: [1, 2], leadIn: [2] }],
+    contact_phones: [{ key: shared.phone, entities: [1, 2], leadIn: [2] }],
+    accounts: [{ key: shared.account, entities: [1, 2], leadIn: [2] }],
     account_entities: [
-      { key: shared.link1, entities: [1] },
-      { key: shared.link2, entities: [2] },
+      { key: shared.link1, entities: [1], leadIn: [] },
+      { key: shared.link2, entities: [2], leadIn: [2] },
     ],
-    account_contacts: [{ key: `${shared.account}/${shared.contact}`, entities: [1, 2] }],
-    customer_sites: [{ key: shared.site, entities: [1, 2] }],
-    opportunities: [],
-    consents: [{ key: shared.consent, entities: [1, 2] }],
+    account_contacts: [
+      { key: `${shared.account}/${shared.contact}`, entities: [1, 2], leadIn: [2] },
+    ],
+    customer_sites: [{ key: shared.site, entities: [1, 2], leadIn: [2] }],
+    opportunities: [{ key: shared.opportunity, entities: [2] }],
+    consents: [{ key: shared.consent, entities: [1, 2], leadIn: [2] }],
     item_costs: [],
     document_sequences: [],
     audit_logs: [],
@@ -270,14 +280,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
 
         rows.entities.push({ key: e.toString(), entities: only });
         rows.teams.push({ key: team, entities: only });
-        rows.contacts.push({ key: contact, entities: only });
-        rows.contact_phones.push({ key: phone, entities: only });
-        rows.accounts.push({ key: account, entities: only });
-        rows.account_entities.push({ key: link, entities: only });
-        rows.account_contacts.push({ key: `${account}/${contact}`, entities: only });
-        rows.customer_sites.push({ key: site, entities: only });
+        rows.contacts.push({ key: contact, entities: only, leadIn: only });
+        rows.contact_phones.push({ key: phone, entities: only, leadIn: only });
+        rows.accounts.push({ key: account, entities: only, leadIn: only });
+        rows.account_entities.push({ key: link, entities: only, leadIn: only });
+        rows.account_contacts.push({ key: `${account}/${contact}`, entities: only, leadIn: only });
+        rows.customer_sites.push({ key: site, entities: only, leadIn: only });
         rows.opportunities.push({ key: opportunity, entities: only });
-        rows.consents.push({ key: consent, entities: only });
+        rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
         rows.audit_logs.push({ key: audit, entities: only });
@@ -309,6 +319,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       await tx`insert into customer_sites (id, account_id, type, created_by) values (${shared.site}, ${shared.account}, 'rooftop', ${ownerId})`;
       await tx`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${shared.consent}, ${shared.contact}, 'call', 'service', 'walk_in_form', 'v1', now(), ${ownerId})`;
+      await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+        values (${shared.opportunity}, 2, ${shared.account}, ${shared.site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team2}, ${ownerId})`;
     }),
   );
 

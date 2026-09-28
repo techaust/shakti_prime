@@ -49,7 +49,11 @@ const emitThenMaybeFail = defineCommand({
 const lead = {
   entityId: 1,
   pipelineKey: 'farmer_pumps',
-  contact: { name: 'Outbox test customer', phone: '9812345670' },
+  // A number no earlier run used: one a colleague's customer has is refused (0055).
+  contact: {
+    name: 'Outbox test customer',
+    phone: `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+  },
   account: { type: 'farm' },
 };
 

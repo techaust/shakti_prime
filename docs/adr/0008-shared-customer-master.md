@@ -14,7 +14,7 @@ The four companies share one team and, often, the same customers: a farmer buys 
 
 ## Consequences
 - One name, one phone list, one set of sites and consents per customer; the Account 360 page (CRM-07) reads one record across entities.
-- The entity boundary holds: staff see a customer only through a relationship in an entity they hold a role in, at their scope. Two entities' staff can hold different owners for the same customer.
+- The entity boundary holds: staff see a customer only in an entity they hold a role in, through the relationship at their scope or through one of the customer's leads in that entity that they can read (0057); an agent principal sees a customer only through `crm.account.read`. Two entities' staff can hold different owners for the same customer, and the relationship moves with a lead handed over by its holder (0055).
 - Imports of accounts create one relationship per row's entity; a repeated customer across entity files becomes one record with several relationships (week 5).
 - Reads on the customer tables cost one membership lookup per row, served by the `(entity_id, owner_id)` and `(entity_id, team_id)` indexes on `account_entities`.
 - Every CRM policy pattern in DATABASE §4.2 gains a "shared master" variant; catalogue, pricing and identity tables are unaffected.

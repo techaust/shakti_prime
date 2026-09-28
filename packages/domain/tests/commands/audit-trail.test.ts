@@ -97,10 +97,12 @@ describe('the audit row of a command that commits (docs/design/backend-weeks-3-5
   it('masks the phone of a new lead and names the opportunity', async () => {
     const cc = await createTestPrincipal('tele_caller_cc', [1]);
     const requestId = newId();
+    // A number no earlier run used (one a colleague's customer has is refused, 0055), ending 3210.
+    const first = `96${String(Math.floor(Math.random() * 1e4)).padStart(4, '0')}`;
     const lead = await executeCommand(cc, { entityIds: [1], requestId }, createLead, {
       entityId: 1,
       pipelineKey: 'farmer_pumps',
-      contact: { name: 'Audit trail contact', phone: '98765 43210' },
+      contact: { name: 'Audit trail contact', phone: `${first} 3210` },
       account: { type: 'farm' },
     });
     const [row] = await rowsOf(requestId);
@@ -113,7 +115,7 @@ describe('the audit row of a command that commits (docs/design/backend-weeks-3-5
       input_json: { contact: { name: 'Audit trail contact' } },
       after_json: { ownerId: cc.id },
     });
-    expect(JSON.stringify(row)).not.toContain('98765');
+    expect(JSON.stringify(row)).not.toContain(first);
     expect((row?.input_json as { contact: { phone: string } }).contact.phone).toMatch(/\*+3210$/);
   });
 

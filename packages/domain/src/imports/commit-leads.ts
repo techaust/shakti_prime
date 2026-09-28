@@ -15,7 +15,8 @@ export interface BatchRow {
 
 /**
  * The set-based path found something it does not handle (a row that fails, a key already used,
- * a customer the group already knows, a consent): the batch is run again row by row.
+ * a customer the group already knows, a number a colleague's customer has, a consent): the batch
+ * is run again row by row.
  */
 export class RowByRowNeeded extends Error {
   constructor(why: string) {
@@ -66,6 +67,19 @@ export async function commitLeadBatch(
     };
   });
   if (parsed.length === 0) return [];
+
+  // A number that belongs to a colleague's customer in the company is refused by the command
+  // (`app.lead_phone_status()`, 0055), and the row-by-row path marks that row and goes on. Asked
+  // before any row is written, as the command asks it: a row of this batch that shares a number
+  // with an earlier one finds the caller's own new customer, which never counts against them.
+  const held = (await tx.execute(sql`
+    select 1 as held
+      from jsonb_to_recordset(${JSON.stringify(
+        parsed.map((r) => ({ phone: r.contact.phone, entityId: r.input.entityId })),
+      )}::jsonb) as x(phone text, "entityId" smallint)
+     where app.lead_phone_status(x.phone, x."entityId") = 'held_by_other'
+     limit 1`)) as unknown as { held: number }[];
+  if (held.length > 0) throw new RowByRowNeeded('a customer a colleague looks after');
 
   // The pipelines, first open stages and sources the rows name, looked up once for the batch.
   const entityIds = [...new Set(parsed.map((r) => r.input.entityId))];

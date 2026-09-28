@@ -106,5 +106,6 @@ export const ImportRowErrorCodeSchema = z.enum([
   'pipeline_unknown',
   'source_unknown',
   'commit_failed',
+  'customer_held_by_colleague',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

@@ -6,7 +6,7 @@ import {
   type ImportKind,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { commitLeadBatch } from '../../imports/commit-leads';
 import { assertImportJobMove } from '../../imports/job-state';
@@ -20,6 +20,15 @@ import {
   toImportJobDto,
   updateJob,
 } from './shared';
+
+/** The command's refusal of a customer a colleague looks after in the company (AUDIT M25). */
+function isHeldByColleague(error: unknown): boolean {
+  return (
+    error instanceof DomainError &&
+    error.code === 'conflict' &&
+    error.details?.reason === 'customer_held_by_colleague'
+  );
+}
 
 /** Committing creates leads and customers, so it needs those rights as well (AUDIT L9). */
 const LEAD_WRITE = [
@@ -71,9 +80,11 @@ export const commitImportJob = defineCommand({
  * order, each made as `crm.lead.create` makes it, with the idempotency key `import:{job}:{row}`,
  * inside one savepoint: first set-based for the whole batch (`commitLeadBatch`), and row by row
  * through `crm.lead.create` when the batch holds anything else or a row is refused, so the row at
- * fault is the one recorded. A row that fails rolls the whole batch back, and the job stops there as
- * `failed` with the batch and the row recorded; the rows committed by earlier batches stay until
- * the job is rolled back. When no valid row is left the job is `committed`. One audit row per
+ * fault is the one recorded. A row the command refuses because a colleague looks after that
+ * customer in the company (`customer_held_by_colleague`) is marked invalid with that reason, and
+ * the rest of the batch goes on. Any other row that fails rolls the whole batch back, and the job
+ * stops there as `failed` with the batch and the row recorded; the rows committed by earlier
+ * batches stay until the job is rolled back. When no valid row is left the job is `committed`. One audit row per
  * batch records the job, the row range and the counts; the leads write no row of their own
  * (design §8), and their events are stored only when the batch commits.
  */
@@ -94,6 +105,7 @@ export const commitImportBatch = defineCommand({
     'failedBatch',
     'failedRow',
     'errorCode',
+    'refusedRows',
   ],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
@@ -144,7 +156,19 @@ export const commitImportBatch = defineCommand({
           from jsonb_to_recordset(${JSON.stringify(created)}::jsonb) as x("rowNo" int, id uuid)
          where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
 
+    const refusedRow = (sp: RequestTx, rowNos: readonly number[]) =>
+      sp
+        .update(r)
+        .set({
+          state: 'invalid',
+          errorsJson: [{ field: 'phone', code: 'customer_held_by_colleague' }],
+          updatedBy: actor,
+        })
+        .where(and(eq(r.jobId, job.id), inArray(r.rowNo, [...rowNos])));
+
     let failedRow: number | undefined;
+    // The rows the command refused for a customer a colleague looks after (row by row only).
+    let refused: number[] = [];
     try {
       try {
         // The whole batch in a few statements (docs/spikes/import-scale.md).
@@ -157,17 +181,28 @@ export const commitImportBatch = defineCommand({
         // which stops at the row at fault exactly as it always has.
         await ctx.savepoint(async (sp) => {
           const created: { rowNo: number; id: string }[] = [];
+          const heldRows: number[] = [];
           for (const row of rows) {
             failedRow = row.rowNo;
-            const lead = await ctx.run(createLead, row.input, {
-              tx: sp,
-              idempotencyKey: importRowKey(job.id, row.rowNo),
-              auditedByCaller: true,
-            });
-            created.push({ rowNo: row.rowNo, id: lead.id });
+            try {
+              // Each row in a savepoint of its own, so a refused row leaves no claimed key.
+              const lead = await sp.transaction((rowSp) =>
+                ctx.run(createLead, row.input, {
+                  tx: rowSp,
+                  idempotencyKey: importRowKey(job.id, row.rowNo),
+                  auditedByCaller: true,
+                }),
+              );
+              created.push({ rowNo: row.rowNo, id: lead.id });
+            } catch (error) {
+              if (!isHeldByColleague(error)) throw error;
+              heldRows.push(row.rowNo);
+            }
           }
           failedRow = undefined;
           await markCommitted(sp, created);
+          if (heldRows.length > 0) await refusedRow(sp, heldRows);
+          refused = heldRows;
         });
       }
     } catch (error) {
@@ -206,11 +241,18 @@ export const commitImportBatch = defineCommand({
       return toImportJobDto(failed);
     }
 
-    const committedRows = job.committedRows + rows.length;
+    const committedRows = job.committedRows + rows.length - refused.length;
     const remaining = await countRows(ctx.tx, job.id, 'valid');
     const done = remaining === 0;
     const after = await updateJob(ctx.tx, loaded, {
       committedRows,
+      // A refused row is no longer valid: it is counted with the rows the preview found invalid.
+      ...(refused.length > 0
+        ? {
+            validRows: job.validRows - refused.length,
+            invalidRows: job.invalidRows + refused.length,
+          }
+        : {}),
       ...(done ? { state: 'committed' as const } : {}),
       updatedBy: actor,
     });
@@ -228,6 +270,7 @@ export const commitImportBatch = defineCommand({
         toRow: lastRow,
         rows: rows.length,
         committedRows,
+        ...(refused.length > 0 ? { refusedRows: refused.length } : {}),
       },
     });
     if (done) {

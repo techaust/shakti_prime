@@ -123,10 +123,16 @@ function ok<T>(result: { ok: true; data: T } | { ok: false; error: string }): T 
   return result.data;
 }
 
+/**
+ * A mobile number no earlier lead has: the suites never clean the CRM tables, and a new customer
+ * with the number of a colleague's customer in the company is refused (0055).
+ */
+const freshPhone = () => `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+
 const lead = (entityId: number) => ({
   entityId,
   pipelineKey: 'farmer_pumps',
-  contact: { name: 'Action test customer', phone: '9812345678' },
+  contact: { name: 'Action test customer', phone: freshPhone() },
   account: { type: 'farm' },
 });
 
@@ -282,8 +288,9 @@ describe('server actions (AUDIT M41)', () => {
   it('act once for a form sent twice with one key, and refuse a key that is not one', async () => {
     request.principal = await createTestPrincipal('tele_caller_cc', [1]);
     const key = crypto.randomUUID();
-    const first = ok(await createLead(lead(1), key));
-    const repeat = ok(await createLead(lead(1), key));
+    const input = lead(1);
+    const first = ok(await createLead(input, key));
+    const repeat = ok(await createLead(input, key));
     expect(repeat.id).toBe(first.id);
     await expect(createLead(lead(1), 'not-a-key')).resolves.toMatchObject({
       ok: false,
@@ -606,7 +613,7 @@ describe('command and query actions answer a result, never a thrown error (revie
     const tag = `palette${newId().slice(-12)}${newId().slice(-12)}`;
     request.principal = await createTestPrincipal('tele_caller_cc', [3]);
     const created = ok(
-      await createLead({ ...lead(3), contact: { name: `Kamla ${tag}`, phone: '9812345678' } }),
+      await createLead({ ...lead(3), contact: { name: `Kamla ${tag}`, phone: freshPhone() } }),
     );
     const found = ok(await searchPalette({ q: `kamla ${tag}` }));
     expect(found.leads.map((l) => l.id)).toEqual([created.id]);
