@@ -400,6 +400,23 @@ describe('POST /api/v1/workers/imports/commit', () => {
     const replaced = await call(body, sign(body), 'not safe to echo');
     expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
     expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+
+    // The platform's id wins over the caller's, as on every route and action.
+    const platform = `bom1::route-${newId()}`;
+    const hosted = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'upstash-signature': sign(body),
+          'x-vercel-id': platform,
+          'x-request-id': given,
+        },
+        body,
+      }),
+    );
+    expect(hosted.status).toBe(400);
+    expect(hosted.headers.get('x-request-id')).toBe(platform);
   });
 
   /** A job the command has moved to committing, with no worker started for it yet. */

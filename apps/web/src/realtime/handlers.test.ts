@@ -89,6 +89,27 @@ describe('POST /api/v1/realtime/token', () => {
     expect(body.channels).toEqual([`user:${person.id}`, 'entity:2:queue', 'entity:2:board']);
   });
 
+  it('carries the request id of the one rule: the platform id, else a safe id the caller sent', async () => {
+    const vars = await env();
+    const deps = {
+      principal: () => Promise.resolve(person),
+      issue,
+      keyValue: memoryKeyValue(),
+      env: vars,
+    };
+    const platform = await issueRealtimeToken(
+      post({ origin: ISSUER, 'x-vercel-id': 'bom1::rt-1', 'x-request-id': 'mine' }),
+      deps,
+    );
+    expect(platform.headers.get('x-request-id')).toBe('bom1::rt-1');
+    expect(issued.at(-1)?.requestId).toBe('bom1::rt-1');
+    const given = await issueRealtimeToken(post({ origin: ISSUER, 'x-request-id': 'rt-2' }), deps);
+    expect(given.headers.get('x-request-id')).toBe('rt-2');
+    const refused = await issueRealtimeToken(post({ 'x-request-id': 'rt-3' }), deps);
+    expect(refused.status).toBe(403);
+    expect((await envelope(refused)).requestId).toBe('rt-3');
+  });
+
   it('refuses a caller without a session', async () => {
     const response = await issueRealtimeToken(post(), {
       principal: () => Promise.resolve(undefined),

@@ -13,6 +13,7 @@ import en from '../../messages/en.json';
 import { clientMeta } from '../auth/client-address';
 import { countRequest, type CapRule } from '../auth/request-cap';
 import { logger } from '../log';
+import { incomingRequestId } from '../request-id';
 import {
   JwksResponse,
   RealtimeTokenRequest,
@@ -115,7 +116,7 @@ export async function issueRealtimeToken(
   request: Request,
   deps: TokenRouteDeps,
 ): Promise<Response> {
-  const requestId = newId();
+  const requestId = incomingRequestId(request.headers);
   const env = deps.env ?? process.env;
   const issuer = bosIssuer(env);
   if (issuer === undefined) {

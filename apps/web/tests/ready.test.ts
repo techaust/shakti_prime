@@ -58,6 +58,15 @@ describe('GET /api/v1/health/ready', () => {
     expect(response.headers.get('x-request-id')).not.toBe('bad id with spaces');
   });
 
+  it("answers with the platform's request id over the caller's, as every route and action does", async () => {
+    const response = await ready({
+      'x-vercel-id': 'bom1::ready-1',
+      'x-request-id': 'chosen-by-caller',
+      'x-forwarded-for': address(),
+    });
+    expect(response.headers.get('x-request-id')).toBe('bom1::ready-1');
+  });
+
   it('answers 503 naming no dependency, and logs which one is down with the request id', async () => {
     vi.spyOn(readiness, 'checkReadiness').mockResolvedValue({ ...ALL_OK, key_value: 'down' });
     const log = vi.spyOn(logger, 'log').mockImplementation(() => undefined);

@@ -139,4 +139,22 @@ describe('POST /api/v1/workers/outbox/publish', () => {
     expect(replaced.headers.get('x-request-id')).not.toBe('not safe to echo');
     expect(replaced.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
   });
+
+  it("answers with the platform's request id over the caller's, as every route and action does", async () => {
+    const platform = `bom1::route-${newId()}`;
+    const response = await POST(
+      new Request(ROUTE_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'upstash-signature': sign('{}'),
+          'x-vercel-id': platform,
+          'x-request-id': 'chosen-by-caller',
+        },
+        body: '{}',
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-request-id')).toBe(platform);
+  });
 });
