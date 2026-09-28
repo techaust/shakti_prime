@@ -231,9 +231,9 @@ export const OUTBOX_TABLES = ['outbox_events'] as const;
 /**
  * Tables scoped to the calling principal rather than an entity: each caller reads and writes its
  * own rows only, so a context with an empty entity scope still sees its own. Asserted in
- * idempotency-keys.test.ts.
+ * idempotency-keys.test.ts and saved-views.test.ts.
  */
-export const PRINCIPAL_TABLES = ['idempotency_keys'] as const;
+export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;
