@@ -6,11 +6,17 @@ import { publishOutbox } from '../../../../../../workers/outbox';
 import { qstashConfig, verifyQStashSignature } from '../../../../../../workers/qstash';
 
 export const dynamic = 'force-dynamic';
+/**
+ * A run claims, calls the queue once (5 seconds at most) and records the outcomes. Stopping the
+ * function well inside the rows' two-minute lease means no run records after its lease is gone.
+ */
+export const maxDuration = 60;
 
 /**
  * The outbox publisher (docs/design/backend-weeks-3-5.md §4.2, docs/API.md §3.6). Only QStash
  * calls it, from the minute schedule and from the nudge after a command: every call must carry a
- * valid signature for this route and body. A 500 makes QStash retry; the rows stay pending.
+ * valid signature for this route and body. A 500 makes QStash retry; the rows stay pending, and
+ * any the failed run had leased are due again when their lease runs out.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);

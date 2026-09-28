@@ -1,8 +1,12 @@
 import { DeliveredEvent, isSubscribed, type OutboxPublishResponse } from '@shakti/contracts';
 import type { ClaimOutbox, OutboxRow, OutboxUpdate } from '@shakti/db';
 import type { EventPublisher, PublishResult } from '../ports/event-publisher';
+import { outboxRetryDelaySeconds } from './backoff';
 
-/** After this many failed attempts an event is dead-lettered and waits for a replay. */
+/**
+ * After this many failed attempts an event is dead-lettered and waits for a replay. With the
+ * backoff (./backoff.ts) the last attempt comes about four hours after the first.
+ */
 export const OUTBOX_MAX_ATTEMPTS = 10;
 /** Rows one run claims; one batch call to the queue carries them all. */
 export const OUTBOX_BATCH_SIZE = 100;
@@ -13,13 +17,17 @@ export interface OutboxPublisherOptions {
   claim: ClaimOutbox;
   publisher: EventPublisher;
   limit?: number;
+  /** The jitter's source for the backoff; tests pass a fixed one. */
+  random?: () => number;
 }
 
 /**
- * One publisher run (docs/design/backend-weeks-3-5.md §4.2): claim pending events in delivery
- * order, send the ones a worker listens to, and record the outcome of each while the rows are
- * still locked. An event nobody listens to yet is marked delivered without being sent. A row
- * that no longer fits the catalogue can never be delivered, so it is dead-lettered at once.
+ * One publisher run (docs/design/backend-weeks-3-5.md §4.2): claim the due events in delivery
+ * order (the claim leases them to this run and commits before anything is sent), send the ones a
+ * worker listens to in one batch, and hand back the outcome of each for the claim to record. A
+ * failed event is due again after its backoff; an event nobody listens to yet is marked delivered
+ * without being sent; a row that no longer fits the catalogue can never be delivered, so it is
+ * dead-lettered at once.
  */
 export async function runOutboxPublisher(
   options: OutboxPublisherOptions,
@@ -39,13 +47,19 @@ export async function runOutboxPublisher(
     const fail = (row: OutboxRow, error: string, now = false) => {
       const attempts = row.attempts + 1;
       const deadLetter = now || attempts >= OUTBOX_MAX_ATTEMPTS;
-      updates.push({
-        id: row.id,
-        outcome: 'failed',
-        attempts,
-        lastError: error.slice(0, ERROR_MAX_LENGTH),
-        deadLetter,
-      });
+      const lastError = error.slice(0, ERROR_MAX_LENGTH);
+      updates.push(
+        deadLetter
+          ? { id: row.id, outcome: 'failed', attempts, lastError, deadLetter }
+          : {
+              id: row.id,
+              outcome: 'failed',
+              attempts,
+              lastError,
+              deadLetter,
+              retryInSeconds: outboxRetryDelaySeconds(attempts, options.random),
+            },
+      );
       counts.failed += 1;
       if (deadLetter) counts.deadLettered += 1;
     };

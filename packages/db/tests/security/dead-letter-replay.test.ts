@@ -186,3 +186,68 @@ describe('app.replay_dead_letter() (integrations.dlq.replay, design §4.4)', () 
     ).toMatch(/permission denied/);
   });
 });
+
+describe('a replay with backoff and leases (migration 0054)', () => {
+  /** A dead letter that still carries a backoff and a lease, as one left by an older run could. */
+  async function deadLetterWithLease(): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                          payload_json, attempts, last_error, dead_lettered_at,
+                                          next_attempt_at, claimed_until)
+               values (${id}, 1, 'admin.user.reactivated', ${TAG}, ${newId()}, '{"v": 1}'::jsonb,
+                       10, 'http_404', now(), now() + interval '1 hour',
+                       now() + interval '2 minutes')`,
+    );
+    return id;
+  }
+
+  async function delivery(id: string) {
+    const [found] = await asOutboxPublisher(
+      (p) => p<{ backoff: boolean; lease: boolean; dead: boolean }[]>`
+        select next_attempt_at is not null as backoff, claimed_until is not null as lease,
+               dead_lettered_at is not null as dead
+          from outbox_events where id = ${id}`,
+    );
+    return found;
+  }
+
+  it('clears the backoff and the lease, so the event is due at once', async () => {
+    const id = await deadLetterWithLease();
+    const executive = await createTestPrincipal('executive');
+    await replay(executive, id);
+    expect(await delivery(id)).toEqual({ backoff: false, lease: false, dead: false });
+    expect(await row(id)).toMatchObject({ attempts: 0, last_error: null });
+    await asOutboxPublisher(
+      (p) => p`update outbox_events set published_at = now() where id = ${id}`,
+    );
+  });
+
+  it('refuses a new backoff or lease on a dead letter, and a reset that leaves either', async () => {
+    const id = await deadLetterWithLease();
+    for (const change of [
+      () =>
+        asOutboxPublisher(
+          (p) => p`update outbox_events set next_attempt_at = now() where id = ${id}`,
+        ),
+      () =>
+        asOutboxPublisher(
+          (p) => p`update outbox_events set claimed_until = now() + interval '1 hour'
+                  where id = ${id}`,
+        ),
+      // The replay setting allows only the whole reset, the backoff and the lease included.
+      () =>
+        asMigrator((m) =>
+          m.begin(async (tx) => {
+            await tx`select set_config('app.dlq_replay', ${id}, true)`;
+            await tx`update outbox_events set dead_lettered_at = null, attempts = 0,
+                                              last_error = null
+                    where id = ${id}`;
+          }),
+        ),
+    ]) {
+      expect(await failure(change())).toMatch(/changes only by a replay/);
+    }
+    expect(await delivery(id)).toEqual({ backoff: true, lease: true, dead: true });
+  });
+});

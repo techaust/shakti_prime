@@ -4,6 +4,7 @@ import {
   AUTH_TABLES,
   closeDb,
   OUTBOX_TABLES,
+  PLATFORM_TABLES,
   PRINCIPAL_TABLES,
   RLS_TABLES,
   withoutContext,
@@ -29,24 +30,33 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
       order by c.relname
     `);
     expect(rows.map((r) => r.name)).toEqual(
-      [...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES, ...PRINCIPAL_TABLES].sort(),
+      [
+        ...RLS_TABLES,
+        ...AUTH_TABLES,
+        ...OUTBOX_TABLES,
+        ...PRINCIPAL_TABLES,
+        ...PLATFORM_TABLES,
+      ].sort(),
     );
     expect(rows.filter((r) => !r.enabled || !r.forced).map((r) => r.name)).toEqual([]);
   });
 
-  it.each([...RLS_TABLES, ...AUTH_TABLES, ...OUTBOX_TABLES, ...PRINCIPAL_TABLES])(
-    'does not own %s and the table forces RLS',
-    async (table) => {
-      const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
+  it.each([
+    ...RLS_TABLES,
+    ...AUTH_TABLES,
+    ...OUTBOX_TABLES,
+    ...PRINCIPAL_TABLES,
+    ...PLATFORM_TABLES,
+  ])('does not own %s and the table forces RLS', async (table) => {
+    const [row] = await withoutContext<{ owner: string; enabled: boolean; forced: boolean }>(sql`
       select pg_get_userbyid(c.relowner) as owner, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relname = ${table}
     `);
-      expect(row?.owner).not.toBe('app_user');
-      expect(row?.enabled).toBe(true);
-      expect(row?.forced).toBe(true);
-    },
-  );
+    expect(row?.owner).not.toBe('app_user');
+    expect(row?.enabled).toBe(true);
+    expect(row?.forced).toBe(true);
+  });
 
   /**
    * Append-only ledgers take no update, and price history is written only by its trigger;
