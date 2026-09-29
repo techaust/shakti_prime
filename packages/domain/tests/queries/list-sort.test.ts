@@ -244,16 +244,18 @@ describe('listPrices sort', () => {
   const list = newId();
   const tier = newId();
   // Three priced items (x, y, z) in a different order for each column, and one not priced.
+  // Categories are a fixed list shared with every earlier run's items, so the category order is
+  // read over the whole catalogue and checked among this run's items.
   const item = { x: newId(), y: newId(), z: newId(), bare: newId() };
 
   beforeAll(async () => {
     await asMigrator((m) =>
       m.begin(async (tx) => {
         const rows = [
-          [item.x, `${tag}-3`, `${tag} b`, `${tag} c`],
-          [item.y, `${tag}-1`, `${tag} c`, `${tag} a`],
-          [item.z, `${tag}-2`, `${tag} a`, `${tag} b`],
-          [item.bare, `${tag}-4`, `${tag} d`, `${tag} d`],
+          [item.x, `${tag}-3`, `${tag} b`, 'pump'],
+          [item.y, `${tag}-1`, `${tag} c`, 'cable'],
+          [item.z, `${tag}-2`, `${tag} a`, 'motor'],
+          [item.bare, `${tag}-4`, `${tag} d`, 'solar_module'],
         ] as const;
         for (const [id, sku, name, category] of rows) {
           await tx`insert into items (id, sku, name, category, hsn, unit)
@@ -286,13 +288,36 @@ describe('listPrices sort', () => {
       );
   const ids = (rows: { itemId: string }[]) => rows.slice(0, 3).map((r) => r.itemId);
 
-  it('sorts by item, code and category both ways, across a page boundary', async () => {
+  it('sorts by category both ways over every page, the item not priced among the rest', async () => {
+    const mine = new Set(Object.values(item));
+    const everyPage = async (direction: Direction) => {
+      const rows: { itemId: string }[] = [];
+      let cursor: string | undefined;
+      for (let pages = 0; pages < 100; pages++) {
+        const page = await asPrincipal(principalFor('accounts', [1]), (ctx) =>
+          listPrices(ctx, {
+            priceListId: list,
+            limit: 200,
+            cursor,
+            sort: { column: 'category', direction },
+          }),
+        );
+        rows.push(...page.items.filter((r) => mine.has(r.itemId)));
+        if (page.nextCursor === null) break;
+        cursor = page.nextCursor;
+      }
+      return rows.map((r) => r.itemId);
+    };
+    expect(await everyPage('asc')).toEqual([item.y, item.z, item.x, item.bare]);
+    expect(await everyPage('desc')).toEqual([item.bare, item.x, item.z, item.y]);
+  });
+
+  it('sorts by item and code both ways, across a page boundary', async () => {
     const expected = {
       item: [item.z, item.x, item.y],
       code: [item.y, item.z, item.x],
-      category: [item.y, item.z, item.x],
     };
-    for (const column of ['item', 'code', 'category'] as const) {
+    for (const column of ['item', 'code'] as const) {
       const low = column === 'code' ? `${tag}-` : tag;
       const high = column === 'code' ? `${tag}-9` : `${tag} z`;
       const up = await twoPages(read(column, 'asc'), from(column, 'asc', low));

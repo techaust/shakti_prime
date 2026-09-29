@@ -1,10 +1,10 @@
 // Catalogue list plans (design §6.1, brief C1): `pnpm --filter @shakti/domain spike:catalogue`.
 // Fills the local database up to 5,000 catalogue items (made-up codes and names under the `EXPL-`
-// prefix, kept between runs), prices them all on one list of a tier of its own and gives one item
-// a history of changes across three lists, then prints `EXPLAIN (ANALYZE, BUFFERS)` for the items
-// grid and the change log, run under the policies as a Store reader and an Executive, as the
-// screens run them. Local database only (prepareDatabase refuses any other host). Not part of CI;
-// it lives under tests/ for the testing helpers.
+// prefix, kept between runs and archived at the end of each), prices them all on one list of a
+// tier of its own and gives one item a history of changes across three lists, then prints
+// `EXPLAIN (ANALYZE, BUFFERS)` for the items grid and the change log, run under the policies as a
+// Store reader and an Executive, as the screens run them. Local database only (prepareDatabase
+// refuses any other host). Not part of CI; it lives under tests/ for the testing helpers.
 import { newId, type Principal } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import {
@@ -57,6 +57,8 @@ async function main(): Promise<void> {
     const [count] = await m<{ n: number }[]>`
       select count(*)::int as n from items where sku like ${`${PREFIX}%`}`;
     const have = count?.n ?? 0;
+    // Kept between runs, archived when a run ends, so the other suites page a small catalogue.
+    await m`update items set archived_at = null, is_active = true where sku like ${`${PREFIX}%`}`;
     if (have < TARGET) {
       await m`
         insert into items (id, sku, name, category, hsn, unit)
@@ -98,6 +100,10 @@ async function main(): Promise<void> {
   );
   await explain('change log of one item, newest first', exec, (ctx) =>
     priceChangesQuery(ctx, { itemId, limit: 25 }),
+  );
+  await asMigrator(
+    (m) =>
+      m`update items set archived_at = now(), is_active = false where sku like ${`${PREFIX}%`}`,
   );
   await closeDb();
 }

@@ -46,7 +46,7 @@ const insertItem = defineCommand({
         id: newId(),
         sku: `T-${newId().slice(-8)}`,
         name: 'x',
-        category: 'x',
+        category: 'other',
         hsn: input.hsn,
         createdBy: ctx.principal.id,
       })
