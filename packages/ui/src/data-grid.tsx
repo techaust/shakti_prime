@@ -338,7 +338,13 @@ export function DataGrid<T>({
         </div>
       ) : null}
 
-      <div className="border-border bg-surface hidden max-h-[calc(100dvh-12rem)] overflow-auto rounded-lg border md:block">
+      <div
+        // A table that scrolls takes focus, so the keyboard can scroll it (WCAG 2.1.1).
+        role="region"
+        aria-label={caption}
+        tabIndex={0}
+        className="border-border bg-surface focus-visible:outline-focus hidden max-h-[calc(100dvh-12rem)] overflow-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-offset-2 md:block"
+      >
         <table className="w-full border-collapse" aria-busy={loading || undefined}>
           <caption className="sr-only">{caption}</caption>
           <thead>

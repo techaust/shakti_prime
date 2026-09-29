@@ -42,7 +42,9 @@ test.describe('as an Executive', () => {
     test.slow();
     await page.goto('/design');
     await expect(page.getByRole('heading', { name: 'Design preview', level: 1 })).toBeVisible();
-    await expectNoAxeViolations(page);
     await snap(page, 'design');
+    // The print previews are the paper templates in sandboxed frames without scripts, where axe
+    // cannot run; printed documents are checked by the print module's own tests.
+    await expectNoAxeViolations(page, { removeFrames: 'iframe[sandbox]' });
   });
 });

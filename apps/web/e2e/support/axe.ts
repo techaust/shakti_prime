@@ -14,10 +14,21 @@ const ALWAYS_EXCLUDED = ['iframe[src*="challenges.cloudflare.com"]'];
 export interface AxeOptions {
   /** Further CSS selectors to leave out; each call site says why in a comment. */
   exclude?: string[];
+  /**
+   * Frames taken off the page before axe runs, because axe cannot run inside them: a sandboxed
+   * frame with no scripts never answers axe's frame handshake, and the run waits until the test
+   * times out. Each call site says why in a comment; take the page's screenshot first.
+   */
+  removeFrames?: string;
 }
 
 /** Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands. */
 export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}): Promise<void> {
+  if (options.removeFrames !== undefined) {
+    await page.locator(options.removeFrames).evaluateAll((frames) => {
+      for (const frame of frames) frame.remove();
+    });
+  }
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   for (const selector of [...ALWAYS_EXCLUDED, ...(options.exclude ?? [])]) {
     builder = builder.exclude(selector);
