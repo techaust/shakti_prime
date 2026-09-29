@@ -41,6 +41,11 @@ for (const { role, title } of ROLES) {
       const name = `Mohan Lal ${String(Date.now()).slice(-5)}`;
       await page.getByLabel('Customer name').fill(name);
       await page.getByLabel('Mobile number').fill(freshMobile());
+      // A person in more than one company chooses it first; its lines of business follow.
+      const company = page.getByLabel('Company', { exact: true });
+      if (await company.isVisible()) await company.selectOption({ label: 'Shakti Supreme' });
+      await page.getByLabel('Line of business').selectOption({ index: 1 });
+      await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
       await page.getByRole('button', { name: 'Save lead' }).click();
       await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible();
     });
