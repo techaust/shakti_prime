@@ -128,14 +128,14 @@ describe('reading the timeline', () => {
   });
 });
 
-type Row = {
+interface Row {
   entityId: number;
   opportunityId: string | null;
   accountId: string;
   type?: string;
   actor?: string;
   body?: string | null;
-};
+}
 
 function insertAs(who: Principal, row: Row) {
   return asPrincipal(who, ({ tx }) =>

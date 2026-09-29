@@ -1,6 +1,7 @@
 import { CreateLeadInput, DomainError, LeadDto, newId } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+import type { ActivityRecord } from '../../activities/activity';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 
@@ -48,6 +49,28 @@ export function heldByColleague(): DomainError {
   return new DomainError('conflict', 'customer is looked after by a colleague', {
     reason: 'customer_held_by_colleague',
   });
+}
+
+/**
+ * The timeline row of a new lead. The import batch writes the same row for each lead it makes
+ * (`commitLeadBatch`), so a lead from a file reads as one typed in.
+ */
+export function leadCreatedActivity(
+  input: Pick<CreateLeadInput, 'entityId' | 'pipelineKey' | 'sourceCode' | 'existingAccountId'>,
+  opportunityId: string,
+  accountId: string,
+): ActivityRecord {
+  return {
+    type: 'lead_created',
+    opportunityId,
+    accountId,
+    entityId: input.entityId,
+    payload: {
+      pipelineKey: input.pipelineKey,
+      sourceCode: input.sourceCode ?? null,
+      existingAccount: input.existingAccountId !== undefined,
+    },
+  };
 }
 
 /**
@@ -285,6 +308,21 @@ export const createLead = defineCommand({
       })
       .returning();
     if (!opportunity) throw new DomainError('internal', 'opportunity insert returned no row');
+
+    await ctx.activity(leadCreatedActivity(input, opportunity.id, account.id));
+    if (input.consent !== undefined) {
+      await ctx.activity({
+        type: 'consent_recorded',
+        accountId: account.id,
+        entityId,
+        payload: {
+          channel: input.consent.channel,
+          purpose: input.consent.purpose,
+          source: input.consent.source,
+          textVersion: input.consent.textVersion,
+        },
+      });
+    }
 
     ctx.audit({
       aggregateType: 'opportunity',

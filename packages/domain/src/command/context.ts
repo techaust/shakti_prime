@@ -1,6 +1,7 @@
 import type { Principal } from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
 import type { z } from 'zod';
+import type { ActivityRecord } from '../activities/activity';
 import type { Command } from './define-command';
 
 /**
@@ -38,6 +39,13 @@ export interface CommandContext {
   emit: (event: DomainEvent) => void;
   /** Records one changed aggregate; call once per aggregate the command touches. */
   audit: (change: AuditChange) => void;
+  /**
+   * Writes one row of the customer timeline in this transaction (docs/ARCHITECTURE.md §5), as the
+   * caller and under the insert policy, so the caller must read the lead or customer at that
+   * moment: a command that hands a lead to someone else records the row first. A savepoint that
+   * rolls back takes the row with it.
+   */
+  activity: (record: ActivityRecord) => Promise<void>;
   now: Date;
   requestId: string;
   /**

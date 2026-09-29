@@ -8,6 +8,7 @@ import {
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
+import { activityRow, writeActivities } from '../activities/activity';
 import { redactForAudit } from '../audit/redact';
 import { inputHash } from '../idempotency/hash';
 import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
@@ -333,6 +334,8 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
       }
       changes.push(change);
     },
+    activity: (record) =>
+      writeActivities(context.tx, [activityRow(context.principal, activeEntityId, record)]),
     now,
     requestId: context.requestId,
     run: async (inner, innerInput, nested = {}) => {

@@ -55,6 +55,14 @@ export function payloadProblem(payload: Readonly<Record<string, unknown>>): stri
   return undefined;
 }
 
+/** A pair of UTF-16 halves: one character to Postgres' `char_length`. */
+const SURROGATE_PAIR = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+
+/** The length Postgres' `char_length` gives the text. */
+function codePoints(text: string): number {
+  return text.length - (text.match(SURROGATE_PAIR)?.length ?? 0);
+}
+
 /** The row `activities` takes for `record`, written as `principal` (the insert policy's actor). */
 export function activityRow(
   principal: Pick<Principal, 'id'>,
@@ -75,7 +83,7 @@ export function activityRow(
   if (isNote !== (body !== undefined)) {
     throw new DomainError('internal', 'only a note has text, and a note always has it');
   }
-  if (body !== undefined && (body.length === 0 || [...body].length > ACTIVITY_NOTE_MAX)) {
+  if (body !== undefined && (body.length === 0 || codePoints(body) > ACTIVITY_NOTE_MAX)) {
     // The command's input caps a note first; this keeps the check that the table makes.
     throw new DomainError(
       'internal',
