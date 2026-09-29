@@ -14,6 +14,10 @@
       "maxKb": 240,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Activity log grid and its filters. Measured 225.9 kB on 29-09-2026, plus 5 %."
     },
+    "/admin/integrations": {
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 177 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the Integration health grids, the delivery check and Send again (about 9 kB). Measured 253.2 kB on 29-09-2026, plus 5 %. It has no dialog to load later; the rest is the grids, so going lower means a smaller shell or grid."
+    },
     "/admin/users": {
       "maxKb": 245,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the team grid, its row menu, saved views and the user dialogs. Measured 230.6 kB on 29-09-2026, plus 5 %."
