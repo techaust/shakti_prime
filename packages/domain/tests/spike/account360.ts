@@ -139,7 +139,7 @@ async function main(): Promise<void> {
   const leadIds: { rowNo: number; id: string }[] = [];
   const total = CUSTOMERS + 1;
   for (let from = 0; from < total; from += BATCH) {
-    const rows = [];
+    const rows: { rowNo: number; input: unknown }[] = [];
     for (let n = from; n < Math.min(total, from + BATCH); n++) {
       rows.push({
         rowNo: n + 1,
