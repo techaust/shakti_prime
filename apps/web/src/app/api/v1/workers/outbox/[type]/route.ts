@@ -12,7 +12,7 @@ import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { deliverEvent } from '../../../../../../workers/events/deliver';
-import { handlerFor } from '../../../../../../workers/events/registry';
+import { workerFor } from '../../../../../../workers/events/registry';
 import {
   eventWorkerPath,
   qstashConfig,
@@ -26,8 +26,12 @@ export const maxDuration = 60;
 /** QStash stops retrying a message whose answer carries this header. */
 const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 
-/** Failures worth delivering again: the store or a service was away, or the worker broke. */
-const RETRIED: ReadonlySet<ErrorCode> = new Set(['integration_unavailable', 'internal']);
+/**
+ * Refusals that another delivery cannot change: the event itself is wrong for the worker, or the
+ * worker may not act. Every other failure (the store or a service away, another delivery holding
+ * the event, a limit, a broken worker) is delivered again.
+ */
+const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
 
 /**
  * One outbox event, delivered by QStash to the worker of its type (docs/API.md §3.6,
@@ -67,7 +71,7 @@ export async function POST(
     logger.log('warn', 'outbox.event_refused', { requestId });
     return failure('unauthorized', requestId, headers);
   }
-  if (handlerFor(type) === undefined) {
+  if (workerFor(type) === undefined) {
     logger.log('warn', 'outbox.event_unhandled', { requestId, type });
     return failure('not_found', requestId, { ...headers, ...NO_RETRY });
   }
@@ -93,7 +97,7 @@ export async function POST(
     return Response.json(OutboxEventResult.parse(result), { headers });
   } catch (error) {
     const code = error instanceof DomainError ? error.code : 'internal';
-    const retried = RETRIED.has(code);
+    const retried = !FINAL.has(code);
     logger.log(retried ? 'warn' : 'error', 'outbox.event_failed', {
       requestId,
       eventId: event.id,

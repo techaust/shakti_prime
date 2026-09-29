@@ -8,9 +8,15 @@ import {
 } from '@shakti/contracts';
 import { memoryKeyValue, type KeyValue } from '@shakti/domain';
 import { describe, expect, it, vi } from 'vitest';
-import { deliverEvent, EVENT_ID_TTL_SECONDS, eventKey, sequenceKey } from './deliver';
+import {
+  deliverEvent,
+  EVENT_CLAIM_SECONDS,
+  EVENT_ID_TTL_SECONDS,
+  eventKey,
+  sequenceKey,
+} from './deliver';
 import { readDeliveryCheck, recordProbeArrival, rememberProbe } from './probe';
-import { EVENT_HANDLERS, handlerFor, type EventHandler } from './registry';
+import { EVENT_WORKERS, workerFor, type EventHandler, type EventWorker } from './registry';
 
 let sequence = 100;
 function probeEvent(overrides: Partial<DeliveredEvent> = {}): DeliveredEvent {
@@ -27,29 +33,55 @@ function probeEvent(overrides: Partial<DeliveredEvent> = {}): DeliveredEvent {
   };
 }
 
-const ok: EventHandler = () => Promise.resolve();
+/** A worker that records its runs, with the given ordering and outcome. */
+function counting(
+  ordering: EventWorker['ordering'] = 'every',
+  outcome: () => Promise<void> = () => Promise.resolve(),
+) {
+  const runs: string[] = [];
+  const worker: EventWorker = {
+    ordering,
+    handle: (event) => {
+      runs.push(event.id);
+      return outcome();
+    },
+  };
+  return { worker, runs };
+}
 
-describe('the handler registry and the event catalogue', () => {
+const deliver = (event: DeliveredEvent, keyValue: KeyValue, worker: EventWorker) =>
+  deliverEvent(event, { keyValue, requestId: 'r', worker });
+
+/** A promise the test settles when it chooses, to hold a worker mid-run. */
+function gate() {
+  let open: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { held, open: () => open() };
+}
+
+describe('the worker registry and the event catalogue', () => {
   it('agree: a type is subscribed exactly when a worker handles it', () => {
-    expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(Object.keys(EVENT_HANDLERS).sort());
+    expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(Object.keys(EVENT_WORKERS).sort());
   });
 
-  it('knows no handler for a type outside the catalogue or one nobody handles', () => {
-    expect(handlerFor('crm.lead.vanished')).toBeUndefined();
-    expect(handlerFor('crm.lead.created')).toBeUndefined();
-    expect(handlerFor('toString')).toBeUndefined();
-    expect(handlerFor('platform.probe.requested')).toBeDefined();
+  it('knows no worker for a type outside the catalogue or one nobody handles', () => {
+    expect(workerFor('crm.lead.vanished')).toBeUndefined();
+    expect(workerFor('crm.lead.created')).toBeUndefined();
+    expect(workerFor('toString')).toBeUndefined();
+    expect(workerFor('platform.probe.requested')?.ordering ?? 'every').toBe('every');
   });
 });
 
 describe('deliverEvent', () => {
-  it('runs the handler as system:workers in the event’s company, then records the id', async () => {
+  it('runs the worker as system:workers in the event company, then records the id as handled', async () => {
     const keyValue = memoryKeyValue();
-    const handler = vi.fn<EventHandler>(() => Promise.resolve());
+    const handle = vi.fn<EventHandler>(() => Promise.resolve());
     const event = probeEvent();
-    const result = await deliverEvent(event, { keyValue, requestId: 'r-1', handler });
+    const result = await deliverEvent(event, { keyValue, requestId: 'r-1', worker: { handle } });
     expect(result).toEqual({ eventId: event.id, outcome: 'done' });
-    const [, ctx] = handler.mock.calls[0] ?? [];
+    const [, ctx] = handle.mock.calls[0] ?? [];
     expect(ctx?.principal).toEqual({
       id: SYSTEM_WORKERS_PRINCIPAL_ID,
       kind: 'system',
@@ -58,17 +90,18 @@ describe('deliverEvent', () => {
       permissions: [],
     });
     expect(ctx?.requestId).toBe('r-1');
-    expect(await keyValue.get(eventKey(event.id))).toBe('1');
-    expect(await keyValue.get(sequenceKey(event))).toBe(event.sequence);
+    expect(await keyValue.get(eventKey(event.id))).toBe('done');
+    // An `every` worker keeps no sequence.
+    expect(await keyValue.get(sequenceKey(event))).toBeNull();
   });
 
-  it('keeps the id for seven days', async () => {
+  it('keeps the handled id for seven days', async () => {
     let now = 0;
     const keyValue = memoryKeyValue(() => now);
     const event = probeEvent();
-    await deliverEvent(event, { keyValue, requestId: 'r', handler: ok });
+    await deliver(event, keyValue, counting().worker);
     now = (EVENT_ID_TTL_SECONDS - 1) * 1000;
-    expect(await keyValue.get(eventKey(event.id))).toBe('1');
+    expect(await keyValue.get(eventKey(event.id))).toBe('done');
     now = EVENT_ID_TTL_SECONDS * 1000;
     expect(await keyValue.get(eventKey(event.id))).toBeNull();
     expect(EVENT_ID_TTL_SECONDS).toBe(604_800);
@@ -76,41 +109,107 @@ describe('deliverEvent', () => {
 
   it('answers duplicate for an id already handled and runs nothing', async () => {
     const keyValue = memoryKeyValue();
-    const handler = vi.fn<EventHandler>(() => Promise.resolve());
+    const { worker, runs } = counting();
     const event = probeEvent();
-    await deliverEvent(event, { keyValue, requestId: 'r', handler });
-    const again = await deliverEvent(event, { keyValue, requestId: 'r', handler });
-    expect(again).toEqual({ eventId: event.id, outcome: 'duplicate' });
-    expect(handler).toHaveBeenCalledTimes(1);
+    await deliver(event, keyValue, worker);
+    expect(await deliver(event, keyValue, worker)).toEqual({
+      eventId: event.id,
+      outcome: 'duplicate',
+    });
+    expect(runs).toHaveLength(1);
   });
 
-  it('answers duplicate for an event older than the newest handled for its aggregate', async () => {
+  it('runs the workers of two types on one aggregate, whatever their sequence', async () => {
     const keyValue = memoryKeyValue();
-    const handler = vi.fn<EventHandler>(() => Promise.resolve());
     const aggregateId = newId();
+    const first = counting('latest-only');
+    const second = counting('latest-only');
+    const newer = probeEvent({ aggregateId, sequence: '900' });
+    const older = probeEvent({ aggregateId, sequence: '800', type: 'crm.lead.created' });
+    expect((await deliver(newer, keyValue, first.worker)).outcome).toBe('done');
+    expect((await deliver(older, keyValue, second.worker)).outcome).toBe('done');
+    expect([first.runs, second.runs]).toEqual([[newer.id], [older.id]]);
+  });
+
+  it('an every worker runs a failed older event retry after a newer one succeeded', async () => {
+    const keyValue = memoryKeyValue();
+    const aggregateId = newId();
+    let fail = true;
+    const { worker, runs } = counting('every', () =>
+      fail ? Promise.reject(new DomainError('integration_unavailable')) : Promise.resolve(),
+    );
     const older = probeEvent({ aggregateId, sequence: '500' });
     const newer = probeEvent({ aggregateId, sequence: '501' });
-    await deliverEvent(newer, { keyValue, requestId: 'r', handler });
-    const late = await deliverEvent(older, { keyValue, requestId: 'r', handler });
-    expect(late).toEqual({ eventId: older.id, outcome: 'duplicate' });
-    expect(handler).toHaveBeenCalledTimes(1);
-    // Another aggregate's order is its own.
-    const other = probeEvent({ sequence: '400' });
-    expect((await deliverEvent(other, { keyValue, requestId: 'r', handler })).outcome).toBe('done');
+    await expect(deliver(older, keyValue, worker)).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
+    fail = false;
+    expect((await deliver(newer, keyValue, worker)).outcome).toBe('done');
+    expect((await deliver(older, keyValue, worker)).outcome).toBe('done');
+    expect(runs).toEqual([older.id, newer.id, older.id]);
   });
 
-  it('compares sequences as whole numbers, not as text', async () => {
+  it('a latest-only worker skips an event no newer than the last it handled, and records it', async () => {
     const keyValue = memoryKeyValue();
     const aggregateId = newId();
-    await deliverEvent(probeEvent({ aggregateId, sequence: '9' }), {
-      keyValue,
-      requestId: 'r',
-      handler: ok,
+    const { worker, runs } = counting('latest-only');
+    const older = probeEvent({ aggregateId, sequence: '9' });
+    const newer = probeEvent({ aggregateId, sequence: '10' });
+    await deliver(newer, keyValue, worker);
+    expect(await deliver(older, keyValue, worker)).toEqual({
+      eventId: older.id,
+      outcome: 'duplicate',
     });
-    const later = probeEvent({ aggregateId, sequence: '10' });
-    expect((await deliverEvent(later, { keyValue, requestId: 'r', handler: ok })).outcome).toBe(
-      'done',
-    );
+    expect(runs).toEqual([newer.id]);
+    expect(await keyValue.get(eventKey(older.id))).toBe('done');
+    expect(await keyValue.get(sequenceKey(newer))).toBe('10');
+    expect(sequenceKey(newer)).toBe(`seq:platform.probe.requested:delivery_probe:${aggregateId}`);
+  });
+
+  it('answers a retryable conflict while another delivery holds the event, not duplicate', async () => {
+    const keyValue = memoryKeyValue();
+    const { held, open } = gate();
+    const { worker, runs } = counting('every', () => held);
+    const event = probeEvent();
+    const first = deliver(event, keyValue, worker);
+    await expect(deliver(event, keyValue, worker)).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'event_in_progress' },
+    });
+    open();
+    expect((await first).outcome).toBe('done');
+    expect(runs).toEqual([event.id]);
+    expect((await deliver(event, keyValue, worker)).outcome).toBe('duplicate');
+  });
+
+  it('lets a claim left by a delivery that died lapse, so the event runs again', async () => {
+    let now = 0;
+    const keyValue = memoryKeyValue(() => now);
+    const event = probeEvent();
+    await keyValue.setIfAbsent(eventKey(event.id), 'claimed', EVENT_CLAIM_SECONDS);
+    const { worker, runs } = counting();
+    await expect(deliver(event, keyValue, worker)).rejects.toMatchObject({ code: 'conflict' });
+    now = EVENT_CLAIM_SECONDS * 1000;
+    expect((await deliver(event, keyValue, worker)).outcome).toBe('done');
+    expect(runs).toEqual([event.id]);
+  });
+
+  it('never lowers a latest-only sequence when an older delivery finishes last', async () => {
+    const keyValue = memoryKeyValue();
+    const aggregateId = newId();
+    const { held, open } = gate();
+    const older = probeEvent({ aggregateId, sequence: '41' });
+    const newer = probeEvent({ aggregateId, sequence: '42' });
+    const worker: EventWorker = {
+      ordering: 'latest-only',
+      handle: (event) => (event.id === older.id ? held : Promise.resolve()),
+    };
+    // Both pass the sequence check before either finishes; the newer one finishes first.
+    const olderRun = deliver(older, keyValue, worker);
+    await deliver(newer, keyValue, worker);
+    open();
+    await olderRun;
+    expect(await keyValue.get(sequenceKey(newer))).toBe('42');
   });
 
   it('refuses a type no worker handles as not_found', async () => {
@@ -120,45 +219,36 @@ describe('deliverEvent', () => {
     ).rejects.toMatchObject({ code: 'not_found' });
   });
 
-  it('passes a handler’s own refusal through and records nothing, so it is delivered again', async () => {
+  it('passes a worker refusal through and keeps nothing, so it is delivered again', async () => {
     const keyValue = memoryKeyValue();
     const event = probeEvent();
-    const busy: EventHandler = () =>
-      Promise.reject(new DomainError('integration_unavailable', 'the service is away'));
-    await expect(
-      deliverEvent(event, { keyValue, requestId: 'r', handler: busy }),
-    ).rejects.toMatchObject({ code: 'integration_unavailable' });
-    expect(await keyValue.get(eventKey(event.id))).toBeNull();
-    expect(await keyValue.get(sequenceKey(event))).toBeNull();
-    expect((await deliverEvent(event, { keyValue, requestId: 'r', handler: ok })).outcome).toBe(
-      'done',
+    const busy = counting('every', () =>
+      Promise.reject(new DomainError('integration_unavailable', 'the service is away')),
     );
+    await expect(deliver(event, keyValue, busy.worker)).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
+    expect(await keyValue.get(eventKey(event.id))).toBeNull();
+    expect((await deliver(event, keyValue, counting().worker)).outcome).toBe('done');
   });
 
-  it('turns anything else a handler throws into internal', async () => {
-    const broken: EventHandler = () => Promise.reject(new TypeError('x is undefined'));
-    await expect(
-      deliverEvent(probeEvent(), { keyValue: memoryKeyValue(), requestId: 'r', handler: broken }),
-    ).rejects.toMatchObject({ code: 'internal' });
+  it('turns anything else a worker throws into internal', async () => {
+    const broken = counting('every', () => Promise.reject(new TypeError('x is undefined')));
+    await expect(deliver(probeEvent(), memoryKeyValue(), broken.worker)).rejects.toMatchObject({
+      code: 'internal',
+    });
   });
 
-  it('answers integration_unavailable when the store cannot be read or written', async () => {
-    const down: KeyValue = {
-      get: () => Promise.reject(new Error('store down')),
-      set: () => Promise.reject(new Error('store down')),
-      del: () => Promise.resolve(),
-      incr: () => Promise.resolve(1),
-    };
-    await expect(
-      deliverEvent(probeEvent(), { keyValue: down, requestId: 'r', handler: ok }),
-    ).rejects.toMatchObject({ code: 'integration_unavailable' });
-    const readable: KeyValue = {
-      ...memoryKeyValue(),
-      set: () => Promise.reject(new Error('store down')),
-    };
-    await expect(
-      deliverEvent(probeEvent(), { keyValue: readable, requestId: 'r', handler: ok }),
-    ).rejects.toMatchObject({ code: 'integration_unavailable' });
+  it('answers integration_unavailable when the store cannot claim or record', async () => {
+    const down = (): Promise<never> => Promise.reject(new Error('store down'));
+    const failingClaim: KeyValue = { ...memoryKeyValue(), setIfAbsent: down };
+    await expect(deliver(probeEvent(), failingClaim, counting().worker)).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
+    const failingRecord: KeyValue = { ...memoryKeyValue(), set: down };
+    await expect(deliver(probeEvent(), failingRecord, counting().worker)).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
   });
 });
 

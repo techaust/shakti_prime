@@ -135,6 +135,8 @@ describe('publishOutbox and the outbox alerts (docs/design/phase1.md §5.2)', ()
       set: () => Promise.reject(new Error('down')),
       del: () => Promise.reject(new Error('down')),
       incr: () => Promise.reject(new Error('down')),
+      setIfAbsent: () => Promise.reject(new Error('down')),
+      raiseTo: () => Promise.reject(new Error('down')),
     };
     outbox.rows = [row()];
     const alerts = memoryAlertSink();
@@ -156,7 +158,7 @@ describe('inProcessEventPublisher (no queue: local development and CI)', () => {
       alerts: memoryAlertSink(),
     });
     expect(counts).toMatchObject({ claimed: 1, published: 1, failed: 0 });
-    expect(await keyValue.get(`evt:${event.id}`)).toBe('1');
+    expect(await keyValue.get(`evt:${event.id}`)).toBe('done');
     expect(await keyValue.get(`probe:${event.aggregateId}`)).toContain('arrivedAt');
   });
 

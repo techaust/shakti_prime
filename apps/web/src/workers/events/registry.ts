@@ -13,22 +13,38 @@ export interface EventHandlerContext {
 
 /**
  * Handles one delivered event. A handler that changes data does it through `executeCommand` as
- * `ctx.principal`; a `DomainError` it throws is answered with its code, and only
- * `integration_unavailable` and `internal` are delivered again. A handler may run twice for one
- * event (a redelivery after the store failed to keep its id), so it is written to allow that.
+ * `ctx.principal`; a `DomainError` it throws is answered with its code, and every code but
+ * `validation_failed`, `forbidden` and `not_found` is delivered again.
  */
 export type EventHandler = (event: DeliveredEvent, ctx: EventHandlerContext) => Promise<void>;
 
 /**
- * The worker of every subscribed event type (docs/design/phase1.md §5.2). A type is
- * `subscribed: true` in the event catalogue exactly when it has a handler here, which a test
- * checks, and its QStash URL group `evt-<type>` points at `/api/v1/workers/outbox/<type>`.
+ * How a worker treats the order of its events (docs/design/phase1.md §5.2). QStash keeps no order
+ * between messages:
+ * - `every` (the default) handles every event exactly once by its id, whatever arrives first, so
+ *   a failed older event's retry still runs after a newer one succeeded;
+ * - `latest-only` is for a worker that needs only an aggregate's latest state: it skips an event
+ *   no newer than the last one it handled for that aggregate (`seq:{type}:{aggregateType}:{id}`).
  */
-export const EVENT_HANDLERS: Partial<Record<EventType, EventHandler>> = {
-  'platform.probe.requested': (event, ctx) => recordProbeArrival(event, ctx.keyValue, ctx.now),
+export type EventOrdering = 'every' | 'latest-only';
+
+export interface EventWorker {
+  handle: EventHandler;
+  ordering?: EventOrdering;
+}
+
+/**
+ * The worker of every subscribed event type. A type is `subscribed: true` in the event catalogue
+ * exactly when it has a worker here, which a test checks, and its QStash URL group `evt-<type>`
+ * points at `/api/v1/workers/outbox/<type>`.
+ */
+export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
+  'platform.probe.requested': {
+    handle: (event, ctx) => recordProbeArrival(event, ctx.keyValue, ctx.now),
+  },
 };
 
-/** The handler of a type, or undefined for a type no worker handles. */
-export function handlerFor(type: string): EventHandler | undefined {
-  return Object.hasOwn(EVENT_HANDLERS, type) ? EVENT_HANDLERS[type as EventType] : undefined;
+/** The worker of a type, or undefined for a type no worker handles. */
+export function workerFor(type: string): EventWorker | undefined {
+  return Object.hasOwn(EVENT_WORKERS, type) ? EVENT_WORKERS[type as EventType] : undefined;
 }

@@ -81,7 +81,7 @@ export {
   SIGN_IN_NOTICE_EVERY,
 } from './auth/lockout';
 export type { Lockout, SignInGuard } from './auth/lockout';
-export { memoryKeyValue } from './ports/key-value';
+export { greaterNumber, memoryKeyValue } from './ports/key-value';
 export type { KeyValue } from './ports/key-value';
 export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer';
 export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
