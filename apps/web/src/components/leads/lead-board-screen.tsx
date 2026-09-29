@@ -111,7 +111,7 @@ export function LeadBoardScreen({
   const actionButtons = useFocusTargets<string>();
   const columnSections = useFocusTargets<string>();
   const boardRegion = useFocusTargets<'board'>();
-  const [boardBox, boardScrolls] = useScrolls<HTMLDivElement>();
+  const [boardBox, boardScrolls] = useScrolls();
   const returnFocusTo = (lead: BoardLeadDto) => () => [
     actionButtons.get(lead.id),
     columnSections.get(lead.stageId).map(columnHeading),

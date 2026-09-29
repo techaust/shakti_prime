@@ -268,7 +268,7 @@ export function DataGrid<T>({
   toolbar,
   className,
 }: DataGridProps<T>) {
-  const [tableBox, tableScrolls] = useScrolls<HTMLDivElement>();
+  const [tableBox, tableScrolls] = useScrolls();
   const showSkeleton = loading && rows.length === 0;
   if (!showSkeleton && rows.length === 0) return <>{empty}</>;
   const columns = visibleColumns(allColumns, columnChooser?.hidden ?? []);

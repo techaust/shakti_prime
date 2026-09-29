@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
  * 2.1.1); one that does not, such as a board laid out in a column on a phone, is no tab stop.
  * Returns a callback ref for the element and the answer, false until the element is measured.
  */
-export function useScrolls<T extends HTMLElement>(): [(el: T | null) => void, boolean] {
-  const [element, setElement] = useState<T | null>(null);
+export function useScrolls(): [(el: HTMLElement | null) => void, boolean] {
+  const [element, setElement] = useState<HTMLElement | null>(null);
   const [scrolls, setScrolls] = useState(false);
   useEffect(() => {
     if (element === null) return;

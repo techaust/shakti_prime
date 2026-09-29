@@ -89,7 +89,7 @@ export interface BoardPreviewCard {
  */
 export function BoardPreview({ copy, card }: { copy: DesignCopy; card: BoardPreviewCard }) {
   const t = useTranslations('leads.board');
-  const [boardBox, boardScrolls] = useScrolls<HTMLDivElement>();
+  const [boardBox, boardScrolls] = useScrolls();
   const days = 2;
   return (
     <div className="flex flex-col gap-3">
