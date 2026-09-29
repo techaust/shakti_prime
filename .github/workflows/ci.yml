@@ -154,3 +154,120 @@ jobs:
       - run: pnpm test:security
       # Every migration on disk is applied as it is (AUDIT M22).
       - run: pnpm db:verify
+
+  e2e:
+    name: End-to-end journeys, accessibility and screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # The image the screenshot baselines are made in (pnpm --filter web e2e:snap), so fonts and
+    # anti-aliasing match; its browsers match @playwright/test.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: supabase/postgres:17.6.1.177
+        env:
+          POSTGRES_PASSWORD: postgres_ci
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Inside a job container the service answers by its name on the job's own network, which
+      # the local-database check cannot tell from a remote host.
+      ALLOW_REMOTE_TEST_DB: '1'
+      DATABASE_URL: postgres://app_user:app_user_ci@postgres:5432/postgres
+      DATABASE_URL_MIGRATOR: postgres://postgres:postgres_ci@postgres:5432/postgres
+      APP_USER_PASSWORD: app_user_ci
+      DATABASE_URL_AUTH: postgres://auth_service:auth_service_ci@postgres:5432/postgres
+      AUTH_SERVICE_PASSWORD: auth_service_ci
+      DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@postgres:5432/postgres
+      OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
+      E2E_BASE_URL: http://localhost:3000
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Builds, seeds the people of apps/web/e2e/support/users.ts, starts the production build
+      # (next start) and runs every journey with axe and the screenshot comparisons.
+      - run: pnpm test:e2e
+      - name: Keep the report and the screenshot differences
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-report
+          path: |
+            apps/web/e2e/playwright-report
+            apps/web/e2e/test-results
+          retention-days: 14
+
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: supabase/postgres:17.6.1.177
+        env:
+          POSTGRES_PASSWORD: postgres_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://app_user:app_user_ci@localhost:5432/postgres
+      DATABASE_URL_MIGRATOR: postgres://postgres:postgres_ci@localhost:5432/postgres
+      APP_USER_PASSWORD: app_user_ci
+      DATABASE_URL_AUTH: postgres://auth_service:auth_service_ci@localhost:5432/postgres
+      AUTH_SERVICE_PASSWORD: auth_service_ci
+      DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@localhost:5432/postgres
+      OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
+      BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
+      BETTER_AUTH_URL: http://localhost:3000
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm build
+      # The production build as a local production run (apps/web/src/auth/deps.ts).
+      - name: Start the app
+        working-directory: apps/web
+        run: |
+          BOS_ENVIRONMENT=local nohup pnpm exec next start -p 3000 > next.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:3000/api/v1/health > /dev/null && exit 0
+            sleep 2
+          done
+          cat next.log
+          exit 1
+      # Public pages only: a signed-in page would need a session cookie in the Lighthouse
+      # settings, and the uploaded results would carry it.
+      - uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12.6.2
+        with:
+          urls: |
+            http://localhost:3000/
+            http://localhost:3000/sign-in
+          configPath: apps/web/lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false

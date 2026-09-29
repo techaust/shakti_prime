@@ -56,6 +56,36 @@
         "BOS_JWT_NEXT_KEY"
       ]
     },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_MIGRATOR",
+        "DATABASE_URL_AUTH",
+        "DATABASE_URL_OUTBOX",
+        "APP_USER_PASSWORD",
+        "AUTH_SERVICE_PASSWORD",
+        "OUTBOX_PUBLISHER_PASSWORD",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "TURNSTILE_SITE_KEY",
+        "TURNSTILE_SECRET_KEY",
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "MAILER",
+        "QSTASH_TOKEN",
+        "QSTASH_URL",
+        "QSTASH_CURRENT_SIGNING_KEY",
+        "QSTASH_NEXT_SIGNING_KEY",
+        "ALLOW_REMOTE_TEST_DB",
+        "DATABASE_CA_CERT",
+        "BOS_JWT_CURRENT_KEY",
+        "BOS_JWT_NEXT_KEY",
+        "E2E_BASE_URL",
+        "E2E_EXTERNAL_APP"
+      ]
+    },
     "db:generate": {
       "cache": false
     }
