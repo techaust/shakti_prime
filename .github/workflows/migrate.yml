@@ -1,16 +1,18 @@
 name: Migrate a hosted database
 
-# Applies the migrations to staging or production from a reviewed commit on main, then checks
-# every migration is applied as it is on disk (docs/runbooks/DEPLOY.md, AUDIT L24). The database
-# credentials and CA certificate are secrets of the GitHub environment; nothing runs until they
-# are set, and production can require a reviewer in the environment's protection rules.
+# Applies the migrations to the dev or staging database from a reviewed commit on main, then
+# checks every migration is applied as it is on disk (docs/runbooks/DEPLOY.md, AUDIT L24). A
+# private repository on GitHub's free plan has no environments, so each database's credentials
+# and CA certificate are repository secrets named with its suffix (`_DEV`, `_STAGING`). Production
+# is added with a GitHub environment and a required reviewer when the repository moves to a plan
+# that offers them (AUDIT M45); until then no workflow can migrate it.
 on:
   workflow_dispatch:
     inputs:
       environment:
         description: Which database
         type: choice
-        options: [staging, production]
+        options: [dev, staging]
         required: true
 
 permissions:
@@ -21,22 +23,42 @@ jobs:
     name: Migrate ${{ inputs.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ inputs.environment }}
     concurrency:
       group: migrate-${{ inputs.environment }}
       cancel-in-progress: false
     env:
-      DATABASE_URL_MIGRATOR: ${{ secrets.DATABASE_URL_MIGRATOR }}
-      APP_USER_PASSWORD: ${{ secrets.APP_USER_PASSWORD }}
-      AUTH_SERVICE_PASSWORD: ${{ secrets.AUTH_SERVICE_PASSWORD }}
-      OUTBOX_PUBLISHER_PASSWORD: ${{ secrets.OUTBOX_PUBLISHER_PASSWORD }}
-      DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
+      # Secret names are case-insensitive, so `_dev` reads `DATABASE_URL_MIGRATOR_DEV`. A missing
+      # secret reads as empty and the check below stops the run; nothing falls back to another one.
+      DATABASE_URL_MIGRATOR: ${{ secrets[format('DATABASE_URL_MIGRATOR_{0}', inputs.environment)] }}
+      APP_USER_PASSWORD: ${{ secrets[format('APP_USER_PASSWORD_{0}', inputs.environment)] }}
+      AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
+      OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
+      DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
+      # The Supabase project each choice must reach; a secret pasted under the wrong suffix stops here.
+      PROJECT_REF: ${{ inputs.environment == 'dev' && 'pgjwtygifnwxdkzdjsup' || 'azydxxvlboivablvvojp' }}
     steps:
       - name: Only from main
         if: github.ref != 'refs/heads/main'
         run: |
           echo 'Run this from main, so only reviewed migrations reach a hosted database.'
           exit 1
+      - name: Secrets present and for this project
+        run: |
+          for name in DATABASE_URL_MIGRATOR APP_USER_PASSWORD AUTH_SERVICE_PASSWORD OUTBOX_PUBLISHER_PASSWORD DATABASE_CA_CERT; do
+            if [ -z "${!name}" ]; then
+              echo "The secret ${name}_${ENVIRONMENT^^} is not set."
+              exit 1
+            fi
+          done
+          case "$DATABASE_URL_MIGRATOR" in
+            *"@db.${PROJECT_REF}.supabase.co"* | *"//postgres.${PROJECT_REF}:"*) ;;
+            *)
+              echo "DATABASE_URL_MIGRATOR_${ENVIRONMENT^^} does not point at the ${ENVIRONMENT} project."
+              exit 1
+              ;;
+          esac
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
