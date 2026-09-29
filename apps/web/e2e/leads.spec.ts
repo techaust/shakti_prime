@@ -15,18 +15,20 @@ function freshMobile(): string {
 }
 
 const ROLES = [
-  { role: 'teleCaller', title: 'a tele-caller', lead: 'Kavita Saini' },
-  { role: 'teamLead', title: 'a sales team lead', lead: 'Pooja Gurjar' },
+  { role: 'teleCaller', title: 'a tele-caller' },
+  { role: 'teamLead', title: 'a sales team lead' },
 ] as const;
 
-for (const { role, title, lead } of ROLES) {
+for (const { role, title } of ROLES) {
   test.describe(`leads as ${title}`, () => {
     test.use(signedInAs(role));
 
     test('opens the leads list', async ({ page }) => {
       await page.goto('/leads');
       await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
-      await expect(dataGrid(page, 'Leads').getByText(lead).first()).toBeVisible();
+      // The journeys add leads on every run, so the seeded one may be past the first page; the
+      // snapshot company's list below checks named rows.
+      await expect(dataGrid(page, 'Leads')).toBeVisible();
       await expectNoAxeViolations(page);
     });
 
