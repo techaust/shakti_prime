@@ -1,5 +1,13 @@
 import {
+  CommissionBasisSchema,
   ContrastSchema,
+  FirstContactSlaSchema,
+  LockHoursSchema,
+  ScoreRuleInput,
+  DispositionNextActionSchema,
+  RECORDED_STAGE_EXIT_FIELDS as CONTRACT_RECORDED_STAGE_EXIT_FIELDS,
+  ScoreFactorSchema,
+  SystemSizeUnitSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
@@ -19,7 +27,15 @@ import {
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  COMMISSION_BASES,
   CONTRASTS,
+  FIRST_CONTACT_SLA_MAX,
+  LOCK_HOURS_MAX,
+  SCORE_POINTS_LIMIT,
+  DISPOSITION_NEXT_ACTIONS,
+  RECORDED_STAGE_EXIT_FIELDS,
+  SCORE_FACTORS,
+  SYSTEM_SIZE_UNITS,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
@@ -50,15 +66,31 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(DISPOSITION_NEXT_ACTIONS).toEqual(DispositionNextActionSchema.options);
+    expect(SCORE_FACTORS).toEqual(ScoreFactorSchema.options);
+    expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
+    expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {
     expect(IMPLEMENTED_IMPORT_KINDS).toEqual(CONTRACT_IMPORT_KINDS);
     expect(LEAD_SORT_COLUMNS).toEqual(CONTRACT_LEAD_SORT_COLUMNS);
+    expect(RECORDED_STAGE_EXIT_FIELDS).toEqual(CONTRACT_RECORDED_STAGE_EXIT_FIELDS);
     expect(USER_SORT_COLUMNS).toEqual(CONTRACT_USER_SORT_COLUMNS);
     expect(PRICE_SORT_COLUMNS).toEqual(CONTRACT_PRICE_SORT_COLUMNS);
     expect(IMPORT_JOB_SORT_COLUMNS).toEqual(CONTRACT_IMPORT_JOB_SORT_COLUMNS);
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+  });
+
+  it('hold the settings limits the contracts hold', () => {
+    expect(LockHoursSchema.safeParse(LOCK_HOURS_MAX).success).toBe(true);
+    expect(LockHoursSchema.safeParse(LOCK_HOURS_MAX + 1).success).toBe(false);
+    expect(FirstContactSlaSchema.safeParse(FIRST_CONTACT_SLA_MAX).success).toBe(true);
+    expect(FirstContactSlaSchema.safeParse(FIRST_CONTACT_SLA_MAX + 1).success).toBe(false);
+    const rule = (points: number) =>
+      ScoreRuleInput.safeParse({ factor: 'age_days', match: { maxDays: 1 }, points }).success;
+    expect([rule(SCORE_POINTS_LIMIT), rule(-SCORE_POINTS_LIMIT)]).toEqual([true, true]);
+    expect([rule(SCORE_POINTS_LIMIT + 1), rule(-SCORE_POINTS_LIMIT - 1)]).toEqual([false, false]);
   });
 });
