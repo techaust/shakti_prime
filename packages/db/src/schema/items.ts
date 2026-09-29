@@ -15,7 +15,7 @@ import {
 import { actors, archivable, timestamps } from './columns';
 import { entities } from './entities';
 
-/** The item master (INV-01, docs/DATABASE.md �§6.3). One catalogue shared by every entity. */
+/** The item master (INV-01, docs/DATABASE.md §6.3). One catalogue shared by every entity. */
 export const items = pgTable(
   'items',
   {

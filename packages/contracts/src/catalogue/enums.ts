@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Catalogue and pricing enumerations (docs/DATABASE.md �§6.3). Values are the DB check lists. */
+/** Catalogue and pricing enumerations (docs/DATABASE.md §6.3). Values are the DB check lists. */
 export const ItemUnitSchema = z.enum(['nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour']);
 export type ItemUnit = z.infer<typeof ItemUnitSchema>;
 
