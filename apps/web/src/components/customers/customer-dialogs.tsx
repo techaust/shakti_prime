@@ -575,9 +575,7 @@ function TagForm({ view, onDone, onCancel, opportunityId }: FormProps & { opport
           <Input name="name" maxLength={40} autoComplete="off" />
         </Field>
       ) : null}
-      {view.canManageTags && view.tags.length > 0 ? (
-        <TagList view={view} onDone={onDone} />
-      ) : null}
+      {view.canManageTags && view.tags.length > 0 ? <TagList view={view} onDone={onDone} /> : null}
       <FailureMessage failure={formFailure} />
       <Footer onCancel={onCancel} pending={pending}>
         {t('submitAdd')}

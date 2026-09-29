@@ -28,7 +28,9 @@ function firstIssuePath(
  * The catalogue reason an input schema names for its first problem, when it names one (a consent
  * text version, `consent_version_invalid`); otherwise undefined and the plain input sentence.
  */
-function firstIssueReason(details: Readonly<Record<string, unknown>> | undefined): string | undefined {
+function firstIssueReason(
+  details: Readonly<Record<string, unknown>> | undefined,
+): string | undefined {
   const issues = details?.issues;
   if (!Array.isArray(issues)) return undefined;
   const first: unknown = issues[0];
@@ -45,8 +47,7 @@ export function actionFailure(
   e: unknown,
 ): Extract<ActionResult<never>, { ok: false }> {
   const domain = toDomainError(e);
-  const reason =
-    domain.code === 'validation_failed' ? firstIssueReason(domain.details) : undefined;
+  const reason = domain.code === 'validation_failed' ? firstIssueReason(domain.details) : undefined;
   const error = (reason ?? errorKey(domain)) as ErrorKey;
   if (domain.code === 'internal' || domain.code === 'integration_unavailable') {
     return { ok: false, error, reference: reportUnexpected('action.failed', e, { action }) };
