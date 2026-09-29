@@ -174,7 +174,10 @@ describe('query strings in context, span and breadcrumb fields', () => {
       },
     });
     expect(scrubbed.extra).toEqual({ path: '/leads', target: '/leads', count: 2 });
-    expect(scrubbed.spans[0]).toEqual({ description: 'GET /leads', data: { 'http.url': '/leads' } });
+    expect(scrubbed.spans[0]).toEqual({
+      description: 'GET /leads',
+      data: { 'http.url': '/leads' },
+    });
     expect(scrubbed.breadcrumbs[0]?.data).toEqual({ url: '/leads', method: 'GET' });
   });
 });

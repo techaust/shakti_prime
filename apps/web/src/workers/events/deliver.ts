@@ -102,9 +102,14 @@ export async function deliverEvent(
       });
     } catch (error) {
       if (error instanceof DomainError) throw error;
-      throw new DomainError('internal', `the worker for ${event.type} failed`, {}, {
-        cause: error,
-      });
+      throw new DomainError(
+        'internal',
+        `the worker for ${event.type} failed`,
+        {},
+        {
+          cause: error,
+        },
+      );
     }
   } catch (error) {
     // Nothing is kept of a failed delivery, so QStash's retry, or the next publisher run, runs it
@@ -114,9 +119,7 @@ export async function deliverEvent(
   }
   // The work is done. If the store fails now the answer is retryable and the worker may run a
   // second time, which every worker must allow (EventHandler).
-  await store('the event id was not recorded', () =>
-    keyValue.set(key, DONE, EVENT_ID_TTL_SECONDS),
-  );
+  await store('the event id was not recorded', () => keyValue.set(key, DONE, EVENT_ID_TTL_SECONDS));
   if (latestOnly) {
     await store('the sequence was not recorded', () =>
       keyValue.raiseTo(sequenceKey(event), event.sequence, EVENT_ID_TTL_SECONDS),

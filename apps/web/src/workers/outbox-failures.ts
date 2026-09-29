@@ -60,7 +60,10 @@ export async function holdBackFailure(
     outcome,
   });
   if (outcome === 'held') {
-    (options.alerts ?? sentryAlertSink).report('outbox.dead_lettered', { count: 1, ids: [eventId] });
+    (options.alerts ?? sentryAlertSink).report('outbox.dead_lettered', {
+      count: 1,
+      ids: [eventId],
+    });
   }
   return OutboxFailureResult.parse({ eventId, outcome, lastError });
 }
