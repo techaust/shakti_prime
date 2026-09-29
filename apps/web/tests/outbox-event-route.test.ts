@@ -28,7 +28,9 @@ const QSTASH_ENV = [
   'BETTER_AUTH_URL',
 ] as const;
 const saved = new Map<string, string | undefined>();
-const probeHandler = EVENT_HANDLERS[TYPE];
+const registered = EVENT_HANDLERS[TYPE];
+if (registered === undefined) throw new Error(`no worker for ${TYPE}`);
+const probeHandler: EventHandler = registered;
 
 beforeEach(() => {
   for (const name of QSTASH_ENV) saved.set(name, process.env[name]);

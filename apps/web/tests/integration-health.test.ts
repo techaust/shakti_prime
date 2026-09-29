@@ -8,7 +8,7 @@ import {
 import { closeOutboxDb } from '@shakti/db/outbox';
 import { asMigrator, asOutboxPublisher, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import { memoryKeyValue } from '@shakti/domain';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The actions outside a Next.js request: the headers and the signed-in caller are stand-ins; the
 // commands, the definer and the database are real.
@@ -50,9 +50,11 @@ afterAll(async () => {
 
 let executive: Principal;
 let manager: Principal;
-beforeEach(async () => {
-  executive ??= await createTestPrincipal('executive');
-  manager ??= await createTestPrincipal('general_manager', [1]);
+beforeAll(async () => {
+  executive = await createTestPrincipal('executive');
+  manager = await createTestPrincipal('general_manager', [1]);
+});
+beforeEach(() => {
   request.principal = executive;
   request.headers = new Headers({ 'x-request-id': `ih-${newId()}` });
 });
