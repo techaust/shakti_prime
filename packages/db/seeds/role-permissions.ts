@@ -6,6 +6,8 @@ import {
   type RoleKey,
   type Scope,
   type StaffRoleKey,
+  type SystemRoleKey,
+  SYSTEM_MATRIX,
 } from '@shakti/contracts';
 
 type StaffRow = Partial<Record<StaffRoleKey, Scope>>;
@@ -306,9 +308,13 @@ export const AGENT_MATRIX: Record<AgentRoleKey, readonly PermissionGrant[]> = {
   ],
 };
 
-/** Grants for any role, staff or agent, from the matrices above. */
+/** The system principal's grants (docs/SECURITY.md §3.3), from the contracts the workers share. */
+export { SYSTEM_MATRIX };
+
+/** Grants for any role, staff, agent or system, from the matrices above. */
 export function grantsForRole(roleKey: RoleKey): PermissionGrant[] {
   if (roleKey.startsWith('agent:')) return [...AGENT_MATRIX[roleKey as AgentRoleKey]];
+  if (roleKey.startsWith('system:')) return [...SYSTEM_MATRIX[roleKey as SystemRoleKey]];
   const staff = roleKey as StaffRoleKey;
   const grants: PermissionGrant[] = [];
   for (const key of PERMISSION_KEYS) {

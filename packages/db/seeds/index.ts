@@ -23,7 +23,7 @@ import { LEAD_SOURCE_SEED } from './lead-sources';
 import { PERMISSION_SEED } from './permissions';
 import { PIPELINE_SEED, STAGE_SEED } from './pipelines';
 import { PRICE_TIER_SEED } from './price-tiers';
-import { AGENT_PRINCIPAL_SEED } from './principals';
+import { AGENT_PRINCIPAL_SEED, SYSTEM_PRINCIPAL_SEED } from './principals';
 import { grantsForRole } from './role-permissions';
 import { ROLE_SEED, roleId } from './roles';
 
@@ -106,6 +106,19 @@ export async function runSeeds(): Promise<void> {
         .onConflictDoUpdate({
           target: principals.id,
           set: { displayName: sql`excluded.display_name`, kind: 'agent' },
+        });
+      await tx
+        .insert(principals)
+        .values(
+          SYSTEM_PRINCIPAL_SEED.map((p) => ({
+            id: p.id,
+            kind: 'system',
+            displayName: p.displayName,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: principals.id,
+          set: { displayName: sql`excluded.display_name`, kind: 'system' },
         });
 
       // Names are edited in Admin; the seed owns keys, segments, kinds, codes and channels.

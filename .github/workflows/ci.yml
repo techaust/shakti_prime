@@ -139,6 +139,8 @@ jobs:
       AUTH_SERVICE_PASSWORD: auth_service_ci
       DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@localhost:5432/postgres
       OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
+      DATABASE_URL_READER: postgres://app_reader:app_reader_ci@localhost:5432/postgres
+      APP_READER_PASSWORD: app_reader_ci
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA
