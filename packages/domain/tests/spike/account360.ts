@@ -13,9 +13,9 @@
 // team lead of that team, the General Manager of the company and the tele-caller who owns the
 // leads. The time is the `durationMs` of executeQuery's `query.completed` line. Prints the plans of
 // the timeline query and the customers search under RLS and writes
-// docs/spikes/results/account360.json. The seeded rows are
-// kept: timeline rows are append-only, so their leads and customers stay with them. Local database
-// only (prepareDatabase refuses any other host). Not part of CI.
+// docs/spikes/results/account360.json. The seeded customers and leads are removed at the end
+// unless `--keep` is given; their timeline rows stay, since the timeline is append-only. Local
+// database only (prepareDatabase refuses any other host). Not part of CI.
 import { newId, type Principal } from '@shakti/contracts';
 import { withRequestContext, type RequestContext } from '@shakti/db';
 import {
@@ -56,6 +56,7 @@ const CUSTOMERS = numberArg('customers', 5_000);
 const RUNS = numberArg('runs', 100);
 const WARMUP = numberArg('warmup', 10);
 const BATCH = 500;
+const KEEP = process.argv.includes('--keep');
 const FOCUS_LEADS = 5;
 
 function log(line: string): void {
@@ -321,6 +322,32 @@ async function main(): Promise<void> {
     )}\n`,
   );
   log(`wrote ${resultFile}`);
+  if (!KEEP) await removeSeeded(caller.id);
+}
+
+/**
+ * Removes the customers and leads the run seeded, so later suites and lists do not read them;
+ * their timeline rows stay, since the timeline is append-only, and name rows that no longer
+ * exist, which no one reads.
+ */
+async function removeSeeded(owner: string): Promise<void> {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await tx`create temp table seeded on commit drop as
+        select distinct account_id as id from opportunities where owner_id = ${owner}`;
+      await tx`create temp table seeded_contacts on commit drop as
+        select contact_id as id from account_contacts where account_id in (select id from seeded)`;
+      await tx`delete from opportunities where account_id in (select id from seeded)`;
+      await tx`delete from customer_sites where account_id in (select id from seeded)`;
+      await tx`delete from contact_phones where contact_id in (select id from seeded_contacts)`;
+      await tx`delete from account_contacts where account_id in (select id from seeded)`;
+      await tx`delete from contacts where id in (select id from seeded_contacts)`;
+      await tx`delete from account_entities where account_id in (select id from seeded)`;
+      await tx`delete from accounts where id in (select id from seeded)`;
+      await tx`delete from idempotency_keys where principal_id = ${owner}`;
+    }),
+  );
+  log('removed the seeded customers and leads (their timeline rows stay)');
 }
 
 main()
