@@ -33,7 +33,7 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--surface-3` | Two steps from `--surface` toward the text | Hover rows, pressed states |
 | `--text` | The high-contrast end of the ladder | Primary text |
 | `--text-muted` | Ladder, AA on every surface | Secondary text, labels |
-| `--text-subtle` | Ladder, 4.5:1 on every surface, a step lighter than `--text-muted` | Placeholders, helpers, metadata |
+| `--text-subtle` | Ladder, 4.5:1 on every surface (AA): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
