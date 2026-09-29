@@ -1,19 +1,19 @@
 # Phase 0 exit gate: who does what next
 
-The Phase 0 build and document work is merged into `main` and passes CI. The exit gate (ROADMAP §2) waits on people. This page lists each open item by who acts next, with the document that says exactly what is needed.
+Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has started. The items below that are not met are deferred and run alongside Phase 1; this page lists each by who acts next, with the document that says exactly what is needed. The hosted environments exist: Supabase dev (`shakti-prime-dev`) and staging (`shakti-prime-staging`) in Mumbai, migrated through 0060 and seeded by the *Migrate a hosted database* workflow; Vercel projects `shakti-prime-dev` and `shakti-prime-staging` in `bom1` on the Hobby plan (Pro, or the client's Pro team, before production); Upstash Redis per environment in Mumbai; QStash in the EU region with the minute schedule on staging; Cloudflare Turnstile for both hostnames; the first Executive on staging.
 
 ## Exit gate, item by item
 | Item (ROADMAP §2) | State | Next step |
 |---|---|---|
 | Security suite green for every core table, with fail-closed and cost-gate tests | Met | None |
-| DESIGN.md and the preview page signed off by the client | Waiting | The client signs off `DESIGN.md` and `/design` with `docs/phase0/design-signoff.md` |
-| All seven spikes passed, with written results and latency numbers | Partly met | Print and QR labels passed their rendering checks, with the phone and scanner check of printed labels still open; OCR masking passed on generated photos. Tally, Exotel, WhatsApp and voice have harnesses ready to run; Realtime needs the hosted dev project. Each `docs/spikes/*.md` says what it needs |
-| ERD, data dictionary, state machines, permission matrix and API contracts reviewed | Waiting | The developer and the client review `docs/data/`, `docs/state-machines/` (the items marked proposed), SECURITY §3.2 and `packages/contracts/src/api` |
-| Vendor quotes confirm the §13 cost figures | Waiting | The developer sends the requests in `docs/phase0/vendor-quotes.md` and records the answers |
-| Phase 0 tooling installed and verified; `currentPhase` set to 1 | Met apart from `currentPhase` | Every tool is installed and passed a live call on 28-09-2026; `currentPhase` moves to 1 as the gate's last step, when the other items close |
+| DESIGN.md and the preview page signed off by the client | Deferred | The client signs off `DESIGN.md` and `/design` with `docs/phase0/design-signoff.md` |
+| All seven spikes passed, with written results and latency numbers | Partly met, rest deferred | Print and QR labels passed their rendering checks, with the phone and scanner check of printed labels still open; OCR masking passed on generated photos. Tally, Exotel, WhatsApp and voice have harnesses ready to run; Realtime runs on the production site with the client's domain. Each `docs/spikes/*.md` says what it needs |
+| ERD, data dictionary, state machines, permission matrix and API contracts reviewed | Deferred | The developer and the client review `docs/data/`, `docs/state-machines/` (the items marked proposed), SECURITY §3.2 and `packages/contracts/src/api` |
+| Vendor quotes confirm the §13 cost figures | Deferred | The developer sends the requests in `docs/phase0/vendor-quotes.md` and records the answers |
+| Phase 0 tooling installed and verified; `currentPhase` set to 1 | Met | `currentPhase` set to 1 on 29-09-2026 |
 
 ## The developer
-- Create the Supabase dev and staging projects (Mumbai), the Vercel project in `bom1`, and Upstash Redis and QStash (`docs/runbooks/DEPLOY.md`). Once staging exists, apply every migration to a copy of staging before it reaches production (AGENTS §10).
+- The hosted dev and staging environments are created (29-09-2026). Once staging holds data worth keeping, apply every migration to a copy of staging before it reaches production (AGENTS §10). Before production: the Vercel Pro plan or the client's Pro team, a production Supabase project on the paid tier, and a GitHub plan with environments.
 - Send the vendor quote requests and record the answers (`docs/phase0/vendor-quotes.md`).
 - Open the vendor sandboxes each spike needs: Exotel with DLT numbers, Meta WhatsApp, LiveKit, Sarvam and Anthropic (`docs/spikes/*.md`), then run the Realtime, Exotel, WhatsApp, voice and Tally spikes and record their numbers.
 - Set up Amazon SES in Mumbai before production (BLUEPRINT §5, ADR 0003): verify the client's domain with DKIM, SPF and DMARC, ask AWS for production access, and create a send-only IAM user for each environment. The SES mailer behind the `Mailer` port is a small Phase 1 slice.
