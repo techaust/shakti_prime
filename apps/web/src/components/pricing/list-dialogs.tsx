@@ -17,7 +17,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
-import { approvePriceList, createPriceList } from '../../actions/pricing';
+import { approvePriceList, archivePriceList, createPriceList } from '../../actions/pricing';
 import { istToday } from '../../screens/audit';
 import { PRICE_TIER_CODES } from '../../screens/contract-values';
 import { formatDate } from '../../screens/format';
@@ -179,6 +179,58 @@ export function ApproveListDialog({
               run({ priceListId: list.id }, (approved) => {
                 toast.success(t('done', { list: listName }));
                 onApproved(approved);
+              });
+            }}
+          >
+            {t('submit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Withdraws a draft or a scheduled list; it never prices a quote. */
+export function ArchiveListDialog({
+  list,
+  listName,
+  returnFocusTo,
+  onClose,
+  onArchived,
+}: {
+  list: PriceListDto;
+  listName: string;
+  returnFocusTo: ReturnFocusTo;
+  onClose: () => void;
+  onArchived: (list: PriceListDto) => void;
+}) {
+  const t = useTranslations('priceMaster.archiveDialog');
+  const common = useTranslations('common');
+  const { run, pending, failure } = useCommand(archivePriceList);
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
+        <DialogHeader>
+          <DialogTitle>{t('title', { list: listName })}</DialogTitle>
+          <DialogDescription>{t('intro')}</DialogDescription>
+        </DialogHeader>
+        <FailureMessage failure={failure} />
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>
+            {common('cancel')}
+          </Button>
+          <Button
+            variant="danger"
+            pending={pending}
+            onClick={() => {
+              run({ priceListId: list.id }, (archived) => {
+                toast.success(t('done', { list: listName }));
+                onArchived(archived);
               });
             }}
           >

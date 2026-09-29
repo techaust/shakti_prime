@@ -171,7 +171,9 @@
     "price_list_approved": "This price list is already approved.",
     "price_list_overlap": "Another approved price list for this tier and company starts on the same date. Choose a different start date.",
     "price_list_version_taken": "Someone started another version of this price list at the same moment. Refresh the page and try again.",
-    "catalogue_needs_all_companies": "The catalogue is shared by all four companies. Choose All companies at the top of the screen, then make the change again."
+    "catalogue_needs_all_companies": "The catalogue is shared by every company in the group. Choose All companies at the top of the screen, then make the change again.",
+    "price_list_approval_clash": "Another price list for this tier was approved at the same moment. Refresh the page and check the dates before you approve again.",
+    "price_list_archive_in_use": "A price list that is in use, or was, is kept because quotes were priced from it. Start a new price list instead."
   },
   "auth": {
     "signIn": {
@@ -731,7 +733,7 @@
     "approve": "Approve",
     "newListDialog": {
       "title": "Start a new price list",
-      "intro": "The new list starts as a draft with a copy of today's prices. Change its prices, then approve it to put it in use from its start date.",
+      "intro": "The new list starts as a draft with a copy of the prices in force the day before it starts. Change its prices, then approve it to put it in use from its start date.",
       "tier": "Price tier",
       "company": "Company",
       "companyHelper": "A list for all companies needs All companies chosen at the top of the screen.",
@@ -744,7 +746,7 @@
     },
     "approveDialog": {
       "title": "Approve {list}",
-      "intro": "From {from}, quotes use this list's prices. The list in use until then ends that day.",
+      "intro": "From {from}, quotes use this list's prices. The list in use before it prices up to the day before.",
       "submit": "Approve list",
       "done": "{list} is approved."
     },
@@ -758,7 +760,15 @@
       "by": "By {name}",
       "reason": "Reason: {reason}"
     },
-    "draftPassedNote": "This draft's start date has passed, so it can no longer be approved. Start a new price list instead."
+    "draftPassedNote": "This draft's start date has passed, so it can no longer be approved. Start a new price list instead.",
+    "groupListNote": "Lists for all companies are shared by every company in the group. To change or approve them, choose All companies at the top of the screen first.",
+    "archive": "Withdraw list",
+    "archiveDialog": {
+      "title": "Withdraw {list}",
+      "intro": "The list is set aside and never prices a quote. A scheduled list gives its days back to the list before it.",
+      "submit": "Withdraw list",
+      "done": "{list} is withdrawn."
+    }
   },
   "leads": {
     "title": "Leads",
@@ -1123,7 +1133,8 @@
       "kitCreate": "Kit added",
       "kitUpdate": "Kit changed",
       "kitArchive": "Kit no longer sold",
-      "pumpCurveSet": "Pump curve saved"
+      "pumpCurveSet": "Pump curve saved",
+      "priceListArchive": "Price list withdrawn"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1152,7 +1163,8 @@
       "kitCreated": "Kit added",
       "kitUpdated": "Kit changed",
       "kitArchived": "Kit no longer sold",
-      "pumpCurveSet": "Pump curve saved"
+      "pumpCurveSet": "Pump curve saved",
+      "priceListArchived": "Price list withdrawn"
     },
     "sheet": {
       "title": "{action}",
@@ -1256,7 +1268,8 @@
       "tierCode": "Price tier",
       "version": "Version",
       "prices": "Prices copied",
-      "approvedAt": "Approved at"
+      "approvedAt": "Approved at",
+      "archivedAt": "Withdrawn at"
     },
     "values": {
       "percent": "{value}%",
@@ -1650,7 +1663,7 @@
     "itemForm": {
       "createTitle": "Add an item",
       "editTitle": "Edit {name}",
-      "intro": "Every company sells from this catalogue, so a change shows in all four at once.",
+      "intro": "Every company sells from this catalogue, so a change shows in all of them at once.",
       "sku": "Item code",
       "skuHelper": "Letters, numbers and - / _ . with no spaces, such as SP-SUB-5HP. Kept in capitals.",
       "name": "Item name",
@@ -1726,7 +1739,7 @@
       "created": "{name} is added to the catalogue.",
       "saved": "{name} is saved."
     },
-    "groupNote": "Items and kits are shared by all four companies. To add or change them, choose All companies at the top of the screen first.",
+    "groupNote": "Items and kits are shared by every company in the group. To add or change them, choose All companies at the top of the screen first.",
     "quantities": {
       "nos": "{count, plural, one {# piece} other {# pieces}}",
       "set": "{count, plural, one {# set} other {# sets}}",
@@ -1740,7 +1753,7 @@
   "taxSettings": {
     "title": "Tax rates",
     "intro": "GST rates by HSN code or item, and the goods and services split of composite supplies. Quotes keep the rate they were made with.",
-    "groupNote": "These rates apply to all four companies. To change them, choose All companies at the top of the screen first.",
+    "groupNote": "These rates apply to every company in the group. To change them, choose All companies at the top of the screen first.",
     "ratesHeading": "GST rates",
     "ratesCaption": "GST rates with the dates they apply",
     "ratesEmpty": "No GST rates yet. Accounts adds each rate with the notification it comes from.",

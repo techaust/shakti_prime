@@ -2,6 +2,7 @@
 
 import {
   ApprovePriceListInput,
+  ArchivePriceListInput,
   CreatePriceListInput,
   SetPriceInput,
   type KitPricePageDto,
@@ -12,6 +13,7 @@ import {
 } from '@shakti/contracts';
 import {
   approvePriceList as approvePriceListCommand,
+  archivePriceList as archivePriceListCommand,
   createPriceList as createPriceListCommand,
   executeCommand,
   executeQuery,
@@ -142,5 +144,24 @@ export async function readCoversAllCompanies(): Promise<ActionResult<boolean>> {
     return executeQuery(principal, { requestId }, (context) => requestCoversAllCompanies(context), {
       name: 'readCoversAllCompanies',
     });
+  });
+}
+
+/** Withdraws a draft or a scheduled list. */
+export async function archivePriceList(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<PriceListDto>> {
+  return toResult('archivePriceList', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ArchivePriceListInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      archivePriceListCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
   });
 }

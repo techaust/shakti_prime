@@ -64,6 +64,7 @@ const ACTIONS = {
   'pricing.price.set': 'priceSet',
   'pricing.list.create': 'priceListCreate',
   'pricing.list.approve': 'priceListApprove',
+  'pricing.list.archive': 'priceListArchive',
   'catalogue.item.create': 'itemCreate',
   'catalogue.item.update': 'itemUpdate',
   'catalogue.item.archive': 'itemArchive',
@@ -128,6 +129,7 @@ const EVENT_NAMES = {
   'pricing.price.changed': 'priceChanged',
   'pricing.list.created': 'priceListCreated',
   'pricing.list.approved': 'priceListApproved',
+  'pricing.list.archived': 'priceListArchived',
   'catalogue.item.created': 'itemCreated',
   'catalogue.item.updated': 'itemUpdated',
   'catalogue.item.archived': 'itemArchived',
@@ -306,6 +308,7 @@ const FIELD_KINDS = [
   ['version', 'number'],
   ['prices', 'number'],
   ['approvedAt', 'time'],
+  ['archivedAt', 'time'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],

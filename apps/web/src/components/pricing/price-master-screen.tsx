@@ -46,6 +46,7 @@ import { ViewsMenu } from '../screens/views-menu';
 /** The list dialogs and the history sheet, fetched when first opened rather than with the page. */
 const NewListDialog = dynamic(() => import('./list-dialogs').then((m) => m.NewListDialog));
 const ApproveListDialog = dynamic(() => import('./list-dialogs').then((m) => m.ApproveListDialog));
+const ArchiveListDialog = dynamic(() => import('./list-dialogs').then((m) => m.ArchiveListDialog));
 const PriceHistorySheet = dynamic(() =>
   import('./price-history-sheet').then((m) => m.PriceHistorySheet),
 );
@@ -101,12 +102,13 @@ export function PriceMasterScreen({
   const [nextCursor, setNextCursor] = useState(initialPage?.nextCursor ?? null);
   const [pricing, setPricing] = useState<Target | undefined>();
   const [history, setHistory] = useState<Target | undefined>();
-  const [listDialog, setListDialog] = useState<'new' | 'approve' | undefined>();
+  const [listDialog, setListDialog] = useState<'new' | 'approve' | 'archive' | undefined>();
   // Focus goes back to the row's button, in the table or the phone card that shows.
   const setPriceButtons = useFocusTargets<string>();
   const historyButtons = useFocusTargets<string>();
   const newListButton = useRef<HTMLButtonElement>(null);
   const approveButton = useRef<HTMLButtonElement>(null);
+  const archiveButton = useRef<HTMLButtonElement>(null);
   const { load, pending, failure } = useQuery<PricePageDto>();
   const kitQuery = useQuery<KitPricePageDto>();
   const listsQuery = useQuery<PriceListDto[]>();
@@ -219,6 +221,10 @@ export function PriceMasterScreen({
     }
   }
 
+  // A list for every company changes only while the person acts for every company (AUDIT H2).
+  const mayChange = (l: PriceListDto | undefined) =>
+    canSetPrices && l !== undefined && (l.entityId !== null || coversAllCompanies);
+  const today = istToday(new Date());
   const header = (
     <div className="flex flex-wrap items-center gap-2">
       {canSetPrices ? (
@@ -232,7 +238,7 @@ export function PriceMasterScreen({
           {t('newList')}
         </Button>
       ) : null}
-      {canSetPrices && list?.state === 'draft' && list.effectiveFrom >= istToday(new Date()) ? (
+      {mayChange(list) && list?.state === 'draft' && list.effectiveFrom >= today ? (
         <Button
           ref={approveButton}
           onClick={() => {
@@ -240,6 +246,17 @@ export function PriceMasterScreen({
           }}
         >
           {t('approve')}
+        </Button>
+      ) : null}
+      {mayChange(list) && (list?.state === 'draft' || list?.state === 'scheduled') ? (
+        <Button
+          ref={archiveButton}
+          variant="danger"
+          onClick={() => {
+            setListDialog('archive');
+          }}
+        >
+          {t('archive')}
         </Button>
       ) : null}
     </div>
@@ -259,6 +276,24 @@ export function PriceMasterScreen({
             setListDialog(undefined);
             setLists((all) => [created, ...all]);
             chooseList(created.id);
+          }}
+        />
+      ) : null}
+      {listDialog === 'archive' && list !== undefined ? (
+        <ArchiveListDialog
+          list={list}
+          listName={listName(list)}
+          returnFocusTo={() => [newListButton.current]}
+          onClose={() => {
+            setListDialog(undefined);
+          }}
+          onArchived={(archived) => {
+            setListDialog(undefined);
+            setLists((all) => all.map((l) => (l.id === archived.id ? archived : l)));
+            // A scheduled list gave its days back to the list before it: read the lists again.
+            listsQuery.load(listPriceLists, (next) => {
+              setLists(next);
+            });
           }}
         />
       ) : null}
@@ -304,7 +339,7 @@ export function PriceMasterScreen({
       })),
   ].filter((g) => g.lists.length > 0);
 
-  const canChangeList = canSetPrices && list.open;
+  const canChangeList = mayChange(list) && list.open;
   const unitName = (row: PriceRowDto) => t(`unit.${row.unit}`);
   const priceCell = (price: string | null) =>
     price === null ? (
@@ -456,9 +491,14 @@ export function PriceMasterScreen({
               })}
         </span>
       </div>
+      {canSetPrices && list.entityId === null && !coversAllCompanies ? (
+        <p role="note" className="bg-info-soft border-border rounded-md border px-4 py-3">
+          {t('groupListNote')}
+        </p>
+      ) : null}
       {list.state === 'draft' ? (
         <p className="text-text-muted">
-          {list.effectiveFrom < istToday(new Date()) ? t('draftPassedNote') : t('draftNote')}
+          {list.effectiveFrom < today ? t('draftPassedNote') : t('draftNote')}
         </p>
       ) : null}
       {list.state === 'scheduled' ? (

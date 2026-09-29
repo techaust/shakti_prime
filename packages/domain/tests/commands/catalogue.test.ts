@@ -182,19 +182,17 @@ describe('catalogue.item.create / update / archive', () => {
     expect(motor.category).toBe('motor');
     expect(motor.curve).toEqual([]);
     // The item's audit row keeps the curve that went with the change of category.
-    expect(recorded.records).toEqual([
-      expect.objectContaining({
-        command: 'catalogue.item.update',
-        before: expect.objectContaining({
-          category: 'pump',
-          points: [
-            ['0.00', '95.00'],
-            ['6000.00', '40.00'],
-          ],
-        }),
-        after: expect.objectContaining({ category: 'motor', points: [] }),
-      }),
-    ]);
+    expect(recorded.records).toHaveLength(1);
+    const row = recorded.records[0];
+    expect(row?.command).toBe('catalogue.item.update');
+    expect(row?.before).toMatchObject({
+      category: 'pump',
+      points: [
+        ['0.00', '95.00'],
+        ['6000.00', '40.00'],
+      ],
+    });
+    expect(row?.after).toMatchObject({ category: 'motor', points: [] });
     const points = await asMigrator(
       (m) => m`select count(*)::int as n from pump_curves where item_id = ${item.id}`,
     );
