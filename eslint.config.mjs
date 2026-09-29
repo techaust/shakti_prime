@@ -320,6 +320,8 @@ export default tseslint.config(
       'packages/*/tests/**/*.ts',
       'apps/*/tests/**/*.ts',
       '**/*.test.ts',
+      // The end-to-end seed runs on the host before the journeys and makes their people.
+      'apps/web/e2e/setup/**/*.ts',
     ],
     rules: { 'no-restricted-imports': 'off' },
   },

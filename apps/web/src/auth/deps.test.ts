@@ -77,4 +77,21 @@ describe('hostedRuntime', () => {
     );
     expect(hostedRuntime({ NODE_ENV: 'development' })).toBe(false);
   });
+
+  it('is false for a local production build and never on Vercel', () => {
+    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' })).toBe(false);
+    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'staging' })).toBe(true);
+    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'local', VERCEL: '1' })).toBe(
+      true,
+    );
+    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'Local' })).toBe(true);
+  });
+
+  it('refuses to start on Vercel with the local marker', () => {
+    const env = { ...GOOD, BOS_ENVIRONMENT: 'local', VERCEL: '1' };
+    expect(hostedRuntime(env)).toBe(true);
+    expect(productionConfigProblems(env)).toEqual([
+      'BOS_ENVIRONMENT must be one of dev, staging, production',
+    ]);
+  });
 });

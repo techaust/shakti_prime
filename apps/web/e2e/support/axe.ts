@@ -1,0 +1,33 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, type Page } from '@playwright/test';
+
+/** WCAG 2.1 levels A and AA, the bar DESIGN.md §9 sets for every screen. */
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+
+/**
+ * Parts of a page axe does not judge, each with its reason. The bot-check widget is Cloudflare's
+ * own frame on another origin: its markup is not ours to change, and the form around it carries
+ * the labels and the error text.
+ */
+const ALWAYS_EXCLUDED = ['iframe[src*="challenges.cloudflare.com"]'];
+
+export interface AxeOptions {
+  /** Further CSS selectors to leave out; each call site says why in a comment. */
+  exclude?: string[];
+}
+
+/** Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands. */
+export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}): Promise<void> {
+  let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
+  for (const selector of [...ALWAYS_EXCLUDED, ...(options.exclude ?? [])]) {
+    builder = builder.exclude(selector);
+  }
+  const { violations } = await builder.analyze();
+  const summary = violations.map((v) => ({
+    rule: v.id,
+    impact: v.impact,
+    help: v.help,
+    targets: v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary ?? ''}`),
+  }));
+  expect(summary, 'accessibility violations (WCAG 2.1 A and AA)').toEqual([]);
+}
