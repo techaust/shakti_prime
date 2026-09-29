@@ -30,7 +30,7 @@ test.describe('as an Executive', () => {
     await showCompany(page, SNAPSHOT_COMPANY.name);
     await page.getByLabel('What happened').selectOption({ label: 'Lead added' });
     await page.getByLabel('Person').selectOption({ label: 'Geeta Kumari' });
-    await page.getByRole('button', { name: 'Show' }).click();
+    await page.getByRole('button', { name: 'Show', exact: true }).click();
     const grid = dataGrid(page, 'Activity log');
     await expect(grid.getByText('Lead added')).toHaveCount(SNAPSHOT_LEADS.length, {
       timeout: 30_000,

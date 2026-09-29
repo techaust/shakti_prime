@@ -459,7 +459,12 @@ function Card({
           </StatusBadge>
         ) : undefined
       }
-      age={t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
+      age={
+        // Since when the lead is in this state, as a time for assistive technology.
+        <time dateTime={lead.stateChangedAt}>
+          {t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
+        </time>
+      }
       owner={lead.ownerName === null ? t('noOwner') : t('owner', { name: lead.ownerName })}
       ownerName={lead.ownerName ?? undefined}
       sla={lead.sla === null ? undefined : { tone: lead.sla, label: t(`sla.${lead.sla}`) }}
