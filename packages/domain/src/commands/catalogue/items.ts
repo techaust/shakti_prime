@@ -11,7 +11,7 @@ import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
-import { eventEntity } from './shared';
+import { assertCatalogueGroupScope, eventEntity } from './shared';
 import { toItemDto } from '../../queries/catalogue/item-dto';
 import { readItemDetail } from '../../queries/catalogue/item-detail';
 
@@ -76,6 +76,7 @@ export const createItem = defineCommand({
   auditFields: ITEM_AUDIT_FIELDS,
   constraintReasons: { items_sku_unique: 'item_sku_taken' },
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const [row] = await ctx.tx
       .insert(schema.items)
       .values({
@@ -124,6 +125,7 @@ export const updateItem = defineCommand({
   auditFields: ITEM_AUDIT_FIELDS,
   constraintReasons: { items_sku_unique: 'item_sku_taken' },
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const before = await lockLiveItem(ctx, input.itemId);
     const [row] = await ctx.tx
       .update(schema.items)
@@ -175,6 +177,7 @@ export const archiveItem = defineCommand({
   output: ItemDto,
   auditFields: ['isActive'],
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const before = await lockLiveItem(ctx, input.itemId);
     const [inKit] = await ctx.tx
       .select({ id: schema.kits.id })

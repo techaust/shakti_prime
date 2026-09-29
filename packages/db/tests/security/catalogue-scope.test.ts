@@ -144,16 +144,28 @@ describe('catalogue masters', () => {
   });
 
   it.each(['executive', 'general_manager', 'inventory_manager'] as const)(
-    '%s can update an item (catalogue.write)',
+    '%s can update an item (catalogue.write) while acting for every company, and not from one',
     async (roleKey) => {
-      expect(
-        await updated(
-          principalFor(roleKey, [1]),
-          sql`update items set name = name where id = ${fx.items.pump} returning id`,
-        ),
-      ).toBe(1);
+      const statement = sql`update items set name = name where id = ${fx.items.pump} returning id`;
+      expect(await updated(principalFor(roleKey), statement)).toBe(1);
+      // Products are shared: a grant held in one company does not change the others' catalogue.
+      expect(await updated(principalFor(roleKey, [1]), statement)).toBe(0);
+      expect(await updated(principalFor(roleKey, [1, 2, 3]), statement)).toBe(0);
     },
   );
+
+  it('kits, their components and pump curves take writes only from a request for every company', async () => {
+    const one = principalFor('general_manager', [2]);
+    const all = principalFor('general_manager');
+    for (const statement of [
+      sql`update kits set name = name where id = ${fx.kit} returning id`,
+      sql`update kit_components set qty = qty where kit_id = ${fx.kit} returning id`,
+      sql`update pump_curves set head_m = head_m where item_id = ${fx.items.pump} returning id`,
+    ]) {
+      expect(await updated(one, statement)).toBe(0);
+      expect(await updated(all, statement)).toBeGreaterThan(0);
+    }
+  });
 
   it.each(['sales_team_lead', 'accounts', 'store_manager', 'agent:sizing'] as const)(
     '%s cannot update an item',

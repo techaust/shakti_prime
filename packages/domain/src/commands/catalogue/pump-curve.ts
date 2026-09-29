@@ -3,7 +3,7 @@ import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { readItemDetail, readPumpCurve } from '../../queries/catalogue/item-detail';
-import { eventEntity } from './shared';
+import { assertCatalogueGroupScope, eventEntity } from './shared';
 
 /**
  * `catalogue.pump_curve.set` (SAL-04): a pump's curve as a set of points, replacing the one
@@ -17,6 +17,7 @@ export const setPumpCurve = defineCommand({
   output: ItemDetailDto,
   auditFields: ['points'],
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const [item] = await ctx.tx
       .select({ id: schema.items.id, category: schema.items.category })
       .from(schema.items)

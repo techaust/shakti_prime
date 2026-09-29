@@ -11,7 +11,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { readKitDetail } from '../../queries/catalogue/item-detail';
-import { eventEntity } from './shared';
+import { assertCatalogueGroupScope, eventEntity } from './shared';
 
 type Components = { itemId: string; qty: string }[];
 
@@ -67,6 +67,7 @@ export const createKit = defineCommand({
   auditFields: ['sku', 'kitName', 'components', 'isActive'],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     await assertLiveItems(ctx, input.components);
     const [row] = await ctx.tx
       .insert(schema.kits)
@@ -105,6 +106,7 @@ export const updateKit = defineCommand({
   auditFields: ['sku', 'kitName', 'components', 'isActive'],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const [before] = await ctx.tx
       .select()
       .from(schema.kits)
@@ -157,6 +159,7 @@ export const archiveKit = defineCommand({
   output: KitDetailDto,
   auditFields: ['isActive'],
   async handler(ctx, input) {
+    await assertCatalogueGroupScope(ctx);
     const [row] = await ctx.tx
       .update(schema.kits)
       .set({ isActive: false, archivedAt: ctx.now, updatedBy: ctx.principal.id })

@@ -73,7 +73,7 @@ describe('database errors inside a command', () => {
   });
 
   it('a check violation answers validation_failed', async () => {
-    const exec = await createTestPrincipal('executive', [1]);
+    const exec = await createTestPrincipal('executive');
     await expect(
       asPrincipal(exec, (context) =>
         runCommand(insertItem, { context, audit, outbox }, { hsn: 'abc' }),

@@ -54,7 +54,8 @@ const cableInput = () => ({
 let manager: Principal;
 
 beforeAll(async () => {
-  manager = await createTestPrincipal('inventory_manager', [1]);
+  // Products are shared: a catalogue change needs a request acting for every company.
+  manager = await createTestPrincipal('inventory_manager');
 });
 
 function run<T = Record<string, unknown>>(
@@ -94,7 +95,7 @@ describe('catalogue.item.create / update / archive', () => {
     const recorded = memoryAuditSink();
     const emitted = memoryOutboxSink();
     const input = pumpInput();
-    const gm = await createTestPrincipal('general_manager', [2]);
+    const gm = await createTestPrincipal('general_manager');
     const item = await asPrincipal(gm, (context) =>
       runCommand(createItem, { context, audit: recorded, outbox: emitted }, input),
     );
@@ -117,7 +118,7 @@ describe('catalogue.item.create / update / archive', () => {
     expect(emitted.records).toEqual([
       expect.objectContaining({
         type: 'catalogue.item.created',
-        entityId: 2,
+        entityId: 1,
         aggregateId: item.id,
         payload: { category: 'pump', v: 1 },
       }),
@@ -209,6 +210,95 @@ describe('catalogue.item.create / update / archive', () => {
           values (${newId()}, ${sku('RAW')}, 'raw insert', 'other', '8413')`),
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe('products are shared: every catalogue change needs every company', () => {
+  const refused = { code: 'forbidden', details: { reason: 'catalogue_needs_all_companies' } };
+
+  it('refuses a GM or an Inventory Manager acting for one company, in every command', async () => {
+    const pump = await run<ItemOut>(manager, createItem, pumpInput());
+    const kit = await run<{ id: string }>(manager, createKit, {
+      sku: sku('KIT'),
+      name: `Scope kit ${tag}`,
+      components: [{ itemId: pump.id, qty: '1' }],
+    });
+    for (const [role, entityIds] of [
+      ['general_manager', [1]],
+      ['inventory_manager', [2]],
+      ['general_manager', [1, 2, 3]],
+    ] as const) {
+      const one = await createTestPrincipal(role, entityIds);
+      await expect(run(one, createItem, pumpInput())).rejects.toMatchObject(refused);
+      await expect(run(one, updateItem, { ...pumpInput(), itemId: pump.id })).rejects.toMatchObject(
+        refused,
+      );
+      await expect(
+        run(one, setPumpCurve, {
+          itemId: pump.id,
+          points: [
+            { flowLph: '0', headM: '50' },
+            { flowLph: '100', headM: '20' },
+          ],
+        }),
+      ).rejects.toMatchObject(refused);
+      await expect(
+        run(one, createKit, {
+          sku: sku('KIT'),
+          name: 'Refused kit',
+          components: [{ itemId: pump.id, qty: '1' }],
+        }),
+      ).rejects.toMatchObject(refused);
+      await expect(
+        run(one, updateKit, {
+          kitId: kit.id,
+          sku: sku('KIT'),
+          name: 'Refused kit',
+          components: [{ itemId: pump.id, qty: '1' }],
+        }),
+      ).rejects.toMatchObject(refused);
+      await expect(run(one, archiveKit, { kitId: kit.id })).rejects.toMatchObject(refused);
+      await expect(run(one, archiveItem, { itemId: pump.id })).rejects.toMatchObject(refused);
+    }
+  });
+
+  it('lets the same roles change the catalogue while acting for every company', async () => {
+    for (const role of ['general_manager', 'inventory_manager'] as const) {
+      const all = await createTestPrincipal(role);
+      const item = await run<ItemOut>(all, createItem, cableInput());
+      await expect(run(all, archiveItem, { itemId: item.id })).resolves.toMatchObject({
+        isActive: false,
+      });
+    }
+  });
+
+  it('the database refuses the same writes made directly from one company', async () => {
+    const one = principalFor('general_manager', [1]);
+    const all = principalFor('general_manager');
+    const pump = await run<ItemOut>(manager, createItem, pumpInput());
+    await run(manager, setPumpCurve, {
+      itemId: pump.id,
+      points: [
+        { flowLph: '0', headM: '50' },
+        { flowLph: '100', headM: '20' },
+      ],
+    });
+    await expect(
+      asPrincipal(one, ({ tx }) =>
+        tx.execute(sql`insert into items (id, sku, name, category, hsn)
+          values (${newId()}, ${sku('RAW')}, 'raw insert', 'other', '8413')`),
+      ),
+    ).rejects.toThrow();
+    const changed = (principal: Principal, statement: ReturnType<typeof sql>) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(statement)) as unknown as { id: string }[];
+        return rows.length;
+      });
+    const rename = sql`update items set name = name where id = ${pump.id} returning id`;
+    const dropCurve = sql`delete from pump_curves where item_id = ${pump.id} returning id`;
+    expect(await changed(one, rename)).toBe(0);
+    expect(await changed(one, dropCurve)).toBe(0);
+    expect(await changed(all, rename)).toBe(1);
   });
 });
 

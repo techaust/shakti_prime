@@ -449,6 +449,13 @@
       "when": 1790692163079,
       "tag": "0063_catalogue_saved_views",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790698882233,
+      "tag": "0064_catalogue_all_companies",
+      "breakpoints": true
     }
   ]
 }
