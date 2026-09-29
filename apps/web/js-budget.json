@@ -14,6 +14,14 @@
       "maxKb": 270,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the Activity log grid and its filters (about 10 kB). Measured 253.3 kB on 28-09-2026, plus 5 %. Its detail sheet loads when a row is first opened; the rest is the grid and filters, so going lower means a smaller shell or grid."
     },
+    "/admin/roles": {
+      "maxKb": 263,
+      "reason": "Staff screen, at the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the roles grid (about 7 kB). Measured 250.2 kB on 30-09-2026, plus 5 %. The grid is the whole screen, so going lower means a smaller shell or grid."
+    },
+    "/admin/roles/[roleKey]": {
+      "maxKb": 261,
+      "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the role editor, one scope picker per permission (about 5 kB). Measured 248.3 kB on 30-09-2026, plus 5 %. The save dialog loads when first opened."
+    },
     "/admin/users": {
       "maxKb": 275,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the team grid, its row menu, saved views and the user dialogs (about 15 kB). Measured 257.9 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog, the user dialogs and the sessions sheet); loading them on first opening would save about 5 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
