@@ -52,11 +52,36 @@ export type OpportunityNurtureReason = z.infer<typeof OpportunityNurtureReasonSc
 
 /**
  * The lead details a stage's exit rules may require (`stage_exit_rules_json`:
- * `{ "requiredFields": [...] }`, CRM-05): a site, its village, PIN and GST state code, and the
- * lead's source.
+ * `{ "requiredFields": [...] }`, CRM-05, workshop CRM-2): a site, its village, PIN and GST state
+ * code, and the lead's source; and the sizing details, named with their units, that the sizing
+ * panel records (docs/design/phase1.md §6.7).
  */
-export const StageExitFieldSchema = z.enum(['site', 'village', 'pin', 'stateCode', 'source']);
+export const StageExitFieldSchema = z.enum([
+  'site',
+  'village',
+  'pin',
+  'stateCode',
+  'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+]);
 export type StageExitField = z.infer<typeof StageExitFieldSchema>;
+
+/**
+ * The exit fields a lead carries today, which a stage may require. The sizing details join this
+ * list when the sizing panel records them; until then a stage cannot require one, so no lead is
+ * held by a detail nobody can fill in.
+ */
+export const RECORDED_STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'stateCode',
+  'source',
+] as const satisfies readonly StageExitField[];
 
 /**
  * The language of a customer's calls: the voice agent and the caller-script variant. Screens,
