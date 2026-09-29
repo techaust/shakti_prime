@@ -32,6 +32,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { listKitPrices, listPriceLists, listPrices, setPrice } from '../../actions/pricing';
+import { istToday } from '../../screens/audit';
 import { KIT_PRICE_SORT_COLUMNS, PRICE_SORT_COLUMNS } from '../../screens/contract-values';
 import { formatDate, formatRupees, moneyFromTyped } from '../../screens/format';
 import { useCatalogueText } from '../catalogue/use-spec-text';
@@ -231,7 +232,7 @@ export function PriceMasterScreen({
           {t('newList')}
         </Button>
       ) : null}
-      {canSetPrices && list?.state === 'draft' ? (
+      {canSetPrices && list?.state === 'draft' && list.effectiveFrom >= istToday(new Date()) ? (
         <Button
           ref={approveButton}
           onClick={() => {
@@ -455,7 +456,11 @@ export function PriceMasterScreen({
               })}
         </span>
       </div>
-      {list.state === 'draft' ? <p className="text-text-muted">{t('draftNote')}</p> : null}
+      {list.state === 'draft' ? (
+        <p className="text-text-muted">
+          {list.effectiveFrom < istToday(new Date()) ? t('draftPassedNote') : t('draftNote')}
+        </p>
+      ) : null}
       {list.state === 'scheduled' ? (
         <p className="text-text-muted">
           {t('scheduledNote', { from: formatDate(list.effectiveFrom) })}

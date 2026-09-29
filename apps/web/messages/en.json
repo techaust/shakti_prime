@@ -756,7 +756,8 @@
       "on": "{list} · {when}",
       "by": "By {name}",
       "reason": "Reason: {reason}"
-    }
+    },
+    "draftPassedNote": "This draft's start date has passed, so it can no longer be approved. Start a new price list instead."
   },
   "leads": {
     "title": "Leads",
