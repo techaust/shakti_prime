@@ -25,11 +25,12 @@ async function answering(): Promise<boolean> {
 
 let app: ChildProcess | undefined;
 if (!(await answering())) {
-  app = spawn('pnpm', ['exec', 'next', 'start', '-p', port], {
+  // One command line through the shell, so Windows finds pnpm's own launcher.
+  app = spawn(`pnpm exec next start -p ${port}`, {
     cwd: webDir,
     env: { ...process.env, BOS_ENVIRONMENT: 'local' },
     stdio: 'ignore',
-    shell: process.platform === 'win32',
+    shell: true,
   });
   const deadline = Date.now() + 120_000;
   while (!(await answering())) {
@@ -38,8 +39,13 @@ if (!(await answering())) {
   }
 }
 
-// Docker Desktop on Windows wants the drive path with forward slashes.
+// Docker Desktop on Windows wants the drive path with forward slashes. pnpm's links in
+// node_modules point at the drive as Docker Desktop sees it (/mnt/host/<drive>/…), so the
+// repository is mounted at that same path and the Windows install resolves inside the image.
 const mount = repoDir.replaceAll('\\', '/');
+const inContainer = /^[A-Za-z]:\//.test(mount)
+  ? `/mnt/host/${mount.charAt(0).toLowerCase()}${mount.slice(2)}`
+  : mount;
 const args = process.argv.slice(2).filter((a) => a !== '--');
 const script = [
   'node e2e/setup/forward.mjs &',
@@ -53,9 +59,9 @@ const result = spawnSync(
     '--ipc=host',
     '--add-host=host.docker.internal:host-gateway',
     '-v',
-    `${mount}:/repo`,
+    `${mount}:${inContainer}`,
     '-w',
-    '/repo/apps/web',
+    `${inContainer}/apps/web`,
     '-e',
     'E2E_EXTERNAL_APP=1',
     '-e',

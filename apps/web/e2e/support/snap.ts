@@ -1,17 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
- * Regions whose content changes from run to run: times and dates, error references, avatars
- * drawn from generated ids, the bot-check widget and the Next.js route announcer. Marked in the
- * markup with `data-dynamic` where no stable selector exists.
+ * Regions whose content changes from run to run: anything the markup marks `data-dynamic` (the
+ * bot-check widget), times, and frames (the bot check's own, and the print previews, which the
+ * print module checks). A journey masks its changing rows and codes through `mask`.
  */
-const DYNAMIC = [
-  '[data-dynamic]',
-  'time',
-  '[data-slot="avatar"]',
-  '.cf-turnstile, [data-turnstile]',
-  'iframe',
-];
+const DYNAMIC = ['[data-dynamic]', 'time', 'iframe'];
 
 /**
  * Compares the page with its baseline for the running project (desktop light, desktop dark,
