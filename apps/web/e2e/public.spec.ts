@@ -49,18 +49,6 @@ test('the forgotten-password screen answers the same for any address', async ({ 
   await expectNoAxeViolations(page);
 });
 
-test('an invited person chooses a password from the link', async ({ page }) => {
-  await page.goto(seededUsers().setPasswordLinks[projectName()]);
-  await expect(page.getByRole('heading', { name: 'Choose your password' })).toBeVisible();
-  await expectNoAxeViolations(page);
-  await snap(page, 'set-password');
-  await page.getByLabel('New password').fill(E2E_PASSWORD);
-  await page.getByLabel('Type it again').fill(E2E_PASSWORD);
-  await page.getByRole('button', { name: 'Save password' }).click();
-  await expect(page.getByText('Your password is saved. You can sign in now.')).toBeVisible();
-  await expectNoAxeViolations(page);
-});
-
 test('a dead set-password link offers a new one', async ({ page }) => {
   await page.goto('/set-password');
   await expect(page.getByRole('link', { name: 'Ask for a new link' })).toBeVisible();
@@ -68,38 +56,58 @@ test('a dead set-password link offers a new one', async ({ page }) => {
   await snap(page, 'set-password-expired');
 });
 
-test('a role that needs an authenticator app sets one up at first sign-in', async ({ page }) => {
-  await submitSignIn(page, seededUsers().enrolEmails[projectName()]);
-  await page.waitForURL('**/two-factor');
-  await expect(page.getByRole('heading', { name: 'Set up your authenticator app' })).toBeVisible();
-  await expectNoAxeViolations(page);
-  await snap(page, 'two-factor-enrol');
-  await page.getByLabel('Your password').fill(E2E_PASSWORD);
-  await page.getByRole('button', { name: 'Begin setup' }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Scan this with your authenticator app' }),
-  ).toBeVisible();
-  const key = page.locator('p.font-mono');
-  const secret = (await key.textContent()) ?? '';
-  await expectNoAxeViolations(page);
-  // The QR code, the key and the backup codes are new at every enrolment.
-  await snap(page, 'two-factor-scan', {
-    mask: [page.getByRole('img'), key, page.locator('ul.font-mono')],
-  });
-  await page.getByLabel('6-digit code from the app').fill(totpCode(secret));
-  await page.getByRole('button', { name: 'Confirm' }).click();
-  await page.waitForURL('**/home');
-});
+// Each of these uses up what the seed made for it (a set-password link, a person's first
+// authenticator enrolment, a code), so a retry would fail for that reason alone: seed again.
+test.describe('single-use steps', () => {
+  test.describe.configure({ retries: 0 });
 
-test('a person with an authenticator app types its code at sign-in', async ({ page }) => {
-  const person = seededUsers().verifyUsers[projectName()];
-  await submitSignIn(page, person.email);
-  await page.waitForURL('**/two-factor');
-  await expect(
-    page.getByRole('heading', { name: 'Enter the code from your authenticator app' }),
-  ).toBeVisible();
-  await expectNoAxeViolations(page);
-  await snap(page, 'two-factor-verify');
-  await submitCode(page, person.secret);
-  await page.waitForURL('**/home');
+  test('an invited person chooses a password from the link', async ({ page }) => {
+    await page.goto(seededUsers().setPasswordLinks[projectName()]);
+    await expect(page.getByRole('heading', { name: 'Choose your password' })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'set-password');
+    await page.getByLabel('New password').fill(E2E_PASSWORD);
+    await page.getByLabel('Type it again').fill(E2E_PASSWORD);
+    await page.getByRole('button', { name: 'Save password' }).click();
+    await expect(page.getByText('Your password is saved. You can sign in now.')).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+
+  test('a role that needs an authenticator app sets one up at first sign-in', async ({ page }) => {
+    await submitSignIn(page, seededUsers().enrolEmails[projectName()]);
+    await page.waitForURL('**/two-factor');
+    await expect(
+      page.getByRole('heading', { name: 'Set up your authenticator app' }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'two-factor-enrol');
+    await page.getByLabel('Your password').fill(E2E_PASSWORD);
+    await page.getByRole('button', { name: 'Begin setup' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Scan this with your authenticator app' }),
+    ).toBeVisible();
+    const key = page.locator('p.font-mono');
+    const secret = (await key.textContent()) ?? '';
+    await expectNoAxeViolations(page);
+    // The QR code, the key and the backup codes are new at every enrolment.
+    await snap(page, 'two-factor-scan', {
+      mask: [page.getByRole('img'), key, page.locator('ul.font-mono')],
+    });
+    await page.getByLabel('6-digit code from the app').fill(totpCode(secret));
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForURL('**/home');
+  });
+
+  test('a person with an authenticator app types its code at sign-in', async ({ page }) => {
+    const person = seededUsers().verifyUsers[projectName()];
+    await submitSignIn(page, person.email);
+    await page.waitForURL('**/two-factor');
+    await expect(
+      page.getByRole('heading', { name: 'Enter the code from your authenticator app' }),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'two-factor-verify');
+    await submitCode(page, person.secret);
+    await page.waitForURL('**/home');
+  });
 });

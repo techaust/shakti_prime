@@ -30,18 +30,22 @@ test.describe('as a tele-caller', () => {
     await snap(page, 'not-found-tele-caller');
   });
 
-  test('the profile menu opens from the keyboard and gives focus back', async ({ page }) => {
-    await page.goto('/home');
-    const button = page.getByRole('button', { name: 'Your account' });
-    await button.focus();
-    await page.keyboard.press('Enter');
-    const menu = page.getByRole('menu');
-    await expect(menu.getByRole('menuitem', { name: 'Your profile' })).toBeVisible();
-    await expectNoAxeViolations(page, { include: '[role="menu"]' });
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Your account' })).toBeFocused();
-  });
+  // Enter, Space and the down arrow open a menu button and start on its first item (WAI-ARIA
+  // menu button pattern); Escape closes it and gives focus back to the button.
+  for (const key of ['Enter', 'Space', 'ArrowDown']) {
+    test(`the profile menu opens with ${key} and gives focus back`, async ({ page }) => {
+      await page.goto('/home');
+      await page.getByRole('button', { name: 'Your account' }).focus();
+      await page.keyboard.press(key);
+      const menu = page.getByRole('menu');
+      await expect(menu.getByRole('menuitem', { name: 'Your profile' })).toBeVisible();
+      await expect(menu.getByRole('menuitemradio').first()).toBeFocused();
+      await expectNoAxeViolations(page, { include: '[role="menu"]' });
+      await page.keyboard.press('Escape');
+      await expect(menu).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Your account' })).toBeFocused();
+    });
+  }
 });
 
 test.describe('as an Executive', () => {
@@ -68,5 +72,19 @@ test.describe('as an Executive', () => {
     ).toBeVisible({ timeout: 30_000 });
     await expect(leads.getByText(lead).first()).toBeVisible();
     await expectNoAxeViolations(page);
+  });
+
+  test('the company switcher works from the keyboard', async ({ page }) => {
+    await page.goto('/home');
+    await page.getByRole('button', { name: /^Showing .*\. Choose a company$/ }).focus();
+    await page.keyboard.press('ArrowDown');
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitemradio').first()).toBeFocused();
+    await expectNoAxeViolations(page, { include: '[role="menu"]' });
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(
+      page.getByRole('button', { name: /^Showing .*\. Choose a company$/ }),
+    ).toBeFocused();
   });
 });

@@ -59,3 +59,18 @@ export function ProfileTriggerButton(props: ButtonProps) {
     </Button>
   );
 }
+
+/**
+ * For a menu the top bar mounts open after a key press (`deferred-menus.tsx`): focus goes to the
+ * first item, as it does when Radix's own trigger opens the menu from the keyboard.
+ */
+export function focusFirstMenuItem(event: Event): void {
+  const content = event.currentTarget;
+  if (!(content instanceof HTMLElement)) return;
+  const first = content.querySelector<HTMLElement>(
+    '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]',
+  );
+  if (first === null) return;
+  event.preventDefault();
+  first.focus();
+}

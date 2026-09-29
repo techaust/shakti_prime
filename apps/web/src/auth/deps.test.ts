@@ -79,7 +79,7 @@ describe('hostedRuntime', () => {
   });
 
   it('is false only for a local production build that runs on this machine, never on Vercel', () => {
-    const local = { NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' };
+    const local: NodeJS.ProcessEnv = { NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' };
     for (const url of ['http://localhost:3031', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
       expect(hostedRuntime({ ...local, BETTER_AUTH_URL: url })).toBe(false);
     }

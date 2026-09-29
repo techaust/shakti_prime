@@ -29,11 +29,14 @@ function opensMenu(event: KeyboardEvent): boolean {
 /** The loaded menu once asked for; `open` fetches it (again from the cache) and shows it. */
 function useDeferredMenu<P>(load: () => Promise<ComponentType<P>>) {
   const [Menu, setMenu] = useState<ComponentType<P> | undefined>(undefined);
+  // Opened from the keyboard: the menu then starts on its first item, as Radix's own trigger does.
+  const [fromKeyboard, setFromKeyboard] = useState(false);
   const preload = () => {
     void load();
   };
-  const open = () => {
+  const open = (viaKeyboard: boolean) => {
     void load().then((component) => {
+      setFromKeyboard(viaKeyboard);
       setMenu(() => component);
     });
   };
@@ -42,14 +45,16 @@ function useDeferredMenu<P>(load: () => Promise<ComponentType<P>>) {
     'aria-expanded': false,
     onPointerEnter: preload,
     onFocus: preload,
-    onClick: open,
+    onClick: () => {
+      open(false);
+    },
     onKeyDown: (event: KeyboardEvent) => {
       if (!opensMenu(event)) return;
       event.preventDefault();
-      open();
+      open(true);
     },
   };
-  return { Menu, handlers };
+  return { Menu, fromKeyboard, handlers };
 }
 
 export function DeferredCompanySwitcher({
@@ -59,7 +64,7 @@ export function DeferredCompanySwitcher({
   companies: readonly CompanyOption[];
   active: number | undefined;
 }) {
-  const { Menu, handlers } =
+  const { Menu, fromKeyboard, handlers } =
     useDeferredMenu<Parameters<typeof CompanySwitcherType>[0]>(loadCompanySwitcher);
   const only = companies.length === 1 ? companies[0] : undefined;
   if (only !== undefined) {
@@ -70,7 +75,9 @@ export function DeferredCompanySwitcher({
       </span>
     );
   }
-  if (Menu !== undefined) return <Menu companies={companies} active={active} defaultOpen />;
+  if (Menu !== undefined) {
+    return <Menu companies={companies} active={active} defaultOpen focusFirstItem={fromKeyboard} />;
+  }
   return (
     <CompanyTriggerButton current={companies.find((c) => c.entityId === active)} {...handlers} />
   );
@@ -85,8 +92,10 @@ export function DeferredProfileMenu({
   role: string;
   theme: Theme;
 }) {
-  const { Menu, handlers } =
+  const { Menu, fromKeyboard, handlers } =
     useDeferredMenu<Parameters<typeof ProfileMenuType>[0]>(loadProfileMenu);
-  if (Menu !== undefined) return <Menu name={name} role={role} theme={theme} defaultOpen />;
+  if (Menu !== undefined) {
+    return <Menu name={name} role={role} theme={theme} defaultOpen focusFirstItem={fromKeyboard} />;
+  }
   return <ProfileTriggerButton {...handlers} />;
 }

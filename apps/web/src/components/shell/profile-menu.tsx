@@ -17,7 +17,7 @@ import { KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useTransition } from 'react';
-import { ProfileTriggerButton } from './menu-triggers';
+import { focusFirstMenuItem, ProfileTriggerButton } from './menu-triggers';
 import { signOut } from '../../actions/auth';
 import { isTheme, THEMES } from '../../screens/contract-values';
 import { useForgetThemeOnThisDevice, useThemeChoice } from '../theme';
@@ -34,12 +34,15 @@ export function ProfileMenu({
   role,
   theme,
   defaultOpen = false,
+  focusFirstItem = false,
 }: {
   name: string;
   role: string;
   theme: Theme;
   /** Open at once: the top bar mounts the menu on the press that asked for it. */
   defaultOpen?: boolean;
+  /** Start on the first item: the press was a key (`focusFirstMenuItem`). */
+  focusFirstItem?: boolean;
 }) {
   const t = useTranslations('shell');
   const themes = useTranslations('theme');
@@ -59,7 +62,11 @@ export function ProfileMenu({
       <DropdownMenuTrigger asChild>
         <ProfileTriggerButton pending={signingOut} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent
+        align="end"
+        className="w-64"
+        {...(focusFirstItem ? { onOpenAutoFocus: focusFirstMenuItem } : {})}
+      >
         <div className="flex flex-col px-2 py-1.5">
           <span className="truncate font-medium">{name}</span>
           <span className="text-text-muted truncate text-xs">{role}</span>

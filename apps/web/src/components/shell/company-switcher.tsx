@@ -14,7 +14,7 @@ import { usePathname } from 'next/navigation';
 import { useTransition } from 'react';
 import { switchEntity } from '../../actions/auth';
 import type { ErrorKey } from '../../i18n/types';
-import { CompanyTriggerButton, Dot, type CompanyOption } from './menu-triggers';
+import { CompanyTriggerButton, Dot, focusFirstMenuItem, type CompanyOption } from './menu-triggers';
 
 const ALL = 'all';
 
@@ -27,11 +27,14 @@ export function CompanySwitcher({
   companies,
   active,
   defaultOpen = false,
+  focusFirstItem = false,
 }: {
   companies: readonly CompanyOption[];
   active: number | undefined;
   /** Open at once: the top bar mounts the menu on the press that asked for it. */
   defaultOpen?: boolean;
+  /** Start on the first item: the press was a key (`focusFirstMenuItem`). */
+  focusFirstItem?: boolean;
 }) {
   const t = useTranslations('auth.home');
   const errors = useTranslations('errors');
@@ -62,7 +65,10 @@ export function CompanySwitcher({
       <DropdownMenuTrigger asChild>
         <CompanyTriggerButton current={current} pending={pending} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent
+        align="start"
+        {...(focusFirstItem ? { onOpenAutoFocus: focusFirstMenuItem } : {})}
+      >
         <DropdownMenuLabel>{t('companies')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={current === undefined ? ALL : String(current.entityId)}

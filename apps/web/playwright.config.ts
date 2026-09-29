@@ -32,6 +32,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: process.env.CI !== undefined,
   retries: process.env.CI === undefined ? 0 : 1,
+  // CI compares against the committed baselines and never writes one; a local Linux run writes
+  // a missing baseline, which is then reviewed and committed (`e2e:snap`).
+  updateSnapshots: process.env.CI === undefined ? 'missing' : 'none',
   workers: 2,
   timeout: 60_000,
   expect: {
