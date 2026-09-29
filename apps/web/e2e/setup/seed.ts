@@ -4,10 +4,19 @@
 import { newId } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import { asMigrator, closeDb, prepareDatabase, principalFor, roleId } from '@shakti/db/testing';
-import { createLead, executeCommand, memoryKeyValue, memoryMailer } from '@shakti/domain';
+import {
+  createImportJob,
+  createLead,
+  executeCommand,
+  memoryKeyValue,
+  memoryMailer,
+  parseImportFile,
+} from '@shakti/domain';
+import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
+import { fileStore } from '../../src/files/store';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -15,6 +24,9 @@ import {
   emailFor,
   PROJECTS,
   SIGNED_IN_ROLES,
+  SNAPSHOT_COMPANY,
+  SNAPSHOT_IMPORT_FILE,
+  SNAPSHOT_LEADS,
   type ProjectName,
   type SeededUsers,
 } from '../support/users';
@@ -58,8 +70,10 @@ async function ensureUser(
         await tx`insert into users (id, name, email, status)
                  values (${id}, ${name}, ${email}, 'invited')`;
       }
-      // Every run starts from the default look, so the screenshots compare like with like.
-      await tx`update users set theme = 'system', contrast = 'standard' where id = ${id}`;
+      // Every run starts from the default look and name, so the screenshots compare like with like.
+      await tx`update users set theme = 'system', contrast = 'standard', name = ${name}
+               where id = ${id}`;
+      await tx`update principals set display_name = ${name} where id = ${id}`;
       await tx`delete from user_entity_roles where user_id = ${id}`;
       for (const entityId of entityIds) {
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id)
@@ -137,13 +151,54 @@ async function ensureLead(
   });
 }
 
+/** One import job in the snapshot company, from a fixed spreadsheet, made once. */
+async function ensureSnapshotImport(executiveId: string): Promise<void> {
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from import_jobs
+                              where entity_id = ${SNAPSHOT_COMPANY.entityId}`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const store = fileStore();
+  if (store === undefined) throw new Error('no local file store for the snapshot import');
+  const csv = [
+    'Name,Mobile,Village',
+    'Sohan Lal Meghwal,98765 40021,Kekri',
+    'Laxmi Devi,98765 40022,Sarwar',
+  ].join('\n');
+  const bytes = new TextEncoder().encode(`${csv}\n`);
+  const parsed = await parseImportFile(bytes);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const key = `imports/${String(SNAPSHOT_COMPANY.entityId)}/${sha256}.${parsed.format}`;
+  await store.put(key, bytes, 'text/csv');
+  await executeCommand(
+    principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
+    { entityIds: [SNAPSHOT_COMPANY.entityId] },
+    createImportJob,
+    {
+      entityId: SNAPSHOT_COMPANY.entityId,
+      kind: 'leads',
+      file: {
+        name: SNAPSHOT_IMPORT_FILE,
+        contentType: 'text/csv',
+        size: bytes.length,
+        sha256,
+        bucket: store.bucket,
+        key,
+      },
+      format: parsed.format,
+      columns: parsed.columns,
+      rows: parsed.rows,
+    },
+  );
+}
+
 await prepareDatabase();
 
 const totpSecrets: Record<string, string> = {};
 const ids: Record<string, string> = {};
 for (const role of SIGNED_IN_ROLES) {
   const email = emailFor(role.key);
-  const id = await ensureUser(email, `E2E ${role.key}`, role.roleKey, role.entityIds);
+  const id = await ensureUser(email, role.name, role.roleKey, role.entityIds);
   await setPassword(email);
   if (role.twoFactor) totpSecrets[role.key] = await enrolAuthenticator(id, email);
   ids[role.key] = id;
@@ -197,6 +252,21 @@ await ensureLead(
   secondCompanyLead,
   '98765 40002',
 );
+
+// The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.
+for (const lead of SNAPSHOT_LEADS) {
+  await ensureLead(
+    {
+      id: ids.snapshotCaller ?? '',
+      roleKey: 'tele_caller_cc',
+      entityIds: [SNAPSHOT_COMPANY.entityId],
+    },
+    SNAPSHOT_COMPANY.entityId,
+    lead.name,
+    lead.phone,
+  );
+}
+await ensureSnapshotImport(ids.executive ?? '');
 
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {

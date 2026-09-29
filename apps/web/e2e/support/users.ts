@@ -16,14 +16,64 @@ export type ProjectName = (typeof PROJECTS)[number];
 
 /** A person who signs in once in `auth.setup.ts` and whose session every spec reuses. */
 export const SIGNED_IN_ROLES = [
-  { key: 'executive', roleKey: 'executive', entityIds: [1, 2, 3, 4], twoFactor: true },
-  { key: 'gm', roleKey: 'general_manager', entityIds: [1], twoFactor: true },
-  { key: 'accounts', roleKey: 'accounts', entityIds: [1], twoFactor: true },
-  { key: 'teleCaller', roleKey: 'tele_caller_cc', entityIds: [1], twoFactor: false },
-  { key: 'teamLead', roleKey: 'sales_team_lead', entityIds: [1, 2], twoFactor: false },
-  { key: 'storeManager', roleKey: 'store_manager', entityIds: [1], twoFactor: false },
+  {
+    key: 'executive',
+    name: 'Arvind Mehta',
+    roleKey: 'executive',
+    entityIds: [1, 2, 3, 4],
+    twoFactor: true,
+  },
+  { key: 'gm', name: 'Sanjay Rathi', roleKey: 'general_manager', entityIds: [1], twoFactor: true },
+  { key: 'accounts', name: 'Pooja Agarwal', roleKey: 'accounts', entityIds: [1], twoFactor: true },
+  {
+    key: 'teleCaller',
+    name: 'Neha Saini',
+    roleKey: 'tele_caller_cc',
+    entityIds: [1],
+    twoFactor: false,
+  },
+  {
+    key: 'teamLead',
+    name: 'Rakesh Choudhary',
+    roleKey: 'sales_team_lead',
+    entityIds: [1, 2],
+    twoFactor: false,
+  },
+  {
+    key: 'storeManager',
+    name: 'Mahesh Kumawat',
+    roleKey: 'store_manager',
+    entityIds: [1],
+    twoFactor: false,
+  },
+  // The one person in the snapshot company besides the Executive (below).
+  {
+    key: 'snapshotCaller',
+    name: 'Geeta Kumari',
+    roleKey: 'tele_caller_cc',
+    entityIds: [3],
+    twoFactor: false,
+  },
 ] as const;
 export type SignedInRole = (typeof SIGNED_IN_ROLES)[number]['key'];
+
+/**
+ * The company kept for screenshots of lists: only the seed writes there, never a journey, so the
+ * leads list and board, the team, the Activity log and the imports show the same rows every run
+ * and only times are masked. A security suite run on the same database may add rows there; CI
+ * gives the journeys a fresh one.
+ */
+export const SNAPSHOT_COMPANY = { entityId: 3, name: 'Agro Solar Hub' } as const;
+
+/** The leads the seed keeps in the snapshot company, all the snapshot caller's. */
+export const SNAPSHOT_LEADS = [
+  { name: 'Bhanwar Lal Jat', phone: '98765 40011', village: 'Kekri' },
+  { name: 'Kamla Devi', phone: '98765 40012', village: 'Sarwar' },
+  { name: 'Rajendra Singh Rathore', phone: '98765 40013', village: 'Bijainagar' },
+] as const;
+
+/** The spreadsheet the seed imports once into the snapshot company. */
+export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 
 export function emailFor(key: string): string {
   return `e2e-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}@shakti.test`;
