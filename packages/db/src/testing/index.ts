@@ -225,6 +225,9 @@ export const ENTITY_TABLES = [
   'user_entity_roles',
   'activities',
   'tasks',
+  // tags allow entity_id null for the whole group, as teams do
+  'tags',
+  'opportunity_tags',
 ] as const;
 
 /**

@@ -64,6 +64,10 @@ const ACTIONS = {
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
   'crm.task.cancel': 'taskCancel',
+  'crm.tag.create': 'tagCreate',
+  'crm.tag.archive': 'tagArchive',
+  'crm.lead.tag': 'leadTag',
+  'crm.lead.untag': 'leadUntag',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
   'tax.rate.set': 'taxRateSet',
@@ -262,6 +266,8 @@ const FIELD_KINDS = [
   ['title', 'text'],
   ['dueAt', 'time'],
   ['doneAt', 'time'],
+  // Tags
+  ['archivedAt', 'time'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],

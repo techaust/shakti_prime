@@ -62,6 +62,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   user_entity_roles: 'x.id::text',
   activities: 'x.id::text',
   tasks: 'x.id::text',
+  tags: 'x.id::text',
+  opportunity_tags: "x.opportunity_id::text || '/' || x.tag_id::text",
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -120,6 +122,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
       await tx`delete from tasks where id::text like ${like}`;
+      await tx`delete from opportunity_tags where opportunity_id::text like ${like}`;
+      await tx`delete from tags where id::text like ${like}`;
       await tx`delete from consents where id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from customer_sites where id::text like ${like}`;
@@ -152,6 +156,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupPipeline = id(0x0004);
   const groupStage = id(0x0005);
   const groupPriceList = id(0x0006);
+  const groupTag = id(0x0008);
   // The customer shared by companies 1 and 2 (ADR 0008).
   const shared = {
     account: id(0x0501),
@@ -195,12 +200,15 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     user_entity_roles: [],
     activities: [],
     tasks: [],
+    tags: [],
+    opportunity_tags: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
+  rows.tags.push({ key: groupTag, entities: null });
 
   const pipeline = PIPELINE_SEED[0];
   if (!pipeline) throw new Error('pipeline seed missing');
@@ -217,6 +225,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         (${ownerId}, 'entity matrix owner', 'entity-matrix-owner@shakti.test'),
         (${otherUserId}, 'entity matrix other user', 'entity-matrix-other@shakti.test')`;
       await tx`insert into teams (id, entity_id, name) values (${groupTeam}, null, 'matrix group team')`;
+      await tx`insert into tags (id, entity_id, name, created_by) values (${groupTag}, null, 'matrix group tag', ${ownerId})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
       await tx`insert into pipelines (id, entity_id, key, name, segment)
@@ -248,6 +257,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const priceList = per(e, 0x10);
         const ownerRole = per(e, 0x11);
         const task = per(e, 0x13);
+        const tag = per(e, 0x14);
         const otherRole = per(e, 0x12);
         const audit = newId();
         const customerRow = newId();
@@ -279,6 +289,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           (${leadRow}, ${e}, ${opportunity}, ${account}, 'lead_created', ${ownerId})`;
         await tx`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, due_at, created_by)
           values (${task}, ${e}, ${opportunity}, ${account}, ${ownerId}, ${team}, 'callback', now(), ${ownerId})`;
+        await tx`insert into tags (id, entity_id, name, created_by)
+          values (${tag}, ${e}, ${`matrix tag ${e.toString()}`}, ${ownerId})`;
+        await tx`insert into opportunity_tags (opportunity_id, tag_id, entity_id, created_by)
+          values (${opportunity}, ${tag}, ${e}, ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
@@ -318,6 +332,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.pipeline_stages.push({ key: stageE, entities: only });
         rows.price_lists.push({ key: priceList, entities: only });
         rows.tasks.push({ key: task, entities: only });
+        rows.tags.push({ key: tag, entities: only });
+        rows.opportunity_tags.push({ key: `${opportunity}/${tag}`, entities: only });
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

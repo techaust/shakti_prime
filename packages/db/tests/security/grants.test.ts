@@ -72,6 +72,9 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     activities: { i: true, u: false },
     // A task changes only its due time and state after the insert.
     tasks: { i: true, u: false },
+    // A tag is only archived; a tag on a lead is put on or taken off (DATABASE §6.2).
+    tags: { i: true, u: false },
+    opportunity_tags: { i: true, u: false, d: true },
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },

@@ -161,7 +161,9 @@
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
     "task_missing": "We couldn't find this task. It may be for a colleague or in another company.",
     "task_due_in_past": "Choose a time from now onwards for this task.",
-    "task_transition_not_allowed": "This task can't do that in its current status. Refresh the page to see where it stands."
+    "task_transition_not_allowed": "This task can't do that in its current status. Refresh the page to see where it stands.",
+    "tag_name_taken": "There is already a tag with this name. Use that tag or choose another name.",
+    "tag_missing": "This tag is no longer available for this lead. Refresh the page and choose another."
   },
   "auth": {
     "signIn": {
@@ -1045,7 +1047,11 @@
       "taskCreate": "Task added",
       "taskComplete": "Task done",
       "taskReschedule": "Task moved to another time",
-      "taskCancel": "Task cancelled"
+      "taskCancel": "Task cancelled",
+      "tagCreate": "Tag made",
+      "tagArchive": "Tag taken off the list",
+      "leadTag": "Tag put on a lead",
+      "leadUntag": "Tag taken off a lead"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1157,7 +1163,8 @@
       "taskKind": "Task",
       "title": "Note on the task",
       "dueAt": "Due",
-      "doneAt": "Done at"
+      "doneAt": "Done at",
+      "archivedAt": "Taken off the list at"
     },
     "values": {
       "percent": "{value}%",
