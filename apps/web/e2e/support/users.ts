@@ -67,9 +67,9 @@ export const SNAPSHOT_COMPANY = { entityId: 3, name: 'Agro Solar Hub' } as const
 
 /** The leads the seed keeps in the snapshot company, all the snapshot caller's. */
 export const SNAPSHOT_LEADS = [
-  { name: 'Bhanwar Lal Jat', phone: '98765 40011', village: 'Kekri' },
-  { name: 'Kamla Devi', phone: '98765 40012', village: 'Sarwar' },
-  { name: 'Rajendra Singh Rathore', phone: '98765 40013', village: 'Bijainagar' },
+  { name: 'Bhanwar Lal Jat', phone: '98765 40011' },
+  { name: 'Kamla Devi', phone: '98765 40012' },
+  { name: 'Rajendra Singh Rathore', phone: '98765 40013' },
 ] as const;
 
 /** The spreadsheet the seed imports once into the snapshot company. */
