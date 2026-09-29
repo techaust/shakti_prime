@@ -4,7 +4,9 @@ import { hostedRuntime, productionConfigProblems } from './deps';
 // Values shaped like real ones; none of them is a real credential.
 const GOOD: NodeJS.ProcessEnv = {
   NODE_ENV: 'production',
-  VERCEL_ENV: 'preview',
+  // Each environment's own Vercel project serves `main` as Vercel's production target.
+  VERCEL_ENV: 'production',
+  BOS_ENVIRONMENT: 'staging',
   BETTER_AUTH_SECRET: 'a private value of forty characters okay',
   BETTER_AUTH_URL: 'https://bos.example.in',
   TURNSTILE_SITE_KEY: '0x4AAAAAAAsitekeyvalue',
@@ -25,7 +27,7 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
 
   it('names every missing variable', () => {
     expect(productionConfigProblems({ NODE_ENV: 'production' })[0]).toContain(
-      'BETTER_AUTH_SECRET, BETTER_AUTH_URL',
+      'BOS_ENVIRONMENT, BETTER_AUTH_SECRET, BETTER_AUTH_URL',
     );
   });
 
@@ -47,12 +49,21 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
       { TURNSTILE_SECRET_KEY: '2x0000000000000000000000000000000AA' },
     ],
     ['a mailer that prints whole messages', { MAILER: 'console' }],
+    ['an unknown environment name', { BOS_ENVIRONMENT: 'prod' }],
   ])('refuses %s', (_label, change) => {
     expect(productionConfigProblems({ ...GOOD, ...change })).toHaveLength(1);
   });
 
+  it('accepts the log mailer on dev and staging, on any Vercel target', () => {
+    for (const BOS_ENVIRONMENT of ['dev', 'staging']) {
+      for (const VERCEL_ENV of ['production', 'preview']) {
+        expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT, VERCEL_ENV })).toEqual([]);
+      }
+    }
+  });
+
   it('refuses production until a mail provider exists', () => {
-    expect(productionConfigProblems({ ...GOOD, VERCEL_ENV: 'production' })).toEqual([
+    expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production' })).toEqual([
       'MAILER=log is not a mail provider; production needs one',
     ]);
   });
