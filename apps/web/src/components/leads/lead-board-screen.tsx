@@ -21,6 +21,7 @@ import {
   StatusBadge,
   toast,
   useFocusTargets,
+  useScrolls,
   type BoardLoadMore,
   type FocusTargets,
   type StatusTone,
@@ -110,6 +111,7 @@ export function LeadBoardScreen({
   const actionButtons = useFocusTargets<string>();
   const columnSections = useFocusTargets<string>();
   const boardRegion = useFocusTargets<'board'>();
+  const [boardBox, boardScrolls] = useScrolls<HTMLDivElement>();
   const returnFocusTo = (lead: BoardLeadDto) => () => [
     actionButtons.get(lead.id),
     columnSections.get(lead.stageId).map(columnHeading),
@@ -281,11 +283,15 @@ export function LeadBoardScreen({
       </p>
 
       <div
-        ref={boardRegion.ref('board')}
-        // A region that scrolls sideways takes focus, so the keyboard can scroll it (WCAG 2.1.1).
+        ref={(el) => {
+          boardRegion.ref('board')(el);
+          boardBox(el);
+        }}
+        // A board that scrolls sideways takes focus, so the keyboard can scroll it (WCAG 2.1.1);
+        // on a phone, where the stages stack, it is focused only by the screen itself.
         role="region"
         aria-label={t('stages')}
-        tabIndex={0}
+        tabIndex={boardScrolls ? 0 : -1}
         className="focus-visible:outline-focus flex items-start gap-3 overflow-x-auto rounded-md pb-2 focus-visible:outline-2 focus-visible:outline-offset-2 max-md:block max-md:overflow-visible"
         aria-busy={move.pending}
       >

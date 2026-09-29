@@ -88,5 +88,6 @@ export {
 } from './board';
 export { Toaster, toast, TOAST_DURATION_MS } from './toast';
 export { useIsPhone } from './use-is-phone';
+export { useScrolls } from './scroll-region';
 export { CommandPalette, type PaletteGroup, type PaletteItem } from './command-palette';
 export { isPaletteShortcut, usePaletteShortcut } from './palette-shortcut';

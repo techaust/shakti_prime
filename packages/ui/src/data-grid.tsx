@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Columns3 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from './button';
 import { cn } from './cn';
+import { useScrolls } from './scroll-region';
 import {
   canHideColumn,
   columnLabel,
@@ -267,6 +268,7 @@ export function DataGrid<T>({
   toolbar,
   className,
 }: DataGridProps<T>) {
+  const [tableBox, tableScrolls] = useScrolls<HTMLDivElement>();
   const showSkeleton = loading && rows.length === 0;
   if (!showSkeleton && rows.length === 0) return <>{empty}</>;
   const columns = visibleColumns(allColumns, columnChooser?.hidden ?? []);
@@ -339,10 +341,11 @@ export function DataGrid<T>({
       ) : null}
 
       <div
+        ref={tableBox}
         // A table that scrolls takes focus, so the keyboard can scroll it (WCAG 2.1.1).
         role="region"
         aria-label={caption}
-        tabIndex={0}
+        tabIndex={tableScrolls ? 0 : undefined}
         className="border-border bg-surface focus-visible:outline-focus hidden max-h-[calc(100dvh-12rem)] overflow-auto rounded-lg border focus-visible:outline-2 focus-visible:outline-offset-2 md:block"
       >
         <table className="w-full border-collapse" aria-busy={loading || undefined}>
