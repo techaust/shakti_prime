@@ -18,6 +18,14 @@
       "maxKb": 275,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the team grid, its row menu, saved views and the user dialogs (about 15 kB). Measured 257.9 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog, the user dialogs and the sessions sheet); loading them on first opening would save about 5 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
+    "/catalogue": {
+      "maxKb": 277,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 70 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the items grid, its search and filters and saved views (about 15 kB). Measured 263.3 kB on 29-09-2026, plus 5 %. The item sheet, the item and curve forms and the stop-selling dialog load when first opened, and the kits have a page of their own, so going lower means a smaller shell or grid."
+    },
+    "/catalogue/kits": {
+      "maxKb": 273,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 70 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the kits grid, its search and saved views (about 12 kB). Measured 259.9 kB on 29-09-2026, plus 5 %. The kit sheet and the kit form load when first opened, so going lower means a smaller shell or grid."
+    },
     "/design": {
       "maxKb": 275,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the design board, which shows every component on one page (about 18 kB). Measured 261.4 kB on 28-09-2026, plus 5 %. The search palette preview loads when first opened; the rest is the board, which shows every component on purpose."
@@ -56,7 +64,7 @@
     },
     "/price-master": {
       "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the price grid, saved views and the price dialog (about 12 kB). Measured 255.5 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog and the price dialog); loading them on first opening would save about 3 to 4 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 70 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the item and kit price grids, saved views and the price dialog (about 17 kB). Measured 264.9 kB on 29-09-2026, within the 270 kB set before the kit prices and list states came. The new list, approve and history views load when first opened; the price dialog and the saved-view dialog still load with the page, so going lower means a smaller shell or grid."
     },
     "/set-password": {
       "maxKb": 195,
@@ -69,6 +77,10 @@
     "/settings/profile": {
       "maxKb": 260,
       "reason": "Staff screen: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the theme and contrast choices (about 1 kB). Measured 244.0 kB on 28-09-2026, plus 5 %. The search palette and the phone menu load when first opened."
+    },
+    "/settings/tax": {
+      "maxKb": 266,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 70 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the two tables of rates and splits (about 5 kB). Measured 252.9 kB on 29-09-2026, plus 5 %. Both forms load when first opened, so going lower means a smaller shell or grid."
     },
     "/sign-in": {
       "maxKb": 195,
