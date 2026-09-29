@@ -164,7 +164,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 10. Quality checks
 - Contrast check over both themes in CI.
-- Playwright journeys for every screen (`apps/web/e2e`) with axe over WCAG 2.1 A and AA and screenshots in desktop light, desktop dark and a 400 px phone, made and compared only in the Linux Playwright image (`pnpm --filter web e2e:snap`, and CI), with times, the bot-check widget and changing rows masked; the caller workspace, quote builder, scheduling board and print templates join as they are built.
+- Playwright journeys for every screen (`apps/web/e2e`) with axe over WCAG 2.1 A and AA and screenshots in desktop light, desktop dark and a 400 px phone, made and compared only in the Linux Playwright image (`pnpm --filter web e2e:snap`, and CI), with only times, the bot-check widget and generated codes masked (the lists are shown for a snapshot company only the seed writes, so their rows are real and the same every run); the caller workspace, quote builder, scheduling board and print templates join as they are built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
 - A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
