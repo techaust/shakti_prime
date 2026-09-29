@@ -26,3 +26,8 @@ export function localFromIso(iso: string): string {
   const shifted = new Date(Date.parse(iso) + (5 * 60 + 30) * 60_000);
   return shifted.toISOString().slice(0, 16);
 }
+
+/** Whether `value` is one of `list`, narrowing it for a typed catalogue key. */
+export function isOneOf<T extends string>(list: readonly T[], value: string): value is T {
+  return (list as readonly string[]).includes(value);
+}

@@ -98,12 +98,7 @@ export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { searchLeads } from './queries/crm/search-leads';
-export {
-  listCustomers,
-  listTimeline,
-  loadAccount360,
-  listMyTasks,
-} from './queries/crm/customers';
+export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';

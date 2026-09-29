@@ -27,9 +27,8 @@ import {
   OPPORTUNITY_STATES,
   TASK_KINDS,
 } from '../../screens/contract-values';
-import { customerHref } from '../../screens/customers';
+import { customerHref, isOneOf as oneOf } from '../../screens/customers';
 import { formatDateTime, formatPhone } from '../../screens/format';
-import { oneOf } from '../../screens/audit';
 import { Page } from '../shell/page';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';

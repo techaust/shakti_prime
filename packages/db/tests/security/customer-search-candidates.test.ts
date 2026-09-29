@@ -81,7 +81,7 @@ beforeAll(async () => {
 
 describe('app.customer_search_ids(): who may call it', () => {
   it('only the application role may call it, a definer with an empty search path', async () => {
-    const [row] = await withoutContext<Record<string, unknown>>(sql`
+    const [row] = await withoutContext(sql`
       select has_function_privilege('app_user', ${SIGNATURE}, 'execute') as app,
              has_function_privilege('auth_service', ${SIGNATURE}, 'execute') as auth,
              has_function_privilege('outbox_publisher', ${SIGNATURE}, 'execute') as outbox,
@@ -114,7 +114,7 @@ describe('app.customer_search_ids(): only customers the caller may read', () => 
     expect(await found(x, `${WORD} Kesar`)).toEqual([k.account]);
     expect(await found(x, `${WORD}pura`)).toEqual([k.account]);
     const digits = k.phone.slice(-6);
-    expect(await found(x, digits, [...digits].reverse().join(''))).toEqual([k.account]);
+    expect(await found(x, digits, digits.split('').reverse().join(''))).toEqual([k.account]);
   });
 
   it('finds a customer through a lead of a person, never of an agent (0057)', async () => {

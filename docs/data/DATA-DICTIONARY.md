@@ -797,7 +797,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### contact_phones
 
-**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number is added, made the main one or taken off through `crm.contact.update`, which keeps at least one number on the contact; the delete follows the contact's write rule (`app.contact_in_scope()`)
+**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number goes on a contact, becomes its main one or comes off through `crm.contact.update`, which keeps at least one number on the contact; the delete follows the contact's write rule (`app.contact_in_scope()`)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

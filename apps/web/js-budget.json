@@ -18,6 +18,14 @@
       "maxKb": 275,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the team grid, its row menu, saved views and the user dialogs (about 15 kB). Measured 257.9 kB on 28-09-2026, plus 5 %. It still loads its own dialogs with the page (the saved-view dialog, the user dialogs and the sessions sheet); loading them on first opening would save about 5 kB, not enough for 250 kB, so going lower means a smaller shell or grid."
     },
+    "/customers": {
+      "maxKb": 270,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the customers grid with its search and saved views (about 14 kB), as the leads list does. Measured 257.1 kB on 30-09-2026, plus 5 %. Going lower means a smaller shell or grid."
+    },
+    "/customers/[accountId]": {
+      "maxKb": 264,
+      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB), and Account 360's sections, tag chips and task buttons (about 8 kB); its edit, task, note, consent and tag dialogs load when one is first opened. Measured 251.5 kB on 30-09-2026, plus 5 %. Going lower means a smaller shell."
+    },
     "/design": {
       "maxKb": 275,
       "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the design board, which shows every component on one page (about 18 kB). Measured 261.4 kB on 28-09-2026, plus 5 %. The search palette preview loads when first opened; the rest is the board, which shows every component on purpose."

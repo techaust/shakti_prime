@@ -103,18 +103,13 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
               .select({ one: sql`1` })
               .from(ph)
               .innerJoin(ac, eq(ac.contactId, ph.contactId))
-              .where(
-                and(eq(ac.accountId, a.id), sql`${ph.e164Reversed} ^@ ${reversed(digits)}`),
-              ),
+              .where(and(eq(ac.accountId, a.id), sql`${ph.e164Reversed} ^@ ${reversed(digits)}`)),
           );
     // The candidates come through the indexes from app.customer_search_ids(), which keeps
     // to the customers the caller may read; this query then tests each against every condition
     // above under the policies, so the search finds exactly what it did without the lookup.
     const candidates = sql`${a.id} in (select candidate from app.customer_search_ids(${input.q}::text, ${digits === undefined ? null : reversed(digits)}::text, ${SEARCH_CANDIDATES}::integer) as candidate)`;
-    found = and(
-      candidates,
-      or(ilike(a.name, pattern), byContact, byVillage, byPhone),
-    );
+    found = and(candidates, or(ilike(a.name, pattern), byContact, byVillage, byPhone));
   }
 
   const rows = await ctx.tx

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { companyParam, customerHref, dueFromLocal, localFromIso } from './customers';
+import { companyParam, customerHref, dueFromLocal, isOneOf, localFromIso } from './customers';
 
 describe('customer screen helpers', () => {
   it('links Account 360 in the lead’s company', () => {
@@ -23,5 +23,10 @@ describe('customer screen helpers', () => {
     expect(dueFromLocal('')).toBeUndefined();
     expect(dueFromLocal('2026-10-01')).toBeUndefined();
     expect(localFromIso('2026-10-01T04:00:00.000Z')).toBe('2026-10-01T09:30');
+  });
+
+  it('tells a known code from any other text', () => {
+    expect(isOneOf(['open', 'done'] as const, 'done')).toBe(true);
+    expect(isOneOf(['open', 'done'] as const, 'DONE')).toBe(false);
   });
 });
