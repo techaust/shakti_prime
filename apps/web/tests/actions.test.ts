@@ -8,7 +8,10 @@ import {
   createTestPrincipal,
   createTestTeam,
   createTestUser,
+  grantsForRole,
   principalFor,
+  roleId,
+  runSeeds,
 } from '@shakti/db/testing';
 import { createSignInGuard } from '@shakti/domain';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -86,15 +89,18 @@ const { saveContrast } = await import('../src/actions/profile');
 const { listPriceLists, listPrices, setPrice } = await import('../src/actions/pricing');
 const {
   clearSignInLock,
+  getRoleGrants,
   inviteUser,
   listAuditLog,
   listAuditPeople,
+  listRoles,
   listUserSessions,
   listUsers,
   reactivateUser,
   replayDeadLetter,
   resetTwoFactor,
   revokeSession,
+  setRolePermissions,
   setUserRoles,
   suspendUser,
 } = await import('../src/actions/admin');
@@ -903,5 +909,86 @@ describe('screen guards match the menu', () => {
 
   it('sends a caller with no session to sign in', async () => {
     await expect(screenAccess(navRequires('home'))).rejects.toThrow('redirect /sign-in');
+  });
+});
+
+describe('Admin › Roles actions (docs/design/phase1.md §6.2)', () => {
+  const addSession = async (userId: string): Promise<string> => {
+    const id = newId();
+    await asMigrator(
+      (m) => m`insert into sessions (id, user_id, token, expires_at)
+        values (${id}, ${userId}, ${`tok-${id}`}, now() + interval '12 hours')`,
+    );
+    return id;
+  };
+  const revokedReason = async (id: string): Promise<string | null> => {
+    const [row] = await asMigrator(
+      (m) =>
+        m<
+          { reason: string | null }[]
+        >`select revoked_reason as reason from sessions where id = ${id}`,
+    );
+    return row?.reason ?? null;
+  };
+  const seeded = grantsForRole('field_engineer').map((g) => ({
+    permission: g.key,
+    scope: g.scope,
+  }));
+
+  it('are refused for a General Manager and name the screens only to an Executive', async () => {
+    request.principal = await createTestPrincipal('general_manager');
+    await expect(listRoles()).resolves.toEqual({ ok: false, error: 'forbidden' });
+    await expect(getRoleGrants({ roleKey: 'accounts' })).resolves.toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    await expect(
+      setRolePermissions({ roleKey: 'field_engineer', grants: seeded }),
+    ).resolves.toEqual({ ok: false, error: 'forbidden' });
+    request.session = { principal: request.principal, access: { entities: [] } };
+    await expect(screenAccess(navRequires('admin-roles'))).rejects.toThrow('not found');
+  });
+
+  it("list the roles and one role's permissions for an Executive", async () => {
+    request.principal = await createTestPrincipal('executive');
+    const roles = ok(await listRoles());
+    expect(roles.roles.map((r) => r.key)).toContain('field_engineer');
+    const page = ok(await getRoleGrants({ roleKey: 'field_engineer' }));
+    expect(page.permissions.filter((p) => p.scope !== null)).toHaveLength(seeded.length);
+  });
+
+  it("save a role, keep the caller signed in on this device and drop every holder's cached access", async () => {
+    const callerUser = await createTestUser([
+      { entityId: 1, roleKey: 'executive' },
+      { entityId: 4, roleKey: 'field_engineer' },
+    ]);
+    const holder = await createTestUser([{ entityId: 2, roleKey: 'field_engineer' }]);
+    const caller = principalFor('executive', [1, 2, 3, 4], { id: callerUser.id });
+    const kept = await addSession(callerUser.id);
+    const other = await addSession(callerUser.id);
+    const holderSession = await addSession(holder.id);
+    request.principal = caller;
+    request.session = { session: { sessionId: kept }, principal: caller, access: { entities: [] } };
+    try {
+      const saved = ok(
+        await setRolePermissions({
+          roleKey: 'field_engineer',
+          grants: seeded.filter((g) => g.permission !== 'documents.write'),
+          // the browser cannot choose which sign-in survives: the action names the caller's own
+          keepSessionId: holderSession,
+        }),
+      );
+      expect(saved).toMatchObject({ roleKey: 'field_engineer', grantCount: seeded.length - 1 });
+      expect(Object.keys(saved)).not.toContain('holderUserIds');
+      expect(request.forgotten).toEqual(expect.arrayContaining([callerUser.id, holder.id]));
+      expect(await revokedReason(kept)).toBeNull();
+      expect(await revokedReason(other)).toBe('role_changed');
+      expect(await revokedReason(holderSession)).toBe('role_changed');
+    } finally {
+      await asMigrator(
+        (m) => m`update roles set customised_at = null where id = ${roleId('field_engineer')}`,
+      );
+      await runSeeds();
+    }
   });
 });
