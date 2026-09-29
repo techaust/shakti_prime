@@ -61,6 +61,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     store_manager: 'own',
     project_manager: 'entity',
   },
+  'crm.config.write': { ...EXEC },
   'calls.dial': {
     ...EXEC,
     general_manager: 'entity',

@@ -8,6 +8,7 @@ export const PERMISSION_KEYS = [
   'crm.lead.merge',
   'crm.account.read',
   'crm.account.write',
+  'crm.config.write',
   'calls.dial',
   'calls.recording.listen',
   'sales.quote.create',
@@ -110,6 +111,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   // letter re-sends a message outside the agent's own work.
   'finance.expense.verify',
   'integrations.dlq.replay',
+  // Pipelines, stages, dispositions and score rules shape every caller's work (design §4).
+  'crm.config.write',
 ] as const satisfies readonly PermissionKey[];
 
 export function permissionModule(key: PermissionKey): string {
