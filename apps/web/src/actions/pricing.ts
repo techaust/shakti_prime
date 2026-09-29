@@ -139,11 +139,8 @@ export async function readCoversAllCompanies(): Promise<ActionResult<boolean>> {
   return toResult('readCoversAllCompanies', async () => {
     const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(
-      principal,
-      { requestId },
-      (context) => requestCoversAllCompanies(context),
-      { name: 'readCoversAllCompanies' },
-    );
+    return executeQuery(principal, { requestId }, (context) => requestCoversAllCompanies(context), {
+      name: 'readCoversAllCompanies',
+    });
   });
 }

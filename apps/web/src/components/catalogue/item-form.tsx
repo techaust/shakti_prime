@@ -155,7 +155,12 @@ export function ItemFormDialog({
               defaultValue={item?.sku ?? ''}
             />
           </Field>
-          <Field id="item-name" label={t('name')} helper={t('nameHelper')} error={fieldError('name')}>
+          <Field
+            id="item-name"
+            label={t('name')}
+            helper={t('nameHelper')}
+            error={fieldError('name')}
+          >
             <Input
               name="name"
               required

@@ -149,7 +149,11 @@ export const ITEM_SORT_COLUMNS = [
   'hsn',
   'updated',
 ] as const satisfies readonly ItemSort['column'][];
-export const KIT_SORT_COLUMNS = ['name', 'sku', 'updated'] as const satisfies readonly KitSort['column'][];
+export const KIT_SORT_COLUMNS = [
+  'name',
+  'sku',
+  'updated',
+] as const satisfies readonly KitSort['column'][];
 export const KIT_PRICE_SORT_COLUMNS = [
   'kit',
   'code',

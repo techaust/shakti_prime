@@ -1779,7 +1779,8 @@
       "source": "Where the rate comes from",
       "sourceHelper": "Optional. The notification or circular, up to 120 characters.",
       "submit": "Save rate",
-      "done": "The GST rate is saved."
+      "done": "The GST rate is saved.",
+      "hsnWrong": "Enter an HSN code of 4, 6 or 8 digits."
     },
     "ruleDialog": {
       "title": "Add a composite supply split",

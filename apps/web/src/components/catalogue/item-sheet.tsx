@@ -53,11 +53,9 @@ export function ItemSheet({
   const { load, pending, failure } = useQuery<ItemDetailDto>();
   const [item, setItem] = useState<ItemDetailDto | undefined>();
   const [dialog, setDialog] = useState<'edit' | 'curve' | 'archive' | undefined>();
-  const buttons = {
-    edit: useRef<HTMLButtonElement>(null),
-    curve: useRef<HTMLButtonElement>(null),
-    archive: useRef<HTMLButtonElement>(null),
-  };
+  const editButton = useRef<HTMLButtonElement>(null);
+  const curveButton = useRef<HTMLButtonElement>(null);
+  const archiveButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     load(
@@ -118,7 +116,7 @@ export function ItemSheet({
             {canWrite && item.isActive ? (
               <div className="flex flex-wrap gap-2">
                 <Button
-                  ref={buttons.edit}
+                  ref={editButton}
                   variant="secondary"
                   size="sm"
                   onClick={() => {
@@ -129,7 +127,7 @@ export function ItemSheet({
                 </Button>
                 {item.category === 'pump' ? (
                   <Button
-                    ref={buttons.curve}
+                    ref={curveButton}
                     variant="secondary"
                     size="sm"
                     onClick={() => {
@@ -140,7 +138,7 @@ export function ItemSheet({
                   </Button>
                 ) : null}
                 <Button
-                  ref={buttons.archive}
+                  ref={archiveButton}
                   variant="danger"
                   size="sm"
                   onClick={() => {
@@ -166,7 +164,10 @@ export function ItemSheet({
                 />
                 {item.category === 'solar_module' ? (
                   <>
-                    <Detail label={t('item.dcr')} value={item.isDcr ? common('yes') : common('no')} />
+                    <Detail
+                      label={t('item.dcr')}
+                      value={item.isDcr ? common('yes') : common('no')}
+                    />
                     <Detail label={t('item.almm')} value={item.almmRef ?? common('notSet')} />
                   </>
                 ) : null}
@@ -201,7 +202,7 @@ export function ItemSheet({
             {dialog === 'edit' ? (
               <ItemFormDialog
                 item={item}
-                returnFocusTo={() => [buttons.edit.current]}
+                returnFocusTo={() => [editButton.current]}
                 onClose={() => {
                   setDialog(undefined);
                 }}
@@ -214,7 +215,7 @@ export function ItemSheet({
             {dialog === 'curve' ? (
               <CurveFormDialog
                 item={item}
-                returnFocusTo={() => [buttons.curve.current]}
+                returnFocusTo={() => [curveButton.current]}
                 onClose={() => {
                   setDialog(undefined);
                 }}
@@ -227,7 +228,7 @@ export function ItemSheet({
             {dialog === 'archive' ? (
               <ArchiveItemDialog
                 item={item}
-                returnFocusTo={() => [buttons.archive.current]}
+                returnFocusTo={() => [archiveButton.current]}
                 onClose={() => {
                   setDialog(undefined);
                 }}
@@ -288,7 +289,13 @@ function PumpCurve({ curve }: { curve: PumpCurvePointDto[] }) {
               strokeLinejoin="round"
             />
             {path.dots.map((d) => (
-              <circle key={`${String(d.x)}-${String(d.y)}`} cx={d.x} cy={d.y} r="3" className="fill-chart-1" />
+              <circle
+                key={`${String(d.x)}-${String(d.y)}`}
+                cx={d.x}
+                cy={d.y}
+                r="3"
+                className="fill-chart-1"
+              />
             ))}
           </svg>
           <table className="w-full text-left">

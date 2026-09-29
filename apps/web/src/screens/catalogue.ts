@@ -61,7 +61,8 @@ export function specNumber(
   field: Extract<SpecField, { kind: 'number' }>,
 ): number | undefined {
   const plain = typed.trim().replaceAll(',', '');
-  const pattern = field.decimals === 0 ? /^\d+$/ : new RegExp(`^\\d+(\\.\\d{1,${String(field.decimals)}})?$`);
+  const pattern =
+    field.decimals === 0 ? /^\d+$/ : new RegExp(`^\\d+(\\.\\d{1,${String(field.decimals)}})?$`);
   if (!pattern.test(plain)) return undefined;
   const value = Number(plain);
   return value >= field.min && value <= field.max ? value : undefined;

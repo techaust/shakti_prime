@@ -7,9 +7,9 @@ import { asc, desc, eq, sql } from 'drizzle-orm';
  * to a shared price list, a GST rate or a composite split needs (AUDIT H2, 0048).
  */
 export async function requestCoversAllCompanies(ctx: Pick<RequestContext, 'tx'>): Promise<boolean> {
-  const rows = (await ctx.tx.execute(
-    sql`select app.request_covers_group() as ok`,
-  )) as unknown as { ok: boolean }[];
+  const rows = (await ctx.tx.execute(sql`select app.request_covers_group() as ok`)) as unknown as {
+    ok: boolean;
+  }[];
   return rows[0]?.ok === true;
 }
 
