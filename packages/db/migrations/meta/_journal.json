@@ -477,6 +477,20 @@
       "when": 1790697208253,
       "tag": "0067_customer_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1790698123710,
+      "tag": "0068_consent_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1790698135492,
+      "tag": "0069_consent_evidence_fixed",
+      "breakpoints": true
     }
   ]
 }

@@ -72,6 +72,8 @@ const ACTIONS = {
   'crm.contact.update': 'contactUpdate',
   'crm.site.upsert': 'siteUpsert',
   'crm.note.add': 'noteAdd',
+  'crm.consent.record': 'consentRecord',
+  'crm.consent.withdraw': 'consentWithdraw',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
   'tax.rate.set': 'taxRateSet',
@@ -209,6 +211,9 @@ const CODE_GROUPS = [
   'accountType',
   'language',
   'siteType',
+  'consentChannel',
+  'consentPurpose',
+  'consentSource',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -288,6 +293,14 @@ const FIELD_KINDS = [
   ['district', 'text'],
   ['lat', 'text'],
   ['lng', 'text'],
+  // Consents
+  ['channel', 'consentChannel'],
+  ['purpose', 'consentPurpose'],
+  ['source', 'consentSource'],
+  ['textVersion', 'text'],
+  ['givenAt', 'time'],
+  ['withdrawnAt', 'time'],
+  ['evidence', 'yesNo'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],

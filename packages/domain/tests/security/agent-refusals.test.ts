@@ -164,6 +164,16 @@ const CUSTOMER = { entityId: 1, accountId: newId() };
 const CUSTOMER_INPUTS: Record<string, unknown> = {
   'crm.account.update': { ...CUSTOMER, name: 'Refused customer name' },
   'crm.contact.update': { ...CUSTOMER, contactId: newId(), name: 'Refused contact name' },
+  'crm.consent.record': {
+    ...CUSTOMER,
+    contactId: newId(),
+    channel: 'call',
+    purpose: 'service',
+    source: 'verbal',
+    textVersion: 'v1',
+    givenAt: '2026-01-01T00:00:00Z',
+  },
+  'crm.consent.withdraw': { ...CUSTOMER, consentId: newId() },
   'crm.lead.create': {
     entityId: 1,
     pipelineKey: 'farmer_pumps',

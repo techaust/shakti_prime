@@ -11,6 +11,7 @@ import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
+import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
 import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
@@ -53,6 +54,8 @@ export const commands = {
   [updateContact.name]: updateContact,
   [upsertSite.name]: upsertSite,
   [addNote.name]: addNote,
+  [recordConsent.name]: recordConsent,
+  [withdrawConsent.name]: withdrawConsent,
   [setPrice.name]: setPrice,
   [setTaxRate.name]: setTaxRate,
   [setCompositeRule.name]: setCompositeRule,

@@ -27,6 +27,9 @@ import {
 } from '../../screens/audit';
 import {
   ACCOUNT_TYPES,
+  CONSENT_CHANNELS,
+  CONSENT_PURPOSES,
+  CONSENT_SOURCES,
   CONTRASTS,
   CUSTOMER_LANGUAGES,
   IMPLEMENTED_IMPORT_KINDS,
@@ -345,6 +348,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(CUSTOMER_LANGUAGES, value) ? leads(`language.${value}`) : wordsOf(value);
       case 'siteType':
         return oneOf(SITE_TYPES, value) ? leads(`siteType.${value}`) : wordsOf(value);
+      case 'consentChannel':
+        return oneOf(CONSENT_CHANNELS, value)
+          ? customers(`consent.channel.${value}`)
+          : wordsOf(value);
+      case 'consentPurpose':
+        return oneOf(CONSENT_PURPOSES, value)
+          ? customers(`consent.purpose.${value}`)
+          : wordsOf(value);
+      case 'consentSource':
+        return oneOf(CONSENT_SOURCES, value)
+          ? customers(`consent.source.${value}`)
+          : wordsOf(value);
       case 'taskKind':
         return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':

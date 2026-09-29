@@ -168,7 +168,11 @@
     "phone_missing": "This number is no longer on this contact. Refresh the page and try again.",
     "phone_last_one": "A contact needs at least one phone number. Add another number before you remove this one.",
     "phone_already_on_contact": "This contact already has this number.",
-    "site_missing": "We couldn't find this site for this customer. Refresh the page and try again."
+    "site_missing": "We couldn't find this site for this customer. Refresh the page and try again.",
+    "consent_missing": "We couldn't find this consent for this customer. Refresh the page and try again.",
+    "consent_already_withdrawn": "This consent is already withdrawn. Record a new consent if the customer agrees again.",
+    "consent_given_in_future": "The date the consent was given can't be later than today.",
+    "consent_evidence_missing": "We couldn't find the proof file. Upload it again, then record the consent."
   },
   "auth": {
     "signIn": {
@@ -1060,7 +1064,9 @@
       "accountUpdate": "Customer details changed",
       "contactUpdate": "Contact details changed",
       "siteUpsert": "Site details saved",
-      "noteAdd": "Note added"
+      "noteAdd": "Note added",
+      "consentRecord": "Consent recorded",
+      "consentWithdraw": "Consent withdrawn"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1185,7 +1191,14 @@
       "tehsil": "Tehsil",
       "district": "District",
       "lat": "Latitude",
-      "lng": "Longitude"
+      "lng": "Longitude",
+      "channel": "Channel",
+      "purpose": "Purpose",
+      "source": "Where it was given",
+      "textVersion": "Version of the consent text",
+      "givenAt": "Given on",
+      "withdrawnAt": "Withdrawn on",
+      "evidence": "Proof attached"
     },
     "values": {
       "percent": "{value}%",
@@ -1461,6 +1474,25 @@
         "open": "To do",
         "done": "Done",
         "cancelled": "Cancelled"
+      }
+    },
+    "consent": {
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "call": "Phone calls",
+        "sms": "Text messages",
+        "email": "Email"
+      },
+      "purpose": {
+        "service": "Service updates",
+        "promotional": "Offers and promotions"
+      },
+      "source": {
+        "web_form": "Website form",
+        "whatsapp_opt_in": "WhatsApp reply",
+        "walk_in_form": "Form signed at the shop",
+        "verbal": "Said on a call",
+        "import": "From an imported file"
       }
     }
   }

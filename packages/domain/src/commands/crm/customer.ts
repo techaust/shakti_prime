@@ -52,10 +52,7 @@ async function readableAccount(ctx: CommandContext, accountId: string, entityId:
 type Wanted<T> = { [K in keyof T]?: T[K] | undefined };
 
 /** The names of the fields whose value changes, in the order given. */
-function changedFields<T extends object>(
-  before: T,
-  after: Wanted<T>,
-): (keyof T & string)[] {
+function changedFields<T extends object>(before: T, after: Wanted<T>): (keyof T & string)[] {
   return (Object.keys(after) as (keyof T & string)[]).filter(
     (k) => after[k] !== undefined && after[k] !== before[k],
   );
