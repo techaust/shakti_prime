@@ -262,3 +262,104 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
     }
   });
 });
+
+describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', () => {
+  it('logs in, cannot bypass RLS, is no superuser and reads only, as its own setting', async () => {
+    const [row] = await withoutContext<Record<string, unknown>>(sql`
+      select r.rolcanlogin as login, r.rolsuper as super, r.rolbypassrls as bypass,
+             r.rolcreaterole as createrole, r.rolcreatedb as createdb,
+             (select array_agg(s order by s) from pg_db_role_setting d, unnest(d.setconfig) s
+               where d.setrole = r.oid and d.setdatabase = 0) as settings
+        from pg_roles r where r.rolname = 'app_reader'
+    `);
+    expect(row).toEqual({
+      login: true,
+      super: false,
+      bypass: false,
+      createrole: false,
+      createdb: false,
+      settings: [
+        'default_transaction_read_only=on',
+        'idle_in_transaction_session_timeout=30s',
+        'lock_timeout=10s',
+        'statement_timeout=30s',
+      ],
+    });
+  });
+
+  it('selects exactly what app_user selects, table by table and column by column, and writes nothing', async () => {
+    const rows = await withoutContext<{
+      table: string;
+      app: boolean;
+      reader: boolean;
+      appAny: boolean;
+      readerAny: boolean;
+      write: boolean;
+    }>(sql`
+      select c.relname as table,
+             has_table_privilege('app_user', c.oid, 'SELECT') as app,
+             has_table_privilege('app_reader', c.oid, 'SELECT') as reader,
+             has_any_column_privilege('app_user', c.oid, 'SELECT') as "appAny",
+             has_any_column_privilege('app_reader', c.oid, 'SELECT') as "readerAny",
+             has_table_privilege('app_reader', c.oid, 'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+               or has_any_column_privilege('app_reader', c.oid, 'INSERT, UPDATE, REFERENCES') as write
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relispartition
+       order by 1
+    `);
+    expect(rows.length).toBeGreaterThan(30);
+    for (const r of rows) {
+      expect({ table: r.table, reader: r.reader, readerAny: r.readerAny, write: r.write }).toEqual({
+        table: r.table,
+        reader: r.app,
+        readerAny: r.appAny,
+        write: false,
+      });
+    }
+    const columns = await withoutContext<{ column: string; app: boolean; reader: boolean }>(sql`
+      select a.attname as column,
+             has_column_privilege('app_user', 'sessions', a.attname, 'SELECT') as app,
+             has_column_privilege('app_reader', 'sessions', a.attname, 'SELECT') as reader
+        from pg_attribute a
+       where a.attrelid = 'public.sessions'::regclass and a.attnum > 0 and not a.attisdropped
+    `);
+    expect(columns.find((c) => c.column === 'token')).toMatchObject({ app: false, reader: false });
+    for (const c of columns)
+      expect({ column: c.column, reader: c.reader }).toEqual({ column: c.column, reader: c.app });
+  });
+
+  it('every policy that lets app_user select names app_reader too', async () => {
+    const missing = await withoutContext<{ policy: string }>(sql`
+      select tablename || '.' || policyname as policy from pg_policies
+       where cmd in ('SELECT', 'ALL') and 'app_user' = any (roles) and not 'app_reader' = any (roles)
+    `);
+    expect(missing).toEqual([]);
+  });
+
+  it('may call only the definers a read needs, and none that writes', async () => {
+    const rows = await withoutContext<{ fn: string }>(sql`
+      select p.oid::regprocedure::text as fn
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where p.prosecdef and n.nspname in ('app', 'public')
+         and has_function_privilege('app_reader', p.oid, 'EXECUTE')
+       order by 1
+    `);
+    expect(rows.map((r) => r.fn)).toEqual([
+      'app.lead_search_ids(text,boolean,text,integer)',
+      'app.outbox_health(timestamp with time zone,uuid,integer)',
+      'app.user_is_active(uuid)',
+    ]);
+  });
+
+  it('owns nothing and holds no sequence', async () => {
+    const [row] = await withoutContext<{ owned: number; sequences: number }>(sql`
+      select (select count(*)::int from pg_class c where c.relowner = 'app_reader'::regrole) as owned,
+             (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
+               where n.nspname = 'public'
+                 and case when c.relkind = 'S'
+                          then has_sequence_privilege('app_reader', c.oid, 'USAGE, UPDATE')
+                          else false end) as sequences
+    `);
+    expect(row).toEqual({ owned: 0, sequences: 0 });
+  });
+});
