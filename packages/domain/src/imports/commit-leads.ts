@@ -2,7 +2,7 @@ import { CreateLeadInput, newId, type LeadDto } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { CommandContext } from '../command/context';
-import { createLead, lockNewNumbers } from '../commands/crm/create-lead';
+import { createLead } from '../commands/crm/create-lead';
 import { inputHash } from '../idempotency/hash';
 import { toLeadDto } from '../queries/crm/lead-dto';
 import { importRowKey } from './row-key';
@@ -76,12 +76,8 @@ export async function commitLeadBatch(
   // (`app.lead_phone_status()`, 0055), and the row-by-row path marks that row and goes on. Asked
   // before any row is written, as the command asks it: a row of this batch that shares a number
   // with an earlier one finds the caller's own new customer, which never counts against them.
-  // Every number is held first, as the command holds it, so a lead typed in at the same moment
-  // with one of them waits for this batch, or this batch for it, and the second finds the first.
-  await lockNewNumbers(
-    tx,
-    parsed.map((r) => ({ phone: r.contact.phone, entityId: r.input.entityId })),
-  );
+  // No number lock (`lockNewNumber`): a batch waits on no lead form and no other job's batch;
+  // batches of one job still take turns on the job row.
   const held = (await tx.execute(sql`
     select 1 as held
       from jsonb_to_recordset(${JSON.stringify(

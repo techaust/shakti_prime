@@ -24,7 +24,10 @@ export const maxDuration = 60;
  * The import commit worker (docs/design/backend-weeks-3-5.md §8, docs/API.md §3.6). Only QStash
  * calls it, after `imports.job.commit` and again while a job has rows left: every call must carry
  * a valid signature for this route and body. A 500 makes QStash retry; a job the caller may no
- * longer commit answers 403 and QStash is told not to retry.
+ * longer commit answers 403 and QStash is told not to retry. A run that waited too long for a
+ * lock (the job's row, held by an overlapping run of the same job, or a row a batch needs) or
+ * whose statement was cut off answers 503, which QStash retries, and is logged as a warning: the
+ * job is not at fault and is not failed.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
@@ -60,6 +63,10 @@ export async function POST(request: Request): Promise<Response> {
     const result = await runImportCommit(body, { budgetMs: IMPORT_RUN_BUDGET_MS, requestId });
     return Response.json(result, { headers });
   } catch (error) {
+    if (isRetryableWait(error)) {
+      logger.log('warn', 'imports.commit_job_busy', { requestId, jobId: body.jobId });
+      return failure('integration_unavailable', 503, requestId, headers);
+    }
     if (error instanceof DomainError && error.code === 'forbidden') {
       logger.log('warn', 'imports.commit_forbidden', { requestId, jobId: body.jobId, error });
       return failure('forbidden', 403, requestId, { ...headers, ...NO_RETRY });
@@ -67,6 +74,15 @@ export async function POST(request: Request): Promise<Response> {
     logger.log('error', 'imports.commit_failed', { requestId, jobId: body.jobId, error });
     return failure('internal', 500, requestId, headers);
   }
+}
+
+/**
+ * A lock wait that ran out (`lock_not_available`), as when a retry of one QStash message overlaps
+ * the run it retries, or a statement cut off (`query_canceled`).
+ */
+function isRetryableWait(error: unknown): boolean {
+  const state = error instanceof DomainError ? error.details?.sqlstate : undefined;
+  return state === '55P03' || state === '57014';
 }
 
 /** QStash stops retrying a message whose answer carries this header. */

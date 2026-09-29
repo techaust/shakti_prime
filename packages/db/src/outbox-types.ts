@@ -34,6 +34,15 @@ export type OutboxUpdate =
     };
 
 /**
+ * What a claim did: how many rows it leased to the run, and the ids of the rows it dead-lettered
+ * instead (`no_outcome`), because their attempts were spent by runs that died.
+ */
+export interface OutboxClaimResult {
+  claimed: number;
+  deadLettered: readonly string[];
+}
+
+/**
  * Claims up to `limit` due rows in delivery order and leases them to this run, then hands them to
  * `deliver` outside any transaction, so no row lock is held while the queue is called; the
  * outcomes are recorded afterwards in a second short transaction. Rows another run has leased
@@ -42,18 +51,22 @@ export type OutboxUpdate =
  * Each lease counts as an attempt and a release gives it back, so only a run that dies before it
  * records anything leaves one used up: a due row that has already had `maxAttempts` attempts is
  * dead-lettered (`no_outcome`) instead of being claimed, and a crash loop ends like any other run
- * of failures. Answers how many rows were claimed.
+ * of failures. Answers how many rows were claimed and which were dead-lettered that way; the
+ * dead-lettered ids also go to `onDeadLettered` as soon as the lease commits, before `deliver`
+ * runs, so a delivery that throws cannot lose them.
  */
 export type ClaimOutbox = (
   limit: number,
   deliver: (rows: readonly OutboxRow[]) => Promise<readonly OutboxUpdate[]>,
   maxAttempts: number,
-) => Promise<number>;
+  onDeadLettered?: (ids: readonly string[]) => void,
+) => Promise<OutboxClaimResult>;
 
 /**
  * The two short transactions behind `ClaimOutbox`. `lease` dead-letters the due rows that have
  * had `maxAttempts` attempts, then marks up to `limit` due rows as in flight until `leaseSeconds`
- * from now with one more attempt counted, and answers them with the lease that names this run;
+ * from now with one more attempt counted, and answers them with the lease that names this run
+ * and the ids of the rows it dead-lettered;
  * `record` applies the outcomes and releases the rows named in `release`, giving back the attempt
  * their lease counted, touching only rows that still carry that lease, and answers how many rows
  * it changed.
@@ -63,7 +76,7 @@ export interface OutboxLeaseStore {
     limit: number,
     leaseSeconds: number,
     maxAttempts: number,
-  ): Promise<{ lease: string; rows: OutboxRow[] }>;
+  ): Promise<{ lease: string; rows: OutboxRow[]; deadLettered: string[] }>;
   record(
     lease: string,
     updates: readonly OutboxUpdate[],

@@ -1,6 +1,7 @@
 import { DeliveredEvent, isSubscribed, type OutboxPublishResponse } from '@shakti/contracts';
 import type { ClaimOutbox, OutboxRow, OutboxUpdate } from '@shakti/db';
 import type { EventPublisher, PublishResult } from '../ports/event-publisher';
+import type { Logger } from '../ports/logger';
 import { outboxRetryDelaySeconds } from './backoff';
 
 /**
@@ -21,7 +22,14 @@ export interface OutboxPublisherOptions {
   limit?: number;
   /** The jitter's source for the backoff; tests pass a fixed one. */
   random?: () => number;
+  /** Where the run notes the events the claim dead-lettered because their runs kept dying. */
+  logger?: Logger;
+  /** The request id of the call that started the run, for its log lines. */
+  requestId?: string | undefined;
 }
+
+/** Ids one warning line names at most; the count gives the rest. */
+export const DEAD_LETTER_LOG_IDS = 20;
 
 /**
  * One publisher run (docs/design/backend-weeks-3-5.md §4.2): claim the due events in delivery
@@ -29,7 +37,9 @@ export interface OutboxPublisherOptions {
  * worker listens to in one batch, and hand back the outcome of each for the claim to record. A
  * failed event is due again after its backoff; an event nobody listens to yet is marked delivered
  * without being sent; a row that no longer fits the catalogue can never be delivered, so it is
- * dead-lettered at once.
+ * dead-lettered at once. The events the claim itself dead-lettered, whose attempts were all spent
+ * by runs that died (`no_outcome`), count among the run's dead letters and are logged as one
+ * warning with the run's request id, their count and at most `DEAD_LETTER_LOG_IDS` of their ids.
  */
 export async function runOutboxPublisher(
   options: OutboxPublisherOptions,
@@ -111,10 +121,23 @@ export async function runOutboxPublisher(
     }
     return updates;
   };
-  counts.claimed = await options.claim(
+  // Logged as soon as the lease commits, before the delivery, which may throw.
+  const spent = (ids: readonly string[]) => {
+    counts.deadLettered += ids.length;
+    const truncated = ids.length > DEAD_LETTER_LOG_IDS;
+    options.logger?.log('warn', 'outbox.no_outcome_dead_lettered', {
+      requestId: options.requestId,
+      count: ids.length,
+      ids: ids.slice(0, DEAD_LETTER_LOG_IDS),
+      ...(truncated ? { truncated: true } : {}),
+    });
+  };
+  const claim = await options.claim(
     options.limit ?? OUTBOX_BATCH_SIZE,
     deliver,
     OUTBOX_MAX_ATTEMPTS,
+    spent,
   );
+  counts.claimed = claim.claimed;
   return counts;
 }

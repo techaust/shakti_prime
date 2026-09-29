@@ -494,6 +494,44 @@ describe('POST /api/v1/workers/imports/commit', () => {
     expect(await liveLeads(job.id)).toBe(2);
   });
 
+  it('answers a retryable 503 when another run holds the job past the lock wait, failing nothing', async () => {
+    const job = await committingJob(['Overlap one', 'Overlap two']);
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let taken: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      taken = resolve;
+    });
+    // Another run of the same job holds its row, as an overlapping retry of one message would.
+    const holder = asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`select id from import_jobs where id = ${job.id} for update`;
+        taken();
+        await released;
+      }),
+    );
+    await held;
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: gm.id });
+    try {
+      const busy = await call(body, sign(body));
+      expect(busy.status).toBe(503);
+      expect(busy.headers.get('upstash-nonretryable-error')).toBeNull();
+    } finally {
+      release();
+      await holder;
+    }
+    const [state] = await asMigrator(
+      (m) => m<{ state: string; failed: number | null }[]>`
+        select state, failed_batch as failed from import_jobs where id = ${job.id}`,
+    );
+    expect(state).toEqual({ state: 'committing', failed: null });
+    const retried = await call(body, sign(body));
+    expect(retried.status).toBe(200);
+    expect(await liveLeads(job.id)).toBe(2);
+  }, 60_000);
+
   it("records each batch under the route's request id, as its answer and log carry it", async () => {
     const job = await committingJob(['Traced one', 'Traced two']);
     const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: gm.id });

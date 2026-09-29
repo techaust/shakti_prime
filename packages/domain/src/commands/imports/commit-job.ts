@@ -8,10 +8,14 @@ import {
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import {
+  IMPORT_BATCH_BUDGET_MS,
+  importBatchSettings,
+  SET_BASED_BATCH_BOUND_MS,
+} from '../../imports/batch-settings';
 import { commitLeadBatch, RowByRowNeeded } from '../../imports/commit-leads';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
-import { jsonLogger, type Logger } from '../../ports/logger';
 import { createLead } from '../crm/create-lead';
 import {
   assertEntityInScope,
@@ -31,20 +35,31 @@ function isHeldByColleague(error: unknown): boolean {
   );
 }
 
+export { IMPORT_BATCH_BUDGET_MS, SET_BASED_BATCH_BOUND_MS };
+
+/** Why a batch skipped the set-based path: a fixed phrase for the log. */
+const TOO_LITTLE_TIME = 'too little time for the set-based path';
+
+/** The shortest statement timeout a set-based try is given, however little budget is left. */
+const SET_BASED_MIN_TIMEOUT_MS = 1_000;
+
 /**
- * How a batch keeps to the import worker's time. The row-by-row path runs `crm.lead.create` once
- * a row and can take far longer than the set-based one, so between rows it looks at the time
- * since the batch began; once `budgetMs` has passed it stops, keeps the rows done so far as this
- * batch and leaves the rest for the next one. At least one row is always done, so every batch
- * moves the job on. The worker stops taking batches after `IMPORT_RUN_BUDGET_MS`
- * (apps/web/src/workers/imports.ts); that and this together stay inside the route's 60 seconds.
- * `logger` records why a batch went row by row. Tests shorten the budget and read the log.
+ * SQLSTATEs that mean another transaction kept the batch waiting (`lock_not_available`) or a
+ * statement ran out of time (`query_canceled`): no fault of the job, so the batch is not failed
+ * but the error goes to the worker, whose route answers a retryable 503.
  */
-export const importBatchSettings: { budgetMs: number; now: () => number; logger: Logger } = {
-  budgetMs: 15_000,
-  now: () => performance.now(),
-  logger: jsonLogger(),
-};
+const RETRYABLE_STATES = new Set(['55P03', '57014']);
+
+/** The SQLSTATE an error carries, bare or as the runner's domain error. */
+function databaseState(error: unknown): string | undefined {
+  for (let e: unknown = error, depth = 0; e instanceof Error && depth < 5; depth += 1) {
+    const state =
+      e instanceof DomainError ? e.details?.sqlstate : (e as Error & { code?: unknown }).code;
+    if (typeof state === 'string' && /^[0-9A-Z]{5}$/.test(state)) return state;
+    e = e.cause;
+  }
+  return undefined;
+}
 
 /**
  * Why the set-based path gave the batch up, for the log: the fixed phrase of `RowByRowNeeded`, or
@@ -116,12 +131,19 @@ export const commitImportJob = defineCommand({
  * customer in the company (`customer_held_by_colleague`) is marked invalid with that reason, and
  * the rest of the batch goes on. Any other row that fails rolls the whole batch back, and the job
  * stops there as `failed` with the batch and the row recorded; the rows committed by earlier
- * batches stay until the job is rolled back. The row-by-row path keeps to the time budget of
- * `importBatchSettings`: when it runs out, the rows done so far are the batch and the rest wait
- * for the next. When no valid row is left the job is `committed`. Each batch takes the next
- * number from the job's count of batches, a batch whose every row was refused included. One audit
- * row per batch records the job, the row range and the counts; the leads write no row of their
- * own (design §8), and their events are stored only when the batch commits.
+ * batches stay until the job is rolled back. The batch keeps to the time budget of
+ * `importBatchSettings`: with less left than a set-based try may need, it goes straight to the
+ * row-by-row path, and when the budget runs out there, the rows done so far are the batch and
+ * the rest wait for the next; each statement of a set-based try is cut off at the budget left
+ * (`statement_timeout`), after which the batch goes row by row. No number lock: `crm.lead.create`
+ * leaves it out for an import row (`inImportBatch`), so a batch waits on no lead form and no other
+ * job's batch; batches of one job still take turns on the job row. A lock
+ * wait that runs out (55P03) or a statement cut off (57014) anywhere else fails nothing: the
+ * error goes to the worker to try the batch again. When no valid row is left the job is
+ * `committed`. Each batch takes the next number from the job's count of batches, a batch whose
+ * every row was refused included. One audit row per batch records the
+ * job, the row range and the counts; the leads write no row of their own (design §8), and their
+ * events are stored only when the batch commits.
  */
 export const commitImportBatch = defineCommand({
   name: 'imports.job.commit_batch',
@@ -143,10 +165,11 @@ export const commitImportBatch = defineCommand({
     'refusedRows',
   ],
   async handler(ctx, input) {
+    // The batch's time runs from here: a wait for the job's row, held by another batch, counts.
+    const started = importBatchSettings.now();
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     if (jobState(loaded.job) !== 'committing') return toImportJobDto(loaded);
-    const started = importBatchSettings.now();
     const job = loaded.job;
     const kind = job.kind as ImportKind;
     const actor = ctx.principal.id;
@@ -203,28 +226,54 @@ export const commitImportBatch = defineCommand({
     // The rows this batch went through: all of them, unless the time ran out row by row.
     let done = rows;
     try {
-      try {
-        // The whole batch in a few statements (docs/spikes/import-scale.md).
-        await ctx.savepoint(async (sp) => {
-          await markCommitted(sp, await commitLeadBatch(ctx, sp, job.id, rows));
-        });
-      } catch (setBasedError) {
-        // Something in the batch is not a plain new lead, or a row was refused: the savepoint
-        // took the batch back, and the rows run again one by one through `crm.lead.create`,
-        // which stops at the row at fault exactly as it always has.
-        importBatchSettings.logger.log(
-          setBasedError instanceof RowByRowNeeded ? 'info' : 'warn',
-          'imports.batch_row_by_row',
-          {
-            jobId: job.id,
-            batch: batchNo,
-            rows: rows.length,
+      // Why the batch goes row by row, when it does.
+      let rowByRow: { level: 'info' | 'warn'; reason: string } | undefined;
+      const timeLeft = importBatchSettings.budgetMs - (importBatchSettings.now() - started);
+      if (timeLeft < SET_BASED_BATCH_BOUND_MS) {
+        rowByRow = { level: 'info', reason: TOO_LITTLE_TIME };
+      } else {
+        try {
+          // The whole batch in a few statements (docs/spikes/import-scale.md), none of them
+          // allowed past the budget left; the savepoint's end puts the timeout back.
+          await ctx.savepoint(async (sp) => {
+            const left = importBatchSettings.budgetMs - (importBatchSettings.now() - started);
+            const timeout = Math.max(SET_BASED_MIN_TIMEOUT_MS, Math.floor(left));
+            const [prior] = (await sp.execute(
+              sql`select current_setting('statement_timeout') as timeout`,
+            )) as unknown as { timeout: string }[];
+            await sp.execute(
+              sql`select set_config('statement_timeout', ${`${String(timeout)}ms`}, true)`,
+            );
+            await markCommitted(sp, await commitLeadBatch(ctx, sp, job.id, rows));
+            await sp.execute(
+              sql`select set_config('statement_timeout', ${prior?.timeout ?? '0'}, true)`,
+            );
+          });
+        } catch (setBasedError) {
+          // Another transaction kept a statement waiting past the lock wait: the worker tries
+          // the batch again. A statement cut off at the budget goes row by row like any other.
+          if (databaseState(setBasedError) === '55P03') throw setBasedError;
+          // Something in the batch is not a plain new lead, or a row was refused: the savepoint
+          // took the batch back, and the rows run again one by one through `crm.lead.create`,
+          // which stops at the row at fault exactly as it always has.
+          rowByRow = {
+            level: setBasedError instanceof RowByRowNeeded ? 'info' : 'warn',
             reason: setBasedReason(setBasedError),
-          },
-        );
+          };
+        }
+      }
+      if (rowByRow !== undefined) {
+        importBatchSettings.logger.log(rowByRow.level, 'imports.batch_row_by_row', {
+          requestId: ctx.requestId,
+          jobId: job.id,
+          batch: batchNo,
+          rows: rows.length,
+          reason: rowByRow.reason,
+        });
         await ctx.savepoint(async (sp) => {
           const created: { rowNo: number; id: string }[] = [];
           const heldRows: number[] = [];
+          // A set-based try that used the budget up still leaves this path its first row.
           for (const [index, row] of rows.entries()) {
             if (index > 0 && importBatchSettings.now() - started >= importBatchSettings.budgetMs) {
               // Out of time: the rows so far are this batch, the rest wait for the next one.
@@ -239,6 +288,7 @@ export const commitImportBatch = defineCommand({
                   tx: rowSp,
                   idempotencyKey: importRowKey(job.id, row.rowNo),
                   auditedByCaller: true,
+                  inImportBatch: true,
                 }),
               );
               created.push({ rowNo: row.rowNo, id: lead.id });
@@ -254,7 +304,11 @@ export const commitImportBatch = defineCommand({
         });
       }
     } catch (error) {
-      // The savepoint is gone and the batch with it; what is left is to record where it stopped.
+      // The savepoint is gone and the batch with it. A lock wait that ran out or a statement cut
+      // off is no fault of the job: nothing is recorded, and the worker tries the batch again.
+      const state = databaseState(error);
+      if (state !== undefined && RETRYABLE_STATES.has(state)) throw error;
+      // What is left is to record where it stopped.
       if (failedRow !== undefined) {
         await ctx.tx
           .update(r)

@@ -21,22 +21,24 @@ const MAX_ATTEMPTS_LIMIT = 100;
  * row it did not claim, every claimed row is released unchanged and the error is raised. The
  * lease counts one attempt on every row it takes and a release gives it back, so only a run that
  * dies before it records anything leaves the attempt used; a row that has had `maxAttempts` is
- * dead-lettered by the next lease. A run whose lease has run out records nothing, because another
- * run owns the rows by then.
+ * dead-lettered by the next lease, and that claim answers its id so the run counts and logs it.
+ * A run whose lease has run out records nothing, because another run owns the rows by then.
  */
 export function leasedClaim(
   store: OutboxLeaseStore,
   leaseSeconds = OUTBOX_LEASE_SECONDS,
 ): ClaimOutbox {
-  return async (limit, deliver, maxAttempts) => {
+  return async (limit, deliver, maxAttempts, onDeadLettered) => {
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_CLAIM) {
       throw new Error(`the claim limit is between 1 and ${String(MAX_CLAIM)}`);
     }
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > MAX_ATTEMPTS_LIMIT) {
       throw new Error(`the attempts allowed are between 1 and ${String(MAX_ATTEMPTS_LIMIT)}`);
     }
-    const { lease, rows } = await store.lease(limit, leaseSeconds, maxAttempts);
-    if (rows.length === 0) return 0;
+    const { lease, rows, deadLettered } = await store.lease(limit, leaseSeconds, maxAttempts);
+    // Told before anything is delivered, so a delivery that throws cannot lose them.
+    if (deadLettered.length > 0) onDeadLettered?.(deadLettered);
+    if (rows.length === 0) return { claimed: 0, deadLettered };
     const claimed = rows.map((r) => r.id);
     // The error that stopped the run matters more than a failed release; the lease runs out anyway.
     const releaseAll = () => store.record(lease, [], claimed).catch(() => 0);
@@ -67,6 +69,6 @@ export function leasedClaim(
       updates,
       claimed.filter((id) => !answered.has(id)),
     );
-    return rows.length;
+    return { claimed: rows.length, deadLettered };
   };
 }

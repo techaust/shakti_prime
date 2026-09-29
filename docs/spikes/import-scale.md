@@ -1,6 +1,6 @@
 # Spike: importing 50,000 leads
 
-**Design §8 and IMP-01** ("50k rows in < 5 min"). Result: **met on the development laptop with one worker.** 50,000 made-up leads went through upload, preview and commit in 3 minutes 25 seconds, the commit alone in 3 minutes 4 seconds (272 rows a second), and the rollback took 8 seconds. Row by row, one lead command at a time, the commit runs at about 11 rows a second, which would take over an hour; the set-based batch described below makes the difference. The hosted stack (QStash workers in `bom1`, Supabase Mumbai, the 35 seconds for which each worker call starts batches) is not measured here; that is Phase 1.
+**Design §8 and IMP-01** ("50k rows in < 5 min"). Result: **met on the development laptop with one worker.** 50,000 made-up leads went through upload, preview and commit in 3 minutes 25 seconds, the commit alone in 3 minutes 4 seconds (272 rows a second), and the rollback took 8 seconds. Row by row, one lead command at a time, the commit runs at about 11 rows a second, which would take over an hour; the set-based batch described below makes the difference. The hosted stack (QStash workers in `bom1`, Supabase Mumbai, the 30 seconds for which each worker call starts batches) is not measured here; that is Phase 1.
 
 Run it with `pnpm spike:import` (options: `-- --rows 50000 --batch 500 --budget 420`). It needs the local Docker Postgres and refuses any other database. The numbers are in [results/import-scale.json](results/import-scale.json), and those of the row-by-row run in [results/import-scale-before.json](results/import-scale-before.json). It is not part of CI.
 
@@ -36,7 +36,7 @@ That is about 13 statements a batch instead of about 6,000.
 
 The guarantees:
 - A batch is all or nothing (IMP-01: "a failed batch leaves no partial data"), with one exception: a row whose number belongs to a customer a colleague looks after in the company is marked invalid (`customer_held_by_colleague`) and the rest of the batch goes on (0055).
-- If anything in the batch is not a plain new lead (a known customer, a consent, a key used before, a row that does not parse) or the database refuses a row, the savepoint takes the batch back. The batch then runs again row by row through `crm.lead.create`, which stops at the row at fault and records it; a row refused for a colleague's customer is marked and passed over. A row-by-row batch stops between rows once 15 seconds have passed, keeps the rows done as that batch, and leaves the rest to the next one.
+- If anything in the batch is not a plain new lead (a known customer, a consent, a key used before, a row that does not parse) or the database refuses a row, the savepoint takes the batch back. The batch then runs again row by row through `crm.lead.create`, which stops at the row at fault and records it; a row refused for a colleague's customer is marked and passed over. A batch keeps to 20 seconds from its start: it tries the set-based path only while 17.2 seconds, the slowest set-based batch below, are left, and row by row it stops between rows once its time is spent, keeps the rows done as that batch, and leaves the rest to the next one.
 - Each row is a customer of its own, as a lead typed in is. A matching name, or a number of a customer the importer may act for, stays a suggestion; a number a colleague's customer holds is refused as above.
 
 The security suite covers these cases (`packages/domain/tests/commands/imports.test.ts`):
@@ -61,10 +61,10 @@ Both runs used the local database the test suites share, as both result files re
 
 ## What the numbers mean
 - **The five-minute target is met locally with one worker.** Concurrent batch workers (design §8) are not needed for it at this rate. Batches of one job run one after another, because the job row is locked per batch.
-- **Hosted.** Each worker call starts batches for 35 seconds (the route may run for 60), so it fits about 25 batches at the median rate. A hosted round trip within `bom1` should be close to the local one, but that has to be measured on the hosted stack in Phase 1.
-- **The row-by-row path remains for the rows it is needed for.** A batch that holds a bad row costs its set-based try plus row-by-row runs at about 21 rows a second, each stopping between rows after 15 seconds, until the row at fault stops the job.
+- **Hosted.** Each worker call starts batches for 30 seconds (the route may run for 60), so it fits about 23 batches at the median rate. A hosted round trip within `bom1` should be close to the local one, but that has to be measured on the hosted stack in Phase 1.
+- **The row-by-row path remains for the rows it is needed for.** A batch that holds a bad row costs its set-based try plus row-by-row runs at about 21 rows a second, each stopping between rows once its 20 seconds are spent, until the row at fault stops the job.
 
 ## Not covered
-- The hosted stack: QStash workers, Supabase Mumbai and the 35 seconds for which each worker call starts batches.
+- The hosted stack: QStash workers, Supabase Mumbai and the 30 seconds for which each worker call starts batches.
 - Concurrent batch workers on one job, which the job lock does not allow.
 - Files with invalid or repeated rows at scale; the security suite covers those paths on small files.

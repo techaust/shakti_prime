@@ -24,16 +24,18 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import {
   commitImportBatch,
   commitImportJob,
-  importBatchSettings,
+  SET_BASED_BATCH_BOUND_MS,
 } from '../../src/commands/imports/commit-job';
 import { createImportJob } from '../../src/commands/imports/create-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
 import { previewImportJob } from '../../src/commands/imports/preview-job';
 import { parseImportFile } from '../../src/imports/parse';
+import { importRowKey } from '../../src/imports/row-key';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryLogger } from '../../src/ports/logger';
 import { listImportRows } from '../../src/queries/imports/import-queries';
 import { searchLeads } from '../../src/queries/crm/search-leads';
+import { importBatchSettings } from '../../src/testing';
 
 // Two gaps in the rule that a customer a colleague looks after in a company goes to that
 // colleague (AUDIT M25), closed by 0055: a new lead typed with the number of that customer, and a
@@ -528,7 +530,7 @@ describe('two new leads at once with one new number (0059)', () => {
     expect(await leadsOwnedBy(colleague.id)).toBe(0);
   });
 
-  it('an import row with that number waits too, and is marked for the colleague’s customer', async () => {
+  it('an import row does not wait for a lead being saved with its number, and can make a second customer (known limitation, duplicate cards in Phase 1)', async () => {
     const phone = digits();
     const importer = await narrowImporter();
     const job = await previewedJob(importer, [
@@ -538,18 +540,14 @@ describe('two new leads at once with one new number (0059)', () => {
     await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
     const first = heldOpen(phone);
     await first.written;
-    const batch = run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
-    const settled = settledFlag(batch);
-    await until(async () => (await waitingOnANumber()) > 0);
-    expect(settled()).toBe(false);
+    // The batch holds no number and waits for nobody: it commits while the colleague's save runs
+    // and cannot yet see its customer.
+    await expect(
+      run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    ).resolves.toMatchObject({ state: 'committed', committedRows: 2 });
     first.release();
     await first.done;
-    await expect(batch).resolves.toMatchObject({
-      state: 'committed',
-      committedRows: 1,
-      invalidRows: 1,
-    });
-    expect(await customersWith(phone)).toBe(1);
+    expect(await customersWith(phone)).toBe(2);
   });
 });
 
@@ -638,8 +636,12 @@ describe('import batches: their numbers, why one goes row by row, and its time (
     const saved = importBatchSettings.logger;
     const log = memoryLogger();
     importBatchSettings.logger = log;
+    const requestId = newId();
     try {
-      await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+      await executeCommand(importer, { entityIds: [1], requestId }, commitImportBatch, {
+        entityId: 1,
+        jobId: job.id,
+      });
     } finally {
       importBatchSettings.logger = saved;
     }
@@ -648,6 +650,7 @@ describe('import batches: their numbers, why one goes row by row, and its time (
         level: 'info',
         event: 'imports.batch_row_by_row',
         fields: {
+          requestId,
           jobId: job.id,
           batch: 1,
           rows: 2,
@@ -679,7 +682,8 @@ describe('import batches: their numbers, why one goes row by row, and its time (
       expect(one).toMatchObject({ state: 'committing', committedRows: 1, invalidRows: 0 });
       const two = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
       expect(two).toMatchObject({ state: 'committing', committedRows: 1, invalidRows: 1 });
-      // The rest is plain, so the set-based path takes it whole, time or no time.
+      // With its time back, the rest is plain, so the set-based path takes it whole.
+      importBatchSettings.budgetMs = saved;
       const three = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
       expect(three).toMatchObject({ state: 'committed', committedRows: 3, invalidRows: 1 });
     } finally {
@@ -698,5 +702,334 @@ describe('import batches: their numbers, why one goes row by row, and its time (
     ]);
     expect(await batchCountOf(job.id)).toBe(3);
     expect(await committedEvent(job.id)).toMatchObject({ committedRows: 3, batches: 3 });
+  });
+});
+
+describe('an import batch begun late, and two jobs sharing numbers (the last-mile audit)', () => {
+  /** The settings a test changes, put back afterwards. */
+  async function withSettings<T>(
+    change: Partial<typeof importBatchSettings>,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    const saved = { ...importBatchSettings };
+    Object.assign(importBatchSettings, change);
+    try {
+      return await work();
+    } finally {
+      Object.assign(importBatchSettings, saved);
+    }
+  }
+
+  /**
+   * A clock that stands still at `at` milliseconds after the batch began, and moves `step` on at
+   * each reading after the first two (the batch's start and its choice of path).
+   */
+  function fakeClock(at: number, step = 0): () => number {
+    let readings = 0;
+    return () => {
+      readings += 1;
+      if (readings === 1) return 0;
+      return at + (readings - 2) * step;
+    };
+  }
+
+  it('skips the set-based try when less than the slowest set-based batch is left', async () => {
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Late One,${digits()},Sikar`,
+      `Late Two,${digits()},Sikar`,
+      `Late Three,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const log = memoryLogger();
+    const budget = importBatchSettings.budgetMs;
+    // The batch waited so long for its start that one millisecond less than a try needs is left.
+    const done = await withSettings(
+      { logger: log, now: fakeClock(budget - SET_BASED_BATCH_BOUND_MS + 1) },
+      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    );
+    // Plain rows every one, so only the time sent them row by row; with the clock standing
+    // still, every row is done.
+    expect(done).toMatchObject({ state: 'committed', committedRows: 3 });
+    expect(log.entries).toHaveLength(1);
+    expect(log.entries[0]).toMatchObject({
+      level: 'info',
+      event: 'imports.batch_row_by_row',
+      fields: { jobId: job.id, rows: 3, reason: 'too little time for the set-based path' },
+    });
+  });
+
+  it('keeps to its time row by row after skipping the set-based try', async () => {
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Clocked One,${digits()},Sikar`,
+      `Clocked Two,${digits()},Sikar`,
+      `Clocked Three,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const budget = importBatchSettings.budgetMs;
+    // Each row takes four seconds and the batch began with seven left: it stops after the
+    // second row and leaves the third for the next batch.
+    const left = 7_000;
+    const first = await withSettings(
+      { logger: memoryLogger(), now: fakeClock(budget - left, 4_000) },
+      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    );
+    expect(first).toMatchObject({ state: 'committing', committedRows: 2 });
+    const second = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+    expect(second).toMatchObject({ state: 'committed', committedRows: 3 });
+  });
+
+  it('tries the set-based path when the slowest set-based batch still fits', async () => {
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Timely One,${digits()},Sikar`,
+      `Timely Two,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    const log = memoryLogger();
+    const budget = importBatchSettings.budgetMs;
+    const done = await withSettings(
+      { logger: log, now: fakeClock(budget - SET_BASED_BATCH_BOUND_MS) },
+      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    );
+    expect(done).toMatchObject({ state: 'committed', committedRows: 2 });
+    expect(log.entries).toEqual([]);
+  });
+
+  it('two jobs whose rows share new numbers in opposite orders both commit at once', async () => {
+    const importer = await narrowImporter();
+    const numbers = Array.from({ length: 16 }, () => digits());
+    const lines = numbers.map((phone, i) => `Shared ${String(i + 1)},${phone},Sikar`);
+    const forward = await previewedJob(importer, lines);
+    const backward = await previewedJob(importer, [...lines].reverse());
+    for (const job of [forward, backward]) {
+      await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    }
+    // A budget too short for a set-based try, and a clock that stands still: both batches go row
+    // by row, in file order, at the same time. Neither holds a number, so neither waits.
+    const results = await withSettings(
+      { logger: memoryLogger(), now: () => 0, budgetMs: SET_BASED_BATCH_BOUND_MS - 1 },
+      () =>
+        Promise.all(
+          [forward, backward].map((job) =>
+            run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+          ),
+        ),
+    );
+    for (const done of results) {
+      expect(done).toMatchObject({ state: 'committed', committedRows: 16, failedBatch: null });
+    }
+  });
+
+  /**
+   * Holds a new customer's number in company 1 from another transaction, as a lead being typed in
+   * would, until `release` is called.
+   */
+  async function holdNumber(phone: string) {
+    let release: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let taken: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      taken = resolve;
+    });
+    const done = asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`select pg_advisory_xact_lock(hashtextextended(${`lead-phone:1:+91${phone}`}, 0))`;
+        taken();
+        await released;
+      }),
+    );
+    await held;
+    return { release, done };
+  }
+
+  async function jobState(jobId: string) {
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; committed: number; failed: number | null; batches: number }[]>`
+        select state, committed_rows as committed, failed_batch as failed, batch_count as batches
+          from import_jobs where id = ${jobId}`,
+    );
+    return row;
+  }
+
+  it('takes no lock on a number: one held elsewhere neither delays nor fails a batch', async () => {
+    const importer = await narrowImporter();
+    for (const change of [{}, { budgetMs: SET_BASED_BATCH_BOUND_MS - 1 }]) {
+      const held = digits();
+      const job = await previewedJob(importer, [
+        `Unheld One,${digits()},Sikar`,
+        `Unheld Two,${held},Sikar`,
+      ]);
+      await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+      const lock = await holdNumber(held);
+      try {
+        // Set-based, then row by row with too little time for a set-based try.
+        const started = Date.now();
+        await expect(
+          withSettings({ ...change, logger: memoryLogger() }, () =>
+            run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+          ),
+        ).resolves.toMatchObject({ state: 'committed', committedRows: 2 });
+        // Far inside the ten seconds a wait for the lock would take.
+        expect(Date.now() - started).toBeLessThan(5_000);
+      } finally {
+        lock.release();
+        await lock.done;
+      }
+      expect(await jobState(job.id)).toMatchObject({ state: 'committed', failed: null });
+    }
+  });
+
+  it('goes row by row for at least one row when a set-based try has used the budget up', async () => {
+    const held = digits();
+    await run(owner, createLead, newCustomer(1, held));
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Slow One,${digits()},Sikar`,
+      `Slow Held,${held},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    // The batch begins with all its time; the set-based try, sent row by row by the colleague's
+    // customer, reports back after the whole budget has gone.
+    const budget = importBatchSettings.budgetMs;
+    const readings = [0, 0];
+    const first = await withSettings(
+      { logger: memoryLogger(), now: () => readings.shift() ?? budget + 1 },
+      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    );
+    // The first row is done all the same, and the rest waits for the next batch.
+    expect(first).toMatchObject({ state: 'committing', committedRows: 1, failedBatch: null });
+    await expect(
+      run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    ).resolves.toMatchObject({ state: 'committed', committedRows: 1, invalidRows: 1 });
+  });
+
+  /**
+   * Runs a command in a transaction whose lock wait is `lockTimeout` rather than the connection's
+   * ten seconds, so a test of a wait that runs out takes a second.
+   */
+  function runWaiting<I extends z.ZodType, O extends z.ZodType>(
+    principal: Principal,
+    command: Command<I, O>,
+    input: unknown,
+    lockTimeout = '1s',
+  ): Promise<z.output<O>> {
+    return asPrincipal(principal, async (context) => {
+      await context.tx.execute(sql`select set_config('lock_timeout', ${lockTimeout}, true)`);
+      return runCommand(command, { context, audit, outbox }, input);
+    });
+  }
+
+  /**
+   * Claims the idempotency key of a job's first row from another transaction and keeps the claim
+   * open for `ms`, then takes it back, as a stuck run of the same row would.
+   */
+  async function holdRowKey(principal: Principal, jobId: string, ms: number) {
+    const [first] = await asMigrator(
+      (m) =>
+        m<
+          { rowNo: number }[]
+        >`select min(row_no)::int as "rowNo" from import_rows where job_id = ${jobId}`,
+    );
+    const rowNo = first?.rowNo ?? 0;
+    let taken: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      taken = resolve;
+    });
+    const done = asMigrator((m) =>
+      m
+        .begin(async (tx) => {
+          await tx`insert into idempotency_keys (principal_id, key, command, input_hash)
+            values (${principal.id}, ${importRowKey(jobId, rowNo)}, 'crm.lead.create', ${'0'.repeat(64)})`;
+          taken();
+          await new Promise((resolve) => setTimeout(resolve, ms));
+          throw new Error('taken back');
+        })
+        .catch(() => undefined),
+    );
+    await held;
+    // An object, so awaiting this function waits for the claim and not for its end.
+    return { done };
+  }
+
+  it('answers the lead form the conflict sentence when a number stays held past the lock wait', async () => {
+    const phone = digits();
+    const lock = await holdNumber(phone);
+    try {
+      await expect(runWaiting(owner, createLead, newCustomer(1, phone))).rejects.toMatchObject({
+        code: 'conflict',
+        details: { reason: 'concurrent_change', sqlstate: '55P03' },
+      });
+    } finally {
+      lock.release();
+      await lock.done;
+    }
+    expect(await customersWith(phone)).toBe(0);
+  });
+
+  it('hands a lock wait that runs out mid-batch to the worker, failing nothing', async () => {
+    const importer = await narrowImporter();
+    // Set-based, then row by row with too little time for a set-based try.
+    for (const change of [{}, { budgetMs: SET_BASED_BATCH_BOUND_MS - 1, now: () => 0 }]) {
+      const job = await previewedJob(importer, [`Waited One,${digits()},Sikar`]);
+      await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+      const holder = await holdRowKey(importer, job.id, 3_000);
+      const started = Date.now();
+      try {
+        await expect(
+          withSettings({ ...change, logger: memoryLogger() }, () =>
+            runWaiting(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+          ),
+        ).rejects.toMatchObject({ code: 'conflict', details: { sqlstate: '55P03' } });
+        // One second of lock wait, not the three the claim is held for.
+        expect(Date.now() - started).toBeLessThan(2_900);
+      } finally {
+        await holder.done;
+      }
+      expect(await jobState(job.id)).toEqual({
+        state: 'committing',
+        committed: 0,
+        failed: null,
+        batches: 0,
+      });
+      await expect(
+        run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+      ).resolves.toMatchObject({ state: 'committed', committedRows: 1 });
+    }
+  });
+
+  it('cuts a set-based statement off at the budget left and goes row by row', async () => {
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [`Cut One,${digits()},Sikar`]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    // The set-based try is made with all the budget, then finds a millisecond left when it sets
+    // its statement timeout, which is given its floor of one second.
+    const budget = importBatchSettings.budgetMs;
+    const readings = [0, 0, budget - 1];
+    const log = memoryLogger();
+    // The row's key is claimed elsewhere for three seconds: the set-based insert waits and is cut
+    // off after one second, and the row-by-row claim waits out the rest within its lock wait.
+    const holder = await holdRowKey(importer, job.id, 3_000);
+    const started = Date.now();
+    try {
+      await expect(
+        withSettings({ logger: log, now: () => readings.shift() ?? 0 }, () =>
+          runWaiting(importer, commitImportBatch, { entityId: 1, jobId: job.id }, '10s'),
+        ),
+      ).resolves.toMatchObject({ state: 'committed', committedRows: 1 });
+    } finally {
+      await holder.done;
+    }
+    // It waited for the claim to be taken back, past the one-second cut-off, within the lock wait.
+    expect(Date.now() - started).toBeGreaterThanOrEqual(2_500);
+    expect(Date.now() - started).toBeLessThan(9_000);
+    expect(log.entries).toHaveLength(1);
+    expect(log.entries[0]).toMatchObject({
+      event: 'imports.batch_row_by_row',
+      fields: { reason: 'database_57014' },
+    });
   });
 });

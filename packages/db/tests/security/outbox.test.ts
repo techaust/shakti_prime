@@ -551,13 +551,15 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
                 where id = ${id}`,
     );
 
-    // The next run does not take it again: its attempts are spent, so it is dead-lettered.
+    // The next run does not take it again: its attempts are spent, so it is dead-lettered, and
+    // the claim names it so the run counts and logs it.
     let offered = false;
-    await claim(500, (rows) => {
+    const next = await claim(500, (rows) => {
       offered = rows.some((r) => r.id === id);
       return publishTagged(rows);
     });
     expect(offered).toBe(false);
+    expect(next.deadLettered).toContain(id);
     expect(await rowAsPublisher(id)).toMatchObject({
       published_at: null,
       attempts: MAX_ATTEMPTS,

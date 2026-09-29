@@ -12,6 +12,7 @@ import { probeReady } from './ready';
 export { leasedClaim, OUTBOX_LEASE_SECONDS } from './outbox-lease';
 export type {
   ClaimOutbox,
+  OutboxClaimResult,
   OutboxLag,
   OutboxLeaseStore,
   OutboxRow,
@@ -33,18 +34,22 @@ function outboxSql(): ReturnType<typeof postgres> {
   return pool;
 }
 
-interface LeasedRow {
-  id: string;
-  sequence: string;
-  entity_id: number;
-  type: string;
-  aggregate_type: string;
-  aggregate_id: string;
-  payload_json: Record<string, unknown>;
-  attempts: number;
-  created_at: Date;
-  lease: string;
-}
+/** A leased row, or (`spent`) the id of a row the lease dead-lettered, with nothing else. */
+type LeasedRow =
+  | {
+      spent: false;
+      id: string;
+      sequence: string;
+      entity_id: number;
+      type: string;
+      aggregate_type: string;
+      aggregate_id: string;
+      payload_json: Record<string, unknown>;
+      attempts: number;
+      created_at: Date;
+      lease: string;
+    }
+  | { spent: true; id: string };
 
 /** The two short transactions of a publisher run, as `outbox_publisher`. */
 export const postgresOutboxLeaseStore: OutboxLeaseStore = {
@@ -55,8 +60,9 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
     // again; every other row is leased with its attempt counted now, so a run that dies after
     // this commit has still used one. The answer carries the attempts before this one. The
     // lease's exact text names this run afterwards; it goes back as text, because the driver
-    // would round a timestamp parameter to milliseconds.
-    const leased = await outboxSql()<LeasedRow[]>`
+    // would round a timestamp parameter to milliseconds. The dead-lettered rows come back too,
+    // by id alone, so the run can count and log them.
+    const answer = await outboxSql()<LeasedRow[]>`
       with due as (
         select id, attempts
           from outbox_events
@@ -72,15 +78,21 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
                claimed_until = null
           from due
          where o.id = due.id and due.attempts >= ${maxAttempts}::int
-        returning o.id)
-      update outbox_events o
-         set attempts = due.attempts + 1,
-             claimed_until = now() + ${leaseSeconds}::int * interval '1 second'
-        from due
-       where o.id = due.id and due.attempts < ${maxAttempts}::int
-      returning o.id, o.sequence::text as sequence, o.entity_id, o.type, o.aggregate_type,
-                o.aggregate_id, o.payload_json, due.attempts, o.created_at,
-                o.claimed_until::text as lease`;
+        returning o.id),
+      leased as (
+        update outbox_events o
+           set attempts = due.attempts + 1,
+               claimed_until = now() + ${leaseSeconds}::int * interval '1 second'
+          from due
+         where o.id = due.id and due.attempts < ${maxAttempts}::int
+        returning o.id, o.sequence::text as sequence, o.entity_id, o.type, o.aggregate_type,
+                  o.aggregate_id, o.payload_json, due.attempts, o.created_at,
+                  o.claimed_until::text as lease)
+      select false as spent, l.* from leased l
+      union all
+      select true, s.id, null, null, null, null, null, null, null, null, null from spent s`;
+    const leased = answer.filter((r) => !r.spent);
+    const deadLettered = answer.filter((r) => r.spent).map((r) => r.id);
     const rows: OutboxRow[] = leased
       .map((r) => ({
         id: r.id,
@@ -97,7 +109,7 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
         const d = BigInt(a.sequence) - BigInt(b.sequence);
         return d < 0n ? -1 : d > 0n ? 1 : 0;
       });
-    return { lease: leased[0]?.lease ?? '', rows };
+    return { lease: leased[0]?.lease ?? '', rows, deadLettered };
   },
 
   async record(lease, updates, release) {

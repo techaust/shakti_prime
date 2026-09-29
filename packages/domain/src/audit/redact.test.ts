@@ -186,6 +186,94 @@ describe('redactForAudit', () => {
   });
 });
 
+describe('redactForAudit and identifiers (the last-mile audit)', () => {
+  it('keeps ids and business codes whole when they look like codes', () => {
+    const lead = '01928a3b-4c5d-7e6f-8a9b-919876543210';
+    const snapshot = {
+      id: lead,
+      opportunityId: lead,
+      entityIds: [1, 2],
+      sku: 'PUMP-5HP/SS',
+      hsn: '84137010',
+      gstin: '24AAAAA0000A1Z5',
+      pin: '383001',
+      quoteNo: 'SS/2026-27/000123',
+      remarks: `call 9876543210 about lead ${lead}`,
+    };
+    expect(redactForAudit({ after: snapshot })).toEqual({
+      after: { ...snapshot, remarks: `call ******3210 about lead ${lead}` },
+    });
+  });
+
+  it('scrubs an id or code field whose value is a personal number or free text, as in refused input', () => {
+    // Input that failed to parse is recorded on the refusal row, so a key keeps nothing alone.
+    expect(
+      redactForAudit({
+        input: {
+          pin: '2345 6789 0123',
+          existingAccountId: '234567890123',
+          sourceCode: 'Mela at Idar 234567890123',
+          code: '+919876543210',
+          ewayBillNo: 234567890123,
+        },
+      }),
+    ).toEqual({
+      input: {
+        pin: '[number]',
+        existingAccountId: '[number]',
+        sourceCode: 'Mela at Idar [number]',
+        code: '+********3210',
+        ewayBillNo: '[number]',
+      },
+    });
+  });
+
+  it('hides a long number given as a number, unless its field holds a time or an amount', () => {
+    expect(
+      redactForAudit({
+        village: 234567890123,
+        landmark: 9876543210n,
+        qty: 12,
+        amountPaise: 1450000000000,
+        grandTotal: 14500000000,
+        approvedAt: 1727430000000,
+        documentNo: 5123456789,
+        leadId: 5123456789,
+        barcode: 5123456789,
+        stageCode: 42,
+      }),
+    ).toEqual({
+      village: '[number]',
+      landmark: '[number]',
+      qty: 12,
+      amountPaise: 1450000000000,
+      grandTotal: 14500000000,
+      approvedAt: 1727430000000,
+      // A document number may be long; any other id or code field hides a long number.
+      documentNo: 5123456789,
+      leadId: '[number]',
+      barcode: '[number]',
+      stageCode: 42,
+    });
+  });
+
+  it('does not keep a personal field as a code, whatever its name ends with', () => {
+    expect(
+      redactForAudit({
+        phoneId: '+919876543210',
+        aadhaarId: '234567890123',
+        upiId: 'ramesh 234567890123',
+        nested: { ids: ['a'], details: { note: '234567890123' } },
+      }),
+    ).toEqual({
+      phoneId: '********3210',
+      aadhaarId: '[number]',
+      upiId: 'ramesh [number]',
+      nested: { ids: ['a'], details: { note: '[number]' } },
+    });
+  });
+});
+
 describe('redactAuthEvent', () => {
   it('records only the allow-listed fields of each event', () => {
     const body = {

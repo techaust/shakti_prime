@@ -43,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const counts = await publishOutbox();
+    const counts = await publishOutbox({ requestId });
     return Response.json(OutboxPublishResponse.parse(counts), { headers });
   } catch (error) {
     logger.log('error', 'outbox.publish_failed', { requestId, error });

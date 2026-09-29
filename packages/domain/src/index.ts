@@ -47,7 +47,8 @@ export { previewImportJob } from './commands/imports/preview-job';
 export {
   commitImportBatch,
   commitImportJob,
-  importBatchSettings,
+  IMPORT_BATCH_BUDGET_MS,
+  SET_BASED_BATCH_BOUND_MS,
 } from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
 export {

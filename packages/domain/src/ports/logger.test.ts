@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { jsonLogger, memoryLogger, redact, redactError, redactText } from './logger';
+import {
+  CODE_KEYS,
+  isCodeKey,
+  jsonLogger,
+  memoryLogger,
+  redact,
+  redactError,
+  redactText,
+} from './logger';
 
 describe('redaction (AUDIT M10)', () => {
   it('scrubs set-password links, query parameters, credentials and email addresses from text', () => {
@@ -34,6 +42,149 @@ describe('redaction (AUDIT M10)', () => {
       'order 1727430000000',
     ];
     for (const id of ids) expect(redactText(id)).toBe(id);
+  });
+
+  it('leaves a UUID whole when its last group reads as a mobile or twelve-digit number', () => {
+    for (const id of [
+      '01928a3b-4c5d-7e6f-8a9b-919876543210',
+      '01928A3B-4C5D-7E6F-8A9B-919876543210',
+      '01928a3b-4c5d-7e6f-8a9b-098765432109',
+      '01928a3b-4c5d-7e6f-8a9b-234567890123',
+    ]) {
+      expect(redactText(`lead ${id} moved`)).toBe(`lead ${id} moved`);
+    }
+  });
+
+  it('still finds a number after a word and a hyphen, which is not a UUID', () => {
+    expect(redactText('Mobile-9876543210')).toBe('Mobile-******3210');
+    expect(redactText('WA-9876543210')).toBe('WA-******3210');
+    expect(redactText('Rekha-9876543210')).toBe('Rekha-******3210');
+    expect(redactText('ref 5b-9876543210')).toBe('ref 5b-******3210');
+    expect(redactText('card-2345 6789 0123')).toBe('card-[number]');
+    expect(redactText('id cafe-234567890123')).toBe('id cafe-[number]');
+    // Four groups short of a UUID's head are not one either.
+    expect(redactText('4c5d-7e6f-8a9b-919876543210')).toBe('4c5d-7e6f-8a9b-[number]');
+  });
+
+  it('keeps an id or code whole only when it looks like one', () => {
+    const lead = '01928a3b-4c5d-7e6f-8a9b-919876543210';
+    expect(
+      redact({
+        leadId: lead,
+        entity_ids: [1, 2],
+        ids: [lead],
+        stageCode: 'qualified',
+        hsn: '84137010',
+        gstin: '24AAAAA0000A1Z5',
+        pin: '383001',
+        quoteNo: 'SS/2026-27/000123',
+        documentNo: 5123456789,
+        note: 'eway 234567890123 for 9876543210',
+      }),
+    ).toEqual({
+      leadId: lead,
+      entity_ids: [1, 2],
+      ids: [lead],
+      stageCode: 'qualified',
+      hsn: '84137010',
+      gstin: '24AAAAA0000A1Z5',
+      pin: '383001',
+      quoteNo: 'SS/2026-27/000123',
+      documentNo: 5123456789,
+      note: 'eway [number] for ******3210',
+    });
+  });
+
+  it('scrubs a value in an id or code field that holds a personal number or free text', () => {
+    expect(
+      redact({
+        pin: '2345 6789 0123',
+        existingAccountId: '234567890123',
+        code: '9876543210',
+        barcode: 919876543210,
+        sourceCode: 'Mela at Idar, call 98765 43210',
+        leadCode: 'two words',
+      }),
+    ).toEqual({
+      pin: '[number]',
+      existingAccountId: '[number]',
+      code: '******3210',
+      barcode: '[number]',
+      sourceCode: 'Mela at Idar, call ******3210',
+      leadCode: 'two words',
+    });
+  });
+
+  it('never takes a personal or free-text field for a code, however its name ends', () => {
+    for (const key of [
+      'phoneId',
+      'mobileNo',
+      'emailId',
+      'aadhaarId',
+      'upiId',
+      'whatsappCode',
+      'sourceCode',
+    ]) {
+      expect(isCodeKey(key), key).toBe(false);
+    }
+    for (const key of [
+      'id',
+      'leadId',
+      'job_id',
+      'entityIds',
+      'code',
+      'sku',
+      'barcode',
+      'ewayBillNo',
+      'ewayBillNumber',
+      'serialNo',
+      'buyerOrderNo',
+    ]) {
+      expect(isCodeKey(key), key).toBe(true);
+    }
+    expect(CODE_KEYS.has('ewaybillno')).toBe(true);
+    expect(isCodeKey('remarksNo')).toBe(false);
+    // `upi` marks a personal field only as a whole part of the name.
+    for (const key of ['upiId', 'upi_ref', 'UPI', 'customerUpiId']) {
+      expect(isCodeKey(key), key).toBe(false);
+    }
+    for (const key of ['groupId', 'pickupId', 'pickup_code']) {
+      expect(isCodeKey(key), key).toBe(true);
+    }
+  });
+
+  it('hides a number of ten digits or more, unless its field holds a time or an amount', () => {
+    expect(
+      redact({
+        village: 234567890123,
+        contact: 9876543210,
+        big: 98765432101n,
+        count: 999_999_999,
+        durationMs: 12,
+        createdAt: 1727430000000,
+        expires_at: 1727430000,
+        exp: 1727430000,
+        iat: 1727429000,
+        expires: 1727430000,
+        amountPaise: 1450000000000,
+        lineTotal: 1450000000,
+        amount: 12345678901,
+      }),
+    ).toEqual({
+      village: '[number]',
+      contact: '[number]',
+      big: '[number]',
+      count: 999_999_999,
+      durationMs: 12,
+      createdAt: 1727430000000,
+      expires_at: 1727430000,
+      exp: 1727430000,
+      iat: 1727429000,
+      expires: 1727430000,
+      amountPaise: 1450000000000,
+      lineTotal: 1450000000,
+      amount: 12345678901,
+    });
   });
 
   it('keeps the last four digits of a mobile number written spaced or after 0, 91 or +91', () => {
@@ -140,6 +291,19 @@ describe('jsonLogger', () => {
       error: { message: 'link reset-password:[redacted] failed' },
     });
     expect(typeof entry.time).toBe('string');
+  });
+
+  it('writes a bigint as text rather than failing', () => {
+    const lines: string[] = [];
+    const log = jsonLogger((_level, line) => lines.push(line));
+    expect(() => {
+      log.log('info', 'invoice.totalled', { amountPaise: 1450n, lines: 2n, contact: 98765432101n });
+    }).not.toThrow();
+    expect(JSON.parse(lines[0] ?? '{}')).toMatchObject({
+      amountPaise: '1450',
+      lines: '2',
+      contact: '[number]',
+    });
   });
 
   it('the memory logger keeps redacted entries', () => {

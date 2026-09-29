@@ -26,23 +26,21 @@ export async function phoneStatus(
 }
 
 /**
- * Holds each new customer's number in its company until the transaction ends, before the number
- * is looked up (`phoneStatus`), so two new leads typed at once with one new number cannot both
- * find it free: the second waits for the first to commit, then finds the first one's customer.
- * The locks are taken in one order, so two batches never wait on each other in a circle; two
- * numbers share a lock only when their hashes collide, which costs a wait and nothing else.
+ * Holds a new customer's number in its company until the lead form's transaction ends, before
+ * the number is looked up (`phoneStatus`), so two people saving one new number at the same moment
+ * cannot both find it free: the second waits for the first to commit, then finds the first one's
+ * customer. One key, taken once; a wait longer than the connection's `lock_timeout` fails as a
+ * conflict. Imports take no number lock (`CommandContext.inImportBatch`), so a form never waits
+ * on a batch and batches of different jobs never wait on each other (batches of one job still
+ * take turns on the job row); an import committing a brand-new number at the same moment as a
+ * form or another import can make a second customer, which the duplicate cards of Phase 1
+ * (CRM-03) catch. Two numbers share a lock only when their hashes collide, which costs
+ * a wait and nothing else.
  */
-export async function lockNewNumbers(
-  tx: RequestTx,
-  numbers: readonly { phone: string; entityId: number }[],
-): Promise<void> {
-  const keys = [...new Set(numbers.map((n) => `lead-phone:${String(n.entityId)}:${n.phone}`))];
-  if (keys.length === 0) return;
-  await tx.execute(sql`
-    select pg_advisory_xact_lock(k.hash)
-      from (select distinct hashtextextended(x.key, 0) as hash
-              from jsonb_array_elements_text(${JSON.stringify(keys)}::jsonb) as x(key)
-             order by 1) k`);
+export async function lockNewNumber(tx: RequestTx, phone: string, entityId: number): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`lead-phone:${String(entityId)}:${phone}`}, 0))`,
+  );
 }
 
 /** The refusal of a lead for a customer a colleague looks after in that company (AUDIT M25). */
@@ -194,9 +192,10 @@ export const createLead = defineCommand({
       // A number that belongs to a customer a colleague looks after in this company is that
       // customer, not a new one: the enquiry goes to the colleague as on the known-customer path,
       // rather than a second customer that splits their consent and DND history. The import
-      // commit asks the same question for a whole batch (`commitLeadBatch`). The number is held
-      // first, so a second new lead with it at the same moment waits and then finds this one.
-      await lockNewNumbers(ctx.tx, [{ phone: contactInput.phone, entityId }]);
+      // commit asks the same question for a whole batch (`commitLeadBatch`). A lead typed in holds
+      // the number first, so a second one with it at the same moment waits and then finds this
+      // one; an import row does not (`lockNewNumber`).
+      if (ctx.inImportBatch !== true) await lockNewNumber(ctx.tx, contactInput.phone, entityId);
       if ((await phoneStatus(ctx.tx, contactInput.phone, entityId)) === 'held_by_other') {
         throw heldByColleague();
       }

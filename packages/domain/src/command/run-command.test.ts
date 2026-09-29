@@ -5,12 +5,14 @@ import { defineCommand } from './define-command';
 import { memoryAuditSink } from '../audit/sink';
 import { memoryIdempotencyStore } from '../idempotency/store';
 import { memoryOutboxSink } from '../outbox/sink';
+import type { ExecuteOptions } from './execute';
 import {
   checkPermission,
   failureOf,
   runCommand,
   translateDatabaseError,
   undeclaredAuditFields,
+  type RunOptions,
 } from './run-command';
 import { fakeContext as context, type Principal } from './test-support';
 
@@ -677,5 +679,40 @@ describe('declared audit fields', () => {
       runCommand(quiet, { context: context(principal()), audit, outbox: memoryOutboxSink() }, {}),
     ).rejects.toMatchObject({ code: 'internal', details: { fields: ['colour'] } });
     expect(audit.records).toEqual([]);
+  });
+});
+
+describe('inImportBatch is set only by an import batch through ctx.run', () => {
+  const probe = defineCommand({
+    name: 'test.probe_batch',
+    permission: 'crm.lead.read',
+    auditFields: [],
+    input: z.object({}).strict(),
+    output: z.object({ inBatch: z.boolean() }).strict(),
+    handler: (ctx) => Promise.resolve({ inBatch: ctx.inImportBatch === true }),
+  });
+  const caller = defineCommand({
+    name: 'test.probe_caller',
+    permission: 'crm.lead.read',
+    auditFields: [],
+    input: z.object({ batch: z.boolean() }).strict(),
+    output: z.object({ inBatch: z.boolean() }).strict(),
+    handler: (ctx, input) =>
+      ctx.run(probe, {}, input.batch ? { inImportBatch: true, auditedByCaller: true } : {}),
+  });
+  const sinks = () => ({ audit: memoryAuditSink(), outbox: memoryOutboxSink() });
+
+  it('is true for a command an import batch runs, and false for any other nested run', async () => {
+    const run = (batch: boolean) =>
+      runCommand(caller, { context: context(principal()), ...sinks() }, { batch });
+    await expect(run(true)).resolves.toEqual({ inBatch: true });
+    await expect(run(false)).resolves.toEqual({ inBatch: false });
+  });
+
+  it('cannot be set through the options of runCommand or executeCommand', async () => {
+    // @ts-expect-error: executeCommand's options have no inImportBatch.
+    const refused: ExecuteOptions = { inImportBatch: true };
+    const smuggled = { context: context(principal()), ...sinks(), ...refused } as RunOptions;
+    await expect(runCommand(probe, smuggled, {})).resolves.toEqual({ inBatch: false });
   });
 });

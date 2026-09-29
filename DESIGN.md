@@ -157,7 +157,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 9. Accessibility and formats
 - WCAG AA: contrast, focus order, keyboard operability, labels on every control, `aria-live` for toasts and queue updates.
-- When a dialog or sheet closes, focus goes to the first of its named places that can take it (§6, `returnFocusTo`): a place that is hidden, disabled, inside an `inert` or `aria-disabled` part of the page, or not focusable at all is passed over, and so is one that does not take focus when asked. Radix's own return is stopped only once focus has landed, so when no place takes it, Radix returns focus as it would anyway.
+- When a dialog or sheet closes, focus goes to the first of its named places that can take it (§6, `returnFocusTo`): a place that is hidden, disabled, inside an `inert` part of the page, or not focusable at all is passed over (an `aria-disabled` control still takes focus, as ARIA keeps it focusable), and so is one that does not take focus when asked. Radix's own return is stopped only once focus has landed, so when no place takes it, Radix returns focus as it would anyway.
 - English strings via `next-intl` from one catalogue; no concatenated sentences; plurals through ICU messages. `<html lang="en">` on every page.
 - Numbers: ₹ with paise, lakh/crore grouping (`12,34,567.00`). Dates DD-MM-YYYY, times 24 h IST.
 - Name search tolerates spelling variants of Indian names (trigram matching). Text a customer sends in Devanagari, such as a WhatsApp message, is shown as received with the device's own fonts.

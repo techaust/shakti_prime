@@ -36,12 +36,19 @@ const noQueuePublisher: EventPublisher = {
     Promise.resolve(events.map((e) => ({ id: e.id, ok: false, error: 'queue_not_configured' }))),
 };
 
-/** One publisher run against QStash when configured, and its counts in the log. */
+/**
+ * One publisher run against QStash when configured, and its counts in the log; the events the
+ * claim dead-lettered because their runs kept dying get a warning line of their own, by id.
+ */
 export async function publishOutbox(
-  publisher: EventPublisher = defaultPublisher(),
+  options: { publisher?: EventPublisher; requestId?: string } = {},
 ): Promise<OutboxPublishResponse> {
-  const counts = await runOutboxPublisher({ claim: claimOutbox, publisher });
-  if (counts.claimed > 0) logger.log('info', 'outbox.publish', { ...counts });
+  const { requestId } = options;
+  const publisher = options.publisher ?? defaultPublisher();
+  const counts = await runOutboxPublisher({ claim: claimOutbox, publisher, logger, requestId });
+  if (counts.claimed > 0 || counts.deadLettered > 0) {
+    logger.log('info', 'outbox.publish', { requestId, ...counts });
+  }
   return counts;
 }
 
@@ -61,5 +68,5 @@ export async function nudgeOutbox(): Promise<void> {
     await nudgeViaQStash(config);
     return;
   }
-  if (!hostedRuntime()) await publishOutbox(noQueuePublisher);
+  if (!hostedRuntime()) await publishOutbox({ publisher: noQueuePublisher });
 }

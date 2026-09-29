@@ -1,5 +1,8 @@
 import { newId, type Principal } from '@shakti/contracts';
 import { sql, type SQL } from 'drizzle-orm';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   asMigrator,
@@ -194,3 +197,78 @@ describe('imports are written only as the caller, in the caller’s entity', () 
     expect(changed).toBe(0);
   });
 });
+
+describe('the batch count of a job that committed before 0058 (0060)', () => {
+  /** The backfill statement of migration 0060, as it was applied. */
+  function backfill(): string {
+    const text = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../../migrations/0060_last_mile.sql'),
+      'utf8',
+    );
+    const statement = text
+      .split('--> statement-breakpoint')
+      .find((part) => part.includes('update public.import_jobs'));
+    if (statement === undefined) throw new Error('0060 has no batch count backfill');
+    return statement;
+  }
+
+  it('counts the highest batch the rows carry, and leaves the other jobs as they are', async () => {
+    const counts = await asMigrator((m) =>
+      m
+        .begin(async (tx) => {
+          const f = { committed: newId(), untouched: newId(), counted: newId() };
+          const fileId = newId();
+          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+            values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,
+                    ${newId().replaceAll('-', '').padEnd(64, '0')}, 'ready', ${gm1.id})`;
+          for (const [jobId, batchCount] of [
+            [f.committed, 0],
+            [f.untouched, 0],
+            [f.counted, 5],
+          ] as const) {
+            // Last changed long ago, so a change by the backfill shows in updated_at.
+            await tx`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, state, total_rows, batch_count, created_by, updated_at)
+              values (${jobId}, 1, 'leads', ${fileId}, 'csv', '["Name"]'::jsonb, 'committing', 3, ${batchCount}, ${gm1.id}, '2026-01-01T00:00:00Z')`;
+          }
+          // Rows of batches 1 and 3 and one still waiting; the untouched job has no row committed.
+          for (const [jobId, rowNo, batch] of [
+            [f.committed, 1, 1],
+            [f.committed, 2, 3],
+            [f.committed, 3, null],
+            [f.untouched, 1, null],
+            [f.counted, 1, 2],
+          ] as const) {
+            await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, committed_batch, created_by)
+              values (${jobId}, 1, ${rowNo}, '{"Name": "one"}'::jsonb, ${batch}, ${gm1.id})`;
+          }
+          await tx.unsafe(backfill());
+          const rows = await tx<{ id: string; n: number; changed: boolean }[]>`
+            select id, batch_count as n, updated_at > '2026-01-01T00:00:00Z' as changed
+              from import_jobs where id in ${tx([f.committed, f.untouched, f.counted])}`;
+          const byId = new Map(rows.map((r) => [r.id, { n: r.n, changed: r.changed }]));
+          throw new RolledBack({
+            committed: byId.get(f.committed),
+            untouched: byId.get(f.untouched),
+            counted: byId.get(f.counted),
+          });
+        })
+        .catch((e: unknown) => {
+          if (e instanceof RolledBack) return e.value;
+          throw e;
+        }),
+    );
+    // Only the job whose rows carry a batch is written; the others keep their updated_at.
+    expect(counts).toEqual({
+      committed: { n: 3, changed: true },
+      untouched: { n: 0, changed: false },
+      counted: { n: 5, changed: false },
+    });
+  });
+});
+
+/** Carries a transaction's answer out of the rollback that leaves nothing behind. */
+class RolledBack extends Error {
+  constructor(readonly value: unknown) {
+    super('rolled back');
+  }
+}

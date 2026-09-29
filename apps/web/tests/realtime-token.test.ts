@@ -148,7 +148,9 @@ describe('POST /api/v1/realtime/token with a real session', () => {
       'entity:2:queue',
       'entity:2:board',
     ]);
-    const jwks = JwksResponse.parse(await (await jwksDocument(env)).json());
+    const jwks = JwksResponse.parse(
+      await (await jwksDocument(new Request('https://bos.test/.well-known/jwks.json'), env)).json(),
+    );
     const claims = await verifyRealtimeToken(token, jwks, ISSUER, clock);
     expect(claims).toMatchObject({
       sub: user.id,
@@ -177,7 +179,9 @@ describe('POST /api/v1/realtime/token with a real session', () => {
     ]);
     const response = await call(principalFrom(cookie, 3));
     const { token } = RealtimeTokenResponse.parse(await response.json());
-    const jwks = JwksResponse.parse(await (await jwksDocument(env)).json());
+    const jwks = JwksResponse.parse(
+      await (await jwksDocument(new Request('https://bos.test/.well-known/jwks.json'), env)).json(),
+    );
     expect((await verifyRealtimeToken(token, jwks, ISSUER, clock)).entity_ids).toEqual([3]);
   });
 

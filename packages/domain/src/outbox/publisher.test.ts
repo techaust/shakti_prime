@@ -3,7 +3,13 @@ import type * as Contracts from '@shakti/contracts';
 import type { ClaimOutbox, OutboxRow, OutboxUpdate } from '@shakti/db';
 import { describe, expect, it, vi } from 'vitest';
 import { memoryEventPublisher, type EventPublisher } from '../ports/event-publisher';
-import { OUTBOX_BATCH_SIZE, OUTBOX_MAX_ATTEMPTS, runOutboxPublisher } from './publisher';
+import { memoryLogger } from '../ports/logger';
+import {
+  DEAD_LETTER_LOG_IDS,
+  OUTBOX_BATCH_SIZE,
+  OUTBOX_MAX_ATTEMPTS,
+  runOutboxPublisher,
+} from './publisher';
 
 // Nothing is subscribed in Phase 0, so these tests switch one type on through the catalogue.
 vi.mock('@shakti/contracts', async (importOriginal) => {
@@ -28,17 +34,21 @@ function row(overrides: Partial<OutboxRow> = {}): OutboxRow {
   };
 }
 
-/** A claim over fixed rows that records the limit asked for and the updates returned. */
-function claimOf(rows: OutboxRow[]) {
+/**
+ * A claim over fixed rows that records the limit asked for and the updates returned; `spent` are
+ * the ids the claim dead-lettered because their attempts were used up by runs that died.
+ */
+function claimOf(rows: OutboxRow[], spent: string[] = []) {
   const seen: { limit?: number; maxAttempts?: number; updates: readonly OutboxUpdate[] } = {
     updates: [],
   };
-  const claim: ClaimOutbox = async (limit, deliver, maxAttempts) => {
+  const claim: ClaimOutbox = async (limit, deliver, maxAttempts, onDeadLettered) => {
     seen.limit = limit;
     seen.maxAttempts = maxAttempts;
+    if (spent.length > 0) onDeadLettered?.(spent);
     const claimed = rows.slice(0, limit);
-    seen.updates = await deliver(claimed);
-    return claimed.length;
+    seen.updates = claimed.length === 0 ? [] : await deliver(claimed);
+    return { claimed: claimed.length, deadLettered: spent };
   };
   return { claim, seen };
 }
@@ -155,6 +165,83 @@ describe('runOutboxPublisher', () => {
     const counts = await runOutboxPublisher({ claim, publisher: memoryEventPublisher(), limit: 2 });
     expect(seen.limit).toBe(2);
     expect(counts.claimed).toBe(2);
+  });
+});
+
+describe('runOutboxPublisher and the events the claim dead-lettered', () => {
+  it('counts them with the run’s dead letters and logs a warning with their ids only', async () => {
+    const spent = [newId(), newId()];
+    const { claim } = claimOf([row()], spent);
+    const logger = memoryLogger();
+    const counts = await runOutboxPublisher({ claim, publisher: memoryEventPublisher(), logger });
+    expect(counts).toEqual({ claimed: 1, published: 1, skipped: 0, failed: 0, deadLettered: 2 });
+    expect(logger.entries).toEqual([
+      {
+        level: 'warn',
+        event: 'outbox.no_outcome_dead_lettered',
+        fields: { count: 2, ids: spent },
+      },
+    ]);
+  });
+
+  it('counts and logs them when the claim leased nothing else', async () => {
+    const spent = [newId()];
+    const { claim } = claimOf([], spent);
+    const logger = memoryLogger();
+    const counts = await runOutboxPublisher({ claim, publisher: memoryEventPublisher(), logger });
+    expect(counts).toEqual({ claimed: 0, published: 0, skipped: 0, failed: 0, deadLettered: 1 });
+    expect(logger.entries).toHaveLength(1);
+  });
+
+  it('names the run’s request id, and at most twenty ids with the full count', async () => {
+    const spent = Array.from({ length: 25 }, () => newId());
+    const { claim } = claimOf([], spent);
+    const logger = memoryLogger();
+    await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher(),
+      logger,
+      requestId: 'outbox-run-1',
+    });
+    expect(logger.entries).toEqual([
+      {
+        level: 'warn',
+        event: 'outbox.no_outcome_dead_lettered',
+        fields: {
+          requestId: 'outbox-run-1',
+          count: 25,
+          ids: spent.slice(0, DEAD_LETTER_LOG_IDS),
+          truncated: true,
+        },
+      },
+    ]);
+    expect(DEAD_LETTER_LOG_IDS).toBe(20);
+  });
+
+  it('logs them before the delivery, so a delivery that throws does not lose them', async () => {
+    const spent = [newId()];
+    const claim: ClaimOutbox = async (_limit, deliver, _max, onDeadLettered) => {
+      onDeadLettered?.(spent);
+      await deliver([row()]);
+      throw new Error('the run was cut short');
+    };
+    const logger = memoryLogger();
+    await expect(
+      runOutboxPublisher({ claim, publisher: memoryEventPublisher(), logger }),
+    ).rejects.toThrow('the run was cut short');
+    expect(logger.entries).toEqual([
+      expect.objectContaining({
+        event: 'outbox.no_outcome_dead_lettered',
+        fields: expect.objectContaining({ ids: spent }) as unknown,
+      }),
+    ]);
+  });
+
+  it('logs nothing when the claim dead-lettered nothing', async () => {
+    const { claim } = claimOf([row()]);
+    const logger = memoryLogger();
+    await runOutboxPublisher({ claim, publisher: memoryEventPublisher(), logger });
+    expect(logger.entries).toEqual([]);
   });
 });
 

@@ -3,7 +3,6 @@ import {
   ErrorEnvelope,
   isAgentRole,
   isDomainError,
-  newId,
   type ErrorCode,
   type Principal,
   type RealtimeTokenGrant,
@@ -213,8 +212,11 @@ export async function issueRealtimeToken(
 }
 
 /** `GET /.well-known/jwks.json`: the public halves of the current and next keys. */
-export async function jwksDocument(env: Env = process.env): Promise<Response> {
-  const requestId = newId();
+export async function jwksDocument(
+  request: Pick<Request, 'headers'>,
+  env: Env = process.env,
+): Promise<Response> {
+  const requestId = incomingRequestId(request.headers);
   const keys = await keysOrFailure(env, requestId);
   if (keys instanceof Response) return keys;
   const body = JwksResponse.parse({ keys: publicKeyList(keys) });
@@ -227,8 +229,11 @@ export async function jwksDocument(env: Env = process.env): Promise<Response> {
 }
 
 /** `GET /.well-known/openid-configuration`: the issuer and where its key list lives. */
-export function openIdConfigurationDocument(env: Env = process.env): Response {
-  const requestId = newId();
+export function openIdConfigurationDocument(
+  request: Pick<Request, 'headers'>,
+  env: Env = process.env,
+): Response {
+  const requestId = incomingRequestId(request.headers);
   const issuer = bosIssuer(env);
   if (issuer === undefined) return failure('integration_unavailable', requestId);
   return Response.json(openIdConfiguration(issuer), {

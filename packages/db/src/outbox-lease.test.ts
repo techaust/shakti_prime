@@ -22,7 +22,10 @@ function row(): OutboxRow {
  * A store that records each call in order and whether a transaction was open, so a test can see
  * that nothing was held while the rows were being delivered.
  */
-function memoryStore(rows: OutboxRow[], options: { failRecord?: boolean } = {}) {
+function memoryStore(
+  rows: OutboxRow[],
+  options: { failRecord?: boolean; deadLettered?: string[] } = {},
+) {
   const log: string[] = [];
   const recorded: { lease: string; updates: readonly OutboxUpdate[]; release: string[] }[] = [];
   let open = false;
@@ -38,7 +41,11 @@ function memoryStore(rows: OutboxRow[], options: { failRecord?: boolean } = {}) 
       await Promise.resolve();
       open = false;
       leases += 1;
-      return { lease: `lease-${String(leases)}`, rows: rows.slice(0, limit) };
+      return {
+        lease: `lease-${String(leases)}`,
+        rows: rows.slice(0, limit),
+        deadLettered: options.deadLettered ?? [],
+      };
     },
     async record(lease, updates, release) {
       open = true;
@@ -76,7 +83,7 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
       openWhileDelivering = m.isOpen();
       return Promise.resolve(publishedAll(given));
     });
-    expect(claimed).toBe(2);
+    expect(claimed).toEqual({ claimed: 2, deadLettered: [] });
     expect(m.log).toEqual(['lease', 'deliver', 'record']);
     expect(openWhileDelivering).toBe(false);
     expect(m.seen).toEqual({
@@ -110,9 +117,49 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
       delivered = true;
       return Promise.resolve([]);
     });
-    expect(claimed).toBe(0);
+    expect(claimed).toEqual({ claimed: 0, deadLettered: [] });
     expect(delivered).toBe(false);
     expect(m.log).toEqual(['lease']);
+  });
+
+  it('answers the rows the lease dead-lettered, with rows claimed and with none', async () => {
+    const spent = ['00000000-0000-7000-8000-00000000dead'];
+    const rows = [row()];
+    const withRows = memoryStore(rows, { deadLettered: spent });
+    await expect(
+      claimWith(withRows.store)(10, (given) => Promise.resolve(publishedAll(given))),
+    ).resolves.toEqual({ claimed: 1, deadLettered: spent });
+    expect(withRows.recorded).toEqual([
+      { lease: 'lease-1', updates: publishedAll(rows), release: [] },
+    ]);
+    const alone = memoryStore([], { deadLettered: spent });
+    await expect(claimWith(alone.store)(10, () => Promise.resolve([]))).resolves.toEqual({
+      claimed: 0,
+      deadLettered: spent,
+    });
+    expect(alone.log).toEqual(['lease']);
+  });
+
+  it('tells the run of them before the delivery, which may throw', async () => {
+    const spent = ['00000000-0000-7000-8000-00000000beef'];
+    const m = memoryStore([row()], { deadLettered: spent });
+    const told: string[][] = [];
+    await expect(
+      leasedClaim(m.store)(
+        10,
+        () => {
+          m.log.push('deliver');
+          return Promise.reject(new Error('the run was cut short'));
+        },
+        MAX_ATTEMPTS,
+        (ids) => {
+          m.log.push('told');
+          told.push([...ids]);
+        },
+      ),
+    ).rejects.toThrow('the run was cut short');
+    expect(told).toEqual([spent]);
+    expect(m.log).toEqual(['lease', 'told', 'deliver', 'record']);
   });
 
   it('releases every claimed row unchanged and raises when the delivery fails as a whole', async () => {

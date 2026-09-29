@@ -45,6 +45,11 @@ function post(headers: Record<string, string> = { origin: ISSUER }): Request {
   return new Request(TOKEN_URL, { method: 'POST', headers });
 }
 
+/** A GET of a discovery document, with the headers the platform or a caller sent. */
+function discovery(headers: Record<string, string> = {}): Request {
+  return new Request(`${ISSUER}/.well-known/jwks.json`, { headers });
+}
+
 async function envelope(response: Response) {
   return ErrorEnvelope.parse(await response.json()).error;
 }
@@ -78,7 +83,7 @@ describe('POST /api/v1/realtime/token', () => {
     expect(response.headers.get('cache-control')).toBe('no-store');
     const body = RealtimeTokenResponse.parse(await response.json());
 
-    const jwks = JwksResponse.parse(await (await jwksDocument(vars)).json());
+    const jwks = JwksResponse.parse(await (await jwksDocument(discovery(), vars)).json());
     const claims = await verifyRealtimeToken(body.token, jwks, ISSUER);
     expect(claims).toMatchObject({ sub: person.id, entity_ids: [2], bos_role: 'field_engineer' });
     // The token carries the id the command settled and audited, under the route's request id.
@@ -350,8 +355,27 @@ describe('POST /api/v1/realtime/token', () => {
 });
 
 describe('the discovery documents', () => {
+  it('answer with the platform’s request id, or a new one when it gives none', async () => {
+    const vars = await env();
+    const platform = 'bom1::abcde-1727430000000-0123456789ab';
+    for (const response of [
+      await jwksDocument(discovery({ 'x-vercel-id': platform }), vars),
+      openIdConfigurationDocument(discovery({ 'x-vercel-id': platform }), vars),
+    ]) {
+      expect(response.headers.get('x-request-id')).toBe(platform);
+    }
+    const unavailable = await jwksDocument(
+      discovery({ 'x-request-id': 'probe-1' }),
+      await env(false),
+    );
+    expect(unavailable.headers.get('x-request-id')).toBe('probe-1');
+    expect((await envelope(unavailable)).requestId).toBe('probe-1');
+    const fresh = openIdConfigurationDocument(discovery(), vars);
+    expect(fresh.headers.get('x-request-id')).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
   it('publish the current and next public keys with a short cache', async () => {
-    const response = await jwksDocument(await env());
+    const response = await jwksDocument(discovery(), await env());
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('public, max-age=300');
     const body = JwksResponse.parse(await response.json());
@@ -359,14 +383,14 @@ describe('the discovery documents', () => {
   });
 
   it('answer unavailable without keys', async () => {
-    expect((await jwksDocument(await env(false))).status).toBe(503);
+    expect((await jwksDocument(discovery(), await env(false))).status).toBe(503);
   });
 
   it('name the issuer and the key list', async () => {
-    const response = openIdConfigurationDocument({ BETTER_AUTH_URL: ISSUER });
+    const response = openIdConfigurationDocument(discovery(), { BETTER_AUTH_URL: ISSUER });
     const body = OpenIdConfiguration.parse(await response.json());
     expect(body.issuer).toBe(ISSUER);
     expect(body.jwks_uri).toBe(`${ISSUER}/.well-known/jwks.json`);
-    expect(openIdConfigurationDocument({}).status).toBe(503);
+    expect(openIdConfigurationDocument(discovery(), {}).status).toBe(503);
   });
 });
