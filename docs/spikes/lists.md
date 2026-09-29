@@ -75,3 +75,50 @@ Timed with a copy of the spike script that seeds the same 50,000 leads and times
 - Concurrent callers: every read ran alone, one after another, on one connection.
 - A large audit trail: the Activity log read 710 rows of the last 30 days; months of real activity will hold far more, and the page is measured again then.
 - The server action around the query (session check, principal resolution), the network to the browser and rendering; the 300 ms target is for the whole interaction.
+
+## Customer timeline and Account 360 (slice C2)
+`pnpm spike:account360` (packages/domain/tests/spike/account360.ts, not in CI; options `-- --activities 1000 --customers 5000 --runs 100 --warmup 10`) seeds, as app_user through the import commit's set-based lead path, 5,000 made-up customers of company 1 with one lead each owned by one made-up tele-caller of one team, and one more customer with five leads; then, as the migrator, five timeline rows for each background customer and 1,001 rows for the one customer, half on its leads and half on the customer, spread over the last six months (the rows older than the current month land in the default partition, the rest in the current month's). It times through `executeQuery`, 10 untimed and 100 timed runs per case, for the team lead of that team, the General Manager of the company and the tele-caller who owns the leads. Each run adds its 5,000 customers to the local database (timeline rows are append-only, so the spike keeps what it seeds); the last run read 20,000 made-up customers and 157,000 timeline rows. The machine (4 cores, 8 GB) was shared with two other builds and the CPU stood at 100 % through the last run, so the 95th percentiles below are the machine's queueing as much as the queries; the 50th percentiles and the plans are the reliable part, and the run is measured again on the hosted stack.
+
+| Caller | Account 360 p50 / p95 ms | Timeline page 2 p50 / p95 ms | One lead's timeline p50 / p95 ms | Customers list p50 / p95 ms | Search by name p50 / p95 ms | Search by phone p50 / p95 ms |
+|---|---|---|---|---|---|---|
+| Team lead | 141.9 / **783.7** | 105.3 / 218.4 | 13.3 / 25.3 | 95.6 / **468.6** | **356.6** / **670.7** | 167.0 / 279.4 |
+| General Manager, 1 company | 136.2 / **410.6** | 28.2 / 72.1 | 16.7 / 47.8 | 111.7 / **530.4** | 109.6 / **472.2** | 102.6 / 162.1 |
+| Tele-caller, own leads | 148.1 / **420.0** | 16.9 / 44.8 | 8.8 / 12.3 | 110.8 / **305.1** | 125.5 / 241.3 | 55.9 / 111.2 |
+
+An earlier run on a quieter machine, after the timeline policy change below and before the search candidates, read Account 360 at 70.2 / 124.7 ms (team lead), 52.1 / 67.1 ms (General Manager) and 92.3 / 252.0 ms (tele-caller) at the 50th / 95th percentile, and the second timeline page at 12.8 / 177.2, 9.2 / 12.5 and 17.0 / 55.5 ms: within 300 ms p95 for a customer with 1,000 activities.
+
+Account 360 is about a dozen short reads in one transaction (the customer, contacts, phones, sites, leads, tasks, consents, tags and the first timeline page); each costs 1 to 6 ms to plan through the customer policies and well under 1 ms to run, so the page's time is mostly planning and round trips, which grow with the machine's load, not with the customer's 1,000 rows.
+
+The timeline page reads 26 rows off `activities_account_created_idx` in each monthly partition and merges them (the team lead's plan: 1.8 ms planning, 0.35 ms execution):
+
+```
+Limit (actual time=0.091..0.181 rows=26 loops=1)
+  ->  Merge Append (actual time=0.084..0.146 rows=26 loops=1)
+        Sort Key: a.created_at DESC, a.id DESC
+        ->  Index Scan using activities_2026_09_account_id_created_at_id_idx on activities_2026_09 a_1 (actual time=0.048..0.104 rows=26 loops=1)
+              Index Cond: (account_id = '…'::uuid)
+              Filter: ((entity_id = 1) AND … EXISTS(SubPlan …) …)
+        ->  Index Scan using activities_2026_10_account_id_created_at_id_idx on activities_2026_10 a_2 (actual time=0.003..0.004 rows=0 loops=1)
+        ->  Index Scan using activities_2026_11_account_id_created_at_id_idx on activities_2026_11 a_3 (actual time=0.002..0.003 rows=0 loops=1)
+        ->  Index Scan using activities_2026_12_account_id_created_at_id_idx on activities_2026_12 a_4 (actual time=0.002..0.003 rows=0 loops=1)
+        ->  Index Scan using activities_default_account_id_created_at_id_idx on activities_default a_5 (actual time=0.028..0.029 rows=1 loops=1)
+Planning Time: 1.836 ms
+Execution Time: 0.349 ms
+```
+
+The first form of the read policy let the planner turn its `exists` on the lead into a hashed subplan, which read every lead the caller may read once for each partition before the first row (5,005 leads for the tele-caller: 11 ms, and growing with a company's leads and the months kept). Each `exists` of the policy now also tests the row's own `opportunity_id`, a condition on the outer row that is not an equality, so the planner keeps the per-row index probe: the page went from 11 ms to 0.25 ms of execution for the same caller.
+
+The customers search takes its candidates from `app.customer_search_ids()`, which uses the trigram indexes on customer, contact and village names and the index on the phone written backwards, keeps to the customers the caller may read, and returns at most 200 ids; the list then tests each candidate under the policies with correlated conditions. Before it, a search tested every contact and site of the caller's scope row by row through the customer policies (a General Manager: a sequential scan of 15,000 contacts at 99 ms and 230 ms in all at 10,000 customers). The General Manager's plan now (26 ms planning, 141 ms execution on the loaded machine, 127 ms of it inside the lookup):
+
+```
+Limit (actual time=139.118..139.165 rows=51 loops=1)
+  ->  Nested Loop (actual time=127.241..129.279 rows=200 loops=1)
+        ->  Nested Loop (actual time=127.196..127.893 rows=200 loops=1)
+              ->  Function Scan on customer_search_ids candidate (actual time=127.065..127.079 rows=200 loops=1)
+              ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.003..0.003 rows=1 loops=200)
+        ->  Index Scan using accounts_pkey on accounts a (actual time=0.006..0.006 rows=1 loops=200)
+Planning Time: 26.392 ms
+Execution Time: 141.491 ms
+```
+
+Inside the lookup, run as its owner on a quiet moment, the name branch is a bitmap scan of `accounts_name_trgm_idx` and `contacts_name_trgm_idx` (444 matches each) and 45 ms in all, most of it a hash join over `account_contacts`. `Spike customer 42` matches 555 of the made-up customers, so it is a broad search; the list shows the first 50 by name of the first 200 found. A customer list search above 300 ms at the 95th percentile on a loaded machine is measured again on the hosted stack and on the client's imported customers.

@@ -287,11 +287,11 @@ async function main(): Promise<void> {
            and a.id in (select candidate from app.customer_search_ids(
                           ${'Spike customer 42'}::text, null::text, 200) as candidate)
            and (a.name ilike ${'%Spike customer 42%'}
-             or a.id in (select ac.account_id from account_contacts ac
-                           join contacts c on c.id = ac.contact_id
-                          where c.name ilike ${'%Spike customer 42%'})
-             or a.id in (select cs.account_id from customer_sites cs
-                          where cs.village ilike ${'%Spike customer 42%'} and cs.archived_at is null))
+             or exists (select 1 from account_contacts ac join contacts c on c.id = ac.contact_id
+                         where ac.account_id = a.id and c.name ilike ${'%Spike customer 42%'})
+             or exists (select 1 from customer_sites cs
+                         where cs.account_id = a.id and cs.village ilike ${'%Spike customer 42%'}
+                           and cs.archived_at is null))
          order by a.name asc, ae.id asc limit 51`)) as unknown as { 'QUERY PLAN': string }[],
     { readOnly: true },
   );
