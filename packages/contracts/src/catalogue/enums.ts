@@ -1,8 +1,26 @@
 import { z } from 'zod';
 
-/** Catalogue and pricing enumerations (docs/DATABASE.md §6.3). Values are the DB check lists. */
+/** Catalogue and pricing enumerations (docs/DATABASE.md �§6.3). Values are the DB check lists. */
 export const ItemUnitSchema = z.enum(['nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour']);
 export type ItemUnit = z.infer<typeof ItemUnitSchema>;
+
+/**
+ * What an item is (INV-01). Each category has its own specifications (`catalogue/specs.ts`),
+ * which sizing, quotes and board cards read by key.
+ */
+export const ItemCategorySchema = z.enum([
+  'pump',
+  'motor',
+  'solar_module',
+  'controller',
+  'structure',
+  'cable',
+  'pipe',
+  'inverter',
+  'battery',
+  'other',
+]);
+export type ItemCategory = z.infer<typeof ItemCategorySchema>;
 
 /** The three tiers of docs/BLUEPRINT.md §8.3; the list is extensible from Admin, not from code. */
 export const PriceTierCodeSchema = z.enum(['retail', 'dealer', 'commercial']);

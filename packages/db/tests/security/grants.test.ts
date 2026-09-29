@@ -62,7 +62,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
    * Append-only ledgers take no update, and price history is written only by its trigger;
    * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
-   * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
+   * user_entity_roles, a kit's components and a pump's curve are replaced as a set
+   * (docs/DATABASE.md §6.1, §6.3).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
@@ -72,6 +73,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
+    kit_components: { i: true, u: true, d: true },
+    pump_curves: { i: true, u: true, d: true },
     users: { i: true, u: false },
     // A stored file and a saved template are written once; a job and a row update only their
     // working columns, never what the file said (migration 0041).

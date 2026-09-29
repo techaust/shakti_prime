@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MoneySchema } from '../catalogue/enums';
+import { ItemCategorySchema, MoneySchema, PriceTierCodeSchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { ImportKindSchema } from '../imports/enums';
@@ -102,6 +102,50 @@ const eventCatalogue = {
         newPrice: MoneySchema,
       })
       .strict(),
+  },
+  'pricing.list.created': {
+    subscribed: false,
+    payload: z
+      .object({
+        tierCode: PriceTierCodeSchema,
+        copiedFromId: IdSchema.nullable(),
+        prices: z.number().int().min(0),
+      })
+      .strict(),
+  },
+  'pricing.list.approved': {
+    subscribed: false,
+    payload: z
+      .object({ tierCode: PriceTierCodeSchema, closedListIds: z.array(IdSchema) })
+      .strict(),
+  },
+  'catalogue.item.created': {
+    subscribed: false,
+    payload: z.object({ category: ItemCategorySchema }).strict(),
+  },
+  'catalogue.item.updated': {
+    subscribed: false,
+    payload: z.object({ category: ItemCategorySchema }).strict(),
+  },
+  'catalogue.item.archived': {
+    subscribed: false,
+    payload: z.object({ category: ItemCategorySchema }).strict(),
+  },
+  'catalogue.kit.created': {
+    subscribed: false,
+    payload: z.object({ components: z.number().int().min(1) }).strict(),
+  },
+  'catalogue.kit.updated': {
+    subscribed: false,
+    payload: z.object({ components: z.number().int().min(1) }).strict(),
+  },
+  'catalogue.kit.archived': {
+    subscribed: false,
+    payload: z.object({}).strict(),
+  },
+  'catalogue.pump_curve.set': {
+    subscribed: false,
+    payload: z.object({ points: z.number().int().min(2).max(30) }).strict(),
   },
   'auth.session.revoked': {
     subscribed: false,

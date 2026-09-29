@@ -15,7 +15,7 @@ import {
 import { actors, archivable, timestamps } from './columns';
 import { entities } from './entities';
 
-/** The item master (INV-01, docs/DATABASE.md §6.3). One catalogue shared by every entity. */
+/** The item master (INV-01, docs/DATABASE.md �§6.3). One catalogue shared by every entity. */
 export const items = pgTable(
   'items',
   {
@@ -40,6 +40,12 @@ export const items = pgTable(
       'items_unit_check',
       sql`${t.unit} in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')`,
     ),
+    check(
+      'items_category_check',
+      sql`${t.category} in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')`,
+    ),
+    // The specifications of the category (`@shakti/contracts` catalogue/specs.ts), always an object.
+    check('items_specs_object_check', sql`jsonb_typeof(${t.specsJson}) = 'object'`),
     index('items_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('items_category_idx').on(t.category),
   ],
