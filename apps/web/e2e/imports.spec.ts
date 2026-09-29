@@ -13,8 +13,8 @@ test('uploads a spreadsheet of leads and opens its job', async ({ page }) => {
   await page.goto('/imports');
   await expect(page.getByRole('heading', { name: 'Imports', level: 1 })).toBeVisible();
   await expectNoAxeViolations(page);
-  // The jobs grow with every run.
-  await snap(page, 'imports-list', { mask: [dataGrid(page, 'Imports')] });
+  // The jobs grow with every run, so the grid is masked and only the first screen is compared.
+  await snap(page, 'imports-list', { mask: [dataGrid(page, 'Imports')], fullPage: false });
 
   await page.getByRole('link', { name: 'New import' }).first().click();
   await expect(page.getByRole('heading', { name: 'New import', level: 1 })).toBeVisible();

@@ -28,8 +28,9 @@ for (const { role, title, lead } of ROLES) {
       const grid = dataGrid(page, 'Leads');
       await expect(grid.getByText(lead).first()).toBeVisible();
       await expectNoAxeViolations(page);
-      // The rows grow with every run (the journeys add leads).
-      await snap(page, `leads-list-${role}`, { mask: [grid] });
+      // The rows grow with every run (the journeys add leads), so the grid is masked and only
+      // the first screen is compared: the page grows with the rows.
+      await snap(page, `leads-list-${role}`, { mask: [grid], fullPage: false });
     });
 
     test('opens the leads board', async ({ page }) => {
@@ -38,7 +39,10 @@ for (const { role, title, lead } of ROLES) {
       await expect(page).toHaveURL(/\/leads\/board/);
       await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
       await expectNoAxeViolations(page);
-      await snap(page, `leads-board-${role}`, { mask: [page.getByRole('list')] });
+      await snap(page, `leads-board-${role}`, {
+        mask: [page.getByRole('region', { name: 'Lead stages' })],
+        fullPage: false,
+      });
     });
 
     test('adds a lead', async ({ page }) => {
