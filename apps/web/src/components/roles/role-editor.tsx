@@ -38,6 +38,7 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
   const [chosen, setChosen] = useState<Choices>(saved);
   const [confirming, setConfirming] = useState(false);
   const saveButton = useRef<HTMLButtonElement>(null);
+  const summaryLine = useRef<HTMLParagraphElement>(null);
   const summary = summarise(saved, chosen);
   const changed = hasChanges(summary);
   const roleName = names(role.key);
@@ -64,7 +65,8 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
         </fieldset>
       ))}
       <div className="bg-bg border-border sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 md:-mx-6 md:px-6">
-        <p className="text-text-muted text-sm" aria-live="polite">
+        {/* Takes focus after a save, when the Save button has nothing left to save. */}
+        <p ref={summaryLine} tabIndex={-1} className="text-text-muted text-sm" aria-live="polite">
           <SummaryText summary={summary} />
         </p>
         <div className="flex flex-wrap gap-2">
@@ -96,7 +98,7 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
           summary={<SummaryText summary={summary} />}
           holderCount={role.holderCount}
           holdsRole={holdsRole}
-          returnFocusTo={() => [saveButton.current]}
+          returnFocusTo={() => [saveButton.current, summaryLine.current]}
           onSaved={(result) => {
             setSaved(chosen);
             setRole((r) => ({
