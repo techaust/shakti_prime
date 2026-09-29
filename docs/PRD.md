@@ -151,7 +151,7 @@ Shakti Prime is the single business operating system for the four Shakti group e
 | Ownership | All vendor accounts owned by the client; ADRs, runbooks, onboarding guide |
 
 ## 6. Release plan
-Delivered in Phases 0–7 as in `docs/ROADMAP.md`. The MVP (Phases 0–1) covers CRM-01 to CRM-10 (without integration channels), TEL-01 to TEL-06 (manual call logging), SAL-01 to SAL-07 (manual dealer outstanding), IMP-01 and IMP-02, AI-01 uploads and the Triage agent in shadow mode.
+Delivered in Phases 0–7 as in `docs/ROADMAP.md`. The MVP (Phases 0–1) covers CRM-01 to CRM-10 (without integration channels, and without customer loans, CRM-08, which BLUEPRINT §14 places in Phase 4), TEL-01 to TEL-06 (manual call logging; the telephony rules of TEL-04 and the screen-pop of TEL-05 arrive with Exotel in Phase 2), SAL-01 to SAL-07 (manual dealer outstanding; quotes accepted by a signed copy until WhatsApp acceptance in Phase 2), IMP-01 and IMP-02, AI-01 uploads and the Triage agent in shadow mode.
 
 ## 7. Discovery workshop inputs
 Pipeline stages, required fields, dispositions and scripts per segment; tier assignment rules, per-entity pricing, kit pricing, HSN and tax per item; dealer terms; incentive, target, expense and attendance policies; Tally companies, version, Buyer Order No. usage, stock and e-way bill practice; the existing CRM's export format; call volumes and caller headcount; WhatsApp and calling numbers per entity and DLT status; numbering formats, letterheads, bank/UPI details; required documents per project type and gate; loan partners.
