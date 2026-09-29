@@ -729,9 +729,7 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
     const id = await delivered();
     const change = (set: string) =>
       failure(
-        asOutboxPublisher((p) =>
-          p.unsafe(`update outbox_events set ${set} where id = $1`, [id]),
-        ),
+        asOutboxPublisher((p) => p.unsafe(`update outbox_events set ${set} where id = $1`, [id])),
       );
     const unpublish = 'published_at = null, dead_lettered_at = now()';
     const refused = /comes back only as a dead letter from its worker/;
