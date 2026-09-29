@@ -78,13 +78,39 @@ describe('hostedRuntime', () => {
     expect(hostedRuntime({ NODE_ENV: 'development' })).toBe(false);
   });
 
-  it('is false for a local production build and never on Vercel', () => {
-    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' })).toBe(false);
-    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'staging' })).toBe(true);
-    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'local', VERCEL: '1' })).toBe(
+  it('is false only for a local production build that runs on this machine, never on Vercel', () => {
+    const local = { NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' };
+    for (const url of ['http://localhost:3031', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+      expect(hostedRuntime({ ...local, BETTER_AUTH_URL: url })).toBe(false);
+    }
+    // The marker with any other address, or with none, is a hosted runtime and fails closed.
+    for (const url of [
+      'https://bos.example.in',
+      'http://192.168.1.67:3031',
+      'http://localhost.example.in',
+      'not a url',
+      '',
+    ]) {
+      expect(hostedRuntime({ ...local, BETTER_AUTH_URL: url })).toBe(true);
+    }
+    expect(hostedRuntime(local)).toBe(true);
+    expect(hostedRuntime({ ...local, BETTER_AUTH_URL: 'http://localhost:3031', VERCEL: '1' })).toBe(
       true,
     );
-    expect(hostedRuntime({ NODE_ENV: 'production', BOS_ENVIRONMENT: 'Local' })).toBe(true);
+    expect(
+      hostedRuntime({
+        NODE_ENV: 'production',
+        BOS_ENVIRONMENT: 'staging',
+        BETTER_AUTH_URL: 'http://localhost:3031',
+      }),
+    ).toBe(true);
+    expect(
+      hostedRuntime({
+        ...local,
+        BOS_ENVIRONMENT: 'Local',
+        BETTER_AUTH_URL: 'http://localhost:3031',
+      }),
+    ).toBe(true);
   });
 
   it('refuses to start on Vercel with the local marker', () => {

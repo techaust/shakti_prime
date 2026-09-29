@@ -322,10 +322,24 @@ export default tseslint.config(
       'packages/*/tests/**/*.ts',
       'apps/*/tests/**/*.ts',
       '**/*.test.ts',
-      // The end-to-end seed runs on the host before the journeys and makes their people.
-      'apps/web/e2e/setup/**/*.ts',
     ],
     rules: { 'no-restricted-imports': 'off' },
+  },
+  {
+    // The end-to-end seed runs on the host before the journeys and makes their people: it may
+    // use the testing helpers and the auth_service connection, and nothing else behind a fence.
+    files: ['apps/web/e2e/setup/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: rawClientImport.paths.filter(
+            (p) => p.name !== '@shakti/db/testing' && p.name !== '@shakti/db/auth',
+          ),
+          patterns: rawClientImport.patterns,
+        },
+      ],
+    },
   },
   {
     files: ['packages/domain/**/*.ts', 'packages/contracts/**/*.ts'],

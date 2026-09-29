@@ -58,16 +58,29 @@ const TURNSTILE_TEST_KEY = /^[123]x0+AA$/;
 /**
  * `BOS_ENVIRONMENT=local` marks a production build started on a developer's machine or a CI
  * runner (`next start` for the end-to-end journeys and Lighthouse), which uses the local stores
- * and the console mailer. It never applies on Vercel, where `VERCEL` is always set: there it
- * counts as a hosted runtime whose `BOS_ENVIRONMENT` is not one of the three, and so refuses to start.
+ * and the console mailer. It counts only with `BETTER_AUTH_URL` on this machine (localhost,
+ * 127.0.0.1 or [::1]) and never on Vercel, where `VERCEL` is always set. Any other production
+ * runtime is hosted and fails closed: with the marker, `BOS_ENVIRONMENT` is not one of the three
+ * hosted names, so it refuses to start.
  */
 const LOCAL_PRODUCTION = 'local';
+const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function onThisMachine(url: string | undefined): boolean {
+  if (url === undefined || url === '') return false;
+  try {
+    return LOCAL_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
 
 /** True at runtime of a hosted deployment; false locally, in tests and during `next build`. */
 export function hostedRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.NODE_ENV !== 'production' || env.NEXT_PHASE === 'phase-production-build') return false;
   const onVercel = env.VERCEL !== undefined && env.VERCEL !== '';
-  return onVercel || env.BOS_ENVIRONMENT !== LOCAL_PRODUCTION;
+  const local = env.BOS_ENVIRONMENT === LOCAL_PRODUCTION && onThisMachine(env.BETTER_AUTH_URL);
+  return onVercel || !local;
 }
 
 /** The problems that stop a hosted deployment from starting; empty when it may start. */
