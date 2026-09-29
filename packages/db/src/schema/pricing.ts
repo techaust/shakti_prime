@@ -57,10 +57,7 @@ export const priceLists = pgTable(
       'price_lists_effective_check',
       sql`${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom}`,
     ),
-    check(
-      'price_lists_approval_check',
-      sql`(${t.approvedBy} is null) = (${t.approvedAt} is null)`,
-    ),
+    check('price_lists_approval_check', sql`(${t.approvedBy} is null) = (${t.approvedAt} is null)`),
   ],
 );
 

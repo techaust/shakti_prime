@@ -84,12 +84,18 @@ describe('CreateKitInput', () => {
 
 describe('SetPumpCurveInput', () => {
   const itemId = newId();
-  const points = (pairs: [string, string][]) => pairs.map(([flowLph, headM]) => ({ flowLph, headM }));
+  const points = (pairs: [string, string][]) =>
+    pairs.map(([flowLph, headM]) => ({ flowLph, headM }));
 
   it('takes 2 to 30 points with flow rising and head falling', () => {
     expect(
-      SetPumpCurveInput.safeParse({ itemId, points: points([['0', '90'], ['6000', '10']]) })
-        .success,
+      SetPumpCurveInput.safeParse({
+        itemId,
+        points: points([
+          ['0', '90'],
+          ['6000', '10'],
+        ]),
+      }).success,
     ).toBe(true);
     expect(SetPumpCurveInput.safeParse({ itemId, points: points([['0', '90']]) }).success).toBe(
       false,
@@ -99,20 +105,26 @@ describe('SetPumpCurveInput', () => {
       String(310 - i * 10),
     ]);
     expect(SetPumpCurveInput.safeParse({ itemId, points: points(many) }).success).toBe(false);
-    expect(
-      SetPumpCurveInput.safeParse({ itemId, points: points(many.slice(0, 30)) }).success,
-    ).toBe(true);
+    expect(SetPumpCurveInput.safeParse({ itemId, points: points(many.slice(0, 30)) }).success).toBe(
+      true,
+    );
   });
 
   it('refuses flow that stays level or head that rises, naming the point', () => {
     const level = SetPumpCurveInput.safeParse({
       itemId,
-      points: points([['1000', '80'], ['1000', '70']]),
+      points: points([
+        ['1000', '80'],
+        ['1000', '70'],
+      ]),
     });
     expect(level.error?.issues[0]?.path).toEqual(['points', 1, 'flowLph']);
     const rising = SetPumpCurveInput.safeParse({
       itemId,
-      points: points([['1000', '80'], ['2000', '80.5']]),
+      points: points([
+        ['1000', '80'],
+        ['2000', '80.5'],
+      ]),
     });
     expect(rising.error?.issues[0]?.path).toEqual(['points', 1, 'headM']);
   });

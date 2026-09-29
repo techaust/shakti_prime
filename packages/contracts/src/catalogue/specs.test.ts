@@ -3,16 +3,22 @@ import { z } from 'zod';
 import { ItemCategorySchema } from './enums';
 import { ITEM_SPEC_FIELDS, ITEM_SPEC_SCHEMAS, parseItemSpecs } from './specs';
 
-const pump = { hp: 5, kw: 3.7, phase: 'three', pumpType: 'submersible', outletMm: 65, maxHeadM: 90 };
+const pump = {
+  hp: 5,
+  kw: 3.7,
+  phase: 'three',
+  pumpType: 'submersible',
+  outletMm: 65,
+  maxHeadM: 90,
+};
 
 describe('item specifications', () => {
   it('describes every key of every category, in the schema and the form alike', () => {
     for (const category of ItemCategorySchema.options) {
-      const schema = ITEM_SPEC_SCHEMAS[category];
-      const shape = schema instanceof z.ZodObject ? schema.shape : schema.in.shape;
+      const schema: z.ZodObject = ITEM_SPEC_SCHEMAS[category];
       expect({ category, keys: ITEM_SPEC_FIELDS[category].map((f) => f.key).sort() }).toEqual({
         category,
-        keys: Object.keys(shape as object).sort(),
+        keys: Object.keys(schema.shape).sort(),
       });
     }
   });

@@ -107,7 +107,10 @@ describe('pricing.list.create', () => {
   it('refuses a start date in the past and an unknown tier', async () => {
     await expect(
       run(exec, createPriceList, { tierCode: tier.code, effectiveFrom: day(-1) }),
-    ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'price_list_start_past' } });
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'price_list_start_past' },
+    });
     await expect(
       run(exec, createPriceList, { tierCode: `none_${tag}`, effectiveFrom: today }),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'price_tier_missing' } });
@@ -275,6 +278,9 @@ describe('a tier from its first list to a scheduled second one', () => {
     const later = new Date(Date.parse(`${day(2)}T06:00:00Z`));
     await expect(
       run(exec, approvePriceList, { priceListId: draft.id }, later),
-    ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'price_list_start_past' } });
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'price_list_start_past' },
+    });
   });
 });

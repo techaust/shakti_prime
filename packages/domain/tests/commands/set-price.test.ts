@@ -206,7 +206,8 @@ describe('pricing.price.set', () => {
 
   it('refuses a second live list for the same tier and company on the same days (AUDIT M19)', async () => {
     const [approver] = await asMigrator(
-      (m) => m<{ id: string }[]>`select approved_by as id from price_lists where id = ${ids.sharedList}`,
+      (m) =>
+        m<{ id: string }[]>`select approved_by as id from price_lists where id = ${ids.sharedList}`,
     );
     await expect(
       asMigrator(

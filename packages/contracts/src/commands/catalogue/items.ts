@@ -104,7 +104,9 @@ export type ArchiveKitInput = z.infer<typeof ArchiveKitInput>;
 export const HeadMSchema = z.string().regex(/^\d{1,6}(\.\d{1,2})?$/);
 export const FlowLphSchema = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/);
 
-export const PumpCurvePointSchema = z.object({ flowLph: FlowLphSchema, headM: HeadMSchema }).strict();
+export const PumpCurvePointSchema = z
+  .object({ flowLph: FlowLphSchema, headM: HeadMSchema })
+  .strict();
 export type PumpCurvePoint = z.infer<typeof PumpCurvePointSchema>;
 
 /**

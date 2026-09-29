@@ -3,6 +3,7 @@ import { ItemCategorySchema, ItemUnitSchema, MoneySchema } from '../catalogue/en
 import { ItemSpecsSchema } from '../catalogue/specs';
 import { FlowLphSchema, HeadMSchema } from '../commands/catalogue/items';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { CompositeRuleRowSchema, TaxRateRowSchema } from '../tax/engine';
 import { ItemDto } from './item';
 import { KitSortSchema, ItemSortSchema, KitPriceSortSchema } from './list-sort';
 
@@ -152,3 +153,20 @@ export const ListPriceChangesInput = z
     path: ['itemId'],
   });
 export type ListPriceChangesInput = z.input<typeof ListPriceChangesInput>;
+
+/** One GST rate as Settings › Tax lists it: the HSN code or the item, with its source. */
+export const TaxRateListRowDto = TaxRateRowSchema.extend({
+  sourceRef: z.string().nullable(),
+  itemSku: z.string().nullable(),
+  itemName: z.string().nullable(),
+}).strict();
+export type TaxRateListRowDto = z.infer<typeof TaxRateListRowDto>;
+
+/** Settings › Tax: every GST rate and every composite-supply rule, newest period first. */
+export const TaxSettingsDto = z
+  .object({
+    rates: z.array(TaxRateListRowDto),
+    compositeRules: z.array(CompositeRuleRowSchema),
+  })
+  .strict();
+export type TaxSettingsDto = z.infer<typeof TaxSettingsDto>;

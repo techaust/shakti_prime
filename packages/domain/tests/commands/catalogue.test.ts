@@ -78,7 +78,12 @@ interface ItemOut {
 
 describe('catalogue.item.create / update / archive', () => {
   it('is denied to a role without catalogue.write, and to an agent', async () => {
-    for (const roleKey of ['tele_caller_cc', 'accounts', 'sales_team_lead', 'agent:sizing'] as const) {
+    for (const roleKey of [
+      'tele_caller_cc',
+      'accounts',
+      'sales_team_lead',
+      'agent:sizing',
+    ] as const) {
       await expect(run(principalFor(roleKey, [1]), createItem, pumpInput())).rejects.toMatchObject({
         code: 'forbidden',
       });
@@ -139,9 +144,9 @@ describe('catalogue.item.create / update / archive', () => {
     await expect(
       run(manager, createItem, { ...pumpInput(), specs: { wp: 540 } }),
     ).rejects.toMatchObject({ code: 'validation_failed' });
-    await expect(
-      run(manager, createItem, { ...cableInput(), isDcr: true }),
-    ).rejects.toMatchObject({ code: 'validation_failed' });
+    await expect(run(manager, createItem, { ...cableInput(), isDcr: true })).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
   });
 
   it('updates every field, and a pump that becomes another category loses its curve', async () => {
@@ -289,7 +294,10 @@ describe('catalogue.kit.create / update / archive', () => {
         name: 'Kit with an archived item',
         components: [{ itemId: cable.id, qty: '1' }],
       }),
-    ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'kit_item_archived' } });
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'kit_item_archived' },
+    });
     await expect(
       run(manager, createKit, {
         sku: kitSku,
@@ -375,7 +383,10 @@ describe('catalogue.pump_curve.set', () => {
     const cable = await run<ItemOut>(manager, createItem, cableInput());
     await expect(
       run(manager, setPumpCurve, { itemId: cable.id, points: curve }),
-    ).rejects.toMatchObject({ code: 'validation_failed', details: { reason: 'pump_curve_not_pump' } });
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'pump_curve_not_pump' },
+    });
     await expect(
       run(manager, setPumpCurve, { itemId: newId(), points: curve }),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'catalogue_item_missing' } });

@@ -115,9 +115,7 @@ const eventCatalogue = {
   },
   'pricing.list.approved': {
     subscribed: false,
-    payload: z
-      .object({ tierCode: Code, closedListIds: z.array(IdSchema) })
-      .strict(),
+    payload: z.object({ tierCode: Code, closedListIds: z.array(IdSchema) }).strict(),
   },
   'catalogue.item.created': {
     subscribed: false,
