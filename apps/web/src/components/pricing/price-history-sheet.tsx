@@ -65,8 +65,7 @@ export function PriceHistorySheet({
   const listName = (c: PriceChangeDto) =>
     t('listOption', {
       tier: c.tierName,
-      company:
-        c.entityId === null ? t('shared') : (companies[c.entityId] ?? t('shared')),
+      company: c.entityId === null ? t('shared') : (companies[c.entityId] ?? t('shared')),
       version: c.version,
     });
 

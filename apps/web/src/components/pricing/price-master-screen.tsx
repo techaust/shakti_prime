@@ -306,7 +306,11 @@ export function PriceMasterScreen({
   const canChangeList = canSetPrices && list.open;
   const unitName = (row: PriceRowDto) => t(`unit.${row.unit}`);
   const priceCell = (price: string | null) =>
-    price === null ? <span className="text-text-muted">{t('notPriced')}</span> : formatRupees(price);
+    price === null ? (
+      <span className="text-text-muted">{t('notPriced')}</span>
+    ) : (
+      formatRupees(price)
+    );
   const updatedCell = (updatedAt: string | null) =>
     updatedAt === null ? common('notSet') : formatDate(updatedAt);
   const actionsCell = (target: Target) => (
@@ -370,7 +374,13 @@ export function PriceMasterScreen({
       align: 'end',
       hideable: false,
       cell: (r) =>
-        actionsCell({ kind: 'item', id: r.itemId, name: r.name, unit: unitName(r), price: r.price }),
+        actionsCell({
+          kind: 'item',
+          id: r.itemId,
+          name: r.name,
+          unit: unitName(r),
+          price: r.price,
+        }),
     },
   ];
   const kitColumns: DataGridColumn<KitPriceRowDto>[] = [
@@ -396,7 +406,13 @@ export function PriceMasterScreen({
       align: 'end',
       hideable: false,
       cell: (r) =>
-        actionsCell({ kind: 'kit', id: r.kitId, name: r.name, unit: t('unit.set'), price: r.price }),
+        actionsCell({
+          kind: 'kit',
+          id: r.kitId,
+          name: r.name,
+          unit: t('unit.set'),
+          price: r.price,
+        }),
     },
   ];
 
