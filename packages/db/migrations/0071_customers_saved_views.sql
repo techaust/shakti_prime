@@ -1,0 +1,2 @@
+ALTER TABLE "saved_views" DROP CONSTRAINT "saved_views_screen_check";--> statement-breakpoint
+ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_screen_check" CHECK ("saved_views"."screen" in ('leads', 'team_members', 'price_lists', 'imports', 'customers'));

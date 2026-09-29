@@ -5,7 +5,7 @@ import { IdSchema } from '../../ids';
  * The grids a person can save views of (DESIGN.md §6), each by one key; the database checks the
  * same list (`saved_views_screen_check`).
  */
-export const SavedViewScreenSchema = z.enum(['leads', 'team_members', 'price_lists', 'imports']);
+export const SavedViewScreenSchema = z.enum(['leads', 'team_members', 'price_lists', 'imports', 'customers']);
 export type SavedViewScreen = z.infer<typeof SavedViewScreenSchema>;
 
 /** At most this many views per person on one screen. */

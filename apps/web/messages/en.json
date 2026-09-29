@@ -1228,7 +1228,8 @@
         "leads": "Leads",
         "team_members": "Team members",
         "price_lists": "Price lists",
-        "imports": "Imports"
+        "imports": "Imports",
+        "customers": "Customers"
       },
       "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}"
     }

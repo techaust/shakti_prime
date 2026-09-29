@@ -5,6 +5,7 @@ import type {
   ConsentPurpose,
   ConsentSource,
   CustomerLanguage,
+  CustomerSort,
   ContrastPreference,
   ImportJobSort,
   ImportJobState,
@@ -180,10 +181,12 @@ export const SAVED_VIEW_SCREENS = [
   'team_members',
   'price_lists',
   'imports',
+  'customers',
 ] as const satisfies readonly SavedViewScreen[];
 
 /** The columns each list sorts on the server (the contracts' `*_SORT_COLUMNS`). */
 export const LEAD_SORT_COLUMNS = ['updated'] as const satisfies readonly LeadSort['column'][];
+export const CUSTOMER_SORT_COLUMNS = ['name'] as const satisfies readonly CustomerSort['column'][];
 export const USER_SORT_COLUMNS = [
   'name',
   'email',

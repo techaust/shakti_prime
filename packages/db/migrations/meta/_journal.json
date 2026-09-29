@@ -498,6 +498,13 @@
       "when": 1790698447988,
       "tag": "0070_customers_list",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790698702410,
+      "tag": "0071_customers_saved_views",
+      "breakpoints": true
     }
   ]
 }
