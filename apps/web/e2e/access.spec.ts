@@ -1,0 +1,51 @@
+import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import { seededUsers } from './support/users';
+
+test.describe('as a tele-caller', () => {
+  test.use(signedInAs('teleCaller'));
+
+  test('home shows the shortcuts for the role', async ({ page }) => {
+    await page.goto('/home');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'home-tele-caller');
+  });
+
+  test('a screen the role may not open shows the not-found screen', async ({ page }) => {
+    await page.goto('/admin/users');
+    await expect(
+      page
+        .getByRole('heading', { name: 'We couldn’t find this screen' })
+        .or(page.getByRole('heading', { name: "We couldn't find this screen" })),
+    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to the home screen' })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'not-found-tele-caller');
+  });
+});
+
+test.describe('as an Executive', () => {
+  test.use(signedInAs('executive'));
+
+  test('the company switcher changes the leads shown', async ({ page }) => {
+    const lead = seededUsers().secondCompanyLead;
+    const switcher = page.getByRole('button', { name: /^Showing .*\. Choose a company$/ });
+    const leads = page.getByRole('table', { name: 'Leads' });
+    await page.goto('/leads');
+
+    await switcher.click();
+    await page.getByRole('menuitemradio', { name: 'Shakti Supreme' }).click();
+    await expect(
+      page.getByRole('button', { name: 'Showing Shakti Supreme. Choose a company' }),
+    ).toBeVisible();
+    await expect(leads.getByText(lead)).toHaveCount(0);
+
+    await switcher.click();
+    await page.getByRole('menuitemradio', { name: 'Shakti Motor Pumps' }).click();
+    await expect(
+      page.getByRole('button', { name: 'Showing Shakti Motor Pumps. Choose a company' }),
+    ).toBeVisible();
+    await expect(leads.getByText(lead).first()).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+});

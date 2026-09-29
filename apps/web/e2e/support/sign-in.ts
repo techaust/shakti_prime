@@ -2,7 +2,14 @@ import { expect, type Page } from '@playwright/test';
 import { totpCode } from './totp';
 import { E2E_PASSWORD } from './users';
 
-/** Fills the sign-in form and waits for the bot check's answer before sending it. */
+/** Waits for the bot check's answer; Cloudflare's test site key gives it at once. */
+export async function waitForBotCheck(page: Page): Promise<void> {
+  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue('', {
+    timeout: 20_000,
+  });
+}
+
+/** Fills the sign-in form and sends it once the bot check has answered. */
 export async function submitSignIn(
   page: Page,
   email: string,
@@ -11,10 +18,7 @@ export async function submitSignIn(
   await page.goto('/sign-in');
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
-  // Cloudflare's test site key answers at once; the form waits for that answer like a person would.
-  await expect(page.locator('input[name="cf-turnstile-response"]')).not.toHaveValue('', {
-    timeout: 20_000,
-  });
+  await waitForBotCheck(page);
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 

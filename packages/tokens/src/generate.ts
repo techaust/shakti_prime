@@ -197,11 +197,17 @@ export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, strin
     c: fill.c,
     h: fill.h,
   });
-  const accentText =
-    contrastRatio(accentHex, surface) >= min.text && contrastRatio(accentHex, surface2) >= min.text
-      ? accentHex
-      : reach(surface2, min.text + 0.1, accent.h, accent.c, toward);
   const accentSoft = lchToHex({ l: dark ? 20 : 95, c: dark ? 18 : 10, h: accent.h });
+  // Accent text sits on the surfaces and on the soft accent tint (badges, selected rows), so it
+  // reaches the text minimum against whichever of them is hardest.
+  const textGrounds = [surface, surface2, accentSoft];
+  const hardest = textGrounds.reduce((a, b) =>
+    contrastRatio(accentHex, a) <= contrastRatio(accentHex, b) ? a : b,
+  );
+  const accentText =
+    contrastRatio(accentHex, hardest) >= min.text
+      ? accentHex
+      : reach(hardest, min.text + 0.1, accent.h, accent.c, toward);
 
   return {
     bg,

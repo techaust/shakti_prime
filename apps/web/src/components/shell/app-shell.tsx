@@ -207,7 +207,7 @@ export function AppShell({
             >
               <Search aria-hidden />
               <span className="flex-1 text-left max-md:hidden">{t('search')}</span>
-              <kbd className="border-border bg-surface-2 text-text-subtle rounded-sm border px-1.5 font-sans text-xs max-md:hidden">
+              <kbd className="border-border bg-surface-2 text-text-muted rounded-sm border px-1.5 font-sans text-xs max-md:hidden">
                 {isMac ? t('shortcutMac') : t('shortcutOther')}
               </kbd>
             </Button>

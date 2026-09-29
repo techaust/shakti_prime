@@ -63,6 +63,8 @@ describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, c
     ['text-muted', 'surface-2'],
     ['accent-text', 'surface'],
     ['accent-text', 'surface-2'],
+    // Accent badges and ticked rows (the status badge's accent tone).
+    ['accent-text', 'accent-soft'],
     ['accent-fg', 'accent'],
     ['accent-fg', 'accent-hover'],
     ['success', 'success-soft'],
