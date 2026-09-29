@@ -10,6 +10,16 @@ import { createLead } from '../commands/crm/create-lead';
 import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
+import {
+  archiveStage,
+  createStage,
+  reorderStages,
+  updatePipeline,
+  updateStage,
+} from '../commands/crm/pipeline-settings';
+import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
+import { rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { setDispositions } from '../commands/crm/set-dispositions';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { winOpportunity } from '../commands/crm/win-opportunity';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
@@ -39,6 +49,16 @@ export const commands = {
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
+  [updatePipeline.name]: updatePipeline,
+  [createStage.name]: createStage,
+  [updateStage.name]: updateStage,
+  [reorderStages.name]: reorderStages,
+  [archiveStage.name]: archiveStage,
+  [setDispositions.name]: setDispositions,
+  [setScoreRules.name]: setScoreRules,
+  [rescoreLead.name]: rescoreLead,
+  [setReferralPartner.name]: setReferralPartner,
+  [setCommissionRule.name]: setCommissionRule,
   [setPrice.name]: setPrice,
   [setTaxRate.name]: setTaxRate,
   [setCompositeRule.name]: setCompositeRule,
