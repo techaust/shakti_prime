@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./redaction": "./src/ports/logger.ts",
     "./testing": "./src/testing.ts"
   },
   "scripts": {
