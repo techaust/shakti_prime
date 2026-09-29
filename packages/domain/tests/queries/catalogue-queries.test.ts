@@ -220,6 +220,9 @@ describe('readTaxSettings (Settings › Tax)', () => {
     );
     expect(Array.isArray(settings.rates)).toBe(true);
     expect(Array.isArray(settings.compositeRules)).toBe(true);
+    expect(settings.coversAllCompanies).toBe(false);
+    const all = await asPrincipal(principalFor('accounts'), (ctx) => readTaxSettings(ctx));
+    expect(all.coversAllCompanies).toBe(true);
     for (const rate of settings.rates) {
       expect(rate.hsn === null).toBe(rate.itemId !== null);
     }

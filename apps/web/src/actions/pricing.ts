@@ -19,6 +19,7 @@ import {
   listPriceChanges as listPriceChangesQuery,
   listPriceLists as listPriceListsQuery,
   listPrices as listPricesQuery,
+  requestCoversAllCompanies,
   setPrice as setPriceCommand,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
@@ -129,6 +130,20 @@ export async function listPriceChanges(
       { requestId },
       (context) => listPriceChangesQuery(context, rawInput),
       { name: 'listPriceChanges' },
+    );
+  });
+}
+
+/** Whether the caller acts for every company now, as a list for all companies needs. */
+export async function readCoversAllCompanies(): Promise<ActionResult<boolean>> {
+  return toResult('readCoversAllCompanies', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => requestCoversAllCompanies(context),
+      { name: 'readCoversAllCompanies' },
     );
   });
 }

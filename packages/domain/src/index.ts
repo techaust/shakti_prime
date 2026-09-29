@@ -104,7 +104,7 @@ export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
 export type { ListItemsOptions } from './queries/catalogue/list-items';
 export { getItem, getKit, listKits } from './queries/catalogue/catalogue-queries';
 export { listKitPrices, listPriceChanges } from './queries/pricing/price-history';
-export { readTaxSettings } from './queries/tax/tax-settings';
+export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-settings';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';

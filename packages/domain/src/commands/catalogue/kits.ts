@@ -64,7 +64,7 @@ export const createKit = defineCommand({
   minScope: 'entity',
   input: CreateKitInput,
   output: KitDetailDto,
-  auditFields: ['sku', 'name', 'components', 'isActive'],
+  auditFields: ['sku', 'kitName', 'components', 'isActive'],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
     await assertLiveItems(ctx, input.components);
@@ -79,7 +79,7 @@ export const createKit = defineCommand({
       aggregateId: row.id,
       entityId: null,
       before: null,
-      after: { sku: row.sku, name: row.name, components: auditedComponents(input.components) },
+      after: { sku: row.sku, kitName: row.name, components: auditedComponents(input.components) },
     });
     ctx.emit({
       type: 'catalogue.kit.created',
@@ -102,7 +102,7 @@ export const updateKit = defineCommand({
   minScope: 'entity',
   input: UpdateKitInput,
   output: KitDetailDto,
-  auditFields: ['sku', 'name', 'components', 'isActive'],
+  auditFields: ['sku', 'kitName', 'components', 'isActive'],
   constraintReasons: { kits_sku_unique: 'kit_sku_taken' },
   async handler(ctx, input) {
     const [before] = await ctx.tx
@@ -134,8 +134,8 @@ export const updateKit = defineCommand({
       aggregateType: 'kit',
       aggregateId: row.id,
       entityId: null,
-      before: { sku: before.sku, name: before.name, components: auditedComponents(previous) },
-      after: { sku: row.sku, name: row.name, components: auditedComponents(input.components) },
+      before: { sku: before.sku, kitName: before.name, components: auditedComponents(previous) },
+      after: { sku: row.sku, kitName: row.name, components: auditedComponents(input.components) },
     });
     ctx.emit({
       type: 'catalogue.kit.updated',

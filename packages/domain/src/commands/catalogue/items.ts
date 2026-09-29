@@ -18,7 +18,7 @@ import { readItemDetail } from '../../queries/catalogue/item-detail';
 /** Every field an item's audit rows may carry. */
 const ITEM_AUDIT_FIELDS = [
   'sku',
-  'name',
+  'itemName',
   'category',
   'hsn',
   'unit',
@@ -35,7 +35,7 @@ type ItemRow = typeof schema.items.$inferSelect;
 function auditedItem(row: ItemRow) {
   return {
     sku: row.sku,
-    name: row.name,
+    itemName: row.name,
     category: row.category,
     hsn: row.hsn,
     unit: row.unit,

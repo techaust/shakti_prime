@@ -32,6 +32,8 @@ import {
   ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS,
   ITEM_UNITS,
+  NUMERIC_SPEC_KEYS,
+  SPEC_KEYS,
   KIT_PRICE_SORT_COLUMNS,
   KIT_SORT_COLUMNS,
   PRICE_LIST_STATES,
@@ -82,6 +84,11 @@ describe('the contract values copied for the browser', () => {
     expect(KIT_SORT_COLUMNS).toEqual(CONTRACT_KIT_SORT_COLUMNS);
     expect(KIT_PRICE_SORT_COLUMNS).toEqual(CONTRACT_KIT_PRICE_SORT_COLUMNS);
     expect(ITEM_SPEC_FIELDS).toEqual(CONTRACT_ITEM_SPEC_FIELDS);
+    const fields = Object.values(CONTRACT_ITEM_SPEC_FIELDS).flat();
+    expect([...SPEC_KEYS].sort()).toEqual([...new Set(fields.map((f) => f.key))].sort());
+    expect([...NUMERIC_SPEC_KEYS].sort()).toEqual(
+      [...new Set(fields.filter((f) => f.kind === 'number').map((f) => f.key))].sort(),
+    );
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
   });

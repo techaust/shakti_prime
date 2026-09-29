@@ -167,6 +167,8 @@ export const TaxSettingsDto = z
   .object({
     rates: z.array(TaxRateListRowDto),
     compositeRules: z.array(CompositeRuleRowSchema),
+    /** Whether the request acts for every active company, as a change to either table needs. */
+    coversAllCompanies: z.boolean(),
   })
   .strict();
 export type TaxSettingsDto = z.infer<typeof TaxSettingsDto>;

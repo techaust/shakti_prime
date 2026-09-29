@@ -32,6 +32,7 @@ import {
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
+  PRICE_TIER_CODES,
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
@@ -40,6 +41,7 @@ import {
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
+import { useCatalogueText } from '../catalogue/use-spec-text';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
 
@@ -196,6 +198,7 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const theme = useTranslations('theme');
   const code = useCodeText();
   const leadField = useLeadFieldName();
+  const catalogue = useCatalogueText();
   const text = (() => {
     switch (value.kind) {
       case 'empty':
@@ -216,6 +219,19 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return t('values.percent', { value: value.value });
       case 'code':
         return code(value.group, value.value);
+      case 'specs':
+        return (
+          <span className="flex flex-col">
+            {value.entries.map((e) => (
+              <span key={e.key}>
+                {t('values.spec', {
+                  name: catalogue.specLabel(e.key),
+                  value: catalogue.specValue(e.key, e.value),
+                })}
+              </span>
+            ))}
+          </span>
+        );
       case 'mapping':
         return (
           <span className="flex flex-col">
@@ -299,6 +315,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const priceMaster = useTranslations('priceMaster');
+  const catalogue = useCatalogueText();
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -334,6 +352,12 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       }
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
+      case 'itemCategory':
+        return catalogue.category(value);
+      case 'itemUnit':
+        return catalogue.unit(value);
+      case 'priceTier':
+        return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
     }
   };
 }

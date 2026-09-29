@@ -225,5 +225,32 @@ export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[
   other: [],
 };
 
+/** Every specification key, and those measured in numbers (each has a unit on screen). */
+export const SPEC_KEYS = [
+  'hp',
+  'kw',
+  'phase',
+  'pumpType',
+  'outletMm',
+  'maxHeadM',
+  'wp',
+  'inputMinV',
+  'inputMaxV',
+  'nominalSizeMm',
+  'material',
+] as const;
+export type SpecKey = (typeof SPEC_KEYS)[number];
+export const NUMERIC_SPEC_KEYS = [
+  'hp',
+  'kw',
+  'outletMm',
+  'maxHeadM',
+  'wp',
+  'inputMinV',
+  'inputMaxV',
+  'nominalSizeMm',
+] as const satisfies readonly SpecKey[];
+export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
+
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;

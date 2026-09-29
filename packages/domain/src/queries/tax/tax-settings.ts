@@ -1,6 +1,17 @@
 import { TaxSettingsDto } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
+
+/**
+ * Whether the request acts for every active company (`app.request_covers_group()`), as a change
+ * to a shared price list, a GST rate or a composite split needs (AUDIT H2, 0048).
+ */
+export async function requestCoversAllCompanies(ctx: Pick<RequestContext, 'tx'>): Promise<boolean> {
+  const rows = (await ctx.tx.execute(
+    sql`select app.request_covers_group() as ok`,
+  )) as unknown as { ok: boolean }[];
+  return rows[0]?.ok === true;
+}
 
 /** The most rows the screen lists of either table; the group's rates run to a few hundred. */
 const MOST = 2000;
@@ -44,5 +55,6 @@ export async function readTaxSettings(ctx: Pick<RequestContext, 'tx'>): Promise<
     .from(cr)
     .orderBy(asc(cr.segment), desc(cr.effectiveFrom), asc(cr.id))
     .limit(MOST);
-  return TaxSettingsDto.parse({ rates, compositeRules });
+  const coversAllCompanies = await requestCoversAllCompanies(ctx);
+  return TaxSettingsDto.parse({ rates, compositeRules, coversAllCompanies });
 }
