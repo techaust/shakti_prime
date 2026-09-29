@@ -52,21 +52,29 @@ function checkItem(value: ItemFields, ctx: z.RefinementCtx): void {
   }
 }
 
+/** Keeps the specifications as their schema parsed them (trimmed text, no stray keys). */
+function withParsedSpecs<T extends ItemFields>(value: T): T {
+  const parsed = parseItemSpecs(value.category, value.specs);
+  return parsed.success ? { ...value, specs: parsed.data } : value;
+}
+
 /**
  * `catalogue.item.create` (INV-01): an item of the one catalogue every company sells from. The
  * code is unique; the HSN code has 4, 6 or 8 digits.
  */
 export const CreateItemInput = z
-  .object({ ...itemFields, hsn: HsnSchema.regex(/^(\d{4}|\d{6}|\d{8})$/) })
+  .object(itemFields)
   .strict()
-  .superRefine(checkItem);
+  .superRefine(checkItem)
+  .transform(withParsedSpecs);
 export type CreateItemInput = z.input<typeof CreateItemInput>;
 
 /** `catalogue.item.update`: every editable field of an item, sent as the item sheet shows it. */
 export const UpdateItemInput = z
-  .object({ itemId: IdSchema, ...itemFields, hsn: HsnSchema.regex(/^(\d{4}|\d{6}|\d{8})$/) })
+  .object({ itemId: IdSchema, ...itemFields })
   .strict()
-  .superRefine(checkItem);
+  .superRefine(checkItem)
+  .transform(withParsedSpecs);
 export type UpdateItemInput = z.input<typeof UpdateItemInput>;
 
 /**

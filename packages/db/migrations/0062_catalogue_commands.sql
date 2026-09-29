@@ -3,6 +3,8 @@
 -- 1. One live list per tier and company on any day, among approved lists only. A draft
 --    (`approved_by` null) prices nothing, so drafts for the same tier may overlap each other and
 --    the live list; `pricing.list.approve` ends the list it replaces where the draft starts.
+--    A list written before this migration without an approver becomes a draft; no hosted
+--    environment holds any price list today (checked read-only), so none changes meaning there.
 alter table price_lists drop constraint price_lists_no_overlap;
 --> statement-breakpoint
 alter table price_lists add constraint price_lists_no_overlap

@@ -129,3 +129,17 @@ describe('SetPumpCurveInput', () => {
     expect(rising.error?.issues[0]?.path).toEqual(['points', 1, 'headM']);
   });
 });
+
+describe('the specifications an item stores', () => {
+  it('are the parsed ones: text trimmed', () => {
+    const pipe = CreateItemInput.parse({
+      sku: 'PIPE-63',
+      name: 'HDPE pipe 63 mm',
+      category: 'pipe',
+      hsn: '3917',
+      unit: 'metre',
+      specs: { nominalSizeMm: 63, material: '  HDPE  ' },
+    });
+    expect(pipe.specs).toEqual({ nominalSizeMm: 63, material: 'HDPE' });
+  });
+});

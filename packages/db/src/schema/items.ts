@@ -35,7 +35,7 @@ export const items = pgTable(
     ...actors,
   },
   (t) => [
-    check('items_hsn_check', sql`${t.hsn} ~ '^[0-9]{4,8}$'`),
+    check('items_hsn_check', sql`${t.hsn} ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'`),
     check(
       'items_unit_check',
       sql`${t.unit} in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')`,

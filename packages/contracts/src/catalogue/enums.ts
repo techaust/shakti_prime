@@ -38,5 +38,5 @@ export type SignedMoney = z.infer<typeof SignedMoneySchema>;
 export const RateSchema = z.string().regex(/^\d{1,10}\.\d{4}$/);
 export type Rate = z.infer<typeof RateSchema>;
 
-/** HSN codes are four to eight digits. */
-export const HsnSchema = z.string().regex(/^[0-9]{4,8}$/);
+/** HSN codes have 4, 6 or 8 digits, as the database checks on items and GST rates. */
+export const HsnSchema = z.string().regex(/^([0-9]{4}|[0-9]{6}|[0-9]{8})$/);
