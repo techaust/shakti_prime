@@ -43,7 +43,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   queryAudit: (ctx) => queryAudit(ctx, { from: WEEK_AGO, to: NOW, limit: 20 }),
   listAuditPeople: (ctx) => listAuditPeople(ctx, { from: WEEK_AGO, to: NOW }),
   listItems: (ctx) => listItems(ctx, { limit: 20 }),
-  listItemsWithCost: (ctx) => listItemsWithCost(ctx, { limit: 20 }),
+  listItemsWithCost: (ctx) => listItemsWithCost(ctx, 1, { limit: 20 }),
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),

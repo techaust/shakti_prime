@@ -265,7 +265,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
 
 describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', () => {
   it('logs in, cannot bypass RLS, is no superuser and reads only, as its own setting', async () => {
-    const [row] = await withoutContext<Record<string, unknown>>(sql`
+    const [row] = await withoutContext(sql`
       select r.rolcanlogin as login, r.rolsuper as super, r.rolbypassrls as bypass,
              r.rolcreaterole as createrole, r.rolcreatedb as createdb,
              (select array_agg(s order by s) from pg_db_role_setting d, unnest(d.setconfig) s
