@@ -1449,7 +1449,7 @@
       "check": "Check delivery speed",
       "arrived": "Arrived in {milliseconds, number} milliseconds, sent at {at}.",
       "waiting": "Sent at {at}. Waiting for it to arrive.",
-      "lost": "Sent at {at}. It did not arrive within ten minutes. Look at the held-back updates below.",
+      "lost": "Sent at {at}. It did not arrive within ten minutes. When its tries run out it is listed under held-back updates below.",
       "none": "Not checked yet."
     },
     "held": {
@@ -1458,6 +1458,7 @@
       "caption": "Updates held back after ten tries, newest first",
       "empty": "No updates are held back.",
       "sendAgain": "Send again",
+      "describe": "{update}, held back at {at}",
       "sent": "The update goes out again within a minute.",
       "loadMore": "Show more",
       "total": "{count, plural, one {# update held back} other {# updates held back}}"

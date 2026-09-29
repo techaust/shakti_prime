@@ -141,6 +141,44 @@ describe('scrubEvent (docs/design/phase1.md §5.2)', () => {
   });
 });
 
+describe('query strings in context, span and breadcrumb fields', () => {
+  const search = '/leads?q=Ramesh%20Kumar';
+
+  it('drops fields that hold a query and cuts the query from every address or path', () => {
+    const scrubbed = scrubEvent({
+      contexts: {
+        trace: {
+          data: {
+            'http.target': search,
+            'http.query': 'q=Ramesh%20Kumar',
+            'url.full': `https://bos.example.in${search}`,
+            'url.query': '?q=Ramesh%20Kumar',
+            'url.path': search,
+          },
+        },
+      },
+      extra: { path: search, target: search, count: 2 },
+      spans: [
+        { description: `GET ${search}`, data: { 'http.url': search, 'url.query': 'q=Ramesh' } },
+      ],
+      breadcrumbs: [{ category: 'fetch', data: { url: search, method: 'GET' } }],
+    });
+    expect(JSON.stringify(scrubbed)).not.toMatch(/Ramesh|q=/);
+    expect(scrubbed.contexts).toEqual({
+      trace: {
+        data: {
+          'http.target': '/leads',
+          'url.full': 'https://bos.example.in/leads',
+          'url.path': '/leads',
+        },
+      },
+    });
+    expect(scrubbed.extra).toEqual({ path: '/leads', target: '/leads', count: 2 });
+    expect(scrubbed.spans[0]).toEqual({ description: 'GET /leads', data: { 'http.url': '/leads' } });
+    expect(scrubbed.breadcrumbs[0]?.data).toEqual({ url: '/leads', method: 'GET' });
+  });
+});
+
 describe('scrubBreadcrumb', () => {
   it('scrubs a navigation breadcrumb’s addresses and leaves the rest', () => {
     expect(

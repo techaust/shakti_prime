@@ -105,7 +105,14 @@ export async function publishOutbox(
   const alerts = options.alerts ?? sentryAlertSink;
   const now = options.now ?? (() => new Date());
   const publisher = options.publisher ?? defaultPublisher(keyValue, requestId);
-  let deadIds: readonly string[] = [];
+  const deadIds: string[] = [];
+  const reportDead = () => {
+    if (deadIds.length === 0) return;
+    alerts.report('outbox.dead_lettered', {
+      count: deadIds.length,
+      ids: deadIds.slice(0, ALERT_IDS),
+    });
+  };
   let counts: OutboxPublishResponse;
   try {
     counts = await runOutboxPublisher({
@@ -114,22 +121,19 @@ export async function publishOutbox(
       logger,
       requestId,
       onDeadLettered: (ids) => {
-        deadIds = ids;
+        deadIds.push(...ids);
       },
     });
   } catch (error) {
+    // The events the claim dead-lettered stay dead-lettered whatever failed afterwards.
+    reportDead();
     await countFailingRun(keyValue, alerts, { requestId, failed: 0 });
     throw error;
   }
   if (counts.claimed > 0 || counts.deadLettered > 0) {
     logger.log('info', 'outbox.publish', { requestId, ...counts });
   }
-  if (deadIds.length > 0) {
-    alerts.report('outbox.dead_lettered', {
-      count: deadIds.length,
-      ids: deadIds.slice(0, ALERT_IDS),
-    });
-  }
+  reportDead();
   await keep('outbox.last_run_not_kept', requestId, () =>
     keyValue.set(
       LAST_RUN_KEY,

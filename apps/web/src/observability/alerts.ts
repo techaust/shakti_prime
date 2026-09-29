@@ -15,12 +15,14 @@ export interface AlertSink {
 
 /**
  * Logs the alert as an error line and sends it to Sentry as one message whose fingerprint is its
- * name, so repeats group into one issue. Sentry is loaded on first use, and without a DSN it is
- * never started, so the call then only logs. Sending never fails the caller.
+ * name, so repeats group into one issue. Without `SENTRY_DSN` the SDK is not even loaded and the
+ * alert is only logged. Sending never fails the caller.
  */
 export const sentryAlertSink: AlertSink = {
   report(name, fields) {
     logger.log('error', name, fields);
+    const dsn = process.env.SENTRY_DSN;
+    if (dsn === undefined || dsn.trim() === '') return;
     void import('@sentry/nextjs')
       .then((sentry) => {
         sentry.captureMessage(name, { level: 'error', fingerprint: [name], extra: { ...fields } });

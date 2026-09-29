@@ -14,8 +14,13 @@ const QUEUE_CODES: ReadonlySet<string> = new Set([
   'AbortError',
 ]);
 
-/** Codes a worker answers with (`ErrorCode`), recorded when it was called in this process. */
+/**
+ * Codes of a worker's failure: `worker_failed` and `worker_refused` from QStash's failure callback,
+ * and the codes a worker answers with (`ErrorCode`) when it was called in this process.
+ */
 const WORKER_CODES: ReadonlySet<string> = new Set([
+  'worker_failed',
+  'worker_refused',
   'validation_failed',
   'unauthorized',
   'forbidden',

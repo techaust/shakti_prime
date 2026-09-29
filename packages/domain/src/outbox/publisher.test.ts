@@ -275,7 +275,7 @@ describe('runOutboxPublisher backoff', () => {
 });
 
 describe('runOutboxPublisher and its dead letters (docs/design/phase1.md §5.2)', () => {
-  it('names every event it dead-lettered, failed here or spent by the claim, once per run', async () => {
+  it('names every event it dead-lettered, spent by the claim or failed here', async () => {
     const tired = row({ attempts: OUTBOX_MAX_ATTEMPTS - 1 });
     const stray = row({ type: 'crm.lead.vanished' });
     const fine = row();
@@ -288,8 +288,25 @@ describe('runOutboxPublisher and its dead letters (docs/design/phase1.md §5.2)'
       onDeadLettered: (ids) => seen.push(ids),
     });
     expect(counts.deadLettered).toBe(3);
-    expect(seen).toHaveLength(1);
-    expect([...(seen[0] ?? [])].sort()).toEqual([tired.id, stray.id, ...spent].sort());
+    // The claim's own at once, then the run's once recorded.
+    expect(seen).toEqual([spent, [stray.id, tired.id]]);
+  });
+
+  it('names the events the claim dead-lettered even when the delivery fails afterwards', async () => {
+    const spent = [newId(), newId()];
+    const claim: ClaimOutbox = (_limit, _deliver, _max, onDeadLettered) => {
+      onDeadLettered?.(spent);
+      return Promise.reject(new Error('the record was lost'));
+    };
+    const seen: (readonly string[])[] = [];
+    await expect(
+      runOutboxPublisher({
+        claim,
+        publisher: memoryEventPublisher(),
+        onDeadLettered: (ids) => seen.push(ids),
+      }),
+    ).rejects.toThrow('the record was lost');
+    expect(seen).toEqual([spent]);
   });
 
   it('says nothing when the run dead-lettered nothing', async () => {

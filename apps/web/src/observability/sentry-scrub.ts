@@ -76,18 +76,40 @@ function scrubException(exception: unknown): unknown {
   };
 }
 
+/** Fields that hold only a query string (the SDK's span and request attributes): dropped. */
+const QUERY_FIELDS: ReadonlySet<string> = new Set(['http.query', 'url.query', 'query_string']);
+
+/** Fields whose value is an address or a path (`url`, `http.target`, `url.path`, `from`, `to`). */
+const ADDRESS_KEY = /path|url|uri|target|query|href|^from$|^to$/i;
+
+/**
+ * A copy of attributes or context fields with every query string taken out: a field that holds
+ * only one is dropped, and an address or path loses its query and fragment, at any depth.
+ */
+export function withoutQueries(value: unknown, depth = 0): unknown {
+  if (depth > 6) return '[deep]';
+  if (Array.isArray(value)) return value.map((v) => withoutQueries(v, depth + 1));
+  if (!isObject(value)) return value;
+  const out: Loose = {};
+  for (const [key, field] of Object.entries(value)) {
+    if (QUERY_FIELDS.has(key.toLowerCase())) continue;
+    out[key] =
+      typeof field === 'string' && ADDRESS_KEY.test(key)
+        ? withoutQuery(field)
+        : withoutQueries(field, depth + 1);
+  }
+  return out;
+}
+
+/** Fields as the logs keep them, after every query string is taken out. */
+const scrubFields = (fields: Loose): unknown => redact(withoutQueries(fields));
+
 /** A breadcrumb with its message scrubbed as text and its data as a log line's fields. */
 export function scrubBreadcrumb<B extends object>(breadcrumb: B): B {
   const crumb = breadcrumb as Loose;
   const out: Loose = { ...crumb };
   if ('message' in crumb) out.message = scrubText(crumb.message);
-  if (isObject(crumb.data)) {
-    const data: Loose = {};
-    for (const [key, value] of Object.entries(crumb.data)) {
-      data[key] = key === 'url' || key === 'from' || key === 'to' ? scrubText(value) : value;
-    }
-    out.data = redact(data);
-  }
+  if (isObject(crumb.data)) out.data = scrubFields(crumb.data);
   return out as B;
 }
 
@@ -117,8 +139,8 @@ export function scrubEvent<E extends object>(event: E): E {
   }
   if ('transaction' in source) out.transaction = scrubText(source.transaction);
   if ('exception' in source) out.exception = scrubException(source.exception);
-  if (isObject(source.extra)) out.extra = redact(source.extra);
-  if (isObject(source.contexts)) out.contexts = redact(source.contexts);
+  if (isObject(source.extra)) out.extra = scrubFields(source.extra);
+  if (isObject(source.contexts)) out.contexts = scrubFields(source.contexts);
   if (Array.isArray(source.breadcrumbs)) {
     out.breadcrumbs = source.breadcrumbs.map((b: unknown) =>
       isObject(b) ? scrubBreadcrumb(b) : b,
@@ -130,7 +152,7 @@ export function scrubEvent<E extends object>(event: E): E {
       return {
         ...span,
         ...('description' in span ? { description: scrubText(span.description) } : {}),
-        ...(isObject(span.data) ? { data: redact(span.data) } : {}),
+        ...(isObject(span.data) ? { data: scrubFields(span.data) } : {}),
       };
     });
   }

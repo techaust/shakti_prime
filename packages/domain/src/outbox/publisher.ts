@@ -27,8 +27,10 @@ export interface OutboxPublisherOptions {
   /** The request id of the call that started the run, for its log lines. */
   requestId?: string | undefined;
   /**
-   * Told the ids of every event the run dead-lettered, whether its last attempt failed here or
-   * the claim found its attempts spent; the web app reports them to Sentry (ids and counts only).
+   * Told the ids of every event the run dead-lettered: those the claim found with their attempts
+   * spent as soon as the lease commits, so they are told even when the delivery or the recording
+   * fails afterwards, and those whose last attempt failed here once the run has recorded them. The
+   * web app reports them to Sentry (ids and counts only).
    */
   onDeadLettered?: (ids: readonly string[]) => void;
 }
@@ -56,7 +58,7 @@ export async function runOutboxPublisher(
     failed: 0,
     deadLettered: 0,
   };
-  const deadIds: string[] = [];
+  const failedDead: string[] = [];
   const deliver = async (rows: readonly OutboxRow[]): Promise<OutboxUpdate[]> => {
     const updates: OutboxUpdate[] = [];
     const toSend: DeliveredEvent[] = [];
@@ -83,7 +85,7 @@ export async function runOutboxPublisher(
       counts.failed += 1;
       if (deadLetter) {
         counts.deadLettered += 1;
-        deadIds.push(row.id);
+        failedDead.push(row.id);
       }
     };
 
@@ -133,7 +135,7 @@ export async function runOutboxPublisher(
   // Logged as soon as the lease commits, before the delivery, which may throw.
   const spent = (ids: readonly string[]) => {
     counts.deadLettered += ids.length;
-    deadIds.push(...ids);
+    if (ids.length > 0) options.onDeadLettered?.(ids);
     const truncated = ids.length > DEAD_LETTER_LOG_IDS;
     options.logger?.log('warn', 'outbox.no_outcome_dead_lettered', {
       requestId: options.requestId,
@@ -149,6 +151,6 @@ export async function runOutboxPublisher(
     spent,
   );
   counts.claimed = claim.claimed;
-  if (deadIds.length > 0) options.onDeadLettered?.(deadIds);
+  if (failedDead.length > 0) options.onDeadLettered?.(failedDead);
   return counts;
 }

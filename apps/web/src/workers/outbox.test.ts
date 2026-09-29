@@ -9,14 +9,16 @@ const outbox = vi.hoisted(() => ({
   rows: [] as OutboxRow[],
   updates: [] as readonly OutboxUpdate[],
   fail: undefined as Error | undefined,
+  spent: [] as string[],
 }));
 
 vi.mock('@shakti/db/outbox', () => ({
-  claimOutbox: (async (limit, deliver) => {
+  claimOutbox: (async (limit, deliver, _max, onDeadLettered) => {
+    if (outbox.spent.length > 0) onDeadLettered?.(outbox.spent);
     if (outbox.fail !== undefined) throw outbox.fail;
     const claimed = outbox.rows.slice(0, limit);
     outbox.updates = claimed.length === 0 ? [] : await deliver(claimed);
-    return { claimed: claimed.length, deadLettered: [] };
+    return { claimed: claimed.length, deadLettered: outbox.spent };
   }) satisfies ClaimOutbox,
   checkOutboxReady: () => Promise.resolve('ok'),
 }));
@@ -47,6 +49,7 @@ beforeEach(() => {
   outbox.rows = [];
   outbox.updates = [];
   outbox.fail = undefined;
+  outbox.spent = [];
 });
 
 describe('publishOutbox and the outbox alerts (docs/design/phase1.md §5.2)', () => {
@@ -108,6 +111,19 @@ describe('publishOutbox and the outbox alerts (docs/design/phase1.md §5.2)', ()
     outbox.rows = [row()];
     await publishOutbox({ publisher: refusing, keyValue, alerts });
     expect(alerts.alerts.map((a) => a.name)).toEqual(['outbox.publisher_failing']);
+  });
+
+  it('reports the events the lease dead-lettered even when the run fails afterwards', async () => {
+    const spent = [newId(), newId()];
+    outbox.spent = spent;
+    outbox.fail = new Error('the record was lost');
+    const alerts = memoryAlertSink();
+    await expect(
+      publishOutbox({ publisher: refusing, keyValue: memoryKeyValue(), alerts }),
+    ).rejects.toThrow('the record was lost');
+    expect(alerts.alerts).toEqual([
+      { name: 'outbox.dead_lettered', fields: { count: 2, ids: spent } },
+    ]);
   });
 
   it('keeps the last run’s counts for Integration Health', async () => {

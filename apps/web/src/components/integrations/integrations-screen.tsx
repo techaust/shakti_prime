@@ -197,22 +197,31 @@ function HeldUpdates({
       id: 'actions',
       header: t('columns.actions'),
       align: 'end',
+      // The button keeps its visible words as its name; which update it sends is read out after.
       cell: (r) => (
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={replay.pending}
-          aria-label={common('rowActions', { name: updateName(r.type) })}
-          onClick={() => {
-            replay.run({ eventId: r.eventId }, () => {
-              setRows((all) => all.filter((row) => row.eventId !== r.eventId));
-              setTotal((n) => Math.max(0, n - 1));
-              toast.success(t('held.sent'));
-            });
-          }}
-        >
-          {t('held.sendAgain')}
-        </Button>
+        <>
+          <span id={`held-${r.eventId}`} className="sr-only">
+            {t('held.describe', {
+              update: updateName(r.type),
+              at: formatDateTime(r.deadLetteredAt),
+            })}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={replay.pending}
+            aria-describedby={`held-${r.eventId}`}
+            onClick={() => {
+              replay.run({ eventId: r.eventId }, () => {
+                setRows((all) => all.filter((row) => row.eventId !== r.eventId));
+                setTotal((n) => Math.max(0, n - 1));
+                toast.success(t('held.sent'));
+              });
+            }}
+          >
+            {t('held.sendAgain')}
+          </Button>
+        </>
       ),
     },
   ];

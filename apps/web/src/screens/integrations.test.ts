@@ -9,7 +9,7 @@ describe('heldReason', () => {
   });
 
   it('names the worker for the codes a worker answers', () => {
-    for (const code of ['internal', 'integration_unavailable', 'forbidden']) {
+    for (const code of ['worker_failed', 'worker_refused', 'internal', 'forbidden']) {
       expect(heldReason(code)).toBe('worker');
     }
   });
