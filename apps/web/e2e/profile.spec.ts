@@ -19,19 +19,29 @@ test('the profile switches the theme and the higher contrast, and keeps them', a
   await page.goto('/settings/profile');
   await expect(page.getByRole('heading', { name: 'Your profile', level: 1 })).toBeVisible();
   const html = page.locator('html');
+  // The choices are radios inside their labels, drawn as one segmented control.
+  const choose = async (name: string) => {
+    await page
+      .locator('label')
+      .filter({ hasText: new RegExp(`^${name}$`) })
+      .click();
+    await expect(page.getByRole('radio', { name })).toBeChecked();
+  };
 
-  await page.getByRole('radio', { name: 'Same as device' }).check();
+  await choose('Same as device');
   await expectNoAxeViolations(page);
   await snap(page, 'profile');
 
-  await page.getByRole('radio', { name: 'Dark' }).check();
-  await expect(html).toHaveClass(/dark/);
-  await page.getByRole('radio', { name: 'Light' }).check();
-  await expect(html).not.toHaveClass(/dark/);
+  await choose('Dark');
+  await expect(html).toHaveAttribute('data-theme', /dark/);
+  await choose('Light');
+  await expect(html).toHaveAttribute('data-theme', /light/);
 
   const contrast = page.getByRole('switch', { name: 'Higher contrast' });
   await contrast.click();
   await expect(contrast).toHaveAttribute('aria-checked', 'true');
+  // Saved on the profile once the switch is no longer busy.
+  await expect(contrast).toHaveAttribute('aria-busy', 'false');
   await page.reload();
   await expect(contrast).toHaveAttribute('aria-checked', 'true');
   await expectNoAxeViolations(page);
@@ -39,5 +49,6 @@ test('the profile switches the theme and the higher contrast, and keeps them', a
   // Back to the defaults, so the next run starts from the same screen.
   await contrast.click();
   await expect(contrast).toHaveAttribute('aria-checked', 'false');
-  await page.getByRole('radio', { name: 'Same as device' }).check();
+  await expect(contrast).toHaveAttribute('aria-busy', 'false');
+  await choose('Same as device');
 });

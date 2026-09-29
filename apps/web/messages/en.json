@@ -772,6 +772,7 @@
       "partial": "{count, plural, one {Showing {shown} of {total} lead} other {Showing the newest {shown} of {total} leads}}",
       "loadMoreIn": "Load more leads in {stage}",
       "emptyColumn": "No leads at this stage.",
+      "stages": "Lead stages",
       "noPipelines": "No line of business is set up for this company yet. Ask an Executive to add one.",
       "villageUnknown": "Village not recorded",
       "noOwner": "Not assigned yet",

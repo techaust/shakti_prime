@@ -1,4 +1,11 @@
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import {
+  dataGrid,
+  expect,
+  expectNoAxeViolations,
+  signedInAs,
+  snap,
+  test,
+} from './support/fixtures';
 import { seededUsers } from './support/users';
 
 test.describe('as a tele-caller', () => {
@@ -30,7 +37,7 @@ test.describe('as an Executive', () => {
   test('the company switcher changes the leads shown', async ({ page }) => {
     const lead = seededUsers().secondCompanyLead;
     const switcher = page.getByRole('button', { name: /^Showing .*\. Choose a company$/ });
-    const leads = page.getByRole('table', { name: 'Leads' });
+    const leads = dataGrid(page, 'Leads');
     await page.goto('/leads');
 
     await switcher.click();

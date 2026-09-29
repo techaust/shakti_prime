@@ -58,6 +58,8 @@ async function ensureUser(
         await tx`insert into users (id, name, email, status)
                  values (${id}, ${name}, ${email}, 'invited')`;
       }
+      // Every run starts from the default look, so the screenshots compare like with like.
+      await tx`update users set theme = 'system', contrast = 'standard' where id = ${id}`;
       await tx`delete from user_entity_roles where user_id = ${id}`;
       for (const entityId of entityIds) {
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id)

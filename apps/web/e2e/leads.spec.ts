@@ -1,4 +1,11 @@
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import {
+  dataGrid,
+  expect,
+  expectNoAxeViolations,
+  signedInAs,
+  snap,
+  test,
+} from './support/fixtures';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
@@ -7,21 +14,22 @@ function freshMobile(): string {
 }
 
 const ROLES = [
-  { role: 'teleCaller', title: 'a tele-caller' },
-  { role: 'teamLead', title: 'a sales team lead' },
+  { role: 'teleCaller', title: 'a tele-caller', lead: 'Kavita Saini' },
+  { role: 'teamLead', title: 'a sales team lead', lead: 'Pooja Gurjar' },
 ] as const;
 
-for (const { role, title } of ROLES) {
+for (const { role, title, lead } of ROLES) {
   test.describe(`leads as ${title}`, () => {
     test.use(signedInAs(role));
 
     test('opens the leads list', async ({ page }) => {
       await page.goto('/leads');
       await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
-      await expect(page.getByRole('table', { name: 'Leads' })).toBeVisible();
+      const grid = dataGrid(page, 'Leads');
+      await expect(grid.getByText(lead).first()).toBeVisible();
       await expectNoAxeViolations(page);
       // The rows grow with every run (the journeys add leads).
-      await snap(page, `leads-list-${role}`, { mask: [page.getByRole('table')] });
+      await snap(page, `leads-list-${role}`, { mask: [grid] });
     });
 
     test('opens the leads board', async ({ page }) => {

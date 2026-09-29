@@ -282,8 +282,11 @@ export function LeadBoardScreen({
 
       <div
         ref={boardRegion.ref('board')}
-        tabIndex={-1}
-        className="flex items-start gap-3 overflow-x-auto pb-2 max-md:block max-md:overflow-visible"
+        // A region that scrolls sideways takes focus, so the keyboard can scroll it (WCAG 2.1.1).
+        role="region"
+        aria-label={t('stages')}
+        tabIndex={0}
+        className="focus-visible:outline-focus flex items-start gap-3 overflow-x-auto rounded-md pb-2 focus-visible:outline-2 focus-visible:outline-offset-2 max-md:block max-md:overflow-visible"
         aria-busy={move.pending}
       >
         {columns.map((column) => (

@@ -84,7 +84,12 @@ export function BoardPreview({ copy, card }: { copy: DesignCopy; card: BoardPrev
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-text-muted text-sm font-semibold">{copy.board}</h3>
-      <div className="flex items-start gap-3 overflow-x-auto pb-2 max-md:flex-col max-md:overflow-visible">
+      <div
+        role="region"
+        aria-label={copy.board}
+        tabIndex={0}
+        className="focus-visible:outline-focus flex items-start gap-3 overflow-x-auto rounded-md pb-2 focus-visible:outline-2 focus-visible:outline-offset-2 max-md:flex-col max-md:overflow-visible"
+      >
         <BoardColumn
           title={copy.stage['stage-new']}
           tone="new"
