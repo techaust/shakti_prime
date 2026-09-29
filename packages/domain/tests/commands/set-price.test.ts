@@ -28,6 +28,8 @@ const version = () => Math.floor(Math.random() * 1_000_000_000);
 const tag = newId().slice(-12);
 
 beforeAll(async () => {
+  // The two open lists are approved, so they are live and the one-live-list rule covers them.
+  const approver = await createTestPrincipal('executive');
   await asMigrator((m) =>
     m.begin(async (tx) => {
       await tx`insert into items (id, sku, name, category, hsn) values
@@ -35,10 +37,10 @@ beforeAll(async () => {
         (${ids.inactiveItem}, ${`T-${tag}-B`}, 'set-price inactive', 'pump', '8413')`;
       await tx`update items set is_active = false where id = ${ids.inactiveItem}`;
       await tx`insert into kits (id, sku, name) values (${ids.kit}, ${`T-${tag}-K`}, 'set-price kit')`;
-      await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at) values
-        (${ids.sharedList}, ${tierId('commercial')}, null, ${version()}, '2026-04-01', null),
-        (${ids.entity2List}, ${tierId('commercial')}, 2, ${version()}, '2026-04-01', null),
-        (${ids.archivedList}, ${tierId('commercial')}, null, ${version()}, '2026-04-01', now())`;
+      await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at, approved_by, approved_at) values
+        (${ids.sharedList}, ${tierId('commercial')}, null, ${version()}, '2026-04-01', null, ${approver.id}, now()),
+        (${ids.entity2List}, ${tierId('commercial')}, 2, ${version()}, '2026-04-01', null, ${approver.id}, now()),
+        (${ids.archivedList}, ${tierId('commercial')}, null, ${version()}, '2026-04-01', now(), null, null)`;
     }),
   );
 });
@@ -203,13 +205,24 @@ describe('pricing.price.set', () => {
   });
 
   it('refuses a second live list for the same tier and company on the same days (AUDIT M19)', async () => {
+    const [approver] = await asMigrator(
+      (m) => m<{ id: string }[]>`select approved_by as id from price_lists where id = ${ids.sharedList}`,
+    );
     await expect(
       asMigrator(
         (m) =>
-          m`insert into price_lists (id, tier_id, entity_id, version, effective_from)
-            values (${newId()}, ${tierId('commercial')}, null, ${version()}, '2026-06-01')`,
+          m`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
+            values (${newId()}, ${tierId('commercial')}, null, ${version()}, '2026-06-01', ${approver?.id ?? ''}, now())`,
       ),
     ).rejects.toMatchObject({ constraint_name: 'price_lists_no_overlap' });
+    // A draft prices nothing, so it may sit beside the live list until it is approved.
+    const draft = newId();
+    await asMigrator(
+      (m) =>
+        m`insert into price_lists (id, tier_id, entity_id, version, effective_from)
+          values (${draft}, ${tierId('commercial')}, null, ${version()}, '2026-06-01')`,
+    );
+    await asMigrator((m) => m`update price_lists set archived_at = now() where id = ${draft}`);
   });
 
   it('changes a shared list only for a request acting for every company (AUDIT H2)', async () => {
