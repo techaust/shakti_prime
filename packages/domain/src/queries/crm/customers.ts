@@ -454,6 +454,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     ownerName: owner[0]?.name ?? null,
     canEdit: covers('crm.account.write'),
     canWorkLeads: hasGrant(perms, 'crm.lead.write', 'own'),
+    canManageTags: hasGrant(perms, 'crm.lead.assign', 'own'),
     contacts: contacts.map((x) => ({
       ...x,
       phones: phones

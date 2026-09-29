@@ -1,6 +1,7 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
   Building2,
+  Contact,
   FileUp,
   House,
   IndianRupee,
@@ -50,6 +51,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'work',
     // listLeads narrows an own-scope reader to their own leads.
     requires: [{ key: 'crm.lead.read', scope: 'own' }],
+  },
+  {
+    id: 'customers',
+    href: '/customers',
+    label: 'customers',
+    icon: Contact,
+    group: 'work',
+    // Every staff role that reads leads also reads customers at own scope or wider; listCustomers
+    // shows the customers they look after and those of their leads (0057).
+    requires: [{ key: 'crm.account.read', scope: 'own' }],
   },
   {
     id: 'leads-new',

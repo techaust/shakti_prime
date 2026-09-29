@@ -178,6 +178,8 @@ export const Account360Dto = z
     canEdit: z.boolean(),
     /** Whether the caller may add tasks and tags on the customer's leads. */
     canWorkLeads: z.boolean(),
+    /** Whether the caller may make tags (`crm.lead.assign`). */
+    canManageTags: z.boolean(),
     contacts: z.array(CustomerContactDto),
     sites: z.array(CustomerSiteDto),
     leads: z.array(CustomerLeadDto),

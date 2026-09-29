@@ -234,6 +234,7 @@ async function cardsOf(ctx: BoardContext, rows: readonly CardRow[]): Promise<Boa
         entityId: r.entityId,
         stageId: r.stageId,
         state: OpportunityStateSchema.parse(r.state),
+        accountId: r.accountId,
         customerName,
         village: r.siteId === null ? null : (villages.get(r.siteId) ?? null),
         ownerId: r.ownerId,

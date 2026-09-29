@@ -40,6 +40,7 @@ function card(n: number, stage: number, state: BoardLeadDto['state'] = 'open'): 
     entityId: 1,
     stageId: id(stage),
     state,
+    accountId: id(500 + n),
     customerName: `Customer ${String(n)}`,
     village: null,
     ownerId: id(900),

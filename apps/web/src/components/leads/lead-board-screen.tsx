@@ -28,6 +28,7 @@ import {
 import { Ellipsis } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type ComponentProps, type DragEvent, type ReactNode } from 'react';
 import { listBoardStageLeads, moveOpportunityStage } from '../../actions/crm';
@@ -47,6 +48,7 @@ import {
   type BoardColumn as StageColumn,
   type BoardShow,
 } from '../../screens/lead-board';
+import { customerHref } from '../../screens/customers';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
 import type { DialogKind } from './board-dialogs';
@@ -440,7 +442,14 @@ function Card({
   const ageKey = lead.state === 'open' ? 'open' : lead.state === 'nurture' ? 'nurture' : 'closed';
   return (
     <BoardCard
-      title={lead.customerName}
+      title={
+        <Link
+          href={customerHref(lead.accountId, lead.entityId)}
+          className="hover:underline focus-visible:underline"
+        >
+          {lead.customerName}
+        </Link>
+      }
       subtitle={lead.village ?? t('villageUnknown')}
       menu={menu}
       badge={
