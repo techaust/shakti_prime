@@ -181,11 +181,12 @@ describe('loadAccount360 and listTimeline', () => {
     expect(view.tasks.map((t) => t.kind)).toEqual(['callback']);
     expect(view.consents.map((c) => c.channel)).toEqual(['call']);
     expect(view.tags.map((t) => t.id)).toContain(tag.id);
-    expect(view.timeline.items.map((i) => i.type)).toEqual([
+    // The order of rows is tested by the paging test below; here, that every change is there.
+    expect(view.timeline.items.map((i) => i.type).sort()).toEqual([
       'consent_recorded',
-      'task_created',
-      'tagged',
       'lead_created',
+      'tagged',
+      'task_created',
     ]);
   });
 
