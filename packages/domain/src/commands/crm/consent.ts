@@ -91,7 +91,7 @@ export const recordConsent = defineCommand({
         source: input.source,
         textVersion: input.textVersion,
         givenAt,
-        evidenceFileId: input.evidenceFileId ?? null,
+        evidenceFileId: null,
         createdBy: ctx.principal.id,
       })
       .returning();

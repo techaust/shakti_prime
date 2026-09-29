@@ -43,7 +43,6 @@ function reversed(digits: string): string {
   return out;
 }
 
-
 /** An id no customer has, for a search that found none (an empty `in` list is not valid SQL). */
 const NO_CUSTOMER = '00000000-0000-7000-8000-000000000000';
 
