@@ -1,5 +1,6 @@
 import {
   AccountTypeSchema,
+  ActivityTypeSchema,
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   ConsentPurposeSchema,
@@ -42,6 +43,7 @@ afterAll(closeDb);
 const PAIRS: Record<string, readonly string[]> = {
   account_contacts_role_check: ContactRoleSchema.options,
   accounts_type_check: AccountTypeSchema.options,
+  activities_type_check: ActivityTypeSchema.options,
   audit_logs_actor_kind_check: PrincipalKindSchema.options,
   audit_logs_outcome_check: AUDIT_OUTCOMES,
   composite_supply_rules_segment_check: SegmentSchema.options,

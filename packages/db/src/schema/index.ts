@@ -8,6 +8,7 @@ export { contacts, contactPhones } from './contacts';
 export { accounts, accountEntities, accountContacts, customerSites } from './accounts';
 export { opportunities } from './opportunities';
 export { consents } from './consents';
+export { activities } from './activities';
 export { items, pumpCurves, itemCosts } from './items';
 export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';

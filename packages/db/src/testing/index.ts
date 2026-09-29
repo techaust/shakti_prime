@@ -223,6 +223,7 @@ export const ENTITY_TABLES = [
   'import_rows',
   // read in the request's companies or as the caller's own rows (0049)
   'user_entity_roles',
+  'activities',
 ] as const;
 
 /**

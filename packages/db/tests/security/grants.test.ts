@@ -69,6 +69,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
   > = {
     price_change_log: { i: false, u: false },
     audit_logs: { i: true, u: false },
+    activities: { i: true, u: false },
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
