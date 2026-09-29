@@ -1,0 +1,152 @@
+# Backend and product design: Phase 1 (MVP)
+
+Date: 2026-09-29. Status: approved by the owner on 29-09-2026; built slice by slice in the order of §3, each slice recording what it built here in the same pull request. Governing documents: BLUEPRINT §6, §8.1 to §8.3, §8.10 to §8.12, §9.1, §9.3, §14 and §17; ROADMAP §3; PRD §4 and §6; DESIGN.md; ARCHITECTURE; DATABASE; API; SECURITY; TESTING; `docs/design/backend-weeks-3-5.md`. Where this design settles something the documents left open, the section says so; `docs/BLUEPRINT.md` governs on any conflict.
+
+## 1. Scope
+**In Phase 1:** walk-in, manual, import and referral-code ingestion with PIN resolution; duplicate cards with audited merge and unmerge; four pipelines with stages and exit rules an Executive edits; rules-based scoring; Account 360; tasks and callbacks; consent with evidence and withdrawal; the Cold Caller queue and workspace with manual call logging, dispositions, retries and nurture; weighted round-robin handover with the ownership lock; the Lead Converter workspace (board, sizing, quote builder and next-best-action on one screen); targets and leaderboards; items, HSN, kits sold as bundles and pump curves; Price Master tiers; the tax rate and composite-supply screens; TDH and kW sizing; quotes with PDF; sales orders; dealer credit with manual outstanding; referral commissions accrued when an order is confirmed; notifications, browser push, SLA escalation and the Agent Inbox; Knowledge Vault uploads with embeddings; data migration; the Triage agent in shadow mode; and every item ROADMAP §3 carries from Phase 0.
+
+**In later phases (BLUEPRINT §14):** customer loans (Phase 4); click-to-dial, TRAI hours, DND scrubbing and screen-pop (Phase 2, with Exotel); quote dispatch and acceptance on WhatsApp (Phase 2), so Phase 1 accepts a quote by a signed copy that staff upload; stock availability on quotes (Phase 3); Playbook review and Ask the Business (Phase 2); commission release on payment (Phase 5, with the Tally receipts).
+
+## 2. Decisions taken with the owner on 29-09-2026
+- **PDF hosting (ADR 0009):** documents render in a Vercel function in `bom1`, with `playwright-core` driving the serverless Chromium build `@sparticuz/chromium`; the render is measured on the dev deployment before quotes depend on it.
+- **Caller scripts:** files in `packages/contracts/src/templates/scripts`, one per segment with `hinglish` and `en` variants, checked by the copy lint (DESIGN.md §11.4); the wording comes from the sales head (workshop CALL-2).
+- **Notifications before Realtime:** the notification centre polls every 15 seconds while its tab is visible, the fallback BLUEPRINT risk 15 names, until the Realtime spike runs on the production domain; switching to Realtime changes no table.
+- **Nurture cadences** are follow-up tasks created when a lead moves to nurture, so they are visible, reassignable and need no workflow engine; the Triage agent runs as one QStash step. No `@upstash/workflow` in Phase 1.
+- **Build order and agents:** three building agents and one reviewer at a time; migrations are numbered at merge in merge order.
+
+## 3. Slices
+Each slice is vertical: contract → schema, RLS and grants → command → server action or route → screen → end-to-end test, with its documents. A wave is a dependency tier.
+
+| Wave | Slice | Needs |
+|---|---|---|
+| 1 | P3 Quality harness · P1 Observability and workers · P2 Files and storage | — |
+| 2 | C1 Catalogue and tax · X1 Role permission editor · P2b Imports upgrade · P4 Print and letterhead · C2 Customer timeline · C3 Pipelines, scoring and referrals · C4 Sizing | P3 first; P2b, P4 after P2; P4 after P1; C4 after C1 |
+| 3 | AI0 Agent runtime and Inbox · T1 Cold Caller workspace · S1 Quotes · D1 Duplicates | AI0 after P1; T1 after P1, C2, C3; S1 after C1, C4, P4; D1 after C2 |
+| 4 | N1 Notifications · T2 Handover · S2 Orders, acceptance and credit · K1 Knowledge Vault | N1 after AI0, T1; T2 after N1; S2 after S1, C3; K1 after P2, AI0 |
+| 5 | L1 Lead Converter workspace · R1 Targets and home pages · A1 Triage in shadow | L1 after T2, S2, C4; R1 after T1, S2; A1 after N1, D1, C3 |
+| 6 | M1 Migration and UAT packs · G1 Production readiness | all |
+
+One slice per wave owns `crm.lead.create`, `crm.opportunity.stage.move` and the board: C2 in wave 2 (C3 reaches lead creation through `applyLeadAttribution()` in its own file, called from one line), D1 in wave 3.
+
+## 4. New permissions
+Each gets a row in SECURITY §3.2, its seed in `packages/db/seeds/role-permissions.ts` and its oracle case, in the slice that first uses it.
+
+| Permission | Executive | GM | Sales Lead | CC | LC | Store | Accounts | Slice |
+|---|---|---|---|---|---|---|---|---|
+| `crm.config.write` (pipelines, stages, exit rules, dispositions, score rules, SLA) | all | – | – | – | – | – | – | C3 |
+| `calls.log` | all | entity | team | own | own | own | – | T1 |
+| `sales.targets.write` | all | entity | team | – | – | – | – | R1 |
+| `sales.credit.write` (dealer terms, manual outstanding) | all | – | – | – | – | – | entity | S2 |
+| `knowledge.vault.write` | all | all | – | – | – | – | – | K1 |
+
+Caller profiles are written with `crm.lead.assign`. The system principal `system:workers` (P1) holds only the grants its jobs need, listed in SECURITY §3.3, never a cost, admin or sensitive-document permission, and joins the agent refusal sweep.
+
+## 5. Wave 1
+
+### 5.1 P3 Quality harness
+- Playwright in `apps/web/e2e` with `playwright.config.ts`; a global setup that migrates and seeds a dedicated database and creates one user per role in each company, the Executive, GM and Accounts users with an authenticator app enrolled from a known test secret so the journey can type a code; sign-in once per role, stored as a storage state.
+- Helpers: `expectNoAxeViolations(page)` (`@axe-core/playwright`, WCAG 2.1 AA), `snap(page, name)` taking light, dark and 400 px captures.
+- Snapshots are made and compared only inside the pinned Linux Playwright image, so a Windows machine never writes a baseline; `pnpm --filter web e2e:snap` runs the image locally.
+- Lighthouse runs as a pinned GitHub Action against the production build on the public pages and a signed-in staff page, with budgets for performance, accessibility and best practice.
+- CI job `e2e` on every pull request and push to `main`: Postgres service, seed, `next build` and `next start`, the journeys, the axe checks, the snapshots; artefacts on failure.
+- Every existing screen gets its journey and snapshots: sign-in, forgotten password, two-factor, home, leads list, board, new lead, Price Master, imports, team members, Activity log, companies, profile, `/design`.
+
+### 5.2 P1 Observability and workers
+- **Sentry** (`@sentry/nextjs`, the group's US-region organisation): server and edge through `instrumentation.ts`; browser errors through a client loaded after the page is interactive, so first-load JavaScript does not grow; `sendDefaultPii: false`; `beforeSend` and `beforeSendTransaction` pass every event through the logger's redaction (`packages/domain/src/ports/logger.ts`), drop cookies, headers and bodies, and keep only the principal id and the request id; `release` from the commit, `environment` from `BOS_ENVIRONMENT`. Without `SENTRY_DSN` Sentry stays off (local and CI). CSP `connect-src` gains the ingest host.
+- **Outbox alert:** a publisher run that dead-letters an event, or fails three runs in a row, reports to Sentry with counts and ids only; an alert rule notifies the owner. Readiness keeps its own check.
+- **`system:workers`:** a principal and role seeded with fixed grants; event workers run commands as it.
+- **Event workers:** `POST /api/v1/workers/outbox/[type]` verifies the QStash signature after the 4 KiB body check, parses `OutboxEventDelivery`, drops an event whose `evt:{id}` key exists in Redis (7 days, set after success) and an event older than the last sequence seen for its aggregate, then calls the handler registered for the type in `apps/web/src/workers/events/registry.ts`. A type turns `subscribed: true` in the catalogue with its handler, and its QStash URL group `evt-<type>` is created on dev and staging. Without QStash, the publisher delivers subscribed types to their handlers in process.
+- **Delivery check:** the Executive's "Check delivery speed" on Integration Health emits `platform.probe.requested`; its handler records the arrival, and the page shows the time from commit to worker, the measure the handover's 10-second target rests on.
+- **Integration Health** at `/admin/integrations` (`admin.integrations.write`) and `GET /api/v1/admin/integrations`, `POST /api/v1/admin/integrations/replay`: pending, due and dead-lettered events by type, dead letters paged with replay, the last publisher run, the delivery check; AI spend per agent joins with A1, webhook counts with Phase 2. `app_user` reads no outbox row: the page reads through the definer `app.outbox_health()`, which checks `admin.integrations.write:all` and returns counts, ids, types and errors, never a payload.
+- **Retention:** `app.detach_audit_partitions()` detaches `audit_logs` partitions older than eight years into the closed schema `audit_archive`, run monthly by pg_cron and logged in `retention_runs`. The purge on the hosted pg_cron is confirmed (DEPLOY §2.2).
+- **`app_reader`:** a login role with `select` only, under the same policies, with its own pool (`DATABASE_URL_READER`); `executeQuery()` uses it when it is set and falls back to `app_user` in a read-only transaction when it is not. The role is listed in `ensureRoles()`, `requireEnv()`, `turbo.json`, `ci.yml`, `migrate.yml`, `.env.example` and DEPLOY.
+
+### 5.3 P2 Files and storage
+- **`FileStore` port** gains `presignPut`, `presignGet`, `head`, `tags` and `delete`; `s3FileStore` (SSE-KMS with the environment's key, 15-minute URLs, content type and length bound into the signature) and `localDiskFileStore` with a development-only upload route, so the browser flow works without AWS.
+- **Upload flow:** `files.upload.begin` (purpose, company, name, type, size, SHA-256) records the row as `pending` and answers the pre-signed PUT; the browser uploads; `files.upload.complete` checks the object's size and hash and emits `files.file.uploaded`. Each purpose names the permission that may upload it and read it: `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`, `import`.
+- **Checks before `ready`:** `/api/v1/workers/files/scan` reads the GuardDuty Malware Protection tag on the object (`NO_THREATS_FOUND` passes; a threat marks the file `rejected`); images are re-encoded with `sharp`, which drops embedded data; PDFs are checked for their header, size and the absence of scripts; files that may reach a model (vault photos and scans) pass `/api/v1/workers/files/mask`, the OCR masking of the Phase 0 spike (`apps/web/src/workers/ocr`), before `ready`. Locally, where no scanner exists, a file is marked `not_scanned` and only a local environment accepts it.
+- **Uploader** in `packages/ui`: file picker with type and size limits, progress, retry, and the final state in words.
+- **Field encryption:** a `FieldCipher` port (AES-256-GCM with a data key from KMS; a key from `FIELD_ENCRYPTION_KEY` locally and in CI) used for bank details.
+- **Mail:** `sesMailer` behind `Mailer` (`MAILER=ses`, `SES_FROM`, region `ap-south-1`); production still waits for the client's verified domain.
+
+## 6. Wave 2
+
+### 6.1 C1 Catalogue and tax
+- Commands: `catalogue.item.create`, `.update`, `.archive`; `catalogue.kit.create`, `.update` (components as a set), `.archive`; `catalogue.pump_curve.set` (the curve as a set of points, head falling as flow rises); `pricing.list.create` (a new version for a tier and optionally a company, from a date, copied from the live list), `pricing.list.approve`; `pricing.price.set` covers items and kits.
+- Screens: `/catalogue` (items and kits grids, item sheet with its pump curve); `/price-master` with kit prices, company lists, future lists and the change log; `/settings/tax` for Accounts with GST rates and composite-supply rules (the commands exist).
+
+### 6.2 X1 Role permission editor
+`/admin/roles`: the matrix of one role's grants and scopes; `admin.role.permissions.set` replaces the set, marks `customised_at`, bumps the principal cache of every holder and revokes their sessions; an agent role is never editable here; the Executive role cannot lose `admin.roles.write`.
+
+### 6.3 P2b Imports upgrade
+Import files arrive by the pre-signed flow; the workbook is read as a stream (`exceljs` streaming reader) so memory stays flat; the server-action body limit returns to the default. Batch budgets: one deadline across the whole set-based try, then a short row-by-row slice; a job fails after its last queue retry (`Upstash-Retried`). New import kinds: `accounts` (customers, one relationship per row's company, a repeated customer folded into one record) and `pin_codes`. **PIN master** `pin_codes(pin, office_name, taluk, district, state_code)`, shared and read-only to requests, written by the `pin_codes` import (Executive, a request for every company) from the public India Post directory; a PIN fills tehsil and district and offers its post-office localities for the village; a PIN outside the master is flagged for review (CRM-02). The import is measured on the dev deployment and recorded in `docs/spikes/import-scale.md`.
+
+### 6.4 P4 Print and letterhead
+The render worker `/api/v1/workers/pdf/render` (`PdfRenderJob`) loads a document through the loader its type registers, renders it with `playwright-core` and `@sparticuz/chromium`, stores it as a file and calls the document's attach command as `system:workers`. Static Inter files replace the variable font. Pixel snapshot tests of every template run in the Linux image. `entities` gains `letterhead_file_id`, `logo_light_file_id`, `logo_dark_file_id` and `bank_json` (encrypted: bank, account number, IFSC, branch), set through `org.entity.update` and the company screen; templates print the selling company's letterhead, logo and bank details.
+
+### 6.5 C2 Customer timeline
+- `activities`, partitioned by month on `created_at` with its partitions in the closed schema `crm_partitions`: `entity_id`, `opportunity_id`, `account_id`, `type`, `actor_principal_id`, `payload_json` (ids, codes and counts only); readable when its lead is readable; written by commands through `ctx.activity()`.
+- `tasks`: `entity_id`, `opportunity_id`, `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `due_at`, `state` (`open`, `done`, `cancelled`), `done_at`; own, team and company scope on the assignee; commands `crm.task.create`, `.complete`, `.reschedule`, `.cancel`.
+- `tags` and `opportunity_tags` as DATABASE §6.2 describes; `crm.tag.create`, `.archive`, `crm.lead.tag`, `.untag`.
+- Customer edits: `crm.account.update`, `crm.contact.update` (phones, primary number, language), `crm.site.upsert`.
+- Consent: `consents.evidence_file_id`; `crm.consent.record` and `crm.consent.withdraw`; consent text versions live beside the templates, their wording from the client.
+- Account 360 at `/customers/[accountId]`: contacts, sites, leads, the timeline (keyset), tasks and consents; quotes and orders join with S1 and S2. Under 300 ms p95 at 1,000 activities, with the `EXPLAIN` recorded.
+
+### 6.6 C3 Pipelines, scoring and referrals
+- `/settings/pipelines` (`crm.config.write`): pipeline name, lock hours and first-contact SLA minutes; stages added, renamed, reordered and archived; exit rules chosen from the fixed list of lead fields.
+- `call_dispositions` (`entity_id` null for the group, `segment` null for all, `key` 1 to 9, `code`, `label`, `next_action`: `callback`, `retry`, `qualified`, `not_interested`, `wrong_number`, `nurture`), with the workshop default list and an editor.
+- Scoring: `lead_score_rules` (`factor`: source, segment, district, system size, age; `match_json`; `points`) and the pure `scoreLead()` answering the score and its reasons; `opportunities.score_reasons_json`, `score_changed_at`, `score_changed_by`; `crm.lead.rescore`.
+- Referrals: `referral_partners` (`account_id` of a `referral_partner` customer, `code` unique, active) and `opportunities.referral_partner_id`; codes accepted by the lead form, the walk-in form and imports; `commission_rules` (per partner or default: fixed, percent, per kW or per HP), empty until the workshop answers CRM-5.
+- Walk-in quick form at `/leads/walk-in` for the Store Manager: name, phone, village or PIN, interest, consent; under 30 seconds.
+
+### 6.7 C4 Sizing
+Pure functions in `packages/domain/src/sizing`: TDH (static head, drawdown, friction by Hazen-Williams, fitting losses), pump power from flow and head at an efficiency, solar array size for a pump, rooftop kW from monthly units and sun hours with a roof-area check, the pump-curve duty point with its bounds, sanctioned-load and DCR rules; property tests. Engineering constants are named workshop defaults for the engineering head to confirm. `sizings` (child of a lead: `kind` pump or rooftop, `inputs_json`, `result_json`, `in_bounds`, `reasons_json`, `engine_version`), `crm.sizing.record`, the sizing panel; an out-of-bounds result creates a `review` task for the team lead.
+
+## 7. Wave 3
+
+### 7.1 AI0 Agent runtime and Inbox
+- Provider wrapper in `packages/domain/src/ai`: every call names its agent and purpose, is masked (`packages/domain/src/privacy`), has a timeout, bounded retries, a circuit breaker in Redis and a per-agent daily spend cap; Claude through `@anthropic-ai/sdk` (Haiku 4.5 by default), Voyage embeddings through `fetch`; a fake transport for tests.
+- `agent_configs` (`agent`, `action_type`, `autonomy`, `daily_spend_cap_paise`, `enabled`, `entity_id` null for all), with kill switches global, per agent and per company; `agent_runs`; `agent_actions` (append-only, only its decision columns change, by the inbox command); `agent_evals`; `inbox_items` (`kind`, `assignee_id`, `team_id`, `subject_type`, `subject_id`, `state`), which hold agent suggestions and routed work.
+- Agent Inbox in the top bar and at `/inbox` (`agents.inbox.act`): approve, edit or reject; `/admin/agents` (`agents.autonomy.write`, `agents.killswitch`).
+
+### 7.2 T1 Cold Caller workspace
+- `calls` (`entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` gains `manual`, `disposition_id`, `attempt_no`, `started_at`, `duration_s`); `calls.log` records the call, its activity and its next action: a callback task, a retry (after the default attempts the lead moves to nurture with its cadence tasks), qualified (the stage move that asks for the handover), or lost.
+- Queue `listCallQueue`: the caller's open leads in their first stages, ordered by due callbacks, SLA breach, score and age, keyset; a customer who withdrew consent is marked and cannot be logged as called.
+- `/calling`: keyboard-first (`N` next, `1`–`9` dispositions, `D` shows the number to dial, `/` search), the script card for the lead's segment and language, the exit-rule checklist, recent activity; the team lead's view of the team's queues.
+
+### 7.3 S1 Quotes
+- `quotes` (`entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `sizing_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, totals, `pdf_file_id`, `supersedes_id`); `quote_lines` (item or kit, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, taxable, goods and services parts, CGST, SGST, IGST, line total); `quote_versions` (`snapshot_json`).
+- `sales.quote.create`: the tier from the customer type (workshop default map), prices only from the live list for the tier and company, tax by the engine with each line's rate version, 15-day validity, the number from the series in the workshop default format; refused when sizing is missing or out of bounds (SAL-04). `sales.quote.send` needs the PDF (P4); `sales.quote.expire` runs from a daily QStash job as `system:workers`, and a read shows a lapsed quote as expired; `sales.quote.requote` supersedes it at current prices; `sales.quote.withdraw`. A price in the input is refused (SAL-03).
+- Quote builder, `/quotes` and the quote page; quotes on Account 360; ⌘K finds quote numbers; board cards show kW or HP and time in stage.
+
+### 7.4 D1 Duplicates
+`duplicate_candidates` (`entity_id`, the two leads or customers, `reason` phone or name and village, `confidence`, `state`), found when a lead is made and by a nightly pass, including two customers made at the same moment by an import and a form; cards on the lead and at `/duplicates`; `crm.customer.merge` and `crm.customer.unmerge` with `customer_merges` keeping what the merge moved, audited and reversible (`crm.lead.merge`); a repeat enquiry for the same segment within 30 days of the last activity on an open lead attaches to it (`crm.lead.create` answers `attached`).
+
+## 8. Wave 4
+
+### 8.1 N1 Notifications
+`notifications` (`user_id`, `type`, `subject`, `payload_json`, `read_at`), `notification_preferences` (per type: in-app, push; quiet hours), `push_subscriptions`; the bell and centre; browser push with VAPID keys and a service worker; the notify worker (`NotifyJob`) on the events people act on (assigned to you, callback due, quote expiring, order blocked, duplicate found); first-contact SLA breaches escalate to the GM; a lead refused as `customer_held_by_colleague` becomes an inbox item for the colleague or the team lead.
+
+### 8.2 T2 Handover
+`caller_profiles` (`user_id`, `entity_id`, `is_converter`, `presence`, `max_open` null for no cap, `languages`, `segments`); the handover worker on `crm.opportunity.stage_moved` with `handover: true` picks a Lead Converter by weighted round-robin (present, under capacity, language and segment match, fewest open leads), cursor in Redis, assigns as `system:workers` through `crm.opportunity.assign` within 10 seconds, and routes to the team lead when no one qualifies; `crm.lead.reassign_all` moves a leaving caller's leads.
+
+### 8.3 S2 Orders, acceptance and credit
+`sales_orders` and `sales_order_lines` (price and tax copied from the quote), `dealer_terms` (`account_id`, `entity_id`, `credit_limit`, `credit_days`), `dealer_outstanding` (manual entries by Accounts with `as_of`, history kept); `sales.quote.accept` with a signed copy (`signed_quote` file) creates the order draft; `sales.order.create` for dealers without a quote; `sales.order.confirm` runs `creditCheck()` and names the limit or the invoice when it blocks; `sales.credit.release` (Executive, with a reason, audited); `sales.order.cancel`; confirming wins the lead and accrues the referral commission by its rule (`commission_accruals`); orders on Account 360; `/orders` and `/dealer-credit`.
+
+### 8.4 K1 Knowledge Vault
+`vector` extension; `knowledge_files` (`entity_id` null for all, `file_id`, `sensitivity`, `source_type`, `state`) and `knowledge_chunks` (`vector(1024)`, HNSW, iterative scan), read under RLS by entity and sensitivity; uploads by `knowledge.vault.write`; extraction: PDFs and masked photos by Claude, Word by `mammoth`, Excel by `exceljs`; chunking and Voyage embeddings in `/api/v1/workers/embeddings/index`; `/knowledge` with the file list and staff search. The security suite proves retrieval by sensitivity per role (SECURITY §11 item 6).
+
+## 9. Wave 5
+- **L1 Lead Converter workspace** at `/converting`: the converter's board, the lead's sizing, the quote builder and a rules-based next-best-action list (callback due, quote about to expire, sizing missing, order blocked) on one screen, keyboard-first.
+- **R1 Targets and home pages:** `targets` (`entity_id`, `scope` caller or team, `subject_id`, `metric` calls, qualified, orders, kW, `period` day, week or month, `value`), `sales.target.set`; live progress on the caller's home and the team leaderboard; home pages per role: callers (queue and targets), team lead (team progress and queues), GM (SLAs and pipeline), Accounts (dealer credit), Executive (pipeline, quotes, orders).
+- **A1 Triage in shadow:** `agent:triage` on `crm.lead.created` reads the lead without names or phone numbers, proposes pipeline, score within bounds, duplicate links and an assignee through tools that wrap commands, and records each proposal as a shadowed action without acting; the shadow report compares proposals with what people did; eval and prompt-injection sets run in CI on recorded answers and by hand against the live model; AI spend per agent on Integration Health.
+
+## 10. Wave 6
+- **M1 Migration and UAT:** a reconciliation report per import job (rows in, created, attached, skipped, refused, by reason); anonymisation of unqualified leads with no quote or order 24 months after their last activity (BLUEPRINT §7.9), logged in `retention_runs`; the cutover runbook (IMP-02); the two-week parallel-run pack; a UAT pack per role; the end-to-end journeys for the Cold Caller, Lead Converter, Store Manager, Executive and the dealer credit block against staging.
+- **G1 Production readiness**, with the owner: a paid production Supabase project, Vercel Pro, the client's domain, SES production access, production Sentry and AWS, and a GitHub plan with environments (AUDIT M45); the parallel run, the reconciliation and the ⌘K measurement on real data happen there, since staging holds synthetic data only.
+
+## 11. Workshop defaults
+Each lives in `packages/domain/src/workshop-defaults.ts`, is listed in `docs/phase0/exit-gate-actions.md` and changes in one place: document number format (SALE-1), customer type to price tier (PRICE-1), kits priced as a fixed kit price (PRICE-3), dispositions (CALL-1), retry attempts and gaps (CALL-3), nurture cadence (CALL-5), lock hours (CALL-4, 48), converter capacity (no cap), score rules (none, so every lead starts level), first-contact SLA, and the sizing constants. Data that has no default stays empty until the client gives it: tax rates and the CA's golden set, price lists, items with HSN, dealer limits and outstanding, targets, commission rules, caller scripts, consent and privacy texts, legacy data and vault documents.
+
+## 12. Tests per slice
+Every slice: unit tests beside the code; for each new table its place in the `*_TABLES` lists, a fixture row per company and a rule in the role × company matrix; for each command the denied, wrong-company and happy-path tests on real Postgres; the agent refusal sweep over new commands; Playwright journeys for the roles it touches with axe checks and light, dark and 400 px snapshots; `EXPLAIN` evidence for every list and search it adds; the JavaScript budget; the documents it changes regenerated (`pnpm db:docs`, `pnpm --filter @shakti/domain machines:docs`).
