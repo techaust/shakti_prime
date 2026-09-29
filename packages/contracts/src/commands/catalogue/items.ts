@@ -28,12 +28,12 @@ const itemFields = {
   specs: z.record(z.string(), z.unknown()),
 };
 
-type ItemFields = {
+interface ItemFields {
   category: z.infer<typeof ItemCategorySchema>;
   isDcr: boolean;
   almmRef?: string | undefined;
   specs: Record<string, unknown>;
-};
+}
 
 /** The specifications must fit the category, and DCR and ALMM belong to solar modules. */
 function checkItem(value: ItemFields, ctx: z.RefinementCtx): void {

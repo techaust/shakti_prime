@@ -205,7 +205,7 @@ export const archiveItem = defineCommand({
       entityId: eventEntity(ctx),
       aggregateType: 'item',
       aggregateId: row.id,
-      payload: { category: row.category as ItemDto['category'] },
+      payload: { category: row.category },
     });
     return toItemDto(row);
   },

@@ -46,7 +46,7 @@ async function explain(
     )) as unknown as Record<string, string>[];
     return rows.map((r) => Object.values(r)[0]).join('\n');
   });
-  console.log(`\n=== ${label} ===\n${plan}`);
+  process.stdout.write(`\n=== ${label} ===\n${plan}\n`);
 }
 
 async function main(): Promise<void> {

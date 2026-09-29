@@ -149,9 +149,17 @@ export async function listPriceChanges(
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return PriceChangePageDto.parse({
-    items: page.map(({ sortValue: _sortValue, createdAt, ...r }) => ({
-      ...r,
-      createdAt: createdAt.toISOString(),
+    items: page.map((r) => ({
+      id: r.id,
+      priceListId: r.priceListId,
+      tierName: r.tierName,
+      entityId: r.entityId,
+      version: r.version,
+      oldPrice: r.oldPrice,
+      newPrice: r.newPrice,
+      reason: r.reason,
+      changedByName: r.changedByName,
+      createdAt: r.createdAt.toISOString(),
     })),
     nextCursor: nextCursor(
       changeOrder(),

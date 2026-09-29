@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { ItemCategorySchema } from './enums';
 import { ITEM_SPEC_FIELDS, ITEM_SPEC_SCHEMAS, parseItemSpecs } from './specs';
 
@@ -25,7 +25,8 @@ describe('item specifications', () => {
 
   it('accepts a complete pump and refuses a missing or unknown key', () => {
     expect(parseItemSpecs('pump', pump).success).toBe(true);
-    const { maxHeadM: _dropped, ...noHead } = pump;
+    const noHead: Record<string, unknown> = { ...pump };
+    delete noHead.maxHeadM;
     expect(parseItemSpecs('pump', noHead).success).toBe(false);
     expect(parseItemSpecs('pump', { ...pump, colour: 'blue' }).success).toBe(false);
   });
