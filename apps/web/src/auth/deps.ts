@@ -25,6 +25,7 @@ export interface AuthDeps {
 
 /** Variables a hosted deployment cannot run without (docs/SECURITY.md §2). */
 const PRODUCTION_ENV = [
+  'BOS_ENVIRONMENT',
   'BETTER_AUTH_SECRET',
   'BETTER_AUTH_URL',
   'TURNSTILE_SITE_KEY',
@@ -45,6 +46,12 @@ const PUBLISHED_SECRETS = new Set([
   'test-only-secret-test-only-secret-test-only-secret',
 ]);
 const MIN_SECRET_LENGTH = 32;
+/**
+ * Which hosted environment this is. Each environment is its own Vercel project whose `main`
+ * deployments are Vercel's "production" target, so `VERCEL_ENV` cannot tell staging from
+ * production; this variable does.
+ */
+const BOS_ENVIRONMENTS = ['dev', 'staging', 'production'] as const;
 /** Cloudflare's published Turnstile test keys, which pass or fail every visitor. */
 const TURNSTILE_TEST_KEY = /^[123]x0+AA$/;
 
@@ -65,6 +72,10 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
       `BETTER_AUTH_SECRET must be a private value of at least ${String(MIN_SECRET_LENGTH)} characters`,
     );
   }
+  const environment = env.BOS_ENVIRONMENT ?? '';
+  if (environment !== '' && !(BOS_ENVIRONMENTS as readonly string[]).includes(environment)) {
+    problems.push(`BOS_ENVIRONMENT must be one of ${BOS_ENVIRONMENTS.join(', ')}`);
+  }
   const url = env.BETTER_AUTH_URL ?? '';
   if (url !== '' && !url.startsWith('https://')) problems.push('BETTER_AUTH_URL must use https');
   for (const name of ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'] as const) {
@@ -77,7 +88,7 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   // then a hosted environment other than production may log that a message went out, never the
   // message: a set-password link in a log opens the account (AUDIT M9).
   const mailer = env.MAILER ?? '';
-  if (env.VERCEL_ENV === 'production') {
+  if (environment === 'production') {
     if (mailer !== '')
       problems.push(`MAILER=${mailer} is not a mail provider; production needs one`);
   } else if (mailer !== '' && mailer !== 'log') {
