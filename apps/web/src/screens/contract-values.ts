@@ -7,8 +7,10 @@ import type {
   OpportunityLostReason,
   OpportunityNurtureReason,
   OpportunityState,
+  PermissionKey,
   PriceSort,
   SavedViewScreen,
+  Scope,
   Segment,
   SessionRevokeReason,
   Theme,
@@ -135,3 +137,18 @@ export const IMPORT_JOB_SORT_COLUMNS = [
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
+
+/** Scopes from narrowest to widest (`SCOPES`). */
+export const SCOPE_VALUES = ['own', 'team', 'entity', 'all'] as const satisfies readonly Scope[];
+
+/** The two cost permissions (`COST_PERMISSIONS`): the role editor warns on each. */
+export const COST_PERMISSION_KEYS = [
+  'finance.cost.read',
+  'procurement.rate.read',
+] as const satisfies readonly PermissionKey[];
+
+/** What the Executive role always keeps (`EXECUTIVE_KEPT_GRANTS`): the editor locks these. */
+export const EXECUTIVE_KEPT_PERMISSIONS = [
+  'admin.roles.write',
+  'admin.users.write',
+] as const satisfies readonly PermissionKey[];

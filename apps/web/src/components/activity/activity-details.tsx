@@ -12,7 +12,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import type { ErrorKey, RoleNameKey } from '../../i18n/types';
+import type { ErrorKey, PermissionNameKey, RoleNameKey } from '../../i18n/types';
 import {
   actionKey,
   auditChanges,
@@ -40,6 +40,7 @@ import {
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
+import { isScopeChoice, permissionMessageKey } from '../../screens/roles';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
 
@@ -193,6 +194,7 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const common = useTranslations('common');
   const users = useTranslations('users');
   const roles = useTranslations('roles');
+  const roleEditor = useTranslations('adminRoles');
   const theme = useTranslations('theme');
   const code = useCodeText();
   const leadField = useLeadFieldName();
@@ -260,6 +262,26 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
           ? users(`sessions.reason.${ended}`)
           : wordsOf(ended);
       }
+      case 'grants':
+        return value.grants.length === 0 ? (
+          <span className="text-text-muted">{roleEditor('scope.none')}</span>
+        ) : (
+          <span className="flex flex-col">
+            {value.grants.map((g) => {
+              const name = permissionMessageKey(g.permission);
+              return (
+                <span key={g.permission}>
+                  {t('values.grant', {
+                    permission: roleEditor.has(`permissions.${name}` as `permissions.${PermissionNameKey}`)
+                      ? roleEditor(`permissions.${name}` as `permissions.${PermissionNameKey}`)
+                      : wordsOf(g.permission),
+                    scope: isScopeChoice(g.scope) ? roleEditor(`scope.${g.scope}`) : wordsOf(g.scope),
+                  })}
+                </span>
+              );
+            })}
+          </span>
+        );
       case 'roles':
         return value.roles.length === 0 ? (
           <span className="text-text-muted">{users('rolesField.none')}</span>

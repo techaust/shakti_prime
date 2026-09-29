@@ -99,6 +99,7 @@ export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
+export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
