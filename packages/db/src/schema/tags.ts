@@ -43,6 +43,8 @@ export const opportunityTags = pgTable(
   'opportunity_tags',
   {
     opportunityId: uuid('opportunity_id').notNull(),
+    /** The lead's own customer, by the composite key, as `tasks` carries it. */
+    accountId: uuid('account_id').notNull(),
     tagId: uuid('tag_id')
       .notNull()
       .references(() => tags.id),
@@ -58,8 +60,8 @@ export const opportunityTags = pgTable(
     primaryKey({ name: 'opportunity_tags_pkey', columns: [t.opportunityId, t.tagId] }),
     foreignKey({
       name: 'opportunity_tags_opportunity_fk',
-      columns: [t.opportunityId, t.entityId],
-      foreignColumns: [opportunities.id, opportunities.entityId],
+      columns: [t.opportunityId, t.entityId, t.accountId],
+      foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
     }),
     index('opportunity_tags_tag_idx').on(t.tagId),
   ],

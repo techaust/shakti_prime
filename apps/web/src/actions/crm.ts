@@ -2,6 +2,7 @@
 
 import {
   AddNoteInput,
+  ArchiveTagInput,
   AssignOpportunityInput,
   CancelTaskInput,
   CompleteTaskInput,
@@ -48,6 +49,7 @@ import {
 } from '@shakti/contracts';
 import {
   addNote as addNoteCommand,
+  archiveTag as archiveTagCommand,
   cancelTask as cancelTaskCommand,
   completeTask as completeTaskCommand,
   createTag as createTagCommand,
@@ -443,6 +445,25 @@ export async function createTag(
         ? { requestId: meta.requestId }
         : { entityIds: [input.entityId], requestId: meta.requestId },
       createTagCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Takes a tag off the list of tags to choose; the leads that carry it keep it. */
+export async function archiveTag(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TagDto>> {
+  return toResult('archiveTag', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ArchiveTagInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      archiveTagCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );

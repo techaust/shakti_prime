@@ -211,3 +211,6 @@ export const IMPORT_JOB_SORT_COLUMNS = [
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
+
+/** A customers search looks for a name, contact or village from three characters. */
+export const CUSTOMER_SEARCH_MIN_CHARS = 3;

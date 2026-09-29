@@ -29,9 +29,15 @@ export type CustomerSort = z.infer<typeof CustomerSortSchema>;
  * per customer and company, by name. `q` finds a name, a contact's name, a village or the last
  * digits of a phone.
  */
+/** A customers search looks for a name, contact or village from three characters. */
+export const CUSTOMER_SEARCH_MIN_CHARS = 3;
+
+/** The most customers one search finds; the list says when a search found more. */
+export const CUSTOMER_SEARCH_MAX = 200;
+
 export const ListCustomersInput = z
   .object({
-    q: SearchTextSchema.optional(),
+    q: SearchTextSchema.min(CUSTOMER_SEARCH_MIN_CHARS).optional(),
     cursor: z.string().max(512).optional(),
     limit: z.number().int().min(1).max(200).default(50),
     sort: CustomerSortSchema.optional(),
@@ -58,7 +64,14 @@ export const CustomerRowDto = z
   .strict();
 export type CustomerRowDto = z.infer<typeof CustomerRowDto>;
 
-export const CustomerPageDto = pageOf(CustomerRowDto);
+export const CustomerPageDto = z
+  .object({
+    items: z.array(CustomerRowDto),
+    nextCursor: z.string().nullable(),
+    /** The search found more than `CUSTOMER_SEARCH_MAX` customers; only the first are listed. */
+    truncated: z.boolean(),
+  })
+  .strict();
 export type CustomerPageDto = z.infer<typeof CustomerPageDto>;
 
 /** Account 360 (`/customers/[accountId]`): the customer as one company deals with them. */

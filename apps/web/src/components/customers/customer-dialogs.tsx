@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl';
 import { useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   addNote,
+  archiveTag,
   createTag,
   createTask,
   recordConsent,
@@ -574,11 +575,52 @@ function TagForm({ view, onDone, onCancel, opportunityId }: FormProps & { opport
           <Input name="name" maxLength={40} autoComplete="off" />
         </Field>
       ) : null}
+      {view.canManageTags && view.tags.length > 0 ? (
+        <TagList view={view} onDone={onDone} />
+      ) : null}
       <FailureMessage failure={formFailure} />
       <Footer onCancel={onCancel} pending={pending}>
         {t('submitAdd')}
       </Footer>
     </form>
+  );
+}
+
+/**
+ * The tags on the list, each with a button that takes it off (`crm.tag.archive`); the leads that
+ * carry a tag keep it. Only for someone who may make tags.
+ */
+function TagList({ view, onDone }: { view: Account360Dto; onDone: () => void }) {
+  const t = useTranslations('customers.dialogs');
+  const archive = useCommand(archiveTag);
+  const [busy, setBusy] = useState<string | undefined>();
+  return (
+    <section aria-labelledby="tag-list-heading" className="flex flex-col gap-2">
+      <h3 id="tag-list-heading" className="text-text-muted text-sm font-medium">
+        {t('tagListTitle')}
+      </h3>
+      <ul className="flex flex-col gap-1">
+        {view.tags.map((tag) => (
+          <li key={tag.id} className="flex flex-wrap items-center justify-between gap-2">
+            <span className="break-words">{tag.name}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-label={t('archiveTagLabel', { name: tag.name })}
+              pending={archive.pending && busy === tag.id}
+              onClick={() => {
+                setBusy(tag.id);
+                archive.run({ tagId: tag.id }, onDone);
+              }}
+            >
+              {t('archiveTag')}
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <FailureMessage failure={archive.failure} />
+    </section>
   );
 }
 

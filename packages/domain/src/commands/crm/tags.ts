@@ -33,6 +33,8 @@ export const createTag = defineCommand({
   name: 'crm.tag.create',
   permission: 'crm.lead.assign',
   minScope: 'own',
+  // Tags are the team's own labels; an agent may put them on leads, never make them.
+  peopleOnly: true,
   input: CreateTagInput,
   output: TagDto,
   auditFields: ['name'],
@@ -64,6 +66,7 @@ export const archiveTag = defineCommand({
   name: 'crm.tag.archive',
   permission: 'crm.lead.assign',
   minScope: 'own',
+  peopleOnly: true,
   input: ArchiveTagInput,
   output: TagDto,
   auditFields: ['archivedAt'],
@@ -122,6 +125,7 @@ export const tagLead = defineCommand({
       .insert(schema.opportunityTags)
       .values({
         opportunityId: lead.id,
+        accountId: lead.accountId,
         tagId: tag.id,
         entityId: lead.entityId,
         createdBy: ctx.principal.id,
@@ -140,7 +144,7 @@ export const tagLead = defineCommand({
         opportunityId: lead.id,
         accountId: lead.accountId,
         entityId: lead.entityId,
-        payload: { tagId: tag.id, tagName: tag.name },
+        payload: { tagId: tag.id },
       });
     }
     return { opportunityId: lead.id, tagId: tag.id, tagged: true };
@@ -164,11 +168,6 @@ export const untagLead = defineCommand({
       .where(and(eq(ot.opportunityId, lead.id), eq(ot.tagId, input.tagId)))
       .returning({ tagId: ot.tagId });
     if (removed.length > 0) {
-      const [tag] = await ctx.tx
-        .select({ name: schema.tags.name })
-        .from(schema.tags)
-        .where(eq(schema.tags.id, input.tagId))
-        .limit(1);
       ctx.audit({
         aggregateType: 'opportunity',
         aggregateId: lead.id,
@@ -180,7 +179,7 @@ export const untagLead = defineCommand({
         opportunityId: lead.id,
         accountId: lead.accountId,
         entityId: lead.entityId,
-        payload: { tagId: input.tagId, tagName: tag?.name ?? null },
+        payload: { tagId: input.tagId },
       });
     }
     return { opportunityId: lead.id, tagId: input.tagId, tagged: false };

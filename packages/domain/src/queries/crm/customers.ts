@@ -2,6 +2,7 @@ import {
   Account360Dto,
   ActivityDto,
   ConsentDto,
+  CUSTOMER_SEARCH_MAX,
   CustomerRowDto,
   DomainError,
   hasGrant,
@@ -21,7 +22,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, desc, eq, exists, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import { checkPermission } from '../../command/run-command';
+import { checkPermission, isAgent } from '../../command/run-command';
 import {
   afterCursor,
   keysetOrder,
@@ -42,15 +43,22 @@ function reversed(digits: string): string {
   return out;
 }
 
-/** The most customers one search finds (`app.customer_search_ids()`); the list pages through them. */
-const SEARCH_CANDIDATES = 200;
+
+/** An id no customer has, for a search that found none (an empty `in` list is not valid SQL). */
+const NO_CUSTOMER = '00000000-0000-7000-8000-000000000000';
 
 const CUSTOMER_SORT_KEYS: SortKeys<'name'> = {
   name: { expr: schema.accounts.name, type: 'text', nullable: false },
 };
 
-/** Either customer read or lead read at own scope or wider opens the customers screens. */
+/**
+ * Either customer read or lead read at own scope or wider opens the customers screens; an agent
+ * never does (docs/SECURITY.md §3.3: agents work on leads without customers' names or phones).
+ */
 function checkCustomerRead(ctx: Ctx): void {
+  if (isAgent(ctx.principal)) {
+    throw new DomainError('forbidden', 'the customers screens are for people, not agents');
+  }
   const perms = ctx.principal.permissions;
   if (hasGrant(perms, 'crm.account.read', 'own')) return;
   checkPermission(ctx.principal, 'crm.lead.read', 'own');
@@ -61,7 +69,7 @@ function checkCustomerRead(ctx: Ctx): void {
  * reads (`account_entities_read`, 0057: their customer scope, or a lead of the customer there),
  * by name, keyset-paginated by `(name, id)`. `q` finds the customer's name, a contact's name or a
  * village holding the text, or a phone ending in the typed digits, at most 200 customers a search
- * (`SEARCH_CANDIDATES`). A phone shows only its last four digits in the list.
+ * (`CUSTOMER_SEARCH_MAX`, `truncated` when it found more). A phone shows only its last four digits in the list.
  */
 export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<CustomerPageDto> {
   const input = parseQueryInput(ListCustomersInput, rawInput, 'crm.customers.list');
@@ -78,6 +86,7 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
   });
 
   let found: SQL | undefined;
+  let truncated = false;
   if (input.q !== undefined) {
     const pattern = containsPattern(input.q);
     const digits = phoneDigits(input.q);
@@ -108,8 +117,19 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
     // The candidates come through the indexes from app.customer_search_ids(), which keeps
     // to the customers the caller may read; this query then tests each against every condition
     // above under the policies, so the search finds exactly what it did without the lookup.
-    const candidates = sql`${a.id} in (select candidate from app.customer_search_ids(${input.q}::text, ${digits === undefined ? null : reversed(digits)}::text, ${SEARCH_CANDIDATES}::integer) as candidate)`;
-    found = and(candidates, or(ilike(a.name, pattern), byContact, byVillage, byPhone));
+    const [lookup] = (await ctx.tx.execute(sql`
+      select coalesce(array_agg(candidate), '{}') as ids
+        from app.customer_search_ids(${input.q}::text,
+                                     ${digits === undefined ? null : reversed(digits)}::text,
+                                     ${CUSTOMER_SEARCH_MAX + 1}::integer) as candidate`)) as unknown as {
+      ids: string[];
+    }[];
+    const ids = lookup?.ids ?? [];
+    truncated = ids.length > CUSTOMER_SEARCH_MAX;
+    found = and(
+      inArray(a.id, ids.length === 0 ? [NO_CUSTOMER] : ids.slice(0, CUSTOMER_SEARCH_MAX)),
+      or(ilike(a.name, pattern), byContact, byVillage, byPhone),
+    );
   }
 
   const rows = await ctx.tx
@@ -155,6 +175,7 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
       rows.length > input.limit,
       last === undefined ? undefined : { value: last.sortValue, id: last.id },
     ),
+    truncated,
   };
 }
 
@@ -274,6 +295,31 @@ export async function listTimeline(ctx: Ctx, rawInput: unknown): Promise<Timelin
     .limit(input.limit + 1);
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
+  // A row keeps a tag's id only; its name is read now, under the caller's own policies.
+  const tagIds = [
+    ...new Set(
+      page.flatMap((r) => {
+        const tagId = (r.payload as Record<string, unknown>).tagId;
+        return typeof tagId === 'string' && IdSchema.safeParse(tagId).success ? [tagId] : [];
+      }),
+    ),
+  ];
+  const tagNames =
+    tagIds.length === 0
+      ? new Map<string, string>()
+      : new Map(
+          (
+            await ctx.tx
+              .select({ id: schema.tags.id, name: schema.tags.name })
+              .from(schema.tags)
+              .where(inArray(schema.tags.id, tagIds))
+          ).map((t) => [t.id, t.name]),
+        );
+  const withNames = (payload: unknown): Record<string, unknown> => {
+    const p = payload as Record<string, unknown>;
+    const name = typeof p.tagId === 'string' ? tagNames.get(p.tagId) : undefined;
+    return name === undefined ? p : { ...p, tagName: name };
+  };
   return {
     items: page.map((r): Activity =>
       ActivityDto.parse({
@@ -282,7 +328,7 @@ export async function listTimeline(ctx: Ctx, rawInput: unknown): Promise<Timelin
         opportunityId: r.opportunityId,
         actorId: r.actorId,
         actorName: r.actorName,
-        payload: r.payload,
+        payload: withNames(r.payload),
         body: r.body,
         createdAt: r.createdAt.toISOString(),
       }),

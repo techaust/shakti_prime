@@ -512,6 +512,20 @@
       "when": 1790701145135,
       "tag": "0072_customer_search",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1790715442384,
+      "tag": "0073_c2_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790715472602,
+      "tag": "0074_c2_review_rls",
+      "breakpoints": true
     }
   ]
 }

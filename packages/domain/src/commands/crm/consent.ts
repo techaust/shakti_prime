@@ -54,8 +54,9 @@ async function contactOfCustomer(
 /**
  * `crm.consent.record` (CRM-10, DPDP, DLT 160-series): a consent a contact of the customer gave,
  * per channel and purpose, with its source, the version of the text they agreed to (the wording
- * is the client's) and when, now or earlier. An evidence file, when named, must be one the caller
- * reads; it is fixed with the rest of the evidence once written. The write policy asks the
+ * is the client's) and when, now or earlier. Naming an evidence file is refused until consent proof
+ * can be uploaded (`consent_evidence_unavailable`); the column is fixed with the rest of the
+ * evidence once written. The write policy asks the
  * caller's `crm.account.write` scope over the contact (ADR 0008).
  */
 export const recordConsent = defineCommand({
@@ -73,17 +74,12 @@ export const recordConsent = defineCommand({
         reason: 'consent_given_in_future',
       });
     }
+    // The upload of consent proof arrives with the file store's consent_evidence purpose (slice
+    // P2); until then no file may be named, and then only one of that purpose and company.
     if (input.evidenceFileId !== undefined) {
-      const [file] = await ctx.tx
-        .select({ id: schema.files.id })
-        .from(schema.files)
-        .where(eq(schema.files.id, input.evidenceFileId))
-        .limit(1);
-      if (!file) {
-        throw new DomainError('not_found', 'the evidence file is not available', {
-          reason: 'consent_evidence_missing',
-        });
-      }
+      throw new DomainError('validation_failed', 'consent proof cannot be attached yet', {
+        reason: 'consent_evidence_unavailable',
+      });
     }
     const [row] = await ctx.tx
       .insert(schema.consents)
@@ -123,7 +119,6 @@ export const recordConsent = defineCommand({
         channel: row.channel,
         purpose: row.purpose,
         source: row.source,
-        textVersion: row.textVersion,
       },
     });
     return toConsentDto(row);

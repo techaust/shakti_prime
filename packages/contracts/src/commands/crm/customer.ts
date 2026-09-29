@@ -103,6 +103,12 @@ export const CustomerChangeDto = z
 export type CustomerChangeDto = z.infer<typeof CustomerChangeDto>;
 
 /**
+ * The version of a consent text as the form or script prints it: letters, digits, dots and
+ * hyphens, such as `v2` or `2026-09-30`. A value outside it is refused with its own sentence.
+ */
+export const CONSENT_TEXT_VERSION = /^[A-Za-z0-9][A-Za-z0-9.-]{0,39}$/;
+
+/**
  * `crm.consent.record` (CRM-10): a consent a contact of the customer gave, per channel and
  * purpose, with its source, the version of the text they agreed to and when. The wording of each
  * text version is the client's.
@@ -114,7 +120,10 @@ export const RecordConsentInput = z
     channel: ConsentChannelSchema,
     purpose: ConsentPurposeSchema,
     source: ConsentSourceSchema,
-    textVersion: z.string().trim().min(1).max(40),
+    textVersion: z
+      .string()
+      .trim()
+      .regex(CONSENT_TEXT_VERSION, { message: 'consent_version_invalid' }),
     givenAt: z.iso.datetime({ offset: true }),
     evidenceFileId: IdSchema.optional(),
   })

@@ -128,6 +128,11 @@ export function undeclaredAuditFields(
  */
 const STRICT_AUDIT_FIELDS = process.env.NODE_ENV !== 'production';
 
+/** An agent service principal, by its kind or its role key (the test of 0057 in the database). */
+export function isAgent(principal: Pick<Principal, 'kind' | 'roleKey'>): boolean {
+  return principal.kind === 'agent' || principal.roleKey.startsWith('agent:');
+}
+
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
 export function checkPermission(
   principal: Principal,
@@ -245,6 +250,11 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     checkPermission(context.principal, command.permission, command.minScope ?? 'own');
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);
+    }
+    if (command.peopleOnly === true && isAgent(context.principal)) {
+      throw new DomainError('forbidden', `${command.name} is for people, not agents`, {
+        permission: command.permission,
+      });
     }
   } catch (e) {
     throw tag(e, 'guard', parsed.data);

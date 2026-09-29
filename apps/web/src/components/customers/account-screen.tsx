@@ -269,12 +269,17 @@ function Contacts({ view, onEdit }: { view: Account360Dto; onEdit: (id: string) 
             <ul className="flex flex-col gap-1">
               {c.phones.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  <a
-                    href={`tel:${p.e164}`}
-                    className="text-accent-text tabular-nums hover:underline"
-                  >
-                    {formatPhone(p.e164)}
-                  </a>
+                  {p.isDnd ? (
+                    // A number on the do-not-disturb list is shown, never offered for a call.
+                    <span className="tabular-nums">{formatPhone(p.e164)}</span>
+                  ) : (
+                    <a
+                      href={`tel:${p.e164}`}
+                      className="text-accent-text tabular-nums hover:underline"
+                    >
+                      {formatPhone(p.e164)}
+                    </a>
+                  )}
                   {p.isPrimary ? (
                     <StatusBadge tone="accent">{t('contacts.main')}</StatusBadge>
                   ) : null}

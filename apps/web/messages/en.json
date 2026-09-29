@@ -172,7 +172,8 @@
     "consent_missing": "We couldn't find this consent for this customer. Refresh the page and try again.",
     "consent_already_withdrawn": "This consent is already withdrawn. Record a new consent if the customer agrees again.",
     "consent_given_in_future": "The date the consent was given can't be later than today.",
-    "consent_evidence_missing": "We couldn't find the proof file. Upload it again, then record the consent."
+    "consent_version_invalid": "Enter the version as printed on the consent form or script, using letters, digits, dots or hyphens, such as v2.",
+    "consent_evidence_unavailable": "Proof of consent can't be attached yet. Record the consent without it and keep the signed form."
   },
   "auth": {
     "signIn": {
@@ -1521,7 +1522,7 @@
     "intro": "The people and businesses you deal with, with their contacts, sites, leads and history.",
     "caption": "Customers",
     "searchLabel": "Find a customer",
-    "searchHelper": "A name, a village, or the last digits of a phone number",
+    "searchHelper": "At least 3 letters of a name or village, or the last 4 digits of a phone number",
     "search": "Search",
     "clearSearch": "Show all",
     "empty": "No customers yet. A customer appears here when a lead is added for them.",
@@ -1674,7 +1675,11 @@
       "submitAdd": "Add",
       "submitWithdraw": "Withdraw consent",
       "submitRecord": "Record consent",
-      "saved": "Saved."
-    }
+      "saved": "Saved.",
+      "tagListTitle": "Tags on the list",
+      "archiveTag": "Take off the list",
+      "archiveTagLabel": "Take {name} off the list; leads keep it"
+    },
+    "truncated": "Showing the first 200 matches. Add more of the name to narrow it."
   }
 }

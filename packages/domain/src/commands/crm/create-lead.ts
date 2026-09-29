@@ -319,7 +319,6 @@ export const createLead = defineCommand({
           channel: input.consent.channel,
           purpose: input.consent.purpose,
           source: input.consent.source,
-          textVersion: input.consent.textVersion,
         },
       });
     }

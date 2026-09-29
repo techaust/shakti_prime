@@ -9,9 +9,10 @@ import {
   UpsertSiteInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { heldByColleague, lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
 /**
@@ -197,6 +198,21 @@ export const updateContact = defineCommand({
       throw new DomainError('not_found', 'the main number must be one the contact keeps', {
         reason: 'phone_missing',
       });
+    }
+
+    // A number that belongs to a colleague's customer is that customer, not a second number of
+    // this one: refused and routed as the lead form refuses it (AUDIT M25). The lead form's number
+    // lock is held in each company of the request first, so a lead typed at the same moment with
+    // the number waits for this change, or this change for it.
+    for (const p of added) {
+      if (phones.some((q) => q.e164 === p.phone)) continue;
+      for (const entityId of [...ctx.entityIds].sort((a, b) => a - b)) {
+        await lockNewNumber(ctx.tx, p.phone, entityId);
+      }
+      const rows = (await ctx.tx.execute(
+        sql`select app.contact_phone_status(${p.phone}::text, ${input.accountId}::uuid) as status`,
+      )) as unknown as { status: 'clear' | 'held_by_other' }[];
+      if (rows[0]?.status === 'held_by_other') throw heldByColleague();
     }
 
     const currentFields = {
@@ -442,30 +458,41 @@ export const upsertSite = defineCommand({
 });
 
 /**
- * `crm.note.add`: a note on the customer's timeline in the page's company, or on one of their
- * leads. The timeline's insert policy asks that the caller read the lead, or the customer there.
+ * `crm.note.add`: a note on the customer's timeline in the page's company, by someone who may
+ * change the customer, or on one of their leads that is not archived, by someone who may work it;
+ * the timeline's insert policy asks the same. People only: agents work without notes.
  */
 export const addNote = defineCommand({
   name: 'crm.note.add',
   permission: 'crm.lead.write',
   minScope: 'own',
+  // Agents work without customers' notes (docs/SECURITY.md §3.3).
+  peopleOnly: true,
   input: AddNoteInput,
   output: NoteDto,
   auditFields: [],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     if (input.opportunityId === undefined) {
-      await readableAccount(ctx, input.accountId, input.entityId);
+      const account = await readableAccount(ctx, input.accountId, input.entityId);
+      const [scope] = (await ctx.tx.execute(
+        sql`select app.account_in_scope(${account.id}::uuid, 'crm.account.write') as writable`,
+      )) as unknown as { writable: boolean }[];
+      if (scope?.writable !== true) throw denied(`account ${account.id}`);
     } else {
       const o = schema.opportunities;
       const [lead] = await ctx.tx
-        .select({ id: o.id })
+        .select({
+          id: o.id,
+          writable: sql<boolean>`app.scope_ok('crm.lead.write', ${o.ownerId}, ${o.teamId})`,
+        })
         .from(o)
         .where(
           and(
             eq(o.id, input.opportunityId),
             eq(o.entityId, input.entityId),
             eq(o.accountId, input.accountId),
+            isNull(o.archivedAt),
           ),
         )
         .limit(1);
@@ -474,6 +501,7 @@ export const addNote = defineCommand({
           reason: 'lead_missing',
         });
       }
+      if (!lead.writable) throw denied(`opportunity ${lead.id}`);
     }
     await ctx.activity({
       type: 'note',

@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { listCustomers } from '../../actions/crm';
-import { CUSTOMER_SORT_COLUMNS, SEARCH_MIN_CHARS } from '../../screens/contract-values';
+import { CUSTOMER_SEARCH_MIN_CHARS, CUSTOMER_SORT_COLUMNS } from '../../screens/contract-values';
 import { customerHref } from '../../screens/customers';
 import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -35,6 +35,7 @@ export function CustomersScreen({
   const common = useTranslations('common');
   const [rows, setRows] = useState(initial.items);
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
+  const [truncated, setTruncated] = useState(initial.truncated);
   const [query, setQuery] = useState<string | undefined>(undefined);
   const { load, pending, failure } = useQuery<CustomerPageDto>();
   // The order and search the rows on screen were read with; an older answer is dropped.
@@ -58,6 +59,7 @@ export function CustomersScreen({
         if (readWith.current !== next) return;
         setRows(page.items);
         setNextCursor(page.nextCursor);
+        setTruncated(page.truncated);
       },
     );
   }
@@ -91,7 +93,7 @@ export function CustomersScreen({
   function search(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const text = formText(new FormData(e.currentTarget), 'q').trim();
-    const q = text.length >= SEARCH_MIN_CHARS ? text : undefined;
+    const q = text.length >= CUSTOMER_SEARCH_MIN_CHARS ? text : undefined;
     setQuery(q);
     readFirst({ sort: readWith.current.sort, q });
   }
@@ -182,6 +184,11 @@ export function CustomersScreen({
         </div>
       </form>
       <FailureMessage failure={failure} />
+      {truncated ? (
+        <p role="status" className="text-text-muted text-sm">
+          {t('truncated')}
+        </p>
+      ) : null}
       <DataGrid
         caption={t('caption')}
         columns={columns}
