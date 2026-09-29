@@ -273,3 +273,33 @@ describe('runOutboxPublisher backoff', () => {
     }
   });
 });
+
+describe('runOutboxPublisher and its dead letters (docs/design/phase1.md §5.2)', () => {
+  it('names every event it dead-lettered, failed here or spent by the claim, once per run', async () => {
+    const tired = row({ attempts: OUTBOX_MAX_ATTEMPTS - 1 });
+    const stray = row({ type: 'crm.lead.vanished' });
+    const fine = row();
+    const spent = [newId()];
+    const { claim } = claimOf([tired, stray, fine], spent);
+    const seen: (readonly string[])[] = [];
+    const counts = await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher((e) => (e.id === tired.id ? 'http_404' : undefined)),
+      onDeadLettered: (ids) => seen.push(ids),
+    });
+    expect(counts.deadLettered).toBe(3);
+    expect(seen).toHaveLength(1);
+    expect([...(seen[0] ?? [])].sort()).toEqual([tired.id, stray.id, ...spent].sort());
+  });
+
+  it('says nothing when the run dead-lettered nothing', async () => {
+    const { claim } = claimOf([row()]);
+    const seen: (readonly string[])[] = [];
+    await runOutboxPublisher({
+      claim,
+      publisher: memoryEventPublisher(),
+      onDeadLettered: (ids) => seen.push(ids),
+    });
+    expect(seen).toEqual([]);
+  });
+});

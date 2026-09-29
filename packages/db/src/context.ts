@@ -1,6 +1,6 @@
 import { DomainError, newId, serializeGrants, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
-import { rawDb, type Db } from './client';
+import { rawDb, readerDb, type Db } from './client';
 
 /** The transaction handed to commands and queries. */
 export type RequestTx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -25,6 +25,11 @@ export interface RequestOptions {
    * connection passes to another client when the transaction ends (docs/DATABASE.md §1).
    */
   readOnly?: boolean;
+  /**
+   * Run on the `app_reader` pool (`DATABASE_URL_READER`) instead of `app_user`'s: the role itself
+   * may only select, so a write fails for want of the privilege as well. Implies `readOnly`.
+   */
+  reader?: boolean;
 }
 
 /**
@@ -71,7 +76,9 @@ export async function withRequestContext<T>(
     entityTeam !== undefined && principal.teamId === undefined
       ? { ...principal, teamId: entityTeam }
       : principal;
-  return rawDb().transaction(async (tx) => {
+  const readOnly = options.readOnly === true || options.reader === true;
+  const db = options.reader === true ? readerDb() : rawDb();
+  return db.transaction(async (tx) => {
     await tx.execute(sql`
       select
         set_config('app.user_id', ${principal.id}, true),
@@ -80,7 +87,7 @@ export async function withRequestContext<T>(
         set_config('app.permissions', ${serializeGrants(principal.permissions)}, true),
         set_config('app.team_id', ${acting.teamId ?? ''}, true),
         set_config('app.request_id', ${requestId}, true),
-        set_config('DateStyle', 'ISO, YMD', true)${options.readOnly === true ? READ_ONLY_SETTING : sql``}
+        set_config('DateStyle', 'ISO, YMD', true)${readOnly ? READ_ONLY_SETTING : sql``}
     `);
     return fn({ principal: acting, entityIds: requested, requestId, tx });
   });

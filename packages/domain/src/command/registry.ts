@@ -19,6 +19,7 @@ import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
@@ -49,6 +50,7 @@ export const commands = {
   [resetTwoFactor.name]: resetTwoFactor,
   [clearSignInLock.name]: clearSignInLock,
   [replayDeadLetter.name]: replayDeadLetter,
+  [runDeliveryProbe.name]: runDeliveryProbe,
   [setTheme.name]: setTheme,
   [setContrast.name]: setContrast,
   [saveView.name]: saveView,

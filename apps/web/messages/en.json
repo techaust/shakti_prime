@@ -1036,6 +1036,7 @@
       "importCommitBatch": "Import rows added",
       "importRollback": "Import undone",
       "deadLetterReplay": "Held update sent again",
+      "deliveryCheck": "Checked how fast updates arrive",
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
@@ -1059,7 +1060,8 @@
       "userRolesChanged": "Roles changed",
       "importCommitted": "Import finished",
       "importFailed": "Import stopped",
-      "importRolledBack": "Import undone"
+      "importRolledBack": "Import undone",
+      "deliveryCheckRequested": "Delivery check sent"
     },
     "sheet": {
       "title": "{action}",
@@ -1147,7 +1149,8 @@
       "errorCode": "What went wrong",
       "eventType": "Update sent on",
       "attempts": "Tries to send",
-      "deadLetteredAt": "Stopped trying at"
+      "deadLetteredAt": "Stopped trying at",
+      "requestedAt": "Asked at"
     },
     "values": {
       "percent": "{value}%",

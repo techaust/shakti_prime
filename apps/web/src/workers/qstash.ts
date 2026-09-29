@@ -67,6 +67,11 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/** The address QStash calls for an event type: the endpoint of its URL group `evt-<type>`. */
+export function eventWorkerPath(type: string): string {
+  return `/api/v1/workers/outbox/${type}`;
+}
+
 /** The queue group that fans one event type out to its workers. */
 export function urlGroupFor(type: string): string {
   return `evt-${type}`;
