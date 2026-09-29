@@ -24,6 +24,8 @@ export async function snap(
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await expect(page).toHaveScreenshot(`${name}.png`, {
       fullPage: options.fullPage ?? true,
+      // A long page (the design board) takes more than one quick capture to settle.
+      timeout: 60_000,
       mask: [...DYNAMIC.map((selector) => page.locator(selector)), ...(options.mask ?? [])],
     });
   });
