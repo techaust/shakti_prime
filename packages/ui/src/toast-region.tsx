@@ -11,6 +11,8 @@ export interface ToasterProps {
   label: string;
   /** Called once the region is on the page and listening for toasts. */
   onReady?: () => void;
+  /** Called when the region leaves the page. */
+  onGone?: () => void;
 }
 
 /**
@@ -19,11 +21,14 @@ export interface ToasterProps {
  * politely by screen readers. `toast.tsx` loads this module after the page (Sonner is not part of
  * any screen's first load).
  */
-export function ToastRegion({ theme = 'system', label, onReady }: ToasterProps) {
+export function ToastRegion({ theme = 'system', label, onReady, onGone }: ToasterProps) {
   const phone = useIsPhone();
   useEffect(() => {
     onReady?.();
-  }, [onReady]);
+    return () => {
+      onGone?.();
+    };
+  }, [onReady, onGone]);
   return (
     <Sonner
       theme={theme}

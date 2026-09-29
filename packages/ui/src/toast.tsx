@@ -19,9 +19,31 @@ type Message = Parameters<SonnerToast>[0];
 
 let requestRegion: (() => void) | undefined;
 let markReady: () => void = () => undefined;
-const ready = new Promise<void>((resolve) => {
-  markReady = resolve;
-});
+let ready: Promise<void> = Promise.resolve();
+let listening = false;
+
+function waitForRegion(): void {
+  ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+}
+waitForRegion();
+
+/** The region is on the page and listening: toasts waiting for it show now. */
+export function regionMounted(): void {
+  listening = true;
+  markReady();
+}
+
+/**
+ * The region left the page: later toasts wait for the next one. Toasts already waiting keep
+ * waiting on the same promise, so none is lost when the region goes before it ever mounted.
+ */
+export function regionUnmounted(): void {
+  if (!listening) return;
+  listening = false;
+  waitForRegion();
+}
 
 function withSonner(show: (t: SonnerToast) => void): void {
   requestRegion?.();
@@ -50,7 +72,7 @@ const loadRegion = () => import('./toast-region').then((m) => m.ToastRegion);
 /** How long a page waits for the fetch when the browser cannot say it is idle. */
 const IDLE_FALLBACK_MS = 1_500;
 
-export function Toaster(props: Omit<ToasterProps, 'onReady'>) {
+export function Toaster(props: Omit<ToasterProps, 'onReady' | 'onGone'>) {
   const [Region, setRegion] = useState<ComponentType<ToasterProps> | undefined>(undefined);
   useEffect(() => {
     let cancelled = false;
@@ -71,5 +93,7 @@ export function Toaster(props: Omit<ToasterProps, 'onReady'>) {
       else window.clearTimeout(handle);
     };
   }, []);
-  return Region === undefined ? null : <Region {...props} onReady={markReady} />;
+  return Region === undefined ? null : (
+    <Region {...props} onReady={regionMounted} onGone={regionUnmounted} />
+  );
 }
