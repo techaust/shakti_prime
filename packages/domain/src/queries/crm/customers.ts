@@ -19,7 +19,7 @@ import {
   type TimelinePageDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
 import {
@@ -81,25 +81,31 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
   if (input.q !== undefined) {
     const pattern = containsPattern(input.q);
     const digits = phoneDigits(input.q);
-    const byContact = ctx.tx
-      .select({ id: ac.accountId })
-      .from(ac)
-      .innerJoin(c, eq(c.id, ac.contactId))
-      .where(ilike(c.name, pattern));
-    const byVillage = ctx.tx
-      .select({ id: cs.accountId })
-      .from(cs)
-      .where(and(ilike(cs.village, pattern), isNull(cs.archivedAt)));
+    // Each test is tied to the customer row, so it runs only for the few candidates below.
+    const byContact = exists(
+      ctx.tx
+        .select({ one: sql`1` })
+        .from(ac)
+        .innerJoin(c, eq(c.id, ac.contactId))
+        .where(and(eq(ac.accountId, a.id), ilike(c.name, pattern))),
+    );
+    const byVillage = exists(
+      ctx.tx
+        .select({ one: sql`1` })
+        .from(cs)
+        .where(and(eq(cs.accountId, a.id), ilike(cs.village, pattern), isNull(cs.archivedAt))),
+    );
     const byPhone =
       digits === undefined
         ? undefined
-        : inArray(
-            a.id,
+        : exists(
             ctx.tx
-              .select({ id: ac.accountId })
+              .select({ one: sql`1` })
               .from(ph)
               .innerJoin(ac, eq(ac.contactId, ph.contactId))
-              .where(sql`${ph.e164Reversed} ^@ ${reversed(digits)}`),
+              .where(
+                and(eq(ac.accountId, a.id), sql`${ph.e164Reversed} ^@ ${reversed(digits)}`),
+              ),
           );
     // The candidates come through the indexes from app.customer_search_ids(), which keeps
     // to the customers the caller may read; this query then tests each against every condition
@@ -107,7 +113,7 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
     const candidates = sql`${a.id} in (select candidate from app.customer_search_ids(${input.q}::text, ${digits === undefined ? null : reversed(digits)}::text, ${SEARCH_CANDIDATES}::integer) as candidate)`;
     found = and(
       candidates,
-      or(ilike(a.name, pattern), inArray(a.id, byContact), inArray(a.id, byVillage), byPhone),
+      or(ilike(a.name, pattern), byContact, byVillage, byPhone),
     );
   }
 

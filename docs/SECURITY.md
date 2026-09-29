@@ -93,6 +93,8 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 
 GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) carry no company, so `tax.rates.write` writes them only in a request that acts for every active company (migration 0048), as shared price lists are written.
 
+The customer timeline, tasks, tags and Account 360 (docs/design/phase1.md §6.5) add no permission. A timeline row (`activities`) is read with its lead, or, for a row of no lead, with its customer in that company, which an agent never reads through a lead. A task is a scope root on `crm.lead.read` / `.write` with the person it is for as its owner, on a lead the caller reads; a task for someone else also needs `crm.lead.assign` at the scope that covers them (team scope for the caller's own team, company scope for anyone else). Tags are made and archived with `crm.lead.assign` (a tag for the whole group only in a request for every company) and put on or taken off a lead with `crm.lead.write`; a company's tag never goes on another company's lead. Customer, contact and site edits and consents need `crm.account.write` over the customer (`app.account_in_scope()`, `app.contact_in_scope()`); reading a customer through a lead gives no right to change it, and no agent holds `crm.account.write`. Notes need `crm.lead.write`. The customers screen opens with `crm.account.read` at own scope, which every staff role that reads leads holds.
+
 ### 3.3 Agent principals
 | Principal | Permissions |
 |---|---|
@@ -124,7 +126,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Customers (ADR 0008): a person sees a customer in a company through the relationship at their `crm.account.read` scope or through one of its leads there that they can read and that is not archived (0057, 0059); an agent only through `crm.account.read`. A new lead or import row whose number belongs to a customer a colleague looks after in the company is refused and routed (`customer_held_by_colleague`), judged in that company only, so the All-companies view cannot get round it. Administrators update people and revoke sessions only for people who work solely in the request's companies, in RLS as well as in the commands (0055 to 0057).
 - Exports are permission-gated commands and audited with the row count and filter.
 - Materialised views with margins are readable only through commands that require `finance.cost.read`.
-- Search candidates: ⌘K lead search finds its candidates through the definer `app.lead_search_ids()` (migration 0052), which applies the same scope rules as the read policies of leads and customers, returns lead ids only and never more than 200, and the search then reads those leads under RLS.
+- Search candidates: ⌘K lead search finds its candidates through the definer `app.lead_search_ids()` (migration 0052), which applies the same scope rules as the read policies of leads and customers, returns lead ids only and never more than 200, and the search then reads those leads under RLS. The customers list's search does the same through `app.customer_search_ids()`, which applies the `account_entities_read` rule (never through a lead for an agent) and returns at most 200 customer ids.
 
 ## 5. Data protection (DPDP Act 2023, Rules 2025)
 - **Consent:** per channel, purpose and source with evidence; opt-out honoured by humans and agents; consent text versions stored.
