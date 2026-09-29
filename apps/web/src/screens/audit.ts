@@ -68,6 +68,10 @@ const ACTIONS = {
   'crm.tag.archive': 'tagArchive',
   'crm.lead.tag': 'leadTag',
   'crm.lead.untag': 'leadUntag',
+  'crm.account.update': 'accountUpdate',
+  'crm.contact.update': 'contactUpdate',
+  'crm.site.upsert': 'siteUpsert',
+  'crm.note.add': 'noteAdd',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
   'tax.rate.set': 'taxRateSet',
@@ -202,6 +206,9 @@ const CODE_GROUPS = [
   'eventType',
   'screen',
   'taskKind',
+  'accountType',
+  'language',
+  'siteType',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -268,6 +275,19 @@ const FIELD_KINDS = [
   ['doneAt', 'time'],
   // Tags
   ['archivedAt', 'time'],
+  // Customers
+  ['accountType', 'accountType'],
+  ['billingStateCode', 'text'],
+  ['preferredLanguage', 'language'],
+  ['phones', 'text'],
+  ['primaryPhone', 'text'],
+  ['siteType', 'siteType'],
+  ['address', 'text'],
+  ['village', 'text'],
+  ['tehsil', 'text'],
+  ['district', 'text'],
+  ['lat', 'text'],
+  ['lng', 'text'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],

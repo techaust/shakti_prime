@@ -72,6 +72,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     activities: { i: true, u: false },
     // A task changes only its due time and state after the insert.
     tasks: { i: true, u: false },
+    // A number comes off a contact through crm.contact.update, which keeps one (ADR 0008).
+    contact_phones: { i: true, u: true, d: true },
     // A tag is only archived; a tag on a lead is put on or taken off (DATABASE §6.2).
     tags: { i: true, u: false },
     opportunity_tags: { i: true, u: false, d: true },

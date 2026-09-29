@@ -24,6 +24,7 @@ export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';
 export * from './commands/crm/tasks';
 export * from './commands/crm/tags';
+export * from './commands/crm/customer';
 export * from './commands/pricing/set-price';
 export * from './commands/tax/set-tax';
 export * from './commands/admin/users';

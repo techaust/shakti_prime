@@ -94,7 +94,8 @@ export const archiveTag = defineCommand({
 async function usableTag(ctx: CommandContext, tagId: string, entityId: number): Promise<TagRow> {
   const t = schema.tags;
   const [tag] = await ctx.tx.select().from(t).where(eq(t.id, tagId)).limit(1);
-  if (tag === undefined || tag.archivedAt !== null || (tag.entityId ?? entityId) !== entityId) {
+  const usable = tag?.archivedAt === null && (tag.entityId ?? entityId) === entityId;
+  if (!usable) {
     throw new DomainError('not_found', `tag ${tagId} is not available for this lead`, {
       reason: 'tag_missing',
     });

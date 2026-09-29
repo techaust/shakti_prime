@@ -149,3 +149,66 @@ describe('agent principals cannot call admin, cost, audit, integrations, tax, pr
     });
   }
 });
+
+/**
+ * SECURITY §3.3: agents never write the customer master; no agent holds `crm.account.write`.
+ * Every command that needs it, read from the registry, refuses every agent at the guard: the
+ * lead form, imports, the customer edits and the consents of Account 360 (docs/design/phase1.md
+ * §6.5).
+ */
+const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
+  .filter((command) => needs(command).includes('crm.account.write'))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const CUSTOMER = { entityId: 1, accountId: newId() };
+const CUSTOMER_INPUTS: Record<string, unknown> = {
+  'crm.account.update': { ...CUSTOMER, name: 'Refused customer name' },
+  'crm.contact.update': { ...CUSTOMER, contactId: newId(), name: 'Refused contact name' },
+  'crm.lead.create': {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: 'Refused lead', phone: '9800000000' },
+    account: { type: 'farm' },
+  },
+  'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // An import makes customers the way the lead form does.
+  'imports.job.commit': { entityId: 1, jobId: newId() },
+  'imports.job.commit_batch': { entityId: 1, jobId: newId() },
+};
+
+describe('agent principals never write the customer master (SECURITY §3.3)', () => {
+  it('finds the customer writes in the registry, each with a valid input here', () => {
+    expect(CUSTOMER_WRITES.map((c) => c.name)).toEqual(Object.keys(CUSTOMER_INPUTS).sort());
+    for (const command of CUSTOMER_WRITES) {
+      expect({
+        command: command.name,
+        valid: command.input.safeParse(CUSTOMER_INPUTS[command.name]).success,
+      }).toEqual({ command: command.name, valid: true });
+    }
+  });
+
+  it('no agent holds crm.account.write', () => {
+    for (const agent of AGENTS) {
+      const held = AGENT_MATRIX[agent].filter((g) => g.key === 'crm.account.write');
+      expect({ agent, held }).toEqual({ agent, held: [] });
+    }
+  });
+
+  for (const agent of AGENTS) {
+    it(`${agent} is refused at the guard by every customer write`, async () => {
+      const principal = principalFor(agent, [1]);
+      for (const command of CUSTOMER_WRITES) {
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, CUSTOMER_INPUTS[command.name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+          command: command.name,
+          stage: 'guard',
+        });
+      }
+    });
+  }
+});

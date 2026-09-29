@@ -11,6 +11,7 @@ import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
+import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
 import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
@@ -48,6 +49,10 @@ export const commands = {
   [archiveTag.name]: archiveTag,
   [tagLead.name]: tagLead,
   [untagLead.name]: untagLead,
+  [updateAccount.name]: updateAccount,
+  [updateContact.name]: updateContact,
+  [upsertSite.name]: upsertSite,
+  [addNote.name]: addNote,
   [setPrice.name]: setPrice,
   [setTaxRate.name]: setTaxRate,
   [setCompositeRule.name]: setCompositeRule,

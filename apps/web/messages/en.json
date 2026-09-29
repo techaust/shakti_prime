@@ -163,7 +163,12 @@
     "task_due_in_past": "Choose a time from now onwards for this task.",
     "task_transition_not_allowed": "This task can't do that in its current status. Refresh the page to see where it stands.",
     "tag_name_taken": "There is already a tag with this name. Use that tag or choose another name.",
-    "tag_missing": "This tag is no longer available for this lead. Refresh the page and choose another."
+    "tag_missing": "This tag is no longer available for this lead. Refresh the page and choose another.",
+    "contact_missing": "We couldn't find this contact for this customer. Refresh the page and try again.",
+    "phone_missing": "This number is no longer on this contact. Refresh the page and try again.",
+    "phone_last_one": "A contact needs at least one phone number. Add another number before you remove this one.",
+    "phone_already_on_contact": "This contact already has this number.",
+    "site_missing": "We couldn't find this site for this customer. Refresh the page and try again."
   },
   "auth": {
     "signIn": {
@@ -1051,7 +1056,11 @@
       "tagCreate": "Tag made",
       "tagArchive": "Tag taken off the list",
       "leadTag": "Tag put on a lead",
-      "leadUntag": "Tag taken off a lead"
+      "leadUntag": "Tag taken off a lead",
+      "accountUpdate": "Customer details changed",
+      "contactUpdate": "Contact details changed",
+      "siteUpsert": "Site details saved",
+      "noteAdd": "Note added"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1164,7 +1173,19 @@
       "title": "Note on the task",
       "dueAt": "Due",
       "doneAt": "Done at",
-      "archivedAt": "Taken off the list at"
+      "archivedAt": "Taken off the list at",
+      "accountType": "Customer type",
+      "billingStateCode": "Billing state code",
+      "preferredLanguage": "Language for calls",
+      "phones": "Phone numbers",
+      "primaryPhone": "Main number",
+      "siteType": "Site type",
+      "address": "Address",
+      "village": "Village",
+      "tehsil": "Tehsil",
+      "district": "District",
+      "lat": "Latitude",
+      "lng": "Longitude"
     },
     "values": {
       "percent": "{value}%",

@@ -1,5 +1,10 @@
 import type {
+  AccountType,
   ActivityType,
+  ConsentChannel,
+  ConsentPurpose,
+  ConsentSource,
+  CustomerLanguage,
   ContrastPreference,
   ImportJobSort,
   ImportJobState,
@@ -12,6 +17,7 @@ import type {
   SavedViewScreen,
   Segment,
   SessionRevokeReason,
+  SiteType,
   TaskKind,
   TaskState,
   Theme,
@@ -83,6 +89,38 @@ export const OPPORTUNITY_NURTURE_REASONS = [
   'waiting_for_season',
   'other',
 ] as const satisfies readonly OpportunityNurtureReason[];
+
+export const ACCOUNT_TYPES = [
+  'household',
+  'farm',
+  'business',
+  'dealer',
+  'referral_partner',
+] as const satisfies readonly AccountType[];
+
+export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
+
+export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+export const CONSENT_CHANNELS = [
+  'whatsapp',
+  'call',
+  'sms',
+  'email',
+] as const satisfies readonly ConsentChannel[];
+
+export const CONSENT_PURPOSES = [
+  'service',
+  'promotional',
+] as const satisfies readonly ConsentPurpose[];
+
+export const CONSENT_SOURCES = [
+  'web_form',
+  'whatsapp_opt_in',
+  'walk_in_form',
+  'verbal',
+  'import',
+] as const satisfies readonly ConsentSource[];
 
 /** What a task asks for, in the order the Add task dialog offers them. */
 export const TASK_KINDS = [

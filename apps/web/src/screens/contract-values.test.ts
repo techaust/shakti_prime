@@ -1,5 +1,10 @@
 import {
+  AccountTypeSchema,
   ActivityTypeSchema,
+  ConsentChannelSchema,
+  ConsentPurposeSchema,
+  ConsentSourceSchema,
+  CustomerLanguageSchema,
   ContrastSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
@@ -14,6 +19,7 @@ import {
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SiteTypeSchema,
   TaskKindSchema,
   TaskStateSchema,
   ThemeSchema,
@@ -22,7 +28,12 @@ import {
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  ACCOUNT_TYPES,
   ACTIVITY_TYPES,
+  CONSENT_CHANNELS,
+  CONSENT_PURPOSES,
+  CONSENT_SOURCES,
+  CUSTOMER_LANGUAGES,
   CONTRASTS,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
@@ -37,6 +48,7 @@ import {
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
   THEMES,
@@ -59,6 +71,12 @@ describe('the contract values copied for the browser', () => {
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
+    expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
+    expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
+    expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
+    expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
+    expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
+    expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {

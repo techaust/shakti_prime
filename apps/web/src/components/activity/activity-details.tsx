@@ -26,7 +26,9 @@ import {
   type CodeGroup,
 } from '../../screens/audit';
 import {
+  ACCOUNT_TYPES,
   CONTRASTS,
+  CUSTOMER_LANGUAGES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
   OPPORTUNITY_LOST_REASONS,
@@ -35,6 +37,7 @@ import {
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
   THEMES,
@@ -336,6 +339,12 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
       }
+      case 'accountType':
+        return oneOf(ACCOUNT_TYPES, value) ? leads(`accountType.${value}`) : wordsOf(value);
+      case 'language':
+        return oneOf(CUSTOMER_LANGUAGES, value) ? leads(`language.${value}`) : wordsOf(value);
+      case 'siteType':
+        return oneOf(SITE_TYPES, value) ? leads(`siteType.${value}`) : wordsOf(value);
       case 'taskKind':
         return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
