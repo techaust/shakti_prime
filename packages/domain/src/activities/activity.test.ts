@@ -1,33 +1,35 @@
 import { newId } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { ACTIVITY_LABEL_MAX, activityRow, payloadProblem } from './activity';
+import { ACTIVITY_CODE_MAX, activityRow, payloadProblem } from './activity';
 
 const principal = { id: newId() };
 const accountId = newId();
 
 describe('payloadProblem', () => {
-  it('takes ids, codes, counts, flags and short labels', () => {
+  it('takes ids, codes, lists of codes, times, counts and flags', () => {
     expect(
       payloadProblem({
         opportunityId: newId(),
         stageKey: 'qualified',
+        pipelineKey: 'rules-1a2b3c4d5e6f7a8b',
+        changed: 'name,gstin',
+        dueAt: '2026-10-01T04:00:00.000Z',
         count: 3,
         existingAccount: false,
         sourceCode: null,
-        label: 'Summer drive',
       }),
     ).toBeUndefined();
   });
 
-  it('takes a label of exactly the longest length and refuses one character more', () => {
-    expect(payloadProblem({ label: 'a'.repeat(ACTIVITY_LABEL_MAX) })).toBeUndefined();
-    expect(payloadProblem({ label: 'a'.repeat(ACTIVITY_LABEL_MAX + 1) })).toMatch(/label/);
+  it('takes a code of exactly the longest length and refuses one character more', () => {
+    expect(payloadProblem({ code: 'a'.repeat(ACTIVITY_CODE_MAX) })).toBeUndefined();
+    expect(payloadProblem({ code: 'a'.repeat(ACTIVITY_CODE_MAX + 1) })).toMatch(/longer/);
   });
 
-  it('refuses an email address or a phone number, but not an id full of digits', () => {
-    expect(payloadProblem({ who: 'ram@example.com' })).toMatch(/email/);
-    expect(payloadProblem({ who: '+919876543210' })).toMatch(/phone/);
-    expect(payloadProblem({ who: 'call 987654' })).toBeUndefined();
+  it('refuses a name, an email address, a phone number or free text', () => {
+    for (const value of ['Mela @ Sikar', 'ram@example.com', '+919876543210', 'Ramesh Kumar']) {
+      expect(payloadProblem({ label: value })).toMatch(/not an id, code or count/);
+    }
     expect(payloadProblem({ id: '01990000-0000-7000-8000-000000000301' })).toBeUndefined();
   });
 

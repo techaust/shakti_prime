@@ -7,7 +7,7 @@ import {
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 
-/** A value a timeline row's payload may carry: an id, a code, a count or a short label. */
+/** A value a timeline row's payload may carry: an id, a code or a count. */
 export type ActivityValue = string | number | boolean | null;
 
 /**
@@ -24,17 +24,22 @@ export interface ActivityRecord {
   body?: string;
 }
 
-/** The longest label a payload keeps. */
-export const ACTIVITY_LABEL_MAX = 80;
+/** The longest code a payload keeps. */
+export const ACTIVITY_CODE_MAX = 80;
 const MAX_KEYS = 16;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Seven digits in a row outside an id read as a phone number, which a payload never holds. */
-const PHONE_LIKE = /\d{7,}/;
+/**
+ * A code as the commands write it: a key, a code or a list of them (`name,gstin`), or a time
+ * (`2026-10-01T04:00:00.000Z`). No spaces, no `+` and no `@`, so no name, phone number or email
+ * address fits.
+ */
+const CODE = /^[A-Za-z0-9][A-Za-z0-9_.:,-]*$/;
 
 /**
- * Why a payload is refused, or undefined when it holds only ids, codes, counts and short labels:
- * never an email address, a phone number or free text (the payload leaves the database with the
- * timeline, and only a note's body is free text).
+ * Why a payload is refused, or undefined when it holds only ids, codes and counts: never a name,
+ * an email address, a phone number or free text (the payload leaves the database with the
+ * timeline, and only a note's body is free text). Commands build payloads from ids and codes
+ * only, so a refusal is a command's own mistake, found by its tests.
  */
 export function payloadProblem(payload: Readonly<Record<string, unknown>>): string | undefined {
   const entries = Object.entries(payload);
@@ -46,11 +51,10 @@ export function payloadProblem(payload: Readonly<Record<string, unknown>>): stri
       if (!Number.isFinite(value)) return `${key} is not a finite number`;
       continue;
     }
-    if (typeof value !== 'string') return `${key} is not an id, code, count or label`;
+    if (typeof value !== 'string') return `${key} is not an id, code or count`;
     if (UUID.test(value)) continue;
-    if (value.length > ACTIVITY_LABEL_MAX) return `${key} is longer than a label`;
-    if (value.includes('@')) return `${key} looks like an email address`;
-    if (PHONE_LIKE.test(value)) return `${key} looks like a phone number`;
+    if (value.length > ACTIVITY_CODE_MAX) return `${key} is longer than a code`;
+    if (!CODE.test(value)) return `${key} is not an id, code or count`;
   }
   return undefined;
 }
