@@ -21,8 +21,10 @@ import { readCurve, type CurveProblem } from '../../screens/catalogue';
 import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
 
+const row = (flow: string, head: string): Row => ({ key: crypto.randomUUID(), flow, head });
+
 interface Row {
-  key: number;
+  key: string;
   flow: string;
   head: string;
 }
@@ -42,8 +44,6 @@ export function CurveFormDialog({
   const t = useTranslations('catalogue.curveForm');
   const common = useTranslations('common');
   const { run, pending, failure } = useCommand(setPumpCurve);
-  const nextKey = useRef(0);
-  const row = (flow: string, head: string): Row => ({ key: (nextKey.current += 1), flow, head });
   const [rows, setRows] = useState<Row[]>(() =>
     item.curve.length >= 2
       ? item.curve.map((p) => row(p.flowLph, p.headM))
@@ -53,7 +53,7 @@ export function CurveFormDialog({
   const problemId = useId();
   const addButton = useRef<HTMLButtonElement>(null);
 
-  function edit(key: number, change: Partial<Row>) {
+  function edit(key: string, change: Partial<Row>) {
     setRows((all) => all.map((r) => (r.key === key ? { ...r, ...change } : r)));
   }
 

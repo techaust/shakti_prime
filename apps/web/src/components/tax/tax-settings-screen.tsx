@@ -2,7 +2,6 @@
 
 import type {
   CompositeRuleRow,
-  Segment,
   TaxRateListRowDto,
   TaxSettingsDto,
 } from '@shakti/contracts';
@@ -74,7 +73,7 @@ export function TaxSettingsScreen({ initial }: { initial: TaxSettingsDto }) {
       id: 'segment',
       header: t('columns.segment'),
       primary: true,
-      cell: (r) => activity(`values.segment.${r.segment as Segment}`),
+      cell: (r) => activity(`values.segment.${r.segment}`),
     },
     {
       id: 'goodsShare',
