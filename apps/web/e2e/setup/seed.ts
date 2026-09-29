@@ -35,6 +35,20 @@ type RoleKey = Parameters<typeof roleId>[0];
 
 // The breached-password range service is the one outside call these flows make; the test phrase
 // is not in it, and the seed never depends on the network.
+// A seed that stops making progress fails with the step it was on, instead of holding a CI job
+// until its own time runs out.
+const SEED_LIMIT_MS = 5 * 60_000;
+const started = Date.now();
+let step = 'starting';
+const watchdog = setTimeout(() => {
+  console.error(`e2e seed: no end after ${String(SEED_LIMIT_MS / 60_000)} minutes, at: ${step}`);
+  process.exit(1);
+}, SEED_LIMIT_MS);
+function progress(next: string): void {
+  step = next;
+  console.warn(`e2e seed: ${next} (${String(Math.round((Date.now() - started) / 1000))} s)`);
+}
+
 const realFetch = globalThis.fetch;
 globalThis.fetch = (input, init) => {
   const url = input instanceof Request ? input.url : input.toString();
@@ -192,10 +206,12 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
   );
 }
 
+progress('migrating and seeding the database');
 await prepareDatabase();
 
 const totpSecrets: Record<string, string> = {};
 const ids: Record<string, string> = {};
+progress('the people of each role');
 for (const role of SIGNED_IN_ROLES) {
   const email = emailFor(role.key);
   const id = await ensureUser(email, role.name, role.roleKey, role.entityIds);
@@ -208,6 +224,7 @@ const setPasswordLinks = {} as Record<ProjectName, string>;
 const enrolEmails = {} as Record<ProjectName, string>;
 const verifyUsers = {} as SeededUsers['verifyUsers'];
 const profileUsers = {} as SeededUsers['profileUsers'];
+progress('the people of each project');
 for (const project of PROJECTS) {
   const invited = emailFor(`invited-${project}`);
   const invitedId = await ensureUser(invited, `E2E invited ${project}`, 'tele_caller_cc', [1]);
@@ -232,6 +249,7 @@ for (const project of PROJECTS) {
   profileUsers[project] = { email: profile, secret: await enrolAuthenticator(profileId, profile) };
 }
 
+progress('the leads');
 const secondCompanyLead = 'Ramesh Choudhary';
 // Fixed numbers, made once: the list shows the same rows on every run.
 await ensureLead(
@@ -253,6 +271,7 @@ await ensureLead(
   '98765 40002',
 );
 
+progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.
 for (const lead of SNAPSHOT_LEADS) {
   await ensureLead(
@@ -278,10 +297,9 @@ const seeded: SeededUsers = {
   secondCompanyLead,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
-console.warn(
-  `e2e seed: ${String(SIGNED_IN_ROLES.length)} roles and ${String(PROJECTS.length)} projects ready`,
-);
+progress(`${String(SIGNED_IN_ROLES.length)} roles and ${String(PROJECTS.length)} projects ready`);
 
 await closeAuthDb();
 await closeDb();
+clearTimeout(watchdog);
 process.exit(0);

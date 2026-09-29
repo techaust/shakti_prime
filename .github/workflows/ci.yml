@@ -156,11 +156,16 @@ jobs:
       - run: pnpm db:verify
 
   e2e:
-    name: End-to-end journeys, accessibility and screenshots
+    name: End-to-end (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    # The image the screenshot baselines are made in (pnpm --filter web e2e:snap), so fonts and
-    # anti-aliasing match; its browsers match @playwright/test.
+    timeout-minutes: 25
+    # One job per project, each with its own database; the sign-in setup runs in each. The image
+    # is the one the screenshot baselines are made in (pnpm --filter web e2e:snap), so fonts and
+    # anti-aliasing match, and its browsers match @playwright/test.
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop-light, desktop-dark, phone]
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --ipc=host
@@ -188,8 +193,12 @@ jobs:
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
       E2E_BASE_URL: http://localhost:3000
+      # The server is started by the step below; Playwright only drives the browser.
+      E2E_EXTERNAL_APP: '1'
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+    # Each step runs its package script directly, not through Turbo, so its output streams as it
+    # happens, and each has its own limit, so a hang fails at the step that hung.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -198,14 +207,33 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Builds, seeds the people of apps/web/e2e/support/users.ts, starts the production build
-      # (next start) and runs every journey with axe and the screenshot comparisons.
-      - run: pnpm test:e2e
+        timeout-minutes: 5
+      - name: Build
+        run: pnpm exec turbo run build --filter=web --log-order=stream --output-logs=full
+        timeout-minutes: 8
+      - name: Migrate and seed
+        run: pnpm --filter web e2e:seed
+        timeout-minutes: 5
+      # The production build as a local production run (apps/web/src/auth/deps.ts).
+      - name: Start the app
+        working-directory: apps/web
+        run: |
+          BOS_ENVIRONMENT=local nohup pnpm exec next start -p 3000 > next.log 2>&1 &
+          node e2e/setup/wait-for-app.mjs http://localhost:3000/api/v1/health 90 next.log
+        timeout-minutes: 3
+      - name: Journeys, axe and screenshots (${{ matrix.project }})
+        working-directory: apps/web
+        run: pnpm exec playwright test --project=${{ matrix.project }}
+        timeout-minutes: 21
+      - name: The app's log
+        if: failure()
+        working-directory: apps/web
+        run: tail -n 200 next.log || true
       - name: Keep the report and the screenshot differences
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-report
+          name: e2e-report-${{ matrix.project }}
           path: |
             apps/web/e2e/playwright-report
             apps/web/e2e/test-results

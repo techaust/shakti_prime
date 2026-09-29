@@ -39,6 +39,8 @@ export default defineConfig({
   updateSnapshots: process.env.CI === undefined ? 'missing' : 'none',
   workers: 2,
   timeout: 60_000,
+  // In CI a run that cannot finish in time stops with its report, before the job's own limit.
+  globalTimeout: process.env.CI === undefined ? 0 : 20 * 60_000,
   expect: {
     timeout: 15_000,
     toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled', caret: 'hide' },
