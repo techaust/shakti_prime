@@ -31,6 +31,7 @@ export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';
 export { setUserRoles } from './commands/admin/set-user-roles';
+export { setRolePermissions } from './commands/admin/set-role-permissions';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';

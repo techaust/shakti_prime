@@ -89,6 +89,14 @@ const CASES: Case[] = [
           returning role_id`,
   },
   {
+    name: 'remove a permission from a role',
+    kind: 'delete',
+    statement: () =>
+      sql`delete from role_permissions
+          where role_id = ${roleId('tele_caller_cc')} and permission_key = 'crm.lead.read'
+          returning role_id`,
+  },
+  {
     // The set of roles is fixed (AUDIT L17): editing one marks it customised (AUDIT M21).
     name: 'mark a role customised',
     kind: 'update',

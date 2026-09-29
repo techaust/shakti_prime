@@ -49,6 +49,10 @@ const AGENTS = Object.keys(AGENT_MATRIX) as AgentRoleKey[];
  * below until it has an input here.
  */
 const INPUTS: Record<string, unknown> = {
+  'admin.role.permissions.set': {
+    roleKey: 'tele_caller_cc',
+    grants: [{ permission: 'crm.lead.read', scope: 'all' }],
+  },
   'admin.session.revoke': { sessionId: newId() },
   'admin.user.lock.clear': { userId: newId() },
   'admin.user.invite': {
