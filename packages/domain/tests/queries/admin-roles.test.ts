@@ -5,6 +5,7 @@ import {
   createTestPrincipal,
   createTestUser,
   grantsForRole,
+  principalFor,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
@@ -13,8 +14,10 @@ afterAll(closeDb);
 
 describe('listRoles and getRoleGrants', () => {
   it('are refused for a General Manager and for an agent', async () => {
+    // Reads write nothing, so the callers need no principal row (an agent row would add to the
+    // seeded agent principals the fail-closed suite counts).
     for (const key of ['general_manager', 'hr_admin', 'agent:chief'] as const) {
-      const caller = await createTestPrincipal(key);
+      const caller = principalFor(key);
       await expect(asPrincipal(caller, (ctx) => listRoles(ctx))).rejects.toMatchObject({
         code: 'forbidden',
       });
