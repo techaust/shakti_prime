@@ -111,12 +111,15 @@ export const ActivityTypeSchema = z.enum([
   'lost',
   'task_created',
   'task_done',
+  'task_rescheduled',
+  'task_cancelled',
   'note',
   'customer_updated',
   'site_updated',
   'consent_recorded',
   'consent_withdrawn',
   'tagged',
+  'untagged',
 ]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 

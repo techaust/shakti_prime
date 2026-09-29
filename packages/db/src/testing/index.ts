@@ -224,6 +224,7 @@ export const ENTITY_TABLES = [
   // read in the request's companies or as the caller's own rows (0049)
   'user_entity_roles',
   'activities',
+  'tasks',
 ] as const;
 
 /**

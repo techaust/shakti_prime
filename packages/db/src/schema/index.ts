@@ -9,6 +9,7 @@ export { accounts, accountEntities, accountContacts, customerSites } from './acc
 export { opportunities } from './opportunities';
 export { consents } from './consents';
 export { activities } from './activities';
+export { tasks } from './tasks';
 export { items, pumpCurves, itemCosts } from './items';
 export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';

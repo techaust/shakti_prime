@@ -11,7 +11,7 @@ CREATE TABLE "activities" (
 	"body" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "activities_pkey" PRIMARY KEY("id","created_at"),
-	CONSTRAINT "activities_type_check" CHECK ("activities"."type" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged')),
+	CONSTRAINT "activities_type_check" CHECK ("activities"."type" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')),
 	CONSTRAINT "activities_body_check" CHECK (("activities"."type" <> 'note') = ("activities"."body" is null) and ("activities"."body" is null or char_length("activities"."body") between 1 and 2000)),
 	CONSTRAINT "activities_payload_check" CHECK (jsonb_typeof("activities"."payload_json") = 'object' and octet_length("activities"."payload_json"::text) <= 2000)
 ) PARTITION BY RANGE ("created_at");

@@ -1,4 +1,5 @@
 import type {
+  ActivityType,
   ContrastPreference,
   ImportJobSort,
   ImportJobState,
@@ -11,6 +12,8 @@ import type {
   SavedViewScreen,
   Segment,
   SessionRevokeReason,
+  TaskKind,
+  TaskState,
   Theme,
   UserSort,
   UserStatus,
@@ -80,6 +83,38 @@ export const OPPORTUNITY_NURTURE_REASONS = [
   'waiting_for_season',
   'other',
 ] as const satisfies readonly OpportunityNurtureReason[];
+
+/** What a task asks for, in the order the Add task dialog offers them. */
+export const TASK_KINDS = [
+  'callback',
+  'follow_up',
+  'nurture',
+  'review',
+] as const satisfies readonly TaskKind[];
+
+export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
+
+/** What a customer timeline row records. */
+export const ACTIVITY_TYPES = [
+  'lead_created',
+  'stage_moved',
+  'assigned',
+  'nurtured',
+  'reopened',
+  'won',
+  'lost',
+  'task_created',
+  'task_done',
+  'task_rescheduled',
+  'task_cancelled',
+  'note',
+  'customer_updated',
+  'site_updated',
+  'consent_recorded',
+  'consent_withdrawn',
+  'tagged',
+  'untagged',
+] as const satisfies readonly ActivityType[];
 
 export const SEGMENTS = [
   'farmer_pumps',

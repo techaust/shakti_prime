@@ -442,6 +442,20 @@
       "when": 1790694229169,
       "tag": "0062_activities_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790696090341,
+      "tag": "0063_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790696108400,
+      "tag": "0064_tasks_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
+import { taskMachine } from './machines/task';
 import { warrantyClaimMachine } from './machines/warranty-claim';
 import { MACHINE_REASONS, MACHINES } from './registry';
 import { everything, holding, platform } from './test-support';
@@ -42,6 +43,7 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   {
     machine: opportunityMachine,
     record: {

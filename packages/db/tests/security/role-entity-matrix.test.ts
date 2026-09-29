@@ -131,6 +131,8 @@ const RULES: Record<MatrixTable, TableRule> = {
     lead: LEAD_READ,
     leak: otherCompany,
   },
+  // The assignee is the task's owner; the matrix acts as the assignee, in their team.
+  tasks: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

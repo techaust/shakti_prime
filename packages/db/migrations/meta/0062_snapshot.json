@@ -691,7 +691,7 @@
       "checkConstraints": {
         "activities_type_check": {
           "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged')"
+          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
         },
         "activities_body_check": {
           "name": "activities_body_check",

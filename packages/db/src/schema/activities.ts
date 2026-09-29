@@ -42,7 +42,7 @@ export const activities = pgTable(
     primaryKey({ name: 'activities_pkey', columns: [t.id, t.createdAt] }),
     check(
       'activities_type_check',
-      sql`${t.type} in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged')`,
+      sql`${t.type} in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')`,
     ),
     // Free text only in a note, and a note always has it.
     check(

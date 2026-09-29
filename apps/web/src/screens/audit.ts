@@ -60,6 +60,10 @@ const ACTIONS = {
   'crm.opportunity.reopen': 'opportunityReopen',
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
+  'crm.task.create': 'taskCreate',
+  'crm.task.complete': 'taskComplete',
+  'crm.task.reschedule': 'taskReschedule',
+  'crm.task.cancel': 'taskCancel',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
   'tax.rate.set': 'taxRateSet',
@@ -193,6 +197,7 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'taskKind',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -252,6 +257,11 @@ const FIELD_KINDS = [
   ['handover', 'yesNo'],
   ['lostReason', 'lostReason'],
   ['nurtureReason', 'nurtureReason'],
+  // Tasks
+  ['taskKind', 'taskKind'],
+  ['title', 'text'],
+  ['dueAt', 'time'],
+  ['doneAt', 'time'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],

@@ -9,6 +9,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { accounts, customerSites } from './accounts';
@@ -64,6 +65,9 @@ export const opportunities = pgTable(
       foreignColumns: [pipelineStages.id, pipelineStages.pipelineId],
     }),
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
+    // The targets of the composite keys of a lead's tasks and tags (docs/DATABASE.md §2).
+    unique('opportunities_id_entity_unique').on(t.id, t.entityId),
+    unique('opportunities_id_entity_account_unique').on(t.id, t.entityId, t.accountId),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),
     index('opportunities_account_idx').on(t.accountId),
     // A caller with own or team scope pages their leads straight off these (AUDIT M33).

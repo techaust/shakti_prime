@@ -11,6 +11,7 @@ import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
+import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
@@ -38,6 +39,10 @@ export const commands = {
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
+  [createTask.name]: createTask,
+  [completeTask.name]: completeTask,
+  [rescheduleTask.name]: rescheduleTask,
+  [cancelTask.name]: cancelTask,
   [setPrice.name]: setPrice,
   [setTaxRate.name]: setTaxRate,
   [setCompositeRule.name]: setCompositeRule,

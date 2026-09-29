@@ -158,7 +158,10 @@
     "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
-    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device."
+    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
+    "task_missing": "We couldn't find this task. It may be for a colleague or in another company.",
+    "task_due_in_past": "Choose a time from now onwards for this task.",
+    "task_transition_not_allowed": "This task can't do that in its current status. Refresh the page to see where it stands."
   },
   "auth": {
     "signIn": {
@@ -1038,7 +1041,11 @@
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
-      "other": "Other change"
+      "other": "Other change",
+      "taskCreate": "Task added",
+      "taskComplete": "Task done",
+      "taskReschedule": "Task moved to another time",
+      "taskCancel": "Task cancelled"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1146,7 +1153,11 @@
       "errorCode": "What went wrong",
       "eventType": "Update sent on",
       "attempts": "Tries to send",
-      "deadLetteredAt": "Stopped trying at"
+      "deadLetteredAt": "Stopped trying at",
+      "taskKind": "Task",
+      "title": "Note on the task",
+      "dueAt": "Due",
+      "doneAt": "Done at"
     },
     "values": {
       "percent": "{value}%",
@@ -1408,6 +1419,21 @@
       "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
       "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them."
+    }
+  },
+  "customers": {
+    "tasks": {
+      "kind": {
+        "callback": "Call back",
+        "follow_up": "Follow up",
+        "nurture": "Check in later",
+        "review": "Review"
+      },
+      "state": {
+        "open": "To do",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      }
     }
   }
 }

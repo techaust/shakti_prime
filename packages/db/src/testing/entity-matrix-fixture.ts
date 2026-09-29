@@ -61,6 +61,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   import_rows: "x.job_id::text || '/' || x.row_no::text",
   user_entity_roles: 'x.id::text',
   activities: 'x.id::text',
+  tasks: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -118,6 +119,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from item_costs where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
+      await tx`delete from tasks where id::text like ${like}`;
       await tx`delete from consents where id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from customer_sites where id::text like ${like}`;
@@ -192,6 +194,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     import_rows: [],
     user_entity_roles: [],
     activities: [],
+    tasks: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -244,6 +247,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const stageE = per(e, 0x0f);
         const priceList = per(e, 0x10);
         const ownerRole = per(e, 0x11);
+        const task = per(e, 0x13);
         const otherRole = per(e, 0x12);
         const audit = newId();
         const customerRow = newId();
@@ -273,6 +277,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id) values
           (${customerRow}, ${e}, null, ${account}, 'customer_updated', ${ownerId}),
           (${leadRow}, ${e}, ${opportunity}, ${account}, 'lead_created', ${ownerId})`;
+        await tx`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, due_at, created_by)
+          values (${task}, ${e}, ${opportunity}, ${account}, ${ownerId}, ${team}, 'callback', now(), ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
@@ -311,6 +317,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.pipelines.push({ key: pipelineE, entities: only });
         rows.pipeline_stages.push({ key: stageE, entities: only });
         rows.price_lists.push({ key: priceList, entities: only });
+        rows.tasks.push({ key: task, entities: only });
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

@@ -1,4 +1,5 @@
 import {
+  ActivityTypeSchema,
   ContrastSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
@@ -13,12 +14,15 @@ import {
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  TaskKindSchema,
+  TaskStateSchema,
   ThemeSchema,
   USER_SORT_COLUMNS as CONTRACT_USER_SORT_COLUMNS,
   UserStatusSchema,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  ACTIVITY_TYPES,
   CONTRASTS,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
@@ -33,6 +37,8 @@ import {
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  TASK_KINDS,
+  TASK_STATES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -50,6 +56,9 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(TASK_KINDS).toEqual(TaskKindSchema.options);
+    expect(TASK_STATES).toEqual(TaskStateSchema.options);
+    expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {

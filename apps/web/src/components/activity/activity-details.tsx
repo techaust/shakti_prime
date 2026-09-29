@@ -35,6 +35,8 @@ import {
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  TASK_KINDS,
+  TASK_STATES,
   THEMES,
   USER_STATUSES,
 } from '../../screens/contract-values';
@@ -299,10 +301,12 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const customers = useTranslations('customers');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
+        if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
         return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
@@ -332,6 +336,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
       }
+      case 'taskKind':
+        return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
     }
