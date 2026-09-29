@@ -162,13 +162,16 @@ describe('withoutQuery', () => {
 
 describe('sentryInitOptions', () => {
   it('starts nothing without a DSN', () => {
-    expect(sentryInitOptions(serverSentrySettings({}))).toBeUndefined();
-    expect(sentryInitOptions(serverSentrySettings({ SENTRY_DSN: '  ' }))).toBeUndefined();
+    expect(sentryInitOptions(serverSentrySettings({ NODE_ENV: 'test' }))).toBeUndefined();
+    expect(
+      sentryInitOptions(serverSentrySettings({ NODE_ENV: 'test', SENTRY_DSN: '  ' })),
+    ).toBeUndefined();
   });
 
   it('names the commit and the environment, sends no personal data and scrubs every event', () => {
     const options = sentryInitOptions(
       serverSentrySettings({
+        NODE_ENV: 'test',
         SENTRY_DSN: 'https://publickey@o4501.ingest.us.sentry.io/4502',
         VERCEL_GIT_COMMIT_SHA: 'f0543b1',
         BOS_ENVIRONMENT: 'staging',
