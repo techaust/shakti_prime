@@ -23,6 +23,7 @@
     "spike:ocr": "pnpm --filter web spike:ocr",
     "spike:import": "pnpm --filter @shakti/domain spike:import",
     "spike:lists": "pnpm --filter @shakti/domain spike:lists",
+    "spike:account360": "pnpm --filter @shakti/domain spike:account360",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "coverage": "pnpm -r --filter @shakti/contracts --filter @shakti/domain --filter @shakti/db --filter @shakti/tokens --filter web exec vitest run --coverage --coverage.reporter=text-summary"

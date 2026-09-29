@@ -505,6 +505,13 @@
       "when": 1790698702410,
       "tag": "0071_customers_saved_views",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1790701145135,
+      "tag": "0072_customer_search",
+      "breakpoints": true
     }
   ]
 }

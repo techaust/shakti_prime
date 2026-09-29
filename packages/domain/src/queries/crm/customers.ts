@@ -42,6 +42,9 @@ function reversed(digits: string): string {
   return out;
 }
 
+/** The most customers one search finds (`app.customer_search_ids()`); the list pages through them. */
+const SEARCH_CANDIDATES = 200;
+
 const CUSTOMER_SORT_KEYS: SortKeys<'name'> = {
   name: { expr: schema.accounts.name, type: 'text', nullable: false },
 };
@@ -57,8 +60,8 @@ function checkCustomerRead(ctx: Ctx): void {
  * The customers list (`/customers`): one row per customer and company of the request the caller
  * reads (`account_entities_read`, 0057: their customer scope, or a lead of the customer there),
  * by name, keyset-paginated by `(name, id)`. `q` finds the customer's name, a contact's name or a
- * village holding the text, or a phone ending in the typed digits (`e164_reversed ^@`, which the
- * index serves under the policies). A phone shows only its last four digits in the list.
+ * village holding the text, or a phone ending in the typed digits, at most 200 customers a search
+ * (`SEARCH_CANDIDATES`). A phone shows only its last four digits in the list.
  */
 export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<CustomerPageDto> {
   const input = parseQueryInput(ListCustomersInput, rawInput, 'crm.customers.list');
@@ -98,7 +101,14 @@ export async function listCustomers(ctx: Ctx, rawInput: unknown = {}): Promise<C
               .innerJoin(ac, eq(ac.contactId, ph.contactId))
               .where(sql`${ph.e164Reversed} ^@ ${reversed(digits)}`),
           );
-    found = or(ilike(a.name, pattern), inArray(a.id, byContact), inArray(a.id, byVillage), byPhone);
+    // The candidates come through the indexes from app.customer_search_ids(), which keeps
+    // to the customers the caller may read; this query then tests each against every condition
+    // above under the policies, so the search finds exactly what it did without the lookup.
+    const candidates = sql`${a.id} in (select candidate from app.customer_search_ids(${input.q}::text, ${digits === undefined ? null : reversed(digits)}::text, ${SEARCH_CANDIDATES}::integer) as candidate)`;
+    found = and(
+      candidates,
+      or(ilike(a.name, pattern), inArray(a.id, byContact), inArray(a.id, byVillage), byPhone),
+    );
   }
 
   const rows = await ctx.tx

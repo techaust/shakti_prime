@@ -62,17 +62,22 @@ alter table activities force row level security;
 -- A row is readable when its lead is readable (the exists runs under opportunities_read), or, for
 -- a row of no lead, when its customer is readable in the row's company (account_entities_read,
 -- which never shows a customer to an agent through a lead, 0057). Both exists are index probes:
--- the lead's primary key, and account_entities (account_id, entity_id).
+-- the lead's primary key, and account_entities (account_id, entity_id). Each exists also tests
+-- the row's own opportunity_id: a condition on the outer row that is not an equality keeps the
+-- planner from turning the exists into a hashed subplan, which would read every lead or customer
+-- the caller may read, once for each monthly partition, before a timeline page of 25 rows.
 create policy activities_read on activities for select to app_user using (
   entity_id = any ((select app.entity_ids())::int[])
   and ((opportunity_id is not null
         and exists (select 1 from opportunities o
                      where o.id = activities.opportunity_id
-                       and o.entity_id = activities.entity_id))
+                       and o.entity_id = activities.entity_id
+                       and activities.opportunity_id is not null))
     or (opportunity_id is null
         and exists (select 1 from account_entities ae
                      where ae.account_id = activities.account_id
-                       and ae.entity_id = activities.entity_id))));
+                       and ae.entity_id = activities.entity_id
+                       and activities.opportunity_id is null))));
 --> statement-breakpoint
 
 -- Commands write as the caller, in a company of the request, about a lead or customer the caller
