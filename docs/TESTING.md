@@ -70,7 +70,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 | End-to-end journeys, accessibility and screenshots | In `mcr.microsoft.com/playwright:v1.63.0-noble` with a fresh `supabase/postgres` service: `pnpm test:e2e` (build, seed, `next start`, every journey with axe and the screenshot comparisons); the report and the differences are kept as an artefact when it fails |
 | Lighthouse | The production build with a seeded `supabase/postgres` service, `next start`, then Lighthouse on the public pages against `apps/web/lighthouserc.json` |
 
-Each page's budget in `apps/web/js-budget.json` is its measured size plus 5 %, rounded up to a multiple of 5 kB, with its reason written beside it: public pages measure 176 to 184 kB (gzip) and staff pages 243 to 261 kB, of which the framework is about 176 kB and the shared app shell about 67 kB; 5 of the 13 staff pages meet the 250 kB aim, and the grid pages need a smaller shell or grid to reach it (Phase 1, `DESIGN.md` §10).
+Each page's budget in `apps/web/js-budget.json` is its measured size plus 5 %, rounded up to a multiple of 5 kB, with its reason written beside it: public pages measure 158 to 166 kB (gzip) and staff pages 185 to 231 kB, of which the framework is about 158 kB and the shared app shell about 20 kB; every staff page is under the 250 kB aim (`DESIGN.md` §10).
 
 `.github/workflows/audit.yml` repeats the dependency audit weekly. Spike scripts and coverage (`pnpm coverage`, report only) do not run in CI.
 
