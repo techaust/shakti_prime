@@ -341,3 +341,15 @@ export const CommissionRuleDto = z
   })
   .strict();
 export type CommissionRuleDto = z.infer<typeof CommissionRuleDto>;
+
+// --- Reads of the pipelines settings page ------------------------------------------------------
+
+/** A pipeline as the settings page edits it, with its live stages in order. */
+export const PipelineSettingsViewDto = z
+  .object({ pipeline: PipelineSettingsDto, stages: z.array(StageSettingsDto) })
+  .strict();
+export type PipelineSettingsViewDto = z.infer<typeof PipelineSettingsViewDto>;
+
+/** One scope of call outcomes or score rules, as the settings page reads it. */
+export const ConfigScopeInput = z.object(ScopeFields).strict();
+export type ConfigScopeInput = z.infer<typeof ConfigScopeInput>;

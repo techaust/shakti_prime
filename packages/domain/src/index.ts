@@ -26,6 +26,18 @@ export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
+export {
+  archiveStage,
+  createStage,
+  reorderStages,
+  updatePipeline,
+  updateStage,
+} from './commands/crm/pipeline-settings';
+export { setDispositions } from './commands/crm/set-dispositions';
+export { rescoreLead, setScoreRules } from './commands/crm/score-rules';
+export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
+export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
+export { scoreLead } from './crm/score';
 export { setPrice } from './commands/pricing/set-price';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
@@ -102,6 +114,11 @@ export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
+export {
+  listDispositions,
+  listPipelineSettings,
+  listScoreRules,
+} from './queries/crm/pipeline-settings';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
 export {

@@ -110,7 +110,7 @@ export const SAVED_VIEW_SCREENS = [
 ] as const satisfies readonly SavedViewScreen[];
 
 /** The columns each list sorts on the server (the contracts' `*_SORT_COLUMNS`). */
-export const LEAD_SORT_COLUMNS = ['updated'] as const satisfies readonly LeadSort['column'][];
+export const LEAD_SORT_COLUMNS = ['updated', 'score'] as const satisfies readonly LeadSort['column'][];
 export const USER_SORT_COLUMNS = [
   'name',
   'email',
