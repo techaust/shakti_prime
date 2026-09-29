@@ -655,6 +655,17 @@ export const API_FIXTURES: Record<
     request: { jobId: IDS.importJob, entityId: 1, userId: IDS.user },
     response: { jobId: IDS.importJob, state: 'committed', batches: 2, committedRows: 740 },
   },
+  'workers.outbox.failed': {
+    request: {
+      status: 503,
+      sourceBody: Buffer.from(JSON.stringify(deliveredEvent)).toString('base64'),
+      retried: 3,
+      maxRetries: 3,
+      sourceMessageId: 'msg_2h3k4l5m6n7p8q9r',
+      topicName: 'evt-crm.lead.created',
+    },
+    response: { eventId: IDS.event, outcome: 'held', lastError: 'worker_failed' },
+  },
   'workers.outbox.event': {
     params: { type: 'crm.lead.created' },
     request: deliveredEvent,

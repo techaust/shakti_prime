@@ -84,7 +84,7 @@ describe('qstashEventPublisher', () => {
   const config = qstashConfig(ENV);
   if (config === undefined) throw new Error('test configuration is incomplete');
 
-  it('sends one batch, each event to its type group with its id as the deduplication id', async () => {
+  it('sends one batch, each event to its type group with its id as the deduplication id and the failure callback', async () => {
     const events = [event(), event('pricing.price.changed')];
     queue.batchJSON.mockResolvedValue([
       [{ messageId: 'm1', url: 'u' }],
@@ -92,8 +92,18 @@ describe('qstashEventPublisher', () => {
     ]);
     const results = await qstashEventPublisher(config).publish(events);
     expect(queue.batchJSON).toHaveBeenCalledWith([
-      { urlGroup: 'evt-crm.lead.created', body: events[0], deduplicationId: events[0]?.id },
-      { urlGroup: 'evt-pricing.price.changed', body: events[1], deduplicationId: events[1]?.id },
+      {
+        urlGroup: 'evt-crm.lead.created',
+        body: events[0],
+        deduplicationId: events[0]?.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
+      {
+        urlGroup: 'evt-pricing.price.changed',
+        body: events[1],
+        deduplicationId: events[1]?.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
     ]);
     expect(results).toEqual(events.map((e) => ({ id: e.id, ok: true })));
     expect(queue.options[0]).toMatchObject({ enableTelemetry: false, devMode: false });

@@ -6,6 +6,7 @@ import {
   checkOutboxReady,
   claimOutbox,
   closeOutboxDb,
+  holdBackFailedEvent,
   OUTBOX_LEASE_SECONDS,
   outboxLag,
   postgresOutboxLeaseStore,
@@ -699,5 +700,81 @@ describe('outbox readiness (docs/design/backend-weeks-3-5.md §4.2)', () => {
     expect(await readyWith('2 hours', { attempts: 1, claimedUntil: '-6 minutes' })).toBe('down');
     // Due a minute ago only: the publisher's next run takes it.
     expect(await readyWith('2 hours', { attempts: 2, nextAttempt: '-1 minute' })).toBe('ok');
+  });
+});
+
+describe('a worker QStash gave up on turns its event back into a dead letter (0064)', () => {
+  async function delivered(): Promise<string> {
+    const [id = ''] = await seedRows(1);
+    await asMigrator(
+      (m) => m`update outbox_events set published_at = now(), attempts = 1 where id = ${id}`,
+    );
+    return id;
+  }
+
+  it('holdBackFailedEvent: a delivered event becomes a dead letter with the worker error, once', async () => {
+    const id = await delivered();
+    expect(await holdBackFailedEvent(id, 'worker_failed')).toBe('held');
+    expect(await rowAsPublisher(id)).toMatchObject({
+      published_at: null,
+      attempts: 1,
+      last_error: 'worker_failed',
+      dead_lettered_at: expect.any(Date),
+    });
+    expect(await holdBackFailedEvent(id, 'worker_failed')).toBe('unchanged');
+    expect(await holdBackFailedEvent(newId(), 'worker_refused')).toBe('unchanged');
+  });
+
+  it('allows only that change: another error, a kept backoff or a changed count is refused', async () => {
+    const id = await delivered();
+    const change = (set: string) =>
+      failure(
+        asOutboxPublisher((p) =>
+          p.unsafe(`update outbox_events set ${set} where id = $1`, [id]),
+        ),
+      );
+    const unpublish = 'published_at = null, dead_lettered_at = now()';
+    const refused = /comes back only as a dead letter from its worker/;
+    expect(await change(`${unpublish}, last_error = 'queue_refused'`)).toMatch(refused);
+    expect(await change('published_at = null')).toMatch(refused);
+    expect(await change(`${unpublish}, last_error = 'worker_failed', attempts = 9`)).toMatch(
+      refused,
+    );
+    expect(
+      await change(`${unpublish}, last_error = 'worker_failed', next_attempt_at = now()`),
+    ).toMatch(refused);
+    expect((await rowAsPublisher(id))?.published_at).toEqual(expect.any(Date));
+  });
+
+  it('only the publisher may make it: the table owner may not', async () => {
+    const id = await delivered();
+    expect(
+      await failure(
+        asMigrator(
+          (m) => m`update outbox_events
+                      set published_at = null, dead_lettered_at = now(), last_error = 'worker_failed'
+                    where id = ${id}`,
+        ),
+      ),
+    ).toMatch(/comes back only as a dead letter from its worker/);
+  });
+
+  it('the dead letter it leaves is replayed as any other', async () => {
+    const id = await delivered();
+    await holdBackFailedEvent(id, 'worker_refused');
+    const rows = await asPrincipal(principalFor('executive'), async ({ tx }) => {
+      const answer = (await tx.execute(
+        sql`select was_dead_lettered_at is not null as dead from app.replay_dead_letter(${id}::uuid)`,
+      )) as unknown as { dead: boolean }[];
+      return answer;
+    });
+    expect(rows).toEqual([{ dead: true }]);
+    expect(await rowAsPublisher(id)).toMatchObject({
+      published_at: null,
+      attempts: 0,
+      last_error: null,
+      dead_lettered_at: null,
+    });
+    await asMigrator((m) => m`update outbox_events set published_at = now() where id = ${id}`);
   });
 });

@@ -60,6 +60,8 @@ import {
   NotifyJob,
   NotifyResult,
   OutboxEventDelivery,
+  OutboxFailureCallback,
+  OutboxFailureResult,
   OutboxEventParams,
   OutboxEventResult,
   PdfRenderJob,
@@ -369,6 +371,15 @@ export const API_ENDPOINTS = {
     response: ImportCommitWorkerResponse,
     // `validation_failed` for a signed body that is not an `ImportCommitWorkerBody`.
     errors: ['validation_failed', 'unauthorized', 'forbidden', 'integration_unavailable'],
+  },
+  'workers.outbox.failed': {
+    method: 'POST',
+    path: '/workers/outbox/failed',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: OutboxFailureCallback,
+    response: OutboxFailureResult,
+    errors: WORKER_ERRORS,
   },
   'workers.outbox.event': {
     method: 'POST',
