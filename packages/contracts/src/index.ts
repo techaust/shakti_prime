@@ -19,6 +19,7 @@ export * from './dto/user';
 export * from './dto/reads';
 export * from './dto/list-sort';
 export * from './dto/search';
+export * from './dto/customer';
 export * from './commands/org/update-entity';
 export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';
