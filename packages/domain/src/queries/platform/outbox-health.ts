@@ -85,7 +85,19 @@ export async function readOutboxHealth(
     byType: answer.byType.map((t) => OutboxTypeHealth.parse(t)),
     deadLetters: {
       total: answer.deadLetters.total,
-      items: page.map(({ cursorAt: _cursorAt, ...item }) => DeadLetteredEvent.parse(item)),
+      items: page.map((item) =>
+        DeadLetteredEvent.parse({
+          eventId: item.eventId,
+          type: item.type,
+          entityId: item.entityId,
+          aggregateType: item.aggregateType,
+          aggregateId: item.aggregateId,
+          attempts: item.attempts,
+          errorCode: item.errorCode,
+          createdAt: item.createdAt,
+          deadLetteredAt: item.deadLetteredAt,
+        }),
+      ),
       nextCursor: more ? encodeCursor({ at: last.cursorAt, id: last.eventId }) : null,
     },
   };
