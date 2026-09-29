@@ -36,6 +36,9 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
   }
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
+  // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to
+  // merge frame results, which on the longest page now and then never opens.
+  if (options.removeFrames !== undefined) builder = builder.setLegacyMode(true);
   for (const selector of [...ALWAYS_EXCLUDED, ...(options.exclude ?? [])]) {
     builder = builder.exclude(selector);
   }
