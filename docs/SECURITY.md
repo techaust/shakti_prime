@@ -37,6 +37,8 @@ Blueprint reference: §7, §9.3, §12. This document is the working security spe
 ### 3.1 Model
 Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions added to the catalogue later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
 
+The role editor (Admin › Roles, `admin.role.permissions.set`, `admin.roles.write:all` with `admin.users.write:all`) replaces a staff role's grants as a set, in a request acting for every active company, since a role's grants reach every company. It never edits an agent role or a system role (`role_not_editable`). The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), so the group cannot lock itself out. Platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`) are held only by a system role: the command refuses them (`permission_platform_only`) and a database trigger on `role_permissions` refuses them for any other role, whoever writes. A save marks the role customised, signs out everyone holding it in any company (`role_changed`) apart from the caller's own current sign-in, which the server action names from the session, and drops every holder's cached access. The editor warns in plain words on the two cost permissions.
+
 ### 3.2 Permission catalogue
 | Permission | Executive | GM | Sales Lead | CC | LC | Store | Inventory | Project Mgr | Field | Accounts | HR |
 |---|---|---|---|---|---|---|---|---|---|---|---|
