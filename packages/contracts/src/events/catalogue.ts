@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ItemCategorySchema, MoneySchema, PriceTierCodeSchema } from '../catalogue/enums';
+import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { ImportKindSchema } from '../imports/enums';
@@ -107,7 +107,7 @@ const eventCatalogue = {
     subscribed: false,
     payload: z
       .object({
-        tierCode: PriceTierCodeSchema,
+        tierCode: Code,
         copiedFromId: IdSchema.nullable(),
         prices: z.number().int().min(0),
       })
@@ -116,7 +116,7 @@ const eventCatalogue = {
   'pricing.list.approved': {
     subscribed: false,
     payload: z
-      .object({ tierCode: PriceTierCodeSchema, closedListIds: z.array(IdSchema) })
+      .object({ tierCode: Code, closedListIds: z.array(IdSchema) })
       .strict(),
   },
   'catalogue.item.created': {

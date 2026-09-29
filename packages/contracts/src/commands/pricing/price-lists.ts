@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { PriceTierCodeSchema } from '../../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
@@ -10,7 +9,8 @@ import { EntityIdSchema, IdSchema } from '../../ids';
  */
 export const CreatePriceListInput = z
   .object({
-    tierCode: PriceTierCodeSchema,
+    /** A tier's code (`retail`, `dealer`, `commercial` or one added later). */
+    tierCode: z.string().trim().min(1).max(40),
     entityId: EntityIdSchema.optional(),
     effectiveFrom: z.iso.date(),
   })
