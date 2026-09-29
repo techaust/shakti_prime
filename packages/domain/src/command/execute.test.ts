@@ -206,6 +206,13 @@ describe('executeQuery timing', () => {
       name: 'listLeads',
       logger: memoryLogger(),
       clock: fakeClock(0),
+      pool: 'app_user',
+    });
+    await executeQuery(principal(), { requestId: 'q' }, () => Promise.resolve(1), {
+      name: 'listLeads',
+      logger: memoryLogger(),
+      clock: fakeClock(0),
+      pool: 'reader',
     });
     await executeCommand(
       principal(),
@@ -217,6 +224,34 @@ describe('executeQuery timing', () => {
         clock: fakeClock(0),
       },
     );
-    expect(audited.contexts).toEqual([{ readOnly: true }, {}]);
+    // A query reads on the reader pool when asked (or when DATABASE_URL_READER is set), else on
+    // app_user; both are read-only.
+    expect(audited.contexts).toEqual([
+      { readOnly: true, reader: false },
+      { readOnly: true, reader: true },
+      {},
+    ]);
+  });
+
+  it('picks the reader pool by itself only when DATABASE_URL_READER is set', async () => {
+    const read = () =>
+      executeQuery(principal(), { requestId: 'p' }, () => Promise.resolve(1), {
+        name: 'listLeads',
+        logger: memoryLogger(),
+        clock: fakeClock(0),
+      });
+    try {
+      audited.contexts.length = 0;
+      vi.stubEnv('DATABASE_URL_READER', 'postgres://app_reader@localhost:5432/postgres');
+      await read();
+      vi.stubEnv('DATABASE_URL_READER', '');
+      await read();
+      expect(audited.contexts).toEqual([
+        { readOnly: true, reader: true },
+        { readOnly: true, reader: false },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
