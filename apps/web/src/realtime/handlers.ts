@@ -1,7 +1,7 @@
 import {
   ERROR_HTTP_STATUS,
   ErrorEnvelope,
-  isAgentRole,
+  isStaffRole,
   isDomainError,
   type ErrorCode,
   type Principal,
@@ -155,7 +155,7 @@ export async function issueRealtimeToken(
   // A person with no entity in scope has no channel to open.
   if (
     principal.kind !== 'user' ||
-    isAgentRole(principal.roleKey) ||
+    !isStaffRole(principal.roleKey) ||
     principal.entityIds.length === 0
   ) {
     return failure('forbidden', requestId);

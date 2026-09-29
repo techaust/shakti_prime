@@ -378,7 +378,9 @@ export const API_ENDPOINTS = {
     params: OutboxEventParams,
     request: OutboxEventDelivery,
     response: OutboxEventResult,
-    errors: WORKER_ERRORS,
+    // `not_found` for a type no worker handles; a handler's own refusal answers its code, and
+    // only `integration_unavailable` and `internal` are retried.
+    errors: [...WORKER_ERRORS, 'not_found', 'forbidden', 'conflict', 'internal'],
   },
   'workers.messaging.send': {
     method: 'POST',

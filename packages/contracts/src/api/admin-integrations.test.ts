@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DeadLetteredEvent,
+  DeliveryCheck,
+  IntegrationHealthResponse,
   IntegrationHealthQuery,
   IntegrationReplayResponse,
 } from './admin-integrations';
@@ -12,10 +14,31 @@ describe('the Integration Health contracts (docs/API.md §3.7)', () => {
   };
   const deadLetter = health.deadLetters.items[0] ?? {};
 
-  it('shows a dead letter by ids, counts and times, never its stored error', () => {
+  it('shows a dead letter by ids, counts, times and an error code, never error text', () => {
     expect(DeadLetteredEvent.safeParse(deadLetter).success).toBe(true);
     expect(
       DeadLetteredEvent.safeParse({ ...deadLetter, lastError: 'queue group refused' }).success,
+    ).toBe(false);
+    for (const errorCode of ['queue_refused', 'no_outcome', 'TimeoutError', null]) {
+      expect(DeadLetteredEvent.safeParse({ ...deadLetter, errorCode }).success).toBe(true);
+    }
+    for (const errorCode of ['http_503 upstream said no', 'rekha@example.com', '', '9876543210']) {
+      expect(DeadLetteredEvent.safeParse({ ...deadLetter, errorCode }).success).toBe(false);
+    }
+  });
+
+  it('answers the outbox by type, the last run and the delivery check', () => {
+    expect(
+      IntegrationHealthResponse.safeParse(API_FIXTURES['admin.integrations'].response).success,
+    ).toBe(true);
+    const check = { probeId: IDS.probe, requestedAt: '2026-09-27T05:05:12.000Z' };
+    expect(
+      DeliveryCheck.safeParse({ ...check, state: 'waiting', arrivedAt: null, milliseconds: null })
+        .success,
+    ).toBe(true);
+    expect(
+      DeliveryCheck.safeParse({ ...check, state: 'arrived', arrivedAt: null, milliseconds: -1 })
+        .success,
     ).toBe(false);
   });
 
