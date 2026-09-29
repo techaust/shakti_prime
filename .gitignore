@@ -11,6 +11,9 @@ build/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts
+# Written by `next dev` (agentRules); the repository's own guides are the root CLAUDE.md and AGENTS.md
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
 coverage/
 
 # Environment and secrets
