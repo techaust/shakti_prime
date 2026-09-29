@@ -71,11 +71,7 @@ export function KitSheet({
         if (!open) onClose();
       }}
     >
-      <SheetContent
-        closeLabel={common('close')}
-        returnFocusTo={returnFocusTo}
-        className="w-[min(32rem,calc(100%-3rem))]"
-      >
+      <SheetContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
         {kit === undefined ? (
           <>
             <SheetHeader>

@@ -1,10 +1,6 @@
 'use client';
 
-import type {
-  CompositeRuleRow,
-  TaxRateListRowDto,
-  TaxSettingsDto,
-} from '@shakti/contracts';
+import type { CompositeRuleRow, TaxRateListRowDto, TaxSettingsDto } from '@shakti/contracts';
 import { Button, DataGrid, EmptyState, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';

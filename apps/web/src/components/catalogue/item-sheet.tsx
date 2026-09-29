@@ -80,11 +80,7 @@ export function ItemSheet({
         if (!open) onClose();
       }}
     >
-      <SheetContent
-        closeLabel={common('close')}
-        returnFocusTo={returnFocusTo}
-        className="w-[min(32rem,calc(100%-3rem))]"
-      >
+      <SheetContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
         {item === undefined ? (
           <>
             <SheetHeader>

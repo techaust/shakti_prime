@@ -128,11 +128,7 @@ export function RuleDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent
-        closeLabel={common('close')}
-        returnFocusTo={returnFocusTo}
-        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
-      >
+      <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <DialogHeader>
             <DialogTitle>{t('title')}</DialogTitle>
