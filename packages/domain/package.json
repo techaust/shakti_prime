@@ -17,6 +17,7 @@
     "spike:lists": "tsx tests/spike/lists.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
     "@shakti/contracts": "workspace:*",
     "@shakti/db": "workspace:*",
     "drizzle-orm": "^0.45.3",
