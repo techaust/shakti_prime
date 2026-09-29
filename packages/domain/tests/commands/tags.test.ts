@@ -1,10 +1,12 @@
 import { newId, type Principal } from '@shakti/contracts';
 import {
+  AGENT_PRINCIPAL_SEED,
   asMigrator,
   asPrincipal,
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  principalFor,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -74,6 +76,37 @@ describe('crm.tag.create and crm.tag.archive', () => {
     await tag(everywhere, 2, name);
   });
 
+  it('keeps group and company tag names apart, whatever their case', async () => {
+    const name = unique('Surya mela');
+    await tag(everywhere, null, name);
+    await expect(tag(teamLead, 1, name.toLowerCase())).rejects.toMatchObject(
+      reason('tag_name_taken'),
+    );
+    const companyName = unique('Village drive');
+    await tag(teamLead, 1, companyName);
+    await expect(tag(everywhere, null, companyName.toUpperCase())).rejects.toMatchObject(
+      reason('tag_name_taken'),
+    );
+  });
+
+  it('takes a name any person would type, and keeps only its id on the timeline', async () => {
+    const made = await tag(teamLead, 1, unique('Mela @ Sikar'));
+    const lead = await leadOf(caller);
+    await expect(
+      run(caller, tagLead, { entityId: 1, opportunityId: lead, tagId: made.id }),
+    ).resolves.toMatchObject({ tagged: true });
+  });
+
+  it('is for people only: an agent never makes or archives a tag', async () => {
+    const seed = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage');
+    const triage = principalFor('agent:triage', [1], { id: seed?.id ?? newId() });
+    await expect(tag(triage, 1)).rejects.toMatchObject({ code: 'forbidden' });
+    const made = await tag(teamLead, 1);
+    await expect(run(triage, archiveTag, { tagId: made.id })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
   it('makes a group-wide tag only in a request for every company', async () => {
     await expect(tag(teamLead, null)).rejects.toMatchObject({ code: 'forbidden' });
     expect(await tag(everywhere, null)).toMatchObject({ entityId: null });
@@ -114,7 +147,8 @@ describe('crm.lead.tag and crm.lead.untag', () => {
          order by created_at, id`,
     );
     expect(rows.map((r) => r.type)).toEqual(['lead_created', 'tagged', 'tagged', 'untagged']);
-    expect(rows[1]?.payload_json).toEqual({ tagId: company.id, tagName: company.name });
+    // Ids only: a tag's name is read when the timeline is.
+    expect(rows[1]?.payload_json).toEqual({ tagId: company.id });
     const left = await asMigrator(
       (m) =>
         m<{ tag_id: string }[]>`select tag_id from opportunity_tags where opportunity_id = ${lead}`,
@@ -131,10 +165,11 @@ describe('crm.lead.tag and crm.lead.untag', () => {
     // Nor does the table take it, even from a caller who reads both.
     await expect(
       asPrincipal(everywhere, ({ tx }) =>
-        tx.execute(sql`insert into opportunity_tags (opportunity_id, tag_id, entity_id, created_by)
-                       values (${lead}, ${other.id}, 1, ${everywhere.id})`),
+        tx.execute(sql`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
+                       select o.id, o.account_id, ${other.id}, 1, ${everywhere.id}
+                         from opportunities o where o.id = ${lead}`),
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 
   it('is refused on a colleague’s lead, to a role that does not write leads, and in another company', async () => {

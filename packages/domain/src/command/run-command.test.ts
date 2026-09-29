@@ -9,6 +9,7 @@ import type { ExecuteOptions } from './execute';
 import {
   checkPermission,
   failureOf,
+  isAgent,
   runCommand,
   translateDatabaseError,
   undeclaredAuditFields,
@@ -714,5 +715,49 @@ describe('inImportBatch is set only by an import batch through ctx.run', () => {
     const refused: ExecuteOptions = { inImportBatch: true };
     const smuggled = { context: context(principal()), ...sinks(), ...refused } as RunOptions;
     await expect(runCommand(probe, smuggled, {})).resolves.toEqual({ inBatch: false });
+  });
+});
+
+describe('commands for people only', () => {
+  const noteLike = defineCommand({
+    name: 'test.people_only',
+    permission: 'crm.lead.write',
+    peopleOnly: true,
+    auditFields: [],
+    input: z.object({}).strict(),
+    output: z.object({ ok: z.boolean() }).strict(),
+    handler: () => Promise.resolve({ ok: true }),
+  });
+  const writer = (overrides: Partial<Principal>): Principal => ({
+    ...principal(),
+    permissions: [{ key: 'crm.lead.write', scope: 'entity' }],
+    ...overrides,
+  });
+  const runAs = (p: Principal) =>
+    runCommand(
+      noteLike,
+      { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+      {},
+    );
+
+  it('runs for a person', async () => {
+    await expect(runAs(writer({}))).resolves.toEqual({ ok: true });
+  });
+
+  it('refuses an agent at the guard, by its kind or its role key, whatever it holds', async () => {
+    for (const p of [writer({ kind: 'agent' }), writer({ roleKey: 'agent:copilot' })]) {
+      const error: unknown = await runAs(p).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(error).toMatchObject({ code: 'forbidden' });
+      expect(failureOf(error)?.stage).toBe('guard');
+    }
+  });
+
+  it('tells an agent by its kind or its role key', () => {
+    expect(isAgent({ kind: 'agent', roleKey: 'executive' })).toBe(true);
+    expect(isAgent({ kind: 'user', roleKey: 'agent:triage' })).toBe(true);
+    expect(isAgent({ kind: 'user', roleKey: 'tele_caller_cc' })).toBe(false);
   });
 });

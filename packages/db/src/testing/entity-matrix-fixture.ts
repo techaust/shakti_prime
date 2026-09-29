@@ -291,8 +291,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${task}, ${e}, ${opportunity}, ${account}, ${ownerId}, ${team}, 'callback', now(), ${ownerId})`;
         await tx`insert into tags (id, entity_id, name, created_by)
           values (${tag}, ${e}, ${`matrix tag ${e.toString()}`}, ${ownerId})`;
-        await tx`insert into opportunity_tags (opportunity_id, tag_id, entity_id, created_by)
-          values (${opportunity}, ${tag}, ${e}, ${ownerId})`;
+        await tx`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
+          values (${opportunity}, ${account}, ${tag}, ${e}, ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)

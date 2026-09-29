@@ -113,7 +113,6 @@ describe('the timeline rows of the lead commands', () => {
           channel: 'call',
           purpose: 'service',
           source: 'walk_in_form',
-          textVersion: 'v1',
         },
         body: null,
       },

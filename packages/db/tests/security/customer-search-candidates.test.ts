@@ -127,6 +127,14 @@ describe('app.customer_search_ids(): only customers the caller may read', () => 
     expect(await found(other, WORD)).toEqual([]);
   });
 
+  it('looks for a name from three characters and a phone from four digits', async () => {
+    expect(await found(x, 'Qv')).toEqual([]);
+    const digits = k.phone.slice(-3);
+    expect(await found(x, 'zzzqqq', digits.split('').reverse().join(''))).toEqual([]);
+    const four = k.phone.slice(-4);
+    expect(await found(x, 'zzzqqq', four.split('').reverse().join(''))).toEqual([k.account]);
+  });
+
   it('keeps to the companies of the request', async () => {
     expect((await found(principalFor('executive', [1]), WORD)).sort()).toEqual([k.account]);
     expect((await found(principalFor('executive', [2]), WORD)).sort()).toEqual([n.account]);

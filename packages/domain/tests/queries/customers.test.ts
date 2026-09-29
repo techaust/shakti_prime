@@ -124,8 +124,31 @@ describe('listCustomers', () => {
     expect(mine.items.map((r) => r.accountId)).toEqual([k.accountId]);
     const seed = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage');
     const triage = principalFor('agent:triage', [1], { id: seed?.id ?? '' });
-    const agent = (await read(triage, listCustomers, { q: `${TAG} Through` })) as Page;
-    expect(agent.items).toEqual([]);
+    // Agents work without customers' names or phones (docs/SECURITY.md §3.3).
+    await expect(read(triage, listCustomers, { q: `${TAG} Through` })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+
+  it('says when a search found more customers than it lists', async () => {
+    const word = `${TAG}many`;
+    await asMigrator(
+      (m) => m`
+        with made as (
+          insert into accounts (id, type, name, created_by)
+          select app.uuid_v7(), 'farm', ${word} || ' ' || g, ${caller.id}
+            from generate_series(1, 201) g
+          returning id)
+        insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+        select app.uuid_v7(), made.id, 1, ${caller.id}, ${teamId}, ${caller.id} from made`,
+    );
+    const many = (await read(caller, listCustomers, { q: word })) as Page & { truncated: boolean };
+    expect(many.truncated).toBe(true);
+    expect(many.items).toHaveLength(50);
+    const few = (await read(caller, listCustomers, { q: `${word} 17` })) as Page & {
+      truncated: boolean;
+    };
+    expect(few.truncated).toBe(false);
   });
 
   it('is refused to a role that reads neither customers nor leads', async () => {
@@ -199,6 +222,30 @@ describe('loadAccount360 and listTimeline', () => {
     await expect(
       read(everywhere, loadAccount360, { accountId: k.accountId, entityId: 2 }),
     ).rejects.toMatchObject({ details: { reason: 'account_missing' } });
+  });
+
+  it('pages rows written in one transaction one at a time, each once', async () => {
+    // A lead with a consent writes lead_created and consent_recorded at one instant.
+    const made = (await run(caller, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `${TAG} Same moment`, phone: `91${digits()}` },
+      account: { type: 'farm' },
+      consent: { channel: 'call', purpose: 'service', source: 'verbal', textVersion: 'v1' },
+    })) as { account: { id: string } };
+    const seen: string[] = [];
+    let cursor: string | null | undefined;
+    do {
+      const page = (await read(caller, listTimeline, {
+        entityId: 1,
+        accountId: made.account.id,
+        limit: 1,
+        ...(cursor ? { cursor } : {}),
+      })) as { items: { id: string; type: string }[]; nextCursor: string | null };
+      seen.push(...page.items.map((i) => i.type));
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(seen.sort()).toEqual(['consent_recorded', 'lead_created']);
   });
 
   it('pages the timeline newest first without losing rows written in one moment', async () => {

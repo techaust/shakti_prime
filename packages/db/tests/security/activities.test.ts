@@ -33,6 +33,7 @@ const rows = {
   kAccount: newId(),
   kLeadX: newId(),
   kLeadY: newId(),
+  kNote: newId(),
   nAccount: newId(),
   nLead: newId(),
 };
@@ -71,6 +72,8 @@ beforeAll(async () => {
         (${rows.kLeadY}, 1, ${k.leadY}, ${k.account}, 'lead_created', ${y.id}),
         (${rows.nAccount}, 2, null, ${n.account}, 'customer_updated', ${x.id}),
         (${rows.nLead}, 2, ${n.lead}, ${n.account}, 'lead_created', ${x.id})`;
+      await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, body)
+        values (${rows.kNote}, 1, ${k.leadX}, ${k.account}, 'note', ${x.id}, 'Wants the subsidy papers')`;
     }),
   );
 });
@@ -106,18 +109,23 @@ describe('reading the timeline', () => {
 
   it('an Executive over every company reads every row, and narrowed to one only that one', async () => {
     expect(await visible(principalFor('executive'))).toEqual(Object.keys(rows).sort());
-    expect(await visible(principalFor('executive', [1]))).toEqual(['kAccount', 'kLeadX', 'kLeadY']);
+    expect(await visible(principalFor('executive', [1]))).toEqual([
+      'kAccount',
+      'kLeadX',
+      'kLeadY',
+      'kNote',
+    ]);
   });
 
   it('a caller reads the rows of their own leads and of their customer, never a colleague’s lead', async () => {
-    expect(await visible(x)).toEqual(['kAccount', 'kLeadX']);
+    expect(await visible(x)).toEqual(['kAccount', 'kLeadX', 'kNote']);
   });
 
   it('a caller reads a customer’s rows through their lead of that customer (0057)', async () => {
     expect(await visible(y)).toEqual(['kAccount', 'kLeadY']);
   });
 
-  it('an agent reads rows on the leads it may read, never a customer’s through a lead', async () => {
+  it('an agent reads rows on the leads it may read, never a note, never a customer’s through a lead', async () => {
     expect(await visible(agent('agent:triage'))).toEqual(['kLeadX', 'kLeadY']);
     // With crm.account.read at company scope the customer's own rows are readable too.
     expect(await visible(agent('agent:chief'))).toEqual(['kAccount', 'kLeadX', 'kLeadY']);
@@ -288,6 +296,13 @@ describe('monthly partitions (docs/DATABASE.md §7)', () => {
       (m) => m<{ n: number }[]>`select app.ensure_activity_partitions(3) as n`,
     );
     expect(again?.n).toBe(0);
+    // Each run is recorded, with the months that failed, for the Integration Health page.
+    const [run] = await asMigrator(
+      (m) => m<{ rows_affected: number; error: string | null; finished: boolean }[]>`
+        select rows_affected, error, finished_at is not null as finished from retention_runs
+         where job = 'activities-partitions' order by started_at desc limit 1`,
+    );
+    expect(run).toEqual({ rows_affected: 0, error: null, finished: true });
     expect(
       await failure(
         asPrincipal(principalFor('executive'), ({ tx }) =>

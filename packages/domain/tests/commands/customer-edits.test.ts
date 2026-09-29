@@ -17,6 +17,9 @@ import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { addNote, updateAccount, updateContact, upsertSite } from '../../src/commands/crm/customer';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { defineCommand } from '../../src/command/define-command';
+import { CreateLeadInput } from '@shakti/contracts';
+import { z } from 'zod';
 
 // crm.account.update, crm.contact.update, crm.site.upsert and crm.note.add (docs/design/phase1.md
 // §6.5): the write rules of the shared customer (ADR 0008), an audit row of what changed and a
@@ -175,6 +178,7 @@ describe('crm.account.update', () => {
 
 describe('crm.contact.update', () => {
   it('adds a number, makes it the main one and takes the old one off', async () => {
+    const typed = phone();
     const k = await customerOf(caller);
     const [old] = await phonesOf(k.contactId);
     await run(caller, updateContact, {
@@ -182,12 +186,13 @@ describe('crm.contact.update', () => {
       accountId: k.accountId,
       contactId: k.contactId,
       preferredLanguage: 'en',
-      addPhones: [{ phone: '098765 43210', isWhatsapp: true }],
+      // Typed as people type it: a trunk 0 and a space.
+      addPhones: [{ phone: `0${typed.slice(0, 5)} ${typed.slice(5)}`, isWhatsapp: true }],
     });
     const two = await phonesOf(k.contactId);
     expect(two.map((p) => [p.e164, p.is_primary])).toEqual([
       [k.phone, true],
-      ['+919876543210', false],
+      [`+91${typed}`, false],
     ]);
     const added = two[1]?.id ?? '';
     await run(caller, updateContact, {
@@ -198,11 +203,11 @@ describe('crm.contact.update', () => {
       removePhoneIds: [old?.id ?? ''],
     });
     expect((await phonesOf(k.contactId)).map((p) => [p.e164, p.is_primary])).toEqual([
-      ['+919876543210', true],
+      [`+91${typed}`, true],
     ]);
     const row = await lastAudit('crm.contact.update', k.contactId);
     // Numbers keep only their last four digits in the audit trail.
-    expect(JSON.stringify(row)).not.toContain('9876543210');
+    expect(JSON.stringify(row)).not.toContain(typed);
     expect(Object.keys(row?.after_json ?? {}).sort()).toEqual(['phones', 'primaryPhone']);
   });
 
@@ -322,6 +327,91 @@ describe('crm.site.upsert', () => {
   });
 });
 
+describe('crm.contact.update: a number of a colleague’s customer', () => {
+  const add = (k: Customer, number: string) =>
+    run(caller, updateContact, {
+      entityId: 1,
+      accountId: k.accountId,
+      contactId: k.contactId,
+      addPhones: [{ phone: number }],
+    });
+
+  it('refuses a number that belongs to a customer a colleague looks after', async () => {
+    const k = await customerOf(caller);
+    const theirs = await customerOf(colleague);
+    await expect(add(k, theirs.phone)).rejects.toMatchObject(reason('customer_held_by_colleague'));
+    expect((await phonesOf(k.contactId)).map((p) => p.e164)).toEqual([k.phone]);
+  });
+
+  it('takes a number of another contact of the same customer', async () => {
+    const k = await customerOf(caller);
+    const family = newId();
+    const number = `+91${phone()}`;
+    await asMigrator(async (m) => {
+      await m`insert into contacts (id, name, created_by) values (${family}, 'Family member', ${caller.id})`;
+      await m`insert into account_contacts (account_id, contact_id, role, created_by)
+        values (${k.accountId}, ${family}, 'family', ${caller.id})`;
+      await m`insert into contact_phones (id, contact_id, e164, is_primary, created_by)
+        values (${newId()}, ${family}, ${number}, true, ${caller.id})`;
+    });
+    await add(k, number);
+    expect((await phonesOf(k.contactId)).map((p) => p.e164)).toContain(number);
+  });
+
+  it('takes a number of another customer the caller may change', async () => {
+    const k = await customerOf(caller);
+    const mine = await customerOf(caller);
+    await add(k, mine.phone);
+    expect((await phonesOf(k.contactId)).map((p) => p.e164)).toContain(mine.phone);
+  });
+
+  it('waits for a lead typed at the same moment with the number, then refuses it', async () => {
+    const k = await customerOf(caller);
+    const number = phone();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started: () => void = () => undefined;
+    const holding = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    // The colleague's lead form, held open after it has taken the number lock.
+    const holdLead = defineCommand({
+      name: 'test.lead.hold',
+      permission: 'crm.lead.write',
+      alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
+      auditFields: [],
+      input: z.object({ lead: CreateLeadInput }).strict(),
+      output: z.object({ id: z.string() }).strict(),
+      async handler(ctx, input) {
+        const lead = await ctx.run(createLead, input.lead);
+        started();
+        await gate;
+        return { id: lead.id };
+      },
+    });
+    const colleagueLead = run(colleague, holdLead, {
+      lead: {
+        entityId: 1,
+        pipelineKey: 'farmer_pumps',
+        contact: { name: 'Racing customer', phone: number },
+        account: { type: 'farm' },
+      },
+    });
+    await holding;
+    let settled = false;
+    const change = add(k, number).finally(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(settled).toBe(false);
+    release();
+    await colleagueLead;
+    await expect(change).rejects.toMatchObject(reason('customer_held_by_colleague'));
+  });
+});
+
 describe('crm.note.add', () => {
   it('adds a note to the customer or to one of their leads', async () => {
     const k = await customerOf(caller);
@@ -337,6 +427,29 @@ describe('crm.note.add', () => {
       [null, 'Wants a quote'],
       [k.leadId, 'Call after the harvest'],
     ]);
+  });
+
+  it('refuses a note on an archived lead, and on a customer read only through a lead', async () => {
+    const k = await customerOf(caller);
+    await asMigrator((m) => m`update opportunities set archived_at = now() where id = ${k.leadId}`);
+    await expect(
+      run(caller, addNote, {
+        entityId: 1,
+        accountId: k.accountId,
+        opportunityId: k.leadId,
+        body: 'Too late',
+      }),
+    ).rejects.toMatchObject(reason('lead_missing'));
+    const other = await customerOf(caller);
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+        values (${newId()}, 1, ${other.accountId}, ${PIPELINE_SEED[0]?.id ?? ''}, ${stageId(1, 1)}, ${colleague.id}, ${teamId}, ${caller.id})`,
+    );
+    await expect(
+      run(colleague, addNote, { entityId: 1, accountId: other.accountId, body: 'Not mine' }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('refuses a note on a lead of another customer, or by someone who cannot see it', async () => {

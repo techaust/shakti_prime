@@ -77,11 +77,22 @@ describe('crm.consent.record', () => {
       channel: 'whatsapp',
       purpose: 'promotional',
       source: 'walk_in_form',
-      textVersion: 'v2',
     });
   });
 
-  it('refuses a consent given in the future, or an evidence file the caller cannot see', async () => {
+  it('takes a version code, such as a date, and refuses any other text as the version', async () => {
+    const k = await customerOf(caller);
+    await expect(
+      run(caller, recordConsent, consentOf(k, { textVersion: '2026-09-30' })),
+    ).resolves.toMatchObject({ textVersion: '2026-09-30' });
+    const refused = run(caller, recordConsent, consentOf(k, { textVersion: 'Form @ shop, 2' }));
+    await expect(refused).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { issues: [{ path: 'textVersion', message: 'consent_version_invalid' }] },
+    });
+  });
+
+  it('refuses a consent given in the future, and any evidence file until proof can be uploaded', async () => {
     const k = await customerOf(caller);
     await expect(
       run(
@@ -92,7 +103,7 @@ describe('crm.consent.record', () => {
     ).rejects.toMatchObject(reason('consent_given_in_future'));
     await expect(
       run(caller, recordConsent, consentOf(k, { evidenceFileId: newId() })),
-    ).rejects.toMatchObject(reason('consent_evidence_missing'));
+    ).rejects.toMatchObject(reason('consent_evidence_unavailable'));
   });
 
   it('is refused without crm.account.write, for another customer, and in another company', async () => {

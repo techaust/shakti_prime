@@ -222,3 +222,113 @@ describe('agent principals never write the customer master (SECURITY §3.3)', ()
     });
   }
 });
+
+/**
+ * Every command of the customer timeline slice (docs/design/phase1.md §6.5), for every agent: a
+ * command the agent lacks a permission for, or one for people only (`peopleOnly`: notes and making
+ * or archiving tags, SECURITY §3.3), is refused at the guard; any other passes the guard and then
+ * finds nothing to change (the inputs name no real row). The Co-pilot's follow-up tasks and the
+ * Triage agent's tags on leads are the ones that pass.
+ */
+const TIMELINE_INPUTS: Record<string, unknown> = {
+  'crm.task.create': {
+    entityId: 1,
+    opportunityId: newId(),
+    kind: 'follow_up',
+    dueAt: '2031-01-01T10:00:00Z',
+  },
+  'crm.task.complete': { entityId: 1, taskId: newId() },
+  'crm.task.reschedule': { entityId: 1, taskId: newId(), dueAt: '2031-01-01T10:00:00Z' },
+  'crm.task.cancel': { entityId: 1, taskId: newId() },
+  'crm.tag.create': { entityId: 1, name: 'Refused tag' },
+  'crm.tag.archive': { tagId: newId() },
+  'crm.lead.tag': { entityId: 1, opportunityId: newId(), tagId: newId() },
+  'crm.lead.untag': { entityId: 1, opportunityId: newId(), tagId: newId() },
+  'crm.note.add': { ...CUSTOMER, body: 'Refused note' },
+  ...CUSTOMER_INPUTS,
+};
+const TIMELINE_COMMANDS = [
+  'crm.task.create',
+  'crm.task.complete',
+  'crm.task.reschedule',
+  'crm.task.cancel',
+  'crm.tag.create',
+  'crm.tag.archive',
+  'crm.lead.tag',
+  'crm.lead.untag',
+  'crm.note.add',
+  'crm.account.update',
+  'crm.contact.update',
+  'crm.site.upsert',
+  'crm.consent.record',
+  'crm.consent.withdraw',
+];
+
+describe('agent principals and the customer timeline commands', () => {
+  const byName = commands as Record<string, AnyCommand>;
+
+  it('has an input for each command, and each is registered', () => {
+    for (const name of TIMELINE_COMMANDS) {
+      const command = byName[name];
+      expect({ name, registered: command !== undefined }).toEqual({ name, registered: true });
+      expect({ name, valid: command?.input.safeParse(TIMELINE_INPUTS[name]).success }).toEqual({
+        name,
+        valid: true,
+      });
+    }
+  });
+
+  for (const agent of AGENTS) {
+    it(`${agent} is refused at the guard exactly where it lacks a permission or the command is for people`, async () => {
+      const principal = principalFor(agent, [1]);
+      const held = AGENT_MATRIX[agent];
+      for (const name of TIMELINE_COMMANDS) {
+        const command = byName[name];
+        if (command === undefined) throw new Error(`${name} is not registered`);
+        const holds = [
+          { permission: command.permission, minScope: command.minScope ?? 'own' },
+          ...(command.alsoRequires ?? []),
+        ].every((need) =>
+          held.some(
+            (g) =>
+              g.key === need.permission &&
+              ['own', 'team', 'entity', 'all'].indexOf(g.scope) >=
+                ['own', 'team', 'entity', 'all'].indexOf(need.minScope),
+          ),
+        );
+        const refusedAtGuard = command.peopleOnly === true || !holds;
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, TIMELINE_INPUTS[name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ name, guard: failureOf(error)?.stage === 'guard' }).toEqual({
+          name,
+          guard: refusedAtGuard,
+        });
+      }
+    });
+  }
+
+  it('lets the Co-pilot add follow-up tasks and the Triage agent tag leads, never make tags or notes', () => {
+    const passes = (agent: AgentRoleKey, name: string) => {
+      const command = byName[name];
+      const held = AGENT_MATRIX[agent].map((g) => g.key);
+      return (
+        command !== undefined &&
+        command.peopleOnly !== true &&
+        [command.permission, ...(command.alsoRequires ?? []).map((a) => a.permission)].every((k) =>
+          held.includes(k),
+        )
+      );
+    };
+    expect(passes('agent:copilot', 'crm.task.create')).toBe(true);
+    expect(passes('agent:triage', 'crm.lead.tag')).toBe(true);
+    for (const agent of AGENTS) {
+      expect(passes(agent, 'crm.note.add')).toBe(false);
+      expect(passes(agent, 'crm.tag.create')).toBe(false);
+      expect(passes(agent, 'crm.tag.archive')).toBe(false);
+    }
+  });
+});
