@@ -3,6 +3,9 @@ node_modules
 dist
 .turbo
 coverage
+apps/web/e2e/playwright-report
+apps/web/e2e/test-results
+apps/web/e2e/.auth
 pnpm-lock.yaml
 packages/db/migrations
 packages/tokens/src/tokens.css

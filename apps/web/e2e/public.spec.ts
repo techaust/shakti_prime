@@ -30,7 +30,7 @@ test('the sign-in screen', async ({ page }) => {
 
 test('sign-in refuses a wrong password and keeps the email', async ({ page }) => {
   await submitSignIn(page, emailFor('teleCaller'), 'not the right password at all');
-  await expect(page.getByText(/email or password/i)).toBeVisible();
+  await expect(page.getByText(/couldn.t sign you in with that email and password/)).toBeVisible();
   await expect(page.getByLabel('Email')).toHaveValue(emailFor('teleCaller'));
   await expectNoAxeViolations(page);
   await snap(page, 'sign-in-wrong-password');

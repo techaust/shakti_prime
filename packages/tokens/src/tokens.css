@@ -7,7 +7,7 @@
   --surface-3: #EDECEF;
   --text: #1D1D21;
   --text-muted: #626163;
-  --text-subtle: #818183;
+  --text-subtle: #706F72;
   --border: #E4E4E6;
   --border-strong: #908F92;
   --accent: #5E6AD2;
@@ -122,7 +122,7 @@
     --surface-3: #1E1E21;
     --text: #F8F8FA;
     --text-muted: #929196;
-    --text-subtle: #707074;
+    --text-subtle: #828185;
     --border: #262529;
     --border-strong: #646468;
     --accent: #5E6AD2;
@@ -153,7 +153,7 @@
   --surface-3: #1E1E21;
   --text: #F8F8FA;
   --text-muted: #929196;
-  --text-subtle: #707074;
+  --text-subtle: #828185;
   --border: #262529;
   --border-strong: #646468;
   --accent: #5E6AD2;
@@ -184,7 +184,7 @@
   --surface-3: #EDECEF;
   --text: #1D1D21;
   --text-muted: #626163;
-  --text-subtle: #818183;
+  --text-subtle: #706F72;
   --border: #E4E4E6;
   --border-strong: #908F92;
   --accent: #5E6AD2;
@@ -240,7 +240,7 @@
   --surface-3: #1E1E21;
   --text: #F8F8FA;
   --text-muted: #929196;
-  --text-subtle: #707074;
+  --text-subtle: #828185;
   --border: #262529;
   --border-strong: #646468;
   --accent: #5E6AD2;
@@ -297,7 +297,7 @@
   --surface-3: #E0E0E3;
   --text: #1D1D21;
   --text-muted: #4E4D4F;
-  --text-subtle: #6C6B6E;
+  --text-subtle: #504F51;
   --border: #D2D2D4;
   --border-strong: #747376;
   --accent: #3B4FB3;
@@ -328,7 +328,7 @@
     --surface-3: #2A2A2E;
     --text: #F8F8FA;
     --text-muted: #ADADB1;
-    --text-subtle: #88878B;
+    --text-subtle: #AAAAAE;
     --border: #37373B;
     --border-strong: #818185;
     --accent: #8A90FD;
@@ -359,7 +359,7 @@
   --surface-3: #2A2A2E;
   --text: #F8F8FA;
   --text-muted: #ADADB1;
-  --text-subtle: #88878B;
+  --text-subtle: #AAAAAE;
   --border: #37373B;
   --border-strong: #818185;
   --accent: #8A90FD;
@@ -389,7 +389,7 @@
   --surface-3: #E0E0E3;
   --text: #1D1D21;
   --text-muted: #4E4D4F;
-  --text-subtle: #6C6B6E;
+  --text-subtle: #504F51;
   --border: #D2D2D4;
   --border-strong: #747376;
   --accent: #3B4FB3;
@@ -445,7 +445,7 @@
   --surface-3: #2A2A2E;
   --text: #F8F8FA;
   --text-muted: #ADADB1;
-  --text-subtle: #88878B;
+  --text-subtle: #AAAAAE;
   --border: #37373B;
   --border-strong: #818185;
   --accent: #8A90FD;

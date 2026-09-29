@@ -282,6 +282,8 @@ export default tseslint.config(
       '**/coverage/**',
       '**/next-env.d.ts',
       'packages/db/migrations/**',
+      'apps/web/e2e/playwright-report/**',
+      'apps/web/e2e/test-results/**',
     ],
   },
   js.configs.recommended,

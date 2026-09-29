@@ -178,6 +178,12 @@ await ensureLead(
   '98765 40001',
 );
 await ensureLead(
+  { id: ids.teamLead ?? '', roleKey: 'sales_team_lead', entityIds: [1, 2] },
+  1,
+  'Pooja Gurjar',
+  '98765 40003',
+);
+await ensureLead(
   { id: ids.executive ?? '', roleKey: 'executive', entityIds: [1, 2, 3, 4] },
   2,
   secondCompanyLead,

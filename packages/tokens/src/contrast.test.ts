@@ -61,6 +61,9 @@ describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, c
     ['text', 'surface-2'],
     ['text-muted', 'surface'],
     ['text-muted', 'surface-2'],
+    // Placeholders, helpers and metadata (DESIGN.md §2.2).
+    ['text-subtle', 'surface'],
+    ['text-subtle', 'surface-2'],
     ['accent-text', 'surface'],
     ['accent-text', 'surface-2'],
     // Accent badges and ticked rows (the status badge's accent tone).
@@ -77,9 +80,6 @@ describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, c
   });
 
   it.each([
-    // Placeholders and metadata (DESIGN.md §2.2).
-    ['text-subtle', 'surface'],
-    ['text-subtle', 'surface-2'],
     // A field is identified by its outline alone (WCAG 1.4.11, AUDIT M49).
     ['border-strong', 'surface'],
     ['border-strong', 'bg'],

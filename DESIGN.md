@@ -33,12 +33,12 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--surface-3` | Two steps from `--surface` toward the text | Hover rows, pressed states |
 | `--text` | The high-contrast end of the ladder | Primary text |
 | `--text-muted` | Ladder, AA on every surface | Secondary text, labels |
-| `--text-subtle` | Ladder, 3:1 on every surface | Placeholders, metadata |
+| `--text-subtle` | Ladder, 4.5:1 on every surface, a step lighter than `--text-muted` | Placeholders, helpers, metadata |
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
 | `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
-| `--accent-text` | Accent, adjusted to AA on `--surface` (lighter in dark) | Accent-coloured text |
+| `--accent-text` | Accent, adjusted to AA on `--surface`, `--surface-2` and `--accent-soft` (lighter in dark) | Accent-coloured text |
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
 | `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |

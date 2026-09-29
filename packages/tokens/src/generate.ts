@@ -166,13 +166,9 @@ export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, strin
   const textTarget = Math.max(4.5 + inputs.contrast * 0.04, min.text + 0.1);
   const text = neutral(dark ? 97.5 : 11, dark ? 1.2 : 3);
   const textMuted = reach(surface2, textTarget, accent.h, tint, toward);
-  const textSubtle = reach(
-    surface2,
-    Math.max(3 + inputs.contrast * 0.02, min.ui + 0.1),
-    accent.h,
-    tint,
-    toward,
-  );
+  // Placeholders, helpers and metadata are still text, so they reach the text minimum too
+  // (WCAG 1.4.3); they stay a step lighter than muted text.
+  const textSubtle = reach(surface2, min.text + 0.1, accent.h, tint, toward);
   // Inputs are identified by their outline alone, so it must reach 3:1 (WCAG 1.4.11).
   const borderStrong = reach(surface, Math.max(3.2, min.ui + 0.2), accent.h, tint, toward);
 

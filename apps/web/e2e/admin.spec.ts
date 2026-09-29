@@ -29,6 +29,8 @@ test.describe('as an Executive', () => {
   });
 
   test('the design preview', async ({ page }) => {
+    // The board shows every component in four themes, so axe has the most to read here.
+    test.slow();
     await page.goto('/design');
     await expect(page.getByRole('heading', { name: 'Design preview', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);

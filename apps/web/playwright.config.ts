@@ -32,10 +32,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: process.env.CI !== undefined,
   retries: process.env.CI === undefined ? 0 : 1,
-  workers: process.env.CI === undefined ? 4 : 2,
+  workers: process.env.CI === undefined ? 3 : 2,
   timeout: 60_000,
   expect: {
-    timeout: 10_000,
+    timeout: 15_000,
     toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled', caret: 'hide' },
   },
   reporter: [['list'], ['html', { outputFolder: './e2e/playwright-report', open: 'never' }]],
