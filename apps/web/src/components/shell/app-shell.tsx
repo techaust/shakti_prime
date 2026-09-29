@@ -10,8 +10,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
-import { CompanySwitcher, type CompanyOption } from './company-switcher';
-import { ProfileMenu } from './profile-menu';
+import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
+import type { CompanyOption } from './menu-triggers';
 import { rememberSidebar } from './sidebar-state';
 import { SidebarNav } from './sidebar-nav';
 
@@ -193,7 +193,7 @@ export function AppShell({
             </PhoneMenu>
           ) : null}
 
-          <CompanySwitcher companies={companies} active={activeCompany} />
+          <DeferredCompanySwitcher companies={companies} active={activeCompany} />
 
           <div className="flex min-w-0 flex-1 justify-end md:justify-center">
             <Button
@@ -213,7 +213,7 @@ export function AppShell({
             </Button>
           </div>
 
-          <ProfileMenu name={user.name} role={user.role} theme={theme} />
+          <DeferredProfileMenu name={user.name} role={user.role} theme={theme} />
         </header>
 
         <main
