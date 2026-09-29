@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   AGENT_FORBIDDEN_PERMISSIONS,
   COST_PERMISSIONS,
+  EXECUTIVE_KEPT_GRANTS,
   hasGrant,
   impliedScopes,
+  isPlatformOnlyPermission,
   PERMISSION_KEYS,
+  PLATFORM_ONLY_PERMISSIONS,
   serializeGrants,
 } from './permissions';
 
@@ -12,6 +15,16 @@ describe('permission catalogue', () => {
   it('has unique keys in module.resource.action form', () => {
     expect(new Set(PERMISSION_KEYS).size).toBe(PERMISSION_KEYS.length);
     for (const key of PERMISSION_KEYS) expect(key).toMatch(/^[a-z]+(\.[a-z]+){1,3}$/);
+  });
+
+  it('keeps platform-only permissions apart from the grants the Executive role keeps', () => {
+    expect(isPlatformOnlyPermission('files.process')).toBe(true);
+    expect(isPlatformOnlyPermission('crm.lead.read')).toBe(false);
+    expect(isPlatformOnlyPermission('')).toBe(false);
+    for (const g of EXECUTIVE_KEPT_GRANTS) {
+      expect(PERMISSION_KEYS).toContain(g.key);
+      expect(PLATFORM_ONLY_PERMISSIONS).not.toContain(g.key);
+    }
   });
 
   it('lists both cost permissions among the agent-forbidden set', () => {

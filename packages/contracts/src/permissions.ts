@@ -112,6 +112,27 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'integrations.dlq.replay',
 ] as const satisfies readonly PermissionKey[];
 
+/**
+ * Permissions only the platform's own workers hold (SECURITY §3.1): no staff role may be granted
+ * one. The role editor refuses them and the database refuses them for any role that is not a
+ * system role (`app.platform_only_permissions()`, which a security test keeps equal to this
+ * list). Plain strings, because a key joins the catalogue with the slice that first uses it.
+ */
+export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process'];
+
+export function isPlatformOnlyPermission(key: string): boolean {
+  return PLATFORM_ONLY_PERMISSIONS.includes(key);
+}
+
+/**
+ * Grants the Executive role always keeps (SECURITY §3.1), so the group can never lock itself out
+ * of managing people and roles.
+ */
+export const EXECUTIVE_KEPT_GRANTS = [
+  { key: 'admin.roles.write', scope: 'all' },
+  { key: 'admin.users.write', scope: 'all' },
+] as const satisfies readonly PermissionGrant[];
+
 export function permissionModule(key: PermissionKey): string {
   return key.split('.')[0] ?? key;
 }
