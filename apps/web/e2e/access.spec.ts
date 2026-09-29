@@ -37,7 +37,7 @@ test.describe('as a tele-caller', () => {
     await page.keyboard.press('Enter');
     const menu = page.getByRole('menu');
     await expect(menu.getByRole('menuitem', { name: 'Your profile' })).toBeVisible();
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, { include: '[role="menu"]' });
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Your account' })).toBeFocused();

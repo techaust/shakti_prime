@@ -20,6 +20,11 @@ export interface AxeOptions {
    * times out. Each call site says why in a comment; take the page's screenshot first.
    */
   removeFrames?: string;
+  /**
+   * Checks only this part of the page. For an open modal menu or dialog: Radix hides the rest of
+   * the page from assistive technology and keeps focus inside, so the rest is checked closed.
+   */
+  include?: string;
 }
 
 /** Fails the test with every WCAG 2.1 A or AA violation axe finds on the page as it stands. */
@@ -30,6 +35,7 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
     });
   }
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
+  if (options.include !== undefined) builder = builder.include(options.include);
   for (const selector of [...ALWAYS_EXCLUDED, ...(options.exclude ?? [])]) {
     builder = builder.exclude(selector);
   }

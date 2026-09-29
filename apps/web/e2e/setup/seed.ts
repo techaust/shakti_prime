@@ -152,6 +152,7 @@ for (const role of SIGNED_IN_ROLES) {
 const setPasswordLinks = {} as Record<ProjectName, string>;
 const enrolEmails = {} as Record<ProjectName, string>;
 const verifyUsers = {} as SeededUsers['verifyUsers'];
+const profileUsers = {} as SeededUsers['profileUsers'];
 for (const project of PROJECTS) {
   const invited = emailFor(`invited-${project}`);
   const invitedId = await ensureUser(invited, `E2E invited ${project}`, 'tele_caller_cc', [1]);
@@ -169,6 +170,11 @@ for (const project of PROJECTS) {
   const verifyId = await ensureUser(verify, `E2E verify ${project}`, 'accounts', [1]);
   await setPassword(verify);
   verifyUsers[project] = { email: verify, secret: await enrolAuthenticator(verifyId, verify) };
+
+  const profile = emailFor(`profile-${project}`);
+  const profileId = await ensureUser(profile, `E2E profile ${project}`, 'accounts', [1]);
+  await setPassword(profile);
+  profileUsers[project] = { email: profile, secret: await enrolAuthenticator(profileId, profile) };
 }
 
 const secondCompanyLead = 'Ramesh Choudhary';
@@ -198,6 +204,7 @@ const seeded: SeededUsers = {
   setPasswordLinks,
   enrolEmails,
   verifyUsers,
+  profileUsers,
   secondCompanyLead,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));

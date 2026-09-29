@@ -14,7 +14,7 @@ import { seededUsers } from './support/users';
 test.use(signedOut);
 
 test('the profile switches the theme and the higher contrast, and keeps them', async ({ page }) => {
-  const person = seededUsers().verifyUsers[projectName()];
+  const person = seededUsers().profileUsers[projectName()];
   await signInThroughScreens(page, person.email, person.secret);
   await page.goto('/settings/profile');
   await expect(page.getByRole('heading', { name: 'Your profile', level: 1 })).toBeVisible();

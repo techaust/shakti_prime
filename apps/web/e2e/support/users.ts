@@ -39,6 +39,11 @@ export interface SeededUsers {
   enrolEmails: Record<ProjectName, string>;
   /** Per project: a person with an authenticator app, for the sign-in code screen. */
   verifyUsers: Record<ProjectName, { email: string; secret: string }>;
+  /**
+   * Per project: another such person for the profile journey, so two journeys never type the
+   * same code for the same person at once and the theme they switch is theirs alone.
+   */
+  profileUsers: Record<ProjectName, { email: string; secret: string }>;
   /** A lead only company 2 holds, for the company switcher journey. */
   secondCompanyLead: string;
 }

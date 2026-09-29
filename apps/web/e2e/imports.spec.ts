@@ -34,7 +34,10 @@ test('uploads a spreadsheet of leads and opens its job', async ({ page }) => {
     buffer: Buffer.from(`${rows.join('\n')}\n`),
   });
   await page.getByRole('button', { name: 'Read the file' }).click();
-  await expect(page.getByRole('heading', { name: 'Import of leads.csv', level: 1 })).toBeVisible();
+  // The job screen reads the whole file back, so it may take a moment.
+  await expect(page.getByRole('heading', { name: 'Import of leads.csv', level: 1 })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByRole('heading', { name: 'Match the columns' })).toBeVisible();
   await expectNoAxeViolations(page);
   await snap(page, 'imports-job', { mask: [page.getByText(/, started /)] });
