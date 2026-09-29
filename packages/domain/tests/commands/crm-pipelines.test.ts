@@ -92,7 +92,7 @@ async function testPipeline(entityId: number | null = null): Promise<{
     for (const [i, k] of keys.entries()) {
       const kind = k === 'won' || k === 'lost' ? k : 'open';
       await m`insert into pipeline_stages (id, pipeline_id, entity_id, key, name, position, kind)
-              values (${stages[k]}, ${id}, ${entityId}, ${k}, ${k[0]?.toUpperCase() + k.slice(1)},
+              values (${stages[k]}, ${id}, ${entityId}, ${k}, ${k.charAt(0).toUpperCase() + k.slice(1)},
                       ${i + 1}, ${kind})`;
     }
   });
