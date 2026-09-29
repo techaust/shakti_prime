@@ -6,6 +6,7 @@ import {
   snap,
   test,
 } from './support/fixtures';
+import { SNAPSHOT_LEADS } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
@@ -25,12 +26,8 @@ for (const { role, title, lead } of ROLES) {
     test('opens the leads list', async ({ page }) => {
       await page.goto('/leads');
       await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
-      const grid = dataGrid(page, 'Leads');
-      await expect(grid.getByText(lead).first()).toBeVisible();
+      await expect(dataGrid(page, 'Leads').getByText(lead).first()).toBeVisible();
       await expectNoAxeViolations(page);
-      // The rows grow with every run (the journeys add leads), so the grid is masked and only
-      // the first screen is compared: the page grows with the rows.
-      await snap(page, `leads-list-${role}`, { mask: [grid], fullPage: false });
     });
 
     test('opens the leads board', async ({ page }) => {
@@ -38,11 +35,8 @@ for (const { role, title, lead } of ROLES) {
       await page.getByRole('link', { name: 'Board' }).click();
       await expect(page).toHaveURL(/\/leads\/board/);
       await expect(page.getByRole('heading', { name: 'Leads', level: 1 })).toBeVisible();
+      await expect(page.getByText(lead).first()).toBeVisible();
       await expectNoAxeViolations(page);
-      await snap(page, `leads-board-${role}`, {
-        mask: [page.getByRole('region', { name: 'Lead stages' })],
-        fullPage: false,
-      });
     });
 
     test('adds a lead', async ({ page }) => {
@@ -63,3 +57,23 @@ for (const { role, title, lead } of ROLES) {
     });
   });
 }
+
+// The screenshots of the list and the board: the snapshot caller's leads, which only the seed
+// writes (users.ts), so every run shows the same rows and only times are masked.
+test.describe('the leads of the snapshot company', () => {
+  test.use(signedInAs('snapshotCaller'));
+
+  test('the list shows every lead with its details', async ({ page }) => {
+    await page.goto('/leads');
+    const grid = dataGrid(page, 'Leads');
+    for (const lead of SNAPSHOT_LEADS) await expect(grid.getByText(lead.name)).toBeVisible();
+    await snap(page, 'leads-list');
+  });
+
+  test('the board shows every lead at its stage', async ({ page }) => {
+    await page.goto('/leads/board?pipeline=farmer_pumps');
+    for (const lead of SNAPSHOT_LEADS) await expect(page.getByText(lead.name)).toBeVisible();
+    await expectNoAxeViolations(page);
+    await snap(page, 'leads-board');
+  });
+});

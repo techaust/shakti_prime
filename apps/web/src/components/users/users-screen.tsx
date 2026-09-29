@@ -26,7 +26,7 @@ import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { listUsers } from '../../actions/admin';
 import { USER_SORT_COLUMNS } from '../../screens/contract-values';
-import { formatDateTime } from '../../screens/format';
+import { DateTime } from '../date-time';
 import { userActions } from '../../screens/user-roles';
 import { FailureMessage } from '../screens/failure';
 import { sortInput, toListSort } from '../screens/list-sort';
@@ -191,7 +191,7 @@ export function UsersScreen({
       id: 'lastSignIn',
       header: t('columns.lastSignIn'),
       numeric: true,
-      cell: (u) => (u.lastLoginAt === null ? common('never') : formatDateTime(u.lastLoginAt)),
+      cell: (u) => (u.lastLoginAt === null ? common('never') : <DateTime value={u.lastLoginAt} />),
       sortable: true,
     },
     {

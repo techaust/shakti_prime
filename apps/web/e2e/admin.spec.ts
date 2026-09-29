@@ -5,28 +5,38 @@ import {
   signedInAs,
   snap,
   test,
+  showCompany,
 } from './support/fixtures';
+import { SNAPSHOT_COMPANY, SNAPSHOT_LEADS } from './support/users';
 
 test.describe('as an Executive', () => {
   test.use(signedInAs('executive'));
 
+  // The team and the Activity log are shown for the snapshot company, where only the seed writes
+  // (users.ts), so the screenshots show real rows; only times are masked.
   test('team members', async ({ page }) => {
     await page.goto('/admin/users');
     await expect(page.getByRole('heading', { name: 'Team members', level: 1 })).toBeVisible();
+    await showCompany(page, SNAPSHOT_COMPANY.name);
     const grid = dataGrid(page, 'Team members');
-    await expect(grid).toBeVisible();
+    await expect(grid.getByText('Geeta Kumari')).toBeVisible();
     await expectNoAxeViolations(page);
-    // The people and their last sign-in change with every run of the suites.
-    await snap(page, 'team-members', { mask: [grid] });
+    await snap(page, 'team-members');
   });
 
   test('activity log', async ({ page }) => {
     await page.goto('/admin/activity');
     await expect(page.getByRole('heading', { name: 'Activity log', level: 1 })).toBeVisible();
+    await showCompany(page, SNAPSHOT_COMPANY.name);
+    await page.getByLabel('What happened').selectOption({ label: 'Lead added' });
+    await page.getByLabel('Person').selectOption({ label: 'Geeta Kumari' });
+    await page.getByRole('button', { name: 'Show' }).click();
     const grid = dataGrid(page, 'Activity log');
-    await expect(grid).toBeVisible();
+    await expect(grid.getByText('Lead added')).toHaveCount(SNAPSHOT_LEADS.length, {
+      timeout: 30_000,
+    });
     await expectNoAxeViolations(page);
-    await snap(page, 'activity-log', { mask: [grid] });
+    await snap(page, 'activity-log');
   });
 
   test('companies', async ({ page }) => {

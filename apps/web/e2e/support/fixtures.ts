@@ -30,3 +30,15 @@ export function dataGrid(page: Page, caption: string): Locator {
     .or(page.getByRole('list', { name: caption }))
     .filter({ visible: true });
 }
+
+/**
+ * Narrows the screen to one company through the company switcher, as a person with several
+ * companies does, and waits until the screen shows it.
+ */
+export async function showCompany(page: Page, company: string): Promise<void> {
+  await page.getByRole('button', { name: /^Showing .*\. Choose a company$/ }).click();
+  await page.getByRole('menuitemradio', { name: company }).click();
+  await expect(
+    page.getByRole('button', { name: `Showing ${company}. Choose a company` }),
+  ).toBeVisible({ timeout: 30_000 });
+}
