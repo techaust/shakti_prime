@@ -85,7 +85,7 @@ Timed with a copy of the spike script that seeds the same 50,000 leads and times
 | General Manager, 1 company | 136.2 / **410.6** | 28.2 / 72.1 | 16.7 / 47.8 | 111.7 / **530.4** | 109.6 / **472.2** | 102.6 / 162.1 |
 | Tele-caller, own leads | 148.1 / **420.0** | 16.9 / 44.8 | 8.8 / 12.3 | 110.8 / **305.1** | 125.5 / 241.3 | 55.9 / 111.2 |
 
-An earlier run on a quieter machine, after the timeline policy change below and before the search candidates, read Account 360 at 70.2 / 124.7 ms (team lead), 52.1 / 67.1 ms (General Manager) and 92.3 / 252.0 ms (tele-caller) at the 50th / 95th percentile, and the second timeline page at 12.8 / 177.2, 9.2 / 12.5 and 17.0 / 55.5 ms: within 300 ms p95 for a customer with 1,000 activities.
+A run on a quieter machine, with the timeline policy below and before the search candidates, read Account 360 at 70.2 / 124.7 ms (team lead), 52.1 / 67.1 ms (General Manager) and 92.3 / 252.0 ms (tele-caller) at the 50th / 95th percentile, and the second timeline page at 12.8 / 177.2, 9.2 / 12.5 and 17.0 / 55.5 ms: within 300 ms p95 for a customer with 1,000 activities.
 
 Account 360 is about a dozen short reads in one transaction (the customer, contacts, phones, sites, leads, tasks, consents, tags and the first timeline page); each costs 1 to 6 ms to plan through the customer policies and well under 1 ms to run, so the page's time is mostly planning and round trips, which grow with the machine's load, not with the customer's 1,000 rows.
 
@@ -106,9 +106,9 @@ Planning Time: 1.836 ms
 Execution Time: 0.349 ms
 ```
 
-The first form of the read policy let the planner turn its `exists` on the lead into a hashed subplan, which read every lead the caller may read once for each partition before the first row (5,005 leads for the tele-caller: 11 ms, and growing with a company's leads and the months kept). Each `exists` of the policy now also tests the row's own `opportunity_id`, a condition on the outer row that is not an equality, so the planner keeps the per-row index probe: the page went from 11 ms to 0.25 ms of execution for the same caller.
+Without that, the planner turns the read policy's `exists` on the lead into a hashed subplan, which read every lead the caller may read once for each partition before the first row (5,005 leads for the tele-caller: 11 ms, and growing with a company's leads and the months kept). Each `exists` of the policy also tests the row's own `opportunity_id`, a condition on the outer row that is not an equality, so the planner keeps the per-row index probe: 0.25 ms of execution for the same caller instead of 11 ms.
 
-The customers search takes its candidates from `app.customer_search_ids()`, which uses the trigram indexes on customer, contact and village names and the index on the phone written backwards, keeps to the customers the caller may read, and returns at most 200 ids; the list then tests each candidate under the policies with correlated conditions. Before it, a search tested every contact and site of the caller's scope row by row through the customer policies (a General Manager: a sequential scan of 15,000 contacts at 99 ms and 230 ms in all at 10,000 customers). The General Manager's plan now (26 ms planning, 141 ms execution on the loaded machine, 127 ms of it inside the lookup):
+The customers search takes its candidates from `app.customer_search_ids()`, which uses the trigram indexes on customer, contact and village names and the index on the phone written backwards, keeps to the customers the caller may read, and returns at most 200 ids; the list then tests each candidate under the policies with correlated conditions. Without it, a search tests every contact and site of the caller's scope row by row through the customer policies (a General Manager: a sequential scan of 15,000 contacts at 99 ms and 230 ms in all at 10,000 customers). The General Manager's plan with it (26 ms planning, 141 ms execution on the loaded machine, 127 ms of it inside the lookup):
 
 ```
 Limit (actual time=139.118..139.165 rows=51 loops=1)
