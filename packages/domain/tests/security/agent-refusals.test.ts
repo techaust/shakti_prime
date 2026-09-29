@@ -27,9 +27,9 @@ afterAll(closeDb);
 /**
  * SECURITY §11 item 3: no agent principal, and not the system principal the event workers act as
  * (`system:workers`), may call a command that needs an admin, cost, audit, integrations, tax-rate,
- * price or catalogue permission (SECURITY §3.3: agents make no price edits). The commands are read
- * from the registry, so a new one that needs such a permission is covered the day it is
- * registered.
+ * price, catalogue or CRM set-up permission (SECURITY §3.3: agents make no price edits). The
+ * commands are read from the registry, so a new one that needs such a permission is covered the
+ * day it is registered.
  */
 const PRICE_AND_CATALOGUE_EDITS: readonly PermissionKey[] = ['pricing.write', 'catalogue.write'];
 
@@ -83,6 +83,23 @@ const INPUTS: Record<string, unknown> = {
   },
   'admin.user.suspend': { userId: newId() },
   'admin.user.two_factor.reset': { userId: newId() },
+  'crm.commission_rule.set': {
+    partnerId: null,
+    basis: 'fixed',
+    amount: '500.00',
+    effectiveFrom: '2031-04-01',
+  },
+  'crm.disposition.set': {
+    entityId: 1,
+    segment: null,
+    dispositions: [{ key: 1, label: 'Interested', nextAction: 'callback' }],
+  },
+  'crm.pipeline.update': { pipelineId: newId(), lockHours: 24 },
+  'crm.score_rule.set': { entityId: 1, segment: null, rules: [] },
+  'crm.stage.archive': { stageId: newId() },
+  'crm.stage.create': { pipelineId: newId(), name: 'Refused stage' },
+  'crm.stage.reorder': { pipelineId: newId(), stageIds: [newId()] },
+  'crm.stage.update': { stageId: newId(), name: 'Refused stage' },
   'integrations.dlq.replay': { eventId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
@@ -103,7 +120,7 @@ const INPUTS: Record<string, unknown> = {
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
 };
 
-describe('agent and system principals cannot call admin, cost, audit, integrations, tax, price or catalogue commands', () => {
+describe('agent and system principals cannot call admin, cost, audit, integrations, tax, price, catalogue or CRM set-up commands', () => {
   it('finds the restricted commands in the registry, each with a valid input here', () => {
     expect(RESTRICTED.length).toBeGreaterThan(0);
     expect(RESTRICTED.map((c) => c.name)).toEqual(Object.keys(INPUTS).sort());
