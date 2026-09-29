@@ -128,7 +128,13 @@ export function AccountScreen({
             <Link href="/customers">{t('account.back')}</Link>
           </Button>
           {view.canEdit ? (
-            <Button onClick={() => { setDialog({ kind: 'account' }); }}>{t('account.edit')}</Button>
+            <Button
+              onClick={() => {
+                setDialog({ kind: 'account' });
+              }}
+            >
+              {t('account.edit')}
+            </Button>
           ) : null}
         </>
       }
@@ -160,34 +166,55 @@ export function AccountScreen({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
-          <Contacts view={view} onEdit={(contactId) => { setDialog({ kind: 'contact', contactId }); }} />
+          <Contacts
+            view={view}
+            onEdit={(contactId) => {
+              setDialog({ kind: 'contact', contactId });
+            }}
+          />
           <Sites
             view={view}
-            onAdd={() => { setDialog({ kind: 'site' }); }}
-            onEdit={(siteId) => { setDialog({ kind: 'site', siteId }); }}
+            onAdd={() => {
+              setDialog({ kind: 'site' });
+            }}
+            onEdit={(siteId) => {
+              setDialog({ kind: 'site', siteId });
+            }}
           />
           <Consents
             view={view}
-            onRecord={() => { setDialog({ kind: 'consent' }); }}
-            onWithdraw={(consentId) => { setDialog({ kind: 'withdraw', consentId }); }}
+            onRecord={() => {
+              setDialog({ kind: 'consent' });
+            }}
+            onWithdraw={(consentId) => {
+              setDialog({ kind: 'withdraw', consentId });
+            }}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <Leads
             view={view}
-            onAddTag={(opportunityId) => { setDialog({ kind: 'tag', opportunityId }); }}
+            onAddTag={(opportunityId) => {
+              setDialog({ kind: 'tag', opportunityId });
+            }}
             onChanged={reload}
           />
           <Tasks
             view={view}
-            onAdd={() => { setDialog({ kind: 'task' }); }}
-            onReschedule={(task) => { setDialog({ kind: 'reschedule', task }); }}
+            onAdd={() => {
+              setDialog({ kind: 'task' });
+            }}
+            onReschedule={(task) => {
+              setDialog({ kind: 'reschedule', task });
+            }}
             onChanged={reload}
           />
           <Timeline
             key={view.timeline.items[0]?.id ?? 'empty'}
             view={view}
-            onAddNote={() => { setDialog({ kind: 'note' }); }}
+            onAddNote={() => {
+              setDialog({ kind: 'note' });
+            }}
           />
         </div>
       </div>
@@ -196,7 +223,9 @@ export function AccountScreen({
           dialog={dialog}
           view={view}
           onDone={done}
-          onCancel={() => { setDialog(undefined); }}
+          onCancel={() => {
+            setDialog(undefined);
+          }}
         />
       )}
     </Page>
@@ -223,7 +252,13 @@ function Contacts({ view, onEdit }: { view: Account360Dto; onEdit: (id: string) 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium break-words">{c.name}</span>
               {view.canEdit ? (
-                <Button size="sm" variant="secondary" onClick={() => { onEdit(c.id); }}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    onEdit(c.id);
+                  }}
+                >
                   {t('contacts.edit')}
                 </Button>
               ) : null}
@@ -290,7 +325,13 @@ function Sites({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">{leadsT(`siteType.${s.type}`)}</span>
                 {view.canEdit ? (
-                  <Button size="sm" variant="secondary" onClick={() => { onEdit(s.id); }}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      onEdit(s.id);
+                    }}
+                  >
                     {t('sites.edit')}
                   </Button>
                 ) : null}
@@ -369,7 +410,9 @@ function Consents({
                     size="sm"
                     variant="secondary"
                     className="self-start"
-                    onClick={() => { onWithdraw(c.id); }}
+                    onClick={() => {
+                      onWithdraw(c.id);
+                    }}
                   >
                     {t('consent.withdraw')}
                   </Button>
@@ -438,11 +481,12 @@ function Leads({
                         className="text-text-muted hover:text-text inline-flex size-5 items-center justify-center rounded-full"
                         aria-label={t('leads.removeTag', { name: tag.name })}
                         disabled={untag.pending}
-                        onClick={() => { untag.run(
+                        onClick={() => {
+                          untag.run(
                             { entityId: view.entityId, opportunityId: l.id, tagId: tag.id },
                             onChanged,
-                          ); }
-                        }
+                          );
+                        }}
                       >
                         <X aria-hidden className="size-3" />
                       </button>
@@ -450,7 +494,13 @@ function Leads({
                   </span>
                 ))}
                 {view.canWorkLeads ? (
-                  <Button size="sm" variant="ghost" onClick={() => { onAddTag(l.id); }}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      onAddTag(l.id);
+                    }}
+                  >
                     {t('leads.addTag')}
                   </Button>
                 ) : null}
@@ -477,6 +527,8 @@ function Tasks({
   const t = useTranslations('customers');
   const complete = useCommand(completeTask);
   const cancel = useCommand(cancelTask);
+  // The task whose button was pressed, so only its button shows the wait.
+  const [busy, setBusy] = useState<string | undefined>();
   const canAdd = view.canWorkLeads && view.leads.length > 0;
   return (
     <Section
@@ -511,27 +563,37 @@ function Tasks({
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    pending={complete.pending}
-                    onClick={() => { complete.run({ entityId: view.entityId, taskId: task.id }, () => {
+                    pending={complete.pending && busy === task.id}
+                    onClick={() => {
+                      setBusy(task.id);
+                      complete.run({ entityId: view.entityId, taskId: task.id }, () => {
                         toast.success(t('tasks.doneToast'));
                         onChanged();
-                      }); }
-                    }
+                      });
+                    }}
                   >
                     {t('tasks.markDone')}
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => { onReschedule(task); }}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      onReschedule(task);
+                    }}
+                  >
                     {t('tasks.reschedule')}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    pending={cancel.pending}
-                    onClick={() => { cancel.run({ entityId: view.entityId, taskId: task.id }, () => {
+                    pending={cancel.pending && busy === task.id}
+                    onClick={() => {
+                      setBusy(task.id);
+                      cancel.run({ entityId: view.entityId, taskId: task.id }, () => {
                         toast.success(t('tasks.cancelledToast'));
                         onChanged();
-                      }); }
-                    }
+                      });
+                    }}
                   >
                     {t('tasks.cancel')}
                   </Button>

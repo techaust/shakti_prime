@@ -64,7 +64,9 @@ export function CustomersScreen({
 
   const view = useGridView({
     density: 'compact',
-    onSortChange: (next) => { readFirst({ sort: toListSort(next, CUSTOMER_SORT_COLUMNS), q: readWith.current.q }); },
+    onSortChange: (next) => {
+      readFirst({ sort: toListSort(next, CUSTOMER_SORT_COLUMNS), q: readWith.current.q });
+    },
   });
 
   function loadMore() {
