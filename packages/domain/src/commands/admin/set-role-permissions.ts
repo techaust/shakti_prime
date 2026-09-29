@@ -2,6 +2,8 @@ import {
   DomainError,
   EXECUTIVE_KEPT_GRANTS,
   isPlatformOnlyPermission,
+  PERMISSION_SCOPES,
+  roleMayHold,
   RolePermissionsSetDto,
   SetRolePermissionsInput,
   STAFF_ROLE_KEYS,
@@ -12,14 +14,17 @@ import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { roleGrantsVersion } from './role-grants-version';
 
 const isStaffRole = (key: string) => (STAFF_ROLE_KEYS as readonly string[]).includes(key);
 
 /**
- * Checks the grant set an Executive asks for before anything is read: only staff roles are
- * edited here (an agent keeps its fixed set, a system role belongs to the platform), no staff role
- * may hold a platform-only permission, and the Executive role always keeps managing people and
- * roles, so the group can never lock itself out (docs/SECURITY.md §3.1).
+ * Checks the grant set an Executive asks for before anything is read (docs/SECURITY.md §3.1):
+ * only staff roles are edited here (an agent keeps its fixed set, a system role belongs to the
+ * platform); no staff role holds a platform-only permission; an Executive-only or cost permission
+ * goes only to the roles allowed to hold it (BLUEPRINT §7.1 to §7.3); each scope is one the
+ * permission honours; and the Executive role always keeps managing people and roles, so the
+ * group can never lock itself out. The database refuses the same holders (`app.role_may_hold()`).
  */
 export function assertEditableGrants(roleKey: string, grants: readonly RoleGrantInput[]): void {
   if (!isStaffRole(roleKey)) {
@@ -34,6 +39,13 @@ export function assertEditableGrants(roleKey: string, grants: readonly RoleGrant
       permissions: platformOnly.map((g) => g.permission),
     });
   }
+  const notForRole = grants.filter((g) => !roleMayHold(roleKey, g.permission));
+  if (notForRole.length > 0) {
+    throw new DomainError('validation_failed', `role ${roleKey} may not hold these permissions`, {
+      reason: 'permission_not_for_role',
+      permissions: notForRole.map((g) => g.permission),
+    });
+  }
   if (roleKey === 'executive') {
     const kept = EXECUTIVE_KEPT_GRANTS.every((k) =>
       grants.some((g) => g.permission === k.key && g.scope === k.scope),
@@ -43,6 +55,15 @@ export function assertEditableGrants(roleKey: string, grants: readonly RoleGrant
         reason: 'executive_keeps_admin',
       });
     }
+  }
+  const offScope = grants.filter(
+    (g) => !(PERMISSION_SCOPES[g.permission] as readonly string[]).includes(g.scope),
+  );
+  if (offScope.length > 0) {
+    throw new DomainError('validation_failed', 'a scope the permission does not honour', {
+      reason: 'scope_not_offered',
+      permissions: offScope.map((g) => g.permission),
+    });
   }
 }
 
@@ -61,12 +82,13 @@ async function assertGroupScope(ctx: CommandContext): Promise<void> {
 /**
  * `admin.role.permissions.set` (docs/design/phase1.md §6.2): replaces a staff role's grants as a
  * set and marks the role customised, so a later seed keeps the edit and adds only permissions
- * created after it (docs/DATABASE.md §9). Everyone holding the role, in any company, is signed
- * out (`role_changed`) so their next request resolves the new grants; the caller's own current
- * sign-in stays, named by the server action in `keepSessionId`, which spares only a session of
- * the caller. The action then drops the cached access of every holder. Only a request acting for
- * every company may change a role, which the database policies enforce as well (the
- * platform-only trigger too).
+ * created after it (docs/DATABASE.md §9). The editor sends the fingerprint of the set it read,
+ * and a save over a set someone changed since is refused (`role_changed_meanwhile`). Everyone
+ * holding the role, in any company, is signed out (`role_changed`) so their next request resolves
+ * the new grants; the caller's own current sign-in stays, named by the server action in
+ * `keepSessionId`, which spares only a session of the caller. The action then drops the cached
+ * access of every holder. Only a request acting for every company may change a role, which the
+ * database policies enforce as well, with the holder rules in `role_permissions_holder_guard`.
  */
 export const setRolePermissions = defineCommand({
   name: 'admin.role.permissions.set',
@@ -78,7 +100,11 @@ export const setRolePermissions = defineCommand({
   output: RolePermissionsSetDto,
   auditFields: ['grants', 'customisedAt', 'holders', 'revokedSessions'],
   auditInput: (input) => ({ roleKey: input.roleKey, grants: input.grants }),
-  constraintReasons: { role_permissions_platform_only: 'permission_platform_only' },
+  constraintReasons: {
+    role_permissions_platform_only: 'permission_platform_only',
+    role_permissions_holder: 'permission_not_for_role',
+    role_permissions_executive_keeps_admin: 'executive_keeps_admin',
+  },
   async handler(ctx, input) {
     assertEditableGrants(input.roleKey, input.grants);
     await assertGroupScope(ctx);
@@ -89,7 +115,7 @@ export const setRolePermissions = defineCommand({
       .from(r)
       .where(and(eq(r.key, input.roleKey), isNull(r.archivedAt)))
       .limit(1)
-      // two Executives editing one role at once take turns, so neither reads a stale set
+      // two Executives editing one role at once take turns, so the second sees the first's set
       .for('update');
     if (!role) {
       throw new DomainError('not_found', 'role is not available', { reason: 'role_missing' });
@@ -101,6 +127,12 @@ export const setRolePermissions = defineCommand({
       .from(rp)
       .where(eq(rp.roleId, role.id))
       .orderBy(rp.permissionKey);
+    const version = roleGrantsVersion(beforeRows);
+    if (version !== input.expectedVersion) {
+      throw new DomainError('conflict', 'the role changed since the editor read it', {
+        reason: 'role_changed_meanwhile',
+      });
+    }
     const before = new Map(beforeRows.map((g) => [g.permission, g.scope as Scope]));
     const after = new Map(input.grants.map((g) => [g.permission as string, g.scope]));
 
@@ -110,14 +142,13 @@ export const setRolePermissions = defineCommand({
       ([k, scope]) => before.has(k) && before.get(k) !== scope,
     );
 
-    const holders = await holdersOf(ctx, role.id);
-    const unchanged = removed.length === 0 && added.length === 0 && rescoped.length === 0;
-    if (unchanged) {
+    if (removed.length === 0 && added.length === 0 && rescoped.length === 0) {
       return {
         roleId: role.id,
         roleKey: input.roleKey,
         grantCount: before.size,
         customisedAt: role.customisedAt?.toISOString() ?? null,
+        version,
         revokedSessions: 0,
         holderUserIds: [],
       };
@@ -146,11 +177,15 @@ export const setRolePermissions = defineCommand({
         })),
       );
     }
-    await ctx.tx
+    // The database's own clock, as the seed compares it with `permissions.created_at`.
+    const [marked] = await ctx.tx
       .update(r)
-      .set({ customisedAt: ctx.now, updatedBy: actor })
-      .where(eq(r.id, role.id));
+      .set({ customisedAt: sql`now()`, updatedBy: actor })
+      .where(eq(r.id, role.id))
+      .returning({ customisedAt: r.customisedAt });
+    const customisedAt = (marked?.customisedAt ?? ctx.now).toISOString();
 
+    const holders = await holdersOf(ctx, role.id);
     const revoked = await revokeHolderSessions(ctx, holders, input.keepSessionId);
     const grantsAfter = [...after.entries()]
       .map(([permission, scope]) => ({ permission, scope }))
@@ -165,34 +200,36 @@ export const setRolePermissions = defineCommand({
       },
       after: {
         grants: grantsAfter,
-        customisedAt: ctx.now.toISOString(),
+        customisedAt,
         holders: holders.length,
         revokedSessions: revoked,
       },
     });
-    const entityId = ctx.entityIds[0];
-    if (entityId !== undefined) {
-      ctx.emit({
-        type: 'admin.role.permissions_changed',
-        entityId,
-        aggregateType: 'role',
-        aggregateId: role.id,
-        payload: {
-          roleId: role.id,
-          grantCount: after.size,
-          added: added.length,
-          removed: removed.length,
-          rescoped: rescoped.length,
-          holders: holders.length,
-          revokedSessions: revoked,
-        },
-      });
-    }
+    // The outbox files every event under a company (`outbox_events.entity_id` is required). A role
+    // belongs to the whole group, and the request acts for every company, so the event goes under
+    // the lowest company id of the request, the same company for every role change.
+    const entityId = Math.min(...ctx.entityIds);
+    ctx.emit({
+      type: 'admin.role.permissions_changed',
+      entityId,
+      aggregateType: 'role',
+      aggregateId: role.id,
+      payload: {
+        roleId: role.id,
+        grantCount: after.size,
+        added: added.length,
+        removed: removed.length,
+        rescoped: rescoped.length,
+        holders: holders.length,
+        revokedSessions: revoked,
+      },
+    });
     return {
       roleId: role.id,
       roleKey: input.roleKey,
       grantCount: after.size,
-      customisedAt: ctx.now.toISOString(),
+      customisedAt,
+      version: roleGrantsVersion(grantsAfter),
       revokedSessions: revoked,
       holderUserIds: holders,
     };
@@ -213,7 +250,12 @@ async function holdersOf(ctx: CommandContext, roleId: string): Promise<string[]>
   return rows.map((row) => row.userId);
 }
 
-/** Revokes every live session of the holders except the caller's own named one; answers how many. */
+/**
+ * Revokes every live session of the holders except the caller's own named one, and answers how
+ * many. The sessions policy lets an administrator revoke only a person who works in no active
+ * company outside the request; should it hold any session back, nothing is saved
+ * (`role_holders_kept`), because a holder still signed in would keep the old grants.
+ */
 async function revokeHolderSessions(
   ctx: CommandContext,
   holders: readonly string[],
@@ -225,10 +267,20 @@ async function revokeHolderSessions(
     keepSessionId === undefined
       ? undefined
       : or(ne(s.id, keepSessionId), ne(s.userId, ctx.principal.id));
+  const live = and(inArray(s.userId, [...holders]), isNull(s.revokedAt), spared);
+  const [counted] = await ctx.tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(s)
+    .where(live);
   const rows = await ctx.tx
     .update(s)
     .set({ revokedAt: ctx.now, revokedReason: 'role_changed' })
-    .where(and(inArray(s.userId, [...holders]), isNull(s.revokedAt), spared))
+    .where(live)
     .returning({ id: s.id });
+  if (rows.length !== (counted?.n ?? 0)) {
+    throw new DomainError('conflict', 'some holders could not be signed out', {
+      reason: 'role_holders_kept',
+    });
+  }
   return rows.length;
 }

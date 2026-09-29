@@ -435,6 +435,13 @@
       "when": 1790703702644,
       "tag": "0061_role_editor",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790716311568,
+      "tag": "0062_role_editor_holders",
+      "breakpoints": true
     }
   ]
 }

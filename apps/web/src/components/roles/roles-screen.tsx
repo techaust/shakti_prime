@@ -59,7 +59,7 @@ export function RolesScreen({ roles }: { roles: RoleSummaryDto[] }) {
       columns={columns}
       rows={roles}
       rowKey={(r) => r.key}
-      empty={<EmptyState message={t('people', { count: 0 })} />}
+      empty={<EmptyState message={t('empty')} />}
     />
   );
 }

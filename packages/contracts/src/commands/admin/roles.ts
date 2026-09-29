@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { IdSchema } from '../../ids';
+import { RoleGrantsVersionSchema } from '../../dto/role';
 import { PERMISSION_KEYS, PermissionKeySchema, ScopeSchema } from '../../permissions';
 
 /** One permission of a role at one scope, as the role editor sends it. */
@@ -30,6 +31,11 @@ export const SetRolePermissionsInput = z
       .refine((rows) => new Set(rows.map((r) => r.permission)).size === rows.length, {
         message: 'one scope per permission',
       }),
+    /**
+     * The fingerprint of the grant set the editor read (`RoleGrantsDto.version`): a save is
+     * refused with `role_changed_meanwhile` when the role changed since.
+     */
+    expectedVersion: RoleGrantsVersionSchema,
     keepSessionId: IdSchema.optional(),
   })
   .strict();
@@ -45,6 +51,7 @@ export const RolePermissionsSetDto = z
     roleKey: z.string(),
     grantCount: z.number().int().min(0),
     customisedAt: z.iso.datetime().nullable(),
+    version: RoleGrantsVersionSchema,
     revokedSessions: z.number().int().min(0),
     holderUserIds: z.array(IdSchema),
   })

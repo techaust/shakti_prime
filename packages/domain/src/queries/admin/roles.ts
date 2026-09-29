@@ -1,12 +1,17 @@
 import {
   DomainError,
+  EXECUTIVE_KEPT_GRANTS,
+  EXECUTIVE_ONLY_PERMISSIONS,
   isPlatformOnlyPermission,
+  PERMISSION_SCOPES,
   PERMISSION_KEYS,
   RoleGrantsDto,
   RoleGrantsQuery,
   RoleListDto,
+  roleMayHold,
   STAFF_ROLE_KEYS,
   type PermissionKey,
+  type RoleGrantLock,
   type RoleSummaryDto,
   type Scope,
   type StaffRoleKey,
@@ -14,6 +19,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
+import { roleGrantsVersion } from '../../commands/admin/role-grants-version';
 import { parseQueryInput } from '../parse-input';
 
 type AdminContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -74,10 +80,27 @@ export async function listRoles(ctx: AdminContext): Promise<RoleListDto> {
   return RoleListDto.parse({ roles: await roleSummaries(ctx, STAFF_ROLE_KEYS) });
 }
 
+/** What the editor offers a role for a permission, and why it offers no choice, if it does not. */
+export function roleGrantChoice(
+  roleKey: StaffRoleKey,
+  key: PermissionKey,
+): { scopes: Scope[]; locked: RoleGrantLock | null } {
+  if (!roleMayHold(roleKey, key)) {
+    const executiveOnly = (EXECUTIVE_ONLY_PERMISSIONS as readonly string[]).includes(key);
+    return { scopes: [], locked: executiveOnly ? 'executiveOnly' : 'costHolders' };
+  }
+  if (roleKey === 'executive' && EXECUTIVE_KEPT_GRANTS.some((g) => g.key === key)) {
+    return { scopes: ['all'], locked: 'executiveKeeps' };
+  }
+  return { scopes: [...PERMISSION_SCOPES[key]], locked: null };
+}
+
 /**
- * One staff role's page: the permission catalogue in its own order, each with its plain
- * description, its module and the role's scope, or null when the role lacks it. Platform-only
- * permissions are never offered to a staff role and are left out.
+ * One staff role's page: the permission catalogue in its own order, each with the role's scope,
+ * or null when the role lacks it, the scopes the editor offers and why a permission is locked;
+ * the fingerprint of the role's grant set for the save's optimistic check; and whether the
+ * request acts for every company, which a save needs. Platform-only permissions are never
+ * offered to a staff role and are left out.
  */
 export async function getRoleGrants(ctx: AdminContext, rawInput: unknown): Promise<RoleGrantsDto> {
   const input = parseQueryInput(RoleGrantsQuery, rawInput, 'admin.roles.grants');
@@ -89,17 +112,29 @@ export async function getRoleGrants(ctx: AdminContext, rawInput: unknown): Promi
   const p = schema.permissions;
   const rp = schema.rolePermissions;
   const rows = await ctx.tx
-    .select({ key: p.key, module: p.module, description: p.description, scope: rp.scope })
+    .select({ key: p.key, module: p.module, scope: rp.scope })
     .from(p)
     .leftJoin(rp, and(eq(rp.permissionKey, p.key), eq(rp.roleId, role.id)));
+  const granted = await ctx.tx
+    .select({ permission: rp.permissionKey, scope: rp.scope })
+    .from(rp)
+    .where(eq(rp.roleId, role.id));
+  const [covers] = (await ctx.tx.execute(
+    sql`select app.request_covers_group() as ok`,
+  )) as unknown as { ok: boolean }[];
   const permissions = rows
     .filter((row) => CATALOGUE_ORDER.has(row.key) && !isPlatformOnlyPermission(row.key))
     .sort((a, b) => (CATALOGUE_ORDER.get(a.key) ?? 0) - (CATALOGUE_ORDER.get(b.key) ?? 0))
     .map((row) => ({
       key: row.key as PermissionKey,
       module: row.module,
-      description: row.description,
       scope: (row.scope as Scope | null) ?? null,
+      ...roleGrantChoice(role.key, row.key as PermissionKey),
     }));
-  return RoleGrantsDto.parse({ role, permissions });
+  return RoleGrantsDto.parse({
+    role,
+    permissions,
+    version: roleGrantsVersion(granted),
+    groupScope: covers?.ok === true,
+  });
 }

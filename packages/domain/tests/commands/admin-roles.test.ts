@@ -14,6 +14,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { runCommand } from '../../src/command/run-command';
+import { roleGrantsVersion } from '../../src/commands/admin/role-grants-version';
 import { setRolePermissions } from '../../src/commands/admin/set-role-permissions';
 
 afterAll(closeDb);
@@ -23,6 +24,11 @@ const EDITED = 'hr_admin' as const;
 
 const seeded = (key: (typeof STAFF_ROLE_KEYS)[number]): RoleGrantInput[] =>
   grantsForRole(key).map((g) => ({ permission: g.key, scope: g.scope }));
+
+/** The fingerprint the editor reads for a role the seed set up and nobody changed since. */
+const SEEDED = (key: (typeof STAFF_ROLE_KEYS)[number]) => roleGrantsVersion(seeded(key));
+/** Any fingerprint, for a role the command refuses before reading. */
+const ANY_VERSION = '0'.repeat(64);
 
 async function addSession(userId: string): Promise<string> {
   const id = newId();
@@ -67,10 +73,10 @@ async function restore(key: string): Promise<void> {
 }
 
 const edited = (): RoleGrantInput[] => [
-  // hr.export removed, hr.employee.write narrowed from all, pricing.read added
+  // hr.export removed, hr.leave.approve narrowed from all, pricing.read added
   ...seeded(EDITED)
     .filter((g) => g.permission !== 'hr.export')
-    .map((g) => (g.permission === 'hr.employee.write' ? { ...g, scope: 'entity' as const } : g)),
+    .map((g) => (g.permission === 'hr.leave.approve' ? { ...g, scope: 'entity' as const } : g)),
   { permission: 'pricing.read', scope: 'entity' },
 ];
 
@@ -83,7 +89,7 @@ describe('admin.role.permissions.set: who may change a role', () => {
           runCommand(
             setRolePermissions,
             { context, audit, outbox },
-            { roleKey: EDITED, grants: edited() },
+            { roleKey: EDITED, grants: edited(), expectedVersion: SEEDED(EDITED) },
           ),
         ),
       ).rejects.toMatchObject({ code: 'forbidden' });
@@ -98,7 +104,7 @@ describe('admin.role.permissions.set: who may change a role', () => {
         runCommand(
           setRolePermissions,
           { context, audit, outbox },
-          { roleKey: EDITED, grants: edited() },
+          { roleKey: EDITED, grants: edited(), expectedVersion: SEEDED(EDITED) },
         ),
       ),
     ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'role_group_scope' } });
@@ -113,7 +119,11 @@ describe('admin.role.permissions.set: who may change a role', () => {
           runCommand(
             setRolePermissions,
             { context, audit, outbox },
-            { roleKey, grants: [{ permission: 'crm.lead.read', scope: 'entity' }] },
+            {
+              roleKey,
+              grants: [{ permission: 'crm.lead.read', scope: 'entity' }],
+              expectedVersion: ANY_VERSION,
+            },
           ),
         ),
       ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'role_not_editable' } });
@@ -138,7 +148,7 @@ describe('admin.role.permissions.set: who may change a role', () => {
           runCommand(
             setRolePermissions,
             { context, audit, outbox },
-            { roleKey: 'executive', grants },
+            { roleKey: 'executive', grants, expectedVersion: SEEDED('executive') },
           ),
         ),
       ).rejects.toMatchObject({
@@ -157,7 +167,11 @@ describe('admin.role.permissions.set: who may change a role', () => {
         runCommand(
           setRolePermissions,
           { context, audit, outbox },
-          { roleKey: EDITED, grants: [{ permission: 'files.process', scope: 'all' }] },
+          {
+            roleKey: EDITED,
+            grants: [{ permission: 'files.process', scope: 'all' }],
+            expectedVersion: SEEDED(EDITED),
+          },
         ),
       ),
     ).rejects.toMatchObject({ code: 'validation_failed' });
@@ -193,7 +207,12 @@ describe('admin.role.permissions.set: the change', () => {
         runCommand(
           setRolePermissions,
           { context, audit: recorded, outbox: emitted },
-          { roleKey: EDITED, grants: edited(), keepSessionId: sessions.callerKept },
+          {
+            roleKey: EDITED,
+            grants: edited(),
+            expectedVersion: SEEDED(EDITED),
+            keepSessionId: sessions.callerKept,
+          },
         ),
       );
       expect(dto).toMatchObject({
@@ -203,7 +222,9 @@ describe('admin.role.permissions.set: the change', () => {
       });
       // the two holders' sessions and the caller's other one, at least
       expect(dto.revokedSessions).toBeGreaterThanOrEqual(3);
-      expect(dto.customisedAt).not.toBeNull();
+      // the database's own clock, as the seed compares it
+      expect(dto.customisedAt).toBe((await customisedAt(EDITED))?.toISOString());
+      expect(dto.version).toBe(roleGrantsVersion(edited()));
       expect(dto.holderUserIds).toEqual(
         expect.arrayContaining([holderOne.id, holderThree.id, callerUser.id]),
       );
@@ -273,7 +294,12 @@ describe('admin.role.permissions.set: the change', () => {
         runCommand(
           setRolePermissions,
           { context, audit, outbox },
-          { roleKey: EDITED, grants: edited(), keepSessionId: session },
+          {
+            roleKey: EDITED,
+            grants: edited(),
+            expectedVersion: SEEDED(EDITED),
+            keepSessionId: session,
+          },
         ),
       );
       expect(await sessionState([session])).toEqual({ [session]: 'role_changed' });
@@ -292,7 +318,7 @@ describe('admin.role.permissions.set: the change', () => {
         runCommand(
           setRolePermissions,
           { context, audit, outbox: emitted },
-          { roleKey: EDITED, grants: seeded(EDITED) },
+          { roleKey: EDITED, grants: seeded(EDITED), expectedVersion: SEEDED(EDITED) },
         ),
       );
       expect(dto).toMatchObject({ revokedSessions: 0, holderUserIds: [], customisedAt: null });
@@ -301,6 +327,129 @@ describe('admin.role.permissions.set: the change', () => {
       expect(await customisedAt(EDITED)).toBeNull();
     } finally {
       await restore(EDITED);
+    }
+  });
+});
+
+describe('admin.role.permissions.set: who may hold what (BLUEPRINT 7.1 to 7.3)', () => {
+  const refusal = async (roleKey: (typeof STAFF_ROLE_KEYS)[number], extra: RoleGrantInput[]) => {
+    const exec = await createTestPrincipal('executive');
+    return asPrincipal(exec, (context) =>
+      runCommand(
+        setRolePermissions,
+        { context, audit, outbox },
+        { roleKey, grants: [...seeded(roleKey), ...extra], expectedVersion: SEEDED(roleKey) },
+      ),
+    ).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  };
+
+  it('gives a cost permission only to the roles allowed to hold it', async () => {
+    for (const [roleKey, grant] of [
+      ['general_manager', { permission: 'finance.cost.read', scope: 'entity' }],
+      ['inventory_manager', { permission: 'finance.cost.read', scope: 'entity' }],
+      ['sales_team_lead', { permission: 'procurement.rate.read', scope: 'entity' }],
+    ] as const) {
+      expect(await refusal(roleKey, [grant])).toMatchObject({
+        code: 'validation_failed',
+        details: { reason: 'permission_not_for_role', permissions: [grant.permission] },
+      });
+    }
+    expect(await customisedAt('general_manager')).toBeNull();
+  });
+
+  it('gives admin permissions and the replay of failed messages to the Executive role only', async () => {
+    for (const [roleKey, permission] of [
+      ['general_manager', 'admin.flags.write'],
+      ['accounts', 'admin.users.write'],
+      ['hr_admin', 'integrations.dlq.replay'],
+    ] as const) {
+      expect(await refusal(roleKey, [{ permission, scope: 'all' }])).toMatchObject({
+        code: 'validation_failed',
+        details: { reason: 'permission_not_for_role' },
+      });
+    }
+  });
+
+  it('offers only the scopes a permission honours', async () => {
+    const exec = await createTestPrincipal('executive');
+    const grants = seeded(EDITED).map((g) =>
+      g.permission === 'hr.export' ? { ...g, scope: 'entity' as const } : g,
+    );
+    await expect(
+      asPrincipal(exec, (context) =>
+        runCommand(
+          setRolePermissions,
+          { context, audit, outbox },
+          { roleKey: EDITED, grants, expectedVersion: SEEDED(EDITED) },
+        ),
+      ),
+    ).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'scope_not_offered', permissions: ['hr.export'] },
+    });
+  });
+});
+
+describe('admin.role.permissions.set: a save over a stale page and holders elsewhere', () => {
+  it('refuses a save when the role changed since the editor read it', async () => {
+    const exec = await createTestPrincipal('executive');
+    const run = (expectedVersion: string) =>
+      asPrincipal(exec, (context) =>
+        runCommand(
+          setRolePermissions,
+          { context, audit, outbox },
+          { roleKey: EDITED, grants: edited(), expectedVersion },
+        ),
+      );
+    try {
+      await expect(run(ANY_VERSION)).rejects.toMatchObject({
+        code: 'conflict',
+        details: { reason: 'role_changed_meanwhile' },
+      });
+      expect(await customisedAt(EDITED)).toBeNull();
+      // the first of two editors that read the seeded set saves; the second is refused
+      await run(SEEDED(EDITED));
+      await expect(run(SEEDED(EDITED))).rejects.toMatchObject({
+        code: 'conflict',
+        details: { reason: 'role_changed_meanwhile' },
+      });
+    } finally {
+      await restore(EDITED);
+    }
+  });
+
+  it('signs out a holder who also keeps a role in an archived company', async () => {
+    const archived = 31;
+    await asMigrator(
+      (m) => m`insert into entities (id, code, legal_name, brand_name, state_code, archived_at)
+        values (${archived}, 'ARCH31', 'Archived Test Private Limited', 'Archived', '08', now())
+        on conflict (id) do nothing`,
+    );
+    const holder = await createTestUser([
+      { entityId: 1, roleKey: EDITED },
+      { entityId: archived, roleKey: 'accounts' },
+    ]);
+    const session = await addSession(holder.id);
+    const exec = await createTestPrincipal('executive');
+    try {
+      const dto = await asPrincipal(exec, (context) =>
+        runCommand(
+          setRolePermissions,
+          { context, audit, outbox },
+          { roleKey: EDITED, grants: edited(), expectedVersion: SEEDED(EDITED) },
+        ),
+      );
+      expect(dto.holderUserIds).toContain(holder.id);
+      expect(await sessionState([session])).toEqual({ [session]: 'role_changed' });
+    } finally {
+      await restore(EDITED);
+      await asMigrator(async (m) => {
+        await m`delete from user_entity_roles where entity_id = ${archived}`;
+        await m`delete from entities where id = ${archived}`;
+      });
     }
   });
 });

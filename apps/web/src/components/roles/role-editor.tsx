@@ -9,14 +9,13 @@ import { useRef, useState } from 'react';
 import type { ModuleNameKey, PermissionNameKey } from '../../i18n/types';
 import {
   byModule,
+  choicesFor,
   costWarning,
   grantsOf,
   hasChanges,
   initialChoices,
-  isKeptGrant,
   isScopeChoice,
   permissionMessageKey,
-  SCOPE_CHOICES,
   summarise,
   type ChangeSummary,
   type Choices,
@@ -27,8 +26,10 @@ const SaveRoleDialog = dynamic(() => import('./save-role-dialog').then((m) => m.
 
 /**
  * One staff role's permissions (docs/design/phase1.md §6.2): the catalogue grouped by module with
- * a scope picker for each, a running summary of what the choices change, and a save that names
- * how many people are signed out before it runs.
+ * a scope picker for each, offering only the scopes the permission honours, a locked line with its
+ * reason where the role may not choose, a running summary of what the choices change, and a save
+ * that names how many people are signed out before it runs. A request narrowed to some companies
+ * sees why it cannot save instead.
  */
 export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; holdsRole: boolean }) {
   const t = useTranslations('adminRoles');
@@ -36,15 +37,23 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
   const [role, setRole] = useState(initial.role);
   const [saved, setSaved] = useState<Choices>(() => initialChoices(initial.permissions));
   const [chosen, setChosen] = useState<Choices>(saved);
+  const [version, setVersion] = useState(initial.version);
   const [confirming, setConfirming] = useState(false);
   const saveButton = useRef<HTMLButtonElement>(null);
   const summaryLine = useRef<HTMLParagraphElement>(null);
   const summary = summarise(saved, chosen);
   const changed = hasChanges(summary);
+  const canSave = initial.groupScope && changed;
   const roleName = names(role.key);
 
   return (
     <div className="flex flex-col gap-8 pb-4">
+      {initial.groupScope ? null : (
+        <p className="border-border bg-warning-soft flex items-start gap-2 rounded-md border px-3 py-2">
+          <TriangleAlert aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
+          <span>{t('groupScopeNotice')}</span>
+        </p>
+      )}
       <p className="text-text-muted">{t('people', { count: role.holderCount })}</p>
       {byModule(initial.permissions).map((group) => (
         <fieldset key={group.module} className="flex flex-col gap-4">
@@ -54,7 +63,6 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
               <PermissionChoice
                 key={p.key}
                 permission={p}
-                roleKey={role.key}
                 value={chosen[p.key] ?? 'none'}
                 onChange={(value) => {
                   setChosen((all) => ({ ...all, [p.key]: value }));
@@ -81,7 +89,7 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
           </Button>
           <Button
             ref={saveButton}
-            disabled={!changed}
+            disabled={!canSave}
             onClick={() => {
               setConfirming(true);
             }}
@@ -95,12 +103,14 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
           roleKey={role.key}
           roleName={roleName}
           grants={grantsOf(initial.permissions, chosen)}
+          expectedVersion={version}
           summary={<SummaryText summary={summary} />}
           holderCount={role.holderCount}
           holdsRole={holdsRole}
           returnFocusTo={() => [saveButton.current, summaryLine.current]}
           onSaved={(result) => {
             setSaved(chosen);
+            setVersion(result.version);
             setRole((r) => ({
               ...r,
               grantCount: result.grantCount,
@@ -130,39 +140,56 @@ function SummaryText({ summary }: { summary: ChangeSummary }) {
 
 function PermissionChoice({
   permission,
-  roleKey,
   value,
   onChange,
 }: {
   permission: RolePermissionDto;
-  roleKey: string;
-  value: string;
+  value: Choices[string];
   onChange: (value: Choices[string]) => void;
 }) {
   const t = useTranslations('adminRoles');
   const id = `grant-${permissionMessageKey(permission.key)}`;
   const name = t(`permissions.${permissionMessageKey(permission.key) as PermissionNameKey}`);
-  const kept = isKeptGrant(roleKey, permission.key);
+  if (permission.locked !== null) {
+    // Read-only text a keyboard can still reach, with the reason read out after the value.
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span id={`${id}-label`} className="text-text-muted text-sm font-medium">
+          {name}
+        </span>
+        <p
+          id={id}
+          tabIndex={0}
+          aria-labelledby={`${id}-label ${id}`}
+          aria-describedby={`${id}-note`}
+          className="border-border text-text rounded-md border border-dashed px-3 py-2"
+        >
+          {t(`scope.${value}`)}
+        </p>
+        <p id={`${id}-note`} className="text-text-subtle text-xs">
+          {t(`locked.${permission.locked}`)}
+        </p>
+      </div>
+    );
+  }
   const warning = costWarning(permission.key);
-  const helper = kept ? (
-    t('keptNote')
-  ) : warning === undefined ? undefined : (
-    <span className="text-warning flex items-start gap-1.5">
-      <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-      <span>{t(warning)}</span>
-    </span>
-  );
+  const helper =
+    warning === undefined ? undefined : (
+      <span className="text-warning flex items-start gap-1.5">
+        <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+        <span>{t(warning)}</span>
+      </span>
+    );
   return (
     <Field id={id} label={name} helper={helper}>
       <Select
         value={value}
-        disabled={kept}
         onChange={(e) => {
           const next = e.currentTarget.value;
           if (isScopeChoice(next)) onChange(next);
         }}
       >
-        {SCOPE_CHOICES.map((choice) => (
+        {choicesFor(permission).map((choice) => (
           <option key={choice} value={choice}>
             {t(`scope.${choice}`)}
           </option>

@@ -8,6 +8,7 @@ import {
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, describe, expect, it } from 'vitest';
+import { roleGrantsVersion } from '../../src/commands/admin/role-grants-version';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 
 afterAll(closeDb);
@@ -65,9 +66,29 @@ describe('listRoles and getRoleGrants', () => {
     );
     for (const p of page.permissions) {
       expect(p.scope, p.key).toBe(granted[p.key] ?? null);
-      expect(p.description).not.toBe('');
       expect(p.module).toBe(p.key.split('.')[0]);
     }
+    expect(page.version).toBe(
+      roleGrantsVersion(
+        grantsForRole('tele_caller_cc').map((g) => ({ permission: g.key, scope: g.scope })),
+      ),
+    );
+    expect(page.groupScope).toBe(true);
+    const byKey = Object.fromEntries(page.permissions.map((p) => [p.key, p]));
+    expect(byKey['finance.cost.read']).toMatchObject({ locked: 'costHolders', scopes: [] });
+    expect(byKey['admin.users.write']).toMatchObject({ locked: 'executiveOnly', scopes: [] });
+    expect(byKey['pricing.read']).toMatchObject({ locked: null, scopes: ['entity', 'all'] });
+  });
+
+  it('locks the admin grants the Executive role keeps and names a narrowed request', async () => {
+    const page = await asPrincipal(await createTestPrincipal('executive', [2]), (ctx) =>
+      getRoleGrants(ctx, { roleKey: 'executive' }),
+    );
+    expect(page.groupScope).toBe(false);
+    const byKey = Object.fromEntries(page.permissions.map((p) => [p.key, p]));
+    expect(byKey['admin.roles.write']).toMatchObject({ locked: 'executiveKeeps', scopes: ['all'] });
+    expect(byKey['admin.flags.write']).toMatchObject({ locked: null, scopes: ['all'] });
+    expect(byKey['finance.cost.read']).toMatchObject({ locked: null, scopes: ['entity', 'all'] });
   });
 
   it('refuses an agent role key as input', async () => {

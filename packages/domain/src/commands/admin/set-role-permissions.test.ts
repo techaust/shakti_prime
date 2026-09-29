@@ -47,6 +47,39 @@ describe('assertEditableGrants', () => {
     }
   });
 
+  it('gives cost and admin permissions only to the roles allowed to hold them', () => {
+    const notFor = (permissions: string[]) => ({
+      code: 'validation_failed',
+      details: { reason: 'permission_not_for_role', permissions },
+    });
+    expect(
+      refusal('general_manager', [{ permission: 'finance.cost.read', scope: 'entity' }]),
+    ).toEqual(notFor(['finance.cost.read']));
+    expect(
+      refusal('inventory_manager', [{ permission: 'procurement.rate.read', scope: 'entity' }]),
+    ).toBeUndefined();
+    expect(refusal('accounts', [{ permission: 'finance.cost.read', scope: 'entity' }])).toBe(
+      undefined,
+    );
+    expect(refusal('hr_admin', [{ permission: 'integrations.dlq.replay', scope: 'all' }])).toEqual(
+      notFor(['integrations.dlq.replay']),
+    );
+    expect(refusal('general_manager', [{ permission: 'admin.flags.write', scope: 'all' }])).toEqual(
+      notFor(['admin.flags.write']),
+    );
+  });
+
+  it('offers only the scopes a permission honours', () => {
+    expect(refusal('accounts', [{ permission: 'finance.cost.read', scope: 'own' }])).toEqual({
+      code: 'validation_failed',
+      details: { reason: 'scope_not_offered', permissions: ['finance.cost.read'] },
+    });
+    expect(refusal('hr_admin', [{ permission: 'profile.write', scope: 'own' }])).toBeUndefined();
+    expect(refusal('hr_admin', [{ permission: 'profile.write', scope: 'all' }])).toMatchObject({
+      details: { reason: 'scope_not_offered' },
+    });
+  });
+
   it('keeps both admin grants at all on the Executive role, and on no other role', () => {
     const keep = { code: 'validation_failed', details: { reason: 'executive_keeps_admin' } };
     expect(refusal('executive', [])).toEqual(keep);

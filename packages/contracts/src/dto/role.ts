@@ -19,13 +19,28 @@ export type RoleSummaryDto = z.infer<typeof RoleSummaryDto>;
 export const RoleListDto = z.object({ roles: z.array(RoleSummaryDto) }).strict();
 export type RoleListDto = z.infer<typeof RoleListDto>;
 
-/** One catalogue permission with the role's scope for it, or null when the role lacks it. */
+/** The fingerprint of a role's grant set (SHA-256 hex), for the editor's optimistic check. */
+export const RoleGrantsVersionSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
+/**
+ * Why the editor shows a permission without a choice: only the Executive role may hold it, only
+ * its listed roles may hold a cost permission, or the Executive role always keeps it.
+ */
+export const ROLE_GRANT_LOCKS = ['executiveOnly', 'costHolders', 'executiveKeeps'] as const;
+export const RoleGrantLockSchema = z.enum(ROLE_GRANT_LOCKS);
+export type RoleGrantLock = z.infer<typeof RoleGrantLockSchema>;
+
+/**
+ * One catalogue permission with the role's scope for it (null when the role lacks it), the scopes
+ * the editor offers for it, and why it is locked, if it is.
+ */
 export const RolePermissionDto = z
   .object({
     key: PermissionKeySchema,
     module: z.string(),
-    description: z.string(),
     scope: ScopeSchema.nullable(),
+    scopes: z.array(ScopeSchema),
+    locked: RoleGrantLockSchema.nullable(),
   })
   .strict();
 export type RolePermissionDto = z.infer<typeof RolePermissionDto>;
@@ -34,6 +49,9 @@ export const RoleGrantsDto = z
   .object({
     role: RoleSummaryDto,
     permissions: z.array(RolePermissionDto),
+    version: RoleGrantsVersionSchema,
+    /** Whether the request acts for every active company, which a save needs. */
+    groupScope: z.boolean(),
   })
   .strict();
 export type RoleGrantsDto = z.infer<typeof RoleGrantsDto>;

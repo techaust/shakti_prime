@@ -74,6 +74,10 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     user_entity_roles: { i: true, u: true, d: true },
     // The role editor replaces a role's grants as a set (admin.role.permissions.set).
     role_permissions: { i: true, u: true, d: true },
+    // The seed owns the catalogue and the roles; app_user updates only a role's customised
+    // mark, a column-level grant (role-editor.test.ts).
+    roles: { i: false, u: false },
+    permissions: { i: false, u: false },
     users: { i: true, u: false },
     // A stored file and a saved template are written once; a job and a row update only their
     // working columns, never what the file said (migration 0041).

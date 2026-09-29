@@ -116,6 +116,7 @@ type RolePermissionsSaved = Omit<RolePermissionsSetDto, 'holderUserIds'>;
  * the role is signed out by the command, except the caller's own current sign-in, which this
  * action names from the session itself, never from the browser; then every holder's cached
  * access is dropped, so the caller's next request, on the kept sign-in, resolves the new grants.
+ * A cache that cannot be reached is logged; the committed save is still reported as saved.
  */
 export async function setRolePermissions(
   rawInput: unknown,
@@ -137,7 +138,16 @@ export async function setRolePermissions(
       input,
       commandOptions(meta, idempotencyKey),
     );
-    await Promise.all(holderUserIds.map((id) => forgetPrincipal(id)));
+    // The save has committed and every holder is signed out; a cache that could not be told
+    // lets a kept sign-in use the old grants for at most a minute, so it is logged, not failed.
+    const forgotten = await Promise.allSettled(holderUserIds.map((id) => forgetPrincipal(id)));
+    const missed = forgotten.filter((r) => r.status === 'rejected').length;
+    if (missed > 0) {
+      logger.log('warn', 'principal_cache.invalidate_failed', {
+        requestId: meta.requestId,
+        note: `${String(missed)} of ${String(holderUserIds.length)} holders not invalidated`,
+      });
+    }
     return saved;
   });
 }

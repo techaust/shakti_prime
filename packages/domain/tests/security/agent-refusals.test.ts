@@ -52,6 +52,7 @@ const INPUTS: Record<string, unknown> = {
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',
     grants: [{ permission: 'crm.lead.read', scope: 'all' }],
+    expectedVersion: '0'.repeat(64),
   },
   'admin.session.revoke': { sessionId: newId() },
   'admin.user.lock.clear': { userId: newId() },

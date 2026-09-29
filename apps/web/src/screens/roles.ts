@@ -3,7 +3,7 @@
 // share them. Browser code: types only from the contracts.
 
 import type { PermissionKey, RolePermissionDto, Scope } from '@shakti/contracts';
-import { COST_PERMISSION_KEYS, EXECUTIVE_KEPT_PERMISSIONS, SCOPE_VALUES } from './contract-values';
+import { COST_PERMISSION_KEYS, SCOPE_VALUES } from './contract-values';
 
 /** The choices of the scope picker, narrowest first; `none` means the role lacks the permission. */
 export const SCOPE_CHOICES = ['none', 'own', 'team', 'entity', 'all'] as const;
@@ -32,12 +32,9 @@ export function costWarning(key: string): 'costWarning' | 'rateWarning' | undefi
   return undefined;
 }
 
-/** Whether the editor locks this choice: the Executive role never loses its admin grants. */
-export function isKeptGrant(roleKey: string, permission: string): boolean {
-  return (
-    roleKey === 'executive' &&
-    (EXECUTIVE_KEPT_PERMISSIONS as readonly string[]).includes(permission)
-  );
+/** The picker's choices for a permission: not given, then the scopes it honours for the role. */
+export function choicesFor(permission: Pick<RolePermissionDto, 'scopes'>): ScopeChoice[] {
+  return ['none', ...SCOPE_VALUES.filter((s) => permission.scopes.includes(s))];
 }
 
 export type Choices = Readonly<Record<string, ScopeChoice>>;

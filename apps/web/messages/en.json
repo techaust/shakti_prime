@@ -162,7 +162,11 @@
     "role_not_editable": "This role is set by the system and can't be changed here.",
     "permission_platform_only": "That permission belongs to the system's own background work and can't be given to a role.",
     "executive_keeps_admin": "The Executive role must keep managing people and roles for all companies, so the group can't lock itself out.",
-    "role_group_scope": "A role's permissions apply in every company. Switch to all companies to change them."
+    "role_group_scope": "A role's permissions apply in every company. Switch to all companies to change them.",
+    "permission_not_for_role": "Some of these permissions can't be given to this role. Only the Executive role manages the system, and only the roles that need them see costs or supplier rates.",
+    "scope_not_offered": "One of the choices isn't offered for that permission. Reload the page and choose again.",
+    "role_changed_meanwhile": "Someone else changed this role while you were editing it. Reload the page to see their changes, then make yours again.",
+    "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment."
   },
   "auth": {
     "signIn": {
@@ -1452,7 +1456,6 @@
     },
     "costWarning": "Shows what items cost us and the margin on each sale. Give it only to people who need it.",
     "rateWarning": "Shows what suppliers charge us. Give it only to people who need it.",
-    "keptNote": "The Executive role always keeps this for all companies.",
     "summary": {
       "none": "No changes yet.",
       "added": "{count, plural, one {# permission given} other {# permissions given}}",
@@ -1466,7 +1469,7 @@
       "title": "Save the permissions of {role}",
       "effect": "{count, plural, =0 {No one holds this role now, so no one is signed out.} one {# person holds this role and is signed out on every device. They sign in again to get the new permissions.} other {# people hold this role and are signed out on every device. They sign in again to get the new permissions.}}",
       "you": "You hold this role too. You stay signed in on this device and are signed out on the others.",
-      "submit": "Save and sign out"
+      "submit": "Save changes"
     },
     "done": "The permissions of {role} are saved.",
     "modules": {
@@ -1558,6 +1561,13 @@
       "admin_integrations_write": "Manage connections to other systems",
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again"
-    }
+    },
+    "empty": "There are no roles to show.",
+    "locked": {
+      "executiveOnly": "Only the Executive role can have this.",
+      "costHolders": "Only the roles that need it can have this: Executive and Accounts, and for supplier rates also Inventory Manager.",
+      "executiveKeeps": "The Executive role always keeps this for all companies."
+    },
+    "groupScopeNotice": "A role's permissions apply in every company. Switch to all companies to change them."
   }
 }

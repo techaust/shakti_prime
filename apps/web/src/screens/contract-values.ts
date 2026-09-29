@@ -146,9 +146,3 @@ export const COST_PERMISSION_KEYS = [
   'finance.cost.read',
   'procurement.rate.read',
 ] as const satisfies readonly PermissionKey[];
-
-/** What the Executive role always keeps (`EXECUTIVE_KEPT_GRANTS`): the editor locks these. */
-export const EXECUTIVE_KEPT_PERMISSIONS = [
-  'admin.roles.write',
-  'admin.users.write',
-] as const satisfies readonly PermissionKey[];

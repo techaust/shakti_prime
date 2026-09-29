@@ -28,6 +28,7 @@ export function SaveRoleDialog({
   roleKey,
   roleName,
   grants,
+  expectedVersion,
   summary,
   holderCount,
   holdsRole,
@@ -38,6 +39,8 @@ export function SaveRoleDialog({
   roleKey: string;
   roleName: string;
   grants: { permission: PermissionKey; scope: Scope }[];
+  /** The fingerprint of the grant set the editor read, for the optimistic check. */
+  expectedVersion: string;
   summary: ReactNode;
   holderCount: number;
   holdsRole: boolean;
@@ -53,7 +56,7 @@ export function SaveRoleDialog({
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
-    run({ roleKey, grants }, onSaved);
+    run({ roleKey, grants, expectedVersion }, onSaved);
   }
 
   return (
