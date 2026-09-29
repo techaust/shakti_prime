@@ -349,6 +349,12 @@ export default tseslint.config(
               message:
                 'Only commit-job.ts reads the import batch settings; tests reach them through @shakti/domain/testing.',
             },
+            {
+              // The testing module (src/testing.ts) serves tests only, by a relative path too.
+              regex: '^\\.{1,2}/(\\.\\./)*testing(\\.[cm]?[jt]s)?$',
+              message:
+                'The domain testing module serves tests only; product code never imports it.',
+            },
           ],
         },
       ],

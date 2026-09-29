@@ -37,7 +37,13 @@ export function leasedClaim(
     }
     const { lease, rows, deadLettered } = await store.lease(limit, leaseSeconds, maxAttempts);
     // Told before anything is delivered, so a delivery that throws cannot lose them.
-    if (deadLettered.length > 0) onDeadLettered?.(deadLettered);
+    if (deadLettered.length > 0) {
+      try {
+        onDeadLettered?.(deadLettered);
+      } catch {
+        // Telling is a log line; it must never stop the run or strand the rows just leased.
+      }
+    }
     if (rows.length === 0) return { claimed: 0, deadLettered };
     const claimed = rows.map((r) => r.id);
     // The error that stopped the run matters more than a failed release; the lease runs out anyway.

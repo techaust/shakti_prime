@@ -101,6 +101,16 @@ describe('the import fences', { timeout: 60_000 }, () => {
         "export const s = () => import('./batch-settings');\n",
       ),
     ).toEqual(['no-restricted-syntax']);
+    // Nor the testing module that hands them out, by a relative path from product code.
+    expect(
+      await fences(
+        'packages/domain/src/commands/crm/fence-probe.ts',
+        reads.replace('__PATH__', '../../testing'),
+      ),
+    ).toEqual(['no-restricted-imports']);
+    expect(
+      await fences('packages/domain/src/fence-probe.ts', reads.replace('__PATH__', './testing')),
+    ).toEqual(['no-restricted-imports']);
     expect(
       await fences(
         'packages/domain/src/commands/imports/commit-job.ts',

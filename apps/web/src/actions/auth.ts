@@ -121,8 +121,10 @@ export async function requestNewPassword(
   _prev: SetPasswordState,
   formData: FormData,
 ): Promise<SetPasswordState> {
-  const typed = field(formData, 'email');
-  const email = EmailSchema.safeParse(typed);
+  const raw = field(formData, 'email');
+  const email = EmailSchema.safeParse(raw);
+  // Put back in the field after a refusal; an email address is at most 254 characters.
+  const typed = raw.slice(0, 254);
   if (!email.success) return { error: 'email_invalid', field: 'email', email: typed };
   try {
     const headers = await requestHeaders(field(formData, 'cf-turnstile-response'));

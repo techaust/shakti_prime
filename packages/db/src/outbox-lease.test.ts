@@ -162,6 +162,23 @@ describe('leasedClaim: the publisher run in two short transactions', () => {
     expect(m.log).toEqual(['lease', 'told', 'deliver', 'record']);
   });
 
+  it('carries on and records the rows it leased when telling of the dead letters throws', async () => {
+    const spent = ['00000000-0000-7000-8000-00000000f00d'];
+    const rows = [row()];
+    const m = memoryStore(rows, { deadLettered: spent });
+    await expect(
+      leasedClaim(m.store)(
+        10,
+        (given) => Promise.resolve(publishedAll(given)),
+        MAX_ATTEMPTS,
+        () => {
+          throw new Error('the logger is broken');
+        },
+      ),
+    ).resolves.toEqual({ claimed: 1, deadLettered: spent });
+    expect(m.recorded).toEqual([{ lease: 'lease-1', updates: publishedAll(rows), release: [] }]);
+  });
+
   it('releases every claimed row unchanged and raises when the delivery fails as a whole', async () => {
     const rows = [row(), row()];
     const m = memoryStore(rows);

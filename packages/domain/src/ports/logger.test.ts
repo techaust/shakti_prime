@@ -27,6 +27,13 @@ describe('redaction (AUDIT M10)', () => {
     expect(redactText('no user asha.meena@shakti.in')).toBe('no user [email]');
   });
 
+  it('hides a UPI address, which has no dot after the @', () => {
+    expect(redactText('paid to rekha.meena@oksbi today')).toBe('paid to [upi] today');
+    expect(redactText('UPI 9876543210@ybl')).toBe('UPI [upi]');
+    expect(redactText('mail asha.meena@shakti.in')).toBe('mail [email]');
+    expect(redactText('stage New @ 2 pm')).toBe('stage New @ 2 pm');
+  });
+
   it('keeps the last four digits of phone numbers and hides twelve-digit numbers in full', () => {
     expect(redactText('call +919876543210 or 9812345678, not 5123456789')).toBe(
       'call +********3210 or ******5678, not 5123456789',

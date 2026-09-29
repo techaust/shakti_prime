@@ -225,6 +225,9 @@ const SECRET_TEXT: readonly ((text: string) => string)[] = [
   (t) => t.replace(/\bparams:[\s\S]*$/, 'params: [redacted]'),
   (t) => t.replace(/(token|secret|password)=[^\s&'"]+/gi, '$1=[redacted]'),
   (t) => t.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[email]'),
+  // A UPI address (`rekha@oksbi`, `9876543210@ybl`) has no dot after the @, so the email rule
+  // above misses it, and it often carries the payer's name or number.
+  (t) => t.replace(/(?<![\w.+-])[\w.-]{2,256}@[a-z]{2,64}(?![\w.@-])/gi, '[upi]'),
   (t) => t.replace(/(?<![\w+])\+\d{8,15}(?!\w)/g, (m) => `+${lastFour(m.slice(1))}`),
   (t) =>
     t.replace(
