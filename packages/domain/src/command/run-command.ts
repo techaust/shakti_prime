@@ -210,10 +210,23 @@ export function translateDatabaseError(
  * audit rows and events in the same transaction. Denied calls throw `forbidden` before the handler
  * runs; every error carries its stage for `executeCommand` (see `failureOf`).
  */
-export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
+export function runCommand<I extends z.ZodType, O extends z.ZodType>(
   command: Command<I, O>,
   options: RunOptions,
   rawInput: unknown,
+): Promise<z.output<O>> {
+  return runWithin(command, options, rawInput, false);
+}
+
+/**
+ * `runCommand`, and the one place `inImportBatch` is set: only `ctx.run` passes true, for a row an
+ * import batch commits (`NestedRunOptions`). No option of `runCommand` or `executeCommand` sets it.
+ */
+async function runWithin<I extends z.ZodType, O extends z.ZodType>(
+  command: Command<I, O>,
+  options: RunOptions,
+  rawInput: unknown,
+  inImportBatch: boolean,
 ): Promise<z.output<O>> {
   const { context } = options;
   const parsed = command.input.safeParse(rawInput);
@@ -292,6 +305,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     entityIds: context.entityIds,
     activeEntityId,
     tx: context.tx,
+    inImportBatch,
     // Checked against the catalogue here, so a bad event fails the command that emits it.
     emit: (event) => {
       const parsed = parseEventPayload(event.type, event.payload);
@@ -323,7 +337,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
     requestId: context.requestId,
     run: async (inner, innerInput, nested = {}) => {
       try {
-        return await runCommand(
+        return await runWithin(
           inner,
           {
             context: { ...context, tx: nested.tx ?? context.tx },
@@ -337,6 +351,7 @@ export async function runCommand<I extends z.ZodType, O extends z.ZodType>(
               : { idempotencyKey: nested.idempotencyKey }),
           },
           innerInput,
+          nested.inImportBatch === true,
         );
       } catch (e) {
         // The outer command records its own stage and input, never the inner one's.

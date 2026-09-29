@@ -28,8 +28,12 @@ type Focusable = Pick<HTMLElement, 'isConnected' | 'getClientRects'> & {
   checkVisibility?: (options?: { visibilityProperty?: boolean }) => boolean;
 };
 
-/** Ancestors, the element included, that keep everything inside them from taking focus. */
-const BLOCKED_INSIDE = '[inert], [aria-disabled="true"]';
+/**
+ * Ancestors, the element included, that keep everything inside them from taking focus. Only
+ * `inert` does: `aria-disabled` tells assistive technology a control does nothing now, but the
+ * control keeps its focus (ARIA), so focus may return to it.
+ */
+const BLOCKED_INSIDE = '[inert]';
 
 /** Shown: not `display: none` (as a hidden phone column is) and not `visibility: hidden`. */
 function shown(el: Focusable): boolean {
@@ -45,9 +49,9 @@ function shown(el: Focusable): boolean {
 }
 
 /**
- * On the page, shown, not disabled (itself, by a disabled fieldset or by `aria-disabled`), not
- * inside an `inert` part of the page, and focusable at all: a control, or an element given a
- * `tabindex`, as a fallback heading is.
+ * On the page, shown, not disabled (itself or by a disabled fieldset), not inside an `inert` part
+ * of the page, and focusable at all: a control, or an element given a `tabindex`, as a fallback
+ * heading is. An `aria-disabled` control still takes focus.
  */
 export function canTakeFocus(el: Focusable): boolean {
   if (!el.isConnected || !shown(el)) return false;

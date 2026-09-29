@@ -6,6 +6,7 @@ export * as schema from './schema/index';
 export type { UserGrantRow } from './auth/user-grants';
 export type {
   ClaimOutbox,
+  OutboxClaimResult,
   OutboxLag,
   OutboxLeaseStore,
   OutboxRow,

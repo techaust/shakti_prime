@@ -35,6 +35,12 @@ const rawClientImport = {
       name: '@shakti/db/bootstrap',
       message: 'The bootstrap writes as the table owner. Scripts only.',
     },
+    // The settings tests change (an import batch's time and log) would change every request's.
+    {
+      name: '@shakti/domain/testing',
+      message:
+        'The domain testing settings change how every request runs. They are for tests only.',
+    },
     // app.user_grants() answers for any user before a request context exists: it builds the
     // principal, so only the code that resolves one may call it.
     {
@@ -72,6 +78,16 @@ const rawClientImport = {
       message:
         'Use withRequestContext() from @shakti/db. The raw client and the testing helpers are restricted to packages/db/src and test files.',
     },
+    {
+      group: [
+        '**/domain/src/testing',
+        '**/domain/src/testing.ts',
+        '**/domain/src/imports/batch-settings',
+        '**/domain/src/imports/batch-settings.ts',
+      ],
+      message:
+        'The domain testing settings change how every request runs. Tests reach them through @shakti/domain/testing.',
+    },
   ],
 };
 
@@ -101,10 +117,22 @@ const webDatabasePatterns = [
 
 // The restricted modules may not be reached by a dynamic import or require either (AUDIT M12).
 const restrictedModule =
-  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|postgres|drizzle-orm\\/postgres-js)$/';
+  '/^(@shakti\\/db\\/(client|testing|auth|outbox|bootstrap|grants)|@shakti\\/domain\\/testing|postgres|drizzle-orm\\/postgres-js)$/';
 // The same files named by a relative path into packages/db/src rather than by the package name.
 const restrictedFile =
   '/(^|\\/)db\\/src\\/(client|auth-client|outbox-client|bootstrap|testing|auth\\/user-grants)(\\.[cm]?[jt]s)?(\\/|$)/';
+
+// The domain's testing settings, named by a relative path through packages/domain/src, which a
+// dynamic import could reach without the package name.
+const restrictedDomainFile =
+  '/(^|\\/)domain\\/src\\/(testing|imports\\/batch-settings)(\\.[cm]?[jt]s)?$/';
+
+// The same modules named relative to a file inside packages/domain/src (see the domain block).
+const domainRelativeSettingsImport = {
+  selector:
+    'ImportExpression[source.value=/^\\.{1,2}\\/(\\.\\.\\/)*(imports\\/)?(testing|batch-settings)(\\.[cm]?[jt]s)?$/]',
+  message: 'A dynamic import of the domain testing settings passes around the import fences.',
+};
 
 const restrictedSyntax = [
   // Relative imports carry no `.js` extension: Turbopack does not resolve them (CLAUDE.md).
@@ -127,6 +155,10 @@ const restrictedSyntax = [
   {
     selector: `ImportExpression[source.value=${restrictedFile}]`,
     message: 'A dynamic import of a database file passes around the import fences.',
+  },
+  {
+    selector: `ImportExpression[source.value=${restrictedDomainFile}]`,
+    message: 'A dynamic import of the domain testing settings passes around the import fences.',
   },
   {
     selector: "CallExpression[callee.name='require']",
@@ -295,6 +327,45 @@ export default tseslint.config(
     files: ['packages/domain/**/*.ts', 'packages/contracts/**/*.ts'],
     ignores: ['**/tests/**', '**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', frameworkImports] },
+  },
+  {
+    // Inside the domain, only the batch command reads the import batch settings and only the
+    // testing module hands them to tests.
+    files: ['packages/domain/src/**/*.ts'],
+    ignores: [
+      '**/*.test.ts',
+      'packages/domain/src/commands/imports/commit-job.ts',
+      'packages/domain/src/testing.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          ...frameworkImports,
+          patterns: [
+            ...frameworkImports.patterns,
+            {
+              regex: '(^|/)batch-settings(\\.[cm]?[jt]s)?$',
+              message:
+                'Only commit-job.ts reads the import batch settings; tests reach them through @shakti/domain/testing.',
+            },
+            {
+              // The testing module (src/testing.ts) serves tests only, by a relative path too.
+              regex: '^\\.{1,2}/(\\.\\./)*testing(\\.[cm]?[jt]s)?$',
+              message:
+                'The domain testing module serves tests only; product code never imports it.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        ...restrictedSyntax,
+        nonLiteralImport,
+        ...requireBypasses,
+        domainRelativeSettingsImport,
+      ],
+    },
   },
   {
     files: ['apps/web/src/**/*.{ts,tsx}'],

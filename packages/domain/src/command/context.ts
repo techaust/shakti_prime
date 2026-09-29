@@ -41,6 +41,11 @@ export interface CommandContext {
   now: Date;
   requestId: string;
   /**
+   * Set when an import batch runs this command for one of its rows (`NestedRunOptions`): the
+   * command then leaves out what only a person's own save needs, such as holding a new number.
+   */
+  inImportBatch?: boolean;
+  /**
    * Runs another command as the same caller inside this transaction, with its own guard, DTO and
    * idempotency key. Its audit rows and events are held and written with this command's own, so a
    * `savepoint` that rolls back drops them too. Imports commit their rows through here, so a lead
@@ -67,4 +72,6 @@ export interface NestedRunOptions {
    * batch, design §8), so the inner command writes no audit row of its own.
    */
   auditedByCaller?: boolean;
+  /** The caller is an import batch committing one of its rows (`CommandContext.inImportBatch`). */
+  inImportBatch?: boolean;
 }

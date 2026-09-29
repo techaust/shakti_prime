@@ -217,6 +217,8 @@ describe('requestNewPassword and setPassword', () => {
     );
     expect(refused.error).toBe('bot_check_failed');
     expect(refused.done).toBeUndefined();
+    // The address stays in the field after the refusal.
+    expect(refused.email).toBe('nobody@shakti.test');
     // An address with no account gets the same answer, so the screen reveals nothing.
     await expect(
       requestNewPassword(
@@ -224,11 +226,32 @@ describe('requestNewPassword and setPassword', () => {
         form({ email: 'nobody@shakti.test', 'cf-turnstile-response': 'ok:reset' }),
       ),
     ).resolves.toEqual({ done: true });
-    // So is a malformed address: once the checks pass, nothing the person typed changes the answer.
+    // The requests themselves end quietly after the answers.
+    await expect(finishBackground()).resolves.toBeUndefined();
+  });
+
+  it('marks a malformed address on its field before anything else, and answers any other the same', async () => {
+    await finishBackground();
+    // The address comes back as typed, so the field keeps it for the person to correct.
+    for (const email of ['nobody', 'nobody@', '@shakti.test', 'no body@shakti.test', '']) {
+      await expect(
+        requestNewPassword({}, form({ email, 'cf-turnstile-response': 'ok:reset' })),
+      ).resolves.toEqual({ error: 'email_invalid', field: 'email', email });
+    }
+    // Nothing was asked of the sign-in service, not even the bot check.
+    expect(request.background).toHaveLength(0);
+    const refused = await requestNewPassword(
+      {},
+      form({ email: 'nobody', 'cf-turnstile-response': 'no' }),
+    );
+    expect(refused).toEqual({ error: 'email_invalid', field: 'email', email: 'nobody' });
+    // A well-formed address, spaced and in capitals, gets the answer every address gets.
     await expect(
-      requestNewPassword({}, form({ email: 'nobody', 'cf-turnstile-response': 'ok:reset' })),
+      requestNewPassword(
+        {},
+        form({ email: '  Nobody@Shakti.TEST ', 'cf-turnstile-response': 'ok:reset' }),
+      ),
     ).resolves.toEqual({ done: true });
-    // The requests themselves, refused one included, end quietly after the answers.
     await expect(finishBackground()).resolves.toBeUndefined();
   });
 

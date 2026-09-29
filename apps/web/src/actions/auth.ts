@@ -1,6 +1,11 @@
 'use server';
 
-import { EntityIdSchema, PASSWORD_MIN_LENGTH, PasswordSchema } from '@shakti/contracts';
+import {
+  EmailSchema,
+  EntityIdSchema,
+  PASSWORD_MIN_LENGTH,
+  PasswordSchema,
+} from '@shakti/contracts';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { after } from 'next/server';
@@ -29,6 +34,8 @@ export interface FormState {
 
 export interface SetPasswordState extends FormState {
   done?: boolean;
+  /** The address as typed, put back in the field after any refusal. */
+  email?: string;
 }
 
 export interface TwoFactorState extends FormState {
@@ -107,12 +114,18 @@ export async function signOut(): Promise<void> {
  * staff account. The answer is the same either way, so the screen does not reveal who has one.
  * The wait is the same too: the answer waits only for the per-address cap and the bot check,
  * which refuse before anything reads the account; finding the account, storing the link and the
- * mail run after the answer, and a failure there is logged, never shown.
+ * mail run after the answer, and a failure there is logged, never shown. An address that is not
+ * one at all is refused on its field first, which says nothing about any account.
  */
 export async function requestNewPassword(
   _prev: SetPasswordState,
   formData: FormData,
 ): Promise<SetPasswordState> {
+  const raw = field(formData, 'email');
+  const email = EmailSchema.safeParse(raw);
+  // Put back in the field after a refusal; an email address is at most 254 characters.
+  const typed = raw.slice(0, 254);
+  if (!email.success) return { error: 'email_invalid', field: 'email', email: typed };
   try {
     const headers = await requestHeaders(field(formData, 'cf-turnstile-response'));
     await requestResetInBackground(
@@ -121,15 +134,14 @@ export async function requestNewPassword(
       },
       () =>
         auth.api.requestPasswordReset({
-          body: {
-            email: field(formData, 'email').trim().toLowerCase(),
-            redirectTo: '/set-password',
-          },
+          body: { email: email.data, redirectTo: '/set-password' },
           headers,
         }),
     );
   } catch (e) {
-    return failure('requestNewPassword', e);
+    // Whatever refused it (the bot check, the per-address cap, a failure of ours), the address
+    // stays in the field.
+    return { ...failure('requestNewPassword', e), email: typed };
   }
   return { done: true };
 }

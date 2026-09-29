@@ -232,6 +232,37 @@ describe('outbox retention (docs/DATABASE.md §7)', () => {
   });
 });
 
+describe('the purge procedure as written (0060)', () => {
+  it('pins no search path, so it names every comparison and type with its schema', async () => {
+    const [row] = await withoutContext<{ body: string; config: string[] | null }>(sql`
+      select p.prosrc as body, p.proconfig as config
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'app' and p.proname = 'purge_outbox_events'`);
+    expect(row?.config).toBeNull();
+    const body = row?.body ?? '';
+    // Every comparison in a condition is written operator(pg_catalog.…); what is left of `=` is
+    // an assignment (`:=`, `set … =`, `get diagnostics … =`), never a comparison.
+    const conditions = [
+      ...body.matchAll(/\b(?:where|and|or|if)\b([^;]*?)(?=\b(?:and|or|then)\b|;)/gi),
+    ];
+    expect(conditions.length).toBeGreaterThan(0);
+    for (const [, condition] of conditions) {
+      expect(condition?.replaceAll(/operator\(pg_catalog\.[^)]+\)/g, '')).not.toMatch(/[<>=]/);
+    }
+    expect(body.match(/operator\(pg_catalog\.=\)/g)).toHaveLength(2);
+    // Its variables' types and the interval name their schema too.
+    for (const declared of [
+      'v_run pg_catalog.uuid',
+      'v_removed pg_catalog.int4',
+      'v_error pg_catalog.text',
+    ]) {
+      expect(body).toContain(declared);
+    }
+    expect(body).toContain("'30 days'::pg_catalog.interval");
+    expect(body).not.toMatch(/\binterval '/);
+  });
+});
+
 describe('retention_runs (docs/DATABASE.md §7)', () => {
   it('is the one platform table, forced under RLS and not owned by the application', async () => {
     expect([...PLATFORM_TABLES]).toEqual(['retention_runs']);

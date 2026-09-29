@@ -52,9 +52,16 @@ function element(
     },
     hasAttribute: (attribute: string) => attribute === 'tabindex' && state.programmatic === true,
     matches: (selectors: string) => selectors === ':disabled' && state.fieldsetDisabled === true,
+    // The one ancestor the state names, matched by the selector a browser would match it by.
     closest: (selectors: string) => {
-      if (state.blockedBy === 'inert' && selectors.includes('[inert]')) return {};
-      if (state.blockedBy === 'aria-disabled' && selectors.includes('aria-disabled')) return {};
+      const list = selectors.split(',').map((s) => s.trim());
+      if (state.blockedBy === 'inert' && list.includes('[inert]')) return {};
+      if (
+        state.blockedBy === 'aria-disabled' &&
+        list.some((s) => s === '[aria-disabled]' || s === '[aria-disabled="true"]')
+      ) {
+        return {};
+      }
       return null;
     },
     checkVisibility: (options?: { visibilityProperty?: boolean }) =>
@@ -81,11 +88,16 @@ describe('canTakeFocus', () => {
     expect(canTakeFocus(element('off', { disabled: true }))).toBe(false);
   });
 
-  it('skips an element hidden by visibility, in a disabled fieldset, inert or aria-disabled', () => {
+  it('skips an element hidden by visibility, in a disabled fieldset or inert', () => {
     expect(canTakeFocus(element('invisible', { invisible: true }))).toBe(false);
     expect(canTakeFocus(element('in a fieldset', { fieldsetDisabled: true }))).toBe(false);
     expect(canTakeFocus(element('behind a modal', { blockedBy: 'inert' }))).toBe(false);
-    expect(canTakeFocus(element('greyed out', { blockedBy: 'aria-disabled' }))).toBe(false);
+  });
+
+  it('takes an aria-disabled control, which keeps its focus under ARIA', () => {
+    expect(canTakeFocus(element('greyed out', { blockedBy: 'aria-disabled' }))).toBe(true);
+    const opener = element('menu button', { blockedBy: 'aria-disabled' });
+    expect(firstFocusable([opener, element('heading', { programmatic: true })])).toBe(opener);
   });
 
   it('skips an element that is not focusable, and takes one given a tabindex', () => {
