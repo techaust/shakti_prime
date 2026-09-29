@@ -14,6 +14,10 @@ on:
         type: choice
         options: [dev, staging]
         required: true
+      seed:
+        description: Seed the reference data after migrating (safe to re-run; keeps Admin edits)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -68,3 +72,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm db:verify
+      - name: Seed
+        if: inputs.seed
+        run: pnpm db:seed
