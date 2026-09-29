@@ -715,12 +715,9 @@ describe('a worker QStash gave up on turns its event back into a dead letter (00
   it('holdBackFailedEvent: a delivered event becomes a dead letter with the worker error, once', async () => {
     const id = await delivered();
     expect(await holdBackFailedEvent(id, 'worker_failed')).toBe('held');
-    expect(await rowAsPublisher(id)).toMatchObject({
-      published_at: null,
-      attempts: 1,
-      last_error: 'worker_failed',
-      dead_lettered_at: expect.any(Date),
-    });
+    const row = await rowAsPublisher(id);
+    expect(row).toMatchObject({ published_at: null, attempts: 1, last_error: 'worker_failed' });
+    expect(row?.dead_lettered_at).toBeInstanceOf(Date);
     expect(await holdBackFailedEvent(id, 'worker_failed')).toBe('unchanged');
     expect(await holdBackFailedEvent(newId(), 'worker_refused')).toBe('unchanged');
   });

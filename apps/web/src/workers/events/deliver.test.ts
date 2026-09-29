@@ -58,7 +58,12 @@ function gate() {
   const held = new Promise<void>((resolve) => {
     open = resolve;
   });
-  return { held, open: () => open() };
+  return {
+    held,
+    open: () => {
+      open();
+    },
+  };
 }
 
 describe('the worker registry and the event catalogue', () => {
