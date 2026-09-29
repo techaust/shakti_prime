@@ -5,6 +5,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  principalFor,
 } from '@shakti/db/testing';
 import { withRequestContext } from '@shakti/db';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -40,7 +41,9 @@ describe('platform.probe.run (the delivery check, docs/design/phase1.md §5.2)',
       'agent:chief',
       'system:workers',
     ] as const) {
-      const principal = await createTestPrincipal(role, [1]);
+      // principalFor, not createTestPrincipal: an agent principals row would change the agent
+      // count the fail-closed suite checks, and the guard refuses before anything is written.
+      const principal = principalFor(role, [1]);
       const error: unknown = await asPrincipal(principal, (context) =>
         runCommand(runDeliveryProbe, { context, audit, outbox }, {}),
       ).then(
