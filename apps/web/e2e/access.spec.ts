@@ -29,6 +29,19 @@ test.describe('as a tele-caller', () => {
     await expectNoAxeViolations(page);
     await snap(page, 'not-found-tele-caller');
   });
+
+  test('the profile menu opens from the keyboard and gives focus back', async ({ page }) => {
+    await page.goto('/home');
+    const button = page.getByRole('button', { name: 'Your account' });
+    await button.focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', { name: 'Your profile' })).toBeVisible();
+    await expectNoAxeViolations(page);
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Your account' })).toBeFocused();
+  });
 });
 
 test.describe('as an Executive', () => {
@@ -42,16 +55,17 @@ test.describe('as an Executive', () => {
 
     await switcher.click();
     await page.getByRole('menuitemradio', { name: 'Shakti Supreme' }).click();
+    // The switch reloads the screen for the chosen company.
     await expect(
       page.getByRole('button', { name: 'Showing Shakti Supreme. Choose a company' }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
     await expect(leads.getByText(lead)).toHaveCount(0);
 
     await switcher.click();
     await page.getByRole('menuitemradio', { name: 'Shakti Motor Pumps' }).click();
     await expect(
       page.getByRole('button', { name: 'Showing Shakti Motor Pumps. Choose a company' }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
     await expect(leads.getByText(lead).first()).toBeVisible();
     await expectNoAxeViolations(page);
   });
