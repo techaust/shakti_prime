@@ -78,9 +78,9 @@ describe('platform-only permissions', () => {
   });
 
   it('are refused for an agent role and for the table owner too', async () => {
-    expect(await attempt(principalFor('executive'), grantPlatformOnly(roleId('agent:triage')))).toBe(
-      'platform_only',
-    );
+    expect(
+      await attempt(principalFor('executive'), grantPlatformOnly(roleId('agent:triage'))),
+    ).toBe('platform_only');
     const refused = await asMigrator(async (m) => {
       try {
         await m`insert into role_permissions (role_id, permission_key, scope)
@@ -113,13 +113,10 @@ describe("a role's grants are written only for every company at once", () => {
     expect(await attempt(principalFor('executive'), statement())).toBe('written');
   });
 
-  it.each(writes)(
-    'the Executive acting for one company may not %s',
-    async (name, statement) => {
-      const outcome = await attempt(principalFor('executive', [1]), statement());
-      expect(outcome).toBe(name === 'add a grant' ? 'refused' : 'none');
-    },
-  );
+  it.each(writes)('the Executive acting for one company may not %s', async (name, statement) => {
+    const outcome = await attempt(principalFor('executive', [1]), statement());
+    expect(outcome).toBe(name === 'add a grant' ? 'refused' : 'none');
+  });
 
   it.each(writes)('the General Manager may not %s', async (name, statement) => {
     const outcome = await attempt(principalFor('general_manager'), statement());

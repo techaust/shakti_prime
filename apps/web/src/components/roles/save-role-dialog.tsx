@@ -69,7 +69,7 @@ export function SaveRoleDialog({
             <DialogTitle>{t('confirm.title', { role: roleName })}</DialogTitle>
             <DialogDescription>{summary}</DialogDescription>
           </DialogHeader>
-          <p>{t('confirm.signOut', { count: holderCount })}</p>
+          <p>{t('confirm.effect', { count: holderCount })}</p>
           {holdsRole ? <p className="text-text-muted">{t('confirm.you')}</p> : null}
           <FailureMessage failure={failure} />
           <DialogFooter>

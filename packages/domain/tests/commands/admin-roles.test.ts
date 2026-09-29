@@ -70,9 +70,7 @@ const edited = (): RoleGrantInput[] => [
   // hr.export removed, hr.employee.write narrowed from all, pricing.read added
   ...seeded(EDITED)
     .filter((g) => g.permission !== 'hr.export')
-    .map((g) =>
-      g.permission === 'hr.employee.write' ? { ...g, scope: 'entity' as const } : g,
-    ),
+    .map((g) => (g.permission === 'hr.employee.write' ? { ...g, scope: 'entity' as const } : g)),
   { permission: 'pricing.read', scope: 'entity' },
 ];
 
@@ -202,8 +200,9 @@ describe('admin.role.permissions.set: the change', () => {
         roleId: roleId(EDITED),
         roleKey: EDITED,
         grantCount: edited().length,
-        revokedSessions: expect.any(Number),
       });
+      // the two holders' sessions and the caller's other one, at least
+      expect(dto.revokedSessions).toBeGreaterThanOrEqual(3);
       expect(dto.customisedAt).not.toBeNull();
       expect(dto.holderUserIds).toEqual(
         expect.arrayContaining([holderOne.id, holderThree.id, callerUser.id]),
@@ -234,19 +233,19 @@ describe('admin.role.permissions.set: the change', () => {
       });
       expect(JSON.stringify(row?.after)).toContain('pricing.read');
       expect(JSON.stringify(row?.before)).toContain('hr.export');
-      expect(emitted.records).toEqual([
-        expect.objectContaining({
-          type: 'admin.role.permissions_changed',
-          aggregateId: roleId(EDITED),
-          payload: expect.objectContaining({
-            roleId: roleId(EDITED),
-            added: 1,
-            removed: 1,
-            rescoped: 1,
-            grantCount: edited().length,
-          }),
-        }),
-      ]);
+      expect(emitted.records).toHaveLength(1);
+      expect(emitted.records[0]).toMatchObject({
+        type: 'admin.role.permissions_changed',
+        aggregateId: roleId(EDITED),
+        payload: {
+          roleId: roleId(EDITED),
+          added: 1,
+          removed: 1,
+          rescoped: 1,
+          grantCount: edited().length,
+          revokedSessions: dto.revokedSessions,
+        },
+      });
 
       // A re-run of the seed keeps the edit (docs/DATABASE.md §9).
       await runSeeds();

@@ -34,7 +34,10 @@ export function costWarning(key: string): 'costWarning' | 'rateWarning' | undefi
 
 /** Whether the editor locks this choice: the Executive role never loses its admin grants. */
 export function isKeptGrant(roleKey: string, permission: string): boolean {
-  return roleKey === 'executive' && (EXECUTIVE_KEPT_PERMISSIONS as readonly string[]).includes(permission);
+  return (
+    roleKey === 'executive' &&
+    (EXECUTIVE_KEPT_PERMISSIONS as readonly string[]).includes(permission)
+  );
 }
 
 export type Choices = Readonly<Record<string, ScopeChoice>>;

@@ -272,10 +272,14 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
               return (
                 <span key={g.permission}>
                   {t('values.grant', {
-                    permission: roleEditor.has(`permissions.${name}` as `permissions.${PermissionNameKey}`)
+                    permission: roleEditor.has(
+                      `permissions.${name}` as `permissions.${PermissionNameKey}`,
+                    )
                       ? roleEditor(`permissions.${name}` as `permissions.${PermissionNameKey}`)
                       : wordsOf(g.permission),
-                    scope: isScopeChoice(g.scope) ? roleEditor(`scope.${g.scope}`) : wordsOf(g.scope),
+                    scope: isScopeChoice(g.scope)
+                      ? roleEditor(`scope.${g.scope}`)
+                      : wordsOf(g.scope),
                   })}
                 </span>
               );

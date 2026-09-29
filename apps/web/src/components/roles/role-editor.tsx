@@ -47,9 +47,7 @@ export function RoleEditor({ initial, holdsRole }: { initial: RoleGrantsDto; hol
       <p className="text-text-muted">{t('people', { count: role.holderCount })}</p>
       {byModule(initial.permissions).map((group) => (
         <fieldset key={group.module} className="flex flex-col gap-4">
-          <legend className="text-h3 mb-3">
-            {t(`modules.${group.module as ModuleNameKey}`)}
-          </legend>
+          <legend className="text-h3 mb-3">{t(`modules.${group.module as ModuleNameKey}`)}</legend>
           <div className="grid gap-4 sm:grid-cols-2">
             {group.permissions.map((p) => (
               <PermissionChoice

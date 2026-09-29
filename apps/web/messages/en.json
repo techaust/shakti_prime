@@ -289,6 +289,7 @@
       "priceMaster": "See the current price of every item.",
       "imports": "Bring in records from a spreadsheet file.",
       "adminUsers": "Invite staff, change their roles and sign them out.",
+      "adminRoles": "Choose what each role can see and do.",
       "adminActivity": "See who changed what, and when.",
       "settingsCompanies": "Change each company's brand name and UPI ID.",
       "design": "See every colour, text size and control in both themes."
@@ -1463,7 +1464,7 @@
     "reset": "Undo changes",
     "confirm": {
       "title": "Save the permissions of {role}",
-      "signOut": "{count, plural, =0 {No one holds this role now, so no one is signed out.} one {# person holds this role and is signed out on every device. They sign in again to get the new permissions.} other {# people hold this role and are signed out on every device. They sign in again to get the new permissions.}}",
+      "effect": "{count, plural, =0 {No one holds this role now, so no one is signed out.} one {# person holds this role and is signed out on every device. They sign in again to get the new permissions.} other {# people hold this role and are signed out on every device. They sign in again to get the new permissions.}}",
       "you": "You hold this role too. You stay signed in on this device and are signed out on the others.",
       "submit": "Save and sign out"
     },
