@@ -14,7 +14,11 @@ import {
   InviteUserInput,
   ReactivateUserInput,
   ResetTwoFactorInput,
+  type RoleGrantsDto,
+  type RoleListDto,
+  type RolePermissionsSetDto,
   RevokeSessionInput,
+  SetRolePermissionsInput,
   SetUserRolesInput,
   SuspendUserInput,
   type RevokedSessionsDto,
@@ -26,8 +30,10 @@ import {
   clearSignInLock as clearSignInLockCommand,
   executeCommand,
   executeQuery,
+  getRoleGrants as getRoleGrantsQuery,
   inviteUser as inviteUserCommand,
   listAuditPeople as listAuditPeopleQuery,
+  listRoles as listRolesQuery,
   listUserSessions as listUserSessionsQuery,
   listUsers as listUsersQuery,
   queryAudit,
@@ -35,12 +41,13 @@ import {
   replayDeadLetter as replayDeadLetterCommand,
   resetTwoFactor as resetTwoFactorCommand,
   revokeSession as revokeSessionCommand,
+  setRolePermissions as setRolePermissionsCommand,
   setUserRoles as setUserRolesCommand,
   suspendUser as suspendUserCommand,
 } from '@shakti/domain';
 import { auth } from '../auth/auth';
 import { clearSignInLock as clearLock, setPasswordMailFailed } from '../auth/create-auth';
-import { forgetPrincipal } from '../auth/current-principal';
+import { currentSession, forgetPrincipal } from '../auth/current-principal';
 import { defaultAuthDeps } from '../auth/deps';
 import { twoFactorResetMail } from '../auth/mail-copy';
 import { logger } from '../log';
@@ -98,6 +105,40 @@ export async function setUserRoles(
     );
     await forgetPrincipal(user.id);
     return user;
+  });
+}
+
+/** What the role editor learns after a save; the holders' ids stay on the server. */
+type RolePermissionsSaved = Omit<RolePermissionsSetDto, 'holderUserIds'>;
+
+/**
+ * Admin › Roles: replaces a staff role's grants (Executive, for every company). Everyone holding
+ * the role is signed out by the command, except the caller's own current sign-in, which this
+ * action names from the session itself, never from the browser; then every holder's cached
+ * access is dropped, so the caller's next request, on the kept sign-in, resolves the new grants.
+ */
+export async function setRolePermissions(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<RolePermissionsSaved>> {
+  return toResult('setRolePermissions', async () => {
+    const principal = await signedIn();
+    const session = await currentSession();
+    const raw = typeof rawInput === 'object' && rawInput !== null ? rawInput : {};
+    const input = parseInput(SetRolePermissionsInput, {
+      ...raw,
+      keepSessionId: session?.session.sessionId,
+    });
+    const meta = await requestMeta();
+    const { holderUserIds, ...saved } = await executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      setRolePermissionsCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+    await Promise.all(holderUserIds.map((id) => forgetPrincipal(id)));
+    return saved;
   });
 }
 
@@ -283,6 +324,31 @@ export async function listUsers(rawInput: unknown): Promise<ActionResult<UserPag
     return executeQuery(principal, { requestId }, (context) => listUsersQuery(context, rawInput), {
       name: 'listUsers',
     });
+  });
+}
+
+/** Admin › Roles: every staff role with its grant count and the people holding it. */
+export async function listRoles(): Promise<ActionResult<RoleListDto>> {
+  return toResult('listRoles', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) => listRolesQuery(context), {
+      name: 'listRoles',
+    });
+  });
+}
+
+/** One role's page: the permission catalogue with the role's scope for each. */
+export async function getRoleGrants(rawInput: unknown): Promise<ActionResult<RoleGrantsDto>> {
+  return toResult('getRoleGrants', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => getRoleGrantsQuery(context, rawInput),
+      { name: 'getRoleGrants' },
+    );
   });
 }
 

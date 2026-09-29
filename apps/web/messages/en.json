@@ -1442,7 +1442,6 @@
     "roleTitle": "Permissions of {role}",
     "roleIntro": "Choose how far each permission reaches: Own is their own records, Team is their team's, Company is everything in each company where they hold the role, and All companies is every company.",
     "people": "{count, plural, =0 {No one holds this role yet.} one {# person holds this role.} other {# people hold this role.}}",
-    "scopeLabel": "How far {permission} reaches",
     "scope": {
       "none": "Not given",
       "own": "Own",
