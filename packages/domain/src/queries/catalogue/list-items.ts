@@ -39,9 +39,11 @@ export interface ListItemsOptions {
 }
 
 /**
- * The columns Catalogue › Items sorts by (`ITEM_SORT_COLUMNS`). Every one is never empty, so
- * its btree index serves both directions; items that share a value keep one place by id, and
- * the cursor takes the text form of `keyset-sort.ts`.
+ * The columns Catalogue › Items sorts by (`ITEM_SORT_COLUMNS`), none of them ever empty; items
+ * that share a value keep one place by id, and the cursor takes the text form of
+ * `keyset-sort.ts`. No index backs these orders: the catalogue runs to a few thousand items, and a
+ * page is a top-N sort of the whole table, 6 to 8 ms at 5,000 items under the policies
+ * (`pnpm --filter @shakti/domain spike:catalogue`).
  */
 const ITEM_SORT_KEYS: SortKeys<ItemSort['column']> = {
   name: { expr: schema.items.name, type: 'text', nullable: false },

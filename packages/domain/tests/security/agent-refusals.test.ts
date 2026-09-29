@@ -103,6 +103,7 @@ const INPUTS: Record<string, unknown> = {
   'integrations.dlq.replay': { eventId: newId() },
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
   'pricing.list.approve': { priceListId: newId() },
+  'pricing.list.archive': { priceListId: newId() },
   'pricing.list.create': { tierCode: 'retail', effectiveFrom: '2031-04-01' },
   'pricing.price.set': {
     priceListId: newId(),

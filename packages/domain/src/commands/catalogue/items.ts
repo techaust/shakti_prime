@@ -13,7 +13,7 @@ import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { assertCatalogueGroupScope, eventEntity } from './shared';
 import { toItemDto } from '../../queries/catalogue/item-dto';
-import { readItemDetail } from '../../queries/catalogue/item-detail';
+import { readItemDetail, readPumpCurve } from '../../queries/catalogue/item-detail';
 
 /** Every field an item's audit rows may carry. */
 const ITEM_AUDIT_FIELDS = [
@@ -27,6 +27,7 @@ const ITEM_AUDIT_FIELDS = [
   'almmRef',
   'specs',
   'isActive',
+  'points',
 ] as const;
 
 type ItemRow = typeof schema.items.$inferSelect;
@@ -144,15 +145,19 @@ export const updateItem = defineCommand({
       .where(eq(schema.items.id, input.itemId))
       .returning();
     if (!row) throw new DomainError('internal', 'item update returned no row');
+    // A pump that becomes another category keeps no curve; the audit row keeps the one removed.
+    let removedCurve: string[][] | undefined;
     if (before.category === 'pump' && row.category !== 'pump') {
+      const curve = await readPumpCurve(ctx.tx, row.id);
+      if (curve.length > 0) removedCurve = curve.map((p) => [p.flowLph, p.headM]);
       await ctx.tx.delete(schema.pumpCurves).where(eq(schema.pumpCurves.itemId, row.id));
     }
     ctx.audit({
       aggregateType: 'item',
       aggregateId: row.id,
       entityId: null,
-      before: auditedItem(before),
-      after: auditedItem(row),
+      before: { ...auditedItem(before), ...(removedCurve ? { points: removedCurve } : {}) },
+      after: { ...auditedItem(row), ...(removedCurve ? { points: [] } : {}) },
     });
     ctx.emit({
       type: 'catalogue.item.updated',

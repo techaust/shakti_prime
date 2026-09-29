@@ -27,7 +27,11 @@ export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
 export { setPrice } from './commands/pricing/set-price';
-export { approvePriceList, createPriceList } from './commands/pricing/price-lists';
+export {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from './commands/pricing/price-lists';
 export { archiveItem, createItem, updateItem } from './commands/catalogue/items';
 export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
 export { setPumpCurve } from './commands/catalogue/pump-curve';

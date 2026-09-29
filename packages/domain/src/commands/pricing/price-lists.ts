@@ -1,5 +1,6 @@
 import {
   ApprovePriceListInput,
+  ArchivePriceListInput,
   CreatePriceListInput,
   DomainError,
   newId,
@@ -37,12 +38,27 @@ async function assertGroupScope(ctx: CommandContext, entityId: number | null): P
   }
 }
 
-/** The approved list of a series that prices `today`, if there is one. */
-async function liveListId(
+/**
+ * Makes the changes to one series (a tier for one company, or for the group) take turns: a
+ * transaction-scoped lock keyed by the tier and company, taken before the series is read, so two
+ * approvals, archives or new versions of one series never work from the same picture of it.
+ */
+async function lockSeries(ctx: CommandContext, tierId: string, entityId: number | null) {
+  const key = `price_list_series:${tierId}:${entityId === null ? 'group' : String(entityId)}`;
+  await ctx.tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+}
+
+/** The calendar day before `date` (`YYYY-MM-DD`). */
+export function dayBefore(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+}
+
+/** The approved list of a series that prices `day`, if there is one. */
+async function listInForce(
   ctx: CommandContext,
   tierId: string,
   entityId: number | null,
-  today: string,
+  day: string,
 ): Promise<string | undefined> {
   const [row] = await ctx.tx
     .select({ id: pl.id })
@@ -52,8 +68,8 @@ async function liveListId(
         sameSeries(tierId, entityId),
         isNull(pl.archivedAt),
         isNotNull(pl.approvedBy),
-        lte(pl.effectiveFrom, today),
-        or(isNull(pl.effectiveTo), gt(pl.effectiveTo, today)),
+        lte(pl.effectiveFrom, day),
+        or(isNull(pl.effectiveTo), gt(pl.effectiveTo, day)),
       ),
     )
     .limit(1);
@@ -87,8 +103,9 @@ async function readList(ctx: CommandContext, id: string): Promise<PriceListFacts
 
 /**
  * `pricing.list.create` (SAL-01): a draft version of a tier's price list for one company or the
- * group, from today or a later date, holding a copy of the prices live today (the company's own
- * list of the tier, else the group's) for items and kits still sold. Setting its prices goes
+ * group, from today or a later date, holding a copy of the prices that will be in force on the
+ * day before it starts (the company's own list of the tier then, else the group's), for items and
+ * kits still sold, so a list scheduled in between is its starting point. Setting its prices goes
  * through `pricing.price.set`; it prices nothing until `pricing.list.approve`.
  */
 export const createPriceList = defineCommand({
@@ -124,14 +141,16 @@ export const createPriceList = defineCommand({
         reason: 'price_tier_missing',
       });
     }
+    await lockSeries(ctx, tier.id, entityId);
     const [last] = await ctx.tx
       .select({ version: sql<number>`coalesce(max(${pl.version}), 0)::int` })
       .from(pl)
       .where(sameSeries(tier.id, entityId));
     const version = (last?.version ?? 0) + 1;
+    const eve = dayBefore(input.effectiveFrom);
     const copiedFromId =
-      (await liveListId(ctx, tier.id, entityId, today)) ??
-      (entityId === null ? undefined : await liveListId(ctx, tier.id, null, today));
+      (await listInForce(ctx, tier.id, entityId, eve)) ??
+      (entityId === null ? undefined : await listInForce(ctx, tier.id, null, eve));
 
     const id = newId();
     await ctx.tx.insert(pl).values({
@@ -199,9 +218,12 @@ export const approvePriceList = defineCommand({
   input: ApprovePriceListInput,
   output: PriceListDto,
   auditFields: ['approvedAt', 'effectiveTo'],
-  constraintReasons: { price_lists_no_overlap: 'price_list_overlap' },
+  // A clash the series lock did not prevent (a list approved outside this command) answers its
+  // own reason; the same-day overlap found below answers `price_list_overlap`.
+  constraintReasons: { price_lists_no_overlap: 'price_list_approval_clash' },
   async handler(ctx, input) {
     const today = istCalendarDate(ctx.now);
+    await lockSeriesOf(ctx, input.priceListId);
     const [draft] = await ctx.tx
       .select({
         id: pl.id,
@@ -236,7 +258,7 @@ export const approvePriceList = defineCommand({
     }
     await assertGroupScope(ctx, draft.entityId);
 
-    // Every approved list of the series, locked: two approvals of one series take turns.
+    // Every approved list of the series, read after the series lock and locked for the change.
     const approved = await ctx.tx
       .select({ id: pl.id, effectiveFrom: pl.effectiveFrom, effectiveTo: pl.effectiveTo })
       .from(pl)
@@ -305,5 +327,121 @@ export const approvePriceList = defineCommand({
       payload: { tierCode: list.tierCode, closedListIds },
     });
     return toPriceListDto(list, today);
+  },
+});
+
+/**
+ * Takes the series lock of a list, from its tier and company, after checking the request may
+ * change that series (a list for every company needs a request for every company); nothing when
+ * the list is not visible, which the locked read after it reports.
+ */
+async function lockSeriesOf(ctx: CommandContext, priceListId: string): Promise<void> {
+  const [list] = await ctx.tx
+    .select({ tierId: pl.tierId, entityId: pl.entityId })
+    .from(pl)
+    .where(eq(pl.id, priceListId))
+    .limit(1);
+  if (!list) return;
+  await assertGroupScope(ctx, list.entityId);
+  await lockSeries(ctx, list.tierId, list.entityId);
+}
+
+/**
+ * `pricing.list.archive` (SAL-01): withdraws a draft or a scheduled list, never one that prices or
+ * priced anything (live or ended: `price_list_archive_in_use`). A scheduled list had ended the
+ * list before it on its start date; that list takes back the end it had, so no day is left
+ * unpriced.
+ */
+export const archivePriceList = defineCommand({
+  name: 'pricing.list.archive',
+  permission: 'pricing.write',
+  minScope: 'entity',
+  input: ArchivePriceListInput,
+  output: PriceListDto,
+  auditFields: ['archivedAt', 'effectiveTo'],
+  async handler(ctx, input) {
+    const today = istCalendarDate(ctx.now);
+    await lockSeriesOf(ctx, input.priceListId);
+    const [list] = await ctx.tx
+      .select({
+        id: pl.id,
+        tierId: pl.tierId,
+        entityId: pl.entityId,
+        effectiveFrom: pl.effectiveFrom,
+        effectiveTo: pl.effectiveTo,
+        approvedAt: pl.approvedAt,
+        archivedAt: pl.archivedAt,
+      })
+      .from(pl)
+      .where(eq(pl.id, input.priceListId))
+      .limit(1)
+      .for('update');
+    if (!list) {
+      throw new DomainError('not_found', `price list ${input.priceListId} is not visible`, {
+        reason: 'price_list_missing',
+      });
+    }
+    if (list.archivedAt !== null) {
+      throw new DomainError('conflict', 'price list is closed', { reason: 'price_list_closed' });
+    }
+    if (list.approvedAt !== null && list.effectiveFrom <= today) {
+      throw new DomainError('conflict', 'a live or ended list is kept', {
+        reason: 'price_list_archive_in_use',
+      });
+    }
+    await assertGroupScope(ctx, list.entityId);
+
+    // Withdrawn first, so the list before it may take its days back under the one-live-list rule.
+    await ctx.tx
+      .update(pl)
+      .set({ archivedAt: ctx.now, updatedBy: ctx.principal.id })
+      .where(eq(pl.id, list.id));
+    let reopenedListId: string | null = null;
+    if (list.approvedAt !== null) {
+      const [before] = await ctx.tx
+        .select({ id: pl.id, effectiveTo: pl.effectiveTo })
+        .from(pl)
+        .where(
+          and(
+            sameSeries(list.tierId, list.entityId),
+            isNull(pl.archivedAt),
+            isNotNull(pl.approvedBy),
+            eq(pl.effectiveTo, list.effectiveFrom),
+            ne(pl.id, list.id),
+          ),
+        )
+        .limit(1)
+        .for('update');
+      if (before) {
+        reopenedListId = before.id;
+        await ctx.tx
+          .update(pl)
+          .set({ effectiveTo: list.effectiveTo, updatedBy: ctx.principal.id })
+          .where(eq(pl.id, before.id));
+        ctx.audit({
+          aggregateType: 'price_list',
+          aggregateId: before.id,
+          entityId: list.entityId,
+          before: { effectiveTo: before.effectiveTo },
+          after: { effectiveTo: list.effectiveTo },
+        });
+      }
+    }
+    const archived = await readList(ctx, list.id);
+    ctx.audit({
+      aggregateType: 'price_list',
+      aggregateId: list.id,
+      entityId: list.entityId,
+      before: { archivedAt: null },
+      after: { archivedAt: ctx.now.toISOString() },
+    });
+    ctx.emit({
+      type: 'pricing.list.archived',
+      entityId: list.entityId ?? eventEntity(ctx),
+      aggregateType: 'price_list',
+      aggregateId: list.id,
+      payload: { tierCode: archived.tierCode, reopenedListId },
+    });
+    return toPriceListDto(archived, today);
   },
 });

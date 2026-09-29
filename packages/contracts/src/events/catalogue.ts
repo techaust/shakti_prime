@@ -117,6 +117,10 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ tierCode: Code, closedListIds: z.array(IdSchema) }).strict(),
   },
+  'pricing.list.archived': {
+    subscribed: false,
+    payload: z.object({ tierCode: Code, reopenedListId: IdSchema.nullable() }).strict(),
+  },
   'catalogue.item.created': {
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),

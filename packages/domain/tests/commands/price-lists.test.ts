@@ -10,7 +10,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
-import { approvePriceList, createPriceList } from '../../src/commands/pricing/price-lists';
+import {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from '../../src/commands/pricing/price-lists';
 import { setPrice } from '../../src/commands/pricing/set-price';
 import { istCalendarDate } from '../../src/numbering/financial-year';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
@@ -235,18 +239,36 @@ describe('a tier from its first list to a scheduled second one', () => {
       [2, 'scheduled'],
       [1, 'live'],
     ]);
+
+    // 9. A new version copies the prices in force on the day before it starts: from day 12, the
+    //    second list's (scheduled from day 10), not today's live list.
+    const later = await run(exec, createPriceList, {
+      tierCode: tier.code,
+      effectiveFrom: day(12),
+    });
+    expect((await pricesOf(later.id))[0]).toMatchObject({ item_id: ids.item, price: '1100.00' });
+    // From day 7 it starts from the list in force on day 6, which took the live prices.
+    const sooner = await run(exec, createPriceList, {
+      tierCode: tier.code,
+      effectiveFrom: day(7),
+    });
+    expect((await pricesOf(sooner.id))[0]).toMatchObject({ item_id: ids.item, price: '1000.00' });
+    for (const draft of [later, sooner, clash]) {
+      await run(exec, archivePriceList, { priceListId: draft.id });
+    }
   });
 
   it('a company list copies the group list when the company has none, and may be approved alongside it', async () => {
+    // From tomorrow: the group list in force today is the one copied.
     const company = await run(exec, createPriceList, {
       tierCode: tier.code,
       entityId: 3,
-      effectiveFrom: today,
+      effectiveFrom: day(1),
     });
     expect(company).toMatchObject({ entityId: 3, version: 1, state: 'draft' });
     expect((await pricesOf(company.id)).map((p) => p.price)).toEqual(['1000.00', '5000.00']);
-    const live = await run(exec, approvePriceList, { priceListId: company.id });
-    expect(live.state).toBe('live');
+    const scheduled = await run(exec, approvePriceList, { priceListId: company.id });
+    expect(scheduled.state).toBe('scheduled');
     // A company Executive acting for that company alone approves its own lists.
     const own = await createTestPrincipal('executive', [3]);
     const next = await run(own, createPriceList, {
@@ -281,6 +303,104 @@ describe('a tier from its first list to a scheduled second one', () => {
     ).rejects.toMatchObject({
       code: 'validation_failed',
       details: { reason: 'price_list_start_past' },
+    });
+  });
+
+  it('archives a draft or a scheduled list, giving the list before it its end back; never a live or ended one', async () => {
+    const live = await run(exec, createPriceList, {
+      tierCode: tier.code,
+      entityId: 2,
+      effectiveFrom: today,
+    });
+    await run(exec, approvePriceList, { priceListId: live.id });
+    const scheduled = await run(exec, createPriceList, {
+      tierCode: tier.code,
+      entityId: 2,
+      effectiveFrom: day(4),
+    });
+    await run(exec, approvePriceList, { priceListId: scheduled.id });
+    expect((await listRow(live.id))?.effective_to).toBe(day(4));
+    const draft = await run(exec, createPriceList, {
+      tierCode: tier.code,
+      entityId: 2,
+      effectiveFrom: day(6),
+    });
+
+    await expect(
+      run(principalFor('general_manager', [2]), archivePriceList, { priceListId: draft.id }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    const recorded = memoryAuditSink();
+    const withdrawn = await asPrincipal(exec, (context) =>
+      runCommand(archivePriceList, { context, audit: recorded, outbox }, { priceListId: draft.id }),
+    );
+    expect(withdrawn).toMatchObject({ state: 'ended', open: false });
+    expect(recorded.records).toEqual([
+      expect.objectContaining({
+        command: 'pricing.list.archive',
+        aggregateId: draft.id,
+        entityId: 2,
+      }),
+    ]);
+    await expect(run(exec, archivePriceList, { priceListId: draft.id })).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'price_list_closed' },
+    });
+
+    const emitted = memoryOutboxSink();
+    await asPrincipal(exec, (context) =>
+      runCommand(
+        archivePriceList,
+        { context, audit, outbox: emitted },
+        { priceListId: scheduled.id },
+      ),
+    );
+    expect((await listRow(live.id))?.effective_to).toBeNull();
+    expect(emitted.records).toEqual([
+      expect.objectContaining({
+        type: 'pricing.list.archived',
+        payload: { tierCode: tier.code, reopenedListId: live.id, v: 1 },
+      }),
+    ]);
+
+    await expect(run(exec, archivePriceList, { priceListId: live.id })).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'price_list_archive_in_use' },
+    });
+    const ended = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into price_lists (id, tier_id, entity_id, version, effective_from, effective_to, approved_by, approved_at)
+        values (${ended}, ${tier.id}, 2, 900, '2026-01-01', '2026-02-01', ${exec.id}, now())`,
+    );
+    await expect(run(exec, archivePriceList, { priceListId: ended })).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'price_list_archive_in_use' },
+    });
+
+    // A list for every company is withdrawn only by a request for every company.
+    const group = await run(exec, createPriceList, { tierCode: tier.code, effectiveFrom: day(30) });
+    await expect(
+      run(await createTestPrincipal('executive', [1]), archivePriceList, { priceListId: group.id }),
+    ).rejects.toMatchObject({ code: 'forbidden', details: { reason: 'price_list_group_scope' } });
+    await run(exec, archivePriceList, { priceListId: group.id });
+  });
+
+  it('approvals of one series take turns: two drafts for one day, one approved, one refused', async () => {
+    const [a, b] = await Promise.all(
+      [0, 1].map(() =>
+        run(exec, createPriceList, { tierCode: tier.code, entityId: 4, effectiveFrom: day(40) }),
+      ),
+    );
+    expect(new Set([a?.version, b?.version]).size).toBe(2);
+    const results = await Promise.allSettled(
+      [a, b].map((l) => run(exec, approvePriceList, { priceListId: l?.id })),
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected');
+    expect(refused?.status === 'rejected' ? refused.reason : undefined).toMatchObject({
+      code: 'conflict',
+      details: { reason: 'price_list_overlap' },
     });
   });
 });

@@ -166,14 +166,35 @@ describe('catalogue.item.create / update / archive', () => {
     });
     expect(renamed.specs.maxHeadM).toBe(100.5);
     expect(renamed.curve).toHaveLength(2);
-    const motor = await run<ItemOut>(manager, updateItem, {
-      ...pumpInput(),
-      itemId: item.id,
-      category: 'motor',
-      specs: { hp: 5, kw: 3.7, phase: 'three' },
-    });
+    const recorded = memoryAuditSink();
+    const motor = await asPrincipal(manager, (context) =>
+      runCommand(
+        updateItem,
+        { context, audit: recorded, outbox },
+        {
+          ...pumpInput(),
+          itemId: item.id,
+          category: 'motor',
+          specs: { hp: 5, kw: 3.7, phase: 'three' },
+        },
+      ),
+    );
     expect(motor.category).toBe('motor');
     expect(motor.curve).toEqual([]);
+    // The item's audit row keeps the curve that went with the change of category.
+    expect(recorded.records).toEqual([
+      expect.objectContaining({
+        command: 'catalogue.item.update',
+        before: expect.objectContaining({
+          category: 'pump',
+          points: [
+            ['0.00', '95.00'],
+            ['6000.00', '40.00'],
+          ],
+        }),
+        after: expect.objectContaining({ category: 'motor', points: [] }),
+      }),
+    ]);
     const points = await asMigrator(
       (m) => m`select count(*)::int as n from pump_curves where item_id = ${item.id}`,
     );
@@ -410,7 +431,7 @@ describe('catalogue.kit.create / update / archive', () => {
     ).rejects.toMatchObject({ code: 'conflict', details: { reason: 'kit_sku_taken' } });
   });
 
-  it('the database lets only catalogue.write delete a component', async () => {
+  it('the database lets only catalogue.write, for every company, delete a component', async () => {
     const pump = await run<ItemOut>(manager, createItem, pumpInput());
     const kit = await run<{ id: string }>(manager, createKit, {
       sku: sku('KIT'),
@@ -426,6 +447,13 @@ describe('catalogue.kit.create / update / archive', () => {
       });
     expect(await deleted(principalFor('tele_caller_cc', [1]))).toBe(0);
     expect(await deleted(principalFor('accounts', [1]))).toBe(0);
+    // catalogue.write held in one company does not reach a shared kit's components either.
+    expect(await deleted(principalFor('general_manager', [1]))).toBe(0);
+    expect(await deleted(principalFor('inventory_manager', [1, 2, 3]))).toBe(0);
+    const left = await asMigrator(
+      (m) => m`select count(*)::int as n from kit_components where kit_id = ${kit.id}`,
+    );
+    expect(left[0]?.n).toBe(1);
   });
 });
 

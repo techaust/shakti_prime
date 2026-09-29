@@ -22,7 +22,11 @@ import { updateEntity } from '../commands/org/update-entity';
 import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
 import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
 import { setPumpCurve } from '../commands/catalogue/pump-curve';
-import { approvePriceList, createPriceList } from '../commands/pricing/price-lists';
+import {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from '../commands/pricing/price-lists';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
@@ -45,6 +49,7 @@ export const commands = {
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,
+  [archivePriceList.name]: archivePriceList,
   [createItem.name]: createItem,
   [updateItem.name]: updateItem,
   [archiveItem.name]: archiveItem,
