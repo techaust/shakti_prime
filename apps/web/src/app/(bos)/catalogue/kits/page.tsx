@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { listKits } from '../../../../actions/catalogue';
+import { readCoversAllCompanies } from '../../../../actions/pricing';
 import { CatalogueTabs } from '../../../../components/catalogue/catalogue-tabs';
 import { KitsScreen } from '../../../../components/catalogue/kits-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
@@ -24,6 +25,10 @@ export default async function CatalogueKitsPage() {
   const t = await getTranslations('catalogue');
 
   const first = await listKits({ limit: 50 });
+  // Products are shared: changes are offered only while the person acts for every company.
+  const covers = await readCoversAllCompanies();
+  const holdsWrite = can('catalogue.write', 'entity');
+  const canWrite = holdsWrite && covers.ok && covers.data;
   return (
     <Page title={t('title')} description={t('intro')}>
       <CatalogueTabs
@@ -32,8 +37,13 @@ export default async function CatalogueKitsPage() {
         items={t('itemsTab')}
         kits={t('kitsTab')}
       />
+      {holdsWrite && !canWrite ? (
+        <p role="note" className="bg-info-soft border-border rounded-md border px-4 py-3">
+          {t('groupNote')}
+        </p>
+      ) : null}
       {first.ok ? (
-        <KitsScreen initialPage={first.data} canWrite={can('catalogue.write', 'entity')} />
+        <KitsScreen initialPage={first.data} canWrite={canWrite} />
       ) : (
         <FailureMessage failure={firstFailure(first)} />
       )}

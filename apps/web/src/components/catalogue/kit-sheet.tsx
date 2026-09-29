@@ -150,7 +150,7 @@ export function KitSheet({
                         )}
                       </td>
                       <td className="py-2 text-right tabular-nums">
-                        {Number(c.qty).toLocaleString('en-IN')} {text.unit(c.unit)}
+                        {text.quantity(c.unit, Number(c.qty))}
                       </td>
                     </tr>
                   ))}

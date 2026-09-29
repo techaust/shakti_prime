@@ -170,7 +170,8 @@
     "price_list_start_past": "The start date has passed. Choose today or a later date.",
     "price_list_approved": "This price list is already approved.",
     "price_list_overlap": "Another approved price list for this tier and company starts on the same date. Choose a different start date.",
-    "price_list_version_taken": "Someone started another version of this price list at the same moment. Refresh the page and try again."
+    "price_list_version_taken": "Someone started another version of this price list at the same moment. Refresh the page and try again.",
+    "catalogue_needs_all_companies": "The catalogue is shared by all four companies. Choose All companies at the top of the screen, then make the change again."
   },
   "auth": {
     "signIn": {
@@ -1724,6 +1725,16 @@
       "submit": "Save kit",
       "created": "{name} is added to the catalogue.",
       "saved": "{name} is saved."
+    },
+    "groupNote": "Items and kits are shared by all four companies. To add or change them, choose All companies at the top of the screen first.",
+    "quantities": {
+      "nos": "{count, plural, one {# piece} other {# pieces}}",
+      "set": "{count, plural, one {# set} other {# sets}}",
+      "metre": "{count, plural, one {# metre} other {# metres}}",
+      "kg": "{count, plural, one {# kilogram} other {# kilograms}}",
+      "litre": "{count, plural, one {# litre} other {# litres}}",
+      "kw": "{count} kW",
+      "hour": "{count, plural, one {# hour} other {# hours}}"
     }
   },
   "taxSettings": {
