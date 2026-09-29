@@ -23,6 +23,8 @@ interface RequestState {
   principal: Principal | undefined;
   session: unknown;
   forgotten: string[];
+  /** Makes every cache invalidation fail, as an unreachable key-value store would. */
+  forgetFails: boolean;
   headers: Headers;
 }
 
@@ -31,6 +33,7 @@ const request = vi.hoisted((): RequestState => ({
   principal: undefined,
   session: undefined,
   forgotten: [],
+  forgetFails: false,
   headers: new Headers(),
 }));
 
@@ -64,6 +67,7 @@ vi.mock('../src/auth/current-principal', () => ({
   currentPrincipal: () => Promise.resolve(request.principal),
   currentSession: () => Promise.resolve(request.session),
   forgetPrincipal: (userId: string) => {
+    if (request.forgetFails) return Promise.reject(new Error('key-value store unreachable'));
     request.forgotten.push(userId);
     return Promise.resolve();
   },
@@ -120,6 +124,7 @@ beforeEach(() => {
   request.principal = undefined;
   request.session = undefined;
   request.forgotten.length = 0;
+  request.forgetFails = false;
   request.headers = new Headers();
 });
 
@@ -943,7 +948,11 @@ describe('Admin › Roles actions (docs/design/phase1.md §6.2)', () => {
       error: 'forbidden',
     });
     await expect(
-      setRolePermissions({ roleKey: 'field_engineer', grants: seeded }),
+      setRolePermissions({
+        roleKey: 'field_engineer',
+        grants: seeded,
+        expectedVersion: '0'.repeat(64),
+      }),
     ).resolves.toEqual({ ok: false, error: 'forbidden' });
     request.session = { principal: request.principal, access: { entities: [] } };
     await expect(screenAccess(navRequires('admin-roles'))).rejects.toThrow('not found');
@@ -970,10 +979,12 @@ describe('Admin › Roles actions (docs/design/phase1.md §6.2)', () => {
     request.principal = caller;
     request.session = { session: { sessionId: kept }, principal: caller, access: { entities: [] } };
     try {
+      const { version } = ok(await getRoleGrants({ roleKey: 'field_engineer' }));
       const saved = ok(
         await setRolePermissions({
           roleKey: 'field_engineer',
           grants: seeded.filter((g) => g.permission !== 'documents.write'),
+          expectedVersion: version,
           // the browser cannot choose which sign-in survives: the action names the caller's own
           keepSessionId: holderSession,
         }),
@@ -984,6 +995,32 @@ describe('Admin › Roles actions (docs/design/phase1.md §6.2)', () => {
       expect(await revokedReason(kept)).toBeNull();
       expect(await revokedReason(other)).toBe('role_changed');
       expect(await revokedReason(holderSession)).toBe('role_changed');
+    } finally {
+      await asMigrator(
+        (m) => m`update roles set customised_at = null where id = ${roleId('field_engineer')}`,
+      );
+      await runSeeds();
+    }
+  });
+
+  it('reports a committed save as saved when the cached access cannot be dropped', async () => {
+    const callerUser = await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    const caller = principalFor('executive', [1, 2, 3, 4], { id: callerUser.id });
+    request.principal = caller;
+    request.session = {
+      session: { sessionId: newId() },
+      principal: caller,
+      access: { entities: [] },
+    };
+    request.forgetFails = true;
+    try {
+      const { version } = ok(await getRoleGrants({ roleKey: 'field_engineer' }));
+      const saved = await setRolePermissions({
+        roleKey: 'field_engineer',
+        grants: seeded.filter((g) => g.permission !== 'documents.read'),
+        expectedVersion: version,
+      });
+      expect(saved).toMatchObject({ ok: true, data: { roleKey: 'field_engineer' } });
     } finally {
       await asMigrator(
         (m) => m`update roles set customised_at = null where id = ${roleId('field_engineer')}`,

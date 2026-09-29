@@ -1,24 +1,33 @@
-import { PERMISSION_KEYS, permissionModule, type RolePermissionDto } from '@shakti/contracts';
+import {
+  PERMISSION_KEYS,
+  permissionModule,
+  ROLE_GRANT_LOCKS,
+  type RolePermissionDto,
+} from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
 import {
   byModule,
+  choicesFor,
   costWarning,
   grantsOf,
   hasChanges,
   initialChoices,
-  isKeptGrant,
   isScopeChoice,
   permissionMessageKey,
   SCOPE_CHOICES,
   summarise,
 } from './roles';
 
-const perm = (key: RolePermissionDto['key'], scope: RolePermissionDto['scope']) => ({
+const perm = (
+  key: RolePermissionDto['key'],
+  scope: RolePermissionDto['scope'],
+): RolePermissionDto => ({
   key,
   module: permissionModule(key),
-  description: key,
   scope,
+  scopes: ['own', 'team', 'entity', 'all'],
+  locked: null,
 });
 
 const catalogue: RolePermissionDto[] = [
@@ -38,6 +47,9 @@ describe('the role editor', () => {
       expect(modules[permissionModule(key)], key).toBeTruthy();
     }
     expect(Object.keys(names)).toHaveLength(PERMISSION_KEYS.length);
+    for (const lock of ROLE_GRANT_LOCKS) {
+      expect((en.adminRoles.locked as Record<string, string>)[lock]).toBeTruthy();
+    }
     for (const choice of SCOPE_CHOICES) {
       expect((en.adminRoles.scope as Record<string, string>)[choice]).toBeTruthy();
     }
@@ -55,11 +67,10 @@ describe('the role editor', () => {
     expect(costWarning('pricing.read')).toBeUndefined();
   });
 
-  it('locks the admin grants of the Executive role only', () => {
-    expect(isKeptGrant('executive', 'admin.roles.write')).toBe(true);
-    expect(isKeptGrant('executive', 'admin.users.write')).toBe(true);
-    expect(isKeptGrant('executive', 'admin.flags.write')).toBe(false);
-    expect(isKeptGrant('general_manager', 'admin.roles.write')).toBe(false);
+  it('offers not given and then only the scopes the permission honours, narrowest first', () => {
+    expect(choicesFor({ scopes: ['all', 'entity'] })).toEqual(['none', 'entity', 'all']);
+    expect(choicesFor({ scopes: ['own'] })).toEqual(['none', 'own']);
+    expect(choicesFor({ scopes: [] })).toEqual(['none']);
   });
 
   it('summarises what the choices change', () => {
