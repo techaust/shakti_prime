@@ -1,4 +1,10 @@
-import type { Segment, SupplySource } from '@shakti/contracts';
+import type {
+  PipeMaterial,
+  PumpType,
+  Segment,
+  SubsidyScheme,
+  SupplySource,
+} from '@shakti/contracts';
 
 export interface WorkshopDefaults {
   readonly tax: {
@@ -13,6 +19,23 @@ export interface WorkshopDefaults {
   readonly quote: { readonly validityDays: number };
   readonly credit: { readonly exposureCountsConfirmedOrders: boolean };
   readonly dispatch: { readonly ewayBillThresholdPaise: bigint };
+  readonly sizing: SizingDefaults;
+}
+
+/** The engineering constants the sizing calculators use (docs/design/phase1.md §6.7, §11). */
+export interface SizingDefaults {
+  readonly hazenWilliamsC: Readonly<Record<PipeMaterial, number>>;
+  readonly fittingsLossFraction: number;
+  readonly efficiency: Readonly<
+    Record<PumpType, { readonly pump: number; readonly motor: number }>
+  >;
+  readonly solarArrayOversize: number;
+  readonly moduleWp: number;
+  readonly peakSunHours: number;
+  readonly performanceRatio: number;
+  readonly roofAreaPerKwSqm: number;
+  readonly standardHp: readonly number[];
+  readonly dcrSchemes: readonly SubsidyScheme[];
 }
 
 /**
@@ -51,5 +74,35 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   dispatch: {
     /** BLUEPRINT §8.4: consignment value in paise above which a dispatch needs an e-way bill (₹50,000). */
     ewayBillThresholdPaise: 5_000_000n,
+  },
+  /**
+   * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
+   * a common textbook or trade value, not a client fact, until the engineering head confirms it
+   * (docs/phase0/exit-gate-actions.md). A sizing stores the constants it used with its result.
+   */
+  sizing: {
+    /** Hazen-Williams C: textbook values for new HDPE (140) and galvanised iron (120) pipe. */
+    hazenWilliamsC: { hdpe: 140, gi: 120 },
+    /** Bends, valves and joints as a share of the pipe's friction loss: the common 10% allowance. */
+    fittingsLossFraction: 0.1,
+    /** Pump and motor efficiencies: typical values for small agricultural pump sets. */
+    efficiency: {
+      submersible: { pump: 0.55, motor: 0.78 },
+      surface: { pump: 0.6, motor: 0.82 },
+    },
+    /** Solar pump array over the motor rating: the common 1.3 allowance for heat, dust and low sun. */
+    solarArrayOversize: 1.3,
+    /** Module watt-peak: a common rating of the DCR modules on sale. */
+    moduleWp: 540,
+    /** Peak sun hours a day for Rajasthan: the commonly used annual average. */
+    peakSunHours: 5.5,
+    /** Share of rated output that reaches the meter: the common 0.75 for small rooftop systems. */
+    performanceRatio: 0.75,
+    /** Shade-free roof area per kWp of modules: the commonly quoted 10 m². */
+    roofAreaPerKwSqm: 10,
+    /** Motor ratings on sale, in HP: the common Indian ratings from 0.5 to 30 HP. */
+    standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
+    /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
+    dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },
 };

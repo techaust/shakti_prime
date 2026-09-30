@@ -129,7 +129,7 @@ export type {
   MaskedText,
 } from './privacy/identity-numbers';
 export { WORKSHOP_DEFAULTS } from './workshop-defaults';
-export type { WorkshopDefaults } from './workshop-defaults';
+export type { SizingDefaults, WorkshopDefaults } from './workshop-defaults';
 export { divideHalfUp, fromPaise, moneyFromPaise, toPaise, toScaled } from './money/paise';
 export {
   computeDocument,
@@ -141,6 +141,38 @@ export {
   resolveRate,
 } from './tax';
 export type { CompositeParts, CompositeQuery, LineInput, RateQuery, SupplyParties } from './tax';
+export {
+  dcrRule,
+  hazenWilliamsLossM,
+  KW_PER_HP,
+  nextStandardHp,
+  pumpDutyPoint,
+  pumpPower,
+  rooftopSize,
+  sanctionedLoadRule,
+  SIZING_ENGINE_VERSION,
+  sizePump,
+  sizeRooftop,
+  solarArrayForPump,
+  totalDynamicHead,
+} from './sizing';
+export type {
+  Bounded,
+  CurvePoint,
+  DcrRuleInput,
+  DcrRuleResult,
+  DutyPointResult,
+  HeadInput,
+  HeadResult,
+  ModuleLine,
+  PowerInput,
+  PowerResult,
+  RooftopInput,
+  RooftopResult,
+  SanctionedLoadInput,
+  SolarPumpInput,
+  SolarPumpResult,
+} from './sizing';
 export { creditCheck } from './sales/credit-check';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
 export {
