@@ -159,7 +159,8 @@
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
-    "event_in_progress": "This update is already being handled. It will be tried again shortly."
+    "event_in_progress": "This update is already being handled. It will be tried again shortly.",
+    "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none."
   },
   "auth": {
     "signIn": {
@@ -1043,7 +1044,8 @@
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
-      "other": "Other change"
+      "other": "Other change",
+      "sizingRecord": "Lead sized"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1064,7 +1066,8 @@
       "importCommitted": "Import finished",
       "importFailed": "Import stopped",
       "importRolledBack": "Import undone",
-      "deliveryCheckRequested": "Delivery check sent"
+      "deliveryCheckRequested": "Delivery check sent",
+      "sizingRecorded": "Lead sized"
     },
     "sheet": {
       "title": "{action}",
@@ -1153,7 +1156,11 @@
       "eventType": "Update sent on",
       "attempts": "Tries to send",
       "deadLetteredAt": "Stopped trying at",
-      "requestedAt": "Asked at"
+      "requestedAt": "Asked at",
+      "sizingKind": "What was sized",
+      "inBounds": "Within limits",
+      "sizingReasons": "Why it is outside limits",
+      "engineVersion": "Calculation version"
     },
     "values": {
       "percent": "{value}%",
@@ -1185,7 +1192,8 @@
         "price_lists": "Price lists",
         "imports": "Imports"
       },
-      "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}"
+      "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}",
+      "listSeparator": ", "
     }
   },
   "print": {
@@ -1469,6 +1477,112 @@
       "retired": "The system no longer handles this kind of update.",
       "interrupted": "Sending stopped part way too many times.",
       "other": "It could not be sent."
+    }
+  },
+  "sizing": {
+    "title": "Sizing",
+    "intro": "Enter what was measured at the site. The size is worked out from these figures, never guessed.",
+    "open": "Size this lead",
+    "tabsLabel": "What to size",
+    "kind": {
+      "pump": "Pump",
+      "rooftop": "Rooftop solar"
+    },
+    "loading": "Loading the latest sizing",
+    "empty": "Not sized yet. Enter the measurements and work out the size.",
+    "submit": "Work out size",
+    "done": "Sizing saved.",
+    "readOnly": "You can see this lead's sizing but not change it.",
+    "pump": {
+      "legend": "The pump and the borewell",
+      "pumpType": "Where the pump sits",
+      "pumpTypes": {
+        "submersible": "In the borewell (submersible)",
+        "surface": "On the surface"
+      },
+      "drive": "What runs the pump",
+      "drives": {
+        "grid": "Electricity supply",
+        "solar": "Solar panels"
+      },
+      "pipeMaterial": "Pipe",
+      "pipeMaterials": {
+        "hdpe": "HDPE (plastic)",
+        "gi": "GI (iron)"
+      },
+      "staticLevelM": "Water level at rest, below ground (m)",
+      "staticLevelHelper": "Measured with the pump off.",
+      "drawdownM": "Drop in water level while pumping (m)",
+      "deliveryHeightM": "Outlet height above ground (m)",
+      "pipeLengthM": "Pipe length, pump to outlet (m)",
+      "pipeInnerDiameterMm": "Pipe inside width (mm)",
+      "flowLph": "Water needed (litres an hour)",
+      "item": "Pump to check",
+      "itemNone": "No pump chosen",
+      "itemHelper": "Checks the chosen pump's curve at the worked-out height."
+    },
+    "rooftop": {
+      "legend": "The bills and the roof",
+      "monthlyUnitsKwh": "Units used a month (kWh)",
+      "monthlyUnitsHelper": "The average of recent electricity bills.",
+      "roofAreaSqm": "Shade-free roof area (m²)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "sanctionedLoadHelper": "As printed on the electricity bill."
+    },
+    "result": {
+      "title": "Latest result",
+      "savedAt": "Worked out {when}",
+      "inBounds": "Within limits",
+      "outOfBounds": "Outside limits",
+      "headTitle": "Total height to lift",
+      "staticHead": "Water level and outlet height",
+      "drawdown": "Drop while pumping",
+      "friction": "Pipe friction",
+      "fittings": "Bends and valves",
+      "total": "Total",
+      "powerTitle": "Pump size",
+      "shaftHp": "Power the pump needs",
+      "standardHp": "Motor to fit",
+      "noStandardHp": "Larger than any motor on sale",
+      "motorInputKw": "Power drawn at this duty",
+      "solarTitle": "Solar panels for the pump",
+      "arrayKwp": "Panel size",
+      "moduleCount": "Panels",
+      "dutyTitle": "Chosen pump at this height",
+      "dutyFlow": "Water it delivers",
+      "curveRange": "Its curve runs from {min} to {max}",
+      "rooftopTitle": "System size",
+      "neededKwp": "Size the usage needs",
+      "roofKwp": "Size the roof holds",
+      "sanctionedKwp": "Size the sanctioned load allows",
+      "recommendedKwp": "Recommended size",
+      "boundBy": {
+        "need": "Set by the units used",
+        "roof": "Set by the roof area",
+        "sanctioned_load": "Set by the sanctioned load"
+      },
+      "none": "None"
+    },
+    "units": {
+      "m": "{value} m",
+      "lph": "{value} litres an hour",
+      "kw": "{value} kW",
+      "hp": "{value} HP",
+      "kwp": "{value} kWp",
+      "panels": "{count, plural, one {# panel} other {# panels}}"
+    },
+    "reason": {
+      "curve_too_short": "This pump's curve has too few points to check. Ask for the pump's full curve.",
+      "curve_not_monotonic": "This pump's curve does not read correctly. Ask for it to be checked.",
+      "head_above_shutoff": "The height to lift is more than this pump can reach. Choose a stronger pump.",
+      "head_below_curve": "The height to lift is below this pump's curve, so it would overload. Choose a smaller pump.",
+      "above_largest_standard_hp": "The pump needed is larger than any motor on sale. Ask the engineering head.",
+      "no_consumption": "Enter the units used a month to size the system.",
+      "roof_too_small": "The roof is too small for even one panel.",
+      "sanctioned_load_too_small": "The sanctioned load is too small for even one panel.",
+      "sanctioned_load_exceeded": "The system is larger than the sanctioned load allows.",
+      "dcr_modules_required": "This scheme needs made-in-India (DCR) panels on every line.",
+      "no_modules": "This scheme needs panels on the quote."
     }
   }
 }

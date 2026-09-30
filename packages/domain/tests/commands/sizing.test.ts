@@ -14,6 +14,7 @@ import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { recordSizing } from '../../src/commands/crm/record-sizing';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import { latestSizing } from '../../src/queries/crm/latest-sizing';
 import { SIZING_ENGINE_VERSION, sizePump, sizeRooftop } from '../../src/sizing';
 
@@ -323,6 +324,28 @@ describe('latestSizing', () => {
     });
     await expect(latest(gm, { entityId: 1, opportunityId: 'not an id' })).rejects.toMatchObject({
       code: 'validation_failed',
+    });
+  });
+});
+
+describe('listSizingPumps', () => {
+  it('offers the pumps on sale that have a curve, and no other item', async () => {
+    const noCurve = newId();
+    await asMigrator(
+      (m) => m`insert into items (id, sku, name, category, hsn)
+                 values (${noCurve}, ${`SZ-${noCurve}`}, 'sizing test pump with no curve', 'pump', '8413')`,
+    );
+    const pumps = await asPrincipal(caller, (context) => listSizingPumps(context));
+    const ids = pumps.map((p) => p.id);
+    expect(pumps).toContainEqual({ id: pumpId, sku: `SZ-${pumpId}`, name: 'sizing test pump' });
+    expect(ids).not.toContain(retiredPumpId);
+    expect(ids).not.toContain(noCurve);
+  });
+
+  it('is refused without the lead permission', async () => {
+    const hr = await createTestPrincipal('hr_admin', [1]);
+    await expect(asPrincipal(hr, (context) => listSizingPumps(context))).rejects.toMatchObject({
+      code: 'forbidden',
     });
   });
 });

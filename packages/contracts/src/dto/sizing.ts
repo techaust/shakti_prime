@@ -156,3 +156,9 @@ export const SizingDto = z.discriminatedUnion('kind', [
     .strict(),
 ]);
 export type SizingDto = z.infer<typeof SizingDto>;
+
+/** A catalogue pump the sizing panel offers for the duty point: one with a curve. Strict. */
+export const SizingPumpDto = z
+  .object({ id: IdSchema, sku: z.string().min(1), name: z.string().min(1) })
+  .strict();
+export type SizingPumpDto = z.infer<typeof SizingPumpDto>;

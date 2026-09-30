@@ -60,6 +60,7 @@ const ACTIONS = {
   'crm.opportunity.reopen': 'opportunityReopen',
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
+  'crm.sizing.record': 'sizingRecord',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
   'tax.rate.set': 'taxRateSet',
@@ -117,6 +118,7 @@ const EVENT_NAMES = {
   'crm.opportunity.reopened': 'opportunityReopened',
   'crm.opportunity.won': 'opportunityWon',
   'crm.opportunity.lost': 'opportunityLost',
+  'crm.sizing.recorded': 'sizingRecorded',
   'pricing.price.changed': 'priceChanged',
   'auth.session.revoked': 'sessionRevoked',
   'admin.user.invited': 'userInvited',
@@ -171,6 +173,8 @@ export type ChangeValue =
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
+  /** Several codes of one group, such as the reasons a sizing is outside its limits. */
+  | { kind: 'codes'; group: CodeGroup; values: string[] }
   | {
       kind: 'mapping';
       /** Each lead field filled from a column of the file. */
@@ -195,6 +199,8 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'sizingKind',
+  'sizingReason',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -254,6 +260,11 @@ const FIELD_KINDS = [
   ['handover', 'yesNo'],
   ['lostReason', 'lostReason'],
   ['nurtureReason', 'nurtureReason'],
+  // Sizing
+  ['sizingKind', 'sizingKind'],
+  ['inBounds', 'yesNo'],
+  ['sizingReasons', 'sizingReasons'],
+  ['engineVersion', 'text'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],
@@ -413,6 +424,10 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'sizingReasons' && Array.isArray(value)) {
+    const values = value.filter((v): v is string => typeof v === 'string');
+    return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };
+  }
   if (kind === 'viewSettings') return isRecord(value) ? viewSettingsOf(value) : EMPTY;
   if (kind === 'roles' && Array.isArray(value)) {
     return {

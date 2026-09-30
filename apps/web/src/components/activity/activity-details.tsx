@@ -35,6 +35,8 @@ import {
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   THEMES,
   USER_STATUSES,
 } from '../../screens/contract-values';
@@ -216,6 +218,8 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return t('values.percent', { value: value.value });
       case 'code':
         return code(value.group, value.value);
+      case 'codes':
+        return value.values.map((v) => code(value.group, v)).join(t('values.listSeparator'));
       case 'mapping':
         return (
           <span className="flex flex-col">
@@ -299,6 +303,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const sizing = useTranslations('sizing');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -334,6 +339,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       }
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
+      case 'sizingKind':
+        return oneOf(SIZING_KINDS, value) ? sizing(`kind.${value}`) : wordsOf(value);
+      case 'sizingReason':
+        return oneOf(SIZING_REASONS, value) ? sizing(`reason.${value}`) : wordsOf(value);
     }
   };
 }

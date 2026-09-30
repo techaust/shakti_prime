@@ -8,11 +8,18 @@ import {
   OpportunityNurtureReasonSchema,
   OpportunityStateSchema,
   PASSWORD_MIN_LENGTH as CONTRACT_PASSWORD_MIN_LENGTH,
+  PipeMaterialSchema,
+  PumpDriveSchema,
+  PumpSizingInputs,
+  PumpTypeSchema,
+  RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SizingKindSchema,
+  SizingReasonSchema,
   ThemeSchema,
   USER_SORT_COLUMNS as CONTRACT_USER_SORT_COLUMNS,
   UserStatusSchema,
@@ -28,11 +35,17 @@ import {
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
   PASSWORD_MIN_LENGTH,
+  PIPE_MATERIALS,
   PRICE_SORT_COLUMNS,
+  PUMP_DRIVES,
+  PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_INPUT_LIMITS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -50,6 +63,11 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
+    expect(PUMP_TYPES).toEqual(PumpTypeSchema.options);
+    expect(PUMP_DRIVES).toEqual(PumpDriveSchema.options);
+    expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {
@@ -60,5 +78,13 @@ describe('the contract values copied for the browser', () => {
     expect(IMPORT_JOB_SORT_COLUMNS).toEqual(CONTRACT_IMPORT_JOB_SORT_COLUMNS);
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+  });
+
+  it('give each sizing measurement the range the contract accepts', () => {
+    const shape = { ...PumpSizingInputs.shape, ...RooftopSizingInputs.shape };
+    for (const [field, limits] of Object.entries(SIZING_INPUT_LIMITS)) {
+      const schema = shape[field as keyof typeof shape];
+      expect({ field, min: schema.minValue, max: schema.maxValue }).toEqual({ field, ...limits });
+    }
   });
 });

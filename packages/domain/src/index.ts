@@ -98,6 +98,7 @@ export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { latestSizing } from './queries/crm/latest-sizing';
+export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
