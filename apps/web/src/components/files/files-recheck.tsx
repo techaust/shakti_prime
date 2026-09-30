@@ -35,7 +35,8 @@ export function FilesRecheck({ initialCount }: { initialCount: number }) {
         >
           {t('recheck')}
         </Button>
-        <p className="text-text-muted" role="status">
+        {/* The count changes with every upload, so screenshots leave it out. */}
+        <p className="text-text-muted" role="status" data-dynamic>
           {t('waiting', { count })}
         </p>
       </div>
