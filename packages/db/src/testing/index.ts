@@ -223,6 +223,7 @@ export const ENTITY_TABLES = [
   'account_contacts',
   'customer_sites',
   'opportunities',
+  'sizings',
   'consents',
   'item_costs',
   'document_sequences',
