@@ -30,6 +30,7 @@ const FIELDS = [
   'site.type',
   'site.pin',
   'sourceCode',
+  'referralCode',
 ] as const;
 
 /**
@@ -73,6 +74,7 @@ export function NewLeadForm({
         siteType: text('siteType'),
         pin: text('pin'),
         sourceCode: text('sourceCode'),
+        referralCode: text('referralCode'),
       }),
       () => {
         toast.success(t('done', { name }));
@@ -210,6 +212,21 @@ export function NewLeadForm({
             </option>
           ))}
         </Select>
+      </Field>
+
+      <Field
+        id="lead-referral"
+        label={t('referral')}
+        helper={t('referralHelper')}
+        error={fieldError('referralCode')}
+      >
+        <Input
+          name="referralCode"
+          maxLength={12}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+        />
       </Field>
 
       <FailureMessage failure={formFailure} />

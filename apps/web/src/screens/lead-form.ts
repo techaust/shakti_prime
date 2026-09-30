@@ -25,6 +25,8 @@ export interface LeadFormFields {
   siteType: string;
   pin: string;
   sourceCode: string;
+  /** A referral partner's code, when a partner sent the customer; optional. */
+  referralCode?: string;
 }
 
 /**
@@ -44,6 +46,9 @@ export function buildLeadInput(f: LeadFormFields): Record<string, unknown> {
           site: { type: f.siteType, village: f.village, ...(f.pin === '' ? {} : { pin: f.pin }) },
         }),
     ...(f.sourceCode === '' ? {} : { sourceCode: f.sourceCode }),
+    ...(f.referralCode === undefined || f.referralCode.trim() === ''
+      ? {}
+      : { referralCode: f.referralCode.trim() }),
   };
 }
 

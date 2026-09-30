@@ -757,7 +757,9 @@
       "choose": "Choose one",
       "submit": "Save lead",
       "cancel": "Cancel",
-      "done": "Lead saved for {name}."
+      "done": "Lead saved for {name}.",
+      "referral": "Referral code",
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card."
     },
     "accountType": {
       "household": "Household",
