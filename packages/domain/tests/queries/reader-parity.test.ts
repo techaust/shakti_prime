@@ -11,6 +11,11 @@ import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
+import {
+  listDispositions,
+  listPipelineSettings,
+  listScoreRules,
+} from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 import {
   getImportJob,
@@ -52,6 +57,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   countLeads: (ctx) => countLeads(ctx),
   listPipelines: (ctx) => listPipelines(ctx),
   listLeadSources: (ctx) => listLeadSources(ctx),
+  listPipelineSettings: (ctx) => listPipelineSettings(ctx),
+  listDispositions: (ctx) => listDispositions(ctx, { entityId: null, segment: null }),
+  listScoreRules: (ctx) => listScoreRules(ctx, { entityId: 1, segment: 'farmer_pumps' }),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
   listImportJobs: (ctx) => listImportJobs(ctx, { entityId: 1, limit: 20 }),
