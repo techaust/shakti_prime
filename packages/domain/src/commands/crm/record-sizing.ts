@@ -96,7 +96,13 @@ export const recordSizing = defineCommand({
         result,
         ...bounds,
       });
-      return { ...stored, kind: 'pump' as const, itemId: sizing.itemId, inputs: sizing.inputs, result };
+      return {
+        ...stored,
+        kind: 'pump' as const,
+        itemId: sizing.itemId,
+        inputs: sizing.inputs,
+        result,
+      };
     }
     const { result, ...bounds } = sizeRooftop(sizing.inputs);
     const stored = await store(ctx, lead, {

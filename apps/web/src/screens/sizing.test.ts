@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildSizingInput,
-  formatQuantity,
-  measurement,
-  nextTab,
-  sizingFields,
-} from './sizing';
+import { buildSizingInput, formatQuantity, measurement, nextTab, sizingFields } from './sizing';
 
 const LEAD = { entityId: 1, opportunityId: '01990000-0000-7000-8000-000000000001' };
 

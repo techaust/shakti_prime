@@ -83,8 +83,12 @@ describe('the contract values copied for the browser', () => {
   it('give each sizing measurement the range the contract accepts', () => {
     const shape = { ...PumpSizingInputs.shape, ...RooftopSizingInputs.shape };
     for (const [field, limits] of Object.entries(SIZING_INPUT_LIMITS)) {
-      const schema = shape[field as keyof typeof shape];
-      expect({ field, min: schema.minValue, max: schema.maxValue }).toEqual({ field, ...limits });
+      // Each of these fields is a number schema, which reports its bounds.
+      const bounds = shape[field as keyof typeof shape] as unknown as {
+        minValue: number | null;
+        maxValue: number | null;
+      };
+      expect({ field, min: bounds.minValue, max: bounds.maxValue }).toEqual({ field, ...limits });
     }
   });
 });

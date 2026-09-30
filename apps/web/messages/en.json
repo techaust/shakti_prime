@@ -1531,7 +1531,7 @@
     },
     "result": {
       "title": "Latest result",
-      "savedAt": "Worked out {when}",
+      "savedAt": "Worked out on",
       "inBounds": "Within limits",
       "outOfBounds": "Outside limits",
       "headTitle": "Total height to lift",

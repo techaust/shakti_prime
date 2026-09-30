@@ -122,7 +122,10 @@ async function stored(id: string) {
 
 async function leadSite(opportunityId: string): Promise<string | null> {
   const [row] = await asMigrator(
-    (m) => m<{ site_id: string | null }[]>`select site_id from opportunities where id = ${opportunityId}`,
+    (m) =>
+      m<
+        { site_id: string | null }[]
+      >`select site_id from opportunities where id = ${opportunityId}`,
   );
   return row?.site_id ?? null;
 }
@@ -143,9 +146,9 @@ describe('crm.sizing.record (design §6.7)', () => {
     await expect(run(elsewhere, recordSizing, pumpSizing(id))).rejects.toMatchObject({
       code: 'forbidden',
     });
-    await expect(
-      run(both, recordSizing, { ...pumpSizing(id), entityId: 2 }),
-    ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'lead_missing' } });
+    await expect(run(both, recordSizing, { ...pumpSizing(id), entityId: 2 })).rejects.toMatchObject(
+      { code: 'not_found', details: { reason: 'lead_missing' } },
+    );
   });
 
   it('finds no lead outside the caller’s own scope', async () => {
@@ -211,18 +214,14 @@ describe('crm.sizing.record (design §6.7)', () => {
       (m) => m<{ command: string; after_json: Record<string, unknown> }[]>`
         select command, after_json from audit_logs where aggregate_id = ${dto.id}`,
     );
-    expect(audits).toEqual([
-      {
-        command: 'crm.sizing.record',
-        after_json: expect.objectContaining({
-          opportunityId: id,
-          sizingKind: 'pump',
-          inBounds: true,
-          sizingReasons: [],
-          engineVersion: SIZING_ENGINE_VERSION,
-        }),
-      },
-    ]);
+    expect(audits.map((a) => a.command)).toEqual(['crm.sizing.record']);
+    expect(audits[0]?.after_json).toMatchObject({
+      opportunityId: id,
+      sizingKind: 'pump',
+      inBounds: true,
+      sizingReasons: [],
+      engineVersion: SIZING_ENGINE_VERSION,
+    });
 
     const events = await asOutboxPublisher(
       (p) => p<{ type: string; entity_id: number; payload_json: Record<string, unknown> }[]>`
@@ -296,9 +295,7 @@ describe('latestSizing', () => {
 
     expect(await latest(caller, { entityId: 1, opportunityId: id })).toEqual(rooftop);
     expect(await latest(caller, { entityId: 1, opportunityId: id, kind: 'pump' })).toEqual(pump);
-    expect(await latest(gm, { entityId: 1, opportunityId: id, kind: 'rooftop' })).toEqual(
-      rooftop,
-    );
+    expect(await latest(gm, { entityId: 1, opportunityId: id, kind: 'rooftop' })).toEqual(rooftop);
 
     const again = SizingDto.parse(await run(caller, recordSizing, pumpSizing(id, pumpId)));
     expect(await latest(caller, { entityId: 1, opportunityId: id, kind: 'pump' })).toEqual(again);
