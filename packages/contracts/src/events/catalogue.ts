@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
+import { SizingKindSchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { ImportKindSchema } from '../imports/enums';
 
@@ -89,6 +90,17 @@ const eventCatalogue = {
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })
+      .strict(),
+  },
+  'crm.sizing.recorded': {
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        kind: SizingKindSchema,
+        inBounds: z.boolean(),
+        reasons: z.array(SizingReasonSchema),
+      })
       .strict(),
   },
   'pricing.price.changed': {
