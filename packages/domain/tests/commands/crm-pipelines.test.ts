@@ -351,12 +351,12 @@ describe('stages', () => {
       ['contacted', 6, true],
     ]);
     expect(await refusal(run(exec, archiveStage, { stageId: s.contacted }))).toMatchObject({
-      details: { reason: 'stage_missing' },
+      details: { reason: 'stage_unavailable' },
     });
     // The archived stage takes no more leads.
     expect(
       await refusal(run(exec, updateStage, { stageId: s.contacted, name: 'Back again' })),
-    ).toMatchObject({ details: { reason: 'stage_missing' } });
+    ).toMatchObject({ details: { reason: 'stage_unavailable' } });
   });
 
   it('answers whether a stage holds open leads only to a caller holding crm.config.write:all', async () => {

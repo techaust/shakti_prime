@@ -85,7 +85,7 @@ async function lockStage(
 
 function stageMissing(stageId: string): DomainError {
   return new DomainError('not_found', `stage ${stageId} is not available`, {
-    reason: 'stage_missing',
+    reason: 'stage_unavailable',
   });
 }
 

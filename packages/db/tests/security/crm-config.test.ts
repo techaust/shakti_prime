@@ -105,7 +105,7 @@ describe('lead score rules', () => {
     const inside = await asPrincipal(principalFor('executive', [1]), async ({ tx }) => {
       const r = (await tx.execute(insert(1))) as unknown as { id: string }[];
       throw Object.assign(new Error('rolled back'), { inserted: r.length });
-    }).catch((e: { inserted?: number }) => e.inserted);
+    }).catch((e: unknown) => (e as { inserted?: number }).inserted);
     expect(inside).toBe(1);
   });
 });
