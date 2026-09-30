@@ -7,11 +7,14 @@ import {
   moveItem,
   nextFreeKey,
   outcomeDrafts,
+  pipelineChanges,
   ruleDraft,
   ruleInput,
   scopeOf,
   scoreRulesInput,
+  stageChanges,
   wholeOrEmpty,
+  withStage,
   type RuleDraft,
 } from './pipeline-settings';
 
@@ -138,5 +141,86 @@ describe('scopeOf', () => {
   it('reads the pickers as the group or a company, and every segment or one', () => {
     expect(scopeOf('group', 'all')).toEqual({ entityId: null, segment: null });
     expect(scopeOf('3', 'dealer_wholesale')).toEqual({ entityId: 3, segment: 'dealer_wholesale' });
+  });
+});
+
+describe('pipelineChanges', () => {
+  const pipeline = { name: 'Farmer pumps', lockHours: 48, firstContactSlaMinutes: null };
+
+  it('sends only what differs, trimmed, and nothing when nothing does', () => {
+    expect(
+      pipelineChanges(pipeline, {
+        name: ' Farmer pumps ',
+        lockHours: '48',
+        firstContactSlaMinutes: '',
+      }),
+    ).toBeUndefined();
+    expect(
+      pipelineChanges(pipeline, { name: 'Pumps', lockHours: '72', firstContactSlaMinutes: '30' }),
+    ).toEqual({ name: 'Pumps', lockHours: 72, firstContactSlaMinutes: 30 });
+  });
+
+  it('clears a time limit with an empty box and sends a box that is not a number as such', () => {
+    const withLimit = { ...pipeline, firstContactSlaMinutes: 30 };
+    expect(
+      pipelineChanges(withLimit, {
+        name: 'Farmer pumps',
+        lockHours: '48',
+        firstContactSlaMinutes: '',
+      }),
+    ).toEqual({ firstContactSlaMinutes: null });
+    const typed = { name: 'Farmer pumps', lockHours: '', firstContactSlaMinutes: 'soon' };
+    const changes = pipelineChanges(pipeline, typed);
+    expect(changes?.lockHours).toBeNaN();
+    expect(changes?.firstContactSlaMinutes).toBeNaN();
+  });
+});
+
+describe('withStage', () => {
+  const stage = (id: string, kind: 'open' | 'won' | 'lost') => ({
+    id,
+    pipelineId: ID,
+    key: id,
+    name: id,
+    position: 0,
+    kind,
+    requiredFields: [],
+    archived: false,
+  });
+
+  it('places a new stage after the open stages and before Won and Lost', () => {
+    const list = [stage('new', 'open'), stage('won', 'won'), stage('lost', 'lost')];
+    expect(withStage(list, stage('site_visit', 'open')).map((s) => s.id)).toEqual([
+      'new',
+      'site_visit',
+      'won',
+      'lost',
+    ]);
+    expect(withStage([], stage('only', 'open')).map((s) => s.id)).toEqual(['only']);
+  });
+});
+
+describe('stageChanges', () => {
+  const open = { name: 'Site visit', kind: 'open' as const, requiredFields: ['village' as const] };
+
+  it('sends a new name and a new list of details, and nothing when both are as they were', () => {
+    expect(
+      stageChanges(open, { name: 'Site visit ', requiredFields: ['village'] }),
+    ).toBeUndefined();
+    expect(stageChanges(open, { name: 'Survey', requiredFields: ['village', 'pin'] })).toEqual({
+      name: 'Survey',
+      requiredFields: ['village', 'pin'],
+    });
+    expect(stageChanges(open, { name: 'Site visit', requiredFields: [] })).toEqual({
+      requiredFields: [],
+    });
+  });
+
+  it('never sends details for Won or Lost', () => {
+    const won = { name: 'Won', kind: 'won' as const, requiredFields: [] };
+    expect(stageChanges(won, { name: 'Won', requiredFields: ['pin'] })).toBeUndefined();
+    expect(stageChanges(won, { name: 'Order won', requiredFields: ['pin'] })).toEqual({
+      name: 'Order won',
+    });
   });
 });

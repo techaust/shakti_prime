@@ -1,5 +1,8 @@
 import type {
   DispositionDto,
+  PipelineSettingsDto,
+  StageExitField,
+  StageSettingsDto,
   DispositionNextAction,
   ScoreFactor,
   ScoreRuleDto,
@@ -47,6 +50,54 @@ export function districtList(text: string): string[] {
       seen.add(k);
       return true;
     });
+}
+
+// --- Pipelines and stages --------------------------------------------------------------------
+
+/**
+ * The `crm.pipeline.update` fields that differ from the pipeline as typed; undefined when none
+ * does. An empty time limit sets none; a box that is not a whole number is sent as such, so the
+ * contract answers with the field it is about.
+ */
+export function pipelineChanges(
+  pipeline: Pick<PipelineSettingsDto, 'name' | 'lockHours' | 'firstContactSlaMinutes'>,
+  typed: { name: string; lockHours: string; firstContactSlaMinutes: string },
+): { name?: string; lockHours?: number; firstContactSlaMinutes?: number | null } | undefined {
+  const changes: { name?: string; lockHours?: number; firstContactSlaMinutes?: number | null } = {};
+  const name = typed.name.trim();
+  if (name !== pipeline.name) changes.name = name;
+  const lock = wholeOrEmpty(typed.lockHours) ?? Number.NaN;
+  if (lock !== pipeline.lockHours) changes.lockHours = lock;
+  const sla = wholeOrEmpty(typed.firstContactSlaMinutes);
+  if (sla !== pipeline.firstContactSlaMinutes) changes.firstContactSlaMinutes = sla;
+  return Object.keys(changes).length === 0 ? undefined : changes;
+}
+
+/** The stages with a new one placed as the last open stage, before Won and Lost. */
+export function withStage(
+  stages: readonly StageSettingsDto[],
+  stage: StageSettingsDto,
+): StageSettingsDto[] {
+  const open = stages.filter((s) => s.kind === 'open');
+  const closing = stages.filter((s) => s.kind !== 'open');
+  return [...open, stage, ...closing];
+}
+
+/**
+ * The `crm.stage.update` fields that differ from the stage as edited; undefined when none does.
+ * A Won or Lost stage has no exit rules, so only its name is compared.
+ */
+export function stageChanges(
+  stage: Pick<StageSettingsDto, 'name' | 'kind' | 'requiredFields'>,
+  edited: { name: string; requiredFields: readonly StageExitField[] },
+): { name?: string; requiredFields?: StageExitField[] } | undefined {
+  const changes: { name?: string; requiredFields?: StageExitField[] } = {};
+  const name = edited.name.trim();
+  if (name !== stage.name) changes.name = name;
+  if (stage.kind === 'open' && edited.requiredFields.join(',') !== stage.requiredFields.join(',')) {
+    changes.requiredFields = [...edited.requiredFields];
+  }
+  return Object.keys(changes).length === 0 ? undefined : changes;
 }
 
 // --- Call outcomes ----------------------------------------------------------------------------
