@@ -58,19 +58,32 @@ function PumpFacts({ result }: { result: PumpSizingResult }) {
   const u = useTranslations('sizing.units');
   const m = (value: number) => u('m', { value: formatQuantity(value) });
   const lph = (value: number) => u('lph', { value: formatQuantity(value, 0) });
-  const { head, power, solar, dutyPoint } = result;
+  const { head, power, solar, suction, dutyPoint } = result;
   return (
     <>
-      <Facts
-        title={t('headTitle')}
-        rows={[
-          [t('staticHead'), m(head.staticHeadM)],
-          [t('drawdown'), m(head.drawdownM)],
-          [t('friction'), m(head.frictionM)],
-          [t('fittings'), m(head.fittingsM)],
-        ]}
-        total={[t('total'), m(head.tdhM)]}
-      />
+      <section className="flex flex-col gap-2">
+        <Facts
+          title={t('headTitle')}
+          rows={[
+            [t('staticHead'), m(head.staticHeadM)],
+            [t('drawdown'), m(head.drawdownM)],
+            [t('friction'), m(head.frictionM)],
+            [t('fittings'), m(head.fittingsM)],
+          ]}
+          total={[t('total'), m(head.tdhM)]}
+        />
+        {suction === null ? null : (
+          <>
+            <dl className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-x-3 gap-y-1.5">
+              <dt className="text-text-muted text-sm">{t('suctionLift')}</dt>
+              <dd className="min-w-0 text-right tabular-nums">{m(suction.suctionLiftM)}</dd>
+            </dl>
+            <p className="text-text-muted text-sm">
+              {t('suctionLimit', { max: m(suction.maxSuctionLiftM) })}
+            </p>
+          </>
+        )}
+      </section>
       <Facts
         title={t('powerTitle')}
         rows={[

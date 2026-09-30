@@ -94,6 +94,33 @@ describe('SizingResult', () => {
     expect(html).not.toContain('head_above_curve');
   });
 
+  it('shows a surface pump’s suction lift against its limit, and says when the water is too deep', () => {
+    const surface = { ...PUMP_INPUTS, pumpType: 'surface' as const, staticLevelM: 10 };
+    const { result, inBounds, reasons } = sizePump(surface, null);
+    const html = render(
+      <SizingResult
+        sizing={SizingDto.parse({
+          ...LEAD,
+          kind: 'pump',
+          itemId: null,
+          inputs: surface,
+          result,
+          inBounds,
+          reasons,
+        })}
+      />,
+    );
+    expect(html).toContain(en.sizing.result.suctionLift);
+    expect(html).toContain('15 m');
+    expect(html).toContain('A surface pump can draw from at most 7 m');
+    expect(html).toContain(en.sizing.reason.suction_lift_exceeded);
+    expect(html).not.toContain('suction_lift_exceeded');
+    // A submersible has no suction lift to show.
+    expect(render(<SizingResult sizing={pumpSizing()} />)).not.toContain(
+      en.sizing.result.suctionLift,
+    );
+  });
+
   it('shows a rooftop sizing with the limit that set it', () => {
     const inputs = { monthlyUnitsKwh: 900, roofAreaSqm: 45, sanctionedLoadKw: 10 };
     const { result, inBounds, reasons } = sizeRooftop(inputs);
