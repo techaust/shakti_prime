@@ -1554,8 +1554,8 @@
       "retired": "The system no longer handles this kind of update.",
       "interrupted": "Sending stopped part way too many times.",
       "other": "It could not be sent."
-      }
-    },
+    }
+  },
   "pipelineSettings": {
     "title": "Pipelines and call outcomes",
     "intro": "Set how leads move through each pipeline, what callers record after a call and how leads are scored.",
