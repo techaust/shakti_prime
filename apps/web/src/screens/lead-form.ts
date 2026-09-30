@@ -12,6 +12,13 @@ export const ACCOUNT_TYPES = [
 export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
 export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
 
+/**
+ * Whether the lead and walk-in forms offer the referral code box. Off until `crm.lead.create`
+ * applies the code (`applyLeadAttribution()`, wired when slice C2's lead creation merges), so no
+ * form takes a code that would be dropped.
+ */
+export const REFERRAL_CODE_BOX = false as boolean;
+
 /** The New lead form's fields as typed, each trimmed. */
 export interface LeadFormFields {
   entityId: string;

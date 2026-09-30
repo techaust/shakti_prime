@@ -9,6 +9,7 @@ const base: WalkInFields = {
   segment: 'farmer_pumps',
   name: 'Ramesh Patil',
   phone: '98220 12345',
+  language: '',
   village: '',
   pin: '',
   referralCode: '',
@@ -42,6 +43,13 @@ describe('buildWalkInInput', () => {
       referralCode: 'ab12',
     });
     expect(CreateLeadInput.safeParse(input).success).toBe(true);
+  });
+
+  it('sends the chosen language for calls, and Hinglish when none is chosen', () => {
+    expect(buildWalkInInput(base)).toMatchObject({ contact: { preferredLanguage: 'hinglish' } });
+    expect(buildWalkInInput({ ...base, language: 'en' })).toMatchObject({
+      contact: { preferredLanguage: 'en' },
+    });
   });
 
   it('sends no site for a dealer, whose enquiry has no site of its own', () => {

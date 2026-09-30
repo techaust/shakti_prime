@@ -115,6 +115,7 @@ export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export {
+  effectiveDispositions,
   listDispositions,
   listPipelineSettings,
   listScoreRules,

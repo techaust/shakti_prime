@@ -12,6 +12,7 @@ import {
   buildLeadInput,
   CUSTOMER_LANGUAGES,
   pipelinesFor,
+  REFERRAL_CODE_BOX,
   SITE_TYPES,
 } from '../../screens/lead-form';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
@@ -214,20 +215,22 @@ export function NewLeadForm({
         </Select>
       </Field>
 
-      <Field
-        id="lead-referral"
-        label={t('referral')}
-        helper={t('referralHelper')}
-        error={fieldError('referralCode')}
-      >
-        <Input
-          name="referralCode"
-          maxLength={12}
-          autoComplete="off"
-          autoCapitalize="characters"
-          spellCheck={false}
-        />
-      </Field>
+      {REFERRAL_CODE_BOX ? (
+        <Field
+          id="lead-referral"
+          label={t('referral')}
+          helper={t('referralHelper')}
+          error={fieldError('referralCode')}
+        >
+          <Input
+            name="referralCode"
+            maxLength={12}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+          />
+        </Field>
+      ) : null}
 
       <FailureMessage failure={formFailure} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

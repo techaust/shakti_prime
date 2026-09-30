@@ -5,10 +5,12 @@ import {
   PipelineSettingsViewDto,
   ScoreFactorSchema,
   ScoreRuleDto,
+  SegmentSchema,
   type ConfigScopeInput,
+  type Segment,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { toStageDto } from '../../commands/crm/pipeline-settings';
 
@@ -118,4 +120,84 @@ export async function listScoreRules(
       points: row.points,
     }),
   );
+}
+
+/** A scope of set-up rows: a company or the group (null), a segment or every segment (null). */
+export interface ConfigScope {
+  entityId: number | null;
+  segment: Segment | null;
+}
+
+/**
+ * The scopes whose call outcomes apply to a call in `entityId` and `segment`, most specific first:
+ * the company's list for that segment, the company's list, the group's list for that segment, the
+ * group's list.
+ */
+export function dispositionPrecedence(entityId: number, segment: Segment): ConfigScope[] {
+  return [
+    { entityId, segment },
+    { entityId, segment: null },
+    { entityId: null, segment },
+    { entityId: null, segment: null },
+  ];
+}
+
+/**
+ * The list that applies, from rows of any of those scopes: the whole list of the most specific
+ * scope that has one, never a mix; undefined when no scope has any.
+ */
+export function pickEffective<R extends ConfigScope>(
+  rows: readonly R[],
+  entityId: number,
+  segment: Segment,
+): { scope: ConfigScope; rows: R[] } | undefined {
+  for (const scope of dispositionPrecedence(entityId, segment)) {
+    const own = rows.filter((r) => r.entityId === scope.entityId && r.segment === scope.segment);
+    if (own.length > 0) return { scope, rows: own };
+  }
+  return undefined;
+}
+
+/**
+ * The call outcomes a caller chooses from for a lead of `entityId` in `segment` (TEL-01): the most
+ * specific list, replaced whole, never merged. The group's list for every segment is never empty
+ * (`crm.disposition.set`), so a caller always has one.
+ */
+export async function effectiveDispositions(
+  ctx: ReadContext,
+  entityId: number,
+  segment: Segment,
+): Promise<DispositionListDto> {
+  const cd = schema.callDispositions;
+  const rows = await ctx.tx
+    .select()
+    .from(cd)
+    .where(
+      and(
+        isNull(cd.archivedAt),
+        or(isNull(cd.entityId), eq(cd.entityId, entityId)),
+        or(isNull(cd.segment), eq(cd.segment, segment)),
+      ),
+    )
+    .orderBy(asc(cd.position));
+  const scoped = rows.map((r) => ({
+    ...r,
+    segment: r.segment === null ? null : SegmentSchema.parse(r.segment),
+  }));
+  const chosen = pickEffective(scoped, entityId, segment);
+  return DispositionListDto.parse({
+    entityId: chosen?.scope.entityId ?? null,
+    segment: chosen?.scope.segment ?? null,
+    dispositions: (chosen?.rows ?? []).map((r) =>
+      DispositionDto.parse({
+        id: r.id,
+        entityId: r.entityId,
+        segment: r.segment,
+        key: r.key,
+        code: r.code,
+        label: r.label,
+        nextAction: DispositionNextActionSchema.parse(r.nextAction),
+      }),
+    ),
+  });
 }

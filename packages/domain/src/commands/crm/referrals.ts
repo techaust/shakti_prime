@@ -7,7 +7,7 @@ import {
   SetReferralPartnerInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { assertConfigScope } from './config-scope';
@@ -17,13 +17,15 @@ const cr = schema.commissionRules;
 
 /**
  * `crm.referral_partner.set` (CRM-09): gives a referral-partner customer its code, changes it, or
- * stops it being accepted. A partner is a customer of type `referral_partner` (ADR 0008); whoever
- * may update that customer may set its code. Codes are unique whatever their case.
+ * stops it being accepted. A partner is a customer of type `referral_partner` (ADR 0008) related to
+ * a company of the request; a code decides who earns commission, so only an Executive sets it
+ * (`crm.config.write`). Codes are unique whatever their case. The audit row carries the company
+ * when the partner belongs to exactly one of the request's companies.
  */
 export const setReferralPartner = defineCommand({
   name: 'crm.referral_partner.set',
-  permission: 'crm.account.write',
-  minScope: 'entity',
+  permission: 'crm.config.write',
+  minScope: 'all',
   input: SetReferralPartnerInput,
   output: ReferralPartnerDto,
   auditFields: ['code', 'isActive'],
@@ -69,10 +71,15 @@ export const setReferralPartner = defineCommand({
         `account ${account.id} is outside the caller's write scope`,
       );
     }
+    const ae = schema.accountEntities;
+    const companies = await ctx.tx
+      .select({ entityId: ae.entityId })
+      .from(ae)
+      .where(and(eq(ae.accountId, account.id), inArray(ae.entityId, [...ctx.entityIds])));
     ctx.audit({
       aggregateType: 'referral_partner',
       aggregateId: account.id,
-      entityId: null,
+      entityId: companies.length === 1 ? (companies[0]?.entityId ?? null) : null,
       before: existing ? { code: existing.code, isActive: existing.isActive } : null,
       after: { code: row.code, isActive: row.isActive },
     });
@@ -182,13 +189,17 @@ export const setCommissionRule = defineCommand({
   },
 });
 
-/** The partner a referral code names, for a caller who may write leads; undefined if none. */
+/**
+ * The partner a referral code names for a lead of `entityId`: an active partner whose customer is
+ * live and related to that company. For a caller who may write leads; undefined if none.
+ */
 export async function partnerForCode(
   tx: CommandContext['tx'],
   code: string,
+  entityId: number,
 ): Promise<string | undefined> {
   const rows = (await tx.execute(
-    sql`select app.referral_partner_for_code(${code}) as id`,
+    sql`select app.referral_partner_for_code(${code}, ${entityId}::smallint) as id`,
   )) as unknown as { id: string | null }[];
   return rows[0]?.id ?? undefined;
 }

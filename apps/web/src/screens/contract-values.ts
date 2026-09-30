@@ -185,9 +185,11 @@ export const RECORDED_STAGE_EXIT_FIELDS = [
   'site',
   'village',
   'pin',
-  'stateCode',
   'source',
 ] as const satisfies readonly StageExitField[];
+
+/** The stages every pipeline keeps, which cannot be archived (`PROTECTED_STAGE_KEYS`). */
+export const PROTECTED_STAGE_KEYS = ['new', 'qualified', 'quoted'] as const;
 
 /** How a referral commission is worked out. */
 export const COMMISSION_BASES = [

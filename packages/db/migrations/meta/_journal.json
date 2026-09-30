@@ -456,6 +456,13 @@
       "when": 1790716633939,
       "tag": "0064_worker_failures_system_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790735496145,
+      "tag": "0063_c3_partner_scope",
+      "breakpoints": true
     }
   ]
 }

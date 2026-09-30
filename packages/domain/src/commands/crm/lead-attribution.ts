@@ -36,11 +36,15 @@ export async function applyLeadAttribution(
   const patch: Partial<LeadAttribution> = {};
 
   if (args.input.referralCode !== undefined) {
-    const partner = await partnerForCode(ctx.tx, args.input.referralCode);
+    const partner = await partnerForCode(ctx.tx, args.input.referralCode, args.entityId);
     if (partner === undefined) {
-      throw new DomainError('validation_failed', 'no active referral partner has this code', {
-        reason: 'referral_code_unknown',
-      });
+      throw new DomainError(
+        'validation_failed',
+        'no active partner of this company has this code',
+        {
+          reason: 'referral_code_unknown',
+        },
+      );
     }
     const [row] = await ctx.tx
       .update(o)

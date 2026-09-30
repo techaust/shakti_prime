@@ -177,7 +177,8 @@
     "referral_code_taken": "Another referral partner already has this code. Choose a different code.",
     "referral_account_type": "Only a customer marked as a referral partner can have a referral code.",
     "commission_partner_missing": "We couldn't find this referral partner. Refresh the page and try again.",
-    "commission_rule_overlap": "Another commission rule already covers some of these dates for this partner. Choose a start date after it."
+    "commission_rule_overlap": "Another commission rule already covers some of these dates for this partner. Choose a start date after it.",
+    "stage_protected": "Every pipeline keeps this stage, so it can't be archived. You can rename it or move it instead."
   },
   "auth": {
     "signIn": {
@@ -310,7 +311,7 @@
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
       "settingsCompanies": "Change each company's brand name and UPI ID.",
       "design": "See every colour, text size and control in both themes.",
-      "walkIn": "Add a customer at the counter in under half a minute.",
+      "walkIn": "Add a customer who comes to the counter as a new lead.",
       "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline."
     }
   },
@@ -888,7 +889,7 @@
     },
     "score": {
       "column": "Score",
-      "label": "Score {score} out of 100",
+      "label": "Score {score} out of 100, see why",
       "base": "Every lead starts at 50. No rule has changed this score.",
       "changed": "Last changed {when}",
       "reasons": {
@@ -918,7 +919,8 @@
       "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
       "consent": "Consent",
       "walkInSubmit": "Save walk-in",
-      "done": "Walk-in saved for {name}. The form is ready for the next customer."
+      "done": "Walk-in saved for {name}. The form is ready for the next customer.",
+      "language": "Language for calls"
     }
   },
   "users": {
@@ -1620,7 +1622,7 @@
     "stageName": "Stage name",
     "requiredFields": "Details needed before a lead moves on",
     "requiredFieldsHelper": "A lead can't leave this stage until each ticked detail is filled in.",
-    "laterField": "{field} (once the sizing panel is in use)",
+    "laterField": "{field} (leads don't record this yet)",
     "saveStage": "Save stage",
     "stageSaved": "{name} is saved.",
     "stageAdded": "{name} is added as the last open stage.",
@@ -1630,7 +1632,7 @@
     "stageArchived": "{name} is archived.",
     "orderSaved": "The new order of stages is saved.",
     "outcomes": "Call outcomes",
-    "outcomesIntro": "What a caller records after each call, the number key that picks it and what happens next. A company or business line with a list of its own uses it in place of the shared list.",
+    "outcomesIntro": "What a caller records after each call, the number key that picks it and what happens next. Callers get one whole list: a company's list for their business line if there is one, else the company's list, else the shared list for the business line, else the shared list.",
     "scopeCompany": "Company",
     "scopeGroup": "All companies (shared)",
     "scopeSegment": "Business line",

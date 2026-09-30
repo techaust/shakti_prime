@@ -14,6 +14,7 @@ import { and, asc, eq, gt, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { loadScoreFacts, loadScoreRules, rescore, writeScores } from '../../crm/lead-scoring';
+import { canonicalJson } from '../../crm/canonical-json';
 import { scoreLead } from '../../crm/score';
 import { assertConfigScope } from './config-scope';
 import { lockOpportunity, requireEntity } from './opportunity-shared';
@@ -42,9 +43,12 @@ function toRuleDto(row: RuleRow): ScoreRuleDto {
   });
 }
 
-/** A rule's identity for comparing two lists: its factor, what it matches and its points. */
+/**
+ * A rule's identity for comparing two lists: its factor, what it matches and its points, with the
+ * match's keys in sorted order, so a rule saved again as it was reads as unchanged.
+ */
 function signature(rule: { factor: string; match: unknown; points: number }): string {
-  return JSON.stringify([rule.factor, rule.match, rule.points]);
+  return canonicalJson([rule.factor, rule.match, rule.points]);
 }
 
 /**

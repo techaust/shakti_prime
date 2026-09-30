@@ -43,8 +43,9 @@ export default async function WalkInPage() {
       ) : companies.length === 0 ? (
         <EmptyState message={t('noCompany')} />
       ) : (
-        // The consent wording and its version come from the client (workshop LAW-1); until they
-        // exist the form records no consent, and the first call asks for it.
+        // Open gap: the consent wording and its version come from the client (workshop LAW-1).
+        // Until they exist no consent is recorded at the counter, and service calls from the
+        // 160-series numbers, which need a recorded consent, cannot be made to these leads.
         <WalkInForm companies={companies} pipelines={options.data.pipelines} consent={undefined} />
       )}
     </Page>

@@ -8,6 +8,7 @@ import { schema } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { CommandContext } from '../command/context';
+import { canonicalJson } from './canonical-json';
 import { scoreLead, type LeadScore, type ScoreFacts, type ScoreRule } from './score';
 
 /**
@@ -112,7 +113,7 @@ export function scoreChanged(
   lead: Pick<ScoredLead, 'score' | 'reasons'>,
   next: LeadScore,
 ): boolean {
-  return lead.score !== next.score || JSON.stringify(lead.reasons) !== JSON.stringify(next.reasons);
+  return lead.score !== next.score || canonicalJson(lead.reasons) !== canonicalJson(next.reasons);
 }
 
 /**

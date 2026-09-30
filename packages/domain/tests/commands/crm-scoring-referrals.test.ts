@@ -28,6 +28,7 @@ const partners: string[] = [];
 
 let exec: Principal;
 let execOne: Principal;
+let execTwo: Principal;
 let gm: Principal;
 let gmTwo: Principal;
 let caller: Principal;
@@ -37,6 +38,7 @@ beforeAll(async () => {
   teamId = await createTestTeam(1, 'scoring team');
   exec = await createTestPrincipal('executive');
   execOne = await createTestPrincipal('executive', [1]);
+  execTwo = await createTestPrincipal('executive', [2]);
   gm = await createTestPrincipal('general_manager', [1]);
   gmTwo = await createTestPrincipal('general_manager', [2]);
   caller = await createTestPrincipal('tele_caller_cc', [1], { teamId });
@@ -44,7 +46,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await asMigrator(async (m) => {
-    const actors = [exec.id, execOne.id];
+    const actors = [exec.id, execOne.id, execTwo.id];
     await m`delete from lead_score_rules where created_by = any(${actors}::uuid[])`;
     await m`delete from commission_rules where created_by = any(${actors}::uuid[])`;
     await m`update opportunities set referral_partner_id = null
@@ -194,6 +196,27 @@ describe('crm.score_rule.set', () => {
     expect(await scoreOf(leads[0]?.id ?? '')).toMatchObject({ score: 50, reasons: [] });
   });
 
+  it('treats a rule saved again with its keys in another order as unchanged', async () => {
+    const scope = { entityId: 1, segment: 'residential_rooftop' as const };
+    const sized = (match: Record<string, unknown>) => ({ factor: 'system_size', match, points: 5 });
+    const first = (await run(execOne, setScoreRules, {
+      ...scope,
+      rules: [sized({ unit: 'kw', min: 3, max: 10 })],
+    })) as { rules: { id: string }[] };
+    const recorded = memoryAuditSink();
+    const again = await asPrincipal(execOne, (context) =>
+      runCommand(
+        setScoreRules,
+        { context, audit: recorded, outbox },
+        { ...scope, rules: [sized({ max: 10, min: 3, unit: 'kw' })] },
+      ),
+    );
+    expect(again.rules.map((r) => r.id)).toEqual(first.rules.map((r) => r.id));
+    expect(again.rescored).toBe(0);
+    expect(recorded.records).toEqual([]);
+    await run(execOne, setScoreRules, { ...scope, rules: [] });
+  });
+
   it('keeps a group rule to a request acting for every company, and applies it in every company', async () => {
     const district = `Group ${DISTRICT}`;
     const l = await lead('farm', district);
@@ -271,7 +294,7 @@ describe('crm.referral_partner.set', () => {
     partners.push(accountId);
     const code = `R${RUN.slice(0, 7)}`.toUpperCase();
     const recorded = memoryAuditSink();
-    const done = await asPrincipal(gm, (context) =>
+    const done = await asPrincipal(execOne, (context) =>
       runCommand(
         setReferralPartner,
         { context, audit: recorded, outbox },
@@ -279,9 +302,10 @@ describe('crm.referral_partner.set', () => {
       ),
     );
     expect(done).toEqual({ accountId, code, isActive: true });
+    // The partner is a customer of company 1 only, so its row carries that company.
     expect(recorded.records[0]).toMatchObject({
       aggregateType: 'referral_partner',
-      entityId: null,
+      entityId: 1,
       before: null,
       after: { code, isActive: true },
     });
@@ -290,7 +314,7 @@ describe('crm.referral_partner.set', () => {
     partners.push(other.accountId);
     expect(
       await refusal(
-        run(gm, setReferralPartner, {
+        run(execOne, setReferralPartner, {
           accountId: other.accountId,
           code: code.toLowerCase(),
           isActive: true,
@@ -299,11 +323,11 @@ describe('crm.referral_partner.set', () => {
     ).toMatchObject({ code: 'conflict', details: { reason: 'referral_code_taken' } });
   });
 
-  it('refuses a customer that is not a referral partner, a caller below company scope, and another company', async () => {
+  it('is set only by an Executive, for a referral-partner customer of a company in the request', async () => {
     const farm = await lead();
     expect(
       await refusal(
-        run(gm, setReferralPartner, {
+        run(execOne, setReferralPartner, {
           accountId: farm.accountId,
           code: 'FARM1234',
           isActive: true,
@@ -312,18 +336,20 @@ describe('crm.referral_partner.set', () => {
     ).toMatchObject({ details: { reason: 'referral_account_type' } });
     const partner = await lead('referral_partner');
     partners.push(partner.accountId);
+    for (const refused of [caller, gm]) {
+      expect(
+        await refusal(
+          run(refused, setReferralPartner, {
+            accountId: partner.accountId,
+            code: 'OWN12345',
+            isActive: true,
+          }),
+        ),
+      ).toMatchObject({ code: 'forbidden' });
+    }
     expect(
       await refusal(
-        run(caller, setReferralPartner, {
-          accountId: partner.accountId,
-          code: 'OWN12345',
-          isActive: true,
-        }),
-      ),
-    ).toMatchObject({ code: 'forbidden' });
-    expect(
-      await refusal(
-        run(gmTwo, setReferralPartner, {
+        run(execTwo, setReferralPartner, {
           accountId: partner.accountId,
           code: 'TWO12345',
           isActive: true,
@@ -364,7 +390,7 @@ describe('applyLeadAttribution', () => {
     const { accountId } = await lead('referral_partner');
     partners.push(accountId);
     const code = `A${newId().slice(-7)}`.toUpperCase();
-    await run(gm, setReferralPartner, { accountId, code, isActive });
+    await run(execOne, setReferralPartner, { accountId, code, isActive });
     return code;
   }
 
@@ -427,15 +453,33 @@ describe('applyLeadAttribution', () => {
     }
   });
 
-  it('resolves codes only for a caller who may write leads', async () => {
-    const answer = (principal: Principal) =>
+  it('refuses a code whose partner is not a live customer of the company of the lead', async () => {
+    const code = await partnerWithCode();
+    const partner = partners.at(-1) ?? '';
+    const callerTwo = await createTestPrincipal('tele_caller_cc', [2]);
+    expect(
+      await refusal(run(callerTwo, attributed, { ...leadInput(code), entityId: 2 })),
+    ).toMatchObject({ details: { reason: 'referral_code_unknown' } });
+    await asMigrator((m) => m`update accounts set archived_at = now() where id = ${partner}`);
+    try {
+      expect(await refusal(run(caller, attributed, leadInput(code)))).toMatchObject({
+        details: { reason: 'referral_code_unknown' },
+      });
+    } finally {
+      await asMigrator((m) => m`update accounts set archived_at = null where id = ${partner}`);
+    }
+  });
+
+  it('resolves codes only for a caller who may write leads, in a company of the request', async () => {
+    const answer = (principal: Principal, entityId: number) =>
       refusal(
         asPrincipal(principal, ({ tx }) =>
-          tx.execute(sql`select app.referral_partner_for_code('ABCD1234')`),
+          tx.execute(sql`select app.referral_partner_for_code('ABCD1234', ${entityId}::smallint)`),
         ),
       );
-    expect(await answer(principalFor('accounts', [1]))).toBeInstanceOf(Error);
-    expect(await answer(caller)).toBeUndefined();
+    expect(await answer(principalFor('accounts', [1]), 1)).toBeInstanceOf(Error);
+    expect(await answer(caller, 2)).toBeInstanceOf(Error);
+    expect(await answer(caller, 1)).toBeUndefined();
   });
 });
 

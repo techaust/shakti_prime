@@ -5,7 +5,7 @@ import { Button, Field, Input, Select, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { createLead } from '../../actions/crm';
-import { pipelinesFor } from '../../screens/lead-form';
+import { CUSTOMER_LANGUAGES, pipelinesFor, REFERRAL_CODE_BOX } from '../../screens/lead-form';
 import {
   buildWalkInInput,
   WALK_IN_KINDS,
@@ -29,7 +29,8 @@ const FIELDS = [
 ] as const;
 
 /**
- * The walk-in quick form: name, mobile, interest, village or PIN, an optional referral code and,
+ * The walk-in quick form: name, mobile, language for calls, interest, village and PIN, the referral
+ * code once lead creation applies it (`REFERRAL_CODE_BOX`) and,
  * once the client's wording exists, the consent tick. Keyboard first: the first box takes focus,
  * Enter saves, and after a save the form clears and the name box takes focus again for the next
  * customer. One idempotency key per customer, so a double press saves one lead.
@@ -45,6 +46,7 @@ export function WalkInForm({
   consent: (WalkInConsent & { text: string }) | undefined;
 }) {
   const t = useTranslations('leads.walkIn');
+  const leads = useTranslations('leads');
   const { run, pending, failure } = useCommand(createLead);
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
@@ -82,8 +84,9 @@ export function WalkInForm({
         segment,
         name,
         phone: text('phone'),
+        language: text('language'),
         ...place,
-        referralCode: text('referralCode'),
+        referralCode: REFERRAL_CODE_BOX ? text('referralCode') : '',
         consent: consent !== undefined && data.get('consent') === 'yes' ? consent : undefined,
       }),
       () => {
@@ -138,6 +141,15 @@ export function WalkInForm({
       >
         <Input name="phone" type="tel" inputMode="tel" required maxLength={20} autoComplete="off" />
       </Field>
+      <Field id="walk-in-language" label={t('language')}>
+        <Select name="language" defaultValue="hinglish">
+          {CUSTOMER_LANGUAGES.map((language) => (
+            <option key={language} value={language}>
+              {leads(`language.${language}`)}
+            </option>
+          ))}
+        </Select>
+      </Field>
       <Field
         id="walk-in-interest"
         label={t('interest')}
@@ -174,20 +186,22 @@ export function WalkInForm({
           </Field>
         </div>
       ) : null}
-      <Field
-        id="walk-in-referral"
-        label={t('referral')}
-        helper={t('referralHelper')}
-        error={fieldError('referralCode')}
-      >
-        <Input
-          name="referralCode"
-          maxLength={12}
-          autoComplete="off"
-          autoCapitalize="characters"
-          spellCheck={false}
-        />
-      </Field>
+      {REFERRAL_CODE_BOX ? (
+        <Field
+          id="walk-in-referral"
+          label={t('referral')}
+          helper={t('referralHelper')}
+          error={fieldError('referralCode')}
+        >
+          <Input
+            name="referralCode"
+            maxLength={12}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+          />
+        </Field>
+      ) : null}
       {consent === undefined ? null : (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-text-muted mb-1 text-sm font-medium">{t('consent')}</legend>

@@ -71,17 +71,24 @@ export const StageExitFieldSchema = z.enum([
 export type StageExitField = z.infer<typeof StageExitFieldSchema>;
 
 /**
- * The exit fields a lead carries today, which a stage may require. The sizing details join this
- * list when the sizing panel records them; until then a stage cannot require one, so no lead is
- * held by a detail nobody can fill in.
+ * The exit fields a stage may require today: the lead's source, and its site with the village and
+ * PIN, which the lead form records and `crm.site.upsert` (slice C2) lets a caller fill in later.
+ * The GST state code and the sizing details join this list when a screen records them; until then
+ * a stage cannot require one, so no lead is held by a detail nobody can fill in.
  */
 export const RECORDED_STAGE_EXIT_FIELDS = [
   'site',
   'village',
   'pin',
-  'stateCode',
   'source',
 ] as const satisfies readonly StageExitField[];
+
+/**
+ * Stages every pipeline keeps (`pipeline_stages.key` from the seed): New, where leads enter, and
+ * Qualified and Quoted, which the queue, handover and quotes move leads to. They may be renamed
+ * and reordered, never archived.
+ */
+export const PROTECTED_STAGE_KEYS = ['new', 'qualified', 'quoted'] as const;
 
 /**
  * The language of a customer's calls: the voice agent and the caller-script variant. Screens,

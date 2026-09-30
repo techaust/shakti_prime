@@ -95,6 +95,7 @@ const INPUTS: Record<string, unknown> = {
     dispositions: [{ key: 1, label: 'Interested', nextAction: 'callback' }],
   },
   'crm.pipeline.update': { pipelineId: newId(), lockHours: 24 },
+  'crm.referral_partner.set': { accountId: newId(), code: 'AGENT123', isActive: true },
   'crm.score_rule.set': { entityId: 1, segment: null, rules: [] },
   'crm.stage.archive': { stageId: newId() },
   'crm.stage.create': { pipelineId: newId(), name: 'Refused stage' },

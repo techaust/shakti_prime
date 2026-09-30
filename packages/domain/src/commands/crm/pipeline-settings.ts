@@ -4,6 +4,7 @@ import {
   DomainError,
   newId,
   PipelineSettingsDto,
+  PROTECTED_STAGE_KEYS,
   RECORDED_STAGE_EXIT_FIELDS,
   ReorderStagesInput,
   StageExitFieldSchema,
@@ -50,19 +51,29 @@ async function lockPipeline(ctx: CommandContext, pipelineId: string): Promise<Pi
     });
   }
   await assertConfigScope(ctx, seen.entityId);
-  const [row] = await ctx.tx.select().from(p).where(eq(p.id, pipelineId)).limit(1).for('update');
+  // No key update: the pipeline's id stays, so leads written meanwhile (whose foreign key takes a
+  // key share lock) do not wait on a settings change.
+  const [row] = await ctx.tx
+    .select()
+    .from(p)
+    .where(eq(p.id, pipelineId))
+    .limit(1)
+    .for('no key update');
   if (!row) throw new DomainError('forbidden', `pipeline ${pipelineId} is outside write scope`);
   return row;
 }
 
-/** Every stage of the pipeline, archived ones too, locked in position order. */
+/**
+ * Every stage of the pipeline, archived ones too, locked in position order. No key update, like
+ * the pipeline: renaming or renumbering a stage never makes a lead written meanwhile wait.
+ */
 async function lockStages(ctx: CommandContext, pipelineId: string): Promise<StageRow[]> {
   return ctx.tx
     .select()
     .from(ps)
     .where(eq(ps.pipelineId, pipelineId))
     .orderBy(asc(ps.position))
-    .for('update');
+    .for('no key update');
 }
 
 /** The stage and its pipeline, both locked; an archived stage is not found. */
@@ -394,9 +405,12 @@ export const reorderStages = defineCommand({
 });
 
 /**
- * `crm.stage.archive`: an open stage leaves the board. Refused while it holds open or nurture
- * leads (answered for every lead by `app.stage_has_open_leads()`), and for the first open stage,
- * where new leads enter. Won and Lost stay, since winning and losing need them.
+ * `crm.stage.archive`: an open stage leaves the board. Refused for the stages every pipeline keeps
+ * (`PROTECTED_STAGE_KEYS`), for the first open stage, where new leads enter, and while the stage
+ * holds open or nurture leads (answered for every lead by `app.stage_has_open_leads()`). Won and
+ * Lost stay, since winning and losing need them. The stage is locked for update before its leads
+ * are counted: a lead written into it meanwhile takes a key share lock through its foreign key, so
+ * it waits for the archive to finish, and a lead already written is counted.
  */
 export const archiveStage = defineCommand({
   name: 'crm.stage.archive',
@@ -412,12 +426,19 @@ export const archiveStage = defineCommand({
         reason: 'stage_closing',
       });
     }
+    const kept: readonly string[] = PROTECTED_STAGE_KEYS;
+    if (kept.includes(stage.key)) {
+      throw new DomainError('validation_failed', 'every pipeline keeps this stage', {
+        reason: 'stage_protected',
+      });
+    }
     const firstOpen = stages.find((s) => s.archivedAt === null && s.kind === 'open');
     if (firstOpen?.id === stage.id) {
       throw new DomainError('validation_failed', 'new leads enter at the first open stage', {
         reason: 'stage_first_open',
       });
     }
+    await ctx.tx.select({ id: ps.id }).from(ps).where(eq(ps.id, stage.id)).for('update');
     const held = (await ctx.tx.execute(
       sql`select app.stage_has_open_leads(${stage.id}::uuid) as held`,
     )) as unknown as { held: boolean }[];

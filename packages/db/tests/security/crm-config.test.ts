@@ -110,12 +110,36 @@ describe('lead score rules', () => {
   });
 });
 
+describe('lead scores', () => {
+  it('stay between 0 and 100 whoever writes them', async () => {
+    for (const score of [-1, 101]) {
+      const refused = await asMigrator((m) =>
+        m.begin(async (t) => {
+          await t`update opportunities set score = ${score}
+                   where id = (select id from opportunities limit 1)`;
+        }),
+      ).then(
+        () => undefined,
+        (e: unknown) => (e as { constraint_name?: string }).constraint_name,
+      );
+      expect(refused).toBe('opportunities_score_check');
+    }
+  });
+});
+
 describe('commission rules', () => {
-  it('are read only with crm.config.write or sales.order.confirm', async () => {
+  it('are read only with crm.config.write or finance.payment.write', async () => {
     const q = sql`select count(*)::int as n from commission_rules where id = ${rows.commissions[0] ?? ''}`;
     expect(await count(principalFor('executive', [1]), q)).toBe(1);
-    expect(await count(principalFor('store_manager', [1]), q)).toBe(1);
-    for (const role of ['tele_caller_cc', 'accounts', 'hr_admin', 'agent:triage'] as const) {
+    expect(await count(principalFor('accounts', [1]), q)).toBe(1);
+    const others = [
+      'tele_caller_cc',
+      'store_manager',
+      'general_manager',
+      'hr_admin',
+      'agent:triage',
+    ] as const;
+    for (const role of others) {
       expect(await count(principalFor(role, [1]), q)).toBe(0);
     }
   });
@@ -165,7 +189,7 @@ describe('pipelines, stages and call outcomes', () => {
 });
 
 describe('referral partners', () => {
-  it('are written with crm.account.write at company scope for a customer the caller may update', async () => {
+  it('are written only with crm.config.write, for a customer of a company in the request', async () => {
     const account = newId();
     const owner = newId();
     await asMigrator(async (m) => {
@@ -176,12 +200,13 @@ describe('referral partners', () => {
     });
     const insert = sql`insert into referral_partners (account_id, code, created_by)
                        values (${account}, ${`P${RUN.slice(0, 6)}`}, ${owner})`;
-    // The customer's own caller holds crm.account.write at own scope only.
+    // The customer's own caller and the company's GM may update the customer, not its code.
     expect(
       refusedByPolicy(await write(principalFor('tele_caller_cc', [1], { id: owner }), insert)),
     ).toBe(true);
-    expect(refusedByPolicy(await write(principalFor('general_manager', [2]), insert))).toBe(true);
-    expect(await write(principalFor('general_manager', [1]), insert)).toBe(0);
+    expect(refusedByPolicy(await write(principalFor('general_manager', [1]), insert))).toBe(true);
+    expect(refusedByPolicy(await write(principalFor('executive', [2]), insert))).toBe(true);
+    expect(await write(principalFor('executive', [1]), insert)).toBe(0);
     const seen = (principal: Principal) =>
       count(
         principal,

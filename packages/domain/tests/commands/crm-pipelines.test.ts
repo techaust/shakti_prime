@@ -25,6 +25,7 @@ import {
 } from '../../src/commands/crm/pipeline-settings';
 import { setDispositions } from '../../src/commands/crm/set-dispositions';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { effectiveDispositions } from '../../src/queries/crm/pipeline-settings';
 
 // Pipelines and call outcomes are shared set-up the other suites read, so every test works on
 // pipelines and outcome scopes it makes itself and removes afterwards; the seed tests change the
@@ -36,6 +37,7 @@ const made = { pipelines: [] as string[] };
 let exec: Principal;
 let execOne: Principal;
 let execTwo: Principal;
+let execThree: Principal;
 let gm: Principal;
 let caller: Principal;
 
@@ -43,13 +45,14 @@ beforeAll(async () => {
   exec = await createTestPrincipal('executive');
   execOne = await createTestPrincipal('executive', [1]);
   execTwo = await createTestPrincipal('executive', [2]);
+  execThree = await createTestPrincipal('executive', [3]);
   gm = await createTestPrincipal('general_manager', [1]);
   caller = await createTestPrincipal('tele_caller_cc', [1]);
 });
 
 afterAll(async () => {
   await asMigrator(async (m) => {
-    await m`delete from call_dispositions where created_by = any(${[exec.id, execOne.id, execTwo.id]}::uuid[])`;
+    await m`delete from call_dispositions where created_by = any(${[exec.id, execOne.id, execTwo.id, execThree.id]}::uuid[])`;
     await m`update call_dispositions set archived_at = null where entity_id is null and segment is null and created_by is null`;
     const ids = made.pipelines;
     await m`delete from opportunities where pipeline_id = any(${ids}::uuid[])`;
@@ -316,11 +319,29 @@ describe('stages', () => {
     );
   });
 
-  it('archives an empty open stage, but never the first open stage, Won or Lost, or a stage holding open leads', async () => {
+  it('archives an empty open stage, but never a stage every pipeline keeps, the first open stage, Won or Lost, or a stage holding open leads', async () => {
     const p = await testPipeline();
     const s = p.stages;
-    expect(await refusal(run(exec, archiveStage, { stageId: s.new }))).toMatchObject({
+    for (const kept of [s.new, s.qualified, s.quoted]) {
+      expect(await refusal(run(exec, archiveStage, { stageId: kept }))).toMatchObject({
+        code: 'validation_failed',
+        details: { reason: 'stage_protected' },
+      });
+    }
+    // A kept stage may still be renamed.
+    expect(
+      await run(exec, updateStage, { stageId: s.qualified, name: 'Ready to quote' }),
+    ).toMatchObject({ name: 'Ready to quote' });
+    await run(exec, reorderStages, {
+      pipelineId: p.id,
+      stageIds: [s.contacted, s.new, s.qualified, s.quoted],
+    });
+    expect(await refusal(run(exec, archiveStage, { stageId: s.contacted }))).toMatchObject({
       details: { reason: 'stage_first_open' },
+    });
+    await run(exec, reorderStages, {
+      pipelineId: p.id,
+      stageIds: [s.new, s.contacted, s.qualified, s.quoted],
     });
     expect(await refusal(run(exec, archiveStage, { stageId: s.lost }))).toMatchObject({
       details: { reason: 'stage_closing' },
@@ -562,5 +583,45 @@ describe('crm.disposition.set', () => {
       segment: 'residential_rooftop',
       dispositions: [],
     });
+  });
+});
+
+describe('effectiveDispositions', () => {
+  it('answers the most specific list for a company and segment, replaced whole', async () => {
+    const read = (entityId: number, segment: 'dealer_wholesale' | 'farmer_pumps') =>
+      asPrincipal(principalFor('tele_caller_cc', [entityId]), (context) =>
+        effectiveDispositions(context, entityId, segment),
+      );
+    const group = await read(3, 'dealer_wholesale');
+    expect(group).toMatchObject({ entityId: null, segment: null });
+    expect(group.dispositions.length).toBeGreaterThan(0);
+
+    await run(execThree, setDispositions, {
+      entityId: 3,
+      segment: null,
+      dispositions: [{ key: 1, label: 'Company wide', nextAction: 'callback' }],
+    });
+    await run(execThree, setDispositions, {
+      entityId: 3,
+      segment: 'dealer_wholesale',
+      dispositions: [
+        { key: 2, label: 'Dealer order', nextAction: 'qualified' },
+        { key: 3, label: 'Dealer later', nextAction: 'callback' },
+      ],
+    });
+    try {
+      const dealer = await read(3, 'dealer_wholesale');
+      expect(dealer).toMatchObject({ entityId: 3, segment: 'dealer_wholesale' });
+      expect(dealer.dispositions.map((d) => d.label)).toEqual(['Dealer order', 'Dealer later']);
+      const pumps = await read(3, 'farmer_pumps');
+      expect(pumps).toMatchObject({ entityId: 3, segment: null });
+      expect(pumps.dispositions.map((d) => d.label)).toEqual(['Company wide']);
+      // Another company still gets the group list.
+      expect(await read(4, 'dealer_wholesale')).toMatchObject({ entityId: null, segment: null });
+    } finally {
+      for (const segment of [null, 'dealer_wholesale'] as const) {
+        await run(execThree, setDispositions, { entityId: 3, segment, dispositions: [] });
+      }
+    }
   });
 });

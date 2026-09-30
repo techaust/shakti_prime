@@ -192,14 +192,14 @@ export function LeadsScreen({
 }
 
 /**
- * A lead's score (CRM-06) with why it has it: each matching rule's points and when the score last
- * changed, shown on hover and read out by screen readers.
+ * A lead's score (CRM-06) as a disclosure: the number, and on press (mouse, keyboard or touch) why
+ * the lead has it, each matching rule's points and when the score last changed.
  */
 function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 'scoreChangedAt'> }) {
   const t = useTranslations('leads.score');
-  const why =
+  const lines =
     lead.scoreReasons.length === 0
-      ? t('base')
+      ? [t('base')]
       : [
           ...lead.scoreReasons.map((r) =>
             t('reason', {
@@ -211,11 +211,20 @@ function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 's
           ...(lead.scoreChangedAt === null
             ? []
             : [t('changed', { when: formatDateTime(lead.scoreChangedAt) })]),
-        ].join('. ');
+        ];
   return (
-    <span title={why}>
-      <span aria-hidden>{lead.score}</span>
-      <span className="sr-only">{`${t('label', { score: lead.score })}. ${why}`}</span>
-    </span>
+    <details className="group">
+      <summary
+        className="text-accent-text min-h-8 cursor-pointer list-none underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden"
+        aria-label={t('label', { score: lead.score })}
+      >
+        {lead.score}
+      </summary>
+      <ul className="text-text-muted mt-1 flex max-w-60 flex-col gap-0.5 text-start text-xs whitespace-normal">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </details>
   );
 }

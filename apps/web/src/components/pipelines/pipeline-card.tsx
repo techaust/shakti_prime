@@ -11,7 +11,11 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useState, type SyntheticEvent } from 'react';
 import { createStage, reorderStages, updatePipeline } from '../../actions/crm-settings';
-import { FIRST_CONTACT_SLA_MAX, LOCK_HOURS_MAX } from '../../screens/contract-values';
+import {
+  FIRST_CONTACT_SLA_MAX,
+  LOCK_HOURS_MAX,
+  PROTECTED_STAGE_KEYS,
+} from '../../screens/contract-values';
 import { moveItem, pipelineChanges, withStage } from '../../screens/pipeline-settings';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -24,6 +28,9 @@ const ArchiveStageDialog = dynamic(() =>
 );
 
 const PIPELINE_FIELDS = ['name', 'lockHours', 'firstContactSlaMinutes'] as const;
+
+/** Stages every pipeline keeps: they are renamed and moved, never archived. */
+const KEPT: ReadonlySet<string> = new Set(PROTECTED_STAGE_KEYS);
 
 /** One pipeline: its name and limits, then its stages in order with their actions. */
 export function PipelineCard({
@@ -250,7 +257,7 @@ function StageList({
                 >
                   {t('edit')}
                 </Button>
-                {isOpen && index > 0 ? (
+                {isOpen && index > 0 && !KEPT.has(stage.key) ? (
                   <Button
                     ref={buttons.ref(`${stage.id}:archive`)}
                     variant="secondary"

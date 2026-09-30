@@ -37,6 +37,8 @@ export interface WalkInFields {
   segment: Segment | undefined;
   name: string;
   phone: string;
+  /** The language of the customer's calls; Hinglish unless the counter chooses English. */
+  language: string;
   village: string;
   pin: string;
   referralCode: string;
@@ -60,7 +62,7 @@ export function buildWalkInInput(f: WalkInFields): Record<string, unknown> {
   return {
     entityId: Number(f.entityId),
     pipelineKey: f.pipelineKey,
-    contact: { name: f.name, phone: f.phone, preferredLanguage: 'hinglish' },
+    contact: { name: f.name, phone: f.phone, preferredLanguage: f.language || 'hinglish' },
     account: { type: kinds?.account ?? '' },
     ...(village === '' || kinds?.site === undefined
       ? {}
@@ -71,7 +73,11 @@ export function buildWalkInInput(f: WalkInFields): Record<string, unknown> {
   };
 }
 
-/** A problem the form answers itself: a PIN typed without the village it belongs to. */
+/**
+ * A problem the form answers itself: a PIN typed without the village it belongs to. A PIN alone
+ * will find its village once the PIN code master exists (slice P2b, PRD CRM-02); until then the
+ * village is asked for.
+ */
 export function walkInProblem(
   f: Pick<WalkInFields, 'village' | 'pin'>,
 ): 'villageNeeded' | undefined {

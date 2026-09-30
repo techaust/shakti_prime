@@ -27,7 +27,7 @@ Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has starte
 - Choose the lead score rules (CRM-3): until then there are none, so every lead scores 50 (`WORKSHOP_DEFAULTS.crm.scoreBase` and `scoreRules`); an Executive adds rules on Settings › Pipelines.
 - Set the first-contact time limit per pipeline: until then no pipeline has one (`WORKSHOP_DEFAULTS.crm.firstContactSlaMinutes`), and an Executive sets it on Settings › Pipelines.
 - Give the referral commission rules (CRM-5): there is no default rule, so no commission accrues until an Executive records the rules the workshop agrees.
-- Give the consent wording shown at the walk-in counter and its version (LAW-1): until it exists the walk-in form records no consent, and the first call asks for it.
+- Give the consent wording shown at the walk-in counter and its version (LAW-1). This is an open gap: until the wording exists no consent is recorded for a walk-in, and service calls from the 160-series numbers, which need a recorded consent, cannot be made to those leads.
 - Sign off `DESIGN.md` and the preview page (`docs/phase0/design-signoff.md`).
 - Send one or two staff per role to the screen review, using the real screens and the prototype (`docs/phase0/wireframe-review.md`).
 - Arrange the Tally discovery visit and a copy of one company's data.
