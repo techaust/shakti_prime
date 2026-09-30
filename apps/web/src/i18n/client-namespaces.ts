@@ -20,4 +20,5 @@ export const CLIENT_NAMESPACES = [
   'roles',
   'activity',
   'imports',
+  'integrations',
 ] as const;

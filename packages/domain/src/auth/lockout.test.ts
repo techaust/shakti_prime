@@ -79,6 +79,14 @@ describe('createLockout', () => {
         await tick();
         return memory.incr(key, ttl);
       },
+      setIfAbsent: async (key, value, ttl) => {
+        await tick();
+        return memory.setIfAbsent(key, value, ttl);
+      },
+      raiseTo: async (key, value, ttl) => {
+        await tick();
+        return memory.raiseTo(key, value, ttl);
+      },
     };
     const lockout = createLockout(store, () => clock);
     const keys = ['acct:asha@shakti.test', 'ip:10.0.0.1'];

@@ -5,6 +5,9 @@ import { Client, Receiver } from '@upstash/qstash';
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
 export const OUTBOX_PUBLISH_PATH = '/api/v1/workers/outbox/publish';
 
+/** Where QStash reports an event its worker refused for good or still failed after retrying. */
+export const OUTBOX_FAILED_PATH = '/api/v1/workers/outbox/failed';
+
 /** Where QStash calls the import worker, once per commit and again while a job has rows left. */
 export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
 
@@ -67,6 +70,11 @@ function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/** The address QStash calls for an event type: the endpoint of its URL group `evt-<type>`. */
+export function eventWorkerPath(type: string): string {
+  return `/api/v1/workers/outbox/${type}`;
+}
+
 /** The queue group that fans one event type out to its workers. */
 export function urlGroupFor(type: string): string {
   return `evt-${type}`;
@@ -84,7 +92,9 @@ function resultOf(id: string, answer: unknown): PublishResult {
 
 /**
  * Sends a run's events in one batch call, each to its type's queue group, with the event id as
- * the deduplication id so a retried run never delivers an event twice within QStash's window.
+ * the deduplication id so a retried run never delivers an event twice within QStash's window, and
+ * the failure callback, through which an event its worker refuses for good or still fails after
+ * QStash's retries comes back as a dead letter (`OUTBOX_FAILED_PATH`).
  */
 export function qstashEventPublisher(config: QStashConfig): EventPublisher {
   const qstash = client(config);
@@ -97,6 +107,7 @@ export function qstashEventPublisher(config: QStashConfig): EventPublisher {
             urlGroup: urlGroupFor(event.type),
             body: event,
             deduplicationId: event.id,
+            failureCallback: workerUrl(config, OUTBOX_FAILED_PATH),
           })),
         ),
         QUEUE_TIMEOUT_MS,

@@ -3,12 +3,14 @@ import { EntityIdSchema, IdSchema } from './ids';
 import { PermissionGrantSchema } from './permissions';
 import { RoleKeySchema } from './roles';
 
-export const PrincipalKindSchema = z.enum(['user', 'agent', 'voice_session']);
+export const PrincipalKindSchema = z.enum(['user', 'agent', 'voice_session', 'system']);
 export type PrincipalKind = z.infer<typeof PrincipalKindSchema>;
 
 /**
- * The resolved caller of a command: a user, an agent service principal or a voice session acting
- * as a user. Built by the auth layer, carried into `withRequestContext()` and the command runner.
+ * The resolved caller of a command: a user, an agent service principal, a voice session acting
+ * as a user, or the system principal the event workers act as. Built by the auth layer (the
+ * workers build theirs in `apps/web/src/workers`), carried into `withRequestContext()` and the
+ * command runner.
  */
 export const PrincipalSchema = z.object({
   id: IdSchema,

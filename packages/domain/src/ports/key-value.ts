@@ -10,6 +10,22 @@ export interface KeyValue {
   del(key: string): Promise<void>;
   /** Increments an integer value, creating it at 1 with the given time to live. */
   incr(key: string, ttlSeconds: number): Promise<number>;
+  /**
+   * Sets the value only when the key holds none (Redis `SET NX EX`), in one step, so two callers
+   * never both get it: true for the caller that set it.
+   */
+  setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean>;
+  /**
+   * Raises a stored whole number to `value` when `value` is larger, or stores it when there is none,
+   * in one step, with the given time to live; answers the number stored afterwards. Both are
+   * non-negative whole numbers written without leading zeros (an outbox sequence).
+   */
+  raiseTo(key: string, value: string, ttlSeconds: number): Promise<string>;
+}
+
+/** Whether one non-negative whole number, as written without leading zeros, exceeds another. */
+export function greaterNumber(a: string, b: string): boolean {
+  return a.length === b.length ? a > b : a.length > b.length;
 }
 
 interface Entry {
@@ -47,6 +63,19 @@ export function memoryKeyValue(now: () => number = Date.now): KeyValue {
         expiresAt: entry?.expiresAt ?? now() + ttlSeconds * 1000,
       });
       return Promise.resolve(next);
+    },
+    setIfAbsent: (key, value, ttlSeconds) => {
+      if (live(key) !== undefined) return Promise.resolve(false);
+      entries.set(key, { value, expiresAt: now() + ttlSeconds * 1000 });
+      return Promise.resolve(true);
+    },
+    raiseTo: (key, value, ttlSeconds) => {
+      const entry = live(key);
+      if (entry !== undefined && !greaterNumber(value, entry.value)) {
+        return Promise.resolve(entry.value);
+      }
+      entries.set(key, { value, expiresAt: now() + ttlSeconds * 1000 });
+      return Promise.resolve(value);
     },
   };
 }

@@ -7,9 +7,9 @@ import { AgentNameSchema } from './worker-jobs';
 
 /**
  * The Integration Health page (docs/API.md §3.7; docs/BLUEPRINT.md §8.8, §10;
- * docs/design/backend-weeks-3-5.md §4.4). Both routes need a session holding
- * `admin.integrations.write`. The page shows counts, times and ids; it never shows a provider
- * payload, a message body or a stored error text.
+ * docs/design/backend-weeks-3-5.md §4.4, docs/design/phase1.md §5.2). Both routes need a session
+ * holding `admin.integrations.write`. The page shows counts, times, ids and error codes; it never
+ * shows a provider payload, a message body or an error that is not a code.
  */
 
 const Count = z.number().int().min(0);
@@ -41,6 +41,15 @@ export const WebhookInboxStats = z
 export type WebhookInboxStats = z.infer<typeof WebhookInboxStats>;
 
 /**
+ * Why the last attempt of an outbox event failed, as the publisher records it: a short code such
+ * as `queue_refused`, `no_outcome`, `not_in_catalogue`, `TimeoutError` or a worker's error code.
+ * A stored error that is not one word of letters, digits, `_` and `.` answers `other`, so no text
+ * reaches the page.
+ */
+export const OutboxErrorCodeSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_.]{0,63}$/);
+export type OutboxErrorCode = z.infer<typeof OutboxErrorCodeSchema>;
+
+/**
  * An outbox event the publisher gave up on after ten attempts (`outbox_events.dead_lettered_at`).
  * `type` is a plain string, because a row that no longer fits the event catalogue is dead-lettered
  * as well.
@@ -53,6 +62,7 @@ export const DeadLetteredEvent = z
     aggregateType: z.string().min(1).max(64),
     aggregateId: z.string().min(1).max(64),
     attempts: Count,
+    errorCode: OutboxErrorCodeSchema.nullable(),
     createdAt: Instant,
     deadLetteredAt: Instant,
   })
@@ -110,9 +120,63 @@ export const IntegrationHealthQuery = z
   .strict();
 export type IntegrationHealthQuery = z.infer<typeof IntegrationHealthQuery>;
 
+/**
+ * The outbox by event type (`app.outbox_health()`): `pending` waits to be delivered, `due` of those
+ * may be sent now (past its backoff and not leased to a run), `deadLettered` waits for a replay.
+ */
+export const OutboxTypeHealth = z
+  .object({
+    type: z.string().min(1).max(120),
+    pending: Count,
+    due: Count,
+    deadLettered: Count,
+    oldestPendingAt: Instant.nullable(),
+  })
+  .strict();
+export type OutboxTypeHealth = z.infer<typeof OutboxTypeHealth>;
+
+/** The counts of the publisher's last run, kept for a day in the key-value store. */
+export const PublisherRun = z
+  .object({
+    at: Instant,
+    claimed: Count,
+    published: Count,
+    skipped: Count,
+    failed: Count,
+    deadLettered: Count,
+  })
+  .strict();
+export type PublisherRun = z.infer<typeof PublisherRun>;
+
+/**
+ * The delivery check (`platform.probe.run`): `waiting` until the worker for
+ * `platform.probe.requested` records its arrival, then `arrived` with the milliseconds from the
+ * command to the worker. A check whose ten minutes have passed without an arrival is `lost`.
+ */
+export const DeliveryCheckStateSchema = z.enum(['waiting', 'arrived', 'lost']);
+export type DeliveryCheckState = z.infer<typeof DeliveryCheckStateSchema>;
+
+export const DeliveryCheck = z
+  .object({
+    probeId: IdSchema,
+    state: DeliveryCheckStateSchema,
+    requestedAt: Instant,
+    arrivedAt: Instant.nullable(),
+    milliseconds: Count.nullable(),
+  })
+  .strict();
+export type DeliveryCheck = z.infer<typeof DeliveryCheck>;
+
 export const IntegrationHealthResponse = z
   .object({
     generatedAt: Instant,
+    outbox: z
+      .object({
+        byType: z.array(OutboxTypeHealth),
+        lastPublisherRun: PublisherRun.nullable(),
+      })
+      .strict(),
+    deliveryCheck: DeliveryCheck.nullable(),
     webhooks: z.array(WebhookInboxStats),
     deadLetters: z
       .object({

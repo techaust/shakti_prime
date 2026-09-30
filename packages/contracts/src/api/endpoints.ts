@@ -60,6 +60,8 @@ import {
   NotifyJob,
   NotifyResult,
   OutboxEventDelivery,
+  OutboxFailureCallback,
+  OutboxFailureResult,
   OutboxEventParams,
   OutboxEventResult,
   PdfRenderJob,
@@ -370,6 +372,15 @@ export const API_ENDPOINTS = {
     // `validation_failed` for a signed body that is not an `ImportCommitWorkerBody`.
     errors: ['validation_failed', 'unauthorized', 'forbidden', 'integration_unavailable'],
   },
+  'workers.outbox.failed': {
+    method: 'POST',
+    path: '/workers/outbox/failed',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: OutboxFailureCallback,
+    response: OutboxFailureResult,
+    errors: WORKER_ERRORS,
+  },
   'workers.outbox.event': {
     method: 'POST',
     path: '/workers/outbox/:type',
@@ -378,7 +389,9 @@ export const API_ENDPOINTS = {
     params: OutboxEventParams,
     request: OutboxEventDelivery,
     response: OutboxEventResult,
-    errors: WORKER_ERRORS,
+    // `not_found` for a type no worker handles; a worker's own refusal answers its code, and all
+    // but `validation_failed`, `forbidden` and `not_found` are retried.
+    errors: [...WORKER_ERRORS, 'not_found', 'forbidden', 'conflict', 'rate_limited', 'internal'],
   },
   'workers.messaging.send': {
     method: 'POST',

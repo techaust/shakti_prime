@@ -158,7 +158,8 @@
     "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
-    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device."
+    "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
+    "event_in_progress": "This update is already being handled. It will be tried again shortly."
   },
   "auth": {
     "signIn": {
@@ -236,6 +237,7 @@
     "imports": "Imports",
     "adminUsers": "Team members",
     "adminActivity": "Activity log",
+    "adminIntegrations": "Integration health",
     "settingsCompanies": "Companies",
     "design": "Design preview"
   },
@@ -285,6 +287,7 @@
       "imports": "Bring in records from a spreadsheet file.",
       "adminUsers": "Invite staff, change their roles and sign them out.",
       "adminActivity": "See who changed what, and when.",
+      "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
       "settingsCompanies": "Change each company's brand name and UPI ID.",
       "design": "See every colour, text size and control in both themes."
     }
@@ -1036,6 +1039,7 @@
       "importCommitBatch": "Import rows added",
       "importRollback": "Import undone",
       "deadLetterReplay": "Held update sent again",
+      "deliveryCheck": "Checked how fast updates arrive",
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
@@ -1059,7 +1063,8 @@
       "userRolesChanged": "Roles changed",
       "importCommitted": "Import finished",
       "importFailed": "Import stopped",
-      "importRolledBack": "Import undone"
+      "importRolledBack": "Import undone",
+      "deliveryCheckRequested": "Delivery check sent"
     },
     "sheet": {
       "title": "{action}",
@@ -1147,7 +1152,8 @@
       "errorCode": "What went wrong",
       "eventType": "Update sent on",
       "attempts": "Tries to send",
-      "deadLetteredAt": "Stopped trying at"
+      "deadLetteredAt": "Stopped trying at",
+      "requestedAt": "Asked at"
     },
     "values": {
       "percent": "{value}%",
@@ -1409,6 +1415,60 @@
       "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
       "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
       "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them."
+    }
+  },
+  "integrations": {
+    "title": "Integration health",
+    "intro": "Updates the system passes on in the background: what is waiting, what was held back, and how fast they arrive.",
+    "otherUpdate": "Another kind of update",
+    "waiting": {
+      "heading": "Updates waiting to go out",
+      "caption": "Updates waiting to go out, by kind",
+      "empty": "Nothing is waiting. Every update has gone out."
+    },
+    "columns": {
+      "update": "Update",
+      "waiting": "Waiting",
+      "ready": "Ready to go",
+      "held": "Held back",
+      "since": "Waiting since",
+      "company": "Company",
+      "tries": "Tries",
+      "reason": "What went wrong",
+      "heldAt": "Held back at",
+      "actions": "Actions"
+    },
+    "lastRun": {
+      "heading": "Last sending round",
+      "summary": "{at}: {sent} sent, {failed} not sent, {held} held back.",
+      "none": "No sending round in the last day."
+    },
+    "delivery": {
+      "heading": "Delivery speed",
+      "intro": "Send one update through the system and time how long it takes to arrive. Handing a lead over depends on this staying under 10 seconds.",
+      "check": "Check delivery speed",
+      "arrived": "Arrived in {milliseconds, number} milliseconds, sent at {at}.",
+      "waiting": "Sent at {at}. Waiting for it to arrive.",
+      "lost": "Sent at {at}. It did not arrive within ten minutes. When its tries run out it is listed under held-back updates below.",
+      "none": "Not checked yet."
+    },
+    "held": {
+      "heading": "Held-back updates",
+      "intro": "An update is held back after ten tries. Send it again once the cause is fixed.",
+      "caption": "Updates held back after ten tries, newest first",
+      "empty": "No updates are held back.",
+      "sendAgain": "Send again",
+      "describe": "{update}, held back at {at}",
+      "sent": "The update goes out again within a minute.",
+      "loadMore": "Show more",
+      "total": "{count, plural, one {# update held back} other {# updates held back}}"
+    },
+    "reasons": {
+      "queue": "The delivery service did not take it.",
+      "worker": "The step that handles it failed.",
+      "retired": "The system no longer handles this kind of update.",
+      "interrupted": "Sending stopped part way too many times.",
+      "other": "It could not be sent."
     }
   }
 }

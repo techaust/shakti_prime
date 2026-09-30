@@ -428,6 +428,34 @@
       "when": 1790633909233,
       "tag": "0060_last_mile",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1790683380443,
+      "tag": "0061_system_principal",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790683392751,
+      "tag": "0062_observability_workers",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790686745832,
+      "tag": "0063_reader_assignee_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790716633939,
+      "tag": "0064_worker_failures_system_scope",
+      "breakpoints": true
     }
   ]
 }

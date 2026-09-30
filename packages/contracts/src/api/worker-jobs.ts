@@ -59,6 +59,35 @@ export type OutboxEventDelivery = z.infer<typeof OutboxEventDelivery>;
 export const OutboxEventResult = WorkerAck;
 export type OutboxEventResult = z.infer<typeof OutboxEventResult>;
 
+/**
+ * `POST /workers/outbox/failed`: QStash's failure callback for an event whose worker failed after
+ * its last retry, or refused it for good. Only what the route reads is named; QStash sends more
+ * (headers, ids, times), which is ignored. `status` is the worker's last answer (0 when none came)
+ * and `sourceBody` the event as it was sent, in base64.
+ */
+export const OutboxFailureCallback = z.looseObject({
+  status: z.number().int().min(0).max(999),
+  sourceBody: z.string().min(1).max(16_384),
+});
+export type OutboxFailureCallback = z.infer<typeof OutboxFailureCallback>;
+
+/** Why an event came back from its worker: a final refusal, or a failure after every retry. */
+export const OutboxWorkerErrorSchema = z.enum(['worker_refused', 'worker_failed']);
+export type OutboxWorkerError = z.infer<typeof OutboxWorkerErrorSchema>;
+
+/**
+ * The event is held back as a dead letter (`held`) with `lastError`, or was already held back or
+ * is no longer in the outbox (`unchanged`).
+ */
+export const OutboxFailureResult = z
+  .object({
+    eventId: IdSchema,
+    outcome: z.enum(['held', 'unchanged']),
+    lastError: OutboxWorkerErrorSchema,
+  })
+  .strict();
+export type OutboxFailureResult = z.infer<typeof OutboxFailureResult>;
+
 // --- /workers/messaging/send -----------------------------------------------------------------
 
 /** `POST /workers/messaging/send`: one `message.requested` (docs/API.md §6) to check and send. */

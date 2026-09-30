@@ -16,9 +16,14 @@ import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
-export { AGENT_PRINCIPAL_SEED } from '../../seeds/principals';
+export { AGENT_PRINCIPAL_SEED, SYSTEM_PRINCIPAL_SEED } from '../../seeds/principals';
 export { ROLE_SEED, roleId } from '../../seeds/roles';
-export { AGENT_MATRIX, STAFF_MATRIX, grantsForRole } from '../../seeds/role-permissions';
+export {
+  AGENT_MATRIX,
+  STAFF_MATRIX,
+  SYSTEM_MATRIX,
+  grantsForRole,
+} from '../../seeds/role-permissions';
 export { PIPELINE_SEED, STAGE_SEED, stageId } from '../../seeds/pipelines';
 export { LEAD_SOURCE_SEED } from '../../seeds/lead-sources';
 export { PRICE_TIER_SEED, tierId } from '../../seeds/price-tiers';
@@ -52,6 +57,7 @@ export async function prepareDatabase(): Promise<void> {
     'DATABASE_URL_MIGRATOR',
     'DATABASE_URL_AUTH',
     'DATABASE_URL_OUTBOX',
+    'DATABASE_URL_READER',
   ]) {
     const url = process.env[name];
     if (url !== undefined && url !== '') assertLocalDatabase(url);
@@ -98,7 +104,11 @@ export function principalFor(
 ): Principal {
   return {
     id: newId(),
-    kind: roleKey.startsWith('agent:') ? 'agent' : 'user',
+    kind: roleKey.startsWith('agent:')
+      ? 'agent'
+      : roleKey.startsWith('system:')
+        ? 'system'
+        : 'user',
     roleKey,
     entityIds: [...entityIds],
     permissions: grantsForRole(roleKey),

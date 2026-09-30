@@ -5,7 +5,15 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "src/tokens.css", "src/tailwind.css"],
-      "env": ["NEXT_PUBLIC_*", "VERCEL_*", "TURNSTILE_SITE_KEY"]
+      "env": [
+        "NEXT_PUBLIC_*",
+        "VERCEL_*",
+        "TURNSTILE_SITE_KEY",
+        "BOS_ENVIRONMENT",
+        "SENTRY_AUTH_TOKEN",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"]
@@ -40,6 +48,8 @@
         "APP_USER_PASSWORD",
         "AUTH_SERVICE_PASSWORD",
         "OUTBOX_PUBLISHER_PASSWORD",
+        "DATABASE_URL_READER",
+        "APP_READER_PASSWORD",
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",
         "TURNSTILE_SECRET_KEY",
@@ -53,7 +63,9 @@
         "ALLOW_REMOTE_TEST_DB",
         "DATABASE_CA_CERT",
         "BOS_JWT_CURRENT_KEY",
-        "BOS_JWT_NEXT_KEY"
+        "BOS_JWT_NEXT_KEY",
+        "SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_DSN"
       ]
     },
     "test:e2e": {

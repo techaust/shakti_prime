@@ -1,3 +1,4 @@
+import { SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
 import { newId, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -149,6 +150,21 @@ describe('app.lead_search_ids(): only leads the caller may read', () => {
       return rows[0]?.n;
     });
     expect(readable).toBe(0);
+  });
+
+  it('finds nothing for the event workers, which read no customer through a lead (0064)', async () => {
+    const leadReader = [{ key: 'crm.lead.read' as const, scope: 'entity' as const }];
+    const byKey = principalFor('system:workers', [1, 2], { permissions: leadReader });
+    const byRow = principalFor('tele_caller_cc', [1, 2], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+      permissions: leadReader,
+    });
+    for (const who of [byKey, byRow]) {
+      expect(await fixtureCandidates(who, { text: 'fixture' })).toEqual([]);
+    }
+    // A person holding the same lead read finds them through the leads, so the search answers.
+    const person = principalFor('tele_caller_cc', [1, 2], { permissions: leadReader });
+    expect(await fixtureCandidates(person, { text: 'fixture' })).not.toEqual([]);
   });
 
   it('matches the typed text only as text, never as a pattern', async () => {
