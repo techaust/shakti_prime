@@ -213,7 +213,8 @@ describe('crm.score_rule.set', () => {
     );
     expect(again.rules.map((r) => r.id)).toEqual(first.rules.map((r) => r.id));
     expect(again.rescored).toBe(0);
-    expect(recorded.records).toEqual([]);
+    // Only the call itself is recorded; no rule changed.
+    expect(recorded.records.filter((r) => r.aggregateType !== null)).toEqual([]);
     await run(execOne, setScoreRules, { ...scope, rules: [] });
   });
 
@@ -500,7 +501,7 @@ describe('crm.commission_rule.set', () => {
   it('sets a rule from a date, ending the open one before it, and refuses an overlap', async () => {
     const { accountId } = await lead('referral_partner');
     partners.push(accountId);
-    await run(gm, setReferralPartner, {
+    await run(execOne, setReferralPartner, {
       accountId,
       code: `C${newId().slice(-7)}`.toUpperCase(),
       isActive: true,
@@ -564,7 +565,7 @@ describe('crm.commission_rule.set', () => {
     ).toMatchObject({ code: 'validation_failed' });
   });
 
-  it('is read by those who set rules or confirm orders, and by no one else', async () => {
+  it('is read by those who set rules or pay commission, and by no one else', async () => {
     const count = (principal: Principal) =>
       asPrincipal(principal, async ({ tx }) => {
         const rows = (await tx.execute(
@@ -573,7 +574,9 @@ describe('crm.commission_rule.set', () => {
         return rows[0]?.n ?? 0;
       });
     expect(await count(exec)).toBeGreaterThan(0);
-    expect(await count(principalFor('tele_caller_lc', [1]))).toBeGreaterThan(0);
+    expect(await count(principalFor('accounts', [1]))).toBeGreaterThan(0);
+    expect(await count(principalFor('tele_caller_lc', [1]))).toBe(0);
+    expect(await count(gm)).toBe(0);
     expect(await count(caller)).toBe(0);
     expect(await count(principalFor('agent:triage', [1]))).toBe(0);
   });
