@@ -111,19 +111,16 @@ describe('lead score rules', () => {
 });
 
 describe('lead scores', () => {
+  // Read from the catalogue, since a fresh database has no lead to write: a check constraint
+  // holds for every writer, the commands, the import batch and the migrator alike.
   it('stay between 0 and 100 whoever writes them', async () => {
-    for (const score of [-1, 101]) {
-      const refused = await asMigrator((m) =>
-        m.begin(async (t) => {
-          await t`update opportunities set score = ${score}
-                   where id = (select id from opportunities limit 1)`;
-        }),
-      ).then(
-        () => undefined,
-        (e: unknown) => (e as { constraint_name?: string }).constraint_name,
-      );
-      expect(refused).toBe('opportunities_score_check');
-    }
+    const rows = await withoutContext<{ def: string; validated: boolean }>(sql`
+      select pg_get_constraintdef(c.oid) as def, c.convalidated as validated
+        from pg_constraint c
+       where c.conrelid = 'public.opportunities'::regclass
+         and c.conname = 'opportunities_score_check'
+    `);
+    expect(rows).toEqual([{ def: 'CHECK (((score >= 0) AND (score <= 100)))', validated: true }]);
   });
 });
 
