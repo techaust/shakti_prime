@@ -10,8 +10,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
-import { CompanySwitcher, type CompanyOption } from './company-switcher';
-import { ProfileMenu } from './profile-menu';
+import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
+import type { CompanyOption } from './menu-triggers';
 import { rememberSidebar } from './sidebar-state';
 import { SidebarNav } from './sidebar-nav';
 
@@ -193,7 +193,7 @@ export function AppShell({
             </PhoneMenu>
           ) : null}
 
-          <CompanySwitcher companies={companies} active={activeCompany} />
+          <DeferredCompanySwitcher companies={companies} active={activeCompany} />
 
           <div className="flex min-w-0 flex-1 justify-end md:justify-center">
             <Button
@@ -207,13 +207,13 @@ export function AppShell({
             >
               <Search aria-hidden />
               <span className="flex-1 text-left max-md:hidden">{t('search')}</span>
-              <kbd className="border-border bg-surface-2 text-text-subtle rounded-sm border px-1.5 font-sans text-xs max-md:hidden">
+              <kbd className="border-border bg-surface-2 text-text-muted rounded-sm border px-1.5 font-sans text-xs max-md:hidden">
                 {isMac ? t('shortcutMac') : t('shortcutOther')}
               </kbd>
             </Button>
           </div>
 
-          <ProfileMenu name={user.name} role={user.role} theme={theme} />
+          <DeferredProfileMenu name={user.name} role={user.role} theme={theme} />
         </header>
 
         <main

@@ -17,6 +17,7 @@ import dynamic from 'next/dynamic';
 import { useRef, useState, type SyntheticEvent } from 'react';
 import { listAuditLog, listAuditPeople } from '../../actions/admin';
 import { ACTION_FILTERS, actionKey, auditWindow, type WindowProblem } from '../../screens/audit';
+import { DateTime } from '../date-time';
 import { formatDateTime } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -154,7 +155,7 @@ export function ActivityScreen({
       id: 'when',
       header: t('columns.when'),
       numeric: true,
-      cell: (r) => formatDateTime(r.createdAt),
+      cell: (r) => <DateTime value={r.createdAt} />,
     },
     { id: 'action', header: t('columns.action'), cell: actionName, primary: true },
     { id: 'person', header: t('columns.person'), cell: (r) => r.actorName ?? t('system') },
