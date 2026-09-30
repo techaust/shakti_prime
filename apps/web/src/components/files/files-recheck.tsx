@@ -25,7 +25,6 @@ export function FilesRecheck({ initialCount }: { initialCount: number }) {
         <Button
           variant="secondary"
           pending={pending}
-          disabled={count === 0}
           onClick={() => {
             run({}, (done) => {
               setCount(0);
