@@ -144,7 +144,13 @@ async function enrolAuthenticator(userId: string, email: string): Promise<string
   return secret;
 }
 
-/** A lead in one company, made once, for the list and the company switcher journeys. */
+/**
+ * A lead in one company, made once, for the list and the company switcher journeys. It is found
+ * again by what only the seed writes: its owner, a person of `users.ts` whom no other suite ever
+ * makes, in that company, with that contact name. A name alone would match a customer another
+ * suite made on the same database (the security suite's own "Kamla Devi"), and the lead would
+ * never be made.
+ */
 async function ensureLead(
   owner: { id: string; roleKey: RoleKey; entityIds: readonly number[] },
   entityId: number,
@@ -152,7 +158,12 @@ async function ensureLead(
   phone: string,
 ): Promise<void> {
   const [found] = await asMigrator(
-    (m) => m<{ n: number }[]>`select count(*)::int as n from contacts where name = ${name}`,
+    (m) => m<{ n: number }[]>`
+      select count(*)::int as n
+        from opportunities o
+        join account_contacts ac on ac.account_id = o.account_id
+        join contacts c on c.id = ac.contact_id
+       where o.owner_id = ${owner.id} and o.entity_id = ${entityId} and c.name = ${name}`,
   );
   if ((found?.n ?? 0) > 0) return;
   const principal = principalFor(owner.roleKey, owner.entityIds, { id: owner.id });
@@ -186,9 +197,11 @@ async function holdBackUpdate(id: string, entityId: number, heldAt: string): Pro
 
 /** One import job in the snapshot company, from a fixed spreadsheet, made once. */
 async function ensureSnapshotImport(executiveId: string): Promise<void> {
+  // Found again by the seed's Executive, whom no other suite makes, not by the company alone.
   const [found] = await asMigrator(
     (m) => m<{ n: number }[]>`select count(*)::int as n from import_jobs
-                              where entity_id = ${SNAPSHOT_COMPANY.entityId}`,
+                              where entity_id = ${SNAPSHOT_COMPANY.entityId}
+                                and created_by = ${executiveId}`,
   );
   if ((found?.n ?? 0) > 0) return;
   const store = fileStore();
