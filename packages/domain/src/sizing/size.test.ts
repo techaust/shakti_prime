@@ -35,6 +35,8 @@ describe('sizePump', () => {
       motorEfficiency: sizing.efficiency.submersible.motor,
       motorMarginFraction: sizing.motorMarginFraction,
       standardHp: sizing.standardHp,
+      dutyFlowTolerance: sizing.dutyFlowTolerance,
+      dutyFlowOvershootFactor: sizing.dutyFlowOvershootFactor,
       arrayOversize: sizing.solarArrayOversize,
       moduleWp: sizing.moduleWp,
     });
@@ -42,9 +44,47 @@ describe('sizePump', () => {
     expect(result.head.tdhM).toBeCloseTo(44.3948, 4);
     expect(result.power.standardHp).not.toBeNull();
     expect(result.solar?.moduleCount).toBeGreaterThan(0);
-    expect(result.dutyPoint?.dutyFlowLph).toBeGreaterThan(0);
+    // On the curve at 44.39 m: 16,000 + (50 − 44.39) / 30 · 8,000 = 17,495 litres an hour,
+    // within 16,200 to 27,000 for the 18,000 needed.
+    expect(result.dutyPoint?.dutyFlowLph).toBeCloseTo(17_494.7, 1);
+    expect(result.dutyPoint).toMatchObject({
+      requiredFlowLph: 18_000,
+      ratedHp: null,
+      inBounds: true,
+    });
+    expect(result.dutyPoint?.minFlowLph).toBeCloseTo(16_200, 6);
+    expect(result.dutyPoint?.maxFlowLph).toBeCloseTo(27_000, 6);
     expect({ inBounds, reasons }).toEqual({ inBounds: true, reasons: [] });
     expect(PumpSizingResultSchema.parse(result)).toEqual(result);
+  });
+
+  it('a chosen pump short of flow or of power is out of bounds and names why', () => {
+    // A small pump: 9,000 litres an hour at 30 m, 5,000 at 60 m, rated 5 HP against the sized 7.5.
+    const small: ChosenPump = {
+      curve: [
+        { headM: 30, flowLph: 9_000 },
+        { headM: 60, flowLph: 5_000 },
+      ],
+      ratedHp: 5,
+    };
+    const { inBounds, reasons, result } = sizePump(SUBMERSIBLE, small);
+    expect(result.power.standardHp).toBe(7.5);
+    expect(result.dutyPoint?.reasons).toEqual(['duty_flow_short', 'pump_power_short']);
+    expect({ inBounds, reasons }).toEqual({
+      inBounds: false,
+      reasons: ['duty_flow_short', 'pump_power_short'],
+    });
+  });
+
+  it('a chosen pump far larger than the need is out of bounds', () => {
+    const large: ChosenPump = {
+      curve: [
+        { headM: 20, flowLph: 60_000 },
+        { headM: 80, flowLph: 40_000 },
+      ],
+      ratedHp: 15,
+    };
+    expect(sizePump(SUBMERSIBLE, large).reasons).toEqual(['duty_flow_excess']);
   });
 
   it('a grid pump has no array and no solar constants', () => {

@@ -57,6 +57,7 @@ function PumpFacts({ result }: { result: PumpSizingResult }) {
   const t = useTranslations('sizing.result');
   const u = useTranslations('sizing.units');
   const m = (value: number) => u('m', { value: formatQuantity(value) });
+  const lph = (value: number) => u('lph', { value: formatQuantity(value, 0) });
   const { head, power, solar, dutyPoint } = result;
   return (
     <>
@@ -102,8 +103,18 @@ function PumpFacts({ result }: { result: PumpSizingResult }) {
                   ? t('none')
                   : u('lph', { value: formatQuantity(dutyPoint.dutyFlowLph, 0) }),
               ],
+              [t('requiredFlow'), lph(dutyPoint.requiredFlowLph)],
+              [
+                t('ratedHp'),
+                dutyPoint.ratedHp === null
+                  ? t('notGiven')
+                  : u('hp', { value: formatQuantity(dutyPoint.ratedHp) }),
+              ],
             ]}
           />
+          <p className="text-text-muted text-sm">
+            {t('flowBand', { min: lph(dutyPoint.minFlowLph), max: lph(dutyPoint.maxFlowLph) })}
+          </p>
           {dutyPoint.minHeadM === null || dutyPoint.shutoffHeadM === null ? null : (
             <p className="text-text-muted text-sm">
               {t('curveRange', { min: m(dutyPoint.minHeadM), max: m(dutyPoint.shutoffHeadM) })}

@@ -36,6 +36,8 @@ export interface SizingDefaults {
   readonly roofAreaPerKwSqm: number;
   readonly motorMarginFraction: number;
   readonly standardHp: readonly number[];
+  readonly dutyFlowTolerance: number;
+  readonly dutyFlowOvershootFactor: number;
   readonly dcrSchemes: readonly SubsidyScheme[];
 }
 
@@ -108,6 +110,17 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     motorMarginFraction: 0.1,
     /** Motor ratings on sale, in HP: the common Indian ratings from 0.5 to 30 HP. */
     standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
+    /**
+     * How far below the needed flow a chosen pump's duty flow may fall: 10%, a common allowance
+     * for the spread of pump curves. For the engineering head to confirm.
+     */
+    dutyFlowTolerance: 0.1,
+    /**
+     * How many times the needed flow a chosen pump may deliver before it is too large for the site
+     * (1.5 = half as much again): a common limit before a pump runs far from its best point. For
+     * the engineering head to confirm.
+     */
+    dutyFlowOvershootFactor: 1.5,
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },

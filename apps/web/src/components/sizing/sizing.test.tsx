@@ -27,7 +27,7 @@ const LEAD = {
   createdAt: '2026-09-30T04:30:00.000Z',
 };
 
-/** The field measurements of head worked example 1, checked on a 30 to 50 m curve. */
+/** The field measurements of head worked example 1, checked on a 30 to 50 m curve of a 7.5 HP pump. */
 const PUMP_INPUTS: PumpSizingInputs = {
   pumpType: 'submersible',
   drive: 'solar',
@@ -40,12 +40,12 @@ const PUMP_INPUTS: PumpSizingInputs = {
   flowLph: 18_000,
 };
 const CURVE = [
-  { headM: 30, flowLph: 12_000 },
-  { headM: 50, flowLph: 8_000 },
+  { headM: 30, flowLph: 20_000 },
+  { headM: 50, flowLph: 16_000 },
 ];
 
 function pumpSizing(inputs = PUMP_INPUTS): SizingDto {
-  const { result, inBounds, reasons } = sizePump(inputs, { curve: CURVE, ratedHp: null });
+  const { result, inBounds, reasons } = sizePump(inputs, { curve: CURVE, ratedHp: 7.5 });
   return SizingDto.parse({
     ...LEAD,
     kind: 'pump',
@@ -79,6 +79,11 @@ describe('SizingResult', () => {
     expect(html).toContain('7.5 HP');
     expect(html).toContain('14 panels');
     expect(html).toContain('Its curve runs from 30 m to 50 m');
+    // The required flow beside the duty flow, and the band a pump must deliver within.
+    expect(html).toContain(en.sizing.result.requiredFlow);
+    expect(html).toContain('18,000 litres an hour');
+    expect(html).toContain('It should give from 16,200 litres an hour to 27,000 litres an hour');
+    expect(html).toContain(en.sizing.result.ratedHp);
     expect(html).toMatch(/<time dateTime="2026-09-30T04:30:00.000Z">/);
   });
 

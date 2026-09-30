@@ -30,6 +30,8 @@ describe('workshop defaults', () => {
         roofAreaPerKwSqm: 10,
         motorMarginFraction: 0.1,
         standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
+        dutyFlowTolerance: 0.1,
+        dutyFlowOvershootFactor: 1.5,
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
     });

@@ -57,6 +57,13 @@ export const DutyPointResultSchema = z
     dutyFlowLph: quantity.nullable(),
     shutoffHeadM: quantity.nullable(),
     minHeadM: quantity.nullable(),
+    /** The flow the site needs, shown beside the duty flow. */
+    requiredFlowLph: quantity,
+    /** The least duty flow that meets the need, and the most before the pump is too large. */
+    minFlowLph: quantity,
+    maxFlowLph: quantity,
+    /** The chosen pump's rated HP from its specifications; null when not given. */
+    ratedHp: quantity.nullable(),
     ...Bounded,
   })
   .strict();
@@ -84,6 +91,8 @@ export const PumpSizingConstantsSchema = z
     motorEfficiency: z.number().positive().max(1),
     motorMarginFraction: quantity,
     standardHp: z.array(z.number().positive()),
+    dutyFlowTolerance: quantity.max(1),
+    dutyFlowOvershootFactor: z.number().min(1),
     /** Solar drive only. */
     arrayOversize: z.number().positive().nullable(),
     /** Solar drive only. */

@@ -24,7 +24,10 @@ let teamId: string;
 let otherTeamId: string;
 let caller: Principal;
 let gm: Principal;
-/** A pump on sale with a two-point curve: 12,000 litres an hour at 30 m, 8,000 at 50 m. */
+/**
+ * A submersible on sale rated 7.5 HP, with a two-point curve: 20,000 litres an hour at 30 m,
+ * 16,000 at 50 m.
+ */
 let pumpId: string;
 /** A pump no longer on sale. */
 let retiredPumpId: string;
@@ -41,8 +44,10 @@ beforeAll(async () => {
   surfacePumpId = newId();
   await asMigrator(async (m) => {
     await m.begin(async (tx) => {
+      await tx`insert into items (id, sku, name, category, hsn, specs_json) values
+        (${pumpId}, ${`SZ-${pumpId}`}, 'sizing test pump', 'pump', '8413',
+         ${tx.json({ hp: 7.5, kw: 5.5, phase: 'three', pumpType: 'submersible', outletMm: 50, maxHeadM: 50 })})`;
       await tx`insert into items (id, sku, name, category, hsn) values
-        (${pumpId}, ${`SZ-${pumpId}`}, 'sizing test pump', 'pump', '8413'),
         (${retiredPumpId}, ${`SZ-${retiredPumpId}`}, 'sizing test retired pump', 'pump', '8413')`;
       await tx`insert into items (id, sku, name, category, hsn, specs_json) values
         (${surfacePumpId}, ${`SZ-${surfacePumpId}`}, 'sizing test surface pump', 'pump', '8413',
@@ -51,7 +56,7 @@ beforeAll(async () => {
         (${newId()}, ${surfacePumpId}, 30.00, 20000.00), (${newId()}, ${surfacePumpId}, 50.00, 16000.00)`;
       await tx`update items set is_active = false where id = ${retiredPumpId}`;
       await tx`insert into pump_curves (id, item_id, head_m, flow_lph) values
-        (${newId()}, ${pumpId}, 30.00, 12000.00), (${newId()}, ${pumpId}, 50.00, 8000.00)`;
+        (${newId()}, ${pumpId}, 30.00, 20000.00), (${newId()}, ${pumpId}, 50.00, 16000.00)`;
     });
   });
 });
@@ -249,10 +254,18 @@ describe('crm.sizing.record (design §6.7)', () => {
     const dto = SizingDto.parse(await run(caller, recordSizing, pumpSizing(id, pumpId)));
     if (dto.kind !== 'pump') throw new Error('a pump sizing');
     expect(dto.itemId).toBe(pumpId);
-    // The head, about 44.39 m, lies between the curve's 30 and 50 m points, so the pump delivers.
-    expect(dto.result.dutyPoint).toMatchObject({ inBounds: true, shutoffHeadM: 50, minHeadM: 30 });
+    // The head, about 44.39 m, lies between the curve's 30 and 50 m points, so the pump delivers
+    // about 17,121 litres an hour: at least the 16,200 that 18,000 less 10% allows. Its 7.5 HP
+    // rating, read from its specifications, meets the sized 7.5 HP.
+    expect(dto.result.dutyPoint).toMatchObject({
+      inBounds: true,
+      shutoffHeadM: 50,
+      minHeadM: 30,
+      requiredFlowLph: 18_000,
+      ratedHp: 7.5,
+    });
     expect(dto.result.dutyPoint?.dutyFlowLph).toBeCloseTo(
-      12_000 + ((dto.result.head.tdhM - 30) / 20) * -4_000,
+      20_000 + ((dto.result.head.tdhM - 30) / 20) * -4_000,
       6,
     );
     expect((await stored(dto.id)).item_id).toBe(pumpId);
@@ -260,21 +273,21 @@ describe('crm.sizing.record (design §6.7)', () => {
 
   it('records an out-of-bounds result with its reasons rather than refusing it', async () => {
     const id = await newLead();
-    // A deeper borewell puts the head above the pump's 50 m shut-off.
+    // A deeper borewell puts the head, about 74.4 m, above the pump's curve, and the power it
+    // needs, 8.9 HP at the shaft and 9.8 HP with the margin, calls for 10 HP: more than the pump's
+    // 7.5 HP rating.
     const deep = pumpSizing(id, pumpId);
     if (deep.sizing.kind !== 'pump') throw new Error('a pump sizing');
     deep.sizing.inputs = { ...deep.sizing.inputs, staticLevelM: 60 };
     const dto = SizingDto.parse(await run(caller, recordSizing, deep));
-    expect(dto).toMatchObject({ inBounds: false, reasons: ['head_above_curve'] });
-    expect(await stored(dto.id)).toMatchObject({
-      in_bounds: false,
-      reasons_json: ['head_above_curve'],
-    });
+    const reasons = ['head_above_curve', 'pump_power_short'];
+    expect(dto).toMatchObject({ inBounds: false, reasons });
+    expect(await stored(dto.id)).toMatchObject({ in_bounds: false, reasons_json: reasons });
     const [event] = await asOutboxPublisher(
       (p) => p<{ payload_json: Record<string, unknown> }[]>`
         select payload_json from outbox_events where aggregate_id = ${dto.id}`,
     );
-    expect(event?.payload_json).toMatchObject({ inBounds: false, reasons: ['head_above_curve'] });
+    expect(event?.payload_json).toMatchObject({ inBounds: false, reasons });
   });
 
   it('refuses a pump that is not on sale or not in the catalogue', async () => {

@@ -9,7 +9,8 @@ import { WORKSHOP_DEFAULTS, type SizingDefaults } from '../workshop-defaults';
 import type { Bounded } from './bounds';
 import { pumpDutyPoint, type CurvePoint } from './duty-point';
 import { totalDynamicHead } from './head';
-import { pumpPower } from './power';
+import { pumpMatch } from './match';
+import { pumpPower, type PowerResult } from './power';
 import { rooftopSize } from './rooftop';
 import { solarArrayForPump } from './solar-pump';
 
@@ -24,6 +25,41 @@ export const SIZING_ENGINE_VERSION = '2';
 function combine(parts: readonly (Bounded | null)[]): Bounded {
   const reasons = [...new Set(parts.flatMap((part) => part?.reasons ?? []))] as SizingReason[];
   return { inBounds: reasons.length === 0, reasons };
+}
+
+/**
+ * The chosen pump at the sized duty: where its curve puts it (`pumpDutyPoint`) and whether it
+ * suits the site (`pumpMatch`: its flow against the needed flow, its rating against the sized
+ * one), as one part with the reasons of both.
+ */
+function chosenPumpAtDuty(
+  pump: ChosenPump,
+  inputs: PumpSizingInputs,
+  tdhM: number,
+  power: PowerResult,
+  constants: { dutyFlowTolerance: number; dutyFlowOvershootFactor: number },
+): NonNullable<PumpSizingResult['dutyPoint']> {
+  const onCurve = pumpDutyPoint(pump.curve, tdhM);
+  const match = pumpMatch({
+    dutyFlowLph: onCurve.dutyFlowLph,
+    requiredFlowLph: inputs.flowLph,
+    ratedHp: pump.ratedHp,
+    sizedHp: power.standardHp,
+    dutyFlowTolerance: constants.dutyFlowTolerance,
+    dutyFlowOvershootFactor: constants.dutyFlowOvershootFactor,
+  });
+  const { inBounds, reasons } = combine([onCurve, match]);
+  return {
+    dutyFlowLph: onCurve.dutyFlowLph,
+    shutoffHeadM: onCurve.shutoffHeadM,
+    minHeadM: onCurve.minHeadM,
+    requiredFlowLph: match.requiredFlowLph,
+    minFlowLph: match.minFlowLph,
+    maxFlowLph: match.maxFlowLph,
+    ratedHp: match.ratedHp,
+    inBounds,
+    reasons: [...reasons],
+  };
 }
 
 /** A catalogue pump a sizing is checked against: its curve and its rated HP, if given. */
@@ -52,6 +88,8 @@ export function sizePump(
     motorEfficiency: efficiency.motor,
     motorMarginFraction: defaults.motorMarginFraction,
     standardHp: [...defaults.standardHp],
+    dutyFlowTolerance: defaults.dutyFlowTolerance,
+    dutyFlowOvershootFactor: defaults.dutyFlowOvershootFactor,
     arrayOversize: solarDrive ? defaults.solarArrayOversize : null,
     moduleWp: solarDrive ? defaults.moduleWp : null,
   };
@@ -83,7 +121,8 @@ export function sizePump(
           moduleWp: defaults.moduleWp,
         })
       : null;
-  const dutyPoint = pump === null ? null : pumpDutyPoint(pump.curve, head.tdhM);
+  const dutyPoint =
+    pump === null ? null : chosenPumpAtDuty(pump, inputs, head.tdhM, power, constants);
 
   return {
     result: {
@@ -92,7 +131,7 @@ export function sizePump(
       head: { ...head, reasons: [...head.reasons] },
       power: { ...power, reasons: [...power.reasons] },
       solar: solar && { ...solar, reasons: [...solar.reasons] },
-      dutyPoint: dutyPoint && { ...dutyPoint, reasons: [...dutyPoint.reasons] },
+      dutyPoint,
     },
     ...combine([head, power, solar, dutyPoint]),
   };

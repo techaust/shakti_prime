@@ -38,6 +38,10 @@ export const SizingReasonSchema = z.enum([
   'curve_not_monotonic',
   'head_above_curve',
   'head_below_curve',
+  // The chosen pump against the site (pumpMatch).
+  'duty_flow_short',
+  'duty_flow_excess',
+  'pump_power_short',
   // Pump power (pumpPower).
   'above_largest_standard_hp',
   // Rooftop size (rooftopSize).
