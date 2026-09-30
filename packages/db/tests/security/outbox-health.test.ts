@@ -146,7 +146,8 @@ describe('app.outbox_health() (Integration Health, docs/design/phase1.md §5.2)'
   it('answers only the companies of the request', async () => {
     const before = ours(await health(executive([2])))?.deadLettered ?? 0;
     await event({ entity: 2, deadLettered: '1 minute', error: 'no_outcome' });
-    await event({ entity: 3, deadLettered: '1 minute', error: 'no_outcome' });
+    // Company 4, not 3: the end-to-end snapshot company shows its outbox (e2e/support/users.ts).
+    await event({ entity: 4, deadLettered: '1 minute', error: 'no_outcome' });
     expect(ours(await health(executive([2])))?.deadLettered).toBe(before + 1);
     const items = (await health(executive([2]))).deadLetters.items.filter(
       (i) => i.aggregateType === TAG,

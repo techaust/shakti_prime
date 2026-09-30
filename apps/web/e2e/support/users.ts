@@ -72,6 +72,18 @@ export const SNAPSHOT_LEADS = [
   { name: 'Rajendra Singh Rathore', phone: '98765 40013' },
 ] as const;
 
+/**
+ * The update held back in the snapshot company (Integration health), made once with a fixed id
+ * and never sent again by a journey, so the page's screenshot shows the same row every run.
+ */
+export const SNAPSHOT_HELD_BACK_ID = '0199e2e0-0000-7000-8000-00000000d001';
+
+/**
+ * Where the Send again journey works: each seed run holds back one update per project there, and
+ * each project sends one of them again, so the company always has one to send.
+ */
+export const SEND_AGAIN_COMPANY = { entityId: 4, name: 'RCREF' } as const;
+
 /** The spreadsheet the seed imports once into the snapshot company. */
 export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 

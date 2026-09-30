@@ -14,6 +14,7 @@ import { replayDeadLetter } from '../../actions/admin';
 import { eventNameKey } from '../../screens/audit';
 import { formatCount, formatDateTime } from '../../screens/format';
 import { CHECK_POLL_MS, CHECK_POLL_TRIES, heldReason } from '../../screens/integrations';
+import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { settle } from '../screens/settle';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -63,7 +64,7 @@ export function IntegrationsScreen({
     {
       id: 'since',
       header: t('columns.since'),
-      cell: (r) => (r.oldestPendingAt === null ? '' : formatDateTime(r.oldestPendingAt)),
+      cell: (r) => (r.oldestPendingAt === null ? '' : <DateTime value={r.oldestPendingAt} />),
     },
   ];
 
@@ -80,7 +81,8 @@ export function IntegrationsScreen({
           rowKey={(r) => r.type}
           empty={<EmptyState message={t('waiting.empty')} />}
         />
-        <p className="text-text-muted">
+        {/* data-dynamic: the last round changes from minute to minute, so screenshots mask it. */}
+        <p data-dynamic className="text-text-muted">
           <span className="font-medium text-text">{t('lastRun.heading')}: </span>
           {run === null
             ? t('lastRun.none')
@@ -139,7 +141,8 @@ function DeliverySpeed({ initial }: { initial: DeliveryCheck | null }) {
         >
           {t('delivery.check')}
         </Button>
-        <p role="status" className="text-text">
+        {/* data-dynamic: each check's time and speed differ, so screenshots mask it. */}
+        <p role="status" data-dynamic className="text-text">
           {check === null
             ? t('delivery.none')
             : check.state === 'arrived'
@@ -192,7 +195,11 @@ function HeldUpdates({
         <StatusBadge tone="danger">{t(`reasons.${heldReason(r.errorCode)}`)}</StatusBadge>
       ),
     },
-    { id: 'heldAt', header: t('columns.heldAt'), cell: (r) => formatDateTime(r.deadLetteredAt) },
+    {
+      id: 'heldAt',
+      header: t('columns.heldAt'),
+      cell: (r) => <DateTime value={r.deadLetteredAt} />,
+    },
     {
       id: 'actions',
       header: t('columns.actions'),

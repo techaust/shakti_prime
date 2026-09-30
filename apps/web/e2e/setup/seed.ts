@@ -24,7 +24,9 @@ import {
   emailFor,
   PROJECTS,
   SIGNED_IN_ROLES,
+  SEND_AGAIN_COMPANY,
   SNAPSHOT_COMPANY,
+  SNAPSHOT_HELD_BACK_ID,
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
   type ProjectName,
@@ -165,6 +167,23 @@ async function ensureLead(
   });
 }
 
+/**
+ * An update held back after ten tries, as the publisher leaves one (Integration health). Written
+ * as the table owner: no request role writes the outbox's delivery columns. The type is one no
+ * worker listens to, so a replay is marked delivered without being sent.
+ */
+async function holdBackUpdate(id: string, entityId: number, heldAt: string): Promise<void> {
+  await asMigrator(
+    (m) => m`insert into outbox_events (id, entity_id, type, aggregate_type, aggregate_id,
+                                        payload_json, attempts, last_error, dead_lettered_at,
+                                        created_at)
+             values (${id}, ${entityId}, 'admin.user.reactivated', 'user', ${newId()},
+                     '{"v": 1}'::jsonb, 10, 'worker_failed', ${heldAt}::timestamptz,
+                     ${heldAt}::timestamptz - interval '4 hours')
+             on conflict (id) do nothing`,
+  );
+}
+
 /** One import job in the snapshot company, from a fixed spreadsheet, made once. */
 async function ensureSnapshotImport(executiveId: string): Promise<void> {
   const [found] = await asMigrator(
@@ -286,6 +305,15 @@ for (const lead of SNAPSHOT_LEADS) {
   );
 }
 await ensureSnapshotImport(ids.executive ?? '');
+
+progress('the held-back updates');
+// Integration health: one fixed update held back in the snapshot company, and one per project
+// for the Send again journey, which sends one back each run.
+await holdBackUpdate(SNAPSHOT_HELD_BACK_ID, SNAPSHOT_COMPANY.entityId, '2026-09-01T04:30:00Z');
+for (const project of PROJECTS) {
+  await holdBackUpdate(newId(), SEND_AGAIN_COMPANY.entityId, new Date().toISOString());
+  progress(`a held-back update for ${project}`);
+}
 
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {
