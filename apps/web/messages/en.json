@@ -1543,6 +1543,7 @@
       "total": "Total",
       "powerTitle": "Pump size",
       "shaftHp": "Power the pump needs",
+      "requiredHp": "Power to cover, with a safety margin",
       "standardHp": "Motor to fit",
       "noStandardHp": "Larger than any motor on sale",
       "motorInputKw": "Power drawn at this duty",

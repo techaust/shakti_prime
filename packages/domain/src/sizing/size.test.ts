@@ -33,6 +33,7 @@ describe('sizePump', () => {
       fittingsLossFraction: sizing.fittingsLossFraction,
       pumpEfficiency: sizing.efficiency.submersible.pump,
       motorEfficiency: sizing.efficiency.submersible.motor,
+      motorMarginFraction: sizing.motorMarginFraction,
       standardHp: sizing.standardHp,
       arrayOversize: sizing.solarArrayOversize,
       moduleWp: sizing.moduleWp,

@@ -28,6 +28,7 @@ describe('workshop defaults', () => {
         peakSunHours: 5.5,
         performanceRatio: 0.75,
         roofAreaPerKwSqm: 10,
+        motorMarginFraction: 0.1,
         standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },

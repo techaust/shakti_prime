@@ -74,6 +74,7 @@ function PumpFacts({ result }: { result: PumpSizingResult }) {
         title={t('powerTitle')}
         rows={[
           [t('shaftHp'), u('hp', { value: formatQuantity(power.shaftHp) })],
+          [t('requiredHp'), u('hp', { value: formatQuantity(power.requiredHp) })],
           [t('motorInputKw'), u('kw', { value: formatQuantity(power.motorInputKw) })],
         ]}
         total={[

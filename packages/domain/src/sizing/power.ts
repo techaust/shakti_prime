@@ -20,6 +20,11 @@ export interface PowerInput {
   readonly pumpEfficiency: number;
   /** Motor efficiency, above 0 and at most 1. */
   readonly motorEfficiency: number;
+  /**
+   * Margin over the shaft power before a rating is chosen (0.1 = 10% more;
+   * `WORKSHOP_DEFAULTS.sizing.motorMarginFraction`).
+   */
+  readonly motorMarginFraction: number;
   /** Motor ratings on sale, in HP, ascending (`WORKSHOP_DEFAULTS.sizing.standardHp`). */
   readonly standardHp: readonly number[];
 }
@@ -33,7 +38,9 @@ export interface PowerResult extends Bounded {
   readonly shaftHp: number;
   /** Electrical power the motor draws at that duty: shaft power over the motor efficiency, in kW. */
   readonly motorInputKw: number;
-  /** The smallest standard rating that covers the shaft power, or null above the largest. */
+  /** Shaft power with the motor margin: the power the rating must cover, in HP. */
+  readonly requiredHp: number;
+  /** The smallest standard rating that covers the required HP, or null above the largest. */
   readonly standardHp: number | null;
   /** That rating in kW, or null. */
   readonly standardKw: number | null;
@@ -43,26 +50,30 @@ export interface PowerResult extends Bounded {
  * Pump power from flow and head. The water gains `ρ · g · Q · H`; the shaft needs that over the
  * pump efficiency, and the motor draws the shaft power over its own efficiency. The motor is
  * rated by its output, so the chosen rating is the smallest standard HP at or above the shaft
- * power. Out of bounds (`above_largest_standard_hp`) when no standard rating covers it.
+ * power plus the motor margin, which keeps the motor off its limit. Out of bounds
+ * (`above_largest_standard_hp`) when no standard rating covers it.
  */
 export function pumpPower(input: PowerInput): PowerResult {
   requireFinite('flowLph', input.flowLph);
   requireFinite('tdhM', input.tdhM);
   requireFraction('pumpEfficiency', input.pumpEfficiency);
   requireFraction('motorEfficiency', input.motorEfficiency);
+  requireFinite('motorMarginFraction', input.motorMarginFraction);
   if (input.standardHp.length === 0) throw new RangeError('standardHp must list a rating');
 
   const flowM3s = lphToCubicMetresPerSecond(input.flowLph);
   const hydraulicKw = (WATER_DENSITY * GRAVITY * flowM3s * input.tdhM) / 1000;
   const shaftKw = hydraulicKw / input.pumpEfficiency;
   const shaftHp = shaftKw / KW_PER_HP;
-  const standardHp = nextStandardHp(shaftHp, input.standardHp);
+  const requiredHp = shaftHp * (1 + input.motorMarginFraction);
+  const standardHp = nextStandardHp(requiredHp, input.standardHp);
 
   return {
     hydraulicKw,
     shaftKw,
     shaftHp,
     motorInputKw: shaftKw / input.motorEfficiency,
+    requiredHp,
     standardHp,
     standardKw: standardHp === null ? null : standardHp * KW_PER_HP,
     ...bounded(standardHp === null ? ['above_largest_standard_hp'] : []),

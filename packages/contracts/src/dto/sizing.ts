@@ -33,6 +33,8 @@ export const PowerResultSchema = z
     shaftKw: quantity,
     shaftHp: quantity,
     motorInputKw: quantity,
+    /** Shaft power with the motor margin, the power the rating must cover. */
+    requiredHp: quantity,
     standardHp: quantity.nullable(),
     standardKw: quantity.nullable(),
     ...Bounded,
@@ -80,6 +82,7 @@ export const PumpSizingConstantsSchema = z
     fittingsLossFraction: quantity,
     pumpEfficiency: z.number().positive().max(1),
     motorEfficiency: z.number().positive().max(1),
+    motorMarginFraction: quantity,
     standardHp: z.array(z.number().positive()),
     /** Solar drive only. */
     arrayOversize: z.number().positive().nullable(),

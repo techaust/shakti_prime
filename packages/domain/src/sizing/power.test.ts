@@ -9,30 +9,34 @@ const RATINGS = [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30];
 //   Hydraulic power = ρ · g · Q · H = 1000 · 9.80665 · 0.005 · 40 = 1,961.33 W = 1.9613 kW.
 //   Shaft power at a pump efficiency of 0.55 = 1.9613 / 0.55 = 3.5661 kW = 3.5661 / 0.7457 = 4.782 HP.
 //   Motor input at a motor efficiency of 0.78 = 3.5661 / 0.78 = 4.5719 kW.
-//   The smallest standard rating at or above 4.782 HP is 5 HP (3.7285 kW).
+//   With the 10% motor margin the rating must cover 4.782 · 1.1 = 5.260 HP.
+//   The smallest standard rating at or above 5.260 HP is 7.5 HP (5.5927 kW); without the margin
+//   it would be 5 HP, running the motor at 96% of its rating.
 //
 // Worked example 2: a surface pump lifting 36,000 litres an hour (0.01 m³/s) against 75 m.
 //   Hydraulic = 1000 · 9.80665 · 0.01 · 75 = 7,354.99 W = 7.355 kW.
 //   Shaft at 0.60 = 12.2583 kW = 16.439 HP; motor input at 0.82 = 14.9492 kW.
-//   16.439 HP is above 15 HP, so the rating is 20 HP.
+//   With the margin, 16.439 · 1.1 = 18.083 HP, above 15 HP, so the rating is 20 HP.
 
 const EXAMPLE_1: PowerInput = {
   flowLph: 18_000,
   tdhM: 40,
   pumpEfficiency: 0.55,
   motorEfficiency: 0.78,
+  motorMarginFraction: 0.1,
   standardHp: RATINGS,
 };
 
 describe('pumpPower', () => {
-  it('worked example 1: 18,000 litres an hour against 40 m takes 5 HP', () => {
+  it('worked example 1: 18,000 litres an hour against 40 m takes 7.5 HP with the margin', () => {
     const result = pumpPower(EXAMPLE_1);
     expect(result.hydraulicKw).toBeCloseTo(1.96133, 5);
     expect(result.shaftKw).toBeCloseTo(3.56605, 5);
     expect(result.shaftHp).toBeCloseTo(4.78216, 5);
     expect(result.motorInputKw).toBeCloseTo(4.57186, 5);
-    expect(result.standardHp).toBe(5);
-    expect(result.standardKw).toBeCloseTo(3.7285, 4);
+    expect(result.requiredHp).toBeCloseTo(5.26037, 5);
+    expect(result.standardHp).toBe(7.5);
+    expect(result.standardKw).toBeCloseTo(5.59275, 5);
     expect(result).toMatchObject({ inBounds: true, reasons: [] });
   });
 
@@ -42,10 +46,12 @@ describe('pumpPower', () => {
       tdhM: 75,
       pumpEfficiency: 0.6,
       motorEfficiency: 0.82,
+      motorMarginFraction: 0.1,
       standardHp: RATINGS,
     });
     expect(result.hydraulicKw).toBeCloseTo(7.35499, 5);
     expect(result.shaftHp).toBeCloseTo(16.43867, 5);
+    expect(result.requiredHp).toBeCloseTo(18.08253, 5);
     expect(result.motorInputKw).toBeCloseTo(14.94916, 5);
     expect(result.standardHp).toBe(20);
   });
@@ -55,6 +61,19 @@ describe('pumpPower', () => {
     expect(result.standardHp).toBeNull();
     expect(result.standardKw).toBeNull();
     expect(result).toMatchObject({ inBounds: false, reasons: ['above_largest_standard_hp'] });
+  });
+
+  it('with no margin the rating covers the shaft power alone', () => {
+    const result = pumpPower({ ...EXAMPLE_1, motorMarginFraction: 0 });
+    expect(result.requiredHp).toBe(result.shaftHp);
+    expect(result.standardHp).toBe(5);
+  });
+
+  it('the margin moves a shaft power just under a rating up to the next one', () => {
+    // 4.6 HP of shaft power fits 5 HP alone, but 4.6 · 1.1 = 5.06 HP does not.
+    const flowLph = (4.6 * 0.745_699_872 * 0.55 * 3_600_000) / (9.806_65 * 40);
+    expect(pumpPower({ ...EXAMPLE_1, flowLph, motorMarginFraction: 0 }).standardHp).toBe(5);
+    expect(pumpPower({ ...EXAMPLE_1, flowLph }).standardHp).toBe(7.5);
   });
 
   it('no flow needs no power and takes the smallest rating', () => {
@@ -74,6 +93,7 @@ describe('pumpPower', () => {
     ['a motor efficiency above 1', { motorEfficiency: 1.1 }],
     ['a negative head', { tdhM: -5 }],
     ['no ratings', { standardHp: [] }],
+    ['a negative margin', { motorMarginFraction: -0.1 }],
   ])('refuses %s', (_label, over) => {
     expect(() => pumpPower({ ...EXAMPLE_1, ...over })).toThrow(RangeError);
   });

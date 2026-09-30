@@ -34,6 +34,7 @@ export interface SizingDefaults {
   readonly peakSunHours: number;
   readonly performanceRatio: number;
   readonly roofAreaPerKwSqm: number;
+  readonly motorMarginFraction: number;
   readonly standardHp: readonly number[];
   readonly dcrSchemes: readonly SubsidyScheme[];
 }
@@ -100,6 +101,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     performanceRatio: 0.75,
     /** Shade-free roof area per kWp of modules: the commonly quoted 10 m². */
     roofAreaPerKwSqm: 10,
+    /**
+     * Margin over the shaft power before the standard rating is chosen, so the motor never runs at
+     * its limit (0.1 = 10% more): the common design allowance. For the engineering head to confirm.
+     */
+    motorMarginFraction: 0.1,
     /** Motor ratings on sale, in HP: the common Indian ratings from 0.5 to 30 HP. */
     standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */

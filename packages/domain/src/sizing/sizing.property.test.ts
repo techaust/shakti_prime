@@ -95,26 +95,29 @@ describe('totalDynamicHead properties', () => {
 });
 
 describe('pumpPower properties', () => {
-  it('the rating is the smallest standard one that covers the shaft power', () => {
+  it('the rating is the smallest standard one that covers the shaft power with its margin', () => {
     forAll(3, (random) => {
       const type = random.pick(['submersible', 'surface'] as const);
+      const motorMarginFraction = random.pick([0, sizing.motorMarginFraction, 0.25]);
       const result = pumpPower({
         flowLph: random.between(0, 150_000),
         tdhM: random.between(0, 250),
         pumpEfficiency: sizing.efficiency[type].pump,
         motorEfficiency: sizing.efficiency[type].motor,
+        motorMarginFraction,
         standardHp: sizing.standardHp,
       });
       expect(result.motorInputKw).toBeGreaterThanOrEqual(result.shaftKw);
       expect(result.shaftKw).toBeGreaterThanOrEqual(result.hydraulicKw);
+      expect(result.requiredHp).toBeGreaterThanOrEqual(result.shaftHp);
       const rating = result.standardHp;
       if (rating === null) {
-        expect(result.shaftHp).toBeGreaterThan(sizing.standardHp.at(-1) ?? 0);
+        expect(result.requiredHp).toBeGreaterThan(sizing.standardHp.at(-1) ?? 0);
         expect(result.reasons).toEqual(['above_largest_standard_hp']);
       } else {
-        expect(rating).toBeGreaterThanOrEqual(result.shaftHp - 1e-6);
+        expect(rating).toBeGreaterThanOrEqual(result.requiredHp - 1e-6);
         const smaller = sizing.standardHp.filter((hp) => hp < rating);
-        for (const hp of smaller) expect(hp).toBeLessThan(result.shaftHp);
+        for (const hp of smaller) expect(hp).toBeLessThan(result.requiredHp);
         expect(result.inBounds).toBe(true);
       }
     });

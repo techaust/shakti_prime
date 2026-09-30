@@ -18,7 +18,7 @@ import { solarArrayForPump } from './solar-pump';
  * whenever a calculator or the way results are combined changes, so an old result is never
  * mistaken for one today's engine would give.
  */
-export const SIZING_ENGINE_VERSION = '1';
+export const SIZING_ENGINE_VERSION = '2';
 
 /** Every reason of the parts, once each, in the order they arose. */
 function combine(parts: readonly (Bounded | null)[]): Bounded {
@@ -50,6 +50,7 @@ export function sizePump(
     fittingsLossFraction: defaults.fittingsLossFraction,
     pumpEfficiency: efficiency.pump,
     motorEfficiency: efficiency.motor,
+    motorMarginFraction: defaults.motorMarginFraction,
     standardHp: [...defaults.standardHp],
     arrayOversize: solarDrive ? defaults.solarArrayOversize : null,
     moduleWp: solarDrive ? defaults.moduleWp : null,
@@ -70,6 +71,7 @@ export function sizePump(
     tdhM: head.tdhM,
     pumpEfficiency: constants.pumpEfficiency,
     motorEfficiency: constants.motorEfficiency,
+    motorMarginFraction: constants.motorMarginFraction,
     standardHp: constants.standardHp,
   });
   // A solar array is sized for the standard motor; above the largest rating there is none to size.
