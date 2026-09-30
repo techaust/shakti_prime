@@ -897,6 +897,26 @@
         "system_size": "System size",
         "age_days": "Days since the lead was added"
       }
+    },
+    "walkIn": {
+      "title": "Walk-in customer",
+      "intro": "Add a customer at the counter. The name, mobile number and interest are enough; the rest can wait for the first call.",
+      "noCompany": "You can't add leads in the companies you are viewing. Switch company or ask your manager.",
+      "company": "Company",
+      "name": "Customer name",
+      "phone": "Mobile number",
+      "phoneHelper": "The 10-digit mobile number",
+      "interest": "Interested in",
+      "choose": "Choose one",
+      "village": "Village or town",
+      "pin": "PIN code",
+      "placeHelper": "Fill in the village, or the village and its PIN code.",
+      "villageNeeded": "Enter the village for this PIN code.",
+      "referral": "Referral code",
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
+      "consent": "Consent",
+      "walkInSubmit": "Save walk-in",
+      "done": "Walk-in saved for {name}. The form is ready for the next customer."
     }
   },
   "users": {
@@ -1643,7 +1663,7 @@
     "ageTo": "Up to day",
     "rangeHelper": "Fill in one or both.",
     "sizeNotRecorded": "Leads get a system size once the sizing panel is in use. Until then this rule matches no lead.",
-    "ruleLegend": "Rule {number}",
+    "ruleLegend": "Rule {position}",
     "addRule": "Add rule",
     "saveRules": "Save rules",
     "rulesSaved": "{count, plural, =0 {The rules are saved. No lead's score changed.} one {The rules are saved. # lead has a new score.} other {The rules are saved. # leads have a new score.}}",
