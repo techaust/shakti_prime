@@ -1,5 +1,5 @@
 // List and search latency spike (BLUEPRINT §6.4, p95 interaction < 300 ms): `pnpm spike:lists`,
-// options `-- --leads 50000 --runs 50 --warmup 5 --keep`.
+// options `-- --leads 50000 --runs 50 --warmup 5 --keep --score-only`.
 // Seeds made-up leads across the four companies through the set-based lead path the import
 // commit uses (`commitLeadBatch`, as `app_user` under RLS, 500 rows a transaction), each lead
 // owned by one of ten made-up tele-callers of its company, then times the reads the screens make
@@ -7,8 +7,9 @@
 // four companies, a General Manager of one company and a tele-caller of that company, who sees
 // only their own leads. Each case runs `--warmup` times untimed, then `--runs` times; the time is
 // the `durationMs` of the `query.completed` line executeQuery logs (transaction, context settings
-// and query, in process). Writes docs/spikes/results/lists.json. The seeded leads are deleted at
-// the end unless `--keep` is given. Local database only (prepareDatabase refuses any other host).
+// and query, in process). Writes docs/spikes/results/lists.json; with `--score-only` it times only
+// the leads list sorted by score, for the Executive and the tele-caller, into lists-score.json.
+// The seeded leads are deleted at the end unless `--keep` is given. Local database only (prepareDatabase refuses any other host).
 // Not part of CI. It lives under tests/ because it makes its callers with the testing helpers.
 import { hasGrant, newId, type Principal } from '@shakti/contracts';
 import { withRequestContext, type RequestContext } from '@shakti/db';
@@ -40,7 +41,14 @@ import { searchLeads } from '../../src/queries/crm/search-leads';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
-const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'lists.json');
+const SCORE_ONLY = process.argv.includes('--score-only');
+const resultFile = join(
+  repoRoot,
+  'docs',
+  'spikes',
+  'results',
+  SCORE_ONLY ? 'lists-score.json' : 'lists.json',
+);
 
 function numberArg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);
@@ -189,8 +197,8 @@ async function seed(): Promise<Seeded> {
   }
   if (sample === undefined) throw new Error('nothing was seeded');
   const owners = [...callers.values()].flat().map((p) => p.id);
-  // Spread the leads over the four open stages of their pipeline and the last year, as a
-  // year of work would leave them, then let the planner see the new rows. The trigger that stamps
+  // Spread the leads over the four open stages of their pipeline, scores from 0 to 100 and the
+  // last year, as a year of work and score rules would leave them, then let the planner see the new rows. The trigger that stamps
   // updated_at is off only inside this one transaction.
   await asMigrator((m) =>
     m.begin(async (tx) => {
@@ -198,6 +206,7 @@ async function seed(): Promise<Seeded> {
       await tx`
         update opportunities o
            set stage_id = x.stage_id,
+               score = abs(hashtext(o.id::text || 'score')) % 101,
                updated_at = now() - (((hashtext(o.id::text) & 1023) / 1024.0) * interval '365 days')
           from (select l.id,
                        (select s.id from pipeline_stages s
@@ -301,12 +310,19 @@ async function timeCase<T>(
   return result;
 }
 
+/** The highest score first, as the Score column's first press asks for it. */
+const BY_SCORE = { column: 'score', direction: 'desc' } as const;
+
 /** The cursor of page `page` of the leads list, followed from the first page. */
-async function cursorOfPage(principal: Principal, page: number): Promise<string | undefined> {
+async function cursorOfPage(
+  principal: Principal,
+  page: number,
+  sort?: typeof BY_SCORE,
+): Promise<string | undefined> {
   let cursor: string | undefined;
   for (let i = 1; i < page; i++) {
     const next: LeadPage = await executeQuery(principal, {}, (context) =>
-      listLeads(context, { limit: PAGE, cursor }),
+      listLeads(context, { limit: PAGE, cursor, ...(sort === undefined ? {} : { sort }) }),
     );
     if (next.nextCursor === null) return undefined;
     cursor = next.nextCursor;
@@ -324,8 +340,32 @@ function palette(principal: Principal, q: string) {
   });
 }
 
-async function measure(principal: Principal, sample: Seeded['sample']) {
+/** The leads list sorted by score, first and later page (CRM-06, the Score column). */
+async function measureScore(principal: Principal) {
   const cases: Record<string, CaseResult | { skipped: string }> = {};
+  cases.leadsByScoreFirstPage = await timeCase(
+    principal,
+    'leads by score, page 1',
+    (context) => listLeads(context, { limit: PAGE, sort: BY_SCORE }),
+    (a) => a.items.length,
+  );
+  const cursor = await cursorOfPage(principal, LATER_PAGE, BY_SCORE);
+  cases.leadsByScoreLaterPage =
+    cursor === undefined
+      ? { skipped: `fewer than ${String(LATER_PAGE)} pages` }
+      : await timeCase(
+          principal,
+          `leads by score, page ${String(LATER_PAGE)}`,
+          (context) => listLeads(context, { limit: PAGE, cursor, sort: BY_SCORE }),
+          (a) => a.items.length,
+        );
+  return cases;
+}
+
+async function measure(principal: Principal, sample: Seeded['sample']) {
+  const cases: Record<string, CaseResult | { skipped: string }> = {
+    ...(await measureScore(principal)),
+  };
   cases.leadsFirstPage = await timeCase(
     principal,
     'leads list, first page',
@@ -413,8 +453,11 @@ async function main(): Promise<void> {
     };
     const results: Record<string, unknown> = {};
     for (const [key, principal] of Object.entries(principals)) {
+      if (SCORE_ONLY && key === 'generalManager') continue;
       log(`${key} (${principal.roleKey}, companies ${principal.entityIds.join(', ')}):`);
-      results[key] = await measure(principal, seeded.sample);
+      results[key] = SCORE_ONLY
+        ? await measureScore(principal)
+        : await measure(principal, seeded.sample);
     }
 
     const result = {

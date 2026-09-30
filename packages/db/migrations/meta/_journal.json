@@ -463,6 +463,13 @@
       "when": 1790735496145,
       "tag": "0063_c3_partner_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790737259510,
+      "tag": "0064_score_keyset_index",
+      "breakpoints": true
     }
   ]
 }

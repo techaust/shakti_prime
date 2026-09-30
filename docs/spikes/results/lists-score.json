@@ -1,0 +1,73 @@
+{
+  "ranAt": "2026-09-30T03:03:38.071Z",
+  "machine": {
+    "node": "v24.19.0",
+    "platform": "win32 x64",
+    "cpus": "4 × 11th Gen Intel(R) Core(TM) i3-1115G4 @ 3.00GHz",
+    "memoryGb": 8
+  },
+  "database": "local Docker Postgres 17 (supabase/postgres), in process, one connection, as app_user under RLS",
+  "roundTripMs": 4.58,
+  "seed": {
+    "leads": 50000,
+    "companies": 4,
+    "callersPerCompany": 10,
+    "leadsPerCaller": 1250,
+    "seconds": 113.7,
+    "path": "commitLeadBatch (the import commit set-based path), 500 rows a transaction",
+    "openLeadsInDatabase": 50646,
+    "auditRowsLast30Days": 1871
+  },
+  "method": {
+    "warmupRuns": 5,
+    "timedRuns": 50,
+    "pageSize": 50,
+    "laterPage": 11,
+    "paletteHitsPerKind": 8,
+    "timing": "durationMs of the query.completed line of executeQuery: transaction, context settings and query, in process",
+    "targetP95Ms": 300,
+    "searchTerms": {
+      "name": "Kevok Kantarvi",
+      "village": "Gondovan",
+      "phoneLast4": "7919"
+    }
+  },
+  "results": {
+    "executive": {
+      "leadsByScoreFirstPage": {
+        "runs": 50,
+        "p50": 25.1,
+        "p95": 112.5,
+        "max": 207.3,
+        "rows": 50,
+        "overTarget": false
+      },
+      "leadsByScoreLaterPage": {
+        "runs": 50,
+        "p50": 33.4,
+        "p95": 139,
+        "max": 150,
+        "rows": 50,
+        "overTarget": false
+      }
+    },
+    "teleCaller": {
+      "leadsByScoreFirstPage": {
+        "runs": 50,
+        "p50": 35,
+        "p95": 94.5,
+        "max": 127.6,
+        "rows": 50,
+        "overTarget": false
+      },
+      "leadsByScoreLaterPage": {
+        "runs": 50,
+        "p50": 29.9,
+        "p95": 104.4,
+        "max": 113,
+        "rows": 50,
+        "overTarget": false
+      }
+    }
+  }
+}

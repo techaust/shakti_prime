@@ -14,7 +14,7 @@ export const listSortOf = <const K extends readonly [string, ...string[]]>(colum
 
 /**
  * Leads: the last change, which the `(updated_at, id)` indexes serve, and the score, which the
- * `(entity_id, score, id)` index serves. The customer, contact, phone, stage, status and company
+ * `(entity_id, score, id)` and `(score, id)` indexes serve. The customer, contact, phone, stage, status and company
  * columns are not offered: each would need a join or an index of its own to sort a large
  * company's leads.
  */

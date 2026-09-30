@@ -53,6 +53,18 @@ The table is the second of two runs made one after the other on the same code an
 
 Bold marks a time over the 300 ms target. The Executive's ⌘K by name includes the team-member search an administrator also gets; for the tele-caller, who manages no one, the palette's read by name and the leads half alone are the same query.
 
+## Leads sorted by score
+The Score column of the leads grid sorts on the server, highest first (`pnpm spike:lists -- --score-only`, [results/lists-score.json](results/lists-score.json)). The seed spreads the 50,000 leads' scores from 0 to 100. Two runs on 30-09-2026 on the laptop above: the first with only `opportunities_entity_score_idx` `(entity_id, score, id)`, the second with `opportunities_score_keyset_idx` `(score, id)` added, the way `opportunities_keyset_idx` serves the last change for a request of every company. The round trip was 0.83 ms in the first run and 4.58 ms in the second, so the second ran on a busier machine and its medians are the fairer comparison; the JSON file holds the second run.
+
+| Caller | Case | Without `(score, id)`: p50 / p95 / max ms | With it: p50 / p95 / max ms |
+|---|---|---|---|
+| Executive, 4 companies | By score, first page | 92.3 / 202.0 / 319.0 | 25.1 / 112.5 / 207.3 |
+| | By score, page 11 | 144.5 / 208.6 / 272.3 | 33.4 / 139.0 / 150.0 |
+| Tele-caller, own leads | By score, first page | 42.7 / 63.2 / 78.0 | 35.0 / 94.5 / 127.6 |
+| | By score, page 11 | 36.3 / 62.3 / 75.9 | 29.9 / 104.4 / 113.0 |
+
+Without the index a request for every company sorted every visible lead for each page, and one call took 319 ms; with it the Executive's medians fall to about a quarter and every call stays under 300 ms. The tele-caller's reads start from their own leads through `opportunities_entity_owner_idx` either way.
+
 ## What meets and what misses 300 ms
 - **Meets in both runs:** the leads list, first page and page 11, for every caller; the board for every caller; the Activity log for the Executive and the General Manager; every ⌘K case of the General Manager; the Executive's ⌘K by name, by name for leads only, and by village.
 - **Close to the target:** the Executive's board, 293 ms at the 95th percentile and 307 ms at most in the run in the table (223 ms in the run before). It reads 400 cards over four companies.

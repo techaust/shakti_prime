@@ -100,5 +100,8 @@ export const opportunities = pgTable(
     index('opportunities_referral_partner_idx').on(t.referralPartnerId),
     // The leads grid sorted by score pages off this in either direction (keyset on score, id).
     index('opportunities_entity_score_idx').on(t.entityId, t.score, t.id),
+    // A request for every company pages the score order off this, as it pages the last change off
+    // opportunities_keyset_idx (docs/spikes/lists.md, the score cases).
+    index('opportunities_score_keyset_idx').on(t.score, t.id),
   ],
 );
