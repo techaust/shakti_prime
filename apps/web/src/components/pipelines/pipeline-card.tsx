@@ -294,7 +294,17 @@ function StageList({
         <ArchiveStageDialog
           stage={dialog.stage}
           closeLabel={common('close')}
-          returnFocusTo={() => [buttons.get(`${dialog.stage.id}:edit`)]}
+          // An archived stage leaves the list: focus goes to the stage before it, or else to the
+          // box that adds a stage.
+          returnFocusTo={() => {
+            const at = open.findIndex((s) => s.id === dialog.stage.id);
+            const before = open[at - 1];
+            return [
+              buttons.get(`${dialog.stage.id}:edit`),
+              before === undefined ? [] : buttons.get(`${before.id}:edit`),
+              document.getElementById(`${pipeline.id}-new-stage`),
+            ];
+          }}
           onArchived={(archived) => {
             onChange(stages.filter((s) => s.id !== archived.id));
             setDialog(undefined);

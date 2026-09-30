@@ -30,7 +30,7 @@ const FIELDS = [
 
 /**
  * The walk-in quick form: name, mobile, interest, village or PIN, an optional referral code and,
- * once the client's wording exists, the consent tick. Keyboard first: the name box takes focus,
+ * once the client's wording exists, the consent tick. Keyboard first: the first box takes focus,
  * Enter saves, and after a save the form clears and the name box takes focus again for the next
  * customer. One idempotency key per customer, so a double press saves one lead.
  */
@@ -51,12 +51,14 @@ export function WalkInForm({
   const [pipelineKey, setPipelineKey] = useState('');
   const [villageNeeded, setVillageNeeded] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
   const segment = offered.find((p) => p.key === pipelineKey)?.segment;
   const asksPlace = segment === undefined || WALK_IN_KINDS[segment].site !== undefined;
 
+  // The first box takes focus: the company when there is a choice, else the name.
   useEffect(() => {
-    nameRef.current?.focus();
+    formRef.current?.querySelector<HTMLElement>('select, input:not([type="hidden"])')?.focus();
   }, []);
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
@@ -94,7 +96,7 @@ export function WalkInForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
+    <form ref={formRef} onSubmit={submit} className="flex flex-col gap-5" noValidate>
       {companies.length === 1 ? (
         <input type="hidden" name="entityId" value={String(companies[0]?.id ?? '')} />
       ) : (

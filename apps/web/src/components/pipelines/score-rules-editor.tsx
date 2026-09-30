@@ -97,7 +97,7 @@ export function ScoreRulesEditor({
                 onRemove={() => {
                   setDrafts((all) => all.filter((x) => x.rowId !== d.rowId));
                   const next = drafts[i + 1] ?? drafts[i - 1];
-                  requestAnimationFrame(() => {
+                  setTimeout(() => {
                     document
                       .getElementById(
                         next === undefined ? 'rules-add' : `rule-${next.rowId}-factor`,
@@ -120,7 +120,7 @@ export function ScoreRulesEditor({
           onClick={() => {
             const rowId = crypto.randomUUID();
             setDrafts((all) => [...all, emptyRule(rowId)]);
-            requestAnimationFrame(() => {
+            setTimeout(() => {
               document.getElementById(`rule-${rowId}-factor`)?.focus();
             });
           }}

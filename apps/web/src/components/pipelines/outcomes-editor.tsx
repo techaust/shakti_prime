@@ -129,7 +129,7 @@ export function OutcomesEditor({
                 onClick={() => {
                   setDrafts((all) => all.filter((x) => x.rowId !== d.rowId));
                   // Focus stays in the list: on the row that takes this one's place.
-                  requestAnimationFrame(() => {
+                  setTimeout(() => {
                     const next = drafts[i + 1] ?? drafts[i - 1];
                     document
                       .getElementById(
@@ -157,7 +157,7 @@ export function OutcomesEditor({
               if (free === undefined) return;
               const rowId = crypto.randomUUID();
               setDrafts((all) => [...all, { rowId, key: free, label: '', nextAction: 'callback' }]);
-              requestAnimationFrame(() => {
+              setTimeout(() => {
                 document.getElementById(`outcome-${rowId}-label`)?.focus();
               });
             }}
