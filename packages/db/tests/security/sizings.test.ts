@@ -142,7 +142,7 @@ describe('recording a sizing', () => {
           values (${newId()}, 1, ${lead('a')}, ${sites.get(lead('a')) ?? null}, 'rooftop', ${itemId},
                   '{}', '{}', true, '[]', 'test', ${fx.principals.a.id})`,
       ),
-    ).rejects.toMatchObject({ constraint_name: expect.stringMatching(/^sizings_item/) });
+    ).rejects.toMatchObject({ constraint_name: 'sizings_item_kind_check' });
   });
 });
 
