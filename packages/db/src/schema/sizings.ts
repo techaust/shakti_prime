@@ -62,7 +62,13 @@ export const sizings = pgTable(
       columns: [t.opportunityId, t.entityId],
       foreignColumns: [opportunities.id, opportunities.entityId],
     }),
-    // The latest sizing of a lead, of either kind or of one.
-    index('sizings_opportunity_latest_idx').on(t.opportunityId, t.createdAt.desc(), t.id.desc()),
+    // The newest sizing of a lead of one kind, the one a quote uses, is the first entry of this
+    // index for the lead and kind; the newest of either kind reads the lead's few rows and sorts.
+    index('sizings_opportunity_kind_latest_idx').on(
+      t.opportunityId,
+      t.kind,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
   ],
 );

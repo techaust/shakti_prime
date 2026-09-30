@@ -1,6 +1,6 @@
 import { DomainError, LatestSizingInput, SizingDto } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { parseQueryInput } from '../parse-input';
 
@@ -10,7 +10,8 @@ type SizingContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
  * The newest sizing of a lead, of one kind or of either (docs/design/phase1.md §6.7): the one a
  * quote uses and the sizing panel opens with. Null when the lead has none, or when the caller
  * cannot read the lead, since a sizing is read with its lead (RLS). Served by
- * `sizings_opportunity_latest_idx`: one index step for the lead, newest first.
+ * `sizings_opportunity_kind_latest_idx`: for one kind, the first index entry of the lead and kind;
+ * for either kind, the lead's few rows sorted.
  */
 export async function latestSizing(
   ctx: SizingContext,
@@ -35,7 +36,9 @@ export async function latestSizing(
         input.kind === undefined ? undefined : eq(s.kind, input.kind),
       ),
     )
-    .orderBy(desc(s.createdAt), desc(s.id))
+    // Nulls last, as the index is built, so the planner reads the index in order and stops at
+    // the first row (both columns are never null).
+    .orderBy(sql`${s.createdAt} desc nulls last`, sql`${s.id} desc nulls last`)
     .limit(1);
   if (!row) return null;
   return SizingDto.parse({
