@@ -1,4 +1,4 @@
-import { expect, test as setup } from '@playwright/test';
+import { expect, test as setup } from './support/fixtures';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { signInThroughScreens } from './support/sign-in';

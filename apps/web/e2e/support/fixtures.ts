@@ -1,11 +1,22 @@
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
+import { standInForTurnstile } from './turnstile';
 import { storageStatePath, type ProjectName, type SignedInRole } from './users';
 
 export { expect };
 export { expectNoAxeViolations } from './axe';
 export { snap } from './snap';
 
-export const test = base;
+/**
+ * Playwright's `test`, whose every browser context serves the Turnstile stand-in (turnstile.ts).
+ * A run against an environment with real Turnstile keys (staging, through E2E_BASE_URL) sets
+ * E2E_REAL_TURNSTILE=1 and keeps Cloudflare's own widget.
+ */
+export const test = base.extend({
+  context: async ({ context }, provide) => {
+    if (process.env.E2E_REAL_TURNSTILE !== '1') await standInForTurnstile(context);
+    await provide(context);
+  },
+});
 
 /** The running project (desktop light, desktop dark, phone), for the per-project people of the seed. */
 export function projectName(): ProjectName {
