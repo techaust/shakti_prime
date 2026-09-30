@@ -5,19 +5,26 @@ import { existsSync, readFileSync } from 'node:fs';
 const [url = 'http://localhost:3000/api/v1/health', seconds = '120', log] = process.argv.slice(2);
 const deadline = Date.now() + Number(seconds) * 1000;
 
-while (Date.now() < deadline) {
+async function answers() {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
-    if (response.ok) {
-      console.log(`the app answers on ${url}`);
-      process.exit(0);
-    }
+    return response.ok;
   } catch {
-    // Not listening yet.
+    return false; // Not listening yet.
   }
-  await new Promise((resolve) => setTimeout(resolve, 1_000));
 }
 
-console.error(`the app did not answer on ${url} within ${seconds} s`);
-if (log !== undefined && existsSync(log)) console.error(readFileSync(log, 'utf8').slice(-8_000));
-process.exit(1);
+let ready = false;
+while (!ready && Date.now() < deadline) {
+  ready = await answers();
+  if (!ready) await new Promise((resolve) => setTimeout(resolve, 1_000));
+}
+
+if (ready) {
+  console.log(`the app answers on ${url}`);
+} else {
+  console.error(`the app did not answer on ${url} within ${seconds} s`);
+  if (log !== undefined && existsSync(log)) console.error(readFileSync(log, 'utf8').slice(-8_000));
+  // Set, not exit: leaving while a request's socket closes trips libuv on Windows.
+  process.exitCode = 1;
+}

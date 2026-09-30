@@ -180,15 +180,15 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
-      # Inside a job container the service answers by its name on the job's own network, which
-      # the local-database check cannot tell from a remote host.
-      ALLOW_REMOTE_TEST_DB: '1'
-      DATABASE_URL: postgres://app_user:app_user_ci@postgres:5432/postgres
-      DATABASE_URL_MIGRATOR: postgres://postgres:postgres_ci@postgres:5432/postgres
+      # The service answers by its name on the job's network; the step "Reach the database" below
+      # forwards it to localhost, where the seed and the app use it as a local database, without
+      # TLS (a database under any other name needs DATABASE_CA_CERT, packages/db/src/connection.ts).
+      DATABASE_URL: postgres://app_user:app_user_ci@localhost:5432/postgres
+      DATABASE_URL_MIGRATOR: postgres://postgres:postgres_ci@localhost:5432/postgres
       APP_USER_PASSWORD: app_user_ci
-      DATABASE_URL_AUTH: postgres://auth_service:auth_service_ci@postgres:5432/postgres
+      DATABASE_URL_AUTH: postgres://auth_service:auth_service_ci@localhost:5432/postgres
       AUTH_SERVICE_PASSWORD: auth_service_ci
-      DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@postgres:5432/postgres
+      DATABASE_URL_OUTBOX: postgres://outbox_publisher:outbox_publisher_ci@localhost:5432/postgres
       OUTBOX_PUBLISHER_PASSWORD: outbox_publisher_ci
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdef
       BETTER_AUTH_URL: http://localhost:3000
@@ -211,6 +211,10 @@ jobs:
       - name: Build
         run: pnpm exec turbo run build --filter=web --log-order=stream --output-logs=full
         timeout-minutes: 8
+      - name: Reach the database as localhost
+        working-directory: apps/web
+        run: nohup node e2e/setup/forward.mjs 5432 postgres > /dev/null 2>&1 &
+        timeout-minutes: 1
       - name: Migrate and seed
         run: pnpm --filter web e2e:seed
         timeout-minutes: 5
