@@ -40,8 +40,8 @@ The stack makes, for the environment named `<env>` (`dev` or `staging`):
    Do not add `AWS_REGION` (Mumbai is the default) and never add `FIELD_ENCRYPTION_KEY`, which is for developers' machines only: a deployment refuses to start with it.
 3. Close the access key page in AWS.
 4. Open **Deployments**, find the latest deployment of `main`, open its menu (three dots) and choose **Redeploy**.
-5. When it is ready, sign in as an Executive, open **Settings › Companies**, choose **Logo and letterhead** on a company and upload its logo. The upload itself works as soon as the variables are in place.
-6. **Files are checked only once the file checks are switched on.** The developer switches them on after this work is joined with the event workers; until then every upload stays at *Checking* and is not used. When they are switched on, the developer also re-runs the checks for any file still waiting, so nothing has to be uploaded again. From then on a logo shows as *Checking* until the malware scan tags it and the checks finish, then as the company's current logo.
+5. When it is ready, sign in as an Executive, open **Settings › Companies**, choose **Logo and letterhead** on a company and upload its logo. It shows as *Checking* until the malware scan tags it and the checks finish, a few seconds to a minute, then as the company's current logo.
+6. **Files that waited.** The file checks run as soon as a file lands. A file that has waited more than ten minutes (for example one uploaded before the checks were switched on, or one whose checks gave up while the store was unreachable) is listed on **Admin › Integration health** under *Files waiting for their checks*: an Executive presses **Check files again** and the checks run again from where each file stopped, so nothing has to be uploaded again. Once checked, a logo shows as the company's current logo.
 
 ## 4. When the client's domain is verified in SES
 Mail goes through SES once the client's domain is verified (DKIM, SPF and DMARC) and SES production access is granted (DEPLOY §1).
