@@ -8,7 +8,7 @@ import { schema } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { CommandContext } from '../command/context';
-import { canonicalJson } from './canonical-json';
+import { canonicalJson } from '../idempotency/hash';
 import { scoreLead, type LeadScore, type ScoreFacts, type ScoreRule } from './score';
 
 /**

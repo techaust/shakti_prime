@@ -14,7 +14,7 @@ import { and, asc, eq, gt, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { loadScoreFacts, loadScoreRules, rescore, writeScores } from '../../crm/lead-scoring';
-import { canonicalJson } from '../../crm/canonical-json';
+import { canonicalJson } from '../../idempotency/hash';
 import { scoreLead } from '../../crm/score';
 import { assertConfigScope } from './config-scope';
 import { lockOpportunity, requireEntity } from './opportunity-shared';
