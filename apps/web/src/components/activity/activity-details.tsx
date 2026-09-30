@@ -26,15 +26,19 @@ import {
   type CodeGroup,
 } from '../../screens/audit';
 import {
+  COMMISSION_BASES,
   CONTRASTS,
+  DISPOSITION_NEXT_ACTIONS,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
   SAVED_VIEW_SCREENS,
+  SCORE_FACTORS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  STAGE_EXIT_FIELDS,
   THEMES,
   USER_STATUSES,
 } from '../../screens/contract-values';
@@ -196,6 +200,7 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const theme = useTranslations('theme');
   const code = useCodeText();
   const leadField = useLeadFieldName();
+  const settings = useTranslations('pipelineSettings');
   const text = (() => {
     switch (value.kind) {
       case 'empty':
@@ -216,6 +221,10 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return t('values.percent', { value: value.value });
       case 'code':
         return code(value.group, value.value);
+      case 'stageFields':
+        return value.fields
+          .map((f) => (oneOf(STAGE_EXIT_FIELDS, f) ? settings(`stageField.${f}`) : wordsOf(f)))
+          .join(', ');
       case 'mapping':
         return (
           <span className="flex flex-col">
@@ -299,6 +308,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const settings = useTranslations('pipelineSettings');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -334,6 +344,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       }
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
+      case 'nextAction':
+        return oneOf(DISPOSITION_NEXT_ACTIONS, value)
+          ? settings(`nextAction.${value}`)
+          : wordsOf(value);
+      case 'scoreFactor':
+        return oneOf(SCORE_FACTORS, value) ? settings(`factor.${value}`) : wordsOf(value);
+      case 'commissionBasis':
+        return oneOf(COMMISSION_BASES, value) ? settings(`basis.${value}`) : wordsOf(value);
     }
   };
 }

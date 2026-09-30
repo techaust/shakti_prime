@@ -21,4 +21,5 @@ export const CLIENT_NAMESPACES = [
   'activity',
   'imports',
   'integrations',
+  'pipelineSettings',
 ] as const;

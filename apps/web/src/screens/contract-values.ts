@@ -166,6 +166,20 @@ export const SCORE_FACTORS = [
 /** The units a system-size rule reads a lead's size in. */
 export const SYSTEM_SIZE_UNITS = ['kw', 'hp'] as const satisfies readonly SystemSizeUnit[];
 
+/** Every lead detail a stage's exit rules may name, recorded today or by the sizing panel. */
+export const STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'stateCode',
+  'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+] as const satisfies readonly StageExitField[];
+
 /** The lead details a stage may require today (`RECORDED_STAGE_EXIT_FIELDS`). */
 export const RECORDED_STAGE_EXIT_FIELDS = [
   'site',

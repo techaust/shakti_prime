@@ -7,6 +7,7 @@ import {
   DispositionNextActionSchema,
   RECORDED_STAGE_EXIT_FIELDS as CONTRACT_RECORDED_STAGE_EXIT_FIELDS,
   ScoreFactorSchema,
+  StageExitFieldSchema,
   SystemSizeUnitSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
@@ -35,6 +36,7 @@ import {
   DISPOSITION_NEXT_ACTIONS,
   RECORDED_STAGE_EXIT_FIELDS,
   SCORE_FACTORS,
+  STAGE_EXIT_FIELDS,
   SYSTEM_SIZE_UNITS,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
@@ -68,6 +70,7 @@ describe('the contract values copied for the browser', () => {
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
     expect(DISPOSITION_NEXT_ACTIONS).toEqual(DispositionNextActionSchema.options);
     expect(SCORE_FACTORS).toEqual(ScoreFactorSchema.options);
+    expect(STAGE_EXIT_FIELDS).toEqual(StageExitFieldSchema.options);
     expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
     expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
   });

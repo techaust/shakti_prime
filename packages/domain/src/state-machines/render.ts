@@ -141,7 +141,19 @@ function flatten(value: unknown, prefix: string): [string, string][] {
       flatten(inner, prefix ? `${prefix}.${key}` : key),
     );
   }
-  if (Array.isArray(value)) return [[prefix, value.map(String).join(', ')]];
+  if (Array.isArray(value)) {
+    if (value.length === 0) return [[prefix, 'none']];
+    // A list of records (the call outcomes) reads one record per line, field by field.
+    const item = (v: unknown) =>
+      typeof v === 'object' && v !== null
+        ? Object.entries(v)
+            .map(([key, inner]) => `${key}: ${String(inner)}`)
+            .join('; ')
+        : String(v);
+    return [
+      [prefix, value.map(item).join(value.some((v) => typeof v === 'object') ? '<br>' : ', ')],
+    ];
+  }
   return [[prefix, typeof value === 'bigint' ? value.toString() : String(value)]];
 }
 

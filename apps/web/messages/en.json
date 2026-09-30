@@ -159,7 +159,25 @@
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
-    "event_in_progress": "This update is already being handled. It will be tried again shortly."
+    "event_in_progress": "This update is already being handled. It will be tried again shortly.",
+    "config_company_scope": "This company is not in the companies you are viewing. Switch to it and try again.",
+    "config_group_scope": "This setting is shared by all companies. Switch to all companies to change it.",
+    "pipeline_missing": "We couldn't find this pipeline. Refresh the page to see the current pipelines.",
+    "stage_unavailable": "This stage has been archived or removed. Refresh the page to see the current stages.",
+    "stage_name_taken": "Another stage in this pipeline has this name. Choose a different name.",
+    "stage_closing": "Won and Lost stay in every pipeline, and a lead needs no details to leave them.",
+    "stage_field_not_recorded": "Leads don't record this detail yet, so a stage can't require it. Choose another detail.",
+    "stage_first_open": "New leads start in the first stage, so it can't be archived. Move another stage to the top first.",
+    "stage_has_open_leads": "Some leads are still in this stage. Move them to another stage, then archive it.",
+    "stage_order_mismatch": "The stages changed while you were working. Refresh the page and put them in order again.",
+    "disposition_key_taken": "Two call outcomes share a number key. Give each outcome its own key.",
+    "disposition_code_taken": "Two call outcomes have the same name. Give each outcome its own name.",
+    "dispositions_group_empty": "Callers need at least one call outcome. Add an outcome before you save.",
+    "referral_code_unknown": "No active referral partner has this code. Check the code with the customer, or leave it empty.",
+    "referral_code_taken": "Another referral partner already has this code. Choose a different code.",
+    "referral_account_type": "Only a customer marked as a referral partner can have a referral code.",
+    "commission_partner_missing": "We couldn't find this referral partner. Refresh the page and try again.",
+    "commission_rule_overlap": "Another commission rule already covers some of these dates for this partner. Choose a start date after it."
   },
   "auth": {
     "signIn": {
@@ -1043,6 +1061,16 @@
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
+      "pipelineUpdate": "Pipeline settings changed",
+      "stageCreate": "Stage added",
+      "stageUpdate": "Stage changed",
+      "stageReorder": "Stages put in a new order",
+      "stageArchive": "Stage archived",
+      "dispositionsSet": "Call outcomes changed",
+      "scoreRulesSet": "Lead score rules changed",
+      "leadRescore": "Lead scored again",
+      "referralPartnerSet": "Referral code set",
+      "commissionRuleSet": "Commission rule set",
       "other": "Other change"
     },
     "events": {
@@ -1153,7 +1181,22 @@
       "eventType": "Update sent on",
       "attempts": "Tries to send",
       "deadLetteredAt": "Stopped trying at",
-      "requestedAt": "Asked at"
+      "requestedAt": "Asked at",
+      "lockHours": "Hours a lead stays with its caller",
+      "firstContactSlaMinutes": "Minutes to first contact",
+      "position": "Place in the list",
+      "requiredFields": "Details needed to move on",
+      "archivedAt": "Archived at",
+      "key": "Number key",
+      "label": "Call outcome",
+      "nextAction": "What happens next",
+      "factor": "What the rule looks at",
+      "points": "Points",
+      "score": "Score",
+      "code": "Code",
+      "isActive": "In use",
+      "basis": "How commission is worked out",
+      "amount": "Amount"
     },
     "values": {
       "percent": "{value}%",
@@ -1469,6 +1512,43 @@
       "retired": "The system no longer handles this kind of update.",
       "interrupted": "Sending stopped part way too many times.",
       "other": "It could not be sent."
+      }
+    },
+  "pipelineSettings": {
+    "title": "Pipelines and call outcomes",
+    "intro": "Set how leads move through each pipeline, what callers record after a call and how leads are scored.",
+    "nextAction": {
+      "callback": "Call back at a set time",
+      "retry": "Try again later",
+      "qualified": "Pass to a Lead Converter",
+      "not_interested": "Close as not interested",
+      "wrong_number": "Mark the number as wrong",
+      "nurture": "Follow up later"
+    },
+    "factor": {
+      "source": "Where the lead came from",
+      "segment": "Business line",
+      "district": "District",
+      "system_size": "System size",
+      "age_days": "Days since the lead was added"
+    },
+    "stageField": {
+      "site": "Site",
+      "village": "Village",
+      "pin": "PIN code",
+      "stateCode": "GST state code",
+      "source": "Where the lead came from",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (₹)",
+      "roofAreaSqFt": "Roof area (sq ft)",
+      "sanctionedLoadKw": "Sanctioned load (kW)"
+    },
+    "basis": {
+      "fixed": "Fixed amount per order",
+      "percent": "Share of the order value",
+      "per_kw": "Amount per kW",
+      "per_hp": "Amount per HP"
     }
   }
 }
