@@ -889,14 +889,14 @@
       "label": "Score {score} out of 100",
       "base": "Every lead starts at 50. No rule has changed this score.",
       "changed": "Last changed {when}",
-      "points": "{points, plural, one {# point} other {# points}}",
       "reasons": {
         "source": "Where the lead came from",
         "segment": "Business line",
         "district": "District",
         "system_size": "System size",
         "age_days": "Days since the lead was added"
-      }
+      },
+      "reason": "{factor}: {signed} {points, plural, =1 {point} =-1 {point} other {points}}"
     },
     "walkIn": {
       "title": "Walk-in customer",
