@@ -91,3 +91,16 @@ export { useIsPhone } from './use-is-phone';
 export { useScrolls } from './scroll-region';
 export { CommandPalette, type PaletteGroup, type PaletteItem } from './command-palette';
 export { isPaletteShortcut, usePaletteShortcut } from './palette-shortcut';
+export {
+  percentOf,
+  phaseAfter,
+  pickProblem,
+  Uploader,
+  UploaderView,
+  type UploadControls,
+  type UploaderPhase,
+  type UploaderProps,
+  type UploaderText,
+  type UploaderViewProps,
+  type UploadResult,
+} from './uploader';

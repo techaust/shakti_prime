@@ -1,6 +1,6 @@
 'use client';
 
-import type { EntityDto } from '@shakti/contracts';
+import type { EntityDto, FileDto } from '@shakti/contracts';
 import {
   Button,
   DataGrid,
@@ -11,22 +11,53 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { addressLine } from '../../screens/companies';
+import type { BrandingPurpose, UploadLimitView } from './branding-dialog';
+
+function currentFile(
+  files: readonly FileDto[],
+  entityId: number,
+  purpose: BrandingPurpose,
+): FileDto | undefined {
+  return files.find((f) => f.entityId === entityId && f.purpose === purpose);
+}
 
 /** The edit dialog, fetched when an Executive first opens it rather than with the page. */
 const EditCompanyDialog = dynamic(() =>
   import('./edit-company-dialog').then((m) => m.EditCompanyDialog),
 );
 
-/** Settings › Companies: the companies as a grid, and the edit dialog for an Executive. */
-export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; canEdit: boolean }) {
+/** The logo and letterhead uploads, fetched the same way. */
+const BrandingDialog = dynamic(() => import('./branding-dialog').then((m) => m.BrandingDialog));
+
+/**
+ * Settings › Companies: the companies as a grid, and for an Executive the edit dialog and the
+ * logo and letterhead uploads.
+ */
+export function CompaniesScreen({
+  initial,
+  canEdit,
+  branding = [],
+  limits,
+}: {
+  initial: EntityDto[];
+  canEdit: boolean;
+  /** Each company's current logo and letterhead. */
+  branding?: FileDto[];
+  /** The upload limits of the two purposes; given when the caller may upload them. */
+  limits?: Record<BrandingPurpose, UploadLimitView>;
+}) {
   const t = useTranslations('companies');
   const common = useTranslations('common');
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<EntityDto | undefined>();
+  const [branded, setBranded] = useState<EntityDto | undefined>();
+  const router = useRouter();
   // Focus goes back to the row's Edit button, in the table or the phone card that shows.
   const editButtons = useFocusTargets<number>();
+  const brandingButtons = useFocusTargets<number>();
 
   const columns: DataGridColumn<EntityDto>[] = [
     { id: 'name', header: t('columns.name'), cell: (c) => c.legalName, primary: true },
@@ -55,17 +86,31 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
       header: t('columns.actions'),
       align: 'end',
       cell: (c) => (
-        <Button
-          ref={editButtons.ref(c.id)}
-          variant="secondary"
-          size="sm"
-          aria-label={common('rowActions', { name: c.legalName })}
-          onClick={() => {
-            setEditing(c);
-          }}
-        >
-          {t('edit')}
-        </Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            ref={editButtons.ref(c.id)}
+            variant="secondary"
+            size="sm"
+            aria-label={common('rowActions', { name: c.legalName })}
+            onClick={() => {
+              setEditing(c);
+            }}
+          >
+            {t('edit')}
+          </Button>
+          {limits === undefined ? null : (
+            <Button
+              ref={brandingButtons.ref(c.id)}
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setBranded(c);
+              }}
+            >
+              {t('branding')}
+            </Button>
+          )}
+        </div>
       ),
     });
   }
@@ -91,6 +136,24 @@ export function CompaniesScreen({ initial, canEdit }: { initial: EntityDto[]; ca
           }}
           onClose={() => {
             setEditing(undefined);
+          }}
+        />
+      )}
+      {branded === undefined || limits === undefined ? null : (
+        <BrandingDialog
+          company={branded}
+          current={{
+            entity_logo: currentFile(branding, branded.id, 'entity_logo'),
+            letterhead: currentFile(branding, branded.id, 'letterhead'),
+          }}
+          limits={limits}
+          closeLabel={common('close')}
+          returnFocusTo={() => [brandingButtons.get(branded.id)]}
+          onUploaded={() => {
+            router.refresh();
+          }}
+          onClose={() => {
+            setBranded(undefined);
           }}
         />
       )}

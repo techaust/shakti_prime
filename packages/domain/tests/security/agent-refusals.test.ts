@@ -1,5 +1,6 @@
 import {
   AGENT_FORBIDDEN_PERMISSIONS,
+  FILE_PURPOSES,
   newId,
   SYSTEM_ROLE_KEYS,
   type AgentRoleKey,
@@ -19,6 +20,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { commands } from '../../src/command/registry';
+import { beginUpload } from '../../src/commands/files/begin-upload';
 import { failureOf, runCommand } from '../../src/command/run-command';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
@@ -45,7 +47,9 @@ function isRestricted(key: PermissionKey): boolean {
 }
 
 function needs(command: AnyCommand): PermissionKey[] {
-  return [command.permission, ...(command.alsoRequires ?? []).map((a) => a.permission)];
+  const own =
+    typeof command.permission === 'string' ? [command.permission] : command.permission.keys;
+  return [...own, ...(command.alsoRequires ?? []).map((a) => a.permission)];
 }
 
 const RESTRICTED: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
@@ -83,6 +87,22 @@ const INPUTS: Record<string, unknown> = {
   },
   'admin.user.suspend': { userId: newId() },
   'admin.user.two_factor.reset': { userId: newId() },
+  // A logo needs admin.entities.write, which no agent holds (the upload's permission is its
+  // purpose's, files/purposes.ts).
+  'files.upload.begin': {
+    entityId: 1,
+    purpose: 'entity_logo',
+    name: 'Refused logo.png',
+    contentType: 'image/png',
+    size: 10,
+    sha256: 'a'.repeat(64),
+    bucket: 'local',
+  },
+  'files.upload.complete': {
+    fileId: newId(),
+    purpose: 'letterhead',
+    stored: { size: 10, sha256: 'a'.repeat(64) },
+  },
   'integrations.dlq.replay': { eventId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
@@ -176,6 +196,90 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
           command: command.name,
           stage: 'guard',
         });
+      }
+    });
+  }
+});
+
+describe('agent principals cannot upload a file of any purpose', () => {
+  for (const agent of AGENTS) {
+    it(`${agent} is refused files.upload.begin for every purpose`, async () => {
+      const principal = principalFor(agent, [1]);
+      for (const purpose of FILE_PURPOSES) {
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(
+            beginUpload,
+            { context, audit, outbox },
+            {
+              entityId: 1,
+              purpose,
+              name: 'Refused upload.pdf',
+              contentType: purpose === 'signature' ? 'image/png' : 'application/pdf',
+              size: 10,
+              sha256: 'a'.repeat(64),
+              bucket: 'local',
+            },
+          ),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        // An import file never comes through this door at all; every other purpose stops at the
+        // guard, before anything is recorded.
+        const expected =
+          purpose === 'import'
+            ? { purpose, code: 'validation_failed', stage: 'input' }
+            : { purpose, code: 'forbidden', stage: 'guard' };
+        expect({
+          purpose,
+          code: (error as { code?: string } | undefined)?.code,
+          stage: failureOf(error)?.stage,
+        }).toEqual(expected);
+      }
+    });
+  }
+});
+
+describe('agent principals cannot run the file checks', () => {
+  const CHECKS: Record<string, unknown> = {
+    'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
+    'files.file.mark_ready': {
+      entityId: 1,
+      fileId: newId(),
+      sanitising: 'pdf_checked',
+      stored: {
+        key: '1/quote_pdf/x.pdf',
+        contentType: 'application/pdf',
+        size: 1,
+        sha256: 'a'.repeat(64),
+      },
+    },
+    'files.file.reject': { entityId: 1, fileId: newId(), reason: 'file_infected' },
+  };
+
+  it('no agent in the matrix holds files.process, which only the worker principal may', () => {
+    for (const agent of AGENTS) {
+      expect(AGENT_MATRIX[agent].filter((g) => g.key === 'files.process')).toEqual([]);
+    }
+  });
+
+  for (const agent of AGENTS) {
+    it(`${agent} is refused at the guard by every file check`, async () => {
+      const principal = principalFor(agent, [1]);
+      for (const [name, input] of Object.entries(CHECKS)) {
+        const command = (commands as Record<string, AnyCommand>)[name];
+        if (command === undefined) throw new Error(`no command ${name}`);
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, input),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ name, code: (error as { code?: string } | undefined)?.code }).toEqual({
+          name,
+          code: 'forbidden',
+        });
+        expect(failureOf(error)?.stage).toBe('guard');
       }
     });
   }

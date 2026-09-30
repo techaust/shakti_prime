@@ -67,6 +67,9 @@ export const PERMISSION_KEYS = [
   'admin.integrations.write',
   'admin.flags.write',
   'integrations.dlq.replay',
+  // The file checks before an upload is usable (malware scan, re-encoding, masking): held only by
+  // the platform's worker principal, never by a person's role.
+  'files.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);

@@ -16,3 +16,5 @@ DESIGN.md
 CLAUDE.md
 AGENTS.md
 .claude/
+# CloudFormation in YAML's JSON form, which its test reads with JSON.parse
+infra/aws/*.yaml
