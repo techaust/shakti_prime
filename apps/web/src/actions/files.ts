@@ -7,11 +7,15 @@ import {
   IdSchema,
   type FileDto,
   type FilePresignResponse,
+  type RecheckFilesDto,
   type Principal,
 } from '@shakti/contracts';
 import {
+  countFilesAwaitingChecks,
+  executeCommand,
   executeQuery,
   getFile,
+  recheckFiles as recheckFilesCommand,
   getStoredFile,
   listCompanyFiles as listCompanyFilesQuery,
 } from '@shakti/domain';
@@ -130,6 +134,39 @@ export async function listCompanyBranding(): Promise<ActionResult<FileDto[]>> {
       { requestId },
       (ctx) => listCompanyFilesQuery(ctx, ['entity_logo', 'letterhead']),
       { name: 'listCompanyBranding' },
+    );
+  });
+}
+
+/** Integration health: how many files have waited more than ten minutes for their checks. */
+export async function filesAwaitingChecks(): Promise<ActionResult<{ count: number }>> {
+  return toResult('filesAwaitingChecks', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    const count = await executeQuery(
+      principal,
+      { requestId },
+      (ctx) => countFilesAwaitingChecks(ctx),
+      { name: 'filesAwaitingChecks' },
+    );
+    return { count };
+  });
+}
+
+/** Integration health, "Check files again": the waiting files go back to their checks. */
+export async function recheckFiles(
+  _input: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<RecheckFilesDto>> {
+  return toResult('recheckFiles', async () => {
+    const principal = await signedIn();
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      recheckFilesCommand,
+      { olderThanMinutes: 10 },
+      commandOptions(meta, idempotencyKey),
     );
   });
 }

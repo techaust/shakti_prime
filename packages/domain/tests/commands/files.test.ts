@@ -14,9 +14,15 @@ import { runCommand } from '../../src/command/run-command';
 import { beginUpload } from '../../src/commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../../src/commands/files/check-file';
 import { completeUpload } from '../../src/commands/files/complete-upload';
+import { recheckFiles } from '../../src/commands/files/recheck-files';
 import { filePurposeGrant } from '../../src/files/purposes';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { getFile, getStoredFile, listCompanyFiles } from '../../src/queries/files/file-queries';
+import {
+  countFilesAwaitingChecks,
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+} from '../../src/queries/files/file-queries';
 
 afterAll(closeDb);
 
@@ -353,5 +359,62 @@ describe('the company files a screen lists', () => {
     const other = principalFor('tele_caller_cc', [4]);
     const seen = await asPrincipal(other, (ctx) => listCompanyFiles(ctx, ['entity_logo']));
     expect(seen.some((f) => f.entityId === entityId)).toBe(false);
+  });
+});
+
+describe('files.file.recheck', () => {
+  it('is denied to anyone but an Executive acting for every company', async () => {
+    await expect(run(principalFor('general_manager', [1]), recheckFiles, {})).rejects.toMatchObject(
+      {
+        code: 'forbidden',
+      },
+    );
+    await expect(run(worker, recheckFiles, {})).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('sends every file left waiting back to its checks, and none that is done or just begun', async () => {
+    const waiting = await begin();
+    await run(executive, completeUpload, {
+      fileId: waiting.fileId,
+      purpose: 'entity_logo',
+      stored: { size: 2048, sha256: SHA },
+    });
+    const fresh = await begin();
+    await run(executive, completeUpload, {
+      fileId: fresh.fileId,
+      purpose: 'entity_logo',
+      stored: { size: 2048, sha256: SHA },
+    });
+    const pending = await begin();
+    // Only the first has waited more than ten minutes; the triggers that stamp the time are
+    // held off for this one write.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update files set updated_at = now() - interval '11 minutes'
+                  where id in ${tx([waiting.fileId, pending.fileId])}`;
+      }),
+    );
+    const counted = await asPrincipal(executive, (ctx) => countFilesAwaitingChecks(ctx));
+    expect(counted).toBeGreaterThanOrEqual(1);
+    const done = (await run(executive, recheckFiles, {})) as { requeued: number };
+    expect(done.requeued).toBeGreaterThanOrEqual(1);
+    const events = await asOutboxPublisher(
+      (p) => p<{ aggregate_id: string }[]>`
+        select aggregate_id from outbox_events
+         where type = 'files.file.uploaded'
+           and aggregate_id in ${p([waiting.fileId, fresh.fileId, pending.fileId])}`,
+    );
+    const count = (id: string) => events.filter((e) => e.aggregate_id === id).length;
+    // The upload's own event and the one sent again; nothing new for the others.
+    expect(count(waiting.fileId)).toBe(2);
+    expect(count(fresh.fileId)).toBe(1);
+    expect(count(pending.fileId)).toBe(0);
+    const rows = await auditRows(waiting.fileId);
+    expect(rows.at(-1)).toMatchObject({
+      command: 'files.file.recheck',
+      outcome: 'ok',
+      after: { fileStatus: 'scanning' },
+    });
   });
 });

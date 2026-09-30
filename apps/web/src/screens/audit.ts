@@ -75,6 +75,7 @@ const ACTIONS = {
   'files.file.mark_scanned': 'fileScanned',
   'files.file.mark_ready': 'fileReady',
   'files.file.reject': 'fileRejected',
+  'files.file.recheck': 'filesRecheck',
   'integrations.dlq.replay': 'deadLetterReplay',
   'platform.probe.run': 'deliveryCheck',
   'admin.user.invite': 'userInvite',

@@ -162,7 +162,7 @@ const eventCatalogue = {
   },
   // An upload landed and waits for its checks (`handleFileUploaded` in apps/web/src/workers/files).
   'files.file.uploaded': {
-    subscribed: false,
+    subscribed: true,
     payload: z.object({ purpose: FilePurposeSchema }).strict(),
   },
 } as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;

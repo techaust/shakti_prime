@@ -103,6 +103,7 @@ const INPUTS: Record<string, unknown> = {
     purpose: 'letterhead',
     stored: { size: 10, sha256: 'a'.repeat(64) },
   },
+  'files.file.recheck': { olderThanMinutes: 10 },
   'integrations.dlq.replay': { eventId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },

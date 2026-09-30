@@ -239,6 +239,8 @@ export type {
 } from './tally/sync-rules';
 export { beginUpload } from './commands/files/begin-upload';
 export { completeUpload } from './commands/files/complete-upload';
+export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
 export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';

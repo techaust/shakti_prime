@@ -1,6 +1,7 @@
 import type { FileDto, FilePurpose } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lt } from 'drizzle-orm';
+import { AWAITING_CHECKS } from '../../commands/files/recheck-files';
 import { scanResultOf, toFileDto, type FileRow } from '../../commands/files/shared';
 
 /**
@@ -75,4 +76,22 @@ export async function listCompanyFiles(
     .where(and(inArray(f.purpose, [...purposes]), eq(f.status, 'ready')))
     .orderBy(f.entityId, f.purpose, desc(f.createdAt));
   return rows.map(toFileDto);
+}
+
+/**
+ * How many files the caller sees that are still waiting for their checks and have not moved for
+ * `olderThanMinutes` (Integration health, before `files.file.recheck`).
+ */
+export async function countFilesAwaitingChecks(
+  ctx: Pick<RequestContext, 'tx'>,
+  olderThanMinutes = 10,
+  now: Date = new Date(),
+): Promise<number> {
+  const f = schema.files;
+  const before = new Date(now.getTime() - olderThanMinutes * 60_000);
+  const [row] = await ctx.tx
+    .select({ n: count() })
+    .from(f)
+    .where(and(inArray(f.status, [...AWAITING_CHECKS]), lt(f.updatedAt, before)));
+  return row?.n ?? 0;
 }
