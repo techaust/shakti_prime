@@ -37,9 +37,12 @@ describe('sizePump', () => {
       standardHp: sizing.standardHp,
       dutyFlowTolerance: sizing.dutyFlowTolerance,
       dutyFlowOvershootFactor: sizing.dutyFlowOvershootFactor,
+      maxSuctionLiftM: null,
       arrayOversize: sizing.solarArrayOversize,
       moduleWp: sizing.moduleWp,
     });
+    // A submersible sits in the water: no suction lift to check.
+    expect(result.suction).toBeNull();
     // Head example 1: 44.39 m at the textbook HDPE roughness and 10% fittings.
     expect(result.head.tdhM).toBeCloseTo(44.3948, 4);
     expect(result.power.standardHp).not.toBeNull();
@@ -98,6 +101,31 @@ describe('sizePump', () => {
     const { result } = sizePump({ ...SUBMERSIBLE, pumpType: 'surface', pipeMaterial: 'gi' }, null);
     expect(result.constants.hazenWilliamsC).toBe(WORKSHOP_DEFAULTS.sizing.hazenWilliamsC.gi);
     expect(result.constants.pumpEfficiency).toBe(WORKSHOP_DEFAULTS.sizing.efficiency.surface.pump);
+    expect(result.constants.maxSuctionLiftM).toBe(WORKSHOP_DEFAULTS.sizing.surfaceMaxSuctionLiftM);
+  });
+
+  it('a surface pump over shallow water draws it up within the limit', () => {
+    // 4 m to the water and 1.5 m of drawdown: 5.5 m of suction lift, within 7 m.
+    const { result, reasons } = sizePump(
+      { ...SUBMERSIBLE, pumpType: 'surface', staticLevelM: 4, drawdownM: 1.5 },
+      null,
+    );
+    expect(result.suction).toEqual({
+      suctionLiftM: 5.5,
+      maxSuctionLiftM: 7,
+      inBounds: true,
+      reasons: [],
+    });
+    expect(reasons).toEqual([]);
+  });
+
+  it('a surface pump over deep water is out of bounds and names why', () => {
+    // 30 m to the water and 5 m of drawdown: 35 m, far beyond the 7 m a surface pump can draw.
+    const { inBounds, reasons, result } = sizePump({ ...SUBMERSIBLE, pumpType: 'surface' }, null);
+    expect(result.suction?.suctionLiftM).toBe(35);
+    expect({ inBounds, reasons }).toEqual({ inBounds: false, reasons: ['suction_lift_exceeded'] });
+    // The same water suits a submersible.
+    expect(sizePump(SUBMERSIBLE, null).reasons).toEqual([]);
   });
 
   it('a head above the chosen pump’s shut-off is out of bounds and names why', () => {

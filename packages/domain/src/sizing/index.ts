@@ -16,6 +16,8 @@ export { dcrRule, sanctionedLoadRule } from './rules';
 export type { DcrRuleInput, DcrRuleResult, ModuleLine, SanctionedLoadInput } from './rules';
 export { pumpMatch } from './match';
 export type { PumpMatchInput, PumpMatchResult } from './match';
+export { suctionLift } from './suction';
+export type { SuctionInput, SuctionResult } from './suction';
 export { pumpSpecsOf } from './pump-specs';
 export type { PumpSpecs } from './pump-specs';
 export { SIZING_ENGINE_VERSION, sizePump, sizeRooftop } from './size';

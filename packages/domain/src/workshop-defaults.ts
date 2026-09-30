@@ -38,6 +38,7 @@ export interface SizingDefaults {
   readonly standardHp: readonly number[];
   readonly dutyFlowTolerance: number;
   readonly dutyFlowOvershootFactor: number;
+  readonly surfaceMaxSuctionLiftM: number;
   readonly dcrSchemes: readonly SubsidyScheme[];
 }
 
@@ -121,6 +122,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * the engineering head to confirm.
      */
     dutyFlowOvershootFactor: 1.5,
+    /**
+     * The deepest water, at rest plus the drawdown, a surface pump can draw up: 7 m, the common
+     * practical limit below the 10 m air pressure allows. For the engineering head to confirm.
+     */
+    surfaceMaxSuctionLiftM: 7,
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },

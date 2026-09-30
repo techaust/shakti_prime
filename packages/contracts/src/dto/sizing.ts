@@ -52,6 +52,11 @@ export const SolarPumpResultSchema = z
   .strict();
 export type SolarPumpResultDto = z.infer<typeof SolarPumpResultSchema>;
 
+export const SuctionResultSchema = z
+  .object({ suctionLiftM: quantity, maxSuctionLiftM: z.number().positive(), ...Bounded })
+  .strict();
+export type SuctionResultDto = z.infer<typeof SuctionResultSchema>;
+
 export const DutyPointResultSchema = z
   .object({
     dutyFlowLph: quantity.nullable(),
@@ -93,6 +98,8 @@ export const PumpSizingConstantsSchema = z
     standardHp: z.array(z.number().positive()),
     dutyFlowTolerance: quantity.max(1),
     dutyFlowOvershootFactor: z.number().min(1),
+    /** Surface pumps only. */
+    maxSuctionLiftM: z.number().positive().nullable(),
     /** Solar drive only. */
     arrayOversize: z.number().positive().nullable(),
     /** Solar drive only. */
@@ -118,6 +125,8 @@ export const PumpSizingResultSchema = z
     constants: PumpSizingConstantsSchema,
     head: HeadResultSchema,
     power: PowerResultSchema,
+    /** Surface pumps only. */
+    suction: SuctionResultSchema.nullable(),
     /** Solar drive only. */
     solar: SolarPumpResultSchema.nullable(),
     /** Only when a catalogue pump was chosen. */

@@ -38,6 +38,8 @@ export const SizingReasonSchema = z.enum([
   'curve_not_monotonic',
   'head_above_curve',
   'head_below_curve',
+  // A surface pump's suction lift (suctionLift).
+  'suction_lift_exceeded',
   // The chosen pump against the site (pumpMatch).
   'duty_flow_short',
   'duty_flow_excess',

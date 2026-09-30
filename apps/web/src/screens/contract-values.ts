@@ -107,6 +107,7 @@ export const SIZING_REASONS = [
   'curve_not_monotonic',
   'head_above_curve',
   'head_below_curve',
+  'suction_lift_exceeded',
   'duty_flow_short',
   'duty_flow_excess',
   'pump_power_short',

@@ -13,6 +13,7 @@ import { pumpMatch } from './match';
 import { pumpPower, type PowerResult } from './power';
 import { rooftopSize } from './rooftop';
 import { solarArrayForPump } from './solar-pump';
+import { suctionLift } from './suction';
 
 /**
  * The version of the sizing engine a stored result came from (`sizings.engine_version`). Raise it
@@ -70,9 +71,10 @@ export interface ChosenPump {
 }
 
 /**
- * A pump sizing from the field measurements: TDH, then the power and standard HP at the
- * efficiencies for the pump type, the solar array for a solar drive, and the duty point on the
- * chosen pump's curve when one is given. In bounds only when every part is.
+ * A pump sizing from the field measurements: TDH, the suction lift of a surface pump, then the
+ * power and standard HP at the efficiencies for the pump type, the solar array for a solar drive,
+ * and the duty point on the chosen pump's curve when one is given. In bounds only when every
+ * part is.
  */
 export function sizePump(
   inputs: PumpSizingInputs,
@@ -81,6 +83,7 @@ export function sizePump(
 ): { result: PumpSizingResult } & Bounded {
   const efficiency = defaults.efficiency[inputs.pumpType];
   const solarDrive = inputs.drive === 'solar';
+  const surface = inputs.pumpType === 'surface';
   const constants = {
     hazenWilliamsC: defaults.hazenWilliamsC[inputs.pipeMaterial],
     fittingsLossFraction: defaults.fittingsLossFraction,
@@ -90,6 +93,7 @@ export function sizePump(
     standardHp: [...defaults.standardHp],
     dutyFlowTolerance: defaults.dutyFlowTolerance,
     dutyFlowOvershootFactor: defaults.dutyFlowOvershootFactor,
+    maxSuctionLiftM: surface ? defaults.surfaceMaxSuctionLiftM : null,
     arrayOversize: solarDrive ? defaults.solarArrayOversize : null,
     moduleWp: solarDrive ? defaults.moduleWp : null,
   };
@@ -104,6 +108,14 @@ export function sizePump(
     fittingsLossFraction: constants.fittingsLossFraction,
     hazenWilliamsC: constants.hazenWilliamsC,
   });
+  // A surface pump draws the water up to itself; a submersible sits in it.
+  const suction = surface
+    ? suctionLift({
+        staticLevelM: inputs.staticLevelM,
+        drawdownM: inputs.drawdownM,
+        maxSuctionLiftM: defaults.surfaceMaxSuctionLiftM,
+      })
+    : null;
   const power = pumpPower({
     flowLph: inputs.flowLph,
     tdhM: head.tdhM,
@@ -130,10 +142,11 @@ export function sizePump(
       constants,
       head: { ...head, reasons: [...head.reasons] },
       power: { ...power, reasons: [...power.reasons] },
+      suction: suction && { ...suction, reasons: [...suction.reasons] },
       solar: solar && { ...solar, reasons: [...solar.reasons] },
       dutyPoint,
     },
-    ...combine([head, power, solar, dutyPoint]),
+    ...combine([head, suction, power, solar, dutyPoint]),
   };
 }
 

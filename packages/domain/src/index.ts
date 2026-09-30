@@ -159,6 +159,7 @@ export {
   sizePump,
   sizeRooftop,
   solarArrayForPump,
+  suctionLift,
   totalDynamicHead,
 } from './sizing';
 export type {
@@ -181,6 +182,8 @@ export type {
   SanctionedLoadInput,
   SolarPumpInput,
   SolarPumpResult,
+  SuctionInput,
+  SuctionResult,
 } from './sizing';
 export { creditCheck } from './sales/credit-check';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
