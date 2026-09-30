@@ -79,6 +79,8 @@ export interface MatrixRow {
    * those leads reads the row, acting in that company.
    */
   leadIn?: readonly number[];
+  /** For a `files` row, its purpose, which names who reads it (`app.file_purpose_grant()`). */
+  purpose?: string;
 }
 
 export interface EntityMatrixFixture {
@@ -237,6 +239,15 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const priceList = per(e, 0x10);
         const ownerRole = per(e, 0x11);
         const otherRole = per(e, 0x12);
+        // One file of each purpose besides the import file, each read by its own rule.
+        const purposeFiles = [
+          ['quote_pdf', per(e, 0x13), 'application/pdf'],
+          ['signed_quote', per(e, 0x14), 'image/jpeg'],
+          ['entity_logo', per(e, 0x15), 'image/png'],
+          ['letterhead', per(e, 0x16), 'image/png'],
+          ['knowledge', per(e, 0x17), 'application/pdf'],
+          ['consent_evidence', per(e, 0x18), 'image/jpeg'],
+        ] as const;
         const audit = newId();
         const only = [e];
 
@@ -262,6 +273,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${audit}, ${e}, ${ownerId}, 'user', ${ENTITY_MATRIX_AUDIT_COMMAND}, 'ok')`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
+        for (const [purpose, fileId, type] of purposeFiles) {
+          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+            values (${fileId}, ${e}, ${purpose}, 'matrix', ${`matrix/${fileId}`}, 'matrix file', ${type}, 1, ${sha}, 'ready', ${ownerId})`;
+        }
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -291,7 +306,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
         rows.audit_logs.push({ key: audit, entities: only });
-        rows.files.push({ key: file, entities: only });
+        rows.files.push({ key: file, entities: only, purpose: 'import' });
+        for (const [purpose, fileId] of purposeFiles) {
+          rows.files.push({ key: fileId, entities: only, purpose });
+        }
         rows.import_mapping_templates.push({ key: template, entities: only });
         rows.import_jobs.push({ key: job, entities: only });
         rows.import_rows.push({ key: `${job}/1`, entities: only });

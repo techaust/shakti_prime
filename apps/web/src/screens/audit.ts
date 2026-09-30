@@ -70,6 +70,11 @@ const ACTIONS = {
   'imports.job.commit': 'importCommit',
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
+  'files.upload.begin': 'fileUploadBegin',
+  'files.upload.complete': 'fileUploadComplete',
+  'files.file.mark_scanned': 'fileScanned',
+  'files.file.mark_ready': 'fileReady',
+  'files.file.reject': 'fileRejected',
   'integrations.dlq.replay': 'deadLetterReplay',
   'platform.probe.run': 'deliveryCheck',
   'admin.user.invite': 'userInvite',
@@ -128,6 +133,7 @@ const EVENT_NAMES = {
   'imports.job.failed': 'importFailed',
   'imports.job.rolled_back': 'importRolledBack',
   'platform.probe.requested': 'deliveryCheckRequested',
+  'files.file.uploaded': 'fileUploaded',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -195,6 +201,12 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'fileStatus',
+  'filePurpose',
+  'contentType',
+  'scanVerdict',
+  'sanitising',
+  'scanStatus',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -292,6 +304,16 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Uploaded files and their checks
+  ['fileStatus', 'fileStatus'],
+  ['purpose', 'filePurpose'],
+  ['contentType', 'contentType'],
+  ['size', 'number'],
+  ['verdict', 'scanVerdict'],
+  ['sanitising', 'sanitising'],
+  ['regionsMasked', 'number'],
+  ['rejectReason', 'errorCode'],
+  ['scanStatus', 'scanStatus'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

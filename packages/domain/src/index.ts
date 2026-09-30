@@ -1,5 +1,5 @@
 export { defineCommand } from './command/define-command';
-export type { AnyCommand, Command } from './command/define-command';
+export type { AnyCommand, Command, PermissionByInput, Requirement } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
 export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
@@ -63,8 +63,27 @@ export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
 export { importRowKey, rollbackChunks } from './imports/row-key';
-export { assertFileKey, localDiskFileStore, memoryFileStore } from './ports/file-store';
-export type { FileStore } from './ports/file-store';
+export {
+  assertFileKey,
+  contentDisposition,
+  localDiskFileStore,
+  memoryFileStore,
+  PRESIGN_SECONDS,
+  rfc5987,
+  sha256Hex,
+  signLocalGrant,
+  verifyLocalGrant,
+} from './ports/file-store';
+export type {
+  FileStore,
+  LocalDiskOptions,
+  LocalGrant,
+  PresignedGet,
+  PresignedPut,
+  PresignGetOptions,
+  PresignPutRequest,
+  StoredObject,
+} from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,
@@ -218,3 +237,32 @@ export type {
   SnapshotLimits,
   StoredVoucher,
 } from './tally/sync-rules';
+export { beginUpload } from './commands/files/begin-upload';
+export { completeUpload } from './commands/files/complete-upload';
+export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export type { StoredFile } from './queries/files/file-queries';
+export {
+  FILE_PURPOSE_RULES,
+  filePurposeGrant,
+  UPLOADABLE_PURPOSES,
+  uploadPermission,
+} from './files/purposes';
+export type { FilePurposeRule } from './files/purposes';
+export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export type { UploadLimit, UploadLimitProblem } from './files/limits';
+export { fileUploadMachine } from './state-machines/machines/file-upload';
+export {
+  contextBytes,
+  contextFields,
+  envelopeCipher,
+  FieldCipherError,
+  FieldEnvelopeSchema,
+  localKeyProvider,
+} from './privacy/field-cipher';
+export type {
+  CipherContext,
+  DataKeyProvider,
+  FieldCipher,
+  FieldEnvelope,
+} from './privacy/field-cipher';

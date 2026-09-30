@@ -324,23 +324,29 @@ export const API_FIXTURES: Record<
   },
   'files.presign': {
     request: {
-      id: IDS.photo,
       entityId: 1,
-      purpose: 'job_photo',
+      purpose: 'signed_quote',
+      name: 'Signed quote SS-QT-0231.jpg',
       contentType: 'image/jpeg',
       size: 842_113,
+      sha256: 'a3f1c2d4e5b6a7980112233445566778899aabbccddeeff00112233445566778',
     },
     response: {
       fileId: IDS.photo,
       method: 'PUT',
-      uploadUrl: `https://shakti-prime-files.s3.ap-south-1.amazonaws.com/1/job_photo/${IDS.photo}.jpg`,
-      headers: { 'content-type': 'image/jpeg', 'content-length': '842113' },
+      uploadUrl: `https://shakti-prime-staging-files.s3.ap-south-1.amazonaws.com/1/signed_quote/${IDS.photo}.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost%3Bx-amz-checksum-sha256%3Bx-amz-server-side-encryption%3Bx-amz-server-side-encryption-aws-kms-key-id`,
+      headers: {
+        'content-type': 'image/jpeg',
+        'x-amz-checksum-sha256': 'o/HC1OW2p5gBEiM0RVZneImaq7zN3u/wARIjNEVWZ3g=',
+        'x-amz-server-side-encryption': 'aws:kms',
+        'x-amz-server-side-encryption-aws-kms-key-id': 'alias/shakti-prime-staging-files',
+      },
       expiresAt: '2026-09-27T05:21:40.000Z',
     },
   },
   'files.complete': {
     params: { id: IDS.photo },
-    request: { size: 842_113 },
+    request: { purpose: 'signed_quote' },
     response: { fileId: IDS.photo, status: 'scanning' },
   },
   'attendance.checkIn': {
@@ -688,20 +694,6 @@ export const API_FIXTURES: Record<
       outcome: 'done',
       status: 'sent',
       providerMessageId: `wamid.${'HBgM'.repeat(12)}`,
-    },
-  },
-  'workers.files.scan': {
-    request: { eventId: IDS.eventB, fileId: IDS.file },
-    response: { eventId: IDS.eventB, outcome: 'done', fileId: IDS.file, verdict: 'clean' },
-  },
-  'workers.files.mask': {
-    request: { eventId: IDS.eventB, fileId: IDS.file, expect: ['aadhaar'] },
-    response: {
-      eventId: IDS.eventB,
-      outcome: 'done',
-      fileId: IDS.file,
-      status: 'masked',
-      regionsMasked: 2,
     },
   },
   'workers.pdf.render': {

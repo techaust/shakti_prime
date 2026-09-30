@@ -62,10 +62,34 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     }
   });
 
-  it('refuses production until a mail provider exists', () => {
+  it('refuses production without SES', () => {
     expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production' })).toEqual([
-      'MAILER=log is not a mail provider; production needs one',
+      'MAILER=log is not a mail provider; production needs ses',
     ]);
+  });
+
+  it('accepts SES from its verified sender, in production and elsewhere', () => {
+    const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
+    for (const BOS_ENVIRONMENT of ['dev', 'staging', 'production']) {
+      expect(productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT })).toEqual([]);
+    }
+  });
+
+  it('refuses SES without its sender', () => {
+    expect(productionConfigProblems({ ...GOOD, MAILER: 'ses' })).toEqual([
+      'MAILER=ses needs SES_FROM',
+    ]);
+  });
+
+  it('refuses the development key for field encryption', () => {
+    expect(
+      productionConfigProblems({ ...GOOD, FIELD_ENCRYPTION_KEY: 'bG9jYWwga2V5IG9ubHk=' }),
+    ).toEqual(['FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key']);
+  });
+
+  it('starts without any file storage or key settings', () => {
+    const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
+    expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);
   });
 });
 

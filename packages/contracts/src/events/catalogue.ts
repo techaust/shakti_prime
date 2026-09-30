@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { FilePurposeSchema } from '../api/files';
 import { ImportKindSchema } from '../imports/enums';
 
 /**
@@ -158,6 +159,11 @@ const eventCatalogue = {
   'imports.job.rolled_back': {
     subscribed: false,
     payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),
+  },
+  // An upload landed and waits for its checks (`handleFileUploaded` in apps/web/src/workers/files).
+  'files.file.uploaded': {
+    subscribed: false,
+    payload: z.object({ purpose: FilePurposeSchema }).strict(),
   },
 } as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;
 

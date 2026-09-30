@@ -205,7 +205,7 @@ describe('the upload action', () => {
   it('records nothing when the file cannot be saved, so the same file can be tried again', async () => {
     const csv = `Name,Mobile\nSundar,${phone()}\n`;
     request.store = {
-      bucket: 'memory',
+      ...memoryFileStore(),
       put: () => Promise.reject(new Error('the disk is full')),
       get: () => Promise.resolve(undefined),
     };

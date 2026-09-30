@@ -21,6 +21,7 @@ import {
   removeEntityMatrixFixture,
   ROLE_SEED,
   type EntityMatrixFixture,
+  type MatrixRow,
   type MatrixTable,
 } from '../../src/testing/index';
 
@@ -36,11 +37,14 @@ import {
  * table's policy says (docs/DATABASE.md §1, §4).
  */
 
-type Rule = { kind: 'context' } | { kind: 'grant'; key: PermissionKey; scope: Scope };
+type Rule =
+  { kind: 'context' } | { kind: 'grant'; key: PermissionKey; scope: Scope } | { kind: 'never' };
 
 interface TableRule {
   /** Who sees a row of their own company. */
   read: Rule;
+  /** For a table whose rows are read by different rules (a file by its purpose): the row's rule. */
+  readRow?: (row: MatrixRow) => Rule;
   /** Who sees a group-wide row; absent where the table has none. */
   group?: Rule;
   /** Who sees their own rows (`ownedByActor`) in every company; absent where the table has none. */
@@ -61,6 +65,22 @@ const grant = (key: PermissionKey, scope: Scope): Rule => ({ kind: 'grant', key,
 const ACCOUNT_READ = grant('crm.account.read', 'own');
 const LEAD_READ = grant('crm.lead.read', 'own');
 const IMPORTS = grant('imports.write', 'entity');
+const NEVER: Rule = { kind: 'never' };
+
+/**
+ * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
+ * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
+ * every principal of the company; a vault file by no request until K1.
+ */
+const FILE_READ: Readonly<Record<string, Rule>> = {
+  import: IMPORTS,
+  quote_pdf: LEAD_READ,
+  signed_quote: LEAD_READ,
+  entity_logo: CONTEXT,
+  letterhead: CONTEXT,
+  knowledge: NEVER,
+  consent_evidence: grant('crm.account.write', 'own'),
+};
 
 /** A row of another company; a group-wide row too, unless the policy shows it. */
 const otherCompany = (e: number, groupVisible: boolean): SQL =>
@@ -111,7 +131,11 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: grant('audit.read', 'all'),
     leak: otherCompany,
   },
-  files: { read: IMPORTS, leak: otherCompany },
+  files: {
+    read: IMPORTS,
+    readRow: (row) => (row.purpose === undefined ? NEVER : (FILE_READ[row.purpose] ?? NEVER)),
+    leak: otherCompany,
+  },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
   import_jobs: { read: IMPORTS, leak: otherCompany },
   import_rows: { read: IMPORTS, leak: otherCompany },
@@ -135,9 +159,11 @@ const TABLES = Object.keys(RULES) as MatrixTable[];
 const ROLES: RoleKey[] = ROLE_SEED.map((r) => r.key);
 
 function allows(principal: Principal, rule: Rule | undefined): boolean {
-  if (rule === undefined) return false;
+  if (rule === undefined || rule.kind === 'never') return false;
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
+
+const readRule = (rule: TableRule, row: MatrixRow): Rule => rule.readRow?.(row) ?? rule.read;
 
 interface Seen {
   seen: string[];
@@ -241,7 +267,8 @@ describe('every role acting in one company sees only that company (SECURITY §11
       const problems: unknown[] = [];
       for (const table of TABLES) {
         const rule = RULES[table];
-        const readsOwn = allows(principal, rule.read);
+        // Whether any row of the table is the caller's to read in their own company.
+        const readsOwn = fx.rows[table].some((r) => allows(principal, readRule(rule, r)));
         const readsGroup = allows(principal, rule.group);
         const readsOwnRows = allows(principal, rule.ownRows);
         // People only: an agent reads customers by crm.account.read scope alone (0057).
@@ -250,7 +277,7 @@ describe('every role acting in one company sees only that company (SECURITY §11
           .filter((r) =>
             r.entities === null
               ? readsGroup
-              : (readsOwn && r.entities.includes(entityId)) ||
+              : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
                 (readsOwnRows && r.ownedByActor === true) ||
                 (readsThroughLead && r.leadIn?.includes(entityId) === true),
           )
