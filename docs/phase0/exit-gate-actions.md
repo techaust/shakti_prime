@@ -31,6 +31,21 @@ Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has starte
 - Start DLT registration for all four companies, with the 140- and 160-series numbers through Exotel, and the Meta Business verification with one WhatsApp number per company; both are needed by Phase 2 (ROADMAP §10).
 - Accept ADRs 0007 and 0009 to 0013 after review, and answer the open questions in AUDIT §7: the recorded sources of consent, consent per company, and how a negative moving-average cost is handled.
 
+## The client's engineering head
+The sizing calculators (`packages/domain/src/workshop-defaults.ts`, `sizing`) use these common engineering figures until each is confirmed by the engineering head; a recorded sizing keeps the figures it used.
+- Hazen-Williams roughness C of HDPE pipe: 140 until confirmed by the engineering head.
+- Hazen-Williams roughness C of GI pipe: 120 until confirmed by the engineering head.
+- Losses in bends, valves and joints: 10% of the pipe's friction loss until confirmed by the engineering head.
+- Submersible pump sets: pump efficiency 0.55 and motor efficiency 0.78 until confirmed by the engineering head.
+- Surface pump sets: pump efficiency 0.60 and motor efficiency 0.82 until confirmed by the engineering head.
+- Solar pump array: 1.3 times the motor rating until confirmed by the engineering head.
+- Module rating: 540 Wp until confirmed by the engineering head.
+- Peak sun hours in Rajasthan: 5.5 a day until confirmed by the engineering head.
+- Rooftop performance ratio: 0.75 until confirmed by the engineering head.
+- Roof area per kWp: 10 m² until confirmed by the engineering head.
+- Motor ratings on sale: 0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25 and 30 HP until confirmed by the engineering head.
+- Schemes that require DCR modules: PM Surya Ghar and PM-KUSUM until confirmed by the engineering head.
+
 ## The CA and vendors
 - The CA confirms the place-of-supply rule, the rounding and the tax golden set (ADR 0007).
 - Vendors return quotes against the volumes in the quote pack.
