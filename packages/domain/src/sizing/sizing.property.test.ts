@@ -219,7 +219,7 @@ describe('pumpDutyPoint properties', () => {
         points,
         Math.max(0, firstOf(points).headM - random.between(0.001, 5)),
       );
-      expect(above.reasons).toEqual(['head_above_shutoff']);
+      expect(above.reasons).toEqual(['head_above_curve']);
       if (firstOf(points).headM > 0.001) expect(below.inBounds).toBe(false);
     });
   });

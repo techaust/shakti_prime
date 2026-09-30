@@ -2,13 +2,15 @@ import { PumpSizingResultSchema, RooftopSizingResultSchema } from '@shakti/contr
 import { describe, expect, it } from 'vitest';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import type { CurvePoint } from './duty-point';
-import { sizePump, sizeRooftop } from './size';
+import { sizePump, sizeRooftop, type ChosenPump } from './size';
 
 const CURVE: readonly CurvePoint[] = [
   { headM: 90, flowLph: 0 },
   { headM: 50, flowLph: 16_000 },
   { headM: 20, flowLph: 24_000 },
 ];
+
+const PUMP: ChosenPump = { curve: CURVE, ratedHp: null };
 
 const SUBMERSIBLE = {
   pumpType: 'submersible',
@@ -24,7 +26,7 @@ const SUBMERSIBLE = {
 
 describe('sizePump', () => {
   it('combines the head, power, solar array and duty point with the constants it used', () => {
-    const { result, inBounds, reasons } = sizePump(SUBMERSIBLE, CURVE);
+    const { result, inBounds, reasons } = sizePump(SUBMERSIBLE, PUMP);
     const { sizing } = WORKSHOP_DEFAULTS;
     expect(result.constants).toEqual({
       hazenWilliamsC: sizing.hazenWilliamsC.hdpe,
@@ -58,9 +60,9 @@ describe('sizePump', () => {
   });
 
   it('a head above the chosen pump’s shut-off is out of bounds and names why', () => {
-    const { inBounds, reasons, result } = sizePump({ ...SUBMERSIBLE, staticLevelM: 100 }, CURVE);
-    expect(result.dutyPoint?.reasons).toEqual(['head_above_shutoff']);
-    expect({ inBounds, reasons }).toEqual({ inBounds: false, reasons: ['head_above_shutoff'] });
+    const { inBounds, reasons, result } = sizePump({ ...SUBMERSIBLE, staticLevelM: 100 }, PUMP);
+    expect(result.dutyPoint?.reasons).toEqual(['head_above_curve']);
+    expect({ inBounds, reasons }).toEqual({ inBounds: false, reasons: ['head_above_curve'] });
   });
 
   it('a duty beyond the largest rating has no array to size and is out of bounds', () => {
@@ -76,9 +78,9 @@ describe('sizePump', () => {
   it('names each reason once when several parts fail', () => {
     const { reasons } = sizePump(
       { ...SUBMERSIBLE, flowLph: 400_000, pipeInnerDiameterMm: 250, staticLevelM: 150 },
-      CURVE,
+      PUMP,
     );
-    expect(reasons).toEqual(['above_largest_standard_hp', 'head_above_shutoff']);
+    expect(reasons).toEqual(['above_largest_standard_hp', 'head_above_curve']);
   });
 
   it('takes the constants it is given', () => {

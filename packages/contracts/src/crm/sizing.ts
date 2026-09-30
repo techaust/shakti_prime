@@ -36,7 +36,7 @@ export const SizingReasonSchema = z.enum([
   // The pump curve (pumpDutyPoint).
   'curve_too_short',
   'curve_not_monotonic',
-  'head_above_shutoff',
+  'head_above_curve',
   'head_below_curve',
   // Pump power (pumpPower).
   'above_largest_standard_hp',

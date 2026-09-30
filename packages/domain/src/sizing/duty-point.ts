@@ -21,7 +21,7 @@ export interface DutyPointResult extends Bounded {
  * between the two curve points around that head. Out of bounds when the curve has fewer than two
  * points (`curve_too_short`), when its flow rises with head or two points share a head
  * (`curve_not_monotonic`), when the head is at or above the shut-off head so the pump delivers
- * nothing (`head_above_shutoff`), or when the head is below the curve's last point, where the
+ * nothing (`head_above_curve`), or when the head is below the curve's last point, where the
  * pump would run off its curve and overload (`head_below_curve`).
  */
 export function pumpDutyPoint(curve: readonly CurvePoint[], tdhM: number): DutyPointResult {
@@ -49,13 +49,13 @@ export function pumpDutyPoint(curve: readonly CurvePoint[], tdhM: number): DutyP
     return outOfBounds('curve_not_monotonic', false);
   }
 
-  if (tdhM > last.headM) return outOfBounds('head_above_shutoff');
+  if (tdhM > last.headM) return outOfBounds('head_above_curve');
   if (tdhM < first.headM) return outOfBounds('head_below_curve');
 
   const [lower, upper] = spans.find(([, top]) => tdhM <= top.headM) ?? [first, first];
   const share = upper === lower ? 0 : (tdhM - lower.headM) / (upper.headM - lower.headM);
   const dutyFlowLph = lower.flowLph + share * (upper.flowLph - lower.flowLph);
-  if (dutyFlowLph <= 0) return outOfBounds('head_above_shutoff');
+  if (dutyFlowLph <= 0) return outOfBounds('head_above_curve');
 
   return { dutyFlowLph, shutoffHeadM: last.headM, minHeadM: first.headM, ...bounded([]) };
 }

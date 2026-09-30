@@ -160,7 +160,8 @@
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
     "event_in_progress": "This update is already being handled. It will be tried again shortly.",
-    "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none."
+    "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
+    "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type."
   },
   "auth": {
     "signIn": {
@@ -1574,7 +1575,7 @@
     "reason": {
       "curve_too_short": "This pump's curve has too few points to check. Ask for the pump's full curve.",
       "curve_not_monotonic": "This pump's curve does not read correctly. Ask for it to be checked.",
-      "head_above_shutoff": "The height to lift is more than this pump can reach. Choose a stronger pump.",
+      "head_above_curve": "The height to lift is more than this pump can reach. Choose a stronger pump.",
       "head_below_curve": "The height to lift is below this pump's curve, so it would overload. Choose a smaller pump.",
       "above_largest_standard_hp": "The pump needed is larger than any motor on sale. Ask the engineering head.",
       "no_consumption": "Enter the units used a month to size the system.",

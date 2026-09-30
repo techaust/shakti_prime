@@ -3,6 +3,7 @@ import {
   newId,
   RecordSizingInput,
   SizingDto,
+  type PumpType,
   type SizingKind,
   type SizingReason,
 } from '@shakti/contracts';
@@ -11,8 +12,8 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import type { Bounded } from '../../sizing/bounds';
-import type { CurvePoint } from '../../sizing/duty-point';
-import { SIZING_ENGINE_VERSION, sizePump, sizeRooftop } from '../../sizing/size';
+import { pumpSpecsOf } from '../../sizing/pump-specs';
+import { SIZING_ENGINE_VERSION, sizePump, sizeRooftop, type ChosenPump } from '../../sizing/size';
 import { requireEntity } from './opportunity-shared';
 
 /** The lead a sizing is recorded on, as the caller reads it. */
@@ -41,14 +42,21 @@ async function readLead(
 }
 
 /**
- * The chosen pump's curve, head and flow as numbers, lowest head first. The item must be in the
- * catalogue and on sale; a pump with fewer than two points is judged by the calculator
- * (`curve_too_short`), not refused, so the panel can say why.
+ * The chosen pump: its curve, head and flow as numbers, lowest head first, and its rated HP from
+ * its specifications. The item must be in the catalogue and on sale, and a pump whose
+ * specifications name a type other than the sizing's (a surface pump for a borewell) is refused,
+ * since its curve answers a different question; a pump with no type given is taken as it is. A
+ * pump with fewer than two points is judged by the calculator (`curve_too_short`), not refused,
+ * so the panel can say why.
  */
-async function pumpCurve(ctx: CommandContext, itemId: string): Promise<CurvePoint[]> {
+async function chosenPump(
+  ctx: CommandContext,
+  itemId: string,
+  pumpType: PumpType,
+): Promise<ChosenPump> {
   const i = schema.items;
   const [item] = await ctx.tx
-    .select({ id: i.id })
+    .select({ id: i.id, specs: i.specsJson })
     .from(i)
     .where(and(eq(i.id, itemId), eq(i.isActive, true), isNull(i.archivedAt)))
     .limit(1);
@@ -57,13 +65,22 @@ async function pumpCurve(ctx: CommandContext, itemId: string): Promise<CurvePoin
       reason: 'sizing_item_missing',
     });
   }
+  const specs = pumpSpecsOf(item.specs);
+  if (specs.pumpType !== null && specs.pumpType !== pumpType) {
+    throw new DomainError('validation_failed', `item ${itemId} is a ${specs.pumpType} pump`, {
+      reason: 'sizing_pump_type_mismatch',
+    });
+  }
   const pc = schema.pumpCurves;
   const points = await ctx.tx
     .select({ headM: pc.headM, flowLph: pc.flowLph })
     .from(pc)
     .where(eq(pc.itemId, itemId))
     .orderBy(asc(pc.headM));
-  return points.map((p) => ({ headM: Number(p.headM), flowLph: Number(p.flowLph) }));
+  return {
+    curve: points.map((p) => ({ headM: Number(p.headM), flowLph: Number(p.flowLph) })),
+    ratedHp: specs.ratedHp,
+  };
 }
 
 /**
@@ -87,8 +104,11 @@ export const recordSizing = defineCommand({
     const lead = await readLead(ctx, input);
     const { sizing } = input;
     if (sizing.kind === 'pump') {
-      const curve = sizing.itemId === null ? null : await pumpCurve(ctx, sizing.itemId);
-      const { result, ...bounds } = sizePump(sizing.inputs, curve);
+      const pump =
+        sizing.itemId === null
+          ? null
+          : await chosenPump(ctx, sizing.itemId, sizing.inputs.pumpType);
+      const { result, ...bounds } = sizePump(sizing.inputs, pump);
       const stored = await store(ctx, lead, {
         kind: 'pump',
         itemId: sizing.itemId,

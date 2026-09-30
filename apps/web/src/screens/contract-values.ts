@@ -105,7 +105,7 @@ export const PIPE_MATERIALS = ['hdpe', 'gi'] as const satisfies readonly PipeMat
 export const SIZING_REASONS = [
   'curve_too_short',
   'curve_not_monotonic',
-  'head_above_shutoff',
+  'head_above_curve',
   'head_below_curve',
   'above_largest_standard_hp',
   'no_consumption',

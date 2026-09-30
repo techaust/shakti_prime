@@ -45,7 +45,7 @@ const CURVE = [
 ];
 
 function pumpSizing(inputs = PUMP_INPUTS): SizingDto {
-  const { result, inBounds, reasons } = sizePump(inputs, CURVE);
+  const { result, inBounds, reasons } = sizePump(inputs, { curve: CURVE, ratedHp: null });
   return SizingDto.parse({
     ...LEAD,
     kind: 'pump',
@@ -85,8 +85,8 @@ describe('SizingResult', () => {
   it('names why a result is outside its limits in plain words, never as a code', () => {
     const html = render(<SizingResult sizing={pumpSizing({ ...PUMP_INPUTS, staticLevelM: 60 })} />);
     expect(html).toContain(en.sizing.result.outOfBounds);
-    expect(html).toContain(en.sizing.reason.head_above_shutoff.replaceAll("'", '&#x27;'));
-    expect(html).not.toContain('head_above_shutoff');
+    expect(html).toContain(en.sizing.reason.head_above_curve.replaceAll("'", '&#x27;'));
+    expect(html).not.toContain('head_above_curve');
   });
 
   it('shows a rooftop sizing with the limit that set it', () => {

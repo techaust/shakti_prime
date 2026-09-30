@@ -26,6 +26,13 @@ function combine(parts: readonly (Bounded | null)[]): Bounded {
   return { inBounds: reasons.length === 0, reasons };
 }
 
+/** A catalogue pump a sizing is checked against: its curve and its rated HP, if given. */
+export interface ChosenPump {
+  readonly curve: readonly CurvePoint[];
+  /** The pump set's rated output from its specifications (`hp`); null when not given. */
+  readonly ratedHp: number | null;
+}
+
 /**
  * A pump sizing from the field measurements: TDH, then the power and standard HP at the
  * efficiencies for the pump type, the solar array for a solar drive, and the duty point on the
@@ -33,7 +40,7 @@ function combine(parts: readonly (Bounded | null)[]): Bounded {
  */
 export function sizePump(
   inputs: PumpSizingInputs,
-  curve: readonly CurvePoint[] | null,
+  pump: ChosenPump | null,
   defaults: SizingDefaults = WORKSHOP_DEFAULTS.sizing,
 ): { result: PumpSizingResult } & Bounded {
   const efficiency = defaults.efficiency[inputs.pumpType];
@@ -74,7 +81,7 @@ export function sizePump(
           moduleWp: defaults.moduleWp,
         })
       : null;
-  const dutyPoint = curve === null ? null : pumpDutyPoint(curve, head.tdhM);
+  const dutyPoint = pump === null ? null : pumpDutyPoint(pump.curve, head.tdhM);
 
   return {
     result: {

@@ -28,6 +28,8 @@ let gm: Principal;
 let pumpId: string;
 /** A pump no longer on sale. */
 let retiredPumpId: string;
+/** A surface pump on sale with a curve, by its specifications. */
+let surfacePumpId: string;
 
 beforeAll(async () => {
   teamId = await createTestTeam(1, 'sizing team');
@@ -36,11 +38,17 @@ beforeAll(async () => {
   gm = await createTestPrincipal('general_manager', [1]);
   pumpId = newId();
   retiredPumpId = newId();
+  surfacePumpId = newId();
   await asMigrator(async (m) => {
     await m.begin(async (tx) => {
       await tx`insert into items (id, sku, name, category, hsn) values
         (${pumpId}, ${`SZ-${pumpId}`}, 'sizing test pump', 'pump', '8413'),
         (${retiredPumpId}, ${`SZ-${retiredPumpId}`}, 'sizing test retired pump', 'pump', '8413')`;
+      await tx`insert into items (id, sku, name, category, hsn, specs_json) values
+        (${surfacePumpId}, ${`SZ-${surfacePumpId}`}, 'sizing test surface pump', 'pump', '8413',
+         ${tx.json({ hp: 7.5, kw: 5.5, phase: 'three', pumpType: 'surface', outletMm: 65, maxHeadM: 60 })})`;
+      await tx`insert into pump_curves (id, item_id, head_m, flow_lph) values
+        (${newId()}, ${surfacePumpId}, 30.00, 20000.00), (${newId()}, ${surfacePumpId}, 50.00, 16000.00)`;
       await tx`update items set is_active = false where id = ${retiredPumpId}`;
       await tx`insert into pump_curves (id, item_id, head_m, flow_lph) values
         (${newId()}, ${pumpId}, 30.00, 12000.00), (${newId()}, ${pumpId}, 50.00, 8000.00)`;
@@ -257,16 +265,16 @@ describe('crm.sizing.record (design §6.7)', () => {
     if (deep.sizing.kind !== 'pump') throw new Error('a pump sizing');
     deep.sizing.inputs = { ...deep.sizing.inputs, staticLevelM: 60 };
     const dto = SizingDto.parse(await run(caller, recordSizing, deep));
-    expect(dto).toMatchObject({ inBounds: false, reasons: ['head_above_shutoff'] });
+    expect(dto).toMatchObject({ inBounds: false, reasons: ['head_above_curve'] });
     expect(await stored(dto.id)).toMatchObject({
       in_bounds: false,
-      reasons_json: ['head_above_shutoff'],
+      reasons_json: ['head_above_curve'],
     });
     const [event] = await asOutboxPublisher(
       (p) => p<{ payload_json: Record<string, unknown> }[]>`
         select payload_json from outbox_events where aggregate_id = ${dto.id}`,
     );
-    expect(event?.payload_json).toMatchObject({ inBounds: false, reasons: ['head_above_shutoff'] });
+    expect(event?.payload_json).toMatchObject({ inBounds: false, reasons: ['head_above_curve'] });
   });
 
   it('refuses a pump that is not on sale or not in the catalogue', async () => {
@@ -277,6 +285,20 @@ describe('crm.sizing.record (design §6.7)', () => {
         details: { reason: 'sizing_item_missing' },
       });
     }
+  });
+
+  it('refuses a pump whose type differs from the sizing’s', async () => {
+    const id = await newLead();
+    // A surface pump's curve cannot answer for a submersible in a borewell.
+    await expect(run(caller, recordSizing, pumpSizing(id, surfacePumpId))).rejects.toMatchObject({
+      code: 'validation_failed',
+      details: { reason: 'sizing_pump_type_mismatch' },
+    });
+    const surface = pumpSizing(id, surfacePumpId);
+    if (surface.sizing.kind !== 'pump') throw new Error('a pump sizing');
+    surface.sizing.inputs = { ...surface.sizing.inputs, pumpType: 'surface', staticLevelM: 4 };
+    const dto = SizingDto.parse(await run(caller, recordSizing, surface));
+    expect(dto.itemId).toBe(surfacePumpId);
   });
 
   it('records a rooftop sizing', async () => {

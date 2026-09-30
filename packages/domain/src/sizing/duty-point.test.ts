@@ -49,18 +49,18 @@ describe('pumpDutyPoint', () => {
       shutoffHeadM: 90,
       minHeadM: 20,
       inBounds: false,
-      reasons: ['head_above_shutoff'],
+      reasons: ['head_above_curve'],
     });
   });
 
   it('at the shut-off head the pump delivers nothing, so it is out of bounds', () => {
-    expect(pumpDutyPoint(CURVE, 90).reasons).toEqual(['head_above_shutoff']);
+    expect(pumpDutyPoint(CURVE, 90).reasons).toEqual(['head_above_curve']);
   });
 
   it('above a curve whose top point still flows is out of bounds', () => {
     const open = CURVE.slice(1);
     expect(pumpDutyPoint(open, 70).dutyFlowLph).toBe(9_000);
-    expect(pumpDutyPoint(open, 70.5).reasons).toEqual(['head_above_shutoff']);
+    expect(pumpDutyPoint(open, 70.5).reasons).toEqual(['head_above_curve']);
   });
 
   it('below the last point is out of bounds', () => {

@@ -151,6 +151,7 @@ export {
   nextStandardHp,
   pumpDutyPoint,
   pumpPower,
+  pumpSpecsOf,
   rooftopSize,
   sanctionedLoadRule,
   SIZING_ENGINE_VERSION,
@@ -161,6 +162,7 @@ export {
 } from './sizing';
 export type {
   Bounded,
+  ChosenPump,
   CurvePoint,
   DcrRuleInput,
   DcrRuleResult,
@@ -170,6 +172,7 @@ export type {
   ModuleLine,
   PowerInput,
   PowerResult,
+  PumpSpecs,
   RooftopInput,
   RooftopResult,
   SanctionedLoadInput,
