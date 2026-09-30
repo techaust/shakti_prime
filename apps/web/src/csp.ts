@@ -32,8 +32,11 @@ export function contentSecurityPolicy(
   sentryOrigin?: string,
   fileOrigins: readonly string[] = [],
 ): string {
-  const connect = [TURNSTILE, ...(sentryOrigin === undefined ? [] : [sentryOrigin]), ...fileOrigins]
-    .join(' ');
+  const connect = [
+    TURNSTILE,
+    ...(sentryOrigin === undefined ? [] : [sentryOrigin]),
+    ...fileOrigins,
+  ].join(' ');
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${TURNSTILE}${development ? " 'unsafe-eval'" : ''}`,

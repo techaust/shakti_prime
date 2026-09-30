@@ -103,3 +103,21 @@ export const RejectFileInput = z
   })
   .strict();
 export type RejectFileInput = z.infer<typeof RejectFileInput>;
+
+/**
+ * `files.file.recheck` (an Executive, from Integration health): the checks run again for every
+ * file still waiting for them that has not moved for this many minutes, so a file left in
+ * `scanning` (the checks were not yet switched on, or a delivery gave up) is not uploaded again.
+ */
+export const RecheckFilesInput = z
+  .object({ olderThanMinutes: z.number().int().min(0).max(1440).default(10) })
+  .strict();
+export type RecheckFilesInput = z.infer<typeof RecheckFilesInput>;
+
+/** The most files one call sends back to their checks; call again for more. */
+export const RECHECK_FILES_LIMIT = 500;
+
+export const RecheckFilesDto = z
+  .object({ requeued: z.number().int().min(0).max(RECHECK_FILES_LIMIT) })
+  .strict();
+export type RecheckFilesDto = z.infer<typeof RecheckFilesDto>;

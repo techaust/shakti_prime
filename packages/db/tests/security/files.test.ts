@@ -113,7 +113,10 @@ describe('a file is read by its purpose (0062)', () => {
     async (role: RoleKey) => {
       // Not the uploader: a narrower scope than the company's reads nothing here.
       const principal = principalFor(role, [1]);
+      // The file checks' permission reads every file of the company, whatever its purpose.
+      const worker = hasGrant(principal.permissions, 'files.process', 'entity');
       const expected = FILE_PURPOSES.filter((purpose) => {
+        if (worker) return true;
         const read = READ[purpose];
         if (read === undefined) return false;
         return read === 'company' || hasGrant(principal.permissions, read, 'entity');
@@ -293,13 +296,14 @@ describe('a file changes only through its checks', () => {
     );
   });
 
-  it('gives the file checks to no role in the seed', async () => {
+  it('gives the file checks to the system workers alone in the seed', async () => {
     const rows = await asMigrator(
       (m) =>
         m<
-          { n: number }[]
-        >`select count(*)::int as n from role_permissions where permission_key = 'files.process'`,
+          { role: string; scope: string }[]
+        >`select r.key as role, rp.scope from role_permissions rp join roles r on r.id = rp.role_id
+           where rp.permission_key = 'files.process'`,
     );
-    expect(rows[0]?.n).toBe(0);
+    expect(rows).toEqual([{ role: 'system:workers', scope: 'all' }]);
   });
 });

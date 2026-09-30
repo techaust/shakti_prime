@@ -38,7 +38,10 @@ import {
  */
 
 type Rule =
-  { kind: 'context' } | { kind: 'grant'; key: PermissionKey; scope: Scope } | { kind: 'never' };
+  | { kind: 'context' }
+  | { kind: 'grant'; key: PermissionKey; scope: Scope }
+  | { kind: 'never' }
+  | { kind: 'any'; rules: readonly Rule[] };
 
 interface TableRule {
   /** Who sees a row of their own company. */
@@ -72,7 +75,7 @@ const NEVER: Rule = { kind: 'never' };
  * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
  * every principal of the company; a vault file by no request until K1.
  */
-const FILE_READ: Readonly<Record<string, Rule>> = {
+const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   import: IMPORTS,
   quote_pdf: LEAD_READ,
   signed_quote: LEAD_READ,
@@ -81,6 +84,14 @@ const FILE_READ: Readonly<Record<string, Rule>> = {
   knowledge: NEVER,
   consent_evidence: grant('crm.account.write', 'own'),
 };
+/** The file checks' permission (`system:workers`) reads every file of the company as well. */
+const fileRead = (purpose: string | undefined): Rule => ({
+  kind: 'any',
+  rules: [
+    (purpose === undefined ? undefined : FILE_PURPOSE_READ[purpose]) ?? NEVER,
+    grant('files.process', 'entity'),
+  ],
+});
 
 /** A row of another company; a group-wide row too, unless the policy shows it. */
 const otherCompany = (e: number, groupVisible: boolean): SQL =>
@@ -133,7 +144,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   },
   files: {
     read: IMPORTS,
-    readRow: (row) => (row.purpose === undefined ? NEVER : (FILE_READ[row.purpose] ?? NEVER)),
+    readRow: (row) => fileRead(row.purpose),
     leak: otherCompany,
   },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
@@ -160,6 +171,7 @@ const ROLES: RoleKey[] = ROLE_SEED.map((r) => r.key);
 
 function allows(principal: Principal, rule: Rule | undefined): boolean {
   if (rule === undefined || rule.kind === 'never') return false;
+  if (rule.kind === 'any') return rule.rules.some((r) => allows(principal, r));
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
 

@@ -1071,7 +1071,8 @@
       "fileUploadComplete": "File uploaded",
       "fileScanned": "File checked for harmful content",
       "fileReady": "File ready to use",
-      "fileRejected": "File refused"
+      "fileRejected": "File refused",
+      "filesRecheck": "Files sent for their checks again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1507,6 +1508,13 @@
       "retired": "The system no longer handles this kind of update.",
       "interrupted": "Sending stopped part way too many times.",
       "other": "It could not be sent."
+    },
+    "files": {
+      "heading": "Files waiting for their checks",
+      "intro": "An uploaded file is used only after it has been checked for harmful content. A file still waiting after ten minutes can be sent for its checks again.",
+      "waiting": "{count, plural, =0 {No file is waiting for its checks.} one {# file has been waiting for its checks for more than ten minutes.} other {# files have been waiting for their checks for more than ten minutes.}}",
+      "recheck": "Check files again",
+      "done": "{count, plural, =0 {No file needed checking again.} one {# file was sent for its checks again.} other {# files were sent for their checks again.}}"
     }
   },
   "files": {
