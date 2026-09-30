@@ -1609,8 +1609,6 @@
     "requiredList": "Needs {fields}",
     "moveUp": "Move up",
     "moveDown": "Move down",
-    "moveUpLabel": "Move {name} up",
-    "moveDownLabel": "Move {name} down",
     "edit": "Edit",
     "editLabel": "Edit {name}",
     "archive": "Archive",

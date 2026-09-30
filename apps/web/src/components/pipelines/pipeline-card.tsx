@@ -202,7 +202,7 @@ function StageList({
             >
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="flex flex-wrap items-center gap-2 font-medium">
-                  {stage.name}
+                  <span id={`${stage.id}-name`}>{stage.name}</span>
                   {isOpen ? null : <StatusBadge tone="neutral">{t('closing')}</StatusBadge>}
                 </span>
                 {isOpen ? (
@@ -222,7 +222,9 @@ function StageList({
                       ref={buttons.ref(`${stage.id}:-1`)}
                       variant="ghost"
                       size="sm"
-                      aria-label={t('moveUpLabel', { name: stage.name })}
+                      // The visible words are the name (on a phone read out only), the stage
+                      // is the description, so a voice command that says them finds the button.
+                      aria-describedby={`${stage.id}-name`}
                       disabled={index <= 0}
                       onClick={() => {
                         move(index, -1);
@@ -235,7 +237,7 @@ function StageList({
                       ref={buttons.ref(`${stage.id}:1`)}
                       variant="ghost"
                       size="sm"
-                      aria-label={t('moveDownLabel', { name: stage.name })}
+                      aria-describedby={`${stage.id}-name`}
                       disabled={index >= open.length - 1}
                       onClick={() => {
                         move(index, 1);
