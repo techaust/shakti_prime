@@ -53,7 +53,7 @@ function logo(): Buffer {
 test.describe('the logo and letterhead of a company', () => {
   test.use(signedInAs('executive'));
 
-  test('an Executive uploads a logo, which becomes the current one once checked', async ({
+  test('an Executive uploads a logo and a letterhead, which become the current ones once checked', async ({
     page,
   }) => {
     await page.goto('/settings/companies');
@@ -64,22 +64,28 @@ test.describe('the logo and letterhead of a company', () => {
       .click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: /Logo and letterhead of/ })).toBeVisible();
-    // Which file is current depends on earlier runs against the same database.
-    const current = dialog.getByText(/^(Current file: .*|None uploaded yet\.)$/);
     await expectNoAxeViolations(page);
-    await snap(page, 'branding-dialog', { mask: [current] });
 
-    const logoInput = dialog.locator('input[type="file"]').first();
-    await logoInput.setInputFiles({
+    const inputs = dialog.locator('input[type="file"]');
+    const saved = dialog.getByText('Saved. Documents from this company print it from now on.');
+    await inputs.nth(0).setInputFiles({
       name: 'Shakti Supreme logo.png',
       mimeType: 'image/png',
       buffer: logo(),
     });
     // The checks run in the app itself on this machine (no queue), then the uploader says so.
-    await expect(
-      dialog.getByText('Saved. Documents from this company print it from now on.'),
-    ).toBeVisible({ timeout: 45_000 });
-    await expect(dialog.getByText('Current file: Shakti Supreme logo.png').first()).toBeVisible();
+    await expect(saved).toHaveCount(1, { timeout: 45_000 });
+    await inputs.nth(1).setInputFiles({
+      name: 'Shakti Supreme letterhead.png',
+      mimeType: 'image/png',
+      buffer: logo(),
+    });
+    await expect(saved).toHaveCount(2, { timeout: 45_000 });
+    await expect(dialog.getByText('Current file: Shakti Supreme logo.png')).toBeVisible();
+    await expect(dialog.getByText('Current file: Shakti Supreme letterhead.png')).toBeVisible();
+    await expectNoAxeViolations(page);
+    // Both files are this journey's own, so the dialog looks the same on every run.
+    await snap(page, 'branding-dialog');
   });
 
   test('a PDF on the logo field is refused before anything is sent', async ({ page }) => {
