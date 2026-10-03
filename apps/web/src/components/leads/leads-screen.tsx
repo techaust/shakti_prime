@@ -215,7 +215,7 @@ function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 's
   return (
     <details className="group">
       <summary
-        className="text-accent-text min-h-8 cursor-pointer list-none underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden"
+        className="text-accent-text flex min-h-8 cursor-pointer items-center list-none underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden"
         aria-label={t('label', { score: lead.score })}
       >
         {lead.score}
