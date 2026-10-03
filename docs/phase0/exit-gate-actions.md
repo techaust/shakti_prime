@@ -38,12 +38,18 @@ The sizing calculators (`packages/domain/src/workshop-defaults.ts`, `sizing`) us
 - Losses in bends, valves and joints: 10% of the pipe's friction loss until confirmed by the engineering head.
 - Submersible pump sets: pump efficiency 0.55 and motor efficiency 0.78 until confirmed by the engineering head.
 - Surface pump sets: pump efficiency 0.60 and motor efficiency 0.82 until confirmed by the engineering head.
-- Solar pump array: 1.3 times the motor rating until confirmed by the engineering head.
+- Solar pump array: 1.3 times the motor's rated output (its standard HP in kW, not its electrical input) until confirmed by the engineering head.
 - Module rating: 540 Wp until confirmed by the engineering head.
 - Peak sun hours in Rajasthan: 5.5 a day until confirmed by the engineering head.
 - Rooftop performance ratio: 0.75 until confirmed by the engineering head.
 - Roof area per kWp: 10 m² until confirmed by the engineering head.
 - Motor ratings on sale: 0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25 and 30 HP until confirmed by the engineering head.
+- Motor margin: 10% over the shaft power before the standard rating is chosen until confirmed by the engineering head.
+- Duty-flow tolerance: a chosen pump may deliver at most 10% less than the needed flow at the sized height until confirmed by the engineering head.
+- Duty-flow overshoot: a chosen pump may deliver at most 1.5 times the needed flow at the sized height until confirmed by the engineering head.
+- Surface pump suction lift: water at most 7 m down while pumping (level at rest plus drawdown) until confirmed by the engineering head.
+- Pipe velocity: above 2 m/s a wider pipe is advised, as advice that never stops a sizing, until confirmed by the engineering head.
+- Sanctioned load: a rooftop system's module (DC) kWp at most 1.0 times the sanctioned kW until confirmed by the engineering head.
 - Schemes that require DCR modules: PM Surya Ghar and PM-KUSUM until confirmed by the engineering head.
 
 ## The CA and vendors
