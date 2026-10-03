@@ -1,3 +1,4 @@
+import { SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
 import { newId, type Principal } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -290,6 +291,42 @@ describe('a customer is readable through a lead the caller can read in that comp
     );
     // The request's companies are the only other thing it chooses, and every choice was tried
     // above. A person given the same lead reads the customer, so the path itself is open.
+    expect(await withLeadOf(y, m, () => reads(y, m))).toEqual(seesAll([1]));
+  });
+});
+
+describe('the event workers are held to the customer rules of an agent (0064, SECURITY §3.3)', () => {
+  // system:workers holds no grant yet; a later worker may read leads, so it is given that here.
+  const leadReader = [{ key: 'crm.lead.read' as const, scope: 'entity' as const }];
+
+  it('system:workers reads its leads and no customer through them', async () => {
+    for (const entityIds of [[1], [1, 2], [1, 2, 3, 4]]) {
+      const worker = principalFor('system:workers', entityIds, {
+        id: SYSTEM_WORKERS_PRINCIPAL_ID,
+        permissions: leadReader,
+      });
+      const label = `system:workers in ${entityIds.join(',')}`;
+      for (const customer of [k, m, n]) {
+        expect(await reads(worker, customer), label).toEqual(NOTHING);
+      }
+      expect(await leadsOf(worker, k), label).toBeGreaterThan(0);
+      expect(await anyCustomerRow(worker), label).toBe(0);
+    }
+  });
+
+  it('either marker is enough: the system role key, or the system principal row', async () => {
+    const asStaffKey = principalFor('tele_caller_cc', [1], {
+      id: SYSTEM_WORKERS_PRINCIPAL_ID,
+      teamId: team,
+    });
+    expect(await withLeadOf(asStaffKey, m, () => reads(asStaffKey, m))).toEqual(NOTHING);
+    expect(
+      await reads(
+        principalFor('system:workers', [1], { id: y.id, teamId: team, permissions: leadReader }),
+        k,
+      ),
+    ).toEqual(NOTHING);
+    // The same lead gives its customer to a person, so the path itself is open.
     expect(await withLeadOf(y, m, () => reads(y, m))).toEqual(seesAll([1]));
   });
 });

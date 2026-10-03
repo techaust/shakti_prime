@@ -1,6 +1,19 @@
 import type { KeyValue } from '@shakti/domain';
 import { Redis } from '@upstash/redis';
 
+/**
+ * `raiseTo` in one step on the server: the larger of the stored number and the given one stays,
+ * compared as whole numbers written without leading zeros (by length, then digit by digit), so no
+ * number is ever read as a floating-point value.
+ */
+const RAISE_TO = `local cur = redis.call('GET', KEYS[1])
+local v = ARGV[1]
+if cur and (string.len(cur) > string.len(v) or (string.len(cur) == string.len(v) and cur >= v)) then
+  return cur
+end
+redis.call('SET', KEYS[1], v, 'EX', tonumber(ARGV[2]))
+return v`;
+
 /** Deadline for one Upstash call: the store sits on the path of every signed-in request. */
 const UPSTASH_CALL_TIMEOUT_MS = 1000;
 
@@ -44,6 +57,18 @@ export function upstashKeyValue(config: UpstashConfig): KeyValue {
         .incr(key)
         .exec<[unknown, number]>();
       return count;
+    },
+    setIfAbsent: async (key, value, ttlSeconds) => {
+      const answer = await redis.set(key, value, { ex: ttlSeconds, nx: true });
+      return answer !== null;
+    },
+    raiseTo: async (key, value, ttlSeconds) => {
+      const stored = await redis.eval<[string, string], string | number>(
+        RAISE_TO,
+        [key],
+        [value, String(ttlSeconds)],
+      );
+      return String(stored);
     },
   };
 }

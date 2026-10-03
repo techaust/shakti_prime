@@ -173,7 +173,21 @@
     "consent_already_withdrawn": "This consent is already withdrawn. Record a new consent if the customer agrees again.",
     "consent_given_in_future": "The date the consent was given can't be later than today.",
     "consent_version_invalid": "Enter the version as printed on the consent form or script, using letters, digits, dots or hyphens, such as v2.",
-    "consent_evidence_unavailable": "Proof of consent can't be attached yet. Record the consent without it and keep the signed form."
+    "consent_evidence_unavailable": "Proof of consent can't be attached yet. Record the consent without it and keep the signed form.",
+    "event_in_progress": "This update is already being handled. It will be tried again shortly.",
+    "file_missing": "We could not find this file. It may have been removed, or it belongs to a company you do not work in.",
+    "file_type_not_allowed": "This kind of file cannot be used here. Choose one of the kinds listed.",
+    "file_too_large": "This file is too large. Choose a smaller file.",
+    "file_upload_mismatch": "The file did not arrive whole. Upload it again.",
+    "files_unavailable": "Files cannot be uploaded here yet. Ask your administrator to finish setting up file storage.",
+    "file_upload_transition_not_allowed": "This file has already moved on. Refresh the page to see where it stands.",
+    "file_infected": "This file was refused because it carries something harmful. Check your computer for viruses and use another copy.",
+    "file_scan_failed": "We could not check this file for harmful content, so it was refused. Save it again and upload the new copy.",
+    "file_not_scanned": "We could not check this file for harmful content, so it was refused. Try again later.",
+    "file_unreadable": "We could not open this file as the kind it says it is. Save it again and upload the new copy.",
+    "file_image_too_large": "This picture is too large to use. Choose a smaller picture, under 50 megapixels.",
+    "file_pdf_active_content": "This PDF carries scripts or attached files, which we do not accept. Print it to a new PDF and upload that.",
+    "file_mask_failed": "We could not find the numbers we must cover on this photo, so it was not kept. Take a clearer photo and upload it again."
   },
   "auth": {
     "signIn": {
@@ -253,7 +267,8 @@
     "adminActivity": "Activity log",
     "settingsCompanies": "Companies",
     "design": "Design preview",
-    "customers": "Customers"
+    "customers": "Customers",
+    "adminIntegrations": "Integration health"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -301,9 +316,10 @@
       "imports": "Bring in records from a spreadsheet file.",
       "adminUsers": "Invite staff, change their roles and sign them out.",
       "adminActivity": "See who changed what, and when.",
-      "settingsCompanies": "Change each company's brand name and UPI ID.",
+      "settingsCompanies": "Change each company's details, logo and letterhead.",
       "design": "See every colour, text size and control in both themes.",
-      "customers": "See a customer's contacts, sites, leads, tasks and history on one page."
+      "customers": "See a customer's contacts, sites, leads, tasks and history on one page.",
+      "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery."
     }
   },
   "profile": {
@@ -651,7 +667,17 @@
     "pin": "PIN code",
     "pinHelper": "Six digits",
     "submit": "Save changes",
-    "done": "{name} is updated."
+    "done": "{name} is updated.",
+    "branding": "Logo and letterhead",
+    "brandingTitle": "Logo and letterhead of {name}",
+    "brandingIntro": "Documents from this company print these. Use a clear picture on a plain background.",
+    "logo": "Logo",
+    "letterhead": "Letterhead",
+    "letterheadHelper": "A strip the full width of the page, printed at the top of every document.",
+    "current": "Current file: {name}",
+    "none": "None uploaded yet.",
+    "open": "Open",
+    "ready": "Saved. Documents from this company print it from now on."
   },
   "priceMaster": {
     "title": "Price lists",
@@ -873,7 +899,8 @@
         "not_eligible": "Not eligible",
         "duplicate": "Already a lead",
         "other": "Another reason"
-      }
+      },
+      "stages": "Lead stages"
     }
   },
   "users": {
@@ -1069,7 +1096,14 @@
       "siteUpsert": "Site details saved",
       "noteAdd": "Note added",
       "consentRecord": "Consent recorded",
-      "consentWithdraw": "Consent withdrawn"
+      "consentWithdraw": "Consent withdrawn",
+      "deliveryCheck": "Checked how fast updates arrive",
+      "fileUploadBegin": "File upload started",
+      "fileUploadComplete": "File uploaded",
+      "fileScanned": "File checked for harmful content",
+      "fileReady": "File ready to use",
+      "fileRejected": "File refused",
+      "filesRecheck": "Files sent for their checks again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1089,7 +1123,9 @@
       "userRolesChanged": "Roles changed",
       "importCommitted": "Import finished",
       "importFailed": "Import stopped",
-      "importRolledBack": "Import undone"
+      "importRolledBack": "Import undone",
+      "deliveryCheckRequested": "Delivery check sent",
+      "fileUploaded": "File uploaded"
     },
     "sheet": {
       "title": "{action}",
@@ -1196,12 +1232,22 @@
       "lat": "Latitude",
       "lng": "Longitude",
       "channel": "Channel",
-      "purpose": "Purpose",
+      "purpose": "Used for",
       "source": "Where it was given",
       "textVersion": "Version of the consent text",
       "givenAt": "Given on",
       "withdrawnAt": "Withdrawn on",
-      "evidence": "Proof attached"
+      "evidence": "Proof attached",
+      "requestedAt": "Asked at",
+      "fileStatus": "File status",
+      "contentType": "Kind of file",
+      "size": "File size in bytes",
+      "verdict": "Harmful content check",
+      "sanitising": "How the file was prepared",
+      "regionsMasked": "Numbers covered",
+      "rejectReason": "Why it was refused",
+      "scanStatus": "What the check found",
+      "consentPurpose": "What the consent covers"
     },
     "values": {
       "percent": "{value}%",
@@ -1681,5 +1727,141 @@
       "archiveTagLabel": "Take {name} off the list; leads keep it"
     },
     "truncated": "Showing the first 200 matches. Add more of the name to narrow it."
+  },
+  "integrations": {
+    "title": "Integration health",
+    "intro": "Updates the system passes on in the background: what is waiting, what was held back, and how fast they arrive.",
+    "otherUpdate": "Another kind of update",
+    "waiting": {
+      "heading": "Updates waiting to go out",
+      "caption": "Updates waiting to go out, by kind",
+      "empty": "Nothing is waiting. Every update has gone out."
+    },
+    "columns": {
+      "update": "Update",
+      "waiting": "Waiting",
+      "ready": "Ready to go",
+      "held": "Held back",
+      "since": "Waiting since",
+      "company": "Company",
+      "tries": "Tries",
+      "reason": "What went wrong",
+      "heldAt": "Held back at",
+      "actions": "Actions"
+    },
+    "lastRun": {
+      "heading": "Last sending round",
+      "summary": "{at}: {sent} sent, {failed} not sent, {held} held back.",
+      "none": "No sending round in the last day."
+    },
+    "delivery": {
+      "heading": "Delivery speed",
+      "intro": "Send one update through the system and time how long it takes to arrive. Handing a lead over depends on this staying under 10 seconds.",
+      "check": "Check delivery speed",
+      "arrived": "Arrived in {milliseconds, number} milliseconds, sent at {at}.",
+      "waiting": "Sent at {at}. Waiting for it to arrive.",
+      "lost": "Sent at {at}. It did not arrive within ten minutes. When its tries run out it is listed under held-back updates below.",
+      "none": "Not checked yet."
+    },
+    "held": {
+      "heading": "Held-back updates",
+      "intro": "An update is held back after ten tries. Send it again once the cause is fixed.",
+      "caption": "Updates held back after ten tries, newest first",
+      "empty": "No updates are held back.",
+      "sendAgain": "Send again",
+      "describe": "{update}, held back at {at}",
+      "sent": "The update goes out again within a minute.",
+      "loadMore": "Show more",
+      "total": "{count, plural, one {# update held back} other {# updates held back}}"
+    },
+    "reasons": {
+      "queue": "The delivery service did not take it.",
+      "worker": "The step that handles it failed.",
+      "retired": "The system no longer handles this kind of update.",
+      "interrupted": "Sending stopped part way too many times.",
+      "other": "It could not be sent."
+    },
+    "files": {
+      "heading": "Files waiting for their checks",
+      "intro": "An uploaded file is used only after it has been checked for harmful content. A file still waiting after ten minutes can be sent for its checks again.",
+      "waiting": "{count, plural, =0 {No file is waiting for its checks.} one {# file has been waiting for its checks for more than ten minutes.} other {# files have been waiting for their checks for more than ten minutes.}}",
+      "recheck": "Check files again",
+      "done": "{count, plural, =0 {No file needed checking again.} one {# file was sent for its checks again.} other {# files were sent for their checks again.}}"
+    }
+  },
+  "files": {
+    "status": {
+      "pending": "Waiting for the upload",
+      "scanning": "Checking",
+      "scanned": "Checked for harmful content",
+      "not_scanned": "Not checked on this computer",
+      "masked": "Numbers covered",
+      "ready": "Ready",
+      "rejected": "Refused"
+    },
+    "purpose": {
+      "job_photo": "Job photo",
+      "survey_photo": "Survey photo",
+      "qc_photo": "Quality check photo",
+      "receipt": "Receipt",
+      "signature": "Signature",
+      "selfie": "Attendance photo",
+      "customer_document": "Customer document",
+      "import": "Import file",
+      "quote_pdf": "Quotation PDF",
+      "signed_quote": "Signed quotation",
+      "entity_logo": "Company logo",
+      "letterhead": "Letterhead",
+      "knowledge": "Knowledge Vault document",
+      "consent_evidence": "Proof of consent"
+    },
+    "types": {
+      "jpeg": "JPEG picture",
+      "png": "PNG picture",
+      "webp": "WebP picture",
+      "pdf": "PDF document"
+    },
+    "shortTypes": {
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "pdf": "PDF"
+    },
+    "size": {
+      "kb": "{value} KB",
+      "mb": "{value} MB"
+    },
+    "verdict": {
+      "no_threats_found": "No harmful content found",
+      "not_scanned": "Not checked on this computer"
+    },
+    "sanitising": {
+      "re_encoded": "Picture saved again without hidden details",
+      "pdf_checked": "PDF checked for scripts and attached files",
+      "masked": "Numbers on the photo covered"
+    },
+    "scanStatus": {
+      "NO_THREATS_FOUND": "No harmful content found",
+      "THREATS_FOUND": "Harmful content found",
+      "UNSUPPORTED": "This kind of file cannot be checked",
+      "ACCESS_DENIED": "The check could not read the file",
+      "FAILED": "The check did not finish"
+    },
+    "uploader": {
+      "choose": "Choose a file",
+      "drop": "or drop it here",
+      "limits": "{types}, up to {size}",
+      "started": "Uploading the file.",
+      "halfway": "Uploading, half done.",
+      "checking": "Uploaded. Checking the file.",
+      "checkingLong": "Uploaded. The check is taking a while; the file shows here once it is ready.",
+      "cancel": "Cancel upload",
+      "retry": "Try again",
+      "cancelled": "Upload cancelled. Choose the file again to upload it.",
+      "failed": "The upload did not finish. Check your connection and try again.",
+      "wrongType": "This kind of file cannot be used here. Choose a {types} file.",
+      "tooLarge": "This file is larger than {size}. Choose a smaller file.",
+      "empty": "This file is empty. Choose another file."
+    }
   }
 }

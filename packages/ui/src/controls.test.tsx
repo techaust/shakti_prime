@@ -4,7 +4,8 @@ import { BoardCard, BoardColumn } from './board';
 import { EmptyState } from './empty-state';
 import { Input, Select, Textarea } from './input';
 import { Skeleton } from './skeleton';
-import { TOAST_DURATION_MS, Toaster } from './toast';
+import { TOAST_DURATION_MS } from './toast';
+import { ToastRegion } from './toast-region';
 
 describe('Input, Select and Textarea', () => {
   it('share the control look: 36 px, the strong border, 44 px on phones (DESIGN.md §6)', () => {
@@ -53,7 +54,8 @@ describe('Input, Select and Textarea', () => {
 });
 
 describe('Toaster', () => {
-  const html = renderToStaticMarkup(<Toaster label="Notifications" />);
+  // The region `Toaster` fetches once the page is idle (toast.tsx).
+  const html = renderToStaticMarkup(<ToastRegion label="Notifications" />);
 
   it('is a region screen readers announce politely, named from the catalogue', () => {
     expect(html).toMatch(/<section[^>]*aria-label="Notifications[^"]*"/);

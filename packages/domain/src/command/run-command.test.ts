@@ -761,3 +761,54 @@ describe('commands for people only', () => {
     expect(isAgent({ kind: 'user', roleKey: 'tele_caller_cc' })).toBe(false);
   });
 });
+
+describe('a permission named by the input', () => {
+  const byKind = defineCommand({
+    name: 'test.by_kind',
+    permission: {
+      keys: ['crm.lead.read', 'admin.entities.write'],
+      of: ({ kind }: { kind: string }) =>
+        kind === 'lead'
+          ? { permission: 'crm.lead.read', minScope: 'own' }
+          : kind === 'logo'
+            ? { permission: 'admin.entities.write', minScope: 'all' }
+            : null,
+    },
+    auditFields: [],
+    input: z.object({ kind: z.string() }).strict(),
+    output: z.object({ kind: z.string() }).strict(),
+    handler: (_ctx, input) => Promise.resolve({ kind: input.kind }),
+  });
+  const run = (p: Principal, kind: string) =>
+    runCommand(
+      byKind,
+      { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+      { kind },
+    );
+
+  it('checks the permission the input names', async () => {
+    await expect(run(principal(), 'lead')).resolves.toEqual({ kind: 'lead' });
+    const refused: unknown = await run(principal(), 'logo').catch((e: unknown) => e);
+    expect(refused).toMatchObject({ code: 'forbidden' });
+    expect(failureOf(refused)?.stage).toBe('guard');
+  });
+
+  it('checks the scope it names', async () => {
+    const entityOnly = principal({
+      permissions: [{ key: 'admin.entities.write', scope: 'entity' }],
+    });
+    await expect(run(entityOnly, 'logo')).rejects.toMatchObject({ code: 'forbidden' });
+    const all = principal({ permissions: [{ key: 'admin.entities.write', scope: 'all' }] });
+    await expect(run(all, 'logo')).resolves.toEqual({ kind: 'logo' });
+  });
+
+  it('refuses an input no request may send, whatever the caller holds', async () => {
+    const everything = principal({
+      permissions: [
+        { key: 'crm.lead.read', scope: 'all' },
+        { key: 'admin.entities.write', scope: 'all' },
+      ],
+    });
+    await expect(run(everything, 'vault')).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});

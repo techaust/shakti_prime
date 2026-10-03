@@ -1,5 +1,5 @@
 {
-  "id": "2169fded-d4e2-4133-abb5-0b89eaa39f6f",
+  "id": "3e4b54c1-772b-4f44-8d82-5f519e8053c4",
   "prevId": "599da318-47ee-4cce-b2a5-5c766cedf198",
   "version": "7",
   "dialect": "postgresql",
@@ -532,178 +532,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.activities": {
-      "name": "activities",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_principal_id": {
-          "name": "actor_principal_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload_json": {
-          "name": "payload_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "activities_account_created_idx": {
-          "name": "activities_account_created_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activities_opportunity_created_idx": {
-          "name": "activities_opportunity_created_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "activities_entity_id_entities_id_fk": {
-          "name": "activities_entity_id_entities_id_fk",
-          "tableFrom": "activities",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "activities_actor_principal_id_principals_id_fk": {
-          "name": "activities_actor_principal_id_principals_id_fk",
-          "tableFrom": "activities",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "actor_principal_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "activities_pkey": {
-          "name": "activities_pkey",
-          "columns": [
-            "id",
-            "created_at"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "activities_type_check": {
-          "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
-        },
-        "activities_body_check": {
-          "name": "activities_body_check",
-          "value": "(\"activities\".\"type\" <> 'note') = (\"activities\".\"body\" is null) and (\"activities\".\"body\" is null or char_length(\"activities\".\"body\") between 1 and 2000)"
-        },
-        "activities_payload_check": {
-          "name": "activities_payload_check",
-          "value": "jsonb_typeof(\"activities\".\"payload_json\") = 'object' and octet_length(\"activities\".\"payload_json\"::text) <= 2000"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.audit_logs": {
       "name": "audit_logs",
       "schema": "",
@@ -972,7 +800,7 @@
         },
         "audit_logs_actor_kind_check": {
           "name": "audit_logs_actor_kind_check",
-          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session', 'system')"
         },
         "audit_logs_actor_check": {
           "name": "audit_logs_actor_check",
@@ -5618,7 +5446,7 @@
       "checkConstraints": {
         "principals_kind_check": {
           "name": "principals_kind_check",
-          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session', 'system')"
         }
       },
       "isRLSEnabled": false
@@ -6059,7 +5887,7 @@
       "checkConstraints": {
         "roles_key_check": {
           "name": "roles_key_check",
-          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief')"
+          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief', 'system:workers')"
         }
       },
       "isRLSEnabled": false

@@ -1,6 +1,7 @@
 import { EntityIdSchema, type Principal } from '@shakti/contracts';
 import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
+import { tagSentryPrincipal } from '../observability/sentry-tag';
 import { auth } from './auth';
 import { defaultAuthDeps } from './deps';
 import {
@@ -42,7 +43,9 @@ export const currentSession = cache(async (): Promise<ResolvedSession | undefine
  * app is enrolled.
  */
 export async function currentPrincipal(): Promise<Principal | undefined> {
-  return requirePrincipal(await currentSession());
+  const principal = requirePrincipal(await currentSession());
+  if (principal !== undefined) await tagSentryPrincipal(principal.id);
+  return principal;
 }
 
 /** After a role, status or session change of a user, their cached principal is dropped. */

@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 import { connectionOptions } from './connection';
-import { requireEnv } from './env';
+import { optionalEnv, requireEnv } from './env';
 import { journalProblems, migrationHash, readJournal } from './journal';
 
 const migrationsFolder = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
@@ -24,23 +24,33 @@ async function assertOwnerBypassesRls(sql: postgres.Sql): Promise<void> {
   }
 }
 
-const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher'] as const;
+const LOGIN_ROLES = ['app_user', 'auth_service', 'outbox_publisher', 'app_reader'] as const;
 type LoginRole = (typeof LOGIN_ROLES)[number];
 
 /**
- * `app_user`, `auth_service`, `outbox_publisher` and `readonly_reporter` are cluster roles, so
- * they are created here, not in SQL files. `auth_service` is the auth module's connection: it may
- * touch the identity tables only; `outbox_publisher` delivers `outbox_events` and touches nothing
- * else (docs/DATABASE.md §3). A password is set when the role is created and again only
- * on `--rotate-passwords`, so the statement text does not land in the server log on every run.
+ * `app_user`, `auth_service`, `outbox_publisher`, `app_reader` and `readonly_reporter` are cluster
+ * roles, so they are created here, not in SQL files. `auth_service` is the auth module's
+ * connection: it may touch the identity tables only; `outbox_publisher` delivers `outbox_events`
+ * and touches nothing else; `app_reader` is the queries' own pool, with `select` only under the
+ * same policies as `app_user` (docs/DATABASE.md §3). A password is set when the role is created
+ * and again only on `--rotate-passwords`, so the statement text does not land in the server log on
+ * every run. `app_reader` is created whether or not its password is set, so the migrations can
+ * grant to it; without `APP_READER_PASSWORD` it has no password and no one can sign in as it, and
+ * `executeQuery()` keeps to `app_user`.
  */
 async function ensureRoles(
   sql: postgres.Sql,
-  passwords: { appUser: string; authService: string; outboxPublisher: string },
+  passwords: {
+    appUser: string;
+    authService: string;
+    outboxPublisher: string;
+    appReader: string | undefined;
+  },
   rotatePasswords: boolean,
 ): Promise<void> {
   const before = await sql<{ rolname: string }[]>`
-    select rolname from pg_roles where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'readonly_reporter')`;
+    select rolname from pg_roles
+     where rolname in ('app_user', 'auth_service', 'outbox_publisher', 'app_reader', 'readonly_reporter')`;
   const existing = new Set(before.map((r) => r.rolname));
   await sql.unsafe(`
     do $$
@@ -53,6 +63,9 @@ async function ensureRoles(
       end if;
       if not exists (select 1 from pg_roles where rolname = 'outbox_publisher') then
         create role outbox_publisher login nosuperuser nocreatedb nocreaterole nobypassrls;
+      end if;
+      if not exists (select 1 from pg_roles where rolname = 'app_reader') then
+        create role app_reader login nosuperuser nocreatedb nocreaterole nobypassrls;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'readonly_reporter') then
         create role readonly_reporter nologin nosuperuser nocreatedb nocreaterole nobypassrls;
@@ -67,6 +80,7 @@ async function ensureRoles(
   await setPassword('app_user', passwords.appUser);
   await setPassword('auth_service', passwords.authService);
   await setPassword('outbox_publisher', passwords.outboxPublisher);
+  if (passwords.appReader !== undefined) await setPassword('app_reader', passwords.appReader);
   for (const role of LOGIN_ROLES) {
     await sql.unsafe(`alter role ${role} nobypassrls`);
     // A stuck request must not hold a transaction, and with it a document-sequence row lock, open.
@@ -74,6 +88,8 @@ async function ensureRoles(
     await sql.unsafe(`alter role ${role} set lock_timeout = '10s'`);
     await sql.unsafe(`alter role ${role} set idle_in_transaction_session_timeout = '30s'`);
   }
+  // The reader's every transaction is read-only, whatever a caller asks for.
+  await sql.unsafe(`alter role app_reader set default_transaction_read_only = on`);
 }
 
 /**
@@ -130,6 +146,7 @@ export async function runMigrations(
           appUser: requireEnv('APP_USER_PASSWORD'),
           authService: requireEnv('AUTH_SERVICE_PASSWORD'),
           outboxPublisher: requireEnv('OUTBOX_PUBLISHER_PASSWORD'),
+          appReader: optionalEnv('APP_READER_PASSWORD'),
         },
         options.rotatePasswords ?? false,
       );

@@ -1,6 +1,6 @@
 {
-  "id": "4819ddcf-9c25-4bb2-bce0-19b4367e3334",
-  "prevId": "a0ace05f-8e5d-47c9-826d-ead9ab645858",
+  "id": "a73ab971-9ade-4211-b360-7fe8425d1bd8",
+  "prevId": "3fefd346-0223-44d5-a831-ea058a17e17b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -532,178 +532,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.activities": {
-      "name": "activities",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_principal_id": {
-          "name": "actor_principal_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload_json": {
-          "name": "payload_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "activities_account_created_idx": {
-          "name": "activities_account_created_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "activities_opportunity_created_idx": {
-          "name": "activities_opportunity_created_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "activities_entity_id_entities_id_fk": {
-          "name": "activities_entity_id_entities_id_fk",
-          "tableFrom": "activities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "activities_actor_principal_id_principals_id_fk": {
-          "name": "activities_actor_principal_id_principals_id_fk",
-          "tableFrom": "activities",
-          "columnsFrom": [
-            "actor_principal_id"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "activities_pkey": {
-          "name": "activities_pkey",
-          "columns": [
-            "id",
-            "created_at"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "activities_type_check": {
-          "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
-        },
-        "activities_body_check": {
-          "name": "activities_body_check",
-          "value": "(\"activities\".\"type\" <> 'note') = (\"activities\".\"body\" is null) and (\"activities\".\"body\" is null or char_length(\"activities\".\"body\") between 1 and 2000)"
-        },
-        "activities_payload_check": {
-          "name": "activities_payload_check",
-          "value": "jsonb_typeof(\"activities\".\"payload_json\") = 'object' and octet_length(\"activities\".\"payload_json\"::text) <= 2000"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.audit_logs": {
       "name": "audit_logs",
       "schema": "",
@@ -972,7 +800,7 @@
         },
         "audit_logs_actor_kind_check": {
           "name": "audit_logs_actor_kind_check",
-          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session', 'system')"
         },
         "audit_logs_actor_check": {
           "name": "audit_logs_actor_check",
@@ -1367,12 +1195,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "evidence_file_id": {
-          "name": "evidence_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1427,21 +1249,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "consents_evidence_file_idx": {
-          "name": "consents_evidence_file_idx",
-          "columns": [
-            {
-              "expression": "evidence_file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -1452,19 +1259,6 @@
             "contact_id"
           ],
           "tableTo": "contacts",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "consents_evidence_file_id_files_id_fk": {
-          "name": "consents_evidence_file_id_files_id_fk",
-          "tableFrom": "consents",
-          "columnsFrom": [
-            "evidence_file_id"
-          ],
-          "tableTo": "files",
           "columnsTo": [
             "id"
           ],
@@ -2412,6 +2206,33 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "files_entity_purpose_created_idx": {
+          "name": "files_entity_purpose_created_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "purpose",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -2478,11 +2299,11 @@
       "checkConstraints": {
         "files_purpose_check": {
           "name": "files_purpose_check",
-          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import')"
+          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'knowledge', 'consent_evidence')"
         },
         "files_status_check": {
           "name": "files_status_check",
-          "value": "\"files\".\"status\" in ('pending', 'scanning', 'masked', 'ready', 'rejected')"
+          "value": "\"files\".\"status\" in ('pending', 'scanning', 'scanned', 'not_scanned', 'masked', 'ready', 'rejected')"
         },
         "files_size_check": {
           "name": "files_size_check",
@@ -4426,25 +4247,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "opportunities_id_entity_unique": {
-          "name": "opportunities_id_entity_unique",
-          "columns": [
-            "id",
-            "entity_id"
-          ],
-          "nullsNotDistinct": false
-        },
-        "opportunities_id_entity_account_unique": {
-          "name": "opportunities_id_entity_account_unique",
-          "columns": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "opportunities_state_check": {
@@ -4456,129 +4259,6 @@
           "value": "\"opportunities\".\"score\" between 0 and 100"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.opportunity_tags": {
-      "name": "opportunity_tags",
-      "schema": "",
-      "columns": {
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tag_id": {
-          "name": "tag_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "opportunity_tags_tag_idx": {
-          "name": "opportunity_tags_tag_idx",
-          "columns": [
-            {
-              "expression": "tag_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "opportunity_tags_tag_id_tags_id_fk": {
-          "name": "opportunity_tags_tag_id_tags_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "tableTo": "tags",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_entity_id_entities_id_fk": {
-          "name": "opportunity_tags_entity_id_entities_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_created_by_principals_id_fk": {
-          "name": "opportunity_tags_created_by_principals_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_opportunity_fk": {
-          "name": "opportunity_tags_opportunity_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "opportunity_id",
-            "entity_id"
-          ],
-          "tableTo": "opportunities",
-          "columnsTo": [
-            "id",
-            "entity_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "opportunity_tags_pkey": {
-          "name": "opportunity_tags_pkey",
-          "columns": [
-            "opportunity_id",
-            "tag_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.outbox_events": {
@@ -5793,7 +5473,7 @@
       "checkConstraints": {
         "principals_kind_check": {
           "name": "principals_kind_check",
-          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session', 'system')"
         }
       },
       "isRLSEnabled": false
@@ -6234,7 +5914,7 @@
       "checkConstraints": {
         "roles_key_check": {
           "name": "roles_key_check",
-          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief')"
+          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief', 'system:workers')"
         }
       },
       "isRLSEnabled": false
@@ -6453,417 +6133,6 @@
         "sessions_revoked_reason_check": {
           "name": "sessions_revoked_reason_check",
           "value": "\"sessions\".\"revoked_reason\" is null or \"sessions\".\"revoked_reason\" in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'totp_reset', 'absolute_expiry')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tags": {
-      "name": "tags",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tags_entity_id_entities_id_fk": {
-          "name": "tags_entity_id_entities_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tags_created_by_principals_id_fk": {
-          "name": "tags_created_by_principals_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tags_updated_by_principals_id_fk": {
-          "name": "tags_updated_by_principals_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tags_name_length_check": {
-          "name": "tags_name_length_check",
-          "value": "char_length(\"tags\".\"name\") between 1 and 40"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tasks": {
-      "name": "tasks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assignee_id": {
-          "name": "assignee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "team_id": {
-          "name": "team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_at": {
-          "name": "due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "done_at": {
-          "name": "done_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "tasks_assignee_state_due_idx": {
-          "name": "tasks_assignee_state_due_idx",
-          "columns": [
-            {
-              "expression": "assignee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_opportunity_idx": {
-          "name": "tasks_opportunity_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_account_state_due_idx": {
-          "name": "tasks_account_state_due_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_team_idx": {
-          "name": "tasks_team_idx",
-          "columns": [
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "tasks_entity_id_entities_id_fk": {
-          "name": "tasks_entity_id_entities_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_assignee_id_principals_id_fk": {
-          "name": "tasks_assignee_id_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_team_id_teams_id_fk": {
-          "name": "tasks_team_id_teams_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_created_by_principals_id_fk": {
-          "name": "tasks_created_by_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_updated_by_principals_id_fk": {
-          "name": "tasks_updated_by_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_opportunity_fk": {
-          "name": "tasks_opportunity_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "opportunity_id",
-            "entity_id",
-            "account_id"
-          ],
-          "tableTo": "opportunities",
-          "columnsTo": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tasks_kind_check": {
-          "name": "tasks_kind_check",
-          "value": "\"tasks\".\"kind\" in ('callback', 'follow_up', 'nurture', 'review')"
-        },
-        "tasks_state_check": {
-          "name": "tasks_state_check",
-          "value": "\"tasks\".\"state\" in ('open', 'done', 'cancelled')"
-        },
-        "tasks_done_at_check": {
-          "name": "tasks_done_at_check",
-          "value": "(\"tasks\".\"state\" <> 'done') = (\"tasks\".\"done_at\" is null)"
-        },
-        "tasks_title_length_check": {
-          "name": "tasks_title_length_check",
-          "value": "char_length(\"tasks\".\"title\") between 1 and 80"
         }
       },
       "isRLSEnabled": false

@@ -148,8 +148,9 @@ describe('a person with no role, and reporting (0059)', () => {
 
   it('reporting reads role rows under the application’s rule, and writes none', async () => {
     // readonly_reporter cannot sign in and the suites may not become it, so the policy is read
-    // from the catalogue: one read policy for both roles, with the rule app_user is tested on
-    // above (the request's companies and the caller's own rows, nothing without a context).
+    // from the catalogue: one read policy for the application, its reader and reporting, with the
+    // rule app_user is tested on above (the request's companies and the caller's own rows, nothing
+    // without a context).
     const policies = await asMigrator(
       (m) => m<{ name: string; cmd: string; roles: string[]; qual: string }[]>`
         select policyname as name, cmd, roles::text[] as roles, qual
@@ -157,7 +158,11 @@ describe('a person with no role, and reporting (0059)', () => {
          where tablename = 'user_entity_roles' and cmd = 'SELECT'`,
     );
     expect(policies).toHaveLength(1);
-    expect([...(policies[0]?.roles ?? [])].sort()).toEqual(['app_user', 'readonly_reporter']);
+    expect([...(policies[0]?.roles ?? [])].sort()).toEqual([
+      'app_reader',
+      'app_user',
+      'readonly_reporter',
+    ]);
     expect(policies[0]?.qual).toContain('app.entity_ids()');
     expect(policies[0]?.qual).toContain('app.user_id()');
     const [grants] = await asMigrator(

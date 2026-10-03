@@ -39,9 +39,9 @@ import { CalendarCheck, Inbox, Plus, UserPlus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type en from '../../../messages/en.json';
-import { contrastRows, formatRatio, type ContrastRow } from '../../design/contrast-pairs';
+import type { ContrastRow } from '../../design/contrast-pairs';
 import { NAV_ITEMS } from '../../nav';
 import { GridViewsPreview } from './grid-views-preview';
 import { DateInputPreview, UndoToastButton } from './pattern-previews';
@@ -83,6 +83,11 @@ function Swatch({ hex }: { hex: string }) {
   );
 }
 
+/** A contrast ratio as the table prints it (the same as `formatRatio` on the server). */
+function ratioText(ratio: number): string {
+  return `${ratio.toFixed(2)}:1`;
+}
+
 /**
  * Every `@shakti/ui` component on one theme panel of the design preview (DESIGN.md §2.1, §10).
  * Dialogs, sheets and menus open in the panel's theme; the palette and toasts follow the page's.
@@ -92,6 +97,7 @@ export function ComponentGallery({
   contrast = 'standard',
   copy,
   navIds,
+  rows,
 }: {
   theme: Theme;
   /** The high-contrast panels measure their pairs against the stricter minimums. */
@@ -99,6 +105,11 @@ export function ComponentGallery({
   copy: DesignCopy;
   /** The screens this person may open: the palette lists them as it does in the top bar. */
   navIds: readonly string[];
+  /**
+   * The §2.5 pairs measured in this panel's theme and contrast, worked out on the server
+   * (`contrastRows`), so the token generator stays out of the page's JavaScript.
+   */
+  rows: readonly ContrastRow[];
 }) {
   const nav = useTranslations('nav');
   const shell = useTranslations('shell');
@@ -107,7 +118,6 @@ export function ComponentGallery({
   const id = (name: string) => `design-${panel}-${name}`;
   const themeClass = `theme-${panel}`;
 
-  const rows = useMemo(() => contrastRows(theme, contrast), [theme, contrast]);
   const [shown, setShown] = useState(PAGE_SIZE);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteWanted, setPaletteWanted] = useState(false);
@@ -124,7 +134,7 @@ export function ComponentGallery({
       cell: (r) => (
         <span className="inline-flex items-center gap-2">
           <Swatch hex={r.fgHex} />
-          {formatRatio(r.ratio)}
+          {ratioText(r.ratio)}
         </span>
       ),
     },
@@ -133,7 +143,7 @@ export function ComponentGallery({
       header: copy.colNeeds,
       align: 'end',
       numeric: true,
-      cell: (r) => formatRatio(r.min),
+      cell: (r) => ratioText(r.min),
     },
     {
       id: 'result',

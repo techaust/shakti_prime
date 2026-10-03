@@ -12,6 +12,7 @@ import type { Metadata } from 'next';
 import { getMessages, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { ComponentGallery, type DesignCopy } from '../../../components/design/component-gallery';
+import { contrastRows } from '../../../design/contrast-pairs';
 import { BoardPreview } from '../../../components/design/pattern-previews';
 import { PrintPreview } from '../../../components/design/print-preview';
 import { Page } from '../../../components/shell/page';
@@ -325,7 +326,13 @@ async function ThemePanel({
         </div>
       </Section>
 
-      <ComponentGallery theme={theme} contrast={contrast} copy={copy} navIds={navIds} />
+      <ComponentGallery
+        theme={theme}
+        contrast={contrast}
+        copy={copy}
+        navIds={navIds}
+        rows={contrastRows(theme, contrast)}
+      />
 
       <BoardPreview copy={copy} card={card} />
     </section>

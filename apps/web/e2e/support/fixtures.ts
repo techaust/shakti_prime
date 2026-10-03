@@ -1,0 +1,55 @@
+import { test as base, expect, type Locator, type Page } from '@playwright/test';
+import { standInForTurnstile } from './turnstile';
+import { storageStatePath, type ProjectName, type SignedInRole } from './users';
+
+export { expect };
+export { expectNoAxeViolations } from './axe';
+export { snap } from './snap';
+
+/**
+ * Playwright's `test`, whose every browser context serves the Turnstile stand-in (turnstile.ts).
+ * A run against an environment with real Turnstile keys (staging, through E2E_BASE_URL) sets
+ * E2E_REAL_TURNSTILE=1 and keeps Cloudflare's own widget.
+ */
+export const test = base.extend({
+  context: async ({ context }, provide) => {
+    if (process.env.E2E_REAL_TURNSTILE !== '1') await standInForTurnstile(context);
+    await provide(context);
+  },
+});
+
+/** The running project (desktop light, desktop dark, phone), for the per-project people of the seed. */
+export function projectName(): ProjectName {
+  return base.info().project.name as ProjectName;
+}
+
+/** `test.use(signedInAs('teleCaller'))`: the specs of a describe block act as that role. */
+export function signedInAs(role: SignedInRole): { storageState: string } {
+  return { storageState: storageStatePath(role) };
+}
+
+/** A fresh visitor with no session, for the public screens. */
+export const signedOut = { storageState: { cookies: [], origins: [] } };
+
+/**
+ * A data grid by its caption: the table on wider screens, the list of cards on a phone
+ * (packages/ui/src/data-grid.tsx), whichever the project shows.
+ */
+export function dataGrid(page: Page, caption: string): Locator {
+  return page
+    .getByRole('table', { name: caption })
+    .or(page.getByRole('list', { name: caption }))
+    .filter({ visible: true });
+}
+
+/**
+ * Narrows the screen to one company through the company switcher, as a person with several
+ * companies does, and waits until the screen shows it.
+ */
+export async function showCompany(page: Page, company: string): Promise<void> {
+  await page.getByRole('button', { name: /^Showing .*\. Choose a company$/ }).click();
+  await page.getByRole('menuitemradio', { name: company }).click();
+  await expect(
+    page.getByRole('button', { name: `Showing ${company}. Choose a company` }),
+  ).toBeVisible({ timeout: 30_000 });
+}

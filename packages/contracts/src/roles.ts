@@ -25,16 +25,33 @@ export const AGENT_ROLE_KEYS = [
   'agent:chief',
 ] as const;
 
-export const ROLE_KEYS = [...STAFF_ROLE_KEYS, ...AGENT_ROLE_KEYS] as const;
+/**
+ * The system principal the event workers act as (docs/SECURITY.md §3.3): fixed grants, only what
+ * its jobs need, never a cost, admin, audit, integrations or sensitive-document permission.
+ */
+export const SYSTEM_ROLE_KEYS = ['system:workers'] as const;
+
+export const ROLE_KEYS = [...STAFF_ROLE_KEYS, ...AGENT_ROLE_KEYS, ...SYSTEM_ROLE_KEYS] as const;
 
 export const StaffRoleKeySchema = z.enum(STAFF_ROLE_KEYS);
 export const AgentRoleKeySchema = z.enum(AGENT_ROLE_KEYS);
+export const SystemRoleKeySchema = z.enum(SYSTEM_ROLE_KEYS);
 export const RoleKeySchema = z.enum(ROLE_KEYS);
 
 export type StaffRoleKey = z.infer<typeof StaffRoleKeySchema>;
 export type AgentRoleKey = z.infer<typeof AgentRoleKeySchema>;
+export type SystemRoleKey = z.infer<typeof SystemRoleKeySchema>;
 export type RoleKey = z.infer<typeof RoleKeySchema>;
 
 export function isAgentRole(key: RoleKey): key is AgentRoleKey {
   return key.startsWith('agent:');
+}
+
+export function isSystemRole(key: RoleKey): key is SystemRoleKey {
+  return key.startsWith('system:');
+}
+
+/** A staff role: neither an agent nor a system principal. */
+export function isStaffRole(key: RoleKey): key is StaffRoleKey {
+  return (STAFF_ROLE_KEYS as readonly string[]).includes(key);
 }

@@ -16,6 +16,10 @@ import { addNote, updateAccount, updateContact, upsertSite } from '../commands/c
 import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
+import { beginUpload } from '../commands/files/begin-upload';
+import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
+import { completeUpload } from '../commands/files/complete-upload';
+import { recheckFiles } from '../commands/files/recheck-files';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { mapImportJob } from '../commands/imports/map-job';
@@ -23,6 +27,7 @@ import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
@@ -67,6 +72,7 @@ export const commands = {
   [resetTwoFactor.name]: resetTwoFactor,
   [clearSignInLock.name]: clearSignInLock,
   [replayDeadLetter.name]: replayDeadLetter,
+  [runDeliveryProbe.name]: runDeliveryProbe,
   [setTheme.name]: setTheme,
   [setContrast.name]: setContrast,
   [saveView.name]: saveView,
@@ -78,6 +84,12 @@ export const commands = {
   [commitImportJob.name]: commitImportJob,
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
+  [beginUpload.name]: beginUpload,
+  [completeUpload.name]: completeUpload,
+  [markFileScanned.name]: markFileScanned,
+  [markFileReady.name]: markFileReady,
+  [rejectFile.name]: rejectFile,
+  [recheckFiles.name]: recheckFiles,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

@@ -65,7 +65,7 @@ export const recordConsent = defineCommand({
   minScope: 'own',
   input: RecordConsentInput,
   output: ConsentDto,
-  auditFields: ['channel', 'purpose', 'source', 'textVersion', 'givenAt', 'evidence'],
+  auditFields: ['channel', 'consentPurpose', 'source', 'textVersion', 'givenAt', 'evidence'],
   async handler(ctx, input) {
     await contactOfCustomer(ctx, input);
     const givenAt = new Date(input.givenAt);
@@ -103,7 +103,7 @@ export const recordConsent = defineCommand({
       after: {
         contactId: row.contactId,
         channel: row.channel,
-        purpose: row.purpose,
+        consentPurpose: row.purpose,
         source: row.source,
         textVersion: row.textVersion,
         givenAt: row.givenAt.toISOString(),

@@ -12,11 +12,13 @@ import { isPaletteShortcut } from './palette-shortcut';
 import { StatusBadge } from './status-badge';
 
 describe('Button', () => {
-  it('keeps its label while pending, so its width does not change, and says it is busy', () => {
+  it('keeps its label while pending, so its width and its name do not change, and says it is busy', () => {
     const html = renderToStaticMarkup(<Button pending>Save</Button>);
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('aria-disabled="true"');
-    expect(html).toMatch(/<span class="[^"]*invisible[^"]*">Save<\/span>/);
+    // Transparent rather than `invisible`, which would take the name away from screen readers.
+    expect(html).toMatch(/<span class="[^"]*opacity-0[^"]*">Save<\/span>/);
+    expect(html).not.toContain('invisible');
     expect(html).not.toContain('disabled=""');
   });
 

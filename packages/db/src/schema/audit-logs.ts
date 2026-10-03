@@ -45,7 +45,7 @@ export const auditLogs = pgTable(
     check('audit_logs_outcome_check', sql`${t.outcome} in ('ok', 'denied', 'failed')`),
     check(
       'audit_logs_actor_kind_check',
-      sql`${t.actorKind} is null or ${t.actorKind} in ('user', 'agent', 'voice_session')`,
+      sql`${t.actorKind} is null or ${t.actorKind} in ('user', 'agent', 'voice_session', 'system')`,
     ),
     // Only a sign-in event may lack an actor: a failed sign-in for an unknown address has none.
     check(

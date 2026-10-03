@@ -1,4 +1,4 @@
-import { DomainError, isAgentRole, newId, type Principal } from '@shakti/contracts';
+import { DomainError, isStaffRole, newId, type Principal } from '@shakti/contracts';
 import { createLocalJWKSet, jwtVerify, SignJWT } from 'jose';
 import {
   BOS_JWT_ALGORITHM,
@@ -64,7 +64,7 @@ export async function mintRealtimeToken(
   keys: SigningKeys,
   options: MintOptions,
 ): Promise<MintedToken> {
-  if (principal.kind !== 'user' || isAgentRole(principal.roleKey)) {
+  if (principal.kind !== 'user' || !isStaffRole(principal.roleKey)) {
     throw new DomainError('forbidden', 'only a signed-in person receives a Realtime token');
   }
   if (principal.entityIds.length === 0) {

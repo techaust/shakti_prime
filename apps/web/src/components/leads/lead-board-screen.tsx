@@ -21,6 +21,7 @@ import {
   StatusBadge,
   toast,
   useFocusTargets,
+  useScrolls,
   type BoardLoadMore,
   type FocusTargets,
   type StatusTone,
@@ -112,6 +113,7 @@ export function LeadBoardScreen({
   const actionButtons = useFocusTargets<string>();
   const columnSections = useFocusTargets<string>();
   const boardRegion = useFocusTargets<'board'>();
+  const [boardBox, boardScrolls] = useScrolls();
   const returnFocusTo = (lead: BoardLeadDto) => () => [
     actionButtons.get(lead.id),
     columnSections.get(lead.stageId).map(columnHeading),
@@ -283,9 +285,16 @@ export function LeadBoardScreen({
       </p>
 
       <div
-        ref={boardRegion.ref('board')}
-        tabIndex={-1}
-        className="flex items-start gap-3 overflow-x-auto pb-2 max-md:block max-md:overflow-visible"
+        ref={(el) => {
+          boardRegion.ref('board')(el);
+          boardBox(el);
+        }}
+        // A board that scrolls sideways takes focus, so the keyboard can scroll it (WCAG 2.1.1);
+        // on a phone, where the stages stack, it is focused only by the screen itself.
+        role="region"
+        aria-label={t('stages')}
+        tabIndex={boardScrolls ? 0 : -1}
+        className="focus-visible:outline-focus flex items-start gap-3 overflow-x-auto rounded-md pb-2 focus-visible:outline-2 focus-visible:outline-offset-2 max-md:block max-md:overflow-visible"
         aria-busy={move.pending}
       >
         {columns.map((column) => (
@@ -459,7 +468,12 @@ function Card({
           </StatusBadge>
         ) : undefined
       }
-      age={t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
+      age={
+        // Since when the lead is in this state, as a time for assistive technology.
+        <time dateTime={lead.stateChangedAt}>
+          {t(`age.${ageKey}`, { count: days, shown: formatCount(days) })}
+        </time>
+      }
       owner={lead.ownerName === null ? t('noOwner') : t('owner', { name: lead.ownerName })}
       ownerName={lead.ownerName ?? undefined}
       sla={lead.sla === null ? undefined : { tone: lead.sla, label: t(`sla.${lead.sla}`) }}
