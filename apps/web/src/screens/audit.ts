@@ -62,6 +62,16 @@ const ACTIONS = {
   'crm.opportunity.lose': 'opportunityLose',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
+  'pricing.list.create': 'priceListCreate',
+  'pricing.list.approve': 'priceListApprove',
+  'pricing.list.archive': 'priceListArchive',
+  'catalogue.item.create': 'itemCreate',
+  'catalogue.item.update': 'itemUpdate',
+  'catalogue.item.archive': 'itemArchive',
+  'catalogue.kit.create': 'kitCreate',
+  'catalogue.kit.update': 'kitUpdate',
+  'catalogue.kit.archive': 'kitArchive',
+  'catalogue.pump_curve.set': 'pumpCurveSet',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -124,6 +134,16 @@ const EVENT_NAMES = {
   'crm.opportunity.won': 'opportunityWon',
   'crm.opportunity.lost': 'opportunityLost',
   'pricing.price.changed': 'priceChanged',
+  'pricing.list.created': 'priceListCreated',
+  'pricing.list.approved': 'priceListApproved',
+  'pricing.list.archived': 'priceListArchived',
+  'catalogue.item.created': 'itemCreated',
+  'catalogue.item.updated': 'itemUpdated',
+  'catalogue.item.archived': 'itemArchived',
+  'catalogue.kit.created': 'kitCreated',
+  'catalogue.kit.updated': 'kitUpdated',
+  'catalogue.kit.archived': 'kitArchived',
+  'catalogue.pump_curve.set': 'pumpCurveSet',
   'auth.session.revoked': 'sessionRevoked',
   'admin.user.invited': 'userInvited',
   'admin.user.suspended': 'userSuspended',
@@ -179,6 +199,11 @@ export type ChangeValue =
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
   | {
+      kind: 'specs';
+      /** An item's specifications in the order they were recorded, each a number or a code. */
+      entries: { key: string; value: string | number }[];
+    }
+  | {
       kind: 'mapping';
       /** Each lead field filled from a column of the file. */
       columns: { field: string; column: string }[];
@@ -202,6 +227,9 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'itemCategory',
+  'itemUnit',
+  'priceTier',
   'fileStatus',
   'filePurpose',
   'contentType',
@@ -278,6 +306,24 @@ const FIELD_KINDS = [
   ['effectiveFrom', 'date'],
   ['effectiveTo', 'date'],
   ['sourceRef', 'text'],
+  // Catalogue and price lists
+  ['sku', 'text'],
+  ['itemName', 'text'],
+  ['kitName', 'text'],
+  ['category', 'itemCategory'],
+  ['unit', 'itemUnit'],
+  ['isSerialTracked', 'yesNo'],
+  ['isDcr', 'yesNo'],
+  ['almmRef', 'text'],
+  ['specs', 'specs'],
+  ['isActive', 'yesNo'],
+  ['components', 'listCount'],
+  ['points', 'listCount'],
+  ['tierCode', 'priceTier'],
+  ['version', 'number'],
+  ['prices', 'number'],
+  ['approvedAt', 'time'],
+  ['archivedAt', 'time'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],
@@ -413,6 +459,14 @@ function viewSettingsOf(value: Record<string, unknown>): ChangeValue {
   };
 }
 
+/** An item's specifications: each plain number or code, in the order recorded. */
+function specsOf(value: Record<string, unknown>): ChangeValue {
+  const entries = Object.entries(value).flatMap(([key, v]) =>
+    typeof v === 'number' || typeof v === 'string' ? [{ key, value: v }] : [],
+  );
+  return entries.length === 0 ? EMPTY : { kind: 'specs', entries };
+}
+
 function known(field: FieldKey, value: unknown): ChangeValue {
   const kind = KIND_OF.get(field);
   // A side that does not carry the field at all (the before of a new record) shows nothing.
@@ -436,6 +490,10 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'listCount') {
+    return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;
+  }
+  if (kind === 'specs') return isRecord(value) ? specsOf(value) : EMPTY;
   if (kind === 'viewSettings') return isRecord(value) ? viewSettingsOf(value) : EMPTY;
   if (kind === 'roles' && Array.isArray(value)) {
     return {

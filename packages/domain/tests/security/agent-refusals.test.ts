@@ -87,6 +87,43 @@ const INPUTS: Record<string, unknown> = {
   },
   'admin.user.suspend': { userId: newId() },
   'admin.user.two_factor.reset': { userId: newId() },
+  'catalogue.item.archive': { itemId: newId() },
+  'catalogue.item.create': {
+    sku: 'REFUSED-1',
+    name: 'Refused item',
+    category: 'other',
+    hsn: '8413',
+    unit: 'nos',
+    specs: {},
+  },
+  'catalogue.item.update': {
+    itemId: newId(),
+    sku: 'REFUSED-1',
+    name: 'Refused item',
+    category: 'other',
+    hsn: '8413',
+    unit: 'nos',
+    specs: {},
+  },
+  'catalogue.kit.archive': { kitId: newId() },
+  'catalogue.kit.create': {
+    sku: 'REFUSED-KIT',
+    name: 'Refused kit',
+    components: [{ itemId: newId(), qty: '1' }],
+  },
+  'catalogue.kit.update': {
+    kitId: newId(),
+    sku: 'REFUSED-KIT',
+    name: 'Refused kit',
+    components: [{ itemId: newId(), qty: '1' }],
+  },
+  'catalogue.pump_curve.set': {
+    itemId: newId(),
+    points: [
+      { flowLph: '0', headM: '50' },
+      { flowLph: '1000', headM: '20' },
+    ],
+  },
   // A logo needs admin.entities.write, which no agent holds (the upload's permission is its
   // purpose's, files/purposes.ts).
   'files.upload.begin': {
@@ -107,6 +144,9 @@ const INPUTS: Record<string, unknown> = {
   'integrations.dlq.replay': { eventId: newId() },
   'platform.probe.run': {},
   'org.entity.update': { entityId: 1, brandName: 'Refused brand' },
+  'pricing.list.approve': { priceListId: newId() },
+  'pricing.list.archive': { priceListId: newId() },
+  'pricing.list.create': { tierCode: 'retail', effectiveFrom: '2031-04-01' },
   'pricing.price.set': {
     priceListId: newId(),
     itemId: newId(),

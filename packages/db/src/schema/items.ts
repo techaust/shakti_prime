@@ -35,11 +35,17 @@ export const items = pgTable(
     ...actors,
   },
   (t) => [
-    check('items_hsn_check', sql`${t.hsn} ~ '^[0-9]{4,8}$'`),
+    check('items_hsn_check', sql`${t.hsn} ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'`),
     check(
       'items_unit_check',
       sql`${t.unit} in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')`,
     ),
+    check(
+      'items_category_check',
+      sql`${t.category} in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')`,
+    ),
+    // The specifications of the category (`@shakti/contracts` catalogue/specs.ts), always an object.
+    check('items_specs_object_check', sql`jsonb_typeof(${t.specsJson}) = 'object'`),
     index('items_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
     index('items_category_idx').on(t.category),
   ],

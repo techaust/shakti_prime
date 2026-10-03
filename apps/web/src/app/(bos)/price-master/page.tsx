@@ -1,7 +1,7 @@
 import type { PricePageDto } from '@shakti/contracts';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { listPriceLists, listPrices } from '../../../actions/pricing';
+import { listPriceLists, listPrices, readCoversAllCompanies } from '../../../actions/pricing';
 import { PriceMasterScreen } from '../../../components/pricing/price-master-screen';
 import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
@@ -16,8 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Price Master (SAL-01): the price lists the caller can read and the selling prices on one of
- * them, a page at a time. Only selling prices: no cost figure is read for this screen.
+ * Price Master (SAL-01): the price lists the caller can read, each with its state, and the selling
+ * prices of items or kits on one of them, a page at a time; an Executive starts and approves lists.
+ * Only selling prices: no cost figure is read for this screen.
  */
 export default async function PriceMasterPage() {
   const { access, can } = await screenAccess(navRequires('price-master'));
@@ -30,7 +31,9 @@ export default async function PriceMasterPage() {
       </Page>
     );
   }
-  const first = lists.data.find((l) => l.open) ?? lists.data[0];
+  const covers = await readCoversAllCompanies();
+  const first =
+    lists.data.find((l) => l.state === 'live') ?? lists.data.find((l) => l.open) ?? lists.data[0];
   let initialPage: PricePageDto | undefined;
   if (first !== undefined) {
     const prices = await listPrices({ priceListId: first.id, limit: 50 });
@@ -51,6 +54,7 @@ export default async function PriceMasterPage() {
         initialListId={first?.id}
         initialPage={initialPage}
         canSetPrices={can('pricing.write', 'all')}
+        coversAllCompanies={covers.ok && covers.data}
       />
     </Page>
   );

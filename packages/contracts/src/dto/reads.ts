@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ItemUnitSchema, MoneySchema } from '../catalogue/enums';
+import { ItemCategorySchema, ItemUnitSchema, MoneySchema } from '../catalogue/enums';
 import { SegmentSchema, StageKindSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { LeadSortSchema, PriceSortSchema, UserSortSchema } from './list-sort';
@@ -64,6 +64,14 @@ export const ListLeadsInput = z
   .strict();
 export type ListLeadsInput = z.input<typeof ListLeadsInput>;
 
+/**
+ * Where a price list stands today: a `draft` prices nothing; an approved list is `scheduled`
+ * before its start date, `live` from it and `ended` after its end date. An archived list is
+ * `ended` too.
+ */
+export const PriceListStateSchema = z.enum(['draft', 'scheduled', 'live', 'ended']);
+export type PriceListState = z.infer<typeof PriceListStateSchema>;
+
 /** A price list the caller can read (Price Master). */
 export const PriceListDto = z
   .object({
@@ -77,6 +85,9 @@ export const PriceListDto = z
     effectiveTo: z.iso.date().nullable(),
     /** False once the list has ended or been archived: its prices can no longer change. */
     open: z.boolean(),
+    state: PriceListStateSchema,
+    /** When the list was approved; null for a draft. */
+    approvedAt: z.iso.datetime().nullable(),
   })
   .strict();
 export type PriceListDto = z.infer<typeof PriceListDto>;
@@ -90,7 +101,7 @@ export const PriceRowDto = z
     itemId: IdSchema,
     sku: z.string(),
     name: z.string(),
-    category: z.string(),
+    category: ItemCategorySchema,
     unit: ItemUnitSchema,
     price: MoneySchema.nullable(),
     updatedAt: z.iso.datetime().nullable(),

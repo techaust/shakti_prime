@@ -23,7 +23,7 @@ beforeAll(async () => {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       await tx`insert into items (id, sku, name, category, hsn) values
-        (${itemId}, ${`T-${tag}`}, ${`${prefix} a`}, 'panel', '8541')`;
+        (${itemId}, ${`T-${tag}`}, ${`${prefix} a`}, 'solar_module', '8541')`;
       for (const [i, id] of twins.entries()) {
         await tx`insert into items (id, sku, name, category, hsn) values
           (${id}, ${`T-${tag}-${String(i)}`}, ${`${prefix} twin`}, 'pump', '8413')`;

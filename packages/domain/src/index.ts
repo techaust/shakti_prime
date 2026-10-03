@@ -27,6 +27,14 @@ export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
 export { setPrice } from './commands/pricing/set-price';
+export {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from './commands/pricing/price-lists';
+export { archiveItem, createItem, updateItem } from './commands/catalogue/items';
+export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
+export { setPumpCurve } from './commands/catalogue/pump-curve';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';
@@ -119,6 +127,10 @@ export { searchLeads } from './queries/crm/search-leads';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
+export type { ListItemsOptions } from './queries/catalogue/list-items';
+export { getItem, getKit, listKits } from './queries/catalogue/catalogue-queries';
+export { listKitPrices, listPriceChanges } from './queries/pricing/price-history';
+export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-settings';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
