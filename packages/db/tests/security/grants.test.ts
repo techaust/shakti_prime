@@ -351,6 +351,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
     expect(rows.map((r) => r.fn)).toEqual([
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // The catalogue and GST rates screens ask it before they offer a change (0072).
+      'app.request_covers_group()',
       'app.user_is_active(uuid)',
     ]);
   });
