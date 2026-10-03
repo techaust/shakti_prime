@@ -16,7 +16,8 @@ const GRACE_MS = 60_000;
 
 type ConsentRow = typeof schema.consents.$inferSelect;
 
-function toConsentDto(row: ConsentRow): ConsentDto {
+/** The consent as Account 360 shows it; `readableEvidence` is the proof when the caller may open it. */
+function toConsentDto(row: ConsentRow, readableEvidence: string | null): ConsentDto {
   return ConsentDto.parse({
     id: row.id,
     contactId: row.contactId,
@@ -27,7 +28,48 @@ function toConsentDto(row: ConsentRow): ConsentDto {
     givenAt: row.givenAt.toISOString(),
     withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
     hasEvidence: row.evidenceFileId !== null,
+    evidenceFileId: readableEvidence,
   });
+}
+
+/**
+ * The proof a consent rests on: a file of the `consent_evidence` purpose, of the page's company,
+ * that the caller may read (the `files` policies) and that has passed its checks. A file another
+ * company holds, of another purpose or out of the caller's sight is not found; one still being
+ * checked waits for its checks; one the checks refused is refused.
+ */
+async function requireEvidence(
+  ctx: CommandContext,
+  input: { entityId: number; evidenceFileId: string },
+): Promise<string> {
+  const f = schema.files;
+  const [file] = await ctx.tx
+    .select({ id: f.id, status: f.status })
+    .from(f)
+    .where(
+      and(
+        eq(f.id, input.evidenceFileId),
+        eq(f.entityId, input.entityId),
+        eq(f.purpose, 'consent_evidence'),
+      ),
+    )
+    .limit(1);
+  if (!file) {
+    throw new DomainError('not_found', `evidence file ${input.evidenceFileId} is not visible`, {
+      reason: 'consent_evidence_missing',
+    });
+  }
+  if (file.status === 'rejected') {
+    throw new DomainError('validation_failed', 'the evidence file was refused by its checks', {
+      reason: 'consent_evidence_refused',
+    });
+  }
+  if (file.status !== 'ready') {
+    throw new DomainError('conflict', 'the evidence file is still being checked', {
+      reason: 'consent_evidence_checking',
+    });
+  }
+  return file.id;
 }
 
 /** A contact of the customer, as the caller reads it in the page's company. */
@@ -54,10 +96,10 @@ async function contactOfCustomer(
 /**
  * `crm.consent.record` (CRM-10, DPDP, DLT 160-series): a consent a contact of the customer gave,
  * per channel and purpose, with its source, the version of the text they agreed to (the wording
- * is the client's) and when, now or earlier. Naming an evidence file is refused until consent proof
- * can be uploaded (`consent_evidence_unavailable`); the column is fixed with the rest of the
- * evidence once written. The write policy asks the
- * caller's `crm.account.write` scope over the contact (ADR 0008).
+ * is the client's) and when, now or earlier, with an optional proof file uploaded for it (a signed
+ * form, a photo of it) that has passed its checks; the file is fixed with the rest of the evidence
+ * once written. The write policy asks the caller's `crm.account.write` scope over the contact
+ * (ADR 0008).
  */
 export const recordConsent = defineCommand({
   name: 'crm.consent.record',
@@ -74,13 +116,13 @@ export const recordConsent = defineCommand({
         reason: 'consent_given_in_future',
       });
     }
-    // The upload of consent proof arrives with the file store's consent_evidence purpose (slice
-    // P2); until then no file may be named, and then only one of that purpose and company.
-    if (input.evidenceFileId !== undefined) {
-      throw new DomainError('validation_failed', 'consent proof cannot be attached yet', {
-        reason: 'consent_evidence_unavailable',
-      });
-    }
+    const evidenceFileId =
+      input.evidenceFileId === undefined
+        ? null
+        : await requireEvidence(ctx, {
+            entityId: input.entityId,
+            evidenceFileId: input.evidenceFileId,
+          });
     const [row] = await ctx.tx
       .insert(schema.consents)
       .values({
@@ -91,7 +133,7 @@ export const recordConsent = defineCommand({
         source: input.source,
         textVersion: input.textVersion,
         givenAt,
-        evidenceFileId: null,
+        evidenceFileId,
         createdBy: ctx.principal.id,
       })
       .returning();
@@ -121,7 +163,7 @@ export const recordConsent = defineCommand({
         source: row.source,
       },
     });
-    return toConsentDto(row);
+    return toConsentDto(row, evidenceFileId);
   },
 });
 
@@ -142,10 +184,11 @@ export const withdrawConsent = defineCommand({
     const ac = schema.accountContacts;
     const ae = schema.accountEntities;
     const [consent] = await ctx.tx
-      .select({ consent: c })
+      .select({ consent: c, readableEvidence: schema.files.id })
       .from(c)
       .innerJoin(ac, and(eq(ac.contactId, c.contactId), eq(ac.accountId, input.accountId)))
       .innerJoin(ae, and(eq(ae.accountId, ac.accountId), eq(ae.entityId, input.entityId)))
+      .leftJoin(schema.files, eq(schema.files.id, c.evidenceFileId))
       .where(eq(c.id, input.consentId))
       .limit(1)
       .for('update', { of: c });
@@ -180,6 +223,6 @@ export const withdrawConsent = defineCommand({
       entityId: input.entityId,
       payload: { consentId: row.id, channel: row.channel, purpose: row.purpose },
     });
-    return toConsentDto(row);
+    return toConsentDto(row, consent.readableEvidence);
   },
 });

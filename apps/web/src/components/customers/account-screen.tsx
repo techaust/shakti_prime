@@ -20,6 +20,7 @@ import {
   loadAccount360,
   untagLead,
 } from '../../actions/crm';
+import { openFile } from '../../actions/files';
 import {
   ACCOUNT_TYPES,
   CONSENT_CHANNELS,
@@ -30,8 +31,10 @@ import {
 import { customerHref, isOneOf as oneOf } from '../../screens/customers';
 import { formatDateTime, formatPhone } from '../../screens/format';
 import { Page } from '../shell/page';
+import type { UploadLimitView } from '../companies/branding-dialog';
 import { FailureMessage } from '../screens/failure';
-import { useCommand, useQuery } from '../screens/use-command';
+import { settle } from '../screens/settle';
+import { useCommand, useQuery, type CommandFailure } from '../screens/use-command';
 import type { CustomerDialogKind } from './customer-dialogs';
 
 // The dialogs load on first use, so the page ships only what it shows.
@@ -81,9 +84,12 @@ function Section({
 export function AccountScreen({
   initial,
   companies,
+  proofLimit,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
+  /** The limits of proof of consent, for a caller who may record consent. */
+  proofLimit?: UploadLimitView;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -221,6 +227,7 @@ export function AccountScreen({
         <CustomerDialog
           dialog={dialog}
           view={view}
+          proofLimit={proofLimit}
           onDone={done}
           onCancel={() => {
             setDialog(undefined);
@@ -408,6 +415,11 @@ function Consents({
                   version: c.textVersion,
                 })}
               </span>
+              {c.evidenceFileId !== null ? (
+                <ProofLink fileId={c.evidenceFileId} />
+              ) : c.hasEvidence ? (
+                <span className="text-text-muted text-sm">{t('consent.proofKept')}</span>
+              ) : null}
               {c.withdrawnAt === null ? (
                 view.canEdit ? (
                   <Button
@@ -431,6 +443,49 @@ function Consents({
         </ul>
       )}
     </Section>
+  );
+}
+
+/**
+ * Opens the proof of a consent in a new tab through a short-lived address. The tab is opened on
+ * the click itself, so no pop-up blocker stops it; the address is filled in when it arrives.
+ */
+function ProofLink({ fileId }: { fileId: string }) {
+  const t = useTranslations('customers');
+  const [opening, setOpening] = useState(false);
+  const [failure, setFailure] = useState<CommandFailure | undefined>();
+  return (
+    <span className="flex flex-col gap-1">
+      <Button
+        variant="link"
+        size="sm"
+        className="self-start px-0"
+        pending={opening}
+        onClick={() => {
+          const tab = window.open('about:blank', '_blank');
+          if (tab !== null) tab.opener = null;
+          setOpening(true);
+          void settle(() => openFile(fileId)).then((result) => {
+            setOpening(false);
+            if (result.ok) {
+              setFailure(undefined);
+              if (tab === null) window.location.assign(result.data.url);
+              else tab.location.href = result.data.url;
+              return;
+            }
+            tab?.close();
+            setFailure((previous) => ({
+              error: result.error,
+              reference: result.reference,
+              attempt: (previous?.attempt ?? 0) + 1,
+            }));
+          });
+        }}
+      >
+        {t('consent.open')}
+      </Button>
+      <FailureMessage failure={failure} />
+    </span>
   );
 }
 

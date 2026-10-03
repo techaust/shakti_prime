@@ -12,6 +12,8 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { recordConsent, withdrawConsent } from '../../src/commands/crm/consent';
 import { createLead } from '../../src/commands/crm/create-lead';
+import { beginUpload } from '../../src/commands/files/begin-upload';
+import { loadAccount360 } from '../../src/queries/crm/customers';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
 // crm.consent.record and crm.consent.withdraw (CRM-10): consent per channel and purpose with its
@@ -21,11 +23,13 @@ afterAll(closeDb);
 
 let caller: Principal;
 let colleague: Principal;
+let teamLead: Principal;
 
 beforeAll(async () => {
   const teamId = await createTestTeam(1, 'consent team');
   caller = await createTestPrincipal('tele_caller_cc', [1], { teamId });
   colleague = await createTestPrincipal('tele_caller_cc', [1], { teamId });
+  teamLead = await createTestPrincipal('sales_team_lead', [1], { teamId });
 });
 
 function run(principal: Principal, command: AnyCommand, input: unknown): Promise<unknown> {
@@ -65,8 +69,9 @@ describe('crm.consent.record', () => {
       id: string;
       withdrawnAt: string | null;
       hasEvidence: boolean;
+      evidenceFileId: string | null;
     };
-    expect(made).toMatchObject({ withdrawnAt: null, hasEvidence: false });
+    expect(made).toMatchObject({ withdrawnAt: null, hasEvidence: false, evidenceFileId: null });
     const [row] = await asMigrator(
       (m) => m<{ type: string; payload_json: Record<string, unknown> }[]>`
         select type, payload_json from activities where account_id = ${k.accountId}
@@ -92,7 +97,7 @@ describe('crm.consent.record', () => {
     });
   });
 
-  it('refuses a consent given in the future, and any evidence file until proof can be uploaded', async () => {
+  it('refuses a consent given in the future', async () => {
     const k = await customerOf(caller);
     await expect(
       run(
@@ -101,9 +106,6 @@ describe('crm.consent.record', () => {
         consentOf(k, { givenAt: new Date(Date.now() + 3_600_000).toISOString() }),
       ),
     ).rejects.toMatchObject(reason('consent_given_in_future'));
-    await expect(
-      run(caller, recordConsent, consentOf(k, { evidenceFileId: newId() })),
-    ).rejects.toMatchObject(reason('consent_evidence_unavailable'));
   });
 
   it('is refused without crm.account.write, for another customer, and in another company', async () => {
@@ -122,6 +124,134 @@ describe('crm.consent.record', () => {
     await expect(run(caller, recordConsent, consentOf(k, { entityId: 2 }))).rejects.toMatchObject({
       code: 'forbidden',
     });
+  });
+});
+
+const SHA = 'c'.repeat(64);
+
+/** A proof file the caller uploads through the upload flow; it is `pending` until its bytes land. */
+async function upload(principal: Principal, entityId = 1): Promise<string> {
+  const slot = (await run(principal, beginUpload, {
+    entityId,
+    purpose: 'consent_evidence',
+    name: 'Signed consent form.pdf',
+    contentType: 'application/pdf',
+    size: 4096,
+    sha256: SHA,
+    bucket: 'local',
+  })) as { fileId: string };
+  return slot.fileId;
+}
+
+/** Where the file checks leave a file (the files.file.uploaded worker in the app). */
+async function setStatus(fileId: string, status: string): Promise<void> {
+  await asMigrator((m) => m`update files set status = ${status} where id = ${fileId}`);
+}
+
+/** A file of any purpose and company, as a test fixture outside the upload flow. */
+async function storedFile(entityId: number, purpose: string, createdBy: string): Promise<string> {
+  const id = newId();
+  await asMigrator(
+    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size,
+                                sha256, status, created_by)
+             values (${id}, ${entityId}, ${purpose}, 'test', ${`t/${id}`}, 'proof.png',
+                     'image/png', 1, ${SHA}, 'ready', ${createdBy})`,
+  );
+  return id;
+}
+
+describe('crm.consent.record with proof (CRM-10)', () => {
+  it('keeps a checked proof file of the company with the consent', async () => {
+    const k = await customerOf(caller);
+    const fileId = await upload(caller);
+    await setStatus(fileId, 'ready');
+    const made = (await run(caller, recordConsent, consentOf(k, { evidenceFileId: fileId }))) as {
+      id: string;
+      hasEvidence: boolean;
+      evidenceFileId: string | null;
+    };
+    expect(made).toMatchObject({ hasEvidence: true, evidenceFileId: fileId });
+    const [row] = await asMigrator(
+      (m) => m<{ evidence_file_id: string | null; after: Record<string, unknown> }[]>`
+        select c.evidence_file_id, l.after_json as after from consents c
+          join audit_logs l on l.aggregate_id = c.id::text and l.command = 'crm.consent.record'
+         where c.id = ${made.id}`,
+    );
+    expect(row).toMatchObject({ evidence_file_id: fileId, after: { evidence: true } });
+  });
+
+  it('names the proof on Account 360 only to those who may open it', async () => {
+    const k = await customerOf(caller);
+    const fileId = await upload(caller);
+    await setStatus(fileId, 'ready');
+    await run(caller, recordConsent, consentOf(k, { evidenceFileId: fileId }));
+    const proofFor = async (principal: Principal) => {
+      const view = await asPrincipal(principal, (ctx) =>
+        loadAccount360(ctx, { accountId: k.accountId, entityId: 1 }),
+      );
+      return view.consents.map((c) => ({ has: c.hasEvidence, id: c.evidenceFileId }));
+    };
+    // The uploader and a company-wide customer writer open it; the team lead, who reads the
+    // customer through the lead but opens only proof they uploaded, sees that it is kept.
+    expect(await proofFor(caller)).toEqual([{ has: true, id: fileId }]);
+    expect(await proofFor(await createTestPrincipal('general_manager', [1]))).toEqual([
+      { has: true, id: fileId },
+    ]);
+    expect(await proofFor(teamLead)).toEqual([{ has: true, id: null }]);
+  });
+
+  it('waits for a file still being checked, and refuses one the checks refused', async () => {
+    const k = await customerOf(caller);
+    const pending = await upload(caller);
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: pending })),
+    ).rejects.toMatchObject({ code: 'conflict', ...reason('consent_evidence_checking') });
+    await setStatus(pending, 'scanning');
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: pending })),
+    ).rejects.toMatchObject(reason('consent_evidence_checking'));
+    const refused = await upload(caller);
+    await setStatus(refused, 'rejected');
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: refused })),
+    ).rejects.toMatchObject({ code: 'validation_failed', ...reason('consent_evidence_refused') });
+  });
+
+  it('refuses a file of another purpose, of another company, or one the caller may not read', async () => {
+    const k = await customerOf(caller);
+    // A company logo every principal of the company may read, but not proof of consent.
+    const logo = await storedFile(1, 'entity_logo', caller.id);
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: logo })),
+    ).rejects.toMatchObject({ code: 'not_found', ...reason('consent_evidence_missing') });
+    // A colleague's proof: a caller at own scope reads only the proof they uploaded.
+    const theirs = await upload(colleague);
+    await setStatus(theirs, 'ready');
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: theirs })),
+    ).rejects.toMatchObject(reason('consent_evidence_missing'));
+    // Proof held by another company, named by someone who reads both companies' proof.
+    const executive = await createTestPrincipal('executive', [1, 2]);
+    const elsewhere = await storedFile(2, 'consent_evidence', executive.id);
+    await expect(
+      run(executive, recordConsent, consentOf(k, { evidenceFileId: elsewhere })),
+    ).rejects.toMatchObject(reason('consent_evidence_missing'));
+    await expect(
+      run(caller, recordConsent, consentOf(k, { evidenceFileId: newId() })),
+    ).rejects.toMatchObject(reason('consent_evidence_missing'));
+  });
+
+  it('is refused with proof to a caller without crm.account.write, or in another company', async () => {
+    const k = await customerOf(caller);
+    const fileId = await upload(caller);
+    await setStatus(fileId, 'ready');
+    const accounts = await createTestPrincipal('accounts', [1]);
+    await expect(
+      run(accounts, recordConsent, consentOf(k, { evidenceFileId: fileId })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      run(caller, recordConsent, consentOf(k, { entityId: 2, evidenceFileId: fileId })),
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 

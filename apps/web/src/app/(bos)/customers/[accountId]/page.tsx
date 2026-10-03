@@ -1,3 +1,4 @@
+import { UPLOAD_LIMITS } from '@shakti/domain';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -13,6 +14,13 @@ import { firstFailure } from '../../../../screens/result';
 export const dynamic = 'force-dynamic';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** The limits of proof of consent, for the uploader to check before it sends a byte. */
+function proofLimit() {
+  const found = UPLOAD_LIMITS.consent_evidence;
+  if (found === undefined) throw new Error('no upload limits for consent_evidence');
+  return { contentTypes: [...found.contentTypes], maxBytes: found.maxBytes };
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('customers'), (await getTranslations('customers'))('title'));
@@ -40,7 +48,11 @@ export default async function AccountPage({
   if (!view.ok && view.error === 'account_missing') notFound();
   const t = await getTranslations('customers');
   return view.ok ? (
-    <AccountScreen initial={view.data} companies={companyNames(access)} />
+    <AccountScreen
+      initial={view.data}
+      companies={companyNames(access)}
+      {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
+    />
   ) : (
     <Page title={t('title')}>
       <FailureMessage failure={firstFailure(view)} />

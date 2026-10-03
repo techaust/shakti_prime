@@ -475,9 +475,11 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
         .orderBy(asc(t.dueAt), asc(t.id))
         .limit(50),
       ctx.tx
-        .select({ consent: con })
+        .select({ consent: con, readableEvidence: schema.files.id })
         .from(con)
         .innerJoin(ac, eq(ac.contactId, con.contactId))
+        // The proof file under the files policies: null when the caller may not open it.
+        .leftJoin(schema.files, eq(schema.files.id, con.evidenceFileId))
         .where(eq(ac.accountId, accountId))
         .orderBy(desc(con.givenAt), desc(con.id)),
       ctx.tx
@@ -546,7 +548,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       ...taskDto(x.task),
       assigneeName: x.assigneeName,
     })),
-    consents: consents.map((x) => consentDto(x.consent)),
+    consents: consents.map((x) => consentDto(x.consent, x.readableEvidence)),
     tags,
     timeline,
   });
@@ -569,7 +571,10 @@ function taskDto(row: typeof schema.tasks.$inferSelect): TaskDto {
   });
 }
 
-function consentDto(row: typeof schema.consents.$inferSelect): ConsentDto {
+function consentDto(
+  row: typeof schema.consents.$inferSelect,
+  readableEvidence: string | null,
+): ConsentDto {
   return ConsentDto.parse({
     id: row.id,
     contactId: row.contactId,
@@ -580,6 +585,7 @@ function consentDto(row: typeof schema.consents.$inferSelect): ConsentDto {
     givenAt: row.givenAt.toISOString(),
     withdrawnAt: row.withdrawnAt?.toISOString() ?? null,
     hasEvidence: row.evidenceFileId !== null,
+    evidenceFileId: readableEvidence,
   });
 }
 

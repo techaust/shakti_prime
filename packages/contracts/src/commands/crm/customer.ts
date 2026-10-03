@@ -146,6 +146,11 @@ export const ConsentDto = z
     givenAt: z.iso.datetime(),
     withdrawnAt: z.iso.datetime().nullable(),
     hasEvidence: z.boolean(),
+    /**
+     * The proof file when the caller may open it (the `files` policies: a holder of
+     * `crm.account.write` at company scope, or the person who uploaded it); null otherwise.
+     */
+    evidenceFileId: IdSchema.nullable(),
   })
   .strict();
 export type ConsentDto = z.infer<typeof ConsentDto>;

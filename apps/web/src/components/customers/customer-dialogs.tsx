@@ -14,9 +14,12 @@ import {
   Select,
   Textarea,
   toast,
+  Uploader,
+  type UploadControls,
+  type UploadResult,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   addNote,
   archiveTag,
@@ -40,6 +43,9 @@ import {
   TASK_KINDS,
 } from '../../screens/contract-values';
 import { dueFromLocal, localFromIso } from '../../screens/customers';
+import { fileTypeKey, sizeParts } from '../../screens/files';
+import type { UploadLimitView } from '../companies/branding-dialog';
+import { sendFile } from '../files/send-file';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
@@ -62,6 +68,9 @@ interface FormProps {
   onCancel: () => void;
 }
 
+/** The limits of proof of consent; absent for a caller who may not record consent. */
+type ProofLimit = UploadLimitView | undefined;
+
 /** Text typed into a field, or null when it was left empty. */
 function orNull(data: FormData, name: string): string | null {
   const value = formText(data, name);
@@ -75,9 +84,10 @@ function orNull(data: FormData, name: string): string | null {
 export function CustomerDialog({
   dialog,
   view,
+  proofLimit,
   onDone,
   onCancel,
-}: FormProps & { dialog: CustomerDialogKind }) {
+}: FormProps & { dialog: CustomerDialogKind; proofLimit: ProofLimit }) {
   const common = useTranslations('common');
   const props = { view, onDone, onCancel };
   return (
@@ -95,7 +105,7 @@ export function CustomerDialog({
         ) : dialog.kind === 'site' ? (
           <SiteForm {...props} siteId={dialog.siteId} />
         ) : dialog.kind === 'consent' ? (
-          <ConsentForm {...props} />
+          <ConsentForm {...props} proofLimit={proofLimit} />
         ) : dialog.kind === 'withdraw' ? (
           <WithdrawForm {...props} consentId={dialog.consentId} />
         ) : dialog.kind === 'tag' ? (
@@ -403,17 +413,26 @@ function SiteForm({ view, onDone, onCancel, siteId }: FormProps & { siteId?: str
   );
 }
 
-function ConsentForm({ view, onDone, onCancel }: FormProps) {
+function ConsentForm({
+  view,
+  onDone,
+  onCancel,
+  proofLimit,
+}: FormProps & { proofLimit: ProofLimit }) {
   const t = useTranslations('customers.dialogs');
   const c = useTranslations('customers.consent');
   const { run, pending, failure } = useCommand(recordConsent);
   const fields = ['contactId', 'channel', 'purpose', 'source', 'textVersion', 'givenAt'];
   const { fieldError, formFailure } = useFieldFailure(failure, fields);
   const [now] = useState(() => localFromIso(new Date().toISOString()));
+  // The proof uploaded for this consent, named once its bytes landed. While it is being sent the
+  // form waits, so a consent is never recorded without the proof the person chose.
+  const [proof, setProof] = useState<string | undefined>();
+  const [uploading, setUploading] = useState(false);
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (pending) return;
+    if (pending || uploading) return;
     const data = new FormData(e.currentTarget);
     run(
       {
@@ -425,6 +444,7 @@ function ConsentForm({ view, onDone, onCancel }: FormProps) {
         source: formText(data, 'source'),
         textVersion: formText(data, 'textVersion'),
         givenAt: dueFromLocal(formText(data, 'givenAt')) ?? '',
+        ...(proof === undefined ? {} : { evidenceFileId: proof }),
       },
       () => {
         toast.success(t('saved'));
@@ -485,11 +505,107 @@ function ConsentForm({ view, onDone, onCancel }: FormProps) {
       <Field id="consent-given" label={t('consentGiven')} error={fieldError('givenAt')}>
         <Input name="givenAt" type="datetime-local" defaultValue={now} max={now} />
       </Field>
+      {proofLimit === undefined ? null : (
+        <ProofUpload
+          entityId={view.entityId}
+          limit={proofLimit}
+          onStart={() => {
+            setProof(undefined);
+            setUploading(true);
+          }}
+          onEnd={(fileId) => {
+            setProof(fileId);
+            setUploading(false);
+          }}
+        />
+      )}
       <FailureMessage failure={formFailure} />
-      <Footer onCancel={onCancel} pending={pending}>
+      <Footer onCancel={onCancel} pending={pending || uploading}>
         {t('submitRecord')}
       </Footer>
     </form>
+  );
+}
+
+/**
+ * The optional proof of a consent (a signed form, a photo of it), uploaded through the file flow
+ * as `consent_evidence` of the page's company. `onEnd` names the file once its bytes landed, or
+ * nothing when the upload failed or was cancelled.
+ */
+function ProofUpload({
+  entityId,
+  limit,
+  onStart,
+  onEnd,
+}: {
+  entityId: number;
+  limit: UploadLimitView;
+  onStart: () => void;
+  onEnd: (fileId: string | undefined) => void;
+}) {
+  const t = useTranslations('customers.dialogs');
+  const files = useTranslations('files');
+  const errors = useTranslations('errors');
+  const recorded = useRef<string | undefined>(undefined);
+
+  const types = new Intl.ListFormat('en-IN', { type: 'disjunction' }).format(
+    limit.contentTypes.flatMap((type) => {
+      const key = fileTypeKey(type);
+      return key === undefined ? [] : [files(`shortTypes.${key}`)];
+    }),
+  );
+  const size = sizeParts(limit.maxBytes);
+  const sizeText = files(`size.${size.unit}`, { value: size.value });
+
+  async function upload(file: File, controls: UploadControls): Promise<UploadResult> {
+    recorded.current = undefined;
+    onStart();
+    let result: UploadResult | undefined;
+    try {
+      result = await sendFile(
+        file,
+        { entityId, purpose: 'consent_evidence' },
+        controls,
+        {
+          checking: files('uploader.checking'),
+          checkingLong: t('consentProofChecking'),
+          ready: t('consentProofReady'),
+          failed: files('uploader.failed'),
+          error: (key) => errors(key),
+        },
+        (fileId) => {
+          recorded.current = fileId;
+        },
+      );
+      return result;
+    } finally {
+      const kept = !controls.signal.aborted && result !== undefined && result.status !== 'failed';
+      onEnd(kept ? recorded.current : undefined);
+    }
+  }
+
+  return (
+    <Uploader
+      id={`consent-proof-${String(entityId)}`}
+      label={t('consentProof')}
+      hint={`${t('consentProofHelper')} ${files('uploader.limits', { types, size: sizeText })}`}
+      accept={limit.contentTypes}
+      maxBytes={limit.maxBytes}
+      text={{
+        choose: files('uploader.choose'),
+        drop: files('uploader.drop'),
+        cancel: files('uploader.cancel'),
+        retry: files('uploader.retry'),
+        started: files('uploader.started'),
+        halfway: files('uploader.halfway'),
+        cancelled: files('uploader.cancelled'),
+        failed: files('uploader.failed'),
+        wrongType: files('uploader.wrongType', { types }),
+        tooLarge: files('uploader.tooLarge', { size: sizeText }),
+        empty: files('uploader.empty'),
+      }}
+      upload={upload}
+    />
   );
 }
 
