@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS, STAFF_ROLE_KEYS } from '@shakti/contracts';
+import { isPlatformOnlyPermission, PERMISSION_KEYS, STAFF_ROLE_KEYS } from '@shakti/contracts';
 import {
   asPrincipal,
   closeDb,
@@ -54,13 +54,16 @@ describe('listRoles and getRoleGrants', () => {
     );
   });
 
-  it('answers the whole catalogue in order with the role scope or none', async () => {
+  it('answers the whole staff catalogue in order with the role scope or none', async () => {
     const exec = await createTestPrincipal('executive');
     const page = await asPrincipal(exec, (ctx) =>
       getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
     );
     expect(page.role.key).toBe('tele_caller_cc');
-    expect(page.permissions.map((p) => p.key)).toEqual([...PERMISSION_KEYS]);
+    // A platform-only permission is held by the platform's workers alone and never listed.
+    expect(page.permissions.map((p) => p.key)).toEqual(
+      PERMISSION_KEYS.filter((key) => !isPlatformOnlyPermission(key)),
+    );
     const granted = Object.fromEntries(
       grantsForRole('tele_caller_cc').map((g) => [g.key, g.scope]),
     );

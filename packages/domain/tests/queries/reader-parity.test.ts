@@ -4,6 +4,7 @@ import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/tes
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
+import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
@@ -46,6 +47,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
   listUserSessions: (ctx) => listUserSessions(ctx, { userId: ctx.principal.id }),
   searchPeople: (ctx) => searchPeople(ctx, { q: 'kum' }),
+  listRoles: (ctx) => listRoles(ctx),
+  getRoleGrants: (ctx) => getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
   queryAudit: (ctx) => queryAudit(ctx, { from: WEEK_AGO, to: NOW, limit: 20 }),
   listAuditPeople: (ctx) => listAuditPeople(ctx, { from: WEEK_AGO, to: NOW }),
   listItems: (ctx) => listItems(ctx, { limit: 20 }),
