@@ -83,7 +83,12 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
 
   it('refuses the development key for field encryption', () => {
     expect(
-      productionConfigProblems({ ...GOOD, FIELD_ENCRYPTION_KEY: Buffer.from('development key for the configuration test').toString('base64') }),
+      productionConfigProblems({
+        ...GOOD,
+        FIELD_ENCRYPTION_KEY: Buffer.from('development key for the configuration test').toString(
+          'base64',
+        ),
+      }),
     ).toEqual(['FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key']);
   });
 
