@@ -1,4 +1,11 @@
-import { expect, expectNoAxeViolations, signedInAs, showCompany, snap, test } from './support/fixtures';
+import {
+  expect,
+  expectNoAxeViolations,
+  signedInAs,
+  showCompany,
+  snap,
+  test,
+} from './support/fixtures';
 
 // The catalogue and the GST rates are shared by every company, and the seed writes none of them,
 // so these journeys open the screens and the add dialogs and close them again: no journey adds a
