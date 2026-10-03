@@ -60,7 +60,7 @@ CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when eith
 - **Load tests** (10k leads a day, 100 concurrent users, 50k-row imports), the voice latency and accuracy checks, the restore drill (DATABASE §10) and the Tally connector catch-up test, before go-live in Phase 7.
 
 ## 6. What CI runs
-`.github/workflows/ci.yml` on every push to `main`, every pull request and every automatic merge:
+`.github/workflows/ci.yml` on every push to `main`, every pull request and every automatic merge: a first job, *What changed*, lets a pull request that changes only documents (`docs/` and the Markdown files at the root) run the lint, unit-test and supply-chain jobs alone; the end-to-end and Lighthouse jobs run on pull requests only, since the run on `main` after an automatic merge repeats the tree its pull request already passed; every other job runs on every code change and on `main`.
 
 | Job | Steps |
 |---|---|
