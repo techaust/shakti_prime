@@ -505,6 +505,13 @@
       "when": 1790739534819,
       "tag": "0071_hsn_four_six_eight",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791054699887,
+      "tag": "0072_reader_covers_group",
+      "breakpoints": true
     }
   ]
 }
