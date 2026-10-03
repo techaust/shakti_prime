@@ -46,5 +46,11 @@ Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.
 | `sizing.peakSunHours` | 5.5 |
 | `sizing.performanceRatio` | 0.75 |
 | `sizing.roofAreaPerKwSqm` | 10 |
+| `sizing.motorMarginFraction` | 0.1 |
 | `sizing.standardHp` | 0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30 |
+| `sizing.dutyFlowTolerance` | 0.1 |
+| `sizing.dutyFlowOvershootFactor` | 1.5 |
+| `sizing.surfaceMaxSuctionLiftM` | 7 |
+| `sizing.maxPipeVelocityMps` | 2 |
+| `sizing.sanctionedLoadRatio` | 1 |
 | `sizing.dcrSchemes` | pm_surya_ghar, pm_kusum |
