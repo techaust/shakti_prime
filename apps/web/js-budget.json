@@ -23,12 +23,12 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the team grid, its row menu, saved views and the user dialogs. Measured 230.6 kB on 29-09-2026, plus 5 %."
     },
     "/customers": {
-      "maxKb": 270,
-      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB: the menu, company switcher and profile menu on Radix, toasts, tailwind-merge), and the customers grid with its search and saved views (about 14 kB), as the leads list does. Measured 257.1 kB on 30-09-2026, plus 5 %. Going lower means a smaller shell or grid."
+      "maxKb": 240,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the customers grid with its search and saved views. Measured 228.1 kB on 04-10-2026, plus 5 %."
     },
     "/customers/[accountId]": {
-      "maxKb": 264,
-      "reason": "Staff screen, over the 250 kB target: it loads the framework (about 176 kB) and the app shell every staff page shares (about 67 kB), and Account 360's sections, tag chips and task buttons (about 8 kB); its edit, task, note, consent and tag dialogs load when one is first opened. Measured 251.5 kB on 30-09-2026, plus 5 %. Going lower means a smaller shell."
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips and task buttons; its edit, task, note, consent and tag dialogs, with the proof uploader, load when one is first opened. Measured 193.1 kB on 04-10-2026, plus 5 %."
     },
     "/design": {
       "maxKb": 245,
