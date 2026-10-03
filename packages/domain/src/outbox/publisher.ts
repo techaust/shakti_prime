@@ -26,6 +26,13 @@ export interface OutboxPublisherOptions {
   logger?: Logger;
   /** The request id of the call that started the run, for its log lines. */
   requestId?: string | undefined;
+  /**
+   * Told the ids of every event the run dead-lettered: those the claim found with their attempts
+   * spent as soon as the lease commits, so they are told even when the delivery or the recording
+   * fails afterwards, and those whose last attempt failed here once the run has recorded them. The
+   * web app reports them to Sentry (ids and counts only).
+   */
+  onDeadLettered?: (ids: readonly string[]) => void;
 }
 
 /** Ids one warning line names at most; the count gives the rest. */
@@ -51,6 +58,7 @@ export async function runOutboxPublisher(
     failed: 0,
     deadLettered: 0,
   };
+  const failedDead: string[] = [];
   const deliver = async (rows: readonly OutboxRow[]): Promise<OutboxUpdate[]> => {
     const updates: OutboxUpdate[] = [];
     const toSend: DeliveredEvent[] = [];
@@ -75,7 +83,10 @@ export async function runOutboxPublisher(
             },
       );
       counts.failed += 1;
-      if (deadLetter) counts.deadLettered += 1;
+      if (deadLetter) {
+        counts.deadLettered += 1;
+        failedDead.push(row.id);
+      }
     };
 
     for (const row of rows) {
@@ -124,6 +135,7 @@ export async function runOutboxPublisher(
   // Logged as soon as the lease commits, before the delivery, which may throw.
   const spent = (ids: readonly string[]) => {
     counts.deadLettered += ids.length;
+    if (ids.length > 0) options.onDeadLettered?.(ids);
     const truncated = ids.length > DEAD_LETTER_LOG_IDS;
     options.logger?.log('warn', 'outbox.no_outcome_dead_lettered', {
       requestId: options.requestId,
@@ -139,5 +151,6 @@ export async function runOutboxPublisher(
     spent,
   );
   counts.claimed = claim.claimed;
+  if (failedDead.length > 0) options.onDeadLettered?.(failedDead);
   return counts;
 }

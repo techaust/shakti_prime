@@ -33,12 +33,12 @@ As in Linear, each theme is generated from three inputs in the LCH colour space.
 | `--surface-3` | Two steps from `--surface` toward the text | Hover rows, pressed states |
 | `--text` | The high-contrast end of the ladder | Primary text |
 | `--text-muted` | Ladder, AA on every surface | Secondary text, labels |
-| `--text-subtle` | Ladder, 3:1 on every surface | Placeholders, metadata |
+| `--text-subtle` | Ladder, 4.5:1 on every surface (AA): less prominent than `--text-muted` in the standard themes, about the same as it in the high-contrast variants, where both reach 7:1 | Placeholders, helpers, metadata |
 | `--border` | Ladder, one step from `--surface-2` | Default borders |
 | `--border-strong` | Ladder, 3:1 against `--surface` | Inputs, focused containers |
 | `--accent` | Accent | Buttons, active states, links on surfaces |
 | `--accent-hover` | Accent, one step darker in both themes, so the white label on it stays AA | Hover |
-| `--accent-text` | Accent, adjusted to AA on `--surface` (lighter in dark) | Accent-coloured text |
+| `--accent-text` | Accent, adjusted to AA on `--surface`, `--surface-2` and `--accent-soft` (lighter in dark) | Accent-coloured text |
 | `--accent-fg` | `#FFFFFF` in both themes (4.7:1 on `#5E6AD2`); in the dark high-contrast variant the lighter accent fill takes the page's near-black `#08090A`, because white on it would fall below the variant's 7:1 | Text on accent fills |
 | `--accent-soft` | Accent at low chroma, near the base | Accent tints, selected rows |
 | `--focus` | Accent | Focus ring (2 px, offset 2 px) |
@@ -164,11 +164,11 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 10. Quality checks
 - Contrast check over both themes in CI.
-- Playwright visual snapshots of the role home pages, caller workspace, quote builder, scheduling board and print templates in light and dark, from Phase 1, each screen joining as it is built.
+- Playwright journeys for every screen (`apps/web/e2e`) with axe over WCAG 2.1 A and AA and screenshots in desktop light, desktop dark and a 400 px phone, made and compared only in the Linux Playwright image (`pnpm --filter web e2e:snap`, and CI), with only times, the bot-check widget and generated codes masked (the lists are shown for a snapshot company only the seed writes, so their rows are real and the same every run); the caller workspace, quote builder, scheduling board and print templates join as they are built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
 - A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
-- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip): public pages measure 176 to 184 kB, staff pages 243 to 261 kB (the framework about 176 kB and the shared app shell about 67 kB); 5 of the 13 staff pages meet the 250 kB aim, and bringing the grid pages under it needs a smaller shell or grid (Phase 1).
+- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip): public pages measure 158 to 166 kB and staff pages 185 to 231 kB (the framework about 158 kB and the shared app shell about 20 kB), every staff page under the 250 kB aim. The company switcher's and profile menu's menus, the toasts and the search palette load after the page, and the last-resort error page carries only its own sentences, not the catalogue.
 - Copy lint over the message catalogue, which also holds the print strings, and the template JSON files under `packages/contracts/src/templates` (none yet; the first arrive in Phase 2); caller scripts and voice prompts join it when they exist (§11.4).
 
 ## 11. Voice and copy

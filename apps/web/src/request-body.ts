@@ -24,8 +24,17 @@ export async function readTextWithin(
   request: Request,
   maxBytes: number,
 ): Promise<string | undefined> {
+  const bytes = await readBytesWithin(request, maxBytes);
+  return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+}
+
+/** The body's bytes, on the same terms as `readTextWithin`. */
+export async function readBytesWithin(
+  request: Request,
+  maxBytes: number,
+): Promise<Uint8Array | undefined> {
   if (declaredTooLarge(request.headers, maxBytes)) return undefined;
-  if (request.body === null) return '';
+  if (request.body === null) return new Uint8Array(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -45,5 +54,5 @@ export async function readTextWithin(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(bytes);
+  return bytes;
 }

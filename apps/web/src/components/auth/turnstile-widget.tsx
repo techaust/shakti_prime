@@ -74,7 +74,8 @@ export function TurnstileWidget({
         strategy="afterInteractive"
         nonce={nonce}
       />
-      <div ref={container} className="min-h-[65px] w-full max-w-full" />
+      {/* data-dynamic: the widget changes from visit to visit, so screenshots mask it. */}
+      <div ref={container} data-dynamic className="min-h-[65px] w-full max-w-full" />
     </>
   );
 }

@@ -27,6 +27,10 @@ import {
 } from '../../screens/audit';
 import {
   CONTRASTS,
+  FILE_PURPOSES,
+  FILE_SANITISING,
+  FILE_SCAN_VERDICTS,
+  FILE_STATUSES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
   OPPORTUNITY_LOST_REASONS,
@@ -40,6 +44,7 @@ import {
   USER_STATUSES,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
+import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
 import { useCatalogueText } from '../catalogue/use-spec-text';
 import { useDeviceName } from '../users/sessions-sheet';
@@ -317,6 +322,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const errors = useTranslations('errors');
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
+  const files = useTranslations('files');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -358,6 +364,20 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return catalogue.unit(value);
       case 'priceTier':
         return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
+      case 'fileStatus':
+        return oneOf(FILE_STATUSES, value) ? files(`status.${value}`) : wordsOf(value);
+      case 'filePurpose':
+        return oneOf(FILE_PURPOSES, value) ? files(`purpose.${value}`) : wordsOf(value);
+      case 'contentType': {
+        const type = fileTypeKey(value);
+        return type === undefined ? wordsOf(value.replaceAll('/', ' ')) : files(`types.${type}`);
+      }
+      case 'scanVerdict':
+        return oneOf(FILE_SCAN_VERDICTS, value) ? files(`verdict.${value}`) : wordsOf(value);
+      case 'sanitising':
+        return oneOf(FILE_SANITISING, value) ? files(`sanitising.${value}`) : wordsOf(value);
+      case 'scanStatus':
+        return oneOf(SCAN_STATUSES, value) ? files(`scanStatus.${value}`) : wordsOf(value);
     }
   };
 }

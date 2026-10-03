@@ -9,10 +9,11 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:security": "turbo run test:security --concurrency=1",
+    "test:e2e": "turbo run test:e2e",
     "db:generate": "pnpm --filter @shakti/db db:generate",
     "db:migrate": "pnpm --filter @shakti/db db:migrate",
     "db:seed": "pnpm --filter @shakti/db db:seed",

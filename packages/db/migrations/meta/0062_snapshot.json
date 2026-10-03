@@ -1,6 +1,6 @@
 {
-  "id": "041b0844-f02a-4e0d-8f01-dc6a8459dca1",
-  "prevId": "4009b7cc-318d-436a-a637-0d79063e0695",
+  "id": "04aff5f0-52ad-4923-a482-715b14b13f41",
+  "prevId": "3e4b54c1-772b-4f44-8d82-5f519e8053c4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -800,7 +800,7 @@
         },
         "audit_logs_actor_kind_check": {
           "name": "audit_logs_actor_kind_check",
-          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session', 'system')"
         },
         "audit_logs_actor_check": {
           "name": "audit_logs_actor_check",
@@ -3382,14 +3382,6 @@
         "items_unit_check": {
           "name": "items_unit_check",
           "value": "\"items\".\"unit\" in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')"
-        },
-        "items_category_check": {
-          "name": "items_category_check",
-          "value": "\"items\".\"category\" in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')"
-        },
-        "items_specs_object_check": {
-          "name": "items_specs_object_check",
-          "value": "jsonb_typeof(\"items\".\"specs_json\") = 'object'"
         }
       },
       "isRLSEnabled": false
@@ -5137,12 +5129,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "approved_at": {
-          "name": "approved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -5261,10 +5247,6 @@
         "price_lists_effective_check": {
           "name": "price_lists_effective_check",
           "value": "\"price_lists\".\"effective_to\" is null or \"price_lists\".\"effective_to\" > \"price_lists\".\"effective_from\""
-        },
-        "price_lists_approval_check": {
-          "name": "price_lists_approval_check",
-          "value": "(\"price_lists\".\"approved_by\" is null) = (\"price_lists\".\"approved_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -5464,7 +5446,7 @@
       "checkConstraints": {
         "principals_kind_check": {
           "name": "principals_kind_check",
-          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session', 'system')"
         }
       },
       "isRLSEnabled": false
@@ -5905,7 +5887,7 @@
       "checkConstraints": {
         "roles_key_check": {
           "name": "roles_key_check",
-          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief')"
+          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief', 'system:workers')"
         }
       },
       "isRLSEnabled": false

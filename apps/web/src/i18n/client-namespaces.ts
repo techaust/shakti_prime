@@ -22,4 +22,6 @@ export const CLIENT_NAMESPACES = [
   'imports',
   'catalogue',
   'taxSettings',
+  'integrations',
+  'files',
 ] as const;

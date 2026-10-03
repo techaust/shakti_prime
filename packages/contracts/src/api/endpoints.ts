@@ -51,15 +51,13 @@ import {
   AgentRunResult,
   EmbeddingsIndexJob,
   EmbeddingsIndexResult,
-  FileMaskJob,
-  FileMaskResult,
-  FileScanJob,
-  FileScanResult,
   MessagingSendJob,
   MessagingSendResult,
   NotifyJob,
   NotifyResult,
   OutboxEventDelivery,
+  OutboxFailureCallback,
+  OutboxFailureResult,
   OutboxEventParams,
   OutboxEventResult,
   PdfRenderJob,
@@ -191,10 +189,11 @@ export const API_ENDPOINTS = {
     response: SyncPushResponse,
     errors: ['validation_failed', ...AUTHED, 'conflict'],
   },
+  // The web session today; the field app's bearer tokens are accepted once they exist.
   'files.presign': {
     method: 'POST',
     path: '/files/presign',
-    auth: 'bearer',
+    auth: 'session_or_bearer',
     idempotencyKey: true,
     request: FilePresignRequest,
     response: FilePresignResponse,
@@ -203,12 +202,12 @@ export const API_ENDPOINTS = {
   'files.complete': {
     method: 'POST',
     path: '/files/:id/complete',
-    auth: 'bearer',
+    auth: 'session_or_bearer',
     idempotencyKey: true,
     params: FileCompleteParams,
     request: FileCompleteRequest,
     response: FileCompleteResponse,
-    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict'],
+    errors: ['validation_failed', ...AUTHED, 'not_found', 'conflict', 'integration_unavailable'],
   },
   'attendance.checkIn': {
     method: 'POST',
@@ -370,6 +369,15 @@ export const API_ENDPOINTS = {
     // `validation_failed` for a signed body that is not an `ImportCommitWorkerBody`.
     errors: ['validation_failed', 'unauthorized', 'forbidden', 'integration_unavailable'],
   },
+  'workers.outbox.failed': {
+    method: 'POST',
+    path: '/workers/outbox/failed',
+    auth: 'qstash_signature',
+    idempotencyKey: false,
+    request: OutboxFailureCallback,
+    response: OutboxFailureResult,
+    errors: WORKER_ERRORS,
+  },
   'workers.outbox.event': {
     method: 'POST',
     path: '/workers/outbox/:type',
@@ -378,7 +386,9 @@ export const API_ENDPOINTS = {
     params: OutboxEventParams,
     request: OutboxEventDelivery,
     response: OutboxEventResult,
-    errors: WORKER_ERRORS,
+    // `not_found` for a type no worker handles; a worker's own refusal answers its code, and all
+    // but `validation_failed`, `forbidden` and `not_found` are retried.
+    errors: [...WORKER_ERRORS, 'not_found', 'forbidden', 'conflict', 'rate_limited', 'internal'],
   },
   'workers.messaging.send': {
     method: 'POST',
@@ -387,24 +397,6 @@ export const API_ENDPOINTS = {
     idempotencyKey: false,
     request: MessagingSendJob,
     response: MessagingSendResult,
-    errors: WORKER_ERRORS,
-  },
-  'workers.files.scan': {
-    method: 'POST',
-    path: '/workers/files/scan',
-    auth: 'qstash_signature',
-    idempotencyKey: false,
-    request: FileScanJob,
-    response: FileScanResult,
-    errors: WORKER_ERRORS,
-  },
-  'workers.files.mask': {
-    method: 'POST',
-    path: '/workers/files/mask',
-    auth: 'qstash_signature',
-    idempotencyKey: false,
-    request: FileMaskJob,
-    response: FileMaskResult,
     errors: WORKER_ERRORS,
   },
   'workers.pdf.render': {

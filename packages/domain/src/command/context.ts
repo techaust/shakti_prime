@@ -40,6 +40,8 @@ export interface CommandContext {
   audit: (change: AuditChange) => void;
   now: Date;
   requestId: string;
+  /** The runtime is hosted (`RunOptions.hosted`); true unless the caller said it is not. */
+  hosted: boolean;
   /**
    * Set when an import batch runs this command for one of its rows (`NestedRunOptions`): the
    * command then leaves out what only a person's own save needs, such as holding a new number.

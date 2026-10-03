@@ -47,6 +47,11 @@ playwright-report/
 test-results/
 blob-report/
 playwright/.cache/
+# End-to-end sessions, seeded people, reports and results (apps/web/e2e)
+apps/web/e2e/.auth/
+apps/web/e2e/playwright-report/
+apps/web/e2e/test-results/
+.lighthouseci/
 .spike-output/
 .vitest/
 

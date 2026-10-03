@@ -6,6 +6,7 @@ import {
   type Principal,
   type Scope,
 } from '@shakti/contracts';
+import type { Requirement } from '../command/define-command';
 import { checkPermission } from '../command/run-command';
 
 /**
@@ -24,6 +25,12 @@ export interface TransitionContext<P> {
   now: Date;
   /** What the event carries: a reason, a target stage, an e-way bill number. */
   params: P;
+  /**
+   * For a transition whose permission the input names (`permissionByInput`): the permission and
+   * scope the command resolved from its input, which the actor must hold. Without it such an
+   * event is refused.
+   */
+  requirement?: Requirement;
 }
 
 /** Why a guard refused. `reason` maps to a sentence in the message catalogue. */
@@ -58,6 +65,12 @@ export interface TransitionSpec<S extends string, E extends string, R, P> {
   to: S;
   /** The permission a person or agent needs, or null when only the platform fires the event. */
   permission: PermissionKey | null;
+  /**
+   * With `permission` null: the event is a person's, and the permission depends on the record's
+   * kind (a file's purpose). The command's guard checks it by input (`PermissionByInput`) before
+   * the transition runs; this names where the mapping lives, for the specification.
+   */
+  permissionByInput?: string;
   /** The narrowest scope that suffices; `own` when left out. */
   scope?: Scope;
   /** The platform (a scheduled job, a worker, the Tally connector) may also fire the event. */
@@ -129,7 +142,7 @@ export function defineMachine<S extends string, E extends string, R extends Mach
   const outgoing = new Set<string>();
   for (const t of transitions) {
     if (!known.has(t.to)) fail(name, `${t.event} goes to unknown state ${t.to}`);
-    if (t.permission === null && t.system !== true) {
+    if (t.permission === null && t.system !== true && t.permissionByInput === undefined) {
       fail(name, `${t.event} has no permission and is not fired by the platform`);
     }
     if (t.permission !== null && !PERMISSIONS.has(t.permission)) {
@@ -195,6 +208,7 @@ function authorise<S extends string, E extends string, R, P>(
   machine: Machine<S, E, R, P>,
   t: TransitionSpec<S, E, R, P>,
   actor: Actor,
+  requirement: Requirement | undefined,
 ): void {
   if (actor.kind === 'system') {
     if (t.system === true) return;
@@ -203,6 +217,17 @@ function authorise<S extends string, E extends string, R, P>(
     });
   }
   if (t.permission === null) {
+    if (t.permissionByInput !== undefined) {
+      // The permission the command resolved from its input (`PermissionByInput`), checked again
+      // here, so a caller that fires the event without resolving it is refused.
+      if (requirement === undefined) {
+        throw new DomainError('forbidden', `${machine.name}.${t.event} needs its permission`, {
+          event: t.event,
+        });
+      }
+      checkPermission(actor.principal, requirement.permission, requirement.minScope);
+      return;
+    }
     throw new DomainError('forbidden', `${machine.name}.${t.event} is fired by the platform`, {
       event: t.event,
     });
@@ -229,7 +254,7 @@ export function transition<S extends string, E extends string, R extends Machine
       { reason: machine.illegalReason, state: record.state, event },
     );
   }
-  authorise(machine, t, ctx.actor);
+  authorise(machine, t, ctx.actor, ctx.requirement);
   const failure = t.guard?.check(record, ctx);
   if (failure) {
     throw new DomainError(failure.code, `${machine.name}.${event}: ${failure.reason}`, {

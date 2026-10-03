@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const queue = vi.hoisted(() => ({
   batchJSON: vi.fn<(messages: unknown[]) => Promise<unknown[]>>(),
   publishJSON: vi.fn<(message: unknown) => Promise<unknown>>(),
+  addEndpoints: vi.fn<(group: unknown) => Promise<void>>(),
   options: [] as unknown[],
 }));
 
@@ -14,6 +15,7 @@ vi.mock('@upstash/qstash', () => ({
     }
     batchJSON = queue.batchJSON;
     publishJSON = queue.publishJSON;
+    urlGroups = { addEndpoints: queue.addEndpoints };
   },
   Receiver: class {
     verify() {
@@ -23,6 +25,7 @@ vi.mock('@upstash/qstash', () => ({
 }));
 
 const {
+  forgetEnsuredUrlGroups,
   nudgeViaQStash,
   publishImportCommit,
   qstashConfig,
@@ -53,7 +56,10 @@ function event(type: DeliveredEvent['type'] = 'crm.lead.created'): DeliveredEven
 beforeEach(() => {
   queue.batchJSON.mockReset();
   queue.publishJSON.mockReset();
+  queue.addEndpoints.mockReset();
+  queue.addEndpoints.mockResolvedValue(undefined);
   queue.options.length = 0;
+  forgetEnsuredUrlGroups();
 });
 
 describe('qstashConfig', () => {
@@ -84,7 +90,7 @@ describe('qstashEventPublisher', () => {
   const config = qstashConfig(ENV);
   if (config === undefined) throw new Error('test configuration is incomplete');
 
-  it('sends one batch, each event to its type group with its id as the deduplication id', async () => {
+  it('sends one batch, each event to its type group with its id as the deduplication id and the failure callback', async () => {
     const events = [event(), event('pricing.price.changed')];
     queue.batchJSON.mockResolvedValue([
       [{ messageId: 'm1', url: 'u' }],
@@ -92,8 +98,18 @@ describe('qstashEventPublisher', () => {
     ]);
     const results = await qstashEventPublisher(config).publish(events);
     expect(queue.batchJSON).toHaveBeenCalledWith([
-      { urlGroup: 'evt-crm.lead.created', body: events[0], deduplicationId: events[0]?.id },
-      { urlGroup: 'evt-pricing.price.changed', body: events[1], deduplicationId: events[1]?.id },
+      {
+        urlGroup: 'evt-crm.lead.created',
+        body: events[0],
+        deduplicationId: events[0]?.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
+      {
+        urlGroup: 'evt-pricing.price.changed',
+        body: events[1],
+        deduplicationId: events[1]?.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
     ]);
     expect(results).toEqual(events.map((e) => ({ id: e.id, ok: true })));
     expect(queue.options[0]).toMatchObject({ enableTelemetry: false, devMode: false });
@@ -107,9 +123,48 @@ describe('qstashEventPublisher', () => {
     expect(results[0]).toMatchObject({ error: 'queue_refused' });
   });
 
+  it('makes sure of each type’s queue group once per process, before its first event', async () => {
+    queue.batchJSON.mockImplementation((messages) =>
+      Promise.resolve(messages.map(() => [{ messageId: 'm', url: 'u' }])),
+    );
+    const publisher = qstashEventPublisher(config);
+    await publisher.publish([event(), event(), event('files.file.uploaded')]);
+    expect(queue.addEndpoints.mock.calls.map((c) => c[0])).toEqual([
+      {
+        name: 'evt-crm.lead.created',
+        endpoints: [
+          { name: 'bos', url: 'https://bos.example.in/api/v1/workers/outbox/crm.lead.created' },
+        ],
+      },
+      {
+        name: 'evt-files.file.uploaded',
+        endpoints: [
+          { name: 'bos', url: 'https://bos.example.in/api/v1/workers/outbox/files.file.uploaded' },
+        ],
+      },
+    ]);
+    expect(queue.addEndpoints.mock.invocationCallOrder[1]).toBeLessThan(
+      queue.batchJSON.mock.invocationCallOrder[0] ?? 0,
+    );
+    await qstashEventPublisher(config).publish([event('files.file.uploaded'), event()]);
+    expect(queue.addEndpoints).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends the batch when a group cannot be made sure of, and asks again on the next run', async () => {
+    queue.addEndpoints.mockRejectedValueOnce(new Error('queue unreachable'));
+    queue.batchJSON.mockResolvedValue([{ error: 'url group not found' }]);
+    const first = await qstashEventPublisher(config).publish([event('files.file.uploaded')]);
+    expect(first[0]).toMatchObject({ ok: false, error: 'queue_refused' });
+    queue.batchJSON.mockResolvedValue([[{ messageId: 'm', url: 'u' }]]);
+    const second = await qstashEventPublisher(config).publish([event('files.file.uploaded')]);
+    expect(second[0]).toMatchObject({ ok: true });
+    expect(queue.addEndpoints).toHaveBeenCalledTimes(2);
+  });
+
   it('sends nothing for an empty run', async () => {
     expect(await qstashEventPublisher(config).publish([])).toEqual([]);
     expect(queue.batchJSON).not.toHaveBeenCalled();
+    expect(queue.addEndpoints).not.toHaveBeenCalled();
   });
 });
 

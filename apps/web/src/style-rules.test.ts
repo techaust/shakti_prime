@@ -30,7 +30,7 @@ const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
     why: "the bot check's own frame is 65 px tall; holding the space keeps the form still",
   },
   {
-    name: 'components/shell/company-switcher.tsx',
+    name: 'components/shell/menu-triggers.tsx',
     value: 'max-w-[min(16rem,45vw)]',
     why: 'a long company name is cut short before it crowds the top bar on a phone',
   },

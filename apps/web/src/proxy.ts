@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { contentSecurityPolicy } from './csp';
+import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
 import { needsSignIn } from './session-gate';
 
 /**
@@ -15,7 +15,12 @@ export function proxy(request: NextRequest): NextResponse {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = contentSecurityPolicy(nonce, process.env.NODE_ENV === 'development');
+  const csp = contentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV === 'development',
+    sentryIngestOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN),
+    fileUploadOrigins(process.env),
+  );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);
   requestHeaders.set('Content-Security-Policy', csp);

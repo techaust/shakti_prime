@@ -8,6 +8,12 @@ import {
   KIT_SORT_COLUMNS as CONTRACT_KIT_SORT_COLUMNS,
   PriceListStateSchema,
   PriceTierCodeSchema,
+  FilePurposeSchema,
+  FileRejectReasonSchema,
+  FileSanitisingSchema,
+  FileScanVerdictInputSchema,
+  FileStatusSchema,
+  UploadContentTypeSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
@@ -38,6 +44,12 @@ import {
   KIT_SORT_COLUMNS,
   PRICE_LIST_STATES,
   PRICE_TIER_CODES,
+  FILE_PURPOSES,
+  FILE_REJECT_REASONS,
+  FILE_SANITISING,
+  FILE_SCAN_VERDICTS,
+  FILE_STATUSES,
+  UPLOAD_CONTENT_TYPES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
@@ -72,6 +84,12 @@ describe('the contract values copied for the browser', () => {
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
     expect(PRICE_TIER_CODES).toEqual(PriceTierCodeSchema.options);
+    expect(FILE_STATUSES).toEqual(FileStatusSchema.options);
+    expect(FILE_PURPOSES).toEqual(FilePurposeSchema.options);
+    expect(UPLOAD_CONTENT_TYPES).toEqual(UploadContentTypeSchema.options);
+    expect(FILE_REJECT_REASONS).toEqual(FileRejectReasonSchema.options);
+    expect(FILE_SCAN_VERDICTS).toEqual(FileScanVerdictInputSchema.options);
+    expect(FILE_SANITISING).toEqual(FileSanitisingSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {

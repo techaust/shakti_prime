@@ -1,7 +1,10 @@
 import { sql } from 'drizzle-orm';
 import { check, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
-/** Anyone who can act: a user, an agent service principal or a voice session (docs/DATABASE.md §6.1). */
+/**
+ * Anyone who can act: a user, an agent service principal, a voice session or the system principal
+ * the event workers act as (docs/DATABASE.md §6.1).
+ */
 export const principals = pgTable(
   'principals',
   {
@@ -14,5 +17,7 @@ export const principals = pgTable(
     createdBy: uuid('created_by').references((): AnyPgColumn => principals.id),
     updatedBy: uuid('updated_by').references((): AnyPgColumn => principals.id),
   },
-  (t) => [check('principals_kind_check', sql`${t.kind} in ('user', 'agent', 'voice_session')`)],
+  (t) => [
+    check('principals_kind_check', sql`${t.kind} in ('user', 'agent', 'voice_session', 'system')`),
+  ],
 );

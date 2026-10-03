@@ -7,6 +7,12 @@ import type {
   KitSort,
   PriceListState,
   SpecField,
+  FilePurpose,
+  FileRejectReason,
+  FileSanitising,
+  FileScanVerdictInput,
+  FileStatus,
+  UploadContentType,
   ImportJobSort,
   ImportJobState,
   ImportKind,
@@ -258,3 +264,62 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
+
+/** `files.status`. */
+export const FILE_STATUSES = [
+  'pending',
+  'scanning',
+  'scanned',
+  'not_scanned',
+  'masked',
+  'ready',
+  'rejected',
+] as const satisfies readonly FileStatus[];
+
+/** What a stored file is for. */
+export const FILE_PURPOSES = [
+  'job_photo',
+  'survey_photo',
+  'qc_photo',
+  'receipt',
+  'signature',
+  'selfie',
+  'customer_document',
+  'import',
+  'quote_pdf',
+  'signed_quote',
+  'entity_logo',
+  'letterhead',
+  'knowledge',
+  'consent_evidence',
+] as const satisfies readonly FilePurpose[];
+
+/** The types an upload may be, each with its short name under `files.types`. */
+export const UPLOAD_CONTENT_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+] as const satisfies readonly UploadContentType[];
+
+/** Why the checks refused a file; each has a sentence under `errors`. */
+export const FILE_REJECT_REASONS = [
+  'file_infected',
+  'file_scan_failed',
+  'file_not_scanned',
+  'file_unreadable',
+  'file_image_too_large',
+  'file_pdf_active_content',
+  'file_mask_failed',
+] as const satisfies readonly FileRejectReason[];
+
+/** What the malware scan said, and what the checks did to the bytes. */
+export const FILE_SCAN_VERDICTS = [
+  'no_threats_found',
+  'not_scanned',
+] as const satisfies readonly FileScanVerdictInput[];
+export const FILE_SANITISING = [
+  're_encoded',
+  'pdf_checked',
+  'masked',
+] as const satisfies readonly FileSanitising[];

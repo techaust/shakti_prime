@@ -1,4 +1,8 @@
-import type { AgentRoleKey } from '@shakti/contracts';
+import {
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type AgentRoleKey,
+  type SystemRoleKey,
+} from '@shakti/contracts';
 
 /** One service principal per agent (docs/SECURITY.md §3.3). Users arrive with Better Auth. */
 export const AGENT_PRINCIPAL_SEED: readonly {
@@ -36,4 +40,13 @@ export const AGENT_PRINCIPAL_SEED: readonly {
     roleKey: 'agent:chief',
     displayName: 'Chief of Staff',
   },
+];
+
+/** The system principal the event workers act as (docs/SECURITY.md §3.3). */
+export const SYSTEM_PRINCIPAL_SEED: readonly {
+  id: string;
+  roleKey: SystemRoleKey;
+  displayName: string;
+}[] = [
+  { id: SYSTEM_WORKERS_PRINCIPAL_ID, roleKey: 'system:workers', displayName: 'Event workers' },
 ];

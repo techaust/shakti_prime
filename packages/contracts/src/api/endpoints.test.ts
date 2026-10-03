@@ -62,7 +62,7 @@ describe('the /api/v1 endpoint catalogue', () => {
       [...workers.matchAll(/^\| POST \| `([^`]+)`/gm)].map((m) => m[1] ?? ''),
     );
     const catalogued = entries.filter(([, e]) => e.path.startsWith('/workers/'));
-    expect(catalogued.length).toBeGreaterThan(9);
+    expect(catalogued.length).toBeGreaterThan(8);
     for (const [, e] of catalogued) expect(documented).toContain(e.path);
   });
 

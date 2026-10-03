@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 import { CLIENT_NAMESPACES } from '../i18n/client-namespaces';
 import { requestNonce } from '../nonce';
+import { browserSentrySettings } from '../observability/sentry-options';
 import { CONTRAST_COOKIE, HIGH_CONTRAST, isHighContrast, THEME_COOKIE } from '../theme';
 import './globals.css';
 import { Providers } from './providers';
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Providers
           defaultTheme={saved.success ? saved.data : 'system'}
           nonce={await requestNonce()}
+          sentry={browserSentrySettings()}
         >
           <NextIntlClientProvider messages={clientMessages}>{children}</NextIntlClientProvider>
         </Providers>

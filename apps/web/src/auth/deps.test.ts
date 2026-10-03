@@ -62,10 +62,39 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     }
   });
 
-  it('refuses production until a mail provider exists', () => {
+  it('refuses production without SES', () => {
     expect(productionConfigProblems({ ...GOOD, BOS_ENVIRONMENT: 'production' })).toEqual([
-      'MAILER=log is not a mail provider; production needs one',
+      'MAILER=log is not a mail provider; production needs ses',
     ]);
+  });
+
+  it('accepts SES from its verified sender, in production and elsewhere', () => {
+    const ses = { MAILER: 'ses', SES_FROM: 'no-reply@shakti.example.in' };
+    for (const BOS_ENVIRONMENT of ['dev', 'staging', 'production']) {
+      expect(productionConfigProblems({ ...GOOD, ...ses, BOS_ENVIRONMENT })).toEqual([]);
+    }
+  });
+
+  it('refuses SES without its sender', () => {
+    expect(productionConfigProblems({ ...GOOD, MAILER: 'ses' })).toEqual([
+      'MAILER=ses needs SES_FROM',
+    ]);
+  });
+
+  it('refuses the development key for field encryption', () => {
+    expect(
+      productionConfigProblems({
+        ...GOOD,
+        FIELD_ENCRYPTION_KEY: Buffer.from('development key for the configuration test').toString(
+          'base64',
+        ),
+      }),
+    ).toEqual(['FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key']);
+  });
+
+  it('starts without any file storage or key settings', () => {
+    const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
+    expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);
   });
 });
 
@@ -76,5 +105,48 @@ describe('hostedRuntime', () => {
       false,
     );
     expect(hostedRuntime({ NODE_ENV: 'development' })).toBe(false);
+  });
+
+  it('is false only for a local production build that runs on this machine, never on Vercel', () => {
+    const local: NodeJS.ProcessEnv = { NODE_ENV: 'production', BOS_ENVIRONMENT: 'local' };
+    for (const url of ['http://localhost:3031', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+      expect(hostedRuntime({ ...local, BETTER_AUTH_URL: url })).toBe(false);
+    }
+    // The marker with any other address, or with none, is a hosted runtime and fails closed.
+    for (const url of [
+      'https://bos.example.in',
+      'http://192.168.1.67:3031',
+      'http://localhost.example.in',
+      'not a url',
+      '',
+    ]) {
+      expect(hostedRuntime({ ...local, BETTER_AUTH_URL: url })).toBe(true);
+    }
+    expect(hostedRuntime(local)).toBe(true);
+    expect(hostedRuntime({ ...local, BETTER_AUTH_URL: 'http://localhost:3031', VERCEL: '1' })).toBe(
+      true,
+    );
+    expect(
+      hostedRuntime({
+        NODE_ENV: 'production',
+        BOS_ENVIRONMENT: 'staging',
+        BETTER_AUTH_URL: 'http://localhost:3031',
+      }),
+    ).toBe(true);
+    expect(
+      hostedRuntime({
+        ...local,
+        BOS_ENVIRONMENT: 'Local',
+        BETTER_AUTH_URL: 'http://localhost:3031',
+      }),
+    ).toBe(true);
+  });
+
+  it('refuses to start on Vercel with the local marker', () => {
+    const env = { ...GOOD, BOS_ENVIRONMENT: 'local', VERCEL: '1' };
+    expect(hostedRuntime(env)).toBe(true);
+    expect(productionConfigProblems(env)).toEqual([
+      'BOS_ENVIRONMENT must be one of dev, staging, production',
+    ]);
   });
 });

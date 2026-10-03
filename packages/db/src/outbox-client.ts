@@ -159,6 +159,25 @@ export const postgresOutboxLeaseStore: OutboxLeaseStore = {
 
 export const claimOutbox: ClaimOutbox = leasedClaim(postgresOutboxLeaseStore);
 
+/**
+ * QStash gave up on an event's worker (its failure callback): the event, recorded as delivered
+ * when the queue took it, is held back as a dead letter with the worker's error, so Integration
+ * Health lists it, the owner is told and Send again replays it. Only a delivered event that is not
+ * already held back changes; the outbox trigger allows exactly this change, and only to this role.
+ */
+export async function holdBackFailedEvent(
+  eventId: string,
+  lastError: 'worker_failed' | 'worker_refused',
+): Promise<'held' | 'unchanged'> {
+  const rows = await outboxSql()`
+    update outbox_events
+       set published_at = null, dead_lettered_at = now(), last_error = ${lastError},
+           next_attempt_at = null, claimed_until = null
+     where id = ${eventId} and published_at is not null and dead_lettered_at is null
+    returning id`;
+  return rows.length === 1 ? 'held' : 'unchanged';
+}
+
 export async function outboxLag(): Promise<OutboxLag> {
   // A pending event became due at the latest of its creation, its backoff and its lease; one
   // whose moment has passed is due now. Both reads stay on the partial indexes.

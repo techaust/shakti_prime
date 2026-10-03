@@ -35,7 +35,10 @@ function fromText(t: AnyTransition): string {
 
 function permissionText(t: AnyTransition): string {
   const parts: string[] = [];
-  if (t.permission === null) {
+  if (t.permission === null && t.permissionByInput !== undefined) {
+    parts.push(`the permission of ${t.permissionByInput}`);
+    if (t.system === true) parts.push('or the platform');
+  } else if (t.permission === null) {
     parts.push('the platform only');
   } else {
     const scope = t.scope && t.scope !== 'own' ? ` at ${t.scope} scope or wider` : '';

@@ -1,5 +1,10 @@
 import { DomainError, newId, type Principal } from '@shakti/contracts';
-import { withRequestContext, type RequestContext, type RequestScope } from '@shakti/db';
+import {
+  readerConfigured,
+  withRequestContext,
+  type RequestContext,
+  type RequestScope,
+} from '@shakti/db';
 import type { z } from 'zod';
 import { redactForAudit } from '../audit/redact';
 import { databaseAuditSink, type AuditRecord } from '../audit/sink';
@@ -24,6 +29,11 @@ export interface ExecuteOptions extends Omit<RunOptions, 'context' | 'audit' | '
 export interface QueryOptions {
   /** The query's name in its log line; the function's own name when left out. */
   name?: string;
+  /**
+   * The pool the query reads on: `app_reader`'s when `DATABASE_URL_READER` is set, otherwise
+   * `app_user`'s in a read-only transaction. Tests name one to compare the two.
+   */
+  pool?: 'reader' | 'app_user';
   logger?: Logger;
   clock?: Clock;
 }
@@ -174,6 +184,10 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
  * the outbox, so Postgres refuses any insert, update, delete or sequence step there (SQLSTATE
  * 25006). A function that ends the transaction itself (`commit`) loses the RLS settings with it,
  * so a write after that is refused by row security instead (SQLSTATE 42501).
+ *
+ * Where `DATABASE_URL_READER` is set the query runs on the `app_reader` pool instead, whose role
+ * holds `select` only under the same policies (docs/DATABASE.md §3), so a write is refused for
+ * want of the privilege too, whatever the function does with its transaction.
  */
 export function executeQuery<T>(
   principal: Principal,
@@ -187,6 +201,10 @@ export function executeQuery<T>(
     options.name ?? (query.name === '' ? 'anonymous' : query.name),
     requestId,
     timingOptions(options.logger, options.clock),
-    () => withRequestContext(principal, { ...scope, requestId }, query, { readOnly: true }),
+    () =>
+      withRequestContext(principal, { ...scope, requestId }, query, {
+        readOnly: true,
+        reader: (options.pool ?? (readerConfigured() ? 'reader' : 'app_user')) === 'reader',
+      }),
   );
 }
