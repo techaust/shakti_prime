@@ -1,6 +1,7 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
   Building2,
+  Cable,
   FileUp,
   House,
   IndianRupee,
@@ -103,6 +104,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: ScrollText,
     group: 'admin',
     requires: [{ key: 'audit.read', scope: 'entity' }],
+  },
+  {
+    id: 'admin-integrations',
+    href: '/admin/integrations',
+    label: 'adminIntegrations',
+    icon: Cable,
+    group: 'admin',
+    // app.outbox_health() and platform.probe.run
+    requires: [{ key: 'admin.integrations.write', scope: 'all' }],
   },
   {
     id: 'settings-companies',

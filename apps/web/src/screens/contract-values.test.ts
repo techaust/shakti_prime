@@ -1,5 +1,11 @@
 import {
   ContrastSchema,
+  FilePurposeSchema,
+  FileRejectReasonSchema,
+  FileSanitisingSchema,
+  FileScanVerdictInputSchema,
+  FileStatusSchema,
+  UploadContentTypeSchema,
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
@@ -23,6 +29,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CONTRASTS,
   COST_PERMISSION_KEYS,
+  FILE_PURPOSES,
+  FILE_REJECT_REASONS,
+  FILE_SANITISING,
+  FILE_SCAN_VERDICTS,
+  FILE_STATUSES,
+  UPLOAD_CONTENT_TYPES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
@@ -54,6 +66,12 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(FILE_STATUSES).toEqual(FileStatusSchema.options);
+    expect(FILE_PURPOSES).toEqual(FilePurposeSchema.options);
+    expect(UPLOAD_CONTENT_TYPES).toEqual(UploadContentTypeSchema.options);
+    expect(FILE_REJECT_REASONS).toEqual(FileRejectReasonSchema.options);
+    expect(FILE_SCAN_VERDICTS).toEqual(FileScanVerdictInputSchema.options);
+    expect(FILE_SANITISING).toEqual(FileSanitisingSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {

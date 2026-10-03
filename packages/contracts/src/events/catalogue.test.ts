@@ -49,9 +49,22 @@ describe('the event catalogue', () => {
     });
   });
 
-  it('has no subscribed type until the first worker exists', () => {
-    expect(EVENT_TYPES.filter(isSubscribed)).toEqual([]);
+  it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
+    expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
+      ['files.file.uploaded', 'platform.probe.requested'].sort(),
+    );
     expect(isSubscribed('crm.lead.vanished')).toBe(false);
+  });
+
+  it('carries the delivery check as a moment and nothing else', () => {
+    const requestedAt = '2026-09-29T10:00:00.000Z';
+    expect(parseEventPayload('platform.probe.requested', { requestedAt })).toEqual({
+      ok: true,
+      payload: { requestedAt, v: EVENT_VERSION },
+    });
+    expect(
+      parseEventPayload('platform.probe.requested', { requestedAt: 'yesterday' }),
+    ).toMatchObject({ ok: false, problem: 'bad_payload' });
   });
 
   it('describes the delivered message, version included', () => {

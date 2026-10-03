@@ -1,7 +1,7 @@
 import {
   DomainError,
   IssueRealtimeTokenInput,
-  isAgentRole,
+  isStaffRole,
   newId,
   RealtimeTokenGrant,
 } from '@shakti/contracts';
@@ -25,7 +25,7 @@ export const issueRealtimeToken = defineCommand({
   auditFields: ['bosRole'],
   handler(ctx) {
     const { principal } = ctx;
-    if (principal.kind !== 'user' || isAgentRole(principal.roleKey)) {
+    if (principal.kind !== 'user' || !isStaffRole(principal.roleKey)) {
       throw new DomainError('forbidden', 'only a signed-in person receives a Realtime token');
     }
     const entityIds = [...new Set(ctx.entityIds)].sort((a, b) => a - b);

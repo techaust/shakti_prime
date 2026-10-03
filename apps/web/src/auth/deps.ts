@@ -6,7 +6,9 @@ import {
   type Logger,
   type Mailer,
 } from '@shakti/domain';
+import { AWS_DEFAULT_REGION } from '../aws-region';
 import { logger } from '../log';
+import { sesMailer } from '../mail/ses-mailer';
 import { upstashKeyValue } from './upstash-key-value';
 
 /** What the auth module needs from the outside world, injectable for tests. */
@@ -55,9 +57,32 @@ const BOS_ENVIRONMENTS = ['dev', 'staging', 'production'] as const;
 /** Cloudflare's published Turnstile test keys, which pass or fail every visitor. */
 const TURNSTILE_TEST_KEY = /^[123]x0+AA$/;
 
+/**
+ * `BOS_ENVIRONMENT=local` marks a production build started on a developer's machine or a CI
+ * runner (`next start` for the end-to-end journeys and Lighthouse), which uses the local stores
+ * and the console mailer. It counts only with `BETTER_AUTH_URL` on this machine (localhost,
+ * 127.0.0.1 or [::1]) and never on Vercel, where `VERCEL` is always set. Any other production
+ * runtime is hosted and fails closed: with the marker, `BOS_ENVIRONMENT` is not one of the three
+ * hosted names, so it refuses to start.
+ */
+const LOCAL_PRODUCTION = 'local';
+const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function onThisMachine(url: string | undefined): boolean {
+  if (url === undefined || url === '') return false;
+  try {
+    return LOCAL_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** True at runtime of a hosted deployment; false locally, in tests and during `next build`. */
 export function hostedRuntime(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.NODE_ENV === 'production' && env.NEXT_PHASE !== 'phase-production-build';
+  if (env.NODE_ENV !== 'production' || env.NEXT_PHASE === 'phase-production-build') return false;
+  const onVercel = env.VERCEL !== undefined && env.VERCEL !== '';
+  const local = env.BOS_ENVIRONMENT === LOCAL_PRODUCTION && onThisMachine(env.BETTER_AUTH_URL);
+  return onVercel || !local;
 }
 
 /** The problems that stop a hosted deployment from starting; empty when it may start. */
@@ -84,15 +109,21 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
     }
   }
 
-  // No mail provider is wired yet (SES arrives before any environment holds real staff). Until
-  // then a hosted environment other than production may log that a message went out, never the
-  // message: a set-password link in a log opens the account (AUDIT M9).
+  // Mail goes through SES (`MAILER=ses`, from the verified `SES_FROM`). A hosted environment other
+  // than production may instead log that a message went out, never the message: a set-password
+  // link in a log opens the account (AUDIT M9). Production sends through SES only.
   const mailer = env.MAILER ?? '';
-  if (environment === 'production') {
+  if (mailer === 'ses') {
+    if ((env.SES_FROM ?? '') === '') problems.push('MAILER=ses needs SES_FROM');
+  } else if (environment === 'production') {
     if (mailer !== '')
-      problems.push(`MAILER=${mailer} is not a mail provider; production needs one`);
+      problems.push(`MAILER=${mailer} is not a mail provider; production needs ses`);
   } else if (mailer !== '' && mailer !== 'log') {
-    problems.push('MAILER must be "log" on a hosted environment without a mail provider');
+    problems.push('MAILER must be "ses" or "log" on a hosted environment');
+  }
+  // The development master key for field encryption never protects hosted data; KMS does.
+  if ((env.FIELD_ENCRYPTION_KEY ?? '') !== '') {
+    problems.push('FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key');
   }
   return problems;
 }
@@ -128,6 +159,19 @@ function hostnameOf(url: string | undefined): string | undefined {
   }
 }
 
+/**
+ * SES on a hosted runtime that names it; otherwise a hosted runtime logs the recipient only, and a
+ * developer's machine prints whole messages, so an invite or reset link can be followed there.
+ */
+function hostedMailer(hosted: boolean, env: NodeJS.ProcessEnv = process.env): Mailer {
+  if (!hosted) return consoleMailer();
+  if (env.MAILER === 'ses' && (env.SES_FROM ?? '') !== '') {
+    const region = (env.AWS_REGION ?? '') === '' ? AWS_DEFAULT_REGION : String(env.AWS_REGION);
+    return sesMailer({ from: String(env.SES_FROM), region });
+  }
+  return recipientOnlyMailer();
+}
+
 let deps: AuthDeps | undefined;
 
 export function defaultAuthDeps(): AuthDeps {
@@ -135,8 +179,7 @@ export function defaultAuthDeps(): AuthDeps {
   if (deps === undefined && hosted) assertProductionConfig();
   deps ??= {
     keyValue: upstashOrMemoryKeyValue(),
-    // Full messages only on a developer's machine; hosted runtimes log the recipient only.
-    mailer: hosted ? recipientOnlyMailer() : consoleMailer(),
+    mailer: hostedMailer(hosted),
     fetch: (...args) => fetch(...args),
     now: () => new Date(),
     turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY ?? '',

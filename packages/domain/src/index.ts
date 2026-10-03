@@ -1,5 +1,5 @@
 export { defineCommand } from './command/define-command';
-export type { AnyCommand, Command } from './command/define-command';
+export type { AnyCommand, Command, PermissionByInput, Requirement } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
 export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
@@ -37,6 +37,7 @@ export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { clearSignInLock } from './commands/admin/clear-sign-in-lock';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
+export { runDeliveryProbe } from './commands/platform/run-probe';
 export { setTheme } from './commands/profile/set-theme';
 export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
@@ -63,8 +64,27 @@ export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
 export { importRowKey, rollbackChunks } from './imports/row-key';
-export { assertFileKey, localDiskFileStore, memoryFileStore } from './ports/file-store';
-export type { FileStore } from './ports/file-store';
+export {
+  assertFileKey,
+  contentDisposition,
+  localDiskFileStore,
+  memoryFileStore,
+  PRESIGN_SECONDS,
+  rfc5987,
+  sha256Hex,
+  signLocalGrant,
+  verifyLocalGrant,
+} from './ports/file-store';
+export type {
+  FileStore,
+  LocalDiskOptions,
+  LocalGrant,
+  PresignedGet,
+  PresignedPut,
+  PresignGetOptions,
+  PresignPutRequest,
+  StoredObject,
+} from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,
@@ -81,7 +101,7 @@ export {
   SIGN_IN_NOTICE_EVERY,
 } from './auth/lockout';
 export type { Lockout, SignInGuard } from './auth/lockout';
-export { memoryKeyValue } from './ports/key-value';
+export { greaterNumber, memoryKeyValue } from './ports/key-value';
 export type { KeyValue } from './ports/key-value';
 export { consoleMailer, memoryMailer, recipientOnlyMailer } from './ports/mailer';
 export { jsonLogger, memoryLogger, redact, redactError, redactText } from './ports/logger';
@@ -89,6 +109,8 @@ export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
 export { listEntities } from './queries/org/list-entities';
+export { readOutboxHealth } from './queries/platform/outbox-health';
+export type { OutboxHealth } from './queries/platform/outbox-health';
 export { toEntityDto } from './queries/org/entity-dto';
 export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
@@ -217,3 +239,34 @@ export type {
   SnapshotLimits,
   StoredVoucher,
 } from './tally/sync-rules';
+export { beginUpload } from './commands/files/begin-upload';
+export { completeUpload } from './commands/files/complete-upload';
+export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { countFilesAwaitingChecks } from './queries/files/file-queries';
+export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export type { StoredFile } from './queries/files/file-queries';
+export {
+  FILE_PURPOSE_RULES,
+  filePurposeGrant,
+  UPLOADABLE_PURPOSES,
+  uploadPermission,
+} from './files/purposes';
+export type { FilePurposeRule } from './files/purposes';
+export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export type { UploadLimit, UploadLimitProblem } from './files/limits';
+export { fileUploadMachine } from './state-machines/machines/file-upload';
+export {
+  contextBytes,
+  contextFields,
+  envelopeCipher,
+  FieldCipherError,
+  FieldEnvelopeSchema,
+  localKeyProvider,
+} from './privacy/field-cipher';
+export type {
+  CipherContext,
+  DataKeyProvider,
+  FieldCipher,
+  FieldEnvelope,
+} from './privacy/field-cipher';

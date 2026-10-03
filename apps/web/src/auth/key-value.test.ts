@@ -85,6 +85,20 @@ function fakeUpstash(now: () => number) {
         cells.set(key, { value: String(next), expiresAt: cell?.expiresAt ?? null });
         return { reply: next };
       }
+      case 'EVAL': {
+        // Only the one script the adapter sends: raise a stored whole number (`raiseTo`).
+        const [target = '', value = '', ttl = '0'] = args.slice(1);
+        const cell = live(target);
+        const current = cell?.value;
+        if (
+          current !== undefined &&
+          (current.length > value.length || (current.length === value.length && current >= value))
+        ) {
+          return { reply: current };
+        }
+        cells.set(target, { value, expiresAt: now() + Number(ttl) * 1000 });
+        return { reply: value };
+      }
       default:
         throw new Error(`fake Upstash does not implement ${name}`);
     }
@@ -196,6 +210,29 @@ describe.each(stores)('KeyValue contract: %s', (_name, make) => {
     await expect(lockout.check(['acct:a@b.in'])).resolves.toBeUndefined();
   });
 
+  it('sets a key only when it is absent, once for two callers at the same moment', async () => {
+    const kv = make();
+    const [first, second] = await Promise.all([
+      kv.setIfAbsent('claim', 'a', 30),
+      kv.setIfAbsent('claim', 'b', 30),
+    ]);
+    expect([first, second].filter(Boolean)).toHaveLength(1);
+    expect(await kv.get('claim')).toBe(first ? 'a' : 'b');
+    clock += 30_001;
+    expect(await kv.setIfAbsent('claim', 'c', 30)).toBe(true);
+    expect(await kv.get('claim')).toBe('c');
+  });
+
+  it('raises a stored whole number and never lowers it, compared as numbers', async () => {
+    const kv = make();
+    expect(await kv.raiseTo('seq', '9', 60)).toBe('9');
+    expect(await kv.raiseTo('seq', '10', 60)).toBe('10');
+    expect(await kv.raiseTo('seq', '9', 60)).toBe('10');
+    expect(await kv.raiseTo('seq', '10', 60)).toBe('10');
+    expect(await kv.raiseTo('seq', '12345678901234567890', 60)).toBe('12345678901234567890');
+    expect(await kv.get('seq')).toBe('12345678901234567890');
+  });
+
   it('round-trips a cached principal', async () => {
     const cache = principalCache(make());
     const key = await cache.keyFor(principal.id, 'session-1', undefined);
@@ -227,6 +264,8 @@ describe('principal cache failures are misses, not errors', () => {
     set: () => Promise.reject(new Error('store unreachable')),
     del: () => Promise.reject(new Error('store unreachable')),
     incr: () => Promise.reject(new Error('store unreachable')),
+    setIfAbsent: () => Promise.reject(new Error('store unreachable')),
+    raiseTo: () => Promise.reject(new Error('store unreachable')),
   };
 
   it('answers a miss when the store is unreachable, and invalidation still reports failure', async () => {

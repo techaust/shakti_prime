@@ -49,6 +49,7 @@ export const IDS = {
   serialA: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1c',
   serialB: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1d',
   importJob: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1e',
+  probe: '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a1f',
   device: '6f1c2d3e-4b5a-4c6d-8e7f-9a0b1c2d3e4f',
   connector: '2b7e1516-28ae-4d2a-9f15-1b3c4d5e6f70',
   commandA: '9c1d2e3f-4a5b-4c6d-9e8f-0a1b2c3d4e51',
@@ -323,23 +324,29 @@ export const API_FIXTURES: Record<
   },
   'files.presign': {
     request: {
-      id: IDS.photo,
       entityId: 1,
-      purpose: 'job_photo',
+      purpose: 'signed_quote',
+      name: 'Signed quote SS-QT-0231.jpg',
       contentType: 'image/jpeg',
       size: 842_113,
+      sha256: 'a3f1c2d4e5b6a7980112233445566778899aabbccddeeff00112233445566778',
     },
     response: {
       fileId: IDS.photo,
       method: 'PUT',
-      uploadUrl: `https://shakti-prime-files.s3.ap-south-1.amazonaws.com/1/job_photo/${IDS.photo}.jpg`,
-      headers: { 'content-type': 'image/jpeg', 'content-length': '842113' },
+      uploadUrl: `https://shakti-prime-staging-files.s3.ap-south-1.amazonaws.com/1/signed_quote/${IDS.photo}.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-SignedHeaders=content-length%3Bcontent-type%3Bhost%3Bx-amz-checksum-sha256%3Bx-amz-server-side-encryption%3Bx-amz-server-side-encryption-aws-kms-key-id`,
+      headers: {
+        'content-type': 'image/jpeg',
+        'x-amz-checksum-sha256': 'o/HC1OW2p5gBEiM0RVZneImaq7zN3u/wARIjNEVWZ3g=',
+        'x-amz-server-side-encryption': 'aws:kms',
+        'x-amz-server-side-encryption-aws-kms-key-id': 'alias/shakti-prime-staging-files',
+      },
       expiresAt: '2026-09-27T05:21:40.000Z',
     },
   },
   'files.complete': {
     params: { id: IDS.photo },
-    request: { size: 842_113 },
+    request: { purpose: 'signed_quote' },
     response: { fileId: IDS.photo, status: 'scanning' },
   },
   'attendance.checkIn': {
@@ -654,6 +661,17 @@ export const API_FIXTURES: Record<
     request: { jobId: IDS.importJob, entityId: 1, userId: IDS.user },
     response: { jobId: IDS.importJob, state: 'committed', batches: 2, committedRows: 740 },
   },
+  'workers.outbox.failed': {
+    request: {
+      status: 503,
+      sourceBody: Buffer.from(JSON.stringify(deliveredEvent)).toString('base64'),
+      retried: 3,
+      maxRetries: 3,
+      sourceMessageId: 'msg_2h3k4l5m6n7p8q9r',
+      topicName: 'evt-crm.lead.created',
+    },
+    response: { eventId: IDS.event, outcome: 'held', lastError: 'worker_failed' },
+  },
   'workers.outbox.event': {
     params: { type: 'crm.lead.created' },
     request: deliveredEvent,
@@ -676,20 +694,6 @@ export const API_FIXTURES: Record<
       outcome: 'done',
       status: 'sent',
       providerMessageId: `wamid.${'HBgM'.repeat(12)}`,
-    },
-  },
-  'workers.files.scan': {
-    request: { eventId: IDS.eventB, fileId: IDS.file },
-    response: { eventId: IDS.eventB, outcome: 'done', fileId: IDS.file, verdict: 'clean' },
-  },
-  'workers.files.mask': {
-    request: { eventId: IDS.eventB, fileId: IDS.file, expect: ['aadhaar'] },
-    response: {
-      eventId: IDS.eventB,
-      outcome: 'done',
-      fileId: IDS.file,
-      status: 'masked',
-      regionsMasked: 2,
     },
   },
   'workers.pdf.render': {
@@ -751,6 +755,32 @@ export const API_FIXTURES: Record<
     query: { limit: '50' },
     response: {
       generatedAt: '2026-09-27T05:06:40.000Z',
+      outbox: {
+        byType: [
+          {
+            type: 'crm.lead.created',
+            pending: 2,
+            due: 1,
+            deadLettered: 1,
+            oldestPendingAt: '2026-09-27T05:04:10.000Z',
+          },
+        ],
+        lastPublisherRun: {
+          at: '2026-09-27T05:06:00.000Z',
+          claimed: 4,
+          published: 3,
+          skipped: 0,
+          failed: 1,
+          deadLettered: 0,
+        },
+      },
+      deliveryCheck: {
+        probeId: IDS.probe,
+        state: 'arrived',
+        requestedAt: '2026-09-27T05:05:12.000Z',
+        arrivedAt: '2026-09-27T05:05:12.842Z',
+        milliseconds: 842,
+      },
       webhooks: [
         {
           provider: 'meta_whatsapp',
@@ -772,6 +802,7 @@ export const API_FIXTURES: Record<
             aggregateType: 'opportunity',
             aggregateId: IDS.lead,
             attempts: 10,
+            errorCode: 'queue_refused',
             createdAt: '2026-09-27T03:10:02.000Z',
             deadLetteredAt: '2026-09-27T04:02:15.000Z',
           },

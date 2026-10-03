@@ -44,8 +44,21 @@ export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 export const ImportDedupeMatchSchema = z.enum(['phone', 'name_village']);
 export type ImportDedupeMatch = z.infer<typeof ImportDedupeMatchSchema>;
 
-/** `files.status` (docs/DATABASE.md §6.10); scanning and masking arrive with document uploads. */
-export const FileStatusSchema = z.enum(['pending', 'scanning', 'masked', 'ready', 'rejected']);
+/**
+ * `files.status` (docs/DATABASE.md §6.10): `pending` until the bytes land, `scanning` while the
+ * malware scan runs, `scanned` (no threat found) or `not_scanned` (no scanner on a developer's
+ * machine) while the file is re-encoded or checked, then `ready` or `rejected`. `masked` is the
+ * WhatsApp filing step (the `document_filing` machine).
+ */
+export const FileStatusSchema = z.enum([
+  'pending',
+  'scanning',
+  'scanned',
+  'not_scanned',
+  'masked',
+  'ready',
+  'rejected',
+]);
 export type FileStatus = z.infer<typeof FileStatusSchema>;
 
 /** The file formats an import accepts. */

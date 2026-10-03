@@ -37,6 +37,9 @@ jobs:
       APP_USER_PASSWORD: ${{ secrets[format('APP_USER_PASSWORD_{0}', inputs.environment)] }}
       AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
       OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
+      # Optional: without it the role app_reader exists with no password, and the app reads on
+      # app_user (docs/runbooks/DEPLOY.md §1).
+      APP_READER_PASSWORD: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
       DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
       # The Supabase project each choice must reach; a secret pasted under the wrong suffix stops here.
       PROJECT_REF: ${{ inputs.environment == 'dev' && 'pgjwtygifnwxdkzdjsup' || 'azydxxvlboivablvvojp' }}

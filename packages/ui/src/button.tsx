@@ -81,7 +81,8 @@ export function Button({
       }}
       className={classes}
     >
-      <span className={cn('inline-flex items-center gap-2', pending && 'invisible')}>
+      {/* Transparent, not hidden: the label keeps the width and stays the button's name. */}
+      <span className={cn('inline-flex items-center gap-2', pending && 'opacity-0')}>
         {children}
       </span>
       {pending ? (

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { listImportJobs } from '../../actions/imports';
 import { IMPORT_JOB_SORT_COLUMNS } from '../../screens/contract-values';
-import { formatDateTime } from '../../screens/format';
+import { DateTime } from '../date-time';
 import { formatCount, jobHref, JOB_STATE_TONE } from '../../screens/import-wizard';
 import { FailureMessage } from '../screens/failure';
 import { sortInput, toListSort } from '../screens/list-sort';
@@ -136,7 +136,7 @@ export function ImportsScreen({
       id: 'started',
       header: t('columns.started'),
       numeric: true,
-      cell: (j) => formatDateTime(j.createdAt),
+      cell: (j) => <DateTime value={j.createdAt} />,
       sortable: true,
     },
   );

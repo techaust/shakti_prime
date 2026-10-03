@@ -1,6 +1,6 @@
 {
-  "id": "1ec3a748-507d-47a7-b7bb-1c26c7bb0858",
-  "prevId": "2571c4c6-a80c-4ad4-a8ea-a1cc86dc5167",
+  "id": "04aff5f0-52ad-4923-a482-715b14b13f41",
+  "prevId": "3e4b54c1-772b-4f44-8d82-5f519e8053c4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -800,7 +800,7 @@
         },
         "audit_logs_actor_kind_check": {
           "name": "audit_logs_actor_kind_check",
-          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"audit_logs\".\"actor_kind\" is null or \"audit_logs\".\"actor_kind\" in ('user', 'agent', 'voice_session', 'system')"
         },
         "audit_logs_actor_check": {
           "name": "audit_logs_actor_check",
@@ -5446,7 +5446,7 @@
       "checkConstraints": {
         "principals_kind_check": {
           "name": "principals_kind_check",
-          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session')"
+          "value": "\"principals\".\"kind\" in ('user', 'agent', 'voice_session', 'system')"
         }
       },
       "isRLSEnabled": false
@@ -5887,7 +5887,7 @@
       "checkConstraints": {
         "roles_key_check": {
           "name": "roles_key_check",
-          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief')"
+          "value": "\"roles\".\"key\" in ('executive', 'general_manager', 'sales_team_lead', 'tele_caller_cc', 'tele_caller_lc', 'store_manager', 'inventory_manager', 'project_manager', 'field_engineer', 'accounts', 'hr_admin', 'agent:triage', 'agent:concierge', 'agent:copilot', 'agent:sizing', 'agent:orchestrator', 'agent:chief', 'system:workers')"
         }
       },
       "isRLSEnabled": false

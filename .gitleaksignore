@@ -1,3 +1,7 @@
 # Better Auth test secret in the web security suite, replaced by a low-entropy constant afterwards.
 5a97778757a449b475385ff271a2dfb3c37a0183:apps/web/tests/auth.test.ts:generic-api-key:55
 3efb3252288adc1da532a2ce1cd392daec2fa3d3:apps/web/tests/auth.test.ts:generic-api-key:364
+# The development field-encryption key in a configuration test of the files slice (P2): the
+# base64 of the words "local key only", a value the deployment guard refuses on every hosted runtime.
+b38fe6335b5d4b818e1f491854367e3a63510cbd:apps/web/src/auth/deps.test.ts:generic-api-key:86
+013071a67ec962d61d9eb18a48b139d914983855:apps/web/src/auth/deps.test.ts:generic-api-key:86

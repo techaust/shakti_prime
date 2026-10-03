@@ -2,7 +2,6 @@
 
 import type { Theme } from '@shakti/contracts';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -18,6 +17,7 @@ import { KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useTransition } from 'react';
+import { focusFirstMenuItem, ProfileTriggerButton } from './menu-triggers';
 import { signOut } from '../../actions/auth';
 import { isTheme, THEMES } from '../../screens/contract-values';
 import { useForgetThemeOnThisDevice, useThemeChoice } from '../theme';
@@ -29,7 +29,21 @@ const THEME_ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
  * role, the System / Light / Dark switch saved on the profile, the profile screen with the
  * password change, and sign out.
  */
-export function ProfileMenu({ name, role, theme }: { name: string; role: string; theme: Theme }) {
+export function ProfileMenu({
+  name,
+  role,
+  theme,
+  defaultOpen = false,
+  focusFirstItem = false,
+}: {
+  name: string;
+  role: string;
+  theme: Theme;
+  /** Open at once: the top bar mounts the menu on the press that asked for it. */
+  defaultOpen?: boolean;
+  /** Start on the first item: the press was a key (`focusFirstMenuItem`). */
+  focusFirstItem?: boolean;
+}) {
   const t = useTranslations('shell');
   const themes = useTranslations('theme');
   const home = useTranslations('auth.home');
@@ -44,19 +58,15 @@ export function ProfileMenu({ name, role, theme }: { name: string; role: string;
   const [signingOut, startSignOut] = useTransition();
 
   return (
-    <DropdownMenu>
+    <DropdownMenu defaultOpen={defaultOpen}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          pending={signingOut}
-          aria-label={t('profileMenu')}
-          className="rounded-full"
-        >
-          <UserRound aria-hidden />
-        </Button>
+        <ProfileTriggerButton pending={signingOut} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent
+        align="end"
+        className="w-64"
+        {...(focusFirstItem ? { onOpenAutoFocus: focusFirstMenuItem } : {})}
+      >
         <div className="flex flex-col px-2 py-1.5">
           <span className="truncate font-medium">{name}</span>
           <span className="text-text-muted truncate text-xs">{role}</span>

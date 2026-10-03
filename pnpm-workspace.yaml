@@ -21,6 +21,11 @@ auditConfig:
     # esbuild's development server (GHSA-67mh-4wv8-2f99) reaches us only through drizzle-kit,
     # a build tool linked from the workspace; it is never run as a server nor shipped (AUDIT M46).
     - GHSA-67mh-4wv8-2f99
+    # braces (GHSA-vfj7-8cjw-p6xm, stack exhaustion on deeply nested patterns, no patched release
+    # yet) reaches us only through eslint-config-next > @next/eslint-plugin-next > fast-glob >
+    # micromatch, which expands the repository's own lint globs; it is never shipped nor fed
+    # outside input. Remove this entry when a patched braces is released.
+    - GHSA-vfj7-8cjw-p6xm
 
 overrides:
   # exceljs pins uuid 8, below the fix for GHSA-w5hq-g745-h8pq; 11.x keeps the CommonJS build

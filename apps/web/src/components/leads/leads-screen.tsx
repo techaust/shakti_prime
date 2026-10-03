@@ -15,7 +15,8 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { listLeads } from '../../actions/crm';
 import { LEAD_SORT_COLUMNS } from '../../screens/contract-values';
-import { formatDateTime, formatPhone } from '../../screens/format';
+import { DateTime } from '../date-time';
+import { formatPhone } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { sortInput, toListSort } from '../screens/list-sort';
 import { useQuery } from '../screens/use-command';
@@ -136,7 +137,7 @@ export function LeadsScreen({
     id: 'updated',
     header: t('columns.updated'),
     numeric: true,
-    cell: (l) => formatDateTime(l.updatedAt),
+    cell: (l) => <DateTime value={l.updatedAt} />,
     sortable: true,
   });
 

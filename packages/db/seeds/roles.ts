@@ -87,6 +87,11 @@ export const ROLE_SEED: readonly { id: string; key: RoleKey; name: string }[] = 
     key: 'agent:chief',
     name: 'Chief of Staff agent',
   },
+  {
+    id: '01990000-0000-7000-8000-000000000401',
+    key: 'system:workers',
+    name: 'Event workers',
+  },
 ];
 
 export function roleId(key: RoleKey): string {

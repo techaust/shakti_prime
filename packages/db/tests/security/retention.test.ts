@@ -323,3 +323,143 @@ describe('retention_runs (docs/DATABASE.md §7)', () => {
     expect(none?.n).toBe(0);
   });
 });
+
+describe('audit partition detach (docs/DATABASE.md §7, BLUEPRINT §7.9)', () => {
+  /** Two months of the past no other run uses: one far past eight years, one well inside them. */
+  const seed = Number.parseInt(newId().replace(/-/g, '').slice(-6), 16);
+  const oldYear = 1971 + (seed % 40);
+  const oldMonth = 1 + ((seed >> 8) % 12);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const oldName = `audit_logs_${String(oldYear)}_${pad(oldMonth)}`;
+  const oldFrom = `${String(oldYear)}-${pad(oldMonth)}-01T00:00:00Z`;
+  const conflictName = `audit_logs_${String(oldYear)}_${pad(oldMonth === 12 ? 11 : oldMonth + 1)}`;
+  const conflictFrom = `${String(oldYear)}-${pad(oldMonth === 12 ? 11 : oldMonth + 1)}-01T00:00:00Z`;
+  const REQUEST = `test-detach-${newId().slice(-8)}`;
+
+  afterAll(async () => {
+    await asMigrator(async (m) => {
+      for (const name of [oldName, conflictName]) {
+        await m.unsafe(`drop table if exists audit_archive.${name}`);
+        await m.unsafe(`drop table if exists audit_partitions.${name}`);
+      }
+    });
+  });
+
+  async function partition(name: string, from: string): Promise<void> {
+    await asMigrator((m) =>
+      m.unsafe(
+        `create table if not exists audit_partitions.${name} partition of public.audit_logs
+           for values from ('${from}') to ('${from}'::timestamptz + interval '1 month')`,
+      ),
+    );
+  }
+
+  async function schemaOf(name: string): Promise<string | null> {
+    const [row] = await asMigrator(
+      (m) => m<{ schema: string }[]>`
+        select n.nspname as schema from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where c.relname = ${name} and n.nspname in ('audit_partitions', 'audit_archive')`,
+    );
+    return row?.schema ?? null;
+  }
+
+  async function attached(name: string): Promise<boolean> {
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from pg_inherits i join pg_class c on c.oid = i.inhrelid
+         where i.inhparent = 'public.audit_logs'::regclass and c.relname = ${name}`,
+    );
+    return row?.n === 1;
+  }
+
+  async function lastRun() {
+    const [run] = await asMigrator(
+      (m) => m<{ rows_affected: number | null; error: string | null; finished: boolean }[]>`
+        select rows_affected, error, finished_at is not null as finished
+          from retention_runs where job = 'audit-logs-detach'
+         order by started_at desc limit 1`,
+    );
+    return run;
+  }
+
+  it('detaches a partition whose month ended more than eight years ago into audit_archive', async () => {
+    await partition(oldName, oldFrom);
+    await asMigrator(
+      (m) => m`insert into audit_logs (id, command, outcome, request_id, created_at)
+               values (${newId()}, 'auth.sign_in', 'ok', ${REQUEST},
+                       ${oldFrom}::timestamptz + interval '3 days')`,
+    );
+    // The current month's partition, which app.ensure_audit_partitions() keeps, stays attached.
+    const [{ current } = { current: '' }] = await asMigrator(
+      (m) => m<{ current: string }[]>`
+        select 'audit_logs_' || to_char(now() at time zone 'UTC', 'YYYY_MM') as current`,
+    );
+    await asMigrator((m) => m`call app.detach_audit_partitions()`);
+
+    expect(await schemaOf(oldName)).toBe('audit_archive');
+    expect(await attached(oldName)).toBe(false);
+    expect(await attached(current)).toBe(true);
+    const [kept] = await asMigrator(
+      (m) => m<{ archived: number; live: number }[]>`
+        select (select count(*)::int from audit_archive.${m(oldName)} where request_id = ${REQUEST})
+                 as archived,
+               (select count(*)::int from audit_logs where request_id = ${REQUEST}) as live`,
+    );
+    expect(kept).toEqual({ archived: 1, live: 0 });
+    const run = await lastRun();
+    expect(run).toMatchObject({ error: null, finished: true });
+    expect(run?.rows_affected).toBeGreaterThanOrEqual(1);
+  });
+
+  it('keeps a partition whose month ended less than eight years ago', async () => {
+    const [{ name, from } = { name: '', from: '' }] = await asMigrator(
+      (m) => m<{ name: string; from: string }[]>`
+        select 'audit_logs_' || to_char(d, 'YYYY_MM') as name, to_char(d, 'YYYY-MM-DD') as from
+          from (select date_trunc('month', now() at time zone 'UTC' - interval '7 years 10 months') as d) s`,
+    );
+    const existed = (await schemaOf(name)) !== null;
+    if (!existed) await partition(name, from);
+    try {
+      await asMigrator((m) => m`call app.detach_audit_partitions()`);
+      expect(await attached(name)).toBe(true);
+    } finally {
+      if (!existed) await asMigrator((m) => m.unsafe(`drop table audit_partitions.${name}`));
+    }
+  });
+
+  it('a failed run detaches nothing, stays recorded with its error and is reported as failed', async () => {
+    await partition(conflictName, conflictFrom);
+    // A table of the same name already in the archive makes the move fail.
+    await asMigrator((m) => m.unsafe(`create table audit_archive.${conflictName} (id int)`));
+    const message = await failure(asMigrator((m) => m`call app.detach_audit_partitions()`));
+    expect(message).toMatch(/audit-logs-detach failed: .*already exists/);
+    expect(await attached(conflictName)).toBe(true);
+    const run = await lastRun();
+    expect(run).toMatchObject({ rows_affected: null, finished: true });
+    expect(run?.error).toMatch(/already exists/);
+
+    await asMigrator((m) => m.unsafe(`drop table audit_archive.${conflictName}`));
+    await asMigrator((m) => m`call app.detach_audit_partitions()`);
+    expect(await schemaOf(conflictName)).toBe('audit_archive');
+  });
+
+  it('runs monthly from pg_cron, and no request role may run it or read the archive', async () => {
+    const [job] = await asMigrator(
+      (m) => m<{ schedule: string; command: string }[]>`
+        select schedule, command from cron.job where jobname = 'audit-logs-detach'`,
+    );
+    expect(job).toEqual({ schedule: '30 3 1 * *', command: 'call app.detach_audit_partitions()' });
+    const [grants] = await withoutContext<Record<string, boolean>>(sql`
+      select has_function_privilege('app_user', 'app.detach_audit_partitions()', 'execute') as app,
+             has_function_privilege('app_reader', 'app.detach_audit_partitions()', 'execute') as reader,
+             has_function_privilege('readonly_reporter', 'app.detach_audit_partitions()', 'execute') as reporter,
+             has_function_privilege('public', 'app.detach_audit_partitions()', 'execute') as pub,
+             has_schema_privilege('app_user', 'audit_archive', 'usage') as app_archive,
+             has_schema_privilege('app_reader', 'audit_archive', 'usage') as reader_archive,
+             has_schema_privilege('readonly_reporter', 'audit_archive', 'usage') as reporter_archive,
+             has_schema_privilege('auth_service', 'audit_archive', 'usage') as auth_archive,
+             has_schema_privilege('outbox_publisher', 'audit_archive', 'usage') as outbox_archive
+    `);
+    expect(Object.values(grants ?? { missing: true }).every((v) => !v)).toBe(true);
+  });
+});

@@ -2,14 +2,15 @@ import { z } from 'zod';
 import { MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { FilePurposeSchema } from '../api/files';
 import { ImportKindSchema } from '../imports/enums';
 
 /**
  * The event catalogue (docs/design/backend-weeks-3-5.md §4.3). Names are
  * `<aggregate>.<verb_past>`; every stored payload carries `v`, the version of its shape.
  *
- * Payloads leave the database for the queue, so they carry ids, codes and counts only: never a
- * name, phone, email or free text. A consumer reads anything else from the aggregate itself.
+ * Payloads leave the database for the queue, so they carry ids, codes, counts and times only:
+ * never a name, phone, email or free text. A consumer reads anything else from the aggregate itself.
  *
  * `subscribed` says whether any worker listens to the type yet. The publisher marks an event
  * nobody listens to as delivered without sending it, because a message to a queue group with no
@@ -161,9 +162,22 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  /**
+   * The delivery check (`platform.probe.run`): its worker records when the event arrived, which
+   * the Integration Health page compares with `requestedAt`, the moment the command ran.
+   */
+  'platform.probe.requested': {
+    subscribed: true,
+    payload: z.object({ requestedAt: z.iso.datetime() }).strict(),
+  },
   'imports.job.rolled_back': {
     subscribed: false,
     payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),
+  },
+  // An upload landed and waits for its checks (`handleFileUploaded` in apps/web/src/workers/files).
+  'files.file.uploaded': {
+    subscribed: true,
+    payload: z.object({ purpose: FilePurposeSchema }).strict(),
   },
 } as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;
 
