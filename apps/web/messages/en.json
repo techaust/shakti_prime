@@ -159,7 +159,20 @@
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
-    "event_in_progress": "This update is already being handled. It will be tried again shortly."
+    "event_in_progress": "This update is already being handled. It will be tried again shortly.",
+    "file_missing": "We could not find this file. It may have been removed, or it belongs to a company you do not work in.",
+    "file_type_not_allowed": "This kind of file cannot be used here. Choose one of the kinds listed.",
+    "file_too_large": "This file is too large. Choose a smaller file.",
+    "file_upload_mismatch": "The file did not arrive whole. Upload it again.",
+    "files_unavailable": "Files cannot be uploaded here yet. Ask your administrator to finish setting up file storage.",
+    "file_upload_transition_not_allowed": "This file has already moved on. Refresh the page to see where it stands.",
+    "file_infected": "This file was refused because it carries something harmful. Check your computer for viruses and use another copy.",
+    "file_scan_failed": "We could not check this file for harmful content, so it was refused. Save it again and upload the new copy.",
+    "file_not_scanned": "We could not check this file for harmful content, so it was refused. Try again later.",
+    "file_unreadable": "We could not open this file as the kind it says it is. Save it again and upload the new copy.",
+    "file_image_too_large": "This picture is too large to use. Choose a smaller picture, under 50 megapixels.",
+    "file_pdf_active_content": "This PDF carries scripts or attached files, which we do not accept. Print it to a new PDF and upload that.",
+    "file_mask_failed": "We could not find the numbers we must cover on this photo, so it was not kept. Take a clearer photo and upload it again."
   },
   "auth": {
     "signIn": {
@@ -288,7 +301,7 @@
       "adminUsers": "Invite staff, change their roles and sign them out.",
       "adminActivity": "See who changed what, and when.",
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
-      "settingsCompanies": "Change each company's brand name and UPI ID.",
+      "settingsCompanies": "Change each company's details, logo and letterhead.",
       "design": "See every colour, text size and control in both themes."
     }
   },
@@ -637,7 +650,17 @@
     "pin": "PIN code",
     "pinHelper": "Six digits",
     "submit": "Save changes",
-    "done": "{name} is updated."
+    "done": "{name} is updated.",
+    "branding": "Logo and letterhead",
+    "brandingTitle": "Logo and letterhead of {name}",
+    "brandingIntro": "Documents from this company print these. Use a clear picture on a plain background.",
+    "logo": "Logo",
+    "letterhead": "Letterhead",
+    "letterheadHelper": "A strip the full width of the page, printed at the top of every document.",
+    "current": "Current file: {name}",
+    "none": "None uploaded yet.",
+    "open": "Open",
+    "ready": "Saved. Documents from this company print it from now on."
   },
   "priceMaster": {
     "title": "Price lists",
@@ -1043,7 +1066,13 @@
       "viewSave": "Saved a list view",
       "viewDelete": "Removed a list view",
       "liveUpdatesOpen": "Opened a live updates connection",
-      "other": "Other change"
+      "other": "Other change",
+      "fileUploadBegin": "File upload started",
+      "fileUploadComplete": "File uploaded",
+      "fileScanned": "File checked for harmful content",
+      "fileReady": "File ready to use",
+      "fileRejected": "File refused",
+      "filesRecheck": "Files sent for their checks again"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1064,7 +1093,8 @@
       "importCommitted": "Import finished",
       "importFailed": "Import stopped",
       "importRolledBack": "Import undone",
-      "deliveryCheckRequested": "Delivery check sent"
+      "deliveryCheckRequested": "Delivery check sent",
+      "fileUploaded": "File uploaded"
     },
     "sheet": {
       "title": "{action}",
@@ -1153,7 +1183,16 @@
       "eventType": "Update sent on",
       "attempts": "Tries to send",
       "deadLetteredAt": "Stopped trying at",
-      "requestedAt": "Asked at"
+      "requestedAt": "Asked at",
+      "fileStatus": "File status",
+      "purpose": "Used for",
+      "contentType": "Kind of file",
+      "size": "File size in bytes",
+      "verdict": "Harmful content check",
+      "sanitising": "How the file was prepared",
+      "regionsMasked": "Numbers covered",
+      "rejectReason": "Why it was refused",
+      "scanStatus": "What the check found"
     },
     "values": {
       "percent": "{value}%",
@@ -1469,6 +1508,88 @@
       "retired": "The system no longer handles this kind of update.",
       "interrupted": "Sending stopped part way too many times.",
       "other": "It could not be sent."
+    },
+    "files": {
+      "heading": "Files waiting for their checks",
+      "intro": "An uploaded file is used only after it has been checked for harmful content. A file still waiting after ten minutes can be sent for its checks again.",
+      "waiting": "{count, plural, =0 {No file is waiting for its checks.} one {# file has been waiting for its checks for more than ten minutes.} other {# files have been waiting for their checks for more than ten minutes.}}",
+      "recheck": "Check files again",
+      "done": "{count, plural, =0 {No file needed checking again.} one {# file was sent for its checks again.} other {# files were sent for their checks again.}}"
+    }
+  },
+  "files": {
+    "status": {
+      "pending": "Waiting for the upload",
+      "scanning": "Checking",
+      "scanned": "Checked for harmful content",
+      "not_scanned": "Not checked on this computer",
+      "masked": "Numbers covered",
+      "ready": "Ready",
+      "rejected": "Refused"
+    },
+    "purpose": {
+      "job_photo": "Job photo",
+      "survey_photo": "Survey photo",
+      "qc_photo": "Quality check photo",
+      "receipt": "Receipt",
+      "signature": "Signature",
+      "selfie": "Attendance photo",
+      "customer_document": "Customer document",
+      "import": "Import file",
+      "quote_pdf": "Quotation PDF",
+      "signed_quote": "Signed quotation",
+      "entity_logo": "Company logo",
+      "letterhead": "Letterhead",
+      "knowledge": "Knowledge Vault document",
+      "consent_evidence": "Proof of consent"
+    },
+    "types": {
+      "jpeg": "JPEG picture",
+      "png": "PNG picture",
+      "webp": "WebP picture",
+      "pdf": "PDF document"
+    },
+    "shortTypes": {
+      "jpeg": "JPEG",
+      "png": "PNG",
+      "webp": "WebP",
+      "pdf": "PDF"
+    },
+    "size": {
+      "kb": "{value} KB",
+      "mb": "{value} MB"
+    },
+    "verdict": {
+      "no_threats_found": "No harmful content found",
+      "not_scanned": "Not checked on this computer"
+    },
+    "sanitising": {
+      "re_encoded": "Picture saved again without hidden details",
+      "pdf_checked": "PDF checked for scripts and attached files",
+      "masked": "Numbers on the photo covered"
+    },
+    "scanStatus": {
+      "NO_THREATS_FOUND": "No harmful content found",
+      "THREATS_FOUND": "Harmful content found",
+      "UNSUPPORTED": "This kind of file cannot be checked",
+      "ACCESS_DENIED": "The check could not read the file",
+      "FAILED": "The check did not finish"
+    },
+    "uploader": {
+      "choose": "Choose a file",
+      "drop": "or drop it here",
+      "limits": "{types}, up to {size}",
+      "started": "Uploading the file.",
+      "halfway": "Uploading, half done.",
+      "checking": "Uploaded. Checking the file.",
+      "checkingLong": "Uploaded. The check is taking a while; the file shows here once it is ready.",
+      "cancel": "Cancel upload",
+      "retry": "Try again",
+      "cancelled": "Upload cancelled. Choose the file again to upload it.",
+      "failed": "The upload did not finish. Check your connection and try again.",
+      "wrongType": "This kind of file cannot be used here. Choose a {types} file.",
+      "tooLarge": "This file is larger than {size}. Choose a smaller file.",
+      "empty": "This file is empty. Choose another file."
     }
   }
 }

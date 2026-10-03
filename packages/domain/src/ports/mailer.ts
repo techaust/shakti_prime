@@ -5,7 +5,10 @@ export interface MailMessage {
   text: string;
 }
 
-/** SES implements this in Phase 1 (docs/ARCHITECTURE.md §7). Until then the console mailer. */
+/**
+ * Sends one message. Hosted, `sesMailer` (apps/web/src/mail) through Amazon SES when `MAILER=ses`;
+ * on a developer's machine the console mailer.
+ */
 export interface Mailer {
   send(message: MailMessage): Promise<void>;
 }

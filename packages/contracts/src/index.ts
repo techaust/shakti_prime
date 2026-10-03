@@ -34,6 +34,8 @@ export * from './commands/platform/probe';
 export * from './imports/enums';
 export * from './commands/imports/jobs';
 export * from './dto/import';
+export * from './dto/file';
+export * from './commands/files/uploads';
 export * from './api/error';
 export * from './api/health';
 export * from './api/workers';

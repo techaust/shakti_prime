@@ -16,6 +16,7 @@ The Phase 0 state-machine specifications (BLUEPRINT §19 item 2). Each machine i
 | Customer loan | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
 | Warranty claim | 6 | 6 | 7 | [warranty-claim.md](warranty-claim.md) |
 | WhatsApp document filing | 5 | 5 | 1 | [document-filing.md](document-filing.md) |
+| File upload | 6 | 6 | 1 | [file-upload.md](file-upload.md) |
 | Expense claim | 6 | 6 | 7 | [expense-claim.md](expense-claim.md) |
 | Playbook directive | 3 | 4 | 1 | [playbook-directive.md](playbook-directive.md) |
 | Tally voucher | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |

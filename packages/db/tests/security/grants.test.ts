@@ -73,8 +73,9 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
     users: { i: true, u: false },
-    // A stored file and a saved template are written once; a job and a row update only their
-    // working columns, never what the file said (migration 0041).
+    // A saved template is written once; a job and a row update only their working columns,
+    // never what the file said (migration 0041); a stored file only its status and the checks'
+    // columns (0062, files.test.ts).
     files: { i: true, u: false },
     import_mapping_templates: { i: true, u: false },
     import_jobs: { i: true, u: false },

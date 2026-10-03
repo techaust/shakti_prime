@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { contentSecurityPolicy, sentryIngestOrigin } from './csp';
+import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
 import { needsSignIn } from './session-gate';
 
 /**
@@ -19,6 +19,7 @@ export function proxy(request: NextRequest): NextResponse {
     nonce,
     process.env.NODE_ENV === 'development',
     sentryIngestOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN),
+    fileUploadOrigins(process.env),
   );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-nonce', nonce);

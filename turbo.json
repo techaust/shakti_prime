@@ -65,7 +65,12 @@
         "BOS_JWT_CURRENT_KEY",
         "BOS_JWT_NEXT_KEY",
         "SENTRY_DSN",
-        "NEXT_PUBLIC_SENTRY_DSN"
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "FILES_BUCKET",
+        "FILES_KMS_KEY_ID",
+        "AWS_REGION",
+        "FIELD_ENCRYPTION_KEY",
+        "SES_FROM"
       ]
     },
     "test:e2e": {

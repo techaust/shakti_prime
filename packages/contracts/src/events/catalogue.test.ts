@@ -50,7 +50,9 @@ describe('the event catalogue', () => {
   });
 
   it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
-    expect(EVENT_TYPES.filter(isSubscribed)).toEqual(['platform.probe.requested']);
+    expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
+      ['files.file.uploaded', 'platform.probe.requested'].sort(),
+    );
     expect(isSubscribed('crm.lead.vanished')).toBe(false);
   });
 

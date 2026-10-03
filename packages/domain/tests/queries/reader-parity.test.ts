@@ -13,6 +13,12 @@ import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 import {
+  countFilesAwaitingChecks,
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+} from '../../src/queries/files/file-queries';
+import {
   getImportJob,
   listImportJobs,
   listImportRows,
@@ -62,6 +68,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
   listSavedViews: (ctx) => listSavedViews(ctx, { screen: 'leads' }),
+  getFile: (ctx) => getFile(ctx, newId()),
+  getStoredFile: (ctx) => getStoredFile(ctx, newId()),
+  listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
+  countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
