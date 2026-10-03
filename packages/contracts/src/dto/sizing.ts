@@ -116,6 +116,7 @@ export const RooftopSizingConstantsSchema = z
     peakSunHours: z.number().positive(),
     performanceRatio: z.number().positive().max(1),
     roofAreaPerKwSqm: z.number().positive(),
+    sanctionedLoadRatio: z.number().positive(),
     moduleWp: z.number().positive(),
   })
   .strict();

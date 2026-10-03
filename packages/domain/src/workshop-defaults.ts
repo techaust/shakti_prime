@@ -40,6 +40,7 @@ export interface SizingDefaults {
   readonly dutyFlowOvershootFactor: number;
   readonly surfaceMaxSuctionLiftM: number;
   readonly maxPipeVelocityMps: number;
+  readonly sanctionedLoadRatio: number;
   readonly dcrSchemes: readonly SubsidyScheme[];
 }
 
@@ -95,7 +96,11 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
       submersible: { pump: 0.55, motor: 0.78 },
       surface: { pump: 0.6, motor: 0.82 },
     },
-    /** Solar pump array over the motor rating: the common 1.3 allowance for heat, dust and low sun. */
+    /**
+     * Solar pump array size as a multiple of the motor's rated output (its standard HP in kW, the
+     * motor output, not its electrical input): the common 1.3 allowance for heat, dust and low
+     * sun. For the engineering head to confirm both the basis and the figure.
+     */
     solarArrayOversize: 1.3,
     /** Module watt-peak: a common rating of the DCR modules on sale. */
     moduleWp: 540,
@@ -134,6 +139,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * engineering head to confirm.
      */
     maxPipeVelocityMps: 2,
+    /**
+     * The DC module size allowed per kW of sanctioned load: 1.0, so a rooftop system's kWp may
+     * equal the sanctioned load and not exceed it, the strict reading. For the engineering head
+     * to confirm against the distribution company's rule.
+     */
+    sanctionedLoadRatio: 1,
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },

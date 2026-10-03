@@ -173,6 +173,7 @@ describe('sizeRooftop', () => {
       peakSunHours: WORKSHOP_DEFAULTS.sizing.peakSunHours,
       performanceRatio: WORKSHOP_DEFAULTS.sizing.performanceRatio,
       roofAreaPerKwSqm: WORKSHOP_DEFAULTS.sizing.roofAreaPerKwSqm,
+      sanctionedLoadRatio: WORKSHOP_DEFAULTS.sizing.sanctionedLoadRatio,
       moduleWp: WORKSHOP_DEFAULTS.sizing.moduleWp,
     });
     expect(result.rooftop.moduleCount).toBeGreaterThan(0);

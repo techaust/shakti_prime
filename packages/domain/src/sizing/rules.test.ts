@@ -87,8 +87,26 @@ describe('sanctionedLoadRule', () => {
     expect(result.inBounds).toBe(reasons.length === 0);
   });
 
-  it('refuses a load that is not a number', () => {
+  it('compares the DC size against the load times the ratio', () => {
+    // At a ratio of 1.2, a 3 kW connection allows 3.6 kWp: 3.24 kWp passes, 3.78 kWp does not.
+    expect(sanctionedLoadRule({ systemKw: 3.24, sanctionedLoadKw: 3, ratio: 1.2 }).reasons).toEqual(
+      [],
+    );
+    expect(sanctionedLoadRule({ systemKw: 3.78, sanctionedLoadKw: 3, ratio: 1.2 }).reasons).toEqual(
+      ['sanctioned_load_exceeded'],
+    );
+    // Left out, the ratio is the workshop default of 1.0.
+    expect(sanctionedLoadRule({ systemKw: 3, sanctionedLoadKw: 3 }).inBounds).toBe(true);
+    expect(sanctionedLoadRule({ systemKw: 3, sanctionedLoadKw: 3, ratio: 0.9 }).inBounds).toBe(
+      false,
+    );
+  });
+
+  it('refuses a load that is not a number, or a ratio of 0', () => {
     expect(() => sanctionedLoadRule({ systemKw: 1, sanctionedLoadKw: Number.NaN })).toThrow(
+      RangeError,
+    );
+    expect(() => sanctionedLoadRule({ systemKw: 1, sanctionedLoadKw: 3, ratio: 0 })).toThrow(
       RangeError,
     );
   });

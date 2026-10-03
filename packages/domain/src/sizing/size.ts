@@ -163,12 +163,14 @@ export function sizeRooftop(
     peakSunHours: defaults.peakSunHours,
     performanceRatio: defaults.performanceRatio,
     roofAreaPerKwSqm: defaults.roofAreaPerKwSqm,
+    sanctionedLoadRatio: defaults.sanctionedLoadRatio,
     moduleWp: defaults.moduleWp,
   };
   const rooftop = rooftopSize({
     monthlyUnitsKwh: inputs.monthlyUnitsKwh,
     roofAreaSqm: inputs.roofAreaSqm,
     sanctionedLoadKw: inputs.sanctionedLoadKw,
+    sanctionedLoadRatio: constants.sanctionedLoadRatio,
     peakSunHours: constants.peakSunHours,
     performanceRatio: constants.performanceRatio,
     areaPerKwSqm: constants.roofAreaPerKwSqm,

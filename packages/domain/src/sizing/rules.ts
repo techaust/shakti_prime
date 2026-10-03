@@ -47,16 +47,27 @@ export interface SanctionedLoadInput {
   readonly systemKw: number;
   /** Sanctioned load on the electricity connection, in kW. */
   readonly sanctionedLoadKw: number;
+  /**
+   * The DC kWp allowed per kW of sanctioned load (`WORKSHOP_DEFAULTS.sizing.sanctionedLoadRatio`,
+   * 1.0: the module size may equal the sanctioned load).
+   */
+  readonly ratio?: number;
 }
 
 /**
  * The sanctioned-load rule (BLUEPRINT §8.3): a rooftop system may not exceed the connection's
- * sanctioned load (`sanctioned_load_exceeded`). The system's module size in kWp is compared, the
- * stricter reading, so no inverter choice can bring it back under. Floating-point noise below a
- * billionth of a kW is ignored.
+ * sanctioned load times the ratio (`sanctioned_load_exceeded`). The system's module (DC) size in
+ * kWp is compared, the stricter reading, so no inverter choice can bring it back under; a ratio
+ * above 1 would let the modules exceed the load where the distribution company allows it.
+ * Floating-point noise below a billionth of a kW is ignored.
  */
-export function sanctionedLoadRule({ systemKw, sanctionedLoadKw }: SanctionedLoadInput): Bounded {
+export function sanctionedLoadRule({
+  systemKw,
+  sanctionedLoadKw,
+  ratio = WORKSHOP_DEFAULTS.sizing.sanctionedLoadRatio,
+}: SanctionedLoadInput): Bounded {
   requireFinite('systemKw', systemKw);
   requireFinite('sanctionedLoadKw', sanctionedLoadKw);
-  return bounded(systemKw > sanctionedLoadKw + 1e-9 ? ['sanctioned_load_exceeded'] : []);
+  requireFinite('ratio', ratio, { positive: true });
+  return bounded(systemKw > sanctionedLoadKw * ratio + 1e-9 ? ['sanctioned_load_exceeded'] : []);
 }

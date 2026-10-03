@@ -23,6 +23,7 @@ const EXAMPLE_1: RooftopInput = {
   roofAreaSqm: 40,
   areaPerKwSqm: 10,
   sanctionedLoadKw: 5,
+  sanctionedLoadRatio: 1,
   moduleWp: 540,
 };
 
@@ -89,6 +90,20 @@ describe('rooftopSize', () => {
     expect(result).toMatchObject({ moduleCount: 1, boundBy: 'roof', inBounds: true });
   });
 
+  it('the sanctioned load allows its kW times the ratio', () => {
+    // 3 kW at a ratio of 1.2 allows 3.6 kWp = 6.67, so 6 modules (at 1.0 it would be 5).
+    const result = rooftopSize({
+      ...EXAMPLE_1,
+      monthlyUnitsKwh: 900,
+      roofAreaSqm: 200,
+      sanctionedLoadKw: 3,
+      sanctionedLoadRatio: 1.2,
+    });
+    expect(result.sanctionedKwp).toBeCloseTo(3.6, 9);
+    expect(result.moduleCount).toBe(6);
+    expect(result.boundBy).toBe('sanctioned_load');
+  });
+
   it('a sanctioned load too small for one module is out of bounds', () => {
     const result = rooftopSize({ ...EXAMPLE_1, sanctionedLoadKw: 0.5 });
     expect(result.reasons).toEqual(['sanctioned_load_too_small']);
@@ -99,6 +114,7 @@ describe('rooftopSize', () => {
     ['a performance ratio above 1', { performanceRatio: 1.2 }],
     ['no area per kWp', { areaPerKwSqm: 0 }],
     ['a negative roof', { roofAreaSqm: -1 }],
+    ['a sanctioned-load ratio of 0', { sanctionedLoadRatio: 0 }],
   ])('refuses %s', (_label, over) => {
     expect(() => rooftopSize({ ...EXAMPLE_1, ...over })).toThrow(RangeError);
   });

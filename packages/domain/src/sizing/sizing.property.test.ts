@@ -166,13 +166,14 @@ describe('rooftopSize properties', () => {
         roofAreaSqm: random.between(0, 300),
         areaPerKwSqm: sizing.roofAreaPerKwSqm,
         sanctionedLoadKw: random.between(0, 20),
+        sanctionedLoadRatio: sizing.sanctionedLoadRatio,
         moduleWp: sizing.moduleWp,
       });
       expect(result.recommendedKwp).toBeLessThanOrEqual(result.roofKwp + 1e-6);
       expect(
         sanctionedLoadRule({
           systemKw: result.recommendedKwp,
-          sanctionedLoadKw: result.sanctionedKwp,
+          sanctionedLoadKw: result.sanctionedKwp / sizing.sanctionedLoadRatio,
         }).inBounds,
       ).toBe(true);
       if (result.boundBy === 'need') {

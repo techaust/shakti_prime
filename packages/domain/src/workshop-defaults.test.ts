@@ -34,6 +34,7 @@ describe('workshop defaults', () => {
         dutyFlowOvershootFactor: 1.5,
         surfaceMaxSuctionLiftM: 7,
         maxPipeVelocityMps: 2,
+        sanctionedLoadRatio: 1,
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
     });

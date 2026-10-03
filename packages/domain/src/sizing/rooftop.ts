@@ -21,6 +21,11 @@ export interface RooftopInput {
   readonly areaPerKwSqm: number;
   /** Sanctioned load on the electricity connection, in kW. */
   readonly sanctionedLoadKw: number;
+  /**
+   * The DC kWp allowed per kW of sanctioned load (`WORKSHOP_DEFAULTS.sizing.sanctionedLoadRatio`):
+   * the same ratio `sanctionedLoadRule` checks a quote against.
+   */
+  readonly sanctionedLoadRatio: number;
   /** Watt-peak of one module. */
   readonly moduleWp: number;
 }
@@ -30,7 +35,7 @@ export interface RooftopResult extends Bounded {
   readonly neededKwp: number;
   /** Size the roof holds: area over the area per kWp, in kWp. */
   readonly roofKwp: number;
-  /** Size the sanctioned load allows, in kWp. */
+  /** Size the sanctioned load allows: the load times the ratio, in kWp. */
   readonly sanctionedKwp: number;
   /** Whole modules recommended. */
   readonly moduleCount: number;
@@ -55,12 +60,13 @@ export function rooftopSize(input: RooftopInput): RooftopResult {
   requireFinite('roofAreaSqm', input.roofAreaSqm);
   requireFinite('areaPerKwSqm', input.areaPerKwSqm, { positive: true });
   requireFinite('sanctionedLoadKw', input.sanctionedLoadKw);
+  requireFinite('sanctionedLoadRatio', input.sanctionedLoadRatio, { positive: true });
   requireFinite('moduleWp', input.moduleWp, { positive: true });
 
   const dailyUnits = (input.monthlyUnitsKwh * 12) / 365;
   const neededKwp = dailyUnits / (input.peakSunHours * input.performanceRatio);
   const roofKwp = input.roofAreaSqm / input.areaPerKwSqm;
-  const sanctionedKwp = input.sanctionedLoadKw;
+  const sanctionedKwp = input.sanctionedLoadKw * input.sanctionedLoadRatio;
 
   const modulesFor = (kwp: number): number => (kwp * 1000) / input.moduleWp;
   const limits: readonly { bound: RooftopBound; modules: number }[] = [
