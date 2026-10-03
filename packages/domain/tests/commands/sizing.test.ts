@@ -1,4 +1,10 @@
-import { newId, SizingDto, type Principal, type RecordSizingInput } from '@shakti/contracts';
+import {
+  newId,
+  SizingDto,
+  StaleSizingDto,
+  type Principal,
+  type RecordSizingInput,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asOutboxPublisher,
@@ -355,6 +361,32 @@ describe('latestSizing', () => {
                       now() + interval '1 minute', ${system.id})`;
     });
     expect(await latest(caller, { entityId: 1, opportunityId: id })).toEqual(mine);
+  });
+
+  it('answers a sizing from an older engine as stale, to be sized again, never failing', async () => {
+    // Version 1 stored its result in another shape (no motor margin, no flow check); a row of it
+    // must not be read as today's result, nor break the read.
+    const id = await newLead();
+    await run(caller, recordSizing, rooftopSizing(id));
+    const oldId = newId();
+    await asMigrator(async (m) => {
+      const site = await leadSite(id);
+      await m`insert into sizings (id, entity_id, opportunity_id, site_id, kind, inputs_json,
+                                   result_json, in_bounds, reasons_json, engine_version,
+                                   created_at, created_by)
+              values (${oldId}, 1, ${id}, ${site}, 'rooftop', '{"monthlyUnitsKwh": 300}'::jsonb,
+                      '{"kind": "rooftop", "rooftop": {}}'::jsonb, true, '[]'::jsonb, '1',
+                      now() + interval '1 minute', ${caller.id})`;
+    });
+    const answer = await latest(caller, { entityId: 1, opportunityId: id, kind: 'rooftop' });
+    expect(answer).toMatchObject({
+      stale: true,
+      id: oldId,
+      kind: 'rooftop',
+      engineVersion: '1',
+      opportunityId: id,
+    });
+    expect(StaleSizingDto.parse(answer)).toEqual(answer);
   });
 
   it('is refused to an agent or the system principal, which record no sizing', async () => {

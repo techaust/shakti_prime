@@ -1,7 +1,7 @@
 // The sizing panel's form and display rules (docs/design/phase1.md §6.7). Pure functions, so the
 // panel and its tests share them; the calculators themselves run only on the server.
 
-import type { SizingKind } from '@shakti/contracts';
+import type { SizingDto, SizingKind, StaleSizingDto } from '@shakti/contracts';
 
 /** The measurements of a pump sizing, in the order the panel asks for them. */
 export const PUMP_MEASUREMENTS = [
@@ -91,4 +91,12 @@ export function nextTab(current: number, key: string, count: number): number | u
   if (key === 'Home') return 0;
   if (key === 'End') return count - 1;
   return undefined;
+}
+
+/**
+ * Whether the lead's newest sizing came from an older engine and must be sized again
+ * (`StaleSizingDto`); the browser copy of `isStaleSizing` in the contracts.
+ */
+export function isStale(sizing: SizingDto | StaleSizingDto): sizing is StaleSizingDto {
+  return 'stale' in sizing;
 }

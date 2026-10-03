@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { buildSizingInput, formatQuantity, measurement, nextTab, sizingFields } from './sizing';
+import {
+  buildSizingInput,
+  formatQuantity,
+  isStale,
+  measurement,
+  nextTab,
+  sizingFields,
+} from './sizing';
 
 const LEAD = { entityId: 1, opportunityId: '01990000-0000-7000-8000-000000000001' };
 
@@ -115,5 +122,50 @@ describe('nextTab', () => {
     expect(nextTab(0, 'ArrowDown', 2)).toBeUndefined();
     expect(nextTab(0, 'Enter', 2)).toBeUndefined();
     expect(nextTab(0, 'ArrowRight', 0)).toBeUndefined();
+  });
+});
+
+describe('isStale', () => {
+  it('tells a sizing to size again from today’s sizing', () => {
+    const base = {
+      id: '01990000-0000-7000-8000-000000000002',
+      entityId: 1,
+      opportunityId: LEAD.opportunityId,
+      kind: 'rooftop' as const,
+      createdAt: '2026-09-30T04:30:00.000Z',
+    };
+    expect(isStale({ ...base, stale: true, engineVersion: '1' })).toBe(true);
+    expect(
+      isStale({
+        ...base,
+        siteId: null,
+        itemId: null,
+        inBounds: true,
+        reasons: [],
+        engineVersion: '2',
+        inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+        result: {
+          kind: 'rooftop',
+          constants: {
+            peakSunHours: 5.5,
+            performanceRatio: 0.75,
+            roofAreaPerKwSqm: 10,
+            sanctionedLoadRatio: 1,
+            moduleWp: 540,
+          },
+          rooftop: {
+            neededKwp: 2.39,
+            roofKwp: 4,
+            sanctionedKwp: 5,
+            moduleCount: 5,
+            recommendedKwp: 2.7,
+            boundBy: 'need',
+            inBounds: true,
+            reasons: [],
+          },
+          advisories: [],
+        },
+      }),
+    ).toBe(false);
   });
 });

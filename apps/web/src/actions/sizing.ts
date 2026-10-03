@@ -5,6 +5,7 @@ import {
   RecordSizingInput,
   type SizingDto,
   type SizingPumpDto,
+  type StaleSizingDto,
 } from '@shakti/contracts';
 import {
   executeCommand,
@@ -38,10 +39,13 @@ export async function recordSizing(
   });
 }
 
-/** What the sizing panel opens with: the lead's newest pump and rooftop sizings and the pumps. */
+/**
+ * What the sizing panel opens with: the lead's newest pump and rooftop sizings (or that one must
+ * be sized again, when an older engine recorded it) and the pumps.
+ */
 export interface SizingPanelData {
-  pump: SizingDto | null;
-  rooftop: SizingDto | null;
+  pump: SizingDto | StaleSizingDto | null;
+  rooftop: SizingDto | StaleSizingDto | null;
   pumps: SizingPumpDto[];
 }
 

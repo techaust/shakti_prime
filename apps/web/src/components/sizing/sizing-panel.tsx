@@ -1,6 +1,6 @@
 'use client';
 
-import type { SizingDto, SizingKind, SizingPumpDto } from '@shakti/contracts';
+import type { SizingDto, SizingKind, SizingPumpDto, StaleSizingDto } from '@shakti/contracts';
 import { Button, EmptyState, Field, Input, Select, Skeleton, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type SyntheticEvent } from 'react';
@@ -12,7 +12,13 @@ import {
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
 } from '../../screens/contract-values';
-import { buildSizingInput, nextTab, PUMP_MEASUREMENTS, sizingFields } from '../../screens/sizing';
+import {
+  buildSizingInput,
+  isStale,
+  nextTab,
+  PUMP_MEASUREMENTS,
+  sizingFields,
+} from '../../screens/sizing';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -23,7 +29,7 @@ interface Lead {
   opportunityId: string;
 }
 
-type Latest = Record<SizingKind, SizingDto | null>;
+type Latest = Record<SizingKind, SizingDto | StaleSizingDto | null>;
 
 /** The value a field opens with: the measurement of the lead's newest sizing of that kind. */
 function previous(sizing: SizingDto | null, name: string): string {
@@ -280,7 +286,7 @@ export function SizingPanel({
                 key={`${tab}-${latest?.id ?? 'none'}`}
                 kind={tab}
                 lead={lead}
-                latest={latest}
+                latest={latest === null || isStale(latest) ? null : latest}
                 pumps={data.pumps}
                 onSaved={(saved) => {
                   setData((was) =>
@@ -295,6 +301,8 @@ export function SizingPanel({
             )}
             {latest === null ? (
               <EmptyState message={t('empty')} />
+            ) : isStale(latest) ? (
+              <EmptyState message={t('stale')} />
             ) : (
               <SizingResult sizing={latest} />
             )}

@@ -1492,6 +1492,7 @@
     },
     "loading": "Loading the latest sizing",
     "empty": "Not sized yet. Enter the measurements and work out the size.",
+    "stale": "This lead was sized under earlier rules. Enter the measurements again to size it.",
     "submit": "Work out size",
     "done": "Sizing saved.",
     "readOnly": "You can see this lead's sizing but not change it.",

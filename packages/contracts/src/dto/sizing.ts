@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { PumpSizingInputs, RooftopSizingInputs } from '../commands/crm/sizing';
-import { RooftopBoundSchema, SizingAdvisorySchema, SizingReasonSchema } from '../crm/sizing';
+import {
+  RooftopBoundSchema,
+  SizingAdvisorySchema,
+  SizingKindSchema,
+  SizingReasonSchema,
+} from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
 
 /**
@@ -184,6 +189,33 @@ export const SizingDto = z.discriminatedUnion('kind', [
     .strict(),
 ]);
 export type SizingDto = z.infer<typeof SizingDto>;
+
+/**
+ * A sizing recorded by an engine version other than today's: its stored result has another shape
+ * and may rest on other rules, so it is named, not shown, and the lead must be sized again. A
+ * quote treats it as no sizing. Strict.
+ */
+export const StaleSizingDto = z
+  .object({
+    stale: z.literal(true),
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    opportunityId: IdSchema,
+    kind: SizingKindSchema,
+    engineVersion: z.string().min(1),
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+export type StaleSizingDto = z.infer<typeof StaleSizingDto>;
+
+/** `latestSizing`: today's sizing, one to size again, or none. */
+export const LatestSizingDto = z.union([SizingDto, StaleSizingDto]).nullable();
+export type LatestSizingDto = z.infer<typeof LatestSizingDto>;
+
+/** Whether the newest sizing came from an older engine and must be sized again. */
+export function isStaleSizing(sizing: SizingDto | StaleSizingDto): sizing is StaleSizingDto {
+  return 'stale' in sizing;
+}
 
 /** A catalogue pump the sizing panel offers for the duty point: one with a curve. Strict. */
 export const SizingPumpDto = z
