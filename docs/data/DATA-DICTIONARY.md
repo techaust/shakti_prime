@@ -744,7 +744,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### consents
 
-**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the file the consent rests on, fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series)
+**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the proof the consent rests on: a `consent_evidence` file of the page's company that the caller may read and that has passed its checks; fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
