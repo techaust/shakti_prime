@@ -354,6 +354,7 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      'app.customer_search_ids(text,text,integer)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       'app.user_is_active(uuid)',

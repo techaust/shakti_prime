@@ -7,6 +7,12 @@ import { listUsers, listUserSessions } from '../../src/queries/admin/list-users'
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
+import {
+  listCustomers,
+  listMyTasks,
+  listTimeline,
+  loadAccount360,
+} from '../../src/queries/crm/customers';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
@@ -59,6 +65,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listPipelines: (ctx) => listPipelines(ctx),
   listLeadSources: (ctx) => listLeadSources(ctx),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
+  listCustomers: (ctx) => listCustomers(ctx, { limit: 20 }),
+  searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),
+  searchCustomersByPhone: (ctx) => listCustomers(ctx, { q: '98765', limit: 20 }),
+  loadAccount360: (ctx) => loadAccount360(ctx, { accountId: newId(), entityId: 1 }),
+  listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
+  listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
   listImportJobs: (ctx) => listImportJobs(ctx, { entityId: 1, limit: 20 }),
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
@@ -106,7 +118,8 @@ describe('every query reads the same on the reader pool as on app_user', () => {
       .filter(([name, value]) => typeof value === 'function' && QUERY_NAMES.test(name))
       .map(([name]) => name)
       .sort();
-    expect(exported).toEqual(Object.keys(QUERIES).sort());
+    const covered = Object.keys(QUERIES).filter((name) => !SEARCH_VARIANTS.has(name));
+    expect(exported).toEqual(covered.sort());
   });
 
   for (const { role, entities } of CALLERS) {
@@ -122,5 +135,11 @@ describe('every query reads the same on the reader pool as on app_user', () => {
   }
 });
 
-/** The names of the exported read functions: `list…`, `search…`, `get…`, `count…`, `query…`, `read…`. */
-const QUERY_NAMES = /^(list|search|get(?!Command)|count|query|read)[A-Z]/;
+/**
+ * The names of the exported read functions: `list…`, `search…`, `get…`, `count…`, `query…`,
+ * `read…`, and `load…` but for `loadUserDto`, which runs inside commands on their transaction.
+ */
+const QUERY_NAMES = /^(list|search|get(?!Command)|count|query|read|load(?!UserDto))[A-Z]/;
+
+/** Further calls of an exported query, with the input that takes another path through it. */
+const SEARCH_VARIANTS = new Set(['searchCustomers', 'searchCustomersByPhone']);
