@@ -1535,6 +1535,7 @@
       "savedAt": "Worked out on",
       "inBounds": "Within limits",
       "outOfBounds": "Outside limits",
+      "advice": "Advice",
       "headTitle": "Total height to lift",
       "staticHead": "Water level and outlet height",
       "drawdown": "Drop while pumping",
@@ -1595,6 +1596,9 @@
       "sanctioned_load_exceeded": "The system is larger than the sanctioned load allows.",
       "dcr_modules_required": "This scheme needs made-in-India (DCR) panels on every line.",
       "no_modules": "This scheme needs panels on the quote."
+    },
+    "advisory": {
+      "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
     }
   }
 }

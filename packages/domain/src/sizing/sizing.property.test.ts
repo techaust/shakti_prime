@@ -58,6 +58,7 @@ function headInput(random: ReturnType<typeof generator>): HeadInput {
     flowLph: random.between(0, 200_000),
     fittingsLossFraction: random.between(0, 0.5),
     hazenWilliamsC: random.pick([sizing.hazenWilliamsC.hdpe, sizing.hazenWilliamsC.gi]),
+    maxPipeVelocityMps: sizing.maxPipeVelocityMps,
   };
 }
 
@@ -72,6 +73,10 @@ describe('totalDynamicHead properties', () => {
         input.staticLevelM + input.deliveryHeightM + input.drawdownM - TOLERANCE,
       );
       expect(result.inBounds).toBe(true);
+      // Advice follows the velocity alone and never touches the bounds.
+      expect(result.advisories.length > 0).toBe(
+        result.pipeVelocityMps > sizing.maxPipeVelocityMps + 1e-6,
+      );
     });
   });
 

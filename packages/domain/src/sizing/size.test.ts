@@ -37,10 +37,14 @@ describe('sizePump', () => {
       standardHp: sizing.standardHp,
       dutyFlowTolerance: sizing.dutyFlowTolerance,
       dutyFlowOvershootFactor: sizing.dutyFlowOvershootFactor,
+      maxPipeVelocityMps: sizing.maxPipeVelocityMps,
       maxSuctionLiftM: null,
       arrayOversize: sizing.solarArrayOversize,
       moduleWp: sizing.moduleWp,
     });
+    // 2.55 m/s in the 50 mm pipe is above the advised 2 m/s: advice, kept out of the reasons.
+    expect(result.advisories).toEqual(['pipe_velocity_high']);
+    expect(result.head.advisories).toEqual(['pipe_velocity_high']);
     // A submersible sits in the water: no suction lift to check.
     expect(result.suction).toBeNull();
     // Head example 1: 44.39 m at the textbook HDPE roughness and 10% fittings.

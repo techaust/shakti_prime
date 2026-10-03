@@ -3,6 +3,7 @@
 import type {
   PumpSizingResult,
   RooftopSizingResult,
+  SizingAdvisory,
   SizingDto,
   SizingReason,
 } from '@shakti/contracts';
@@ -10,7 +11,7 @@ import { StatusBadge } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { oneOf } from '../../screens/audit';
-import { SIZING_REASONS } from '../../screens/contract-values';
+import { SIZING_ADVISORIES, SIZING_REASONS } from '../../screens/contract-values';
 import { formatQuantity } from '../../screens/sizing';
 import { DateTime } from '../date-time';
 
@@ -50,6 +51,23 @@ function Reasons({ reasons }: { reasons: readonly SizingReason[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Advice on a result, each as a plain sentence, apart from the reasons: it sets no limit. */
+function Advice({ advisories }: { advisories: readonly SizingAdvisory[] }) {
+  const t = useTranslations('sizing');
+  const known = advisories.filter((advisory) => oneOf(SIZING_ADVISORIES, advisory));
+  if (known.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-1">
+      <h4 className="font-semibold">{t('result.advice')}</h4>
+      <ul className="text-text-muted flex list-disc flex-col gap-1 pl-5 text-sm">
+        {known.map((advisory) => (
+          <li key={advisory}>{t(`advisory.${advisory}`)}</li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -187,6 +205,7 @@ export function SizingResult({ sizing }: { sizing: SizingDto }) {
       ) : (
         <RooftopFacts result={sizing.result} />
       )}
+      <Advice advisories={sizing.result.advisories} />
     </section>
   );
 }

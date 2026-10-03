@@ -14,6 +14,7 @@ import type {
   PumpDrive,
   PumpType,
   SessionRevokeReason,
+  SizingAdvisory,
   SizingKind,
   SizingReason,
   Theme,
@@ -119,6 +120,11 @@ export const SIZING_REASONS = [
   'dcr_modules_required',
   'no_modules',
 ] as const satisfies readonly SizingReason[];
+
+/** Advice on a sizing that never sets its bounds; the panel names each one. */
+export const SIZING_ADVISORIES = [
+  'pipe_velocity_high',
+] as const satisfies readonly SizingAdvisory[];
 
 /**
  * The range each sizing measurement accepts (`PumpSizingInputs`, `RooftopSizingInputs`), so the

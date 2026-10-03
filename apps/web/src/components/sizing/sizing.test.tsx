@@ -85,6 +85,17 @@ describe('SizingResult', () => {
     expect(html).toContain('It should give from 16,200 litres an hour to 27,000 litres an hour');
     expect(html).toContain(en.sizing.result.ratedHp);
     expect(html).toMatch(/<time dateTime="2026-09-30T04:30:00.000Z">/);
+    // 2.55 m/s in the 50 mm pipe: advice in plain words, while the result stays within limits.
+    expect(html).toContain(en.sizing.result.advice);
+    expect(html).toContain(en.sizing.advisory.pipe_velocity_high);
+    expect(html).not.toContain('pipe_velocity_high');
+  });
+
+  it('gives no advice for a pipe wide enough', () => {
+    const html = render(
+      <SizingResult sizing={pumpSizing({ ...PUMP_INPUTS, pipeInnerDiameterMm: 63 })} />,
+    );
+    expect(html).not.toContain(en.sizing.result.advice);
   });
 
   it('names why a result is outside its limits in plain words, never as a code', () => {

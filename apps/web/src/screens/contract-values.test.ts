@@ -18,6 +18,7 @@ import {
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SizingAdvisorySchema,
   SizingKindSchema,
   SizingReasonSchema,
   ThemeSchema,
@@ -43,6 +44,7 @@ import {
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_ADVISORIES,
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
   SIZING_REASONS,
@@ -65,6 +67,7 @@ describe('the contract values copied for the browser', () => {
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
     expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
+    expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
     expect(PUMP_TYPES).toEqual(PumpTypeSchema.options);
     expect(PUMP_DRIVES).toEqual(PumpDriveSchema.options);
     expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);

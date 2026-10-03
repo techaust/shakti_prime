@@ -93,6 +93,7 @@ export function sizePump(
     standardHp: [...defaults.standardHp],
     dutyFlowTolerance: defaults.dutyFlowTolerance,
     dutyFlowOvershootFactor: defaults.dutyFlowOvershootFactor,
+    maxPipeVelocityMps: defaults.maxPipeVelocityMps,
     maxSuctionLiftM: surface ? defaults.surfaceMaxSuctionLiftM : null,
     arrayOversize: solarDrive ? defaults.solarArrayOversize : null,
     moduleWp: solarDrive ? defaults.moduleWp : null,
@@ -107,6 +108,7 @@ export function sizePump(
     flowLph: inputs.flowLph,
     fittingsLossFraction: constants.fittingsLossFraction,
     hazenWilliamsC: constants.hazenWilliamsC,
+    maxPipeVelocityMps: constants.maxPipeVelocityMps,
   });
   // A surface pump draws the water up to itself; a submersible sits in it.
   const suction = surface
@@ -140,11 +142,13 @@ export function sizePump(
     result: {
       kind: 'pump',
       constants,
-      head: { ...head, reasons: [...head.reasons] },
+      head: { ...head, reasons: [...head.reasons], advisories: [...head.advisories] },
       power: { ...power, reasons: [...power.reasons] },
       suction: suction && { ...suction, reasons: [...suction.reasons] },
       solar: solar && { ...solar, reasons: [...solar.reasons] },
       dutyPoint,
+      // Only the head gives advice so far; it never enters the reasons or the bounds.
+      advisories: [...head.advisories],
     },
     ...combine([head, suction, power, solar, dutyPoint]),
   };
@@ -171,7 +175,12 @@ export function sizeRooftop(
     moduleWp: constants.moduleWp,
   });
   return {
-    result: { kind: 'rooftop', constants, rooftop: { ...rooftop, reasons: [...rooftop.reasons] } },
+    result: {
+      kind: 'rooftop',
+      constants,
+      rooftop: { ...rooftop, reasons: [...rooftop.reasons] },
+      advisories: [],
+    },
     ...combine([rooftop]),
   };
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { PumpSizingInputs, RooftopSizingInputs } from '../commands/crm/sizing';
-import { RooftopBoundSchema, SizingReasonSchema } from '../crm/sizing';
+import { RooftopBoundSchema, SizingAdvisorySchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
 
 /**
@@ -22,6 +22,7 @@ export const HeadResultSchema = z
     fittingsM: quantity,
     tdhM: quantity,
     pipeVelocityMps: quantity,
+    advisories: z.array(SizingAdvisorySchema),
     ...Bounded,
   })
   .strict();
@@ -98,6 +99,7 @@ export const PumpSizingConstantsSchema = z
     standardHp: z.array(z.number().positive()),
     dutyFlowTolerance: quantity.max(1),
     dutyFlowOvershootFactor: z.number().min(1),
+    maxPipeVelocityMps: z.number().positive(),
     /** Surface pumps only. */
     maxSuctionLiftM: z.number().positive().nullable(),
     /** Solar drive only. */
@@ -131,6 +133,8 @@ export const PumpSizingResultSchema = z
     solar: SolarPumpResultSchema.nullable(),
     /** Only when a catalogue pump was chosen. */
     dutyPoint: DutyPointResultSchema.nullable(),
+    /** Advice from every part, once each; kept apart from the reasons, it never sets bounds. */
+    advisories: z.array(SizingAdvisorySchema),
   })
   .strict();
 export type PumpSizingResult = z.infer<typeof PumpSizingResultSchema>;
@@ -140,6 +144,8 @@ export const RooftopSizingResultSchema = z
     kind: z.literal('rooftop'),
     constants: RooftopSizingConstantsSchema,
     rooftop: RooftopResultSchema,
+    /** Advice that never sets bounds; a rooftop sizing gives none yet. */
+    advisories: z.array(SizingAdvisorySchema),
   })
   .strict();
 export type RooftopSizingResult = z.infer<typeof RooftopSizingResultSchema>;

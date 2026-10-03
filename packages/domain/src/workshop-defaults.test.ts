@@ -33,6 +33,7 @@ describe('workshop defaults', () => {
         dutyFlowTolerance: 0.1,
         dutyFlowOvershootFactor: 1.5,
         surfaceMaxSuctionLiftM: 7,
+        maxPipeVelocityMps: 2,
         dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
       },
     });

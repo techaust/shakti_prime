@@ -1,3 +1,4 @@
+import type { SizingAdvisory } from '@shakti/contracts';
 import { bounded, lphToCubicMetresPerSecond, requireFinite, type Bounded } from './bounds';
 
 export interface HeadInput {
@@ -17,6 +18,11 @@ export interface HeadInput {
   readonly fittingsLossFraction: number;
   /** Hazen-Williams roughness coefficient of the pipe (higher is smoother). */
   readonly hazenWilliamsC: number;
+  /**
+   * Water velocity above which the pipe is advised to be wider, in metres per second
+   * (`WORKSHOP_DEFAULTS.sizing.maxPipeVelocityMps`).
+   */
+  readonly maxPipeVelocityMps: number;
 }
 
 export interface HeadResult extends Bounded {
@@ -29,8 +35,10 @@ export interface HeadResult extends Bounded {
   readonly fittingsM: number;
   /** Total dynamic head, the sum of the parts above, in metres. */
   readonly tdhM: number;
-  /** Mean water velocity in the pipe, in metres per second (shown, not bounded). */
+  /** Mean water velocity in the pipe, in metres per second (advised on, not bounded). */
   readonly pipeVelocityMps: number;
+  /** Advice that never puts the sizing out of bounds (`pipe_velocity_high`). */
+  readonly advisories: readonly SizingAdvisory[];
 }
 
 /**
@@ -54,7 +62,8 @@ export function hazenWilliamsLossM(
  * outlet, the drawdown while pumping, the pipe's friction loss by Hazen-Williams, and the
  * fittings' losses as a fraction of that friction. Every part is returned so the panel can show
  * where the head comes from. Always in bounds: the head itself limits nothing until a pump is
- * chosen (`pumpDutyPoint`).
+ * chosen (`pumpDutyPoint`). Water faster than the advised velocity is named as advice
+ * (`pipe_velocity_high`): a wider pipe would lose less head and wear less, but the sizing stands.
  */
 export function totalDynamicHead(input: HeadInput): HeadResult {
   requireFinite('staticLevelM', input.staticLevelM);
@@ -65,6 +74,7 @@ export function totalDynamicHead(input: HeadInput): HeadResult {
   requireFinite('flowLph', input.flowLph);
   requireFinite('fittingsLossFraction', input.fittingsLossFraction);
   requireFinite('hazenWilliamsC', input.hazenWilliamsC, { positive: true });
+  requireFinite('maxPipeVelocityMps', input.maxPipeVelocityMps, { positive: true });
 
   const flowM3s = lphToCubicMetresPerSecond(input.flowLph);
   const diameterM = input.pipeInnerDiameterMm / 1000;
@@ -80,6 +90,8 @@ export function totalDynamicHead(input: HeadInput): HeadResult {
     fittingsM,
     tdhM: staticHeadM + input.drawdownM + frictionM + fittingsM,
     pipeVelocityMps,
+    // A millionth of a metre a second of floating-point noise is not fast water.
+    advisories: pipeVelocityMps > input.maxPipeVelocityMps + 1e-6 ? ['pipe_velocity_high'] : [],
     ...bounded([]),
   };
 }

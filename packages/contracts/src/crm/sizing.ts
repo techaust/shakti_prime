@@ -56,3 +56,10 @@ export const SizingReasonSchema = z.enum([
   'no_modules',
 ]);
 export type SizingReason = z.infer<typeof SizingReasonSchema>;
+
+/**
+ * Advice on a sizing that never puts it out of bounds and never stops a quote: the panel shows
+ * it beside the result (`sizing.advisory.*` in the message catalogue).
+ */
+export const SizingAdvisorySchema = z.enum(['pipe_velocity_high']);
+export type SizingAdvisory = z.infer<typeof SizingAdvisorySchema>;

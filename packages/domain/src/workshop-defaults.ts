@@ -39,6 +39,7 @@ export interface SizingDefaults {
   readonly dutyFlowTolerance: number;
   readonly dutyFlowOvershootFactor: number;
   readonly surfaceMaxSuctionLiftM: number;
+  readonly maxPipeVelocityMps: number;
   readonly dcrSchemes: readonly SubsidyScheme[];
 }
 
@@ -127,6 +128,12 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
      * practical limit below the 10 m air pressure allows. For the engineering head to confirm.
      */
     surfaceMaxSuctionLiftM: 7,
+    /**
+     * Water velocity in the delivery pipe above which a wider pipe is advised: 2 m/s, the common
+     * design limit for pumping mains. Advice only; it never puts a sizing out of bounds. For the
+     * engineering head to confirm.
+     */
+    maxPipeVelocityMps: 2,
     /** Schemes whose subsidy requires DCR modules: PM Surya Ghar and PM-KUSUM. */
     dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
   },
