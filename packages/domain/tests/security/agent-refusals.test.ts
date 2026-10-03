@@ -206,7 +206,7 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
  * SECURITY §3.3: agents never write the customer master; no agent holds `crm.account.write`.
  * Every command that needs it, read from the registry, refuses every agent at the guard: the
  * lead form, imports, the customer edits and the consents of Account 360 (docs/design/phase1.md
- * §6.5).
+ * §6.5), and the upload of a consent's proof (the `consent_evidence` purpose names it).
  */
 const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
   .filter((command) => needs(command).includes('crm.account.write'))
@@ -233,6 +233,21 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
     account: { type: 'farm' },
   },
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // The proof of a consent, uploaded before the consent names it.
+  'files.upload.begin': {
+    entityId: 1,
+    purpose: 'consent_evidence',
+    name: 'Refused consent form.pdf',
+    contentType: 'application/pdf',
+    size: 10,
+    sha256: 'a'.repeat(64),
+    bucket: 'local',
+  },
+  'files.upload.complete': {
+    fileId: newId(),
+    purpose: 'consent_evidence',
+    stored: { size: 10, sha256: 'a'.repeat(64) },
+  },
   // An import makes customers the way the lead form does.
   'imports.job.commit': { entityId: 1, jobId: newId() },
   'imports.job.commit_batch': { entityId: 1, jobId: newId() },
