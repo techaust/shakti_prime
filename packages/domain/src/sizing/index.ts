@@ -15,6 +15,8 @@ export type { CurvePoint, DutyPointResult } from './duty-point';
 export { dcrRule, sanctionedLoadRule } from './rules';
 export type { DcrRuleInput, DcrRuleResult, ModuleLine, SanctionedLoadInput } from './rules';
 export { pumpMatch } from './match';
+export { quoteSizingFacts } from './quote-facts';
+export type { QuoteSizingContext, QuoteSizingFacts } from './quote-facts';
 export type { PumpMatchInput, PumpMatchResult } from './match';
 export { suctionLift } from './suction';
 export type { SuctionInput, SuctionResult } from './suction';
