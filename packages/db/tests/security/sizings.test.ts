@@ -6,6 +6,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  principalFor,
   withoutContext,
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
@@ -75,6 +76,26 @@ describe('recording a sizing', () => {
   it('the lead’s owner records one on their lead', async () => {
     const id = await insertAs(fx.principals.a, { opportunityId: lead('a') });
     expect(await visible(fx.principals.a, id)).toBe(true);
+  });
+
+  it('a principal that is not a person cannot record one, even with the lead’s write grant', async () => {
+    // Only people record a sizing (SECURITY §3.3). The seeded system principal is a principals
+    // row of kind system; given the lead grants for the test, the policy still refuses it.
+    const [system] = await asMigrator(
+      (m) =>
+        m<{ id: string }[]>`select id from principals where kind = 'system' order by id limit 1`,
+    );
+    if (!system) throw new Error('no seeded system principal');
+    const service = principalFor('system:workers', [1], {
+      id: system.id,
+      permissions: [
+        { key: 'crm.lead.read', scope: 'entity' },
+        { key: 'crm.lead.write', scope: 'entity' },
+      ],
+    });
+    expect(await failure(insertAs(service, { opportunityId: lead('a') }))).toMatch(
+      /row-level security/,
+    );
   });
 
   it('a colleague with own scope cannot record one on another person’s lead', async () => {

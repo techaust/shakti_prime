@@ -11,6 +11,11 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   minScope?: Scope;
   /** Further permissions the command needs, each at its own narrowest scope (AUDIT L9). */
   alsoRequires?: readonly { permission: PermissionKey; minScope: Scope }[];
+  /**
+   * Only people may call it: the guard refuses an agent, a voice session and the system principal
+   * (`people_only`) before it checks the permission (SECURITY §3.3).
+   */
+  peopleOnly?: boolean;
   input: I;
   /** A strict DTO. Anything the handler returns beyond it is an error, never a leak. */
   output: O;

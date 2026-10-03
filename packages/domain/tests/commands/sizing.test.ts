@@ -6,6 +6,7 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  principalFor,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -334,6 +335,46 @@ describe('latestSizing', () => {
 
     const again = SizingDto.parse(await run(caller, recordSizing, pumpSizing(id, pumpId)));
     expect(await latest(caller, { entityId: 1, opportunityId: id, kind: 'pump' })).toEqual(again);
+  });
+
+  it('answers only a sizing a person recorded', async () => {
+    // A newer row recorded under the system principal (written here as the migrator, past the
+    // policy that would refuse it) is passed over: a quote relies only on people's sizings.
+    const id = await newLead();
+    const mine = SizingDto.parse(await run(caller, recordSizing, rooftopSizing(id)));
+    await asMigrator(async (m) => {
+      const [system] = await m<{ id: string }[]>`
+        select id from principals where kind = 'system' order by id limit 1`;
+      if (!system) throw new Error('no seeded system principal');
+      const site = await leadSite(id);
+      await m`insert into sizings (id, entity_id, opportunity_id, site_id, kind, inputs_json,
+                                   result_json, in_bounds, reasons_json, engine_version,
+                                   created_at, created_by)
+              values (${newId()}, 1, ${id}, ${site}, 'rooftop', ${m.json(mine.inputs)},
+                      ${m.json(mine.result)}, true, '[]'::jsonb, ${SIZING_ENGINE_VERSION},
+                      now() + interval '1 minute', ${system.id})`;
+    });
+    expect(await latest(caller, { entityId: 1, opportunityId: id })).toEqual(mine);
+  });
+
+  it('is refused to an agent or the system principal, which record no sizing', async () => {
+    const id = await newLead();
+    for (const service of [
+      principalFor('agent:sizing', [1], {
+        permissions: [
+          { key: 'crm.lead.read', scope: 'entity' },
+          { key: 'crm.lead.write', scope: 'entity' },
+        ],
+      }),
+      principalFor('system:workers', [1], {
+        permissions: [{ key: 'crm.lead.write', scope: 'all' }],
+      }),
+    ]) {
+      await expect(run(service, recordSizing, rooftopSizing(id))).rejects.toMatchObject({
+        code: 'forbidden',
+        details: { reason: 'people_only' },
+      });
+    }
   });
 
   it('answers null for a lead with no sizing, or one the caller cannot read', async () => {

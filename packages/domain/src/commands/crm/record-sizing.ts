@@ -87,15 +87,18 @@ async function chosenPump(
  * `crm.sizing.record` (docs/design/phase1.md §6.7, PRD SAL-04): runs the sizing calculators on
  * the field measurements and stores the inputs, the result, its bounds and the engine version as
  * a new row of the lead's history (the newest is the one a quote uses). The result is always
- * computed here from the inputs and the workshop defaults; a caller never supplies it. Anyone who
- * may write the lead may size it: the insert policy checks `crm.lead.write` on the lead's owner
- * and team. An out-of-bounds result is recorded, not refused, with the reasons the quote guard
- * names.
+ * computed here from the inputs and the workshop defaults; a caller never supplies it. Any person
+ * who may write the lead may size it: the insert policy checks `crm.lead.write` on the lead's
+ * owner and team, and that the recorder is a user principal. Only people record the sizing a quote
+ * relies on (the owner's decision of 30-09-2026, SECURITY §3.3): the guard refuses agents, voice
+ * sessions and the system principal (`people_only`). An out-of-bounds result is recorded, not
+ * refused, with the reasons the quote guard names.
  */
 export const recordSizing = defineCommand({
   name: 'crm.sizing.record',
   permission: 'crm.lead.write',
   minScope: 'own',
+  peopleOnly: true,
   input: RecordSizingInput,
   output: SizingDto,
   auditFields: ['sizingKind', 'inBounds', 'sizingReasons', 'engineVersion'],

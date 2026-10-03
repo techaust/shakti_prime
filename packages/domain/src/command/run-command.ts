@@ -141,6 +141,30 @@ export function checkPermission(
   }
 }
 
+/**
+ * A person signed in as themselves: a user principal whose role is neither an agent's nor the
+ * system's. Agents, voice sessions and the system principal the event workers act as are not.
+ */
+export function isPerson(principal: Principal): boolean {
+  return (
+    principal.kind === 'user' &&
+    !principal.roleKey.startsWith('agent:') &&
+    !principal.roleKey.startsWith('system:')
+  );
+}
+
+/**
+ * Pure guard of a command only people may call (`Command.peopleOnly`), checked before the
+ * permission so a service principal is refused with the reason whatever it holds.
+ */
+export function checkPerson(principal: Principal, commandName: string): void {
+  if (!isPerson(principal)) {
+    throw new DomainError('forbidden', `${commandName} is for people only, not ${principal.kind}`, {
+      reason: 'people_only',
+    });
+  }
+}
+
 /** SQLSTATE classes a handler may hit; anything else is an internal error, never a leak. */
 const SQLSTATE_CODES: Record<string, DomainError['code']> = {
   '23505': 'conflict', // unique_violation
@@ -241,6 +265,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   }
 
   try {
+    if (command.peopleOnly === true) checkPerson(context.principal, command.name);
     checkPermission(context.principal, command.permission, command.minScope ?? 'own');
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);

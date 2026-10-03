@@ -161,7 +161,8 @@
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
     "event_in_progress": "This update is already being handled. It will be tried again shortly.",
     "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
-    "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type."
+    "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
+    "people_only": "Only a member of the team can do this, not an automated assistant."
   },
   "auth": {
     "signIn": {
