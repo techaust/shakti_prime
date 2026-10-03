@@ -21,6 +21,35 @@ env:
   NEXT_TELEMETRY_DISABLED: '1'
 
 jobs:
+  # Decides which jobs a run needs, so a pull request that changes only documents spends minutes
+  # on the cheap checks alone (GitHub's included Actions minutes are limited per month).
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(git diff --name-only "$BASE...$HEAD")
+          echo "$files"
+          # Documents only: docs/ (the generated ERD and machine specs are checked by the unit
+          # tests, which always run) and the Markdown files at the root.
+          if echo "$files" | grep -qvE '^(docs/.*|[^/]+\.md)$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   lint:
     name: Lint, format and copy
     runs-on: ubuntu-latest
@@ -49,6 +78,8 @@ jobs:
 
   typecheck:
     name: Typecheck
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -77,6 +108,8 @@ jobs:
 
   build:
     name: Production build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -117,6 +150,8 @@ jobs:
 
   security:
     name: Security suite (real Postgres)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -159,6 +194,8 @@ jobs:
 
   e2e:
     name: End-to-end (${{ matrix.project }})
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # One job per project, each with its own database; the sign-in setup runs in each. The image
@@ -247,6 +284,8 @@ jobs:
 
   lighthouse:
     name: Lighthouse
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
