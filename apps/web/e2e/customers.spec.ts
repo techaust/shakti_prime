@@ -17,20 +17,27 @@ function freshMobile(): string {
 }
 
 /**
- * A customer of this journey's own: a lead added through the lead form in Shakti Supreme, then
- * found on the customers list by name and opened. Answers the name and Account 360's address.
+ * A customer of this journey's own: a lead added through the lead form (in `company`, for a
+ * person who works in several), then found on the customers list by name and opened. Answers the
+ * name and Account 360's address.
  */
-async function addCustomer(page: Page, first: string): Promise<{ name: string; url: string }> {
+async function addCustomer(
+  page: Page,
+  first: string,
+  company = 'Shakti Supreme',
+): Promise<{ name: string; url: string }> {
   const name = `${first} ${String(Date.now()).slice(-6)}`;
   await page.goto('/leads/new');
   await page.getByLabel('Customer name').fill(name);
   await page.getByLabel('Mobile number').fill(freshMobile());
-  const company = page.getByLabel('Company', { exact: true });
-  if (await company.isVisible()) await company.selectOption({ label: 'Shakti Supreme' });
+  const companies = page.getByLabel('Company', { exact: true });
+  if (await companies.isVisible()) await companies.selectOption({ label: company });
   await page.getByLabel('Line of business').selectOption({ index: 1 });
   await page.getByLabel('Type of customer').selectOption({ label: 'Farm' });
   await page.getByRole('button', { name: 'Save lead' }).click();
-  await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible();
+  // The lead form waits for its number check and the journeys' other uploads and leads share the
+  // machine, so a save can take several seconds when two projects add leads at once.
+  await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible({ timeout: 30_000 });
 
   await page.goto('/customers');
   await page.getByRole('searchbox', { name: 'Find a customer' }).fill(name);
@@ -93,7 +100,7 @@ test.describe('customers as an Executive', () => {
   });
 
   test('adds a task and marks it done', async ({ page }) => {
-    await addCustomer(page, 'Dinesh Prajapat');
+    await addCustomer(page, 'Dinesh Prajapat', 'Shakti Motor Pumps');
     const tasks = section(page, 'Tasks');
     await tasks.getByRole('button', { name: 'Add task' }).click();
     const dialog = page.getByRole('dialog');
