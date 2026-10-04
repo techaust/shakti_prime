@@ -2,7 +2,7 @@
 
 Date: 27-09-2026. For: the Shakti group owners, the sales head, Accounts and the group's CA. Prepared by the development team.
 
-> **Blocking work now.** These answers hold up the next pieces of Phase 1. Until each arrives, the system runs on the "Today" setting written under the question, and nothing goes live to customers on a setting the group has not confirmed. The letters and number in brackets name the piece of work (the [glossary](../GLOSSARY.md#slice-codes) explains them).
+> **Blocking work now.** These answers hold up the next pieces of Phase 1. Until each arrives, the system uses the setting written under "Today" for that question, or leaves the data empty where there is none. The letters and number in brackets name the piece of work (the [glossary](../GLOSSARY.md#slice-codes) explains them).
 >
 > | Question | What it holds up |
 > |---|---|
