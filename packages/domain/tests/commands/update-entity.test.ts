@@ -73,8 +73,10 @@ describe('org.entity.update', () => {
             address_line2: string | null;
             city: string | null;
             pin: string | null;
+            bank_details_set: boolean;
           }[]
-        >`select brand_name, gstin, upi_id, address_line1, address_line2, city, pin
+        >`select brand_name, gstin, upi_id, address_line1, address_line2, city, pin,
+                 bank_details_set
             from entities where id = 1`,
     );
     if (!before) throw new Error('entity 1 is seeded');
@@ -101,6 +103,7 @@ describe('org.entity.update', () => {
         addressLine2: before.address_line2,
         city: before.city,
         pin: before.pin,
+        bankDetailsSet: before.bank_details_set,
       });
       expect(recorded.records).toContainEqual(
         expect.objectContaining({
@@ -237,6 +240,7 @@ describe('listEntities', () => {
       expect(Object.keys(row).sort()).toEqual([
         'addressLine1',
         'addressLine2',
+        'bankDetailsSet',
         'brandName',
         'city',
         'code',
