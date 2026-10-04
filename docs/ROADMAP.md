@@ -104,7 +104,7 @@ Each keeps its next step in [`docs/phase0/exit-gate-actions.md`](phase0/exit-gat
 | The Agent Inbox | AI0 |
 | The caller workspace | T1 |
 | The quote tables and commands; time in stage and the kW or HP on board cards | S1 |
-| The duplicate cards (CRM-03), which also catch a second customer made when an import commits a brand-new number at the same moment as a lead form or another import (imports take no number lock) | D1 |
+| The duplicate cards (PRD CRM-03), which also catch a second customer made when an import commits a brand-new number at the same moment as a lead form or another import (imports take no number lock) | D1 |
 | The top-bar notifications, and the notification that routes a lead refused as `customer_held_by_colleague` to the colleague or team lead through the Agent Inbox | N1 |
 | The sales-order tables and commands | S2 |
 | ⌘K search measured again on the client's imported leads: three letters of a very common surname pass 300 ms for an Executive or a General Manager on the spike's made-up names (`docs/spikes/lists.md`) | M1 and G1 |
