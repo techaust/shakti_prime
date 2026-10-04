@@ -195,8 +195,10 @@ begin
         or exists (select 1 from public.activities v
                     where v.account_id = a.id and v.created_at >= a.created_at
                       and v.actor_principal_id <> v_importer)
-        or exists (select 1 from public.opportunity_tags g
-                    where g.account_id = a.id and g.created_at >= a.created_at
+        or exists (select 1
+                     from public.opportunities o
+                     join public.opportunity_tags g on g.opportunity_id = o.id
+                    where o.account_id = a.id and g.created_at >= a.created_at
                       and g.created_by <> v_importer));
 end
 $$;
