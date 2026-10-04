@@ -1,6 +1,6 @@
 # Spike: Supabase Realtime with BOS-signed tokens
 
-**Status:** deferred by the owner's decision of 29-09-2026: it runs on the production site with the client's domain. The BOS side is built and tested locally; nothing has run against Supabase yet. Supabase's third-party auth lists named vendors only, so the run uses option (a) of §6: the BOS signing key imported into the project's JWT signing keys as a standby key.
+**Status (04-10-2026):** deferred by the owner's decision of 29-09-2026: it runs on the production site with the client's domain. Owner: the developer, once that site exists. The BOS side is built and tested locally; nothing has run against Supabase yet. Supabase's third-party auth lists named vendors only, so the run uses option (a) of §6: the BOS signing key imported into the project's JWT signing keys as a standby key.
 **Design:** `docs/design/backend-weeks-3-5.md` §2.5 · **Decision:** ADR 0003 · **Audit:** M1, M15 · **Fallback:** the notification centre polls every 15 seconds while its tab is visible (blueprint risk 15; the interval is set in `docs/design/phase1.md` §2).
 
 ## 1. What is built
@@ -19,14 +19,14 @@
 Tested locally: unit tests `apps/web/src/realtime/*.test.ts` (signing and verification against the published key list, rotation, claims, 15-minute cap, expiry, wrong issuer, wrong audience, unpublished key, refusal without a session, refusal of agents and of another origin, missing or broken keys) and the security-suite test `apps/web/tests/realtime-token.test.ts` (a real Better Auth session on Postgres resolved to the token's `sub`, `entity_ids` and `bos_role`; the entity switcher narrows `entity_ids`; signed-out and missing sessions refused; an Executive without an authenticator app refused).
 
 ## 2. What the user supplies
-1. A hosted **Supabase dev project** (Mumbai) with the Data API switched off, or exposing no schema (DEPLOY §1.1).
-2. A **public https deployment of this branch** (a Vercel preview is enough) with `BETTER_AUTH_URL` set to its address and `BOS_JWT_CURRENT_KEY` set. Supabase must be able to fetch `https://<deployment>/.well-known/openid-configuration`; a Vercel preview behind deployment protection is not reachable, so switch protection off for that preview or use a custom domain.
+1. The **Supabase project behind the production site** (Mumbai) with the Data API switched off, or exposing no schema (DEPLOY §1.1).
+2. The **production site on the client's domain** with `BETTER_AUTH_URL` set to its address and `BOS_JWT_CURRENT_KEY` set.
 3. For the script, on the machine that runs it: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the project's publishable key; never the service role key), `BETTER_AUTH_URL` and `BOS_JWT_CURRENT_KEY` with the **same values as the deployment**, `REALTIME_SPIKE_USER_ID` (any UUIDv7, ideally a real user id), `REALTIME_SPIKE_ENTITY_ID` (in scope, for example `1`), `REALTIME_SPIKE_OTHER_ENTITY_ID` (out of scope, for example `2`) and optionally `REALTIME_SPIKE_ROUNDS` (default 20).
 
 ## 3. Steps
 1. Make the key: `pnpm --silent --filter web realtime-keys` and paste the one line straight into the deployment's `BOS_JWT_CURRENT_KEY` (and the local shell that runs the script). Redeploy.
 2. Check the deployment: `https://<deployment>/.well-known/jwks.json` lists one key whose `kid` matches the stderr line of step 1; `/.well-known/openid-configuration` names the deployment as `issuer`.
-3. In Supabase, Authentication › Third-party auth: add the BOS as a provider with the issuer `https://<deployment>` (Supabase reads the discovery document and the key list from it). If the dashboard offers only named vendors and no custom OIDC issuer for this project, stop here and record it (see §6).
+3. In Supabase, Project Settings › JWT Keys: import the BOS signing key of step 1 (the same JWK, with its `kid`) as a **standby key**, and leave it in standby, so the project verifies the tokens the BOS signs while Supabase keeps signing its own with its current key. Check that the project's key list (`https://<project>.supabase.co/auth/v1/.well-known/jwks.json`) shows the BOS `kid`. If the project does not accept the import, stop here and record it; the fallback is polling (§6).
 4. SQL editor: run `docs/spikes/realtime/realtime-policies.sql`, then `docs/spikes/realtime/spike-only-latency.sql`. Run the checks at the bottom of the first file.
 5. In Realtime settings, switch off "Allow public access" so every channel is private.
 6. Run `pnpm --filter web realtime-spike`. It prints PASS or FAIL per check on stderr and a JSON report on stdout; save the report under `docs/spikes/realtime/` with the date.
@@ -42,13 +42,13 @@ Tested locally: unit tests `apps/web/src/realtime/*.test.ts` (signing and verifi
 
 ## 5. Key rotation (every 6 months, ADR 0003)
 The key list carries two slots. Tokens live 15 minutes; the key list is cached for 5 minutes by relying parties.
-1. `realtime-keys` → set as `BOS_JWT_NEXT_KEY`, redeploy. Check `/.well-known/jwks.json` lists both.
+1. `realtime-keys` → set as `BOS_JWT_NEXT_KEY`, import it into Supabase as a second standby key, redeploy. Check `/.well-known/jwks.json` and the project's key list both show the two keys.
 2. Wait at least 10 minutes (the list's cache and Supabase's own), then swap: the new key into `BOS_JWT_CURRENT_KEY`, the old one into `BOS_JWT_NEXT_KEY`; redeploy. New tokens carry the new `kid`; old tokens still verify.
-3. Wait at least 30 minutes, clear `BOS_JWT_NEXT_KEY`, redeploy.
+3. Wait at least 30 minutes, clear `BOS_JWT_NEXT_KEY`, revoke the old key in Supabase, redeploy.
 The unit test "survives a rotation" in `apps/web/src/realtime/token.test.ts` walks these three steps.
 
 ## 6. Known risks to settle in the run
-- **Custom issuer support.** Supabase's third-party auth lists named vendors; whether a project can trust an arbitrary OIDC issuer must be confirmed in the dashboard at step 3. If it cannot, the options are: (a) import the BOS public key into the project's JWT signing keys as a trusted standby key, if the project's key settings allow a public-key import; (b) the polling fallback. Record which one was used.
+- **How Supabase trusts the BOS.** Supabase's third-party auth lists named vendors only, so a custom OIDC issuer is not the route. The run uses (a): the BOS signing key imported into the project's JWT signing keys as a standby key (step 3). If the import is refused, the fallback is (b), polling, which runs today. Record which one was used.
 - **`role` claim.** The token sets `role: authenticated` on purpose (AUDIT M15); the Data API check proves it opens nothing.
 - **Presence and sending.** The policies allow listening only. Server-side broadcasts come from the notify worker after commit (ADR 0005), built in Phase 1.
 
