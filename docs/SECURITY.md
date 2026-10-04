@@ -97,7 +97,7 @@ Each arrow into the BOS crosses a check: a session with its second factor, a pro
 ## 3. Authorization
 
 ### 3.1 Model
-Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions added to the catalogue later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
+Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions the catalogue gains later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
 
 **The role editor** (Admin › Roles, `admin.role.permissions.set`, `admin.roles.write:all` with `admin.users.write:all`):
 - It replaces a staff role's grants as a set, in a request acting for every active company, since a role's grants reach every company (ADR 0016); a request narrowed to some companies sees a notice and cannot save. It never edits an agent role or a system role (`role_not_editable`).
@@ -169,7 +169,9 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
-**Shared rows (ADR 0016):** GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the catalogue (`items`, `kits`, `kit_components`, `pump_curves`) carry no company, so `tax.rates.write` and `catalogue.write` change them only in a request that acts for every active company, as shared price lists are written. The catalogue commands say so (`catalogue_needs_all_companies`) and the tables' write policies enforce it; a General Manager or Inventory Manager who holds the grant in one company reads the catalogue there and changes it from All companies only, holding the grant in every company.
+**Shared rows (ADR 0016):** GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the catalogue (`items`, `kits`, `kit_components`, `pump_curves`) carry no company, so `tax.rates.write` and `catalogue.write` change them only in a request that acts for every active company, as shared price lists are written.
+
+The catalogue commands say so (`catalogue_needs_all_companies`) and the tables' write policies enforce it; a General Manager or Inventory Manager who holds the grant in one company reads the catalogue there and changes it from All companies only, holding the grant in every company.
 
 **The customer timeline, tasks, tags and Account 360** (docs/design/phase1.md §6.5) add no permission:
 - A timeline row (`activities`) is read with its lead, or, for a row of no lead, with its customer in that company; a note is never read by an agent.

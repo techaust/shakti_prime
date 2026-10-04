@@ -3,7 +3,9 @@
 **Status:** Accepted (owner, 29-09-2026, for the catalogue); the same rule covers GST rates (migration 0048) and group price lists (the audit ([2026-09-audit](../reviews/2026-09-audit.md)) H2) · **Date:** 29-09-2026 · **Deciders:** Owner · **Blueprint:** §6.1, §7.2, §8.3 · **Database:** §4.1, §6.3 · **Security:** §3.2 · **ADR:** 0002, 0008
 
 ## Context
-Some rows belong to no single company: the catalogue (`items`, `kits`, `kit_components`, `pump_curves`), the GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the group-wide price lists (`price_lists.entity_id` null and their `price_list_items`). One such row decides what all four companies sell, charge or quote. A permission is granted per company (`user_entity_roles`), so a `catalogue.write`, `tax.rates.write` or `pricing.write` grant held in one company would, on a shared row, change what the other three do. A person whose request is narrowed to one company by the company switcher should not be able to do that either, even when they hold the grant everywhere.
+Some rows belong to no single company: the catalogue (`items`, `kits`, `kit_components`, `pump_curves`), the GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the group-wide price lists (`price_lists.entity_id` null and their `price_list_items`). One such row decides what all four companies sell, charge or quote.
+
+A permission is granted per company (`user_entity_roles`), so a `catalogue.write`, `tax.rates.write` or `pricing.write` grant held in one company would, on a shared row, change what the other three do. A person whose request is narrowed to one company by the company switcher should not be able to do that either, even when they hold the grant everywhere.
 
 ## Decision
 **A shared row is written only by a request that acts for every active company, and by a caller holding the grant there.**

@@ -84,6 +84,7 @@ describe('planned tables', () => {
         section: '6.4 Sales',
         qualifier: null,
         note: '`site_id null`, `state` (`draft`, `sent`), `pdf_file_id`, `embedding vector(1024)`, price columns as `quote_lines`; `later` after the list',
+        status: { built: false, detail: 'Phase 1' },
       },
       known,
     );

@@ -3,7 +3,11 @@
 **Status:** Proposed (lead, 30-09-2026, for slice P1, migration 0064); the owner confirms or changes it with the handover slice T2 (`docs/design/phase1.md` §8.2) · **Date:** 30-09-2026 · **Deciders:** Lead developer; the owner decides at T2 · **Blueprint:** §6.2, §7.2, §9.3 · **Security:** §3.3 · **Database:** §6.2 · **ADR:** 0004, 0005, 0008
 
 ## Context
-Event workers change data only through commands (ADR 0004), so they need a principal. Slice P1 seeded one, `system:workers` (principal kind `system`, `SYSTEM_MATRIX` in `packages/contracts/src/system-principal.ts`), scoped to the company of the event it handles. The customer rules of 0055 to 0059 tell people and agents apart: a person who can read one of a customer's leads in a company reads that customer there, and a person's lead handover moves the customer relationship to the lead's new owner; an agent reads customers only through `crm.account.read` and its handover never moves the relationship (ADR 0008, SECURITY §3.3). Those rules named only agents, so the new kind would have counted as a person. The round-robin handover of T2 will run as this principal, and whether it should move the customer like a person's handover is a business question for the owner.
+Event workers change data only through commands (ADR 0004), so they need a principal. Slice P1 seeded one, `system:workers` (principal kind `system`, `SYSTEM_MATRIX` in `packages/contracts/src/system-principal.ts`), scoped to the company of the event it handles.
+
+The customer rules of 0055 to 0059 tell people and agents apart: a person who can read one of a customer's leads in a company reads that customer there, and a person's lead handover moves the customer relationship to the lead's new owner; an agent reads customers only through `crm.account.read` and its handover never moves the relationship (ADR 0008, SECURITY §3.3).
+
+Those rules named only agents, so the new kind would have counted as a person. The round-robin handover of T2 will run as this principal, and whether it should move the customer like a person's handover is a business question for the owner.
 
 ## Decision
 **Until the owner decides at T2, `system:workers` is held to an agent's customer rules.** Migration 0064 widens the test of a service request in three places to a role key `agent:%` or `system:%`, or a principal row of kind `agent` or `system`:

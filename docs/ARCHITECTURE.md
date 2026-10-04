@@ -60,7 +60,7 @@ flowchart LR
   R --> X
 ```
 Dotted edges are planned. The domain defines the `KeyValue` port (`packages/domain/src/ports/key-value.ts`) and `apps/web` passes the Upstash implementation (`apps/web/src/auth/upstash-key-value.ts`); no command reads Redis.
-- **Voice (Phase 2):** browser or app ⇄ WebRTC ⇄ LiveKit Cloud (India) ⇄ `apps/voice-agent` (LiveKit Cloud Agents) ⇄ `/api/v1` as the speaking user.
+- **Voice (Phase 2):** browser or app ⇄ WebRTC ⇄ LiveKit Cloud (India) ⇄ the voice worker apps/voice-agent (LiveKit Cloud Agents) ⇄ `/api/v1` as the speaking user.
 - **Realtime:** Supabase Realtime private channels with a BOS-signed token (§8); the token route is built, the channels are planned.
 - **Files:** S3 through 15-minute pre-signed URLs, with the malware scan and OCR masking as workers (§9).
 
@@ -68,9 +68,9 @@ Dotted edges are planned. The domain defines the `KeyValue` port (`packages/doma
 | Component | Runtime | Host |
 |---|---|---|
 | `apps/web` | Next.js server actions, route handlers, QStash-triggered workers | Vercel, functions pinned to `bom1` beside the database |
-| `apps/field` (Phase 4) | Expo Android app | Google Play (EAS Build/Update) |
-| `apps/voice-agent` (Phase 2) | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
-| `apps/tally-connector` (Phase 5) | Node Windows service | Client PC beside Tally |
+| apps/field (planned, Phase 4) | Expo Android app | Google Play (EAS Build/Update) |
+| apps/voice-agent (planned, Phase 2) | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
+| apps/tally-connector (planned, Phase 5) | Node Windows service | Client PC beside Tally |
 | Database | Postgres 17 with RLS, pg_trgm, pg_cron, partitions (pgvector with the Knowledge Vault) | Supabase (ADR 0002) |
 | Queue | QStash (a workflow engine is a later choice, [DECISIONS](DECISIONS.md) 29-09-2026) | Upstash |
 | Cache, locks, counters | Redis | Upstash |
@@ -166,7 +166,7 @@ flowchart TD
   G --> K{"idempotency key?"}
   K -->|"seen, same command and input"| RP["the stored DTO; no audit row, no event"]
   K -->|"seen, other input"| M["conflict: idempotency_mismatch"]
-  K -->|"none, or claimed now"| H["handler: transition(), writes under RLS, ctx.audit, ctx.emit, ctx.run"]
+  K -->|"none, or claimed here"| H["handler: transition(), writes under RLS, ctx.audit, ctx.emit, ctx.run"]
   H --> D["output parsed through the strict DTO"]
   D --> W["audit_logs rows, outbox_events rows and the key's answer, in the same transaction"]
   W --> C["commit"]
@@ -271,7 +271,7 @@ flowchart LR
 ```
 - **Store:** the `FileStore` port (`packages/domain/src/ports/file-store.ts`) with `put`, `get`, `presignPut`, `presignGet`, `head`, `tags` and `delete`.
   - Hosted: `s3FileStore` (`apps/web/src/files/s3-store.ts`), one bucket per environment in `ap-south-1` (`FILES_BUCKET`), versioned, SSE-KMS under the environment's key (`FILES_KMS_KEY_ID`), GuardDuty Malware Protection tagging each new object, created by the stack `infra/aws/files.yaml` (`docs/runbooks/files-setup.md`).
-  - On a developer's machine: `localDiskFileStore` under `apps/web/.data/files`, with the development route `PUT`/`GET /api/v1/files/local/<token>` (a signed grant; 404 on a hosted runtime).
+  - On a developer's machine: `localDiskFileStore` in the git-ignored folder `.data/files` of `apps/web`, with the development route `PUT`/`GET /api/v1/files/local/<token>` (a signed grant; 404 on a hosted runtime).
   - `fileStore()` in `apps/web/src/files/store.ts` picks S3 when both variables are set, local disk when not hosted, and none on a hosted runtime without S3, where uploads answer `integration_unavailable` (`files_unavailable`).
 - **Upload:**
   - `files.upload.begin` checks the purpose's permission (`packages/domain/src/files/purposes.ts`, the same map as `app.file_purpose_grant()`) and its type and size limits (`files/limits.ts`), and records the file as `pending` under the key `<company>/<purpose>/<file id>.<ext>`.
