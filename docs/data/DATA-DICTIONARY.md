@@ -2088,7 +2088,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 5 policies.
 
 - `import_jobs_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and created_by = (select app.user_id())`
-- `import_jobs_process_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.process:entity'))`
+- `import_jobs_process_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.process:entity'))`
 - `import_jobs_process_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.process:entity'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.process:entity'))`
 - `import_jobs_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
 - `import_jobs_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
