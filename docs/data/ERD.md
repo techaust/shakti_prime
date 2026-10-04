@@ -592,7 +592,7 @@ erDiagram
     integer committed_rows
     integer failed_batch "null"
     integer batch_count
-    smallint[] entity_ids "null"
+    smallint entity_ids "array, null"
     timestamptz created_at
     timestamptz updated_at
   }

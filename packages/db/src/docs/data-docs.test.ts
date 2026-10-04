@@ -256,6 +256,7 @@ describe('mermaidType', () => {
     expect(mermaidType('numeric(14, 2)')).toEqual({ type: 'numeric', detail: '(14,2)' });
     expect(mermaidType('timestamp with time zone')).toEqual({ type: 'timestamptz', detail: null });
     expect(mermaidType('uuid')).toEqual({ type: 'uuid', detail: null });
+    expect(mermaidType('smallint[]')).toEqual({ type: 'smallint', detail: 'array' });
   });
 });
 

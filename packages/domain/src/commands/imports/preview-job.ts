@@ -388,7 +388,7 @@ export const previewImportJob = defineCommand({
     'skippedRows',
     'suggested',
     'linked',
-    'entityIds',
+    'companies',
   ],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
@@ -451,7 +451,7 @@ export const previewImportJob = defineCommand({
         ...counts,
         suggested: findings.filter((f) => (f.dedupe_json?.existing.length ?? 0) > 0).length,
         linked: findings.filter((f) => f.dedupe_json?.linkedTo !== undefined).length,
-        entityIds,
+        companies: entityIds?.length ?? null,
       },
     });
 
