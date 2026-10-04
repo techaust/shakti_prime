@@ -21,21 +21,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 Upstash Redis per environment in Mumbai; QStash in the EU region with the minute schedule on staging; Turnstile for both hostnames; Sentry project `shakti-prime-web` with the outbox alert. The AWS files stack is not yet created ([files-setup](runbooks/files-setup.md)).
 
 ## Deferred Phase 0 gate items
-What Shakti's people must do is on one page, [client-actions](phase0/client-actions.md); the developer's and owner's checklist is [exit-gate-actions](phase0/exit-gate-actions.md).
-
-| Item | Who | Tracked in |
-|---|---|---|
-| Workshop answers (42 questions: nurture cadence, lock period, numbering format and more) | Client | [workshop-pack](phase0/workshop-pack.md) |
-| The CA's confirmation of the tax golden set | CA | [ADR 0007](adr/0007-deterministic-tax-engine.md) |
-| Sign-off of `DESIGN.md` and `/design`; wireframe sessions with 1–2 users per role | Client | [design-signoff](phase0/design-signoff.md), [wireframe-review](phase0/wireframe-review.md) |
-| Review of the ERD, data dictionary, permission matrix, contracts and the proposed state-machine items ([docs/state-machines](state-machines/README.md)); acceptance of ADRs 0007 and 0009 to 0013 | Owner, client | [exit-gate-actions](phase0/exit-gate-actions.md) |
-| Vendor quote requests sent and quotes recorded | Owner | [vendor-quotes](phase0/vendor-quotes.md) |
-| Realtime spike on the production site with the client's domain; Exotel, WhatsApp, voice and Tally spikes once sandboxes, the Tally visit and 20–30 voice samples exist | Owner, vendors, client | [docs/spikes/](spikes/) |
-| Real document photos for OCR; a phone and scanner check of printed QR labels | Client | [ocr](spikes/ocr.md), [print](spikes/print.md) |
-| Production: a paid Supabase project, Vercel Pro (or the client's Pro team), Amazon SES in Mumbai with the client's domain verified (DKIM, SPF, DMARC), production access and a send-only IAM user per environment | Owner, client | [DEPLOY](runbooks/DEPLOY.md), BLUEPRINT §5, ADR 0003 |
-| A GitHub plan that allows branch rules on `main` (AUDIT M45) | Owner | [AUDIT.md](../AUDIT.md) |
-| Vendor accounts in the client's name, DLT registration, Meta Business verification and App Review, the Google Lead Form | Client | [ROADMAP §10](ROADMAP.md#10-parallel-workstreams-started-in-phase-0), [client-actions](phase0/client-actions.md) |
-| Open with the client (AUDIT §7): recorded sources of consent, consent per company, a negative moving-average cost | Client | [AUDIT.md](../AUDIT.md) |
+Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](phase0/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](phase0/client-actions.md). Nothing from the client has arrived yet: no workshop answers, no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
 - Sentry privacy settings: Data Scrubber, the default scrubbers and *Prevent Storing of IP Addresses* in the project's security settings.

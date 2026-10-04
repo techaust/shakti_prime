@@ -123,7 +123,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 
 ### Phase 0 production-readiness audit
 
-`AUDIT.md`, 108 findings, worked through in batches; §8 of it records where each landed.
+`docs/reviews/2026-09-audit.md`, 108 findings, worked through in batches; §8 of it records where each landed.
 
 - **#25** (27-09-2026) Batch 15: untested paths and the remaining integrity findings; `pnpm coverage`.
 - **#24** (27-09-2026) Batch 14: the documents aligned with the code.
@@ -141,7 +141,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#10** (27-09-2026) Security suite completeness, write policies of the access tables, the permission matrix checked against SECURITY §3.2.
 - **#8** (27-09-2026) A stale session cookie no longer blocks sign-in; admin and shared prices stay in scope.
 - **#7** (27-09-2026) The Upstash key-value store returns the stored strings; cache failures are misses.
-- **#6** (27-09-2026) The production-readiness audit `AUDIT.md`, the English interface with Hinglish speech (ADR 0014), the Linear design profile.
+- **#6** (27-09-2026) The production-readiness audit `docs/reviews/2026-09-audit.md`, the English interface with Hinglish speech (ADR 0014), the Linear design profile.
 - **#5** (27-09-2026) Session rows aged on the suite clock; one CI run per push to `main`.
 
 Pull requests #1 to #4 and #9 have no merge on `main`.

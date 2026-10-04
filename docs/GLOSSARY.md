@@ -109,4 +109,4 @@ Two families of IDs look alike:
 
 Where both could be confused, documents and code comments name the family ("PRD CRM-02", "workshop CALL-1").
 
-**Audit findings** have their own codes: C, H, M and L numbers (for example M45) are the findings of `AUDIT.md`, by severity.
+**Audit findings** have their own codes: C, H, M and L numbers (for example M45) are the findings of `docs/reviews/2026-09-audit.md`, by severity.

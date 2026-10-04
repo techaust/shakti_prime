@@ -11,9 +11,10 @@ The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is t
 - Where the project stands (phase, work merged and next, hosted environments, test counts, deferred items, follow-ups): [docs/STATUS.md](docs/STATUS.md).
 - What the client's people must do: [docs/phase0/client-actions.md](docs/phase0/client-actions.md); the developer's and owner's checklist for the deferred gate items: [docs/phase0/exit-gate-actions.md](docs/phase0/exit-gate-actions.md).
 - What each merged pull request did: [CHANGELOG.md](CHANGELOG.md). Every owner decision: [docs/DECISIONS.md](docs/DECISIONS.md).
-- At the start of a session, confirm the latest CI run on `main` is green (the merge workflow's own runs may send no email); build from ROADMAP §3, the Phase 1 design first.
+- At the start of a session, follow the `start-session` skill: confirm the latest CI run on `main` is green (the merge workflow's own runs may send no email), then build from ROADMAP §3, the Phase 1 design first.
 - Record a deferred gate item as it closes where its document says (the workshop answers in the workshop pack, the CA's golden set in ADR 0007, each spike's numbers in `docs/spikes/`).
-- At the end of a session, replace STATUS.md and add one CHANGELOG line per merged pull request; never append status or history to this file.
+- At the end of a session, follow the `end-session` skill: replace STATUS.md and add one CHANGELOG line per merged pull request; never append status or history to this file.
+- A slice goes from its brief to `main` and the hosted environments as [docs/runbooks/slice-integration.md](docs/runbooks/slice-integration.md) says, with the `integrate-slice` and `migrate-hosted` skills and the `slice-builder` and `slice-reviewer` agents.
 
 ## Where things live
 | Area | Path |
@@ -108,15 +109,17 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | The business and technical terms the documents use, and the [slice codes](docs/GLOSSARY.md#slice-codes) (P3, C1, X1 and the rest). |
 | [docs/adr/](docs/adr/) | Architecture decision records. |
 | [docs/TESTING.md](docs/TESTING.md) | Test layers, the security suite, generated files, what CI runs, running tests locally. |
-| [docs/KICKOFF-PROMPT.md](docs/KICKOFF-PROMPT.md) | First message for a fresh session. |
+| `.claude/skills/` and `.claude/agents/` | The project's skills (`start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command`, `add-table`) and agents (`slice-builder`, `slice-reviewer`). |
 | [docs/design/](docs/design/) and [docs/reviews/](docs/reviews/) | Designs and dated review notes; read the design before building what it covers. |
 | [docs/runbooks/DEPLOY.md](docs/runbooks/DEPLOY.md) | Hosted environments: secrets, migrations, the first Executive, secret rotation. |
+| [docs/runbooks/slice-integration.md](docs/runbooks/slice-integration.md) | How a slice is built, reviewed, merged with `main`, checked and taken to the hosted environments; the scripts in `tools/integration/`. |
+| [docs/runbooks/accounts.md](docs/runbooks/accounts.md) | Every outside service and account: plan, use, where its bill is, what changes before production. |
 | [docs/runbooks/INCIDENTS.md](docs/runbooks/INCIDENTS.md) | What to do when the site is down, updates are stuck, a migration fails, a deploy is bad or a secret leaks. |
 | [docs/runbooks/files-setup.md](docs/runbooks/files-setup.md) | The owner's steps for the AWS file storage stack per environment. |
 | [docs/runbooks/tooling.md](docs/runbooks/tooling.md) | How each Claude Code plugin and MCP server is connected. |
 | [docs/data/](docs/data/), [docs/data/EVENTS.md](docs/data/EVENTS.md), [docs/state-machines/](docs/state-machines/) | The generated ERD and data dictionary, the event catalogue, the state-machine specifications. |
 | [docs/spikes/](docs/spikes/) and [docs/phase0/](docs/phase0/) | Spike notes with measured numbers, and the client packs for the exit gate. |
-| [AUDIT.md](AUDIT.md) | The production-readiness audit and its resolution record. |
+| [docs/reviews/2026-09-audit.md](docs/reviews/2026-09-audit.md) | The production-readiness audit of 27-09-2026 and its resolution record. |
 
 Read order for any task: this file → the relevant blueprint section → the module document → the code.
 
