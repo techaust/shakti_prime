@@ -9,7 +9,7 @@ Date: 29-09-2026 · last updated 04-10-2026. Status: approved by the owner on 29
 - calling: the Cold Caller queue and workspace with manual call logging, dispositions, retries and nurture; weighted round-robin handover with the ownership lock; the Lead Converter workspace (board, sizing, quote builder and next-best-action on one screen); targets and leaderboards;
 - catalogue and sales: items, HSN, kits sold as bundles and pump curves; Price Master tiers; the tax rate and composite-supply screens; TDH and kW sizing; quotes with PDF; sales orders; dealer credit with manual outstanding; referral commissions accrued when an order is confirmed;
 - platform and AI: notifications, browser push, SLA escalation and the Agent Inbox; Knowledge Vault uploads with embeddings; data migration; the Triage agent in shadow mode;
-- every item ROADMAP §3 carries from Phase 0.
+- every item Phase 0 carried into Phase 1 (each open one, with its slice, in [STATUS, Open follow-ups](../STATUS.md#open-follow-ups)).
 
 **In later phases (BLUEPRINT §14):** customer loans (Phase 4); click-to-dial, TRAI hours, DND scrubbing and screen-pop (Phase 2, with Exotel); quote dispatch and acceptance on WhatsApp (Phase 2), so Phase 1 accepts a quote by a signed copy that staff upload; stock availability on quotes (Phase 3); Playbook review and Ask the Business (Phase 2); commission release on payment (Phase 5, with the Tally receipts).
 
@@ -223,7 +223,7 @@ Pure functions in `packages/domain/src/sizing`: TDH (static head, drawdown, fric
 ## 8. Wave 4
 
 ### 8.1 N1 Notifications
-`notifications` (`user_id`, `type`, `subject`, `payload_json`, `read_at`), `notification_preferences` (per type: in-app, push; quiet hours), `push_subscriptions`; the bell and centre; browser push with VAPID keys and a service worker; the notify worker (`NotifyJob`) on the events people act on (assigned to you, callback due, quote expiring, order blocked, duplicate found); first-contact SLA breaches escalate to the GM; a lead refused as `customer_held_by_colleague` becomes an inbox item for the colleague or the team lead.
+`notifications` (`user_id`, `type`, `subject`, `payload_json`, `read_at`), `notification_preferences` (per type: in-app, push; quiet hours), `push_subscriptions`; the bell and centre; browser push with VAPID keys and a service worker; the notify worker (`NotifyJob`) on the events people act on (assigned to you, callback due, quote expiring, order blocked, duplicate found); first-contact SLA breaches escalate to the GM; a lead refused as `customer_held_by_colleague` becomes an inbox item for that colleague.
 
 ### 8.2 T2 Handover
 `caller_profiles` (`user_id`, `entity_id`, `is_converter`, `presence`, `max_open` null for no cap, `languages`, `segments`); the handover worker on `crm.opportunity.stage_moved` with `handover: true` picks a Lead Converter by weighted round-robin (present, under capacity, language and segment match, fewest open leads), cursor in Redis, assigns as `system:workers` through `crm.opportunity.assign` within 10 seconds, and routes to the team lead when no one qualifies; `crm.lead.reassign_all` moves a leaving caller's leads.

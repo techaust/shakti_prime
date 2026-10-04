@@ -255,7 +255,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* quote and order numbers are found once they exist (Phase 1), serials once the stock ledger exists (Phase 3).
 - **RPT-04** Notification centre, browser push and FCM with preferences and quiet hours; SLA breaches escalate to the GM.
   - *AC:* an assignment, a due callback, an expiring quote, a blocked order or a duplicate found notifies the person who acts on it; nothing is pushed in their quiet hours.
-  - *AC:* a first-contact SLA breach escalates to the GM; a lead refused because a colleague looks after its customer reaches that colleague or the team lead.
+  - *AC:* a first-contact SLA breach escalates to the GM; a lead refused because a colleague looks after its customer reaches that colleague.
   - *AC:* the centre refreshes at least every 15 seconds while its tab is visible.
 - **RPT-05 Activity log.** The screen of the audit trail: who changed what and when, from which address and device, for every command, sign-in event and event type.
   - *AC:* only a holder of `audit.read` opens it, and it lists entries only for the companies the viewer works in, filtered by time window, person, action and record.

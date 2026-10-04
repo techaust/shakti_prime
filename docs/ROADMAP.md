@@ -74,7 +74,7 @@ Ahead (no date is set until what it depends on is in hand):
 - the vendor quotes;
 - the workshop answers and the CA's tax golden set.
 
-Each keeps its next step in [`docs/phase0/exit-gate-actions.md`](phase0/exit-gate-actions.md); what the client's people do is in [`docs/phase0/client-actions.md`](phase0/client-actions.md).
+Each keeps its next step in [`docs/phase0/exit-gate-actions.md`](phase0/exit-gate-actions.md); what the client's people do is in [`docs/phase0/client-actions.md`](phase0/client-actions.md). The client packs are indexed in [docs/phase0/README.md](phase0/README.md), the spikes in [docs/spikes/README.md](spikes/README.md) and the reviews in [docs/reviews/README.md](reviews/README.md).
 
 ## 3. Phase 1 — MVP (12–14 weeks)
 **Scope:** non-integration ingestion (walk-in, import, manual, referral codes); dedupe; four pipelines with stage-exit rules; CC and LC workspaces with manual call logging; round-robin handover; targets and leaderboards; Price Master tiers with the minimal catalogue (items, HSN, tax rates, kits as saleable bundles, pump curves); sizing calculators; quotes with PDF; sales orders; dealer credit with manual outstanding; notifications; Knowledge Vault uploads with embeddings; data migration; Triage agent in shadow mode.
