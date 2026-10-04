@@ -2,6 +2,13 @@
 
 Plain steps for the owner or the developer on duty, one section per kind of trouble. Each step names the screen or the page to open. The hosted environments are listed in [STATUS](../STATUS.md#hosted-environments); how they are set up is in [DEPLOY](DEPLOY.md). Nothing here changes a hosted environment without the owner's go-ahead.
 
+**Who to tell.** When a step does not clear the trouble, or before anything is changed by hand, the owner tells the developer (Techaust) by phone or message with:
+- the site's address (dev or staging) and the time it started, in IST;
+- the first red line: of the failed run, the deployment log, the Sentry alert or the page that failed, copied as it is, with its request id when it has one;
+- what was being done at the time, and what has been tried.
+
+Never send a password, key or secret value; a screenshot of a settings page is checked for them first.
+
 ## Contents
 1. [The site is down](#1-the-site-is-down)
 2. [Updates are stuck or failing](#2-updates-are-stuck-or-failing)
@@ -9,13 +16,14 @@ Plain steps for the owner or the developer on duty, one section per kind of trou
 4. [Roll back a bad deploy](#4-roll-back-a-bad-deploy)
 5. [A secret leaked](#5-a-secret-leaked)
 6. [Restore from a backup](#6-restore-from-a-backup)
+7. [A paused Supabase project](#7-a-paused-supabase-project)
 
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
 2. Open `<site>/api/v1/health/ready`. A 200 with `status: ok` means every dependency answers. A 503 means one is down: the database, the auth database, the key-value store (Upstash Redis), the configuration, or the outbox (an update has waited more than five minutes past its time, so the publisher is not running). The page never names which.
 3. In Vercel, open the project (`shakti-prime-dev` or `shakti-prime-staging`) › **Deployments**: the latest deployment of `main` must be **Ready**. A failed build shows its log there; a deployment that refuses to start lists the missing or unsafe variables in its runtime log (`productionConfigProblems()`, [DEPLOY §1](DEPLOY.md#1-before-the-first-deploy-once-per-environment)).
 4. In Vercel › **Logs**, search for `health.not_ready` with the request id the readiness page returned (header `x-request-id`): the line names the check that is down.
-5. Check the provider of that check: the Supabase project's dashboard and status page for the database, the Upstash console for Redis and QStash, Cloudflare for Turnstile. A provider outage is waited out; a changed or expired value is fixed in Vercel's variables, then the deployment is redeployed.
+5. Check the provider of that check: the Supabase project's dashboard and status page for the database, the Upstash console for Redis and QStash, Cloudflare for Turnstile. A provider outage is waited out; a changed or expired value is fixed in Vercel's variables, then the deployment is redeployed. A database check down on dev or staging is most often a paused project (§7).
 6. When the deployment itself is at fault (it broke after a merge), roll it back (§4).
 
 ## 2. Updates are stuck or failing
@@ -30,7 +38,7 @@ Background updates (events) leave each change through the outbox and QStash. An 
 Migrations reach a hosted database only through GitHub › **Actions** › *Migrate a hosted database*, run from `main` ([DEPLOY §2](DEPLOY.md#2-every-deploy)).
 1. Open the failed run and read the first failing step:
    - *Only from main* or *Secrets present and for this project*: the run was started from another branch, a secret is missing, or the address names another Supabase project. Fix the secret in GitHub › Settings › Secrets and variables › Actions, then run again.
-   - `pnpm db:migrate`: the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
+   - `pnpm db:migrate` (`pnpm db:migrate --rotate-passwords` on a rotation run, [DEPLOY §5](DEPLOY.md#5-rotating-a-secret)): the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
    - `pnpm db:verify`: a migration on disk is not applied exactly as written (a changed file, or one the journal skipped because its time is older than the last one applied).
    - *Seed*: the migrations are in; rerun the workflow with the same choice, since the seed is safe to repeat.
 2. **Never edit a migration that a hosted database has applied.** A fix is a new migration after the last one, merged through a pull request, then the workflow is run again.
@@ -47,3 +55,12 @@ Replace it at once, following [DEPLOY §5](DEPLOY.md#5-rotating-a-secret) for th
 
 ## 6. Restore from a backup
 The backups, the recovery targets and the restore drill are in [DATABASE §10](../DATABASE.md#10-backups-and-recovery). Restore into a new scratch project first, check it as the drill describes, and only then decide with the owner how to bring the data back.
+
+## 7. A paused Supabase project
+Dev and staging run on Supabase's free plan, which pauses a project that has seen no activity for a while ([accounts](accounts.md#in-use)).
+- **What fails while it is paused:** `/api/v1/health` still answers 200, but `/api/v1/health/ready` answers 503 (the database, the auth database and the outbox checks); nobody can sign in, every screen behind sign-in fails, the QStash schedule's calls to the publisher fail, and Sentry may report the errors. Nothing is lost: the data stays in the paused project.
+1. Open supabase.com › organisation *Shakti Prime* › the project (`shakti-prime-dev` or `shakti-prime-staging`). A paused project says so on its page.
+2. Press **Restore project** and wait until the dashboard shows the project as healthy (usually a few minutes).
+3. Open `<site>/api/v1/health/ready`: it answers 200 with `status: ok`. Sign in once to confirm.
+4. Nothing else is needed: the migrations, the roles and their passwords, and the scheduled jobs come back as they were, and the outbox delivers what waited on the next minute's run. Updates still listed as waiting after ten minutes are handled as in §2.
+5. When the dashboard offers no restore, tell the developer (see *Who to tell*); never create a new project in its place without the owner's go-ahead.

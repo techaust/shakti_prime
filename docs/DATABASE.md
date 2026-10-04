@@ -8,7 +8,7 @@ Generated from the code and this document by `pnpm db:docs`, with a unit test th
 1. [Platform](#1-platform)
 2. [Conventions](#2-conventions)
 3. [Roles and connections](#3-roles-and-connections)
-4. [Request context and RLS](#4-request-context-and-rls): [4.1 Settings and definers](#41-settings-per-transaction), [4.2 Policy templates](#42-policy-templates), [4.3 Restricted tables](#43-restricted-tables)
+4. [Request context and RLS](#4-request-context-and-rls): [4.1 Settings per transaction](#41-settings-per-transaction), [4.2 Policy templates](#42-policy-templates), [4.3 Restricted tables](#43-restricted-tables), [4.4 Rules of particular tables](#44-rules-of-particular-tables)
 5. [Append-only tables](#5-append-only-tables)
 6. [Table catalogue](#6-table-catalogue): [6.1 Org and identity](#61-org-and-identity), [6.2 CRM](#62-crm), [6.3 Catalogue, pricing and tax](#63-catalogue-pricing-and-tax), [6.4 Sales](#64-sales), [6.5 Inventory and logistics](#65-inventory-and-logistics), [6.6 Projects and field](#66-projects-and-field), [6.7 Finance and costing](#67-finance-and-costing), [6.8 HR](#68-hr), [6.9 AI and voice](#69-ai-and-voice), [6.10 Platform](#610-platform)
 7. [Partitioning, indexes, retention](#7-partitioning-indexes-retention)
@@ -17,7 +17,7 @@ Generated from the code and this document by `pnpm db:docs`, with a unit test th
 10. [Backups and recovery](#10-backups-and-recovery)
 
 ## 1. Platform
-Supabase Postgres 17 (Mumbai), extensions `pg_trgm` (migration 0003, in schema `public`), `btree_gist` (0006) and `pg_cron` (0033); `pgvector` is created with the Knowledge Vault (Phase 1) and `pgcrypto` with the first migration that uses it. One database per environment, each its own Supabase project (dev, staging, production). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
+Supabase Postgres 17, extensions `pg_trgm` (migration 0003, in schema `public`), `btree_gist` (0006) and `pg_cron` (0033); `pgvector` is created with the Knowledge Vault (Phase 1) and `pgcrypto` with the first migration that uses it. One database per environment, each its own Supabase project (dev, staging, production); the projects, plans and regions are in [accounts](runbooks/accounts.md). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
 
 ## 2. Conventions
 | Concern | Rule |
@@ -27,7 +27,7 @@ Supabase Postgres 17 (Mumbai), extensions `pg_trgm` (migration 0003, in schema `
 | Business keys | Human-facing numbers (`quote_no`, `so_no`, `proforma_no`, `challan_no`) come from `document_sequences` per entity, document type and financial year; gapless within a series |
 | Entity scope | Every business table has `entity_id smallint not null references entities(id)`; a child of a scoped parent also carries a composite foreign key `(parent_id, entity_id) references parent(id, entity_id)`, so a row can never sit in a different entity from its parent. Exceptions: the shared customer master (`contacts`, `accounts` and their children carry no entity; `account_entities` is the scope root, ADR 0008) and shared reference rows (`teams`, `pipelines`, `price_lists`, `tags` allow `entity_id null` for the whole group) |
 | Timestamps | `created_at timestamptz not null default now()`, `updated_at timestamptz not null` (trigger), stored in UTC |
-| Actor columns | `created_by`, `updated_by` reference `principals(id)` (users, agent principals, voice sessions, the system principal) |
+| Actor columns | Most tables carry `created_by` and `updated_by`, referencing `principals(id)` (users, agent principals, voice sessions, the system principal); the auth module's tables, the append-only and log tables and the bookkeeping tables do not, and the [ERD](data/ERD.md)'s opening note lists every table without them, from the schema |
 | Soft removal | Masters use `archived_at`; ledgers, documents and audit rows are never deleted by the app |
 | Money | `numeric(14,2)`; quantities `numeric(12,3)`; rates `numeric(14,4)`; percentages `numeric(5,2)` |
 | Enums | `text` columns with a `check` constraint listing allowed values; values are `snake_case`; state columns are written only by state machines |
@@ -116,7 +116,7 @@ Every definer fixes its search path. An empty one (`''`) means the body names ev
 | `app.attach_account_entity(account_id, entity_id)` | `crm.lead.write:own` and `crm.account.write:own`; relates a customer to a company and answers `attached`, `already_yours` (judged in the target company only), `held_by_other` or `missing` | `''` | 0016 (0024, 0026, 0047, 0057, 0059) |
 | `app.hand_over_customer(lead_id, previous_owner)` | `crm.lead.assign:own` and the caller's lead write scope over the lead and over the relationship holder; moves a relationship to the lead's new owner only when the previous owner held it, and answers `unchanged`, touching nothing, for an agent or system request (ADR 0020) | `''` | 0055 (0059, 0064) |
 | `app.account_in_scope(account_id, perm)`, `app.contact_in_scope(contact_id, perm)` | The permission their write policy passes them (`crm.account.read` or `crm.account.write` only); executable by `app_user` only | `pg_catalog, public, app, pg_temp` | 0016 (0024, 0050) |
-| `app.account_unclaimed(account_id)`, `app.contact_unlinked(contact_id)` | A signed-in caller holding `crm.account.write:own`; tell the link-table policies whether a row is being related for the first time (review 3) | `pg_catalog, public, app, pg_temp` | 0018 (0024, 0047) |
+| `app.account_unclaimed(account_id)`, `app.contact_unlinked(contact_id)` | A signed-in caller holding `crm.account.write:own`; tell the link-table policies whether a row is being related for the first time ([review 3](reviews/2026-09-review3-audit.md)) | `pg_catalog, public, app, pg_temp` | 0018 (0024, 0047) |
 
 The documented exceptions, which check no permission:
 
@@ -125,7 +125,7 @@ The documented exceptions, which check no permission:
 | `app.user_grants(user_id)` | Runs before a request context exists (it builds the principal); returns the user's own grants and no secret column | `''` | 0014 (0018, 0021, 0046) |
 | `app.request_covers_group()` | Answers only whether the request acts for every active company, which the policies of shared price lists, `tax_rates`, `composite_supply_rules`, the catalogue tables, roles and group tags need and which RLS hides from `app_user` (ADR 0016) | `''` | 0019 |
 | `app.tag_name_free()` (trigger) | Holds a lock on a tag's name and refuses a name a group tag and a company tag would share, reading every company's tags; no role calls it directly | `''` | 0088 |
-| `app.log_price_change()` (trigger) | Writes `price_change_log` from the price change itself, so history cannot be forged, skipped or given a stale old price (AUDIT M18); no role calls it directly | `pg_catalog, public, app, pg_temp` | 0024 |
+| `app.log_price_change()` (trigger) | Writes `price_change_log` from the price change itself, so history cannot be forged, skipped or given a stale old price (the audit ([2026-09-audit](reviews/2026-09-audit.md)) M18); no role calls it directly | `pg_catalog, public, app, pg_temp` | 0024 |
 | `app.ensure_account_entity()` (trigger) | Refuses an opportunity whose account has no relationship with its company, or whose site belongs to another account; no role calls it directly | `pg_catalog, public, app, pg_temp` | 0016 (0024) |
 
 ### 4.2 Policy templates
@@ -215,6 +215,57 @@ Rules:
 | `sessions.token`, `auth_accounts`, `auth_verifications`, `user_two_factor` | `auth_service` only; no grant to `app_user` or `readonly_reporter` |
 | `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
 
+### 4.4 Rules of particular tables
+The rules of the tables whose policies go beyond the templates of §4.2; each table's row in §6 keeps its columns.
+
+#### roles and role_permissions
+- A staff role's grants are replaced as a set by `admin.role.permissions.set`, which sets `roles.customised_at`.
+- `role_permissions` is written (insert, update and delete) and `roles` updated only with `admin.roles.write:all` in a request for every active company (`app.request_covers_group()`, 0073).
+- `app_user` updates only `roles.customised_at`, `updated_by` and `updated_at` (column grants), never inserts roles and never writes `permissions`, which the seed owns (0074).
+- The trigger `role_permissions_holder_guard` refuses, whoever writes, the seed included, a holder `app.role_may_hold(role_key, permission_key)` rejects and a role the caller cannot see. Who may hold a permission is set out once, in [SECURITY §3.1](SECURITY.md#31-model).
+- The deferred constraint trigger `role_permissions_executive_keeps_admin` refuses, at commit, a transaction that leaves the Executive role without `admin.roles.write:all` and `admin.users.write:all` (0074).
+
+#### account_entities
+- Written by the lead command and by `app.attach_account_entity()` (§4.1). Who may read a customer, and how a number a colleague's customer holds is refused and routed, is the customer rule of SECURITY §4; the policy below enforces it.
+- `account_entities_read` grants a row at the caller's `crm.account.read` scope, or to a person through a lead of that customer, not archived, in the same company (0057, 0059, 0064). Never to an agent or a system principal: role key `agent:%` or `system:%`, or principal kind `agent` or `system`.
+- The lead form holds a new customer's number with one transaction advisory lock keyed `lead-phone:<company>:<number>` while it is checked; imports take no number lock.
+- The owner and team move with a lead handed over by its holder (`app.hand_over_customer()`), never when an agent or the system hands it over.
+- A direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, and `account_contacts` follows the same rule for contacts ([review 3](reviews/2026-09-review3-audit.md)).
+
+#### activities
+- `payload_json` holds ids, codes, counts and short labels only, at most 2,000 bytes; `body` holds a note's text only, up to 2,000 characters.
+- Written by commands through `ctx.activity()`, and by the import batch as `crm.lead.create` writes it.
+- Read: a row on a lead with the lead; a row of no lead with the customer in its company (`account_entities_read`, never through a lead for an agent); a note never by an agent. Each `exists` of the read policy also tests the row's own `opportunity_id`, which keeps the planner on the per-row index probe.
+- Insert: the caller's own row, in a company of the request, about a lead or customer the caller reads; a lead's row names the lead's own customer and company. A note on a lead needs the caller's lead write scope over a lead that is not archived; a note on the customer, the caller's customer write scope (`app.account_in_scope()`).
+- Like `audit_logs` it carries no foreign key to the rows it describes; indexes `(account_id, created_at desc, id desc)` and `(opportunity_id, created_at desc, id desc)` serve the timeline's keyset.
+
+#### price_lists
+- `pricing.list.create` makes a draft that prices nothing, from today or later, with a copy of the prices in force on the day before it starts (the company's own list then, else the group's); only approved lists price quotes (S1 reads approved lists only).
+- An exclusion constraint allows one live approved list per tier and company on any day, and approving a draft ends the approved list pricing its start date there.
+- `pricing.list.archive` withdraws a draft or a scheduled list, never a live or ended one, and a withdrawn scheduled list gives its days back to the list before it.
+- Changes to one tier and company take turns on a transaction advisory lock keyed by both.
+
+#### outbox_events
+The delivery columns' lease, backoff, dead letters and failure callback are ARCHITECTURE §6. They change only:
+- through the `outbox_publisher` role;
+- through `app.replay_dead_letter()` (`integrations.dlq.replay`), which puts a dead letter back in the queue with its attempts, error, backoff and lease cleared: the one change the append-only trigger allows on a dead-lettered row, and only as the owner of that function (0059);
+- through the failure callback, as `outbox_publisher`, which turns a delivered event back into a dead letter (`published_at` cleared, `dead_lettered_at` set, `last_error` `worker_failed` or `worker_refused`, nothing else changed, 0064).
+
+Events published more than 30 days ago are deleted by the retention purge (§5, §7).
+
+#### files
+- **Keys:** `bucket` and `key` are unique together; an import file's key is named by its SHA-256, an upload's is `<company>/<purpose>/<file id>.<ext>`, and a checked copy's ends `-checked`.
+- **Status:** the `file_upload` machine ([specification](state-machines/file-upload.md)), and `masked` for WhatsApp filing. `scan_result` records the scanner, its verdict, how the bytes were prepared, why a file was refused and `originalKey`, the upload's own bytes the worker deletes: codes, keys and counts only.
+- **Who creates and reads a file** follows its purpose, in one immutable helper the policies call, `app.file_purpose_grant(purpose, 'write' | 'read')` (0066), mirrored by `packages/domain/src/files/purposes.ts`:
+  - `import` by `imports.write` at entity scope;
+  - `quote_pdf` written only by the render worker (`files.process`) and `signed_quote` with `sales.quote.send`, both read with `crm.lead.read`;
+  - `entity_logo` and `letterhead` written with `admin.entities.write` at all scope and read by every principal of the company;
+  - `consent_evidence` by `crm.account.write`;
+  - `knowledge` and the field purposes by no request yet (K1 adds `knowledge.vault.write`).
+- A read permission held at entity scope reads every such file of the company, a narrower one the files the caller uploaded (S1 widens quote files to the lead's readers).
+- A person inserts an upload as `pending`, as themselves, in the request's companies, and moves only their own pending upload to `scanning`; the worker principal (`files.process`, held by no person's role) reads and records every file of its companies and moves it through its checks.
+- `app_user` updates only `status`, `scan_result`, `key`, `content_type`, `size`, `sha256` and the `updated_*` columns; the trigger `app.files_guard_update()` stamps `updated_by` with the caller and `updated_at` with the time, and refuses a change to anything but the status from a caller without `files.process`. No delete.
+
 ## 5. Append-only tables
 `stock_movements`, `stock_movement_costs`, `payments`, `audit_logs`, `activities`, `price_change_log`, `outbox_events`, `webhook_inbox`, `agent_actions`, `tally_voucher_tombstones`.
 - **Enforcement:** `revoke update, delete on <table> from app_user;` plus a trigger that raises on `UPDATE`/`DELETE` for defence in depth. Corrections are new rows with a `reverses_id`.
@@ -226,173 +277,173 @@ Rules:
 Key columns only; every table also has the standard columns from §2.
 
 ### 6.1 Org and identity
-| Table | Key columns |
-|---|---|
-| `entities` | `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1 |
-| `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
-| `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
-| `principals` | `id`, `kind` (`user`, `agent`, `voice_session`, `system`), `display_name`; the seed writes one row per agent and the system principal of the event workers |
-| `users` | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`; an administrator updates a person only when that person holds no role outside the request's companies, apart from the caller's own row (0056) |
-| `auth_accounts` | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
-| `auth_verifications` | Better Auth verification store for set-password and reset links; `auth_service` only |
-| `user_two_factor` | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account and a person who holds a role outside the request's companies, 0059), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled` |
-| `sessions` | Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`; revoked by an administrator only for a person who holds no role outside the request's companies, apart from the caller's own sessions (0056) |
-| `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
-| `idempotency_keys` | `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron |
-| `roles`, `permissions`, `role_permissions` | `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; a staff role's grants are replaced as a set by `admin.role.permissions.set`, which sets `roles.customised_at`; `role_permissions` is written (insert, update and delete) and `roles` updated only with `admin.roles.write:all` in a request for every active company (`app.request_covers_group()`, 0073); `app_user` updates only `roles.customised_at`, `updated_by` and `updated_at` (column grants) and never inserts roles or writes `permissions`, which the seed owns (0074); the trigger `role_permissions_holder_guard` refuses a holder `app.role_may_hold(role_key, permission_key)` rejects (a platform-only permission for a role not `system:*`, `admin.*` and `integrations.dlq.replay` for a role not `executive`, `finance.cost.read` outside Executive and Accounts, `procurement.rate.read` outside Executive, Inventory Manager and Accounts) and a role the caller cannot see, whoever writes, the seed included; the deferred constraint trigger `role_permissions_executive_keeps_admin` refuses, at commit, a transaction that leaves the Executive role without `admin.roles.write:all` and `admin.users.write:all` (0074) |
-| `user_entity_roles` | `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the seven tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2) |
-| `teams` | `entity_id null`, `name`, `lead_principal_id` |
-| `document_sequences` | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()` |
-| `business_calendar` | `date`, `is_holiday`, `entity_id null` |
+| Table | Status | Key columns |
+|---|---|---|
+| `entities` | Built (0001) | `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1 |
+| `entity_channels` | Planned (Phase 2) | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` |
+| `org_locations` | Planned (Phase 3) | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` |
+| `principals` | Built (0001) | `id`, `kind` (`user`, `agent`, `voice_session`, `system`), `display_name`; the seed writes one row per agent and the system principal of the event workers |
+| `users` | Built (0013) | `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`; an administrator updates a person only when that person holds no role outside the request's companies, apart from the caller's own row (0056) |
+| `auth_accounts` | Built (0013) | Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only |
+| `auth_verifications` | Built (0013) | Better Auth verification store for set-password and reset links; `auth_service` only |
+| `user_two_factor` | Built (0013) | Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account and a person who holds a role outside the request's companies, 0059), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled` |
+| `sessions` | Built (0013) | Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`; revoked by an administrator only for a person who holds no role outside the request's companies, apart from the caller's own sessions (0056) |
+| `mobile_devices` | Planned (Phase 4) | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` |
+| `idempotency_keys` | Built (0036) | `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron |
+| `roles`, `permissions`, `role_permissions` | Built (0001) | `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as §4.4 sets out |
+| `user_entity_roles` | Built (0013) | `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the seven tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2) |
+| `teams` | Built (0004) | `entity_id null`, `name`, `lead_principal_id` |
+| `document_sequences` | Built (0007) | `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()` |
+| `business_calendar` | Planned (Phase 5) | `date`, `is_holiday`, `entity_id null` |
 
 ### 6.2 CRM
-| Table | Key columns |
-|---|---|
-| `contacts` | `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008) |
-| `contact_phones` | `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number goes on a contact, becomes its main one or comes off through `crm.contact.update`, which keeps at least one number on the contact and refuses a number of a live contact of another customer the caller may not change anywhere in the group (`app.contact_phone_status()`, reason `customer_held_by_colleague`), holding the lead form's number lock in each company of the request while it looks; the delete follows the contact's write rule (`app.contact_in_scope()`) |
-| `accounts` | `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code` (two-digit GST state code, nullable, place of supply after the site); one record for the group (ADR 0008); a change made from Account 360 (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`, the consents) is audited and written to the timeline in the company whose page it is made from |
-| `account_entities` | `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read; written by the lead command and by `app.attach_account_entity()` (§4.1). Who may read a customer, and how a number a colleague's customer holds is refused and routed, is the customer rule of SECURITY §4. In the policy, `account_entities_read` grants a row at the caller's `crm.account.read` scope, or to a person (never an agent or a system principal: role key `agent:%` or `system:%`, or principal kind `agent` or `system`) through a lead of that customer, not archived, in the same company (0057, 0059, 0064). The lead form holds a new customer's number with one transaction advisory lock keyed `lead-phone:<company>:<number>` while it is checked; imports take no number lock. The owner and team move with a lead handed over by its holder (`app.hand_over_customer()`), never when an agent or the system hands it over. A direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, and `account_contacts` follows the same rule for contacts (review 3) |
-| `account_contacts` | `account_id`, `contact_id`, `role` (named on every link: `owner`, `family`, `manager`, `accountant`, `other`); exactly one `owner` per account (partial unique index), so a lead lists once with its owner |
-| `customer_sites` | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json` |
-| `opportunities` | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the trigger `app.ensure_account_entity()` refuses an entity with no `account_entities` row for the account, and a site of another account |
-| `pipelines`, `pipeline_stages` | `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json` |
-| `activities` (partitioned by month) | `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json` (ids, codes, counts and short labels only, at most 2,000 bytes), `body` (a note's text only, up to 2,000 characters), `created_at`; primary key `(id, created_at)`; append-only; written by commands through `ctx.activity()` and by the import batch as `crm.lead.create` writes it; a row on a lead is read with the lead, a row of no lead with the customer in its company (`account_entities_read`, never through a lead for an agent), and a note never by an agent; the insert is the caller's own, in a company of the request, about a lead or customer the caller reads, and a lead's row names the lead's own customer and company; a note on a lead needs the caller's lead write scope over a lead that is not archived, a note on the customer the caller's customer write scope (`app.account_in_scope()`); each `exists` of the read policy also tests the row's own `opportunity_id`, which keeps the planner on the per-row index probe; like `audit_logs` it carries no foreign key to the rows it describes; indexes `(account_id, created_at desc, id desc)` and `(opportunity_id, created_at desc, id desc)` serve the timeline's keyset |
-| `tasks` | `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)` |
-| `calls` | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` |
-| `call_dispositions` | `code`, `label`, `next_action` |
-| `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` |
-| `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` |
-| `lead_sources` | `code`, `channel`, `cost_model` |
-| `tags` | `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks) |
-| `opportunity_tags` | `opportunity_id`, `tag_id`, `entity_id`, `account_id` (the lead's own); primary key `(opportunity_id, tag_id)`; the link table that puts a tag on a lead, following the child-table template with the composite foreign key `(opportunity_id, entity_id, account_id)` to the one unique key of `opportunities` that `tasks` also uses; a tag of one company is never put on another company's lead; put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group |
-| `consents` | `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the proof the consent rests on: a `consent_evidence` file of the page's company that the caller may read and that has passed its checks; fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series) |
-| `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` |
-| `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists |
-| `referral_partners`, `commission_accruals` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
+| Table | Status | Key columns |
+|---|---|---|
+| `contacts` | Built (0004) | `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008) |
+| `contact_phones` | Built (0004) | `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number goes on a contact, becomes its main one or comes off through `crm.contact.update`, which keeps at least one number on the contact and refuses a number of a live contact of another customer the caller may not change anywhere in the group (`app.contact_phone_status()`, reason `customer_held_by_colleague`), holding the lead form's number lock in each company of the request while it looks; the delete follows the contact's write rule (`app.contact_in_scope()`) |
+| `accounts` | Built (0004) | `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code` (two-digit GST state code, nullable, place of supply after the site); one record for the group (ADR 0008); a change made from Account 360 (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`, the consents) is audited and written to the timeline in the company whose page it is made from |
+| `account_entities` | Built (0015) | `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read (§4.4) |
+| `account_contacts` | Built (0004) | `account_id`, `contact_id`, `role` (named on every link: `owner`, `family`, `manager`, `accountant`, `other`); exactly one `owner` per account (partial unique index), so a lead lists once with its owner |
+| `customer_sites` | Built (0004) | `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json` |
+| `opportunities` | Built (0004) | `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the trigger `app.ensure_account_entity()` refuses an entity with no `account_entities` row for the account, and a site of another account |
+| `pipelines`, `pipeline_stages` | Built (0004) | `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json` |
+| `activities` (partitioned by month) | Built (0075) | `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json`, `body`, `created_at`; primary key `(id, created_at)`; append-only (§4.4) |
+| `tasks` | Built (0077) | `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)` |
+| `calls` | Planned (Phase 1) | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` |
+| `call_dispositions` | Planned (Phase 1) | `code`, `label`, `next_action` |
+| `whatsapp_threads` | Planned (Phase 2) | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` |
+| `whatsapp_messages` (partitioned) | Planned (Phase 2) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` |
+| `lead_sources` | Built (0004) | `code`, `channel`, `cost_model` |
+| `tags` | Built (0079) | `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks) |
+| `opportunity_tags` | Built (0079) | `opportunity_id`, `tag_id`, `entity_id`, `account_id` (the lead's own); primary key `(opportunity_id, tag_id)`; the link table that puts a tag on a lead, following the child-table template with the composite foreign key `(opportunity_id, entity_id, account_id)` to the one unique key of `opportunities` that `tasks` also uses; a tag of one company is never put on another company's lead; put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group |
+| `consents` | Built (0004) | `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the proof the consent rests on: a `consent_evidence` file of the page's company that the caller may read and that has passed its checks; fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series) |
+| `customer_loans` | Planned (Phase 4) | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` |
+| `identity_documents` | Planned (Phase 4) | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists |
+| `referral_partners`, `commission_accruals` | Planned (Phase 1) | `partner_account_id`, `opportunity_id`, `amount`, `released_at` |
 
 ### 6.3 Catalogue, pricing and tax
-| Table | Key columns |
-|---|---|
-| `items` | `sku`, `name`, `category` (`pump`, `motor`, `solar_module`, `controller`, `structure`, `cable`, `pipe`, `inverter`, `battery`, `other`), `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref` (both for solar modules only), `specs_json` (always an object: the category's specifications, strict per category in `@shakti/contracts` `catalogue/specs.ts`, each key naming its unit, such as `hp`, `kw`, `wp`, `maxHeadM`); shared by every company, written with `catalogue.write` by `catalogue.item.create`, `.update` and `.archive`, and, like `kits`, `kit_components` and `pump_curves`, only by a request that acts for every active company (`app.request_covers_group()` in the write policies and the commands); an item in a kit still sold is not archived |
-| `item_costs` (restricted) | `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs |
-| `pump_curves` | `item_id`, `head_m`, `flow_lph`, one point per row, 2 to 30 per pump with flow rising and head falling; replaced as a set by `catalogue.pump_curve.set` (delete with `catalogue.write`), for pumps only; head bounds are derived by the sizing calculator |
-| `kits`, `kit_components` | `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken |
-| `price_tiers` | `code` (`retail`, `dealer`, `commercial`) |
-| `price_lists` | `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); a list is created by `pricing.list.create` as a draft that prices nothing, from today or later, with a copy of the prices in force on the day before it starts (the company's own list then, else the group's), and only approved lists price quotes (S1 reads approved lists only); an exclusion constraint allows one live approved list per tier and company on any day, and approving a draft ends the approved list pricing its start date there; `pricing.list.archive` withdraws a draft or a scheduled list, never a live or ended one, and a withdrawn scheduled list gives its days back to the list before it; changes to one tier and company take turns on a transaction advisory lock keyed by both |
-| `price_list_items` | `price_list_id`, `item_id` or `kit_id`, `price` |
-| `price_change_log` (append-only) | `price_list_item_id`, `old_price`, `new_price`, `reason`, `changed_by`; written only by a trigger on `price_list_items`, with the reason from the transaction setting `app.price_reason` |
-| `tax_rates` | `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item; carries no company, so it is written with `tax.rates.write` only by a request that acts for every active company (0048) |
-| `composite_supply_rules` | `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment; written as `tax_rates` is (0048) |
+| Table | Status | Key columns |
+|---|---|---|
+| `items` | Built (0007) | `sku`, `name`, `category` (`pump`, `motor`, `solar_module`, `controller`, `structure`, `cable`, `pipe`, `inverter`, `battery`, `other`), `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref` (both for solar modules only), `specs_json` (always an object: the category's specifications, strict per category in `@shakti/contracts` `catalogue/specs.ts`, each key naming its unit, such as `hp`, `kw`, `wp`, `maxHeadM`); shared by every company, written with `catalogue.write` by `catalogue.item.create`, `.update` and `.archive`, and, like `kits`, `kit_components` and `pump_curves`, only by a request that acts for every active company (`app.request_covers_group()` in the write policies and the commands); an item in a kit still sold is not archived |
+| `item_costs` (restricted) | Built (0007) | `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs |
+| `pump_curves` | Built (0007) | `item_id`, `head_m`, `flow_lph`, one point per row, 2 to 30 per pump with flow rising and head falling; replaced as a set by `catalogue.pump_curve.set` (delete with `catalogue.write`), for pumps only; head bounds are derived by the sizing calculator |
+| `kits`, `kit_components` | Built (0007) | `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken |
+| `price_tiers` | Built (0007) | `code` (`retail`, `dealer`, `commercial`) |
+| `price_lists` | Built (0007) | `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); drafts, approval and withdrawal as §4.4 sets out |
+| `price_list_items` | Built (0007) | `price_list_id`, `item_id` or `kit_id`, `price` |
+| `price_change_log` (append-only) | Built (0007) | `price_list_item_id`, `old_price`, `new_price`, `reason`, `changed_by`; written only by a trigger on `price_list_items`, with the reason from the transaction setting `app.price_reason` |
+| `tax_rates` | Built (0007) | `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item; carries no company, so it is written with `tax.rates.write` only by a request that acts for every active company (0048) |
+| `composite_supply_rules` | Built (0007) | `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment; written as `tax_rates` is (0048) |
 
 ### 6.4 Sales
-| Table | Key columns |
-|---|---|
-| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` |
-| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` |
-| `quote_versions` | `quote_id`, `version`, `snapshot_json` |
-| `sales_orders` | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` |
-| `sales_order_lines` | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` |
-| `dealer_terms` | `account_id`, `tier_id`, `credit_limit`, `credit_days` |
-| `targets` | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` |
+| Table | Status | Key columns |
+|---|---|---|
+| `quotes` | Planned (Phase 1) | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` |
+| `quote_lines` | Planned (Phase 1) | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` |
+| `quote_versions` | Planned (Phase 1) | `quote_id`, `version`, `snapshot_json` |
+| `sales_orders` | Planned (Phase 1) | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` |
+| `sales_order_lines` | Planned (Phase 1) | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` |
+| `dealer_terms` | Planned (Phase 1) | `account_id`, `tier_id`, `credit_limit`, `credit_days` |
+| `targets` | Planned (Phase 1) | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` |
 
 ### 6.5 Inventory and logistics
-| Table | Key columns |
-|---|---|
-| `warehouses`, `bins` | `location_id`, `code` |
-| `stock_movements` (append-only) | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` |
-| `stock_movement_costs` (restricted, append-only) | `movement_id`, `unit_cost` |
-| `stock_balances` | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) |
-| `reservations` | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` |
-| `serials` | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` |
-| `surplus_pool` | `project_id`, `item_id`, `qty`, `state` |
-| `vendors` | `name`, `gstin`, `terms_json` |
-| `vendor_quotes` (restricted) | `vendor_id`, `item_id`, `rate`, `valid_until` |
-| `purchase_orders` | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` |
-| `po_lines` | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` |
-| `goods_receipts` | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` |
-| `goods_receipt_lines` | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row |
-| `dispatches` | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` |
-| `dispatch_lines` | `dispatch_id`, `so_line_id`, `qty`, serials |
-| `delivery_challans` | `dispatch_id`, `challan_no`, `pdf_file_id` |
-| `eway_bills` | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` |
-| `warranty_claims` | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` |
+| Table | Status | Key columns |
+|---|---|---|
+| `warehouses`, `bins` | Planned (Phase 3) | `location_id`, `code` |
+| `stock_movements` (append-only) | Planned (Phase 3) | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` |
+| `stock_movement_costs` (restricted, append-only) | Planned (Phase 3) | `movement_id`, `unit_cost` |
+| `stock_balances` | Planned (Phase 3) | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) |
+| `reservations` | Planned (Phase 3) | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` |
+| `serials` | Planned (Phase 3) | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` |
+| `surplus_pool` | Planned (Phase 3) | `project_id`, `item_id`, `qty`, `state` |
+| `vendors` | Planned (Phase 3) | `name`, `gstin`, `terms_json` |
+| `vendor_quotes` (restricted) | Planned (Phase 3) | `vendor_id`, `item_id`, `rate`, `valid_until` |
+| `purchase_orders` | Planned (Phase 3) | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` |
+| `po_lines` | Planned (Phase 3) | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` |
+| `goods_receipts` | Planned (Phase 3) | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` |
+| `goods_receipt_lines` | Planned (Phase 3) | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row |
+| `dispatches` | Planned (Phase 3) | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` |
+| `dispatch_lines` | Planned (Phase 3) | `dispatch_id`, `so_line_id`, `qty`, serials |
+| `delivery_challans` | Planned (Phase 3) | `dispatch_id`, `challan_no`, `pdf_file_id` |
+| `eway_bills` | Planned (Phase 3) | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` |
+| `warranty_claims` | Planned (Phase 3) | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` |
 
 ### 6.6 Projects and field
-| Table | Key columns |
-|---|---|
-| `projects` | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` |
-| `project_flow_templates` | `segment`, `steps_json` (editable by Executives) |
-| `project_milestones` | `project_id`, `code`, `state`, `due_at`, `done_at` |
-| `subsidy_applications` | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` |
-| `subsidy_gates` | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` |
-| `surveys` | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` |
-| `survey_photos` | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` |
-| `checklists`, `qc_inspections` | `project_id`, `items_json`, `signed_off_by` |
-| `schedule_slots` | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` |
-| `documents` | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file |
-| `document_requirements` | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing |
-| `cmc_register` | `project_id`, `starts_on`, `ends_on`, `state` |
+| Table | Status | Key columns |
+|---|---|---|
+| `projects` | Planned (Phase 4) | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` |
+| `project_flow_templates` | Planned (Phase 4) | `segment`, `steps_json` (editable by Executives) |
+| `project_milestones` | Planned (Phase 4) | `project_id`, `code`, `state`, `due_at`, `done_at` |
+| `subsidy_applications` | Planned (Phase 4) | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` |
+| `subsidy_gates` | Planned (Phase 4) | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` |
+| `surveys` | Planned (Phase 4) | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` |
+| `survey_photos` | Planned (Phase 4) | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` |
+| `checklists`, `qc_inspections` | Planned (Phase 4) | `project_id`, `items_json`, `signed_off_by` |
+| `schedule_slots` | Planned (Phase 4) | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` |
+| `documents` | Planned (Phase 4) | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file |
+| `document_requirements` | Planned (Phase 4) | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing |
+| `cmc_register` | Planned (Phase 4) | `project_id`, `starts_on`, `ends_on`, `state` |
 
 ### 6.7 Finance and costing
-| Table | Key columns |
-|---|---|
-| `proformas` | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` |
-| `payment_milestones` | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` |
-| `payments` (append-only) | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` |
-| `tally_vouchers` | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` |
-| `tally_purchase_vouchers` (restricted) | same shape for `purchase` and `debit_note` |
-| `tally_voucher_tombstones` (append-only) | `voucher_guid`, `detected_at`, `reversal_applied_at` |
-| `tally_ledgers` | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |
-| `reconciliation_links` | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` |
-| `unlinked_vouchers` | review queue rows |
-| `dealer_outstanding` | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` |
-| `job_cost_entries` (restricted) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` |
-| `expense_claims` | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` |
-| `expense_lines` | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` |
+| Table | Status | Key columns |
+|---|---|---|
+| `proformas` | Planned (Phase 5) | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` |
+| `payment_milestones` | Planned (Phase 5) | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` |
+| `payments` (append-only) | Planned (Phase 5) | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` |
+| `tally_vouchers` | Planned (Phase 5) | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` |
+| `tally_purchase_vouchers` (restricted) | Planned (Phase 5) | same shape for `purchase` and `debit_note` |
+| `tally_voucher_tombstones` (append-only) | Planned (Phase 5) | `voucher_guid`, `detected_at`, `reversal_applied_at` |
+| `tally_ledgers` | Planned (Phase 5) | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |
+| `reconciliation_links` | Planned (Phase 5) | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` |
+| `unlinked_vouchers` | Planned (Phase 5) | review queue rows |
+| `dealer_outstanding` | Planned (Phase 1) | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` |
+| `job_cost_entries` (restricted) | Planned (Phase 5) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` |
+| `expense_claims` | Planned (Phase 4) | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` |
+| `expense_lines` | Planned (Phase 4) | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` |
 
 ### 6.8 HR
-| Table | Key columns |
-|---|---|
-| `employees` | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` |
-| `attendance_events` | `type`, `geo`, `selfie_file_id`, `site_id null` |
-| `shifts` | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` |
-| `leave_types` | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` |
-| `leave_requests` | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` |
-| `holidays` | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check |
-| `incentive_rules` | `rule_json` |
-| `incentive_accruals` | `released_on_event` |
-| `salary_sheets` | `period`, `file_id` |
+| Table | Status | Key columns |
+|---|---|---|
+| `employees` | Planned (Phase 5) | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` |
+| `attendance_events` | Planned (Phase 4) | `type`, `geo`, `selfie_file_id`, `site_id null` |
+| `shifts` | Planned (Phase 5) | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` |
+| `leave_types` | Planned (Phase 5) | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` |
+| `leave_requests` | Planned (Phase 5) | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` |
+| `holidays` | Planned (Phase 5) | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check |
+| `incentive_rules` | Planned (Phase 5) | `rule_json` |
+| `incentive_accruals` | Planned (Phase 5) | `released_on_event` |
+| `salary_sheets` | Planned (Phase 5) | `period`, `file_id` |
 
 ### 6.9 AI and voice
-| Table | Key columns |
-|---|---|
-| `knowledge_files` | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` |
-| `knowledge_chunks` | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` |
-| `playbook_directives` | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` |
-| `agent_configs` | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |
-| `agent_runs` | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` |
-| `agent_actions` (append-only) | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` |
-| `agent_evals` | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |
-| `voice_sessions` | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` |
+| Table | Status | Key columns |
+|---|---|---|
+| `knowledge_files` | Planned (Phase 1) | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` |
+| `knowledge_chunks` | Planned (Phase 1) | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` |
+| `playbook_directives` | Planned (Phase 2) | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` |
+| `agent_configs` | Planned (Phase 1) | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |
+| `agent_runs` | Planned (Phase 1) | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` |
+| `agent_actions` (append-only) | Planned (Phase 1) | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` |
+| `agent_evals` | Planned (Phase 1) | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |
+| `voice_sessions` | Planned (Phase 2) | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` |
 
 ### 6.10 Platform
-| Table | Key columns |
-|---|---|
-| `outbox_events` (append-only) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping, whose lease, backoff, dead letters and failure callback ARCHITECTURE §6 describes. They change only through the `outbox_publisher` role; through `app.replay_dead_letter()` (`integrations.dlq.replay`), which puts a dead letter back in the queue with its attempts, error, backoff and lease cleared, the one change the append-only trigger allows on a dead-lettered row, and only as the owner of that function (0059); and through the failure callback, as `outbox_publisher`, which turns a delivered event back into a dead letter (`published_at` cleared, `dead_lettered_at` set, `last_error` `worker_failed` or `worker_refused`, nothing else changed, 0064). Events published more than 30 days ago are deleted by the retention purge (§5, §7) |
-| `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
-| `audit_logs` (partitioned, append-only; partitions in schema `audit_partitions`) | `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3) |
-| `retention_runs` | `job` (a pg_cron job name such as `outbox-events-purge` or `audit-logs-detach`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054) |
-| `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
-| `saved_views` | `principal_id`, `screen` (`leads`, `team_members`, `price_lists`, `imports`, `catalogue_items`, `catalogue_kits`, `customers`), `name` (1 to 60 characters, trimmed, unique per person and screen), `settings_json` (`columns`, `sort`, `filters`, `density`); each person reads, writes and deletes their own views only, in any company; written by `profile.view.save` and `profile.view.delete` (migrations 0045, 0069 and 0085) |
-| `import_mapping_templates` | `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040 and 0041) |
-| `import_jobs` | `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete |
-| `import_rows` | primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter` |
-| `files` | `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key` (unique together; an import file's key is named by its SHA-256, an upload's is `<company>/<purpose>/<file id>.<ext>`, and a checked copy's ends `-checked`), `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`; the `file_upload` machine, and `masked` for WhatsApp filing), `scan_result` (the scanner, its verdict, how the bytes were prepared, why a file was refused and `originalKey`, the upload's own bytes the worker deletes: codes, keys and counts only); index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead. Its purpose names who creates and reads it, in one immutable helper the policies call, `app.file_purpose_grant(purpose, 'write' \| 'read')` (0066), mirrored by `packages/domain/src/files/purposes.ts`: `import` by `imports.write` at entity scope; `quote_pdf` written only by the render worker (`files.process`) and `signed_quote` with `sales.quote.send`, both read with `crm.lead.read`; `entity_logo` and `letterhead` written with `admin.entities.write` at all scope and read by every principal of the company; `consent_evidence` by `crm.account.write`; `knowledge` and the field purposes by no request yet (K1 adds `knowledge.vault.write`). A read permission held at entity scope reads every such file of the company, a narrower one the files the caller uploaded (S1 widens quote files to the lead's readers). A person inserts an upload as `pending`, as themselves, in the request's companies, and moves only their own pending upload to `scanning`; the worker principal (`files.process`, held by no person's role) reads and records every file of its companies and moves it through its checks. `app_user` updates only `status`, `scan_result`, `key`, `content_type`, `size`, `sha256` and the `updated_*` columns, and the trigger `app.files_guard_update()` stamps `updated_by` with the caller and `updated_at` with the time, and refuses a change to anything but the status from a caller without `files.process`; no delete |
-| `feature_flags` | `key`, `enabled`, `overrides_json` |
-| `privacy_incidents` | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |
+| Table | Status | Key columns |
+|---|---|---|
+| `outbox_events` (append-only) | Built (0034) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4) |
+| `webhook_inbox` (append-only) | Planned (Phase 2) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
+| `audit_logs` (partitioned, append-only; partitions in schema `audit_partitions`) | Built (0032) | `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3) |
+| `retention_runs` | Built (0053) | `job` (a pg_cron job name such as `outbox-events-purge` or `audit-logs-detach`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054) |
+| `notifications` | Planned (Phase 1) | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` |
+| `saved_views` | Built (0045) | `principal_id`, `screen` (`leads`, `team_members`, `price_lists`, `imports`, `catalogue_items`, `catalogue_kits`, `customers`), `name` (1 to 60 characters, trimmed, unique per person and screen), `settings_json` (`columns`, `sort`, `filters`, `density`); each person reads, writes and deletes their own views only, in any company; written by `profile.view.save` and `profile.view.delete` (migrations 0045, 0069 and 0085) |
+| `import_mapping_templates` | Built (0040) | `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040 and 0041) |
+| `import_jobs` | Built (0040) | `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete |
+| `import_rows` | Built (0040) | primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter` |
+| `files` | Built (0040) | `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead (§4.4) |
+| `feature_flags` | Planned (no phase set) | `key`, `enabled`, `overrides_json` |
+| `privacy_incidents` | Planned (no phase set) | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |
 
 ## 7. Partitioning, indexes, retention
-- **Monthly partitions:** `activities`, `whatsapp_messages`, `audit_logs`.
+- **Monthly partitions:** `activities` and `audit_logs` (built); `whatsapp_messages` (Phase 2).
   - `audit_logs`: the pg_cron job `audit-logs-partitions` runs `app.ensure_audit_partitions(3)` on the 25th of each month at 03:00 UTC, making the current month's partition and the next three.
   - `activities`: its partitions live in the schema `crm_partitions` with a default partition; the job `activities-partitions` runs `app.ensure_activity_partitions(3)` on the 25th at 03:05 UTC, making each month apart, so a month that fails leaves the later ones made, and records each run in `retention_runs` with the partitions made and the months that failed. Its partitions are kept until a retention job of their own exists.
   - Audit archive: the job `audit-logs-detach` runs `call app.detach_audit_partitions()` on the 1st of each month at 03:30 UTC and detaches every monthly partition whose month ended more than eight years ago (BLUEPRINT §7.9) into the schema `audit_archive`, which no request role may use, logging the run and the number of partitions in `retention_runs` (0062).
@@ -401,16 +452,15 @@ Key columns only; every table also has the standard columns from §2.
   - search: trigram on `accounts.name`, `contacts.name` and `customer_sites.village`, which ⌘K lead search reaches through `app.lead_search_ids()` (§4.1, §4.2);
   - leads: `opportunities(entity_id, stage_id, owner_id, updated_at desc)`;
   - outbox: `outbox_events_pending_idx` on `outbox_events(sequence) where published_at is null and dead_lettered_at is null`, and `outbox_events_dead_letters_idx` on `outbox_events(dead_lettered_at) where dead_lettered_at is not null`;
-  - unique: `webhook_inbox(provider, provider_event_id)`, `tally_vouchers(guid)`, `serials(serial_no)`;
-  - vectors: HNSW on `knowledge_chunks.embedding`.
+  - planned with their tables (§6): unique `webhook_inbox(provider, provider_event_id)`, `tally_vouchers(guid)` and `serials(serial_no)`, and HNSW on `knowledge_chunks.embedding`.
 - **Keyset pagination** on every list by the chosen sort column and `id` (`packages/domain/src/queries/keyset-sort.ts`), each list with its own default order (the leads list and board by `(updated_at, id)`, the customers list by `(name, id)` through the index `accounts_name_id_idx`), the Activity log and the customer timeline by `(created_at, id)`, and a person's open tasks by `(due_at, id)`; the cursor carries the sort value as Postgres text, never a millisecond `Date`, because rows written in one transaction share `now()` to the microsecond.
-- **Materialised views** for dashboards (`mv_pipeline_by_stage`, `mv_collections_ageing`, `mv_stock_health`, `mv_project_margins` restricted) refreshed by pg_cron every 5 minutes.
+- **Materialised views (planned, with the dashboards of their phases):** `mv_pipeline_by_stage`, `mv_collections_ageing`, `mv_stock_health` and `mv_project_margins` (restricted), refreshed by pg_cron every 5 minutes.
 - **Built pg_cron jobs:**
   - `audit-logs-partitions`, `activities-partitions` and `audit-logs-detach` (above); the detach is a procedure written as the purge below is, and a failed run records its error, detaches nothing and raises.
   - `idempotency-keys-purge` runs `app.purge_idempotency_keys()` daily at 02:30 UTC.
   - `outbox-events-purge` runs `call app.purge_outbox_events()` daily at 02:45 UTC: a procedure that records its run in `retention_runs` and commits, deletes events published more than 30 days ago, and on a failure records the error on the run, commits it and raises, so pg_cron reports the run failed (0059).
   - A procedure that commits cannot pin a search path, so it names every object and operator with its schema, its comparisons of the run's id included (0060); no request role may run it.
-- **Retention jobs** (pg_cron, each run logged in `retention_runs`, Phase 1) implement blueprint §7.9: delete call audio after 12 months, delete WhatsApp media after 3 years, anonymise unqualified leads after 24 months, archive financial and audit rows after 8 years.
+- **Retention jobs (planned):** pg_cron jobs, each run logged in `retention_runs`, implement blueprint §7.9 as the data they cover arrives: delete call audio after 12 months and WhatsApp media after 3 years (Phase 2), anonymise unqualified leads after 24 months, archive financial rows after 8 years. The audit archive is built (`audit-logs-detach`, above).
 
 ## 8. Migrations
 1. Change the Drizzle schema in `packages/db/src/schema`.
@@ -421,10 +471,10 @@ Key columns only; every table also has the standard columns from §2.
    - its name in `SHARED_TABLES` or `ENTITY_TABLES` of the testing module, so the fail-closed loop covers it; a table in `ENTITY_TABLES` also gets a fixture row per company in `packages/db/src/testing/entity-matrix-fixture.ts` and a read rule in `role-entity-matrix.test.ts`;
    - or, outside the generic loops, its own list with its own test file: `AUTH_TABLES` (owned by the auth module), `OUTBOX_TABLES` (insert-only for the application), `PRINCIPAL_TABLES` (scoped to the calling principal) or `PLATFORM_TABLES` (written only by a database job, read at scope `all`).
 4. Expand/contract for renames and type changes: add the new column, dual-write, backfill, switch reads, drop the old column in a later release.
-5. `pnpm db:migrate` runs in CI against a fresh database and against a copy of staging before deploy.
+5. `pnpm db:migrate` runs in CI against a fresh database. Once staging holds data worth keeping, every migration is also applied to a copy of staging before it reaches production ([AGENTS §10](../AGENTS.md#10-definition-of-done)); the hosted procedure is [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy).
 6. Applied migrations are never edited.
-7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate through the workflow in `docs/runbooks/DEPLOY.md`, which also covers indexes built `concurrently`.
-8. Supabase's database advisors on a migrated project (checked on the dev project, 29-09-2026) report five kinds of notice, each accepted:
+7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate only by [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy), and indexes built `concurrently` by its §3.
+8. Supabase's database advisors on a migrated project report five kinds of notice, each accepted. The list below was checked on the dev project on 29-09-2026, at migration 0060; it is to re-check after 0062, which brings definers and policies of its own:
    - `function_search_path_mutable` for eight `security invoker` helpers (`app.entity_ids()`, `app.user_id()`, `app.team_id()`, `app.has_perm()`, `app.scope_ok()`, the trigger functions `app.set_updated_at()` and `app.raise_append_only()`, and the procedure `app.purge_outbox_events()`): they name no table without its schema, run with the caller's own rights, and are reached by request roles that can create nothing in any schema and no temporary table, while a `set search_path` would stop the SQL helpers being inlined into the policies;
    - `extension_in_public` for `pg_trgm` and `btree_gist`, placed there on purpose (DEPLOY §1.1, 0003, 0052);
    - `auth_rls_initplan` on `account_entities_read`, whose `current_setting('app.role')` already sits in an uncorrelated subquery evaluated once;
@@ -440,11 +490,11 @@ Key columns only; every table also has the standard columns from §2.
 - Staging is refreshed from seeds plus anonymised structure only; production PII never leaves production.
 
 ## 10. Backups and recovery
-Supabase PITR (RPO ≤ 5 min) plus a nightly `pg_dump` to the S3 backup bucket with 30-day retention; a quarterly restore drill into a scratch project:
-1. Restore the latest nightly dump (or a PITR point) into a new scratch Supabase project in Mumbai.
+**Targets for production**, none of which runs on dev and staging (their plans are in [accounts](runbooks/accounts.md)): Supabase PITR (RPO ≤ 5 min) plus a nightly `pg_dump` to the S3 backup bucket with 30-day retention, and a quarterly restore drill into a scratch project:
+1. Restore the latest nightly dump (or a PITR point) into a new scratch Supabase project in the production project's region.
 2. Run `pnpm db:verify` against it to prove every migration is present exactly as written.
 3. Compare row counts of `entities`, `accounts`, `opportunities`, `stock_movements`, `payments` and the latest `audit_logs` partition with the source at the dump time.
 4. Sign in as an Executive and open a lead, a quote and the activity log.
 5. Record the time from start to a working sign-in against the 4-hour RTO, then delete the scratch project.
 
-Hosted environments are created and migrated as `docs/runbooks/DEPLOY.md` describes.
+Hosted environments are created and migrated as [DEPLOY](runbooks/DEPLOY.md) describes; its §2 is the one procedure for a hosted migration.

@@ -56,7 +56,7 @@ export const fileUploadMachine = defineMachine<
   states: FILE_UPLOAD_STATES,
   initial: 'pending',
   terminal: ['ready', 'rejected'],
-  proposedStates: ['scanned'],
+  stored: { table: 'files', stateColumn: 'status' },
   stateNotes: {
     pending: 'Recorded with its pre-signed upload address; the bytes have not landed yet.',
     scanning: 'The bytes landed; the malware scan runs.',
@@ -82,7 +82,7 @@ export const fileUploadMachine = defineMachine<
       permission: null,
       permissionByInput: BY_PURPOSE,
       guard: storedAsDeclared,
-      effects: [{ key: 'uploaded', description: 'emit `files.file.uploaded` for the checks' }],
+      emits: 'files.file.uploaded',
       note: '`files.upload.complete`, by the person who began the upload.',
     },
     {

@@ -20,8 +20,23 @@ export const EVENT_VERSION = 1;
 
 const Code = z.string().trim().min(1).max(40);
 
+/**
+ * One type: what it means (one line, for `docs/data/EVENTS.md`), the commands that emit it
+ * (checked against the command sources by `event-emitters.test.ts` in `packages/domain`), whether
+ * a worker listens, and its payload.
+ */
+interface CatalogueEntrySpec {
+  meaning: string;
+  emittedBy: readonly string[];
+  subscribed: boolean;
+  payload: z.ZodType;
+}
+
 const eventCatalogue = {
   'org.entity.updated': {
+    meaning:
+      "A company's brand name, UPI id, GSTIN, state or registered address changed; `fields` names which.",
+    emittedBy: ['org.entity.update'],
     subscribed: false,
     payload: z
       .object({
@@ -43,6 +58,9 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.lead.created': {
+    meaning:
+      'A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer.',
+    emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z
       .object({
@@ -53,6 +71,9 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.stage_moved': {
+    meaning:
+      'An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`.',
+    emittedBy: ['crm.opportunity.stage.move'],
     subscribed: false,
     payload: z
       .object({
@@ -65,6 +86,8 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.assigned': {
+    meaning: 'A lead was given to an owner and team, locked to them for `lockHours`.',
+    emittedBy: ['crm.opportunity.assign'],
     subscribed: false,
     payload: z
       .object({
@@ -75,24 +98,35 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.nurtured': {
+    meaning: 'An open lead was parked in nurture with a reason code.',
+    emittedBy: ['crm.opportunity.nurture'],
     subscribed: false,
     payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
   },
   'crm.opportunity.reopened': {
+    meaning: "A nurtured or lost lead was opened again at its pipeline's first open stage.",
+    emittedBy: ['crm.opportunity.reopen'],
     subscribed: false,
     payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
   },
   'crm.opportunity.won': {
+    meaning: 'An open lead was closed as won.',
+    emittedBy: ['crm.opportunity.win'],
     subscribed: false,
     payload: z.object({ stageId: IdSchema }).strict(),
   },
   'crm.opportunity.lost': {
+    meaning: 'An open or nurtured lead was closed as lost with a reason code.',
+    emittedBy: ['crm.opportunity.lose'],
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })
       .strict(),
   },
   'pricing.price.changed': {
+    meaning:
+      'The price of an item or kit on a price list was set; the database also appends it to `price_change_log`.',
+    emittedBy: ['pricing.price.set'],
     subscribed: false,
     payload: z
       .object({
@@ -105,6 +139,9 @@ const eventCatalogue = {
       .strict(),
   },
   'pricing.list.created': {
+    meaning:
+      'A draft price list of a tier was made, holding a copy of the prices in force before it starts.',
+    emittedBy: ['pricing.list.create'],
     subscribed: false,
     payload: z
       .object({
@@ -115,66 +152,103 @@ const eventCatalogue = {
       .strict(),
   },
   'pricing.list.approved': {
+    meaning:
+      "A draft price list became its tier's list from its start date; `closedListIds` are the approved lists it ends.",
+    emittedBy: ['pricing.list.approve'],
     subscribed: false,
     payload: z.object({ tierCode: Code, closedListIds: z.array(IdSchema) }).strict(),
   },
   'pricing.list.archived': {
+    meaning:
+      'A draft or scheduled price list was withdrawn; `reopenedListId` is the list that takes back its end date.',
+    emittedBy: ['pricing.list.archive'],
     subscribed: false,
     payload: z.object({ tierCode: Code, reopenedListId: IdSchema.nullable() }).strict(),
   },
   'catalogue.item.created': {
+    meaning: 'An item was added to the catalogue.',
+    emittedBy: ['catalogue.item.create'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.updated': {
+    meaning: "An item's details or specifications changed.",
+    emittedBy: ['catalogue.item.update'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.item.archived': {
+    meaning: 'An item was withdrawn from sale.',
+    emittedBy: ['catalogue.item.archive'],
     subscribed: false,
     payload: z.object({ category: ItemCategorySchema }).strict(),
   },
   'catalogue.kit.created': {
+    meaning: 'A kit was added with its components.',
+    emittedBy: ['catalogue.kit.create'],
     subscribed: false,
     payload: z.object({ components: z.number().int().min(1) }).strict(),
   },
   'catalogue.kit.updated': {
+    meaning: "A kit's details or components changed.",
+    emittedBy: ['catalogue.kit.update'],
     subscribed: false,
     payload: z.object({ components: z.number().int().min(1) }).strict(),
   },
   'catalogue.kit.archived': {
+    meaning: 'A kit was withdrawn from sale.',
+    emittedBy: ['catalogue.kit.archive'],
     subscribed: false,
     payload: z.object({}).strict(),
   },
   'catalogue.pump_curve.set': {
+    meaning: "A pump's curve was replaced; `points` counts its points.",
+    emittedBy: ['catalogue.pump_curve.set'],
     subscribed: false,
     payload: z.object({ points: z.number().int().min(2).max(30) }).strict(),
   },
   'auth.session.revoked': {
+    meaning: 'One session was ended by an administrator; the row stays for the sessions screen.',
+    emittedBy: ['admin.session.revoke'],
     subscribed: false,
     payload: z.object({ userId: IdSchema, reason: z.literal('admin') }).strict(),
   },
   'admin.user.invited': {
+    meaning:
+      'A person was invited with a role; the server action then mails the link to set a password.',
+    emittedBy: ['admin.user.invite'],
     subscribed: false,
     payload: z.object({ roleId: IdSchema }).strict(),
   },
   'admin.user.suspended': {
+    meaning: 'A person was suspended and signed out everywhere.',
+    emittedBy: ['admin.user.suspend'],
     subscribed: false,
     payload: z.object({ revokedSessions: z.number().int().min(0) }).strict(),
   },
   'admin.user.two_factor_reset': {
+    meaning: "A person's lost authenticator app was removed and they were signed out everywhere.",
+    emittedBy: ['admin.user.two_factor.reset'],
     subscribed: false,
     payload: z.object({ revokedSessions: z.number().int().min(0) }).strict(),
   },
   'admin.user.reactivated': {
+    meaning: 'A suspended person may sign in again.',
+    emittedBy: ['admin.user.reactivate'],
     subscribed: false,
     payload: z.object({}).strict(),
   },
   'admin.user.roles_changed': {
+    meaning:
+      "A person's roles in the request's companies were replaced and they were signed out everywhere.",
+    emittedBy: ['admin.user.role.set'],
     subscribed: false,
     payload: z.object({ roleId: IdSchema, revokedSessions: z.number().int().min(0) }).strict(),
   },
   'admin.role.permissions_changed': {
+    meaning:
+      "A staff role's grants were replaced and its holders signed out, apart from the caller's own session.",
+    emittedBy: ['admin.role.permissions.set'],
     subscribed: false,
     payload: z
       .object({
@@ -189,6 +263,8 @@ const eventCatalogue = {
       .strict(),
   },
   'imports.job.committed': {
+    meaning: 'Every valid row of an import job is in.',
+    emittedBy: ['imports.job.commit_batch'],
     subscribed: false,
     payload: z
       .object({
@@ -199,6 +275,9 @@ const eventCatalogue = {
       .strict(),
   },
   'imports.job.failed': {
+    meaning:
+      'A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back.',
+    emittedBy: ['imports.job.commit_batch'],
     subscribed: false,
     payload: z
       .object({
@@ -213,19 +292,27 @@ const eventCatalogue = {
    * the Integration Health page compares with `requestedAt`, the moment the command ran.
    */
   'platform.probe.requested': {
+    meaning:
+      'The delivery check: its worker records when the event arrived, for Integration Health.',
+    emittedBy: ['platform.probe.run'],
     subscribed: true,
     payload: z.object({ requestedAt: z.iso.datetime() }).strict(),
   },
   'imports.job.rolled_back': {
+    meaning: 'The leads an import job made were archived; the customers it made stay.',
+    emittedBy: ['imports.job.rollback'],
     subscribed: false,
     payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),
   },
   // An upload landed and waits for its checks (`handleFileUploaded` in apps/web/src/workers/files).
   'files.file.uploaded': {
+    meaning:
+      'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
+    emittedBy: ['files.upload.complete', 'files.file.recheck'],
     subscribed: true,
     payload: z.object({ purpose: FilePurposeSchema }).strict(),
   },
-} as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;
+} as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;
 export const EVENT_TYPES = Object.keys(eventCatalogue) as EventType[];
@@ -279,6 +366,8 @@ export type DeliveredEvent = z.infer<typeof DeliveredEvent>;
 /** One catalogue entry with its payload as JSON Schema, for `docs/data/EVENTS.md` (`pnpm db:docs`). */
 export interface EventCatalogueEntry {
   type: EventType;
+  meaning: string;
+  emittedBy: readonly string[];
   subscribed: boolean;
   payload: Record<string, unknown>;
 }
@@ -294,6 +383,8 @@ export function describeEventCatalogue(): {
     envelope: z.toJSONSchema(DeliveredEvent),
     events: EVENT_TYPES.map((type) => ({
       type,
+      meaning: eventCatalogue[type].meaning,
+      emittedBy: eventCatalogue[type].emittedBy,
       subscribed: eventCatalogue[type].subscribed,
       payload: z.toJSONSchema(eventCatalogue[type].payload),
     })),

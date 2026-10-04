@@ -5,7 +5,9 @@ The Shakti group has four companies (Shakti Supreme, Shakti Motor Pumps, Agro So
 
 Shakti Prime is a single **Business Operating System** on `shaktiprime.com` that runs the business end to end: lead → sale → fulfilment → installation → cash. **AI agents run the lead lifecycle on autopilot**, and leadership shapes their behaviour by teaching the AI through uploads and live voice conversation.
 
-This document is the architecture and product blueprint. Implementation begins after approval, starting with Phase 0. What is built so far is in [STATUS](STATUS.md); terms are explained in the [glossary](GLOSSARY.md).
+This document is the architecture and product blueprint.
+
+**Status:** approved by the owner on 26-09-2026; Phase 0 closed on 29-09-2026 by the owner's decision and Phase 1 is under way. What is built so far is in [STATUS](STATUS.md); terms are explained in the [glossary](GLOSSARY.md).
 
 **Contents:** [0. Context](#0-context) · [1. Key decisions](#1-key-decisions) · [2. Feature scope](#2-feature-scope) · [3. Guiding principles](#3-guiding-principles) · [4. System architecture](#4-system-architecture) · [5. Technology stack](#5-technology-stack) · [6. Multi-entity model](#6-multi-entity-model--data-architecture) · [7. Security, access & compliance](#7-security-access--compliance) · [8. Functional modules](#8-functional-modules) · [9. AI layer](#9-ai-layer) · [10. Integrations](#10-integrations) · [11. UX & design system](#11-ux--design-system) · [12. Reliability & operations](#12-reliability--operations) · [13. Operating cost](#13-operating-cost-estimate-monthly-at-full-volume) · [14. Roadmap & effort](#14-roadmap--effort) · [15. Rollout](#15-rollout--change-management) · [16. Edge cases](#16-edge-cases) · [17. Verification strategy](#17-verification-strategy) · [18. Risk register](#18-risk-register) · [19. Phase 0 deliverables](#19-phase-0-deliverables) · [20. Claude Code tooling](#20-claude-code-tooling)
 
@@ -145,7 +147,7 @@ This document is the architecture and product blueprint. Implementation begins a
 
 ### 6.1 Tenancy
 - There is one database. The four companies are **selling entities**, not isolated tenants, because staff are shared.
-- Users have `allowed_entity_ids` and a role per entity. The entity switcher offers "All entities" or a single entity. Every lead, quote, order and document carries a selling entity.
+- Each user's companies are their `user_entity_roles` rows, one role per company. The entity switcher offers "All entities" or a single entity. Every lead, quote, order and document carries a selling entity.
 - RLS uses `entity_id = ANY((select current_setting('app.entity_ids', true))::int[])`, set per transaction with `set_config(..., true)`, which is safe with connection poolers. The subselect runs once per query as an initplan, and the policy denies when the setting is null or empty, so a query that runs outside the request transaction returns nothing.
 - Business tables carry `FORCE ROW LEVEL SECURITY`. The app connects as a non-superuser `app_user` that does not own the tables; migrations run as a separate role. The service role is never used in request paths.
 - All data access goes through one `withRequestContext()` helper that opens the transaction and sets `app.user_id`, `app.entity_ids`, `app.role` and `app.permissions`. An ESLint rule forbids importing the raw database client anywhere else.
@@ -573,7 +575,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 Assumptions:
 - 2,000 leads/day, of which about 50% engage on WhatsApp;
 - about 4,500 dial attempts/day across about 45 callers, of which about 2,500 connect and average 3 minutes (about 225k talk-minutes a month); click-to-dial bills two legs per connected call;
-- 100 users;
+- 100+ users (100 for the estimate);
 - about 300 minutes a month of executive voice use.
 
 | Item | Estimate |

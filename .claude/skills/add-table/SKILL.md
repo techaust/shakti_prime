@@ -5,7 +5,7 @@ description: Add a database table to Shakti Prime BOS with fail-closed row-level
 
 # Add a table
 
-The recipe is `AGENTS.md` §6; follow it step by step, and load the `supabase-postgres-best-practices` skill before writing SQL. Before calling the table done, check each line:
+**Both** (cloud and PC). The recipe is `AGENTS.md` §6; follow it step by step. When available (they are plugins signed in on the PC, absent in a cloud session), load the `supabase-postgres-best-practices` skill before writing SQL and look up drizzle-kit with Context7; elsewhere read DATABASE and the installed packages under `node_modules`. Before calling the table done, check each line:
 
 - [ ] Drizzle schema in `packages/db/src/schema`, then `pnpm db:generate`, then a custom migration (`drizzle-kit generate --custom`) with RLS enabled and forced, policies, grants and triggers.
 - [ ] Policies follow the templates: `entity_id = any ((select app.entity_ids())::int[])` with the cast outside the parentheses; scope roots through `app.scope_ok()`; child tables through `exists` on the parent, with a composite foreign key `(parent_id, entity_id)`; customer tables through `account_entities` (ADR 0008).

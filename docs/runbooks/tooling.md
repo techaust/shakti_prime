@@ -1,6 +1,11 @@
 # Claude Code tooling: connections and sign-in
 
-How each plugin and MCP server that `.claude/tooling.json` requires is connected on the developer's machine, and how to bring one back when it drops. The rules (never install without the go-ahead, credentials never in the repository, the check at session start) are in [CLAUDE.md](../../CLAUDE.md#claude-code-tooling). Checked with a live call on 28-09-2026, with the later re-authorisations noted against each tool.
+How each plugin and MCP server that `.claude/tooling.json` requires is connected on the owner's PC, and how to bring one back when it drops. The rules (never install without the go-ahead, credentials never in the repository, the check at session start) are in [CLAUDE.md](../../CLAUDE.md#claude-code-tooling). Checked with a live call on 28-09-2026, with the later re-authorisations noted against each tool.
+
+## On the PC only
+Every plugin and MCP server below is signed in on the owner's PC (the claude.ai account's directory plugins, `.mcp.json`, user-scope servers and the PC's credentials). A Claude Code cloud session has none of them, and nothing is installed there; its session-start hook says so ([hybrid §2](hybrid.md#2-what-a-cloud-session-has-and-lacks)).
+
+What a cloud session has of this list: the skills committed in `.claude/skills/` (the project's and the vendored `vercel-agent-skills`), and `gh`, signed in as the owner through the cloud's GitHub proxy. So the steps that need a tool here (the hosted look-ups, the migration count, Context7) run on the PC.
 
 ## Tools by phase
 | Tool | Kind | Phase | Sign-in |
@@ -10,7 +15,7 @@ How each plugin and MCP server that `.claude/tooling.json` requires is connected
 | frontend-design | plugin | 0 | None |
 | security-guidance | plugin | 0 | None |
 | upstash | plugin | 0 | Upstash account; also registered at user scope, read-only by the owner's choice |
-| github | plugin | 0 | A fine-grained personal access token, limited to this repository, in the Windows user variable `GITHUB_PERSONAL_ACCESS_TOKEN` |
+| github | plugin | 0 | A personal access token (see GitHub below) |
 | vercel | MCP (`.mcp.json`) | 0 | Vercel sign-in on first use |
 | shadcn | MCP (`.mcp.json`) | 0 | None |
 | vercel-agent-skills | skills (`.claude/skills`) | 0 | None |
@@ -22,7 +27,7 @@ How each plugin and MCP server that `.claude/tooling.json` requires is connected
 The ten directory plugins are enabled on the owner's claude.ai account. The SessionStart hook cannot see account plugins, so it always lists them as "to confirm"; confirm them with the plugin listing tool.
 
 ## Connection notes
-- **GitHub:** the plugin has no browser sign-in and sends the token from `GITHUB_PERSONAL_ACCESS_TOKEN`; an unset variable shows as HTTP 400. When the repository moves to the client's organisation, a new token is needed. `gh` is signed in as `techaust`.
+- **GitHub:** the plugin has no browser sign-in. It sends a fine-grained personal access token, limited to this repository, from the Windows user variable `GITHUB_PERSONAL_ACCESS_TOKEN`; an unset variable shows as HTTP 400. When the repository moves to the client's organisation, a new token is needed. `gh` is signed in as `techaust` on the PC; in a cloud session it reaches GitHub through the cloud's proxy as the owner.
 - **Sentry and Expo** are signed in.
 - **AWS:** runs through `uvx` with the credentials `aws configure` saved in `%USERPROFILE%\.aws` for `claude-shakti` (region `ap-south-1`, read-only). For the file storage bucket, add a permission for that one bucket rather than widening the user; the files stack does this ([files-setup](files-setup.md)).
 - **Supabase, Upstash and Vercel** hold the dev and staging environments (29-09-2026). The Vercel server was authorised again for the `shakti-prime` team on 29-09-2026 and reads its projects, variables and deployments.

@@ -51,9 +51,28 @@ function permissionText(t: AnyTransition): string {
   return parts.join(' ');
 }
 
-function transitionRow(t: AnyTransition): string {
+function transitionRow(t: AnyTransition, built: boolean): string {
   const effects = (t.effects ?? []).map((e) => `${code(e.key)}: ${e.description}`).join('; ');
-  return `| ${code(t.event)}${proposedMark(t.proposed)} | ${fromText(t)} → ${code(t.to)} | ${cell(permissionText(t))} | ${cell(t.guard?.description ?? '–')} | ${cell(effects || '–')} |`;
+  const emits = built ? ` ${t.emits === undefined ? '–' : code(t.emits)} |` : '';
+  return `| ${code(t.event)}${proposedMark(t.proposed)} | ${fromText(t)} → ${code(t.to)} | ${cell(permissionText(t))} | ${cell(t.guard?.description ?? '–')} | ${cell(effects || '–')} |${emits}`;
+}
+
+/** What the commands write and emit, from the machine's own data. */
+function persistenceText(machine: AnyMachine): string {
+  const stored = machine.stored;
+  if (stored === undefined) {
+    return 'No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).';
+  }
+  const column = code(`${stored.table}.${stored.stateColumn}`);
+  const changedAt =
+    stored.changedAtColumn === undefined
+      ? ''
+      : ` and the time to ${code(`${stored.table}.${stored.changedAtColumn}`)}`;
+  const anyEvent = machine.transitions.some((t) => t.emits !== undefined);
+  const events = anyEvent
+    ? ', and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md))'
+    : '; it emits no event';
+  return `The command writes the new state to ${column}${changedAt} when the state changes, applies the effects and calls \`ctx.audit()\`${events}.`;
 }
 
 function stateRow(machine: AnyMachine, state: string): string {
@@ -92,6 +111,8 @@ export function renderMachine(machine: AnyMachine): string {
   const newPermissions = [
     ...new Set(machine.transitions.flatMap((t) => (t.newPermission ? [t.newPermission] : []))),
   ];
+  // The column shows only where some transition emits an event.
+  const built = machine.transitions.some((t) => t.emits !== undefined);
   const lines = [
     `# ${machine.title} state machine`,
     '',
@@ -113,11 +134,13 @@ export function renderMachine(machine: AnyMachine): string {
     '',
     '## Transitions',
     '',
-    '| Event | From → To | Permitted actor | Guard | Effects |',
-    '|---|---|---|---|---|',
-    ...machine.transitions.map(transitionRow),
+    built
+      ? '| Event | From → To | Permitted actor | Guard | Effects | Emits |'
+      : '| Event | From → To | Permitted actor | Guard | Effects |',
+    built ? '|---|---|---|---|---|---|' : '|---|---|---|---|---|',
+    ...machine.transitions.map((t) => transitionRow(t, built)),
     '',
-    `Any other event, or an event from a state not listed for it, answers \`conflict\` with reason \`${machine.illegalReason}\`. A guard that refuses answers its own reason; the permission check answers \`forbidden\`. The command persists \`state\` and \`state_changed_at\`, applies the effects, calls \`ctx.audit()\` and emits \`<aggregate>.<event>\`.`,
+    `Any other event, or an event from a state not listed for it, answers \`conflict\` with reason \`${machine.illegalReason}\`. A guard that refuses answers its own reason; the permission check answers \`forbidden\`. ${persistenceText(machine)}`,
     '',
   ];
   if (notes.length > 0) {

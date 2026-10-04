@@ -30,7 +30,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `tombstone` | `received`, `linked`, `unlinked` → `tombstoned` | the platform only | the GUID is missing from the daily snapshot of its Tally company | `tombstone`: append to `tally_voucher_tombstones` and set `deleted_at`; `review_queue`: show it in the review queue |
 | `reverse` | `tombstoned` → `reversed` | the platform only | – | `reverse`: reverse its effect on milestones, outstanding and reconciliation; set `reversal_applied_at` |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `tally_voucher_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `tally_voucher_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

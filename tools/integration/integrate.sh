@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # integrate.sh <worktree> <log>: every CI check on a fresh Postgres on port 54340, then the
-# end-to-end journeys. Summary lines go to <log>, each step's output to <log>.<step>; the last
-# line of <log> is the verdict, INTEGRATION PASSED or INTEGRATION FAILED. It runs for about
-# 30 to 60 minutes, so start it in the background.
+# end-to-end journeys on the host (no screenshot comparison: that is e2e:snap in the Linux image).
+# Lighthouse is not run; CI runs it on the pull request. Summary lines go to <log>, each step's
+# output to <log>.<step>; the last line of <log> is the verdict, INTEGRATION PASSED or
+# INTEGRATION FAILED. It runs for about 30 to 60 minutes, so start it in the background.
 set -u
 . "$(dirname "$0")/lib.sh"
 WT="$1"; LOG="$2"; : > "$LOG"
@@ -19,7 +20,7 @@ if ! start_db shakti-pg-int 54340; then echo "=== INTEGRATION FAILED (database)"
 export_db_urls 54340
 env | grep -E '^DATABASE_URL' | grep -vc ':54340/' | sed 's/^/urls_not_on_54340=/' >>"$LOG"
 
-step install pnpm install --offline --frozen-lockfile
+step install bash -c 'pnpm install --offline --frozen-lockfile || pnpm install --frozen-lockfile'
 step lint pnpm lint
 step format pnpm format:check
 step copylint pnpm copy-lint
@@ -42,7 +43,7 @@ step jsbudget pnpm --filter web js-budget
 BR=$(git branch --show-current)
 MAIN="$(main_checkout)"
 step gitleaks env MSYS_NO_PATHCONV=1 docker run --rm -v "$(docker_path "$MAIN"):/repo" \
-  ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --redact --exit-code 1 "--log-opts=origin/main..$BR"
+  "$GITLEAKS_IMAGE" git /repo --redact --exit-code 1 "--log-opts=origin/main..$BR"
 
 # The journeys get the fresh database back.
 export_db_urls 54340

@@ -1,9 +1,11 @@
 # ADR 0009 — Chromium-rendered HTML for PDFs and print
 
-**Status:** Accepted (29-09-2026, owner, with the hosting below; proposed 27-09-2026; the Chromium spike on A4 PDFs and QR labels passed its rendering checks, `docs/spikes/print.md`; a phone and scanner check of printed labels is open) · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
+**Status:** Accepted (owner, 29-09-2026); proposed 27-09-2026. The spike's outcome and the checks still open are in `docs/spikes/print.md` · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
 
 ## Context
-The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp. A separate PDF library (drawing primitives or a React PDF renderer) would mean a second layout system beside the web app's CSS, a second set of fonts and tokens, and templates the on-screen print view cannot share. Documents are English only (ADR 0014), so no Devanagari shaping is needed.
+The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp.
+
+A separate PDF library (drawing primitives or a React PDF renderer) would mean a second layout system beside the web app's CSS, a second set of fonts and tokens, and templates the on-screen print view cannot share. Documents are English only (ADR 0014), so no Devanagari shaping is needed.
 
 ## Decision
 **Every document and label is an HTML template rendered by headless Chromium in a worker.**
@@ -18,23 +20,10 @@ The BOS issues customer and statutory documents for four companies: quotes, prof
 
 ## Consequences
 - One layout system and one token set for screen and paper; the design system's print rules are the only print rules.
-- Chromium is heavy: the worker needs a function size and memory budget that fits it. The owner chose a Vercel function in `bom1` with the serverless Chromium build (Hosting, below); a render on Linux is measured on the dev deployment before quotes depend on it, and the container worker in ap-south-1 is the fallback if that measure fails.
+- Chromium is heavy: the worker needs a function size and memory budget that fits it. The owner chose a Vercel function in `bom1` with the serverless Chromium build (see Outcome); a render on Linux is measured on the dev deployment before quotes depend on it, and the container worker in ap-south-1 is the fallback if that measure fails.
 - Rendering is asynchronous: a document is usable once its PDF exists; the UI shows the print view at once and the PDF link when the worker finishes.
 - Snapshot tests need a pinned Chromium version in CI so rendering differences come from template changes only.
 - A document once issued is immutable: a correction issues a new version and a new PDF, never an overwrite.
 
-## Week 6 spike outcome
-Recorded in `docs/spikes/print.md`, with the raw numbers in `docs/spikes/results/print.json`. Passed on a Windows 11 laptop with `playwright-core` 1.63 and `chromium-headless-shell`; times are upper bounds, because other work ran on the same machine.
-
-| Measure | Result |
-|---|---|
-| Browser launch, warm | 0.5 s (523 ms in the result file); 23.3 s seen once, the first time on the machine, while the new binary was scanned, and not in the result file |
-| First document after launch | 1.7 s |
-| 1-page quotation, median of 5 warm renders | 1.0 s, 161 KB |
-| 5-page quotation (70 lines), median of 5 warm renders | 1.4 s (about 0.28 s a page), 253 KB |
-| 100 labels in one PDF | 0.62 s at 50 × 25 mm (248 KB), 0.76 s at 100 × 50 mm (310 KB) |
-| One label on its own, median of 20 | 0.39 s at 50 × 25 mm, 0.51 s at 100 × 50 mm |
-
-All checks passed: page counts, only Inter embedded (with a text map on all 20 embedded fonts), the rupee sign drawn in Inter, lakh and crore grouping and DD-MM-YYYY dates, a white page whatever the viewer's theme, and every QR module sampled at 300 dpi matching the payload's module grid. Templates are plain HTML strings, not server components, so a print view can serve them without a React render. Chromium draws the variable Inter font as Type 3 glyphs, which adds about 0.2 s a document; static Inter files would embed as TrueType and save that time and about 60 KB.
-
-Hosting, decided by the owner on 29-09-2026 (`docs/design/phase1.md` §2): a Vercel function in `bom1` running `playwright-core` with the serverless Chromium package `@sparticuz/chromium` (about 60 MB compressed, a cold start of a few seconds, 1 to 2 GB of memory), measured on the dev deployment before quotes depend on it; the always-warm container worker in ap-south-1 stays the fallback if that measure fails. Still open: rendering on Linux; pixel snapshot tests in CI (with the production print module in Phase 1); the client's label printer and whether it takes PDF; a scan of the printed codes with a phone and the handheld scanner.
+## Outcome
+Outcome: see [`docs/spikes/print.md`](../spikes/print.md) for the week 6 spike's measures, the hosting the owner chose on 29-09-2026 ([design §2](../design/phase1.md#2-decisions-taken-with-the-owner-on-29-09-2026)) and the checks still open.
