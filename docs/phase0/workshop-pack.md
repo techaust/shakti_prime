@@ -2,7 +2,25 @@
 
 Date: 27-09-2026. For: the Shakti group owners, the sales head, Accounts and the group's CA. Prepared by the development team.
 
-This pack lists every question the system needs the group to answer before or during Phase 1, in one place. Each question says why it matters, the choices, what the system does today until you decide, and who should answer. Part A lists what is already decided, so everyone sees the full picture. Part B is the open questions, grouped by area of the business. Part C is a record sheet for the answers.
+> **Blocking work now.** These answers hold up the next pieces of Phase 1. Until each arrives, the system uses the setting written under "Today" for that question, or leaves the data empty where there is none. The letters and number in brackets name the piece of work (the [glossary](../GLOSSARY.md#slice-codes) explains them).
+>
+> | Question | What it holds up |
+> |---|---|
+> | PRICE-4 · HSN code and GST rate per item, with PRICE-5 and the CA's worked examples | Quotes (S1): no line can be priced without a rate |
+> | SALE-1 · Document number format | Quotes (S1), then sales orders (S2): every document is numbered in it |
+> | PRICE-1, PRICE-2, PRICE-3 · Tiers, price lists and kit prices | Quotes (S1): every price comes from the list for the customer's tier |
+> | CRM-1, CRM-2 · Stages and required details per segment | The pipeline settings (C3) and the calling screen's checklist (T1) |
+> | CRM-3 · Lead priority rules | Lead scoring (C3) and the calling queue's order (T1) |
+> | CALL-1 · Call outcomes | The call outcome list (C3) and the calling screen (T1) |
+> | CALL-2, CALL-3, CALL-5 · Scripts, retries and nurture follow-up | The calling screen (T1) |
+> | CALL-4 · Lock period after handover | The handover to lead converters (T2) |
+> | CRM-5 · Referral partner commissions | Commission rules (C3) and commission recorded on a confirmed order (S2) |
+> | SALE-4 · Dealer credit limits and days | Sales orders with the credit check (S2) |
+> | CRM-4 · The current CRM's export | Imports of customers (P2b) and the data migration (M1) |
+
+This pack lists every question the system needs the group to answer before or during Phase 1, and the later questions for Phases 3 to 5, in one place. Each question says why it matters, the choices, what the system does today until you decide, and who should answer. Part A lists what is already decided, so everyone sees the full picture. Part B is the open questions, grouped by area of the business. Part C is a record sheet for the answers.
+
+**Contents:** [Part A — Decisions already taken](#part-a--decisions-already-taken) · [Part B — Open questions](#part-b--open-questions): [B1 Leads and customers](#b1-leads-and-customers-crm), [B2 Tele-calling](#b2-tele-calling-call), [B3 Pricing and tax](#b3-pricing-and-tax-price), [B4 Quotes, orders and credit](#b4-quotes-sales-orders-and-dealer-credit-sale), [B5 Stock](#b5-stock-and-dispatch-stock--needed-before-phase-3), [B6 Projects](#b6-projects-and-subsidy-proj--needed-before-phase-4), [B7 Finance and Tally](#b7-finance-and-tally-fin--the-tally-visit-is-needed-before-the-tally-test-and-phase-5), [B8 People](#b8-people-hr--needed-before-phase-5), [B9 Privacy and telecom law](#b9-privacy-consent-and-telecom-law-law), [B10 Accounts](#b10-accounts-and-ownership-acc) · [Part C — Answer record](#part-c--answer-record)
 
 **How to use it:** read Part A before the workshop and tell us if anything there is wrong. In the workshop, go through Part B in order; for each question pick an option or write your own. Where the answer needs data (a price list, a document list, a policy), bring the file or send it within a week.
 
@@ -17,7 +35,13 @@ This pack lists every question the system needs the group to answer before or du
 
 ## Part A — Decisions already taken
 
-These are settled. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be. Built today: A1.1 to A1.5 (the call language is stored on each contact; the scripts and voice it steers come in Phases 1 and 2), A2.1, A2.2, A2.4 (in the assistants' permissions; the first assistant, lead sorting, starts in Phase 1) and A2.5, and in A2.3 the fixed set of roles and the updates that keep an edited role's changes (the screen where an Executive edits a role is not built yet). In A3, the mandatory authenticator app is built, the price lists and tiers are built, and the masking of card photos is built while the document store that keeps them arrives with projects in Phase 4; the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead are settled but arrive with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
+These are settled. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be. Built today:
+- A1.1 to A1.5 (the call language is stored on each contact; the scripts and voice it steers come in Phases 1 and 2);
+- A2.1, A2.2 and A2.5, and A2.4 in the assistants' permissions (the first assistant, lead sorting, starts in Phase 1);
+- A2.3: the fixed set of roles, the screen where an Executive changes what a role may do, and the updates that keep an edited role's changes;
+- in A3: the mandatory authenticator app, the price lists and tiers, and the masking of card photos (the document store that keeps them arrives with projects in Phase 4).
+
+Settled and arriving later: the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead come with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
 
 ### A1. Taken by the group on 27-09-2026
 | # | Decision | What it means day to day |
@@ -52,7 +76,9 @@ These were needed to finish the security work. Each is a small change if the gro
 
 ## Part B — Open questions
 
-Numbering: the letters say the area (CRM for leads and customers, CALL for tele-calling, PRICE for pricing and tax, SALE for quotes, orders and credit, STOCK, PROJ, FIN, HR, LAW for privacy and telecom law, ACC for accounts and ownership).
+Numbering: the letters say the area (CRM for leads and customers, CALL for tele-calling, PRICE for pricing and tax, SALE for quotes, orders and credit, STOCK, PROJ, FIN, HR, LAW for privacy and telecom law, ACC for accounts and ownership), and the number has one digit, as in CRM-5.
+
+**Two numbering families.** The product requirements in `docs/PRD.md` use similar letters with two digits, as in CRM-05; they are different items. Where both could be confused, documents write "workshop CRM-5" for a question here and "PRD CRM-05" for a requirement. For example, workshop CRM-5 (the commission rule) is an input to PRD CRM-09 (referral partners).
 
 ### B1. Leads and customers (CRM)
 
@@ -205,7 +231,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Today:* survey, dispatch, install, commission, handover. Executives can change the steps later.
 - *Needed:* confirmation, or the steps used today.
 
-### B7. Finance and Tally (FIN) — the Tally visit is needed in Phase 0
+### B7. Finance and Tally (FIN) — the Tally visit is needed before the Tally test and Phase 5
 
 **FIN-1 · Tally set-up** — Accounts
 - *Needed:* the Tally companies for each of the four companies, the Tally version, whether the "Buyer Order No." field is filled today, and a time for the Tally discovery visit.
@@ -234,7 +260,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
   2. Callers may record only the signed walk-in form; spoken consent is not accepted.
   3. Callers record no consent; only web forms, WhatsApp opt-in and imports with evidence count.
 - *Also needed:* whether each version of the consent wording must be stored and linked to every consent (recommended).
-- *Today:* any of the five sources (web form, WhatsApp opt-in, walk-in form, spoken, import) can be recorded when a lead is created; after that, only a withdrawal can change it.
+- *Today:* any of the five sources (web form, WhatsApp opt-in, walk-in form, spoken, import) can be recorded when a lead is created, or later on the customer's page with an optional proof file; a recorded consent is never edited, only withdrawn.
 
 **LAW-2 · Consent per company or for the whole group** — Owner, with legal advice
 - *Context:* a customer who agreed to hear from Agro Solar Hub may or may not have agreed to hear from Shakti Motor Pumps. The telecom registration and the data protection law look at each company separately.
@@ -248,7 +274,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Needed:* the WhatsApp and calling numbers in use for each company, and the status of each company's registration on the telecom consent platform (DLT). Registration of all four companies and the promotional (140-series) and service (160-series) numbers should start now; they are needed in Phase 2.
 
 **LAW-5 · Voice samples** — Owner
-- *Needed:* 20 to 30 short recordings of Executives speaking as they would to the assistant, in Hindi, Hinglish and English, for the speech test in Phase 0.
+- *Needed:* 20 to 30 short recordings of Executives speaking as they would to the assistant, in Hindi, Hinglish and English, for the speech test, which is needed before Phase 2.
 
 ### B10. Accounts and ownership (ACC)
 

@@ -1,5 +1,9 @@
 # Shakti Prime BOS — production-readiness audit
 
+> **Resolved.** Every finding below is fixed, in batches 0 to 15 (pull requests #5 to #25), as [§8](#8-resolution) records finding by finding. Two questions stay with the client, asked in the workshop pack: consent sources (workshop LAW-1) and a negative moving-average cost (workshop STOCK-2). One owner action stays open: branch rules on `main` (M45). The verdict and findings that follow describe commit `87b3536` as audited on 27-09-2026, not the code today; later reviews are in [`docs/reviews/`](docs/reviews/).
+
+**Contents:** [1. Executive summary](#1-executive-summary) · [2. How the audit was run](#2-how-the-audit-was-run) · [3. Scores per area](#3-scores-per-area) · [4. Decisions taken during the audit](#4-decisions-taken-during-the-audit) · [5. Findings by severity](#5-findings-by-severity) ([Critical](#51-critical), [High](#52-high), [Medium](#53-medium), [Low](#54-low)) · [6. Fix plan](#6-fix-plan) · [7. Decisions needed](#7-decisions-needed) · [8. Resolution](#8-resolution)
+
 Date: 2026-09-27 · Commit audited: `87b3536` (`main`); line references are to that commit · Scope: everything built to date (Phase 0, weeks 1–3 slice 1): `packages/db`, `packages/domain`, `packages/contracts`, `packages/tokens`, `apps/web`, `tools/copy-lint`, CI and every document.
 
 ## 1. Executive summary
@@ -788,11 +792,11 @@ Each is recorded in its pull request and in SECURITY or DATABASE, and each can b
 
 **Still open:**
 
-- **Consent sources (item 6, M17 later part):** a legal and DLT question for the client, due with imports and ingest.
-- **Negative moving-average cost (item 7, L3):** the percentage and map-point ranges are checked; the cost columns stay unconstrained until the client decides, with inventory in Phase 1.
+- **Consent sources (item 6, M17 later part):** a legal and DLT question for the client (workshop LAW-1), due with imports and ingest.
+- **Negative moving-average cost (item 7, L3):** the percentage and map-point ranges are checked; the cost columns stay unconstrained until the client decides (workshop STOCK-2), before inventory in Phase 3.
 
 **Actions only you can take:**
 
-1. Branch rules (M45): move the repository to the client's organisation on a plan with rulesets, or upgrade to Pro. Until then the merge-on-green workflow (`.github/workflows/automerge.yml`, #32) merges a pull request only after CI passes on it, a direct push to `main` is still possible, and Vercel's automatic production deploys stay off.
-2. Hosted provisioning (`docs/runbooks/DEPLOY.md`): Supabase projects with the Data API off, the CA certificate, GitHub environments with their secrets, the Vercel project, Upstash.
-3. Amazon SES before production (BLUEPRINT §135): production refuses to start with `MAILER=log`.
+1. Branch rules (M45), open: move the repository to the client's organisation on a plan with rulesets, or upgrade to Pro, before production (slice G1). Until then the merge-on-green workflow (`.github/workflows/automerge.yml`, #32) merges a pull request only after CI passes on it, and a direct push to `main` is still possible; Vercel deploys each commit on `main` to the dev and staging projects only.
+2. Hosted provisioning (`docs/runbooks/DEPLOY.md`), done for dev and staging on 29-09-2026 (#74 to #76): Supabase projects with the Data API off, the CA certificate, the Vercel projects and Upstash; GitHub's free plan has no environments, so each environment's secrets are repository secrets with a suffix. The production project comes with slice G1.
+3. Amazon SES before production (BLUEPRINT §5): production refuses to start with `MAILER=log`. The SES mailer is built (#85) and is switched on once the client's domain is verified.
