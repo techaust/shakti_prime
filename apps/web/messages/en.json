@@ -1179,7 +1179,9 @@
       "kitUpdate": "Kit changed",
       "kitArchive": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
-      "priceListArchive": "Price list withdrawn"
+      "priceListArchive": "Price list withdrawn",
+      "fileRendered": "Document printed to a file",
+      "printProofRequest": "Proof page asked for"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1212,7 +1214,8 @@
       "kitUpdated": "Kit changed",
       "kitArchived": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
-      "priceListArchived": "Price list withdrawn"
+      "priceListArchived": "Price list withdrawn",
+      "documentRequested": "Document sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -1330,7 +1333,9 @@
       "version": "Version",
       "prices": "Prices copied",
       "approvedAt": "Approved at",
-      "archivedAt": "Withdrawn at"
+      "archivedAt": "Withdrawn at",
+      "bankAccount": "Bank account",
+      "documentType": "Document"
     },
     "values": {
       "percent": "{value}%",
@@ -1366,7 +1371,14 @@
       },
       "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}",
       "grant": "{permission}: {scope}",
-      "spec": "{name}: {value}"
+      "spec": "{name}: {value}",
+      "documentType": {
+        "quote": "Quotation",
+        "proforma": "Proforma invoice",
+        "delivery_challan": "Delivery challan",
+        "handover_kit": "Handover kit",
+        "company_letterhead_proof": "Proof page of the letterhead"
+      }
     }
   },
   "print": {
@@ -1404,6 +1416,31 @@
       "serial": "Serial number",
       "item": "Item code",
       "scan": "Scan for warranty"
+    },
+    "company": {
+      "gstin": "GSTIN",
+      "logo": "Logo of {name}",
+      "bank": "Bank account for payment",
+      "bankName": "Bank",
+      "accountName": "Account name",
+      "accountNumber": "Account number",
+      "ifsc": "IFSC",
+      "branch": "Branch"
+    },
+    "proof": {
+      "title": "Proof page of {name}",
+      "heading": "Proof page",
+      "intro": "This page shows the letterhead, logo, address, GSTIN and bank account exactly as the company's documents print them. Check each line before quotes go out. Anything not recorded yet can be added on Settings, Companies.",
+      "missing": "Not recorded yet",
+      "letterhead": "Letterhead",
+      "printedAbove": "Printed at the top of this page",
+      "logo": "Logo",
+      "printedBeside": "Printed beside the company name",
+      "legalName": "Legal name",
+      "brandName": "Brand name",
+      "address": "Registered address",
+      "printedOn": "Printed on {date}",
+      "fileName": "Proof page of {name}.pdf"
     }
   },
   "imports": {
@@ -1828,6 +1865,7 @@
       "signed_quote": "Signed quotation",
       "entity_logo": "Company logo",
       "letterhead": "Letterhead",
+      "print_proof": "Proof page",
       "knowledge": "Knowledge Vault document",
       "consent_evidence": "Proof of consent"
     },

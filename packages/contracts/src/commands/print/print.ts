@@ -9,8 +9,8 @@ import { FileKeySchema } from '../files/uploads';
  * Chromium, records the PDF with `files.document.record` and attaches it to the document.
  */
 
-/** The purposes a rendered PDF is stored under: a quote, or a company's sample page. */
-export const RENDERED_FILE_PURPOSES = ['quote_pdf', 'print_sample'] as const;
+/** The purposes a rendered PDF is stored under: a quote, or a company's proof page. */
+export const RENDERED_FILE_PURPOSES = ['quote_pdf', 'print_proof'] as const;
 export const RenderedFilePurposeSchema = z.enum(RENDERED_FILE_PURPOSES);
 export type RenderedFilePurpose = z.infer<typeof RenderedFilePurposeSchema>;
 
@@ -35,14 +35,14 @@ export const RecordRenderedFileInput = z
 export type RecordRenderedFileInput = z.infer<typeof RecordRenderedFileInput>;
 
 /**
- * `print.sample.request`: an Executive asks for a one-page sample of a company's letterhead, logo,
+ * `print.proof.request`: an Executive asks for a one-page proof of a company's letterhead, logo,
  * address, GSTIN and bank details, rendered by the same worker as every document.
  */
-export const RequestPrintSampleInput = z.object({ entityId: EntityIdSchema }).strict();
-export type RequestPrintSampleInput = z.infer<typeof RequestPrintSampleInput>;
+export const RequestPrintProofInput = z.object({ entityId: EntityIdSchema }).strict();
+export type RequestPrintProofInput = z.infer<typeof RequestPrintProofInput>;
 
-/** The sample's id, which is also the id of its file once the worker has stored it. */
-export const PrintSampleDto = z
-  .object({ sampleId: IdSchema, entityId: EntityIdSchema, requestedAt: z.iso.datetime() })
+/** The proof's id, which is also the id of its file once the worker has stored it. */
+export const PrintProofDto = z
+  .object({ proofId: IdSchema, entityId: EntityIdSchema, requestedAt: z.iso.datetime() })
   .strict();
-export type PrintSampleDto = z.infer<typeof PrintSampleDto>;
+export type PrintProofDto = z.infer<typeof PrintProofDto>;

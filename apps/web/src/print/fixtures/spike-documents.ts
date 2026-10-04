@@ -4,6 +4,7 @@
 // customer, addresses and numbers are made up; the amounts are worked out here in whole
 // paise only so the rendered documents read consistently. In the product every amount comes
 // from the Price Master snapshot and the tax engine in packages/domain.
+import type { CompanyPrint, PrintImage } from '../company';
 import type { LabelPrint } from '../label-template';
 import type { QuoteLinePrint, QuotePrint } from '../quote-template';
 
@@ -136,6 +137,27 @@ const money = (paise: number) =>
   `${Math.trunc(paise / 100)}.${String(Math.abs(paise % 100)).padStart(2, '0')}`;
 const percent = (bp: number) => `${bp / 100}%`;
 
+/**
+ * The selling company of the spike documents, with a made-up address, GSTIN and bank account, and
+ * the logo and letterhead when the caller has them (`spikeImages`).
+ */
+export function spikeCompany(images: { logo?: PrintImage; letterhead?: PrintImage } = {}): CompanyPrint {
+  return {
+    legalName: 'Agro Solar Hub',
+    brandName: 'Agro Solar Hub',
+    addressLines: ['Plot 14, Sitapura Industrial Area', 'Jaipur, Rajasthan 302022'],
+    gstin: '08AAKFA4821M1Z3',
+    logo: images.logo ?? null,
+    letterhead: images.letterhead ?? null,
+    bank: {
+      bankName: 'State Bank of India',
+      accountNumber: '32145698710',
+      ifsc: 'SBIN0011528',
+      branch: 'Sitapura, Jaipur',
+    },
+  };
+}
+
 /** A quotation with `sites` copies of the seven-line solar pump kit. */
 export function spikeQuote(sites = 1): QuotePrint {
   const lines: QuoteLinePrint[] = [];
@@ -170,13 +192,7 @@ export function spikeQuote(sites = 1): QuotePrint {
   const exact = taxable + taxTotal;
   const total = Math.round(exact / 100) * 100;
   return {
-    entity: {
-      name: 'Agro Solar Hub',
-      addressLines: ['Plot 14, Sitapura Industrial Area', 'Jaipur, Rajasthan 302022'],
-      gstin: '08AAKFA4821M1Z3',
-      phone: '0141 402 6100',
-      email: 'sales@agrosolarhub.in',
-    },
+    company: spikeCompany(),
     number: sites > 1 ? 'ASH/QT/2026-27/000418' : 'ASH/QT/2026-27/000412',
     date: '2026-09-27',
     validUntil: '2026-10-27',

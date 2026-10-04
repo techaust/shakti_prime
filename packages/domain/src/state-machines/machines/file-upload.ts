@@ -9,7 +9,14 @@ export const FILE_UPLOAD_STATES = [
   'rejected',
 ] as const;
 export type FileUploadState = (typeof FILE_UPLOAD_STATES)[number];
-export type FileUploadEvent = 'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject';
+export type FileUploadEvent =
+  | 'upload'
+  | 'render'
+  | 'complete'
+  | 'scan'
+  | 'skip_scan'
+  | 'ready'
+  | 'reject';
 
 export interface FileUploadRecord {
   state: FileUploadState | null;
@@ -73,7 +80,16 @@ export const fileUploadMachine = defineMachine<
       permission: null,
       permissionByInput: BY_PURPOSE,
       system: true,
-      note: '`files.upload.begin`; the worker records the files it makes (a rendered PDF).',
+      note: '`files.upload.begin`.',
+    },
+    {
+      from: 'new',
+      event: 'render',
+      to: 'ready',
+      permission: 'files.process',
+      scope: 'entity',
+      system: true,
+      note: '`files.document.record`: a PDF the render worker made from the BOS’s own template, stored already; no person’s file is in it, so it skips the checks.',
     },
     {
       from: ['pending'],

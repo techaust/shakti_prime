@@ -15,7 +15,7 @@ import { formatRupees } from '../../src/print/format';
 import { renderLabelsHtml, type LabelSize } from '../../src/print/label-template';
 import { qrMatrix } from '../../src/print/qr';
 import { renderQuote } from '../../src/print/quote-template';
-import { createPrintRenderer } from '../../src/print/renderer';
+import { createPrintRenderer, pageCount } from '../../src/print/renderer';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(here, '..', '..');
@@ -26,10 +26,6 @@ const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'print.json');
 const WARM_RUNS = 5;
 const LABELS = 100;
 const SINGLE_LABEL_RUNS = 20;
-
-function pageCount(pdf: Buffer): number {
-  return (pdf.toString('latin1').match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []).length;
-}
 
 function embeddedFonts(pdf: Buffer): string[] {
   // Chromium subsets each font instance and names it "ABCDEF+Inter-SemiBold".

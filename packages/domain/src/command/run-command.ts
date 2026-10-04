@@ -13,6 +13,7 @@ import { inputHash } from '../idempotency/hash';
 import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
 import type { AuditRecord, AuditSink, ClientMeta } from '../audit/sink';
 import type { OutboxRecord, OutboxSink } from '../outbox/sink';
+import type { FieldCipher } from '../privacy/field-cipher';
 import type { AuditChange, CommandContext } from './context';
 import type { Command } from './define-command';
 
@@ -39,6 +40,12 @@ export interface RunOptions {
   idempotencyKey?: string;
   /** Where keys live; `idempotency_keys` unless a test passes the in-memory store. */
   idempotency?: IdempotencyStore;
+  /**
+   * Seals and opens sensitive fields (`FieldCipher`, docs/SECURITY.md §5): KMS on a hosted runtime,
+   * the local key elsewhere. A command that stores such a field answers `integration_unavailable`
+   * without it.
+   */
+  fieldCipher?: FieldCipher;
 }
 
 /** Collects what an inner command writes, for its caller to write with its own rows. */
@@ -333,6 +340,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     tx: context.tx,
     inImportBatch,
     hosted: options.hosted !== false,
+    ...(options.fieldCipher === undefined ? {} : { fieldCipher: options.fieldCipher }),
     // Checked against the catalogue here, so a bad event fails the command that emits it.
     emit: (event) => {
       const parsed = parseEventPayload(event.type, event.payload);
@@ -374,6 +382,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
             ...(options.client === undefined ? {} : { client: options.client }),
             ...(options.hosted === undefined ? {} : { hosted: options.hosted }),
             ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
+            ...(options.fieldCipher === undefined ? {} : { fieldCipher: options.fieldCipher }),
             ...(nested.idempotencyKey === undefined
               ? {}
               : { idempotencyKey: nested.idempotencyKey }),

@@ -1,4 +1,4 @@
 ALTER TABLE "files" DROP CONSTRAINT "files_purpose_check";--> statement-breakpoint
 ALTER TABLE "entities" ADD COLUMN "bank_json" jsonb;--> statement-breakpoint
 ALTER TABLE "entities" ADD COLUMN "bank_details_set" boolean GENERATED ALWAYS AS (bank_json is not null) STORED NOT NULL;--> statement-breakpoint
-ALTER TABLE "files" ADD CONSTRAINT "files_purpose_check" CHECK ("files"."purpose" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_sample', 'knowledge', 'consent_evidence'));
+ALTER TABLE "files" ADD CONSTRAINT "files_purpose_check" CHECK ("files"."purpose" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence'));

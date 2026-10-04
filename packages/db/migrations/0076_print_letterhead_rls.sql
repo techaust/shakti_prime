@@ -37,7 +37,7 @@ revoke execute on function app.entity_bank_envelope(smallint) from public, reado
 --> statement-breakpoint
 grant execute on function app.entity_bank_envelope(smallint) to app_user, app_reader;
 --> statement-breakpoint
--- 2. A company's sample page (`print_sample`): stored only by the render worker, read by an
+-- 2. A company's proof page (`print_proof`): stored only by the render worker, read by an
 --    Executive, who asked for it. It prints the bank account, so it is not a company-wide file
 --    like the logo and the letterhead.
 create or replace function app.file_purpose_grant(p_purpose text, p_access text) returns text
@@ -49,7 +49,7 @@ language sql immutable parallel safe set search_path = '' as $$
       when 'signed_quote' then 'sales.quote.send:own'
       when 'entity_logo' then 'admin.entities.write:all'
       when 'letterhead' then 'admin.entities.write:all'
-      when 'print_sample' then 'files.process:entity'
+      when 'print_proof' then 'files.process:entity'
       when 'consent_evidence' then 'crm.account.write:own'
     end
     when 'read' then case p_purpose
@@ -58,7 +58,7 @@ language sql immutable parallel safe set search_path = '' as $$
       when 'signed_quote' then 'crm.lead.read'
       when 'entity_logo' then 'company'
       when 'letterhead' then 'company'
-      when 'print_sample' then 'admin.entities.write'
+      when 'print_proof' then 'admin.entities.write'
       when 'consent_evidence' then 'crm.account.write'
     end
   end
