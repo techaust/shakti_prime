@@ -175,7 +175,7 @@ test.describe('customers as a tele-caller', () => {
   });
 
   test('sizes a lead from Account 360 and sees it in the history', async ({ page }) => {
-    await addCustomer(page, 'Bhagirath Jat');
+    const { name } = await addCustomer(page, 'Bhagirath Jat');
     const leads = section(page, 'Leads');
     await leads.getByRole('button', { name: 'Size this lead' }).click();
     const sizing = section(page, 'Sizing');
@@ -202,6 +202,12 @@ test.describe('customers as a tele-caller', () => {
     const history = section(page, 'History');
     await expect(history.getByText('Sizing worked out')).toBeVisible();
     await expect(history.getByText('Rooftop solar sizing, within limits')).toBeVisible();
+    // The opened panel with its result, once the saved message has gone; the customer's name and
+    // number and the dates change from run to run.
+    await expect(page.getByText('Sizing saved.')).toBeHidden({ timeout: 15_000 });
+    await snap(page, 'customer-sizing', {
+      mask: [page.getByText(name), page.getByText(/\d{5}/), page.getByText(/\b20\d\d\b/)],
+    });
 
     await leads.getByRole('button', { name: 'Hide sizing' }).click();
     await expect(sizing).toHaveCount(0);
