@@ -1,4 +1,7 @@
-# merge-copylint.py: unions the button-key alternations of a conflicted copy-lint config.
+# merge-copylint.py: unions the button-key alternations of a conflicted copy-lint config
+# (tools/copy-lint/copy-lint.config.json) after `git merge origin/main`. It handles exactly one
+# conflict hunk, the one that ends `>>>>>>> origin/main`; any other conflict in the file is left
+# for a hand merge.
 import re
 p='tools/copy-lint/copy-lint.config.json'; s=open(p,encoding='utf-8').read()
 m=re.search(r'<<<<<<< HEAD\n(.*?)\n=======\n(.*?)\n>>>>>>> origin/main\n',s,re.S)

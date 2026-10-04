@@ -22,7 +22,7 @@ while true; do
     [ -e "$wt/.git" ] || continue
     last_commit=$(git -C "$wt" log -1 --format=%ct 2>/dev/null || echo 0)
     last_file=$(find "$wt" -path "$wt/node_modules" -prune -o -path "*/.turbo" -prune -o -type f -newermt "-20 minutes" -print -quit 2>/dev/null)
-    running=$(printf '%s\n' "$procs" | grep -c "shakti-wt[\\/]$slug")
+    running=$(printf '%s\n' "$procs" | grep -c "$(basename "$ROOT")[\\/]$slug")
     if [ $((now - last_commit)) -gt 1200 ] && [ -z "$last_file" ] && [ "$running" -eq 0 ]; then
       echo "IDLE $slug: no commit for $(((now - last_commit) / 60)) min, no file change in 20 min, no running process"
     fi

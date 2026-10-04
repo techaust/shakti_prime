@@ -1,5 +1,6 @@
 # merge-json.py <file>: three-way merge of a conflicted JSON file (en.json) from the git index stages;
-# where both sides changed a value, main's is kept and the key is printed.
+# where both sides changed a value, main's is kept and the key is printed. Run it before `git add`
+# on the file: it reads stages 1 to 3 of the index, which `git add` replaces.
 import json, subprocess, sys
 p = sys.argv[1]
 st = lambda n: json.loads(subprocess.run(['git', 'show', f':{n}:{p}'], capture_output=True, text=True, encoding='utf-8').stdout)
