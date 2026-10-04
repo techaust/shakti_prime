@@ -119,7 +119,7 @@ test.describe('as an Executive', () => {
     await expect(page.getByRole('heading', { name: 'Agents', level: 1 })).toBeVisible();
     await showCompany(page, SNAPSHOT_COMPANY.name);
     const grid = dataGrid(page, AGENTS);
-    await expect(grid.getByText('Caller Co-pilot')).toBeVisible();
+    await expect(grid.getByText('Caller Co-pilot', { exact: true })).toBeVisible();
     await expect(
       page.getByText('The AI service is not connected yet, so agents make no calls.', {
         exact: false,
