@@ -224,6 +224,11 @@ describe('reading a bank account back (docs/SECURITY.md §5)', () => {
     const gm = principalFor('general_manager', [ENTITY]);
     await expect(
       asPrincipal(gm, (ctx) => readSealedBankDetails(ctx, ENTITY)),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      asPrincipal(gm, (ctx) =>
+        ctx.tx.execute(sql`select app.entity_bank_envelope(${ENTITY}::smallint)`),
+      ),
     ).rejects.toMatchObject({ cause: { code: '42501' } });
     // Not even an Executive selects the column itself: only the definer reads it.
     await expect(
@@ -248,7 +253,7 @@ describe('reading a bank account back (docs/SECURITY.md §5)', () => {
     ).rejects.toMatchObject({ code: 'not_found' });
     await expect(
       asPrincipal(other, (ctx) => readSealedBankDetails(ctx, ENTITY)),
-    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    ).rejects.toMatchObject({ code: 'forbidden' });
   });
 
   it('does not open an account copied to another company', async () => {

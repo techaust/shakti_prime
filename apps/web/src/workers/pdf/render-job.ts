@@ -1,4 +1,4 @@
-import { DomainError, type PdfRenderJob, type Principal } from '@shakti/contracts';
+import { DomainError, hasGrant, type PdfRenderJob, type Principal } from '@shakti/contracts';
 import {
   executeCommand,
   executeQuery,
@@ -71,6 +71,11 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
     throw new DomainError('not_found', `no loader prints ${target.documentType}`, {
       reason: 'document_type_unknown',
     });
+  }
+  // Only the worker principal prints: nothing is loaded, rendered or stored for anyone else (the
+  // record command refuses them too).
+  if (!hasGrant(deps.principal.permissions, 'files.process', 'entity')) {
+    throw new DomainError('forbidden', 'printing a document needs files.process');
   }
   if (!deps.principal.entityIds.includes(job.entityId) || deps.principal.entityIds.length !== 1) {
     throw new DomainError('forbidden', 'the worker acts for the job’s company alone');

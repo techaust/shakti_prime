@@ -63,15 +63,33 @@ export function mayReadBankDetails(principal: Principal): boolean {
   );
 }
 
-/** The sealed account of a company in the request, or null when none is recorded. */
+/**
+ * The sealed account of a company in the request, or null when none is recorded. The database's
+ * refusal of anyone else, or of a company outside the request, answers `forbidden`.
+ */
 export async function readSealedBankDetails(
   ctx: Pick<RequestContext, 'tx'>,
   entityId: number,
 ): Promise<unknown> {
-  const rows = (await ctx.tx.execute(
-    sql`select app.entity_bank_envelope(${entityId}::smallint) as bank`,
-  )) as unknown as { bank: unknown }[];
-  return rows[0]?.bank ?? null;
+  try {
+    const rows = (await ctx.tx.execute(
+      sql`select app.entity_bank_envelope(${entityId}::smallint) as bank`,
+    )) as unknown as { bank: unknown }[];
+    return rows[0]?.bank ?? null;
+  } catch (error) {
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
+    if (typeof cause === 'object' && cause !== null && 'code' in cause && cause.code === '42501') {
+      throw new DomainError(
+        'forbidden',
+        'the bank account is refused to this caller',
+        {},
+        {
+          cause: error,
+        },
+      );
+    }
+    throw error;
+  }
 }
 
 /**
