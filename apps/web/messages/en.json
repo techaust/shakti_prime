@@ -2468,7 +2468,8 @@
       "admin_integrations_write": "Manage connections to other systems",
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again",
-      "files_process": "Check uploaded files before they are used"
+      "files_process": "Check uploaded files before they are used",
+      "imports_process": "Stop an import that could not finish"
     },
     "empty": "There are no roles to show.",
     "locked": {

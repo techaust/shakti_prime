@@ -71,6 +71,9 @@ export const PERMISSION_KEYS = [
   // The file checks before an upload is usable (malware scan, re-encoding, masking): held only by
   // the platform's worker principal, never by a person's role.
   'files.process',
+  // The import worker stopping a job whose last try failed: held only by the platform's worker
+  // principal, never by a person's role.
+  'imports.process',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -122,7 +125,7 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
  * system role (`app.platform_only_permissions()`, which a security test keeps equal to this
  * list). Plain strings, because a key joins the catalogue with the slice that first uses it.
  */
-export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process'];
+export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process', 'imports.process'];
 
 export function isPlatformOnlyPermission(key: string): boolean {
   return PLATFORM_ONLY_PERMISSIONS.includes(key);
@@ -247,8 +250,9 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'admin.integrations.write': ['all'],
   'admin.flags.write': ['all'],
   'integrations.dlq.replay': ['all'],
-  // Held only by the platform's workers, for every company; the role editor never offers it.
+  // Held only by the platform's workers, for every company; the role editor never offers them.
   'files.process': ['all'],
+  'imports.process': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

@@ -268,8 +268,10 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'admin.integrations.write': { ...EXEC },
   'admin.flags.write': { ...EXEC },
   'integrations.dlq.replay': { ...EXEC },
-  // The platform's file checks; no person's role holds it (SECURITY §3.3).
+  // The platform's file checks and the import worker's stop; no person's role holds them
+  // (SECURITY §3.3).
   'files.process': {},
+  'imports.process': {},
 };
 
 /** Agent principal permission sets (docs/SECURITY.md §3.3), limited to keys in the catalogue. */

@@ -165,5 +165,10 @@ export const customerSites = pgTable(
     index('customer_sites_village_key_idx')
       .on(t.villageKey)
       .where(sql`${t.archivedAt} is null`),
+    // The sites a PIN code import checks again once the master knows their PIN, or no longer does
+    // (`app.recheck_site_pins`).
+    index('customer_sites_pin_idx')
+      .on(t.pin)
+      .where(sql`${t.pin} is not null and ${t.archivedAt} is null`),
   ],
 );

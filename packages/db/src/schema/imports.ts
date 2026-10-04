@@ -71,6 +71,12 @@ export const importJobs = pgTable(
      * the next number and `imports.job.committed` counts them right.
      */
     batchCount: integer('batch_count').notNull().default(0),
+    /**
+     * The companies the preview found the rows naming, the job's own included: a commit or a
+     * rollback is refused up front in a request that does not act for all of them, and the import
+     * worker acts for exactly these. Null until the rows are checked.
+     */
+    entityIds: smallint('entity_ids').array(),
     ...timestamps,
     ...actorsRequired,
   },
@@ -89,6 +95,10 @@ export const importJobs = pgTable(
     ),
     check('import_jobs_failed_batch_check', sql`${t.failedBatch} is null or ${t.failedBatch} >= 1`),
     check('import_jobs_batch_count_check', sql`${t.batchCount} >= 0`),
+    check(
+      'import_jobs_entity_ids_check',
+      sql`${t.entityIds} is null or cardinality(${t.entityIds}) between 1 and 20`,
+    ),
     // A job uses a file and a template of its own entity (docs/DATABASE.md §2).
     foreignKey({
       name: 'import_jobs_file_entity_fk',
@@ -144,7 +154,7 @@ export const importRows = pgTable(
     ),
     check(
       'import_rows_created_type_check',
-      sql`${t.createdType} in ('opportunity', 'account', 'pin_code')`,
+      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code')`,
     ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),

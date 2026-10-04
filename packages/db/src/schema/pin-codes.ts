@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { check, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { actorsRequired, timestamps } from './columns';
 
 /**
@@ -35,7 +35,8 @@ export const pinCodes = pgTable(
       'pin_codes_state_code_check',
       sql`${t.stateCode} is null or ${t.stateCode} ~ '^[0-9]{2}$'`,
     ),
-    // One row per office of a PIN; the lookup by PIN uses this index's leading column.
-    unique('pin_codes_pin_office_unique').on(t.pin, t.officeName),
+    // One row per office of a PIN, whatever the case of its name; the lookup by PIN uses this
+    // index's leading column, and the import's upsert names the same expression as its target.
+    uniqueIndex('pin_codes_pin_office_unique').on(t.pin, sql`lower(${t.officeName})`),
   ],
 );

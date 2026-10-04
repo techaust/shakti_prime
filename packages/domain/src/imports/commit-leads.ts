@@ -115,6 +115,7 @@ export async function commitLeadBatch(
     return found[0].id;
   };
   const ps = schema.pipelineStages;
+  if (pipelines.length > 0) await keep(tx);
   const stages =
     pipelines.length === 0
       ? []
@@ -142,6 +143,7 @@ export async function commitLeadBatch(
     ),
   ];
   const ls = schema.leadSources;
+  if (sourceCodes.length > 0) await keep(tx);
   const sources =
     sourceCodes.length === 0
       ? []
