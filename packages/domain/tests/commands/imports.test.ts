@@ -4,9 +4,9 @@ import {
   asOutboxPublisher,
   asPrincipal,
   closeDb,
+  createReadyImportFile,
   createTestPrincipal,
 } from '@shakti/db/testing';
-import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { Command } from '../../src/command/define-command';
@@ -44,21 +44,13 @@ function run<I extends z.ZodType, O extends z.ZodType>(
 }
 
 /** The command input for a CSV file, parsed the way the upload action parses it. */
-async function fileInput(entityId: number, csv: string) {
+async function fileInput(entityId: number, csv: string, owner: Principal = gm) {
   const bytes = new TextEncoder().encode(csv);
   const parsed = await parseImportFile(bytes);
-  const id = newId();
   return {
     entityId,
     kind: 'leads' as const,
-    file: {
-      name: 'fair-leads.csv',
-      contentType: 'text/csv',
-      size: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-      bucket: 'memory',
-      key: `imports/${String(entityId)}/${id}`,
-    },
+    fileId: await createReadyImportFile(entityId, owner.id, { name: 'fair-leads.csv', size: bytes.length }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,
@@ -118,12 +110,13 @@ beforeAll(async () => {
 });
 
 describe('imports: permission and entity', () => {
-  it('is denied to a role without imports.write, before anything is stored', async () => {
+  it('is denied to a role without imports.write, before a job is recorded', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const input = await fileInput(1, 'Name,Mobile\nRam,9876543210\n');
     await expect(run(caller, createImportJob, input)).rejects.toMatchObject({ code: 'forbidden' });
     const [row] = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from files where key = ${input.file.key}`,
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from import_jobs where file_id = ${input.fileId}`,
     );
     expect(row?.n).toBe(0);
   });

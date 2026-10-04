@@ -21,8 +21,10 @@ import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
+import { sweepUploads } from '../commands/files/sweep-uploads';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
+import { failImportJob } from '../commands/imports/fail-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
@@ -104,12 +106,14 @@ export const commands = {
   [commitImportJob.name]: commitImportJob,
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
+  [failImportJob.name]: failImportJob,
   [beginUpload.name]: beginUpload,
   [completeUpload.name]: completeUpload,
   [markFileScanned.name]: markFileScanned,
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [sweepUploads.name]: sweepUploads,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

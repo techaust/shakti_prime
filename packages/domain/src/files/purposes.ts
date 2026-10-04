@@ -48,9 +48,9 @@ export function filePurposeGrant(purpose: FilePurpose, access: 'write' | 'read')
   return rule.write === null ? null : `${rule.write.permission}:${rule.write.minScope}`;
 }
 
-/** The purposes a person may upload through the upload flow (an import has its own screen). */
+/** The purposes a person may upload through the upload flow, an import file among them. */
 export const UPLOADABLE_PURPOSES: readonly FilePurpose[] = FILE_PURPOSES.filter(
-  (p) => p !== 'import' && FILE_PURPOSE_RULES[p].write !== null,
+  (p) => FILE_PURPOSE_RULES[p].write !== null,
 );
 
 /**
@@ -63,5 +63,5 @@ export const uploadPermission: PermissionByInput<{ purpose: FilePurpose }> = {
       Object.values(FILE_PURPOSE_RULES).flatMap((r) => (r.write ? [r.write.permission] : [])),
     ),
   ],
-  of: ({ purpose }) => (purpose === 'import' ? null : FILE_PURPOSE_RULES[purpose].write),
+  of: ({ purpose }) => FILE_PURPOSE_RULES[purpose].write,
 };

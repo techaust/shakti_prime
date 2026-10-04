@@ -175,6 +175,32 @@ export async function createTestUser(
   return { id, email, entityRoles };
 }
 
+/**
+ * An import file that came through the pre-signed upload and passed its checks (`ready`), as
+ * `imports.job.create` takes it, written with the migrator connection. The bytes themselves are
+ * not stored: the command reads only the record. Its checksum is random unless given, so tests
+ * that import the same rows do not meet the refusal of a file imported before.
+ */
+export async function createReadyImportFile(
+  entityId: number,
+  createdBy: string,
+  options: { name?: string; size?: number; sha256?: string; status?: string } = {},
+): Promise<string> {
+  const id = newId();
+  const sha256 =
+    options.sha256 ?? Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  await asMigrator(
+    (m) => m`
+      insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
+                         status, created_by)
+      values (${id}, ${entityId}, 'import', 'memory', ${`${String(entityId)}/import/${id}.csv`},
+              ${options.name ?? 'leads.csv'}, 'text/csv', ${options.size ?? 100}, ${sha256},
+              ${options.status ?? 'ready'}, ${createdBy})
+    `,
+  );
+  return id;
+}
+
 /** Run inside a request context. */
 export function asPrincipal<T>(
   principal: Principal,

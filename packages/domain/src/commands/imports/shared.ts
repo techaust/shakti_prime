@@ -1,9 +1,17 @@
 import {
   DomainError,
+  hasGrant,
+  IMPLEMENTED_IMPORT_KINDS,
   ImportJobDto,
   ImportMappingSchema,
+  importMappingSchemaFor,
+  type AccountImportMapping,
+  type ImplementedImportKind,
   type ImportJobState,
   type ImportMapping,
+  type LeadImportMapping,
+  type PermissionGrant,
+  type PinCodeImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -55,6 +63,51 @@ export function parseStoredMapping(value: unknown): ImportMapping {
   const parsed = ImportMappingSchema.safeParse(value);
   if (!parsed.success) throw new DomainError('internal', 'a stored import mapping is not valid');
   return parsed.data;
+}
+
+/** The mappings of each kind, as `importMappingSchemaFor` checks them. */
+export interface KindMappings {
+  leads: LeadImportMapping;
+  accounts: AccountImportMapping;
+  pin_codes: PinCodeImportMapping;
+}
+
+/** A job's mapping, read back under its own kind's rules; one that no longer fits is a fault. */
+export function parseMappingFor<K extends ImplementedImportKind>(
+  kind: K,
+  value: unknown,
+): KindMappings[K] {
+  const parsed = importMappingSchemaFor(kind).safeParse(value);
+  if (!parsed.success) throw new DomainError('internal', 'a stored import mapping is not valid');
+  return parsed.data as KindMappings[K];
+}
+
+/** The job's kind; a job of a kind not implemented yet cannot exist, so one is a fault. */
+export function implementedKind(job: JobRow): ImplementedImportKind {
+  const kind = job.kind as ImplementedImportKind;
+  if (!IMPLEMENTED_IMPORT_KINDS.includes(kind)) {
+    throw new DomainError('internal', `import jobs of kind ${job.kind} are not implemented`);
+  }
+  return kind;
+}
+
+/**
+ * The PIN code master is shared by every company, so only an Executive (`imports.write` at scope
+ * all) in a request for every active company imports it (docs/design/phase1.md §6.3), as the
+ * shared catalogue is changed; the write policies of `pin_codes` hold the same rule.
+ */
+export async function assertGroupImport(ctx: {
+  tx: RequestTx;
+  principal: { permissions: readonly PermissionGrant[] };
+}): Promise<void> {
+  const covered = (await ctx.tx.execute(
+    sql`select app.request_covers_group() as ok`,
+  )) as unknown as { ok: boolean }[];
+  if (!hasGrant(ctx.principal.permissions, 'imports.write', 'all') || covered[0]?.ok !== true) {
+    throw new DomainError('forbidden', 'the PIN code master needs every company in scope', {
+      reason: 'import_needs_all_companies',
+    });
+  }
 }
 
 export function jobState(job: JobRow): ImportJobState {

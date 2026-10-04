@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../../crm/enums';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema } from '../../ids';
+import { GstStateCodeSchema } from '../org/update-entity';
 
 /**
  * What one checked row of a customers file becomes (docs/design/phase1.md §6.3), as the preview
@@ -47,9 +48,6 @@ export const PinCodeSchema = z
   .string()
   .trim()
   .regex(/^[1-9][0-9]{5}$/);
-
-/** A two-digit GST state code (`01` to `38`, `97` and `99` included as the GST list has them). */
-export const GstStateCodeSchema = z.string().regex(/^[0-9]{2}$/);
 
 /**
  * One post office of the PIN code master, as the preview checks a row of the India Post

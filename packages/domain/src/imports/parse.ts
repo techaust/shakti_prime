@@ -147,6 +147,35 @@ async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[
   return rows;
 }
 
+/** The upload types of an import file, by the format its bytes must have. */
+const FORMAT_OF_TYPE: Readonly<Record<string, ImportFormat>> = {
+  'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+};
+
+/**
+ * The check an uploaded import file passes before it is `ready` (the worker of
+ * `files.file.uploaded`): its bytes are the format its type declares, and a workbook's ZIP
+ * directory is one the reader may open (`checkZipArchive`). The rows are read and checked when the
+ * job starts. Answers whether the file passes.
+ */
+export function importFileReadable(
+  bytes: Uint8Array,
+  contentType: string,
+  limits: ParseLimits = IMPORT_LIMITS,
+): boolean {
+  const declared = FORMAT_OF_TYPE[contentType];
+  if (declared === undefined || bytes.length === 0 || bytes.length > limits.maxFileBytes) {
+    return false;
+  }
+  try {
+    if (detectImportFormat(bytes) !== declared) return false;
+  } catch {
+    return false;
+  }
+  return declared === 'csv' || checkZipArchive(bytes, limits).ok;
+}
+
 function trimRow(row: readonly string[]): string[] {
   const cells = row.map((c) => c.trim());
   while (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
