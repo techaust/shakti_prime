@@ -18,13 +18,18 @@ warnings=0
 warn() { say "WARNING: $*"; warnings=$((warnings + 1)); }
 
 # 1. Node and pnpm.
-want=$(tr -dc '0-9' < .node-version)
+want=$(cut -d. -f1 < .node-version | tr -dc '0-9')
 have=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
 if [ "$have" -lt "$want" ]; then
   case "$(uname -m)" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; *) arch=unknown ;; esac
   base="https://nodejs.org/dist/latest-v${want}.x"
-  file=$(curl -fsSL "$base/SHASUMS256.txt" | grep -oE "node-v[0-9.]+-linux-${arch}\.tar\.xz" | head -1)
-  if [ -n "$file" ] && curl -fsSL "$base/$file" | tar -xJ -C /usr/local --strip-components=1; then
+  sums=$(curl -fsSL "$base/SHASUMS256.txt" || true)
+  file=$(echo "$sums" | grep -oE "node-v[0-9.]+-linux-${arch}\.tar\.xz" | head -1)
+  expected=$(echo "$sums" | grep " ${file}\$" | cut -d' ' -f1)
+  # The archive is unpacked only when its SHA-256 matches the sum nodejs.org publishes for it.
+  if [ -n "$file" ] && [ -n "$expected" ] && curl -fsSL -o "/tmp/$file" "$base/$file" &&
+    [ "$(sha256sum "/tmp/$file" | cut -d' ' -f1)" = "$expected" ] &&
+    tar -xJf "/tmp/$file" -C /usr/local --strip-components=1; then
     hash -r
     say "Node $(node --version) installed in /usr/local"
   else
