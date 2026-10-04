@@ -251,7 +251,7 @@ describe('an import batch set-based and row by row', () => {
     expect(Object.keys(left)).toEqual(Object.keys(right));
   });
 
-  it('leaves a consent, or a customer the group knows, to crm.lead.create', async () => {
+  it('leaves a consent, a customer the group knows or a referral code to crm.lead.create', async () => {
     const plain = {
       entityId: 1,
       pipelineKey: 'farmer_pumps',
@@ -268,7 +268,9 @@ describe('an import batch set-based and row by row', () => {
       },
     };
     const known = { ...plain, contact: undefined, account: undefined, existingAccountId: newId() };
-    for (const input of [withConsent, known]) {
+    // A referral code may name no partner, which the command refuses (CRM-09).
+    const referred = { ...plain, referralCode: 'ABCD1234' };
+    for (const input of [withConsent, known, referred]) {
       await expect(
         run(importerA, setBased, { jobId: newId(), rows: [{ rowNo: 2, input }] }),
       ).rejects.toBeInstanceOf(RowByRowNeeded);
@@ -340,5 +342,58 @@ describe('an import batch set-based and row by row', () => {
         runCommand(createLead, { context, audit, outbox }, rows[0]?.input),
       ),
     ).rejects.toMatchObject(refused);
+  });
+
+  it('scores the leads with the rules of their company, as crm.lead.create does (CRM-06)', async () => {
+    const rule = newId();
+    const executive = await createTestPrincipal('executive', [1]);
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into lead_score_rules (id, entity_id, segment, factor, match_json, points, position, created_by)
+               values (${rule}, 1, null, 'source', ${m.json({ sourceCodes: ['import'] })}, 20, 1, ${executive.id})`,
+    );
+    try {
+      const rows = [
+        {
+          rowNo: 2,
+          input: {
+            entityId: 1,
+            pipelineKey: 'farmer_pumps',
+            contact: { name: 'Scored from a file', phone: phone() },
+            account: { type: 'farm' },
+            sourceCode: 'import',
+          },
+        },
+        {
+          rowNo: 3,
+          input: {
+            entityId: 1,
+            pipelineKey: 'farmer_pumps',
+            contact: { name: 'Left at the base', phone: phone() },
+            account: { type: 'farm' },
+          },
+        },
+      ];
+      const scoredJob = newId();
+      const a = await run(importerA, setBased, { jobId: scoredJob, rows });
+      const b = await run(importerB, rowByRow, { jobId: scoredJob, rows });
+      const left = await snapshot(importerA.id, a, scoredJob);
+      const right = await snapshot(importerB.id, b, scoredJob);
+      expect(left.opportunities?.map((o) => [o.score, o.score_changed_by])).toEqual(
+        expect.arrayContaining([
+          [70, 'actor'],
+          [50, null],
+        ]),
+      );
+      // The answer a repeat of the row replays carries the score too.
+      const answers = left.idempotency_keys?.map((k) => (k.response_json as Row).score);
+      expect(answers?.sort()).toEqual([50, 70]);
+      for (const table of Object.keys(right)) expect(left[table], table).toEqual(right[table]);
+    } finally {
+      await asMigrator(
+        (m) => m`update lead_score_rules set archived_at = now() where id = ${rule}`,
+      );
+    }
   });
 });

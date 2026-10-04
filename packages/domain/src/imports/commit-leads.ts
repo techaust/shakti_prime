@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { activityRow, writeActivities } from '../activities/activity';
 import type { CommandContext } from '../command/context';
 import { createLead, leadCreatedActivity } from '../commands/crm/create-lead';
+import { scoreLeads } from '../commands/crm/lead-attribution';
 import { inputHash } from '../idempotency/hash';
 import { toLeadDto } from '../queries/crm/lead-dto';
 import { importRowKey } from './row-key';
@@ -16,7 +17,8 @@ export interface BatchRow {
 
 /**
  * The set-based path found something it does not handle (a row that fails, a key already used,
- * a customer the group already knows, a number a colleague's customer has, a consent): the batch
+ * a customer the group already knows, a number a colleague's customer has, a consent, a referral
+ * code, which the command checks and may refuse): the batch
  * is run again row by row.
  */
 export class RowByRowNeeded extends Error {
@@ -59,6 +61,7 @@ export async function commitLeadBatch(
     if (!ctx.entityIds.includes(input.entityId)) throw new RowByRowNeeded('another company');
     if (input.existingAccountId !== undefined) throw new RowByRowNeeded('a known customer');
     if (input.consent !== undefined) throw new RowByRowNeeded('a consent');
+    if (input.referralCode !== undefined) throw new RowByRowNeeded('a referral code');
     if (input.contact === undefined || input.account === undefined) {
       throw new RowByRowNeeded('no contact or account');
     }
@@ -261,6 +264,23 @@ export async function commitLeadBatch(
     )
     .returning();
   const byId = new Map(opportunities.map((o) => [o.id, o]));
+  // Each lead scored with the rules of its company in the batch's savepoint, as the command scores
+  // it (CRM-06); the answer each key keeps carries the score.
+  const scored = await scoreLeads(
+    { ...ctx, tx },
+    opportunities.map((o) => o.id),
+    entityIds,
+  );
+  for (const [id, next] of scored) {
+    const opportunity = byId.get(id);
+    if (opportunity === undefined) continue;
+    Object.assign(opportunity, {
+      score: next.score,
+      scoreReasonsJson: next.reasons,
+      scoreChangedAt: ctx.now,
+      scoreChangedBy: actor,
+    });
+  }
   // Each lead's timeline row, as the command writes it.
   await writeActivities(
     tx,

@@ -1,4 +1,4 @@
-import { CreateLeadInput, newId, type Principal } from '@shakti/contracts';
+import { newId, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -9,12 +9,10 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { z } from 'zod';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
-import { defineCommand, type AnyCommand } from '../../src/command/define-command';
+import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
-import { applyLeadAttribution } from '../../src/commands/crm/lead-attribution';
 import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
 import { rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -360,32 +358,16 @@ describe('crm.referral_partner.set', () => {
   });
 });
 
-describe('applyLeadAttribution', () => {
-  // The one line crm.lead.create adds at integration, run here inside a command of its own.
-  const attributed = defineCommand({
-    name: 'test.lead.attributed',
-    permission: 'crm.lead.write',
-    minScope: 'own',
-    input: CreateLeadInput,
-    output: z
-      .object({ id: z.string(), score: z.number(), partner: z.string().nullable() })
-      .strict(),
-    auditFields: [],
-    async handler(ctx, input) {
-      const { referralCode, ...rest } = input;
-      const created = await ctx.run(createLead, rest);
-      const patch = await applyLeadAttribution(ctx, {
-        opportunityId: created.id,
-        entityId: input.entityId,
-        input: { referralCode },
-      });
-      return {
-        id: created.id,
-        score: patch.score ?? created.score,
-        partner: patch.referralPartnerId ?? null,
-      };
-    },
-  });
+describe('crm.lead.create with a referral code and score rules', () => {
+  /** A lead made through the command, with its score and its partner as stored. */
+  async function attributed(principal: Principal, input: unknown) {
+    const recorded = memoryAuditSink();
+    const created = (await asPrincipal(principal, (context) =>
+      runCommand(createLead, { context, audit: recorded, outbox }, input),
+    )) as { id: string; score: number; scoreReasons: unknown[] };
+    const stored = await scoreOf(created.id);
+    return { ...created, partner: stored?.partner ?? null, audit: recorded.records };
+  }
 
   async function partnerWithCode(isActive = true): Promise<string> {
     const { accountId } = await lead('referral_partner');
@@ -405,19 +387,23 @@ describe('applyLeadAttribution', () => {
 
   it('credits the lead to the partner a code names, whatever its case', async () => {
     const code = await partnerWithCode();
-    const done = (await run(caller, attributed, leadInput(code.toLowerCase()))) as {
-      id: string;
-      partner: string;
-    };
+    const done = await attributed(caller, leadInput(code.toLowerCase()));
     expect(done.partner).toBe(partners.at(-1));
-    expect((await scoreOf(done.id))?.partner).toBe(partners.at(-1));
+    // The lead's creation row records the partner and the score.
+    expect(done.audit).toEqual([
+      expect.objectContaining({
+        aggregateType: 'opportunity',
+        aggregateId: done.id,
+        after: expect.objectContaining({ referralPartnerId: partners.at(-1), score: 50 }),
+      }),
+    ]);
   });
 
   it('refuses the whole lead for a code no active partner has', async () => {
     const inactive = await partnerWithCode(false);
     for (const code of ['ZZZZ9999', inactive]) {
       const input = leadInput(code);
-      expect(await refusal(run(caller, attributed, input))).toMatchObject({
+      expect(await refusal(attributed(caller, input))).toMatchObject({
         code: 'validation_failed',
         details: { reason: 'referral_code_unknown' },
       });
@@ -430,8 +416,9 @@ describe('applyLeadAttribution', () => {
   });
 
   it('scores a new lead with the rules of its company, and leaves it at the base with none', async () => {
-    const plain = (await run(caller, attributed, leadInput())) as { id: string; score: number };
+    const plain = await attributed(caller, leadInput());
     expect(plain.score).toBe(50);
+    expect(plain.partner).toBeNull();
     expect(await scoreOf(plain.id)).toMatchObject({ score: 50, reasons: [], by: null });
 
     await asMigrator(
@@ -441,11 +428,14 @@ describe('applyLeadAttribution', () => {
                values (${newId()}, 1, 'farmer_pumps', 'source', ${m.json({ sourceCodes: ['walk_in'] })}, 25, 1, ${execOne.id})`,
     );
     try {
-      const walkIn = (await run(caller, attributed, {
-        ...leadInput(),
-        sourceCode: 'walk_in',
-      })) as { id: string; score: number };
+      const walkIn = await attributed(caller, { ...leadInput(), sourceCode: 'walk_in' });
       expect(walkIn.score).toBe(75);
+      expect(walkIn.scoreReasons).toEqual([
+        expect.objectContaining({ factor: 'source', points: 25 }),
+      ]);
+      expect(walkIn.audit).toEqual([
+        expect.objectContaining({ after: expect.objectContaining({ score: 75 }) }),
+      ]);
       expect(await scoreOf(walkIn.id)).toMatchObject({ score: 75, by: caller.id });
     } finally {
       await asMigrator(
@@ -458,12 +448,12 @@ describe('applyLeadAttribution', () => {
     const code = await partnerWithCode();
     const partner = partners.at(-1) ?? '';
     const callerTwo = await createTestPrincipal('tele_caller_cc', [2]);
-    expect(
-      await refusal(run(callerTwo, attributed, { ...leadInput(code), entityId: 2 })),
-    ).toMatchObject({ details: { reason: 'referral_code_unknown' } });
+    expect(await refusal(attributed(callerTwo, { ...leadInput(code), entityId: 2 }))).toMatchObject(
+      { details: { reason: 'referral_code_unknown' } },
+    );
     await asMigrator((m) => m`update accounts set archived_at = now() where id = ${partner}`);
     try {
-      expect(await refusal(run(caller, attributed, leadInput(code)))).toMatchObject({
+      expect(await refusal(attributed(caller, leadInput(code)))).toMatchObject({
         details: { reason: 'referral_code_unknown' },
       });
     } finally {
