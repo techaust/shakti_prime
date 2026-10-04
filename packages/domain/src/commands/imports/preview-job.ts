@@ -295,11 +295,18 @@ async function previewAccounts(
         : [],
     ),
   );
+  // The owner's rule (05-10-2026): a number a customer the importer can see already has links
+  // the row to that customer, so no second record is made.
+  const linkOf = (firstRowNo: number) => existing.byPhone(firstRowNo)[0]?.accountId;
   return checked.map(({ rowNo, check }) => {
     if (check.state === 'invalid') return invalid(rowNo, check.errors);
     const inFileRowNo = folded.repeats.get(rowNo) ?? null;
     if (inFileRowNo !== null) {
-      const site = folded.sites.get(rowNo);
+      // A row linked to an existing customer adds only its companies: the sites stay as they are.
+      const site =
+        check.input.site !== undefined && linkOf(inFileRowNo) !== undefined
+          ? ('kept' as const)
+          : folded.sites.get(rowNo);
       return {
         row_no: rowNo,
         state: 'skipped',
@@ -309,9 +316,8 @@ async function previewAccounts(
       };
     }
     const matches = existing(rowNo);
-    // The owner's rule (05-10-2026): a number a customer the importer can see already has links
-    // the row to that customer, so no second record is made.
-    const linkedTo = existing.byPhone(rowNo)[0]?.accountId;
+    const linkedTo = linkOf(rowNo);
+    // Kept on a linked row, so a customer archived since the check is made anew with them all.
     const moreSites = folded.moreSites.get(rowNo);
     const input: AccountImportRowInput = {
       ...check.input,
@@ -330,7 +336,12 @@ async function previewAccounts(
           : {
               inFileRowNo: null,
               existing: matches,
-              ...(linkedTo === undefined ? {} : { linkedTo }),
+              ...(linkedTo === undefined
+                ? {}
+                : {
+                    linkedTo,
+                    ...(check.input.site === undefined ? {} : { site: 'kept' as const }),
+                  }),
             },
     };
   });
@@ -354,14 +365,44 @@ function previewPinCodes(rows: readonly FileRow[], mapping: PinCodeImportMapping
   });
 }
 
-/** The companies the ready rows of a job name, the job's own first, each once. */
-function jobCompanies(entityId: number, findings: readonly RowFinding[]): number[] {
+/**
+ * The companies through which the caller sees each customer a row is linked to: the relationships
+ * the policies let them read, every one in the request. The worker that adds the rows acts for
+ * these too, so it meets each customer as the preview did.
+ */
+async function companiesSeenThrough(
+  tx: RequestTx,
+  findings: readonly RowFinding[],
+): Promise<number[]> {
+  const linked = [...new Set(findings.flatMap((f) => f.dedupe_json?.linkedTo ?? []))];
+  const ae = schema.accountEntities;
+  const seen = new Set<number>();
+  for (let start = 0; start < linked.length; start += CHUNK) {
+    const rows = await tx
+      .selectDistinct({ entityId: ae.entityId })
+      .from(ae)
+      .where(inArray(ae.accountId, linked.slice(start, start + CHUNK)));
+    for (const row of rows) seen.add(row.entityId);
+  }
+  return [...seen].sort((x, y) => x - y);
+}
+
+/**
+ * The companies the ready rows of a job name, the job's own first, each once, then those through
+ * which the caller sees a customer a row is linked to.
+ */
+function jobCompanies(
+  entityId: number,
+  findings: readonly RowFinding[],
+  seenThrough: readonly number[],
+): number[] {
   const ids = [entityId];
   for (const f of findings) {
     if (f.state !== 'valid') continue;
     const named = (f.normalised_json as { entityIds?: number[] }).entityIds;
     for (const id of named ?? []) if (!ids.includes(id)) ids.push(id);
   }
+  for (const id of seenThrough) if (!ids.includes(id)) ids.push(id);
   return ids;
 }
 
@@ -372,8 +413,9 @@ function jobCompanies(entityId: number, findings: readonly RowFinding[]): number
  * folded into it); offices of the PIN code master checked against the directory's form. A match
  * with an existing customer is only suggested, and the row still imports as a new one, except a
  * customers row with the mobile number of a customer the caller can see, which is added to that
- * customer. The job records the companies its ready rows name, its own first: adding them and
- * undoing them need a request that acts for every one.
+ * customer. The job records the companies its ready rows name, its own first, and those through
+ * which the caller sees a customer a row is linked to: adding the rows and undoing them need a
+ * request that acts for every one.
  */
 export const previewImportJob = defineCommand({
   name: 'imports.job.preview',
@@ -433,7 +475,10 @@ export const previewImportJob = defineCommand({
       invalidRows: count('invalid'),
       skippedRows: count('skipped'),
     };
-    const entityIds = kind === 'pin_codes' ? null : jobCompanies(input.entityId, findings);
+    const entityIds =
+      kind === 'pin_codes'
+        ? null
+        : jobCompanies(input.entityId, findings, await companiesSeenThrough(ctx.tx, findings));
     const previewed = await updateJob(ctx.tx, loaded, {
       state: 'previewed',
       ...counts,

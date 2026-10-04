@@ -35,7 +35,7 @@ import { parseImportFile } from '../../src/imports/parse';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { lookupPin } from '../../src/queries/crm/pin-lookup';
 import { staleUploadCompanies } from '../../src/queries/files/file-queries';
-import { listImportRows } from '../../src/queries/imports/import-queries';
+import { getImportJob, listImportRows } from '../../src/queries/imports/import-queries';
 
 // The import kinds of the imports upgrade (docs/design/phase1.md §6.3) on real Postgres: customers
 // with a relationship per row's company and repeats folded into one, the PIN code master, the
@@ -586,16 +586,23 @@ describe('customers files after review', () => {
     const job = await startedJob(
       executive,
       'accounts',
-      `Name,Mobile,Village,Company\nKnown Farmer again,${number},Sikar,SMP\n`,
+      [
+        'Name,Mobile,Village,Company',
+        `Known Farmer again,${number},Sikar,SMP`,
+        `Known Farmer again,${number},Churu,SMP`,
+      ].join('\n') + '\n',
     );
     await run(executive, mapImportJob, { entityId: 1, jobId: job.id, mapping: ACCOUNT_MAPPING });
     const previewed = await run(executive, previewImportJob, { entityId: 1, jobId: job.id });
-    expect(previewed).toMatchObject({ validRows: 1, entityIds: [1, 2] });
-    const [row] = await rowsOf(executive, job.id);
+    expect(previewed).toMatchObject({ validRows: 1, skippedRows: 1, entityIds: [1, 2] });
+    const [row, repeat] = await rowsOf(executive, job.id);
     expect(row?.dedupe).toMatchObject({
       linkedTo: existing.account.id,
+      site: 'kept',
       existing: [{ accountId: existing.account.id, matchedBy: 'phone' }],
     });
+    // The repeat's different site is not said to be added: a linked row adds no site.
+    expect(repeat?.dedupe).toEqual({ inFileRowNo: 1, existing: [], site: 'kept' });
 
     expect(await committed(executive, previewed)).toMatchObject({
       state: 'committed',
@@ -614,13 +621,76 @@ describe('customers files after review', () => {
                            where ac2.account_id = ${existing.account.id} limit 1)`,
     );
     expect(holders[0]?.n).toBe(1);
-    // The site of a linked row is not added: the customer's details stay as they were.
+    // Neither the linked row's site nor its repeat's is added: the customer's sites stay as they are.
     expect(await sitesOf(existing.account.id)).toEqual([]);
 
     // Undoing the import leaves the customer, with the company the row added.
     await run(executive, rollbackImportJob, { entityId: 1, jobId: job.id });
     expect(await archivedOf([existing.account.id])).toEqual({ [existing.account.id]: false });
     expect(await companiesOf(existing.account.id)).toEqual([1, 2]);
+  });
+
+  it('links a customer seen only through another of the importer’s companies, as the helper answers', async () => {
+    const gm13 = await createTestPrincipal('general_manager', [1, 3]);
+    const gm3 = await createTestPrincipal('general_manager', [3]);
+    const [number, gone] = [phone(), phone()];
+    const elsewhere = await run(gm3, createLead, {
+      entityId: 3,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Company Three Farmer', phone: number },
+      account: { type: 'farm' },
+    });
+    const archived = await run(gm3, createLead, {
+      entityId: 3,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Archived Since', phone: gone },
+      account: { type: 'farm' },
+    });
+    const job = await startedJob(
+      gm13,
+      'accounts',
+      `Name,Mobile,Village\nCompany Three Farmer,${number},Sikar\nArchived Since,${gone},Churu\n`,
+    );
+    await run(gm13, mapImportJob, { entityId: 1, jobId: job.id, mapping: OWN_COMPANY_MAPPING });
+    const previewed = await run(gm13, previewImportJob, { entityId: 1, jobId: job.id });
+    // The rows name company 1 alone; the customers were seen through company 3.
+    expect(previewed).toMatchObject({ validRows: 2, entityIds: [1, 3] });
+    expect((await rowsOf(gm13, job.id)).map((r) => r.dedupe?.linkedTo)).toEqual([
+      elsewhere.account.id,
+      archived.account.id,
+    ]);
+    // As a job stored before those companies were recorded: the commit no longer depends on the
+    // request seeing the customer, only on the helper's answer.
+    await asMigrator((m) => m`update import_jobs set entity_ids = '{1}' where id = ${job.id}`);
+    await asMigrator(
+      (m) => m`update accounts set archived_at = now() where id = ${archived.account.id}`,
+    );
+    await run(gm13, commitImportJob, { entityId: 1, jobId: job.id }, [1]);
+    let current = await run(gm13, commitImportBatch, { entityId: 1, jobId: job.id }, [1]);
+    while (current.state === 'committing') {
+      current = await run(gm13, commitImportBatch, { entityId: 1, jobId: job.id }, [1]);
+    }
+    expect(current).toMatchObject({ state: 'committed', committedRows: 2 });
+    const [linkedRow, remade] = await rowsOf(gm13, job.id);
+    expect(linkedRow).toMatchObject({
+      createdType: 'account_link',
+      createdId: elsewhere.account.id,
+    });
+    expect(await companiesOf(elsewhere.account.id)).toEqual([1, 3]);
+    // Only a customer archived since the check is made anew.
+    expect(remade).toMatchObject({ createdType: 'account' });
+    expect(remade?.createdId).not.toBe(archived.account.id);
+    const holders = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(distinct ac.account_id)::int as n
+          from contact_phones cp
+          join account_contacts ac on ac.contact_id = cp.contact_id
+          join accounts a on a.id = ac.account_id and a.archived_at is null
+         where cp.e164 = (select e164 from contact_phones cp2
+                            join account_contacts ac2 on ac2.contact_id = cp2.contact_id
+                           where ac2.account_id = ${elsewhere.account.id} limit 1)`,
+    );
+    expect(holders[0]?.n).toBe(1);
   });
 
   it('refuses to add or undo rows in a request that leaves out a company they name', async () => {
@@ -745,6 +815,46 @@ describe('customers files after review', () => {
     });
     await setState(third.id, 'failed', 1);
     await expect(start()).rejects.toMatchObject({ details: { reason: 'import_file_duplicate' } });
+  });
+
+  it('commits only one of two jobs of the same content started side by side', async () => {
+    const sha256 = 'd'.repeat(32) + newId().replace(/-/g, '');
+    const csv = `Name,Mobile,Village\nSide By Side,${phone()},Sikar\n`;
+    const parsed = await parseImportFile(new TextEncoder().encode(csv));
+    const previewedJob = async () => {
+      const job = await run(gm1, createImportJob, {
+        entityId: 1,
+        kind: 'accounts',
+        fileId: await createReadyImportFile(1, gm1.id, { sha256 }),
+        format: parsed.format,
+        columns: parsed.columns,
+        rows: parsed.rows,
+      });
+      await run(gm1, mapImportJob, { entityId: 1, jobId: job.id, mapping: OWN_COMPANY_MAPPING });
+      return run(gm1, previewImportJob, { entityId: 1, jobId: job.id });
+    };
+    // Both start while neither has added anything.
+    const first = await previewedJob();
+    const second = await previewedJob();
+    const duplicate = { code: 'conflict', details: { reason: 'import_file_duplicate' } };
+    // While the first adds its rows, and once it has, the second is refused.
+    await run(gm1, commitImportJob, { entityId: 1, jobId: first.id });
+    await expect(
+      run(gm1, commitImportJob, { entityId: 1, jobId: second.id }),
+    ).rejects.toMatchObject(duplicate);
+    expect(await committed(gm1, first)).toMatchObject({ state: 'committed', committedRows: 1 });
+    await expect(
+      run(gm1, commitImportJob, { entityId: 1, jobId: second.id }),
+    ).rejects.toMatchObject(duplicate);
+    expect(
+      await asPrincipal(gm1, (ctx) => getImportJob(ctx, { entityId: 1, jobId: second.id })),
+    ).toMatchObject({
+      state: 'previewed',
+      committedRows: 0,
+    });
+    // Once the first is undone, the second may add the same list.
+    await run(gm1, rollbackImportJob, { entityId: 1, jobId: first.id });
+    expect(await committed(gm1, second)).toMatchObject({ state: 'committed', committedRows: 1 });
   });
 });
 

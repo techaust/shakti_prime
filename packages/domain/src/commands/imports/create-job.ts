@@ -1,8 +1,13 @@
 import { CreateImportJobInput, DomainError, ImportJobDto, newId } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, gt, inArray, ne, or } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
-import { assertEntityInScope, assertGroupImport, toImportJobDto } from './shared';
+import {
+  assertContentNotImported,
+  assertEntityInScope,
+  assertGroupImport,
+  toImportJobDto,
+} from './shared';
 
 /** Rows written per statement: well inside Postgres's limit on parameters. */
 const INSERT_CHUNK = 1000;
@@ -14,7 +19,7 @@ const INSERT_CHUNK = 1000;
  * never a colleague's file of the company. One file starts one job (`import_jobs_file_unique`),
  * and a file whose content was already added in the company (a job adding it, done, or stopped
  * with rows added) is refused, so the same list is not imported twice; a job left before adding,
- * or undone, does not count. The PIN code master is imported only by an
+ * or undone, does not count; `imports.job.commit` asks the same again. The PIN code master is imported only by an
  * Executive in a request for every company. The audit row records the file and the counts, never
  * the rows, which carry customers' names and numbers in columns the redaction cannot recognise.
  */
@@ -63,29 +68,10 @@ export const createImportJob = defineCommand({
       });
     }
 
-    // The same content was already added in this company (another upload of the same file).
+    // The same content was already added in this company (another upload of the same file); the
+    // commit asks again, since two jobs of one content may both be waiting by then.
+    await assertContentNotImported(ctx.tx, input.entityId, file);
     const j = schema.importJobs;
-    const [earlier] = await ctx.tx
-      .select({ id: j.id })
-      .from(j)
-      .innerJoin(f, eq(f.id, j.fileId))
-      .where(
-        and(
-          eq(j.entityId, input.entityId),
-          eq(f.sha256, file.sha256),
-          ne(f.id, file.id),
-          or(
-            inArray(j.state, ['committing', 'committed']),
-            and(eq(j.state, 'failed'), gt(j.committedRows, 0)),
-          ),
-        ),
-      )
-      .limit(1);
-    if (earlier) {
-      throw new DomainError('conflict', 'this file was imported before', {
-        reason: 'import_file_duplicate',
-      });
-    }
 
     const [job] = await ctx.tx
       .insert(j)

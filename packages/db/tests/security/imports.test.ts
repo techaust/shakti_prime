@@ -9,7 +9,9 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  PIPELINE_SEED,
   principalFor,
+  stageId,
   withoutContext,
 } from '../../src/testing/index';
 
@@ -347,13 +349,15 @@ describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
     return { jobId: f.jobId, ids };
   }
 
-  const inUse = (principal: Principal, jobId: string) =>
+  /** The helper's answer for the given customers, in id order. */
+  const inUseQuery = (jobId: string, ids: readonly string[]) =>
+    sql`select app.import_accounts_in_use(${jobId},
+          array(select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)::uuid)) as id`;
+  const inUse = (principal: Principal, jobId: string, ids: readonly string[]) =>
     asPrincipal(principal, async ({ tx }) =>
-      (
-        (await tx.execute(sql`select app.import_accounts_in_use(${jobId}) as id`)) as unknown as {
-          id: string;
-        }[]
-      ).map((r) => r.id),
+      ((await tx.execute(inUseQuery(jobId, ids))) as unknown as { id: string }[])
+        .map((r) => r.id)
+        .sort(),
     );
 
   it('names the customers another company took on since, past the caller’s companies', async () => {
@@ -364,8 +368,62 @@ describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
       (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
                values (${newId()}, ${taken ?? ''}, 2, ${gm2.id}, ${gm2.id})`,
     );
-    expect(await inUse(gm1, jobId)).toEqual([taken]);
-    expect(await inUse(gm1, jobId)).not.toContain(free);
+    expect(await inUse(gm1, jobId, ids)).toEqual([taken]);
+    expect(await inUse(gm1, jobId, [free ?? ''])).toEqual([]);
+  });
+
+  it('counts an activity or a lead’s tag someone else added after the import, not the importer’s own', async () => {
+    const { jobId, ids } = await accountsJob([
+      'fixture noted',
+      'fixture own note',
+      'fixture tagged',
+      'fixture quiet',
+    ]);
+    const [noted = '', ownNote = '', tagged = '', quiet = ''] = ids;
+    const lead = newId();
+    const tag = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into activities (id, entity_id, account_id, type, actor_principal_id, body)
+          values (${newId()}, 1, ${noted}, 'note', ${gm2.id}, 'Called about the pump'),
+                 (${newId()}, 1, ${ownNote}, 'note', ${gm1.id}, 'Checked the list')`;
+        // A tag on a lead that is archived since: only the tag keeps the customer.
+        await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by, archived_at)
+          values (${lead}, 1, ${tagged}, ${PIPELINE_SEED[0]?.id ?? ''}, ${stageId(1, 1)}, ${gm1.id}, ${gm1.id}, now())`;
+        await tx`insert into tags (id, entity_id, name, created_by, updated_by)
+          values (${tag}, 1, ${`fixture ${tag.slice(-8)}`}, ${gm2.id}, ${gm2.id})`;
+        await tx`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
+          values (${lead}, ${tagged}, ${tag}, 1, ${gm2.id})`;
+      }),
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([noted, tagged].sort());
+    expect(await inUse(gm1, jobId, [ownNote, quiet])).toEqual([]);
+  });
+
+  it('answers only the job’s own customers among those given, and locks them until the end', async () => {
+    const { jobId, ids } = await accountsJob(['fixture locked']);
+    const [locked = ''] = ids;
+    const other = await accountsJob(['fixture of another job']);
+    const [stranger = ''] = other.ids;
+    // Another job's customer, taken on elsewhere, is not this job's to name.
+    await asMigrator(
+      (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+               values (${newId()}, ${stranger}, 2, ${gm2.id}, ${gm2.id})`,
+    );
+    expect(await inUse(gm1, jobId, [locked, stranger])).toEqual([]);
+    // While the rollback's transaction is open, nobody else may lock or take on that customer.
+    const waited = await asPrincipal(gm1, async ({ tx }) => {
+      await tx.execute(inUseQuery(jobId, [locked]));
+      return asMigrator(async (m) => {
+        try {
+          await m`select id from accounts where id = ${locked} for key share nowait`;
+          return 'free';
+        } catch (e) {
+          return (e as { code?: string }).code;
+        }
+      });
+    });
+    expect(waited).toBe('55P03');
   });
 
   it('is refused outside the job’s company or without imports.write', async () => {
@@ -374,7 +432,7 @@ describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
       e instanceof Error &&
       e.cause instanceof Error &&
       e.cause.message.includes('outside the request scope');
-    await expect(inUse(gm2, jobId)).rejects.toSatisfy(refused);
-    await expect(inUse(principalFor('tele_caller_cc', [1]), jobId)).rejects.toSatisfy(refused);
+    await expect(inUse(gm2, jobId, [])).rejects.toSatisfy(refused);
+    await expect(inUse(principalFor('tele_caller_cc', [1]), jobId, [])).rejects.toSatisfy(refused);
   });
 });

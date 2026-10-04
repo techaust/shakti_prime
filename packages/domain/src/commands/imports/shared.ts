@@ -14,7 +14,7 @@ import {
   type PinCodeImportMapping,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, ne, or, sql } from 'drizzle-orm';
 
 type JobRow = typeof schema.importJobs.$inferSelect;
 type FileRow = Pick<typeof schema.files.$inferSelect, 'id' | 'name' | 'size'>;
@@ -45,6 +45,48 @@ export function assertJobCompaniesCovered(
     throw new DomainError('forbidden', 'the import names companies outside the request', {
       reason: 'import_companies_out_of_reach',
       entityIds: missing,
+    });
+  }
+}
+
+/**
+ * Refuses a file whose content was already added in the company: a job of another upload with
+ * the same bytes that is adding its rows, has added them, or stopped with rows added. A job left
+ * before adding, or undone, does not count. `lock` first takes the company's lock on that content
+ * until the transaction ends, so of two jobs of one content committing at once the second waits
+ * and then finds the first.
+ */
+export async function assertContentNotImported(
+  tx: RequestTx,
+  entityId: number,
+  file: { id: string; sha256: string },
+  lock = false,
+): Promise<void> {
+  if (lock) {
+    const key = `import-content:${String(entityId)}:${file.sha256}`;
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+  }
+  const j = schema.importJobs;
+  const f = schema.files;
+  const [earlier] = await tx
+    .select({ id: j.id })
+    .from(j)
+    .innerJoin(f, eq(f.id, j.fileId))
+    .where(
+      and(
+        eq(j.entityId, entityId),
+        eq(f.sha256, file.sha256),
+        ne(f.id, file.id),
+        or(
+          inArray(j.state, ['committing', 'committed']),
+          and(eq(j.state, 'failed'), gt(j.committedRows, 0)),
+        ),
+      ),
+    )
+    .limit(1);
+  if (earlier) {
+    throw new DomainError('conflict', 'this file was imported before', {
+      reason: 'import_file_duplicate',
     });
   }
 }

@@ -6,7 +6,7 @@ import {
   type ImportCreatedType,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, inArray, isNull, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../command/context';
 import type { BatchRow } from './commit-leads';
 
@@ -33,8 +33,9 @@ function heldByColleague(): DomainError {
  * A row the preview linked to a customer the importer could see (`existingAccountId`, the owner's
  * rule of 05-10-2026) makes no customer: each of its companies the customer does not deal with yet
  * becomes a relationship owned by the importer (`app.attach_account_entity`, ADR 0008), and the
- * customer's details and sites stay as they are. A linked customer archived since the check is
- * made anew instead. Any other row becomes its account, one company relationship per company it
+ * customer's details and sites stay as they are. Whether the link holds is the helper's own
+ * answer, never whether this request happens to see the customer: only a customer archived since
+ * the check (`missing`) is made anew instead. Any other row becomes its account, one company relationship per company it
  * names (owned by the importer, in their team there), its contact, the contact's link and phone,
  * and its sites (its own and the different ones of its repeated rows), every insert under the
  * policies a person's own writes pass as `app_user`. Any other refusal throws, and the caller's
@@ -71,42 +72,40 @@ export async function commitAccountBatch(
   const refused = new Set(held.map((h) => h.rowNo));
   const open = parsed.filter((r) => !refused.has(r.rowNo));
 
-  // The customers the rows were linked to that are still there for the importer.
-  const linkIds = [...new Set(open.flatMap((r) => r.input.existingAccountId ?? []))];
-  const a = schema.accounts;
-  let live = new Set<string>();
-  if (linkIds.length > 0) {
-    await keep(tx);
-    const found = await tx
-      .select({ id: a.id })
-      .from(a)
-      .where(and(inArray(a.id, linkIds), isNull(a.archivedAt)));
-    live = new Set(found.map((f) => f.id));
-  }
-  const links = open.flatMap((r) =>
-    r.input.existingAccountId !== undefined && live.has(r.input.existingAccountId)
-      ? [{ rowNo: r.rowNo, accountId: r.input.existingAccountId, entityIds: r.input.entityIds }]
-      : [],
+  // The rows linked to a customer: each of their companies attached through the helper, which
+  // sees past this request's view (the worker acts only for the job's companies) and answers
+  // whether the customer is still there.
+  const wanted = open.flatMap((r) =>
+    r.input.existingAccountId === undefined
+      ? []
+      : [{ rowNo: r.rowNo, accountId: r.input.existingAccountId, entityIds: r.input.entityIds }],
   );
-  const linked = new Set(links.map((l) => l.rowNo));
-
-  if (links.length > 0) {
+  const missing = new Set<string>();
+  if (wanted.length > 0) {
     await keep(tx);
     const attached = (await tx.execute(sql`
-      select app.attach_account_entity(x."accountId", x."entityId") as status
+      select x."accountId", app.attach_account_entity(x."accountId", x."entityId") as status
         from jsonb_to_recordset(${JSON.stringify(
-          links.flatMap((l) =>
+          wanted.flatMap((l) =>
             l.entityIds.map((entityId) => ({ accountId: l.accountId, entityId })),
           ),
         )}::jsonb) as x("accountId" uuid, "entityId" smallint)`)) as unknown as {
+      accountId: string;
       status: string;
     }[];
-    // Held by a colleague in one of the companies since the number was checked: the row is
-    // refused, which the row-by-row path records against it alone.
-    if (attached.some((x) => x.status !== 'attached' && x.status !== 'already_yours')) {
-      throw heldByColleague();
+    for (const x of attached) {
+      if (x.status === 'missing') {
+        missing.add(x.accountId);
+      } else if (x.status !== 'attached' && x.status !== 'already_yours') {
+        // Held by a colleague in one of the companies since the number was checked: the row is
+        // refused, which the row-by-row path records against it alone.
+        throw heldByColleague();
+      }
     }
   }
+  // A customer archived since the check is made anew from the row.
+  const links = wanted.filter((l) => !missing.has(l.accountId));
+  const linked = new Set(links.map((l) => l.rowNo));
 
   const teamIn = (entityId: number): string | null =>
     ctx.principal.entityTeams?.find((t) => t.entityId === entityId)?.teamId ??

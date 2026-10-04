@@ -371,10 +371,10 @@ export function initialRowView(
 export type RowFinding =
   | { kind: 'error'; field: ImportField | 'row'; code: ImportRowErrorCode }
   | { kind: 'sameAsRow'; rowNo: number; site?: FoldedSite }
-  | { kind: 'linked'; name: string | undefined }
+  | { kind: 'linked'; name: string | undefined; site?: FoldedSite }
   | { kind: 'customer'; name: string | undefined; matchedBy: ImportDedupeMatch };
 
-/** What became of a repeated customers row's site (`ImportDedupeDto.site`). */
+/** What became of a repeated or linked customers row's site (`ImportDedupeDto.site`). */
 export type FoldedSite = NonNullable<NonNullable<ImportRowDto['dedupe']>['site']>;
 
 /**
@@ -403,7 +403,12 @@ export function rowFindings(
     const linkedTo = row.dedupe.linkedTo;
     if (linkedTo !== undefined) {
       seen.add(linkedTo);
-      findings.push({ kind: 'linked', name: customers[linkedTo] });
+      const site = row.dedupe.site;
+      findings.push({
+        kind: 'linked',
+        name: customers[linkedTo],
+        ...(site === undefined ? {} : { site }),
+      });
     }
     for (const match of row.dedupe.existing) {
       if (seen.has(match.accountId)) continue;

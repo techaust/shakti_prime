@@ -30,6 +30,27 @@ function blocked(): DomainError {
   });
 }
 
+const NONE: ReadonlySet<string> = new Set();
+
+/**
+ * The customers of one chunk that are now in use in any company, which the rollback keeps
+ * (`app.import_accounts_in_use`, which sees past the caller's companies). The helper first locks
+ * the chunk's customers and their contacts until the transaction ends, so none is taken on, given
+ * a lead or a consent between its answer and the archiving.
+ */
+async function accountsInUse(
+  tx: RequestTx,
+  jobId: string,
+  ids: readonly string[],
+): Promise<ReadonlySet<string>> {
+  if (ids.length === 0) return NONE;
+  const rows = (await tx.execute(
+    sql`select app.import_accounts_in_use(${jobId},
+          array(select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)::uuid)) as id`,
+  )) as unknown as { id: string }[];
+  return new Set(rows.map((row) => row.id));
+}
+
 /**
  * Undoes one chunk of records, answering how many it archived or removed: leads are archived;
  * customers are archived unless one is in use (`inUse`); the offices the job added to the PIN code
@@ -89,9 +110,10 @@ async function undo(
  * 500, and marks those rows rolled back. Leads are archived, and the customers they made stay in
  * the shared customer master (ADR 0008), where another company or a later lead may already use
  * them. A customers file's new customers are archived, except one now in use in any company (a
- * live lead, a consent, or a company that took the customer on since: `app.import_accounts_in_use`,
- * which sees past the caller's companies); a customer a row was linked to keeps the companies the
- * row added. The request must act for every company the rows name. The offices a PIN code file
+ * live lead, a consent, a company that took the customer on since, or an activity or a lead's tag
+ * someone other than the importer added: `app.import_accounts_in_use`, asked chunk by chunk under
+ * a lock on the chunk's customers, and seeing past the caller's companies); a customer a row was
+ * linked to keeps the companies the row added. The request must act for every company the rows name. The offices a PIN code file
  * added are removed and the sites with their PINs checked again; an office it corrected keeps the
  * correction. A record the caller can no longer change stops the whole rollback, so nothing is
  * half undone.
@@ -127,19 +149,9 @@ export const rollbackImportJob = defineCommand({
         row.createdType === 'account_link' ? null : row.createdId,
       ]),
     );
-    const inUse =
-      kind === 'accounts'
-        ? new Set(
-            (
-              (await ctx.tx.execute(
-                sql`select app.import_accounts_in_use(${job.id}) as id`,
-              )) as unknown as { id: string }[]
-            ).map((row) => row.id),
-          )
-        : new Set<string>();
-
     const batches: { fromRow: number; toRow: number; rows: number }[] = [];
     let archived = 0;
+    let kept = 0;
     for (const chunk of rollbackChunks(
       committed.map((row) => row.rowNo),
       IMPORT_LIMITS.batchSize,
@@ -152,6 +164,8 @@ export const rollbackImportJob = defineCommand({
           }),
         ),
       ];
+      const inUse = kind === 'accounts' ? await accountsInUse(ctx.tx, job.id, ids) : NONE;
+      kept += inUse.size;
       archived += await undo(ctx, ctx.tx, kind, ids, inUse);
       await ctx.tx
         .update(r)
@@ -174,7 +188,7 @@ export const rollbackImportJob = defineCommand({
         state: 'rolled_back',
         rolledBackRows: committed.length,
         archived,
-        kept: inUse.size,
+        kept,
         batches,
       },
     });

@@ -23,6 +23,7 @@ import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { createLead } from '../crm/create-lead';
 import {
+  assertContentNotImported,
   assertEntityInScope,
   assertGroupImport,
   assertJobCompaniesCovered,
@@ -98,7 +99,10 @@ const LEAD_WRITE = [
 ] as const satisfies readonly Requirement[];
 
 /**
- * `imports.job.commit` (IMP-01): a previewed job with valid rows starts committing. The rows go
+ * `imports.job.commit` (IMP-01): a previewed job with valid rows starts committing, unless a job of
+ * another upload with the same content is adding its rows or has added them in the company
+ * (`import_file_duplicate`, asked under the company's lock on that content, so two such jobs never
+ * both commit). The rows go
  * in batch by batch through `imports.job.commit_batch`, run by the import worker; asking again
  * while the job commits changes nothing, so the screen can ask the worker to carry on.
  */
@@ -118,6 +122,14 @@ export const commitImportJob = defineCommand({
     assertImportJobMove(before, 'committing');
     assertJobCompaniesCovered(ctx.entityIds, loaded.job);
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
+    // Another job of the same content may have been started beside this one, and committed since.
+    const [content] = await ctx.tx
+      .select({ id: schema.files.id, sha256: schema.files.sha256 })
+      .from(schema.files)
+      .where(eq(schema.files.id, loaded.job.fileId))
+      .limit(1);
+    if (!content) throw new DomainError('internal', 'an import job without its file');
+    await assertContentNotImported(ctx.tx, input.entityId, content, true);
     if (loaded.job.validRows === 0) {
       throw new DomainError('validation_failed', 'no valid rows to import', {
         reason: 'import_nothing_to_commit',

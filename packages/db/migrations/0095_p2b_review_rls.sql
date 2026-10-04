@@ -136,18 +136,24 @@ revoke execute on function app.recheck_site_pins(text[]) from public, readonly_r
 grant execute on function app.recheck_site_pins(text[]) to app_user;
 --> statement-breakpoint
 
--- Which customers a customers import made are now in use, so its rollback keeps them: a live lead
--- of any company, a consent of one of its contacts, or a relationship with a company that was not
--- made with the customer (another company took the customer on since). The policies would show
--- the caller only what their own companies hold, so this runs as a definer, answers only the ids
--- of the job's own customers that are in use, and only to a caller who may import in the job's
--- company within the request.
-create or replace function app.import_accounts_in_use(p_job uuid) returns setof uuid
-language plpgsql stable security definer set search_path = '' as $$
+-- Which customers of one chunk of a customers import's rollback are now in use, so the rollback
+-- keeps them: a live lead of any company, a consent of one of its contacts, a relationship with a
+-- company that was not made with the customer (another company took the customer on since), or
+-- an activity or a lead's tag someone other than the importer added after the import. The
+-- policies would show the caller only what their own companies hold, so this runs as a definer,
+-- answers only ids of the job's own customers among those given, and only to a caller who may
+-- import in the job's company within the request. It first locks those customers and their
+-- contacts until the transaction ends, so no lead, relationship or consent is added to one
+-- between this answer and the rollback archiving it.
+create or replace function app.import_accounts_in_use(p_job uuid, p_accounts uuid[])
+returns setof uuid
+language plpgsql volatile security definer set search_path = '' as $$
 declare
   v_entity smallint;
+  v_importer uuid;
+  v_ids uuid[];
 begin
-  select j.entity_id into v_entity
+  select j.entity_id, j.created_by into v_entity, v_importer
     from public.import_jobs j
    where j.id = p_job and j.kind = 'accounts';
   if not found or app.user_id() is null
@@ -156,24 +162,45 @@ begin
     raise exception 'import job % is outside the request scope', p_job
       using errcode = 'insufficient_privilege';
   end if;
+  -- The job's own customers among those given, locked in one order so two rollbacks never wait
+  -- on each other crosswise; then their contacts.
+  select coalesce(array_agg(l.id), '{}'::uuid[]) into v_ids
+    from (select a.id
+            from public.accounts a
+           where a.id = any (coalesce(p_accounts, '{}'::uuid[]))
+             and exists (select 1 from public.import_rows r
+                          where r.job_id = p_job and r.state = 'committed'
+                            and r.created_type = 'account' and r.created_id = a.id)
+           order by a.id
+             for update of a) l;
+  perform 1
+     from (select c.id
+             from public.contacts c
+             join public.account_contacts ac on ac.contact_id = c.id
+            where ac.account_id = any (v_ids)
+            order by c.id
+              for update of c) l;
   return query
-    select r.created_id
-      from public.import_rows r
-      join public.accounts a on a.id = r.created_id
-     where r.job_id = p_job
-       and r.state = 'committed'
-       and r.created_type = 'account'
+    select a.id
+      from public.accounts a
+     where a.id = any (v_ids)
        and (exists (select 1 from public.opportunities o
-                     where o.account_id = a.id and o.archived_at is null)
-            or exists (select 1
-                         from public.account_contacts ac
-                         join public.consents c on c.contact_id = ac.contact_id
-                        where ac.account_id = a.id)
-            or exists (select 1 from public.account_entities ae
-                        where ae.account_id = a.id and ae.created_at <> a.created_at));
+                    where o.account_id = a.id and o.archived_at is null)
+        or exists (select 1
+                     from public.account_contacts ac
+                     join public.consents c on c.contact_id = ac.contact_id
+                    where ac.account_id = a.id)
+        or exists (select 1 from public.account_entities ae
+                    where ae.account_id = a.id and ae.created_at <> a.created_at)
+        or exists (select 1 from public.activities v
+                    where v.account_id = a.id and v.created_at >= a.created_at
+                      and v.actor_principal_id <> v_importer)
+        or exists (select 1 from public.opportunity_tags g
+                    where g.account_id = a.id and g.created_at >= a.created_at
+                      and g.created_by <> v_importer));
 end
 $$;
 --> statement-breakpoint
-revoke execute on function app.import_accounts_in_use(uuid) from public, readonly_reporter;
+revoke execute on function app.import_accounts_in_use(uuid, uuid[]) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.import_accounts_in_use(uuid) to app_user;
+grant execute on function app.import_accounts_in_use(uuid, uuid[]) to app_user;

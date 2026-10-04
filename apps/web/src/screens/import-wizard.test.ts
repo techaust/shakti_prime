@@ -263,6 +263,27 @@ describe('the rows of the check step', () => {
     ).toEqual([{ kind: 'sameAsRow', rowNo: 3, site: 'added' }]);
   });
 
+  it('says a linked row and its repeats leave the customer’s sites as they are', () => {
+    const linked = newId();
+    expect(
+      rowFindings(
+        {
+          errors: [],
+          dedupe: {
+            inFileRowNo: null,
+            linkedTo: linked,
+            site: 'kept',
+            existing: [{ accountId: linked, contactId: newId(), matchedBy: 'phone' }],
+          },
+        },
+        { [linked]: 'Known Farm' },
+      ),
+    ).toEqual([{ kind: 'linked', name: 'Known Farm', site: 'kept' }]);
+    expect(
+      rowFindings({ errors: [], dedupe: { inFileRowNo: 2, existing: [], site: 'kept' } }, {}),
+    ).toEqual([{ kind: 'sameAsRow', rowNo: 2, site: 'kept' }]);
+  });
+
   it('reads a field through the job’s matching', () => {
     const mapping = { columns: { contactName: 'Name' }, defaults: {} };
     expect(rowValue({ raw: { Name: ' Gopal ' } }, mapping, 'contactName')).toBe('Gopal');

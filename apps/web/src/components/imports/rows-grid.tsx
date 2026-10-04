@@ -81,8 +81,8 @@ export function RowsGrid({
         });
       case 'linked':
         return f.name === undefined
-          ? t('finding.linkedUnnamed')
-          : t('finding.linked', { name: f.name });
+          ? t('finding.linkedUnnamed', { site: f.site ?? 'none' })
+          : t('finding.linked', { name: f.name, site: f.site ?? 'none' });
       case 'customer':
         if (f.matchedBy === 'name_village') {
           return f.name === undefined

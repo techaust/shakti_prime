@@ -40,8 +40,9 @@ export const ImportJobDto = z
     /** The batch that failed, counted from 1, when the job stopped as `failed`. */
     failedBatch: z.number().int().min(1).nullable(),
     /**
-     * The companies the checked rows name, the job's own included; null until the rows are
-     * checked. Adding the rows and undoing them need a request that acts for all of them.
+     * The companies the checked rows name, the job's own included, and those through which the
+     * importer saw a customer a row is linked to; null until the rows are checked. Adding the rows
+     * and undoing them need a request that acts for all of them.
      */
     entityIds: z.array(EntityIdSchema).nullable(),
     createdBy: IdSchema,
@@ -65,7 +66,7 @@ export type ImportRowErrorDto = z.infer<typeof ImportRowErrorDto>;
  * customers the caller can already see with that phone or with the same name in the same
  * village, each with the reason it was suggested. Suggestions only, but for a customers file:
  * a row whose mobile number belongs to a customer the caller can see is linked to that customer
- * (`linkedTo`), and a row folded into an earlier one says what became of its site (`site`).
+ * (`linkedTo`), and a row with a site that is folded or linked says what became of it (`site`).
  */
 export const ImportDedupeDto = z
   .object({
@@ -74,9 +75,11 @@ export const ImportDedupeDto = z
     linkedTo: IdSchema.optional(),
     /**
      * A customers row with a site, folded into an earlier one: its site is added to that
-     * customer, is the same as one already there, or is past the most one customer takes.
+     * customer, is the same as one already there, or is past the most one customer takes. A row
+     * linked to an existing customer, or folded into one that is, adds no site: `kept`, the
+     * customer's sites stay as they are.
      */
-    site: z.enum(['added', 'same', 'too_many']).optional(),
+    site: z.enum(['added', 'same', 'too_many', 'kept']).optional(),
     existing: z
       .array(
         z

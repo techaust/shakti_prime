@@ -72,9 +72,10 @@ export const importJobs = pgTable(
      */
     batchCount: integer('batch_count').notNull().default(0),
     /**
-     * The companies the preview found the rows naming, the job's own included: a commit or a
-     * rollback is refused up front in a request that does not act for all of them, and the import
-     * worker acts for exactly these. Null until the rows are checked.
+     * The companies the preview found the rows naming, the job's own included, and those through
+     * which the importer saw a customer a row is linked to: a commit or a rollback is refused up
+     * front in a request that does not act for all of them, and the import worker acts for
+     * exactly these. Null until the rows are checked.
      */
     entityIds: smallint('entity_ids').array(),
     ...timestamps,
