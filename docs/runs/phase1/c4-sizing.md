@@ -48,8 +48,21 @@ Read first:
 - Decisions the brief did not settle, taken by the first builder and kept: the review task is due at once; it goes to the active person with the Sales Team Lead role on the lead's team in its company, the longest-serving first when there are two; no task when the lead has no team or the team no lead; one open review of a lead per team lead, so a second out-of-bounds sizing adds none; the task carries no outbox event, as `crm.task.create` sends none.
 - Unfinished: the Linux baselines and the integration run, which are the lead's.
 
+### 04-10-2026, builder on the PC (review fixes)
+- The six findings of the review of e014a7f..730a0f2 are fixed (Review below); 0093 was edited in place, as it is not on `main`, and the database was made fresh. Sizing file 30 passed (8 cases added); `grants.test.ts` 108 passed; `pnpm typecheck` 8 successful, 8 total; unit tests 2,679 passed (copy-lint 17, tokens 134, ui 105, contracts 177, db 118, domain 1,540, web 588); `pnpm test:security` 1,662 passed (db 916, domain 540, web 206), 4 successful, 4 total; `pnpm lint` clean. The added lock reads the lead by `opportunities_id_entity_unique`, the index the sizing lookup already uses.
+
 ## Review
 Every finding is fixed on the branch; what needs C1 and C2 on `main` is in the integration notes.
+
+### Review of e014a7f..730a0f2
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | Medium | No test pins the definer's filters | Fixed (35c4f64, 2b4c4f8): cases for the caller's own sizing with only company 2 in the request, the lead reassigned to someone else, an archived lead, a lead with no team, and a team whose only team lead is suspended; removing each filter from the function in the local database fails its own case and no other. The no-team check is a shortcut: with it removed, the team-lead lookup on a null team finds nobody, so no test can fail on it alone |
+| 2 | Low | The agent and system guard test proves nothing | Fixed (35c4f64, 2b4c4f8): out-of-bounds sizings written as the migrator by the seeded sizing agent, a user principal holding `agent:copilot`, a voice session and a user principal acting as `system:workers`, each refused with "a sizing review is opened by people only"; removing the agent leg, the system leg or the principal-kind leg each fails the case |
+| 3 | Low | Two sizings recorded at once could open two reviews | Fixed (35c4f64): the function locks the lead (`for update`) after the sizing lookup and before the open-review check |
+| 4 | Low | Documents and the task machine | Fixed (35c4f64, b2d3fef, a4f53f0): design §6.7 Built says one open review of a lead per team lead; DATABASE §6.2 `tasks` names `app.open_sizing_review()` as its second insert path (and the data dictionary); `openReview` fires the task machine's `create` before the function, as `crm.task.create` does |
+| 5 | Low | The recorder could be asked to review their own sizing | Fixed (35c4f64, b2d3fef): the reviewer is never the recorder; no task when nobody else qualifies, and the next team lead when the longest-serving one recorded it; tested both ways; design §6.7 Built and DATABASE §4.1 say so |
+| 6 | Low | No screenshot of the opened sizing panel | Fixed (b2d3fef): `snap(page, 'customer-sizing')` in the sizing journey after the saved message has gone, masking the customer's name, numbers of five or more digits and years; baselines are the lead's (Linux) |
 
 ## Integration notes
 1. **Take `main`:** the branch's 0065 and 0066 clash with P2's on `main`; renumber after `main`'s last ([slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice)).
