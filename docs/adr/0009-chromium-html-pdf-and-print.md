@@ -1,6 +1,6 @@
 # ADR 0009 — Chromium-rendered HTML for PDFs and print
 
-**Status:** Proposed (2026-09-27; the week 6 Chromium spike on A4 PDFs and QR labels passed its rendering checks, `docs/spikes/print.md`; the hosting chosen on 29-09-2026 as below; a phone and scanner check of printed labels is open) · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
+**Status:** Accepted (29-09-2026, owner, with the hosting below; proposed 27-09-2026; the Chromium spike on A4 PDFs and QR labels passed its rendering checks, `docs/spikes/print.md`; a phone and scanner check of printed labels is open) · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
 
 ## Context
 The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp. A separate PDF library (drawing primitives or a React PDF renderer) would mean a second layout system beside the web app's CSS, a second set of fonts and tokens, and templates the on-screen print view cannot share. Documents are English only (ADR 0014), so no Devanagari shaping is needed.
@@ -18,7 +18,7 @@ The BOS issues customer and statutory documents for four companies: quotes, prof
 
 ## Consequences
 - One layout system and one token set for screen and paper; the design system's print rules are the only print rules.
-- Chromium is heavy: the worker needs a function size and memory budget that fits it (Vercel `bom1` with a Chromium build for serverless, or a small container worker in ap-south-1). The spike's numbers are below; the choice between the two stays open until a render has been measured on Linux in each.
+- Chromium is heavy: the worker needs a function size and memory budget that fits it. The owner chose a Vercel function in `bom1` with the serverless Chromium build (Hosting, below); a render on Linux is measured on the dev deployment before quotes depend on it, and the container worker in ap-south-1 is the fallback if that measure fails.
 - Rendering is asynchronous: a document is usable once its PDF exists; the UI shows the print view at once and the PDF link when the worker finishes.
 - Snapshot tests need a pinned Chromium version in CI so rendering differences come from template changes only.
 - A document once issued is immutable: a correction issues a new version and a new PDF, never an overwrite.

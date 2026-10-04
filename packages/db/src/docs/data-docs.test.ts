@@ -3,9 +3,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  groupModules,
   inferReference,
   parseCatalogue,
   parseMigrations,
+  parsePolicyRoleSweep,
   plannedColumns,
   readSources,
   renderDataDocs,
@@ -29,6 +31,28 @@ describe('the ERD and data dictionary (docs/data)', () => {
       expect(docs.dictionary.match(new RegExp(`^### ${table.name}$`, 'gm'))).toHaveLength(1);
       expect(docs.erd).toContain(`  ${table.name} {`);
     }
+  });
+
+  it('place every built table in a module, never under Other (give it a DATABASE.md §6 entry)', () => {
+    const catalogue = parseCatalogue(sources.databaseDoc);
+    const modules = groupModules(
+      Object.values(sources.snapshot.tables).map((t) => t.name),
+      catalogue,
+    );
+    expect(modules.find((m) => m.key === 'other')?.tables ?? []).toEqual([]);
+  });
+
+  it('name app_reader on the read policies 0062 and 0089 give it', () => {
+    const tables = parseMigrations(sources.migrations);
+    expect(tables.get('activities')?.policies.get('activities_read')?.roles).toBe(
+      'app_user, app_reader',
+    );
+    expect(tables.get('users')?.policies.get('users_read')?.roles).toBe('app_user, app_reader');
+    const sweep = sources.migrations.find((m) => m.name.startsWith('0062_'));
+    const blocks = [...(sweep?.sql ?? '').matchAll(/do\s+\$\$([\s\S]*?)\$\$/gi)];
+    expect(blocks.map((b) => parsePolicyRoleSweep(b[1] ?? '')).filter((s) => s !== null)).toEqual([
+      { holder: 'app_user', added: 'app_reader', commands: ['select', 'all'] },
+    ]);
   });
 
   it('list the tables DATABASE.md plans and no migration has built', () => {
@@ -138,6 +162,60 @@ describe('reading the SQL migrations', () => {
       events: 'update or delete',
       action: 'app.raise_append_only',
     });
+  });
+
+  it('applies alter policy and a do block that adds a role to the policies naming another', () => {
+    const tables = parseMigrations([
+      {
+        name: '0001_a.sql',
+        sql: [
+          'create policy w_read on widgets for select to app_user using (true);',
+          'create policy w_all on widgets to app_user using (true) with check (true);',
+          'create policy w_insert on widgets for insert to app_user with check (true);',
+          'create policy w_public on widgets for select using (true);',
+          'create policy g_read on gadgets for select to app_user using (true);',
+        ].join('\n'),
+      },
+      {
+        name: '0002_b.sql',
+        sql: [
+          'do $$',
+          'declare p record;',
+          'begin',
+          '  for p in select schemaname, tablename, policyname, roles from pg_policies',
+          "     where 'app_user' = any (roles) and not 'app_reader' = any (roles) and cmd in ('SELECT', 'ALL')",
+          '  loop',
+          "    execute format('alter policy %I on %I.%I to %s', p.policyname, p.schemaname, p.tablename,",
+          "      (select string_agg(quote_ident(r), ', ') from unnest(p.roles || array['app_reader']::name[]) r));",
+          '  end loop;',
+          'end',
+          '$$;',
+          'create policy late_read on widgets for select to app_user using (false);',
+        ].join('\n'),
+      },
+      {
+        name: '0003_c.sql',
+        sql: "alter policy late_read on widgets to app_user, app_reader using (note <> 'x');",
+      },
+    ]);
+    const roles = (table: string, policy: string) =>
+      tables.get(table)?.policies.get(policy)?.roles;
+    expect(roles('widgets', 'w_read')).toBe('app_user, app_reader');
+    expect(roles('widgets', 'w_all')).toBe('app_user, app_reader');
+    expect(roles('widgets', 'w_insert')).toBe('app_user');
+    expect(roles('widgets', 'w_public')).toBe('public');
+    expect(roles('gadgets', 'g_read')).toBe('app_user, app_reader');
+    expect(tables.get('widgets')?.policies.get('late_read')).toMatchObject({
+      roles: 'app_user, app_reader',
+      using: "note <> 'x'",
+      migration: '0003_c.sql',
+    });
+  });
+
+  it('refuses an alter policy for a policy no earlier migration created', () => {
+    expect(() =>
+      parseMigrations([{ name: '0001_a.sql', sql: 'alter policy ghost on widgets to app_user;' }]),
+    ).toThrow(/before it exists/);
   });
 
   it('records partitioning and exclusion constraints the snapshot cannot hold', () => {

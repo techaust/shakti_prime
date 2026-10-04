@@ -48,7 +48,7 @@ pnpm + Turborepo monorepo.
 | `pnpm --filter web js-budget`                  | After `pnpm build`: first-load JavaScript per page against `apps/web/js-budget.json`                                           |
 | `pnpm format`                                  | Prettier write                                                                                                                 |
 | `pnpm --filter web dev`                        | Run the web app locally                                                                                                        |
-| `pnpm db:docs`                                 | Regenerate the ERD and data dictionary in `docs/data`                                                                          |
+| `pnpm db:docs`                                 | Regenerate the ERD, the data dictionary and the event catalogue in `docs/data`                                                 |
 | `pnpm --filter @shakti/domain machines:docs`   | Regenerate the state-machine specifications in `docs/state-machines`                                                           |
 | `pnpm --filter @shakti/tokens build`           | Regenerate the token CSS and the app icon from `packages/tokens/src`                                                           |
 | `pnpm spike:print`                             | Print spike: A4 PDFs and QR label sheets with headless Chromium (`docs/spikes/print.md`)                                       |

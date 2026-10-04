@@ -289,6 +289,13 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+  opportunity_tags {
+    uuid opportunity_id PK, FK
+    uuid account_id FK
+    uuid tag_id PK, FK
+    smallint entity_id FK
+    timestamptz created_at
+  }
   pipeline_stages {
     uuid id PK
     uuid pipeline_id FK
@@ -359,6 +366,9 @@ erDiagram
   opportunities }o--|| pipeline_stages : "stage_id"
   opportunities }o--|| pipeline_stages : "stage_id, pipeline_id"
   opportunities }o--o| teams : "team_id"
+  opportunity_tags }o--|| entities : "entity_id"
+  opportunity_tags }o--|| opportunities : "opportunity_id, entity_id, account_id"
+  opportunity_tags }o--|| tags : "tag_id"
   pipeline_stages }o--o| entities : "entity_id"
   pipeline_stages }o--|| pipelines : "pipeline_id"
   pipelines }o--o| entities : "entity_id"
@@ -640,22 +650,6 @@ erDiagram
   import_rows }o--|| import_jobs : "job_id, entity_id"
   outbox_events }o--|| entities : "entity_id"
   saved_views }o--|| principals : "principal_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  opportunity_tags {
-    uuid opportunity_id PK, FK
-    uuid account_id FK
-    uuid tag_id PK, FK
-    smallint entity_id FK
-    timestamptz created_at
-  }
-  opportunity_tags }o--|| entities : "entity_id"
-  opportunity_tags }o--|| opportunities : "opportunity_id, entity_id, account_id"
-  opportunity_tags }o--|| tags : "tag_id"
 ```
 
 ## Planned tables

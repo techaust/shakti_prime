@@ -275,3 +275,27 @@ export const DeliveredEvent = z
   })
   .strict();
 export type DeliveredEvent = z.infer<typeof DeliveredEvent>;
+
+/** One catalogue entry with its payload as JSON Schema, for `docs/data/EVENTS.md` (`pnpm db:docs`). */
+export interface EventCatalogueEntry {
+  type: EventType;
+  subscribed: boolean;
+  payload: Record<string, unknown>;
+}
+
+/** The catalogue in its own order, each payload as JSON Schema, and the envelope a worker gets. */
+export function describeEventCatalogue(): {
+  version: typeof EVENT_VERSION;
+  envelope: Record<string, unknown>;
+  events: EventCatalogueEntry[];
+} {
+  return {
+    version: EVENT_VERSION,
+    envelope: z.toJSONSchema(DeliveredEvent),
+    events: EVENT_TYPES.map((type) => ({
+      type,
+      subscribed: eventCatalogue[type].subscribed,
+      payload: z.toJSONSchema(eventCatalogue[type].payload),
+    })),
+  };
+}

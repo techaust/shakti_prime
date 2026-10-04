@@ -313,6 +313,48 @@ function balanced(sql: string, open: number): { inner: string; end: number } {
 
 const ident = String.raw`(?:"?public"?\.)?"?([a-z_]+)"?`;
 
+/** `select` and the other commands as `pg_policies.cmd` writes them, for a policy's command. */
+const POLICY_COMMANDS: Record<string, string> = {
+  SELECT: 'select',
+  INSERT: 'insert',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  ALL: 'all',
+};
+
+const roleList = (roles: string): string[] =>
+  roles
+    .split(',')
+    .map((r) => r.trim())
+    .filter((r) => r !== '');
+
+/**
+ * A `do $$ … $$` block that walks `pg_policies` and adds a role to every policy that names
+ * another one, as 0062 gives `app_reader` every read policy of `app_user`:
+ * `where 'app_user' = any (roles) and not 'app_reader' = any (roles) and cmd in ('SELECT', 'ALL')`
+ * followed by an `alter policy` that appends `array['app_reader']` to the roles. Only that shape is
+ * read; any other dynamic SQL is left alone, and a test pins the shape to the migration.
+ */
+export interface PolicyRoleSweep {
+  holder: string;
+  added: string;
+  commands: string[];
+}
+
+export function parsePolicyRoleSweep(block: string): PolicyRoleSweep | null {
+  if (!/from\s+pg_policies/i.test(block) || !/alter policy/i.test(block)) return null;
+  const where =
+    /'([a-z_]+)'\s*=\s*any\s*\(\s*roles\s*\)\s+and\s+not\s+'([a-z_]+)'\s*=\s*any\s*\(\s*roles\s*\)\s+and\s+cmd\s+in\s*\(([^)]*)\)/i.exec(
+      block,
+    );
+  const appended = /roles\s*\|\|\s*array\[\s*'([a-z_]+)'\s*\]/i.exec(block);
+  if (where === null || appended === null || appended[1] !== where[2]) return null;
+  const commands = [...(where[3] ?? '').matchAll(/'([A-Z]+)'/g)]
+    .map((c) => POLICY_COMMANDS[c[1] ?? ''])
+    .filter((c) => c !== undefined);
+  return { holder: where[1] ?? '', added: where[2] ?? '', commands };
+}
+
 /** Applies every migration in order and returns the resulting SQL-only facts per table. */
 export function parseMigrations(migrations: readonly MigrationFile[]): Map<string, SqlTableInfo> {
   const tables = new Map<string, SqlTableInfo>();
@@ -376,6 +418,53 @@ export function parseMigrations(migrations: readonly MigrationFile[]): Map<strin
             withCheck,
             migration: file,
           });
+        },
+      },
+      {
+        // `alter policy … to roles [using (…)] [with check (…)]`; a rename is not handled.
+        re: new RegExp(
+          String.raw`alter policy\s+"?([a-z_]+)"?\s+on\s+${ident}(?:\s+to\s+([a-z_, ]+?))?\s*(?=using|with check|;|$)`,
+          'gi',
+        ),
+        apply: (m, sql, file) => {
+          const policy = info(m[2] ?? '').policies.get(m[1] ?? '');
+          if (policy === undefined) {
+            throw new Error(`${file}: alter policy ${m[1] ?? ''} on ${m[2] ?? ''} before it exists`);
+          }
+          let cursor = m.index + m[0].length;
+          const clause = (keyword: RegExp): string | null => {
+            const k = keyword.exec(sql.slice(cursor));
+            if (k?.index !== 0) return null;
+            const { inner, end } = balanced(sql, cursor + k[0].length - 1);
+            cursor = end;
+            while (/\s/.test(sql[cursor] ?? '')) cursor += 1;
+            return squash(inner);
+          };
+          if (m[3] !== undefined) policy.roles = roleList(m[3]).join(', ');
+          policy.using = clause(/^using\s*\(/i) ?? policy.using;
+          policy.withCheck = clause(/^with check\s*\(/i) ?? policy.withCheck;
+          policy.migration = file;
+        },
+      },
+      {
+        // A `do` block that adds a role to every policy naming another (0062: `app_reader`).
+        re: /do\s+\$\$([\s\S]*?)\$\$/gi,
+        apply: (m, _sql, file) => {
+          const sweep = parsePolicyRoleSweep(m[1] ?? '');
+          if (sweep === null) return;
+          for (const table of tables.values()) {
+            for (const policy of table.policies.values()) {
+              const roles = roleList(policy.roles);
+              if (
+                roles.includes(sweep.holder) &&
+                !roles.includes(sweep.added) &&
+                sweep.commands.includes(policy.command)
+              ) {
+                policy.roles = [...roles, sweep.added].join(', ');
+                policy.migration = file;
+              }
+            }
+          }
         },
       },
       {

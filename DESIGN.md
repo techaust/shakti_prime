@@ -2,6 +2,19 @@
 
 Blueprint reference: §11. Foundation: Linear's default app design (precision, density, restraint, one indigo accent), with light and dark themes generated the way Linear generates its own, for a business system used on desktops, phones and in the field.
 
+## Contents
+1. [Principles](#1-principles)
+2. [Colour tokens](#2-colour-tokens)
+3. [Typography](#3-typography)
+4. [Spacing, radius, elevation, motion](#4-spacing-radius-elevation-motion)
+5. [Layout](#5-layout)
+6. [Component patterns](#6-component-patterns)
+7. [Theme behaviour](#7-theme-behaviour)
+8. [Token delivery](#8-token-delivery)
+9. [Accessibility and formats](#9-accessibility-and-formats)
+10. [Quality checks](#10-quality-checks)
+11. [Voice and copy](#11-voice-and-copy)
+
 ## 1. Principles
 1. **Calm surface, dense where work happens.** Generous spacing on home pages and forms; tight, scannable rows in queues, grids and boards.
 2. **One accent.** Indigo `#5E6AD2`, Linear's default accent, is the only accent colour. Everything else is neutral or a semantic status colour.
@@ -168,7 +181,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
 - A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
-- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip): public pages measure 158 to 166 kB and staff pages 185 to 231 kB (the framework about 158 kB and the shared app shell about 20 kB), every staff page under the 250 kB aim. The company switcher's and profile menu's menus, the toasts and the search palette load after the page, and the last-resort error page carries only its own sentences, not the catalogue.
+- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip), which holds each page's limit, its measured size and the reason for it, and the default (`defaultKb`) for a page it does not name (BLUEPRINT §11.4). The company switcher's and profile menu's menus, the toasts and the search palette load after the page, and the last-resort error page carries only its own sentences, not the catalogue.
 - Copy lint over the message catalogue, which also holds the print strings, and the template JSON files under `packages/contracts/src/templates` (none yet; the first arrive in Phase 2); caller scripts and voice prompts join it when they exist (§11.4).
 
 ## 11. Voice and copy
