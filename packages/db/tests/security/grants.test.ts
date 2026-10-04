@@ -73,6 +73,12 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
+    // The role editor replaces a role's grants as a set (admin.role.permissions.set).
+    role_permissions: { i: true, u: true, d: true },
+    // The seed owns the catalogue and the roles; app_user updates only a role's customised
+    // mark, a column-level grant (role-editor.test.ts).
+    roles: { i: false, u: false },
+    permissions: { i: false, u: false },
     kit_components: { i: true, u: true, d: true },
     pump_curves: { i: true, u: true, d: true },
     users: { i: true, u: false },

@@ -8,6 +8,12 @@ export type ErrorKey = keyof (typeof en)['errors'];
 /** A staff role's display name under `roles.*`. */
 export type RoleNameKey = keyof (typeof en)['roles'];
 
+/** A permission's plain name under `adminRoles.permissions.*` (`permissionMessageKey()`). */
+export type PermissionNameKey = keyof (typeof en)['adminRoles']['permissions'];
+
+/** A module's name under `adminRoles.modules.*`. */
+export type ModuleNameKey = keyof (typeof en)['adminRoles']['modules'];
+
 declare module 'next-intl' {
   interface AppConfig {
     Messages: typeof en;

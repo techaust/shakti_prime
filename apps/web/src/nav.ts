@@ -10,6 +10,7 @@ import {
   Palette,
   Percent,
   ScrollText,
+  ShieldCheck,
   UserPlus,
   UsersRound,
   type LucideIcon,
@@ -99,6 +100,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: UsersRound,
     group: 'admin',
     requires: [{ key: 'admin.users.write', scope: 'all' }],
+  },
+  {
+    id: 'admin-roles',
+    href: '/admin/roles',
+    label: 'adminRoles',
+    icon: ShieldCheck,
+    group: 'admin',
+    requires: [{ key: 'admin.roles.write', scope: 'all' }],
   },
   {
     id: 'admin-activity',

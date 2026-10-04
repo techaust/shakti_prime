@@ -15,6 +15,8 @@ import { runMigrations } from '../migrate';
 import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
+/** The seed, so a test can prove a re-run keeps what an Executive changed (docs/DATABASE.md §9). */
+export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
 export { AGENT_PRINCIPAL_SEED, SYSTEM_PRINCIPAL_SEED } from '../../seeds/principals';
 export { ROLE_SEED, roleId } from '../../seeds/roles';

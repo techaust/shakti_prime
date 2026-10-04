@@ -512,6 +512,20 @@
       "when": 1791054699887,
       "tag": "0072_reader_covers_group",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791054700887,
+      "tag": "0073_role_editor",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791054701887,
+      "tag": "0074_role_editor_holders",
+      "breakpoints": true
     }
   ]
 }

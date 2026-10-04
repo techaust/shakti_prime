@@ -174,6 +174,20 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ roleId: IdSchema, revokedSessions: z.number().int().min(0) }).strict(),
   },
+  'admin.role.permissions_changed': {
+    subscribed: false,
+    payload: z
+      .object({
+        roleId: IdSchema,
+        grantCount: z.number().int().min(0),
+        added: z.number().int().min(0),
+        removed: z.number().int().min(0),
+        rescoped: z.number().int().min(0),
+        holders: z.number().int().min(0),
+        revokedSessions: z.number().int().min(0),
+      })
+      .strict(),
+  },
   'imports.job.committed': {
     subscribed: false,
     payload: z

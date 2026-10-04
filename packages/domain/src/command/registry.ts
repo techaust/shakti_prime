@@ -2,6 +2,7 @@ import { DomainError } from '@shakti/contracts';
 import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
+import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
@@ -66,6 +67,7 @@ export const commands = {
   [setCompositeRule.name]: setCompositeRule,
   [inviteUser.name]: inviteUser,
   [setUserRoles.name]: setUserRoles,
+  [setRolePermissions.name]: setRolePermissions,
   [suspendUser.name]: suspendUser,
   [reactivateUser.name]: reactivateUser,
   [revokeSession.name]: revokeSession,

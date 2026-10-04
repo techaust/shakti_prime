@@ -20,8 +20,10 @@ import type {
   OpportunityLostReason,
   OpportunityNurtureReason,
   OpportunityState,
+  PermissionKey,
   PriceSort,
   SavedViewScreen,
+  Scope,
   Segment,
   SessionRevokeReason,
   Theme,
@@ -265,6 +267,14 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
 
+/** Scopes from narrowest to widest (`SCOPES`). */
+export const SCOPE_VALUES = ['own', 'team', 'entity', 'all'] as const satisfies readonly Scope[];
+
+/** The two cost permissions (`COST_PERMISSIONS`): the role editor warns on each. */
+export const COST_PERMISSION_KEYS = [
+  'finance.cost.read',
+  'procurement.rate.read',
+] as const satisfies readonly PermissionKey[];
 /** `files.status`. */
 export const FILE_STATUSES = [
   'pending',
