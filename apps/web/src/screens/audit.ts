@@ -123,6 +123,7 @@ const ACTIONS = {
   'crm.disposition.set': 'dispositionsSet',
   'crm.score_rule.set': 'scoreRulesSet',
   'crm.lead.rescore': 'leadRescore',
+  'crm.lead.score_refresh': 'leadScoreRefresh',
   'crm.referral_partner.set': 'referralPartnerSet',
   'crm.commission_rule.set': 'commissionRuleSet',
   'auth.sign_in': 'signIn',

@@ -1,4 +1,5 @@
 import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import { REFERRAL_PARTNER } from './support/users';
 
 /** A mobile number no earlier run used, typed the way the counter types it. */
 function freshMobile(): string {
@@ -15,8 +16,7 @@ test.describe('the walk-in form as a Store Manager', () => {
     // One company, so the name box takes focus for the first customer.
     await expect(page.getByLabel('Customer name')).toBeFocused();
     await expect(page.getByLabel('Language for calls')).toHaveValue('hinglish');
-    // The referral code box waits for lead creation to apply codes.
-    await expect(page.getByLabel('Referral code')).toHaveCount(0);
+    await expect(page.getByLabel('Referral code')).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'leads-walk-in');
   });
@@ -57,6 +57,36 @@ test.describe('the walk-in form as a Store Manager', () => {
     await expect(
       page.getByText(`Walk-in saved for ${name}. The form is ready for the next customer.`),
     ).toBeVisible();
+  });
+
+  test('credits a walk-in to the partner whose code it brings, and refuses a code no partner has', async ({
+    page,
+  }) => {
+    await page.goto('/leads/walk-in');
+    const name = `Hari Om Jangid ${String(Date.now()).slice(-5)}`;
+    await page.getByLabel('Customer name').fill(name);
+    await page.getByLabel('Mobile number').fill(freshMobile());
+    await page.getByLabel('Interested in').selectOption({ label: 'Dealer and Wholesale' });
+    const code = page.getByLabel('Referral code');
+
+    // A code no active partner has is answered under the box, and nothing is saved.
+    await code.fill('NOSUCH99');
+    await page.getByRole('button', { name: 'Save walk-in' }).click();
+    await expect(
+      page.getByText(
+        'No active referral partner has this code. Check the code with the customer, or leave it empty.',
+      ),
+    ).toBeVisible();
+    await expect(code).toHaveAttribute('aria-invalid', 'true');
+    await expectNoAxeViolations(page);
+
+    // The partner's code, typed in small letters, is accepted.
+    await code.fill(REFERRAL_PARTNER.code.toLowerCase());
+    await page.getByRole('button', { name: 'Save walk-in' }).click();
+    await expect(
+      page.getByText(`Walk-in saved for ${name}. The form is ready for the next customer.`),
+    ).toBeVisible();
+    await expect(code).toHaveValue('');
   });
 });
 

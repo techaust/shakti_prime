@@ -32,7 +32,8 @@ const FIELDS = [
  * The walk-in quick form: name, mobile, language for calls, interest, village and PIN, the referral
  * code of the partner who sent the customer and, once the client's wording exists, the consent
  * tick. Keyboard first: the first box takes focus, Enter saves, and after a save the form clears
- * and the name box takes focus again for the next customer. One idempotency key per customer, so a double press saves one lead.
+ * and the name box takes focus again for the next customer. One idempotency key per customer, so
+ * a double press saves one lead.
  */
 export function WalkInForm({
   companies,

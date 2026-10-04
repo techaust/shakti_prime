@@ -1,4 +1,5 @@
 import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
+import { REFERRAL_PARTNER } from './support/users';
 
 test.describe('Settings › Pipelines as an Executive', () => {
   test.use(signedInAs('executive'));
@@ -26,8 +27,49 @@ test.describe('Settings › Pipelines as an Executive', () => {
     // The two list editors load after the pipelines.
     await expect(page.getByRole('button', { name: 'Save outcomes' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save rules' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Referral partners and commission', level: 2 }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add commission rule' })).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'settings-pipelines');
+  });
+
+  test('lists the referral partners with their codes and checks a commission rule before saving', async ({
+    page,
+  }) => {
+    await page.goto('/settings/pipelines');
+    const partners = page.getByRole('list', { name: 'Referral partners' });
+    const partner = partners.getByRole('listitem').filter({ hasText: REFERRAL_PARTNER.name });
+    await expect(partner).toContainText(`Code ${REFERRAL_PARTNER.code}`);
+    await expect(partner).toContainText('Code accepted');
+
+    // The code dialog opens with the partner's code and closes without a change.
+    const setCode = partner.getByRole('button', {
+      name: `Set the code of ${REFERRAL_PARTNER.name}`,
+    });
+    await setCode.click();
+    const dialog = page.getByRole('dialog', { name: 'Set a referral code' });
+    await expect(dialog.getByLabel('Referral code')).toHaveValue(REFERRAL_PARTNER.code);
+    await expect(dialog.getByLabel('Accept this code on new leads')).toBeChecked();
+    await expectNoAxeViolations(page);
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(setCode).toBeFocused();
+
+    // A date that does not exist is answered on the form, and no rule is saved.
+    const form = page
+      .locator('form')
+      .filter({ has: page.getByRole('button', { name: 'Add commission rule' }) });
+    await expect(
+      form.getByLabel('Partner').locator('option', { hasText: REFERRAL_PARTNER.name }),
+    ).toHaveCount(1);
+    await form.getByLabel('Amount').fill('500');
+    await form.getByLabel('From').fill('31022031');
+    await expect(form.getByText('Enter a real date as DD-MM-YYYY.')).toBeVisible();
+    await form.getByRole('button', { name: 'Add commission rule' }).click();
+    await expect(page.getByText('The commission rule is saved.')).toHaveCount(0);
+    await expectNoAxeViolations(page);
   });
 
   test('adds a stage, moves it up and archives it', async ({ page }) => {

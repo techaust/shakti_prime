@@ -41,6 +41,8 @@ export async function applyLeadAttribution(
         'no active partner of this company has this code',
         {
           reason: 'referral_code_unknown',
+          // So a form shows the sentence under its referral code box.
+          issues: [{ path: 'referralCode', message: 'referral_code_unknown' }],
         },
       );
     }

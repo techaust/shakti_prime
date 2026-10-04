@@ -16,7 +16,7 @@ export async function listEntities(ctx: Pick<RequestContext, 'tx'>): Promise<Ent
 /**
  * Where one company stands, for a worker that walks the companies in turn as `system:workers`,
  * scoped to that company: `live`, `archived` (kept, never deleted) or `missing` (no company has
- * * that number, so the walk is over: the seed numbers the companies from 1).
+ * that number, so the walk is over: the seed numbers the companies from 1).
  */
 export async function companyStanding(
   ctx: Pick<RequestContext, 'tx'>,

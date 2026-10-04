@@ -1249,6 +1249,7 @@
       "dispositionsSet": "Call outcomes changed",
       "scoreRulesSet": "Lead score rules changed",
       "leadRescore": "Lead scored again",
+      "leadScoreRefresh": "Lead scores brought up to date overnight",
       "referralPartnerSet": "Referral code set",
       "commissionRuleSet": "Commission rule set",
       "other": "Other change",
