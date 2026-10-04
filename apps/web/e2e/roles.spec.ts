@@ -18,8 +18,9 @@ test.describe('as an Executive, acting for every company', () => {
     await expect(page.getByRole('heading', { name: 'Roles', level: 1 })).toBeVisible();
     await showCompany(page, 'All companies');
     await expectNoAxeViolations(page);
-    // Holder counts change as other journeys invite people; the names and grants do not.
-    await snap(page, 'roles');
+    // Holder counts change as other journeys invite people, so they are masked (a column on a
+    // desktop, a line of each card on a phone); the names and grants do not change.
+    await snap(page, 'roles', { mask: [page.getByText(/^(\d+ (person|people)|No one)$/)] });
 
     await page.getByRole('link', { name: 'Change permissions of Store Manager' }).click();
     await expect(
