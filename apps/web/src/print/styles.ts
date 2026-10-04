@@ -2,6 +2,7 @@
 // font service is reached while rendering) and the light theme's tokens only, because printed
 // and shared documents are always light (DESIGN.md §1 rule 6, §6 Print templates).
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { colors, resolve, scale, type ColorToken } from '@shakti/tokens';
 
 // Inter (rsms/inter), SIL Open Font License 1.1: the same variable font, with the weight and
@@ -22,10 +23,18 @@ const FONT_FILES = [
 
 let fontCss: string | undefined;
 
+/**
+ * Where the font files are: under the app's own folder, which every runner of the templates starts
+ * in (the server, the tests, the scripts). A path from the module's own address would point into
+ * the server's build output instead; on Vercel the render route carries the folder with it
+ * (`outputFileTracingIncludes` in next.config.ts).
+ */
+export const FONTS_DIR = join('src', 'print', 'fonts');
+
 /** `@font-face` rules with the font files inlined as data URLs. Read once per process. */
 export function interFontFaces(): string {
   fontCss ??= FONT_FILES.map(({ file, range }) => {
-    const data = readFileSync(new URL(`./fonts/${file}`, import.meta.url)).toString('base64');
+    const data = readFileSync(join(process.cwd(), FONTS_DIR, file)).toString('base64');
     return `@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:block;src:url(data:font/woff2;base64,${data}) format('woff2');unicode-range:${range};}`;
   }).join('\n');
   return fontCss;
