@@ -9,12 +9,10 @@ import { partnerForCode } from './referrals';
  * What lead creation does for pipelines set-up (docs/design/phase1.md §6.6): a referral code
  * credits the lead to its partner, or refuses the lead (CRM-09), and the lead is scored with the
  * rules that apply to it (CRM-06). `crm.lead.create` calls it once, after the opportunity is
- * written and in the same transaction, so a refused code rolls the whole lead back:
- *
- *   Object.assign(opportunity, await applyLeadAttribution(ctx, { opportunityId: opportunity.id, entityId, input }));
- *
- * It writes no audit row of its own: the lead's creation row records the lead, and the returned
- * fields are what that row may add (`referralPartnerId`, `score`).
+ * written and in the same transaction, so a refused code rolls the whole lead back. It writes no
+ * audit row of its own: the lead's creation row records the fields it returns (`referralPartnerId`,
+ * `score`). The import batch's set-based path scores its leads with `scoreLeads()` and sends a row
+ * with a referral code through `crm.lead.create`.
  */
 
 type OpportunityRow = typeof schema.opportunities.$inferSelect;

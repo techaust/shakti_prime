@@ -391,6 +391,100 @@ describe('stages', () => {
     expect(await ask(gm)).toBeInstanceOf(Error);
     expect(await ask(exec)).toBeUndefined();
   });
+
+  describe('a lead moving into a stage and the stage being archived (L1)', () => {
+    /** A transaction that runs `work`, then holds its locks until `release` is called. */
+    function held(principal: Principal, command: AnyCommand, input: unknown) {
+      let release = () => {};
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let ran = () => {};
+      const reached = new Promise<void>((resolve) => {
+        ran = resolve;
+      });
+      const done = asPrincipal(principal, async (context) => {
+        try {
+          return await runCommand(command, { context, audit, outbox }, input);
+        } finally {
+          ran();
+          await gate;
+        }
+      });
+      return { reached, release, done: refusal(done) };
+    }
+
+    async function freshLead(pipelineKey: string): Promise<string> {
+      const lead = (await run(caller, createLead, {
+        entityId: 1,
+        pipelineKey,
+        contact: {
+          name: 'Stage lock customer',
+          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+        },
+        account: { type: 'farm' },
+      })) as { id: string };
+      return lead.id;
+    }
+
+    const pause = () => new Promise((resolve) => setTimeout(resolve, 400));
+
+    it('a move waits for an archive under way, then finds no live stage', async () => {
+      const p = await testPipeline();
+      const leadId = await freshLead(p.key);
+      const archive = held(exec, archiveStage, { stageId: p.stages.contacted });
+      await archive.reached;
+      const move = refusal(
+        run(caller, moveOpportunityStage, {
+          entityId: 1,
+          opportunityId: leadId,
+          stageId: p.stages.contacted,
+        }),
+      );
+      await pause();
+      archive.release();
+      expect(await archive.done).toBeUndefined();
+      expect(await move).toMatchObject({ details: { reason: 'stage_missing' } });
+      const [row] = await asMigrator(
+        (m) =>
+          m<{ stage: string }[]>`select stage_id as stage from opportunities where id = ${leadId}`,
+      );
+      expect(row?.stage).toBe(p.stages.new);
+    });
+
+    it('an archive waits for a move under way, then finds the lead in the stage', async () => {
+      const p = await testPipeline();
+      const leadId = await freshLead(p.key);
+      const move = held(caller, moveOpportunityStage, {
+        entityId: 1,
+        opportunityId: leadId,
+        stageId: p.stages.contacted,
+      });
+      await move.reached;
+      const archive = refusal(run(exec, archiveStage, { stageId: p.stages.contacted }));
+      await pause();
+      move.release();
+      expect(await move.done).toBeUndefined();
+      expect(await archive).toMatchObject({ details: { reason: 'stage_has_open_leads' } });
+    });
+
+    it('locks only for a caller who may write leads, and only a live stage', async () => {
+      const p = await testPipeline();
+      const lock = (principal: Principal, stage: string) =>
+        asPrincipal(principal, async ({ tx }) => {
+          const rows = (await tx.execute(
+            sql`select app.share_lock_stage(${stage}::uuid) as locked`,
+          )) as unknown as { locked: boolean }[];
+          return rows[0]?.locked;
+        });
+      const accounts = await createTestPrincipal('accounts', [1]);
+      expect(await refusal(lock(accounts, p.stages.new))).toBeInstanceOf(Error);
+      expect(await lock(caller, p.stages.contacted)).toBe(true);
+      await run(exec, archiveStage, { stageId: p.stages.contacted });
+      expect(await lock(caller, p.stages.contacted)).toBe(false);
+      expect(await lock(caller, newId())).toBe(false);
+    });
+  });
 });
 
 describe('the seed keeps what an Executive set (DATABASE §9)', () => {

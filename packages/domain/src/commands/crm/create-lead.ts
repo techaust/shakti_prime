@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
+import { applyLeadAttribution } from './lead-attribution';
 
 /** What `app.attach_account_entity()` found (migration 0026). */
 type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';
@@ -78,7 +79,10 @@ export function leadCreatedActivity(
  * caller, for a new customer (contact with its phone, account, optional site and consent) or for
  * a customer the group already knows (`existingAccountId`, ADR 0008), whose relationship with the
  * caller's entity is added if missing. Walk-in, manual entry and imports come through here
- * (CRM-01). Dedupe suggestions are Phase 1.
+ * (CRM-01). A referral code credits the lead to its partner, or refuses the lead (CRM-09), and
+ * the lead is scored with the rules of its company (CRM-06), in the same transaction
+ * (`applyLeadAttribution`); the audit row records the partner and the score. Dedupe suggestions
+ * are Phase 1.
  */
 export const createLead = defineCommand({
   name: 'crm.lead.create',
@@ -88,7 +92,7 @@ export const createLead = defineCommand({
   alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
   input: CreateLeadInput,
   output: LeadDto,
-  auditFields: ['existingAccount', 'consent'],
+  auditFields: ['existingAccount', 'consent', 'score'],
   async handler(ctx, input) {
     if (!ctx.entityIds.includes(input.entityId)) {
       throw new DomainError('forbidden', 'entity outside the request scope', {
@@ -308,6 +312,11 @@ export const createLead = defineCommand({
       })
       .returning();
     if (!opportunity) throw new DomainError('internal', 'opportunity insert returned no row');
+    // The partner a referral code names, or the lead refused; then its score and reasons.
+    Object.assign(
+      opportunity,
+      await applyLeadAttribution(ctx, { opportunityId: opportunity.id, entityId, input }),
+    );
 
     await ctx.activity(leadCreatedActivity(input, opportunity.id, account.id));
     if (input.consent !== undefined) {
@@ -338,6 +347,8 @@ export const createLead = defineCommand({
         teamId,
         sourceId,
         consent: input.consent ?? null,
+        referralPartnerId: opportunity.referralPartnerId,
+        score: opportunity.score,
       },
     });
 
