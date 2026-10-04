@@ -96,66 +96,6 @@ const LEAD_WRITE = [
   { permission: 'crm.account.write', minScope: 'own' },
 ] as const satisfies readonly Requirement[];
 
-/** What one kind's rows make, and the record type a committed row names. */
-interface KindCommit {
-  createdType: ImportCreatedType;
-  /** The whole batch in a few statements, each kept to the deadline by `keep`. */
-  setBased(
-    ctx: CommandContext,
-    sp: RequestTx,
-    jobId: string,
-    rows: readonly BatchRow[],
-    keep: (tx: RequestTx) => Promise<void>,
-  ): Promise<{ created: { rowNo: number; id: string }[]; refused: number[] }>;
-  /**
-   * One row in its own savepoint: what it made (none for an office it corrected), or refused; a
-   * lead refused for a colleague's customer throws that refusal instead.
-   */
-  oneRow(
-    ctx: CommandContext,
-    rowSp: RequestTx,
-    jobId: string,
-    row: BatchRow,
-  ): Promise<{ id: string | null } | 'refused'>;
-}
-
-const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
-  leads: {
-    createdType: 'opportunity',
-    async setBased(ctx, sp, jobId, rows, keep) {
-      return { created: await commitLeadBatch(ctx, sp, jobId, rows, keep), refused: [] };
-    },
-    async oneRow(ctx, rowSp, jobId, row) {
-      // A refusal for a colleague's customer throws, so the row's savepoint takes back its key.
-      const lead = await ctx.run(createLead, row.input, {
-        tx: rowSp,
-        idempotencyKey: importRowKey(jobId, row.rowNo),
-        auditedByCaller: true,
-        inImportBatch: true,
-      });
-      return { id: lead.id };
-    },
-  },
-  accounts: {
-    createdType: 'account',
-    setBased: (ctx, sp, _jobId, rows, keep) => commitAccountBatch(ctx, sp, rows, keep),
-    async oneRow(ctx, rowSp, _jobId, row) {
-      const done = await commitAccountBatch(ctx, rowSp, [row]);
-      return done.refused.length > 0 ? 'refused' : { id: done.created[0]?.id ?? null };
-    },
-  },
-  pin_codes: {
-    createdType: 'pin_code',
-    async setBased(ctx, sp, _jobId, rows, keep) {
-      return { ...(await commitPinCodeBatch(ctx, sp, rows, keep)), refused: [] };
-    },
-    async oneRow(ctx, rowSp, _jobId, row) {
-      const done = await commitPinCodeBatch(ctx, rowSp, [row]);
-      return { id: done.created[0]?.id ?? null };
-    },
-  },
-};
-
 /**
  * `imports.job.commit` (IMP-01): a previewed job with valid rows starts committing. The rows go
  * in batch by batch through `imports.job.commit_batch`, run by the import worker; asking again
@@ -497,3 +437,68 @@ export const commitImportBatch = defineCommand({
     return toImportJobDto(after);
   },
 });
+
+/*
+ * What each kind's rows make, set-based and one row at a time. Kept below the batch command that
+ * uses it, so the batch's source names the functions it calls (event-emitters.test.ts reads it).
+ */
+
+/** What one kind's rows make, and the record type a committed row names. */
+interface KindCommit {
+  createdType: ImportCreatedType;
+  /** The whole batch in a few statements, each kept to the deadline by `keep`. */
+  setBased(
+    ctx: CommandContext,
+    sp: RequestTx,
+    jobId: string,
+    rows: readonly BatchRow[],
+    keep: (tx: RequestTx) => Promise<void>,
+  ): Promise<{ created: { rowNo: number; id: string }[]; refused: number[] }>;
+  /**
+   * One row in its own savepoint: what it made (none for an office it corrected), or refused; a
+   * lead refused for a colleague's customer throws that refusal instead.
+   */
+  oneRow(
+    ctx: CommandContext,
+    rowSp: RequestTx,
+    jobId: string,
+    row: BatchRow,
+  ): Promise<{ id: string | null } | 'refused'>;
+}
+
+const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
+  leads: {
+    createdType: 'opportunity',
+    async setBased(ctx, sp, jobId, rows, keep) {
+      return { created: await commitLeadBatch(ctx, sp, jobId, rows, keep), refused: [] };
+    },
+    async oneRow(ctx, rowSp, jobId, row) {
+      // A refusal for a colleague's customer throws, so the row's savepoint takes back its key.
+      const lead = await ctx.run(createLead, row.input, {
+        tx: rowSp,
+        idempotencyKey: importRowKey(jobId, row.rowNo),
+        auditedByCaller: true,
+        inImportBatch: true,
+      });
+      return { id: lead.id };
+    },
+  },
+  accounts: {
+    createdType: 'account',
+    setBased: (ctx, sp, _jobId, rows, keep) => commitAccountBatch(ctx, sp, rows, keep),
+    async oneRow(ctx, rowSp, _jobId, row) {
+      const done = await commitAccountBatch(ctx, rowSp, [row]);
+      return done.refused.length > 0 ? 'refused' : { id: done.created[0]?.id ?? null };
+    },
+  },
+  pin_codes: {
+    createdType: 'pin_code',
+    async setBased(ctx, sp, _jobId, rows, keep) {
+      return { ...(await commitPinCodeBatch(ctx, sp, rows, keep)), refused: [] };
+    },
+    async oneRow(ctx, rowSp, _jobId, row) {
+      const done = await commitPinCodeBatch(ctx, rowSp, [row]);
+      return { id: done.created[0]?.id ?? null };
+    },
+  },
+};

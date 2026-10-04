@@ -301,6 +301,16 @@ erDiagram
     smallint entity_id FK
     timestamptz created_at
   }
+  pin_codes {
+    uuid id PK
+    text pin
+    text office_name
+    text taluk "null"
+    text district
+    text state_code "null"
+    timestamptz created_at
+    timestamptz updated_at
+  }
   pipeline_stages {
     uuid id PK
     uuid pipeline_id FK
@@ -655,22 +665,6 @@ erDiagram
   import_rows }o--|| import_jobs : "job_id, entity_id"
   outbox_events }o--|| entities : "entity_id"
   saved_views }o--|| principals : "principal_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  pin_codes {
-    uuid id PK
-    text pin
-    text office_name
-    text taluk "null"
-    text district
-    text state_code "null"
-    timestamptz created_at
-    timestamptz updated_at
-  }
 ```
 
 ## Planned tables

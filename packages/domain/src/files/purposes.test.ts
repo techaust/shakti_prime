@@ -12,11 +12,21 @@ describe('file purposes', () => {
     expect(Object.keys(FILE_PURPOSE_RULES).sort()).toEqual([...FILE_PURPOSES].sort());
   });
 
-  it('opens the upload flow to the purposes with a writer, never to imports or the vault yet', () => {
+  it('opens the upload flow to the purposes with a writer, an import file among them, never the vault yet', () => {
     expect([...UPLOADABLE_PURPOSES].sort()).toEqual(
-      ['consent_evidence', 'entity_logo', 'letterhead', 'quote_pdf', 'signed_quote'].sort(),
+      [
+        'consent_evidence',
+        'entity_logo',
+        'import',
+        'letterhead',
+        'quote_pdf',
+        'signed_quote',
+      ].sort(),
     );
-    expect(uploadPermission.of({ purpose: 'import' })).toBeNull();
+    expect(uploadPermission.of({ purpose: 'import' })).toEqual({
+      permission: 'imports.write',
+      minScope: 'entity',
+    });
     expect(uploadPermission.of({ purpose: 'knowledge' })).toBeNull();
     expect(uploadPermission.of({ purpose: 'job_photo' })).toBeNull();
     expect(uploadPermission.of({ purpose: 'entity_logo' })).toEqual({

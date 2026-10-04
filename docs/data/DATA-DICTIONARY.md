@@ -6,10 +6,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - **Org:** [`document_sequences`](#document_sequences), [`entities`](#entities), [`permissions`](#permissions), [`principals`](#principals), [`role_permissions`](#role_permissions), [`roles`](#roles), [`teams`](#teams)
 - **Identity:** [`auth_accounts`](#auth_accounts), [`auth_verifications`](#auth_verifications), [`sessions`](#sessions), [`user_entity_roles`](#user_entity_roles), [`user_two_factor`](#user_two_factor), [`users`](#users)
-- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_sites`](#customer_sites), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`tags`](#tags), [`tasks`](#tasks)
+- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_sites`](#customer_sites), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pin_codes`](#pin_codes), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`tags`](#tags), [`tasks`](#tasks)
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`outbox_events`](#outbox_events), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views)
-- **Other:** [`pin_codes`](#pin_codes)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -851,7 +850,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### contacts
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0004): `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008)
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `name`, `name_key` (generated: the name in lower case, letters and digits only, with a partial index on live contacts, for the import's name-and-village dedupe; 0090), `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -896,7 +895,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### customer_sites
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0004): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json`
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `village_key` (generated: the village in lower case, letters and digits only, with a partial index on live sites, so the import's name-and-village dedupe is an index condition under the policies; 0090), `tehsil`, `district`, `pin`, `pin_needs_review` (the PIN is not in `pin_codes`; 0090), `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json`; the trigger `app.customer_sites_pin_fill()` fills the tehsil, district and state a site leaves empty from the offices of its PIN, where they all agree, and sets `pin_needs_review` for a PIN outside the master (PRD CRM-02, 0091)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1106,6 +1105,55 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `opportunity_tags_delete` (delete, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))`
 - `opportunity_tags_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id)) and exists (select 1 from tags t where t.id = opportunity_tags.tag_id and t.archived_at is null and (t.entity_id is null or t.entity_id = opportunity_tags.entity_id))`
 - `opportunity_tags_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id)`
+
+### pin_codes
+
+**Catalogue entry** (DATABASE.md §6.2; created in 0090): `pin` (six digits), `office_name` (unique with the PIN), `taluk` (the screens say tehsil), `district`, `state_code` (two-digit GST state code); the PIN code master, one row per post office of the public India Post directory, shared by every company; read by every signed-in request (and `app_reader`); written only by the `pin_codes` import, with `imports.write:all` in a request for every active company (`app.request_covers_group()`): an import adds offices and corrects the taluk, district and state of one it already has (column-level update grant), and its rollback deletes only the offices it added (0091)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `pin` | text | no |  |  |
+| `office_name` | text | no |  |  |
+| `taluk` | text | yes |  |  |
+| `district` | text | no |  |  |
+| `state_code` | text | yes |  |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+| `created_by` | uuid | no |  | → `principals.id` |
+| `updated_by` | uuid | yes |  | → `principals.id` |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `pin_codes_pin_office_unique`: (`pin`, `office_name`)
+
+**Foreign keys**
+
+- `pin_codes_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
+- `pin_codes_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
+
+**Check constraints**
+
+- `pin_codes_district_check`: `char_length("pin_codes"."district") between 2 and 120`
+- `pin_codes_office_name_check`: `char_length("pin_codes"."office_name") between 1 and 120`
+- `pin_codes_pin_check`: `"pin_codes"."pin" ~ '^[1-9][0-9]{5}$'`
+- `pin_codes_state_code_check`: `"pin_codes"."state_code" is null or "pin_codes"."state_code" ~ '^[0-9]{2}$'`
+- `pin_codes_taluk_check`: `"pin_codes"."taluk" is null or char_length("pin_codes"."taluk") between 1 and 120`
+
+**Triggers**
+
+- `set_updated_at`: before update, runs `app.set_updated_at()`
+
+**Row-level security:** enabled and forced; 4 policies.
+
+- `pin_codes_delete` (delete, to app_user): using `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`
+- `pin_codes_insert` (insert, to app_user): with check `(select app.has_perm('imports.write:all')) and (select app.request_covers_group()) and created_by = (select app.user_id())`
+- `pin_codes_read` (select, to app_user, app_reader): using `(select app.user_id()) is not null`
+- `pin_codes_update` (update, to app_user): using `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`; with check `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`
 
 ### pipeline_stages
 
@@ -1874,7 +1922,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### files
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead (§4.4)
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead, and the partial index `(entity_id, created_at) where status = 'pending'` for the sweep of abandoned uploads (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1974,7 +2022,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_jobs
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind` (`leads`; `accounts`, customers with a relationship per row's company and the rows of one mobile number folded into one customer; `pin_codes`, the PIN code master; `items` and `tally_masters` with their modules), `file_id` (unique: one uploaded file starts one job, 0090) and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2042,7 +2090,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_mapping_templates
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040 and 0041)
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind` (`leads`, `accounts`, `pin_codes`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040, 0041 and 0090)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2086,7 +2134,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_rows
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0040): primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter`
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`, `account`, `pin_code`: the record the row made; none for an office a PIN code file corrected), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2267,57 +2315,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `saved_views_insert` (insert, to app_user): with check `principal_id = (select app.user_id())`
 - `saved_views_read` (select, to app_user, app_reader): using `principal_id = (select app.user_id())`
 - `saved_views_update` (update, to app_user): using `principal_id = (select app.user_id())`; with check `principal_id = (select app.user_id())`
-
-## Other
-
-### pin_codes
-
-**Catalogue entry:** none in DATABASE.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `pin` | text | no |  |  |
-| `office_name` | text | no |  |  |
-| `taluk` | text | yes |  |  |
-| `district` | text | no |  |  |
-| `state_code` | text | yes |  |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-| `created_by` | uuid | no |  | → `principals.id` |
-| `updated_by` | uuid | yes |  | → `principals.id` |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `pin_codes_pin_office_unique`: (`pin`, `office_name`)
-
-**Foreign keys**
-
-- `pin_codes_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
-- `pin_codes_updated_by_principals_id_fk`: (`updated_by`) → `principals` (`id`)
-
-**Check constraints**
-
-- `pin_codes_district_check`: `char_length("pin_codes"."district") between 2 and 120`
-- `pin_codes_office_name_check`: `char_length("pin_codes"."office_name") between 1 and 120`
-- `pin_codes_pin_check`: `"pin_codes"."pin" ~ '^[1-9][0-9]{5}$'`
-- `pin_codes_state_code_check`: `"pin_codes"."state_code" is null or "pin_codes"."state_code" ~ '^[0-9]{2}$'`
-- `pin_codes_taluk_check`: `"pin_codes"."taluk" is null or char_length("pin_codes"."taluk") between 1 and 120`
-
-**Triggers**
-
-- `set_updated_at`: before update, runs `app.set_updated_at()`
-
-**Row-level security:** enabled and forced; 4 policies.
-
-- `pin_codes_delete` (delete, to app_user): using `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`
-- `pin_codes_insert` (insert, to app_user): with check `(select app.has_perm('imports.write:all')) and (select app.request_covers_group()) and created_by = (select app.user_id())`
-- `pin_codes_read` (select, to app_user, app_reader): using `(select app.user_id()) is not null`
-- `pin_codes_update` (update, to app_user): using `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`; with check `(select app.has_perm('imports.write:all')) and (select app.request_covers_group())`
 
 ## Planned tables
 
