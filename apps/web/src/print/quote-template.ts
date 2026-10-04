@@ -91,7 +91,7 @@ table.totals td{padding:3px 6px;}
 table.totals tr.total td{border-top:1px solid var(--border-strong);font-weight:590;font-size:14px;line-height:20px;padding-top:6px;}
 .terms ol{margin:4px 0 0;padding-left:18px;}
 .closing{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:14px;break-inside:avoid;}
-.closing .bank{margin-top:12px;}
+.words .bank{margin-top:12px;}
 .sign{margin-top:14px;}
 .sign p{margin:0;}
 .sign .for{font-weight:590;}
@@ -199,6 +199,7 @@ export async function renderQuote(
           <div class="words">
             <p class="label">${t('quote.inWords')}</p>
             <p>${quote.totals.totalInWords}</p>
+            ${bankBlock(quote.company, t)}
           </div>
           <table class="totals">
             <tr>
@@ -230,7 +231,6 @@ export async function renderQuote(
                 ${quote.terms.map((term) => html`<li>${term}</li>`)}
               </ol>
             </div>
-            ${bankBlock(quote.company, t)}
             <div class="sign">
               <p class="for">${t('quote.signatory', { entity: quote.company.legalName })}</p>
               <p class="muted">${t('quote.preparedBy', { name: quote.preparedBy })}</p>
