@@ -4,9 +4,17 @@ import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/tes
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
+import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
+import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue-queries';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
+import {
+  listCustomers,
+  listMyTasks,
+  listTimeline,
+  loadAccount360,
+} from '../../src/queries/crm/customers';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
@@ -18,6 +26,12 @@ import {
 } from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 import {
+  countFilesAwaitingChecks,
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+} from '../../src/queries/files/file-queries';
+import {
   getImportJob,
   listImportJobs,
   listImportRows,
@@ -26,7 +40,9 @@ import {
 import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
+import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
+import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 
 afterAll(closeDb);
 
@@ -45,10 +61,15 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
   listUserSessions: (ctx) => listUserSessions(ctx, { userId: ctx.principal.id }),
   searchPeople: (ctx) => searchPeople(ctx, { q: 'kum' }),
+  listRoles: (ctx) => listRoles(ctx),
+  getRoleGrants: (ctx) => getRoleGrants(ctx, { roleKey: 'tele_caller_cc' }),
   queryAudit: (ctx) => queryAudit(ctx, { from: WEEK_AGO, to: NOW, limit: 20 }),
   listAuditPeople: (ctx) => listAuditPeople(ctx, { from: WEEK_AGO, to: NOW }),
   listItems: (ctx) => listItems(ctx, { limit: 20 }),
   listItemsWithCost: (ctx) => listItemsWithCost(ctx, 1, { limit: 20 }),
+  listKits: (ctx) => listKits(ctx, { limit: 20, includeArchived: true }),
+  getItem: (ctx) => getItem(ctx, { itemId: newId() }),
+  getKit: (ctx) => getKit(ctx, { kitId: newId() }),
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),
@@ -61,6 +82,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listDispositions: (ctx) => listDispositions(ctx, { entityId: null, segment: null }),
   listScoreRules: (ctx) => listScoreRules(ctx, { entityId: 1, segment: 'farmer_pumps' }),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
+  listCustomers: (ctx) => listCustomers(ctx, { limit: 20 }),
+  searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),
+  searchCustomersByPhone: (ctx) => listCustomers(ctx, { q: '98765', limit: 20 }),
+  loadAccount360: (ctx) => loadAccount360(ctx, { accountId: newId(), entityId: 1 }),
+  listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
+  listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
   listImportJobs: (ctx) => listImportJobs(ctx, { entityId: 1, limit: 20 }),
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
@@ -69,7 +96,14 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
+  listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
+  listPriceChanges: (ctx) => listPriceChanges(ctx, { itemId: newId() }),
+  readTaxSettings: (ctx) => readTaxSettings(ctx),
   listSavedViews: (ctx) => listSavedViews(ctx, { screen: 'leads' }),
+  getFile: (ctx) => getFile(ctx, newId()),
+  getStoredFile: (ctx) => getStoredFile(ctx, newId()),
+  listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
+  countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
@@ -104,7 +138,8 @@ describe('every query reads the same on the reader pool as on app_user', () => {
       .filter(([name, value]) => typeof value === 'function' && QUERY_NAMES.test(name))
       .map(([name]) => name)
       .sort();
-    expect(exported).toEqual(Object.keys(QUERIES).sort());
+    const covered = Object.keys(QUERIES).filter((name) => !SEARCH_VARIANTS.has(name));
+    expect(exported).toEqual(covered.sort());
   });
 
   for (const { role, entities } of CALLERS) {
@@ -120,5 +155,11 @@ describe('every query reads the same on the reader pool as on app_user', () => {
   }
 });
 
-/** The names of the exported read functions: `list…`, `search…`, `get…`, `count…`, `query…`, `read…`. */
-const QUERY_NAMES = /^(list|search|get(?!Command)|count|query|read)[A-Z]/;
+/**
+ * The names of the exported read functions: `list…`, `search…`, `get…`, `count…`, `query…`,
+ * `read…`, and `load…` but for `loadUserDto`, which runs inside commands on their transaction.
+ */
+const QUERY_NAMES = /^(list|search|get(?!Command)|count|query|read|load(?!UserDto))[A-Z]/;
+
+/** Further calls of an exported query, with the input that takes another path through it. */
+const SEARCH_VARIANTS = new Set(['searchCustomers', 'searchCustomersByPhone']);

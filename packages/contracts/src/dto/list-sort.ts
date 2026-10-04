@@ -43,3 +43,18 @@ export const IMPORT_JOB_SORT_COLUMNS = [
 ] as const;
 export const ImportJobSortSchema = listSortOf(IMPORT_JOB_SORT_COLUMNS);
 export type ImportJobSort = z.infer<typeof ImportJobSortSchema>;
+
+/** Catalogue › Items: the shared catalogue, a few thousand items at most. */
+export const ITEM_SORT_COLUMNS = ['name', 'sku', 'category', 'hsn', 'updated'] as const;
+export const ItemSortSchema = listSortOf(ITEM_SORT_COLUMNS);
+export type ItemSort = z.infer<typeof ItemSortSchema>;
+
+/** Catalogue › Kits. */
+export const KIT_SORT_COLUMNS = ['name', 'sku', 'updated'] as const;
+export const KitSortSchema = listSortOf(KIT_SORT_COLUMNS);
+export type KitSort = z.infer<typeof KitSortSchema>;
+
+/** Price Master › Kits: the kits of one price list. */
+export const KIT_PRICE_SORT_COLUMNS = ['kit', 'code', 'price', 'updated'] as const;
+export const KitPriceSortSchema = listSortOf(KIT_PRICE_SORT_COLUMNS);
+export type KitPriceSort = z.infer<typeof KitPriceSortSchema>;

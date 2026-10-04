@@ -18,9 +18,33 @@
       "maxKb": 240,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Integration health grids, the delivery check and Send again. Measured 224.6 kB on 30-09-2026, plus 5 %."
     },
+    "/admin/roles": {
+      "maxKb": 234,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the roles table. Measured 222.2 kB on 04-10-2026, plus 5 %."
+    },
+    "/admin/roles/[roleKey]": {
+      "maxKb": 201,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the permission choices of one role; the confirmation loads when first opened. Measured 190.7 kB on 04-10-2026, plus 5 %."
+    },
     "/admin/users": {
       "maxKb": 245,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the team grid, its row menu, saved views and the user dialogs. Measured 230.6 kB on 29-09-2026, plus 5 %."
+    },
+    "/customers": {
+      "maxKb": 240,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the customers grid with its search and saved views. Measured 228.1 kB on 04-10-2026, plus 5 %."
+    },
+    "/customers/[accountId]": {
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips and task buttons; its edit, task, note, consent and tag dialogs, with the proof uploader, load when one is first opened. Measured 193.1 kB on 04-10-2026, plus 5 %."
+    },
+    "/catalogue": {
+      "maxKb": 245,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %."
+    },
+    "/catalogue/kits": {
+      "maxKb": 241,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the kits grid with its search and saved views; the kit sheet and form load when first opened. Measured 229.6 kB on 04-10-2026, plus 5 %."
     },
     "/design": {
       "maxKb": 245,
@@ -63,8 +87,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the walk-in form. Measured 189.8 kB on 30-09-2026, plus 5 %."
     },
     "/price-master": {
-      "maxKb": 240,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the price grid, saved views and the price dialog. Measured 228.0 kB on 29-09-2026, plus 5 %."
+      "maxKb": 247,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the item and kit price grids, saved views and the price dialog; the list, approve and history views load when first opened. Measured 235.0 kB on 04-10-2026, plus 5 %."
     },
     "/set-password": {
       "maxKb": 175,
@@ -81,6 +105,10 @@
     "/settings/profile": {
       "maxKb": 200,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the theme and contrast choices. Measured 186.0 kB on 29-09-2026, plus 5 %."
+    },
+    "/settings/tax": {
+      "maxKb": 234,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the two tables of GST rates and composite supply splits; both forms load when first opened. Measured 222.6 kB on 04-10-2026, plus 5 %."
     },
     "/sign-in": {
       "maxKb": 175,

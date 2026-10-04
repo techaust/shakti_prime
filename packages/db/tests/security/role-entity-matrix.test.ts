@@ -21,6 +21,7 @@ import {
   removeEntityMatrixFixture,
   ROLE_SEED,
   type EntityMatrixFixture,
+  type MatrixRow,
   type MatrixTable,
 } from '../../src/testing/index';
 
@@ -36,11 +37,17 @@ import {
  * table's policy says (docs/DATABASE.md §1, §4).
  */
 
-type Rule = { kind: 'context' } | { kind: 'grant'; key: PermissionKey; scope: Scope };
+type Rule =
+  | { kind: 'context' }
+  | { kind: 'grant'; key: PermissionKey; scope: Scope }
+  | { kind: 'never' }
+  | { kind: 'any'; rules: readonly Rule[] };
 
 interface TableRule {
   /** Who sees a row of their own company. */
   read: Rule;
+  /** For a table whose rows are read by different rules (a file by its purpose): the row's rule. */
+  readRow?: (row: MatrixRow) => Rule;
   /** Who sees a group-wide row; absent where the table has none. */
   group?: Rule;
   /** Who sees their own rows (`ownedByActor`) in every company; absent where the table has none. */
@@ -50,6 +57,8 @@ interface TableRule {
    * the company they act in (`leadIn`), whatever their customer scope. Never an agent.
    */
   throughLead?: Rule;
+  /** Who sees a row marked `onLead`, agents included, in place of `read`. */
+  lead?: Rule;
   /** A visible row that breaks isolation for someone acting in company `e`, over the alias `x`. */
   leak: (e: number, groupVisible: boolean) => SQL;
 }
@@ -61,6 +70,30 @@ const grant = (key: PermissionKey, scope: Scope): Rule => ({ kind: 'grant', key,
 const ACCOUNT_READ = grant('crm.account.read', 'own');
 const LEAD_READ = grant('crm.lead.read', 'own');
 const IMPORTS = grant('imports.write', 'entity');
+const NEVER: Rule = { kind: 'never' };
+
+/**
+ * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
+ * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
+ * every principal of the company; a vault file by no request until K1.
+ */
+const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
+  import: IMPORTS,
+  quote_pdf: LEAD_READ,
+  signed_quote: LEAD_READ,
+  entity_logo: CONTEXT,
+  letterhead: CONTEXT,
+  knowledge: NEVER,
+  consent_evidence: grant('crm.account.write', 'own'),
+};
+/** The file checks' permission (`system:workers`) reads every file of the company as well. */
+const fileRead = (purpose: string | undefined): Rule => ({
+  kind: 'any',
+  rules: [
+    (purpose === undefined ? undefined : FILE_PURPOSE_READ[purpose]) ?? NEVER,
+    grant('files.process', 'entity'),
+  ],
+});
 
 /** A row of another company; a group-wide row too, unless the policy shows it. */
 const otherCompany = (e: number, groupVisible: boolean): SQL =>
@@ -111,7 +144,11 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: grant('audit.read', 'all'),
     leak: otherCompany,
   },
-  files: { read: IMPORTS, leak: otherCompany },
+  files: {
+    read: IMPORTS,
+    readRow: (row) => fileRead(row.purpose),
+    leak: otherCompany,
+  },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
   import_jobs: { read: IMPORTS, leak: otherCompany },
   import_rows: { read: IMPORTS, leak: otherCompany },
@@ -122,6 +159,17 @@ const RULES: Record<MatrixTable, TableRule> = {
     ownRows: CONTEXT,
     leak: (e) => sql`x.entity_id <> ${e} and x.user_id <> ${fx.ownerId}`,
   },
+  // A timeline row on a lead follows the lead; a row of no lead follows the customer (0057).
+  activities: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    lead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // The assignee is the task's owner; the matrix acts as the assignee, in their team.
+  tasks: { read: LEAD_READ, leak: otherCompany },
+  tags: { read: LEAD_READ, group: LEAD_READ, leak: otherCompany },
+  opportunity_tags: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {
@@ -144,9 +192,12 @@ const TABLES = Object.keys(RULES) as MatrixTable[];
 const ROLES: RoleKey[] = ROLE_SEED.map((r) => r.key);
 
 function allows(principal: Principal, rule: Rule | undefined): boolean {
-  if (rule === undefined) return false;
+  if (rule === undefined || rule.kind === 'never') return false;
+  if (rule.kind === 'any') return rule.rules.some((r) => allows(principal, r));
   return rule.kind === 'context' || hasGrant(principal.permissions, rule.key, rule.scope);
 }
+
+const readRule = (rule: TableRule, row: MatrixRow): Rule => rule.readRow?.(row) ?? rule.read;
 
 interface Seen {
   seen: string[];
@@ -250,18 +301,22 @@ describe('every role acting in one company sees only that company (SECURITY §11
       const problems: unknown[] = [];
       for (const table of TABLES) {
         const rule = RULES[table];
-        const readsOwn = allows(principal, rule.read);
+        // Whether any row of the table is the caller's to read in their own company.
+        const readsOwn = fx.rows[table].some((r) => allows(principal, readRule(rule, r)));
         const readsGroup = allows(principal, rule.group);
         const readsOwnRows = allows(principal, rule.ownRows);
         // People only: an agent reads customers by crm.account.read scope alone (0057).
         const readsThroughLead = principal.kind !== 'agent' && allows(principal, rule.throughLead);
+        const readsLead = allows(principal, rule.lead);
         const expected = fx.rows[table]
           .filter((r) =>
             r.entities === null
               ? readsGroup
-              : (readsOwn && r.entities.includes(entityId)) ||
-                (readsOwnRows && r.ownedByActor === true) ||
-                (readsThroughLead && r.leadIn?.includes(entityId) === true),
+              : r.onLead === true
+                ? readsLead && r.entities.includes(entityId)
+                : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
+                  (readsOwnRows && r.ownedByActor === true) ||
+                  (readsThroughLead && r.leadIn?.includes(entityId) === true),
           )
           .map((r) => r.key)
           .sort();
@@ -271,7 +326,14 @@ describe('every role acting in one company sees only that company (SECURITY §11
           problems.push({ table, expected, seen: got.seen });
         }
         if (got.leaked !== 0) problems.push({ table, rowsOfAnotherCompany: got.leaked });
-        if (!readsOwn && !readsGroup && !readsOwnRows && !readsThroughLead && got.total !== 0) {
+        if (
+          !readsOwn &&
+          !readsGroup &&
+          !readsOwnRows &&
+          !readsThroughLead &&
+          !readsLead &&
+          got.total !== 0
+        ) {
           problems.push({ table, withoutReadPermission: got.total });
         }
       }

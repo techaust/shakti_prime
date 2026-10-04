@@ -149,14 +149,14 @@ describe('what changed', () => {
 
   it('lists anything else under its name in plain words, one plain value per line', () => {
     const rows = auditChanges(null, {
-      textVersion: 'v2',
+      scriptVersion: 'v2',
       site: { village: 'Chomu', siteId: 'x', pin: null },
       tags: ['new', 'hot'],
     });
     expect(rows).toEqual([
       {
         field: undefined,
-        label: 'Text version',
+        label: 'Script version',
         before: { kind: 'empty' },
         after: { kind: 'text', text: 'v2' },
       },

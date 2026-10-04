@@ -1,18 +1,20 @@
 import {
   DomainError,
+  isEventType,
   PERMISSION_KEYS,
   type ErrorCode,
   type PermissionKey,
   type Principal,
   type Scope,
 } from '@shakti/contracts';
+import type { Requirement } from '../command/define-command';
 import { checkPermission } from '../command/run-command';
 
 /**
  * State machines as data (docs/design/backend-weeks-3-5.md §7.1). A machine lists its states and
  * transitions; `transition()` answers where an event takes a record and which effects the command
- * applies. It never writes: the command persists `state` and `state_changed_at`, applies the
- * effects, calls `ctx.audit()` and emits `<aggregate>.<event>`. The same data renders the
+ * applies. It never writes: the command writes the state to the column `stored` names, applies the
+ * effects, calls `ctx.audit()` and emits the event `emits` names, if any. The same data renders the
  * specification documents in `docs/state-machines/` (`pnpm --filter @shakti/domain machines:docs`).
  */
 
@@ -24,6 +26,12 @@ export interface TransitionContext<P> {
   now: Date;
   /** What the event carries: a reason, a target stage, an e-way bill number. */
   params: P;
+  /**
+   * For a transition whose permission the input names (`permissionByInput`): the permission and
+   * scope the command resolved from its input, which the actor must hold. Without it such an
+   * event is refused.
+   */
+  requirement?: Requirement;
 }
 
 /** Why a guard refused. `reason` maps to a sentence in the message catalogue. */
@@ -58,6 +66,12 @@ export interface TransitionSpec<S extends string, E extends string, R, P> {
   to: S;
   /** The permission a person or agent needs, or null when only the platform fires the event. */
   permission: PermissionKey | null;
+  /**
+   * With `permission` null: the event is a person's, and the permission depends on the record's
+   * kind (a file's purpose). The command's guard checks it by input (`PermissionByInput`) before
+   * the transition runs; this names where the mapping lives, for the specification.
+   */
+  permissionByInput?: string;
   /** The narrowest scope that suffices; `own` when left out. */
   scope?: Scope;
   /** The platform (a scheduled job, a worker, the Tally connector) may also fire the event. */
@@ -68,6 +82,11 @@ export interface TransitionSpec<S extends string, E extends string, R, P> {
   effects?: readonly Effect[];
   /** A line for the specification: what drives the event, or a rule enforced elsewhere. */
   note?: string;
+  /**
+   * The event-catalogue type the command emits when the transition happens; left out when it
+   * emits none. Named only on a machine whose commands are built (`stored` set).
+   */
+  emits?: string;
   /** Not in the governing documents: chosen here and marked "proposed" for review. */
   proposed?: boolean;
 }
@@ -87,7 +106,20 @@ export interface MachineSpec<S extends string, E extends string, R, P> {
   /** States the documents do not name, chosen here. */
   proposedStates?: readonly S[];
   stateNotes?: Partial<Record<S, string>>;
+  /**
+   * Where the commands that drive the machine keep the state; set exactly when commands are built
+   * (`MACHINES_IN_USE`), and checked against the schema by `machines.test.ts`.
+   */
+  stored?: StateStorage;
   transitions: readonly TransitionSpec<S, E, R, P>[];
+}
+
+/** The table and columns a built machine's commands write. */
+export interface StateStorage {
+  table: string;
+  stateColumn: string;
+  /** The column that records when the state last changed, when the table has one. */
+  changedAtColumn?: string;
 }
 
 export interface Machine<S extends string, E extends string, R, P> extends MachineSpec<S, E, R, P> {
@@ -129,7 +161,7 @@ export function defineMachine<S extends string, E extends string, R extends Mach
   const outgoing = new Set<string>();
   for (const t of transitions) {
     if (!known.has(t.to)) fail(name, `${t.event} goes to unknown state ${t.to}`);
-    if (t.permission === null && t.system !== true) {
+    if (t.permission === null && t.system !== true && t.permissionByInput === undefined) {
       fail(name, `${t.event} has no permission and is not fired by the platform`);
     }
     if (t.permission !== null && !PERMISSIONS.has(t.permission)) {
@@ -137,6 +169,12 @@ export function defineMachine<S extends string, E extends string, R extends Mach
     }
     if (t.newPermission !== undefined && PERMISSIONS.has(t.newPermission)) {
       fail(name, `${t.newPermission} already exists; it is not a new permission`);
+    }
+    if (t.emits !== undefined) {
+      if (spec.stored === undefined)
+        fail(name, `${t.event} emits an event but no command is built`);
+      if (!isEventType(t.emits))
+        fail(name, `${t.event} emits ${t.emits}, which is not in the catalogue`);
     }
     if (t.from === 'new') {
       if (t.to !== initial) fail(name, `${t.event} creates the record outside ${initial}`);
@@ -195,6 +233,7 @@ function authorise<S extends string, E extends string, R, P>(
   machine: Machine<S, E, R, P>,
   t: TransitionSpec<S, E, R, P>,
   actor: Actor,
+  requirement: Requirement | undefined,
 ): void {
   if (actor.kind === 'system') {
     if (t.system === true) return;
@@ -203,6 +242,17 @@ function authorise<S extends string, E extends string, R, P>(
     });
   }
   if (t.permission === null) {
+    if (t.permissionByInput !== undefined) {
+      // The permission the command resolved from its input (`PermissionByInput`), checked again
+      // here, so a caller that fires the event without resolving it is refused.
+      if (requirement === undefined) {
+        throw new DomainError('forbidden', `${machine.name}.${t.event} needs its permission`, {
+          event: t.event,
+        });
+      }
+      checkPermission(actor.principal, requirement.permission, requirement.minScope);
+      return;
+    }
     throw new DomainError('forbidden', `${machine.name}.${t.event} is fired by the platform`, {
       event: t.event,
     });
@@ -229,7 +279,7 @@ export function transition<S extends string, E extends string, R extends Machine
       { reason: machine.illegalReason, state: record.state, event },
     );
   }
-  authorise(machine, t, ctx.actor);
+  authorise(machine, t, ctx.actor, ctx.requirement);
   const failure = t.guard?.check(record, ctx);
   if (failure) {
     throw new DomainError(failure.code, `${machine.name}.${event}: ${failure.reason}`, {

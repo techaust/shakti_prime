@@ -308,7 +308,7 @@ describe('crm.referral_partner.set', () => {
       aggregateType: 'referral_partner',
       entityId: 1,
       before: null,
-      after: { code, isActive: true },
+      after: { code, codeActive: true },
     });
 
     const other = await lead('referral_partner');

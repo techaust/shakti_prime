@@ -9,6 +9,9 @@ export { accounts, accountEntities, accountContacts, customerSites } from './acc
 export { opportunities } from './opportunities';
 export { callDispositions, commissionRules, leadScoreRules, referralPartners } from './crm-config';
 export { consents } from './consents';
+export { activities } from './activities';
+export { tasks } from './tasks';
+export { tags, opportunityTags } from './tags';
 export { items, pumpCurves, itemCosts } from './items';
 export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';

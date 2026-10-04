@@ -21,8 +21,10 @@ export const SECURE_SESSION_COOKIE = '__Host-shakti-session';
 export const BOS_PREFIXES = [
   '/home',
   '/leads',
+  '/customers',
   '/imports',
   '/price-master',
+  '/catalogue',
   '/admin',
   '/settings',
   '/design',

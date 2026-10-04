@@ -28,7 +28,7 @@ export const setReferralPartner = defineCommand({
   minScope: 'all',
   input: SetReferralPartnerInput,
   output: ReferralPartnerDto,
-  auditFields: ['code', 'isActive'],
+  auditFields: ['code', 'codeActive'],
   constraintReasons: { referral_partners_code_unique: 'referral_code_taken' },
   async handler(ctx, input) {
     const a = schema.accounts;
@@ -80,8 +80,8 @@ export const setReferralPartner = defineCommand({
       aggregateType: 'referral_partner',
       aggregateId: account.id,
       entityId: companies.length === 1 ? (companies[0]?.entityId ?? null) : null,
-      before: existing ? { code: existing.code, isActive: existing.isActive } : null,
-      after: { code: row.code, isActive: row.isActive },
+      before: existing ? { code: existing.code, codeActive: existing.isActive } : null,
+      after: { code: row.code, codeActive: row.isActive },
     });
     return ReferralPartnerDto.parse({
       accountId: row.accountId,

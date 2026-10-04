@@ -1,6 +1,15 @@
 # Spike: list and search latency at 50,000 leads
 
-**BLUEPRINT §6.4** ("p95 interaction < 300 ms"). Result: **the lists, later pages, the board and the Activity log meet the target for every caller measured; ⌘K search meets it for the texts the spike types apart from short bursts of slow calls, and short common prefixes do not.** With 50,000 leads across the four companies, every case in the table stays under 300 ms at the 95th percentile in at least one of two runs made one after the other, and 20 of the 23 cases in both. Three cases go over once: the tele-caller's ⌘K by name (506 ms) and by village (366 ms) in the run in the table, and the Executive's ⌘K by the last four digits of a phone (301 ms) in the run before it. The same search by name, leads only, takes 92 ms at the 95th percentile for the tele-caller in the same run, so those misses are bursts on a busy machine rather than the cost of the query. The Executive's board is the slowest steady read, at 293 ms. A short text that begins the names of a large share of the customers is slower: an Executive typing `Kan` waits 607 ms at the median and 631 ms at the 95th percentile ([Short prefixes](#short-prefixes)). The hosted stack (Vercel `bom1`, Supabase Mumbai) is not measured here; that is Phase 1.
+> **Summary.** Target: 300 ms at the 95th percentile (BLUEPRINT §6.4), measured locally, in process, without the hosted stack.
+> - **Leads (29-09-2026, 50,000 leads):** the leads list, its later pages, the board and the Activity log meet the target for every caller. ⌘K search meets it apart from short bursts on a busy machine; a three-letter prefix of a very common surname does not (about 0.6 s for an Executive).
+> - **Customers and Account 360 (slice C2, 04-10-2026, through `app_reader`):** under the target for every caller, on a shared machine; recorded in [account360.md](account360.md).
+> - **Still to measure:** the hosted stack (Vercel `bom1` to Supabase Mumbai), concurrent callers, a quiet machine at integration, and ⌘K and the customers search on the client's imported data ([STATUS, Open follow-ups](../STATUS.md#open-follow-ups)).
+
+**BLUEPRINT §6.4** ("p95 interaction < 300 ms"). Result: **the lists, later pages, the board and the Activity log meet the target for every caller measured; ⌘K search meets it for the texts the spike types apart from short bursts of slow calls, and short common prefixes do not.** Owner: the lead engineer; the hosted stack (Vercel `bom1`, Supabase Mumbai) is measured in Phase 1.
+- With 50,000 leads across the four companies, every case in the table stays under 300 ms at the 95th percentile in at least one of two runs made one after the other, and 20 of the 23 cases in both.
+- Three cases go over once: the tele-caller's ⌘K by name (506 ms) and by village (366 ms) in the run in the table, and the Executive's ⌘K by the last four digits of a phone (301 ms) in the run before it. The same search by name, leads only, takes 92 ms at the 95th percentile for the tele-caller in the same run, so those misses are bursts on a busy machine rather than the cost of the query.
+- The Executive's board is the slowest steady read, at 293 ms.
+- A short text that begins the names of a large share of the customers is slower: an Executive typing `Kan` waits 607 ms at the median and 631 ms at the 95th percentile ([Short prefixes](#short-prefixes)).
 
 Run it with `pnpm spike:lists` (options: `-- --leads 50000 --runs 50 --warmup 5 --keep`). It needs the local Docker Postgres and refuses any other database. [results/lists.json](results/lists.json) holds the run in the table below. It is not part of CI.
 
@@ -15,14 +24,18 @@ Run it with `pnpm spike:lists` (options: `-- --leads 50000 --runs 50 --warmup 5 
 | Clean-up | Every seeded lead, customer, contact, phone, site, company link and idempotency key is deleted at the end (50,000 of each). The spike's made-up callers stay in `principals`, as the test suites' do. The events and the audit summary of the seed are kept in memory and never written |
 
 ## How ⌘K search finds its leads
-⌘K search takes its candidates from `app.lead_search_ids()` (migration 0052), a security-definer lookup that uses the trigram indexes on `accounts.name`, `contacts.name` and `customer_sites.village` and the index on `contact_phones.e164_reversed` (0051), keeps to the leads and customers the caller may read by the same rules as the policies, and returns the ids of at most 200 leads in the search's own order. The search then reads those leads under the policies with all its own conditions (`search-leads.ts`); `tests/queries/search-equivalence.test.ts` holds it to a plain query over the policies with the same conditions, which must answer the same leads in the same order. A spelling match on a common surname resembles thousands of names, so the lookup first asks the indexes for names and villages that start with the text or resemble it at 0.9, 0.7 and 0.55, and scores every match only when none of those narrow passes finds enough leads.
+⌘K search takes its candidates from `app.lead_search_ids()` (migration 0052), a security-definer lookup that uses the trigram indexes on `accounts.name`, `contacts.name` and `customer_sites.village` and the index on `contact_phones.e164_reversed` (0051), keeps to the leads and customers the caller may read by the same rules as the policies, and returns the ids of at most 200 leads in the search's own order.
+
+The search then reads those leads under the policies with all its own conditions (`search-leads.ts`); `tests/queries/search-equivalence.test.ts` holds it to a plain query over the policies with the same conditions, which must answer the same leads in the same order.
+
+A spelling match on a common surname resembles thousands of names, so the lookup first asks the indexes for names and villages that start with the text or resemble it at 0.9, 0.7 and 0.55, and scores every match only when none of those narrow passes finds enough leads.
 
 ## Numbers
 Windows 11 laptop, 4 × Intel Core i3-1115G4, 8 GB, Node 24.19, Docker Postgres 17 on `127.0.0.1:54348`, one connection, in process. The search terms are the made-up customer `Kevok Kantarvi`, the village `Gondovan` and the digits `7919`. The database held 50,197 open leads (the spike's 50,000 and the test suites' own) and 710 audit rows from the last 30 days during the reads; the round trip (the median of fifty `select 1` in one transaction) was 1.48 ms, and 0.59 ms in the run before.
 
 No other workstream's tests ran on the laptop during the runs. The processor was still busy: sampled every 10 seconds during the reads of the run in the table, its load was between 27 and 100 %, well above the one core a single connection uses, from the spike's own process, Docker and the database's background work. What made the slow bursts was not identified.
 
-The table is the second of two runs made one after the other on the same code and the same seed (21:22 UTC on 28-09-2026); the last column is the 95th percentile of the first.
+The table is the second of two runs made one after the other on the same code and the same seed (02:52 IST on 29-09-2026, the run in `results/lists.json`); the last column is the 95th percentile of the first, whose raw results were not kept, so that column cannot be checked again.
 
 | Caller | Case | p50 ms | p95 ms | max ms | Rows | Run before, p95 ms |
 |---|---|---|---|---|---|---|
@@ -72,7 +85,7 @@ Without the index a request for every company sorted every visible lead for each
 - **Over the target by the kind of text:** short prefixes of common names, below.
 
 ## Short prefixes
-Timed with a copy of the spike script that seeds the same 50,000 leads and times only these two texts (the copy is not kept in the repository), after the two runs above: the leads half of the palette alone, with the same timing, 5 untimed and 20 timed runs per caller and text:
+Timed with a copy of the spike script that seeds the same 50,000 leads and times only these two texts, after the two runs above. The copy and its results are not kept in the repository, so these numbers cannot be checked again; `pnpm spike:lists` does not time them. The copy timed the leads half of the palette alone, with the same timing, 5 untimed and 20 timed runs per caller and text:
 
 | Caller | `Ra` p50 ms | `Ra` p95 ms | `Kan` p50 ms | `Kan` p95 ms |
 |---|---|---|---|---|
@@ -80,7 +93,7 @@ Timed with a copy of the spike script that seeds the same 50,000 leads and times
 | General Manager, 1 company | 181.5 | 203.4 | 166.4 | **575.4** |
 | Tele-caller, own leads | 51.2 | 69.3 | 115.5 | 157.4 |
 
-`Ra` begins the first name of one in thirteen of these made-up customers, and `Kan` begins `Kantarvi`, the surname of one in seven. A short text that matches a large share of what the caller may read leaves the narrow passes too few leads, so the lookup scores every match it finds, and that is the slowest search: an Executive over four companies waits about 0.6 seconds for `Kan`. Real surnames are spread far wider than the seven the spike invents, so ⌘K search is measured again on the client's imported leads in Phase 1 (ROADMAP §3).
+`Ra` begins the first name of one in thirteen of these made-up customers, and `Kan` begins `Kantarvi`, the surname of one in seven. A short text that matches a large share of what the caller may read leaves the narrow passes too few leads, so the lookup scores every match it finds, and that is the slowest search: an Executive over four companies waits about 0.6 seconds for `Kan`. Real surnames are spread far wider than the seven the spike invents, so ⌘K search is measured again on the client's imported leads in Phase 1 ([STATUS, Open follow-ups](../STATUS.md#open-follow-ups)).
 
 ## Not covered
 - The hosted stack: the round trip from a Vercel function in `bom1` to Supabase Mumbai, the connection pooler and a cold function.

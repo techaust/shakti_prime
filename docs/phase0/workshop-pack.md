@@ -1,8 +1,27 @@
 # Discovery workshop pack — Shakti Prime BOS
 
-Date: 27-09-2026. For: the Shakti group owners, the sales head, Accounts and the group's CA. Prepared by the development team.
+Prepared 27-09-2026 · last updated 04-10-2026. For: the Shakti group owners, the sales head, Accounts, the group's CA and its engineering head. Prepared by the development team.
 
-This pack lists every question the system needs the group to answer before or during Phase 1, in one place. Each question says why it matters, the choices, what the system does today until you decide, and who should answer. Part A lists what is already decided, so everyone sees the full picture. Part B is the open questions, grouped by area of the business. Part C is a record sheet for the answers.
+> **Blocking work now.** These answers hold up the next pieces of Phase 1. Until each arrives, the system uses the setting written under "Today" for that question, or leaves the data empty where there is none. The letters and number in brackets name the piece of work (the [glossary](../GLOSSARY.md#slice-codes) explains them).
+>
+> | Question | What it holds up |
+> |---|---|
+> | PRICE-4 · HSN code and GST rate per item, with PRICE-5 and the CA's worked examples | Quotes (S1): no line can be priced without a rate |
+> | SALE-1 · Document number format | Quotes (S1), then sales orders (S2): every document is numbered in it |
+> | PRICE-1, PRICE-2, PRICE-3 · Tiers, price lists and kit prices | Quotes (S1): every price comes from the list for the customer's tier |
+> | CRM-1, CRM-2 · Stages and required details per segment | The pipeline settings (C3) and the calling screen's checklist (T1) |
+> | CRM-3 · Lead priority rules | Lead scoring (C3) and the calling queue's order (T1) |
+> | CALL-1 · Call outcomes | The call outcome list (C3) and the calling screen (T1) |
+> | CALL-2, CALL-3, CALL-5 · Scripts, retries and nurture follow-up | The calling screen (T1) |
+> | CALL-4 · Lock period after handover | The handover to lead converters (T2) |
+> | CRM-5 · Referral partner commissions | Commission rules (C3) and commission recorded on a confirmed order (S2) |
+> | SALE-4 · Dealer credit limits and days | Sales orders with the credit check (S2) |
+> | CRM-4 · The current CRM's export | Imports of customers (P2b) and the data migration (M1) |
+> | ENG-1 · Engineering values for sizing | Pump and rooftop sizing (C4), which every quote relies on: it uses common values until they are confirmed |
+
+This pack lists every question the system needs the group to answer before or during Phase 1, and the later questions for Phases 3 to 5, in one place. Each question says why it matters, the choices, what the system does today until you decide, and who should answer. Part A lists what is already decided, so everyone sees the full picture. Part B is the open questions, grouped by area of the business. Part C is a record sheet for the answers.
+
+**Contents:** [Part A — Decisions already taken](#part-a--decisions-already-taken) · [Part B — Open questions](#part-b--open-questions): [B1 Leads and customers](#b1-leads-and-customers-crm), [B2 Tele-calling](#b2-tele-calling-call), [B3 Pricing and tax](#b3-pricing-and-tax-price), [B4 Quotes, orders and credit](#b4-quotes-sales-orders-and-dealer-credit-sale), [B5 Stock](#b5-stock-and-dispatch-stock--needed-before-phase-3), [B6 Projects](#b6-projects-and-subsidy-proj--needed-before-phase-4), [B7 Finance and Tally](#b7-finance-and-tally-fin--the-tally-visit-is-needed-before-the-tally-test-and-phase-5), [B8 People](#b8-people-hr--needed-before-phase-5), [B9 Privacy and telecom law](#b9-privacy-consent-and-telecom-law-law), [B10 Accounts](#b10-accounts-and-ownership-acc), [B11 Engineering values](#b11-engineering-values-eng), [B12 Words](#b12-the-words-the-system-uses-term) · [Part C — Answer record](#part-c--answer-record)
 
 **How to use it:** read Part A before the workshop and tell us if anything there is wrong. In the workshop, go through Part B in order; for each question pick an option or write your own. Where the answer needs data (a price list, a document list, a policy), bring the file or send it within a week.
 
@@ -12,12 +31,19 @@ This pack lists every question the system needs the group to answer before or du
 - **Accounts:** for invoices, credit, Tally and document numbers.
 - **CA:** for GST, record keeping and retention.
 - **Project manager** and **HR admin:** for their own areas where named.
+- **Engineering head:** for the values the pump and rooftop sizing uses.
 
 ---
 
 ## Part A — Decisions already taken
 
-These are settled. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be. Built today: A1.1 to A1.5 (the call language is stored on each contact; the scripts and voice it steers come in Phases 1 and 2), A2.1, A2.2, A2.4 (in the assistants' permissions; the first assistant, lead sorting, starts in Phase 1) and A2.5, and in A2.3 the fixed set of roles and the updates that keep an edited role's changes (the screen where an Executive edits a role is not built yet). In A3, the mandatory authenticator app is built, the price lists and tiers are built, and the masking of card photos is built while the document store that keeps them arrives with projects in Phase 4; the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead are settled but arrive with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
+These are settled. They are listed so the group can see them; each can still be changed, and the note says how much work a change would be. Built today:
+- A1.1 to A1.5 (the call language is stored on each contact; the scripts and voice it steers come in Phases 1 and 2);
+- A2.1, A2.2 and A2.5, and A2.4 in the assistants' permissions (the first assistant, lead sorting, starts in Phase 1);
+- A2.3: the fixed set of roles, the screen where an Executive changes what a role may do, and the updates that keep an edited role's changes;
+- in A3: the mandatory authenticator app, the price lists and tiers, and the masking of card photos (the document store that keeps them arrives with projects in Phase 4).
+
+Settled and arriving later: the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead come with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
 
 ### A1. Taken by the group on 27-09-2026
 | # | Decision | What it means day to day |
@@ -52,7 +78,7 @@ These were needed to finish the security work. Each is a small change if the gro
 
 ## Part B — Open questions
 
-Numbering: the letters say the area (CRM for leads and customers, CALL for tele-calling, PRICE for pricing and tax, SALE for quotes, orders and credit, STOCK, PROJ, FIN, HR, LAW for privacy and telecom law, ACC for accounts and ownership).
+Numbering: the letters say the area (CRM for leads and customers, CALL for tele-calling, PRICE for pricing and tax, SALE for quotes, orders and credit, STOCK, PROJ, FIN, HR, LAW for privacy and telecom law, ACC for accounts and ownership, ENG for engineering values, TERM for the words the system uses), and the number has one digit, as in CRM-5. The [glossary](../GLOSSARY.md#requirement-and-question-ids) explains how these differ from the development team's own numbers.
 
 ### B1. Leads and customers (CRM)
 
@@ -85,6 +111,11 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CRM-6 · Loan partners and banks** — Owner, Accounts
 - *Context:* customer loans (bank or scheme loans, including the PM Surya Ghar loan route) are tracked from applied to sanctioned to disbursed, and can hold a payment step or a dispatch until the money arrives.
 - *Needed:* the banks and loan partners in use, and whether dispatch should wait for disbursement for each.
+
+**CRM-7 · How far the lead-sorting assistant may change a lead's priority** — Sales head, Owner
+- *Context:* the lead-sorting assistant (it runs in trial mode first, suggesting only) may suggest raising or lowering a lead's priority score set by the CRM-3 rules. A limit keeps its change small.
+- *Options:* a fixed number of points either way (for example 10); or a share of the score; or no changes by the assistant at all.
+- *Today:* the assistant is not built yet; no limit is set, and it changes no score until one is.
 
 ### B2. Tele-calling (CALL)
 
@@ -136,8 +167,8 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 **PRICE-3 · Kit prices** — Owner
 - *Context:* a kit (for example a 5 HP solar pump set) is sold as one line.
-- *Options:* a fixed kit price set in the Price Master; or the sum of its parts' prices.
-- *Today:* kits are recorded with their parts; the pricing method is not set.
+- *Today:* each kit has its own fixed price on each price list (Price lists › Kits), set by an Executive like any other price.
+- *Needed:* only whether to keep fixed kit prices. The other choice, the sum of its parts' prices, would be built if the group prefers it.
 
 **PRICE-4 · HSN code and GST rate per item** — CA, Accounts
 - *Context:* every item needs its HSN code and GST rate, with the date each rate starts. A rate change applies only to documents made on or after its date; issued quotes keep the rate they were made with.
@@ -196,6 +227,11 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Today:* the threshold is ₹50,000 and can be changed.
 - *Needed:* confirmation of the threshold, who generates e-way bills (in Tally or on the portal), and whether e-invoicing applies to any company.
 
+**STOCK-4 · How long stock is held for an order** — Accounts, Owner
+- *Context:* when a sales order is confirmed, stock is set aside for its lines. A hold on an order that is never dispatched should end, so the stock can be sold to someone else.
+- *Options:* a fixed time (for example 7, 15 or 30 days), then a reminder or the hold ends; or until the order is cancelled.
+- *Today:* stock comes in Phase 3; nothing is held yet.
+
 ### B6. Projects and subsidy (PROJ) — needed before Phase 4
 
 **PROJ-1 · Documents per project type and subsidy step** — Project manager
@@ -205,7 +241,16 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Today:* survey, dispatch, install, commission, handover. Executives can change the steps later.
 - *Needed:* confirmation, or the steps used today.
 
-### B7. Finance and Tally (FIN) — the Tally visit is needed in Phase 0
+**PROJ-3 · When a person checks a document the system sorted** — Project manager
+- *Context:* documents customers send on WhatsApp (a bill, an ID card, a photo) are sorted by type and filed against the right requirement. When the system is not sure enough of the type, a person confirms it.
+- *Options:* a person checks every document for the first weeks, then only the ones the system is less sure of; or a person always checks.
+- *Needed:* the choice. The development team proposes the level of "sure enough" after a trial on real documents, for the project manager to agree.
+
+**PROJ-4 · Field days: travel time and days without signal** — Project manager
+- *Context:* the scheduling board warns when two visits are too close together to travel between, and the field app must keep working where there is no mobile data.
+- *Needed:* the usual travel time to allow between two visits (for example 30 or 60 minutes, or by distance), and the longest time an engineer works without mobile data. The app is designed to work 5 days offline.
+
+### B7. Finance and Tally (FIN) — the Tally visit is needed before the Tally test and Phase 5
 
 **FIN-1 · Tally set-up** — Accounts
 - *Needed:* the Tally companies for each of the four companies, the Tally version, whether the "Buyer Order No." field is filled today, and a time for the Tally discovery visit.
@@ -234,7 +279,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
   2. Callers may record only the signed walk-in form; spoken consent is not accepted.
   3. Callers record no consent; only web forms, WhatsApp opt-in and imports with evidence count.
 - *Also needed:* whether each version of the consent wording must be stored and linked to every consent (recommended).
-- *Today:* any of the five sources (web form, WhatsApp opt-in, walk-in form, spoken, import) can be recorded when a lead is created; after that, only a withdrawal can change it.
+- *Today:* any of the five sources (web form, WhatsApp opt-in, walk-in form, spoken, import) can be recorded when a lead is created, or later on the customer's page with an optional proof file; a recorded consent is never edited, only withdrawn.
 
 **LAW-2 · Consent per company or for the whole group** — Owner, with legal advice
 - *Context:* a customer who agreed to hear from Agro Solar Hub may or may not have agreed to hear from Shakti Motor Pumps. The telecom registration and the data protection law look at each company separately.
@@ -248,7 +293,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Needed:* the WhatsApp and calling numbers in use for each company, and the status of each company's registration on the telecom consent platform (DLT). Registration of all four companies and the promotional (140-series) and service (160-series) numbers should start now; they are needed in Phase 2.
 
 **LAW-5 · Voice samples** — Owner
-- *Needed:* 20 to 30 short recordings of Executives speaking as they would to the assistant, in Hindi, Hinglish and English, for the speech test in Phase 0.
+- *Needed:* 20 to 30 short recordings of Executives speaking as they would to the assistant, in Hindi, Hinglish and English, for the speech test, which is needed before Phase 2.
 
 ### B10. Accounts and ownership (ACC)
 
@@ -260,6 +305,38 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **ACC-2 · Service accounts in the group's name** — Owner
 - *Context:* every service account (domain, hosting, database, file storage, messaging, calling, AI, app store, code repository) must be registered to the group, with the development team as members, so the group owns its system.
 - *Needed:* who in the group holds these accounts, the company card or billing account for them, and a decision on the code repository plan: move it to a group organisation on a plan that can enforce review rules before changes reach the live system. The vendor list is in `vendor-quotes.md`.
+
+### B11. Engineering values (ENG)
+
+**ENG-1 · Engineering values for pump and rooftop sizing** — Engineering head
+- *Context:* the sizing of a pump or a rooftop system, which every quote relies on, uses the engineering values below. Each is a common textbook or trade value, not yet the group's own; each sizing stores the values it used.
+- *Needed:* confirm or correct each value, and add any rule the group's engineers use that is missing.
+
+| Value | Unit | Value in use |
+|---|---|---|
+| Pipe friction factor (Hazen-Williams C) for HDPE and GI pipe | — | HDPE 140, GI 120 |
+| Loss in bends, valves and joints | share of the pipe's friction loss | 10% |
+| Pump efficiency, submersible and surface | % | 55 and 60 |
+| Motor efficiency, submersible and surface | % | 78 and 82 |
+| Motor margin over the power the pump needs | % | 10 |
+| Motor ratings on sale | HP | 0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30 |
+| How far below the needed flow a chosen pump may deliver | % of the needed flow | 10 |
+| How far above the needed flow a chosen pump may deliver | times the needed flow | 1.5 |
+| Deepest water a surface pump can draw up (at rest plus drawdown) | m | 7 |
+| Water speed in the delivery pipe above which a wider pipe is advised | m/s | 2 |
+| Solar array size for a pump | times the motor's rated output | 1.3 |
+| Solar module rating | Wp | 540 |
+| Peak sun hours in Rajasthan | hours a day | 5.5 |
+| Performance ratio of a rooftop system | — | 0.75 |
+| Shade-free roof area per kWp | m² | 10 |
+| Module size allowed per kW of sanctioned load | kWp per kW | 1.0 |
+| Schemes whose subsidy requires DCR modules | — | PM Surya Ghar, PM-KUSUM |
+
+### B12. The words the system uses (TERM)
+
+**TERM-1 · The business words in the glossary** — Owner, Sales head, Project manager
+- *Context:* the [glossary](../GLOSSARY.md) explains the words the system and its documents use. Some business terms (ALMM, CMC, DBT, DCR, DISCOM, DND, JIR, K-number) were written from general knowledge and are marked "to confirm".
+- *Needed:* confirm or correct each marked term, and name any word the group uses differently, so the screens use the group's own words.
 
 ---
 
@@ -275,6 +352,7 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | CRM-4 | | | | |
 | CRM-5 | | | | |
 | CRM-6 | | | | |
+| CRM-7 | | | | |
 | CALL-1 | | | | |
 | CALL-2 | | | | |
 | CALL-3 | | | | |
@@ -297,8 +375,11 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | STOCK-1 | | | | |
 | STOCK-2 | | | | |
 | STOCK-3 | | | | |
+| STOCK-4 | | | | |
 | PROJ-1 | | | | |
 | PROJ-2 | | | | |
+| PROJ-3 | | | | |
+| PROJ-4 | | | | |
 | FIN-1 | | | | |
 | FIN-2 | | | | |
 | HR-1 | | | | |
@@ -311,6 +392,13 @@ Fill one row per question during the workshop. Items marked "bring" can be sent 
 | LAW-5 | | | | |
 | ACC-1 | | | | |
 | ACC-2 | | | | |
+| ENG-1 | | | | |
+| TERM-1 | | | | |
 | Part A changes, if any | | | | |
 
-**Where each question comes from** (for the development team): CRM-1 to CRM-6, CALL-1 to CALL-7, PRICE-1 to PRICE-4, SALE-2 to SALE-4, SALE-6, STOCK-1, STOCK-3, PROJ-1, FIN-1, HR-1 to HR-3 and LAW-4 are the discovery inputs of BLUEPRINT §19 and PRD §7; PRICE-5 and SALE-5 are design §11 items 1 and 3, CALL-4 and CALL-5 item 2, ACC-1 item 4, SALE-1 item 5 with DATABASE §9; LAW-1 and STOCK-2 are AUDIT §7 items 6 and 7; LAW-2 is review 3; PRICE-6 is ADR 0007; FIN-2 is BLUEPRINT §7.9; LAW-3, LAW-5 and ACC-2 are ROADMAP §10; Part A1 is the design document header, ADR 0008 and ADR 0014; Part A2 is AUDIT §8.
+**Approval of the answers.** Once every row above is filled, an Executive of the group approves the record; the development team then applies the answers and records each one where the system uses it.
+
+| | Name | Role | Signature | Date (DD-MM-YYYY) |
+|---|---|---|---|---|
+| Answers approved for the Shakti group | | Executive | | |
+| Received for the development team | | | | |

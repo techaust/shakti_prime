@@ -2,13 +2,17 @@ import type { PermissionGrant } from '@shakti/contracts';
 import {
   Building2,
   Cable,
+  Contact,
   FileUp,
   House,
   IndianRupee,
   ListTodo,
+  Package,
   Palette,
+  Percent,
   ScrollText,
   Store,
+  ShieldCheck,
   UserPlus,
   UsersRound,
   Workflow,
@@ -55,6 +59,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [{ key: 'crm.lead.read', scope: 'own' }],
   },
   {
+    id: 'customers',
+    href: '/customers',
+    label: 'customers',
+    icon: Contact,
+    group: 'work',
+    // Every staff role that reads leads also reads customers at own scope or wider; listCustomers
+    // shows the customers they look after and those of their leads (0057).
+    requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
     id: 'leads-new',
     href: '/leads/new',
     label: 'newLead',
@@ -87,6 +101,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [{ key: 'pricing.read', scope: 'entity' }],
   },
   {
+    id: 'catalogue',
+    href: '/catalogue',
+    label: 'catalogue',
+    icon: Package,
+    group: 'work',
+    // Items are shared and readable with any context; the screen sits beside the price lists,
+    // and changes need catalogue.write, which the commands check.
+    requires: [{ key: 'pricing.read', scope: 'entity' }],
+  },
+  {
     id: 'imports',
     href: '/imports',
     label: 'imports',
@@ -101,6 +125,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: UsersRound,
     group: 'admin',
     requires: [{ key: 'admin.users.write', scope: 'all' }],
+  },
+  {
+    id: 'admin-roles',
+    href: '/admin/roles',
+    label: 'adminRoles',
+    icon: ShieldCheck,
+    group: 'admin',
+    requires: [{ key: 'admin.roles.write', scope: 'all' }],
   },
   {
     id: 'admin-activity',
@@ -136,6 +168,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // crm.pipeline.update, crm.stage.*, crm.disposition.set and crm.score_rule.set
     requires: [{ key: 'crm.config.write', scope: 'all' }],
+  },
+  {
+    id: 'settings-tax',
+    href: '/settings/tax',
+    label: 'settingsTax',
+    icon: Percent,
+    group: 'admin',
+    // tax.rate.set and tax.composite.set; a change also needs a request for every company.
+    requires: [{ key: 'tax.rates.write', scope: 'entity' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

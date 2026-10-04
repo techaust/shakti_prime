@@ -1,6 +1,6 @@
 # ADR 0008 — One customer record for the group, with a relationship per selling entity
 
-**Status:** Accepted (client decision 2026-09-27) · **Blueprint:** §1, §6.1, §6.2, §16 · **Database:** §4.2, §6.2 · **PRD:** CRM-03, CRM-04 · **Architecture:** §1
+**Status:** Accepted (client, 27-09-2026) · **Date:** 27-09-2026 · **Deciders:** Client · **Blueprint:** §1, §6.1, §6.2, §16 · **Database:** §4.2, §6.2 · **PRD:** CRM-03, CRM-04 · **Architecture:** §1
 
 ## Context
 The four companies share one team and, often, the same customers: a farmer buys a pump from Shakti Motor Pumps and a solar kit from Agro Solar Hub; a dealer trades with two brands. Week 1 built contacts, accounts, sites and consents with an `entity_id` each and bound an opportunity to an account of the same entity, so such a customer was two records with two histories, and PRD CRM-04 ("one account can hold several opportunities across entities") could not be met. The client chose one shared customer record over per-entity copies linked by phone match.

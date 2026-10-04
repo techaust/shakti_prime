@@ -1,16 +1,27 @@
 'use server';
 
 import {
+  ApprovePriceListInput,
+  ArchivePriceListInput,
+  CreatePriceListInput,
   SetPriceInput,
+  type KitPricePageDto,
+  type PriceChangePageDto,
   type PriceListDto,
   type PriceListItemDto,
   type PricePageDto,
 } from '@shakti/contracts';
 import {
+  approvePriceList as approvePriceListCommand,
+  archivePriceList as archivePriceListCommand,
+  createPriceList as createPriceListCommand,
   executeCommand,
   executeQuery,
+  listKitPrices as listKitPricesQuery,
+  listPriceChanges as listPriceChangesQuery,
   listPriceLists as listPriceListsQuery,
   listPrices as listPricesQuery,
+  requestCoversAllCompanies,
   setPrice as setPriceCommand,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
@@ -54,5 +65,103 @@ export async function listPrices(rawInput: unknown): Promise<ActionResult<PriceP
     return executeQuery(principal, { requestId }, (context) => listPricesQuery(context, rawInput), {
       name: 'listPrices',
     });
+  });
+}
+
+/** A draft price list for a tier, from a date, holding a copy of the live prices. */
+export async function createPriceList(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<PriceListDto>> {
+  return toResult('createPriceList', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CreatePriceListInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      createPriceListCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** A draft becomes its tier's list from its start date. */
+export async function approvePriceList(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<PriceListDto>> {
+  return toResult('approvePriceList', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ApprovePriceListInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      approvePriceListCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Price Master › Kits: the kits of one list with their selling price, a page at a time. */
+export async function listKitPrices(rawInput: unknown): Promise<ActionResult<KitPricePageDto>> {
+  return toResult('listKitPrices', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listKitPricesQuery(context, rawInput),
+      { name: 'listKitPrices' },
+    );
+  });
+}
+
+/** The price history of one item or kit, newest first. */
+export async function listPriceChanges(
+  rawInput: unknown,
+): Promise<ActionResult<PriceChangePageDto>> {
+  return toResult('listPriceChanges', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listPriceChangesQuery(context, rawInput),
+      { name: 'listPriceChanges' },
+    );
+  });
+}
+
+/** Whether the caller acts for every company now, as a list for all companies needs. */
+export async function readCoversAllCompanies(): Promise<ActionResult<boolean>> {
+  return toResult('readCoversAllCompanies', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) => requestCoversAllCompanies(context), {
+      name: 'readCoversAllCompanies',
+    });
+  });
+}
+
+/** Withdraws a draft or a scheduled list. */
+export async function archivePriceList(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<PriceListDto>> {
+  return toResult('archivePriceList', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ArchivePriceListInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      archivePriceListCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
   });
 }

@@ -1,6 +1,7 @@
 import type { DeliveredEvent } from '@shakti/contracts';
 import type { EventPublisher, PublishResult } from '@shakti/domain';
 import { Client, Receiver } from '@upstash/qstash';
+import { logger } from '../log';
 
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
 export const OUTBOX_PUBLISH_PATH = '/api/v1/workers/outbox/publish';
@@ -80,6 +81,45 @@ export function urlGroupFor(type: string): string {
   return `evt-${type}`;
 }
 
+/** The queue groups this process has made sure of, each once (its worker endpoint upserted). */
+const ensuredGroups = new Set<string>();
+
+/** For tests: forget which queue groups this process has made sure of. */
+export function forgetEnsuredUrlGroups(): void {
+  ensuredGroups.clear();
+}
+
+/**
+ * Makes sure the queue group of each type exists with its worker as its endpoint
+ * (`<app>/api/v1/workers/outbox/<type>` in `evt-<type>`), before the first event of that type this
+ * process sends, so no group is ever made by hand. Adding an endpoint creates the group or leaves
+ * an existing one as it is, so a repeat is harmless; each group is asked once per process. A failed
+ * call is logged and not remembered: the batch goes ahead, the queue refuses that type's events,
+ * and they wait for the next run through the usual backoff, which asks again.
+ */
+async function ensureUrlGroups(
+  qstash: Client,
+  config: QStashConfig,
+  types: readonly string[],
+): Promise<void> {
+  for (const type of new Set(types)) {
+    const group = urlGroupFor(type);
+    if (ensuredGroups.has(group)) continue;
+    try {
+      await withTimeout(
+        qstash.urlGroups.addEndpoints({
+          name: group,
+          endpoints: [{ name: 'bos', url: workerUrl(config, eventWorkerPath(type)) }],
+        }),
+        QUEUE_TIMEOUT_MS,
+      );
+      ensuredGroups.add(group);
+    } catch (error) {
+      logger.log('warn', 'outbox.url_group_failed', { group, error });
+    }
+  }
+}
+
 /** One answer of the batch call: an accepted message, or the queue's reason for refusing it. */
 function resultOf(id: string, answer: unknown): PublishResult {
   // A queue group answers one entry per endpoint; every entry must carry a message id.
@@ -91,7 +131,7 @@ function resultOf(id: string, answer: unknown): PublishResult {
 }
 
 /**
- * Sends a run's events in one batch call, each to its type's queue group, with the event id as
+ * Sends a run's events in one batch call, each to its type's queue group (made sure of first), with the event id as
  * the deduplication id so a retried run never delivers an event twice within QStash's window, and
  * the failure callback, through which an event its worker refuses for good or still fails after
  * QStash's retries comes back as a dead letter (`OUTBOX_FAILED_PATH`).
@@ -101,6 +141,11 @@ export function qstashEventPublisher(config: QStashConfig): EventPublisher {
   return {
     async publish(events: readonly DeliveredEvent[]) {
       if (events.length === 0) return [];
+      await ensureUrlGroups(
+        qstash,
+        config,
+        events.map((e) => e.type),
+      );
       const answers: unknown[] = await withTimeout(
         qstash.batchJSON(
           events.map((event) => ({

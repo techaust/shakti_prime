@@ -118,7 +118,7 @@ export const setScoreRules = defineCommand({
   alsoRequires: [{ permission: 'crm.lead.write', minScope: 'entity' }],
   input: SetScoreRulesInput,
   output: ScoreRuleListDto,
-  auditFields: ['factor', 'points', 'segment', 'archivedAt', 'batch', 'rows'],
+  auditFields: ['factor', 'scorePoints', 'segment', 'archivedAt', 'batch', 'rows'],
   async handler(ctx, input) {
     await assertConfigScope(ctx, input.entityId);
     const current = await ctx.tx
@@ -159,7 +159,7 @@ export const setScoreRules = defineCommand({
           aggregateType: 'lead_score_rule',
           aggregateId: row.id,
           entityId: row.entityId,
-          before: { factor: row.factor, points: row.points, archivedAt: null },
+          before: { factor: row.factor, scorePoints: row.points, archivedAt: null },
           after: { archivedAt: ctx.now.toISOString() },
         });
       }
@@ -181,7 +181,7 @@ export const setScoreRules = defineCommand({
         aggregateId: row.id,
         entityId: row.entityId,
         before: null,
-        after: { factor: row.factor, points: row.points, segment: row.segment },
+        after: { factor: row.factor, scorePoints: row.points, segment: row.segment },
       });
     }
 

@@ -34,6 +34,22 @@ export async function expectNoAxeViolations(page: Page, options: AxeOptions = {}
       for (const frame of frames) frame.remove();
     });
   }
+  // A dialog fading in shows its colours blended with the page behind it, which axe would measure
+  // as low contrast; every animation that ends is let finish first (a spinner never ends, so it is
+  // left running).
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Infinity)
+        .map((a) =>
+          a.finished.then(
+            () => undefined,
+            () => undefined,
+          ),
+        ),
+    ),
+  );
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (options.include !== undefined) builder = builder.include(options.include);
   // With the frames gone, axe runs in the page alone: its cross-frame step opens a blank page to

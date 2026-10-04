@@ -1,6 +1,6 @@
 # Spike: Tally, the BOS side
 
-**Status:** ready to run. The BOS-side rules and request signing are built and tested with fixtures; nothing has read a real Tally company yet.
+**Status (04-10-2026):** ready to run; waits for the Tally discovery visit and a Tally instance (client-actions 20). Owner: the developer. The BOS-side rules and request signing are built and tested with fixtures; nothing has read a real Tally company yet.
 **Roadmap:** §2 week 6 · **Blueprint:** §8.8, §10 · **API:** §2 (connector signing), §3.5 · **Rule:** the BOS never writes to Tally
 
 ## 1. What is built

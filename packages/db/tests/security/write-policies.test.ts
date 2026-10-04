@@ -78,7 +78,7 @@ const CASES: Case[] = [
     kind: 'insert',
     statement: () =>
       sql`insert into role_permissions (role_id, permission_key, scope)
-          values (${roleId('tele_caller_cc')}, 'finance.cost.read', 'all')`,
+          values (${roleId('tele_caller_cc')}, 'crm.lead.assign', 'all')`,
   },
   {
     name: 'widen a role permission',
@@ -89,29 +89,19 @@ const CASES: Case[] = [
           returning role_id`,
   },
   {
+    name: 'remove a permission from a role',
+    kind: 'delete',
+    statement: () =>
+      sql`delete from role_permissions
+          where role_id = ${roleId('tele_caller_cc')} and permission_key = 'crm.lead.read'
+          returning role_id`,
+  },
+  {
     // The set of roles is fixed (AUDIT L17): editing one marks it customised (AUDIT M21).
     name: 'mark a role customised',
     kind: 'update',
     statement: () =>
       sql`update roles set customised_at = customised_at where key = 'tele_caller_lc' returning id`,
-  },
-  {
-    name: 'rename a role',
-    kind: 'update',
-    statement: () => sql`update roles set name = name where key = 'tele_caller_cc' returning id`,
-  },
-  {
-    name: 'add a permission to the catalogue',
-    kind: 'insert',
-    statement: () =>
-      sql`insert into permissions (key, module, description)
-          values (${`test.write_policy_${newId().slice(-8)}`}, 'test', 'Write policy probe')`,
-  },
-  {
-    name: 'edit a permission',
-    kind: 'update',
-    statement: () =>
-      sql`update permissions set description = description where key = 'crm.lead.read' returning key`,
   },
   {
     name: 'create a principal',

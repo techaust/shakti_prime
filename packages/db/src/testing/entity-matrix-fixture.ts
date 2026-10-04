@@ -2,7 +2,8 @@
 // with the migrator connection: for every company one row in each table of ENTITY_TABLES, one
 // customer shared by companies 1 and 2 (ADR 0008), and the group-wide rows (`entity_id null`) of
 // the tables that allow them. Fixed ids so the fixture is re-creatable, except the audit rows,
-// which are append-only and get new ids each run. Values are test data, never copy.
+// and the timeline rows, which are append-only and get new ids each run. Values are test data,
+// never copy.
 // `user_entity_roles` is the one table whose policy also shows the caller's own rows in any
 // company (0049), so the owner holds a role in every company, as does a second person.
 import { newId } from '@shakti/contracts';
@@ -65,6 +66,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   import_jobs: 'x.id::text',
   import_rows: "x.job_id::text || '/' || x.row_no::text",
   user_entity_roles: 'x.id::text',
+  activities: 'x.id::text',
+  tasks: 'x.id::text',
+  tags: 'x.id::text',
+  opportunity_tags: "x.opportunity_id::text || '/' || x.tag_id::text",
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -88,6 +93,13 @@ export interface MatrixRow {
    * those leads reads the row, acting in that company.
    */
   leadIn?: readonly number[];
+  /**
+   * A timeline row on a lead: whoever reads the lead reads the row, agents included, in place of
+   * the table's `read` rule.
+   */
+  onLead?: true;
+  /** For a `files` row, its purpose, which names who reads it (`app.file_purpose_grant()`). */
+  purpose?: string;
 }
 
 export interface EntityMatrixFixture {
@@ -120,6 +132,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from item_costs where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
+      await tx`delete from tasks where id::text like ${like}`;
+      await tx`delete from opportunity_tags where opportunity_id::text like ${like}`;
+      await tx`delete from tags where id::text like ${like}`;
       await tx`delete from consents where id::text like ${like}`;
       await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from customer_sites where id::text like ${like}`;
@@ -155,8 +170,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupPipeline = id(0x0004);
   const groupStage = id(0x0005);
   const groupPriceList = id(0x0006);
-  const groupOutcome = id(0x0008);
-  const groupScoreRule = id(0x0009);
+  const groupOutcome = id(0x000a);
+  const groupScoreRule = id(0x000b);
+  const groupTag = id(0x0008);
   // The customer shared by companies 1 and 2 (ADR 0008).
   const shared = {
     account: id(0x0501),
@@ -198,6 +214,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     import_jobs: [],
     import_rows: [],
     user_entity_roles: [],
+    activities: [],
+    tasks: [],
+    tags: [],
+    opportunity_tags: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -207,6 +227,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
+  rows.tags.push({ key: groupTag, entities: null });
 
   const pipeline = PIPELINE_SEED[0];
   if (!pipeline) throw new Error('pipeline seed missing');
@@ -223,6 +244,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         (${ownerId}, 'entity matrix owner', 'entity-matrix-owner@shakti.test'),
         (${otherUserId}, 'entity matrix other user', 'entity-matrix-other@shakti.test')`;
       await tx`insert into teams (id, entity_id, name) values (${groupTeam}, null, 'matrix group team')`;
+      await tx`insert into tags (id, entity_id, name, created_by) values (${groupTag}, null, 'matrix group tag', ${ownerId})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
       await tx`insert into pipelines (id, entity_id, key, name, segment)
@@ -258,10 +280,23 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const stageE = per(e, 0x0f);
         const priceList = per(e, 0x10);
         const ownerRole = per(e, 0x11);
+        const task = per(e, 0x13);
+        const tag = per(e, 0x14);
         const otherRole = per(e, 0x12);
-        const outcome = per(e, 0x13);
-        const scoreRule = per(e, 0x14);
+        const outcome = per(e, 0x19);
+        const scoreRule = per(e, 0x1a);
+        // One file of each purpose besides the import file, each read by its own rule.
+        const purposeFiles = [
+          ['quote_pdf', per(e, 0x13), 'application/pdf'],
+          ['signed_quote', per(e, 0x14), 'image/jpeg'],
+          ['entity_logo', per(e, 0x15), 'image/png'],
+          ['letterhead', per(e, 0x16), 'image/png'],
+          ['knowledge', per(e, 0x17), 'application/pdf'],
+          ['consent_evidence', per(e, 0x18), 'image/jpeg'],
+        ] as const;
         const audit = newId();
+        const customerRow = newId();
+        const leadRow = newId();
         const only = [e];
 
         await tx`insert into teams (id, entity_id, name) values (${team}, ${e}, ${`matrix team ${e}`})`;
@@ -284,8 +319,21 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${sequence}, ${e}, 'challan', '2098-99', ${`MX${e.toString()}/C`})`;
         await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome)
           values (${audit}, ${e}, ${ownerId}, 'user', ${ENTITY_MATRIX_AUDIT_COMMAND}, 'ok')`;
+        await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id) values
+          (${customerRow}, ${e}, null, ${account}, 'customer_updated', ${ownerId}),
+          (${leadRow}, ${e}, ${opportunity}, ${account}, 'lead_created', ${ownerId})`;
+        await tx`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, due_at, created_by)
+          values (${task}, ${e}, ${opportunity}, ${account}, ${ownerId}, ${team}, 'callback', now(), ${ownerId})`;
+        await tx`insert into tags (id, entity_id, name, created_by)
+          values (${tag}, ${e}, ${`matrix tag ${e.toString()}`}, ${ownerId})`;
+        await tx`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
+          values (${opportunity}, ${account}, ${tag}, ${e}, ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
+        for (const [purpose, fileId, type] of purposeFiles) {
+          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+            values (${fileId}, ${e}, ${purpose}, 'matrix', ${`matrix/${fileId}`}, 'matrix file', ${type}, 1, ${sha}, 'ready', ${ownerId})`;
+        }
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -322,7 +370,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
         rows.audit_logs.push({ key: audit, entities: only });
-        rows.files.push({ key: file, entities: only });
+        rows.files.push({ key: file, entities: only, purpose: 'import' });
+        for (const [purpose, fileId] of purposeFiles) {
+          rows.files.push({ key: fileId, entities: only, purpose });
+        }
         rows.import_mapping_templates.push({ key: template, entities: only });
         rows.import_jobs.push({ key: job, entities: only });
         rows.import_rows.push({ key: `${job}/1`, entities: only });
@@ -332,6 +383,13 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.call_dispositions.push({ key: outcome, entities: only });
         rows.lead_score_rules.push({ key: scoreRule, entities: only });
         rows.referral_partners.push({ key: account, entities: only, leadIn: only });
+        rows.tasks.push({ key: task, entities: only });
+        rows.tags.push({ key: tag, entities: only });
+        rows.opportunity_tags.push({ key: `${opportunity}/${tag}`, entities: only });
+        rows.activities.push(
+          { key: customerRow, entities: only, leadIn: only },
+          { key: leadRow, entities: only, onLead: true },
+        );
         rows.user_entity_roles.push(
           { key: ownerRole, entities: only, ownedByActor: true },
           { key: otherRole, entities: only },
@@ -357,6 +415,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${shared.account}, 'MXSHARED', ${ownerId})`;
       await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
         values (${shared.opportunity}, 2, ${shared.account}, ${shared.site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team2}, ${ownerId})`;
+      // The shared customer's own row in company 1, where it has no lead.
+      const sharedRow = newId();
+      await tx`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id)
+        values (${sharedRow}, 1, null, ${shared.account}, 'customer_updated', ${ownerId})`;
+      rows.activities.push({ key: sharedRow, entities: [1], leadIn: [] });
     }),
   );
 

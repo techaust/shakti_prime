@@ -61,7 +61,7 @@ export async function catalogueFixture(): Promise<CatalogueFixture> {
 
       await tx`insert into items (id, sku, name, category, hsn, unit, is_serial_tracked) values
         (${fx.items.pump}, 'FX-PUMP', 'fixture pump', 'pump', '8413', 'nos', true),
-        (${fx.items.panel}, 'FX-PANEL', 'fixture panel', 'panel', '8541', 'nos', true),
+        (${fx.items.panel}, 'FX-PANEL', 'fixture panel', 'solar_module', '8541', 'nos', true),
         (${fx.items.cable}, 'FX-CABLE', 'fixture cable', 'cable', '8544', 'metre', false)`;
       await tx`insert into pump_curves (id, item_id, head_m, flow_lph) values
         (${id(0x1201)}, ${fx.items.pump}, 30.00, 12000.00), (${id(0x1202)}, ${fx.items.pump}, 50.00, 8000.00)`;

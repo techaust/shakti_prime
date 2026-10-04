@@ -1,5 +1,8 @@
 import type { DeliveredEvent, EventType, Principal } from '@shakti/contracts';
 import type { KeyValue } from '@shakti/domain';
+import { hostedRuntime } from '../../auth/deps';
+import { requireFileStore } from '../../files/uploads';
+import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { recordProbeArrival } from './probe';
 
 /** What a handler is given: the system principal for the event's company and the shared store. */
@@ -41,6 +44,20 @@ export interface EventWorker {
 export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'platform.probe.requested': {
     handle: (event, ctx) => recordProbeArrival(event, ctx.keyValue, ctx.now),
+  },
+  // The checks of an upload (docs/ARCHITECTURE.md §9). Every event is handled: a re-drive from
+  // Integration health is a new event for the same file, and the checks start from its status.
+  'files.file.uploaded': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleFileUploaded(event, {
+        // No store on a hosted runtime without S3: `integration_unavailable`, delivered again.
+        store: requireFileStore(),
+        principal: ctx.principal,
+        hosted: hostedRuntime(),
+        requestId: ctx.requestId,
+      });
+    },
   },
 };
 

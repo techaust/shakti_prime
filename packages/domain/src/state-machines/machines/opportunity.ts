@@ -116,6 +116,7 @@ export const opportunityMachine = defineMachine<
     won: 'Closed with an accepted quote or a confirmed order.',
     lost: 'Closed without a sale; may be reopened for a limited time.',
   },
+  stored: { table: 'opportunities', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   transitions: [
     {
       from: 'new',
@@ -124,6 +125,7 @@ export const opportunityMachine = defineMachine<
       permission: 'crm.lead.write',
       system: true,
       note: 'Created by `crm.lead.create` (manual entry) or by lead ingestion (the platform).',
+      emits: 'crm.lead.created',
       proposed: true,
     },
     {
@@ -132,6 +134,7 @@ export const opportunityMachine = defineMachine<
       to: 'open',
       permission: 'crm.lead.write',
       guard: allOf(stageInPipeline, exitRulesMet),
+      emits: 'crm.opportunity.stage_moved',
       effects: [
         { key: 'set_stage', description: 'update `stage_id`' },
         {
@@ -148,6 +151,7 @@ export const opportunityMachine = defineMachine<
       permission: 'crm.lead.assign',
       system: true,
       guard: lockFree,
+      emits: 'crm.opportunity.assigned',
       effects: [
         { key: 'set_owner', description: 'set `owner_id` and `team_id`' },
         {
@@ -165,9 +169,11 @@ export const opportunityMachine = defineMachine<
       effects: [
         {
           key: 'schedule_nurture',
-          description: 'schedule the nurture cadence (Workflow; cadence is a workshop input)',
+          description:
+            'follow-up tasks on the nurture cadence (Phase 1; the cadence is a workshop input); a workflow engine is a later choice',
         },
       ],
+      emits: 'crm.opportunity.nurtured',
     },
     {
       from: ['nurture', 'lost'],
@@ -176,6 +182,7 @@ export const opportunityMachine = defineMachine<
       permission: 'crm.lead.write',
       guard: reopenWindow,
       effects: [{ key: 'first_open_stage', description: 'stage = the first open stage' }],
+      emits: 'crm.opportunity.reopened',
     },
     {
       from: ['open'],
@@ -183,6 +190,7 @@ export const opportunityMachine = defineMachine<
       to: 'won',
       permission: 'crm.lead.write',
       guard: hasOrder,
+      emits: 'crm.opportunity.won',
     },
     {
       from: ['open', 'nurture'],
@@ -190,6 +198,7 @@ export const opportunityMachine = defineMachine<
       to: 'lost',
       permission: 'crm.lead.write',
       guard: reasonGiven('a lost-reason code is given'),
+      emits: 'crm.opportunity.lost',
     },
   ],
 });

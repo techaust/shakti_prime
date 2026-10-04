@@ -3,6 +3,7 @@ import {
   EVENT_TYPES,
   isSubscribed,
   newId,
+  SYSTEM_MATRIX,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type DeliveredEvent,
 } from '@shakti/contracts';
@@ -92,7 +93,7 @@ describe('deliverEvent', () => {
       kind: 'system',
       roleKey: 'system:workers',
       entityIds: [2],
-      permissions: [],
+      permissions: [...SYSTEM_MATRIX['system:workers']],
     });
     expect(ctx?.requestId).toBe('r-1');
     expect(await keyValue.get(eventKey(event.id))).toBe('done');

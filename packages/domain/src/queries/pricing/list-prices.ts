@@ -2,7 +2,7 @@ import {
   DomainError,
   ItemUnitSchema,
   ListPricesInput,
-  PriceListDto,
+  type PriceListDto,
   PricePageDto,
   PriceRowDto,
   type PriceSort,
@@ -20,6 +20,7 @@ import {
   type SortKeys,
 } from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
+import { toPriceListDto } from './list-state';
 
 type PricingContext = Pick<RequestContext, 'tx' | 'principal'>;
 
@@ -39,8 +40,9 @@ const PRICE_SORT_KEYS: SortKeys<PriceSort['column']> = {
 
 /**
  * Price Master: the price lists the caller can read (`pricing.read`), shared ones and those of
- * the request's companies, newest version first within each tier. A list that has ended or been
- * archived is marked closed, as `pricing.price.set` treats it (AUDIT M19).
+ * the request's companies, newest version first within each tier, each with its state (draft,
+ * scheduled, live or ended). A list that has ended or been archived is marked closed, as
+ * `pricing.price.set` treats it (AUDIT M19).
  */
 export async function listPriceLists(
   ctx: PricingContext,
@@ -59,23 +61,13 @@ export async function listPriceLists(
       version: pl.version,
       effectiveFrom: pl.effectiveFrom,
       effectiveTo: pl.effectiveTo,
+      approvedAt: pl.approvedAt,
       archivedAt: pl.archivedAt,
     })
     .from(pl)
     .innerJoin(t, eq(t.id, pl.tierId))
     .orderBy(asc(t.code), asc(pl.entityId), desc(pl.version), asc(pl.id));
-  return rows.map((r) =>
-    PriceListDto.parse({
-      id: r.id,
-      tierCode: r.tierCode,
-      tierName: r.tierName,
-      entityId: r.entityId,
-      version: r.version,
-      effectiveFrom: r.effectiveFrom,
-      effectiveTo: r.effectiveTo,
-      open: r.archivedAt === null && (r.effectiveTo === null || r.effectiveTo > today),
-    }),
-  );
+  return rows.map((r) => toPriceListDto(r, today));
 }
 
 /**

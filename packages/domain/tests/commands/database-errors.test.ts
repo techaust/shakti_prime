@@ -46,7 +46,7 @@ const insertItem = defineCommand({
         id: newId(),
         sku: `T-${newId().slice(-8)}`,
         name: 'x',
-        category: 'x',
+        category: 'other',
         hsn: input.hsn,
         createdBy: ctx.principal.id,
       })
@@ -73,7 +73,7 @@ describe('database errors inside a command', () => {
   });
 
   it('a check violation answers validation_failed', async () => {
-    const exec = await createTestPrincipal('executive', [1]);
+    const exec = await createTestPrincipal('executive');
     await expect(
       asPrincipal(exec, (context) =>
         runCommand(insertItem, { context, audit, outbox }, { hsn: 'abc' }),

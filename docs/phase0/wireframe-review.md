@@ -1,8 +1,15 @@
 # Screen review with real users — Shakti Prime BOS
 
-Date: 27-09-2026. For: the development team running the sessions, and the owner who picks the reviewers.
+Prepared 27-09-2026 · last updated 04-10-2026. For: the development team running the sessions, and the owner who picks the reviewers.
 
-The blueprint asks for clickable wireframes of the core screens for each role, reviewed with one or two real users of that role, before Phase 1 is built (BLUEPRINT §19 item 5, ROADMAP §2 week 4). This script sets out who to invite, what each person is asked to do, what to watch for, and a form for the notes.
+The blueprint asks for clickable wireframes of the core screens for each role, reviewed with one or two real users of that role (BLUEPRINT §19 item 5, ROADMAP §2 week 4). The owner closed Phase 0 on 29-09-2026 with this review deferred. It is needed before the screens the prototype shows are built: the calling screen (T1), quotes (S1), sales orders and dealer credit (S2), the lead converter's screen (L1) and the home pages (R1). This script sets out who to invite, what each person is asked to do, what to watch for, and a form for the notes.
+
+## 1a. Before the sessions
+The development team prepares these on the review system (the staging site) and confirms each before the first session; building the demo data loader and publishing the prototype link are tracked in [STATUS, Open follow-ups](../STATUS.md#open-follow-ups):
+- **Demo data:** a small set, every record clearly labelled as demo data: items and kits with their prices on the Retail, Dealer and Commercial lists, and a few customers with leads in more than one company, a site, a note on the timeline and a consent. It includes the customer the tasks name (Bhanwar Lal Jat). The development team loads it on staging only, never on the live system, and removes it after the last session.
+- **One account per role:** a sign-in for each of the eleven roles, given to the reviewer of that role at the session and closed after the reviews.
+- **Authenticator apps:** the Executive, General Manager and Accounts reviewers must have an authenticator app on their phone before the session (the system asks for its code when they sign in); the development team helps them add the account at the start of their session.
+- **The prototype link:** the clickable prototype is reached by a private link the development team sends to the session runners; it opens in any browser on desktop or phone, with no sign-in.
 
 ## 1. What people will use
 
@@ -18,17 +25,22 @@ Two things are reviewed together:
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
 | Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
-| Companies | `/settings/companies` | Each company's name, with its brand name, GSTIN, state, registered address and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
+| Customers | `/customers` | Customers list with search and saved views; phone numbers shown by their last four digits | Every role but HR Admin |
+| Customer page | `/customers/<customer>` | Contacts, sites, leads, the timeline, tasks, tags and consent with its proof, on one page | Every role but HR Admin |
+| Companies | `/settings/companies` | Each company's name, with its brand name, GSTIN, state, registered address and UPI ID to edit, and its logo and letterhead to upload; bank details and printed documents come with print and letterhead (P4) | Executive |
 | Price lists | `/price-master` | The prices on each price list, with the date the list starts and when each price last changed; a new price applies from now on | Executive edits; every role but Field Engineer and HR Admin can view |
+| Catalogue | `/catalogue`, `/catalogue/kits` | Items with their specifications and pump curves, and kits with their parts | Every role but Field Engineer and HR Admin can view; a change needs an Executive, General Manager or Inventory Manager working in "All companies" |
+| Tax rates | `/settings/tax` | GST rates per HSN code and the solar composite-supply rules, each from a date | Executive and Accounts; a change needs "All companies" |
+| Roles | `/admin/roles` | What each role may do, by module, with a confirmation that names how many people are signed out | Executive |
+| Integration health | `/admin/integrations` | Messages waiting or held back between parts of the system, with Send again and a delivery check | Executive |
 | Imports | `/imports` | Upload a spreadsheet of leads, match its columns, check the rows, then add them (customers and items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
-**The clickable prototype** (`docs/phase0/prototype/index.html`, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
+**The clickable prototype** (the private link of §1a, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet; the screens built since are marked as built in it and are reviewed in the app. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
 | Prototype screen | Roles |
 |---|---|
 | Role home pages | All eleven roles |
 | Cold-calling workspace: queue, script, number-key call outcomes, next lead | Tele-caller (cold calling), Sales Team Lead |
-| Customer page (Account 360) | Tele-callers, Store Manager, General Manager, Project Manager, Executive |
 | Quote builder | Tele-caller (converter), Store Manager, Executive, Accounts |
 | Sales orders: list and detail | Tele-caller (converter), General Manager, Inventory Manager, Accounts, Executive |
 | Dealer credit | Accounts, Executive, General Manager |
@@ -59,7 +71,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 - **Device:** the device they use at work. Field engineers and store staff on their Android phone; office roles on a desktop or laptop. Every reviewer also tries one task on the other device if time allows.
 - **People in the room:** the reviewer, one person from the development team who runs the session, and one who takes notes. The reviewer's manager should not be in the room.
 - **Consent:** ask before taking photos or recording the screen. Record only the screen, never the person's face, and delete the recording after the notes are written.
-- **Data:** the prototype holds only invented data. The review system holds only invented data. No real customer record is used or shown.
+- **Data:** the prototype holds only invented data, and the review system only the labelled demo data of §1a. No real customer record is used or shown.
 
 **Opening words (read out):**
 "Thank you for your time. We are building a new system for your daily work and want to see how easy it is to use before we finish it. We are testing the screens, not you; there are no wrong answers. Please say out loud what you are thinking as you go, including anything that confuses you or any word you would say differently. Some screens are only a picture of the real thing; nothing you do here is saved or seen by customers. I will not help you during a task, but I will answer every question at the end."
@@ -90,7 +102,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 |---|---|---|---|
 | G1 | "From your home page, find the leads whose callback is overdue, and who owns them." | Prototype, GM home | The overdue list and the owner are named |
 | G2 | "Look only at Shakti Motor Pumps, then go back to all companies." | Prototype, company switcher in the top bar | Both switches done |
-| G3 | "Open the customer Bhanwar Lal Jat and tell me what he has bought from each company." | Prototype, customer page | Both companies' deals named |
+| G3 | "Open the customer Bhanwar Lal Jat and tell me which companies he has enquired with, and about what." | App, Customers and the customer's page | Both companies' leads named |
 | G4 | "Find the sales orders waiting to be confirmed." | Prototype, Sales orders | The filter or status is used |
 
 ### 4.3 Sales Team Lead
@@ -115,7 +127,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 |---|---|---|---|
 | L1 | "Move a lead from Qualified to Quoted." | App, Leads board | Card moved |
 | L2 | "Make a quote for a 7.5 HP solar pump kit for a farmer, and tell me the total with GST." | Prototype, quote builder | Line added and total read out |
-| L3 | "Open the customer and tell me what was said on the last call." | Prototype, customer page | The summary found in the timeline |
+| L3 | "Open the customer Bhanwar Lal Jat and tell me what the last note on his timeline says." | App, the customer's page | The note found in the timeline |
 | L4 | "The customer accepted the quote. Turn it into a sales order." | Prototype, quote builder and Sales orders | Sales order opened |
 
 ### 4.6 Store Manager
@@ -138,7 +150,7 @@ One or two people for each of the eleven roles; two where the role has many peop
 |---|---|---|---|
 | P1 | "Which rooftop projects are stuck waiting for a customer document?" | Prototype, Project Manager home | Projects and missing documents named |
 | P2 | "Which engineer visits are booked for tomorrow?" | Prototype, Project Manager home | Visits named |
-| P3 | "Open the customer for one of those projects and find the site details." | Prototype, customer page | Site found |
+| P3 | "Open the customer Bhanwar Lal Jat and find the details of his site." | App, Customers and the customer's page | Site found |
 
 ### 4.9 Field Engineer (on the phone)
 | # | Task | Where | Done when |
@@ -212,8 +224,8 @@ Changes the development team proposes (filled after the session):
 ## 7. After the sessions
 1. Within two working days, the development team lists every change found, grouped by screen, with how many reviewers hit it.
 2. Changes to words go into the product's word list and the writing rules (`DESIGN.md` §11) where they apply to every screen.
-3. The owner reviews the list and marks each change "before Phase 1 build", "during Phase 1" or "not needed".
-4. The prototype is updated for the "before Phase 1 build" changes and shown again to one reviewer per affected role.
+3. The owner reviews the list and marks each change "before that screen is built", "later in Phase 1" or "not needed".
+4. The prototype is updated for the "before that screen is built" changes and shown again to one reviewer per affected role.
 
 ## 8. Record of sessions
 | Role | Reviewer 1 (date) | Reviewer 2 (date) | Changes found | Owner's review done |

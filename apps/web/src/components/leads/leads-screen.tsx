@@ -16,6 +16,7 @@ import { useRef, useState } from 'react';
 import { listLeads } from '../../actions/crm';
 import { oneOf } from '../../screens/audit';
 import { LEAD_SORT_COLUMNS, SCORE_FACTORS } from '../../screens/contract-values';
+import { customerHref } from '../../screens/customers';
 import { DateTime } from '../date-time';
 import { formatDateTime, formatPhone } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
@@ -95,7 +96,14 @@ export function LeadsScreen({
     {
       id: 'customer',
       header: t('columns.customer'),
-      cell: (l) => l.account.name,
+      cell: (l) => (
+        <Link
+          href={customerHref(l.account.id, l.entityId)}
+          className="text-accent-text hover:underline"
+        >
+          {l.account.name}
+        </Link>
+      ),
       primary: true,
     },
     {

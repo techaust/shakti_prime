@@ -1,0 +1,15 @@
+---
+name: integrate-slice
+description: Bring a built and reviewed slice branch of Shakti Prime BOS onto main, on the PC. Use when a slice's builder has finished and its review findings are fixed. Takes main into the branch, renumbers its migrations, runs every check, makes the Linux screenshot baselines and opens the pull request.
+---
+
+# Integrate a slice
+
+**PC:** every step runs on the PC until the cloud trial says otherwise ([hybrid §1 and §10](../../../docs/runbooks/hybrid.md#1-what-runs-where)). The procedure, the reasons and the lessons are in `docs/runbooks/slice-integration.md` §5 to §8; follow it exactly. Every command starts with `cd "<worktree>" && . tools/integration/lib.sh &&`. In short:
+
+1. **Ready?** The slice's run file has the builder's report and the review's findings, every medium or worse is fixed and verified, and the worktree is clean (`git status`). Work done in a cloud session is fetched into the worktree first.
+2. **Take main:** record the pre-merge commit, `git merge --no-commit origin/main`, resolve with `python3 tools/integration/merge-union.py`, `merge-json.py` (before `git add` on `en.json`) and `merge-copylint.py` (read every code hunk by hand), then `node tools/integration/renumber-migrations.mjs origin/main <pre-merge sha>`. `pnpm db:generate` must report no changes; run `pnpm db:docs`; fix the migration numbers the slice's documents cite; commit the merge.
+3. **Check everything:** `bash tools/integration/integrate.sh <worktree> <log>` in the background; wait for its last line. On `INTEGRATION FAILED`, read `<log>.<step>`, fix, commit, run it again.
+4. **Baselines,** on a fresh database only: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>`, then `pnpm db:migrate && pnpm db:seed && pnpm build`, then `pnpm --filter web e2e:snap -- --update-snapshots=missing`; look at every new image; a verification run without updating must match.
+5. **Pull request:** push, open it from `.github/pull_request_template.md` with what it builds, its migrations, the definition-of-done list, its checks and anything left for the owner (body ends with the Claude Code line). The merge workflow merges it; never merge by hand. A commit pushed after CI started misses the merge: check it with `git merge-base --is-ancestor`.
+6. **After the merge:** the `migrate-hosted` skill when the slice has migrations; the run file's header gets the pull request number and the state merged; note the merge for the `end-session` skill.

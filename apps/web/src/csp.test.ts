@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contentSecurityPolicy, sentryIngestOrigin } from './csp';
+import { contentSecurityPolicy, fileUploadOrigins, sentryIngestOrigin } from './csp';
 
 describe('Content-Security-Policy (AUDIT L43)', () => {
   it('runs only scripts that carry this request nonce, and never inline ones without it', () => {
@@ -32,5 +32,29 @@ describe('Content-Security-Policy (AUDIT L43)', () => {
     for (const dsn of [undefined, '', '  ', 'http://key@sentry.local/1', 'not a dsn']) {
       expect(sentryIngestOrigin(dsn)).toBeUndefined();
     }
+  });
+});
+
+describe('the file bucket in the page policy', () => {
+  it('lets a page upload to the environment’s bucket only when S3 is configured', () => {
+    expect(fileUploadOrigins({})).toEqual([]);
+    expect(fileUploadOrigins({ FILES_BUCKET: 'shakti-prime-dev-files' })).toEqual([]);
+    const origins = fileUploadOrigins({
+      FILES_BUCKET: 'shakti-prime-dev-files',
+      FILES_KMS_KEY_ID: 'alias/shakti-prime-dev-files',
+    });
+    expect(origins).toEqual(['https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com']);
+    expect(contentSecurityPolicy('n', false, undefined, origins)).toContain(
+      "connect-src 'self' https://challenges.cloudflare.com https://shakti-prime-dev-files.s3.ap-south-1.amazonaws.com",
+    );
+  });
+
+  it('never writes a name that could widen the policy', () => {
+    expect(
+      fileUploadOrigins({ FILES_BUCKET: "x; script-src 'unsafe-inline'", FILES_KMS_KEY_ID: 'k' }),
+    ).toEqual([]);
+    expect(
+      fileUploadOrigins({ FILES_BUCKET: 'ok-bucket', FILES_KMS_KEY_ID: 'k', AWS_REGION: 'x y' }),
+    ).toEqual([]);
   });
 });

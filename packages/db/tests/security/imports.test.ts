@@ -175,7 +175,6 @@ describe('imports are written only as the caller, in the caller’s entity', () 
       sql`update import_rows set raw_json = '{}'::jsonb where job_id = ${one.jobId}`,
       sql`update import_jobs set columns_json = '[]'::jsonb where id = ${one.jobId}`,
       sql`update import_jobs set file_id = ${two.fileId} where id = ${one.jobId}`,
-      sql`update files set key = 'elsewhere' where id = ${one.fileId}`,
       sql`update import_mapping_templates set mapping_json = '{}'::jsonb where id = ${one.templateId}`,
       sql`delete from import_rows where job_id = ${one.jobId}`,
       sql`delete from import_jobs where id = ${one.jobId}`,
@@ -185,6 +184,16 @@ describe('imports are written only as the caller, in the caller’s entity', () 
         /permission denied/,
       );
     }
+  });
+
+  it('changes nothing of an import file, which only the file checks could (0062)', async () => {
+    const changed = await asPrincipal(gm1, async ({ tx }) => {
+      const rows = (await tx.execute(
+        sql`update files set key = 'elsewhere' where id = ${one.fileId} returning id`,
+      )) as unknown as unknown[];
+      return rows.length;
+    });
+    expect(changed).toBe(0);
   });
 
   it('changes nothing of another entity’s job', async () => {

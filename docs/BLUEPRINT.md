@@ -5,7 +5,11 @@ The Shakti group has four companies (Shakti Supreme, Shakti Motor Pumps, Agro So
 
 Shakti Prime is a single **Business Operating System** on `shaktiprime.com` that runs the business end to end: lead → sale → fulfilment → installation → cash. **AI agents run the lead lifecycle on autopilot**, and leadership shapes their behaviour by teaching the AI through uploads and live voice conversation.
 
-This document is the architecture and product blueprint. Implementation begins after approval, starting with Phase 0.
+This document is the architecture and product blueprint.
+
+**Status:** approved by the owner on 26-09-2026; Phase 0 closed on 29-09-2026 by the owner's decision and Phase 1 is under way. What is built so far is in [STATUS](STATUS.md); terms are explained in the [glossary](GLOSSARY.md).
+
+**Contents:** [0. Context](#0-context) · [1. Key decisions](#1-key-decisions) · [2. Feature scope](#2-feature-scope) · [3. Guiding principles](#3-guiding-principles) · [4. System architecture](#4-system-architecture) · [5. Technology stack](#5-technology-stack) · [6. Multi-entity model](#6-multi-entity-model--data-architecture) · [7. Security, access & compliance](#7-security-access--compliance) · [8. Functional modules](#8-functional-modules) · [9. AI layer](#9-ai-layer) · [10. Integrations](#10-integrations) · [11. UX & design system](#11-ux--design-system) · [12. Reliability & operations](#12-reliability--operations) · [13. Operating cost](#13-operating-cost-estimate-monthly-at-full-volume) · [14. Roadmap & effort](#14-roadmap--effort) · [15. Rollout](#15-rollout--change-management) · [16. Edge cases](#16-edge-cases) · [17. Verification strategy](#17-verification-strategy) · [18. Risk register](#18-risk-register) · [19. Phase 0 deliverables](#19-phase-0-deliverables) · [20. Claude Code tooling](#20-claude-code-tooling)
 
 ## 1. Key decisions
 | Area | Decision |
@@ -29,7 +33,7 @@ This document is the architecture and product blueprint. Implementation begins a
 | Stock | The BOS is the operational stock authority; Tally holds statutory stock valuation and is reconciled monthly |
 | Tax | A deterministic tax engine with effective-dated GST rates, place-of-supply split and the solar 70:30 composite-supply valuation; every line snapshots the rate version used |
 | Identity documents | Aadhaar numbers are never stored; only the last four digits and a masked copy are kept |
-| Estimates | Effort figures include a 20% contingency; cost figures are confirmed by vendor quotes in Phase 0 |
+| Estimates | Effort figures include a 20% contingency; cost figures are confirmed by vendor quotes, deferred from Phase 0 (§19) |
 
 ## 2. Feature scope
 **Lead sources:**
@@ -124,7 +128,7 @@ This document is the architecture and product blueprint. Implementation begins a
 | Auth | Better Auth: Argon2id, DB sessions, TOTP 2FA for Executive/GM/Accounts, Cloudflare Turnstile, Redis rate limits |
 | Jobs / workflows | Upstash QStash + Upstash Workflow (durable multi-step, multi-day flows), dead-letter queue |
 | Cache / locks | Upstash Redis |
-| Realtime | Supabase Realtime (private broadcast channels). The BOS signs short-lived ES256 JWTs with its own key pair and is registered in Supabase as a third-party auth provider (OIDC discovery on `shaktiprime.com`), so Realtime authorization policies see the user id and entity ids; the token never grants Data API access |
+| Realtime | Supabase Realtime (private broadcast channels). The BOS signs short-lived ES256 JWTs with its own key pair and publishes its discovery document and key list on `shaktiprime.com`, so Realtime authorization policies see the user id and entity ids; the token never grants Data API access. Supabase's third-party auth accepts named vendors only, so the project trusts the BOS public key imported into its JWT signing keys as a standby key; notifications poll until the Realtime spike passes on the production site (`docs/spikes/realtime.md`) |
 | Files | S3 ap-south-1, SSE-KMS, 15-minute pre-signed URLs; type and size validation; malware scan for externally sourced files |
 | PDFs and print | HTML templates rendered by headless Chromium in workers, in English with Inter embedded; the same templates drive print views and labels |
 | Document masking | Server-side OCR (tesseract.js in workers) detects Aadhaar and bank account numbers; images and extracted text are masked before storage and before any LLM call |
@@ -137,13 +141,13 @@ This document is the architecture and product blueprint. Implementation begins a
 | Observability | Sentry (web, mobile, connector, voice agent) + Vercel logs/analytics + uptime checks |
 | Feature flags | DB-backed flags table |
 | Testing | Vitest, Playwright (E2E per role), RLS/permission suite on real Postgres, webhook contract tests, AI eval sets |
-| CI/CD | GitHub Actions + Vercel previews + Supabase branching; EAS Build/Update for Android |
+| CI/CD | GitHub Actions (every migration tested on a fresh database) + a Vercel project per environment; EAS Build/Update for Android |
 
 ## 6. Multi-entity model & data architecture
 
 ### 6.1 Tenancy
 - There is one database. The four companies are **selling entities**, not isolated tenants, because staff are shared.
-- Users have `allowed_entity_ids` and a role per entity. The entity switcher offers "All entities" or a single entity. Every lead, quote, order and document carries a selling entity.
+- Each user's companies are their `user_entity_roles` rows, one role per company. The entity switcher offers "All entities" or a single entity. Every lead, quote, order and document carries a selling entity.
 - RLS uses `entity_id = ANY((select current_setting('app.entity_ids', true))::int[])`, set per transaction with `set_config(..., true)`, which is safe with connection poolers. The subselect runs once per query as an initplan, and the policy denies when the setting is null or empty, so a query that runs outside the request transaction returns nothing.
 - Business tables carry `FORCE ROW LEVEL SECURITY`. The app connects as a non-superuser `app_user` that does not own the tables; migrations run as a separate role. The service role is never used in request paths.
 - All data access goes through one `withRequestContext()` helper that opens the transaction and sets `app.user_id`, `app.entity_ids`, `app.role` and `app.permissions`. An ESLint rule forbids importing the raw database client anywhere else.
@@ -548,7 +552,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 - In-app help: contextual tips and short walkthroughs per role in English, and a "What's new" panel; the role training videos are in Hinglish (§15).
 
 ## 12. Reliability & operations
-- **Environments:** dev, staging and prod as separate Supabase projects; Supabase branching for previews.
+- **Environments:** dev, staging and prod as separate Supabase projects and separate Vercel projects; no database branching, since CI migrates a fresh database for every pull request that changes code.
 - **Region:** Vercel functions pinned to `bom1`, next to Supabase Mumbai. The voice-agent worker runs on LiveKit Cloud Agents hosting in the India region, with AWS ECS Fargate in ap-south-1 as the alternative if Mumbai placement is not offered.
 - **Backups:** Supabase PITR + a nightly logical dump to S3 (30-day retention); quarterly restore drills.
 - **Recovery targets:** RPO ≤ 5 min; RTO ≤ 4 h. Uptime target 99.5% during business hours (8 AM–10 PM IST); maintenance windows on Sunday nights.
@@ -571,7 +575,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 Assumptions:
 - 2,000 leads/day, of which about 50% engage on WhatsApp;
 - about 4,500 dial attempts/day across about 45 callers, of which about 2,500 connect and average 3 minutes (about 225k talk-minutes a month); click-to-dial bills two legs per connected call;
-- 100 users;
+- 100+ users (100 for the estimate);
 - about 300 minutes a month of executive voice use.
 
 | Item | Estimate |
@@ -597,7 +601,7 @@ Assumptions:
 - **Total: approximately ₹4–8 lakh/month with LC-only transcription, and ₹4.5–11 lakh/month at full transcription coverage.** AI usage, transcription coverage and call minutes are the main variables, and all three are governed by per-agent caps and coverage settings.
 - Call transcription starts with LC calls only. Per-lead AI cost is measured in shadow mode before any agent is moved to Automatic.
 - Claude figures use current list prices for Sonnet 5 and Haiku 4.5 with prompt caching and the Batch API for non-urgent work.
-- Figures are indicative and are confirmed with vendor quotes in Phase 0.
+- Figures are indicative and are confirmed with vendor quotes, deferred from Phase 0 (§19).
 
 ## 14. Roadmap & effort
 Assumes a single full-time developer working with Claude; every phase has a quality gate. Each phase depends only on phases before it, and effort figures include a 20% contingency.
@@ -613,6 +617,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | **6 — AI brain & autonomy** | Sizing & Quote, Project Orchestrator and Chief of Staff agents, voice Command mode, autonomy promotions | 7–9 wk | Eval thresholds met per action type |
 | **7 — Hardening & rollout** | Load testing (5× volume), security review/pentest, DR drill, DPDP readiness review, documentation, role-wise training, in-app help | 4–5 wk | Go-live sign-off |
 
+- **Phase 0 closed on 29-09-2026 by the owner's decision:** Phase 1 started, and the exit-gate items that wait on people are deferred, not met, and run alongside it, tracked in [STATUS](STATUS.md).
 - **Full scope: about 65–79 weeks (≈ 15–18 months).** The MVP is live after about 5–6 months (Phases 0–1). A second developer on the Android app in Phase 4 shortens the timeline by 2–3 months.
 - **Parallel workstreams starting immediately:**
   - DLT registration of all four entities and 140/160-series number provisioning with Exotel;
@@ -687,7 +692,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | # | Risk | Likelihood / Impact | Mitigation |
 |---|---|---|---|
 | 1 | Scope size for a single developer | High / High | Strict phase gates; MVP first; 20% contingency in every phase; a second developer for the Android app; protect quality over scope |
-| 2 | Tally behaviour differs from expectations (Buyer Order No., XML limits, company setup) | Medium / High | Tally discovery visit and connector spike in Phase 0; manual linking queue |
+| 2 | Tally behaviour differs from expectations (Buyer Order No., XML limits, company setup) | Medium / High | Tally discovery visit and connector spike before Phase 5 (deferred from Phase 0); manual linking queue |
 | 3 | WhatsApp verification or template approval delays | Medium / High | Start immediately; template variants; WhatsApp Business app as an interim channel |
 | 4 | Speech accuracy on Marwari/Hinglish, and natural pronunciation of Roman-script Hinglish | Medium / Medium | Benchmark both before committing; correctable transcripts; text fallback |
 | 5 | AI cost above estimate | Medium / Medium | Shadow-mode cost measurement, per-agent caps, Haiku by default, selective transcription |
@@ -700,10 +705,10 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | 12 | Outbound calls blocked as spam from unregistered numbers | Medium / High | DLT registration and 140/160-series numbers live before Phase 2; consent recorded per lead |
 | 13 | WhatsApp messaging limit throttles outbound messages | Medium / Medium | Customer-initiated-first design, early business verification, managed tier ramp |
 | 14 | GST rate or composite-supply valuation change | Medium / Medium | Effective-dated tax tables; rate version snapshotted on every line |
-| 15 | Realtime authorization gap between Better Auth and Supabase | Low / High | Third-party JWT registration proven in the Phase 0 spike; polling fallback for notifications |
+| 15 | Realtime authorization gap between Better Auth and Supabase | Low / High | BOS signing key trusted as a standby key, proven in the Realtime spike on the production site; polling fallback for notifications |
 
 ## 19. Phase 0 deliverables
-Completed and signed off before feature development begins:
+Planned to be completed and signed off before feature development begins. The owner closed Phase 0 on 29-09-2026 with the items that wait on people deferred, not met, and tracked in [STATUS](STATUS.md) (§14).
 1. **ERD and data dictionary** for all tables in §6.3.
 2. **State-machine specifications** (states, transitions, guards, side effects, permitted actors) for: opportunity per pipeline, quote, sales order, dispatch (with the e-way bill gate), standard project flow, PM Surya Ghar flow and subsidy gates, loan, warranty claim, WhatsApp document filing, expense claim, Playbook directive, Tally voucher (including tombstones).
 3. **Permission matrix:** role × permission × scope (own / team / entity / all), including `procurement.rate.read`, `finance.cost.read`, agent and voice principals.

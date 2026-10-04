@@ -60,8 +60,32 @@ const ACTIONS = {
   'crm.opportunity.reopen': 'opportunityReopen',
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
+  'crm.task.create': 'taskCreate',
+  'crm.task.complete': 'taskComplete',
+  'crm.task.reschedule': 'taskReschedule',
+  'crm.task.cancel': 'taskCancel',
+  'crm.tag.create': 'tagCreate',
+  'crm.tag.archive': 'tagArchive',
+  'crm.lead.tag': 'leadTag',
+  'crm.lead.untag': 'leadUntag',
+  'crm.account.update': 'accountUpdate',
+  'crm.contact.update': 'contactUpdate',
+  'crm.site.upsert': 'siteUpsert',
+  'crm.note.add': 'noteAdd',
+  'crm.consent.record': 'consentRecord',
+  'crm.consent.withdraw': 'consentWithdraw',
   'org.entity.update': 'entityUpdate',
   'pricing.price.set': 'priceSet',
+  'pricing.list.create': 'priceListCreate',
+  'pricing.list.approve': 'priceListApprove',
+  'pricing.list.archive': 'priceListArchive',
+  'catalogue.item.create': 'itemCreate',
+  'catalogue.item.update': 'itemUpdate',
+  'catalogue.item.archive': 'itemArchive',
+  'catalogue.kit.create': 'kitCreate',
+  'catalogue.kit.update': 'kitUpdate',
+  'catalogue.kit.archive': 'kitArchive',
+  'catalogue.pump_curve.set': 'pumpCurveSet',
   'tax.rate.set': 'taxRateSet',
   'tax.composite.set': 'compositeRuleSet',
   'imports.job.create': 'importCreate',
@@ -70,10 +94,17 @@ const ACTIONS = {
   'imports.job.commit': 'importCommit',
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
+  'files.upload.begin': 'fileUploadBegin',
+  'files.upload.complete': 'fileUploadComplete',
+  'files.file.mark_scanned': 'fileScanned',
+  'files.file.mark_ready': 'fileReady',
+  'files.file.reject': 'fileRejected',
+  'files.file.recheck': 'filesRecheck',
   'integrations.dlq.replay': 'deadLetterReplay',
   'platform.probe.run': 'deliveryCheck',
   'admin.user.invite': 'userInvite',
   'admin.user.role.set': 'userRoles',
+  'admin.role.permissions.set': 'rolePermissions',
   'admin.user.suspend': 'userSuspend',
   'admin.user.reactivate': 'userReactivate',
   'admin.session.revoke': 'sessionRevoke',
@@ -128,16 +159,28 @@ const EVENT_NAMES = {
   'crm.opportunity.won': 'opportunityWon',
   'crm.opportunity.lost': 'opportunityLost',
   'pricing.price.changed': 'priceChanged',
+  'pricing.list.created': 'priceListCreated',
+  'pricing.list.approved': 'priceListApproved',
+  'pricing.list.archived': 'priceListArchived',
+  'catalogue.item.created': 'itemCreated',
+  'catalogue.item.updated': 'itemUpdated',
+  'catalogue.item.archived': 'itemArchived',
+  'catalogue.kit.created': 'kitCreated',
+  'catalogue.kit.updated': 'kitUpdated',
+  'catalogue.kit.archived': 'kitArchived',
+  'catalogue.pump_curve.set': 'pumpCurveSet',
   'auth.session.revoked': 'sessionRevoked',
   'admin.user.invited': 'userInvited',
   'admin.user.suspended': 'userSuspended',
   'admin.user.two_factor_reset': 'twoFactorReset',
   'admin.user.reactivated': 'userReactivated',
   'admin.user.roles_changed': 'userRolesChanged',
+  'admin.role.permissions_changed': 'rolePermissionsChanged',
   'imports.job.committed': 'importCommitted',
   'imports.job.failed': 'importFailed',
   'imports.job.rolled_back': 'importRolledBack',
   'platform.probe.requested': 'deliveryCheckRequested',
+  'files.file.uploaded': 'fileUploaded',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -178,11 +221,17 @@ export type ChangeValue =
     }
   | { kind: 'endReason'; value: string }
   | { kind: 'roles'; roles: { entityId: number; roleKey: string }[] }
+  | { kind: 'grants'; grants: { permission: string; scope: string }[] }
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
   /** The lead details a stage requires before a lead leaves it. */
   | { kind: 'stageFields'; fields: string[] }
+  | {
+      kind: 'specs';
+      /** An item's specifications in the order they were recorded, each a number or a code. */
+      entries: { key: string; value: string | number }[];
+    }
   | {
       kind: 'mapping';
       /** Each lead field filled from a column of the file. */
@@ -210,6 +259,22 @@ const CODE_GROUPS = [
   'nextAction',
   'scoreFactor',
   'commissionBasis',
+  'taskKind',
+  'accountType',
+  'language',
+  'siteType',
+  'consentChannel',
+  'consentPurpose',
+  'consentSource',
+  'itemCategory',
+  'itemUnit',
+  'priceTier',
+  'fileStatus',
+  'filePurpose',
+  'contentType',
+  'scanVerdict',
+  'sanitising',
+  'scanStatus',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -239,6 +304,10 @@ const FIELD_KINDS = [
   ['entityRoles', 'roles'],
   ['bosRole', 'role'],
   ['revokedSessions', 'number'],
+  // Role permissions
+  ['grants', 'grants'],
+  ['customisedAt', 'time'],
+  ['holders', 'number'],
   ['twoFactorEnabled', 'yesNo'],
   ['theme', 'theme'],
   ['contrast', 'contrast'],
@@ -269,6 +338,34 @@ const FIELD_KINDS = [
   ['handover', 'yesNo'],
   ['lostReason', 'lostReason'],
   ['nurtureReason', 'nurtureReason'],
+  // Tasks
+  ['taskKind', 'taskKind'],
+  ['title', 'text'],
+  ['dueAt', 'time'],
+  ['doneAt', 'time'],
+  // Tags
+  ['archivedAt', 'time'],
+  // Customers
+  ['accountType', 'accountType'],
+  ['billingStateCode', 'text'],
+  ['preferredLanguage', 'language'],
+  ['phones', 'text'],
+  ['primaryPhone', 'text'],
+  ['siteType', 'siteType'],
+  ['address', 'text'],
+  ['village', 'text'],
+  ['tehsil', 'text'],
+  ['district', 'text'],
+  ['lat', 'text'],
+  ['lng', 'text'],
+  // Consents
+  ['channel', 'consentChannel'],
+  ['consentPurpose', 'consentPurpose'],
+  ['source', 'consentSource'],
+  ['textVersion', 'text'],
+  ['givenAt', 'time'],
+  ['withdrawnAt', 'time'],
+  ['evidence', 'yesNo'],
   // Tax
   ['hsn', 'text'],
   ['segment', 'segment'],
@@ -280,6 +377,23 @@ const FIELD_KINDS = [
   ['effectiveFrom', 'date'],
   ['effectiveTo', 'date'],
   ['sourceRef', 'text'],
+  // Catalogue and price lists
+  ['sku', 'text'],
+  ['itemName', 'text'],
+  ['kitName', 'text'],
+  ['category', 'itemCategory'],
+  ['unit', 'itemUnit'],
+  ['isSerialTracked', 'yesNo'],
+  ['isDcr', 'yesNo'],
+  ['almmRef', 'text'],
+  ['specs', 'specs'],
+  ['isActive', 'yesNo'],
+  ['components', 'listCount'],
+  ['points', 'listCount'],
+  ['tierCode', 'priceTier'],
+  ['version', 'number'],
+  ['prices', 'number'],
+  ['approvedAt', 'time'],
   // Imports
   ['kind', 'importKind'],
   ['name', 'text'],
@@ -312,17 +426,26 @@ const FIELD_KINDS = [
   ['firstContactSlaMinutes', 'number'],
   ['position', 'number'],
   ['requiredFields', 'stageFields'],
-  ['archivedAt', 'time'],
   ['key', 'number'],
   ['label', 'text'],
   ['nextAction', 'nextAction'],
   ['factor', 'scoreFactor'],
-  ['points', 'number'],
+  ['scorePoints', 'number'],
   ['score', 'number'],
   ['code', 'text'],
-  ['isActive', 'yesNo'],
+  ['codeActive', 'yesNo'],
   ['basis', 'commissionBasis'],
   ['amount', 'text'],
+  // Uploaded files and their checks
+  ['fileStatus', 'fileStatus'],
+  ['purpose', 'filePurpose'],
+  ['contentType', 'contentType'],
+  ['size', 'number'],
+  ['verdict', 'scanVerdict'],
+  ['sanitising', 'sanitising'],
+  ['regionsMasked', 'number'],
+  ['rejectReason', 'errorCode'],
+  ['scanStatus', 'scanStatus'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];
@@ -421,6 +544,14 @@ function viewSettingsOf(value: Record<string, unknown>): ChangeValue {
   };
 }
 
+/** An item's specifications: each plain number or code, in the order recorded. */
+function specsOf(value: Record<string, unknown>): ChangeValue {
+  const entries = Object.entries(value).flatMap(([key, v]) =>
+    typeof v === 'number' || typeof v === 'string' ? [{ key, value: v }] : [],
+  );
+  return entries.length === 0 ? EMPTY : { kind: 'specs', entries };
+}
+
 function known(field: FieldKey, value: unknown): ChangeValue {
   const kind = KIND_OF.get(field);
   // A side that does not carry the field at all (the before of a new record) shows nothing.
@@ -448,7 +579,21 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     const fields = value.filter((v): v is string => typeof v === 'string');
     return fields.length === 0 ? EMPTY : { kind: 'stageFields', fields };
   }
+  if (kind === 'listCount') {
+    return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;
+  }
+  if (kind === 'specs') return isRecord(value) ? specsOf(value) : EMPTY;
   if (kind === 'viewSettings') return isRecord(value) ? viewSettingsOf(value) : EMPTY;
+  if (kind === 'grants' && Array.isArray(value)) {
+    return {
+      kind: 'grants',
+      grants: value.flatMap((g) =>
+        isRecord(g) && typeof g.permission === 'string' && typeof g.scope === 'string'
+          ? [{ permission: g.permission, scope: g.scope }]
+          : [],
+      ),
+    };
+  }
   if (kind === 'roles' && Array.isArray(value)) {
     return {
       kind: 'roles',

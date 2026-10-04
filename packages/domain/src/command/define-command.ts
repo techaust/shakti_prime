@@ -2,15 +2,41 @@ import type { PermissionKey, Scope } from '@shakti/contracts';
 import type { z } from 'zod';
 import type { CommandContext } from './context';
 
+/** A permission at the narrowest scope that satisfies it. */
+export interface Requirement {
+  permission: PermissionKey;
+  minScope: Scope;
+}
+
+/**
+ * The permission of a command that serves several kinds of record, named by its input: one upload
+ * command for every file purpose, each purpose with its own permission (`files/purposes.ts`).
+ * Still a declaration: the guard reads it before the handler runs.
+ */
+export interface PermissionByInput<I> {
+  /** Every permission the input can name, for the agent refusal sweep. */
+  keys: readonly PermissionKey[];
+  /** What this input needs; null when no request may send it, which the guard refuses. */
+  of: (input: I) => Requirement | null;
+}
+
 export interface Command<I extends z.ZodType, O extends z.ZodType> {
   /** `module.resource.action`, the name UI, agents, voice and imports call. */
   name: string;
-  /** Declared, never checked inline (AGENTS.md §5). */
-  permission: PermissionKey;
-  /** Narrowest scope that satisfies the guard. Row visibility is then decided by RLS. */
+  /** Declared, never checked inline (AGENTS.md §5); by input for a command of several kinds. */
+  permission: PermissionKey | PermissionByInput<z.output<I>>;
+  /**
+   * Narrowest scope that satisfies the guard (a permission by input names its own). Row
+   * visibility is then decided by RLS.
+   */
   minScope?: Scope;
   /** Further permissions the command needs, each at its own narrowest scope (AUDIT L9). */
-  alsoRequires?: readonly { permission: PermissionKey; minScope: Scope }[];
+  alsoRequires?: readonly Requirement[];
+  /**
+   * Only a person may run it: an agent principal is refused at the guard whatever it holds
+   * (docs/SECURITY.md §3.3), such as a customer note or a tag of the company.
+   */
+  peopleOnly?: boolean;
   input: I;
   /** A strict DTO. Anything the handler returns beyond it is an error, never a leak. */
   output: O;

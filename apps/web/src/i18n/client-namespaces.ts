@@ -18,8 +18,13 @@ export const CLIENT_NAMESPACES = [
   'leads',
   'users',
   'roles',
+  'adminRoles',
   'activity',
   'imports',
+  'customers',
+  'catalogue',
+  'taxSettings',
   'integrations',
   'pipelineSettings',
+  'files',
 ] as const;

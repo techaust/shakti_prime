@@ -40,6 +40,8 @@ export const BoardLeadDto = z
     entityId: EntityIdSchema,
     stageId: IdSchema,
     state: OpportunityStateSchema,
+    /** The lead's customer, whose Account 360 the card opens. */
+    accountId: IdSchema,
     customerName: z.string(),
     village: z.string().nullable(),
     ownerId: IdSchema.nullable(),
