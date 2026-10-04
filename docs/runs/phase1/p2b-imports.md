@@ -151,6 +151,18 @@ Worktree `p2b-imports` (Postgres 54341, app 3041), from 7b58f03. Commits: 7bcc79
 | L6 | Low | The commit worker does not fail the job on the last retry for every cause (a suspended importer included); fail it through a system path. | fixed in 2d4f272 (permission and policies in 1254629, the queries' role in 68f1690) |
 | L7 | Low | Documents: PRD §8 CRM-02 trace row; the migration number in `grants.test.ts`'s comment; the sweep route's comment against `retries: 0`. | fixed in eb6c8af |
 
+### Second review (05-10-2026), re-review of 7b58f03..fd97f34 (lead session)
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | High | The worker's commit request covers only `job.entityIds` (the companies the rows name), but the preview decides each link across all the importer's companies: a customer visible only through an unnamed company is invisible at commit and is made anew, a duplicate. Store on the job the companies each link was seen through (or give the worker the preview's scope), and never make anew because a customer is invisible: decide from `attach_account_entity`'s own result. Test the worker path for a company-3-only customer linked from a file into company 1. | open |
+| 2 | Medium | M5 not fully fixed: an empty or root-less `xl/_rels/workbook.xml.rels` leaves ExcelJS's `workbookRels` undefined, so every sheet spools to `/tmp` and is never cleaned on `break` or throw. Do not feed the rels part, or make `workbookRels` and `sharedStrings` impossible to set falsy. Test with an empty rels part. | open |
+| 3 | Medium | The same-content check runs only at create, so two jobs of one file can both commit. Repeat it in `imports.job.commit` under an advisory lock on (company, sha256), refusing with `import_file_duplicate`. Test two jobs of one content committed one after the other, and adjust the side-by-side web test. | open |
+| 4 | Medium | When the first row of a number is linked to an existing customer, its repeats still say their site is added, but a linked row inserts no sites. Add the sites to the linked customer, or mark the repeats with a distinct value and plain copy. Test. | open |
+| 5 | Low | Rollback: lock each chunk's accounts first, then call `app.import_accounts_in_use` for that chunk under the same lock. | open |
+| 6 | Low | Cap each non-sheet part (styles, rels, workbook, content types) at a small unpacked size and shared strings at its own cap, refusing with the existing too-large reason. Test. | open |
+| 7 | Low | Lead's decision: a customer also counts as in use when someone other than the importer has added an activity (note, customer or site update) or a tag to it after the import; extend `app.import_accounts_in_use` and test. | open |
+| 8 | Low | `zip-guard.test.ts`: the "data descriptor flag with sizes in the local header" case must write a real descriptor so it fails only on the local-sizes check; add a case for a descriptor whose sizes differ from the directory's. | open |
+
 ## Integration notes
 1. Hosted imports need `FILES_BUCKET` and the other file settings, which wait for the owner's AWS files stack ([files-setup](../../runbooks/files-setup.md)).
 2. After the merge, the import is measured on the dev deployment and recorded in `docs/spikes/import-scale.md`; concurrent batch workers only if it misses the PRD's five minutes for 50,000 rows (PRD §5).
