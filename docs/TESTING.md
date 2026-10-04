@@ -81,7 +81,7 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
   | `outbox-event-route.test.ts` | The event worker route, its failure callback and the publisher's delivery in process without a queue: the signature, the 4 KiB body, a duplicate id, a delivery while another holds the id, every event run once for an `every` worker and an older one skipped for a `latest-only` worker, a type no worker handles, each worker error code and which are retried, and the failure callback holding the event back once |
   | `integration-health.test.ts` | Integration Health's routes and actions |
   | `files.test.ts` | The upload actions on the development store end to end, the file checks with a store that answers GuardDuty's tag, a PDF with a script, a masked vault photo, and the upload routes |
-- **Hosted build:** CI builds without `SENTRY_AUTH_TOKEN`, so the build Sentry wraps is budget-checked once by hand on dev (DEPLOY §1 item 5).
+- **Hosted build:** CI builds without `SENTRY_AUTH_TOKEN`, so the build Sentry wraps is budget-checked once by hand on dev ([DEPLOY §1](runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment) step 11).
 - **Still to come**, each with its feature:
   - voice tokens act only as the issuing user (Phase 2);
   - Realtime channel policies refuse one user's token on another user's or another entity's channels: the token route's tests exist; the channel-policy check waits for the Realtime spike, `pnpm --filter web realtime-spike`, on the production site with the client's domain (`docs/spikes/realtime.md`);
