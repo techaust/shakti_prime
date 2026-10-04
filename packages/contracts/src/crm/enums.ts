@@ -96,3 +96,40 @@ export type LeadChannel = z.infer<typeof LeadChannelSchema>;
 
 export const ContactRoleSchema = z.enum(['owner', 'family', 'manager', 'accountant', 'other']);
 export type ContactRole = z.infer<typeof ContactRoleSchema>;
+
+/**
+ * What a customer timeline row records (`activities.type`, CRM-04). Each is written by the
+ * command that made the change, through `ctx.activity()`.
+ */
+export const ActivityTypeSchema = z.enum([
+  'lead_created',
+  'stage_moved',
+  'assigned',
+  'nurtured',
+  'reopened',
+  'won',
+  'lost',
+  'task_created',
+  'task_done',
+  'task_rescheduled',
+  'task_cancelled',
+  'note',
+  'customer_updated',
+  'site_updated',
+  'consent_recorded',
+  'consent_withdrawn',
+  'tagged',
+  'untagged',
+]);
+export type ActivityType = z.infer<typeof ActivityTypeSchema>;
+
+/** The longest note a timeline row keeps (`activities.body`). */
+export const ACTIVITY_NOTE_MAX = 2000;
+
+/** What a task asks for (`tasks.kind`). */
+export const TaskKindSchema = z.enum(['callback', 'follow_up', 'nurture', 'review']);
+export type TaskKind = z.infer<typeof TaskKindSchema>;
+
+/** Where a task stands (`tasks.state`), written only by the task machine. */
+export const TaskStateSchema = z.enum(['open', 'done', 'cancelled']);
+export type TaskState = z.infer<typeof TaskStateSchema>;

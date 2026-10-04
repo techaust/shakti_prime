@@ -1,0 +1,569 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Shakti Prime BOS file storage for one environment: the S3 bucket for uploads (encrypted with the environment's KMS key, scanned by GuardDuty Malware Protection), the key that also seals bank details, and the app's IAM user. One stack per environment (docs/runbooks/files-setup.md). Written in YAML's JSON form.",
+  "Metadata": {
+    "Notes": [
+      "Region: ap-south-1 (Mumbai), beside the database.",
+      "The app user's access key is made by hand after the stack is created and goes into the environment's Vercel project; it is never an output.",
+      "SesIdentity and SesFromAddress stay empty until the client's domain is verified in SES; the mail statement is left out until then."
+    ]
+  },
+  "Parameters": {
+    "EnvironmentName": {
+      "Type": "String",
+      "AllowedValues": [
+        "dev",
+        "staging"
+      ],
+      "Description": "The hosted environment this stack serves."
+    },
+    "ReadOnlyUserName": {
+      "Type": "String",
+      "Default": "claude-shakti",
+      "Description": "The existing read-only IAM user that may list the bucket and read its settings, never its objects."
+    },
+    "SesIdentity": {
+      "Type": "String",
+      "Default": "",
+      "Description": "The verified SES identity (the client's domain) mail is sent from; empty until it is verified."
+    },
+    "SesFromAddress": {
+      "Type": "String",
+      "Default": "",
+      "Description": "SES_FROM: the one address the app may send from; empty until the domain is verified."
+    }
+  },
+  "Conditions": {
+    "HasSes": {
+      "Fn::And": [
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "SesIdentity"
+                },
+                ""
+              ]
+            }
+          ]
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "SesFromAddress"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "FilesKey": {
+      "Type": "AWS::KMS::Key",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Description": {
+          "Fn::Sub": "Shakti Prime ${EnvironmentName}: uploaded files and sealed bank details"
+        },
+        "EnableKeyRotation": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AccountAdministersTheKey",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "FilesKeyAlias": {
+      "Type": "AWS::KMS::Alias",
+      "Properties": {
+        "AliasName": {
+          "Fn::Sub": "alias/shakti-prime-${EnvironmentName}-files"
+        },
+        "TargetKeyId": {
+          "Ref": "FilesKey"
+        }
+      }
+    },
+    "FilesBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-files"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+                "KMSMasterKeyID": {
+                  "Fn::GetAtt": [
+                    "FilesKey",
+                    "Arn"
+                  ]
+                }
+              },
+              "BucketKeyEnabled": true
+            }
+          ]
+        },
+        "CorsConfiguration": {
+          "CorsRules": [
+            {
+              "AllowedMethods": [
+                "PUT",
+                "GET"
+              ],
+              "AllowedOrigins": [
+                {
+                  "Fn::Sub": "https://shakti-prime-${EnvironmentName}.vercel.app"
+                }
+              ],
+              "AllowedHeaders": [
+                "content-type",
+                "x-amz-checksum-sha256",
+                "x-amz-server-side-encryption",
+                "x-amz-server-side-encryption-aws-kms-key-id"
+              ],
+              "ExposedHeaders": [
+                "ETag"
+              ],
+              "MaxAge": 3000
+            }
+          ]
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "abort-incomplete-uploads",
+              "Status": "Enabled",
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            },
+            {
+              "Id": "expire-earlier-versions",
+              "Status": "Enabled",
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 1
+              },
+              "ExpiredObjectDeleteMarker": true
+            }
+          ]
+        }
+      }
+    },
+    "FilesBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "FilesBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "TlsOnly",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "FilesBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${FilesBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "MalwareScanRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-files-malware-scan"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "malware-protection-plan.guardduty.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Fn::Sub": "${AWS::AccountId}"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "malware-protection-for-s3",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "AllowManagedRuleToSendS3EventsToGuardDuty",
+                  "Effect": "Allow",
+                  "Action": [
+                    "events:PutRule",
+                    "events:DeleteRule",
+                    "events:PutTargets",
+                    "events:RemoveTargets"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/DO-NOT-DELETE-AmazonGuardDutyMalwareProtectionS3*"
+                    }
+                  ],
+                  "Condition": {
+                    "StringLike": {
+                      "events:ManagedBy": "malware-protection-plan.guardduty.amazonaws.com"
+                    }
+                  }
+                },
+                {
+                  "Sid": "AllowGuardDutyToMonitorEventBridgeManagedRule",
+                  "Effect": "Allow",
+                  "Action": [
+                    "events:DescribeRule",
+                    "events:ListTargetsByRule"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/DO-NOT-DELETE-AmazonGuardDutyMalwareProtectionS3*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowPostScanTag",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObjectTagging",
+                    "s3:GetObjectTagging",
+                    "s3:PutObjectVersionTagging",
+                    "s3:GetObjectVersionTagging"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${FilesBucket.Arn}/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowEnableS3EventBridgeEvents",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutBucketNotification",
+                    "s3:GetBucketNotification"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "FilesBucket",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowPutValidationObject",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${FilesBucket.Arn}/malware-protection-resource-validation-object"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowCheckBucketOwnership",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "FilesBucket",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowMalwareScan",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:GetObjectVersion"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${FilesBucket.Arn}/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "AllowDecryptForMalwareScan",
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:GenerateDataKey",
+                    "kms:Decrypt"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "FilesKey",
+                      "Arn"
+                    ]
+                  },
+                  "Condition": {
+                    "StringLike": {
+                      "kms:ViaService": {
+                        "Fn::Sub": "s3.${AWS::Region}.amazonaws.com"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "MalwareProtectionPlan": {
+      "Type": "AWS::GuardDuty::MalwareProtectionPlan",
+      "DependsOn": [
+        "FilesBucketPolicy"
+      ],
+      "Properties": {
+        "Role": {
+          "Fn::GetAtt": [
+            "MalwareScanRole",
+            "Arn"
+          ]
+        },
+        "ProtectedResource": {
+          "S3Bucket": {
+            "BucketName": {
+              "Ref": "FilesBucket"
+            }
+          }
+        },
+        "Actions": {
+          "Tagging": {
+            "Status": "ENABLED"
+          }
+        }
+      }
+    },
+    "AppUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "UserName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-app"
+        },
+        "Policies": [
+          {
+            "PolicyName": "files-key-and-mail",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "FileObjects",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:DeleteObjectVersion",
+                    "s3:GetObjectTagging"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "${FilesBucket.Arn}/*"
+                    }
+                  ]
+                },
+                {
+                  "Sid": "FileVersions",
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:ListBucketVersions"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "FilesBucket",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Sid": "EnvironmentKey",
+                  "Effect": "Allow",
+                  "Action": [
+                    "kms:Decrypt",
+                    "kms:GenerateDataKey"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "FilesKey",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Fn::If": [
+                    "HasSes",
+                    {
+                      "Sid": "MailFromTheVerifiedSender",
+                      "Effect": "Allow",
+                      "Action": [
+                        "ses:SendEmail"
+                      ],
+                      "Resource": {
+                        "Fn::Sub": "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesIdentity}"
+                      },
+                      "Condition": {
+                        "StringEquals": {
+                          "ses:FromAddress": {
+                            "Ref": "SesFromAddress"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "Ref": "AWS::NoValue"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ReadOnlyBucketPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Fn::Sub": "shakti-prime-${EnvironmentName}-files-read-only"
+        },
+        "Users": [
+          {
+            "Ref": "ReadOnlyUserName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "ListAndSettingsOnly",
+              "Effect": "Allow",
+              "Action": [
+                "s3:ListBucket",
+                "s3:ListBucketVersions",
+                "s3:GetBucketLocation",
+                "s3:GetBucketVersioning",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetBucketCORS",
+                "s3:GetLifecycleConfiguration",
+                "s3:GetBucketPolicy",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetBucketOwnershipControls",
+                "s3:GetBucketTagging"
+              ],
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "FilesBucket",
+                    "Arn"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "FilesBucket": {
+      "Description": "FILES_BUCKET in the environment's Vercel project.",
+      "Value": {
+        "Ref": "FilesBucket"
+      }
+    },
+    "FilesKmsKeyId": {
+      "Description": "FILES_KMS_KEY_ID in the environment's Vercel project.",
+      "Value": {
+        "Fn::GetAtt": [
+          "FilesKey",
+          "Arn"
+        ]
+      }
+    },
+    "AppUserName": {
+      "Description": "The IAM user whose access key goes into Vercel as AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.",
+      "Value": {
+        "Ref": "AppUser"
+      }
+    }
+  }
+}

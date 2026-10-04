@@ -122,51 +122,6 @@ export const MessagingSendResult = z.union([
 ]);
 export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 
-// --- /workers/files/scan and /workers/files/mask ---------------------------------------------
-
-/** `POST /workers/files/scan`: the malware scan of an upload marked complete (`files.status`). */
-export const FileScanJob = z.object({ eventId: IdSchema, fileId: IdSchema }).strict();
-export type FileScanJob = z.infer<typeof FileScanJob>;
-
-/** `clean` queues the masking step; `infected` and `unreadable` reject the file. */
-export const FileScanVerdictSchema = z.enum(['clean', 'infected', 'unreadable']);
-export type FileScanVerdict = z.infer<typeof FileScanVerdictSchema>;
-
-export const FileScanResult = workerResult({ fileId: IdSchema, verdict: FileScanVerdictSchema });
-export type FileScanResult = z.infer<typeof FileScanResult>;
-
-/**
- * `POST /workers/files/mask`: OCR masking of a scanned file before the kept copy is stored and
- * before any classifier sees it (docs/spikes/ocr.md). `expect` names what the upload slot holds;
- * a WhatsApp upload sends none.
- */
-export const FileMaskJob = z
-  .object({
-    eventId: IdSchema,
-    fileId: IdSchema,
-    expect: z
-      .array(z.enum(['aadhaar', 'bank_account']))
-      .max(2)
-      .default([]),
-  })
-  .strict();
-export type FileMaskJob = z.infer<typeof FileMaskJob>;
-
-/**
- * `masked`: numbers were covered and the masked copy kept. `clean`: no number found, the copy kept
- * as it is. `needs_review`: the photo reads like an identity document but no number was found, so
- * nothing is kept and a person looks at it. `rejected`: the file cannot be read.
- */
-export const FileMaskStatusSchema = z.enum(['masked', 'clean', 'needs_review', 'rejected']);
-export type FileMaskStatus = z.infer<typeof FileMaskStatusSchema>;
-
-export const FileMaskResult = workerResult({
-  fileId: IdSchema,
-  status: FileMaskStatusSchema,
-  regionsMasked: Count,
-});
-export type FileMaskResult = z.infer<typeof FileMaskResult>;
-
 // --- /workers/pdf/render ---------------------------------------------------------------------
 
 /** Documents rendered to A4 PDFs from their HTML templates (ADR 0009). */

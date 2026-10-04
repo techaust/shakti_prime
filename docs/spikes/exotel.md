@@ -1,6 +1,6 @@
 # Spike: Exotel click-to-dial on 140 and 160 numbers
 
-**Status:** ready to run. The wrapper, the calling rules and the callback check are built and tested with fixtures; nothing has called Exotel yet.
+**Status (04-10-2026):** ready to run; waits for the Exotel sandbox with DLT numbers in the group's account (client-actions 17). Owner: the developer. The wrapper, the calling rules and the callback check are built and tested with fixtures; nothing has called Exotel yet.
 **Roadmap:** §2 week 6 · **Blueprint:** §10, §9.3 guardrails · **Security:** §7 · **API:** §3.4 `POST /webhooks/exotel/call-status`
 
 ## 1. What is built

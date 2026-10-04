@@ -1,8 +1,35 @@
 'use server';
 
 import {
+  AddNoteInput,
+  ArchiveTagInput,
   AssignOpportunityInput,
+  CancelTaskInput,
+  CompleteTaskInput,
   CreateLeadInput,
+  CreateTagInput,
+  CreateTaskInput,
+  LeadTagInput,
+  ListCustomersInput,
+  ListMyTasksInput,
+  ListTimelineInput,
+  LoadAccount360Input,
+  RecordConsentInput,
+  RescheduleTaskInput,
+  UpdateAccountInput,
+  UpdateContactInput,
+  UpsertSiteInput,
+  WithdrawConsentInput,
+  type Account360Dto,
+  type ConsentDto,
+  type CustomerChangeDto,
+  type CustomerPageDto,
+  type LeadTagDto,
+  type MyTaskPageDto,
+  type NoteDto,
+  type TagDto,
+  type TaskDto,
+  type TimelinePageDto,
   ListBoardLeadsInput,
   ListBoardStageLeadsInput,
   ListLeadAssigneesInput,
@@ -21,6 +48,24 @@ import {
   type PipelineDto,
 } from '@shakti/contracts';
 import {
+  addNote as addNoteCommand,
+  archiveTag as archiveTagCommand,
+  cancelTask as cancelTaskCommand,
+  completeTask as completeTaskCommand,
+  createTag as createTagCommand,
+  createTask as createTaskCommand,
+  listCustomers as listCustomersQuery,
+  listMyTasks as listMyTasksQuery,
+  listTimeline as listTimelineQuery,
+  loadAccount360 as loadAccount360Query,
+  recordConsent as recordConsentCommand,
+  rescheduleTask as rescheduleTaskCommand,
+  tagLead as tagLeadCommand,
+  untagLead as untagLeadCommand,
+  updateAccount as updateAccountCommand,
+  updateContact as updateContactCommand,
+  upsertSite as upsertSiteCommand,
+  withdrawConsent as withdrawConsentCommand,
   assignOpportunity as assignOpportunityCommand,
   createLead as createLeadCommand,
   executeCommand,
@@ -255,6 +300,259 @@ export async function loseOpportunity(
     'loseOpportunity',
     LoseOpportunityInput,
     loseOpportunityCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/**
+ * A change made from Account 360 or the customers list: the request is narrowed to the company
+ * the change is for, as the lead actions are, and the form's idempotency key goes with it.
+ */
+async function companyAction<T>(
+  action: string,
+  schema: Schema<{ entityId: number }>,
+  command: AnyCommand,
+  rawInput: unknown,
+  idempotencyKey: unknown,
+): Promise<ActionResult<T>> {
+  return toResult(action, async () => {
+    const principal = await signedIn();
+    const input = parseInput(schema, rawInput);
+    const meta = await requestMeta();
+    return (await executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      command,
+      input,
+      commandOptions(meta, idempotencyKey),
+    )) as T;
+  });
+}
+
+/** The customers the caller reads in the companies being viewed, by name, a page at a time. */
+export async function listCustomers(rawInput: unknown): Promise<ActionResult<CustomerPageDto>> {
+  return toResult('listCustomers', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListCustomersInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) => listCustomersQuery(context, input), {
+      name: 'listCustomers',
+    });
+  });
+}
+
+/** Account 360: one customer as a company of the request deals with them. */
+export async function loadAccount360(rawInput: unknown): Promise<ActionResult<Account360Dto>> {
+  return toResult('loadAccount360', async () => {
+    const principal = await signedIn();
+    const input = parseInput(LoadAccount360Input, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => loadAccount360Query(context, input),
+      {
+        name: 'loadAccount360',
+      },
+    );
+  });
+}
+
+/** The next page of a customer's timeline in one company, or of one lead's. */
+export async function listTimeline(rawInput: unknown): Promise<ActionResult<TimelinePageDto>> {
+  return toResult('listTimeline', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListTimelineInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { entityIds: [input.entityId], requestId },
+      (context) => listTimelineQuery(context, input),
+      { name: 'listTimeline' },
+    );
+  });
+}
+
+/** The caller's open tasks, soonest due first. */
+export async function listMyTasks(rawInput: unknown): Promise<ActionResult<MyTaskPageDto>> {
+  return toResult('listMyTasks', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListMyTasksInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) => listMyTasksQuery(context, input), {
+      name: 'listMyTasks',
+    });
+  });
+}
+
+/** Adds a callback, follow-up, nurture or review task on a lead. */
+export async function createTask(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TaskDto>> {
+  return companyAction('createTask', CreateTaskInput, createTaskCommand, rawInput, idempotencyKey);
+}
+
+/** Marks an open task done. */
+export async function completeTask(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TaskDto>> {
+  return companyAction(
+    'completeTask',
+    CompleteTaskInput,
+    completeTaskCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Moves an open task to another time. */
+export async function rescheduleTask(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TaskDto>> {
+  return companyAction(
+    'rescheduleTask',
+    RescheduleTaskInput,
+    rescheduleTaskCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Cancels an open task. */
+export async function cancelTask(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TaskDto>> {
+  return companyAction('cancelTask', CancelTaskInput, cancelTaskCommand, rawInput, idempotencyKey);
+}
+
+/** Makes a tag for one company, or for the whole group in All companies mode. */
+export async function createTag(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TagDto>> {
+  return toResult('createTag', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CreateTagInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      input.entityId === null
+        ? { requestId: meta.requestId }
+        : { entityIds: [input.entityId], requestId: meta.requestId },
+      createTagCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Takes a tag off the list of tags to choose; the leads that carry it keep it. */
+export async function archiveTag(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<TagDto>> {
+  return toResult('archiveTag', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ArchiveTagInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { requestId: meta.requestId },
+      archiveTagCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/** Puts a tag on a lead. */
+export async function tagLead(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<LeadTagDto>> {
+  return companyAction('tagLead', LeadTagInput, tagLeadCommand, rawInput, idempotencyKey);
+}
+
+/** Takes a tag off a lead. */
+export async function untagLead(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<LeadTagDto>> {
+  return companyAction('untagLead', LeadTagInput, untagLeadCommand, rawInput, idempotencyKey);
+}
+
+/** Changes the customer's name, type, GSTIN or billing state code. */
+export async function updateAccount(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CustomerChangeDto>> {
+  return companyAction(
+    'updateAccount',
+    UpdateAccountInput,
+    updateAccountCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Changes a contact of the customer and their numbers. */
+export async function updateContact(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CustomerChangeDto>> {
+  return companyAction(
+    'updateContact',
+    UpdateContactInput,
+    updateContactCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Adds a site of the customer, or changes one. */
+export async function upsertSite(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CustomerChangeDto>> {
+  return companyAction('upsertSite', UpsertSiteInput, upsertSiteCommand, rawInput, idempotencyKey);
+}
+
+/** Adds a note to the customer's timeline, or to one of their leads. */
+export async function addNote(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<NoteDto>> {
+  return companyAction('addNote', AddNoteInput, addNoteCommand, rawInput, idempotencyKey);
+}
+
+/** Records a consent a contact of the customer gave. */
+export async function recordConsent(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ConsentDto>> {
+  return companyAction(
+    'recordConsent',
+    RecordConsentInput,
+    recordConsentCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+/** Withdraws a consent; a withdrawal stands. */
+export async function withdrawConsent(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ConsentDto>> {
+  return companyAction(
+    'withdrawConsent',
+    WithdrawConsentInput,
+    withdrawConsentCommand,
     rawInput,
     idempotencyKey,
   );

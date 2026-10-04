@@ -9,6 +9,7 @@ import type { ExecuteOptions } from './execute';
 import {
   checkPermission,
   failureOf,
+  isAgent,
   isPerson,
   runCommand,
   translateDatabaseError,
@@ -755,5 +756,100 @@ describe('inImportBatch is set only by an import batch through ctx.run', () => {
     const refused: ExecuteOptions = { inImportBatch: true };
     const smuggled = { context: context(principal()), ...sinks(), ...refused } as RunOptions;
     await expect(runCommand(probe, smuggled, {})).resolves.toEqual({ inBatch: false });
+  });
+});
+
+describe('commands for people only', () => {
+  const noteLike = defineCommand({
+    name: 'test.people_only',
+    permission: 'crm.lead.write',
+    peopleOnly: true,
+    auditFields: [],
+    input: z.object({}).strict(),
+    output: z.object({ ok: z.boolean() }).strict(),
+    handler: () => Promise.resolve({ ok: true }),
+  });
+  const writer = (overrides: Partial<Principal>): Principal => ({
+    ...principal(),
+    permissions: [{ key: 'crm.lead.write', scope: 'entity' }],
+    ...overrides,
+  });
+  const runAs = (p: Principal) =>
+    runCommand(
+      noteLike,
+      { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+      {},
+    );
+
+  it('runs for a person', async () => {
+    await expect(runAs(writer({}))).resolves.toEqual({ ok: true });
+  });
+
+  it('refuses an agent at the guard, by its kind or its role key, whatever it holds', async () => {
+    for (const p of [writer({ kind: 'agent' }), writer({ roleKey: 'agent:copilot' })]) {
+      const error: unknown = await runAs(p).then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(error).toMatchObject({ code: 'forbidden' });
+      expect(failureOf(error)?.stage).toBe('guard');
+    }
+  });
+
+  it('tells an agent by its kind or its role key', () => {
+    expect(isAgent({ kind: 'agent', roleKey: 'executive' })).toBe(true);
+    expect(isAgent({ kind: 'user', roleKey: 'agent:triage' })).toBe(true);
+    expect(isAgent({ kind: 'user', roleKey: 'tele_caller_cc' })).toBe(false);
+  });
+});
+
+describe('a permission named by the input', () => {
+  const byKind = defineCommand({
+    name: 'test.by_kind',
+    permission: {
+      keys: ['crm.lead.read', 'admin.entities.write'],
+      of: ({ kind }: { kind: string }) =>
+        kind === 'lead'
+          ? { permission: 'crm.lead.read', minScope: 'own' }
+          : kind === 'logo'
+            ? { permission: 'admin.entities.write', minScope: 'all' }
+            : null,
+    },
+    auditFields: [],
+    input: z.object({ kind: z.string() }).strict(),
+    output: z.object({ kind: z.string() }).strict(),
+    handler: (_ctx, input) => Promise.resolve({ kind: input.kind }),
+  });
+  const run = (p: Principal, kind: string) =>
+    runCommand(
+      byKind,
+      { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+      { kind },
+    );
+
+  it('checks the permission the input names', async () => {
+    await expect(run(principal(), 'lead')).resolves.toEqual({ kind: 'lead' });
+    const refused: unknown = await run(principal(), 'logo').catch((e: unknown) => e);
+    expect(refused).toMatchObject({ code: 'forbidden' });
+    expect(failureOf(refused)?.stage).toBe('guard');
+  });
+
+  it('checks the scope it names', async () => {
+    const entityOnly = principal({
+      permissions: [{ key: 'admin.entities.write', scope: 'entity' }],
+    });
+    await expect(run(entityOnly, 'logo')).rejects.toMatchObject({ code: 'forbidden' });
+    const all = principal({ permissions: [{ key: 'admin.entities.write', scope: 'all' }] });
+    await expect(run(all, 'logo')).resolves.toEqual({ kind: 'logo' });
+  });
+
+  it('refuses an input no request may send, whatever the caller holds', async () => {
+    const everything = principal({
+      permissions: [
+        { key: 'crm.lead.read', scope: 'all' },
+        { key: 'admin.entities.write', scope: 'all' },
+      ],
+    });
+    await expect(run(everything, 'vault')).rejects.toMatchObject({ code: 'forbidden' });
   });
 });

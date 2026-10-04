@@ -1,5 +1,5 @@
 export { defineCommand } from './command/define-command';
-export type { AnyCommand, Command } from './command/define-command';
+export type { AnyCommand, Command, PermissionByInput, Requirement } from './command/define-command';
 export type { AuditChange, CommandContext, DomainEvent, NestedRunOptions } from './command/context';
 export { runCommand, checkPermission, failureOf, RUNNER_REASONS } from './command/run-command';
 export type { FailureStage, RunOptions } from './command/run-command';
@@ -27,11 +27,24 @@ export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
+export { createTask, completeTask, rescheduleTask, cancelTask } from './commands/crm/tasks';
+export { createTag, archiveTag, tagLead, untagLead } from './commands/crm/tags';
+export { updateAccount, updateContact, upsertSite, addNote } from './commands/crm/customer';
+export { recordConsent, withdrawConsent } from './commands/crm/consent';
 export { setPrice } from './commands/pricing/set-price';
+export {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from './commands/pricing/price-lists';
+export { archiveItem, createItem, updateItem } from './commands/catalogue/items';
+export { archiveKit, createKit, updateKit } from './commands/catalogue/kits';
+export { setPumpCurve } from './commands/catalogue/pump-curve';
 export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';
 export { setUserRoles } from './commands/admin/set-user-roles';
+export { setRolePermissions } from './commands/admin/set-role-permissions';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
@@ -64,8 +77,27 @@ export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
 export { importRowKey, rollbackChunks } from './imports/row-key';
-export { assertFileKey, localDiskFileStore, memoryFileStore } from './ports/file-store';
-export type { FileStore } from './ports/file-store';
+export {
+  assertFileKey,
+  contentDisposition,
+  localDiskFileStore,
+  memoryFileStore,
+  PRESIGN_SECONDS,
+  rfc5987,
+  sha256Hex,
+  signLocalGrant,
+  verifyLocalGrant,
+} from './ports/file-store';
+export type {
+  FileStore,
+  LocalDiskOptions,
+  LocalGrant,
+  PresignedGet,
+  PresignedPut,
+  PresignGetOptions,
+  PresignPutRequest,
+  StoredObject,
+} from './ports/file-store';
 export { loadUserDto } from './queries/admin/user-dto';
 export {
   groupUserGrants,
@@ -100,10 +132,16 @@ export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
+export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';
+export type { ListItemsOptions } from './queries/catalogue/list-items';
+export { getItem, getKit, listKits } from './queries/catalogue/catalogue-queries';
+export { listKitPrices, listPriceChanges } from './queries/pricing/price-history';
+export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-settings';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
+export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
@@ -265,3 +303,34 @@ export type {
   SnapshotLimits,
   StoredVoucher,
 } from './tally/sync-rules';
+export { beginUpload } from './commands/files/begin-upload';
+export { completeUpload } from './commands/files/complete-upload';
+export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { countFilesAwaitingChecks } from './queries/files/file-queries';
+export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export type { StoredFile } from './queries/files/file-queries';
+export {
+  FILE_PURPOSE_RULES,
+  filePurposeGrant,
+  UPLOADABLE_PURPOSES,
+  uploadPermission,
+} from './files/purposes';
+export type { FilePurposeRule } from './files/purposes';
+export { EXTENSIONS, UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './files/limits';
+export type { UploadLimit, UploadLimitProblem } from './files/limits';
+export { fileUploadMachine } from './state-machines/machines/file-upload';
+export {
+  contextBytes,
+  contextFields,
+  envelopeCipher,
+  FieldCipherError,
+  FieldEnvelopeSchema,
+  localKeyProvider,
+} from './privacy/field-cipher';
+export type {
+  CipherContext,
+  DataKeyProvider,
+  FieldCipher,
+  FieldEnvelope,
+} from './privacy/field-cipher';

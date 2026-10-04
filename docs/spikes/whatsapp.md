@@ -1,6 +1,6 @@
 # Spike: WhatsApp Cloud API send and receive
 
-**Status:** ready to run. The send wrapper and the webhook checks are built and tested with fixtures; nothing has called Meta yet.
+**Status (04-10-2026):** ready to run; waits for the Meta business verification and a WhatsApp number in the group's account (client-actions 18). Owner: the developer. The send wrapper and the webhook checks are built and tested with fixtures; nothing has called Meta yet.
 **Roadmap:** §2 week 6 · **Blueprint:** §10 · **API:** §3.4 `GET/POST /webhooks/meta/whatsapp`, §6 · **Security:** §7
 
 ## 1. What is built

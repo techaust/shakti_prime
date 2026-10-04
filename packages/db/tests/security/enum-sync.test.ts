@@ -1,5 +1,6 @@
 import {
   AccountTypeSchema,
+  ActivityTypeSchema,
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   ConsentPurposeSchema,
@@ -14,6 +15,7 @@ import {
   ImportJobStateSchema,
   ImportKindSchema,
   ImportRowStateSchema,
+  ItemCategorySchema,
   ItemUnitSchema,
   LeadChannelSchema,
   OpportunityStateSchema,
@@ -26,6 +28,8 @@ import {
   SiteTypeSchema,
   SizingKindSchema,
   StageKindSchema,
+  TaskKindSchema,
+  TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
   USER_STATUSES,
@@ -43,6 +47,7 @@ afterAll(closeDb);
 const PAIRS: Record<string, readonly string[]> = {
   account_contacts_role_check: ContactRoleSchema.options,
   accounts_type_check: AccountTypeSchema.options,
+  activities_type_check: ActivityTypeSchema.options,
   audit_logs_actor_kind_check: PrincipalKindSchema.options,
   audit_logs_outcome_check: AUDIT_OUTCOMES,
   composite_supply_rules_segment_check: SegmentSchema.options,
@@ -61,6 +66,7 @@ const PAIRS: Record<string, readonly string[]> = {
   import_rows_created_type_check: ImportCreatedTypeSchema.options,
   import_rows_state_check: ImportRowStateSchema.options,
   items_unit_check: ItemUnitSchema.options,
+  items_category_check: ItemCategorySchema.options,
   lead_sources_channel_check: LeadChannelSchema.options,
   opportunities_state_check: OpportunityStateSchema.options,
   pipeline_stages_kind_check: StageKindSchema.options,
@@ -72,6 +78,8 @@ const PAIRS: Record<string, readonly string[]> = {
   sizings_kind_check: SizingKindSchema.options,
   // Only a pump sizing names a catalogue pump.
   sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
+  tasks_kind_check: TaskKindSchema.options,
+  tasks_state_check: TaskStateSchema.options,
   sessions_revoked_reason_check: SESSION_REVOKE_REASONS,
   users_status_check: USER_STATUSES,
   users_theme_check: ThemeSchema.options,

@@ -1,14 +1,11 @@
 import {
-  ERROR_HTTP_STATUS,
-  ErrorEnvelope,
   isStaffRole,
   isDomainError,
-  type ErrorCode,
   type Principal,
   type RealtimeTokenGrant,
 } from '@shakti/contracts';
 import type { ClientMeta, KeyValue } from '@shakti/domain';
-import en from '../../messages/en.json';
+import { apiFailure } from '../api-failure';
 import { clientMeta } from '../auth/client-address';
 import { countRequest, type CapRule } from '../auth/request-cap';
 import { logger } from '../log';
@@ -39,24 +36,7 @@ const NO_STORE = 'no-store';
  */
 export const REALTIME_TOKEN_CAP: CapRule = { window: 5 * 60, max: 20 };
 
-function failure(
-  code: ErrorCode,
-  requestId: string,
-  details?: { reason: string },
-  extraHeaders: Readonly<Record<string, string>> = {},
-): Response {
-  const catalogue: Readonly<Record<string, string>> = en.errors;
-  // A reason with its own sentence reads better than the code's general one (the one catalogue is
-  // English, ADR 0014, and a route handler has no request locale to resolve).
-  const message = (details && catalogue[details.reason]) ?? catalogue[code] ?? en.errors.internal;
-  const body = ErrorEnvelope.parse({
-    error: { code, message, requestId, ...(details === undefined ? {} : { details }) },
-  });
-  return Response.json(body, {
-    status: ERROR_HTTP_STATUS[code],
-    headers: { 'cache-control': NO_STORE, 'x-request-id': requestId, ...extraHeaders },
-  });
-}
+const failure = apiFailure;
 
 async function keysOrFailure(env: Env, requestId: string): Promise<SigningKeys | Response> {
   try {

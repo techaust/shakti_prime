@@ -62,19 +62,37 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
    * Append-only ledgers take no update, and price history is written only by its trigger;
    * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
-   * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
+   * user_entity_roles, a kit's components and a pump's curve are replaced as a set
+   * (docs/DATABASE.md §6.1, §6.3).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
   > = {
     price_change_log: { i: false, u: false },
     audit_logs: { i: true, u: false },
+    activities: { i: true, u: false },
+    // A task changes only its due time and state after the insert.
+    tasks: { i: true, u: false },
+    // A number comes off a contact through crm.contact.update, which keeps one (ADR 0008).
+    contact_phones: { i: true, u: true, d: true },
+    // A tag is only archived; a tag on a lead is put on or taken off (DATABASE §6.2).
+    tags: { i: true, u: false },
+    opportunity_tags: { i: true, u: false, d: true },
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
+    // The role editor replaces a role's grants as a set (admin.role.permissions.set).
+    role_permissions: { i: true, u: true, d: true },
+    // The seed owns the catalogue and the roles; app_user updates only a role's customised
+    // mark, a column-level grant (role-editor.test.ts).
+    roles: { i: false, u: false },
+    permissions: { i: false, u: false },
+    kit_components: { i: true, u: true, d: true },
+    pump_curves: { i: true, u: true, d: true },
     users: { i: true, u: false },
-    // A stored file and a saved template are written once; a job and a row update only their
-    // working columns, never what the file said (migration 0041).
+    // A saved template is written once; a job and a row update only their working columns,
+    // never what the file said (migration 0041); a stored file only its status and the checks'
+    // columns (0062, files.test.ts).
     files: { i: true, u: false },
     import_mapping_templates: { i: true, u: false },
     import_jobs: { i: true, u: false },
@@ -347,8 +365,11 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      'app.customer_search_ids(text,text,integer)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // The catalogue and GST rates screens ask it before they offer a change (0072).
+      'app.request_covers_group()',
       'app.user_is_active(uuid)',
     ]);
   });

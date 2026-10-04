@@ -1,6 +1,6 @@
 # ADR 0004 — Domain command layer as the single mutation path
 
-**Status:** Accepted · **Date:** 2026-09-26 · **Blueprint:** §3, §6.1, §7.2, §9.3 · **Architecture:** §4, §5 · **Agents:** §5
+**Status:** Accepted (owner, 26-09-2026, with the blueprint) · **Date:** 26-09-2026 · **Deciders:** Owner · **Blueprint:** §3, §6.1, §7.2, §9.3 · **Architecture:** §4, §5 · **Agents:** §5
 
 ## Context
 Data is changed from many surfaces: web server actions, `/api/v1` for the field app, the Tally connector, provider webhooks, the import framework, six AI agents and the voice agent. Prices come only from Price Master tiers, tax only from the tax engine, state changes only from state machines, and every mutation must be permission-checked, entity-scoped and audited. If each surface wrote to the database itself, these rules would be re-implemented and eventually bypassed.

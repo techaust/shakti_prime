@@ -31,6 +31,8 @@ describe('visibleNav', () => {
   it('needs the scope the screen needs: an entity grant is not enough for group-wide admin', () => {
     expect(ids([{ key: 'admin.users.write', scope: 'entity' }])).not.toContain('admin-users');
     expect(ids([{ key: 'admin.users.write', scope: 'all' }])).toContain('admin-users');
+    expect(ids([{ key: 'admin.roles.write', scope: 'entity' }])).not.toContain('admin-roles');
+    expect(ids([{ key: 'admin.roles.write', scope: 'all' }])).toContain('admin-roles');
     expect(ids([{ key: 'pricing.read', scope: 'own' }])).not.toContain('price-master');
     expect(ids([{ key: 'pricing.read', scope: 'all' }])).toContain('price-master');
     expect(ids([{ key: 'audit.read', scope: 'entity' }])).toContain('admin-activity');
@@ -66,6 +68,7 @@ describe('activeNavId', () => {
     expect(activeNavId('/leads/01J9', NAV_ITEMS)).toBe('leads');
     expect(activeNavId('/leads/new', NAV_ITEMS)).toBe('leads-new');
     expect(activeNavId('/admin/users', NAV_ITEMS)).toBe('admin-users');
+    expect(activeNavId('/admin/roles/accounts', NAV_ITEMS)).toBe('admin-roles');
     expect(activeNavId('/settings/profile', NAV_ITEMS)).toBeUndefined();
   });
 });

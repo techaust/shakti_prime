@@ -8,6 +8,7 @@ import {
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
+import { activityRow, writeActivities } from '../activities/activity';
 import { redactForAudit } from '../audit/redact';
 import { inputHash } from '../idempotency/hash';
 import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
@@ -22,6 +23,12 @@ export interface RunOptions {
   now?: Date;
   /** Where the audit rows go (required since review 3; `executeCommand` passes the database). */
   audit: AuditSink;
+  /**
+   * False only on a runtime that is not hosted (a developer's machine, CI), where a command may
+   * accept what only such a runtime may (a file no scanner looked at). Left out, the runtime is
+   * taken to be hosted.
+   */
+  hosted?: boolean;
   /** The caller's address and device, recorded on the audit row. */
   client?: ClientMeta;
   /** Where emitted events go (required since slice 3; `executeCommand` passes `outbox_events`). */
@@ -127,6 +134,11 @@ export function undeclaredAuditFields(
  */
 const STRICT_AUDIT_FIELDS = process.env.NODE_ENV !== 'production';
 
+/** An agent service principal, by its kind or its role key (the test of 0057 in the database). */
+export function isAgent(principal: Pick<Principal, 'kind' | 'roleKey'>): boolean {
+  return principal.kind === 'agent' || principal.roleKey.startsWith('agent:');
+}
+
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
 export function checkPermission(
   principal: Principal,
@@ -163,6 +175,26 @@ export function checkPerson(principal: Principal, commandName: string): void {
       reason: 'people_only',
     });
   }
+}
+
+/**
+ * The command's own permission: declared once, or named by the input for a command of several
+ * kinds. An input no request may send (its permission is null) is refused like a missing grant.
+ */
+function guardPermission<I extends z.ZodType, O extends z.ZodType>(
+  principal: Principal,
+  command: Command<I, O>,
+  input: z.output<I>,
+): void {
+  if (typeof command.permission === 'string') {
+    checkPermission(principal, command.permission, command.minScope ?? 'own');
+    return;
+  }
+  const needed = command.permission.of(input);
+  if (needed === null) {
+    throw new DomainError('forbidden', `${command.name} is not open for this input`);
+  }
+  checkPermission(principal, needed.permission, needed.minScope);
 }
 
 /** SQLSTATE classes a handler may hit; anything else is an internal error, never a leak. */
@@ -266,9 +298,14 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
 
   try {
     if (command.peopleOnly === true) checkPerson(context.principal, command.name);
-    checkPermission(context.principal, command.permission, command.minScope ?? 'own');
+    guardPermission(context.principal, command, parsed.data);
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);
+    }
+    if (command.peopleOnly === true && isAgent(context.principal)) {
+      throw new DomainError('forbidden', `${command.name} is for people, not agents`, {
+        permission: command.permission,
+      });
     }
   } catch (e) {
     throw tag(e, 'guard', parsed.data);
@@ -331,6 +368,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     activeEntityId,
     tx: context.tx,
     inImportBatch,
+    hosted: options.hosted !== false,
     // Checked against the catalogue here, so a bad event fails the command that emits it.
     emit: (event) => {
       const parsed = parseEventPayload(event.type, event.payload);
@@ -358,6 +396,8 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
       }
       changes.push(change);
     },
+    activity: (record) =>
+      writeActivities(context.tx, [activityRow(context.principal, activeEntityId, record)]),
     now,
     requestId: context.requestId,
     run: async (inner, innerInput, nested = {}) => {
@@ -370,6 +410,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
             audit: nested.auditedByCaller === true ? DISCARD_AUDIT : holdIn(innerAudit),
             outbox: holdIn(innerEvents),
             ...(options.client === undefined ? {} : { client: options.client }),
+            ...(options.hosted === undefined ? {} : { hosted: options.hosted }),
             ...(options.idempotency === undefined ? {} : { idempotency: options.idempotency }),
             ...(nested.idempotencyKey === undefined
               ? {}

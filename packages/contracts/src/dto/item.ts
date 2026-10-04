@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HsnSchema, ItemUnitSchema, RateSchema } from '../catalogue/enums';
+import { HsnSchema, ItemCategorySchema, ItemUnitSchema, RateSchema } from '../catalogue/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 
 /** An item as every catalogue reader sees it. Carries no cost field, by construction. Strict. */
@@ -8,7 +8,7 @@ export const ItemDto = z
     id: IdSchema,
     sku: z.string(),
     name: z.string(),
-    category: z.string(),
+    category: ItemCategorySchema,
     hsn: HsnSchema,
     unit: ItemUnitSchema,
     isSerialTracked: z.boolean(),

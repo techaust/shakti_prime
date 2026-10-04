@@ -1,6 +1,6 @@
 # ADR 0012 — Expo with WatermelonDB for the offline field app
 
-**Status:** Proposed (2026-09-27; confirmed when the field app build starts in Phase 4, ROADMAP §6, which also builds the mobile tokens of design slice 1b part 3) · **Blueprint:** §5, §8.7, §16 · **Architecture:** §10 · **API:** §3.1, §3.2 · **Design:** docs/design/backend-weeks-3-5.md §2.4 · **ADR:** 0003, 0006
+**Status:** Proposed (27-09-2026); confirmed when the field app build starts in Phase 4 (ROADMAP §6) · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §5, §8.7, §16 · **Architecture:** §10 · **API:** §3.1, §3.2 · **Design:** docs/design/backend-weeks-3-5.md §2.4 · **ADR:** 0003, 0006
 
 ## Context
 Field engineers survey sites, install pumps and rooftop systems, record QC, material, attendance and expenses in villages with weak or no signal, sometimes for several days. The app must work fully offline for at least **5 days**, keep photos and signatures safe until they upload, and never let two people's edits silently overwrite each other. The team is one developer working in TypeScript and React; only Android is needed.

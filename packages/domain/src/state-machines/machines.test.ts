@@ -1,10 +1,12 @@
 import { newId, PERMISSION_KEYS } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
+import type { Requirement } from '../command/define-command';
 import { findTransition, transition, type Actor, type AnyMachine } from './define-machine';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
+import { fileUploadMachine } from './machines/file-upload';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -13,6 +15,7 @@ import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
+import { taskMachine } from './machines/task';
 import { warrantyClaimMachine } from './machines/warranty-claim';
 import { MACHINE_REASONS, MACHINES } from './registry';
 import { everything, holding, platform } from './test-support';
@@ -42,6 +45,7 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   {
     machine: opportunityMachine,
     record: {
@@ -164,6 +168,11 @@ const FIXTURES: Fixture[] = [
     params: { reason: 'unreadable' },
   },
   {
+    machine: fileUploadMachine,
+    record: { storedMatches: true },
+    params: { reason: 'file_infected' },
+  },
+  {
     machine: expenseClaimMachine,
     record: {
       claimantId: newId(),
@@ -194,9 +203,16 @@ function fixtureOf(name: string): Fixture {
   return fixture;
 }
 
+/** For a transition whose permission its input names, a permission the command resolved. */
+function requirementFor(t: AnyTransition): { requirement?: Requirement } {
+  return t.permissionByInput === undefined
+    ? {}
+    : { requirement: { permission: 'sales.quote.send', minScope: 'own' } };
+}
+
 /** Someone the transition lets through: every permission for a person, else the platform. */
 function allowedActor(t: AnyTransition): Actor {
-  return t.permission === null ? platform : everything();
+  return t.permission === null && t.permissionByInput === undefined ? platform : everything();
 }
 
 function setup(fixture: Fixture, state: string | null, event: string) {
@@ -237,7 +253,12 @@ describe.each(FIXTURES)('$machine.name', (fixture) => {
 
   it.each(legal)('legal: $event from $state', ({ state, event, t }) => {
     const { record, params, now } = setup(fixture, state, event);
-    const result = transition(machine, record, event, { actor: allowedActor(t), now, params });
+    const result = transition(machine, record, event, {
+      actor: allowedActor(t),
+      now,
+      params,
+      ...requirementFor(t),
+    });
     expect(result).toEqual({ from: state, to: t.to, event, effects: t.effects ?? [] });
   });
 
@@ -277,7 +298,7 @@ describe.each(FIXTURES)('$machine.name', (fixture) => {
     },
   );
 
-  it.each(firstFroms.filter(({ t }) => t.permission === null))(
+  it.each(firstFroms.filter(({ t }) => t.permission === null && !t.permissionByInput))(
     'refused to a person: $label',
     ({ t, state }) => {
       const { record, params, now } = setup(fixture, state, t.event);
@@ -301,6 +322,31 @@ interface GuardCase {
 }
 
 const GUARDS: GuardCase[] = [
+  // File upload
+  {
+    fixture: 'file_upload',
+    from: 'pending',
+    event: 'complete',
+    record: { storedMatches: false },
+    code: 'conflict',
+    reason: 'file_upload_mismatch',
+  },
+  {
+    fixture: 'file_upload',
+    from: 'pending',
+    event: 'complete',
+    record: { storedMatches: null },
+    code: 'conflict',
+    reason: 'file_upload_mismatch',
+  },
+  {
+    fixture: 'file_upload',
+    from: 'scanned',
+    event: 'reject',
+    params: { reason: ' ' },
+    code: 'validation_failed',
+    reason: 'transition_reason_missing',
+  },
   // Opportunity
   {
     fixture: 'opportunity',
@@ -828,6 +874,9 @@ describe('guards refuse with their own reason', () => {
         actor: c.actor ?? everything(),
         now: c.now ?? base.now,
         params,
+        ...(c.fixture === 'file_upload'
+          ? { requirement: { permission: 'sales.quote.send', minScope: 'own' } as const }
+          : {}),
       }),
     ).toThrow(
       expect.objectContaining({
@@ -910,6 +959,25 @@ describe('guards that let some actors through', () => {
       expect.objectContaining({
         details: expect.objectContaining({ reason: 'eway_bill_missing' }) as unknown,
       }),
+    );
+  });
+
+  it('file upload: an event whose permission the input names is refused without it, or to someone without it', () => {
+    const base = setup(fixtureOf('file_upload'), 'pending', 'complete');
+    const fire = (actor: Actor, requirement?: Requirement) =>
+      transition(fileUploadMachine, base.record as never, 'complete', {
+        actor,
+        now: base.now,
+        params: base.params,
+        ...(requirement === undefined ? {} : { requirement }),
+      });
+    expect(() => fire(everything())).toThrow(expect.objectContaining({ code: 'forbidden' }));
+    const need: Requirement = { permission: 'admin.entities.write', minScope: 'all' };
+    expect(() => fire(holding([{ key: 'admin.entities.write', scope: 'entity' }]), need)).toThrow(
+      expect.objectContaining({ code: 'forbidden' }),
+    );
+    expect(fire(holding([{ key: 'admin.entities.write', scope: 'all' }]), need).to).toBe(
+      'scanning',
     );
   });
 

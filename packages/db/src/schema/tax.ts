@@ -22,7 +22,10 @@ export const taxRates = pgTable(
   },
   (t) => [
     check('tax_rates_target_check', sql`(${t.hsn} is null) <> (${t.itemId} is null)`),
-    check('tax_rates_hsn_check', sql`${t.hsn} is null or ${t.hsn} ~ '^[0-9]{4,8}$'`),
+    check(
+      'tax_rates_hsn_check',
+      sql`${t.hsn} is null or ${t.hsn} ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'`,
+    ),
     check('tax_rates_rate_check', sql`${t.ratePct} >= 0 and ${t.ratePct} <= 100`),
     check(
       'tax_rates_effective_check',

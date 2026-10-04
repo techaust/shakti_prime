@@ -63,6 +63,13 @@ export interface DataDocSources {
   databaseDoc: string;
 }
 
+/** The first migration that creates `table`, by its four-digit number, or null. */
+export function createdIn(migrations: readonly MigrationFile[], table: string): string | null {
+  const create = new RegExp(`create table (if not exists )?("?public"?\\.)?"?${table}"?\\s*\\(`, 'i');
+  const found = migrations.find((m) => create.test(m.sql));
+  return found === undefined ? null : found.name.slice(0, 4);
+}
+
 /** Reads the inputs from a checkout: the newest snapshot, every migration, DATABASE.md. */
 export function readSources(repoRoot: string): DataDocSources {
   const folder = join(repoRoot, 'packages', 'db', 'migrations');
@@ -89,6 +96,11 @@ export interface CatalogueEntry {
   qualifier: string | null;
   /** The key-columns cell: the documented purpose and columns. */
   note: string;
+  /**
+   * The status cell: built, with the migrations that created the row's tables, or planned, with
+   * the phase that builds it (`Built (0004)`, `Planned (Phase 2)`); null when the row has none.
+   */
+  status: { built: boolean; detail: string } | null;
 }
 
 function tableNamesIn(cell: string): { names: string[]; qualifier: string | null } {
@@ -115,7 +127,7 @@ function splitTopLevel(text: string): string[] {
   return parts;
 }
 
-/** Every table DATABASE.md §6 names, with its section and documented columns. */
+/** Every table DATABASE.md §6 names, with its section, status and documented columns. */
 export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
   const lines = databaseDoc.split(/\r?\n/);
   const start = lines.findIndex((l) => l.startsWith('## 6.'));
@@ -132,7 +144,11 @@ export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
     const row = /^\| (.+?) \| (.+) \|$/.exec(line);
     if (row?.[1] !== undefined && row[2] !== undefined && row[1].includes('`')) {
       const { names, qualifier } = tableNamesIn(row[1]);
-      for (const table of names) entries.push({ table, section, qualifier, note: row[2] });
+      const marked = /^(Built|Planned) \(([^)]*)\) \| (.+)$/.exec(row[2]);
+      const status =
+        marked?.[1] === undefined ? null : { built: marked[1] === 'Built', detail: marked[2] ?? '' };
+      const note = marked?.[3] ?? row[2];
+      for (const table of names) entries.push({ table, section, qualifier, note, status });
       continue;
     }
     // A section written as one line: `a`, `b` (`col`, `col`), ...
@@ -141,7 +157,7 @@ export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
         const name = /^`([a-z_]+)`/.exec(part)?.[1];
         if (name === undefined) continue;
         const columns = /\((.*)\)$/.exec(part)?.[1] ?? '';
-        entries.push({ table: name, section, qualifier: null, note: columns });
+        entries.push({ table: name, section, qualifier: null, note: columns, status: null });
       }
     }
   }
@@ -313,6 +329,48 @@ function balanced(sql: string, open: number): { inner: string; end: number } {
 
 const ident = String.raw`(?:"?public"?\.)?"?([a-z_]+)"?`;
 
+/** `select` and the other commands as `pg_policies.cmd` writes them, for a policy's command. */
+const POLICY_COMMANDS: Record<string, string> = {
+  SELECT: 'select',
+  INSERT: 'insert',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  ALL: 'all',
+};
+
+const roleList = (roles: string): string[] =>
+  roles
+    .split(',')
+    .map((r) => r.trim())
+    .filter((r) => r !== '');
+
+/**
+ * A `do $$ … $$` block that walks `pg_policies` and adds a role to every policy that names
+ * another one, as 0062 gives `app_reader` every read policy of `app_user`:
+ * `where 'app_user' = any (roles) and not 'app_reader' = any (roles) and cmd in ('SELECT', 'ALL')`
+ * followed by an `alter policy` that appends `array['app_reader']` to the roles. Only that shape is
+ * read; any other dynamic SQL is left alone, and a test pins the shape to the migration.
+ */
+export interface PolicyRoleSweep {
+  holder: string;
+  added: string;
+  commands: string[];
+}
+
+export function parsePolicyRoleSweep(block: string): PolicyRoleSweep | null {
+  if (!/from\s+pg_policies/i.test(block) || !/alter policy/i.test(block)) return null;
+  const where =
+    /'([a-z_]+)'\s*=\s*any\s*\(\s*roles\s*\)\s+and\s+not\s+'([a-z_]+)'\s*=\s*any\s*\(\s*roles\s*\)\s+and\s+cmd\s+in\s*\(([^)]*)\)/i.exec(
+      block,
+    );
+  const appended = /roles\s*\|\|\s*array\[\s*'([a-z_]+)'\s*\]/i.exec(block);
+  if (where === null || appended === null || appended[1] !== where[2]) return null;
+  const commands = [...(where[3] ?? '').matchAll(/'([A-Z]+)'/g)]
+    .map((c) => POLICY_COMMANDS[c[1] ?? ''])
+    .filter((c) => c !== undefined);
+  return { holder: where[1] ?? '', added: where[2] ?? '', commands };
+}
+
 /** Applies every migration in order and returns the resulting SQL-only facts per table. */
 export function parseMigrations(migrations: readonly MigrationFile[]): Map<string, SqlTableInfo> {
   const tables = new Map<string, SqlTableInfo>();
@@ -376,6 +434,53 @@ export function parseMigrations(migrations: readonly MigrationFile[]): Map<strin
             withCheck,
             migration: file,
           });
+        },
+      },
+      {
+        // `alter policy … to roles [using (…)] [with check (…)]`; a rename is not handled.
+        re: new RegExp(
+          String.raw`alter policy\s+"?([a-z_]+)"?\s+on\s+${ident}(?:\s+to\s+([a-z_, ]+?))?\s*(?=using|with check|;|$)`,
+          'gi',
+        ),
+        apply: (m, sql, file) => {
+          const policy = info(m[2] ?? '').policies.get(m[1] ?? '');
+          if (policy === undefined) {
+            throw new Error(`${file}: alter policy ${m[1] ?? ''} on ${m[2] ?? ''} before it exists`);
+          }
+          let cursor = m.index + m[0].length;
+          const clause = (keyword: RegExp): string | null => {
+            const k = keyword.exec(sql.slice(cursor));
+            if (k?.index !== 0) return null;
+            const { inner, end } = balanced(sql, cursor + k[0].length - 1);
+            cursor = end;
+            while (/\s/.test(sql[cursor] ?? '')) cursor += 1;
+            return squash(inner);
+          };
+          if (m[3] !== undefined) policy.roles = roleList(m[3]).join(', ');
+          policy.using = clause(/^using\s*\(/i) ?? policy.using;
+          policy.withCheck = clause(/^with check\s*\(/i) ?? policy.withCheck;
+          policy.migration = file;
+        },
+      },
+      {
+        // A `do` block that adds a role to every policy naming another (0062: `app_reader`).
+        re: /do\s+\$\$([\s\S]*?)\$\$/gi,
+        apply: (m, _sql, file) => {
+          const sweep = parsePolicyRoleSweep(m[1] ?? '');
+          if (sweep === null) return;
+          for (const table of tables.values()) {
+            for (const policy of table.policies.values()) {
+              const roles = roleList(policy.roles);
+              if (
+                roles.includes(sweep.holder) &&
+                !roles.includes(sweep.added) &&
+                sweep.commands.includes(policy.command)
+              ) {
+                policy.roles = [...roles, sweep.added].join(', ');
+                policy.migration = file;
+              }
+            }
+          }
         },
       },
       {
@@ -528,17 +633,44 @@ export function groupModules(builtTables: readonly string[], catalogue: Catalogu
 
 // --- Rendering -------------------------------------------------------------------------------
 
-/** Columns every table carries for the audit of who changed it; drawn once, not per table. */
+/** Columns most tables carry for the audit of who changed them; described once, not drawn. */
 const ACTOR_COLUMNS = new Set(['created_by', 'updated_by']);
 
 const cell = (text: string): string => text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 const code = (text: string): string => (text.includes('`') ? `\`\` ${text} \`\`` : `\`${text}\``);
 
-function mermaidType(type: string): string {
-  return type
-    .replace(' with time zone', 'tz')
-    .replace(/,\s*/g, '_')
-    .replace(/\s+/g, '_');
+/**
+ * A column type as Mermaid accepts it (a word, no comma or space), with what it leaves out: the
+ * precision of `numeric(14, 2)` goes to the attribute's comment.
+ */
+export function mermaidType(type: string): { type: string; detail: string | null } {
+  const sized = /^([a-z ]+)\((\d+(?:,\s*\d+)?)\)$/.exec(type);
+  const base = sized?.[1] ?? type;
+  const detail = sized?.[2] === undefined ? null : `(${sized[2].replace(/\s+/g, '')})`;
+  return {
+    type: base.replace(' with time zone', 'tz').trim().replace(/\s+/g, '_'),
+    detail,
+  };
+}
+
+/** The attribute's trailing comment: the precision a type leaves out and whether it may be null. */
+function attributeComment(detail: string | null, nullable: boolean): string {
+  const parts = [detail, nullable ? 'null' : null].filter((p) => p !== null);
+  return parts.length > 0 ? ` "${parts.join(', ')}"` : '';
+}
+
+/** Tables without one or both actor columns, for the ERD's opening note. */
+function actorExceptions(tables: Map<string, SnapshotTable>): { none: string[]; partial: string[] } {
+  const none: string[] = [];
+  const partial: string[] = [];
+  for (const [name, table] of [...tables.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const held = [...ACTOR_COLUMNS].filter((c) => table.columns[c] !== undefined);
+    if (held.length === 0) none.push(name);
+    else if (held.length < ACTOR_COLUMNS.size) {
+      partial.push(`${code(name)} (only ${held.map(code).join(', ')})`);
+    }
+  }
+  return { none, partial };
 }
 
 function primaryKeyOf(table: SnapshotTable): string[] {
@@ -616,8 +748,17 @@ function renderErd(
     'Entity-relationship diagram — Shakti Prime BOS',
     'The tables built so far, one diagram per module; a table another module owns appears as a name only.',
   );
+  const actors = actorExceptions(tables);
+  const exceptions = [
+    actors.none.length > 0 ? `Tables without either: ${actors.none.map(code).join(', ')}.` : null,
+    actors.partial.length > 0
+      ? `Tables with one of them: ${actors.partial.join(', ')}.`
+      : null,
+  ].filter((e) => e !== null);
   out.push(
-    'Every table also carries `created_by` and `updated_by`, which reference `principals`; those links are left out of the diagrams. Column meanings, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their DATABASE.md §6 entries.',
+    `Most tables also carry \`created_by\` and \`updated_by\`, which reference \`principals\`; those links are left out of the diagrams. ${exceptions.join(' ')}`.trimEnd(),
+    '',
+    'A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their DATABASE.md §6 entries.',
     '',
   );
   for (const module of modules) {
@@ -644,9 +785,10 @@ function renderErd(
           fkColumns.has(column.name) ? 'FK' : null,
           unique.has(column.name) ? 'UK' : null,
         ].filter((k) => k !== null);
-        const nullable = column.notNull || pk.has(column.name) ? '' : ' "null"';
+        const nullable = !(column.notNull || pk.has(column.name));
+        const { type, detail } = mermaidType(column.type);
         out.push(
-          `    ${mermaidType(column.type)} ${column.name}${keys.length > 0 ? ` ${keys.join(', ')}` : ''}${nullable}`,
+          `    ${type} ${column.name}${keys.length > 0 ? ` ${keys.join(', ')}` : ''}${attributeComment(detail, nullable)}`,
         );
       }
       out.push('  }');
@@ -681,8 +823,8 @@ function renderErd(
       if (!columns.some((c) => c.name === 'id')) out.push('    uuid id PK');
       for (const column of columns) {
         const key = column.references === null ? '' : ' FK';
-        const nullable = column.nullable ? ' "null"' : '';
-        out.push(`    ${mermaidType(column.type ?? 'untyped')} ${column.name}${key}${nullable}`);
+        const { type, detail } = mermaidType(column.type ?? 'untyped');
+        out.push(`    ${type} ${column.name}${key}${attributeComment(detail, column.nullable)}`);
       }
       out.push('  }');
     }
@@ -736,8 +878,8 @@ function renderDictionary(
     out.push(
       `### ${section}`,
       '',
-      '| Table | Documented columns | Refers to (inferred) |',
-      '|---|---|---|',
+      '| Table | Phase | Documented columns | Refers to (inferred) |',
+      '|---|---|---|---|',
     );
     for (const { entry, columns } of entries) {
       const qualifier = entry.qualifier === null ? '' : ` (${entry.qualifier})`;
@@ -745,7 +887,9 @@ function renderDictionary(
         .filter((c) => c.references !== null)
         .map((c) => `\`${c.name}\` → \`${c.references ?? ''}\``)
         .join(', ');
-      out.push(`| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.note)} | ${cell(refs)} |`);
+      out.push(
+        `| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.status?.detail ?? '')} | ${cell(entry.note)} | ${cell(refs)} |`,
+      );
     }
     out.push('');
   }
@@ -760,6 +904,7 @@ function renderTable(
   const out: string[] = [`### ${table.name}`, ''];
   const facts: string[] = [];
   if (entry !== undefined) facts.push(`DATABASE.md §${entry.section.split(' ')[0] ?? ''}`);
+  if (entry?.status?.built === true) facts.push(`created in ${entry.status.detail}`);
   if (entry?.qualifier) facts.push(entry.qualifier);
   if (sql?.partition) facts.push(`partitioned by ${sql.partition}`);
   out.push(

@@ -1,8 +1,9 @@
 import { CreateLeadInput, newId, type LeadDto } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { activityRow, writeActivities } from '../activities/activity';
 import type { CommandContext } from '../command/context';
-import { createLead } from '../commands/crm/create-lead';
+import { createLead, leadCreatedActivity } from '../commands/crm/create-lead';
 import { inputHash } from '../idempotency/hash';
 import { toLeadDto } from '../queries/crm/lead-dto';
 import { importRowKey } from './row-key';
@@ -33,7 +34,7 @@ export class RowByRowNeeded extends Error {
  * Commits a batch of lead rows as `crm.lead.create` would, one row at a time, with the same
  * guard, input, idempotency key and event, but in a handful of statements for the whole batch
  * (docs/spikes/import-scale.md): each row still gets its own account, contact, phone, company
- * relationship, site and opportunity, every insert passes the same policies as `app_user`, and
+ * relationship, site, opportunity and timeline row, every insert passes the same policies as `app_user`, and
  * each row claims its key `import:{job}:{row}` with the input hash and the lead answer the command
  * would store. The events are the command's, one `crm.lead.created` a row; the caller writes the
  * batch's one audit row.
@@ -260,6 +261,17 @@ export async function commitLeadBatch(
     )
     .returning();
   const byId = new Map(opportunities.map((o) => [o.id, o]));
+  // Each lead's timeline row, as the command writes it.
+  await writeActivities(
+    tx,
+    planned.map((row) =>
+      activityRow(
+        ctx.principal,
+        ctx.activeEntityId,
+        leadCreatedActivity(row.input, row.opportunityId, row.accountId),
+      ),
+    ),
+  );
 
   const answers: { key: string; response: LeadDto }[] = [];
   for (const row of planned) {

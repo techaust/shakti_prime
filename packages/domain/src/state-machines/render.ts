@@ -1,6 +1,6 @@
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import type { AnyMachine } from './define-machine';
-import { MACHINES } from './registry';
+import { MACHINES, MACHINES_IN_USE } from './registry';
 
 /**
  * Renders the machines into the specification documents in `docs/state-machines/` (BLUEPRINT §19
@@ -35,7 +35,10 @@ function fromText(t: AnyTransition): string {
 
 function permissionText(t: AnyTransition): string {
   const parts: string[] = [];
-  if (t.permission === null) {
+  if (t.permission === null && t.permissionByInput !== undefined) {
+    parts.push(`the permission of ${t.permissionByInput}`);
+    if (t.system === true) parts.push('or the platform');
+  } else if (t.permission === null) {
     parts.push('the platform only');
   } else {
     const scope = t.scope && t.scope !== 'own' ? ` at ${t.scope} scope or wider` : '';
@@ -48,9 +51,28 @@ function permissionText(t: AnyTransition): string {
   return parts.join(' ');
 }
 
-function transitionRow(t: AnyTransition): string {
+function transitionRow(t: AnyTransition, built: boolean): string {
   const effects = (t.effects ?? []).map((e) => `${code(e.key)}: ${e.description}`).join('; ');
-  return `| ${code(t.event)}${proposedMark(t.proposed)} | ${fromText(t)} → ${code(t.to)} | ${cell(permissionText(t))} | ${cell(t.guard?.description ?? '–')} | ${cell(effects || '–')} |`;
+  const emits = built ? ` ${t.emits === undefined ? '–' : code(t.emits)} |` : '';
+  return `| ${code(t.event)}${proposedMark(t.proposed)} | ${fromText(t)} → ${code(t.to)} | ${cell(permissionText(t))} | ${cell(t.guard?.description ?? '–')} | ${cell(effects || '–')} |${emits}`;
+}
+
+/** What the commands write and emit, from the machine's own data. */
+function persistenceText(machine: AnyMachine): string {
+  const stored = machine.stored;
+  if (stored === undefined) {
+    return 'No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).';
+  }
+  const column = code(`${stored.table}.${stored.stateColumn}`);
+  const changedAt =
+    stored.changedAtColumn === undefined
+      ? ''
+      : ` and the time to ${code(`${stored.table}.${stored.changedAtColumn}`)}`;
+  const anyEvent = machine.transitions.some((t) => t.emits !== undefined);
+  const events = anyEvent
+    ? ', and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md))'
+    : '; it emits no event';
+  return `The command writes the new state to ${column}${changedAt} when the state changes, applies the effects and calls \`ctx.audit()\`${events}.`;
 }
 
 function stateRow(machine: AnyMachine, state: string): string {
@@ -89,6 +111,8 @@ export function renderMachine(machine: AnyMachine): string {
   const newPermissions = [
     ...new Set(machine.transitions.flatMap((t) => (t.newPermission ? [t.newPermission] : []))),
   ];
+  // The column shows only where some transition emits an event.
+  const built = machine.transitions.some((t) => t.emits !== undefined);
   const lines = [
     `# ${machine.title} state machine`,
     '',
@@ -110,11 +134,13 @@ export function renderMachine(machine: AnyMachine): string {
     '',
     '## Transitions',
     '',
-    '| Event | From → To | Permitted actor | Guard | Effects |',
-    '|---|---|---|---|---|',
-    ...machine.transitions.map(transitionRow),
+    built
+      ? '| Event | From → To | Permitted actor | Guard | Effects | Emits |'
+      : '| Event | From → To | Permitted actor | Guard | Effects |',
+    built ? '|---|---|---|---|---|---|' : '|---|---|---|---|---|',
+    ...machine.transitions.map((t) => transitionRow(t, built)),
     '',
-    `Any other event, or an event from a state not listed for it, answers \`conflict\` with reason \`${machine.illegalReason}\`. A guard that refuses answers its own reason; the permission check answers \`forbidden\`. The command persists \`state\` and \`state_changed_at\`, applies the effects, calls \`ctx.audit()\` and emits \`<aggregate>.<event>\`.`,
+    `Any other event, or an event from a state not listed for it, answers \`conflict\` with reason \`${machine.illegalReason}\`. A guard that refuses answers its own reason; the permission check answers \`forbidden\`. ${persistenceText(machine)}`,
     '',
   ];
   if (notes.length > 0) {
@@ -146,7 +172,10 @@ function flatten(value: unknown, prefix: string): [string, string][] {
 }
 
 /** The index: every machine, the workshop defaults they use and the permissions they need. */
-export function renderIndex(machines: readonly AnyMachine[]): string {
+export function renderIndex(
+  machines: readonly AnyMachine[],
+  inUse: ReadonlySet<string> = MACHINES_IN_USE,
+): string {
   const newPermissions = [
     ...new Set(
       machines.flatMap((m) =>
@@ -161,14 +190,16 @@ export function renderIndex(machines: readonly AnyMachine[]): string {
     '',
     GENERATED_NOTE,
     '',
-    'The Phase 0 state-machine specifications (BLUEPRINT §19 item 2). Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/design/backend-weeks-3-5.md §7.1).',
+    'The state-machine specifications (BLUEPRINT §19 item 2), with the checks of an upload. Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/design/backend-weeks-3-5.md §7.1).',
     '',
-    '| Machine | States | Events | Proposed items | Specification |',
-    '|---|---|---|---|---|',
+    'A machine marked **yes** under *Driven by commands* has commands that call `transition()` with it (`MACHINES_IN_USE` in `registry.ts`, checked against the commands by `registry.test.ts`). The others are specifications: the commands of their phase follow them when they are built (ROADMAP §3 onwards).',
+    '',
+    '| Machine | Driven by commands | States | Events | Proposed items | Specification |',
+    '|---|---|---|---|---|---|',
     ...machines.map((m) => {
       const proposed =
         (m.proposedStates?.length ?? 0) + m.transitions.filter((t) => t.proposed === true).length;
-      return `| ${m.title} | ${String(m.states.length)} | ${String(m.events.length)} | ${String(proposed)} | [${fileName(m)}](${fileName(m)}) |`;
+      return `| ${m.title} | ${inUse.has(m.name) ? '**yes**' : 'no'} | ${String(m.states.length)} | ${String(m.events.length)} | ${String(proposed)} | [${fileName(m)}](${fileName(m)}) |`;
     }),
     '',
     '## Workshop defaults',

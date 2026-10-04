@@ -4,7 +4,6 @@ import { API_FIXTURES, IDS } from './fixtures';
 import { MessageRequested } from './messaging';
 import {
   AGENT_NAMES,
-  FileMaskJob,
   MessagingSendResult,
   NotifyJob,
   OutboxEventParams,
@@ -51,13 +50,6 @@ describe('the worker contracts (docs/API.md §3.6)', () => {
     expect(labels([IDS.serialA, IDS.serialB])).toBe(true);
     expect(labels([])).toBe(false);
     expect(labels(Array.from({ length: 501 }, () => IDS.serialA))).toBe(false);
-  });
-
-  it('masks for nothing in particular unless the upload slot says what it holds', () => {
-    expect(FileMaskJob.parse({ eventId: IDS.eventB, fileId: IDS.file }).expect).toEqual([]);
-    expect(
-      FileMaskJob.safeParse({ eventId: IDS.eventB, fileId: IDS.file, expect: ['pan'] }).success,
-    ).toBe(false);
   });
 
   it('reports a refused message with its reason and no provider id', () => {

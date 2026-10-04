@@ -1,11 +1,12 @@
 name: Migrate a hosted database
 
 # Applies the migrations to the dev or staging database from a reviewed commit on main, then
-# checks every migration is applied as it is on disk (docs/runbooks/DEPLOY.md, AUDIT L24). A
-# private repository on GitHub's free plan has no environments, so each database's credentials
-# and CA certificate are repository secrets named with its suffix (`_DEV`, `_STAGING`). Production
-# is added with a GitHub environment and a required reviewer when the repository moves to a plan
-# that offers them (AUDIT M45); until then no workflow can migrate it.
+# checks every migration is applied as it is on disk (docs/runbooks/DEPLOY.md §2;
+# docs/reviews/2026-09-audit.md L24). A private repository on GitHub's free plan has no
+# environments, so each database's credentials and CA certificate are repository secrets named
+# with its suffix (`_DEV`, `_STAGING`). Production is added with a GitHub environment and a
+# required reviewer when the repository moves to a plan that offers them
+# (docs/reviews/2026-09-audit.md M45); until then no workflow can migrate it.
 on:
   workflow_dispatch:
     inputs:
@@ -18,6 +19,10 @@ on:
         description: Seed the reference data after migrating (safe to re-run; keeps Admin edits)
         type: boolean
         default: true
+      rotate_passwords:
+        description: Set the login roles' passwords again from this environment's secrets (after a rotation)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -74,6 +79,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
+        if: ${{ !inputs.rotate_passwords }}
+      # The migrator sets a role's password only when it creates the role, or on this flag
+      # (packages/db/src/migrate.ts); docs/runbooks/DEPLOY.md §5 says when to tick it.
+      - run: pnpm db:migrate --rotate-passwords
+        if: ${{ inputs.rotate_passwords }}
       - run: pnpm db:verify
       - name: Seed
         if: inputs.seed

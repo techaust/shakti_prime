@@ -18,6 +18,28 @@ describe('action results (review 3)', () => {
     });
   });
 
+  it('name the catalogue reason an input schema gives its problem, never any other message', () => {
+    const invalid = (message: string) =>
+      new DomainError('validation_failed', 'invalid input', {
+        issues: [{ path: 'textVersion', message }],
+      });
+    expect(actionFailure('x', invalid('consent_version_invalid'))).toEqual({
+      ok: false,
+      error: 'consent_version_invalid',
+      field: 'textVersion',
+    });
+    expect(actionFailure('x', invalid('Invalid string: must match pattern'))).toEqual({
+      ok: false,
+      error: 'validation_failed',
+      field: 'textVersion',
+    });
+    expect(actionFailure('x', invalid('not_a_catalogue_key'))).toEqual({
+      ok: false,
+      error: 'validation_failed',
+      field: 'textVersion',
+    });
+  });
+
   it('name the first field of an input problem', () => {
     const e = new DomainError('validation_failed', 'bad', {
       issues: [

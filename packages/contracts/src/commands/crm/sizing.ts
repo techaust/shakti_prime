@@ -1,10 +1,6 @@
 import { z } from 'zod';
-import {
-  PipeMaterialSchema,
-  PumpDriveSchema,
-  PumpTypeSchema,
-  SizingKindSchema,
-} from '../../crm/sizing';
+import { PumpTypeSchema } from '../../catalogue/specs';
+import { PipeMaterialSchema, PumpDriveSchema, SizingKindSchema } from '../../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**

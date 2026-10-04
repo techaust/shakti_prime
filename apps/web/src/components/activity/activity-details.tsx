@@ -12,7 +12,7 @@ import {
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import type { ErrorKey, RoleNameKey } from '../../i18n/types';
+import type { ErrorKey, PermissionNameKey, RoleNameKey } from '../../i18n/types';
 import {
   actionKey,
   auditChanges,
@@ -26,22 +26,38 @@ import {
   type CodeGroup,
 } from '../../screens/audit';
 import {
+  ACCOUNT_TYPES,
+  CONSENT_CHANNELS,
+  CONSENT_PURPOSES,
+  CONSENT_SOURCES,
   CONTRASTS,
+  CUSTOMER_LANGUAGES,
+  FILE_PURPOSES,
+  FILE_SANITISING,
+  FILE_SCAN_VERDICTS,
+  FILE_STATUSES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
+  PRICE_TIER_CODES,
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
   SIZING_KINDS,
   SIZING_REASONS,
+  SITE_TYPES,
+  TASK_KINDS,
+  TASK_STATES,
   THEMES,
   USER_STATUSES,
 } from '../../screens/contract-values';
 import { formatDate, formatDateTime, formatRupees } from '../../screens/format';
+import { fileTypeKey, SCAN_STATUSES } from '../../screens/files';
 import { LEAD_IMPORT_FIELDS } from '../../screens/import-wizard';
+import { isScopeChoice, permissionMessageKey } from '../../screens/roles';
+import { useCatalogueText } from '../catalogue/use-spec-text';
 import { useDeviceName } from '../users/sessions-sheet';
 import { OUTCOME_TONE } from './outcome';
 
@@ -195,9 +211,11 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const common = useTranslations('common');
   const users = useTranslations('users');
   const roles = useTranslations('roles');
+  const roleEditor = useTranslations('adminRoles');
   const theme = useTranslations('theme');
   const code = useCodeText();
   const leadField = useLeadFieldName();
+  const catalogue = useCatalogueText();
   const text = (() => {
     switch (value.kind) {
       case 'empty':
@@ -220,6 +238,19 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return code(value.group, value.value);
       case 'codes':
         return value.values.map((v) => code(value.group, v)).join(t('values.listSeparator'));
+      case 'specs':
+        return (
+          <span className="flex flex-col">
+            {value.entries.map((e) => (
+              <span key={e.key}>
+                {t('values.spec', {
+                  name: catalogue.specLabel(e.key),
+                  value: catalogue.specValue(e.key, e.value),
+                })}
+              </span>
+            ))}
+          </span>
+        );
       case 'mapping':
         return (
           <span className="flex flex-col">
@@ -264,6 +295,30 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
           ? users(`sessions.reason.${ended}`)
           : wordsOf(ended);
       }
+      case 'grants':
+        return value.grants.length === 0 ? (
+          <span className="text-text-muted">{roleEditor('scope.none')}</span>
+        ) : (
+          <span className="flex flex-col">
+            {value.grants.map((g) => {
+              const name = permissionMessageKey(g.permission);
+              return (
+                <span key={g.permission}>
+                  {t('values.grant', {
+                    permission: roleEditor.has(
+                      `permissions.${name}` as `permissions.${PermissionNameKey}`,
+                    )
+                      ? roleEditor(`permissions.${name}` as `permissions.${PermissionNameKey}`)
+                      : wordsOf(g.permission),
+                    scope: isScopeChoice(g.scope)
+                      ? roleEditor(`scope.${g.scope}`)
+                      : wordsOf(g.scope),
+                  })}
+                </span>
+              );
+            })}
+          </span>
+        );
       case 'roles':
         return value.roles.length === 0 ? (
           <span className="text-text-muted">{users('rolesField.none')}</span>
@@ -304,10 +359,15 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
   const sizing = useTranslations('sizing');
+  const customers = useTranslations('customers');
+  const priceMaster = useTranslations('priceMaster');
+  const catalogue = useCatalogueText();
+  const files = useTranslations('files');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
+        if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
         return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
@@ -337,12 +397,52 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
       }
+      case 'accountType':
+        return oneOf(ACCOUNT_TYPES, value) ? leads(`accountType.${value}`) : wordsOf(value);
+      case 'language':
+        return oneOf(CUSTOMER_LANGUAGES, value) ? leads(`language.${value}`) : wordsOf(value);
+      case 'siteType':
+        return oneOf(SITE_TYPES, value) ? leads(`siteType.${value}`) : wordsOf(value);
+      case 'consentChannel':
+        return oneOf(CONSENT_CHANNELS, value)
+          ? customers(`consent.channel.${value}`)
+          : wordsOf(value);
+      case 'consentPurpose':
+        return oneOf(CONSENT_PURPOSES, value)
+          ? customers(`consent.purpose.${value}`)
+          : wordsOf(value);
+      case 'consentSource':
+        return oneOf(CONSENT_SOURCES, value)
+          ? customers(`consent.source.${value}`)
+          : wordsOf(value);
+      case 'taskKind':
+        return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
       case 'sizingKind':
         return oneOf(SIZING_KINDS, value) ? sizing(`kind.${value}`) : wordsOf(value);
       case 'sizingReason':
         return oneOf(SIZING_REASONS, value) ? sizing(`reason.${value}`) : wordsOf(value);
+      case 'itemCategory':
+        return catalogue.category(value);
+      case 'itemUnit':
+        return catalogue.unit(value);
+      case 'priceTier':
+        return oneOf(PRICE_TIER_CODES, value) ? priceMaster(`tiers.${value}`) : wordsOf(value);
+      case 'fileStatus':
+        return oneOf(FILE_STATUSES, value) ? files(`status.${value}`) : wordsOf(value);
+      case 'filePurpose':
+        return oneOf(FILE_PURPOSES, value) ? files(`purpose.${value}`) : wordsOf(value);
+      case 'contentType': {
+        const type = fileTypeKey(value);
+        return type === undefined ? wordsOf(value.replaceAll('/', ' ')) : files(`types.${type}`);
+      }
+      case 'scanVerdict':
+        return oneOf(FILE_SCAN_VERDICTS, value) ? files(`verdict.${value}`) : wordsOf(value);
+      case 'sanitising':
+        return oneOf(FILE_SANITISING, value) ? files(`sanitising.${value}`) : wordsOf(value);
+      case 'scanStatus':
+        return oneOf(SCAN_STATUSES, value) ? files(`scanStatus.${value}`) : wordsOf(value);
     }
   };
 }

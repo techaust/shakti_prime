@@ -8,10 +8,6 @@ import { z } from 'zod';
 export const SizingKindSchema = z.enum(['pump', 'rooftop']);
 export type SizingKind = z.infer<typeof SizingKindSchema>;
 
-/** Where the pump sits: in the borewell (submersible) or at the surface (monoblock). */
-export const PumpTypeSchema = z.enum(['submersible', 'surface']);
-export type PumpType = z.infer<typeof PumpTypeSchema>;
-
 /** What drives the pump: the grid or a solar array. */
 export const PumpDriveSchema = z.enum(['grid', 'solar']);
 export type PumpDrive = z.infer<typeof PumpDriveSchema>;
