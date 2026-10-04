@@ -27,8 +27,10 @@ import type {
   OpportunityLostReason,
   OpportunityNurtureReason,
   OpportunityState,
+  PermissionKey,
   PriceSort,
   SavedViewScreen,
+  Scope,
   Segment,
   SessionRevokeReason,
   SiteType,
@@ -343,6 +345,14 @@ export const SEARCH_MIN_CHARS = 2;
 
 /** A customers search looks for a name, contact or village from three characters. */
 export const CUSTOMER_SEARCH_MIN_CHARS = 3;
+/** Scopes from narrowest to widest (`SCOPES`). */
+export const SCOPE_VALUES = ['own', 'team', 'entity', 'all'] as const satisfies readonly Scope[];
+
+/** The two cost permissions (`COST_PERMISSIONS`): the role editor warns on each. */
+export const COST_PERMISSION_KEYS = [
+  'finance.cost.read',
+  'procurement.rate.read',
+] as const satisfies readonly PermissionKey[];
 /** `files.status`. */
 export const FILE_STATUSES = [
   'pending',

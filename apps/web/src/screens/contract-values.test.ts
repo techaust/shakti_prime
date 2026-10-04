@@ -41,6 +41,8 @@ import {
   ThemeSchema,
   USER_SORT_COLUMNS as CONTRACT_USER_SORT_COLUMNS,
   UserStatusSchema,
+  COST_PERMISSIONS,
+  SCOPES,
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
@@ -53,6 +55,7 @@ import {
   CUSTOMER_SEARCH_MIN_CHARS,
   CUSTOMER_SORT_COLUMNS,
   CONTRASTS,
+  COST_PERMISSION_KEYS,
   ITEM_CATEGORIES,
   ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS,
@@ -79,6 +82,7 @@ import {
   PASSWORD_MIN_LENGTH,
   PRICE_SORT_COLUMNS,
   SAVED_VIEW_SCREENS,
+  SCOPE_VALUES,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
@@ -142,5 +146,7 @@ describe('the contract values copied for the browser', () => {
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
+    expect(SCOPE_VALUES).toEqual(SCOPES);
+    expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);
   });
 });

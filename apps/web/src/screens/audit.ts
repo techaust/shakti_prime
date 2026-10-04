@@ -104,6 +104,7 @@ const ACTIONS = {
   'platform.probe.run': 'deliveryCheck',
   'admin.user.invite': 'userInvite',
   'admin.user.role.set': 'userRoles',
+  'admin.role.permissions.set': 'rolePermissions',
   'admin.user.suspend': 'userSuspend',
   'admin.user.reactivate': 'userReactivate',
   'admin.session.revoke': 'sessionRevoke',
@@ -164,6 +165,7 @@ const EVENT_NAMES = {
   'admin.user.two_factor_reset': 'twoFactorReset',
   'admin.user.reactivated': 'userReactivated',
   'admin.user.roles_changed': 'userRolesChanged',
+  'admin.role.permissions_changed': 'rolePermissionsChanged',
   'imports.job.committed': 'importCommitted',
   'imports.job.failed': 'importFailed',
   'imports.job.rolled_back': 'importRolledBack',
@@ -209,6 +211,7 @@ export type ChangeValue =
     }
   | { kind: 'endReason'; value: string }
   | { kind: 'roles'; roles: { entityId: number; roleKey: string }[] }
+  | { kind: 'grants'; grants: { permission: string; scope: string }[] }
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
@@ -286,6 +289,10 @@ const FIELD_KINDS = [
   ['entityRoles', 'roles'],
   ['bosRole', 'role'],
   ['revokedSessions', 'number'],
+  // Role permissions
+  ['grants', 'grants'],
+  ['customisedAt', 'time'],
+  ['holders', 'number'],
   ['twoFactorEnabled', 'yesNo'],
   ['theme', 'theme'],
   ['contrast', 'contrast'],
@@ -543,6 +550,16 @@ function known(field: FieldKey, value: unknown): ChangeValue {
   }
   if (kind === 'specs') return isRecord(value) ? specsOf(value) : EMPTY;
   if (kind === 'viewSettings') return isRecord(value) ? viewSettingsOf(value) : EMPTY;
+  if (kind === 'grants' && Array.isArray(value)) {
+    return {
+      kind: 'grants',
+      grants: value.flatMap((g) =>
+        isRecord(g) && typeof g.permission === 'string' && typeof g.scope === 'string'
+          ? [{ permission: g.permission, scope: g.scope }]
+          : [],
+      ),
+    };
+  }
   if (kind === 'roles' && Array.isArray(value)) {
     return {
       kind: 'roles',

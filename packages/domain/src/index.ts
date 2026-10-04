@@ -43,6 +43,7 @@ export { setTaxRate } from './commands/tax/set-tax-rate';
 export { setCompositeRule } from './commands/tax/set-composite-rule';
 export { inviteUser } from './commands/admin/invite-user';
 export { setUserRoles } from './commands/admin/set-user-roles';
+export { setRolePermissions } from './commands/admin/set-role-permissions';
 export { suspendUser, reactivateUser } from './commands/admin/user-status';
 export { revokeSession } from './commands/admin/revoke-session';
 export { resetTwoFactor } from './commands/admin/two-factor-reset';
@@ -137,6 +138,7 @@ export { getItem, getKit, listKits } from './queries/catalogue/catalogue-queries
 export { listKitPrices, listPriceChanges } from './queries/pricing/price-history';
 export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-settings';
 export { listUsers, listUserSessions } from './queries/admin/list-users';
+export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
