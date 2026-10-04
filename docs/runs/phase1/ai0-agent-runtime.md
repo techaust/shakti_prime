@@ -5,8 +5,8 @@
 | Branch | `feat/ai0-agent-runtime` on GitHub, from `main` at #99 |
 | PC worktree | `ai0-agent-runtime`, slot 12: Postgres 54342, app 3042 (`bash tools/integration/setup-worktree.sh ai0-agent-runtime feat/ai0-agent-runtime 54342 3042`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
-| State | brief |
-| Next step | a builder starts |
+| State | built |
+| Next step | review |
 
 ## Brief
 Read first:
@@ -46,7 +46,50 @@ Done when: the checks of AGENTS §10 pass on the branch, and a stand-in agent's 
 Not in AI0: real agents (A1, Phase 2), the vault (K1), voice (Phase 2), any client data or prompt wording the client must give.
 
 ## Report
-None yet.
+### 05-10-2026, builder on the PC
+**Built** (migrations 0092 and 0093 on the branch, after `main`'s 0091):
+- Provider wrapper `packages/domain/src/ai`: `provider.ts` (agent and purpose on every call; text masked by `privacy/model-text.ts`, outside data labelled `untrusted_data`; 20 s timeout per attempt, two retries with backoff for a timeout, network failure, 429 or 5xx; circuit breaker in Redis, five failures in a minute pause the vendor a minute; per-agent daily cap in paise checked before and charged after, in the setting's company and the group, by IST day), `models.ts` (Haiku 4.5 `claude-haiku-4-5-20251001` by default, `claude-sonnet-5`, `voyage-3.5`, their prices, `PAISE_PER_USD`), `vendor-transports.ts` (Claude through `@anthropic-ai/sdk`, `maxRetries: 0`, system text marked for the prompt cache; Voyage over `fetch`), `transport.ts` (the fake transport), `env.ts` (`integration_unavailable` without `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY`). `KeyValue.incrBy` in the port, the memory store and the Upstash adapter; the web runtime builds the wrapper on first use (`apps/web/src/integrations/ai.ts`). Both keys optional in `turbo.json`, `.env.example` and DEPLOY step 11.
+- Tables `agent_configs`, `agent_runs` (append-only), `agent_actions` (append-only but its decision), `inbox_items`, `agent_evals` (platform table) in `packages/db/src/schema/agents.ts`, with RLS forced and failing closed, `app_reader` on every select policy and grant, the triggers `app.agent_configs_guard()` and `app.agent_actions_append_only()`; in `ENTITY_TABLES` and `PLATFORM_TABLES`, fixture rows per company, matrix rules, `NARROWER`, enum pairs. `AGENT_MATRIX` and `AGENT_PRINCIPAL_IDS` moved to `packages/contracts/src/agent-principals.ts`.
+- Contracts `packages/contracts/src/agents.ts`; machines `agent_action` and `inbox_item`; commands `agents.run.record`, `agents.inbox.approve`, `.edit`, `.reject`, `agents.config.set`, `agents.killswitch.set` (`packages/domain/src/commands/agents`); `AGENT_ACTION_TYPES`, `resolveAgentConfig()`, `runAgentStep()`; queries `listInbox`, `countInbox`, `loadAgentSettings`; actions `apps/web/src/actions/agents.ts`.
+- Screens `/inbox` (Agent Inbox, `agents.inbox.act:own`; J and K or arrows, A, E, R; edit dialog on first use) and `/admin/agents` (Agents under Admin, `agents.killswitch:all`; autonomy and limits only with `agents.autonomy.write:all`; a notice while no AI key is set); the inbox count in the top bar; copy in `en.json`; named JavaScript budgets.
+- Journey `apps/web/e2e/agents.spec.ts` with the stand-in agent `e2e/setup/stand-in-agent.ts` (through the real runtime and the fake transport), seeded by `e2e/setup/seed.ts`.
+- Documents: DATABASE §4.4, §5, §6.9; SECURITY §3.3 and §6; ARCHITECTURE §11; design §7.1 Built (AI0); DEPLOY step 11; PRD §8 (AI-04); `pnpm db:docs` and `machines:docs`. No API route.
+
+**Tests added:** domain unit 27 (`provider` 11, `config` 4, `action-types` 5, `vendor-transports` 4, `model-text` 3) and 2 machine fixtures; web unit 6 (`screens/agents.test.ts`) and the `incrBy` case of `key-value.test.ts`; security suite `packages/db/tests/security/agents.test.ts` 12, `packages/domain/tests/commands/agents.test.ts` 19, `agent-runtime.test.ts` 7 (stand-in agent), `queries/agent-inbox.test.ts` 7, the five human controls in the agent refusal sweep, three queries in the reader parity sweep, four tables in the role × company matrix; 7 journeys per project (the kill switch one in desktop-light only).
+
+**Checks** (Postgres 54342):
+- `pnpm typecheck`: 8 successful, 8 total.
+- Unit tests (`turbo run test --force`): 8 successful; tokens 134, copy-lint 17, ui 105, contracts 177, db 118, domain 1,433, web 583 (2,567).
+- `pnpm test:security`: db 927 passed (927); domain 553 passed, 1 failed (554), `customers.test.ts` timing out at 20 s while other agents loaded the machine, then 9 passed alone; turbo then stopped, so the web suite ran alone: 218 passed, 1 failed (219), `auth.test.ts` timing out at 20 s, then 33 passed alone. An earlier full run also failed three of my tests: the journeys' seed rows in `agent_configs` collided with the tests' own inserts; fixed and re-run, 43 passed.
+- `pnpm lint`: no problems; `pnpm copy-lint`: clean; `pnpm format:check`: all files use Prettier code style; `check-doc-links.py`: bad 0.
+- `pnpm build`, `js-budget`: every page within its budget (29 pages); `/admin/agents` 226.1 kB (238), `/inbox` 193.4 kB (204).
+- Journeys `agents.spec.ts` on Windows after `pnpm build` and `e2e:seed`: 25 passed, 2 flaky, 2 skipped; the two tele-caller journeys of desktop-light failed their first try (the inbox answered the `internal` sentence once on the first loads after `next start`; the server's line was not kept) and passed on the retry; run again with `--retries=0`, the tele-caller journeys passed (14 passed). An earlier run had the kill switch journey's company switch wait past 30 s under load, passing on the retry.
+
+**EXPLAIN (ANALYZE) under RLS** (as `app_user` with the request settings; 20,000 runs, actions and inbox items in company 1, a third open, over 50 assignees, written as the owner and removed after):
+- `listInbox`, tele-caller at own scope: Index Scan Backward using `inbox_items_assignee_open_idx` (51 rows), primary-key probes on `agent_actions`, `opportunities` and `accounts`; 3.4 ms. The first shape (company index filtering out 2,540 rows, and a CASE join reading every customer under its policy) took 65 ms, so the query now states the caller's inbox scope as the policy does and joins the customer by key.
+- `listInbox`, GM at company scope: Index Scan Backward using `inbox_items_entity_open_idx`; 3.3 ms (the join for items about a customer, none filed yet, is a hashed scan of the readable customers, 1.8 ms on 1,256).
+- `countInbox`: Index Scan using `inbox_items_assignee_open_idx`, 0.2 ms at own scope; 0.15 ms at company scope (stops at 100 rows).
+- `loadAgentSettings`: spend today, Bitmap Index Scan on `agent_runs_entity_created_idx`, 6.6 ms; the decision record reads the company's 20,057 actions, 45.8 ms.
+
+**Not finished or uncertain:**
+- Linux baselines (`agent-inbox`, `admin-agents`) are the lead's step; the inbox icon in the top bar changes every staff-page baseline (its count is masked).
+- The decision record of `loadAgentSettings` grows with every decision; a summary or partial index can come with A1's volume.
+- `PAISE_PER_USD` (8,800) and the `voyage-3.5` price ($0.06 per million tokens) are from my knowledge, not checked with the vendors or the owner's card. The brief's model id is used as given; the vendor also serves `claude-haiku-4-5`.
+- A temporary EXPLAIN script went into 3def93a6 by mistake and was removed in d1464e20 (no secrets in it).
+- The design names migrations 0092 and 0093 in DATABASE and the design's Built record; they move with the renumbering.
+
+**Decisions the brief did not settle:**
+1. No new permission: `agents.run.record` declares, by its input, the permission of the command its action type runs, so an agent records and proposes only what it could do itself; only the agent named in the input may record. Each run is for one action type.
+2. An action type is the command it runs; `AGENT_ACTION_TYPES` lists its agents, subject and editable fields. AI0 lists `crm.task.create` for the Caller Co-pilot (due time and note editable) so the stand-in agent has a real command; A1 adds the Triage agent's.
+3. A switch off at any matching level stops the agent (a company's switch on does not undo the group's off); autonomy and the cap come from the most specific row; no autonomy set means Suggest, no cap set means no calls.
+4. Suggest and Needs approval both file an inbox item with Approve, Edit and Reject (the level is kept on the action for the promotion record); Edit approves with the changes and counts as edited only when something changed; Automatic runs as the agent and files no item (people's notice waits for N1).
+5. Approving re-checks the switches (`agent_switched_off`); rejecting is always allowed.
+6. Automatic only on one action type, after 200 decided suggestions with 95 in 100 approved unedited in the companies the setting covers (`autonomy_not_earned`); the Executive's change is the sign-off.
+7. `/admin/agents` opens with `agents.killswitch:all` so a GM can stop agents; autonomy and limits are read-only without `agents.autonomy.write`. The screen works at the company chosen at the top, or the group from All companies (`agents_need_all_companies` otherwise).
+8. The cap is on the agent's row for every action type, in paise, typed in rupees; Redis keeps the day's running spend for the cap, `agent_runs` the durable cost the screen shows.
+9. Only agents file inbox items in AI0; `routed_work` is allowed by the check for N1. An item for no one is read at company scope only.
+10. `agent_runs` is append-only; `agent_evals` is a platform table written only by the eval runner as the owner.
+11. The Activity log records the cap in rupees (`dailySpendCap`) and names agents, action types, autonomy and outcomes from the `agents` catalogue.
 
 ## Review
 None yet.
