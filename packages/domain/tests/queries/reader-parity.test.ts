@@ -35,6 +35,7 @@ import {
   listImportTemplates,
 } from '../../src/queries/imports/import-queries';
 import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
+import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
@@ -91,6 +92,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listEntities: (ctx) => listEntities(ctx),
   readSealedBankDetails: (ctx) => readSealedBankDetails(ctx, 1),
   readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
+  loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
