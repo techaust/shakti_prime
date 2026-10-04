@@ -137,7 +137,10 @@ export const updateEntity = defineCommand({
       aggregateId: String(row.id),
       entityId: row.id,
       before: { ...pick(before, plain), ...bank(bankBefore) },
-      after: { ...pick(row, plain), ...bank(bankChanged ? audited(input.bankDetails ?? null) : null) },
+      after: {
+        ...pick(row, plain),
+        ...bank(bankChanged ? audited(input.bankDetails ?? null) : null),
+      },
     });
     ctx.emit({
       type: 'org.entity.updated',
