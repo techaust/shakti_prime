@@ -4,15 +4,22 @@ import {
   ArchiveStageInput,
   ConfigScopeInput,
   CreateStageInput,
+  ListReferralPartnersInput,
   ReorderStagesInput,
+  SetCommissionRuleInput,
   SetDispositionsInput,
+  SetReferralPartnerInput,
   SetScoreRulesInput,
   UpdatePipelineInput,
   UpdateStageInput,
+  type CommissionRuleDto,
+  type CommissionRuleRowDto,
   type DispositionListDto,
   type LeadSourceDto,
   type PipelineSettingsDto,
   type PipelineSettingsViewDto,
+  type ReferralPartnerDto,
+  type ReferralPartnerPageDto,
   type ScoreRuleDto,
   type ScoreRuleListDto,
   type StageSettingsDto,
@@ -23,12 +30,16 @@ import {
   createStage as createStageCommand,
   executeCommand,
   executeQuery,
+  listCommissionRules as listCommissionRulesQuery,
   listDispositions as listDispositionsQuery,
   listLeadSources,
   listPipelineSettings,
+  listReferralPartners as listReferralPartnersQuery,
   listScoreRules as listScoreRulesQuery,
   reorderStages as reorderStagesCommand,
+  setCommissionRule as setCommissionRuleCommand,
   setDispositions as setDispositionsCommand,
+  setReferralPartner as setReferralPartnerCommand,
   setScoreRules as setScoreRulesCommand,
   updatePipeline as updatePipelineCommand,
   updateStage as updateStageCommand,
@@ -95,6 +106,34 @@ export async function listScoreRules(rawInput: unknown): Promise<ActionResult<Sc
         name: 'listScoreRules',
       },
     );
+  });
+}
+
+/** One page of the referral partners, by name. */
+export async function listReferralPartners(
+  rawInput: unknown,
+): Promise<ActionResult<ReferralPartnerPageDto>> {
+  return toResult('listReferralPartners', async () => {
+    const principal = await signedIn();
+    const input = parseInput(ListReferralPartnersInput, rawInput);
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listReferralPartnersQuery(context, input),
+      { name: 'listReferralPartners' },
+    );
+  });
+}
+
+/** The live commission rules, the default's and each partner's. */
+export async function listCommissionRules(): Promise<ActionResult<CommissionRuleRowDto[]>> {
+  return toResult('listCommissionRules', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(principal, { requestId }, (context) => listCommissionRulesQuery(context), {
+      name: 'listCommissionRules',
+    });
   });
 }
 
@@ -205,6 +244,32 @@ export async function setScoreRules(
     'setScoreRules',
     SetScoreRulesInput,
     setScoreRulesCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+export async function setReferralPartner(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<ReferralPartnerDto>> {
+  return settingsCommand(
+    'setReferralPartner',
+    SetReferralPartnerInput,
+    setReferralPartnerCommand,
+    rawInput,
+    idempotencyKey,
+  );
+}
+
+export async function setCommissionRule(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CommissionRuleDto>> {
+  return settingsCommand(
+    'setCommissionRule',
+    SetCommissionRuleInput,
+    setCommissionRuleCommand,
     rawInput,
     idempotencyKey,
   );

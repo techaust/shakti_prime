@@ -154,8 +154,10 @@ export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export {
   effectiveDispositions,
+  listCommissionRules,
   listDispositions,
   listPipelineSettings,
+  listReferralPartners,
   listScoreRules,
 } from './queries/crm/pipeline-settings';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';

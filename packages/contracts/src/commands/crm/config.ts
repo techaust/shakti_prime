@@ -362,6 +362,50 @@ export const CommissionRuleDto = z
   .strict();
 export type CommissionRuleDto = z.infer<typeof CommissionRuleDto>;
 
+/**
+ * A commission rule as the settings page lists it, with its partner's name: null for the default
+ * (`partnerId` null) and for a partner whose customer the reader cannot see.
+ */
+export const CommissionRuleRowDto = CommissionRuleDto.extend({
+  partnerName: z.string().nullable(),
+}).strict();
+export type CommissionRuleRowDto = z.infer<typeof CommissionRuleRowDto>;
+
+/** How many referral partners one page of the settings page lists. */
+export const REFERRAL_PARTNER_PAGE_SIZE = 50;
+
+/** Where the next page of referral partners starts: after this name and id. */
+export const ReferralPartnerCursor = z.object({ name: z.string(), id: IdSchema }).strict();
+export type ReferralPartnerCursor = z.infer<typeof ReferralPartnerCursor>;
+
+/** The settings page's list of referral partners, by name, a page at a time. */
+export const ListReferralPartnersInput = z
+  .object({ cursor: ReferralPartnerCursor.nullable() })
+  .strict();
+export type ListReferralPartnersInput = z.infer<typeof ListReferralPartnersInput>;
+
+/**
+ * A customer of type `referral_partner` the request's companies know, with its code; `code` is
+ * null until an Executive gives it one, and `isActive` false then.
+ */
+export const ReferralPartnerRowDto = z
+  .object({
+    accountId: IdSchema,
+    name: z.string(),
+    code: z.string().nullable(),
+    isActive: z.boolean(),
+  })
+  .strict();
+export type ReferralPartnerRowDto = z.infer<typeof ReferralPartnerRowDto>;
+
+export const ReferralPartnerPageDto = z
+  .object({
+    partners: z.array(ReferralPartnerRowDto),
+    nextCursor: ReferralPartnerCursor.nullable(),
+  })
+  .strict();
+export type ReferralPartnerPageDto = z.infer<typeof ReferralPartnerPageDto>;
+
 // --- Reads of the pipelines settings page ------------------------------------------------------
 
 /** A pipeline as the settings page edits it, with its live stages in order. */

@@ -107,9 +107,10 @@ export const leadScoreRules = pgTable(
 
 /**
  * A referral partner (CRM-09): a customer of type `referral_partner` with a code; a lead that gives
- * the code is credited to them. Codes are unique whatever their case. Read with the partner's customer
- * record, written with `crm.account.write` at company scope; a lead resolves a code through the
- * definer `app.referral_partner_for_code()`, since a caller rarely reads the partner itself.
+ * the code is credited to them. Codes are unique whatever their case. Read with the partner's
+ * customer record, written with `crm.config.write:all` (the Executive); a lead resolves a code
+ * through the definer `app.referral_partner_for_code()`, since a caller rarely reads the partner
+ * itself.
  */
 export const referralPartners = pgTable(
   'referral_partners',

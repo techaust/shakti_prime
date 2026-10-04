@@ -1,16 +1,22 @@
 import {
+  CommissionBasisSchema,
+  CommissionRuleRowDto,
+  CommissionTriggerSchema,
   DispositionDto,
   DispositionListDto,
   DispositionNextActionSchema,
   PipelineSettingsViewDto,
+  REFERRAL_PARTNER_PAGE_SIZE,
+  ReferralPartnerPageDto,
   ScoreFactorSchema,
   ScoreRuleDto,
   SegmentSchema,
   type ConfigScopeInput,
+  type ListReferralPartnersInput,
   type Segment,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { toStageDto } from '../../commands/crm/pipeline-settings';
 
@@ -118,6 +124,79 @@ export async function listScoreRules(
       factor: ScoreFactorSchema.parse(row.factor),
       match: row.matchJson,
       points: row.points,
+    }),
+  );
+}
+
+/**
+ * The referral partners of the settings page (CRM-09): customers of type `referral_partner` the
+ * request's companies know (the `accounts` policy), by name, a page at a time after `cursor`, each
+ * with its code if it has one. Served by `accounts_referral_partner_name_idx`.
+ */
+export async function listReferralPartners(
+  ctx: ReadContext,
+  input: ListReferralPartnersInput,
+): Promise<ReferralPartnerPageDto> {
+  const a = schema.accounts;
+  const rp = schema.referralPartners;
+  const after =
+    input.cursor === null
+      ? undefined
+      : sql`(${a.name}, ${a.id}) > (${input.cursor.name}, ${input.cursor.id}::uuid)`;
+  const rows = await ctx.tx
+    .select({ accountId: a.id, name: a.name, code: rp.code, isActive: rp.isActive })
+    .from(a)
+    .leftJoin(rp, eq(rp.accountId, a.id))
+    .where(and(eq(a.type, 'referral_partner'), isNull(a.archivedAt), after))
+    .orderBy(asc(a.name), asc(a.id))
+    .limit(REFERRAL_PARTNER_PAGE_SIZE + 1);
+  const page = rows.slice(0, REFERRAL_PARTNER_PAGE_SIZE);
+  const last = page.at(-1);
+  return ReferralPartnerPageDto.parse({
+    partners: page.map((r) => ({
+      accountId: r.accountId,
+      name: r.name,
+      code: r.code,
+      isActive: r.isActive ?? false,
+    })),
+    nextCursor:
+      rows.length > REFERRAL_PARTNER_PAGE_SIZE && last
+        ? { name: last.name, id: last.accountId }
+        : null,
+  });
+}
+
+/**
+ * The live commission rules (workshop CRM-5), the default's and each partner's, newest first,
+ * with the partner's name. Read with `crm.config.write:all` or `finance.payment.write` (the
+ * table's policy); empty until the workshop answers.
+ */
+export async function listCommissionRules(ctx: ReadContext): Promise<CommissionRuleRowDto[]> {
+  const cr = schema.commissionRules;
+  const a = schema.accounts;
+  const rows = await ctx.tx
+    .select({
+      id: cr.id,
+      partnerId: cr.partnerId,
+      partnerName: a.name,
+      basis: cr.basis,
+      amount: cr.amount,
+      trigger: cr.trigger,
+      effectiveFrom: cr.effectiveFrom,
+      effectiveTo: cr.effectiveTo,
+    })
+    .from(cr)
+    .leftJoin(a, eq(a.id, cr.partnerId))
+    .where(isNull(cr.archivedAt))
+    .orderBy(sql`${a.name} nulls first`, desc(cr.effectiveFrom), asc(cr.id))
+    .limit(500);
+  return rows.map((r) =>
+    CommissionRuleRowDto.parse({
+      ...r,
+      basis: CommissionBasisSchema.parse(r.basis),
+      trigger: CommissionTriggerSchema.parse(r.trigger),
+      // Null for the default, and for a partner whose customer the request cannot read.
+      partnerName: r.partnerName,
     }),
   );
 }
