@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It holds rules only: status, history and decisions live in their own documents, linked below.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It holds rules only; status, history and decisions live in the documents linked below.
 
 ## Project
 Shakti Prime BOS is the business operating system for the Shakti group. Four selling entities (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub, RCREF) share one team. It covers CRM with tele-calling, sales orders, inventory, projects/subsidy, finance with read-only Tally sync, HR and AI agents.
@@ -8,7 +8,8 @@ Shakti Prime BOS is the business operating system for the Shakti group. Four sel
 The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is the source of truth for scope, stack, data model and phase order. Read the relevant section before building a module.
 
 ## Status
-- Where the project stands (phase, what is merged, built and next, hosted environments, test counts, deferred gate items, follow-ups): [docs/STATUS.md](docs/STATUS.md).
+- Where the project stands (phase, work merged and next, hosted environments, test counts, deferred items, follow-ups): [docs/STATUS.md](docs/STATUS.md).
+- What the client's people must do: [docs/phase0/client-actions.md](docs/phase0/client-actions.md); the developer's and owner's checklist for the deferred gate items: [docs/phase0/exit-gate-actions.md](docs/phase0/exit-gate-actions.md).
 - What each merged pull request did: [CHANGELOG.md](CHANGELOG.md). Every owner decision: [docs/DECISIONS.md](docs/DECISIONS.md).
 - At the start of a session, confirm the latest CI run on `main` is green (the merge workflow's own runs may send no email); build from ROADMAP §3, the Phase 1 design first.
 - Record a deferred gate item as it closes where its document says (the workshop answers in the workshop pack, the CA's golden set in ADR 0007, each spike's numbers in `docs/spikes/`).
@@ -31,7 +32,7 @@ The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is t
 | UI kit; tokens; copy lint | `packages/ui/src`; `packages/tokens/src`; `tools/copy-lint` |
 | AWS stack; CI and merge workflows | `infra/aws/files.yaml`; `.github/workflows` |
 
-Planned apps (blueprint §5): `apps/field` (Expo Android app for field staff), `apps/tally-connector` (Windows service that reads Tally and pushes outbound) and `apps/voice-agent` (LiveKit Agents worker), each created in the phase that needs it ([AGENTS §3](AGENTS.md#3-repository-layout-and-import-fences)).
+Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Android app for field staff), `apps/tally-connector` (Windows service that reads Tally and pushes outbound), `apps/voice-agent` (LiveKit Agents worker); see [AGENTS §3](AGENTS.md#3-repository-layout-and-import-fences).
 
 ## Working in this repo
 
@@ -45,7 +46,7 @@ Planned apps (blueprint §5): `apps/field` (Expo Android app for field staff), `
 - What CI runs and when: [TESTING §6](docs/TESTING.md#6-what-ci-runs). How a pull request merges itself: [AGENTS §8](AGENTS.md#8-git-and-pull-requests). The `hold` label stops a merge; the merge workflow runs from `main` only, so a change to it takes effect after it merges.
 - Never push to `main` directly: the free plan cannot block it, and branch rules need the client's organisation or a paid plan (AUDIT M45).
 - Branch the next slice from `main` after the previous pull request has merged; never stack. A slice built while others merged takes `main` by a merge commit, never a rebase, and its migrations move after `main`'s last one with journal times after `main`'s, because the migrator skips a migration older than the last one applied.
-- GitHub's free plan allows 2,000 Actions minutes a month, which is why CI is trimmed ([DECISIONS](docs/DECISIONS.md)).
+- CI is trimmed because GitHub's free plan allows 2,000 Actions minutes a month ([DECISIONS](docs/DECISIONS.md)).
 
 ### Tests
 - How to run everything, one file or one case: [TESTING §7](docs/TESTING.md#7-running-tests-locally). Workspace names are `web`, `@shakti/db`, `@shakti/domain`, `@shakti/contracts`, `@shakti/tokens`, `@shakti/ui` and `@shakti/copy-lint`.
@@ -93,7 +94,7 @@ Planned apps (blueprint §5): `apps/field` (Expo Android app for field staff), `
 | Document | Use it for |
 |---|---|
 | [docs/BLUEPRINT.md](docs/BLUEPRINT.md) | Scope, stack, data model, phase order. Governs on conflict. |
-| [docs/STATUS.md](docs/STATUS.md) | Where the project stands now: the only place for status, counts and dates. |
+| [docs/STATUS.md](docs/STATUS.md) | Where the project stands: the only place for status and counts. |
 | [CHANGELOG.md](CHANGELOG.md) | One line per merged pull request, by phase and wave. |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Every owner decision, with its date and where it is applied. |
 | [AGENTS.md](AGENTS.md) | Working method, conventions, the command and table recipes, import fences, definition of done. |
@@ -104,15 +105,15 @@ Planned apps (blueprint §5): `apps/field` (Expo Android app for field staff), `
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model, auth, permission catalogue, data protection, AI and telecom compliance. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases, week plan for Phase 0, exit-gate checklists, parallel workstreams. |
 | [DESIGN.md](DESIGN.md) | Design tokens, typography, component patterns, theme behaviour, copy rules. |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | The business and technical terms the documents use. |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | The business and technical terms the documents use, and the [slice codes](docs/GLOSSARY.md#slice-codes) (P3, C1, X1 and the rest). |
 | [docs/adr/](docs/adr/) | Architecture decision records. |
 | [docs/TESTING.md](docs/TESTING.md) | Test layers, the security suite, generated files, what CI runs, running tests locally. |
 | [docs/KICKOFF-PROMPT.md](docs/KICKOFF-PROMPT.md) | First message for a fresh session. |
-| [docs/design/](docs/design/) and [docs/reviews/](docs/reviews/) | Designs for upcoming work and dated review notes; read the design before building what it covers. |
+| [docs/design/](docs/design/) and [docs/reviews/](docs/reviews/) | Designs and dated review notes; read the design before building what it covers. |
 | [docs/runbooks/DEPLOY.md](docs/runbooks/DEPLOY.md) | Hosted environments: secrets, migrations, the first Executive, secret rotation. |
-| [docs/runbooks/INCIDENTS.md](docs/runbooks/INCIDENTS.md) | What to do when the site is down, events are stuck, a migration fails, a deploy is bad or a secret leaks. |
+| [docs/runbooks/INCIDENTS.md](docs/runbooks/INCIDENTS.md) | What to do when the site is down, updates are stuck, a migration fails, a deploy is bad or a secret leaks. |
 | [docs/runbooks/files-setup.md](docs/runbooks/files-setup.md) | The owner's steps for the AWS file storage stack per environment. |
-| [docs/runbooks/tooling.md](docs/runbooks/tooling.md) | How each Claude Code plugin and MCP server is connected and signed in. |
+| [docs/runbooks/tooling.md](docs/runbooks/tooling.md) | How each Claude Code plugin and MCP server is connected. |
 | [docs/data/](docs/data/), [docs/data/EVENTS.md](docs/data/EVENTS.md), [docs/state-machines/](docs/state-machines/) | The generated ERD and data dictionary, the event catalogue, the state-machine specifications. |
 | [docs/spikes/](docs/spikes/) and [docs/phase0/](docs/phase0/) | Spike notes with measured numbers, and the client packs for the exit gate. |
 | [AUDIT.md](AUDIT.md) | The production-readiness audit and its resolution record. |
