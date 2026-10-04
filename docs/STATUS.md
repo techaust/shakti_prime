@@ -6,7 +6,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 
 ## Phase 1
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
-- **Merged:** wave 0 #79 (packages), #80 (design); wave 1 #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2 #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93.
+- **Merged:** wave 0 #79 (packages), #80 (design); wave 1 #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2 #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93; the project's know-how (scripts, skills, agents, runbooks) in the repository #95.
 - **Built, waiting its turn:** P4 print and letterhead on `feat/p4-print-letterhead`: bank details sealed with `FieldCipher`, the PDF render worker with `@sparticuz/chromium`, the company proof page (needs a review, the static Inter fonts, `main` merged in with its migrations renumbered, Linux baselines); C3 pipelines, scoring and referrals on `feat/c3-pipelines-r2` and C4 sizing on `feat/c4-sizing-r2` (reviewed and fixed; each takes `main`, renumbers, then its integration list).
 - **Next:** P2b imports upgrade (can start: C2 is merged), then waves 3 to 6 (AI0, T1, S1, D1; N1, T2, S2, K1; L1, R1, A1; M1, G1).
 
