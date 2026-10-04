@@ -21,6 +21,7 @@ import {
 import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
 import { setDispositions } from '../commands/crm/set-dispositions';
+import { recordSizing } from '../commands/crm/record-sizing';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
@@ -79,6 +80,7 @@ export const commands = {
   [refreshLeadScores.name]: refreshLeadScores,
   [setReferralPartner.name]: setReferralPartner,
   [setCommissionRule.name]: setCommissionRule,
+  [recordSizing.name]: recordSizing,
   [createTask.name]: createTask,
   [completeTask.name]: completeTask,
   [rescheduleTask.name]: rescheduleTask,

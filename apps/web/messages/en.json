@@ -232,7 +232,10 @@
     "scope_not_offered": "One of the choices isn't offered for that permission. Reload the page and choose again.",
     "role_changed_meanwhile": "Someone else changed this role while you were editing it. Reload the page to see their changes, then make yours again.",
     "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment.",
-    "document_type_unknown": "This kind of document cannot be printed yet."
+    "document_type_unknown": "This kind of document cannot be printed yet.",
+    "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
+    "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
+    "people_only": "Only a member of the team can do this, not an automated assistant."
   },
   "auth": {
     "signIn": {
@@ -1309,7 +1312,8 @@
       "priceListArchive": "Price list withdrawn",
       "rolePermissions": "Role permissions changed",
       "fileRendered": "Document printed to a file",
-      "printProofRequest": "Proof page asked for"
+      "printProofRequest": "Proof page asked for",
+      "sizingRecord": "Lead sized"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1343,7 +1347,8 @@
       "pumpCurveSet": "Pump curve saved",
       "priceListArchived": "Price list withdrawn",
       "rolePermissionsChanged": "Role permissions changed",
-      "documentRequested": "Document sent for printing"
+      "documentRequested": "Document sent for printing",
+      "sizingRecorded": "Lead sized"
     },
     "sheet": {
       "title": "{action}",
@@ -1500,7 +1505,11 @@
       "scorePoints": "Points",
       "codeActive": "Code in use",
       "bankAccount": "Bank account",
-      "documentType": "Document"
+      "documentType": "Document",
+      "sizingKind": "What was sized",
+      "inBounds": "Within limits",
+      "sizingReasons": "Why it is outside limits",
+      "engineVersion": "Calculation version"
     },
     "values": {
       "percent": "{value}%",
@@ -1544,7 +1553,8 @@
         "delivery_challan": "Delivery challan",
         "handover_kit": "Handover kit",
         "company_letterhead_proof": "Proof page of the letterhead"
-      }
+      },
+      "listSeparator": ", "
     }
   },
   "print": {
@@ -2127,7 +2137,9 @@
       "owner": "With {name}",
       "noOwner": "Not handed to anyone yet",
       "addTag": "Add tag",
-      "removeTag": "Remove the tag {name}"
+      "removeTag": "Remove the tag {name}",
+      "sizeLead": "Size this lead",
+      "hideSizing": "Hide sizing"
     },
     "timeline": {
       "sectionTitle": "History",
@@ -2153,9 +2165,12 @@
         "consent_recorded": "Consent recorded",
         "consent_withdrawn": "Consent withdrawn",
         "tagged": "Tag added",
-        "untagged": "Tag removed"
+        "untagged": "Tag removed",
+        "sizing_recorded": "Sizing worked out"
       },
-      "tagDetail": "Tag: {name}"
+      "tagDetail": "Tag: {name}",
+      "sizingInBounds": "{kind} sizing, within limits",
+      "sizingOutOfBounds": "{kind} sizing, outside limits"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",
@@ -2749,5 +2764,126 @@
       "executiveKeeps": "The Executive role always keeps this for all companies."
     },
     "groupScopeNotice": "A role's permissions apply in every company. Switch to all companies to change them."
+  },
+  "sizing": {
+    "title": "Sizing",
+    "intro": "Enter what was measured at the site. The size is worked out from these figures, never guessed.",
+    "tabsLabel": "What to size",
+    "kind": {
+      "pump": "Pump",
+      "rooftop": "Rooftop solar"
+    },
+    "loading": "Loading the latest sizing",
+    "empty": "Not sized yet. Enter the measurements and work out the size.",
+    "stale": "This lead was sized under earlier rules. Enter the measurements again to size it.",
+    "submit": "Work out size",
+    "done": "Sizing saved.",
+    "readOnly": "You can see this lead's sizing but not change it.",
+    "pump": {
+      "legend": "The pump and the borewell",
+      "pumpType": "Where the pump sits",
+      "pumpTypes": {
+        "submersible": "In the borewell (submersible)",
+        "surface": "On the surface"
+      },
+      "drive": "What runs the pump",
+      "drives": {
+        "grid": "Electricity supply",
+        "solar": "Solar panels"
+      },
+      "pipeMaterial": "Pipe",
+      "pipeMaterials": {
+        "hdpe": "HDPE (plastic)",
+        "gi": "GI (iron)"
+      },
+      "staticLevelM": "Water level at rest, below ground (m)",
+      "staticLevelHelper": "Measured with the pump off.",
+      "drawdownM": "Drop in water level while pumping (m)",
+      "deliveryHeightM": "Outlet height above ground (m)",
+      "pipeLengthM": "Pipe length, pump to outlet (m)",
+      "pipeInnerDiameterMm": "Pipe inside width (mm)",
+      "flowLph": "Water needed (litres an hour)",
+      "item": "Pump to check",
+      "itemNone": "No pump chosen",
+      "itemHelper": "Checks the chosen pump's curve at the worked-out height."
+    },
+    "rooftop": {
+      "legend": "The bills and the roof",
+      "monthlyUnitsKwh": "Units used a month (kWh)",
+      "monthlyUnitsHelper": "The average of recent electricity bills.",
+      "roofAreaSqm": "Shade-free roof area (m²)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "sanctionedLoadHelper": "As printed on the electricity bill."
+    },
+    "result": {
+      "title": "Latest result",
+      "savedAt": "Worked out on",
+      "inBounds": "Within limits",
+      "outOfBounds": "Outside limits",
+      "advice": "Advice",
+      "headTitle": "Total height to lift",
+      "staticHead": "Water level and outlet height",
+      "drawdown": "Drop while pumping",
+      "friction": "Pipe friction",
+      "fittings": "Bends and valves",
+      "total": "Total",
+      "suctionLift": "Depth a surface pump draws from",
+      "suctionLimit": "A surface pump can draw from at most {max}",
+      "powerTitle": "Pump size",
+      "shaftHp": "Power the pump needs",
+      "requiredHp": "Power to cover, with a safety margin",
+      "standardHp": "Motor to fit",
+      "noStandardHp": "Larger than any motor on sale",
+      "motorInputKw": "Power drawn at this duty",
+      "solarTitle": "Solar panels for the pump",
+      "arrayKwp": "Panel size",
+      "moduleCount": "Panels",
+      "dutyTitle": "Chosen pump at this height",
+      "dutyFlow": "Water it delivers",
+      "requiredFlow": "Water the site needs",
+      "ratedHp": "Its motor",
+      "notGiven": "Not given in the catalogue",
+      "curveRange": "Its curve runs from {min} to {max}",
+      "flowBand": "It should give from {min} to {max}",
+      "rooftopTitle": "System size",
+      "neededKwp": "Size the usage needs",
+      "roofKwp": "Size the roof holds",
+      "sanctionedKwp": "Size the sanctioned load allows",
+      "recommendedKwp": "Recommended size",
+      "boundBy": {
+        "need": "Set by the units used",
+        "roof": "Set by the roof area",
+        "sanctioned_load": "Set by the sanctioned load"
+      },
+      "none": "None"
+    },
+    "units": {
+      "m": "{value} m",
+      "lph": "{value} litres an hour",
+      "kw": "{value} kW",
+      "hp": "{value} HP",
+      "kwp": "{value} kWp",
+      "panels": "{count, plural, one {# panel} other {# panels}}"
+    },
+    "reason": {
+      "curve_too_short": "This pump's curve has too few points to check. Ask for the pump's full curve.",
+      "curve_not_monotonic": "This pump's curve does not read correctly. Ask for it to be checked.",
+      "head_above_curve": "The height to lift is more than this pump can reach. Choose a stronger pump.",
+      "head_below_curve": "The height to lift is below this pump's curve, so it would overload. Choose a smaller pump.",
+      "suction_lift_exceeded": "The water is too deep for a surface pump to draw up. Choose a submersible pump.",
+      "duty_flow_short": "This pump gives less water at this height than the site needs. Choose a larger pump.",
+      "duty_flow_excess": "This pump gives far more water than the site needs. Choose a smaller pump.",
+      "pump_power_short": "This pump's motor is smaller than the size worked out. Choose a pump with a larger motor.",
+      "above_largest_standard_hp": "The pump needed is larger than any motor on sale. Ask the engineering head.",
+      "no_consumption": "Enter the units used a month to size the system.",
+      "roof_too_small": "The roof is too small for even one panel.",
+      "sanctioned_load_too_small": "The sanctioned load is too small for even one panel.",
+      "sanctioned_load_exceeded": "The system is larger than the sanctioned load allows.",
+      "dcr_modules_required": "This scheme needs made-in-India (DCR) panels on every line.",
+      "no_modules": "This scheme needs panels on the quote."
+    },
+    "advisory": {
+      "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
+    }
   }
 }

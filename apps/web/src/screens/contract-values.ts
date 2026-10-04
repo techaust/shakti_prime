@@ -35,10 +35,16 @@ import type {
   SavedViewScreen,
   ScoreFactor,
   Segment,
+  PipeMaterial,
+  PumpDrive,
+  PumpType,
   SessionRevokeReason,
   StageExitField,
   SystemSizeUnit,
   Scope,
+  SizingAdvisory,
+  SizingKind,
+  SizingReason,
   SiteType,
   TaskKind,
   TaskState,
@@ -174,6 +180,7 @@ export const ACTIVITY_TYPES = [
   'consent_withdrawn',
   'tagged',
   'untagged',
+  'sizing_recorded',
 ] as const satisfies readonly ActivityType[];
 
 export const SEGMENTS = [
@@ -182,6 +189,54 @@ export const SEGMENTS = [
   'commercial_epc',
   'dealer_wholesale',
 ] as const satisfies readonly Segment[];
+
+/** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
+export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
+
+/** Where the pump sits, what drives it and what the pipe is made of, as the panel offers them. */
+export const PUMP_TYPES = ['submersible', 'surface'] as const satisfies readonly PumpType[];
+export const PUMP_DRIVES = ['grid', 'solar'] as const satisfies readonly PumpDrive[];
+export const PIPE_MATERIALS = ['hdpe', 'gi'] as const satisfies readonly PipeMaterial[];
+
+/** Why a sizing is outside its limits; the panel and the Activity log name each one. */
+export const SIZING_REASONS = [
+  'curve_too_short',
+  'curve_not_monotonic',
+  'head_above_curve',
+  'head_below_curve',
+  'suction_lift_exceeded',
+  'duty_flow_short',
+  'duty_flow_excess',
+  'pump_power_short',
+  'above_largest_standard_hp',
+  'no_consumption',
+  'roof_too_small',
+  'sanctioned_load_too_small',
+  'sanctioned_load_exceeded',
+  'dcr_modules_required',
+  'no_modules',
+] as const satisfies readonly SizingReason[];
+
+/** Advice on a sizing that never sets its bounds; the panel names each one. */
+export const SIZING_ADVISORIES = [
+  'pipe_velocity_high',
+] as const satisfies readonly SizingAdvisory[];
+
+/**
+ * The range each sizing measurement accepts (`PumpSizingInputs`, `RooftopSizingInputs`), so the
+ * panel's fields refuse a typing slip before the server does.
+ */
+export const SIZING_INPUT_LIMITS = {
+  staticLevelM: { min: 0, max: 500 },
+  drawdownM: { min: 0, max: 200 },
+  deliveryHeightM: { min: 0, max: 100 },
+  pipeLengthM: { min: 0, max: 3000 },
+  pipeInnerDiameterMm: { min: 10, max: 300 },
+  flowLph: { min: 0, max: 1_000_000 },
+  monthlyUnitsKwh: { min: 0, max: 1_000_000 },
+  roofAreaSqm: { min: 0, max: 100_000 },
+  sanctionedLoadKw: { min: 0, max: 10_000 },
+} as const;
 
 /** The import kinds a job may be created for today. */
 export const IMPLEMENTED_IMPORT_KINDS = ['leads'] as const satisfies readonly ImportKind[];

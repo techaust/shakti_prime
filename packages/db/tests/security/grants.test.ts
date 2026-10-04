@@ -100,6 +100,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     import_mapping_templates: { i: true, u: false },
     import_jobs: { i: true, u: false },
     import_rows: { i: true, u: false },
+    // A sizing is append-only: a new sizing is a new row.
+    sizings: { i: true, u: false },
   };
 
   /**

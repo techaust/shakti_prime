@@ -31,6 +31,27 @@ describe('workshop defaults', () => {
         scoreRules: [],
         firstContactSlaMinutes: null,
       },
+      sizing: {
+        hazenWilliamsC: { hdpe: 140, gi: 120 },
+        fittingsLossFraction: 0.1,
+        efficiency: {
+          submersible: { pump: 0.55, motor: 0.78 },
+          surface: { pump: 0.6, motor: 0.82 },
+        },
+        solarArrayOversize: 1.3,
+        moduleWp: 540,
+        peakSunHours: 5.5,
+        performanceRatio: 0.75,
+        roofAreaPerKwSqm: 10,
+        motorMarginFraction: 0.1,
+        standardHp: [0.5, 1, 1.5, 2, 3, 5, 7.5, 10, 12.5, 15, 20, 25, 30],
+        dutyFlowTolerance: 0.1,
+        dutyFlowOvershootFactor: 1.5,
+        surfaceMaxSuctionLiftM: 7,
+        maxPipeVelocityMps: 2,
+        sanctionedLoadRatio: 1,
+        dcrSchemes: ['pm_surya_ghar', 'pm_kusum'],
+      },
     });
   });
 
@@ -40,6 +61,23 @@ describe('workshop defaults', () => {
     expect(new Set(list.map((d) => d.key)).size).toBe(list.length);
     expect(new Set(list.map((d) => d.code)).size).toBe(list.length);
     for (const d of list) expect(d.key).toBeGreaterThanOrEqual(1);
+  });
+
+  it('lists the standard HP ratings in ascending order, each once', () => {
+    const ratings = WORKSHOP_DEFAULTS.sizing.standardHp;
+    expect([...ratings].sort((a, b) => a - b)).toEqual(ratings);
+    expect(new Set(ratings).size).toBe(ratings.length);
+  });
+
+  it('keeps every sizing efficiency and ratio a fraction above 0 and at most 1', () => {
+    const { efficiency, performanceRatio } = WORKSHOP_DEFAULTS.sizing;
+    for (const value of [
+      performanceRatio,
+      ...Object.values(efficiency).flatMap((pair) => [pair.pump, pair.motor]),
+    ]) {
+      expect(value).toBeGreaterThan(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
   });
 
   it('always ends the place-of-supply order with the entity, so a document always has one', () => {

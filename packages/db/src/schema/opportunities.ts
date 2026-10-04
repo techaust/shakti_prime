@@ -73,6 +73,8 @@ export const opportunities = pgTable(
       foreignColumns: [pipelineStages.id, pipelineStages.pipelineId],
     }),
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
+    // The key a child of the lead (`sizings`) points at, so it stays in the lead's company.
+    unique('opportunities_id_entity_unique').on(t.id, t.entityId),
     // The target of the composite keys of a lead's tasks and tags (docs/DATABASE.md §2).
     unique('opportunities_id_entity_account_unique').on(t.id, t.entityId, t.accountId),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),

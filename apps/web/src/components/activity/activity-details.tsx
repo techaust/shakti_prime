@@ -50,6 +50,8 @@ import {
   SEGMENTS,
   SESSION_REVOKE_REASONS,
   STAGE_EXIT_FIELDS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
@@ -244,6 +246,8 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return value.fields
           .map((f) => (oneOf(STAGE_EXIT_FIELDS, f) ? settings(`stageField.${f}`) : wordsOf(f)))
           .join(', ');
+      case 'codes':
+        return value.values.map((v) => code(value.group, v)).join(t('values.listSeparator'));
       case 'specs':
         return (
           <span className="flex flex-col">
@@ -365,6 +369,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
   const settings = useTranslations('pipelineSettings');
+  const sizing = useTranslations('sizing');
   const customers = useTranslations('customers');
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
@@ -433,6 +438,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(SCORE_FACTORS, value) ? settings(`factor.${value}`) : wordsOf(value);
       case 'commissionBasis':
         return oneOf(COMMISSION_BASES, value) ? settings(`basis.${value}`) : wordsOf(value);
+      case 'sizingKind':
+        return oneOf(SIZING_KINDS, value) ? sizing(`kind.${value}`) : wordsOf(value);
+      case 'sizingReason':
+        return oneOf(SIZING_REASONS, value) ? sizing(`reason.${value}`) : wordsOf(value);
       case 'itemCategory':
         return catalogue.category(value);
       case 'itemUnit':

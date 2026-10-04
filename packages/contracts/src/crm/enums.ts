@@ -152,6 +152,7 @@ export const ActivityTypeSchema = z.enum([
   'consent_withdrawn',
   'tagged',
   'untagged',
+  'sizing_recorded',
 ]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 

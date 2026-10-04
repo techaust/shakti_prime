@@ -26,5 +26,6 @@ export const CLIENT_NAMESPACES = [
   'taxSettings',
   'integrations',
   'pipelineSettings',
+  'sizing',
   'files',
 ] as const;

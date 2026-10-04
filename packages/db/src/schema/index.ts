@@ -8,6 +8,7 @@ export { contacts, contactPhones } from './contacts';
 export { accounts, accountEntities, accountContacts, customerSites } from './accounts';
 export { opportunities } from './opportunities';
 export { callDispositions, commissionRules, leadScoreRules, referralPartners } from './crm-config';
+export { sizings } from './sizings';
 export { consents } from './consents';
 export { activities } from './activities';
 export { tasks } from './tasks';

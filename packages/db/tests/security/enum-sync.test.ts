@@ -30,6 +30,7 @@ import {
   SegmentSchema,
   SESSION_REVOKE_REASONS,
   SiteTypeSchema,
+  SizingKindSchema,
   StageKindSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -84,6 +85,9 @@ const PAIRS: Record<string, readonly string[]> = {
   roles_key_check: ROLE_KEYS,
   role_permissions_scope_check: SCOPES,
   saved_views_screen_check: SavedViewScreenSchema.options,
+  sizings_kind_check: SizingKindSchema.options,
+  // Only a pump sizing names a catalogue pump.
+  sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
   tasks_kind_check: TaskKindSchema.options,
   tasks_state_check: TaskStateSchema.options,
   sessions_revoked_reason_check: SESSION_REVOKE_REASONS,

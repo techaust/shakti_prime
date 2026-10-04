@@ -1,6 +1,6 @@
 {
-  "id": "0a021453-796e-4766-95b5-18bb1b859621",
-  "prevId": "e7a66cf7-c254-4f9a-b1f1-cd8e76e914b7",
+  "id": "35dc12a2-18b9-44cc-92b4-18fb2d908cc3",
+  "prevId": "62e57818-cd5e-4690-8e5f-6ad8f9fdc69e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -712,7 +712,7 @@
       "checkConstraints": {
         "activities_type_check": {
           "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
+          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged', 'sizing_recorded')"
         },
         "activities_body_check": {
           "name": "activities_body_check",
@@ -4499,6 +4499,14 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "opportunities_id_entity_unique": {
+          "name": "opportunities_id_entity_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "entity_id"
+          ]
+        },
         "opportunities_id_entity_account_unique": {
           "name": "opportunities_id_entity_account_unique",
           "nullsNotDistinct": false,
@@ -6535,6 +6543,218 @@
         "sessions_revoked_reason_check": {
           "name": "sessions_revoked_reason_check",
           "value": "\"sessions\".\"revoked_reason\" is null or \"sessions\".\"revoked_reason\" in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'totp_reset', 'absolute_expiry')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sizings": {
+      "name": "sizings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opportunity_id": {
+          "name": "opportunity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inputs_json": {
+          "name": "inputs_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "in_bounds": {
+          "name": "in_bounds",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reasons_json": {
+          "name": "reasons_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "engine_version": {
+          "name": "engine_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sizings_opportunity_kind_latest_idx": {
+          "name": "sizings_opportunity_kind_latest_idx",
+          "columns": [
+            {
+              "expression": "opportunity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sizings_entity_id_entities_id_fk": {
+          "name": "sizings_entity_id_entities_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_site_id_customer_sites_id_fk": {
+          "name": "sizings_site_id_customer_sites_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "customer_sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_item_id_items_id_fk": {
+          "name": "sizings_item_id_items_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_created_by_principals_id_fk": {
+          "name": "sizings_created_by_principals_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_opportunity_entity_fk": {
+          "name": "sizings_opportunity_entity_fk",
+          "tableFrom": "sizings",
+          "tableTo": "opportunities",
+          "columnsFrom": [
+            "opportunity_id",
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sizings_kind_check": {
+          "name": "sizings_kind_check",
+          "value": "\"sizings\".\"kind\" in ('pump', 'rooftop')"
+        },
+        "sizings_item_kind_check": {
+          "name": "sizings_item_kind_check",
+          "value": "\"sizings\".\"item_id\" is null or \"sizings\".\"kind\" = 'pump'"
+        },
+        "sizings_reasons_check": {
+          "name": "sizings_reasons_check",
+          "value": "jsonb_typeof(\"sizings\".\"reasons_json\") = 'array' and \"sizings\".\"in_bounds\" = (jsonb_array_length(\"sizings\".\"reasons_json\") = 0)"
+        },
+        "sizings_engine_version_check": {
+          "name": "sizings_engine_version_check",
+          "value": "length(\"sizings\".\"engine_version\") between 1 and 20"
         }
       },
       "isRLSEnabled": false

@@ -1,6 +1,6 @@
 {
-  "id": "c604bbc5-916e-41ee-a10e-b9e7ba32ff2f",
-  "prevId": "0a021453-796e-4766-95b5-18bb1b859621",
+  "id": "4eadd295-6d4c-4b6f-9a50-ca1ed1d61098",
+  "prevId": "35dc12a2-18b9-44cc-92b4-18fb2d908cc3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -491,28 +491,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "accounts_referral_partner_name_idx": {
-          "name": "accounts_referral_partner_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"accounts\".\"type\" = 'referral_partner' and \"accounts\".\"archived_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -734,7 +712,7 @@
       "checkConstraints": {
         "activities_type_check": {
           "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
+          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged', 'sizing_recorded')"
         },
         "activities_body_check": {
           "name": "activities_body_check",
@@ -1225,397 +1203,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.call_dispositions": {
-      "name": "call_dispositions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "segment": {
-          "name": "segment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "key": {
-          "name": "key",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "next_action": {
-          "name": "next_action",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "call_dispositions_scope_key_unique": {
-          "name": "call_dispositions_scope_key_unique",
-          "columns": [
-            {
-              "expression": "coalesce(\"entity_id\", 0)",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "coalesce(\"segment\", '')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"call_dispositions\".\"archived_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "call_dispositions_scope_code_unique": {
-          "name": "call_dispositions_scope_code_unique",
-          "columns": [
-            {
-              "expression": "coalesce(\"entity_id\", 0)",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "coalesce(\"segment\", '')",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"call_dispositions\".\"archived_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "call_dispositions_entity_idx": {
-          "name": "call_dispositions_entity_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "call_dispositions_entity_id_entities_id_fk": {
-          "name": "call_dispositions_entity_id_entities_id_fk",
-          "tableFrom": "call_dispositions",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "call_dispositions_created_by_principals_id_fk": {
-          "name": "call_dispositions_created_by_principals_id_fk",
-          "tableFrom": "call_dispositions",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "call_dispositions_updated_by_principals_id_fk": {
-          "name": "call_dispositions_updated_by_principals_id_fk",
-          "tableFrom": "call_dispositions",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "call_dispositions_segment_check": {
-          "name": "call_dispositions_segment_check",
-          "value": "\"call_dispositions\".\"segment\" is null or \"call_dispositions\".\"segment\" in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale')"
-        },
-        "call_dispositions_key_check": {
-          "name": "call_dispositions_key_check",
-          "value": "\"call_dispositions\".\"key\" between 1 and 9"
-        },
-        "call_dispositions_code_check": {
-          "name": "call_dispositions_code_check",
-          "value": "\"call_dispositions\".\"code\" ~ '^[a-z][a-z0-9_]{1,39}$'"
-        },
-        "call_dispositions_label_check": {
-          "name": "call_dispositions_label_check",
-          "value": "char_length(\"call_dispositions\".\"label\") between 2 and 40"
-        },
-        "call_dispositions_next_action_check": {
-          "name": "call_dispositions_next_action_check",
-          "value": "\"call_dispositions\".\"next_action\" in ('callback', 'retry', 'qualified', 'not_interested', 'wrong_number', 'nurture')"
-        },
-        "call_dispositions_position_check": {
-          "name": "call_dispositions_position_check",
-          "value": "\"call_dispositions\".\"position\" between 1 and 9"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.commission_rules": {
-      "name": "commission_rules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "basis": {
-          "name": "basis",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(14, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "trigger": {
-          "name": "trigger",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'order_confirmed'"
-        },
-        "effective_from": {
-          "name": "effective_from",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "effective_to": {
-          "name": "effective_to",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "commission_rules_partner_idx": {
-          "name": "commission_rules_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "commission_rules_partner_id_referral_partners_account_id_fk": {
-          "name": "commission_rules_partner_id_referral_partners_account_id_fk",
-          "tableFrom": "commission_rules",
-          "tableTo": "referral_partners",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "account_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "commission_rules_created_by_principals_id_fk": {
-          "name": "commission_rules_created_by_principals_id_fk",
-          "tableFrom": "commission_rules",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "commission_rules_updated_by_principals_id_fk": {
-          "name": "commission_rules_updated_by_principals_id_fk",
-          "tableFrom": "commission_rules",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "commission_rules_basis_check": {
-          "name": "commission_rules_basis_check",
-          "value": "\"commission_rules\".\"basis\" in ('fixed', 'percent', 'per_kw', 'per_hp')"
-        },
-        "commission_rules_trigger_check": {
-          "name": "commission_rules_trigger_check",
-          "value": "\"commission_rules\".\"trigger\" in ('order_confirmed')"
-        },
-        "commission_rules_amount_check": {
-          "name": "commission_rules_amount_check",
-          "value": "\"commission_rules\".\"amount\" > 0 and (\"commission_rules\".\"basis\" <> 'percent' or \"commission_rules\".\"amount\" <= 100)"
-        },
-        "commission_rules_effective_check": {
-          "name": "commission_rules_effective_check",
-          "value": "\"commission_rules\".\"effective_to\" is null or \"commission_rules\".\"effective_to\" > \"commission_rules\".\"effective_from\""
-        }
-      },
       "isRLSEnabled": false
     },
     "public.composite_supply_rules": {
@@ -4328,167 +3915,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.lead_score_rules": {
-      "name": "lead_score_rules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "segment": {
-          "name": "segment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "factor": {
-          "name": "factor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "match_json": {
-          "name": "match_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "points": {
-          "name": "points",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "lead_score_rules_entity_idx": {
-          "name": "lead_score_rules_entity_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "lead_score_rules_entity_id_entities_id_fk": {
-          "name": "lead_score_rules_entity_id_entities_id_fk",
-          "tableFrom": "lead_score_rules",
-          "tableTo": "entities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lead_score_rules_created_by_principals_id_fk": {
-          "name": "lead_score_rules_created_by_principals_id_fk",
-          "tableFrom": "lead_score_rules",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lead_score_rules_updated_by_principals_id_fk": {
-          "name": "lead_score_rules_updated_by_principals_id_fk",
-          "tableFrom": "lead_score_rules",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "lead_score_rules_segment_check": {
-          "name": "lead_score_rules_segment_check",
-          "value": "\"lead_score_rules\".\"segment\" is null or \"lead_score_rules\".\"segment\" in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale')"
-        },
-        "lead_score_rules_factor_check": {
-          "name": "lead_score_rules_factor_check",
-          "value": "\"lead_score_rules\".\"factor\" in ('source', 'segment', 'district', 'system_size', 'age_days')"
-        },
-        "lead_score_rules_points_check": {
-          "name": "lead_score_rules_points_check",
-          "value": "\"lead_score_rules\".\"points\" between -50 and 50 and \"lead_score_rules\".\"points\" <> 0"
-        },
-        "lead_score_rules_position_check": {
-          "name": "lead_score_rules_position_check",
-          "value": "\"lead_score_rules\".\"position\" between 1 and 50"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.lead_sources": {
       "name": "lead_sources",
       "schema": "",
@@ -4668,32 +4094,7 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 50
-        },
-        "score_reasons_json": {
-          "name": "score_reasons_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "score_changed_at": {
-          "name": "score_changed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "score_changed_by": {
-          "name": "score_changed_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "referral_partner_id": {
-          "name": "referral_partner_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
+          "default": 0
         },
         "source_id": {
           "name": "source_id",
@@ -4947,69 +4348,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "opportunities_referral_partner_idx": {
-          "name": "opportunities_referral_partner_idx",
-          "columns": [
-            {
-              "expression": "referral_partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "opportunities_entity_score_idx": {
-          "name": "opportunities_entity_score_idx",
-          "columns": [
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "score",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "opportunities_score_keyset_idx": {
-          "name": "opportunities_score_keyset_idx",
-          "columns": [
-            {
-              "expression": "score",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -5104,19 +4442,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "opportunities_score_changed_by_principals_id_fk": {
-          "name": "opportunities_score_changed_by_principals_id_fk",
-          "tableFrom": "opportunities",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "score_changed_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "opportunities_source_id_lead_sources_id_fk": {
           "name": "opportunities_source_id_lead_sources_id_fk",
           "tableFrom": "opportunities",
@@ -5170,23 +4495,18 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "opportunities_referral_partner_fk": {
-          "name": "opportunities_referral_partner_fk",
-          "tableFrom": "opportunities",
-          "tableTo": "referral_partners",
-          "columnsFrom": [
-            "referral_partner_id"
-          ],
-          "columnsTo": [
-            "account_id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "opportunities_id_entity_unique": {
+          "name": "opportunities_id_entity_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "entity_id"
+          ]
+        },
         "opportunities_id_entity_account_unique": {
           "name": "opportunities_id_entity_account_unique",
           "nullsNotDistinct": false,
@@ -5794,12 +5114,6 @@
           "notNull": true,
           "default": 48
         },
-        "first_contact_sla_minutes": {
-          "name": "first_contact_sla_minutes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -5894,10 +5208,6 @@
         "pipelines_lock_hours_check": {
           "name": "pipelines_lock_hours_check",
           "value": "\"pipelines\".\"lock_hours\" between 1 and 720"
-        },
-        "pipelines_first_contact_sla_check": {
-          "name": "pipelines_first_contact_sla_check",
-          "value": "\"pipelines\".\"first_contact_sla_minutes\" is null or \"pipelines\".\"first_contact_sla_minutes\" between 1 and 10080"
         }
       },
       "isRLSEnabled": false
@@ -6695,125 +6005,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.referral_partners": {
-      "name": "referral_partners",
-      "schema": "",
-      "columns": {
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "referral_partners_code_unique": {
-          "name": "referral_partners_code_unique",
-          "columns": [
-            {
-              "expression": "upper(\"code\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "referral_partners_account_id_accounts_id_fk": {
-          "name": "referral_partners_account_id_accounts_id_fk",
-          "tableFrom": "referral_partners",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "referral_partners_created_by_principals_id_fk": {
-          "name": "referral_partners_created_by_principals_id_fk",
-          "tableFrom": "referral_partners",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "referral_partners_updated_by_principals_id_fk": {
-          "name": "referral_partners_updated_by_principals_id_fk",
-          "tableFrom": "referral_partners",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "referral_partners_code_check": {
-          "name": "referral_partners_code_check",
-          "value": "\"referral_partners\".\"code\" ~ '^[A-Za-z0-9]{4,12}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.retention_runs": {
       "name": "retention_runs",
       "schema": "",
@@ -7352,6 +6543,218 @@
         "sessions_revoked_reason_check": {
           "name": "sessions_revoked_reason_check",
           "value": "\"sessions\".\"revoked_reason\" is null or \"sessions\".\"revoked_reason\" in ('admin', 'role_changed', 'suspended', 'password_changed', 'totp_enrolled', 'totp_reset', 'absolute_expiry')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sizings": {
+      "name": "sizings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opportunity_id": {
+          "name": "opportunity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inputs_json": {
+          "name": "inputs_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_json": {
+          "name": "result_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "in_bounds": {
+          "name": "in_bounds",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reasons_json": {
+          "name": "reasons_json",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "engine_version": {
+          "name": "engine_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sizings_opportunity_kind_latest_idx": {
+          "name": "sizings_opportunity_kind_latest_idx",
+          "columns": [
+            {
+              "expression": "opportunity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sizings_entity_id_entities_id_fk": {
+          "name": "sizings_entity_id_entities_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "entities",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_site_id_customer_sites_id_fk": {
+          "name": "sizings_site_id_customer_sites_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "customer_sites",
+          "columnsFrom": [
+            "site_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_item_id_items_id_fk": {
+          "name": "sizings_item_id_items_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_created_by_principals_id_fk": {
+          "name": "sizings_created_by_principals_id_fk",
+          "tableFrom": "sizings",
+          "tableTo": "principals",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sizings_opportunity_entity_fk": {
+          "name": "sizings_opportunity_entity_fk",
+          "tableFrom": "sizings",
+          "tableTo": "opportunities",
+          "columnsFrom": [
+            "opportunity_id",
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id",
+            "entity_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sizings_kind_check": {
+          "name": "sizings_kind_check",
+          "value": "\"sizings\".\"kind\" in ('pump', 'rooftop')"
+        },
+        "sizings_item_kind_check": {
+          "name": "sizings_item_kind_check",
+          "value": "\"sizings\".\"item_id\" is null or \"sizings\".\"kind\" = 'pump'"
+        },
+        "sizings_reasons_check": {
+          "name": "sizings_reasons_check",
+          "value": "jsonb_typeof(\"sizings\".\"reasons_json\") = 'array' and \"sizings\".\"in_bounds\" = (jsonb_array_length(\"sizings\".\"reasons_json\") = 0)"
+        },
+        "sizings_engine_version_check": {
+          "name": "sizings_engine_version_check",
+          "value": "length(\"sizings\".\"engine_version\") between 1 and 20"
         }
       },
       "isRLSEnabled": false

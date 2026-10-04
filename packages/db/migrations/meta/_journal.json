@@ -650,35 +650,63 @@
       "idx": 92,
       "version": "7",
       "when": 1791087933290,
-      "tag": "0092_pipelines_scoring_referrals",
+      "tag": "0092_sizings",
       "breakpoints": true
     },
     {
       "idx": 93,
       "version": "7",
       "when": 1791087934290,
-      "tag": "0093_pipelines_scoring_referrals_rls",
+      "tag": "0093_sizings_rls",
       "breakpoints": true
     },
     {
       "idx": 94,
       "version": "7",
-      "when": 1791116730842,
-      "tag": "0094_stage_share_lock",
+      "when": 1791117291491,
+      "tag": "0094_sizing_timeline",
       "breakpoints": true
     },
     {
       "idx": 95,
       "version": "7",
-      "when": 1791120848930,
-      "tag": "0095_referral_partner_index",
+      "when": 1791117299884,
+      "tag": "0095_sizing_review_task",
       "breakpoints": true
     },
     {
       "idx": 96,
       "version": "7",
+      "when": 1791117300884,
+      "tag": "0096_pipelines_scoring_referrals",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791117301884,
+      "tag": "0097_pipelines_scoring_referrals_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1791117302884,
+      "tag": "0098_stage_share_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1791120848930,
+      "tag": "0099_referral_partner_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
       "when": 1791136768891,
-      "tag": "0096_lead_score_refresh",
+      "tag": "0100_lead_score_refresh",
       "breakpoints": true
     }
   ]
