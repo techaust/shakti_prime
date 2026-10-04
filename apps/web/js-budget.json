@@ -30,6 +30,14 @@
       "maxKb": 245,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the team grid, its row menu, saved views and the user dialogs. Measured 230.6 kB on 29-09-2026, plus 5 %."
     },
+    "/catalogue": {
+      "maxKb": 245,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the items grid with its search, category filter and saved views; the item sheet and forms load when first opened. Measured 233.2 kB on 04-10-2026, plus 5 %."
+    },
+    "/catalogue/kits": {
+      "maxKb": 241,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the kits grid with its search and saved views; the kit sheet and form load when first opened. Measured 229.6 kB on 04-10-2026, plus 5 %."
+    },
     "/design": {
       "maxKb": 245,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the design board, which shows every component on one page. Measured 231.4 kB on 29-09-2026, plus 5 %."
@@ -67,8 +75,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the new lead form. Measured 188.2 kB on 29-09-2026, plus 5 %."
     },
     "/price-master": {
-      "maxKb": 240,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the price grid, saved views and the price dialog. Measured 228.0 kB on 29-09-2026, plus 5 %."
+      "maxKb": 247,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the item and kit price grids, saved views and the price dialog; the list, approve and history views load when first opened. Measured 235.0 kB on 04-10-2026, plus 5 %."
     },
     "/set-password": {
       "maxKb": 175,
@@ -81,6 +89,10 @@
     "/settings/profile": {
       "maxKb": 200,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the theme and contrast choices. Measured 186.0 kB on 29-09-2026, plus 5 %."
+    },
+    "/settings/tax": {
+      "maxKb": 234,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the two tables of GST rates and composite supply splits; both forms load when first opened. Measured 222.6 kB on 04-10-2026, plus 5 %."
     },
     "/sign-in": {
       "maxKb": 175,

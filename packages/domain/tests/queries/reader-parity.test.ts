@@ -7,6 +7,7 @@ import { listUsers, listUserSessions } from '../../src/queries/admin/list-users'
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
+import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue-queries';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
@@ -28,7 +29,9 @@ import {
 import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
+import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
+import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 
 afterAll(closeDb);
 
@@ -53,6 +56,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listAuditPeople: (ctx) => listAuditPeople(ctx, { from: WEEK_AGO, to: NOW }),
   listItems: (ctx) => listItems(ctx, { limit: 20 }),
   listItemsWithCost: (ctx) => listItemsWithCost(ctx, 1, { limit: 20 }),
+  listKits: (ctx) => listKits(ctx, { limit: 20, includeArchived: true }),
+  getItem: (ctx) => getItem(ctx, { itemId: newId() }),
+  getKit: (ctx) => getKit(ctx, { kitId: newId() }),
   listBoardLeads: (ctx) => listBoardLeads(ctx, { pipelineKey: PIPELINE }),
   listBoardStageLeads: (ctx) =>
     listBoardStageLeads(ctx, { pipelineKey: PIPELINE, stageId: STAGE, cursor: 'bm8' }),
@@ -70,6 +76,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
+  listKitPrices: (ctx) => listKitPrices(ctx, { priceListId: newId(), limit: 20 }),
+  listPriceChanges: (ctx) => listPriceChanges(ctx, { itemId: newId() }),
+  readTaxSettings: (ctx) => readTaxSettings(ctx),
   listSavedViews: (ctx) => listSavedViews(ctx, { screen: 'leads' }),
   getFile: (ctx) => getFile(ctx, newId()),
   getStoredFile: (ctx) => getStoredFile(ctx, newId()),

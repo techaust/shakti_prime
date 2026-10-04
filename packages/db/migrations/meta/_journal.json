@@ -475,14 +475,56 @@
       "idx": 67,
       "version": "7",
       "when": 1790739530819,
-      "tag": "0067_role_editor",
+      "tag": "0067_catalogue_specs_list_approval",
       "breakpoints": true
     },
     {
       "idx": 68,
       "version": "7",
       "when": 1790739531819,
-      "tag": "0068_role_editor_holders",
+      "tag": "0068_catalogue_commands",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1790739532819,
+      "tag": "0069_catalogue_saved_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1790739533819,
+      "tag": "0070_catalogue_all_companies",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790739534819,
+      "tag": "0071_hsn_four_six_eight",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791054699887,
+      "tag": "0072_reader_covers_group",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791054700887,
+      "tag": "0073_role_editor",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791054701887,
+      "tag": "0074_role_editor_holders",
       "breakpoints": true
     }
   ]

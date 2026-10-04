@@ -23,7 +23,7 @@ export const savedViews = pgTable(
   (t) => [
     check(
       'saved_views_screen_check',
-      sql`${t.screen} in ('leads', 'team_members', 'price_lists', 'imports')`,
+      sql`${t.screen} in ('leads', 'team_members', 'price_lists', 'imports', 'catalogue_items', 'catalogue_kits')`,
     ),
     check(
       'saved_views_name_check',

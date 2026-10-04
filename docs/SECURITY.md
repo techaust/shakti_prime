@@ -96,6 +96,8 @@ The role editor (Admin › Roles, `admin.role.permissions.set`, `admin.roles.wri
 
 GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) carry no company, so `tax.rates.write` writes them only in a request that acts for every active company (migration 0048), as shared price lists are written.
 
+The catalogue (`items`, `kits`, `kit_components`, `pump_curves`) is shared by every company, so `catalogue.write` changes it only in a request that acts for every active company, in the commands (`catalogue_needs_all_companies`) and in the tables' write policies; a General Manager or Inventory Manager who holds the grant in one company reads the catalogue there and changes it from All companies only, holding the grant in every company.
+
 ### 3.3 Agent principals
 | Principal | Permissions |
 |---|---|
