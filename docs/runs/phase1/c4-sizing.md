@@ -5,8 +5,8 @@
 | Branch | `feat/c4-sizing-r2` on GitHub (c670631, from `main` at #82) |
 | PC worktree | `c4-sizing`, slot 8: Postgres 54338, app 3038; its local branch `feat/c4-sizing` is at the same commit and pushes to `feat/c4-sizing-r2` (`git push origin HEAD:feat/c4-sizing-r2`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
-| State | integrating |
-| Next step | the lead's integration run and baselines |
+| State | integrated, pull request open (its migrations are 0092 to 0095) |
+| Next step | merge-on-green, then dev and staging migrated |
 
 ## Brief
 Read first:
@@ -27,6 +27,11 @@ Read first:
 6. **Documents:** DATABASE §6.2, ARCHITECTURE §5, design §6.7 "Built (C4)", `pnpm db:docs`.
 
 ## Report
+### 05-10-2026, lead session on the PC (integration)
+- Second review (the integration work, e014a7f..730a0f2): no critical or high; one medium (the definer's filters unpinned by tests) and five lows, all fixed by the builder (see Review); `main` taken again after P4 (#99), migrations 0092 to 0095.
+- `integrate.sh` on a fresh Postgres (54340): every step passed but the journeys, which failed because the worktree's `.env` had no `E2E_BASE_URL` (the app ran on 3000 while its links pointed at 3038); with the line added, the journeys passed (175 passed, 2 flaky). Unit tests 2,695; security suite 1,695 (db 917, domain 559, web 219); `/customers/[accountId]` 194.5 of 205 kB.
+- Linux baselines on a fresh database: `customer-sizing` new and `customer-account` remade (the Size this lead button), every image looked at. The verification run without updating found no screenshot difference; two tests timed out under the other agents' load, so CI's Linux journeys are the full check.
+
 ### 03-10-2026, builder on the PC
 - Built, reviewed and fixed. The review confirmed the formulas and found 2 high (the pump's flow short of the need; the suction lift of a surface pump) and 4 medium; all fixed. Engine version 2; `quoteSizingFacts()` for S1; people-only, voice sessions included; six engineering defaults added for the engineering head (flow tolerance, overshoot, suction lift 7 m, sanctioned-load ratio 1.0, motor margin 0.1, pipe velocity 2 m/s).
 - Checks on the branch: security suite 1,343, unit tests 2,394.
