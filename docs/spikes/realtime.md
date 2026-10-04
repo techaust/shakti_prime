@@ -1,7 +1,7 @@
 # Spike: Supabase Realtime with BOS-signed tokens
 
 **Status:** deferred by the owner's decision of 29-09-2026: it runs on the production site with the client's domain. The BOS side is built and tested locally; nothing has run against Supabase yet. Supabase's third-party auth lists named vendors only, so the run uses option (a) of §6: the BOS signing key imported into the project's JWT signing keys as a standby key.
-**Design:** `docs/design/backend-weeks-3-5.md` §2.5 · **Decision:** ADR 0003 · **Audit:** M1, M15 · **Fallback:** polling every 10 s for notifications (blueprint risk 15).
+**Design:** `docs/design/backend-weeks-3-5.md` §2.5 · **Decision:** ADR 0003 · **Audit:** M1, M15 · **Fallback:** the notification centre polls every 15 seconds while its tab is visible (blueprint risk 15; the interval is set in `docs/design/phase1.md` §2).
 
 ## 1. What is built
 | Piece | Where |

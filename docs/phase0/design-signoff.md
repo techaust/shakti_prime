@@ -2,7 +2,9 @@
 
 Date: 27-09-2026. For: an Executive of the Shakti group, with one tele-caller and one field or store person at the review.
 
-Phase 0 ends only when the group signs off the design system (ROADMAP §2, exit-gate item 2). The design system is written down in `DESIGN.md` and shown live on the `/design` page of the system, which displays every colour, text size and component in the light and dark themes side by side. This checklist walks through what to look at and records the decision.
+This sign-off was an item of the Phase 0 exit gate (ROADMAP §2). The owner closed Phase 0 on 29-09-2026 with it deferred: it is needed before the calling screen (T1) and quotes (S1) are built, so that any change lands while few screens exist, and a change agreed later is applied to every built screen before the Phase 1 user acceptance tests (M1).
+
+The design system is written down in `DESIGN.md` and shown live on the `/design` page of the system, which displays every colour, text size and component in the light and dark themes side by side. This checklist walks through what to look at and records the decision.
 
 **What sign-off means:** the look, the colours, the text sizes, the spacing and the writing rules are agreed, and every screen built from now on follows them. Screens themselves are reviewed separately with real users (`wireframe-review.md`); this sign-off is about the building blocks.
 
@@ -80,7 +82,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 34 | On desktop, the side menu (240 wide) can shrink to icons to give more room | | | |
 
 ### 3.7 Words on screen
-The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads`, `/leads/board` and `/leads/new`), your profile (`/settings/profile`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), price lists (`/price-master`) and imports (`/imports`). The sign-off runs once all of these are on the main app.
+The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads`, `/leads/board` and `/leads/new`), your profile (`/settings/profile`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), price lists (`/price-master`), catalogue (`/catalogue` and `/catalogue/kits`), customers (`/customers` and a customer's page), imports (`/imports`), tax rates (`/settings/tax`), roles (`/admin/roles`) and integration health (`/admin/integrations`). All of these are on the main app.
 
 | # | Check | Yes | Notes |
 |---|---|---|---|
