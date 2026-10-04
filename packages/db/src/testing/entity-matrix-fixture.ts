@@ -274,6 +274,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['letterhead', per(e, 0x16), 'image/png'],
           ['knowledge', per(e, 0x17), 'application/pdf'],
           ['consent_evidence', per(e, 0x18), 'image/jpeg'],
+          ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
         const sizing = per(e, 0x19);
         const audit = newId();

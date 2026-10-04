@@ -21,6 +21,7 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   signed_quote: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   entity_logo: { contentTypes: IMAGES, maxBytes: 2 * MB },
   letterhead: { contentTypes: IMAGES, maxBytes: 5 * MB },
+  print_proof: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
   knowledge: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   consent_evidence: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
 };

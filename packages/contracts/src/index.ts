@@ -47,6 +47,7 @@ export * from './commands/profile/set-contrast';
 export * from './commands/profile/saved-views';
 export * from './commands/realtime/issue-token';
 export * from './commands/platform/probe';
+export * from './commands/print/print';
 export * from './imports/enums';
 export * from './commands/imports/jobs';
 export * from './dto/import';

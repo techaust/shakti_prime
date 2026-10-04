@@ -101,9 +101,16 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     sizings: { i: true, u: false },
   };
 
+  /**
+   * Tables selected column by column: `entities`, whose sealed bank account no request role may
+   * select (the test below).
+   */
+  const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities']);
+
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; u: boolean; d: boolean }>(sql`
-      select has_table_privilege('app_user', ${table}, 'SELECT') as s,
+      select (has_table_privilege('app_user', ${table}, 'SELECT')
+              or (${COLUMN_SELECT.has(table)} and has_any_column_privilege('app_user', ${table}, 'SELECT'))) as s,
              has_table_privilege('app_user', ${table}, 'INSERT') as i,
              has_table_privilege('app_user', ${table}, 'UPDATE') as u,
              has_table_privilege('app_user', ${table}, 'DELETE') as d
@@ -179,9 +186,30 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(row).toEqual({ app: true, reporter: false, pub: false });
   });
 
+  it('selects every column of entities but the sealed bank account, as every request role', async () => {
+    const rows = await withoutContext<{ role: string; column: string; s: boolean }>(sql`
+      select r.role, c.column_name as column,
+             has_column_privilege(r.role, 'entities', c.column_name, 'SELECT') as s
+        from information_schema.columns c
+       cross join (values ('app_user'), ('app_reader'), ('readonly_reporter')) as r(role)
+       where c.table_schema = 'public' and c.table_name = 'entities'
+       order by 1, 2
+    `);
+    expect(rows.length).toBeGreaterThan(3 * 10);
+    for (const row of rows) {
+      expect(row).toEqual({ ...row, s: row.column !== 'bank_json' });
+    }
+    const [table] = await withoutContext<{ user: boolean; reader: boolean; reporter: boolean }>(sql`
+      select has_table_privilege('app_user', 'entities', 'SELECT') as user,
+             has_table_privilege('app_reader', 'entities', 'SELECT') as reader,
+             has_table_privilege('readonly_reporter', 'entities', 'SELECT') as reporter
+    `);
+    expect(table).toEqual({ user: false, reader: false, reporter: false });
+  });
+
   it('readonly_reporter may only select', async () => {
     const [row] = await withoutContext<{ s: boolean; i: boolean; d: boolean; bypass: boolean }>(sql`
-      select has_table_privilege('readonly_reporter', 'entities', 'SELECT') as s,
+      select has_any_column_privilege('readonly_reporter', 'entities', 'SELECT') as s,
              has_table_privilege('readonly_reporter', 'entities', 'INSERT') as i,
              has_table_privilege('readonly_reporter', 'entities', 'DELETE') as d,
              (select rolbypassrls from pg_roles where rolname = 'readonly_reporter') as bypass
@@ -366,6 +394,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
     `);
     expect(rows.map((r) => r.fn)).toEqual([
       'app.customer_search_ids(text,text,integer)',
+      // An Executive's bank account form and the print loader.
+      'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).

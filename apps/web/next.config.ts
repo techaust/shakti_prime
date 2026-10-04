@@ -28,7 +28,20 @@ const config: NextConfig = {
     '@shakti/tokens',
     '@shakti/ui',
   ],
-  serverExternalPackages: ['postgres', '@node-rs/argon2'],
+  // Chromium's driver and the serverless Chromium build load files beside their own code at run
+  // time, so they stay plain packages rather than bundled (ADR 0009).
+  serverExternalPackages: ['postgres', '@node-rs/argon2', 'playwright-core', '@sparticuz/chromium'],
+  // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
+  // the render route, the one function that prints on a hosted runtime (docs/runbooks/DEPLOY.md).
+  // The package finds `bin` beside its own real path in pnpm's store, so that path is the one
+  // traced: the link under the app's node_modules would not be followed if the function's files
+  // were copied as plain files.
+  outputFileTracingIncludes: {
+    '/api/v1/workers/pdf/render': [
+      '../../node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+      './src/print/fonts/**',
+    ],
+  },
   poweredByHeader: false,
   experimental: {
     // An import file reaches its server action as a form (docs/design/backend-weeks-3-5.md §8),

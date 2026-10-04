@@ -14,6 +14,7 @@ const company: EntityDto = {
   addressLine2: null,
   city: null,
   pin: null,
+  bankDetailsSet: false,
 };
 
 /** The form as loaded: every field as the company has it, an empty one as an empty box. */

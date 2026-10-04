@@ -51,6 +51,7 @@ export { resetTwoFactor } from './commands/admin/two-factor-reset';
 export { clearSignInLock } from './commands/admin/clear-sign-in-lock';
 export { replayDeadLetter } from './commands/integrations/replay-dead-letter';
 export { runDeliveryProbe } from './commands/platform/run-probe';
+export { requestPrintProof } from './commands/print/request-proof';
 export { setTheme } from './commands/profile/set-theme';
 export { setContrast } from './commands/profile/set-contrast';
 export { deleteView, saveView } from './commands/profile/saved-views';
@@ -124,7 +125,19 @@ export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/quer
 export { listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export type { OutboxHealth } from './queries/platform/outbox-health';
-export { toEntityDto } from './queries/org/entity-dto';
+export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
+export type { EntityRow } from './queries/org/entity-dto';
+export {
+  accountEnding,
+  bankCipherContext,
+  mayReadBankDetails,
+  openBankDetails,
+  readEntityBankDetails,
+  readSealedBankDetails,
+  sealBankDetails,
+} from './queries/org/bank-details';
+export { loadCompanyForPrint } from './queries/org/company-print';
+export type { CompanyForPrint } from './queries/org/company-print';
 export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
@@ -308,6 +321,7 @@ export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export { recordRenderedFile } from './commands/files/record-rendered';
 export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';
 export {

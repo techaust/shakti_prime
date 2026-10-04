@@ -18,6 +18,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Imports](#imports)
   - [Platform](#platform)
   - [Files](#files)
+  - [print](#print)
 - [Payloads](#payloads)
 
 ## Rules
@@ -43,13 +44,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-32 types, 2 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+33 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`org.entity.updated`](#orgentityupdated) | A company's brand name, UPI id, GSTIN, state or registered address changed; `fields` names which. | `org.entity.update` | none |
+| [`org.entity.updated`](#orgentityupdated) | A company's brand name, UPI id, GSTIN, state, registered address or bank account changed; `fields` names which. | `org.entity.update` | none |
 
 ### CRM
 
@@ -122,13 +123,19 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|---|---|
 | [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
+### print
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+
 ## Payloads
 
 ### org.entity.updated
 
 | Field | Type |
 |---|---|
-| `fields` | list of values from `brandName`, `upiId`, `gstin`, `stateCode`, `addressLine1`, `addressLine2`, `city`, `pin`, at least 1 |
+| `fields` | list of values from `brandName`, `upiId`, `gstin`, `stateCode`, `addressLine1`, `addressLine2`, `city`, `pin`, `bankDetails`, at least 1 |
 
 ### crm.lead.created
 
@@ -343,4 +350,12 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence` |
+| `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence` |
+
+### print.document.requested
+
+| Field | Type |
+|---|---|
+| `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
+| `documentId` | id |
+| `version` | whole number from 1 |

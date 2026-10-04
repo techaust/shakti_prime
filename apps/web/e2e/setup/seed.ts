@@ -17,6 +17,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
+import { writePrintPages } from './print-pages';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -338,6 +339,7 @@ const seeded: SeededUsers = {
   secondCompanyLead,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
+await writePrintPages();
 progress(`${String(SIGNED_IN_ROLES.length)} roles and ${String(PROJECTS.length)} projects ready`);
 
 await closeAuthDb();

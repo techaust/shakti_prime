@@ -23,14 +23,18 @@ function chunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([length, body, crc]);
 }
 
-/** A picture of one colour, `width` by `height`, as a valid 8-bit RGB PNG. */
-export function solidPng(width: number, height: number, rgb: [number, number, number]): Buffer {
+/** A picture in one colour (red, green, blue), as a valid PNG; 240 by 80 unless sized. */
+export function solidPng(
+  width = 240,
+  height = 80,
+  colour: readonly [number, number, number] = [40, 80, 200],
+): Buffer {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
   header.set([8, 2, 0, 0, 0], 8); // 8-bit RGB, no interlace
   const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 0)]);
-  for (let x = 0; x < width; x += 1) row.set(rgb, 1 + x * 3);
+  for (let x = 0; x < width; x += 1) row.set(colour, 1 + x * 3);
   const pixels = Buffer.concat(Array.from({ length: height }, () => row));
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

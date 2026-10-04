@@ -1,7 +1,9 @@
-// A4 quotation (BLUEPRINT §8 quotes, DESIGN.md §6 Print templates): the selling entity's
-// letterhead, light theme, 15 mm side margins, Inter embedded, the QR block bottom-right.
+// A4 quotation (BLUEPRINT §8 quotes, DESIGN.md §6 Print templates): the selling company's
+// letterhead, logo and bank account from the print loader (`company.ts`), light theme, 15 mm side
+// margins, Inter embedded, the QR block bottom-right.
 // Every amount arrives already computed by the domain (Price Master snapshot and the tax
 // engine); this template only formats and places them.
+import { bankBlock, companyBlock, companyCss, letterheadStrip, type CompanyPrint } from './company';
 import { printCopy } from './copy';
 import { formatAmount, formatDate, formatRupees } from './format';
 import { html, trusted, type Html } from './html';
@@ -29,13 +31,8 @@ export interface QuoteTaxPrint {
 }
 
 export interface QuotePrint {
-  entity: {
-    name: string;
-    addressLines: string[];
-    gstin: string;
-    phone: string;
-    email: string;
-  };
+  /** The selling company, as the print loader reads it for the quote's company. */
+  company: CompanyPrint;
   number: string;
   /** Calendar dates, "YYYY-MM-DD". */
   date: string;
@@ -70,8 +67,7 @@ const MARGIN = { top: '15mm', right: '15mm', bottom: '18mm', left: '15mm' };
 
 const css = `
 .letterhead{display:flex;justify-content:space-between;gap:24px;padding-bottom:12px;border-bottom:2px solid var(--accent);}
-.entity h1{font-size:20px;line-height:28px;letter-spacing:-0.01em;}
-.entity p,.meta p,.party p{margin:0;}
+.meta p,.party p{margin:0;}
 .meta{text-align:right;}
 .meta h2{font-size:16px;line-height:24px;color:var(--accent-text);}
 .meta dl{margin:4px 0 0;display:grid;grid-template-columns:auto auto;gap:0 12px;justify-content:end;}
@@ -95,6 +91,7 @@ table.totals td{padding:3px 6px;}
 table.totals tr.total td{border-top:1px solid var(--border-strong);font-weight:590;font-size:14px;line-height:20px;padding-top:6px;}
 .terms ol{margin:4px 0 0;padding-left:18px;}
 .closing{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:14px;break-inside:avoid;}
+.words .bank{margin-top:12px;}
 .sign{margin-top:14px;}
 .sign p{margin:0;}
 .sign .for{font-weight:590;}
@@ -118,7 +115,7 @@ function footer(quote: QuotePrint): string {
     <style>
       ${trusted(interFontFaces().split('\n')[0] ?? '')}
     </style>
-    <span>${quote.entity.name} · ${quote.number}</span><span>${trusted(pageHtml)}</span>
+    <span>${quote.company.brandName} · ${quote.number}</span><span>${trusted(pageHtml)}</span>
   </div>`.value;
 }
 
@@ -150,20 +147,13 @@ export async function renderQuote(
         />
         <title>${t('quote.title')} ${quote.number}</title>
         <style>
-          ${trusted(baseCss(options))}${trusted(css)}
+          ${trusted(baseCss(options))}${trusted(companyCss)}${trusted(css)}
         </style>
       </head>
       <body>
+        ${letterheadStrip(quote.company)}
         <header class="letterhead">
-          <div class="entity">
-            <h1>${quote.entity.name}</h1>
-            ${quote.entity.addressLines.map((l) => html`<p>${l}</p>`)}
-            <p>${t('quote.gstin')}: ${quote.entity.gstin}</p>
-            <p>
-              ${t('quote.phone')}: ${quote.entity.phone} · ${t('quote.email')}:
-              ${quote.entity.email}
-            </p>
-          </div>
+          ${companyBlock(quote.company, t)}
           <div class="meta">
             <h2>${t('quote.title')}</h2>
             <dl>
@@ -209,6 +199,7 @@ export async function renderQuote(
           <div class="words">
             <p class="label">${t('quote.inWords')}</p>
             <p>${quote.totals.totalInWords}</p>
+            ${bankBlock(quote.company, t)}
           </div>
           <table class="totals">
             <tr>
@@ -241,7 +232,7 @@ export async function renderQuote(
               </ol>
             </div>
             <div class="sign">
-              <p class="for">${t('quote.signatory', { entity: quote.entity.name })}</p>
+              <p class="for">${t('quote.signatory', { entity: quote.company.legalName })}</p>
               <p class="muted">${t('quote.preparedBy', { name: quote.preparedBy })}</p>
             </div>
           </div>

@@ -52,3 +52,16 @@ export function formatDate(value: Date | string): string {
   const parts = Object.fromEntries(IST_DATE.formatToParts(date).map((p) => [p.type, p.value]));
   return `${parts.day ?? ''}-${parts.month ?? ''}-${parts.year ?? ''}`;
 }
+
+const IST_DAY = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Kolkata',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+/** The calendar date of an instant in IST, "YYYY-MM-DD", as the templates take dates. */
+export function istDay(instant: Date): string {
+  const parts = Object.fromEntries(IST_DAY.formatToParts(instant).map((p) => [p.type, p.value]));
+  return `${parts.year ?? ''}-${parts.month ?? ''}-${parts.day ?? ''}`;
+}
