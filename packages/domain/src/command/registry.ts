@@ -27,6 +27,14 @@ import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
 import { replayDeadLetter } from '../commands/integrations/replay-dead-letter';
 import { updateEntity } from '../commands/org/update-entity';
+import { archiveItem, createItem, updateItem } from '../commands/catalogue/items';
+import { archiveKit, createKit, updateKit } from '../commands/catalogue/kits';
+import { setPumpCurve } from '../commands/catalogue/pump-curve';
+import {
+  approvePriceList,
+  archivePriceList,
+  createPriceList,
+} from '../commands/pricing/price-lists';
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
@@ -62,6 +70,16 @@ export const commands = {
   [recordConsent.name]: recordConsent,
   [withdrawConsent.name]: withdrawConsent,
   [setPrice.name]: setPrice,
+  [createPriceList.name]: createPriceList,
+  [approvePriceList.name]: approvePriceList,
+  [archivePriceList.name]: archivePriceList,
+  [createItem.name]: createItem,
+  [updateItem.name]: updateItem,
+  [archiveItem.name]: archiveItem,
+  [createKit.name]: createKit,
+  [updateKit.name]: updateKit,
+  [archiveKit.name]: archiveKit,
+  [setPumpCurve.name]: setPumpCurve,
   [setTaxRate.name]: setTaxRate,
   [setCompositeRule.name]: setCompositeRule,
   [inviteUser.name]: inviteUser,

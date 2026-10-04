@@ -1,6 +1,6 @@
 {
-  "id": "00aff190-cef1-4b0e-b296-eb7f8a82406f",
-  "prevId": "51b7e028-f233-4fd0-b3bb-99809c72add9",
+  "id": "fbc100bc-e7c7-49b5-853a-2b76a438be14",
+  "prevId": "e066d1a5-6419-4a0b-9c99-dde2b0373c72",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3404,11 +3404,19 @@
       "checkConstraints": {
         "items_hsn_check": {
           "name": "items_hsn_check",
-          "value": "\"items\".\"hsn\" ~ '^[0-9]{4,8}$'"
+          "value": "\"items\".\"hsn\" ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'"
         },
         "items_unit_check": {
           "name": "items_unit_check",
           "value": "\"items\".\"unit\" in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')"
+        },
+        "items_category_check": {
+          "name": "items_category_check",
+          "value": "\"items\".\"category\" in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')"
+        },
+        "items_specs_object_check": {
+          "name": "items_specs_object_check",
+          "value": "jsonb_typeof(\"items\".\"specs_json\") = 'object'"
         }
       },
       "isRLSEnabled": false
@@ -5156,6 +5164,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -5274,6 +5288,10 @@
         "price_lists_effective_check": {
           "name": "price_lists_effective_check",
           "value": "\"price_lists\".\"effective_to\" is null or \"price_lists\".\"effective_to\" > \"price_lists\".\"effective_from\""
+        },
+        "price_lists_approval_check": {
+          "name": "price_lists_approval_check",
+          "value": "(\"price_lists\".\"approved_by\" is null) = (\"price_lists\".\"approved_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -6000,7 +6018,7 @@
       "checkConstraints": {
         "saved_views_screen_check": {
           "name": "saved_views_screen_check",
-          "value": "\"saved_views\".\"screen\" in ('leads', 'team_members', 'price_lists', 'imports')"
+          "value": "\"saved_views\".\"screen\" in ('leads', 'team_members', 'price_lists', 'imports', 'catalogue_items', 'catalogue_kits')"
         },
         "saved_views_name_check": {
           "name": "saved_views_name_check",
@@ -6262,7 +6280,7 @@
         },
         "tax_rates_hsn_check": {
           "name": "tax_rates_hsn_check",
-          "value": "\"tax_rates\".\"hsn\" is null or \"tax_rates\".\"hsn\" ~ '^[0-9]{4,8}$'"
+          "value": "\"tax_rates\".\"hsn\" is null or \"tax_rates\".\"hsn\" ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'"
         },
         "tax_rates_rate_check": {
           "name": "tax_rates_rate_check",

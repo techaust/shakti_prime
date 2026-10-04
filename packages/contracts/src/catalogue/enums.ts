@@ -4,6 +4,24 @@ import { z } from 'zod';
 export const ItemUnitSchema = z.enum(['nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour']);
 export type ItemUnit = z.infer<typeof ItemUnitSchema>;
 
+/**
+ * What an item is (INV-01). Each category has its own specifications (`catalogue/specs.ts`),
+ * which sizing, quotes and board cards read by key.
+ */
+export const ItemCategorySchema = z.enum([
+  'pump',
+  'motor',
+  'solar_module',
+  'controller',
+  'structure',
+  'cable',
+  'pipe',
+  'inverter',
+  'battery',
+  'other',
+]);
+export type ItemCategory = z.infer<typeof ItemCategorySchema>;
+
 /** The three tiers of docs/BLUEPRINT.md §8.3; the list is extensible from Admin, not from code. */
 export const PriceTierCodeSchema = z.enum(['retail', 'dealer', 'commercial']);
 export type PriceTierCode = z.infer<typeof PriceTierCodeSchema>;
@@ -20,5 +38,5 @@ export type SignedMoney = z.infer<typeof SignedMoneySchema>;
 export const RateSchema = z.string().regex(/^\d{1,10}\.\d{4}$/);
 export type Rate = z.infer<typeof RateSchema>;
 
-/** HSN codes are four to eight digits. */
-export const HsnSchema = z.string().regex(/^[0-9]{4,8}$/);
+/** HSN codes have 4, 6 or 8 digits, as the database checks on items and GST rates. */
+export const HsnSchema = z.string().regex(/^([0-9]{4}|[0-9]{6}|[0-9]{8})$/);

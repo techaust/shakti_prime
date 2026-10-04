@@ -7,7 +7,9 @@ import {
   House,
   IndianRupee,
   ListTodo,
+  Package,
   Palette,
+  Percent,
   ScrollText,
   UserPlus,
   UsersRound,
@@ -84,6 +86,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     requires: [{ key: 'pricing.read', scope: 'entity' }],
   },
   {
+    id: 'catalogue',
+    href: '/catalogue',
+    label: 'catalogue',
+    icon: Package,
+    group: 'work',
+    // Items are shared and readable with any context; the screen sits beside the price lists,
+    // and changes need catalogue.write, which the commands check.
+    requires: [{ key: 'pricing.read', scope: 'entity' }],
+  },
+  {
     id: 'imports',
     href: '/imports',
     label: 'imports',
@@ -124,6 +136,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // org.entity.update
     requires: [{ key: 'admin.entities.write', scope: 'all' }],
+  },
+  {
+    id: 'settings-tax',
+    href: '/settings/tax',
+    label: 'settingsTax',
+    icon: Percent,
+    group: 'admin',
+    // tax.rate.set and tax.composite.set; a change also needs a request for every company.
+    requires: [{ key: 'tax.rates.write', scope: 'entity' }],
   },
   { id: 'design', href: '/design', label: 'design', icon: Palette, group: 'more', requires: [] },
 ];

@@ -189,7 +189,22 @@
     "file_unreadable": "We could not open this file as the kind it says it is. Save it again and upload the new copy.",
     "file_image_too_large": "This picture is too large to use. Choose a smaller picture, under 50 megapixels.",
     "file_pdf_active_content": "This PDF carries scripts or attached files, which we do not accept. Print it to a new PDF and upload that.",
-    "file_mask_failed": "We could not find the numbers we must cover on this photo, so it was not kept. Take a clearer photo and upload it again."
+    "file_mask_failed": "We could not find the numbers we must cover on this photo, so it was not kept. Take a clearer photo and upload it again.",
+    "catalogue_item_missing": "This item is no longer in the catalogue. Refresh the page to see the current list.",
+    "catalogue_kit_missing": "This kit is no longer in the catalogue. Refresh the page to see the current list.",
+    "item_sku_taken": "Another item already uses this item code. Choose a different code.",
+    "kit_sku_taken": "Another kit already uses this kit code. Choose a different code.",
+    "item_in_kit": "This item is part of a kit that is still sold. Take it out of the kit first, or stop selling the kit.",
+    "kit_item_archived": "One of the items is no longer in the catalogue. Remove it from the kit and try again.",
+    "pump_curve_not_pump": "Only a pump has a pump curve. Change the item's category to Pump first.",
+    "price_tier_missing": "This price tier is not in use. Choose Retail, Dealer or Commercial.",
+    "price_list_start_past": "The start date has passed. Choose today or a later date.",
+    "price_list_approved": "This price list is already approved.",
+    "price_list_overlap": "Another approved price list for this tier and company starts on the same date. Choose a different start date.",
+    "price_list_version_taken": "Someone started another version of this price list at the same moment. Refresh the page and try again.",
+    "catalogue_needs_all_companies": "The catalogue is shared by every company in the group. Choose All companies at the top of the screen, then make the change again.",
+    "price_list_approval_clash": "Another price list for this tier was approved at the same moment. Refresh the page and check the dates before you approve again.",
+    "price_list_archive_in_use": "A price list that is in use, or was, is kept because quotes were priced from it. Start a new price list instead."
   },
   "auth": {
     "signIn": {
@@ -270,7 +285,9 @@
     "settingsCompanies": "Companies",
     "design": "Design preview",
     "customers": "Customers",
-    "adminIntegrations": "Integration health"
+    "adminIntegrations": "Integration health",
+    "catalogue": "Catalogue",
+    "settingsTax": "Tax rates"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -321,7 +338,9 @@
       "settingsCompanies": "Change each company's details, logo and letterhead.",
       "design": "See every colour, text size and control in both themes.",
       "customers": "See a customer's contacts, sites, leads, tasks and history on one page.",
-      "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery."
+      "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
+      "catalogue": "See every item and kit the group sells, with their specifications.",
+      "settingsTax": "Keep the GST rates and composite supply splits up to date."
     }
   },
   "profile": {
@@ -727,6 +746,73 @@
       "litre": "litre",
       "kw": "kW",
       "hour": "hour"
+    },
+    "tiers": {
+      "retail": "Retail",
+      "dealer": "Dealer",
+      "commercial": "Commercial"
+    },
+    "state": {
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "live": "Live",
+      "ended": "Ended"
+    },
+    "groupLists": "Lists for all companies",
+    "companyLists": "Lists for {company}",
+    "draftNote": "This list is a draft. Its prices are not used until an Executive approves it.",
+    "scheduledNote": "This list is approved and takes over on {from}.",
+    "startsOn": "Starts on {from}",
+    "sections": "Price list sections",
+    "itemsTab": "Items",
+    "kitsTab": "Kits",
+    "kitsCaption": "Kit prices on this list",
+    "kitsEmpty": "No kits to price yet. Kits appear here once they are added to the catalogue.",
+    "kitColumns": {
+      "kit": "Kit",
+      "code": "Kit code"
+    },
+    "history": "History",
+    "historyFor": "Price history of {item}",
+    "newList": "New price list",
+    "approve": "Approve",
+    "newListDialog": {
+      "title": "Start a new price list",
+      "intro": "The new list starts as a draft with a copy of the prices in force the day before it starts. Change its prices, then approve it to put it in use from its start date.",
+      "tier": "Price tier",
+      "company": "Company",
+      "companyHelper": "A list for all companies needs All companies chosen at the top of the screen.",
+      "allCompanies": "All companies",
+      "from": "Start date",
+      "fromHelper": "Today or a later date, as DD-MM-YYYY",
+      "fromWrong": "Enter a start date as DD-MM-YYYY, today or later.",
+      "submit": "Start list",
+      "done": "The draft list is ready. Set its prices, then approve it."
+    },
+    "approveDialog": {
+      "title": "Approve {list}",
+      "intro": "From {from}, quotes use this list's prices. The list in use before it prices up to the day before.",
+      "submit": "Approve list",
+      "done": "{list} is approved."
+    },
+    "historySheet": {
+      "title": "Price history of {item}",
+      "intro": "Every change on every price list you can see, newest first.",
+      "empty": "No price has been set for this yet.",
+      "change": "{from} to {to}",
+      "first": "First price {to}",
+      "on": "{list} · {when}",
+      "by": "By {name}",
+      "reason": "Reason: {reason}"
+    },
+    "draftPassedNote": "This draft's start date has passed, so it can no longer be approved. Start a new price list instead.",
+    "groupListNote": "Lists for all companies are shared by every company in the group. To change or approve them, choose All companies at the top of the screen first.",
+    "archive": "Withdraw list",
+    "archiveDialog": {
+      "title": "Withdraw {list}",
+      "intro": "The list is set aside and never prices a quote. A scheduled list gives its days back to the list before it.",
+      "submit": "Withdraw list",
+      "done": "{list} is withdrawn."
     }
   },
   "leads": {
@@ -1105,7 +1191,17 @@
       "fileScanned": "File checked for harmful content",
       "fileReady": "File ready to use",
       "fileRejected": "File refused",
-      "filesRecheck": "Files sent for their checks again"
+      "filesRecheck": "Files sent for their checks again",
+      "priceListCreate": "Price list started",
+      "priceListApprove": "Price list approved",
+      "itemCreate": "Item added",
+      "itemUpdate": "Item changed",
+      "itemArchive": "Item no longer sold",
+      "kitCreate": "Kit added",
+      "kitUpdate": "Kit changed",
+      "kitArchive": "Kit no longer sold",
+      "pumpCurveSet": "Pump curve saved",
+      "priceListArchive": "Price list withdrawn"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1127,7 +1223,17 @@
       "importFailed": "Import stopped",
       "importRolledBack": "Import undone",
       "deliveryCheckRequested": "Delivery check sent",
-      "fileUploaded": "File uploaded"
+      "fileUploaded": "File uploaded",
+      "priceListCreated": "Price list started",
+      "priceListApproved": "Price list approved",
+      "itemCreated": "Item added",
+      "itemUpdated": "Item changed",
+      "itemArchived": "Item no longer sold",
+      "kitCreated": "Kit added",
+      "kitUpdated": "Kit changed",
+      "kitArchived": "Kit no longer sold",
+      "pumpCurveSet": "Pump curve saved",
+      "priceListArchived": "Price list withdrawn"
     },
     "sheet": {
       "title": "{action}",
@@ -1220,7 +1326,7 @@
       "title": "Note on the task",
       "dueAt": "Due",
       "doneAt": "Done at",
-      "archivedAt": "Taken off the list at",
+      "archivedAt": "Withdrawn at",
       "accountType": "Customer type",
       "billingStateCode": "Billing state code",
       "preferredLanguage": "Language for calls",
@@ -1249,7 +1355,23 @@
       "regionsMasked": "Numbers covered",
       "rejectReason": "Why it was refused",
       "scanStatus": "What the check found",
-      "consentPurpose": "What the consent covers"
+      "consentPurpose": "What the consent covers",
+      "sku": "Code",
+      "itemName": "Item name",
+      "kitName": "Kit name",
+      "category": "Category",
+      "unit": "Unit",
+      "isSerialTracked": "Serial number on each piece",
+      "isDcr": "Made with Indian cells (DCR)",
+      "almmRef": "ALMM listing",
+      "specs": "Specifications",
+      "isActive": "Sold",
+      "components": "Items in the kit",
+      "points": "Points on the pump curve",
+      "tierCode": "Price tier",
+      "version": "Version",
+      "prices": "Prices copied",
+      "approvedAt": "Approved at"
     },
     "values": {
       "percent": "{value}%",
@@ -1280,9 +1402,12 @@
         "team_members": "Team members",
         "price_lists": "Price lists",
         "imports": "Imports",
-        "customers": "Customers"
+        "customers": "Customers",
+        "catalogue_items": "Catalogue items",
+        "catalogue_kits": "Catalogue kits"
       },
-      "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}"
+      "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}",
+      "spec": "{name}: {value}"
     }
   },
   "print": {
@@ -1870,6 +1995,296 @@
       "wrongType": "This kind of file cannot be used here. Choose a {types} file.",
       "tooLarge": "This file is larger than {size}. Choose a smaller file.",
       "empty": "This file is empty. Choose another file."
+    }
+  },
+  "catalogue": {
+    "title": "Catalogue",
+    "intro": "The items and kits every company in the group sells. Selling prices are kept on the price lists.",
+    "sections": "Catalogue sections",
+    "itemsTab": "Items",
+    "kitsTab": "Kits",
+    "search": "Search by name or code",
+    "category": "Category",
+    "allCategories": "All categories",
+    "showArchivedItems": "Show items no longer sold",
+    "showArchivedKits": "Show kits no longer sold",
+    "itemsCaption": "Items in the catalogue",
+    "kitsCaption": "Kits in the catalogue",
+    "itemsEmpty": "No items match. Change the search or the category, or add an item.",
+    "kitsEmpty": "No kits match. A kit groups items that are sold together as one line.",
+    "addItem": "Add item",
+    "addKit": "Add kit",
+    "openItem": "Open {name}",
+    "openKit": "Open {name}",
+    "columns": {
+      "name": "Item",
+      "sku": "Item code",
+      "category": "Category",
+      "hsn": "HSN code",
+      "unit": "Unit",
+      "status": "Status",
+      "updated": "Last changed",
+      "kit": "Kit",
+      "kitCode": "Kit code",
+      "components": "Items in the kit"
+    },
+    "status": {
+      "active": "Sold",
+      "archived": "No longer sold"
+    },
+    "categories": {
+      "pump": "Pump",
+      "motor": "Motor",
+      "solar_module": "Solar module",
+      "controller": "Controller",
+      "structure": "Mounting structure",
+      "cable": "Cable",
+      "pipe": "Pipe",
+      "inverter": "Inverter",
+      "battery": "Battery",
+      "other": "Other"
+    },
+    "units": {
+      "nos": "Piece",
+      "set": "Set",
+      "metre": "Metre",
+      "kg": "Kilogram",
+      "litre": "Litre",
+      "kw": "kW",
+      "hour": "Hour"
+    },
+    "specs": {
+      "hp": "Power in HP",
+      "kw": "Power in kW",
+      "phase": "Phase",
+      "pumpType": "Pump type",
+      "outletMm": "Outlet size in mm",
+      "maxHeadM": "Highest head in metres",
+      "wp": "Watt-peak",
+      "inputMinV": "Lowest input voltage",
+      "inputMaxV": "Highest input voltage",
+      "nominalSizeMm": "Size in mm",
+      "material": "Material"
+    },
+    "specValues": {
+      "hp": "{value} HP",
+      "kw": "{value} kW",
+      "outletMm": "{value} mm",
+      "maxHeadM": "{value} m",
+      "wp": "{value} Wp",
+      "inputMinV": "{value} V",
+      "inputMaxV": "{value} V",
+      "nominalSizeMm": "{value} mm"
+    },
+    "choices": {
+      "phase": {
+        "single": "Single phase",
+        "three": "Three phase"
+      },
+      "pumpType": {
+        "surface": "Surface",
+        "submersible": "Submersible"
+      }
+    },
+    "item": {
+      "details": "Details",
+      "code": "Item code",
+      "category": "Category",
+      "hsn": "HSN code",
+      "unit": "Unit",
+      "serial": "Serial number on each piece",
+      "dcr": "Made with Indian cells (DCR)",
+      "almm": "ALMM listing",
+      "specsHeading": "Specifications",
+      "noSpecs": "This category has no specifications.",
+      "specsMissing": "Not filled in yet",
+      "curveHeading": "Pump curve",
+      "curveIntro": "Water the pump delivers at each head, from the maker's chart. Sizing reads this curve.",
+      "curveEmpty": "No curve yet. Add the points from the maker's chart.",
+      "curveCaption": "Pump curve points",
+      "curveChart": "Head falls from {highest} m to {lowest} m as flow rises from {least} to {most} litres an hour.",
+      "flow": "Flow in litres an hour",
+      "head": "Head in metres",
+      "edit": "Edit",
+      "editCurve": "Edit curve",
+      "archive": "Stop selling",
+      "archivedNote": "This item is no longer sold. Quotes already made keep it.",
+      "loading": "Loading the item"
+    },
+    "kit": {
+      "componentsHeading": "Items in the kit",
+      "componentsCaption": "Items in this kit and how many of each",
+      "quantity": "Quantity",
+      "itemGone": "No longer sold",
+      "edit": "Edit",
+      "archive": "Stop selling",
+      "archivedNote": "This kit is no longer sold. Quotes already made keep it.",
+      "loading": "Loading the kit"
+    },
+    "itemForm": {
+      "createTitle": "Add an item",
+      "editTitle": "Edit {name}",
+      "intro": "Every company sells from this catalogue, so a change shows in all of them at once.",
+      "sku": "Item code",
+      "skuHelper": "Letters, numbers and - / _ . with no spaces, such as SP-SUB-5HP. Kept in capitals.",
+      "name": "Item name",
+      "nameHelper": "As it should read on quotes, 2 to 120 characters",
+      "category": "Category",
+      "hsn": "HSN code",
+      "hsnHelper": "4, 6 or 8 digits, as on the maker's invoice",
+      "unit": "Unit",
+      "serial": "Each piece has its own serial number",
+      "dcr": "Made with Indian cells (DCR)",
+      "almm": "ALMM listing",
+      "almmHelper": "Optional. The listing as it appears on the ALMM list.",
+      "specsHeading": "Specifications",
+      "noSpecs": "This category has no specifications to fill in.",
+      "choose": "Choose one",
+      "numberHelper": "From {min} to {max}",
+      "numberWrong": "Enter a number from {min} to {max} with {decimals, plural, =0 {no decimal places} one {at most one decimal place} other {at most # decimal places}}.",
+      "textWrong": "Enter up to {max} characters.",
+      "choiceWrong": "Choose one of the options.",
+      "submit": "Save item",
+      "created": "{name} is added to the catalogue.",
+      "saved": "{name} is saved."
+    },
+    "archiveItem": {
+      "title": "Stop selling {name}",
+      "intro": "The item leaves the catalogue and can no longer be priced, put in a kit or quoted. Quotes already made keep it.",
+      "submit": "Stop selling",
+      "done": "{name} is no longer sold."
+    },
+    "archiveKit": {
+      "title": "Stop selling {name}",
+      "intro": "The kit can no longer be priced or quoted. Quotes already made keep it, and its items stay in the catalogue.",
+      "submit": "Stop selling",
+      "done": "{name} is no longer sold."
+    },
+    "curveForm": {
+      "title": "Pump curve of {name}",
+      "intro": "Enter 2 to 30 points from the maker's chart, from the lowest flow to the highest. Head must fall at each point.",
+      "point": "Point {number}",
+      "flow": "Flow in litres an hour",
+      "head": "Head in metres",
+      "addPoint": "Add a point",
+      "removePoint": "Remove point {number}",
+      "pointWrong": "Enter a flow and a head for every point, with up to two decimal places.",
+      "orderWrong": "Flow must rise and head must fall from one point to the next.",
+      "countWrong": "Enter at least 2 points and no more than 30.",
+      "submit": "Save curve",
+      "saved": "The curve of {name} is saved.",
+      "pointColumn": "Point",
+      "removeColumn": "Remove"
+    },
+    "kitForm": {
+      "createTitle": "Add a kit",
+      "editTitle": "Edit {name}",
+      "intro": "A kit is sold as one line. Its items and quantities are replaced as a whole when you save.",
+      "sku": "Kit code",
+      "skuHelper": "Letters, numbers and - / _ . with no spaces. Kept in capitals.",
+      "name": "Kit name",
+      "nameHelper": "As it should read on quotes, 2 to 120 characters",
+      "componentsHeading": "Items in the kit",
+      "find": "Find an item to add",
+      "findHelper": "Type part of the item's name or code",
+      "found": "Items found",
+      "noneFound": "No item in the catalogue matches.",
+      "add": "Add",
+      "addItem": "Add {name}",
+      "quantity": "Quantity of {name}",
+      "quantityWrong": "Enter a quantity above zero with up to three decimal places.",
+      "remove": "Remove",
+      "removeItem": "Remove {name}",
+      "noComponents": "Add at least one item.",
+      "submit": "Save kit",
+      "created": "{name} is added to the catalogue.",
+      "saved": "{name} is saved."
+    },
+    "groupNote": "Items and kits are shared by every company in the group. To add or change them, choose All companies at the top of the screen first.",
+    "quantities": {
+      "nos": "{count, plural, one {# piece} other {# pieces}}",
+      "set": "{count, plural, one {# set} other {# sets}}",
+      "metre": "{count, plural, one {# metre} other {# metres}}",
+      "kg": "{count, plural, one {# kilogram} other {# kilograms}}",
+      "litre": "{count, plural, one {# litre} other {# litres}}",
+      "kw": "{count} kW",
+      "hour": "{count, plural, one {# hour} other {# hours}}"
+    }
+  },
+  "taxSettings": {
+    "title": "Tax rates",
+    "intro": "GST rates by HSN code or item, and the goods and services split of composite supplies. Quotes keep the rate they were made with.",
+    "groupNote": "These rates apply to every company in the group. To change them, choose All companies at the top of the screen first.",
+    "ratesHeading": "GST rates",
+    "ratesCaption": "GST rates with the dates they apply",
+    "ratesEmpty": "No GST rates yet. Accounts adds each rate with the notification it comes from.",
+    "rulesHeading": "Composite supply",
+    "rulesCaption": "Goods and services split by business line",
+    "rulesEmpty": "No composite supply split yet. Add the split the CA has confirmed.",
+    "columns": {
+      "target": "HSN code or item",
+      "rate": "GST rate",
+      "from": "Applies from",
+      "to": "Applies until",
+      "source": "Where it comes from",
+      "segment": "Business line",
+      "goodsShare": "Goods share",
+      "servicesShare": "Services share",
+      "goodsRate": "GST on goods",
+      "servicesRate": "GST on services"
+    },
+    "hsnTarget": "HSN {hsn}",
+    "itemTarget": "{name} ({sku})",
+    "openEnded": "Until changed",
+    "percent": "{value} %",
+    "addRate": "Add rate",
+    "addRule": "Add split",
+    "rateDialog": {
+      "title": "Add a GST rate",
+      "intro": "The rate applies from its start date. A rate for the same code with no end date ends where this one starts.",
+      "target": "The rate is for",
+      "byHsn": "An HSN code",
+      "byItem": "One item",
+      "hsn": "HSN code",
+      "hsnHelper": "4, 6 or 8 digits",
+      "item": "Item",
+      "find": "Find the item",
+      "findHelper": "Type part of the item's name or code, then choose it",
+      "noneFound": "No item in the catalogue matches.",
+      "choose": "Choose",
+      "chooseItem": "Choose {name}",
+      "chosen": "Chosen: {name}",
+      "itemMissing": "Choose the item the rate is for.",
+      "rate": "GST rate in per cent",
+      "rateHelper": "Such as 5 or 18",
+      "rateWrong": "Enter a rate from 0 to 100 with up to two decimal places.",
+      "from": "Applies from",
+      "to": "Applies until",
+      "toHelper": "Optional. Leave empty while the rate stays in force.",
+      "dateWrong": "Enter the date as DD-MM-YYYY.",
+      "source": "Where the rate comes from",
+      "sourceHelper": "Optional. The notification or circular, up to 120 characters.",
+      "submit": "Save rate",
+      "done": "The GST rate is saved.",
+      "hsnWrong": "Enter an HSN code of 4, 6 or 8 digits."
+    },
+    "ruleDialog": {
+      "title": "Add a composite supply split",
+      "intro": "The split applies from its start date. The split for the same business line with no end date ends where this one starts.",
+      "segment": "Business line",
+      "goodsShare": "Goods share in per cent",
+      "servicesShare": "Services share in per cent",
+      "shareHelper": "Goods and services add up to 100",
+      "goodsRate": "GST on goods in per cent",
+      "servicesRate": "GST on services in per cent",
+      "percentWrong": "Enter a percentage from 0 to 100 with up to two decimal places.",
+      "sharesWrong": "The goods and services shares must add up to 100.",
+      "from": "Applies from",
+      "to": "Applies until",
+      "toHelper": "Optional. Leave empty while the split stays in force.",
+      "dateWrong": "Enter the date as DD-MM-YYYY.",
+      "submit": "Save split",
+      "done": "The composite supply split is saved."
     }
   }
 }

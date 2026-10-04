@@ -1,6 +1,6 @@
 {
-  "id": "d070b158-afcc-4a4f-ab9f-4dc8d3864dfa",
-  "prevId": "e27b157e-8ccb-4e69-bbea-dbfa8e3ce1f1",
+  "id": "a857b8fe-78e2-4d0f-8b9e-509c20d55741",
+  "prevId": "f07138c9-3bf3-44d0-b685-1956e9a802de",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -456,27 +456,6 @@
           "method": "gin",
           "concurrently": false
         },
-        "accounts_name_id_idx": {
-          "name": "accounts_name_id_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
         "accounts_tier_idx": {
           "name": "accounts_tier_idx",
           "columns": [
@@ -549,178 +528,6 @@
         "accounts_billing_state_code_check": {
           "name": "accounts_billing_state_code_check",
           "value": "\"accounts\".\"billing_state_code\" is null or \"accounts\".\"billing_state_code\" ~ '^[0-9]{2}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.activities": {
-      "name": "activities",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_principal_id": {
-          "name": "actor_principal_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload_json": {
-          "name": "payload_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "activities_account_created_idx": {
-          "name": "activities_account_created_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "activities_opportunity_created_idx": {
-          "name": "activities_opportunity_created_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "first"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "activities_entity_id_entities_id_fk": {
-          "name": "activities_entity_id_entities_id_fk",
-          "tableFrom": "activities",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "activities_actor_principal_id_principals_id_fk": {
-          "name": "activities_actor_principal_id_principals_id_fk",
-          "tableFrom": "activities",
-          "columnsFrom": [
-            "actor_principal_id"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "activities_pkey": {
-          "name": "activities_pkey",
-          "columns": [
-            "id",
-            "created_at"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "activities_type_check": {
-          "name": "activities_type_check",
-          "value": "\"activities\".\"type\" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged')"
-        },
-        "activities_body_check": {
-          "name": "activities_body_check",
-          "value": "(\"activities\".\"type\" <> 'note') = (\"activities\".\"body\" is null) and (\"activities\".\"body\" is null or char_length(\"activities\".\"body\") between 1 and 2000)"
-        },
-        "activities_payload_check": {
-          "name": "activities_payload_check",
-          "value": "jsonb_typeof(\"activities\".\"payload_json\") = 'object' and octet_length(\"activities\".\"payload_json\"::text) <= 2000"
         }
       },
       "isRLSEnabled": false
@@ -1388,12 +1195,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "evidence_file_id": {
-          "name": "evidence_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1448,21 +1249,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "consents_evidence_file_idx": {
-          "name": "consents_evidence_file_idx",
-          "columns": [
-            {
-              "expression": "evidence_file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -1473,19 +1259,6 @@
             "contact_id"
           ],
           "tableTo": "contacts",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "consents_evidence_file_id_files_id_fk": {
-          "name": "consents_evidence_file_id_files_id_fk",
-          "tableFrom": "consents",
-          "columnsFrom": [
-            "evidence_file_id"
-          ],
-          "tableTo": "files",
           "columnsTo": [
             "id"
           ],
@@ -3631,11 +3404,19 @@
       "checkConstraints": {
         "items_hsn_check": {
           "name": "items_hsn_check",
-          "value": "\"items\".\"hsn\" ~ '^[0-9]{4,8}$'"
+          "value": "\"items\".\"hsn\" ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'"
         },
         "items_unit_check": {
           "name": "items_unit_check",
           "value": "\"items\".\"unit\" in ('nos', 'set', 'metre', 'kg', 'litre', 'kw', 'hour')"
+        },
+        "items_category_check": {
+          "name": "items_category_check",
+          "value": "\"items\".\"category\" in ('pump', 'motor', 'solar_module', 'controller', 'structure', 'cable', 'pipe', 'inverter', 'battery', 'other')"
+        },
+        "items_specs_object_check": {
+          "name": "items_specs_object_check",
+          "value": "jsonb_typeof(\"items\".\"specs_json\") = 'object'"
         }
       },
       "isRLSEnabled": false
@@ -4474,17 +4255,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "opportunities_id_entity_account_unique": {
-          "name": "opportunities_id_entity_account_unique",
-          "columns": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "opportunities_state_check": {
@@ -4496,137 +4267,6 @@
           "value": "\"opportunities\".\"score\" between 0 and 100"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.opportunity_tags": {
-      "name": "opportunity_tags",
-      "schema": "",
-      "columns": {
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tag_id": {
-          "name": "tag_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "opportunity_tags_tag_idx": {
-          "name": "opportunity_tags_tag_idx",
-          "columns": [
-            {
-              "expression": "tag_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "opportunity_tags_tag_id_tags_id_fk": {
-          "name": "opportunity_tags_tag_id_tags_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "tableTo": "tags",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_entity_id_entities_id_fk": {
-          "name": "opportunity_tags_entity_id_entities_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_created_by_principals_id_fk": {
-          "name": "opportunity_tags_created_by_principals_id_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "opportunity_tags_opportunity_fk": {
-          "name": "opportunity_tags_opportunity_fk",
-          "tableFrom": "opportunity_tags",
-          "columnsFrom": [
-            "opportunity_id",
-            "entity_id",
-            "account_id"
-          ],
-          "tableTo": "opportunities",
-          "columnsTo": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "opportunity_tags_pkey": {
-          "name": "opportunity_tags_pkey",
-          "columns": [
-            "opportunity_id",
-            "tag_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.outbox_events": {
@@ -5524,6 +5164,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -5642,6 +5288,10 @@
         "price_lists_effective_check": {
           "name": "price_lists_effective_check",
           "value": "\"price_lists\".\"effective_to\" is null or \"price_lists\".\"effective_to\" > \"price_lists\".\"effective_from\""
+        },
+        "price_lists_approval_check": {
+          "name": "price_lists_approval_check",
+          "value": "(\"price_lists\".\"approved_by\" is null) = (\"price_lists\".\"approved_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -6368,7 +6018,7 @@
       "checkConstraints": {
         "saved_views_screen_check": {
           "name": "saved_views_screen_check",
-          "value": "\"saved_views\".\"screen\" in ('leads', 'team_members', 'price_lists', 'imports', 'customers')"
+          "value": "\"saved_views\".\"screen\" in ('leads', 'team_members', 'price_lists', 'imports', 'catalogue_items', 'catalogue_kits')"
         },
         "saved_views_name_check": {
           "name": "saved_views_name_check",
@@ -6505,417 +6155,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.tags": {
-      "name": "tags",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "archived_at": {
-          "name": "archived_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tags_entity_id_entities_id_fk": {
-          "name": "tags_entity_id_entities_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tags_created_by_principals_id_fk": {
-          "name": "tags_created_by_principals_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tags_updated_by_principals_id_fk": {
-          "name": "tags_updated_by_principals_id_fk",
-          "tableFrom": "tags",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tags_name_length_check": {
-          "name": "tags_name_length_check",
-          "value": "char_length(\"tags\".\"name\") between 1 and 40"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tasks": {
-      "name": "tasks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entity_id": {
-          "name": "entity_id",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opportunity_id": {
-          "name": "opportunity_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assignee_id": {
-          "name": "assignee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "team_id": {
-          "name": "team_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_at": {
-          "name": "due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "done_at": {
-          "name": "done_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "tasks_assignee_state_due_idx": {
-          "name": "tasks_assignee_state_due_idx",
-          "columns": [
-            {
-              "expression": "assignee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_opportunity_idx": {
-          "name": "tasks_opportunity_idx",
-          "columns": [
-            {
-              "expression": "opportunity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_account_state_due_idx": {
-          "name": "tasks_account_state_due_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "due_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "tasks_team_idx": {
-          "name": "tasks_team_idx",
-          "columns": [
-            {
-              "expression": "team_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "tasks_entity_id_entities_id_fk": {
-          "name": "tasks_entity_id_entities_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "tableTo": "entities",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_assignee_id_principals_id_fk": {
-          "name": "tasks_assignee_id_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "assignee_id"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_team_id_teams_id_fk": {
-          "name": "tasks_team_id_teams_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "tableTo": "teams",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_created_by_principals_id_fk": {
-          "name": "tasks_created_by_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_updated_by_principals_id_fk": {
-          "name": "tasks_updated_by_principals_id_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "tableTo": "principals",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "tasks_opportunity_fk": {
-          "name": "tasks_opportunity_fk",
-          "tableFrom": "tasks",
-          "columnsFrom": [
-            "opportunity_id",
-            "entity_id",
-            "account_id"
-          ],
-          "tableTo": "opportunities",
-          "columnsTo": [
-            "id",
-            "entity_id",
-            "account_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "tasks_kind_check": {
-          "name": "tasks_kind_check",
-          "value": "\"tasks\".\"kind\" in ('callback', 'follow_up', 'nurture', 'review')"
-        },
-        "tasks_state_check": {
-          "name": "tasks_state_check",
-          "value": "\"tasks\".\"state\" in ('open', 'done', 'cancelled')"
-        },
-        "tasks_done_at_check": {
-          "name": "tasks_done_at_check",
-          "value": "(\"tasks\".\"state\" <> 'done') = (\"tasks\".\"done_at\" is null)"
-        },
-        "tasks_title_length_check": {
-          "name": "tasks_title_length_check",
-          "value": "char_length(\"tasks\".\"title\") between 1 and 80"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.tax_rates": {
       "name": "tax_rates",
       "schema": "",
@@ -7041,7 +6280,7 @@
         },
         "tax_rates_hsn_check": {
           "name": "tax_rates_hsn_check",
-          "value": "\"tax_rates\".\"hsn\" is null or \"tax_rates\".\"hsn\" ~ '^[0-9]{4,8}$'"
+          "value": "\"tax_rates\".\"hsn\" is null or \"tax_rates\".\"hsn\" ~ '^([0-9]{4}|[0-9]{6}|[0-9]{8})$'"
         },
         "tax_rates_rate_check": {
           "name": "tax_rates_rate_check",

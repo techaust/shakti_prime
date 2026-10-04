@@ -475,105 +475,147 @@
       "idx": 67,
       "version": "7",
       "when": 1790739530819,
-      "tag": "0067_activities",
+      "tag": "0067_catalogue_specs_list_approval",
       "breakpoints": true
     },
     {
       "idx": 68,
       "version": "7",
       "when": 1790739531819,
-      "tag": "0068_activities_rls",
+      "tag": "0068_catalogue_commands",
       "breakpoints": true
     },
     {
       "idx": 69,
       "version": "7",
       "when": 1790739532819,
-      "tag": "0069_tasks",
+      "tag": "0069_catalogue_saved_views",
       "breakpoints": true
     },
     {
       "idx": 70,
       "version": "7",
       "when": 1790739533819,
-      "tag": "0070_tasks_rls",
+      "tag": "0070_catalogue_all_companies",
       "breakpoints": true
     },
     {
       "idx": 71,
       "version": "7",
       "when": 1790739534819,
-      "tag": "0071_tags",
+      "tag": "0071_hsn_four_six_eight",
       "breakpoints": true
     },
     {
       "idx": 72,
       "version": "7",
-      "when": 1790739535819,
-      "tag": "0072_tags_rls",
+      "when": 1791054699887,
+      "tag": "0072_reader_covers_group",
       "breakpoints": true
     },
     {
       "idx": 73,
       "version": "7",
-      "when": 1790739536819,
-      "tag": "0073_customer_edits",
+      "when": 1791054700887,
+      "tag": "0073_activities",
       "breakpoints": true
     },
     {
       "idx": 74,
       "version": "7",
-      "when": 1790739537819,
-      "tag": "0074_consent_evidence",
+      "when": 1791054701887,
+      "tag": "0074_activities_rls",
       "breakpoints": true
     },
     {
       "idx": 75,
       "version": "7",
-      "when": 1790739538819,
-      "tag": "0075_consent_evidence_fixed",
+      "when": 1791054702887,
+      "tag": "0075_tasks",
       "breakpoints": true
     },
     {
       "idx": 76,
       "version": "7",
-      "when": 1790739539819,
-      "tag": "0076_customers_list",
+      "when": 1791054703887,
+      "tag": "0076_tasks_rls",
       "breakpoints": true
     },
     {
       "idx": 77,
       "version": "7",
-      "when": 1790739540819,
-      "tag": "0077_customers_saved_views",
+      "when": 1791054704887,
+      "tag": "0077_tags",
       "breakpoints": true
     },
     {
       "idx": 78,
       "version": "7",
-      "when": 1790739541819,
-      "tag": "0078_customer_search",
+      "when": 1791054705887,
+      "tag": "0078_tags_rls",
       "breakpoints": true
     },
     {
       "idx": 79,
       "version": "7",
-      "when": 1790739542819,
-      "tag": "0079_c2_review",
+      "when": 1791054706887,
+      "tag": "0079_customer_edits",
       "breakpoints": true
     },
     {
       "idx": 80,
       "version": "7",
-      "when": 1790739543819,
-      "tag": "0080_c2_review_rls",
+      "when": 1791054707887,
+      "tag": "0080_consent_evidence",
       "breakpoints": true
     },
     {
       "idx": 81,
       "version": "7",
+      "when": 1791054708887,
+      "tag": "0081_consent_evidence_fixed",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791054709887,
+      "tag": "0082_customers_list",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1791054710887,
+      "tag": "0083_customers_saved_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791054711887,
+      "tag": "0084_customer_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1791054712887,
+      "tag": "0085_c2_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1791054713887,
+      "tag": "0086_c2_review_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
       "when": 1791055563729,
-      "tag": "0081_customers_reader",
+      "tag": "0087_customers_reader",
       "breakpoints": true
     }
   ]

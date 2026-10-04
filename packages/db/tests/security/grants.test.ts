@@ -62,7 +62,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
    * Append-only ledgers take no update, and price history is written only by its trigger;
    * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
-   * user_entity_roles is the one table replaced as a set (docs/DATABASE.md §6.1).
+   * user_entity_roles, a kit's components and a pump's curve are replaced as a set
+   * (docs/DATABASE.md §6.1, §6.3).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
@@ -80,6 +81,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
+    kit_components: { i: true, u: true, d: true },
+    pump_curves: { i: true, u: true, d: true },
     users: { i: true, u: false },
     // A saved template is written once; a job and a row update only their working columns,
     // never what the file said (migration 0041); a stored file only its status and the checks'
@@ -357,6 +360,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       'app.customer_search_ids(text,text,integer)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // The catalogue and GST rates screens ask it before they offer a change (0072).
+      'app.request_covers_group()',
       'app.user_is_active(uuid)',
     ]);
   });

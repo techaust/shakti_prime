@@ -10,6 +10,8 @@ export const SavedViewScreenSchema = z.enum([
   'team_members',
   'price_lists',
   'imports',
+  'catalogue_items',
+  'catalogue_kits',
   'customers',
 ]);
 export type SavedViewScreen = z.infer<typeof SavedViewScreenSchema>;

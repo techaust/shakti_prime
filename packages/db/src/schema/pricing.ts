@@ -42,7 +42,9 @@ export const priceLists = pgTable(
     version: integer('version').notNull().default(1),
     effectiveFrom: date('effective_from').notNull(),
     effectiveTo: date('effective_to'),
+    /** Set with `approved_at` by `pricing.list.approve`; a list prices nothing before it. */
     approvedBy: uuid('approved_by').references(() => principals.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
     ...archivable,
     ...timestamps,
     ...actors,
@@ -55,6 +57,7 @@ export const priceLists = pgTable(
       'price_lists_effective_check',
       sql`${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom}`,
     ),
+    check('price_lists_approval_check', sql`(${t.approvedBy} is null) = (${t.approvedAt} is null)`),
   ],
 );
 

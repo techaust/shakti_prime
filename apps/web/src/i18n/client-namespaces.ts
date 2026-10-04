@@ -21,6 +21,8 @@ export const CLIENT_NAMESPACES = [
   'activity',
   'imports',
   'customers',
+  'catalogue',
+  'taxSettings',
   'integrations',
   'files',
 ] as const;

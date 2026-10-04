@@ -24,6 +24,7 @@ export const BOS_PREFIXES = [
   '/customers',
   '/imports',
   '/price-master',
+  '/catalogue',
   '/admin',
   '/settings',
   '/design',

@@ -27,6 +27,7 @@ vi.mock('../src/auth/current-principal', () => ({
 const { createLead, leadFormOptions, listBoardStageLeads, listBoardLeads } =
   await import('../src/actions/crm');
 const { listPriceLists } = await import('../src/actions/pricing');
+const catalogue = await import('../src/actions/catalogue');
 
 afterAll(async () => {
   await closeAuthDb();
@@ -167,5 +168,26 @@ describe('listBoardStageLeads', () => {
     await expect(
       listBoardStageLeads({ pipelineKey: 'farmer_pumps', stageId: more.stageId, cursor: 'x' }),
     ).resolves.toEqual({ ok: false, error: 'unauthorized' });
+  });
+});
+
+describe('the catalogue reads', () => {
+  it('answer as the screen opens: signed out, refused without pricing.read, open with it', async () => {
+    await expect(catalogue.listItems({ limit: 5 })).resolves.toEqual({
+      ok: false,
+      error: 'unauthorized',
+    });
+    request.principal = principalFor('field_engineer', [1]);
+    for (const read of [
+      () => catalogue.listItems({ limit: 5 }),
+      () => catalogue.listKits({ limit: 5 }),
+      () => catalogue.getItem({ itemId: newId() }),
+      () => catalogue.getKit({ kitId: newId() }),
+    ]) {
+      await expect(read()).resolves.toMatchObject({ ok: false, error: 'forbidden' });
+    }
+    request.principal = principalFor('tele_caller_cc', [1]);
+    expect(ok(await catalogue.listItems({ limit: 5 })).items.length).toBeLessThanOrEqual(5);
+    expect(ok(await catalogue.listKits({ limit: 5 })).items.length).toBeLessThanOrEqual(5);
   });
 });

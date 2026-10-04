@@ -7,6 +7,13 @@ import type {
   CustomerLanguage,
   CustomerSort,
   ContrastPreference,
+  ItemCategory,
+  ItemSort,
+  ItemUnit,
+  KitPriceSort,
+  KitSort,
+  PriceListState,
+  SpecField,
   FilePurpose,
   FileRejectReason,
   FileSanitising,
@@ -187,6 +194,8 @@ export const SAVED_VIEW_SCREENS = [
   'team_members',
   'price_lists',
   'imports',
+  'catalogue_items',
+  'catalogue_kits',
   'customers',
 ] as const satisfies readonly SavedViewScreen[];
 
@@ -214,6 +223,120 @@ export const IMPORT_JOB_SORT_COLUMNS = [
   'startedBy',
   'started',
 ] as const satisfies readonly ImportJobSort['column'][];
+
+export const ITEM_SORT_COLUMNS = [
+  'name',
+  'sku',
+  'category',
+  'hsn',
+  'updated',
+] as const satisfies readonly ItemSort['column'][];
+export const KIT_SORT_COLUMNS = [
+  'name',
+  'sku',
+  'updated',
+] as const satisfies readonly KitSort['column'][];
+export const KIT_PRICE_SORT_COLUMNS = [
+  'kit',
+  'code',
+  'price',
+  'updated',
+] as const satisfies readonly KitPriceSort['column'][];
+
+/** Item categories, in the order the item form offers them. */
+export const ITEM_CATEGORIES = [
+  'pump',
+  'motor',
+  'solar_module',
+  'controller',
+  'structure',
+  'cable',
+  'pipe',
+  'inverter',
+  'battery',
+  'other',
+] as const satisfies readonly ItemCategory[];
+
+/** Units an item is counted in. */
+export const ITEM_UNITS = [
+  'nos',
+  'set',
+  'metre',
+  'kg',
+  'litre',
+  'kw',
+  'hour',
+] as const satisfies readonly ItemUnit[];
+
+/** Where a price list stands today. */
+export const PRICE_LIST_STATES = [
+  'draft',
+  'scheduled',
+  'live',
+  'ended',
+] as const satisfies readonly PriceListState[];
+
+/** The price tiers the group sells at (docs/BLUEPRINT.md §8.3), in the order lists are offered. */
+export const PRICE_TIER_CODES = ['retail', 'dealer', 'commercial'] as const;
+
+const HP: SpecField = { key: 'hp', kind: 'number', min: 0.1, max: 1000, decimals: 2 };
+const KW: SpecField = { key: 'kw', kind: 'number', min: 0.01, max: 10_000, decimals: 2 };
+const PHASE: SpecField = { key: 'phase', kind: 'choice', options: ['single', 'three'] };
+
+/** How the item form asks for each category's specifications (`ITEM_SPEC_FIELDS`). */
+export const ITEM_SPEC_FIELDS: Readonly<Record<ItemCategory, readonly SpecField[]>> = {
+  pump: [
+    HP,
+    KW,
+    PHASE,
+    { key: 'pumpType', kind: 'choice', options: ['surface', 'submersible'] },
+    { key: 'outletMm', kind: 'number', min: 1, max: 1000, decimals: 0 },
+    { key: 'maxHeadM', kind: 'number', min: 1, max: 2000, decimals: 1 },
+  ],
+  motor: [HP, KW, PHASE],
+  solar_module: [{ key: 'wp', kind: 'number', min: 1, max: 2000, decimals: 0 }],
+  controller: [
+    KW,
+    { key: 'inputMinV', kind: 'number', min: 1, max: 2000, decimals: 0 },
+    { key: 'inputMaxV', kind: 'number', min: 1, max: 2000, decimals: 0 },
+  ],
+  structure: [],
+  cable: [],
+  pipe: [
+    { key: 'nominalSizeMm', kind: 'number', min: 1, max: 2000, decimals: 0 },
+    { key: 'material', kind: 'text', maxLength: 40 },
+  ],
+  inverter: [KW],
+  battery: [],
+  other: [],
+};
+
+/** Every specification key, and those measured in numbers (each has a unit on screen). */
+export const SPEC_KEYS = [
+  'hp',
+  'kw',
+  'phase',
+  'pumpType',
+  'outletMm',
+  'maxHeadM',
+  'wp',
+  'inputMinV',
+  'inputMaxV',
+  'nominalSizeMm',
+  'material',
+] as const;
+export type SpecKey = (typeof SPEC_KEYS)[number];
+export const NUMERIC_SPEC_KEYS = [
+  'hp',
+  'kw',
+  'outletMm',
+  'maxHeadM',
+  'wp',
+  'inputMinV',
+  'inputMaxV',
+  'nominalSizeMm',
+] as const satisfies readonly SpecKey[];
+export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
