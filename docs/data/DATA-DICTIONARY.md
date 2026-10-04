@@ -108,7 +108,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### permissions
 
-**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as §4.4 sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -170,7 +170,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### role_permissions
 
-**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as §4.4 sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -212,7 +212,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### roles
 
-**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as §4.4 sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -599,7 +599,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_entities
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0015): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read ([§4.4](#account_entities))
+**Catalogue entry** (DATABASE.md §6.2; created in 0015): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -698,7 +698,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### activities
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0075; partitioned by month; partitioned by range (created_at)): `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json`, `body`, `created_at`; primary key `(id, created_at)`; append-only ([§4.4](#activities))
+**Catalogue entry** (DATABASE.md §6.2; created in 0075; partitioned by month; partitioned by range (created_at)): `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json`, `body`, `created_at`; primary key `(id, created_at)`; append-only (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1624,7 +1624,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### price_lists
 
-**Catalogue entry** (DATABASE.md §6.3; created in 0007): `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); drafts, approval and withdrawal as [§4.4](#price_lists) sets out
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); drafts, approval and withdrawal as §4.4 sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1867,7 +1867,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### files
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead ([§4.4](#files))
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2133,7 +2133,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### outbox_events
 
-**Catalogue entry** (DATABASE.md §6.10; created in 0034; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping ([§4.4](#outbox_events))
+**Catalogue entry** (DATABASE.md §6.10; created in 0034; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

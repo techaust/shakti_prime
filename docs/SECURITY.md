@@ -254,7 +254,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 
 ## 8. Application security
 - CSP with nonces; CSRF origin checks on server actions; Zod validation on every input; output encoding by React.
-- **Uploads:** each purpose names the permission that creates and reads its files (`app.file_purpose_grant()`, 0066, mirrored by `packages/domain/src/files/purposes.ts`; the list is DATABASE §6.10, `files`). No AI agent holds any of those write permissions, and the checks run as the worker principal with `files.process`, which no person's role or AI agent holds; a person changes only their own pending upload's status.
+- **Uploads:** each purpose names the permission that creates and reads its files (`app.file_purpose_grant()`, 0066, mirrored by `packages/domain/src/files/purposes.ts`; the list is [DATABASE §4.4](DATABASE.md#files)). No AI agent holds any of those write permissions, and the checks run as the worker principal with `files.process`, which no person's role or AI agent holds; a person changes only their own pending upload's status.
   - Each purpose also names its types and largest size (`files/limits.ts`, checked by `files.upload.begin` and by the uploader before sending).
   - A pre-signed PUT lasts 15 minutes and binds the type, length, SHA-256 and SSE-KMS encryption into its signature, and `files.upload.complete` checks the stored size and SHA-256.
   - The bucket blocks public access, enforces its owner, keeps versions, refuses calls without TLS and accepts browser uploads from the environment's own address only (`infra/aws/files.yaml`, ADR 0019).
