@@ -1,6 +1,7 @@
 import {
   AgentRoleKeySchema,
   DomainError,
+  hasGrant,
   IdSchema,
   INBOX_COUNT_LIMIT,
   InboxItemDto,
@@ -9,7 +10,8 @@ import {
   type InboxPageDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { AGENT_ACTION_TYPES, editableFields } from '../../ai/action-types';
 import { checkPermission, isAgent } from '../../command/run-command';
@@ -23,6 +25,22 @@ function checkInbox(ctx: Ctx): void {
     throw new DomainError('forbidden', 'the Agent Inbox is for people, not agents');
   }
   checkPermission(ctx.principal, 'agents.inbox.act', 'own');
+}
+
+/**
+ * The rows the caller's inbox scope reaches, stated as the read policy states them, so the
+ * planner can use the assignee and team indexes: own scope reads the caller's items, team scope
+ * their team's as well, company scope every item of the company.
+ */
+function inboxScope(ctx: Ctx): SQL | undefined {
+  const i = schema.inboxItems;
+  const perms = ctx.principal.permissions;
+  if (hasGrant(perms, 'agents.inbox.act', 'entity')) return undefined;
+  const mine = eq(i.assigneeId, ctx.principal.id);
+  const team = ctx.principal.teamId;
+  return hasGrant(perms, 'agents.inbox.act', 'team') && team !== undefined
+    ? or(mine, eq(i.teamId, team))
+    : mine;
 }
 
 const InboxCursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
@@ -45,6 +63,7 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
   const a = schema.agentActions;
   const o = schema.opportunities;
   const acc = schema.accounts;
+  const subjectAccount = alias(schema.accounts, 'subject_account');
   const rows = await ctx.tx
     .select({
       item: i,
@@ -52,21 +71,20 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
       actionType: a.actionType,
       autonomy: a.autonomy,
       input: a.inputJson,
-      accountName: acc.name,
-      accountId: acc.id,
+      accountName: sql<string | null>`coalesce(${acc.name}, ${subjectAccount.name})`,
+      accountId: sql<string | null>`coalesce(${acc.id}, ${subjectAccount.id})`,
       createdText: sql<string>`${i.createdAt}::text`,
     })
     .from(i)
     .leftJoin(a, and(eq(a.id, i.agentActionId), eq(a.entityId, i.entityId)))
     .leftJoin(o, and(eq(i.subjectType, 'opportunity'), eq(o.id, i.subjectId)))
-    .leftJoin(
-      acc,
-      sql`${acc.id} = case when ${i.subjectType} = 'account' then ${i.subjectId} else ${o.accountId} end`,
-    )
+    .leftJoin(acc, eq(acc.id, o.accountId))
+    .leftJoin(subjectAccount, and(eq(i.subjectType, 'account'), eq(subjectAccount.id, i.subjectId)))
     .where(
       and(
         eq(i.state, 'open'),
         inArray(i.entityId, [...ctx.entityIds]),
+        inboxScope(ctx),
         after === undefined
           ? undefined
           : sql`(${i.createdAt}, ${i.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
@@ -110,10 +128,12 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
 export async function countInbox(ctx: Ctx): Promise<InboxCountDto> {
   checkInbox(ctx);
   const i = schema.inboxItems;
-  const [row] = (await ctx.tx.execute(sql`
-    select count(*)::int as open from (
-      select 1 from ${i}
-       where ${i.state} = 'open' and ${i.entityId} = any(${`{${ctx.entityIds.join(',')}}`}::int[])
-       limit ${INBOX_COUNT_LIMIT}) open_items`)) as unknown as { open: number }[];
+  const open = ctx.tx
+    .select({ one: sql`1` })
+    .from(i)
+    .where(and(eq(i.state, 'open'), inArray(i.entityId, [...ctx.entityIds]), inboxScope(ctx)))
+    .limit(INBOX_COUNT_LIMIT)
+    .as('open_items');
+  const [row] = await ctx.tx.select({ open: sql<number>`count(*)::int` }).from(open);
   return { open: row?.open ?? 0 };
 }
