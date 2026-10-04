@@ -72,7 +72,7 @@ test.describe('as a GM', () => {
     await uploadImport(page, 'customers.csv', [
       'Name,Mobile,Village',
       `Kamla Devi,${repeated},Kishangarh`,
-      `Kamla Devi,${repeated},Kishangarh`,
+      `Kamla Devi,${repeated},Ajmer`,
       `Ramesh Gurjar,${freshMobile()},Nasirabad`,
     ]);
     await expectNoAxeViolations(page);
@@ -87,11 +87,13 @@ test.describe('as a GM', () => {
     await expect(page.getByRole('button', { name: 'Add 2 customers' })).toBeVisible({
       timeout: 60_000,
     });
-    // The second row of one mobile number is folded into the first customer.
+    // The second row of one mobile number is folded into the first customer, with its other site.
     await page.getByLabel('Show').selectOption({ label: 'All rows' });
     await expect(
       page
-        .getByText('Same mobile number as row 1. Its company is added to that customer.')
+        .getByText(
+          'Same mobile number as row 1. Its company and its site are added to that customer.',
+        )
         // The rows show as a table on a wide screen and as cards on a phone.
         .filter({ visible: true }),
     ).toBeVisible();
