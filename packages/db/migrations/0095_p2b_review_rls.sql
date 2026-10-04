@@ -14,7 +14,8 @@ create or replace function app.platform_only_permissions() returns text[]
   select array['files.process', 'imports.process']::text[]
 $$;
 --> statement-breakpoint
-create policy import_jobs_process_read on import_jobs for select to app_user using (
+-- The queries' own role reads under the same rule, as every select policy of app_user.
+create policy import_jobs_process_read on import_jobs for select to app_user, app_reader using (
   entity_id = any ((select app.entity_ids())::int[])
   and (select app.has_perm('imports.process:entity')));
 --> statement-breakpoint
