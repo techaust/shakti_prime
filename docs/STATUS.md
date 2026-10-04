@@ -2,7 +2,7 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [DECISIONS.md](DECISIONS.md); open follow-ups have their single home here.
 
-**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the owner paused the slice work for two passes over the documents (#91 to #96, the second with the work for cloud sessions and the PC). Migrations on `main`: 0000 to 0089. Tests: security suite 1,605 (database 897, domain 502, web 206) after #89; unit tests 2,477 after #96.
+**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the owner paused the slice work for two passes over the documents (#91 to #96, the second with the work for cloud sessions and the PC; the screen mock-up published as a private link). Migrations on `main`: 0000 to 0089. Tests: security suite 1,605 (database 897, domain 502, web 206) after #89; unit tests 2,477 after #96.
 
 ## Phase 1
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
@@ -35,6 +35,7 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 ## Waiting on the owner
 - Decide when the slice work resumes.
 - The cloud environment, once: install the Claude GitHub App on the repository and create the environment `shakti-prime` ([hybrid §3](runbooks/hybrid.md#3-the-cloud-environment-once)).
+- Share the screen mock-up with the screen-review people from its Share menu: it is published privately at https://claude.ai/artifact/RHcRKwSryk9nyxzmVMZRPU (04-10-2026), and only the owner can open it until it is shared.
 - Sentry privacy settings: Data Scrubber, the default scrubbers and *Prevent Storing of IP Addresses* in the project's security settings.
 - The AWS files stack for dev, then staging ([files-setup](runbooks/files-setup.md), about 20 minutes each); `FILES_BUCKET` and the other variables are set only as the owner directs.
 - Optional: delete the superseded remote branches `feat/p2-files-storage`, `feat/c3-pipelines-scoring`, `feat/c4-sizing` and the local backup branches.
@@ -46,7 +47,6 @@ Two of the six exit-gate items are met (the security suite and the tooling); the
 |---|---|
 | The cloud trial: a review, then a build, then a merge with `main` and integration in a cloud session ([hybrid §10](runbooks/hybrid.md#10-the-trial)) | 1 / P4's review first |
 | The demo data loader for the screen review: a small, clearly labelled set (items, kits, prices, a few customers) and one account per role, on staging only, removed after the reviews | 1 / before the screen review |
-| The updated mock-up (built screens marked built) published as a private link for the reviewers | 1 / before the screen review |
 | Account 360's final measure on a quiet machine at integration and on the hosted stack ([design §6.5](design/phase1.md#65-c2-customer-timeline)) | 1 / the next integration |
 | Imports on the pre-signed uploads with a streaming workbook reader, the server-action body limit brought back down; the sweep of abandoned pending uploads; customer imports with the PIN code master (PRD CRM-02); the import measured on the hosted stack (concurrent batch workers only if it misses five minutes); the slow import dedupe query on large data | 1 / P2b |
 | Per-company logos with the letterhead; print snapshot tests with the ADR 0009 hosting | 1 / P4 |
