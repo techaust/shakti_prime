@@ -395,17 +395,17 @@ describe('stages', () => {
   describe('a lead moving into a stage and the stage being archived (L1)', () => {
     /** A transaction that runs `work`, then holds its locks until `release` is called. */
     function held(principal: Principal, command: AnyCommand, input: unknown) {
-      let release = () => {};
+      let release: () => void = () => undefined;
       const gate = new Promise<void>((resolve) => {
         release = resolve;
       });
-      let ran = () => {};
+      let ran: () => void = () => undefined;
       const reached = new Promise<void>((resolve) => {
         ran = resolve;
       });
       const done = asPrincipal(principal, async (context) => {
         try {
-          return await runCommand(command, { context, audit, outbox }, input);
+          return (await runCommand(command, { context, audit, outbox }, input)) as unknown;
         } finally {
           ran();
           await gate;

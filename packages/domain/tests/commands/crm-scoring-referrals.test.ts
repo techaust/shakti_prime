@@ -465,13 +465,12 @@ describe('crm.lead.create with a referral code and score rules', () => {
     const done = await attributed(caller, leadInput(code.toLowerCase()));
     expect(done.partner).toBe(partners.at(-1));
     // The lead's creation row records the partner and the score.
-    expect(done.audit).toEqual([
-      expect.objectContaining({
-        aggregateType: 'opportunity',
-        aggregateId: done.id,
-        after: expect.objectContaining({ referralPartnerId: partners.at(-1), score: 50 }),
-      }),
-    ]);
+    expect(done.audit).toHaveLength(1);
+    expect(done.audit[0]).toMatchObject({
+      aggregateType: 'opportunity',
+      aggregateId: done.id,
+      after: { referralPartnerId: partners.at(-1), score: 50 },
+    });
   });
 
   it('refuses the whole lead for a code no active partner has', async () => {
@@ -508,9 +507,8 @@ describe('crm.lead.create with a referral code and score rules', () => {
       expect(walkIn.scoreReasons).toEqual([
         expect.objectContaining({ factor: 'source', points: 25 }),
       ]);
-      expect(walkIn.audit).toEqual([
-        expect.objectContaining({ after: expect.objectContaining({ score: 75 }) }),
-      ]);
+      expect(walkIn.audit).toHaveLength(1);
+      expect(walkIn.audit[0]).toMatchObject({ after: { score: 75 } });
       expect(await scoreOf(walkIn.id)).toMatchObject({ score: 75, by: caller.id });
     } finally {
       await asMigrator(
