@@ -12,6 +12,9 @@ export const OUTBOX_FAILED_PATH = '/api/v1/workers/outbox/failed';
 /** Where QStash calls the import worker, once per commit and again while a job has rows left. */
 export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
 
+/** Where the nightly schedule calls the lead rescoring worker, and a run hands on the rest. */
+export const LEAD_RESCORE_PATH = '/api/v1/workers/crm/rescore';
+
 /** A queue call that takes longer than this counts as failed; the next run tries again. */
 const QUEUE_TIMEOUT_MS = 5_000;
 const NUDGE_TIMEOUT_MS = 1_000;
@@ -187,6 +190,26 @@ export async function publishImportCommit(
   await withTimeout(
     client(config).publishJSON({
       url: workerUrl(config, IMPORT_COMMIT_PATH),
+      body,
+      retries: 3,
+      deduplicationId,
+    }),
+    QUEUE_TIMEOUT_MS,
+  );
+}
+
+/**
+ * Asks QStash to call the lead rescoring worker with the rest of a run; retried if the worker
+ * fails, and sent once for a `deduplicationId` already taken.
+ */
+export async function publishLeadRescore(
+  config: QStashConfig,
+  body: unknown,
+  deduplicationId: string,
+): Promise<void> {
+  await withTimeout(
+    client(config).publishJSON({
+      url: workerUrl(config, LEAD_RESCORE_PATH),
       body,
       retries: 3,
       deduplicationId,

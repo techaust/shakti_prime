@@ -19,7 +19,7 @@ import {
   updateStage,
 } from '../commands/crm/pipeline-settings';
 import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
-import { rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
 import { setDispositions } from '../commands/crm/set-dispositions';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
@@ -74,6 +74,7 @@ export const commands = {
   [setDispositions.name]: setDispositions,
   [setScoreRules.name]: setScoreRules,
   [rescoreLead.name]: rescoreLead,
+  [refreshLeadScores.name]: refreshLeadScores,
   [setReferralPartner.name]: setReferralPartner,
   [setCommissionRule.name]: setCommissionRule,
   [createTask.name]: createTask,

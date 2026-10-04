@@ -14,5 +14,12 @@ export const SYSTEM_WORKERS_PRINCIPAL_ID = '01990000-0000-7000-8000-000000000501
  * SECURITY §3.3.
  */
 export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = {
-  'system:workers': [{ key: 'files.process', scope: 'all' }],
+  'system:workers': [
+    { key: 'files.process', scope: 'all' },
+    // The nightly rescoring (`crm.lead.score_refresh`): it reads each open lead with the district
+    // of its site, and writes only the score.
+    { key: 'crm.lead.read', scope: 'entity' },
+    { key: 'crm.lead.write', scope: 'entity' },
+    { key: 'crm.account.read', scope: 'entity' },
+  ],
 };

@@ -34,7 +34,7 @@ export {
   updateStage,
 } from './commands/crm/pipeline-settings';
 export { setDispositions } from './commands/crm/set-dispositions';
-export { rescoreLead, setScoreRules } from './commands/crm/score-rules';
+export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
 export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
 export { scoreLead } from './crm/score';
@@ -132,7 +132,7 @@ export { jsonLogger, memoryLogger, redact, redactError, redactText } from './por
 export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
-export { listEntities } from './queries/org/list-entities';
+export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { toEntityDto } from './queries/org/entity-dto';

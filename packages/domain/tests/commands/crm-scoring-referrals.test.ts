@@ -1,4 +1,4 @@
-import { newId, type Principal } from '@shakti/contracts';
+import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -14,7 +14,7 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
-import { rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
+import { refreshLeadScores, rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
 // Score rules are matched to a district of this run only, so rescoring never changes another
@@ -284,6 +284,81 @@ describe('crm.lead.rescore', () => {
     expect(
       await refusal(run(gmTwo, rescoreLead, { entityId: 2, opportunityId: l.id })),
     ).toMatchObject({ code: 'not_found', details: { reason: 'lead_missing' } });
+  });
+});
+
+describe('crm.lead.score_refresh', () => {
+  /** The nightly worker's principal, scoped to one company as it runs. */
+  const workers = (entityId: number): Principal => ({
+    ...principalFor('system:workers', [entityId]),
+    id: SYSTEM_WORKERS_PRINCIPAL_ID,
+    kind: 'system',
+  });
+
+  /** Every batch of company 1, as the worker runs them; the audit rows it wrote. */
+  async function sweep(principal: Principal) {
+    const recorded = memoryAuditSink();
+    let afterId: string | null = null;
+    let rescored = 0;
+    do {
+      const batch = (await asPrincipal(principal, (context) =>
+        runCommand(
+          refreshLeadScores,
+          { context, audit: recorded, outbox },
+          { entityId: 1, afterId },
+        ),
+      )) as { rescored: number; nextAfterId: string | null };
+      rescored += batch.rescored;
+      afterId = batch.nextAfterId;
+    } while (afterId !== null);
+    return { rescored, audit: recorded.records };
+  }
+
+  it('is refused to a caller who may write only their own leads, and outside the request', async () => {
+    expect(
+      await refusal(run(caller, refreshLeadScores, { entityId: 1, afterId: null })),
+    ).toMatchObject({ code: 'forbidden' });
+    expect(
+      await refusal(run(workers(2), refreshLeadScores, { entityId: 1, afterId: null })),
+    ).toMatchObject({ code: 'forbidden' });
+  });
+
+  it('catches up a lead whose district changed and one that aged past a rule (M1, M2)', async () => {
+    const district = `Nightly ${DISTRICT}`;
+    const moved = await lead('farm', 'Somewhere else');
+    const old = await lead('farm', `Old ${DISTRICT}`);
+    // Ten years and a day old: the only lead of company 1 an age rule of ten years reaches.
+    await asMigrator(
+      (m) =>
+        m`update opportunities set created_at = now() - interval '3651 days' where id = ${old.id}`,
+    );
+    await asMigrator(async (m) => {
+      await m`insert into lead_score_rules (id, entity_id, segment, factor, match_json, points, position, created_by)
+              values (${newId()}, 1, null, 'district', ${m.json({ districts: [district] })}, 20, 1, ${exec.id}),
+                     (${newId()}, 1, null, 'age_days', ${m.json({ minDays: 3650 })}, -30, 2, ${exec.id})`;
+      // The site's district is recorded after the lead was scored.
+      await m`update customer_sites set district = ${district}
+               where id = (select site_id from opportunities where id = ${moved.id})`;
+    });
+    try {
+      expect(await scoreOf(moved.id)).toMatchObject({ score: 50 });
+      const first = await sweep(workers(1));
+      expect(await scoreOf(moved.id)).toMatchObject({ score: 70, by: SYSTEM_WORKERS_PRINCIPAL_ID });
+      expect(await scoreOf(old.id)).toMatchObject({ score: 20, by: SYSTEM_WORKERS_PRINCIPAL_ID });
+      expect(first.rescored).toBeGreaterThanOrEqual(2);
+      // One row for each batch that changed a lead, counting them.
+      const rows = first.audit.filter((r) => r.after !== null);
+      expect(rows).not.toHaveLength(0);
+      expect(rows.every((r) => r.aggregateType === 'lead_score_batch')).toBe(true);
+      // Nothing moved since: the next night writes nothing.
+      const again = await sweep(workers(1));
+      expect(again.rescored).toBe(0);
+    } finally {
+      await asMigrator(
+        (m) => m`update lead_score_rules set archived_at = now() where created_by = ${exec.id}`,
+      );
+      await sweep(workers(1));
+    }
   });
 });
 

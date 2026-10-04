@@ -1,7 +1,9 @@
 import {
   DomainError,
   LeadScoreDto,
+  LeadScoreRefreshDto,
   newId,
+  RefreshLeadScoresInput,
   RescoreLeadInput,
   ScoreFactorSchema,
   ScoreRuleDto,
@@ -234,6 +236,56 @@ export const rescoreLead = defineCommand({
       score: next.score,
       reasons: next.reasons,
       scoreChangedAt: change ? ctx.now.toISOString() : (row.scoreChangedAt?.toISOString() ?? null),
+    });
+  },
+});
+
+/**
+ * `crm.lead.score_refresh` (CRM-06): the next `RESCORE_BATCH` open and nurture leads of a company,
+ * in id order after `afterId`, scored again with the rules that apply to them now. A score is
+ * written when a rule changes (`crm.score_rule.set`) and when a lead is made; this catches what
+ * moves without either: the age of a lead (`age_days` rules) and the details it gained since, such
+ * as its site's district. The nightly rescoring worker runs it batch by batch as `system:workers`
+ * (`apps/web/src/workers/lead-rescore.ts`); one audit row records each batch that changed a lead.
+ */
+export const refreshLeadScores = defineCommand({
+  name: 'crm.lead.score_refresh',
+  permission: 'crm.lead.write',
+  minScope: 'entity',
+  input: RefreshLeadScoresInput,
+  output: LeadScoreRefreshDto,
+  auditFields: ['rows'],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    const rules = await loadScoreRules(ctx, [input.entityId]);
+    const inScope = sql.join(
+      [
+        eq(o.entityId, input.entityId),
+        isNull(o.archivedAt),
+        inArray(o.state, ['open', 'nurture']),
+        ...(input.afterId === null ? [] : [gt(o.id, input.afterId)]),
+      ],
+      sql` and `,
+    );
+    const leads = await loadScoreFacts(ctx, inScope, RESCORE_BATCH);
+    const changes = rescore(leads, rules, ctx.now);
+    const written = await writeScores(ctx, changes);
+    if (written !== changes.length) {
+      throw new DomainError('forbidden', 'a lead in scope is outside the caller write scope');
+    }
+    if (written > 0) {
+      ctx.audit({
+        aggregateType: 'lead_score_batch',
+        aggregateId: newId(),
+        entityId: input.entityId,
+        before: null,
+        after: { rows: written },
+      });
+    }
+    return LeadScoreRefreshDto.parse({
+      entityId: input.entityId,
+      rescored: written,
+      nextAfterId: leads.length === RESCORE_BATCH ? (leads.at(-1)?.id ?? null) : null,
     });
   },
 });

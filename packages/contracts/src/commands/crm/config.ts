@@ -273,6 +273,26 @@ export const RescoreLeadInput = z
   .strict();
 export type RescoreLeadInput = z.infer<typeof RescoreLeadInput>;
 
+/**
+ * `crm.lead.score_refresh`: the next batch of a company's open and nurture leads, in id order after
+ * `afterId` (null to start), scored again with the rules that apply to them now. The nightly
+ * rescoring worker runs it, so a score follows the age of a lead and the details it gained since.
+ */
+export const RefreshLeadScoresInput = z
+  .object({ entityId: EntityIdSchema, afterId: IdSchema.nullable() })
+  .strict();
+export type RefreshLeadScoresInput = z.infer<typeof RefreshLeadScoresInput>;
+
+/** How many leads of the batch changed, and where the next batch starts (null when done). */
+export const LeadScoreRefreshDto = z
+  .object({
+    entityId: EntityIdSchema,
+    rescored: z.number().int().min(0),
+    nextAfterId: IdSchema.nullable(),
+  })
+  .strict();
+export type LeadScoreRefreshDto = z.infer<typeof LeadScoreRefreshDto>;
+
 export const LeadScoreDto = z
   .object({
     opportunityId: IdSchema,
