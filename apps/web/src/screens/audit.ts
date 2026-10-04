@@ -100,6 +100,8 @@ const ACTIONS = {
   'files.file.mark_ready': 'fileReady',
   'files.file.reject': 'fileRejected',
   'files.file.recheck': 'filesRecheck',
+  'files.document.record': 'fileRendered',
+  'print.proof.request': 'printProofRequest',
   'integrations.dlq.replay': 'deadLetterReplay',
   'platform.probe.run': 'deliveryCheck',
   'admin.user.invite': 'userInvite',
@@ -182,6 +184,7 @@ const EVENT_NAMES = {
   'imports.job.rolled_back': 'importRolledBack',
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
+  'print.document.requested': 'documentRequested',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -276,6 +279,7 @@ const CODE_GROUPS = [
   'scanVerdict',
   'sanitising',
   'scanStatus',
+  'documentType',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -323,6 +327,7 @@ const FIELD_KINDS = [
   ['addressLine2', 'text'],
   ['city', 'text'],
   ['pin', 'text'],
+  ['bankAccount', 'text'],
   ['price', 'money'],
   ['reason', 'text'],
   ['revokedAt', 'time'],
@@ -447,6 +452,8 @@ const FIELD_KINDS = [
   ['regionsMasked', 'number'],
   ['rejectReason', 'errorCode'],
   ['scanStatus', 'scanStatus'],
+  // Printed documents
+  ['documentType', 'documentType'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -115,6 +115,41 @@ describe('qstashEventPublisher', () => {
     expect(queue.options[0]).toMatchObject({ enableTelemetry: false, devMode: false });
   });
 
+  it('sends a document to print to the render route as its job, with no queue group', async () => {
+    const proof: DeliveredEvent = {
+      ...event('print.document.requested'),
+      entityId: 3,
+      aggregateType: 'print_proof',
+      payload: {
+        documentType: 'company_letterhead_proof',
+        documentId: newId(),
+        version: 1,
+        v: 1,
+      },
+    };
+    queue.batchJSON.mockResolvedValue([{ messageId: 'm1', url: 'u' }]);
+    const results = await qstashEventPublisher(config).publish([proof]);
+    expect(queue.batchJSON).toHaveBeenCalledWith([
+      {
+        url: 'https://bos.example.in/api/v1/workers/pdf/render',
+        body: {
+          eventId: proof.id,
+          entityId: 3,
+          target: {
+            kind: 'document',
+            documentType: 'company_letterhead_proof',
+            documentId: proof.payload.documentId,
+            version: 1,
+          },
+        },
+        deduplicationId: proof.id,
+        failureCallback: 'https://bos.example.in/api/v1/workers/outbox/failed',
+      },
+    ]);
+    expect(queue.addEndpoints).not.toHaveBeenCalled();
+    expect(results).toEqual([{ id: proof.id, ok: true }]);
+  });
+
   it('fails an event the queue refused or did not answer for', async () => {
     const events = [event(), event(), event()];
     queue.batchJSON.mockResolvedValue([{ error: 'url group not found' }, []]);

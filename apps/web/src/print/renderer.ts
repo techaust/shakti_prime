@@ -1,8 +1,14 @@
-// Headless Chromium rendering for PDFs and labels (BLUEPRINT §5, ARCHITECTURE §9, ADR 0009 to
-// come). One browser per worker process; one page per document. The page may not reach the
-// network: templates carry everything inline, and a customer's text inside a template must
-// never be able to make the renderer fetch anything.
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
+// Headless Chromium rendering for PDFs and labels (BLUEPRINT §5, ARCHITECTURE §9, ADR 0009).
+// One browser per worker process, kept warm between jobs; one page per document. The page may not
+// reach the network: templates carry everything inline, and a customer's text inside a template
+// must never be able to make the renderer fetch anything.
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type LaunchOptions,
+  type Page,
+} from 'playwright-core';
 import { LABEL_SIZES, type LabelSize } from './label-template';
 
 export interface PdfOptions {
@@ -21,12 +27,41 @@ export interface PrintRenderer {
   renderLabel(html: string, size: LabelSize): Promise<Buffer>;
   /** A PNG of the first element matching `selector`, at `dpi`, for checking a render. */
   renderImage(html: string, selector: string, dpi: number): Promise<Buffer>;
+  /** False once the browser has gone away; a shared renderer is then launched again. */
+  connected(): boolean;
   close(): Promise<void>;
 }
 
 export interface PrintRendererOptions {
   /** A Chromium binary to use instead of Playwright's downloaded build (for a worker image). */
   executablePath?: string;
+  /** Further command-line switches for Chromium (the serverless build's own). */
+  args?: string[];
+}
+
+/**
+ * Where Chromium comes from (ADR 0009): on Vercel, the serverless build `@sparticuz/chromium`,
+ * unpacked into the function's temporary folder on its first launch, with its recommended
+ * switches and no graphics stack (a PDF needs none); everywhere else, the Chromium Playwright
+ * installed on the machine (`playwright-core install chromium-headless-shell`, and the Playwright
+ * image in CI). Nothing is downloaded while a document renders.
+ */
+export async function chromiumForRuntime(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<PrintRendererOptions> {
+  if (env.VERCEL !== '1') return {};
+  const { default: serverless } = await import('@sparticuz/chromium');
+  serverless.setGraphicsMode = false;
+  return { executablePath: await serverless.executablePath(), args: serverless.args };
+}
+
+/** Pages in a PDF Chromium wrote: one `/Type /Page` object each (not `/Pages`). */
+export function pageCount(pdf: Uint8Array): number {
+  return (
+    Buffer.from(pdf)
+      .toString('latin1')
+      .match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []
+  ).length;
 }
 
 async function isolated(context: BrowserContext): Promise<void> {
@@ -48,10 +83,12 @@ async function load(context: BrowserContext, html: string): Promise<Page> {
 export async function createPrintRenderer(
   options: PrintRendererOptions = {},
 ): Promise<PrintRenderer> {
-  const browser: Browser = await chromium.launch({
+  const launch: LaunchOptions = {
     headless: true,
     ...(options.executablePath ? { executablePath: options.executablePath } : {}),
-  });
+    ...(options.args ? { args: options.args } : {}),
+  };
+  const browser: Browser = await chromium.launch(launch);
   const context = await browser.newContext({ colorScheme: 'light', offline: true });
   await isolated(context);
   const imageContexts = new Map<number, BrowserContext>();
@@ -115,8 +152,37 @@ export async function createPrintRenderer(
       }
     },
 
+    connected() {
+      return browser.isConnected();
+    },
+
     async close() {
       await browser.close();
     },
   };
+}
+
+/** The process's warm renderer, kept across jobs and in the dev server across reloads. */
+const shared = globalThis as typeof globalThis & {
+  __shaktiPrintRenderer?: Promise<PrintRenderer> | undefined;
+};
+
+/**
+ * The renderer every job of this process shares: launched on first use with the runtime's
+ * Chromium, and launched again when the browser has gone away (a crash, a closed process).
+ */
+export async function sharedPrintRenderer(): Promise<PrintRenderer> {
+  const current = shared.__shaktiPrintRenderer;
+  if (current !== undefined) {
+    const renderer = await current.catch(() => undefined);
+    if (renderer?.connected() === true) return renderer;
+  }
+  const next = chromiumForRuntime().then((options) => createPrintRenderer(options));
+  shared.__shaktiPrintRenderer = next;
+  try {
+    return await next;
+  } catch (error) {
+    shared.__shaktiPrintRenderer = undefined;
+    throw error;
+  }
 }

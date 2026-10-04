@@ -231,7 +231,8 @@
     "permission_not_for_role": "Some of these permissions can't be given to this role. Only the Executive role manages the system, and only the roles that need them see costs or supplier rates.",
     "scope_not_offered": "One of the choices isn't offered for that permission. Reload the page and choose again.",
     "role_changed_meanwhile": "Someone else changed this role while you were editing it. Reload the page to see their changes, then make yours again.",
-    "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment."
+    "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment.",
+    "document_type_unknown": "This kind of document cannot be printed yet."
   },
   "auth": {
     "signIn": {
@@ -699,7 +700,8 @@
       "gstin": "GSTIN",
       "address": "Registered address",
       "upi": "UPI ID",
-      "actions": "Actions"
+      "actions": "Actions",
+      "bank": "Bank account"
     },
     "edit": "Edit",
     "editTitle": "Edit {name}",
@@ -731,7 +733,29 @@
     "current": "Current file: {name}",
     "none": "None uploaded yet.",
     "open": "Open",
-    "ready": "Saved. Documents from this company print it from now on."
+    "ready": "Saved. Documents from this company print it from now on.",
+    "bank": "Bank account",
+    "bankRecorded": "Recorded",
+    "bankTitle": "Bank account of {name}",
+    "bankIntro": "Quotes and other documents from this company print this account for payment. The Activity log keeps only the last four digits.",
+    "bankLoading": "Opening the bank account…",
+    "bankName": "Bank",
+    "bankNameHelper": "The bank’s name as it appears on a cheque",
+    "accountNumber": "Account number",
+    "accountNumberHelper": "9 to 18 digits",
+    "ifsc": "IFSC",
+    "ifscHelper": "11 letters and numbers, as printed on a cheque of this account",
+    "branch": "Branch",
+    "branchHelper": "The branch name and its town",
+    "saveBank": "Save bank account",
+    "bankDone": "The bank account of {name} is saved.",
+    "proof": "Print a proof page",
+    "proofTitle": "Proof page of {name}",
+    "proofIntro": "One page with the letterhead, logo, address, GSTIN and bank account, exactly as this company’s documents print them.",
+    "proofWorking": "Printing the proof page. This takes a few seconds.",
+    "proofReady": "The proof page is ready.",
+    "proofSlow": "The proof page is taking longer than usual. Close this and try again in a minute.",
+    "openProof": "Open the proof page"
   },
   "priceMaster": {
     "title": "Price lists",
@@ -1283,7 +1307,9 @@
       "kitArchive": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
       "priceListArchive": "Price list withdrawn",
-      "rolePermissions": "Role permissions changed"
+      "rolePermissions": "Role permissions changed",
+      "fileRendered": "Document printed to a file",
+      "printProofRequest": "Proof page asked for"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1316,7 +1342,8 @@
       "kitArchived": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
       "priceListArchived": "Price list withdrawn",
-      "rolePermissionsChanged": "Role permissions changed"
+      "rolePermissionsChanged": "Role permissions changed",
+      "documentRequested": "Document sent for printing"
     },
     "sheet": {
       "title": "{action}",
@@ -1471,7 +1498,9 @@
       "customisedAt": "Changed from the standard set",
       "holders": "People holding the role",
       "scorePoints": "Points",
-      "codeActive": "Code in use"
+      "codeActive": "Code in use",
+      "bankAccount": "Bank account",
+      "documentType": "Document"
     },
     "values": {
       "percent": "{value}%",
@@ -1508,7 +1537,14 @@
       },
       "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}",
       "spec": "{name}: {value}",
-      "grant": "{permission}: {scope}"
+      "grant": "{permission}: {scope}",
+      "documentType": {
+        "quote": "Quotation",
+        "proforma": "Proforma invoice",
+        "delivery_challan": "Delivery challan",
+        "handover_kit": "Handover kit",
+        "company_letterhead_proof": "Proof page of the letterhead"
+      }
     }
   },
   "print": {
@@ -1546,6 +1582,31 @@
       "serial": "Serial number",
       "item": "Item code",
       "scan": "Scan for warranty"
+    },
+    "company": {
+      "gstin": "GSTIN",
+      "logo": "Logo of {name}",
+      "bankHeading": "Bank account for payment",
+      "bankName": "Bank",
+      "accountName": "Account name",
+      "accountNumber": "Account number",
+      "ifsc": "IFSC",
+      "branch": "Branch"
+    },
+    "proof": {
+      "title": "Proof page of {name}",
+      "heading": "Proof page",
+      "intro": "This page shows the letterhead, logo, address, GSTIN and bank account exactly as the company's documents print them. Check each line before quotes go out. Anything not recorded yet can be added on Settings, Companies.",
+      "missing": "Not recorded yet",
+      "letterhead": "Letterhead",
+      "printedAbove": "Printed at the top of this page",
+      "logo": "Logo",
+      "printedBeside": "Printed beside the company name",
+      "legalName": "Legal name",
+      "brandName": "Brand name",
+      "address": "Registered address",
+      "printedOn": "Printed on {date}",
+      "fileName": "Proof page of {name}.pdf"
     }
   },
   "imports": {
@@ -2199,7 +2260,8 @@
       "entity_logo": "Company logo",
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
-      "consent_evidence": "Proof of consent"
+      "consent_evidence": "Proof of consent",
+      "print_proof": "Proof page"
     },
     "types": {
       "jpeg": "JPEG picture",

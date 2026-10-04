@@ -1,4 +1,5 @@
 import type { Principal } from '@shakti/contracts';
+import type { FieldCipher } from '../privacy/field-cipher';
 import type { RequestTx } from '@shakti/db';
 import type { z } from 'zod';
 import type { ActivityRecord } from '../activities/activity';
@@ -50,6 +51,8 @@ export interface CommandContext {
   requestId: string;
   /** The runtime is hosted (`RunOptions.hosted`); true unless the caller said it is not. */
   hosted: boolean;
+  /** The runtime's field cipher (`RunOptions.fieldCipher`), for a command that seals a field. */
+  fieldCipher?: FieldCipher;
   /**
    * Set when an import batch runs this command for one of its rows (`NestedRunOptions`): the
    * command then leaves out what only a person's own save needs, such as holding a new number.

@@ -29,6 +29,7 @@ import {
   FilePurposeSchema,
   FileRejectReasonSchema,
   FileSanitisingSchema,
+  PdfDocumentTypeSchema,
   FileScanVerdictInputSchema,
   FileStatusSchema,
   UploadContentTypeSchema,
@@ -90,6 +91,7 @@ import {
   FILE_REJECT_REASONS,
   FILE_SANITISING,
   FILE_SCAN_VERDICTS,
+  PDF_DOCUMENT_TYPES,
   FILE_STATUSES,
   UPLOAD_CONTENT_TYPES,
   IMPLEMENTED_IMPORT_KINDS,
@@ -150,6 +152,7 @@ describe('the contract values copied for the browser', () => {
     expect(FILE_REJECT_REASONS).toEqual(FileRejectReasonSchema.options);
     expect(FILE_SCAN_VERDICTS).toEqual(FileScanVerdictInputSchema.options);
     expect(FILE_SANITISING).toEqual(FileSanitisingSchema.options);
+    expect(PDF_DOCUMENT_TYPES).toEqual(PdfDocumentTypeSchema.options);
   });
 
   it('equal the contract’s own lists and limits', () => {

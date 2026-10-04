@@ -22,12 +22,16 @@ export function workerErrorFor(status: number): OutboxWorkerError {
   return REFUSED.has(status) ? 'worker_refused' : 'worker_failed';
 }
 
-/** The id of the event QStash sent, from the callback's base64 copy of it, when it has one. */
+/**
+ * The id of the event QStash sent, from the callback's base64 copy of it, when it has one: an
+ * event's `id`, or the `eventId` of the job an event was sent as (`EVENT_JOB_ROUTES`).
+ */
 export function failedEventId(callback: OutboxFailureCallback): string | undefined {
   try {
     const sent: unknown = JSON.parse(Buffer.from(callback.sourceBody, 'base64').toString('utf8'));
-    if (typeof sent !== 'object' || sent === null || !('id' in sent)) return undefined;
-    const id = IdSchema.safeParse(sent.id);
+    if (typeof sent !== 'object' || sent === null) return undefined;
+    const raw = 'id' in sent ? sent.id : 'eventId' in sent ? sent.eventId : undefined;
+    const id = IdSchema.safeParse(raw);
     return id.success ? id.data : undefined;
   } catch {
     return undefined;

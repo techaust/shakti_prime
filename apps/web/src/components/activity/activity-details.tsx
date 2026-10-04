@@ -43,6 +43,7 @@ import {
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
+  PDF_DOCUMENT_TYPES,
   PRICE_TIER_CODES,
   SAVED_VIEW_SCREENS,
   SCORE_FACTORS,
@@ -452,6 +453,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(FILE_SANITISING, value) ? files(`sanitising.${value}`) : wordsOf(value);
       case 'scanStatus':
         return oneOf(SCAN_STATUSES, value) ? files(`scanStatus.${value}`) : wordsOf(value);
+      case 'documentType':
+        return oneOf(PDF_DOCUMENT_TYPES, value)
+          ? t(`values.documentType.${value}`)
+          : wordsOf(value);
     }
   };
 }

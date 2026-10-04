@@ -3,6 +3,7 @@ import type { KeyValue } from '@shakti/domain';
 import { hostedRuntime } from '../../auth/deps';
 import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
+import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
 
 /** What a handler is given: the system principal for the event's company and the shared store. */
@@ -57,6 +58,18 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
         hosted: hostedRuntime(),
         requestId: ctx.requestId,
       });
+    },
+  },
+  // A document to print (ADR 0009). Hosted, the publisher sends this type to the render route
+  // as a `PdfRenderJob` instead (`EVENT_JOB_ROUTES` in ../qstash.ts); without a queue it is
+  // rendered here, in the process that committed it. Each job's file id makes a repeat harmless.
+  'print.document.requested': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      // Loaded on first use, so Chromium's driver stays out of every other worker's start.
+      const { renderPdfJob } = await import('../pdf/render-job');
+      const { renderDeps } = await import('../pdf/deps');
+      await renderPdfJob(renderJobOf(event), renderDeps(ctx.principal, ctx.requestId));
     },
   },
 };

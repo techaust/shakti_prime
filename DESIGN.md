@@ -140,7 +140,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - Default **System**; override **Light / Dark** from the profile menu, stored on the user profile and mirrored in a cookie for server rendering.
 - `next-themes` with `attribute="data-theme"`, `defaultTheme="system"`, `enableSystem`, `disableTransitionOnChange`; inline pre-paint script prevents a flash.
 - `color-scheme` is set on `:root` so native controls match. `<meta name="theme-color">` per scheme.
-- Logos: light and dark variants per entity, arriving with the letterhead in Phase 1. Photos and maps get a 6% dim overlay in dark mode, applied when they first appear with projects and the field app in Phase 4.
+- Logos: one per company, its newest logo file on Settings › Companies, printed on every document (print is always light). Photos and maps get a 6% dim overlay in dark mode, applied when they first appear with projects and the field app in Phase 4.
 - The Android app reads the phone setting via `useColorScheme` and honours the same override from the profile.
 - The public website follows the visitor's system setting.
 

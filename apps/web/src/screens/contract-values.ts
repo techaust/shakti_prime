@@ -21,6 +21,7 @@ import type {
   FileSanitising,
   FileScanVerdictInput,
   FileStatus,
+  PdfDocumentType,
   UploadContentType,
   ImportJobSort,
   ImportJobState,
@@ -445,6 +446,7 @@ export const FILE_PURPOSES = [
   'signed_quote',
   'entity_logo',
   'letterhead',
+  'print_proof',
   'knowledge',
   'consent_evidence',
 ] as const satisfies readonly FilePurpose[];
@@ -473,6 +475,15 @@ export const FILE_SCAN_VERDICTS = [
   'no_threats_found',
   'not_scanned',
 ] as const satisfies readonly FileScanVerdictInput[];
+/** The documents the render worker prints, each with its name under `activity.values`. */
+export const PDF_DOCUMENT_TYPES = [
+  'quote',
+  'proforma',
+  'delivery_challan',
+  'handover_kit',
+  'company_letterhead_proof',
+] as const satisfies readonly PdfDocumentType[];
+
 export const FILE_SANITISING = [
   're_encoded',
   'pdf_checked',
