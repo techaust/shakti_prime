@@ -12,6 +12,7 @@ import {
   rowFindings,
   rowStateOf,
   rowValue,
+  screenKind,
   type RowFinding,
   type RowView,
 } from '../../screens/import-wizard';
@@ -22,7 +23,9 @@ const PAGE = 50;
 
 /**
  * The rows of a file with what was found on each: the sentence for every problem, rows repeated
- * in the file and customers who may already exist. A choice of rows to show, a page at a time.
+ * in the file and customers who may already exist. A choice of rows to show, a page at a time. A
+ * leads or customers file shows each row's name and mobile number; the PIN code list its PIN and
+ * post office.
  */
 export function RowsGrid({
   job,
@@ -42,6 +45,8 @@ export function RowsGrid({
   const [customers, setCustomers] = useState(initial.customers);
   const [nextAfter, setNextAfter] = useState(initial.nextAfter);
   const { load, pending, failure } = useQuery<ImportRowPage>();
+  const kind = screenKind(job.kind);
+  const offices = kind === 'pin_codes';
 
   function read(next: RowView, after: number | undefined) {
     const state = rowStateOf(next);
@@ -67,7 +72,7 @@ export function RowsGrid({
       case 'error':
         return t('finding.field', { field: fields(f.field), sentence: rowErrors(f.code) });
       case 'sameAsRow':
-        return t('finding.sameAsRow', { row: formatCount(f.rowNo) });
+        return t('finding.sameAsRow', { row: formatCount(f.rowNo), kind });
       case 'customer':
         if (f.matchedBy === 'name_village') {
           return f.name === undefined
@@ -90,15 +95,15 @@ export function RowsGrid({
     },
     {
       id: 'name',
-      header: t('columns.name'),
+      header: offices ? t('columns.office') : t('columns.name'),
       primary: true,
-      cell: (r) => rowValue(r, job.mapping, 'contactName') || notRecorded,
+      cell: (r) => rowValue(r, job.mapping, offices ? 'officeName' : 'contactName') || notRecorded,
     },
     {
       id: 'phone',
-      header: t('columns.phone'),
+      header: offices ? t('columns.pin') : t('columns.phone'),
       numeric: true,
-      cell: (r) => rowValue(r, job.mapping, 'phone') || notRecorded,
+      cell: (r) => rowValue(r, job.mapping, offices ? 'pin' : 'phone') || notRecorded,
     },
     {
       id: 'status',

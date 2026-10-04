@@ -141,7 +141,7 @@ export const fileUploadMachine = defineMachine<
       event: 'abandon',
       to: 'rejected',
       permission: 'files.process',
-      scope: 'all',
+      scope: 'entity',
       system: true,
       effects: [{ key: 'delete', description: 'delete whatever bytes landed under the key' }],
       note: '`files.upload.sweep`: an upload still pending a day after it began never completed.',

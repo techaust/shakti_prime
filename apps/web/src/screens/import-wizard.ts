@@ -1,13 +1,18 @@
 import type {
+  AccountImportField,
+  ImplementedImportKind,
   ImportDedupeMatch,
+  ImportField,
   ImportJobDto,
   ImportJobState,
+  ImportKind,
   ImportMapping,
   ImportRowDto,
   ImportRowErrorCode,
   ImportRowState,
   ImportTemplateDto,
   LeadImportField,
+  PinCodeImportField,
 } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
@@ -55,6 +60,40 @@ export const LEAD_IMPORT_FIELDS = [
   'pipelineKey',
 ] as const satisfies readonly LeadImportField[];
 
+/** The customer fields of a customers file, in the order the matching form offers them. */
+export const ACCOUNT_IMPORT_FIELDS = [
+  'contactName',
+  'phone',
+  'company',
+  'accountName',
+  'accountType',
+  'preferredLanguage',
+  'village',
+  'siteType',
+  'pin',
+] as const satisfies readonly AccountImportField[];
+
+/** The post office fields of the India Post directory, in the order the form offers them. */
+export const PIN_CODE_IMPORT_FIELDS = [
+  'pin',
+  'officeName',
+  'taluk',
+  'district',
+  'state',
+] as const satisfies readonly PinCodeImportField[];
+
+/** The fields each kind of file offers. */
+export const IMPORT_FIELDS_BY_KIND: Record<ImplementedImportKind, readonly ImportField[]> = {
+  leads: LEAD_IMPORT_FIELDS,
+  accounts: ACCOUNT_IMPORT_FIELDS,
+  pin_codes: PIN_CODE_IMPORT_FIELDS,
+};
+
+/** A job's kind as the screens treat it; a kind not built yet reads as leads, which it cannot be. */
+export function screenKind(kind: ImportKind): ImplementedImportKind {
+  return kind === 'accounts' || kind === 'pin_codes' ? kind : 'leads';
+}
+
 /** Fields a value chosen on screen can fill for every row whose cell is empty. */
 const DEFAULTABLE_FIELDS = [
   'pipelineKey',
@@ -65,8 +104,18 @@ const DEFAULTABLE_FIELDS = [
 ] as const satisfies readonly LeadImportField[];
 export type DefaultableField = (typeof DEFAULTABLE_FIELDS)[number];
 
-export function isDefaultable(field: LeadImportField): field is DefaultableField {
-  return (DEFAULTABLE_FIELDS as readonly string[]).includes(field);
+/** The fields each kind lets a value fill for every row (`defaults` of its mapping). */
+const DEFAULTABLE_BY_KIND: Record<ImplementedImportKind, readonly DefaultableField[]> = {
+  leads: DEFAULTABLE_FIELDS,
+  accounts: ['accountType', 'preferredLanguage', 'siteType'],
+  pin_codes: [],
+};
+
+export function isDefaultable(
+  field: ImportField,
+  kind: ImplementedImportKind = 'leads',
+): field is DefaultableField {
+  return (DEFAULTABLE_BY_KIND[kind] as readonly string[]).includes(field);
 }
 
 /** The four steps of an import, as the step list names them. */
@@ -97,14 +146,14 @@ export function stepStatus(step: ImportStep, state: ImportJobState): 'done' | 'c
 
 /** The matching form as the person fills it: a file column per field, and values for empty cells. */
 export interface MappingDraft {
-  columns: Partial<Record<LeadImportField, string>>;
+  columns: Partial<Record<ImportField, string>>;
   defaults: Partial<Record<DefaultableField, string>>;
 }
 
 const normalise = (text: string) => text.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 
 /** Headings people give each field in their spreadsheets, compared without case or spaces. */
-const HEADINGS: Record<LeadImportField, readonly string[]> = {
+const HEADINGS: Record<ImportField, readonly string[]> = {
   contactName: ['name', 'customername', 'customer', 'contactname', 'contact', 'farmername'],
   phone: ['mobile', 'mobileno', 'mobilenumber', 'phone', 'phoneno', 'phonenumber', 'contactno'],
   accountName: ['farmname', 'businessname', 'firmname', 'company', 'accountname'],
@@ -115,16 +164,28 @@ const HEADINGS: Record<LeadImportField, readonly string[]> = {
   pin: ['pin', 'pincode', 'postalcode'],
   sourceCode: ['source', 'leadsource'],
   pipelineKey: ['pipeline', 'lineofbusiness'],
+  company: ['company', 'companycode', 'ourcompany', 'sellingcompany', 'brand'],
+  officeName: ['officename', 'office', 'postoffice', 'poname'],
+  taluk: ['taluk', 'taluka', 'tehsil', 'tahsil', 'subdistrict'],
+  district: ['district', 'districtname'],
+  state: ['state', 'statename', 'statecode'],
 };
 
 /**
  * A first guess at the matching from the file's headings. Each column is used for one field at
- * most, and a heading nobody recognises is left for the person to choose.
+ * most, and a heading nobody recognises is left for the person to choose. In a customers file a
+ * `Company` column names the company each customer deals with, so it is matched to that first.
  */
-export function guessColumns(columns: readonly string[]): MappingDraft['columns'] {
+export function guessColumns(
+  columns: readonly string[],
+  kind: ImplementedImportKind = 'leads',
+): MappingDraft['columns'] {
   const guessed: MappingDraft['columns'] = {};
   const used = new Set<string>();
-  for (const field of LEAD_IMPORT_FIELDS) {
+  const fields = IMPORT_FIELDS_BY_KIND[kind];
+  const order = kind === 'accounts' ? ['company' as const, ...fields] : fields;
+  for (const field of order) {
+    if (guessed[field] !== undefined) continue;
     const match = columns.find((c) => !used.has(c) && HEADINGS[field].includes(normalise(c)));
     if (match !== undefined) {
       guessed[field] = match;
@@ -135,9 +196,11 @@ export function guessColumns(columns: readonly string[]): MappingDraft['columns'
 }
 
 /** The form's starting point: the job's saved matching, or a guess from the headings. */
-export function initialDraft(job: Pick<ImportJobDto, 'mapping' | 'columns'>): MappingDraft {
+export function initialDraft(
+  job: Pick<ImportJobDto, 'mapping' | 'columns'> & { kind?: ImportKind },
+): MappingDraft {
   if (job.mapping !== null) return draftOf(job.mapping);
-  return { columns: guessColumns(job.columns), defaults: {} };
+  return { columns: guessColumns(job.columns, screenKind(job.kind ?? 'leads')), defaults: {} };
 }
 
 function draftOf(mapping: ImportMapping): MappingDraft {
@@ -150,11 +213,7 @@ function draftOf(mapping: ImportMapping): MappingDraft {
 }
 
 /** The draft with `field` read from `column`, or from no column when `column` is empty. */
-export function withColumn(
-  draft: MappingDraft,
-  field: LeadImportField,
-  column: string,
-): MappingDraft {
+export function withColumn(draft: MappingDraft, field: ImportField, column: string): MappingDraft {
   const columns = Object.fromEntries(
     Object.entries(draft.columns).filter(([f]) => f !== field),
   ) as MappingDraft['columns'];
@@ -190,41 +249,57 @@ export function draftForFile(mapping: ImportMapping, columns: readonly string[])
 /** Why a field of the matching form cannot be sent yet, keyed to `imports.map.problems`. */
 export type MappingProblem = 'columnRequired' | 'columnRepeated' | 'pipelineRequired';
 
+/** The columns each kind must take from the file. */
+const REQUIRED_COLUMNS: Record<ImplementedImportKind, readonly ImportField[]> = {
+  leads: ['contactName', 'phone'],
+  accounts: ['contactName', 'phone'],
+  pin_codes: ['pin', 'officeName', 'district'],
+};
+
 /**
- * The problems the contract would refuse, found before anything is sent: the name and phone
- * columns are required, a pipeline comes from a column or a value for every row, and a column
- * fills one field only.
+ * The problems the contract would refuse, found before anything is sent: the columns the kind
+ * needs (a lead's or customer's name and phone; an office's PIN, name and district), a lead's
+ * pipeline from a column or a value for every row, and a column filling one field only.
  */
 export function mappingProblems(
   draft: MappingDraft,
-): Partial<Record<LeadImportField, MappingProblem>> {
-  const problems: Partial<Record<LeadImportField, MappingProblem>> = {};
+  kind: ImplementedImportKind = 'leads',
+): Partial<Record<ImportField, MappingProblem>> {
+  const problems: Partial<Record<ImportField, MappingProblem>> = {};
   const seen = new Map<string, number>();
   for (const column of Object.values(draft.columns)) seen.set(column, (seen.get(column) ?? 0) + 1);
-  for (const field of LEAD_IMPORT_FIELDS) {
+  for (const field of IMPORT_FIELDS_BY_KIND[kind]) {
     const column = draft.columns[field];
     if (column !== undefined && (seen.get(column) ?? 0) > 1) problems[field] = 'columnRepeated';
   }
-  if (draft.columns.contactName === undefined) problems.contactName = 'columnRequired';
-  if (draft.columns.phone === undefined) problems.phone = 'columnRequired';
-  if (draft.columns.pipelineKey === undefined && draft.defaults.pipelineKey === undefined) {
+  for (const field of REQUIRED_COLUMNS[kind]) {
+    if (draft.columns[field] === undefined) problems[field] = 'columnRequired';
+  }
+  if (
+    kind === 'leads' &&
+    draft.columns.pipelineKey === undefined &&
+    draft.defaults.pipelineKey === undefined
+  ) {
     problems.pipelineKey = 'pipelineRequired';
   }
   return problems;
 }
 
-/** The matching as `imports.job.map` takes it, with no empty entries. */
-export function mappingOf(draft: MappingDraft): {
-  columns: Partial<Record<LeadImportField, string>>;
+/** The matching as `imports.job.map` takes it, with no empty entries and only the kind's fields. */
+export function mappingOf(
+  draft: MappingDraft,
+  kind: ImplementedImportKind = 'leads',
+): {
+  columns: Partial<Record<ImportField, string>>;
   defaults: Partial<Record<DefaultableField, string>>;
 } {
-  const columns: Partial<Record<LeadImportField, string>> = {};
-  for (const field of LEAD_IMPORT_FIELDS) {
+  const columns: Partial<Record<ImportField, string>> = {};
+  for (const field of IMPORT_FIELDS_BY_KIND[kind]) {
     const column = draft.columns[field];
     if (column !== undefined && column !== '') columns[field] = column;
   }
   const defaults: Partial<Record<DefaultableField, string>> = {};
-  for (const field of DEFAULTABLE_FIELDS) {
+  for (const field of DEFAULTABLE_BY_KIND[kind]) {
     // A column wins over a value for every row only where the cell is filled; both may be given.
     const value = draft.defaults[field];
     if (value !== undefined && value !== '') defaults[field] = value;
@@ -251,14 +326,16 @@ export function buildMapInput(args: {
   draft: MappingDraft;
   template: ImportTemplateDto | undefined;
   saveAs: string;
+  kind?: ImplementedImportKind;
 }): Record<string, unknown> {
-  const mapping = mappingOf(args.draft);
+  const kind = args.kind ?? 'leads';
+  const mapping = mappingOf(args.draft, kind);
   const ref = { entityId: args.entityId, jobId: args.jobId };
   const name = args.saveAs.trim();
   if (
     args.template !== undefined &&
     name === '' &&
-    sameMapping(mapping, mappingOf(draftOf(args.template.mapping)))
+    sameMapping(mapping, mappingOf(draftOf(args.template.mapping), kind))
   ) {
     return { ...ref, templateId: args.template.id };
   }
@@ -292,7 +369,7 @@ export function initialRowView(
 
 /** One thing to say about a row, in the order the grid lists them. */
 export type RowFinding =
-  | { kind: 'error'; field: LeadImportField | 'row'; code: ImportRowErrorCode }
+  | { kind: 'error'; field: ImportField | 'row'; code: ImportRowErrorCode }
   | { kind: 'sameAsRow'; rowNo: number }
   | { kind: 'customer'; name: string | undefined; matchedBy: ImportDedupeMatch };
 
@@ -328,13 +405,13 @@ export function rowFindings(
 export function rowValue(
   row: Pick<ImportRowDto, 'raw'>,
   mapping: ImportMapping | null,
-  field: LeadImportField,
+  field: ImportField,
 ): string {
   const column = mapping?.columns[field];
   return column === undefined ? '' : (row.raw[column] ?? '').trim();
 }
 
-/** How far a commit has come: the leads added out of the rows ready to add. */
+/** How far a commit has come: the rows added out of the rows ready to add. */
 export function commitProgress(job: Pick<ImportJobDto, 'validRows' | 'committedRows'>): {
   done: number;
   total: number;
@@ -408,4 +485,21 @@ export function fileSize(bytes: number): { unit: 'kb' | 'mb'; value: string } {
   if (bytes < 1024 * 1024)
     return { unit: 'kb', value: String(Math.max(1, Math.ceil(bytes / 1024))) };
   return { unit: 'mb', value: (bytes / (1024 * 1024)).toFixed(1) };
+}
+
+/** The types an import file is uploaded as: a CSV file or an Excel workbook. */
+export const IMPORT_CONTENT_TYPES = [
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+] as const;
+
+/**
+ * The type an import file is uploaded as, known by its name: a computer with Excel calls a CSV
+ * file `application/vnd.ms-excel`, and some browsers give a file no type at all. Anything else
+ * keeps the browser's guess, which the uploader then refuses.
+ */
+export function importContentType(file: { name: string; type: string }): string {
+  if (/\.csv$/i.test(file.name)) return IMPORT_CONTENT_TYPES[0];
+  if (/\.xlsx$/i.test(file.name)) return IMPORT_CONTENT_TYPES[1];
+  return file.type;
 }

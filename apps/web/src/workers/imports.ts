@@ -5,7 +5,12 @@ import {
   type Principal,
 } from '@shakti/contracts';
 import { loadUserGrants } from '@shakti/db/grants';
-import { commitImportBatch, executeCommand, resolvePrincipalFromGrants } from '@shakti/domain';
+import {
+  commitImportBatch,
+  executeCommand,
+  failImportJob,
+  resolvePrincipalFromGrants,
+} from '@shakti/domain';
 import { hostedRuntime } from '../auth/deps';
 import { logger } from '../log';
 import { nudgeOutbox } from './outbox';
@@ -28,15 +33,28 @@ export const IMPORT_RUN_BUDGET_MS = 30_000;
 export const LOCAL_BATCHES_PER_RUN = 4;
 
 /**
- * The person who asked for the commit, as they stand now and narrowed to the job's company: a
- * suspended user, or one who has lost the import permission there, commits nothing more.
+ * The person who asked for the commit, as they stand now, and the companies the job's request
+ * acts for: the job's own company, or, for a customers file naming other companies and for the
+ * PIN code master, every company the commit was asked for that the person still holds. A
+ * suspended user, or one who has lost the import permission, commits nothing more.
  */
-async function importPrincipal(userId: string, entityId: number): Promise<Principal> {
-  const outcome = resolvePrincipalFromGrants(userId, await loadUserGrants(userId), entityId);
+async function importPrincipal(
+  body: ImportCommitWorkerBody,
+): Promise<{ principal: Principal; entityIds: number[] }> {
+  const grants = await loadUserGrants(body.userId);
+  const outcome =
+    body.entityIds === undefined
+      ? resolvePrincipalFromGrants(body.userId, grants, body.entityId)
+      : resolvePrincipalFromGrants(body.userId, grants);
   if (outcome.kind !== 'principal') {
     throw new DomainError('forbidden', `import worker cannot act for the user (${outcome.kind})`);
   }
-  return outcome.principal;
+  const held = outcome.principal.entityIds;
+  const entityIds = (body.entityIds ?? [body.entityId]).filter((id) => held.includes(id));
+  if (!entityIds.includes(body.entityId)) {
+    throw new DomainError('forbidden', 'import worker cannot act in the job company');
+  }
+  return { principal: outcome.principal, entityIds };
 }
 
 export interface ImportRunOptions {
@@ -63,15 +81,13 @@ export async function runImportCommit(
 ): Promise<ImportCommitWorkerResponse> {
   const now = options.now ?? Date.now;
   const started = now();
-  const principal = await importPrincipal(body.userId, body.entityId);
+  const { principal, entityIds } = await importPrincipal(body);
   const { requestId } = options;
   let batches = 0;
   for (;;) {
     const job = await executeCommand(
       principal,
-      requestId === undefined
-        ? { entityIds: [body.entityId] }
-        : { entityIds: [body.entityId], requestId },
+      requestId === undefined ? { entityIds } : { entityIds, requestId },
       commitImportBatch,
       { entityId: body.entityId, jobId: body.jobId },
       { onCommitted: nudgeOutbox },
@@ -101,6 +117,32 @@ export async function runImportCommit(
       return answer();
     }
   }
+}
+
+/**
+ * After the queue's last retry of a worker call failed (docs/design/phase1.md §6.3): the job stops
+ * as `failed` through `imports.job.fail`, as the person who asked for the commit, instead of
+ * waiting as committing for ever. Answers the job as it now stands.
+ */
+export async function giveUpImportCommit(
+  body: ImportCommitWorkerBody,
+  requestId: string,
+): Promise<ImportCommitWorkerResponse> {
+  const { principal, entityIds } = await importPrincipal(body);
+  const job = await executeCommand(
+    principal,
+    { entityIds, requestId },
+    failImportJob,
+    { entityId: body.entityId, jobId: body.jobId },
+    { onCommitted: nudgeOutbox },
+  );
+  logger.log('warn', 'imports.commit_gave_up', { requestId, jobId: job.id, state: job.state });
+  return ImportCommitWorkerResponse.parse({
+    jobId: job.id,
+    state: job.state,
+    batches: 0,
+    committedRows: job.committedRows,
+  });
 }
 
 /**

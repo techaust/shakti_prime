@@ -58,5 +58,9 @@ export const files = pgTable(
     index('files_entity_idx').on(t.entityId),
     // A company's latest file of a purpose (its logo, its letterhead).
     index('files_entity_purpose_created_idx').on(t.entityId, t.purpose, t.createdAt.desc()),
+    // The sweep of abandoned uploads: the oldest of the uploads still pending.
+    index('files_pending_created_idx')
+      .on(t.entityId, t.createdAt)
+      .where(sql`${t.status} = 'pending'`),
   ],
 );

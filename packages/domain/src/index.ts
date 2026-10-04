@@ -273,7 +273,12 @@ export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
 export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
-export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export {
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+  staleUploadCompanies,
+} from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';
 export {
   FILE_PURPOSE_RULES,

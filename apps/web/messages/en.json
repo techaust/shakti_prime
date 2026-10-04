@@ -137,7 +137,7 @@
     "expense_claim_transition_not_allowed": "This expense claim can't do that in its current status. Refresh the page to see where it stands.",
     "playbook_directive_transition_not_allowed": "This rule can't do that in its current status. Refresh the page to see where it stands.",
     "tally_voucher_transition_not_allowed": "This Tally entry can't do that in its current status. Refresh the page to see where it stands.",
-    "import_file_empty": "This file is empty. Choose the spreadsheet with your leads and try again.",
+    "import_file_empty": "This file is empty. Choose the spreadsheet you want to add and try again.",
     "import_file_too_large": "This file is too big. Keep it under 10 MB, or split it into smaller files.",
     "import_workbook_too_large": "This Excel file holds more than we can read at once. Split it into smaller files and add them one at a time.",
     "import_file_type": "We can read CSV files and Excel files saved as .xlsx. Save the file as one of these and try again.",
@@ -153,9 +153,8 @@
     "import_template_missing": "This saved column layout is not available. Choose another one, or match the columns again.",
     "import_template_name_taken": "A saved column layout already has this name. Choose a different name.",
     "import_nothing_to_commit": "None of the rows can be added. Correct the file and add it again.",
-    "import_rollback_blocked": "Some leads from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
+    "import_rollback_blocked": "Some records from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
     "import_store_failed": "We couldn't save this file. Nothing was added. Please try again in a minute.",
-    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
@@ -212,7 +211,12 @@
     "permission_not_for_role": "Some of these permissions can't be given to this role. Only the Executive role manages the system, and only the roles that need them see costs or supplier rates.",
     "scope_not_offered": "One of the choices isn't offered for that permission. Reload the page and choose again.",
     "role_changed_meanwhile": "Someone else changed this role while you were editing it. Reload the page to see their changes, then make yours again.",
-    "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment."
+    "role_holders_kept": "Some people who hold this role could not be signed out, so nothing was saved. Try again in a moment.",
+    "import_mapping_incomplete": "Some details this kind of file needs are not matched to a column. Match them and try again.",
+    "import_file_not_ready": "The file is still being checked. Wait a moment and choose Read the file again.",
+    "import_file_missing": "We couldn't find this file. Upload it again.",
+    "import_needs_all_companies": "Only an Executive working in all companies can add the PIN code list. Switch to All companies and try again.",
+    "file_upload_abandoned": "This upload did not finish, so it was cleared. Upload the file again."
   },
   "auth": {
     "signIn": {
@@ -1465,16 +1469,16 @@
   },
   "imports": {
     "title": "Imports",
-    "intro": "Add many leads at once from a spreadsheet, and see the files added before.",
+    "intro": "Add many leads or customers at once from a spreadsheet, and see the files added before.",
     "add": "New import",
     "caption": "Imports",
-    "empty": "No imports yet. Add a spreadsheet of leads to start.",
+    "empty": "No imports yet. Add a spreadsheet of leads or customers to start.",
     "columns": {
       "file": "File",
       "status": "Status",
       "total": "Rows in file",
       "valid": "Ready to add",
-      "committed": "Leads added",
+      "committed": "Rows added",
       "company": "Company",
       "startedBy": "Started by",
       "started": "Started"
@@ -1498,7 +1502,7 @@
       "upload": "Choose the file",
       "map": "Match the columns",
       "check": "Check the rows",
-      "add": "Add the leads",
+      "add": "Add the rows",
       "status": {
         "done": "(done)",
         "current": "(current step)",
@@ -1507,22 +1511,30 @@
     },
     "upload": {
       "title": "New import",
-      "intro": "Choose a spreadsheet of leads. You match its columns and check every row before anything is added.",
+      "intro": "Choose a spreadsheet of leads or customers. You match its columns and check every row before anything is added.",
       "noCompany": "You can't add imports in the companies you are viewing. Switch company or ask your manager.",
       "company": "Company",
-      "companyHelper": "The leads are added to this company.",
+      "companyHelper": "The rows are added to this company.",
       "choose": "Choose one",
       "kind": "What the file holds",
       "kinds": {
-        "leads": "Leads"
+        "leads": "Leads",
+        "accounts": "Customers",
+        "pin_codes": "PIN code list"
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
-      "noFile": "Choose the spreadsheet file to add.",
-      "chosen": "{name}, {size}",
       "submit": "Read the file",
       "cancel": "Cancel",
-      "done": "{count, plural, one {We read {shown} row from {file}.} other {We read {shown} rows from {file}.}}"
+      "done": "{count, plural, one {We read {shown} row from {file}.} other {We read {shown} rows from {file}.}}",
+      "kindHelpers": {
+        "leads": "Each row becomes a new lead with its customer.",
+        "accounts": "Each row becomes a customer of this company, or of the company a Company column names. Rows with the same mobile number become one customer.",
+        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies."
+      },
+      "chooseCompanyFirst": "Choose the company first, then the file.",
+      "checkingLong": "Uploaded. The check is taking a while. Choose Read the file in a moment.",
+      "ready": "Uploaded and checked. Reading the file."
     },
     "job": {
       "title": "Import of {file}",
@@ -1531,7 +1543,7 @@
     },
     "map": {
       "title": "Match the columns",
-      "intro": "Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.",
+      "intro": "{kind, select, leads {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.} accounts {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file. A Company column, if your file has one, names each customer's company.} other {Tell us which column of your file holds each detail. The PIN code, post office and district must come from the file.}}",
       "template": "Saved column layout",
       "templateNone": "Match the columns myself",
       "templateHelper": "Use a layout you saved from an earlier file.",
@@ -1554,7 +1566,7 @@
     },
     "check": {
       "title": "Check the rows",
-      "intro": "Every row was checked the way a new lead is checked. Only the rows that are ready are added.",
+      "intro": "Every row was checked before anything is added. Only the rows that are ready are added.",
       "mappedIntro": "The columns are matched. Check the rows to see which ones can be added.",
       "check": "Check the rows",
       "counts": {
@@ -1579,7 +1591,9 @@
         "name": "Customer name",
         "phone": "Mobile number",
         "status": "Status",
-        "findings": "What we found"
+        "findings": "What we found",
+        "office": "Post office",
+        "pin": "PIN code"
       },
       "rowState": {
         "pending": "Not checked yet",
@@ -1591,7 +1605,7 @@
       },
       "finding": {
         "field": "{field}: {sentence}",
-        "sameAsRow": "Same mobile number as row {row}. Only the first of them is added.",
+        "sameAsRow": "{kind, select, accounts {Same mobile number as row {row}. Its company is added to that customer.} pin_codes {Same post office as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
         "customerByPhone": "Same mobile number as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "customerByNameVillage": "Same name and village as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "customerHiddenByPhone": "Same mobile number as a customer you can't see. Ask your manager before adding.",
@@ -1600,36 +1614,36 @@
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",
       "remap": "Change the columns",
-      "commit": "{count, plural, one {Add {shown} lead} other {Add {shown} leads}}",
+      "commit": "{kind, select, leads {{count, plural, one {Add {shown} lead} other {Add {shown} leads}}} accounts {{count, plural, one {Add {shown} customer} other {Add {shown} customers}}} other {{count, plural, one {Add {shown} office} other {Add {shown} offices}}}}",
       "commitHelper": "{count, plural, one {{shown} row that needs correcting or is repeated is left out.} other {{shown} rows that need correcting or are repeated are left out.}}"
     },
     "progress": {
-      "title": "Adding the leads",
-      "count": "{done} of {total} leads added",
-      "label": "Leads added so far",
+      "title": "Adding the rows",
+      "count": "{done} of {total} rows added",
+      "label": "Rows added so far",
       "intro": "You can leave this page. Adding carries on, and the list of imports shows where it stands.",
       "stalled": "Adding has not moved for a while. Carry on from where it stopped.",
       "resume": "Carry on adding"
     },
     "failed": {
       "title": "Adding stopped",
-      "intro": "{done} of {total} leads were added. A row among ready rows {from} to {to} could not be added, so those rows were taken back.",
+      "intro": "{done} of {total} rows were added. A row among ready rows {from} to {to} could not be added, so those rows were taken back.",
       "next": "Undo the import, correct the marked row in your file and add the file again."
     },
     "done": {
-      "title": "Leads added",
-      "intro": "{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}",
+      "title": "{kind, select, leads {Leads added} accounts {Customers added} other {PIN codes added}}",
+      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file.} other {{shown} customers were added from this file.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
       "rolledBackTitle": "Import undone",
-      "rolledBackIntro": "The leads from this file were taken back. The customers stay in your customer list.",
-      "viewLeads": "See the leads",
+      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any that a lead now belongs to.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
       "another": "Start another import",
-      "rollback": "Undo this import"
+      "rollback": "Undo this import",
+      "viewAdded": "{kind, select, accounts {See the customers} other {See the leads}}"
     },
     "rollbackDialog": {
       "title": "Undo this import?",
-      "intro": "{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.",
+      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer that a lead now belongs to stays. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
       "submit": "Undo import",
-      "done": "The leads from {file} were taken back."
+      "done": "{kind, select, leads {The leads from {file} were taken back.} accounts {The customers from {file} were taken back.} other {The post offices from {file} were taken out.}}"
     },
     "fields": {
       "contactName": "Customer name",
@@ -1642,7 +1656,12 @@
       "pin": "PIN code",
       "sourceCode": "Lead source",
       "pipelineKey": "Pipeline",
-      "row": "Whole row"
+      "row": "Whole row",
+      "company": "Company",
+      "officeName": "Post office",
+      "taluk": "Tehsil",
+      "district": "District",
+      "state": "State"
     },
     "rowErrors": {
       "required": "This is missing. Fill it in, or choose a value for every row.",
@@ -1652,7 +1671,9 @@
       "pipeline_unknown": "This pipeline is not set up for this company. Use one from the list.",
       "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
       "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
-      "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them."
+      "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
+      "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
+      "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code."
     }
   },
   "customers": {
@@ -1760,7 +1781,8 @@
       "add": "Add site",
       "edit": "Edit site",
       "empty": "No sites recorded yet.",
-      "location": "Map point {lat}, {lng}"
+      "location": "Map point {lat}, {lng}",
+      "pinNeedsReview": "This PIN is not in the PIN code list. Check it, and correct it if it is wrong."
     },
     "leads": {
       "sectionTitle": "Leads",
@@ -1968,13 +1990,17 @@
       "jpeg": "JPEG picture",
       "png": "PNG picture",
       "webp": "WebP picture",
-      "pdf": "PDF document"
+      "pdf": "PDF document",
+      "csv": "CSV file",
+      "xlsx": "Excel workbook"
     },
     "shortTypes": {
       "jpeg": "JPEG",
       "png": "PNG",
       "webp": "WebP",
-      "pdf": "PDF"
+      "pdf": "PDF",
+      "csv": "CSV",
+      "xlsx": "XLSX"
     },
     "size": {
       "kb": "{value} KB",
@@ -1987,7 +2013,8 @@
     "sanitising": {
       "re_encoded": "Picture saved again without hidden details",
       "pdf_checked": "PDF checked for scripts and attached files",
-      "masked": "Numbers on the photo covered"
+      "masked": "Numbers on the photo covered",
+      "sheet_checked": "Spreadsheet checked before reading"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -2448,5 +2475,11 @@
       "executiveKeeps": "The Executive role always keeps this for all companies."
     },
     "groupScopeNotice": "A role's permissions apply in every company. Switch to all companies to change them."
+  },
+  "pinLookup": {
+    "tehsilAndDistrict": "Tehsil {tehsil}, district {district}.",
+    "district": "District {district}.",
+    "known": "This PIN is in the PIN code list.",
+    "unknown": "This PIN is not in the PIN code list. The site is saved and marked for someone to check."
   }
 }

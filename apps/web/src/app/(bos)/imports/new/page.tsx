@@ -1,4 +1,5 @@
 import { hasGrant, IMPLEMENTED_IMPORT_KINDS, IMPORT_LIMITS } from '@shakti/contracts';
+import { executeQuery, requestCoversAllCompanies } from '@shakti/domain';
 import { EmptyState } from '@shakti/ui';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -17,6 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * New import, step one: the company, what the file holds and the file itself. In All companies
  * mode the person chooses the company; only companies where their role may import are offered.
+ * The PIN code list is shared by every company, so it is offered only to an Executive working in
+ * all of them (docs/design/phase1.md §6.3).
  */
 export default async function NewImportPage() {
   const { principal, access } = await screenAccess(navRequires('imports'));
@@ -27,6 +30,12 @@ export default async function NewImportPage() {
         principal.entityIds.includes(e.entityId) && hasGrant(e.grants, 'imports.write', 'entity'),
     )
     .map((e) => ({ id: e.entityId, name: e.entityName }));
+  const group =
+    hasGrant(principal.permissions, 'imports.write', 'all') &&
+    (await executeQuery(principal, {}, (ctx) => requestCoversAllCompanies(ctx), {
+      name: 'imports.new.coversAll',
+    }));
+  const kinds = IMPLEMENTED_IMPORT_KINDS.filter((kind) => kind !== 'pin_codes' || group);
   return (
     <Page title={t('title')} description={t('intro')} width="form">
       <ImportSteps state={undefined} />
@@ -35,7 +44,7 @@ export default async function NewImportPage() {
       ) : (
         <UploadForm
           companies={companies}
-          kinds={[...IMPLEMENTED_IMPORT_KINDS]}
+          kinds={kinds}
           limits={{ maxFileBytes: IMPORT_LIMITS.maxFileBytes, maxRows: IMPORT_LIMITS.maxRows }}
         />
       )}

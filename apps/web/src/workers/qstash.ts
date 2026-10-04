@@ -12,6 +12,9 @@ export const OUTBOX_FAILED_PATH = '/api/v1/workers/outbox/failed';
 /** Where QStash calls the import worker, once per commit and again while a job has rows left. */
 export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
 
+/** Where the hourly schedule calls the sweep of abandoned uploads. */
+export const FILES_SWEEP_PATH = '/api/v1/workers/files/sweep';
+
 /** A queue call that takes longer than this counts as failed; the next run tries again. */
 const QUEUE_TIMEOUT_MS = 5_000;
 const NUDGE_TIMEOUT_MS = 1_000;
@@ -176,6 +179,13 @@ export function workerUrl(config: QStashConfig, path: string): string {
 }
 
 /**
+ * How often QStash calls the import worker again after a failure. The call that carries
+ * `Upstash-Retried` equal to this is the last: if it fails too, the job is failed rather than
+ * left committing (`imports.job.fail`).
+ */
+export const IMPORT_COMMIT_RETRIES = 3;
+
+/**
  * Asks QStash to call the import worker for a job; QStash retries it if the worker fails, and
  * sends a message with a `deduplicationId` it has already taken only once.
  */
@@ -188,7 +198,7 @@ export async function publishImportCommit(
     client(config).publishJSON({
       url: workerUrl(config, IMPORT_COMMIT_PATH),
       body,
-      retries: 3,
+      retries: IMPORT_COMMIT_RETRIES,
       deduplicationId,
     }),
     QUEUE_TIMEOUT_MS,

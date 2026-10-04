@@ -8,9 +8,14 @@ import en from '../../../../../../../messages/en.json';
 import { logger } from '../../../../../../log';
 import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
-import { IMPORT_RUN_BUDGET_MS, runImportCommit } from '../../../../../../workers/imports';
+import {
+  giveUpImportCommit,
+  IMPORT_RUN_BUDGET_MS,
+  runImportCommit,
+} from '../../../../../../workers/imports';
 import {
   IMPORT_COMMIT_PATH,
+  IMPORT_COMMIT_RETRIES,
   qstashConfig,
   verifyQStashSignature,
   workerUrl,
@@ -27,7 +32,8 @@ export const maxDuration = 60;
  * longer commit answers 403 and QStash is told not to retry. A run that waited too long for a
  * lock (the job's row, held by an overlapping run of the same job, or a row a batch needs) or
  * whose statement was cut off answers 503, which QStash retries, and is logged as a warning: the
- * job is not at fault and is not failed.
+ * job is not at fault and is not failed. On the queue's last retry (`Upstash-Retried`) a call
+ * that fails either way fails the job instead (`imports.job.fail`), so it never waits for ever.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
@@ -63,6 +69,18 @@ export async function POST(request: Request): Promise<Response> {
     const result = await runImportCommit(body, { budgetMs: IMPORT_RUN_BUDGET_MS, requestId });
     return Response.json(result, { headers });
   } catch (error) {
+    const forbidden = error instanceof DomainError && error.code === 'forbidden';
+    if (!forbidden && isLastRetry(request.headers)) {
+      try {
+        return Response.json(await giveUpImportCommit(body, requestId), { headers });
+      } catch (giveUpError) {
+        logger.log('error', 'imports.commit_give_up_failed', {
+          requestId,
+          jobId: body.jobId,
+          error: giveUpError,
+        });
+      }
+    }
     if (isRetryableWait(error)) {
       logger.log('warn', 'imports.commit_job_busy', { requestId, jobId: body.jobId });
       return failure('integration_unavailable', 503, requestId, headers);
@@ -83,6 +101,12 @@ export async function POST(request: Request): Promise<Response> {
 function isRetryableWait(error: unknown): boolean {
   const state = error instanceof DomainError ? error.details?.sqlstate : undefined;
   return state === '55P03' || state === '57014';
+}
+
+/** The call QStash makes after its last retry has failed: `Upstash-Retried` counts the retries. */
+function isLastRetry(headers: Headers): boolean {
+  const retried = Number.parseInt(headers.get('upstash-retried') ?? '0', 10);
+  return Number.isFinite(retried) && retried >= IMPORT_COMMIT_RETRIES;
 }
 
 /** QStash stops retrying a message whose answer carries this header. */

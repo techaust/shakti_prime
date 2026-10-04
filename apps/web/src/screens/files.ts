@@ -9,6 +9,8 @@ export const FILE_TYPE_KEYS = {
   'image/png': 'png',
   'image/webp': 'webp',
   'application/pdf': 'pdf',
+  'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 } as const satisfies Record<UploadContentType, string>;
 export type FileTypeKey = (typeof FILE_TYPE_KEYS)[UploadContentType];
 

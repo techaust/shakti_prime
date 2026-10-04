@@ -1,44 +1,30 @@
 'use client';
 
-import type { IMPLEMENTED_IMPORT_KINDS } from '@shakti/contracts';
-import { Button, Field, Input, Select, toast } from '@shakti/ui';
+import type { ImplementedImportKind } from '@shakti/contracts';
+import { Button, Field, Select, toast, Uploader, type UploadControls } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type SyntheticEvent } from 'react';
-import { uploadImportFile } from '../../actions/imports';
-import type { ErrorKey } from '../../i18n/types';
+import { useRef, useState } from 'react';
+import { startImport } from '../../actions/imports';
+import { sizeParts } from '../../screens/files';
 import {
-  fileProblem,
-  fileSize,
   formatCount,
+  IMPORT_CONTENT_TYPES,
+  importContentType,
   jobHref,
   limitsInWords,
   type UploadLimits,
 } from '../../screens/import-wizard';
-import { FailureMessage, useFieldFailure } from '../screens/failure';
+import { sendFile } from '../files/send-file';
+import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
 
-const FIELDS = ['entityId', 'kind', 'file'] as const;
-
-/** The file reasons the upload answers, which belong under the file field. */
-const FILE_REASONS: readonly string[] = [
-  'import_file_empty',
-  'import_file_too_large',
-  'import_workbook_too_large',
-  'import_file_type',
-  'import_file_unreadable',
-  'import_no_header',
-  'import_too_many_rows',
-  'import_too_many_columns',
-  'import_cell_too_long',
-  'import_file_duplicate',
-];
-
 /**
- * Step one of an import: the company, what the file holds and the file. The file is checked
- * against the limits here first, so a file the upload would refuse is never sent; the server
- * reads and checks it again. One idempotency key per rendered form.
+ * Step one of an import: the company, what the file holds and the file. The file goes straight to
+ * the file store on a signed address (docs/API.md §3.2) and passes its checks; then the server
+ * reads it and starts the import, and the screen opens the job. A file whose checks take longer
+ * than the uploader waits is started with the button once they are done.
  */
 export function UploadForm({
   companies,
@@ -46,46 +32,28 @@ export function UploadForm({
   limits,
 }: {
   companies: { id: number; name: string }[];
-  kinds: readonly (typeof IMPLEMENTED_IMPORT_KINDS)[number][];
+  kinds: readonly ImplementedImportKind[];
   limits: UploadLimits;
 }) {
   const t = useTranslations('imports.upload');
-  const imports = useTranslations('imports');
+  const files = useTranslations('files');
   const errors = useTranslations('errors');
   const router = useRouter();
-  const { run, pending, failure } = useCommand(uploadImportFile);
-  const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
-  const [file, setFile] = useState<File | undefined>();
-  const [problem, setProblem] = useState<ErrorKey | 'noFile' | undefined>();
+  const start = useCommand(startImport);
+  const [entityId, setEntityId] = useState<number | undefined>(
+    companies.length === 1 ? companies[0]?.id : undefined,
+  );
+  const [kind, setKind] = useState<ImplementedImportKind>(kinds[0] ?? 'leads');
+  // The uploaded file, once the server recorded it; and whether its checks are still running.
+  const fileId = useRef<string | undefined>(undefined);
+  const [uploaded, setUploaded] = useState<'none' | 'waiting' | 'ready'>('none');
   const words = limitsInWords(limits);
+  const size = sizeParts(limits.maxFileBytes);
 
-  // A reason about the file itself is shown under the file field, not under the form.
-  const fileFailure =
-    failure !== undefined && FILE_REASONS.includes(failure.error) ? failure : undefined;
-  const fileError =
-    problem === 'noFile'
-      ? t('noFile')
-      : problem !== undefined
-        ? errors(problem)
-        : fileFailure !== undefined
-          ? errors(fileFailure.error as ErrorKey)
-          : fieldError('file');
-
-  function choose(chosen: File | undefined) {
-    setFile(chosen);
-    setProblem(chosen === undefined ? undefined : fileProblem(chosen, limits));
-  }
-
-  function submit(e: SyntheticEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (pending) return;
-    const form = new FormData(e.currentTarget);
-    const chosen = form.get('file');
-    const found =
-      chosen instanceof File && chosen.name !== '' ? fileProblem(chosen, limits) : 'noFile';
-    setProblem(found);
-    if (found !== undefined) return;
-    run(form, (job) => {
+  function begin(company: number) {
+    const id = fileId.current;
+    if (id === undefined || start.pending) return;
+    start.run({ entityId: company, kind, fileId: id }, (job) => {
       toast.success(
         t('done', { count: job.totalRows, shown: formatCount(job.totalRows), file: job.file.name }),
       );
@@ -93,20 +61,19 @@ export function UploadForm({
     });
   }
 
-  const size = file === undefined ? undefined : fileSize(file.size);
   return (
-    <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
-        {companies.length === 1 ? (
-          <input type="hidden" name="entityId" value={String(companies[0]?.id ?? '')} />
-        ) : (
-          <Field
-            id="import-company"
-            label={t('company')}
-            helper={t('companyHelper')}
-            error={fieldError('entityId')}
-          >
-            <Select name="entityId" required defaultValue="">
+        {companies.length === 1 ? null : (
+          <Field id="import-company" label={t('company')} helper={t('companyHelper')}>
+            <Select
+              value={entityId === undefined ? '' : String(entityId)}
+              disabled={uploaded !== 'none'}
+              onChange={(e) => {
+                const value = e.currentTarget.value;
+                setEntityId(value === '' ? undefined : Number(value));
+              }}
+            >
               <option value="">{t('choose')}</option>
               {companies.map((c) => (
                 <option key={c.id} value={String(c.id)}>
@@ -116,48 +83,93 @@ export function UploadForm({
             </Select>
           </Field>
         )}
-        <Field id="import-kind" label={t('kind')} error={fieldError('kind')}>
-          <Select name="kind" required defaultValue={kinds[0]}>
-            {kinds.map((kind) => (
-              <option key={kind} value={kind}>
-                {t(`kinds.${kind}`)}
+        <Field id="import-kind" label={t('kind')} helper={t(`kindHelpers.${kind}`)}>
+          <Select
+            value={kind}
+            disabled={uploaded !== 'none'}
+            onChange={(e) => {
+              setKind(e.currentTarget.value as ImplementedImportKind);
+            }}
+          >
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {t(`kinds.${k}`)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field
-          id="import-file"
-          label={t('file')}
-          helper={t('fileHelper', { megabytes: words.megabytes, rows: words.rows })}
-          error={fileError}
-        >
-          <Input
-            name="file"
-            type="file"
-            required
-            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="file:text-text file:bg-surface-2 file:border-border h-auto py-1.5 file:mr-3 file:rounded-sm file:border file:px-2 file:py-1 max-md:h-auto"
-            onChange={(e) => {
-              choose(e.currentTarget.files?.[0]);
+        {entityId === undefined ? (
+          <p className="text-text-muted text-sm">{t('chooseCompanyFirst')}</p>
+        ) : (
+          <Uploader
+            key={`${String(entityId)}-${kind}`}
+            id={`import-file-${String(entityId)}`}
+            label={t('file')}
+            hint={t('fileHelper', { megabytes: words.megabytes, rows: words.rows })}
+            accept={IMPORT_CONTENT_TYPES}
+            maxBytes={limits.maxFileBytes}
+            typeOf={importContentType}
+            text={{
+              choose: files('uploader.choose'),
+              drop: files('uploader.drop'),
+              cancel: files('uploader.cancel'),
+              retry: files('uploader.retry'),
+              started: files('uploader.started'),
+              halfway: files('uploader.halfway'),
+              cancelled: files('uploader.cancelled'),
+              failed: files('uploader.failed'),
+              wrongType: errors('import_file_type'),
+              tooLarge: files('uploader.tooLarge', {
+                size: files(`size.${size.unit}`, { value: size.value }),
+              }),
+              empty: errors('import_file_empty'),
+            }}
+            upload={(file: File, controls: UploadControls) =>
+              sendFile(
+                file,
+                { entityId, purpose: 'import', contentType: importContentType(file) },
+                controls,
+                {
+                  checking: files('uploader.checking'),
+                  checkingLong: t('checkingLong'),
+                  ready: t('ready'),
+                  failed: files('uploader.failed'),
+                  error: (key) => errors(key),
+                },
+                (id) => {
+                  fileId.current = id;
+                  setUploaded('none');
+                },
+              )
+            }
+            onUploaded={(result) => {
+              if (result.status === 'done') {
+                setUploaded('ready');
+                begin(entityId);
+              } else {
+                setUploaded('waiting');
+              }
             }}
           />
-        </Field>
-        {file === undefined || size === undefined ? null : (
-          <p className="text-text-muted text-sm break-all">
-            {t('chosen', { name: file.name, size: imports(`fileSize.${size.unit}`, size) })}
-          </p>
         )}
       </div>
 
-      <FailureMessage failure={fileFailure === undefined ? formFailure : undefined} />
+      <FailureMessage failure={start.failure} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="secondary" asChild>
           <Link href="/imports">{t('cancel')}</Link>
         </Button>
-        <Button type="submit" pending={pending}>
-          {t('submit')}
-        </Button>
+        {uploaded === 'none' || entityId === undefined ? null : (
+          <Button
+            pending={start.pending}
+            onClick={() => {
+              begin(entityId);
+            }}
+          >
+            {t('submit')}
+          </Button>
+        )}
       </div>
-    </form>
+    </div>
   );
 }

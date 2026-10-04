@@ -6,16 +6,16 @@ import type { FileUploadState } from '../../state-machines/machines/file-upload'
 import { fireUpload } from './shared';
 
 /**
- * `files.upload.sweep` (the worker principal, on a schedule; docs/design/phase1.md §6.3): every
- * upload still `pending` `olderThanMinutes` after it began never completed (its upload address
- * lasted 15 minutes), so it is refused as abandoned (`file_upload_abandoned`), oldest first, at
- * most `SWEEP_UPLOADS_LIMIT` a run. The record stays for the trail; the answer names each one's
+ * `files.upload.sweep` (the worker principal, on a schedule, in a request for one company; docs/
+ * design/phase1.md §6.3): every upload of the company still `pending` `olderThanMinutes` after it
+ * began never completed (its upload address lasted 15 minutes), so it is refused as abandoned
+ * (`file_upload_abandoned`), oldest first, at most `SWEEP_UPLOADS_LIMIT` a run. The record stays for the trail; the answer names each one's
  * key so the worker deletes whatever bytes landed there, which a later run would simply find gone.
  */
 export const sweepUploads = defineCommand({
   name: 'files.upload.sweep',
   permission: 'files.process',
-  minScope: 'all',
+  minScope: 'entity',
   input: SweepUploadsInput,
   output: SweepUploadsDto,
   auditFields: ['fileStatus', 'rejectReason'],
@@ -25,7 +25,13 @@ export const sweepUploads = defineCommand({
     const rows = await ctx.tx
       .select()
       .from(f)
-      .where(and(eq(f.status, 'pending'), lt(f.createdAt, before)))
+      .where(
+        and(
+          inArray(f.entityId, [...ctx.entityIds]),
+          eq(f.status, 'pending'),
+          lt(f.createdAt, before),
+        ),
+      )
       .orderBy(asc(f.createdAt))
       .limit(SWEEP_UPLOADS_LIMIT)
       .for('update', { skipLocked: true });
