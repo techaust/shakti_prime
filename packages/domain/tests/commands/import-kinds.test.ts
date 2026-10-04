@@ -1,4 +1,5 @@
 import {
+  newId,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type ImportJobDto,
   type ImplementedImportKind,
@@ -59,9 +60,20 @@ function phone(): string {
   return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
 }
 
-/** A fixture PIN with no office left by an earlier run. 999901 is the CRM fixture's. */
+/** The fixture PINs this file has drawn, so no two of its tests share one. */
+const drawnPins = new Set<string>();
+
+/**
+ * A fixture PIN with no office left by an earlier run: one of 999950 to 999989, never one this
+ * file drew before. 999901 is the CRM fixture's; the database suite draws from 999910 to 999949.
+ */
 async function freshPin(): Promise<string> {
-  const code = `9999${String(10 + Math.floor(Math.random() * 90))}`;
+  const free = Array.from({ length: 40 }, (_, i) => `9999${String(50 + i)}`).filter(
+    (code) => !drawnPins.has(code),
+  );
+  const code = free[Math.floor(Math.random() * free.length)];
+  if (code === undefined) throw new Error('the fixture PINs of this file are used up');
+  drawnPins.add(code);
   await asMigrator((m) => m`delete from pin_codes where pin = ${code}`);
   return code;
 }
@@ -176,7 +188,8 @@ describe('imports of customers (accounts)', () => {
       [4, 'invalid'],
       [5, 'invalid'],
     ]);
-    expect(rows[2]?.dedupe).toEqual({ inFileRowNo: 1, existing: [] });
+    // The repeat's site is the first row's own, so nothing more is added.
+    expect(rows[2]?.dedupe).toEqual({ inFileRowNo: 1, existing: [], site: 'same' });
     expect(rows[3]?.errors).toEqual([{ field: 'company', code: 'company_unknown' }]);
     expect(rows[4]?.errors).toEqual([{ field: 'phone', code: 'required' }]);
 
@@ -415,7 +428,7 @@ describe('imports of the PIN code master (pin_codes)', () => {
   });
 });
 
-describe('imports.job.fail: the worker gives up after its last retry', () => {
+describe('imports.job.fail: the worker gives up on a job it can take no further', () => {
   async function committingJob(principal: Principal): Promise<ImportJobDto> {
     const job = await startedJob(principal, 'accounts', `Name,Mobile\nGiven Up,${phone()}\n`);
     await run(principal, mapImportJob, { entityId: 1, jobId: job.id, mapping: NAME_PHONE_MAPPING });
@@ -423,22 +436,25 @@ describe('imports.job.fail: the worker gives up after its last retry', () => {
     return run(principal, commitImportJob, { entityId: 1, jobId: job.id });
   }
 
-  it('is denied without imports.write and refused for another company', async () => {
+  it('is the worker principal’s alone, in the job’s company', async () => {
     const job = await committingJob(gm1);
-    await expect(run(caller, failImportJob, { entityId: 1, jobId: job.id })).rejects.toMatchObject({
-      code: 'forbidden',
-    });
-    await expect(run(gm2, failImportJob, { entityId: 1, jobId: job.id })).rejects.toMatchObject({
-      code: 'forbidden',
-    });
-    await expect(run(gm2, failImportJob, { entityId: 2, jobId: job.id })).rejects.toMatchObject({
-      code: 'not_found',
-    });
+    // No person stops a job this way, not even the one who started it.
+    for (const principal of [caller, gm1, executive]) {
+      await expect(
+        run(principal, failImportJob, { entityId: 1, jobId: job.id }),
+      ).rejects.toMatchObject({ code: 'forbidden' });
+    }
+    await expect(
+      run(workers([2]), failImportJob, { entityId: 1, jobId: job.id }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      run(workers([2]), failImportJob, { entityId: 2, jobId: job.id }),
+    ).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('stops a committing job at its next batch and announces it; a finished job is left alone', async () => {
     const job = await committingJob(gm1);
-    const failed = await run(gm1, failImportJob, { entityId: 1, jobId: job.id });
+    const failed = await run(workers([1]), failImportJob, { entityId: 1, jobId: job.id });
     expect(failed).toMatchObject({ state: 'failed', failedBatch: 1 });
     const events = await asOutboxPublisher(
       (p) => p<{ payload_json: unknown }[]>`
@@ -449,7 +465,7 @@ describe('imports.job.fail: the worker gives up after its last retry', () => {
       expect.objectContaining({ kind: 'accounts', failedBatch: 1, committedRows: 0 }),
     ]);
     // Asked again, nothing changes.
-    expect(await run(gm1, failImportJob, { entityId: 1, jobId: job.id })).toMatchObject({
+    expect(await run(workers([1]), failImportJob, { entityId: 1, jobId: job.id })).toMatchObject({
       state: 'failed',
       failedBatch: 1,
     });
@@ -507,5 +523,297 @@ describe('files.upload.sweep: uploads that never completed', () => {
       status: 'rejected',
       reason: 'file_upload_abandoned',
     });
+  });
+});
+
+/** A customer's sites, read past the policies, in the order made. */
+async function sitesOf(accountId: string) {
+  return asMigrator(
+    (m) => m<{ village: string; type: string }[]>`
+      select village, type from customer_sites where account_id = ${accountId}
+       order by created_at, village`,
+  );
+}
+
+async function archivedOf(ids: readonly string[]): Promise<Record<string, boolean>> {
+  const rows = await asMigrator(
+    (m) => m<{ id: string; archived: boolean }[]>`
+      select id, archived_at is not null as archived from accounts where id = any(${[...ids]}::uuid[])`,
+  );
+  return Object.fromEntries(rows.map((r) => [r.id, r.archived]));
+}
+
+describe('customers files after review', () => {
+  it('adds the different site of a repeated row to the customer, and says so', async () => {
+    const number = phone();
+    const job = await startedJob(
+      gm1,
+      'accounts',
+      [
+        'Name,Mobile,Village',
+        `Two Sites,${number},Sikar`,
+        `Two Sites,${number},Churu`,
+        `Two Sites,${number},sikar`,
+        `Two Sites,${number},`,
+      ].join('\n') + '\n',
+    );
+    await run(gm1, mapImportJob, { entityId: 1, jobId: job.id, mapping: OWN_COMPANY_MAPPING });
+    const previewed = await run(gm1, previewImportJob, { entityId: 1, jobId: job.id });
+    expect(previewed).toMatchObject({ validRows: 1, skippedRows: 3, entityIds: [1] });
+    const rows = await rowsOf(gm1, job.id);
+    expect(rows.map((r) => r.dedupe)).toEqual([
+      null,
+      { inFileRowNo: 1, existing: [], site: 'added' },
+      { inFileRowNo: 1, existing: [], site: 'same' },
+      { inFileRowNo: 1, existing: [] },
+    ]);
+    await committed(gm1, previewed);
+    const made = (await rowsOf(gm1, job.id))[0]?.createdId ?? '';
+    expect(await sitesOf(made)).toEqual([
+      { village: 'Churu', type: 'borewell' },
+      { village: 'Sikar', type: 'borewell' },
+    ]);
+  });
+
+  it('adds a row to the customer the importer already sees with its number, making no second one', async () => {
+    const number = phone();
+    const existing = await run(executive, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Known Farmer', phone: number },
+      account: { type: 'farm' },
+    });
+    const job = await startedJob(
+      executive,
+      'accounts',
+      `Name,Mobile,Village,Company\nKnown Farmer again,${number},Sikar,SMP\n`,
+    );
+    await run(executive, mapImportJob, { entityId: 1, jobId: job.id, mapping: ACCOUNT_MAPPING });
+    const previewed = await run(executive, previewImportJob, { entityId: 1, jobId: job.id });
+    expect(previewed).toMatchObject({ validRows: 1, entityIds: [1, 2] });
+    const [row] = await rowsOf(executive, job.id);
+    expect(row?.dedupe).toMatchObject({
+      linkedTo: existing.account.id,
+      existing: [{ accountId: existing.account.id, matchedBy: 'phone' }],
+    });
+
+    expect(await committed(executive, previewed)).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+    });
+    const [done] = await rowsOf(executive, job.id);
+    expect(done).toMatchObject({ createdType: 'account_link', createdId: existing.account.id });
+    expect(await companiesOf(existing.account.id)).toEqual([1, 2]);
+    // No second customer holds the number.
+    const holders = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(distinct ac.account_id)::int as n
+          from contact_phones cp join account_contacts ac on ac.contact_id = cp.contact_id
+         where cp.e164 = (select e164 from contact_phones cp2
+                            join account_contacts ac2 on ac2.contact_id = cp2.contact_id
+                           where ac2.account_id = ${existing.account.id} limit 1)`,
+    );
+    expect(holders[0]?.n).toBe(1);
+    // The site of a linked row is not added: the customer's details stay as they were.
+    expect(await sitesOf(existing.account.id)).toEqual([]);
+
+    // Undoing the import leaves the customer, with the company the row added.
+    await run(executive, rollbackImportJob, { entityId: 1, jobId: job.id });
+    expect(await archivedOf([existing.account.id])).toEqual({ [existing.account.id]: false });
+    expect(await companiesOf(existing.account.id)).toEqual([1, 2]);
+  });
+
+  it('refuses to add or undo rows in a request that leaves out a company they name', async () => {
+    const job = await startedJob(
+      executive,
+      'accounts',
+      `Name,Mobile,Village,Company\nTwo Companies,${phone()},Sikar,SMP\n`,
+    );
+    await run(executive, mapImportJob, { entityId: 1, jobId: job.id, mapping: ACCOUNT_MAPPING });
+    await run(executive, previewImportJob, { entityId: 1, jobId: job.id });
+    const outOfReach = { code: 'forbidden', details: { reason: 'import_companies_out_of_reach' } };
+    await expect(
+      run(executive, commitImportJob, { entityId: 1, jobId: job.id }, [1]),
+    ).rejects.toMatchObject(outOfReach);
+    // The worker, acting for the job's own company alone, stops at the first batch too.
+    await run(executive, commitImportJob, { entityId: 1, jobId: job.id });
+    await expect(
+      run(executive, commitImportBatch, { entityId: 1, jobId: job.id }, [1]),
+    ).rejects.toMatchObject(outOfReach);
+    let current = await run(executive, commitImportBatch, { entityId: 1, jobId: job.id });
+    while (current.state === 'committing') {
+      current = await run(executive, commitImportBatch, { entityId: 1, jobId: job.id });
+    }
+    expect(current.state).toBe('committed');
+    await expect(
+      run(executive, rollbackImportJob, { entityId: 1, jobId: job.id }, [1]),
+    ).rejects.toMatchObject(outOfReach);
+  });
+
+  it('keeps on rollback a customer another company took on or a consent rests on, unseen by the caller', async () => {
+    const [taken, consented, free] = [phone(), phone(), phone()];
+    const job = await startedJob(
+      gm1,
+      'accounts',
+      [
+        'Name,Mobile,Village',
+        `Taken Elsewhere,${taken},Sikar`,
+        `Consented One,${consented},Sikar`,
+        `Free One,${free},Sikar`,
+      ].join('\n') + '\n',
+    );
+    await run(gm1, mapImportJob, { entityId: 1, jobId: job.id, mapping: OWN_COMPANY_MAPPING });
+    await committed(gm1, await run(gm1, previewImportJob, { entityId: 1, jobId: job.id }));
+    const [takenId = '', consentedId = '', freeId = ''] = (await rowsOf(gm1, job.id)).map(
+      (r) => r.createdId ?? '',
+    );
+    // Company 2 takes the first customer on, and the second's consent is recorded: neither is
+    // anything company 1's General Manager can see.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+          values (${newId()}, ${takenId}, 2, ${gm2.id}, ${gm2.id})`;
+        await tx`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
+          select ${newId()}, ac.contact_id, 'call', 'service', 'verbal', 'v1', now(), ${gm2.id}
+            from account_contacts ac where ac.account_id = ${consentedId}`;
+      }),
+    );
+    const rolled = await run(gm1, rollbackImportJob, { entityId: 1, jobId: job.id });
+    expect(rolled.state).toBe('rolled_back');
+    expect(await archivedOf([takenId, consentedId, freeId])).toEqual({
+      [takenId]: false,
+      [consentedId]: false,
+      [freeId]: true,
+    });
+  });
+
+  it('starts a job only from the caller’s own upload of the company', async () => {
+    const csv = `Name,Mobile\nOwn File,${phone()}\n`;
+    const parsed = await parseImportFile(new TextEncoder().encode(csv));
+    const input = (entityId: number, fileId: string) => ({
+      entityId,
+      kind: 'leads',
+      fileId,
+      format: parsed.format,
+      columns: parsed.columns,
+      rows: parsed.rows,
+    });
+    const missing = { code: 'not_found', details: { reason: 'import_file_missing' } };
+    // Another company's file, named in the caller's company or in that one.
+    const elsewhere = await createReadyImportFile(2, gm2.id);
+    await expect(run(gm1, createImportJob, input(1, elsewhere))).rejects.toMatchObject(missing);
+    await expect(run(gm1, createImportJob, input(2, elsewhere))).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    // A colleague's file of the same company.
+    const colleague = await createTestPrincipal('general_manager', [1]);
+    const theirs = await createReadyImportFile(1, colleague.id);
+    await expect(run(gm1, createImportJob, input(1, theirs))).rejects.toMatchObject(missing);
+    expect(await run(colleague, createImportJob, input(1, theirs))).toMatchObject({
+      createdBy: colleague.id,
+    });
+  });
+
+  it('refuses the same content again only while a job of it has added rows', async () => {
+    const sha256 = 'c'.repeat(32) + newId().replace(/-/g, '');
+    const csv = `Name,Mobile\nSame Content,${phone()}\n`;
+    const parsed = await parseImportFile(new TextEncoder().encode(csv));
+    const start = async () =>
+      run(gm1, createImportJob, {
+        entityId: 1,
+        kind: 'leads',
+        fileId: await createReadyImportFile(1, gm1.id, { sha256 }),
+        format: parsed.format,
+        columns: parsed.columns,
+        rows: parsed.rows,
+      });
+    const setState = (jobId: string, state: string, committedRows: number) =>
+      asMigrator(
+        (m) => m`update import_jobs set state = ${state}, valid_rows = 1,
+                   committed_rows = ${committedRows} where id = ${jobId}`,
+      );
+    const first = await start();
+    // Left before adding: the same list may be started again.
+    const second = await start();
+    await setState(first.id, 'rolled_back', 0);
+    await setState(second.id, 'failed', 0);
+    const third = await start();
+    await setState(third.id, 'committed', 1);
+    await expect(start()).rejects.toMatchObject({
+      code: 'conflict',
+      details: { reason: 'import_file_duplicate' },
+    });
+    await setState(third.id, 'failed', 1);
+    await expect(start()).rejects.toMatchObject({ details: { reason: 'import_file_duplicate' } });
+  });
+});
+
+describe('a PIN code import checks the waiting sites again', () => {
+  it('clears the flag of sites whose PIN it adds and fills their place; its rollback flags them again', async () => {
+    const code = await freshPin();
+    const lead = await run(gm2, createLead, {
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Waiting Site', phone: phone() },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village: 'Fixture village', pin: code },
+    });
+    const siteOf = async () => {
+      const [site] = await asMigrator(
+        (m) => m<{ tehsil: string | null; district: string | null; pin_needs_review: boolean }[]>`
+          select tehsil, district, pin_needs_review from customer_sites
+           where account_id = ${lead.account.id}`,
+      );
+      return site;
+    };
+    expect(await siteOf()).toEqual({ tehsil: null, district: null, pin_needs_review: true });
+
+    const job = await startedJob(
+      executive,
+      'pin_codes',
+      `Pincode,OfficeName,Taluk,District,StateName\n${code},Fixture Waiting B.O,Fixture Taluk,Fixture District,RAJASTHAN\n`,
+    );
+    await run(executive, mapImportJob, { entityId: 1, jobId: job.id, mapping: PIN_MAPPING });
+    await committed(
+      executive,
+      await run(executive, previewImportJob, { entityId: 1, jobId: job.id }),
+    );
+    expect(await siteOf()).toEqual({
+      tehsil: 'Fixture Taluk',
+      district: 'Fixture District',
+      pin_needs_review: false,
+    });
+
+    await run(executive, rollbackImportJob, { entityId: 1, jobId: job.id });
+    expect(await siteOf()).toEqual({
+      tehsil: 'Fixture Taluk',
+      district: 'Fixture District',
+      pin_needs_review: true,
+    });
+  });
+
+  it('corrects an office named in another case instead of adding it twice', async () => {
+    const code = await freshPin();
+    const header = 'Pincode,OfficeName,Taluk,District,StateName';
+    for (const [name, district] of [
+      ['Fixture Case B.O', 'Fixture First'],
+      ['FIXTURE CASE B.O', 'Fixture Second'],
+    ] as const) {
+      const job = await startedJob(
+        executive,
+        'pin_codes',
+        `${header}\n${code},${name},Fixture Taluk,${district},RAJASTHAN\n`,
+      );
+      await run(executive, mapImportJob, { entityId: 1, jobId: job.id, mapping: PIN_MAPPING });
+      await committed(
+        executive,
+        await run(executive, previewImportJob, { entityId: 1, jobId: job.id }),
+      );
+    }
+    const offices = await asMigrator(
+      (m) => m<{ office_name: string; district: string }[]>`
+        select office_name, district from pin_codes where pin = ${code}`,
+    );
+    expect(offices).toEqual([{ office_name: 'Fixture Case B.O', district: 'Fixture Second' }]);
   });
 });

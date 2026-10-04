@@ -17,7 +17,12 @@
 // Writes docs/spikes/results/import-scale-xlsx.json (or import-scale-csv.json) and the plan to
 // docs/spikes/results/import-dedupe-plan.txt. Not part of CI. It lives under tests/ because it
 // creates its caller with the testing helpers, which scripts outside the tests may not import.
-import { IMPORT_LIMITS, type ImportJobDto, type Principal } from '@shakti/contracts';
+import {
+  IMPORT_LIMITS,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type ImportJobDto,
+  type Principal,
+} from '@shakti/contracts';
 import type { RequestTx } from '@shakti/db';
 import {
   asMigrator,
@@ -26,6 +31,7 @@ import {
   createReadyImportFile,
   createTestPrincipal,
   prepareDatabase,
+  principalFor,
 } from '@shakti/db/testing';
 import { sql, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
@@ -308,7 +314,11 @@ async function undoEarlierRuns(gm: Principal): Promise<void> {
   );
   for (const job of left) {
     const ref = { entityId: ENTITY, jobId: job.id };
-    if (job.state === 'committing') await executeCommand(gm, scope, failImportJob, ref);
+    // Only the worker principal stops a job, as the import worker does after its last try.
+    if (job.state === 'committing') {
+      const worker = principalFor('system:workers', [ENTITY], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+      await executeCommand(worker, { entityIds: [ENTITY] }, failImportJob, ref);
+    }
     await executeCommand(gm, scope, rollbackImportJob, ref);
     log(`undid the job ${job.id} an earlier run left ${job.state}`);
   }

@@ -74,7 +74,7 @@ async function previewedJob(
   const created = await run(
     principal,
     createImportJob,
-    await fileInput(entityId, `Name,Mobile,Village\n${rows.join('\n')}\n`),
+    await fileInput(entityId, `Name,Mobile,Village\n${rows.join('\n')}\n`, principal),
   );
   await run(principal, mapImportJob, { entityId, jobId: created.id, mapping });
   return run(principal, previewImportJob, { entityId, jobId: created.id });
@@ -314,7 +314,7 @@ describe('imports: create, map and preview', () => {
     const theirs = await run(
       gm2,
       createImportJob,
-      await fileInput(2, `Name,Mobile,Village\nC,${phone()},Z\n`),
+      await fileInput(2, `Name,Mobile,Village\nC,${phone()},Z\n`, gm2),
     );
     await expect(
       run(gm2, mapImportJob, { entityId: 2, jobId: theirs.id, templateId: mapped.templateId }),

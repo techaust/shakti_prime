@@ -3,6 +3,7 @@ import {
   IMPORT_LIMITS,
   ImportCommitWorkerResponse,
   newId,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
   type DeliveredEvent,
   type ImportJobDto,
   type Principal,
@@ -329,20 +330,36 @@ describe('an import file on the pre-signed upload', () => {
     expect(await jobsOf(fileId)).toBe(1);
   });
 
-  it('starts one job from one file, and refuses the same content uploaded again', async () => {
+  it('starts one job from one file, and refuses the same content once its rows were added', async () => {
     const csv = `Name,Mobile\nHari,${phone()}\n`;
     const fileId = await uploaded(csv);
-    ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+    const first = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
     expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
       ok: false,
       error: 'import_file_duplicate',
     });
+    // The first job added nothing yet, so the same list uploaded again may start afresh.
+    ok(await startImport({ entityId: 1, kind: 'leads', fileId: await uploaded(csv) }, newId()));
+    await asMigrator(
+      (m) => m`update import_jobs set state = 'committed', valid_rows = 1, committed_rows = 1
+                where id = ${first.id}`,
+    );
     const again = await uploaded(csv);
     expect(await startImport({ entityId: 1, kind: 'leads', fileId: again }, newId())).toEqual({
       ok: false,
       error: 'import_file_duplicate',
     });
     expect(await jobsOf(again)).toBe(0);
+  });
+
+  it("refuses to start an import from a colleague's upload", async () => {
+    const colleague = await createTestPrincipal('general_manager', [1]);
+    const fileId = await uploaded(`Name,Mobile\nNot Mine,${phone()}\n`, { as: colleague });
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_missing',
+    });
+    expect(await jobsOf(fileId)).toBe(0);
   });
 
   it('answers a plain sentence when the stored bytes are gone or no store exists', async () => {
@@ -720,6 +737,46 @@ describe('POST /api/v1/workers/imports/commit', () => {
     expect(failed).toHaveLength(1);
     expect(failed[0]?.payload_json).toMatchObject({ failedBatch: 1 });
   }, 60_000);
+
+  it('fails the job of an importer suspended since, as the worker, and is not retried', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'general_manager' }], {
+      twoFactorEnabled: true,
+    });
+    const importer = principalFor('general_manager', [1], { id: user.id });
+    request.principal = importer;
+    const job = ok(
+      await startImport(
+        {
+          entityId: 1,
+          kind: 'leads',
+          fileId: await uploaded(`Name,Mobile,Village\nSuspended,${phone()},Sikar\n`, {
+            as: importer,
+          }),
+        },
+        newId(),
+      ),
+    );
+    ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
+    ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    await executeCommand(importer, { entityIds: [1] }, commitImportJobCommand, {
+      entityId: 1,
+      jobId: job.id,
+    });
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${user.id}`);
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: user.id });
+    const response = await call(body, sign(body));
+    expect(response.status).toBe(200);
+    expect(ImportCommitWorkerResponse.parse(await response.json())).toMatchObject({
+      jobId: job.id,
+      state: 'failed',
+      committedRows: 0,
+    });
+    const [stopped] = await asMigrator(
+      (m) => m<{ updated_by: string }[]>`select updated_by from import_jobs where id = ${job.id}`,
+    );
+    expect(stopped?.updated_by).toBe(SYSTEM_WORKERS_PRINCIPAL_ID);
+    expect(await liveLeads(job.id)).toBe(0);
+  });
 
   it('gives up on a job only while it commits, and leaves a finished one as it is', async () => {
     const job = await committingJob(['Given up']);

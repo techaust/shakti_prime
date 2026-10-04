@@ -1031,12 +1031,12 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     const importer = await narrowImporter();
     const job = await previewedJob(importer, [`Cut One,${digits()},Sikar`]);
     await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
-    // The set-based try is made with all the budget; its first two statements (the colleague
-    // check and the pipelines) find all the time left, and the key's claim finds one second left
-    // before the deadline, which becomes its statement timeout. The clock reads 0 after that, so
-    // the row-by-row slice has all its time.
+    // The set-based try is made with all the budget; its first four statements (the colleague
+    // check, the pipelines, their first stages and the lead sources) find all the time left, and
+    // the key's claim finds one second left before the deadline, which becomes its statement
+    // timeout. The clock reads 0 after that, so the row-by-row slice has all its time.
     const deadline = importBatchSettings.budgetMs - ROW_BY_ROW_SLICE_MS;
-    const readings = [0, 0, 0, 0, deadline - 1_000];
+    const readings = [0, 0, 0, 0, 0, 0, deadline - 1_000];
     const log = memoryLogger();
     // The row's key is claimed elsewhere for three seconds: the set-based insert waits and is cut
     // off after one second, and the row-by-row claim waits out the rest within its lock wait.
