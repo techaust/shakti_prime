@@ -43,7 +43,11 @@ async function undo(
   const actor = ctx.principal.id;
   if (kind === 'leads') {
     const o = schema.opportunities;
-    const visible = await tx.select({ id: o.id }).from(o).where(inArray(o.id, [...ids])).for('update');
+    const visible = await tx
+      .select({ id: o.id })
+      .from(o)
+      .where(inArray(o.id, [...ids]))
+      .for('update');
     if (visible.length !== ids.length) throw blocked();
     const changed = await tx
       .update(o)
@@ -54,7 +58,11 @@ async function undo(
   }
   if (kind === 'accounts') {
     const a = schema.accounts;
-    const visible = await tx.select({ id: a.id }).from(a).where(inArray(a.id, [...ids])).for('update');
+    const visible = await tx
+      .select({ id: a.id })
+      .from(a)
+      .where(inArray(a.id, [...ids]))
+      .for('update');
     if (visible.length !== ids.length) throw blocked();
     const changed = await tx
       .update(a)

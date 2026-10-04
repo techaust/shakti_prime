@@ -92,7 +92,10 @@ export function withUploadRules<T extends z.ZodType<{ purpose: FilePurpose; cont
         (v.purpose === 'import') ===
         (v.contentType === 'text/csv' ||
           v.contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-      { message: 'a CSV or a workbook is an import file, and an import file is one of them', path: ['contentType'] },
+      {
+        message: 'a CSV or a workbook is an import file, and an import file is one of them',
+        path: ['contentType'],
+      },
     );
 }
 

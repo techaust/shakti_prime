@@ -1,4 +1,4 @@
-import { FailImportJobInput, ImportJobDto, type ImportKind } from '@shakti/contracts';
+import { FailImportJobInput, ImportJobDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import { assertEntityInScope, jobState, loadJob, toImportJobDto, updateJob } from './shared';
@@ -43,7 +43,7 @@ export const failImportJob = defineCommand({
       entityId: job.entityId,
       aggregateType: 'import_job',
       aggregateId: job.id,
-      payload: { kind: job.kind as ImportKind, committedRows: job.committedRows, failedBatch },
+      payload: { kind: job.kind, committedRows: job.committedRows, failedBatch },
     });
     return toImportJobDto(failed);
   },

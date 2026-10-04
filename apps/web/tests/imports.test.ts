@@ -255,7 +255,10 @@ describe('an import file on the pre-signed upload', () => {
       (m) => m<{ status: string; scan_result: unknown }[]>`
         select status, scan_result from files where id = ${fileId}`,
     );
-    expect(row).toMatchObject({ status: 'rejected', scan_result: { rejectReason: 'file_unreadable' } });
+    expect(row).toMatchObject({
+      status: 'rejected',
+      scan_result: { rejectReason: 'file_unreadable' },
+    });
     expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
       ok: false,
       error: 'import_file_unreadable',
@@ -317,7 +320,11 @@ describe('an import file on the pre-signed upload', () => {
       ok: false,
       error: 'import_file_not_ready',
     });
-    await handleFileUploaded(fileUploaded(fileId), { store: files, principal: checker, hosted: false });
+    await handleFileUploaded(fileUploaded(fileId), {
+      store: files,
+      principal: checker,
+      hosted: false,
+    });
     ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
     expect(await jobsOf(fileId)).toBe(1);
   });
@@ -710,9 +717,8 @@ describe('POST /api/v1/workers/imports/commit', () => {
         select type, payload_json from outbox_events
          where aggregate_id = ${job.id} and type = 'imports.job.failed'`,
     );
-    expect(failed).toEqual([
-      { type: 'imports.job.failed', payload_json: expect.objectContaining({ failedBatch: 1 }) },
-    ]);
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.payload_json).toMatchObject({ failedBatch: 1 });
   }, 60_000);
 
   it('gives up on a job only while it commits, and leaves a finished one as it is', async () => {

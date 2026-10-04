@@ -19,13 +19,7 @@ import {
   type UploadResult,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import {
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-  type SyntheticEvent,
-} from 'react';
+import { useRef, useState, type ChangeEvent, type ReactNode, type SyntheticEvent } from 'react';
 import {
   addNote,
   archiveTag,
@@ -369,7 +363,7 @@ function SiteForm({ view, onDone, onCancel, siteId }: FormProps & { siteId?: str
     name: string,
     value: string | null | undefined,
     extra: object = {},
-    helper: ReactNode = undefined,
+    helper?: ReactNode,
   ) => (
     <Field
       id={`site-${name}`}

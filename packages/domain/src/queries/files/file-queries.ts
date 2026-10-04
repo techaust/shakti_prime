@@ -109,5 +109,5 @@ export async function staleUploadCompanies(
   const rows = (await ctx.tx.execute(
     sql`select entity_id from app.stale_upload_entities(${olderThanMinutes}::int) as entity_id`,
   )) as unknown as { entity_id: number }[];
-  return rows.map((row) => Number(row.entity_id));
+  return rows.map((row) => row.entity_id);
 }

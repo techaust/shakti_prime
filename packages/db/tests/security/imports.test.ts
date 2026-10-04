@@ -118,10 +118,11 @@ describe('imports are written only as the caller, in the caller’s entity', () 
   const insertFile = (entityId: number, createdBy: string) => {
     const id = newId();
     return sql`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
-      values (${id}, ${entityId}, 'import', 'test', ${`imports/${id}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'ready', ${createdBy})`;
+      values (${id}, ${entityId}, 'import', 'test', ${`imports/${id}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'pending', ${createdBy})`;
   };
 
-  it('lets a General Manager store a file in their entity', async () => {
+  // An import file comes by the pre-signed upload, so a person records it pending (0091).
+  it('lets a General Manager record an upload in their entity', async () => {
     await asPrincipal(gm1, ({ tx }) => tx.execute(insertFile(1, gm1.id)));
   });
 
@@ -155,13 +156,31 @@ describe('imports are written only as the caller, in the caller’s entity', () 
   });
 
   it('keeps a job with a file of its own entity, even for the table owner', async () => {
+    // A file of the first company that no job uses yet: one file starts one job (0090).
+    const fileId = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+        values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'ready', ${gm1.id})`,
+    );
     const job = asMigrator(
       (
         m,
       ) => m`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, created_by)
-        values (${newId()}, 2, 'leads', ${one.fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
+        values (${newId()}, 2, 'leads', ${fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
     );
     expect(await failure(job)).toMatch(/import_jobs_file_entity_fk/);
+  });
+
+  it('starts one job from one file, even for the table owner', async () => {
+    const job = asMigrator(
+      (
+        m,
+      ) => m`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, created_by)
+        values (${newId()}, 1, 'leads', ${one.fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
+    );
+    expect(await failure(job)).toMatch(/import_jobs_file_unique/);
   });
 
   it('updates the working columns of a job and a row, never what the file said', async () => {
@@ -226,15 +245,16 @@ describe('the batch count of a job that committed before 0058 (0060)', () => {
       m
         .begin(async (tx) => {
           const f = { committed: newId(), untouched: newId(), counted: newId() };
-          const fileId = newId();
-          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
-            values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,
-                    ${newId().replaceAll('-', '').padEnd(64, '0')}, 'ready', ${gm1.id})`;
           for (const [jobId, batchCount] of [
             [f.committed, 0],
             [f.untouched, 0],
             [f.counted, 5],
           ] as const) {
+            // Each job its own file: one file starts one job (0090).
+            const fileId = newId();
+            await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+              values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,
+                      ${newId().replaceAll('-', '').padEnd(64, '0')}, 'ready', ${gm1.id})`;
             // Last changed long ago, so a change by the backfill shows in updated_at.
             await tx`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, state, total_rows, batch_count, created_by, updated_at)
               values (${jobId}, 1, 'leads', ${fileId}, 'csv', '["Name"]'::jsonb, 'committing', 3, ${batchCount}, ${gm1.id}, '2026-01-01T00:00:00Z')`;

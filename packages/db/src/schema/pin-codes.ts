@@ -26,7 +26,10 @@ export const pinCodes = pgTable(
   (t) => [
     check('pin_codes_pin_check', sql`${t.pin} ~ '^[1-9][0-9]{5}$'`),
     check('pin_codes_office_name_check', sql`char_length(${t.officeName}) between 1 and 120`),
-    check('pin_codes_taluk_check', sql`${t.taluk} is null or char_length(${t.taluk}) between 1 and 120`),
+    check(
+      'pin_codes_taluk_check',
+      sql`${t.taluk} is null or char_length(${t.taluk}) between 1 and 120`,
+    ),
     check('pin_codes_district_check', sql`char_length(${t.district}) between 2 and 120`),
     check(
       'pin_codes_state_code_check',

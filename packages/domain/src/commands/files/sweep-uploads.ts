@@ -47,7 +47,12 @@ export const sweepUploads = defineCommand({
         scanResult: { rejectReason: 'file_upload_abandoned' },
         updatedBy: ctx.principal.id,
       })
-      .where(inArray(f.id, rows.map((row) => row.id)));
+      .where(
+        inArray(
+          f.id,
+          rows.map((row) => row.id),
+        ),
+      );
     for (const row of rows) {
       ctx.audit({
         aggregateType: 'file',

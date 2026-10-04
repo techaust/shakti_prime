@@ -97,6 +97,9 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     import_mapping_templates: { i: true, u: false },
     import_jobs: { i: true, u: false },
     import_rows: { i: true, u: false },
+    // The PIN code import adds and corrects offices (taluk, district and state only) and its
+    // rollback removes the ones it added (0091, pin-codes.test.ts).
+    pin_codes: { i: true, u: false, d: true },
   };
 
   it.each(RLS_TABLES)('may select, insert and update %s but never delete', async (table) => {
@@ -368,6 +371,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
+      // The sweep of abandoned uploads asks which companies to visit, as the worker (0091).
+      'app.stale_upload_entities(integer)',
       'app.user_is_active(uuid)',
     ]);
   });

@@ -39,7 +39,9 @@ export const contacts = pgTable(
   (t) => [
     check('contacts_preferred_language_check', sql`${t.preferredLanguage} in ('hinglish', 'en')`),
     index('contacts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
-    index('contacts_name_key_idx').on(t.nameKey).where(sql`${t.archivedAt} is null`),
+    index('contacts_name_key_idx')
+      .on(t.nameKey)
+      .where(sql`${t.archivedAt} is null`),
   ],
 );
 

@@ -10,13 +10,7 @@ export const FILE_UPLOAD_STATES = [
 ] as const;
 export type FileUploadState = (typeof FILE_UPLOAD_STATES)[number];
 export type FileUploadEvent =
-  | 'upload'
-  | 'complete'
-  | 'scan'
-  | 'skip_scan'
-  | 'ready'
-  | 'reject'
-  | 'abandon';
+  'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject' | 'abandon';
 
 export interface FileUploadRecord {
   state: FileUploadState | null;

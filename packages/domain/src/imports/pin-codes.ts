@@ -50,7 +50,8 @@ export function checkPinCodeRow(
 
   const state = cell('state');
   const stateCode = state === undefined ? undefined : gstStateCode(state);
-  if (state !== undefined && stateCode === undefined) add({ field: 'state', code: 'state_unknown' });
+  if (state !== undefined && stateCode === undefined)
+    add({ field: 'state', code: 'state_unknown' });
   const taluk = cell('taluk');
   const candidate: Record<string, unknown> = {
     pin: cell('pin'),

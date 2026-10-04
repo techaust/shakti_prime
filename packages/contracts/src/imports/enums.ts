@@ -157,13 +157,7 @@ export type AccountImportField = z.infer<typeof AccountImportFieldSchema>;
  * PIN, the office's name, its taluk (the screens say tehsil), its district and its state (a name
  * or the two-digit GST state code).
  */
-export const PinCodeImportFieldSchema = z.enum([
-  'pin',
-  'officeName',
-  'taluk',
-  'district',
-  'state',
-]);
+export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'district', 'state']);
 export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
 
 /** Every field a file column can fill, whatever the kind. */

@@ -60,9 +60,7 @@ export const createImportJob = defineCommand({
       .select({ id: j.id })
       .from(j)
       .innerJoin(f, eq(f.id, j.fileId))
-      .where(
-        and(eq(j.entityId, input.entityId), eq(f.sha256, file.sha256), ne(f.id, file.id)),
-      )
+      .where(and(eq(j.entityId, input.entityId), eq(f.sha256, file.sha256), ne(f.id, file.id)))
       .limit(1);
     if (earlier) {
       throw new DomainError('conflict', 'this file was imported before', {

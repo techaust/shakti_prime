@@ -50,7 +50,10 @@ async function fileInput(entityId: number, csv: string, owner: Principal = gm) {
   return {
     entityId,
     kind: 'leads' as const,
-    fileId: await createReadyImportFile(entityId, owner.id, { name: 'fair-leads.csv', size: bytes.length }),
+    fileId: await createReadyImportFile(entityId, owner.id, {
+      name: 'fair-leads.csv',
+      size: bytes.length,
+    }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,
@@ -116,7 +119,9 @@ describe('imports: permission and entity', () => {
     await expect(run(caller, createImportJob, input)).rejects.toMatchObject({ code: 'forbidden' });
     const [row] = await asMigrator(
       (m) =>
-        m<{ n: number }[]>`select count(*)::int as n from import_jobs where file_id = ${input.fileId}`,
+        m<
+          { n: number }[]
+        >`select count(*)::int as n from import_jobs where file_id = ${input.fileId}`,
     );
     expect(row?.n).toBe(0);
   });

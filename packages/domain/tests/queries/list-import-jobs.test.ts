@@ -49,7 +49,10 @@ async function uploadedJob(principal: Principal, entityId: number, rows: string[
   return run(principal, createImportJob, {
     entityId,
     kind: 'leads',
-    fileId: await createReadyImportFile(entityId, principal.id, { name: `list-jobs-${newId()}.csv`, size: bytes.length }),
+    fileId: await createReadyImportFile(entityId, principal.id, {
+      name: `list-jobs-${newId()}.csv`,
+      size: bytes.length,
+    }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,

@@ -33,7 +33,13 @@ export function usePinLookup(initial = ''): {
     };
   }, [pin]);
   // An answer for an earlier PIN is not shown.
-  return { pin, setPin: (value) => setPin(value.trim()), found: found?.pin === pin ? found : undefined };
+  return {
+    pin,
+    setPin: (value) => {
+      setPin(value.trim());
+    },
+    found: found?.pin === pin ? found : undefined,
+  };
 }
 
 /** The sentence under the PIN field: where the PIN is, or that it waits for a check. */

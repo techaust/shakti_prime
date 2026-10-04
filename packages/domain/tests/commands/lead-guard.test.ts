@@ -165,7 +165,10 @@ async function fileInput(entityId: number, csv: string, owner: Principal) {
   return {
     entityId,
     kind: 'leads' as const,
-    fileId: await createReadyImportFile(entityId, owner.id, { name: 'lead-guard.csv', size: bytes.length }),
+    fileId: await createReadyImportFile(entityId, owner.id, {
+      name: 'lead-guard.csv',
+      size: bytes.length,
+    }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,
@@ -770,9 +773,8 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     // on: the slice begins at the third reading and its second row is read past the budget, so
     // the batch stops there, having done its first row.
     const at = budget - ROW_BY_ROW_SLICE_MS - SET_BASED_MIN_MS + 1;
-    const first = await withSettings(
-      { logger: memoryLogger(), now: fakeClock(at, 1_500) },
-      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    const first = await withSettings({ logger: memoryLogger(), now: fakeClock(at, 1_500) }, () =>
+      run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
     );
     expect(first).toMatchObject({ state: 'committing', committedRows: 1 });
     const second = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });

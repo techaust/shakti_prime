@@ -136,9 +136,10 @@ export function checkAccountRow(
  * and takes on the companies of every later one, in file order, and each later row points back at
  * it and is not imported again. Answers the first row's companies and each repeat's first row.
  */
-export function foldAccountRows(
-  rows: readonly { rowNo: number; check: AccountRowCheck }[],
-): { companies: Map<number, number[]>; repeats: Map<number, number> } {
+export function foldAccountRows(rows: readonly { rowNo: number; check: AccountRowCheck }[]): {
+  companies: Map<number, number[]>;
+  repeats: Map<number, number>;
+} {
   const firstByPhone = new Map<string, number>();
   const companies = new Map<number, number[]>();
   const repeats = new Map<number, number>();

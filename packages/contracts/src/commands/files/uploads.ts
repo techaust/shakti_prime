@@ -61,7 +61,12 @@ export const MarkFileScannedInput = z
 export type MarkFileScannedInput = z.infer<typeof MarkFileScannedInput>;
 
 /** What the worker did to the bytes before the file became usable. */
-export const FileSanitisingSchema = z.enum(['re_encoded', 'pdf_checked', 'masked', 'sheet_checked']);
+export const FileSanitisingSchema = z.enum([
+  're_encoded',
+  'pdf_checked',
+  'masked',
+  'sheet_checked',
+]);
 export type FileSanitising = z.infer<typeof FileSanitisingSchema>;
 
 /**

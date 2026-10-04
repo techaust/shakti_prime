@@ -162,6 +162,8 @@ export const customerSites = pgTable(
     ),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
-    index('customer_sites_village_key_idx').on(t.villageKey).where(sql`${t.archivedAt} is null`),
+    index('customer_sites_village_key_idx')
+      .on(t.villageKey)
+      .where(sql`${t.archivedAt} is null`),
   ],
 );

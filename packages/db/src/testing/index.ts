@@ -188,7 +188,8 @@ export async function createReadyImportFile(
 ): Promise<string> {
   const id = newId();
   const sha256 =
-    options.sha256 ?? Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    options.sha256 ??
+    Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   await asMigrator(
     (m) => m`
       insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
@@ -237,6 +238,8 @@ export const SHARED_TABLES = [
   'price_change_log',
   'tax_rates',
   'composite_supply_rules',
+  // The PIN code master: read by every request, written only by the PIN code import (0091).
+  'pin_codes',
   'users',
 ] as const;
 
