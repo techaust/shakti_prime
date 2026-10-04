@@ -44,6 +44,24 @@ Integration notes 2 to 6 checked as whole slices on `feat/c3-pipelines-scoring` 
 ## Review
 The findings were fixed on the branch, except those that need C2's lead creation on `main`; they are the integration notes below (H1, M1, M2, M4, M5, L1).
 
+### Review of fde6336..42ced58 (04-10-2026)
+| # | Severity | Finding | State |
+|---|---|---|---|
+| H1 | High | `system:workers` held `crm.lead.read`, `crm.lead.write` and `crm.account.read`, against ADR 0020 and the agent-only rules of C2 | Fixed (4a523d0, a43bfaf): the platform-only `crm.score.refresh` (contracts, seed, `app.platform_only_permissions()`, SECURITY §3.1 to §3.3, no person's role, no agent) is the workers' only `crm.*` grant; `crm.lead.score_refresh` needs it and reads and writes leads only through the definers `app.lead_score_facts()` and `app.write_lead_scores()` (DATABASE §4.1); ADR 0020's last consequence corrected |
+| M1 | Medium | The hand-over's deduplication id repeated the next night's | Fixed (a43bfaf): the night's date (`runDate`) is carried by every hand-over and named in its id |
+| M2 | Medium | A score refresh touched the lead's `updated_at` and `updated_by` | Fixed (a43bfaf): the trigger `app.opportunities_set_updated_at()` keeps both when only the score columns change, for every score write, `crm.lead.rescore` included; `score_changed_at` and `score_changed_by` record it |
+| M3 | Medium | Imports take no referral code yet | Not built, as decided: design §6.6 and this file say the import mapping has no referral code field yet (a follow-up after P2b); the set-based path's referral code branch stays, with a comment, because removing it would let a row with a code skip its partner |
+| L1 | Low | `app.share_lock_stage()`'s company filter untested; the race tests paused 400 ms | Fixed (a43bfaf): another company's stage answers false; both race tests wait until the other connection waits on a lock of the holder (`pg_blocking_pids`, `wait_event_type = 'Lock'`) |
+| L2 | Low | The stage lock was taken only by the move | Fixed (a43bfaf): `firstStage()` (lead creation, win, lose, reopen) and the import batch's first stages take it too; a test shows a reorder waiting for a lead being made |
+| L3 | Low | A rule change mid-batch could be overwritten with old-rule scores | Fixed (a43bfaf): `app.write_lead_scores()` writes only where `score_changed_at` is still what the batch read; tested |
+| L4 | Low | The list test did not check a farm customer's absence or the order; the walk-in journey's title claimed a credit it did not check | Fixed (a43bfaf): both asserted in the database's own order; the journey's title no longer claims the credit (the domain suite checks it) |
+| L5 | Low | The commission form offered only the partners of the pages shown | Fixed (a43bfaf): `listCodedReferralPartners()` loads every coded partner for the select |
+| L6 | Low | The copy named no real way to add a partner | Fixed (a43bfaf): it names a new lead with Referral partner as the type of customer; the owner's question is below |
+| L7 | Low | Any holder of `crm.lead.write:entity` (GM, Executive, an agent) could run the refresh | Fixed with H1 |
+| L8 | Low | As the review recorded it | Not now (the lead's decision); the note stays |
+
+**For the owner (L6):** a referral partner is added as a lead with Referral partner as the type of customer, so each partner then carries an open lead that callers work and the nightly job scores. Should a partner be added another way, or its lead be closed once the code is given?
+
 ## Integration notes
 1. **Take `main`:** the branch's 0065 and 0066 clash with P2's on `main`; renumber after `main`'s last ([slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice)).
 2. **Wire attribution and scoring** (H1, M4): `applyLeadAttribution()` and `scoreLeads()` called from `crm.lead.create` and from the import batch (`packages/domain/src/imports/commit-leads.ts`), each with its audit.
