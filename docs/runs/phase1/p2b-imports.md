@@ -84,21 +84,21 @@ Built on the worktree `p2b-imports` (Postgres 54341, app 3041), continuing from 
 ### 05-10-2026, review of 6e5eac7...7b58f03 (lead session)
 | # | Severity | Finding | State |
 |---|---|---|---|
-| H1 | High | The zip guard (`packages/domain/src/imports/zip-guard.ts`) reads the central directory, but the streaming reader (`unzipper.Parse`) reads local headers in order and inflates each with no ceiling: an entry present only as a local header, or a local size differing from the directory's, passes the guard. | open |
-| H2 | High | `readXlsx` turns sparse `row.values` into a dense array before the column limit is checked, so one value at a far column allocates a huge row; check the highest column and each cell's length inside the row loop and refuse at once. | open |
-| H3 | High | Rollback of a customers job tests "a lead now uses it" under the caller's policies and current company view, so a dependent in a company outside the view is missed; check dependents across every company with a yes/no definer, or refuse when the request does not cover the job's companies. | open |
-| M1 | Medium | `pin_needs_review` changes only when the PIN changes: after a PIN batch commits, sites whose PIN now has an office stay flagged and keep empty tehsil and district. | open |
-| M2 | Medium | The companies the preview resolved are not stored on the job; the commit does not refuse up front when the request does not cover them, and the worker does not get that set. | open |
-| M3 | Medium | A repeated customer row's distinct site is dropped silently when the row is folded into the first. | open |
-| M4 | Medium | Owner decision 05-10-2026: a customers row whose mobile number belongs to a customer the importer can see is linked to that customer (the row's company added as a relationship, ADR 0008, CRM-04), the preview says so per row, and no second customer is made; a colleague's number stays refused. | open |
-| M5 | Medium | ExcelJS's streaming reader leaves temp files when it is not read to its end, which fills a warm instance's `/tmp`. | open |
-| L1 | Low | No tests for starting a job from another company's file or a colleague's file; `created_by = actor` not decided. | open |
-| L2 | Low | `commit-leads.ts`: `await keep(tx)` missing before the stage, source and `writeActivities` statements. | open |
-| L3 | Low | The same-content check counts rolled-back and never-committed jobs. | open |
-| L4 | Low | The PIN office uniqueness is case-sensitive; make it `lower(office_name)` with a matching conflict target. | open |
-| L5 | Low | `pin-codes.test.ts` can draw the same PIN twice. | open |
-| L6 | Low | The commit worker does not fail the job on the last retry for every cause (a suspended importer included); fail it through a system path. | open |
-| L7 | Low | Documents: PRD §8 CRM-02 trace row; the migration number in `grants.test.ts`'s comment; the sweep route's comment against `retries: 0`. | open |
+| H1 | High | The zip guard (`packages/domain/src/imports/zip-guard.ts`) reads the central directory, but the streaming reader (`unzipper.Parse`) reads local headers in order and inflates each with no ceiling: an entry present only as a local header, or a local size differing from the directory's, passes the guard. | fixed in a997ba2 |
+| H2 | High | `readXlsx` turns sparse `row.values` into a dense array before the column limit is checked, so one value at a far column allocates a huge row; check the highest column and each cell's length inside the row loop and refuse at once. | fixed in a997ba2 |
+| H3 | High | Rollback of a customers job tests "a lead now uses it" under the caller's policies and current company view, so a dependent in a company outside the view is missed; check dependents across every company with a yes/no definer, or refuse when the request does not cover the job's companies. | fixed in 2d4f272 (definer in 1254629) |
+| M1 | Medium | `pin_needs_review` changes only when the PIN changes: after a PIN batch commits, sites whose PIN now has an office stay flagged and keep empty tehsil and district. | fixed in 2d4f272 (trigger and definer in 1254629) |
+| M2 | Medium | The companies the preview resolved are not stored on the job; the commit does not refuse up front when the request does not cover them, and the worker does not get that set. | fixed in 2d4f272 (column in 1254629) |
+| M3 | Medium | A repeated customer row's distinct site is dropped silently when the row is folded into the first. | fixed in 2d4f272 |
+| M4 | Medium | Owner decision 05-10-2026: a customers row whose mobile number belongs to a customer the importer can see is linked to that customer (the row's company added as a relationship, ADR 0008, CRM-04), the preview says so per row, and no second customer is made; a colleague's number stays refused. | fixed in 2d4f272 |
+| M5 | Medium | ExcelJS's streaming reader leaves temp files when it is not read to its end, which fills a warm instance's `/tmp`. | fixed in a997ba2 |
+| L1 | Low | No tests for starting a job from another company's file or a colleague's file; `created_by = actor` not decided. | fixed in 2d4f272 |
+| L2 | Low | `commit-leads.ts`: `await keep(tx)` missing before the stage, source and `writeActivities` statements. | fixed in 1254629 |
+| L3 | Low | The same-content check counts rolled-back and never-committed jobs. | fixed in 2d4f272 |
+| L4 | Low | The PIN office uniqueness is case-sensitive; make it `lower(office_name)` with a matching conflict target. | fixed in 2d4f272 (index in 1254629) |
+| L5 | Low | `pin-codes.test.ts` can draw the same PIN twice. | fixed in 41e154a and 2d4f272 |
+| L6 | Low | The commit worker does not fail the job on the last retry for every cause (a suspended importer included); fail it through a system path. | fixed in 2d4f272 (permission and policies in 1254629) |
+| L7 | Low | Documents: PRD §8 CRM-02 trace row; the migration number in `grants.test.ts`'s comment; the sweep route's comment against `retries: 0`. | fixed in eb6c8af |
 
 ## Integration notes
 1. Hosted imports need `FILES_BUCKET` and the other file settings, which wait for the owner's AWS files stack ([files-setup](../../runbooks/files-setup.md)).
