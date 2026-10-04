@@ -50,6 +50,7 @@ Read first:
 
 ### 04-10-2026, builder on the PC (review fixes)
 - The six findings of the review of e014a7f..730a0f2 are fixed (Review below); 0093 was edited in place, as it is not on `main`, and the database was made fresh. Sizing file 30 passed (8 cases added); `grants.test.ts` 108 passed; `pnpm typecheck` 8 successful, 8 total; unit tests 2,679 passed (copy-lint 17, tokens 134, ui 105, contracts 177, db 118, domain 1,540, web 588); `pnpm test:security` 1,662 passed (db 916, domain 540, web 206), 4 successful, 4 total; `pnpm lint` clean. The added lock reads the lead by `opportunities_id_entity_unique`, the index the sizing lookup already uses.
+- `main` taken again at 775e300 (P4, #99) in e1779a0: the sizing migrations are now 0092 to 0095 (`app.open_sizing_review()` in 0095), DATABASE cites them so, `pnpm db:generate` reports no changes and `pnpm db:docs` was run. On a fresh database: `pnpm typecheck` 8 successful, 8 total; unit tests 2,695 passed (web 604); `pnpm test:security` 1,695 passed (db 917, domain 559, web 219), 4 successful, 4 total; `pnpm lint` and `pnpm copy-lint` clean.
 
 ## Review
 Every finding is fixed on the branch; what needs C1 and C2 on `main` is in the integration notes.
