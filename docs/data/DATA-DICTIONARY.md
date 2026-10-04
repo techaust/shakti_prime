@@ -1293,7 +1293,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tasks
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0077): `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)`
+**Catalogue entry** (DATABASE.md §6.2; created in 0077): `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); inserted by `crm.task.create` and by `app.open_sizing_review()` (§4.1, a `review` for the lead's team lead after an out-of-bounds sizing); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
