@@ -12,8 +12,10 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  createTestUser,
   principalFor,
 } from '@shakti/db/testing';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
@@ -452,5 +454,153 @@ describe('listSizingPumps', () => {
     await expect(asPrincipal(hr, (context) => listSizingPumps(context))).rejects.toMatchObject({
       code: 'forbidden',
     });
+  });
+});
+
+/** A pump sizing of the lead at a borewell too deep for the test pump: out of bounds. */
+function deepPumpSizing(opportunityId: string): RecordSizingInput {
+  const deep = pumpSizing(opportunityId, pumpId);
+  if (deep.sizing.kind !== 'pump') throw new Error('a pump sizing');
+  deep.sizing.inputs = { ...deep.sizing.inputs, staticLevelM: 60 };
+  return deep;
+}
+
+/** The review tasks of a lead, oldest first. */
+function reviewTasks(opportunityId: string) {
+  return asMigrator(
+    (m) => m<
+      {
+        id: string;
+        assignee_id: string;
+        team_id: string | null;
+        state: string;
+        due_at: Date;
+        created_by: string;
+      }[]
+    >`select id, assignee_id, team_id, state, due_at, created_by from tasks
+        where opportunity_id = ${opportunityId} and kind = 'review' order by created_at, id`,
+  );
+}
+
+/** The timeline rows of a lead of `type`, oldest first. */
+function timeline(opportunityId: string, type: string) {
+  return asMigrator(
+    (m) => m<{ payload_json: Record<string, unknown>; actor_principal_id: string }[]>`
+      select payload_json, actor_principal_id from activities
+       where opportunity_id = ${opportunityId} and type = ${type} order by created_at, id`,
+  );
+}
+
+describe('crm.sizing.record on the timeline and for review', () => {
+  let reviewTeamId: string;
+  let reviewCaller: Principal;
+  let teamLeadId: string;
+
+  beforeAll(async () => {
+    reviewTeamId = await createTestTeam(1, 'sizing review team');
+    // The person who records the sizing (own scope) and the team lead who reviews it.
+    const member = await createTestUser([
+      { entityId: 1, roleKey: 'tele_caller_cc', teamId: reviewTeamId },
+    ]);
+    reviewCaller = principalFor('tele_caller_cc', [1], { id: member.id, teamId: reviewTeamId });
+    teamLeadId = (
+      await createTestUser([{ entityId: 1, roleKey: 'sales_team_lead', teamId: reviewTeamId }])
+    ).id;
+  });
+
+  it('puts every sizing on the customer’s timeline, with its kind and bounds', async () => {
+    const id = await newLead();
+    const dto = SizingDto.parse(await run(caller, recordSizing, rooftopSizing(id)));
+    expect(await timeline(id, 'sizing_recorded')).toEqual([
+      {
+        payload_json: { sizingId: dto.id, kind: 'rooftop', inBounds: true },
+        actor_principal_id: caller.id,
+      },
+    ]);
+    // Within its limits, nothing asks for a review.
+    expect(await reviewTasks(id)).toEqual([]);
+  });
+
+  it('opens one review task for the lead’s team lead when a sizing is out of bounds', async () => {
+    const id = await newLead(reviewCaller);
+    const first = SizingDto.parse(await run(reviewCaller, recordSizing, deepPumpSizing(id)));
+    expect(first.inBounds).toBe(false);
+    const tasks = await reviewTasks(id);
+    expect(tasks).toHaveLength(1);
+    const [task] = tasks;
+    expect(task).toMatchObject({
+      assignee_id: teamLeadId,
+      team_id: reviewTeamId,
+      state: 'open',
+      created_by: reviewCaller.id,
+    });
+    expect(task?.due_at.toISOString()).toBe(first.createdAt);
+    expect(await timeline(id, 'task_created')).toContainEqual({
+      payload_json: {
+        taskId: task?.id,
+        kind: 'review',
+        dueAt: first.createdAt,
+        assigneeId: teamLeadId,
+      },
+      actor_principal_id: reviewCaller.id,
+    });
+    expect(await timeline(id, 'sizing_recorded')).toEqual([
+      {
+        payload_json: { sizingId: first.id, kind: 'pump', inBounds: false },
+        actor_principal_id: reviewCaller.id,
+      },
+    ]);
+    const audit = await asMigrator(
+      (m) => m<{ command: string; after: Record<string, unknown> }[]>`
+        select command, after_json as after from audit_logs
+         where aggregate_type = 'task' and aggregate_id = ${task?.id ?? ''}`,
+    );
+    expect(audit).toEqual([
+      {
+        command: 'crm.sizing.record',
+        after: expect.objectContaining({
+          assigneeId: teamLeadId,
+          taskKind: 'review',
+          state: 'open',
+        }) as unknown,
+      },
+    ]);
+
+    // A second sizing out of bounds while the review is open asks for no second one.
+    await run(reviewCaller, recordSizing, deepPumpSizing(id));
+    expect(await reviewTasks(id)).toHaveLength(1);
+  });
+
+  it('opens none for a lead whose team has no team lead', async () => {
+    const id = await newLead();
+    const dto = SizingDto.parse(await run(caller, recordSizing, deepPumpSizing(id)));
+    expect(dto.inBounds).toBe(false);
+    expect(await reviewTasks(id)).toEqual([]);
+  });
+
+  it('lets a caller open a review only for their own sizing that is out of bounds', async () => {
+    const id = await newLead(reviewCaller);
+    const inBounds = SizingDto.parse(await run(reviewCaller, recordSizing, rooftopSizing(id)));
+    const open = (principal: Principal, sizingId: string) =>
+      asPrincipal(principal, (context) =>
+        context.tx.execute(
+          sql`select * from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, now())`,
+        ),
+      );
+    // A sizing within its limits.
+    await expect(open(reviewCaller, inBounds.id)).rejects.toMatchObject({
+      cause: { code: '42501' },
+    });
+    // Someone else's sizing, even out of bounds and on a lead the caller may write.
+    const other = SizingDto.parse(await run(gm, recordSizing, deepPumpSizing(id)));
+    await expect(open(reviewCaller, other.id)).rejects.toMatchObject({ cause: { code: '42501' } });
+    // An agent, whatever it holds.
+    const agent = principalFor('agent:sizing', [1], {
+      permissions: [{ key: 'crm.lead.write', scope: 'entity' }],
+    });
+    await expect(open(agent, other.id)).rejects.toMatchObject({ cause: { code: '42501' } });
+    // Only the review the GM's own sizing opened through the command.
+    const tasks = await reviewTasks(id);
+    expect(tasks.map((t) => t.created_by)).toEqual([gm.id]);
   });
 });

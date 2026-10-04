@@ -8,7 +8,7 @@ import {
   type SizingReason,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import type { Bounded } from '../../sizing/bounds';
@@ -20,6 +20,7 @@ import { requireEntity } from './opportunity-shared';
 interface Lead {
   id: string;
   entityId: number;
+  accountId: string;
   siteId: string | null;
 }
 
@@ -29,7 +30,7 @@ async function readLead(
 ): Promise<Lead> {
   const o = schema.opportunities;
   const [lead] = await ctx.tx
-    .select({ id: o.id, entityId: o.entityId, siteId: o.siteId })
+    .select({ id: o.id, entityId: o.entityId, accountId: o.accountId, siteId: o.siteId })
     .from(o)
     .where(and(eq(o.id, input.opportunityId), eq(o.entityId, input.entityId), isNull(o.archivedAt)))
     .limit(1);
@@ -92,7 +93,8 @@ async function chosenPump(
  * owner and team, and that the recorder is a user principal. Only people record the sizing a quote
  * relies on (the owner's decision of 30-09-2026, SECURITY §3.3): the guard refuses agents, voice
  * sessions and the system principal (`people_only`). An out-of-bounds result is recorded, not
- * refused, with the reasons the quote guard names.
+ * refused, with the reasons the quote guard names, and opens a review task for the lead's team
+ * lead (`openReview`). Each sizing is a row of the customer's timeline (`sizing_recorded`).
  */
 export const recordSizing = defineCommand({
   name: 'crm.sizing.record',
@@ -101,7 +103,15 @@ export const recordSizing = defineCommand({
   peopleOnly: true,
   input: RecordSizingInput,
   output: SizingDto,
-  auditFields: ['sizingKind', 'inBounds', 'sizingReasons', 'engineVersion'],
+  auditFields: [
+    'sizingKind',
+    'inBounds',
+    'sizingReasons',
+    'engineVersion',
+    'taskKind',
+    'dueAt',
+    'state',
+  ],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const lead = await readLead(ctx, input);
@@ -189,6 +199,14 @@ async function store(ctx: CommandContext, lead: Lead, sizing: Computed) {
     aggregateId: id,
     payload: { opportunityId: lead.id, kind: sizing.kind, inBounds: sizing.inBounds, reasons },
   });
+  await ctx.activity({
+    type: 'sizing_recorded',
+    opportunityId: lead.id,
+    accountId: lead.accountId,
+    entityId: lead.entityId,
+    payload: { sizingId: id, kind: sizing.kind, inBounds: sizing.inBounds },
+  });
+  if (!sizing.inBounds) await openReview(ctx, lead, id);
   return {
     id,
     entityId: lead.entityId,
@@ -199,4 +217,56 @@ async function store(ctx: CommandContext, lead: Lead, sizing: Computed) {
     engineVersion: SIZING_ENGINE_VERSION,
     createdAt: ctx.now.toISOString(),
   };
+}
+
+/** What `app.open_sizing_review()` answers when the lead's team has a lead. */
+interface ReviewRow {
+  task_id: string;
+  assignee_id: string;
+  team_id: string;
+  opened: boolean;
+}
+
+/**
+ * An out-of-bounds sizing asks the lead's team lead to review it (docs/design/phase1.md §6.7): a
+ * `review` task on the lead, due now, for the active person with the Sales Team Lead role on the
+ * lead's team. The recorder may not write a task for someone else, so the definer
+ * `app.open_sizing_review()` writes this one task after checking the sizing is the caller's own,
+ * out of bounds, on a lead the caller may write. Nothing is opened for a lead with no team or a
+ * team with no lead, and an open review of the lead for that person stands for the new sizing too.
+ * A task opened here is audited and put on the timeline as `crm.task.create` does.
+ */
+async function openReview(ctx: CommandContext, lead: Lead, sizingId: string): Promise<void> {
+  const dueAt = ctx.now;
+  const rows = (await ctx.tx.execute(
+    sql`select task_id, assignee_id, team_id, opened
+          from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, ${dueAt.toISOString()}::timestamptz)`,
+  )) as unknown as ReviewRow[];
+  const review = rows[0];
+  if (review === undefined || !review.opened) return;
+  ctx.audit({
+    aggregateType: 'task',
+    aggregateId: review.task_id,
+    entityId: lead.entityId,
+    after: {
+      opportunityId: lead.id,
+      assigneeId: review.assignee_id,
+      teamId: review.team_id,
+      taskKind: 'review',
+      dueAt: dueAt.toISOString(),
+      state: 'open',
+    },
+  });
+  await ctx.activity({
+    type: 'task_created',
+    opportunityId: lead.id,
+    accountId: lead.accountId,
+    entityId: lead.entityId,
+    payload: {
+      taskId: review.task_id,
+      kind: 'review',
+      dueAt: dueAt.toISOString(),
+      assigneeId: review.assignee_id,
+    },
+  });
 }

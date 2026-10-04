@@ -1,0 +1,4 @@
+-- A sizing is a row of the customer timeline. The check names the column alone: the table is
+-- partitioned, and each partition takes the check under its own name.
+ALTER TABLE "activities" DROP CONSTRAINT "activities_type_check";--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_type_check" CHECK ("type" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged', 'sizing_recorded'));

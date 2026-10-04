@@ -174,6 +174,7 @@ export const ACTIVITY_TYPES = [
   'consent_withdrawn',
   'tagged',
   'untagged',
+  'sizing_recorded',
 ] as const satisfies readonly ActivityType[];
 
 export const SEGMENTS = [
