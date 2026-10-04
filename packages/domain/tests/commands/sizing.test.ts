@@ -491,6 +491,57 @@ function timeline(opportunityId: string, type: string) {
   );
 }
 
+/** Calls the definer as `principal`, as `crm.sizing.record` does after an out-of-bounds sizing. */
+function open(principal: Principal, sizingId: string) {
+  return asPrincipal(principal, (context) =>
+    context.tx.execute(
+      sql`select * from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, now())`,
+    ),
+  );
+}
+
+/** The definer's refusal of a sizing that is not an out-of-bounds sizing the caller may review. */
+function notTheCallers(sizingId: string) {
+  return {
+    cause: {
+      code: '42501',
+      message: `sizing ${sizingId} is not an out-of-bounds sizing of the caller's`,
+    },
+  };
+}
+
+/** The definer's refusal of anyone but a person. */
+const PEOPLE_ONLY = {
+  cause: { code: '42501', message: 'a sizing review is opened by people only' },
+};
+
+/**
+ * An out-of-bounds rooftop sizing of the lead recorded by `createdBy`, written as the migrator past
+ * the insert policy that holds the recorder to a person.
+ */
+async function outOfBoundsSizingBy(opportunityId: string, createdBy: string): Promise<string> {
+  const id = newId();
+  const site = await leadSite(opportunityId);
+  await asMigrator(
+    (m) => m`insert into sizings (id, entity_id, opportunity_id, site_id, kind, inputs_json,
+                                  result_json, in_bounds, reasons_json, engine_version, created_by)
+             values (${id}, 1, ${opportunityId}, ${site}, 'rooftop', ${m.json(ROOFTOP_INPUTS)},
+                     '{}'::jsonb, false, '["roof_too_small"]'::jsonb, ${SIZING_ENGINE_VERSION},
+                     ${createdBy})`,
+  );
+  return id;
+}
+
+/** A person with `roleKey` on `team` in company 1, and their principal. */
+async function teamMember(
+  roleKey: 'tele_caller_cc' | 'sales_team_lead',
+  team: string,
+  options: { status?: string } = {},
+): Promise<Principal> {
+  const user = await createTestUser([{ entityId: 1, roleKey, teamId: team }], options);
+  return principalFor(roleKey, [1], { id: user.id, teamId: team });
+}
+
 describe('crm.sizing.record on the timeline and for review', () => {
   let reviewTeamId: string;
   let reviewCaller: Principal;
@@ -581,26 +632,85 @@ describe('crm.sizing.record on the timeline and for review', () => {
   it('lets a caller open a review only for their own sizing that is out of bounds', async () => {
     const id = await newLead(reviewCaller);
     const inBounds = SizingDto.parse(await run(reviewCaller, recordSizing, rooftopSizing(id)));
-    const open = (principal: Principal, sizingId: string) =>
-      asPrincipal(principal, (context) =>
-        context.tx.execute(
-          sql`select * from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, now())`,
-        ),
-      );
     // A sizing within its limits.
-    await expect(open(reviewCaller, inBounds.id)).rejects.toMatchObject({
-      cause: { code: '42501' },
-    });
+    await expect(open(reviewCaller, inBounds.id)).rejects.toMatchObject(notTheCallers(inBounds.id));
     // Someone else's sizing, even out of bounds and on a lead the caller may write.
     const other = SizingDto.parse(await run(gm, recordSizing, deepPumpSizing(id)));
-    await expect(open(reviewCaller, other.id)).rejects.toMatchObject({ cause: { code: '42501' } });
-    // An agent, whatever it holds.
-    const agent = principalFor('agent:sizing', [1], {
-      permissions: [{ key: 'crm.lead.write', scope: 'entity' }],
-    });
-    await expect(open(agent, other.id)).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(open(reviewCaller, other.id)).rejects.toMatchObject(notTheCallers(other.id));
     // Only the review the GM's own sizing opened through the command.
     const tasks = await reviewTasks(id);
     expect(tasks.map((t) => t.created_by)).toEqual([gm.id]);
+  });
+
+  it('refuses the caller’s own sizing when the request holds only another company', async () => {
+    const id = await newLead(reviewCaller);
+    const dto = SizingDto.parse(await run(reviewCaller, recordSizing, deepPumpSizing(id)));
+    const elsewhere: Principal = { ...reviewCaller, entityIds: [2] };
+    await expect(open(elsewhere, dto.id)).rejects.toMatchObject(notTheCallers(dto.id));
+  });
+
+  it('refuses the caller’s own sizing once the lead is someone else’s', async () => {
+    const id = await newLead(reviewCaller);
+    const dto = SizingDto.parse(await run(reviewCaller, recordSizing, deepPumpSizing(id)));
+    await asMigrator((m) => m`update opportunities set owner_id = ${teamLeadId} where id = ${id}`);
+    await expect(open(reviewCaller, dto.id)).rejects.toMatchObject(notTheCallers(dto.id));
+  });
+
+  it('refuses the caller’s own sizing on an archived lead', async () => {
+    const id = await newLead(reviewCaller);
+    const dto = SizingDto.parse(await run(reviewCaller, recordSizing, deepPumpSizing(id)));
+    await asMigrator((m) => m`update opportunities set archived_at = now() where id = ${id}`);
+    await expect(open(reviewCaller, dto.id)).rejects.toMatchObject(notTheCallers(dto.id));
+  });
+
+  it('records an out-of-bounds sizing of a lead with no team and opens no review', async () => {
+    const id = await newLead(reviewCaller);
+    await asMigrator((m) => m`update opportunities set team_id = null where id = ${id}`);
+    await run(reviewCaller, recordSizing, deepPumpSizing(id));
+    expect(await reviewTasks(id)).toEqual([]);
+  });
+
+  it('opens none when the team’s only team lead is not active', async () => {
+    const team = await createTestTeam(1, 'sizing team with a suspended lead');
+    await teamMember('sales_team_lead', team, { status: 'suspended' });
+    const member = await teamMember('tele_caller_cc', team);
+    const id = await newLead(member);
+    await run(member, recordSizing, deepPumpSizing(id));
+    expect(await reviewTasks(id)).toEqual([]);
+  });
+
+  it('never asks the recorder to review their own sizing', async () => {
+    // The team lead records the sizing on a lead of their team; the team has no other lead.
+    const team = await createTestTeam(1, 'sizing team led by the recorder');
+    const lead = await teamMember('sales_team_lead', team);
+    const id = await newLead(await teamMember('tele_caller_cc', team));
+    await run(lead, recordSizing, deepPumpSizing(id));
+    expect(await reviewTasks(id)).toEqual([]);
+  });
+
+  it('asks the other team lead when the longest-serving one recorded the sizing', async () => {
+    const team = await createTestTeam(1, 'sizing team with two leads');
+    const recorder = await teamMember('sales_team_lead', team);
+    const other = await teamMember('sales_team_lead', team);
+    const id = await newLead(await teamMember('tele_caller_cc', team));
+    await run(recorder, recordSizing, deepPumpSizing(id));
+    expect((await reviewTasks(id)).map((t) => t.assignee_id)).toEqual([other.id]);
+  });
+
+  it('refuses an agent, a voice session and a system role at the guard, whatever they hold', async () => {
+    const id = await newLead(reviewCaller);
+    const write = { permissions: [{ key: 'crm.lead.write' as const, scope: 'entity' as const }] };
+    for (const service of [
+      // An agent principal, and a user principal holding an agent role.
+      await createTestPrincipal('agent:sizing', [1], write),
+      await createTestPrincipal('agent:copilot', [1], { ...write, kind: 'user' }),
+      // A voice session, under a person's role key.
+      await createTestPrincipal('tele_caller_cc', [1], { ...write, kind: 'voice_session' }),
+      // A user principal acting as the event workers.
+      await createTestPrincipal('system:workers', [1], { ...write, kind: 'user' }),
+    ]) {
+      const sizingId = await outOfBoundsSizingBy(id, service.id);
+      await expect(open(service, sizingId)).rejects.toMatchObject(PEOPLE_ONLY);
+    }
   });
 });

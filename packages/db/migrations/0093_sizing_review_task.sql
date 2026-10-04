@@ -2,9 +2,11 @@
 -- §6.7). The person who records a sizing (a tele-caller, own scope) may not write a task for
 -- someone else, so this definer writes the one task the rule allows: a `review` of the caller's
 -- own out-of-bounds sizing, on a lead the caller may write, for the active person who holds the
--- Sales Team Lead role on the lead's team in its company. Nothing is opened when the lead has no
--- team or the team no lead, and an open review of the lead for that person is answered instead of
--- a second one. People only, as `crm.sizing.record` (ADR 0021).
+-- Sales Team Lead role on the lead's team in its company, never the person who recorded the
+-- sizing. Nothing is opened when the lead has no team or the team no other lead, and an open
+-- review of the lead for that person is answered instead of a second one; the lead's row is locked
+-- first, so two sizings of a lead recorded at once open one review. People only, as
+-- `crm.sizing.record` (ADR 0021).
 create or replace function app.open_sizing_review(p_sizing uuid, p_task uuid, p_due timestamptz)
   returns table (task_id uuid, assignee_id uuid, team_id uuid, opened boolean)
   language plpgsql volatile security definer set search_path = '' as $$
@@ -42,11 +44,14 @@ begin
     raise exception 'sizing % is not an out-of-bounds sizing of the caller''s', p_sizing
       using errcode = '42501';
   end if;
+  -- Two sizings of the lead recorded at once wait here for each other, so the second finds the
+  -- review the first opened.
+  perform 1 from public.opportunities where id = v_opportunity and entity_id = v_entity for update;
   if v_team is null then
     return;
   end if;
-  -- The team lead: an active person with the Sales Team Lead role on the lead's team there; the
-  -- longest-serving first when the team has two.
+  -- The team lead: an active person with the Sales Team Lead role on the lead's team there, other
+  -- than the recorder; the longest-serving first when the team has two.
   select uer.user_id
     into v_lead
     from public.user_entity_roles uer
@@ -55,6 +60,7 @@ begin
     join public.users u on u.id = uer.user_id and u.status = 'active'
    where uer.entity_id = v_entity
      and uer.team_id = v_team
+     and uer.user_id <> v_actor
    order by uer.created_at, uer.user_id
    limit 1;
   if not found then

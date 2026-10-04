@@ -14,6 +14,8 @@ import { defineCommand } from '../../command/define-command';
 import type { Bounded } from '../../sizing/bounds';
 import { pumpSpecsOf } from '../../sizing/pump-specs';
 import { SIZING_ENGINE_VERSION, sizePump, sizeRooftop, type ChosenPump } from '../../sizing/size';
+import { transition } from '../../state-machines/define-machine';
+import { taskMachine } from '../../state-machines/machines/task';
 import { requireEntity } from './opportunity-shared';
 
 /** The lead a sizing is recorded on, as the caller reads it. */
@@ -230,14 +232,20 @@ interface ReviewRow {
 /**
  * An out-of-bounds sizing asks the lead's team lead to review it (docs/design/phase1.md §6.7): a
  * `review` task on the lead, due now, for the active person with the Sales Team Lead role on the
- * lead's team. The recorder may not write a task for someone else, so the definer
- * `app.open_sizing_review()` writes this one task after checking the sizing is the caller's own,
- * out of bounds, on a lead the caller may write. Nothing is opened for a lead with no team or a
- * team with no lead, and an open review of the lead for that person stands for the new sizing too.
- * A task opened here is audited and put on the timeline as `crm.task.create` does.
+ * lead's team, never the recorder. The recorder may not write a task for someone else, so the
+ * definer `app.open_sizing_review()` writes this one task after checking the sizing is the
+ * caller's own, out of bounds, on a lead the caller may write; the task machine's `create` is
+ * checked first, as `crm.task.create` does. Nothing is opened for a lead with no team or a team
+ * with no other lead, and an open review of the lead for that person stands for the new sizing
+ * too. A task opened here is audited and put on the timeline as `crm.task.create` does.
  */
 async function openReview(ctx: CommandContext, lead: Lead, sizingId: string): Promise<void> {
   const dueAt = ctx.now;
+  transition(taskMachine, { state: null }, 'create', {
+    actor: { kind: 'principal', principal: ctx.principal },
+    now: ctx.now,
+    params: { dueAt },
+  });
   const rows = (await ctx.tx.execute(
     sql`select task_id, assignee_id, team_id, opened
           from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, ${dueAt.toISOString()}::timestamptz)`,
