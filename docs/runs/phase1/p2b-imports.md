@@ -6,7 +6,7 @@
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
 | Runs on | build and review: cloud; merge with `main`, integration and the measurement on dev: PC |
 | State | brief; can start (P2 and C2 are on `main`) |
-| Next step | the lead pushes the branch with this file, then a builder starts |
+| Next step | the lead session pushes the branch with this file, then a builder starts |
 
 ## Brief
 Read first:

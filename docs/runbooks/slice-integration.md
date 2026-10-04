@@ -24,7 +24,7 @@ How one slice of a phase goes from a brief to `main` and the hosted environments
 - On the PC, watch for stalls: run `bash tools/integration/watchdog.sh` under a monitor; it prints a line for a worktree idle for 20 minutes. An agent that stalls is stopped and a fresh one starts from the last commit with a precise list.
 
 ## 4. Review
-- Start the reviewer on the branch with fresh context: a cloud session with the reviewer's first message of [hybrid §4](hybrid.md#4-starting-a-builder-or-a-reviewer) (it writes its findings into the run file), or the `slice-reviewer` agent on the PC (it reports; the lead copies the findings into the run file).
+- Start the reviewer on the branch with fresh context: a cloud session with the reviewer's first message of [hybrid §4](hybrid.md#4-starting-a-builder-or-a-reviewer) (it writes its findings into the run file), or the `slice-reviewer` agent on the PC (it reports; the lead session copies the findings into the run file).
 - Verify each finding yourself before acting on it; fix every medium or worse before the merge (a builder on the same branch, or by hand).
 
 ## 5. Take main into the slice

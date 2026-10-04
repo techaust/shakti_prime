@@ -23,12 +23,12 @@ You are a building agent on Shakti Prime BOS. The lead session (on the owner's P
 - Install or remove packages, run `npx` or `pnpm dlx`, or edit `pnpm-lock.yaml`; if a package is missing, stop and report. Reach no site beyond the package registries the session already uses; in particular no hosted service of this project.
 - **PC:** run `docker` (your database is already running) or touch another worktree.
 - Touch any hosted service (Supabase, Vercel, Upstash, AWS, Sentry, the GitHub workflows).
-- Weaken, skip or delete a test to make it pass; disable a lint rule, RLS, a policy or a check; add `eslint-disable` without a written reason the lead would accept.
+- Weaken, skip or delete a test to make it pass; disable a lint rule, RLS, a policy or a check; add `eslint-disable` without a written reason the lead session would accept.
 - Invent client data (tax rates, prices, numbering, scripts, targets). A client input becomes a named default in `packages/domain/src/workshop-defaults.ts` only when your brief says so.
 - Write user-facing text outside `apps/web/messages/en.json`, or text that is not final plain English (`DESIGN.md` §11).
 
 ## Migrations
-Generate them normally (`pnpm db:generate`, then `drizzle-kit generate --custom` for RLS, grants and functions). Your numbers start after `main`'s last; the lead renumbers them at the merge, so never cite a migration number in code. Never edit a migration that exists on `main`.
+Generate them normally (`pnpm db:generate`, then `drizzle-kit generate --custom` for RLS, grants and functions). Your numbers start after `main`'s last; the lead session renumbers them at the merge, so never cite a migration number in code. Never edit a migration that exists on `main`.
 
 ## Rhythm
 - Commit at least every 20 minutes (`wip:` allowed), with conventional messages and the co-author trailer the session's attribution instructions give. Uncommitted work is lost if you are stopped.
