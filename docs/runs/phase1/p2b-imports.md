@@ -57,7 +57,7 @@ Built on the worktree `p2b-imports` (Postgres 54341, app 3041), continuing from 
 - `pnpm typecheck`: `Tasks: 8 successful, 8 total`.
 - `pnpm lint` (whole repository, once at the end): exit 0, no problems.
 - `pnpm exec turbo run test --concurrency=1`: contracts 177, db 118, domain 1,376, web 558, ui 105, tokens 134, copy-lint 17 passed, after the namespace fix (web had failed 1 of 558 on it).
-- `pnpm test:security`: SECURITY_RESULT
+- `pnpm test:security` (last run, 05-10-2026): db `Tests 913 passed (913)` in 29 files; domain `Tests 516 passed (516)` in 51 files; web `Tests 3 failed | 213 passed (216)`: three cases ran past vitest's 20-second limit on the saturated machine (two in `auth-actions.test.ts`, outside the slice, and "gives up on a job only while it commits" in `imports.test.ts`); those two files rerun alone: `Tests 42 passed (42)`. The web suite's run before it, on the same code but for the journeys and documents, passed `Tests 216 passed (216)`.
 - `pnpm copy-lint`: `copy-lint: catalogues and templates are clean`.
 - `pnpm build`: `Tasks: 2 successful, 2 total`; `pnpm --filter web js-budget`: `Every page is within its budget (27 pages).`
 - `pnpm --filter web e2e imports.spec.ts` (three projects): 17 passed and 3 failed on the run before the last two journey fixes; then the customers journey alone: 9 passed, 2 flaky (the first try on desktop light and dark waited more than 30 seconds for the check on the loaded machine; the wait is now 60 seconds). The leads, PIN code list and snapshot journeys passed on all three projects. Screenshots compare only in Linux; no baselines were made.
