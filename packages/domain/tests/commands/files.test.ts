@@ -107,11 +107,19 @@ describe('files.upload.begin', () => {
     await expect(
       begin(executive, { purpose: 'knowledge', contentType: 'application/pdf' }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('takes an import file only as a spreadsheet, and a spreadsheet only as an import file', async () => {
+    // Import files come by this upload too (docs/design/phase1.md §6.3), as a CSV or a workbook.
     await expect(
-      begin(executive, { purpose: 'import', contentType: 'text/csv' }),
-    ).rejects.toMatchObject({
-      code: 'validation_failed',
-    });
+      begin(executive, { purpose: 'import', name: 'leads.csv', contentType: 'text/csv' }),
+    ).resolves.toMatchObject({ entityId: 1, key: expect.stringMatching(/^1\/import\//) });
+    await expect(
+      begin(executive, { purpose: 'import', contentType: 'image/png' }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+    await expect(
+      begin(executive, { purpose: 'entity_logo', contentType: 'text/csv' }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
   });
 
   it('holds the upload to its purpose’s type and size', async () => {

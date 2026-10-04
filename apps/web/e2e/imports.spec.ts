@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import {
   dataGrid,
   expect,
@@ -8,6 +9,25 @@ import {
   showCompany,
 } from './support/fixtures';
 import { SNAPSHOT_COMPANY, SNAPSHOT_IMPORT_FILE } from './support/users';
+
+/** A mobile number no earlier run used, so each run's file differs and is taken again. */
+const freshMobile = () => `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
+
+/**
+ * Sends a file through the import screen's uploader: it goes to the file store on a signed
+ * address, passes its checks (in the app itself on this machine, with no queue), and the screen
+ * then reads it and opens its job.
+ */
+async function uploadImport(page: Page, name: string, lines: string[]): Promise<void> {
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(`${lines.join('\n')}\n`) });
+  // The job screen reads the whole file back, so it may take a moment.
+  await expect(page.getByRole('heading', { name: `Import of ${name}`, level: 1 })).toBeVisible({
+    timeout: 45_000,
+  });
+  await expect(page.getByRole('heading', { name: 'Match the columns' })).toBeVisible();
+}
 
 test.describe('as a GM', () => {
   test.use(signedInAs('gm'));
@@ -21,27 +41,84 @@ test.describe('as a GM', () => {
     await expect(page.getByRole('heading', { name: 'New import', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'imports-upload');
+    // The PIN code list is for all four companies at once, which a GM of one does not work in.
+    await expect(
+      page.getByLabel('What the file holds').locator('option', { hasText: 'PIN code list' }),
+    ).toHaveCount(0);
 
-    const rows = [
+    await uploadImport(page, 'leads.csv', [
       'Name,Mobile,Village',
       'Geeta Devi,98290 11111,Ajmer',
       'Suresh Jat,98290 22222,Beawar',
-      // A file is taken once per company, so each run's file differs by one row.
-      `Harish Saini,9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')},Kekri`,
-    ];
-    await page.getByLabel('Spreadsheet file').setInputFiles({
-      name: 'leads.csv',
-      mimeType: 'text/csv',
-      buffer: Buffer.from(`${rows.join('\n')}\n`),
-    });
-    await page.getByRole('button', { name: 'Read the file' }).click();
-    // The job screen reads the whole file back, so it may take a moment.
-    await expect(page.getByRole('heading', { name: 'Import of leads.csv', level: 1 })).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(page.getByRole('heading', { name: 'Match the columns' })).toBeVisible();
+      `Harish Saini,${freshMobile()},Kekri`,
+    ]);
     await expectNoAxeViolations(page);
     await snap(page, 'imports-job', { mask: [page.getByText(/, started /)] });
+  });
+
+  test('uploads a spreadsheet of customers, matches its columns and checks its rows', async ({
+    page,
+  }) => {
+    await page.goto('/imports/new');
+    await page.getByLabel('What the file holds').selectOption({ label: 'Customers' });
+    await expect(
+      page.getByText('Rows with the same mobile number become one customer.'),
+    ).toBeVisible();
+    const repeated = freshMobile();
+    await uploadImport(page, 'customers.csv', [
+      'Name,Mobile,Village',
+      `Kamla Devi,${repeated},Kishangarh`,
+      `Kamla Devi,${repeated},Kishangarh`,
+      `Ramesh Gurjar,${freshMobile()},Nasirabad`,
+    ]);
+    await expectNoAxeViolations(page);
+    await page.getByRole('button', { name: 'Check the rows' }).click();
+    await expect(page.getByRole('button', { name: 'Add 2 customers' })).toBeVisible({
+      timeout: 30_000,
+    });
+    await expectNoAxeViolations(page);
+  });
+});
+
+test.describe('as an Executive', () => {
+  test.use(signedInAs('executive'));
+
+  test('adds post offices to the PIN code list, which the lead form then finds', async ({
+    page,
+  }) => {
+    await page.goto('/imports/new');
+    await page.getByLabel('Company', { exact: true }).selectOption({ label: 'Shakti Supreme' });
+    await page.getByLabel('What the file holds').selectOption({ label: 'PIN code list' });
+    await expectNoAxeViolations(page);
+    // Made-up offices under a PIN no post office uses (9 starts the Army Postal Service's PINs);
+    // the last column differs each run, so the same file is taken again.
+    await uploadImport(page, 'pin-codes.csv', [
+      'Pincode,OfficeName,Taluk,District,StateName,Run',
+      `999001,Kherovan B.O,Sotikul,Balvanti,Rajasthan,${freshMobile()}`,
+      `999001,Mandravi B.O,Sotikul,Balvanti,Rajasthan,${freshMobile()}`,
+    ]);
+    await page.getByRole('button', { name: 'Check the rows' }).click();
+    await page.getByRole('button', { name: 'Add 2 offices' }).click({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'PIN codes added' })).toBeVisible({
+      timeout: 45_000,
+    });
+    await expectNoAxeViolations(page);
+
+    await page.goto('/leads/new');
+    const pin = page.getByLabel('PIN code');
+    await pin.fill('999001');
+    await expect(page.getByText('Tehsil Sotikul, district Balvanti.')).toBeVisible();
+    // Its post offices are offered for the village.
+    await expect(page.locator('#lead-village-offices option[value="Kherovan B.O"]')).toHaveCount(
+      1,
+    );
+    await expectNoAxeViolations(page);
+    await pin.fill('999999');
+    await expect(
+      page.getByText(
+        'This PIN is not in the PIN code list. The site is saved and marked for someone to check.',
+      ),
+    ).toBeVisible();
   });
 });
 
