@@ -12,6 +12,7 @@ import {
   resolvePrincipalFromGrants,
 } from '@shakti/domain';
 import { hostedRuntime } from '../auth/deps';
+import { systemWorkersPrincipal } from './events/system-principal';
 import { logger } from '../log';
 import { nudgeOutbox } from './outbox';
 import { publishImportCommit, qstashConfig } from './qstash';
@@ -120,18 +121,19 @@ export async function runImportCommit(
 }
 
 /**
- * After the queue's last retry of a worker call failed (docs/design/phase1.md §6.3): the job stops
- * as `failed` through `imports.job.fail`, as the person who asked for the commit, instead of
+ * When a worker call can take a job no further (docs/design/phase1.md §6.3): the queue's last
+ * retry failed, whatever the cause, or the person who asked for the commit may no longer go on
+ * with it. The job stops as `failed` through `imports.job.fail`, as the worker principal in the
+ * job's company alone (whatever became of that person, a suspended one included), instead of
  * waiting as committing for ever. Answers the job as it now stands.
  */
 export async function giveUpImportCommit(
   body: ImportCommitWorkerBody,
   requestId: string,
 ): Promise<ImportCommitWorkerResponse> {
-  const { principal, entityIds } = await importPrincipal(body);
   const job = await executeCommand(
-    principal,
-    { entityIds, requestId },
+    systemWorkersPrincipal(body.entityId),
+    { entityIds: [body.entityId], requestId },
     failImportJob,
     { entityId: body.entityId, jobId: body.jobId },
     { onCommitted: nudgeOutbox },

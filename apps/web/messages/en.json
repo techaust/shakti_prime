@@ -216,6 +216,7 @@
     "import_file_not_ready": "The file is still being checked. Wait a moment and choose Read the file again.",
     "import_file_missing": "We couldn't find this file. Upload it again.",
     "import_needs_all_companies": "Only an Executive working in all companies can add the PIN code list. Switch to All companies and try again.",
+    "import_companies_out_of_reach": "This file adds customers to companies you are not working in now. Switch to All companies, or to the companies the file names, and try again.",
     "file_upload_abandoned": "This upload did not finish, so it was cleared. Upload the file again."
   },
   "auth": {
@@ -1607,8 +1608,10 @@
       },
       "finding": {
         "field": "{field}: {sentence}",
-        "sameAsRow": "{kind, select, accounts {Same mobile number as row {row}. Its company is added to that customer.} pin_codes {Same post office as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
+        "sameAsRow": "{kind, select, accounts {{site, select, added {Same mobile number as row {row}. Its company and its site are added to that customer.} same {Same mobile number as row {row}. Its company is added to that customer, who already has this site.} too_many {Same mobile number as row {row}. Its company is added to that customer, but not its site: one customer takes at most {most} sites from a file.} other {Same mobile number as row {row}. Its company is added to that customer.}}} pin_codes {Same post office as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
         "customerByPhone": "Same mobile number as a customer: {name}. Check this before adding, so nobody is entered twice.",
+        "linked": "Same mobile number as {name}, already in your customer list. This row adds its company to that customer instead of making a new one.",
+        "linkedUnnamed": "Same mobile number as a customer already in your list. This row adds its company to that customer instead of making a new one.",
         "customerByNameVillage": "Same name and village as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "customerHiddenByPhone": "Same mobile number as a customer you can't see. Ask your manager before adding.",
         "customerHiddenByNameVillage": "Same name and village as a customer you can't see. Ask your manager before adding."
@@ -1634,16 +1637,16 @@
     },
     "done": {
       "title": "{kind, select, leads {Leads added} accounts {Customers added} other {PIN codes added}}",
-      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file.} other {{shown} customers were added from this file.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
+      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file, or matched to a customer already in your list.} other {{shown} customers were added from this file, or matched to customers already in your list.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
       "rolledBackTitle": "Import undone",
-      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any that a lead now belongs to.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
+      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any who now have a lead, a recorded consent or another company. Customers it matched to ones already in your list keep the companies it added.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
       "another": "Start another import",
       "rollback": "Undo this import",
       "viewAdded": "{kind, select, accounts {See the customers} other {See the leads}}"
     },
     "rollbackDialog": {
       "title": "Undo this import?",
-      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer that a lead now belongs to stays. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
+      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer who now has a lead, a recorded consent or another company stays, and customers it matched to ones already in your list keep the companies it added. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
       "submit": "Undo import",
       "done": "{kind, select, leads {The leads from {file} were taken back.} accounts {The customers from {file} were taken back.} other {The post offices from {file} were taken out.}}"
     },

@@ -25,6 +25,7 @@ import { createLead } from '../crm/create-lead';
 import {
   assertEntityInScope,
   assertGroupImport,
+  assertJobCompaniesCovered,
   countRows,
   implementedKind,
   jobState,
@@ -115,6 +116,7 @@ export const commitImportJob = defineCommand({
     const before = jobState(loaded.job);
     if (before === 'committing') return toImportJobDto(loaded);
     assertImportJobMove(before, 'committing');
+    assertJobCompaniesCovered(ctx.entityIds, loaded.job);
     if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
     if (loaded.job.validRows === 0) {
       throw new DomainError('validation_failed', 'no valid rows to import', {
@@ -189,6 +191,8 @@ export const commitImportBatch = defineCommand({
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     if (jobState(loaded.job) !== 'committing') return toImportJobDto(loaded);
     const job = loaded.job;
+    // The worker acts for the companies the preview found; a person who has lost one stops here.
+    assertJobCompaniesCovered(ctx.entityIds, job);
     const kind = implementedKind(job);
     if (kind === 'pin_codes') await assertGroupImport(ctx);
     const commit = KIND_COMMITS[kind];
@@ -222,20 +226,22 @@ export const commitImportBatch = defineCommand({
       return toImportJobDto(committed);
     }
 
-    // Every row the batch went through is committed; a row that made a record names it.
-    const markCommitted = (
-      sp: RequestTx,
-      done: readonly number[],
-      created: readonly { rowNo: number; id: string }[],
-    ) => {
-      const ids = new Map(created.map((c) => [c.rowNo, c.id]));
-      const marks = done.map((rowNo) => ({ rowNo, id: ids.get(rowNo) ?? null }));
+    // Every row the batch went through is committed; a row that made a record names it, of the
+    // kind's type unless the row says otherwise (a customers row linked to an existing customer).
+    const markCommitted = (sp: RequestTx, done: readonly number[], created: readonly Made[]) => {
+      const made = new Map(created.map((c) => [c.rowNo, c]));
+      const marks = done.map((rowNo) => ({
+        rowNo,
+        id: made.get(rowNo)?.id ?? null,
+        type: made.get(rowNo)?.type ?? commit.createdType,
+      }));
       return sp.execute(sql`
         update import_rows r
            set state = 'committed',
-               created_type = case when x.id is null then null else ${commit.createdType} end,
+               created_type = case when x.id is null then null else x.type end,
                created_id = x.id, committed_batch = ${batchNo}, updated_by = ${actor}
-          from jsonb_to_recordset(${JSON.stringify(marks)}::jsonb) as x("rowNo" int, id uuid)
+          from jsonb_to_recordset(${JSON.stringify(marks)}::jsonb)
+               as x("rowNo" int, id uuid, type text)
          where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
     };
 
@@ -315,7 +321,7 @@ export const commitImportBatch = defineCommand({
         });
         await ctx.savepoint(async (sp) => {
           const sliceStarted = settings.now();
-          const created: { rowNo: number; id: string }[] = [];
+          const created: Made[] = [];
           const went: number[] = [];
           const heldRows: number[] = [];
           // At least one row, even after a set-based try that used the time up.
@@ -331,7 +337,7 @@ export const commitImportBatch = defineCommand({
             }
             failedRow = row.rowNo;
             // Each row in a savepoint of its own, so a refused row leaves nothing behind.
-            let outcome: { id: string | null } | 'refused';
+            let outcome: { id: string | null; type?: ImportCreatedType } | 'refused';
             try {
               outcome = await sp.transaction((rowSp) => commit.oneRow(ctx, rowSp, job.id, row));
             } catch (error) {
@@ -342,7 +348,9 @@ export const commitImportBatch = defineCommand({
               heldRows.push(row.rowNo);
             } else {
               went.push(row.rowNo);
-              if (outcome.id !== null) created.push({ rowNo: row.rowNo, id: outcome.id });
+              if (outcome.id !== null) {
+                created.push({ rowNo: row.rowNo, id: outcome.id, type: outcome.type });
+              }
             }
           }
           failedRow = undefined;
@@ -443,6 +451,13 @@ export const commitImportBatch = defineCommand({
  * uses it, so the batch's source names the functions it calls (event-emitters.test.ts reads it).
  */
 
+/** A record a committed row made, and its type when it is not the kind's own. */
+interface Made {
+  rowNo: number;
+  id: string;
+  type?: ImportCreatedType | undefined;
+}
+
 /** What one kind's rows make, and the record type a committed row names. */
 interface KindCommit {
   createdType: ImportCreatedType;
@@ -453,7 +468,7 @@ interface KindCommit {
     jobId: string,
     rows: readonly BatchRow[],
     keep: (tx: RequestTx) => Promise<void>,
-  ): Promise<{ created: { rowNo: number; id: string }[]; refused: number[] }>;
+  ): Promise<{ created: Made[]; refused: number[] }>;
   /**
    * One row in its own savepoint: what it made (none for an office it corrected), or refused; a
    * lead refused for a colleague's customer throws that refusal instead.
@@ -463,7 +478,7 @@ interface KindCommit {
     rowSp: RequestTx,
     jobId: string,
     row: BatchRow,
-  ): Promise<{ id: string | null } | 'refused'>;
+  ): Promise<{ id: string | null; type?: ImportCreatedType } | 'refused'>;
 }
 
 const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
@@ -487,8 +502,14 @@ const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
     createdType: 'account',
     setBased: (ctx, sp, _jobId, rows, keep) => commitAccountBatch(ctx, sp, rows, keep),
     async oneRow(ctx, rowSp, _jobId, row) {
+      // A link that finds the customer taken by a colleague since throws that refusal.
       const done = await commitAccountBatch(ctx, rowSp, [row]);
-      return done.refused.length > 0 ? 'refused' : { id: done.created[0]?.id ?? null };
+      const made = done.created[0];
+      return done.refused.length > 0
+        ? 'refused'
+        : made === undefined
+          ? { id: null }
+          : { id: made.id, type: made.type };
     },
   },
   pin_codes: {

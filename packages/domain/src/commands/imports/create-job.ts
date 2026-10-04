@@ -1,6 +1,6 @@
 import { CreateImportJobInput, DomainError, ImportJobDto, newId } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, gt, inArray, ne, or } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { assertEntityInScope, assertGroupImport, toImportJobDto } from './shared';
 
@@ -10,9 +10,11 @@ const INSERT_CHUNK = 1000;
 /**
  * `imports.job.create` (IMP-01, docs/design/phase1.md §6.3): an import file the caller uploaded
  * through the pre-signed path, checked and `ready`, becomes a job in `uploaded` with one pending
- * row per data row of the file, as the server read it. One file starts one job
- * (`import_jobs_file_unique`), and a file whose content already started a job in the company is
- * refused, so the same list is not imported twice. The PIN code master is imported only by an
+ * row per data row of the file, as the server read it. Only the caller's own upload starts a job,
+ * never a colleague's file of the company. One file starts one job (`import_jobs_file_unique`),
+ * and a file whose content was already added in the company (a job adding it, done, or stopped
+ * with rows added) is refused, so the same list is not imported twice; a job left before adding,
+ * or undone, does not count. The PIN code master is imported only by an
  * Executive in a request for every company. The audit row records the file and the counts, never
  * the rows, which carry customers' names and numbers in columns the redaction cannot recognise.
  */
@@ -41,7 +43,14 @@ export const createImportJob = defineCommand({
     const [file] = await ctx.tx
       .select({ id: f.id, name: f.name, size: f.size, sha256: f.sha256, status: f.status })
       .from(f)
-      .where(and(eq(f.id, input.fileId), eq(f.entityId, input.entityId), eq(f.purpose, 'import')))
+      .where(
+        and(
+          eq(f.id, input.fileId),
+          eq(f.entityId, input.entityId),
+          eq(f.purpose, 'import'),
+          eq(f.createdBy, actor),
+        ),
+      )
       .limit(1);
     if (!file) {
       throw new DomainError('not_found', 'the import file is not available', {
@@ -54,13 +63,23 @@ export const createImportJob = defineCommand({
       });
     }
 
-    // The same content already started a job in this company (another upload of the same file).
+    // The same content was already added in this company (another upload of the same file).
     const j = schema.importJobs;
     const [earlier] = await ctx.tx
       .select({ id: j.id })
       .from(j)
       .innerJoin(f, eq(f.id, j.fileId))
-      .where(and(eq(j.entityId, input.entityId), eq(f.sha256, file.sha256), ne(f.id, file.id)))
+      .where(
+        and(
+          eq(j.entityId, input.entityId),
+          eq(f.sha256, file.sha256),
+          ne(f.id, file.id),
+          or(
+            inArray(j.state, ['committing', 'committed']),
+            and(eq(j.state, 'failed'), gt(j.committedRows, 0)),
+          ),
+        ),
+      )
       .limit(1);
     if (earlier) {
       throw new DomainError('conflict', 'this file was imported before', {

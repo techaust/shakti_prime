@@ -9,6 +9,7 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  principalFor,
   withoutContext,
 } from '../../src/testing/index';
 
@@ -301,3 +302,79 @@ class RolledBack extends Error {
     super('rolled back');
   }
 }
+
+describe('the import worker stops a job of its own company (imports.process)', () => {
+  const worker = (entityIds: number[]) => principalFor('system:workers', entityIds);
+
+  it('reads and stops a job of the company it acts for, and no other', async () => {
+    const f = await fixture(1, gm1.id);
+    const stop = (principal: Principal) =>
+      asPrincipal(
+        principal,
+        async ({ tx }) =>
+          (await tx.execute(
+            sql`update import_jobs set state = 'failed' where id = ${f.jobId} returning id`,
+          )) as unknown as unknown[],
+      );
+    expect(await seen(worker([2]), countOf('import_jobs', f))).toBe(0);
+    expect(await stop(worker([2]))).toEqual([]);
+    expect(await seen(worker([1]), countOf('import_jobs', f))).toBe(1);
+    expect(await stop(worker([1]))).toHaveLength(1);
+    // The rows stay out of its reach.
+    expect(await seen(worker([1]), countOf('import_rows', f))).toBe(0);
+  });
+});
+
+describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
+  /** A customers job with its committed rows, each a new customer of company 1. */
+  async function accountsJob(names: string[]) {
+    const f = await fixture(1, gm1.id);
+    const ids = names.map(() => newId());
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update import_jobs set kind = 'accounts', template_id = null where id = ${f.jobId}`;
+        await tx`delete from import_rows where job_id = ${f.jobId}`;
+        for (const [i, id] of ids.entries()) {
+          await tx`insert into accounts (id, type, name, created_by)
+            values (${id}, 'farm', ${names[i] ?? ''}, ${gm1.id})`;
+          await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+            values (${newId()}, ${id}, 1, ${gm1.id}, ${gm1.id})`;
+          await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, state, created_type, created_id, created_by)
+            values (${f.jobId}, 1, ${i + 1}, '{}'::jsonb, 'committed', 'account', ${id}, ${gm1.id})`;
+        }
+      }),
+    );
+    return { jobId: f.jobId, ids };
+  }
+
+  const inUse = (principal: Principal, jobId: string) =>
+    asPrincipal(principal, async ({ tx }) =>
+      (
+        (await tx.execute(sql`select app.import_accounts_in_use(${jobId}) as id`)) as unknown as {
+          id: string;
+        }[]
+      ).map((r) => r.id),
+    );
+
+  it('names the customers another company took on since, past the caller’s companies', async () => {
+    const { jobId, ids } = await accountsJob(['fixture free', 'fixture taken']);
+    const [free, taken] = ids;
+    // Company 2 takes the second customer on later, where company 1's GM sees nothing.
+    await asMigrator(
+      (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+               values (${newId()}, ${taken ?? ''}, 2, ${gm2.id}, ${gm2.id})`,
+    );
+    expect(await inUse(gm1, jobId)).toEqual([taken]);
+    expect(await inUse(gm1, jobId)).not.toContain(free);
+  });
+
+  it('is refused outside the job’s company or without imports.write', async () => {
+    const { jobId } = await accountsJob(['fixture refused']);
+    const refused = (e: unknown) =>
+      e instanceof Error &&
+      e.cause instanceof Error &&
+      e.cause.message.includes('outside the request scope');
+    await expect(inUse(gm2, jobId)).rejects.toSatisfy(refused);
+    await expect(inUse(principalFor('tele_caller_cc', [1]), jobId)).rejects.toSatisfy(refused);
+  });
+});

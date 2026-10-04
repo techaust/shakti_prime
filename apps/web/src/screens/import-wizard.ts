@@ -370,10 +370,17 @@ export function initialRowView(
 /** One thing to say about a row, in the order the grid lists them. */
 export type RowFinding =
   | { kind: 'error'; field: ImportField | 'row'; code: ImportRowErrorCode }
-  | { kind: 'sameAsRow'; rowNo: number }
+  | { kind: 'sameAsRow'; rowNo: number; site?: FoldedSite }
+  | { kind: 'linked'; name: string | undefined }
   | { kind: 'customer'; name: string | undefined; matchedBy: ImportDedupeMatch };
 
-/** A row's findings: what is wrong with it, then who it may already be. */
+/** What became of a repeated customers row's site (`ImportDedupeDto.site`). */
+export type FoldedSite = NonNullable<NonNullable<ImportRowDto['dedupe']>['site']>;
+
+/**
+ * A row's findings: what is wrong with it, then the customer a customers row is added to, then
+ * who it may already be (the customer it is added to is not suggested again).
+ */
 export function rowFindings(
   row: Pick<ImportRowDto, 'errors' | 'dedupe'>,
   customers: Readonly<Record<string, string>>,
@@ -385,9 +392,19 @@ export function rowFindings(
   }));
   if (row.dedupe !== null) {
     if (row.dedupe.inFileRowNo !== null) {
-      findings.push({ kind: 'sameAsRow', rowNo: row.dedupe.inFileRowNo });
+      const site = row.dedupe.site;
+      findings.push({
+        kind: 'sameAsRow',
+        rowNo: row.dedupe.inFileRowNo,
+        ...(site === undefined ? {} : { site }),
+      });
     }
     const seen = new Set<string>();
+    const linkedTo = row.dedupe.linkedTo;
+    if (linkedTo !== undefined) {
+      seen.add(linkedTo);
+      findings.push({ kind: 'linked', name: customers[linkedTo] });
+    }
     for (const match of row.dedupe.existing) {
       if (seen.has(match.accountId)) continue;
       seen.add(match.accountId);

@@ -3,6 +3,7 @@ import {
   ImportJobDto,
   PreviewImportJobInput,
   type AccountImportMapping,
+  type AccountImportRowInput,
   type ImportDedupeDto,
   type ImportRowErrorDto,
   type LeadImportMapping,
@@ -164,11 +165,17 @@ interface Candidate {
   village: string | undefined;
 }
 
+/** The existing customers a row may already be: all of them, and those with its phone. */
+interface Suggestions {
+  (rowNo: number): ImportDedupeDto['existing'];
+  byPhone(rowNo: number): ImportDedupeDto['existing'];
+}
+
 /** The existing customers each valid row may already be, by its phone and its name and village. */
 async function customerSuggestions(
   tx: RequestTx,
   valid: readonly Candidate[],
-): Promise<(rowNo: number) => ImportDedupeDto['existing']> {
+): Promise<Suggestions> {
   const byPhone = await existingByPhone(
     tx,
     valid.map((v) => v.phone),
@@ -181,13 +188,15 @@ async function customerSuggestions(
   }
   const namesakes = await existingByNameAndVillage(tx, [...pairs.values()]);
   const phoneOf = new Map(valid.map((v) => [v.rowNo, v.phone]));
-  return (rowNo) => {
+  const phoneMatches = (rowNo: number) => byPhone.get(phoneOf.get(rowNo) ?? '') ?? [];
+  const all = (rowNo: number) => {
     const pair = pairs.get(rowNo);
     return suggestions(
-      byPhone.get(phoneOf.get(rowNo) ?? '') ?? [],
+      phoneMatches(rowNo),
       pair === undefined ? [] : (namesakes.get(pairKey(pair)) ?? []),
     );
   };
+  return Object.assign(all, { byPhone: phoneMatches });
 }
 
 function invalid(rowNo: number, errors: ImportRowErrorDto[]): RowFinding {
@@ -249,7 +258,9 @@ async function previewLeads(
 /**
  * Customers (design §6.3): each row through `AccountImportRowInput`, its company named by code or
  * name among the request's companies; rows of one customer fold into the first, which takes on
- * every company they name; an existing customer is suggested, as for leads.
+ * every company they name and every different site they give; an existing customer is suggested,
+ * as for leads, and one the importer can see with the row's mobile number is the customer the row
+ * is added to (`existingAccountId`), instead of a new one.
  */
 async function previewAccounts(
   ctx: CommandContext,
@@ -288,24 +299,39 @@ async function previewAccounts(
     if (check.state === 'invalid') return invalid(rowNo, check.errors);
     const inFileRowNo = folded.repeats.get(rowNo) ?? null;
     if (inFileRowNo !== null) {
+      const site = folded.sites.get(rowNo);
       return {
         row_no: rowNo,
         state: 'skipped',
         normalised_json: check.input,
         errors_json: [],
-        dedupe_json: { inFileRowNo, existing: [] },
+        dedupe_json: { inFileRowNo, existing: [], ...(site === undefined ? {} : { site }) },
       };
     }
     const matches = existing(rowNo);
+    // The owner's rule (05-10-2026): a number a customer the importer can see already has links
+    // the row to that customer, so no second record is made.
+    const linkedTo = existing.byPhone(rowNo)[0]?.accountId;
+    const moreSites = folded.moreSites.get(rowNo);
+    const input: AccountImportRowInput = {
+      ...check.input,
+      entityIds: folded.companies.get(rowNo) ?? check.input.entityIds,
+      ...(moreSites === undefined ? {} : { moreSites }),
+      ...(linkedTo === undefined ? {} : { existingAccountId: linkedTo }),
+    };
     return {
       row_no: rowNo,
       state: 'valid',
-      normalised_json: {
-        ...check.input,
-        entityIds: folded.companies.get(rowNo) ?? check.input.entityIds,
-      },
+      normalised_json: input,
       errors_json: [],
-      dedupe_json: matches.length === 0 ? null : { inFileRowNo: null, existing: matches },
+      dedupe_json:
+        matches.length === 0
+          ? null
+          : {
+              inFileRowNo: null,
+              existing: matches,
+              ...(linkedTo === undefined ? {} : { linkedTo }),
+            },
     };
   });
 }
@@ -328,12 +354,26 @@ function previewPinCodes(rows: readonly FileRow[], mapping: PinCodeImportMapping
   });
 }
 
+/** The companies the ready rows of a job name, the job's own first, each once. */
+function jobCompanies(entityId: number, findings: readonly RowFinding[]): number[] {
+  const ids = [entityId];
+  for (const f of findings) {
+    if (f.state !== 'valid') continue;
+    const named = (f.normalised_json as { entityIds?: number[] }).entityIds;
+    for (const id of named ?? []) if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 /**
  * `imports.job.preview` (IMP-01): every row checked through the input its commit uses, with the
  * findings of each kind: leads and customers with dedupe suggestions by phone and by name and
  * village, each labelled with its reason, and a repeat of an earlier row skipped (for customers,
  * folded into it); offices of the PIN code master checked against the directory's form. A match
- * with an existing customer is only suggested, and the row still imports as a new one.
+ * with an existing customer is only suggested, and the row still imports as a new one, except a
+ * customers row with the mobile number of a customer the caller can see, which is added to that
+ * customer. The job records the companies its ready rows name, its own first: adding them and
+ * undoing them need a request that acts for every one.
  */
 export const previewImportJob = defineCommand({
   name: 'imports.job.preview',
@@ -341,7 +381,15 @@ export const previewImportJob = defineCommand({
   minScope: 'entity',
   input: PreviewImportJobInput,
   output: ImportJobDto,
-  auditFields: ['state', 'validRows', 'invalidRows', 'skippedRows', 'suggested'],
+  auditFields: [
+    'state',
+    'validRows',
+    'invalidRows',
+    'skippedRows',
+    'suggested',
+    'linked',
+    'entityIds',
+  ],
   async handler(ctx, input) {
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
@@ -385,9 +433,11 @@ export const previewImportJob = defineCommand({
       invalidRows: count('invalid'),
       skippedRows: count('skipped'),
     };
+    const entityIds = kind === 'pin_codes' ? null : jobCompanies(input.entityId, findings);
     const previewed = await updateJob(ctx.tx, loaded, {
       state: 'previewed',
       ...counts,
+      entityIds,
       updatedBy: ctx.principal.id,
     });
 
@@ -400,6 +450,8 @@ export const previewImportJob = defineCommand({
         state: 'previewed',
         ...counts,
         suggested: findings.filter((f) => (f.dedupe_json?.existing.length ?? 0) > 0).length,
+        linked: findings.filter((f) => f.dedupe_json?.linkedTo !== undefined).length,
+        entityIds,
       },
     });
 

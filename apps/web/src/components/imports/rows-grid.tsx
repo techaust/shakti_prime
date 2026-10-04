@@ -1,6 +1,11 @@
 'use client';
 
-import type { ImportJobDto, ImportRowDto, ImportRowPage } from '@shakti/contracts';
+import {
+  MORE_SITES_MAX,
+  type ImportJobDto,
+  type ImportRowDto,
+  type ImportRowPage,
+} from '@shakti/contracts';
 import { DataGrid, EmptyState, Field, Select, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -72,7 +77,16 @@ export function RowsGrid({
       case 'error':
         return t('finding.field', { field: fields(f.field), sentence: rowErrors(f.code) });
       case 'sameAsRow':
-        return t('finding.sameAsRow', { row: formatCount(f.rowNo), kind });
+        return t('finding.sameAsRow', {
+          row: formatCount(f.rowNo),
+          kind,
+          site: f.site ?? 'none',
+          most: formatCount(MORE_SITES_MAX),
+        });
+      case 'linked':
+        return f.name === undefined
+          ? t('finding.linkedUnnamed')
+          : t('finding.linked', { name: f.name });
       case 'customer':
         if (f.matchedBy === 'name_village') {
           return f.name === undefined

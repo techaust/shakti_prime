@@ -60,9 +60,17 @@ export type ImportRowState = z.infer<typeof ImportRowStateSchema>;
 
 /**
  * `import_rows.created_type`: what a committed row made: a lead, a customer, or an office of the
- * PIN code master (only an office the row added; an office it corrected records nothing).
+ * PIN code master (only an office the row added; an office it corrected records nothing). A
+ * customers row whose mobile number belongs to a customer the importer can see links to that
+ * customer instead (`account_link`, the customer's id): its companies are added to it, and a
+ * rollback leaves that customer as it is.
  */
-export const ImportCreatedTypeSchema = z.enum(['opportunity', 'account', 'pin_code']);
+export const ImportCreatedTypeSchema = z.enum([
+  'opportunity',
+  'account',
+  'account_link',
+  'pin_code',
+]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
 /**

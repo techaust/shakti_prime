@@ -19,6 +19,8 @@ export interface StoredFile {
   size: number;
   sha256: string;
   status: FileRow['status'];
+  /** Who uploaded it, or the worker that made it. */
+  createdBy: string;
   /** The upload's own bytes, once the checks replaced or refused them (`ScanResult`). */
   originalKey: string | undefined;
 }
@@ -35,6 +37,7 @@ function toStoredFile(row: FileRow): StoredFile {
     size: row.size,
     sha256: row.sha256,
     status: row.status,
+    createdBy: row.createdBy,
     originalKey: scanResultOf(row).originalKey,
   };
 }

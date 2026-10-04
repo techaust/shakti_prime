@@ -32,6 +32,24 @@ export function assertEntityInScope(entityIds: readonly number[], entityId: numb
 }
 
 /**
+ * The companies a job's checked rows name (`import_jobs.entity_ids`) must all be in the request:
+ * adding the rows writes a relationship in each, and undoing them must see each, so a request
+ * that does not act for one of them is refused before anything is done.
+ */
+export function assertJobCompaniesCovered(
+  entityIds: readonly number[],
+  job: Pick<JobRow, 'entityIds'>,
+): void {
+  const missing = (job.entityIds ?? []).filter((id) => !entityIds.includes(id));
+  if (missing.length > 0) {
+    throw new DomainError('forbidden', 'the import names companies outside the request', {
+      reason: 'import_companies_out_of_reach',
+      entityIds: missing,
+    });
+  }
+}
+
+/**
  * The job and its file as the caller sees them. `lock` holds the job row until the transaction
  * ends, so two calls on one job (a double click, two batch workers) take turns.
  */
@@ -132,6 +150,7 @@ export function toImportJobDto({ job, file }: LoadedJob): ImportJobDto {
     skippedRows: job.skippedRows,
     committedRows: job.committedRows,
     failedBatch: job.failedBatch,
+    entityIds: job.entityIds,
     createdBy: job.createdBy,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
@@ -154,6 +173,7 @@ export async function updateJob(
       | 'committedRows'
       | 'failedBatch'
       | 'batchCount'
+      | 'entityIds'
       | 'updatedBy'
     >
   >,

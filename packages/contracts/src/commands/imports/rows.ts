@@ -1,14 +1,33 @@
 import { z } from 'zod';
 import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../../crm/enums';
 import { PhoneInputSchema } from '../../crm/phone';
-import { EntityIdSchema } from '../../ids';
+import { EntityIdSchema, IdSchema } from '../../ids';
 import { GstStateCodeSchema } from '../org/update-entity';
+
+/** The most sites later rows of one customer add to it from one file. */
+export const MORE_SITES_MAX = 100;
+
+/** A site a customers row gives: its type, its village, and its PIN when the file has one. */
+export const AccountImportSiteInput = z
+  .object({
+    type: SiteTypeSchema,
+    village: z.string().trim().min(2).max(120),
+    pin: z
+      .string()
+      .trim()
+      .regex(/^[1-9][0-9]{5}$/)
+      .optional(),
+  })
+  .strict();
+export type AccountImportSiteInput = z.infer<typeof AccountImportSiteInput>;
 
 /**
  * What one checked row of a customers file becomes (docs/design/phase1.md §6.3), as the preview
  * stores it and the commit reads it: the customer as `crm.lead.create` would make it, without a
  * lead, and every company it deals with. Rows of one customer (the same mobile number) fold into
- * the first of them, which then names the companies of them all.
+ * the first of them, which then names the companies of them all and carries their other sites
+ * (`moreSites`). A row whose number belongs to a customer the importer can see names that
+ * customer (`existingAccountId`): its companies are added to it, and nothing else is made.
  */
 export const AccountImportRowInput = z
   .object({
@@ -27,18 +46,10 @@ export const AccountImportRowInput = z
     account: z
       .object({ type: AccountTypeSchema, name: z.string().trim().min(2).max(120).optional() })
       .strict(),
-    site: z
-      .object({
-        type: SiteTypeSchema,
-        village: z.string().trim().min(2).max(120),
-        pin: z
-          .string()
-          .trim()
-          .regex(/^[1-9][0-9]{5}$/)
-          .optional(),
-      })
-      .strict()
-      .optional(),
+    site: AccountImportSiteInput.optional(),
+    /** The different sites of later rows of the same customer, in file order. */
+    moreSites: z.array(AccountImportSiteInput).min(1).max(MORE_SITES_MAX).optional(),
+    existingAccountId: IdSchema.optional(),
   })
   .strict();
 export type AccountImportRowInput = z.infer<typeof AccountImportRowInput>;

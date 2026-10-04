@@ -1,23 +1,43 @@
-import { AccountImportRowInput, newId } from '@shakti/contracts';
+import {
+  AccountImportRowInput,
+  DomainError,
+  newId,
+  type AccountImportSiteInput,
+  type ImportCreatedType,
+} from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { sql } from 'drizzle-orm';
+import { and, inArray, isNull, sql } from 'drizzle-orm';
 import type { CommandContext } from '../command/context';
 import type { BatchRow } from './commit-leads';
 
 /** What a batch of customer rows made: each row's customer, and the rows refused. */
 export interface AccountBatchResult {
-  created: { rowNo: number; id: string }[];
+  /** A new customer (`account`), or the existing one a row was added to (`account_link`). */
+  created: { rowNo: number; id: string; type: ImportCreatedType }[];
   /** Rows whose number belongs to a customer a colleague looks after in one of its companies. */
   refused: number[];
 }
 
+/** The refusal `imports.job.commit_batch` counts against a row rather than failing the batch. */
+function heldByColleague(): DomainError {
+  return new DomainError('conflict', 'a colleague looks after this customer', {
+    reason: 'customer_held_by_colleague',
+  });
+}
+
 /**
- * Commits a batch of customer rows (docs/design/phase1.md §6.3) in a handful of statements: each
- * row its account, one company relationship per company it names (owned by the importer, in their
- * team there), its contact, the contact's link and phone, and its site when it gives a village,
- * every insert under the policies a person's own writes pass as `app_user`. A row whose number a
- * colleague's customer has in one of its companies is refused before anything is written, as a
- * lead with that number is (0055), and the rest go on. Any other refusal throws, and the caller's
+ * Commits a batch of customer rows (docs/design/phase1.md §6.3) in a handful of statements. A row
+ * whose number a colleague's customer has in one of its companies is refused before anything is
+ * written, as a lead with that number is, and the rest go on.
+ *
+ * A row the preview linked to a customer the importer could see (`existingAccountId`, the owner's
+ * rule of 05-10-2026) makes no customer: each of its companies the customer does not deal with yet
+ * becomes a relationship owned by the importer (`app.attach_account_entity`, ADR 0008), and the
+ * customer's details and sites stay as they are. A linked customer archived since the check is
+ * made anew instead. Any other row becomes its account, one company relationship per company it
+ * names (owned by the importer, in their team there), its contact, the contact's link and phone,
+ * and its sites (its own and the different ones of its repeated rows), every insert under the
+ * policies a person's own writes pass as `app_user`. Any other refusal throws, and the caller's
  * savepoint takes the batch back. `keep` keeps each statement to the batch's deadline.
  */
 export async function commitAccountBatch(
@@ -49,20 +69,62 @@ export async function commitAccountBatch(
     rowNo: number;
   }[];
   const refused = new Set(held.map((h) => h.rowNo));
+  const open = parsed.filter((r) => !refused.has(r.rowNo));
+
+  // The customers the rows were linked to that are still there for the importer.
+  const linkIds = [...new Set(open.flatMap((r) => r.input.existingAccountId ?? []))];
+  const a = schema.accounts;
+  let live = new Set<string>();
+  if (linkIds.length > 0) {
+    await keep(tx);
+    const found = await tx
+      .select({ id: a.id })
+      .from(a)
+      .where(and(inArray(a.id, linkIds), isNull(a.archivedAt)));
+    live = new Set(found.map((f) => f.id));
+  }
+  const links = open.flatMap((r) =>
+    r.input.existingAccountId !== undefined && live.has(r.input.existingAccountId)
+      ? [{ rowNo: r.rowNo, accountId: r.input.existingAccountId, entityIds: r.input.entityIds }]
+      : [],
+  );
+  const linked = new Set(links.map((l) => l.rowNo));
+
+  if (links.length > 0) {
+    await keep(tx);
+    const attached = (await tx.execute(sql`
+      select app.attach_account_entity(x."accountId", x."entityId") as status
+        from jsonb_to_recordset(${JSON.stringify(
+          links.flatMap((l) =>
+            l.entityIds.map((entityId) => ({ accountId: l.accountId, entityId })),
+          ),
+        )}::jsonb) as x("accountId" uuid, "entityId" smallint)`)) as unknown as {
+      status: string;
+    }[];
+    // Held by a colleague in one of the companies since the number was checked: the row is
+    // refused, which the row-by-row path records against it alone.
+    if (attached.some((x) => x.status !== 'attached' && x.status !== 'already_yours')) {
+      throw heldByColleague();
+    }
+  }
 
   const teamIn = (entityId: number): string | null =>
     ctx.principal.entityTeams?.find((t) => t.entityId === entityId)?.teamId ??
     (ctx.entityIds.length === 1 ? (ctx.principal.teamId ?? null) : null);
 
-  const planned = parsed
-    .filter((r) => !refused.has(r.rowNo))
+  const planned = open
+    .filter((r) => !linked.has(r.rowNo))
     .map((r) => ({
       ...r,
       accountId: newId(),
       contactId: newId(),
       accountName: r.input.account.name ?? r.input.contact.name,
     }));
-  if (planned.length === 0) return { created: [], refused: [...refused] };
+  const created: AccountBatchResult['created'] = [
+    ...links.map((l) => ({ rowNo: l.rowNo, id: l.accountId, type: 'account_link' as const })),
+    ...planned.map((r) => ({ rowNo: r.rowNo, id: r.accountId, type: 'account' as const })),
+  ].sort((x, y) => x.rowNo - y.rowNo);
+  if (planned.length === 0) return { created, refused: [...refused] };
 
   // The same writes as a lead's customer, in the same order, so each policy sees what it checks.
   // No `returning` on the roots: a new customer is not visible until it has a relationship.
@@ -118,25 +180,20 @@ export async function commitAccountBatch(
     })),
   );
   const sites = planned.flatMap((r) =>
-    r.input.site === undefined
-      ? []
-      : [
-          {
-            id: newId(),
-            accountId: r.accountId,
-            type: r.input.site.type,
-            village: r.input.site.village,
-            pin: r.input.site.pin ?? null,
-            createdBy: actor,
-          },
-        ],
+    [...(r.input.site === undefined ? [] : [r.input.site]), ...(r.input.moreSites ?? [])].map(
+      (site: AccountImportSiteInput) => ({
+        id: newId(),
+        accountId: r.accountId,
+        type: site.type,
+        village: site.village,
+        pin: site.pin ?? null,
+        createdBy: actor,
+      }),
+    ),
   );
   if (sites.length > 0) {
     await keep(tx);
     await tx.insert(schema.customerSites).values(sites);
   }
-  return {
-    created: planned.map((r) => ({ rowNo: r.rowNo, id: r.accountId })),
-    refused: [...refused],
-  };
+  return { created, refused: [...refused] };
 }

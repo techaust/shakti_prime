@@ -27,12 +27,21 @@ beforeAll(async () => {
   gm = await createTestPrincipal('general_manager', [1, 2, 3, 4]);
 });
 
+/** The fixture PINs this file has drawn, so no two of its tests share one. */
+const drawn = new Set<string>();
+
 /**
  * A fixture PIN with no office left by an earlier run (the suites never clean the master), so a
- * test counts only its own offices. 999901 is the CRM fixture's.
+ * test counts only its own offices: one of 999910 to 999949, never one this file drew before.
+ * 999901 is the CRM fixture's; the domain suite draws from 999950 up.
  */
 async function pin(): Promise<string> {
-  const code = `9999${String(10 + Math.floor(Math.random() * 90))}`;
+  const free = Array.from({ length: 40 }, (_, i) => `9999${String(10 + i)}`).filter(
+    (code) => !drawn.has(code),
+  );
+  const code = free[Math.floor(Math.random() * free.length)];
+  if (code === undefined) throw new Error('the fixture PINs of this file are used up');
+  drawn.add(code);
   await asMigrator((m) => m`delete from pin_codes where pin = ${code}`);
   return code;
 }
@@ -105,6 +114,20 @@ describe('pin_codes: who writes the PIN code master', () => {
       ]);
       expect(changed).toEqual([]);
     }
+    expect(await officeCount(code)).toBe(1);
+  });
+
+  it('one office per PIN and name, whatever the case of the name', async () => {
+    const code = await pin();
+    await addOffice(executive, { pin: code, name: 'Fixture Office', district: 'Fixture' });
+    await expect(
+      addOffice(executive, { pin: code, name: 'FIXTURE OFFICE', district: 'Fixture' }),
+    ).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof Error &&
+        e.cause instanceof Error &&
+        e.cause.message.includes('pin_codes_pin_office_unique'),
+    );
     expect(await officeCount(code)).toBe(1);
   });
 
@@ -239,6 +262,93 @@ describe('customer_sites_pin_fill: a site takes what the PIN code master knows o
 
     // No PIN at all needs no check.
     expect(await site(await newSite(gm, null, null))).toMatchObject({ pin_needs_review: false });
+  });
+
+  it('checks a flagged site again when it is written with its PIN unchanged', async () => {
+    const code = await pin();
+    const siteId = await newSite(gm, code, 'Typed tehsil');
+    expect(await site(siteId)).toMatchObject({ pin_needs_review: true });
+    await addOffice(executive, { pin: code, name: 'fixture office', district: 'Fixture later' });
+    // Still flagged: nothing wrote the site yet.
+    expect(await site(siteId)).toMatchObject({ pin_needs_review: true });
+    await asPrincipal(gm, ({ tx }) =>
+      tx.execute(
+        sql`update customer_sites set village = 'fixture village two' where id = ${siteId}`,
+      ),
+    );
+    // The flag goes and only what the site left empty is filled.
+    expect(await site(siteId)).toEqual({
+      tehsil: 'Typed tehsil',
+      district: 'Fixture later',
+      state_code: null,
+      pin_needs_review: false,
+    });
+  });
+});
+
+describe('app.recheck_site_pins: sites checked again after a PIN code import', () => {
+  async function flaggedSite(code: string): Promise<string> {
+    const accountId = newId();
+    const siteId = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${accountId}, 'farm', 'fixture account', ${gm.id})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+          values (${newId()}, ${accountId}, 4, ${gm.id}, ${gm.id})`;
+        await tx`insert into customer_sites (id, account_id, type, village, pin, created_by)
+          values (${siteId}, ${accountId}, 'borewell', 'fixture village', ${code}, ${gm.id})`;
+      }),
+    );
+    return siteId;
+  }
+
+  const recheck = (principal: Principal, code: string) =>
+    asPrincipal(
+      principal,
+      async ({ tx }) =>
+        (
+          (await tx.execute(
+            sql`select app.recheck_site_pins(array[${code}]::text[]) as n`,
+          )) as unknown as { n: number }[]
+        )[0]?.n,
+    );
+
+  async function flagOf(siteId: string) {
+    const [row] = await asMigrator(
+      (m) => m<{ district: string | null; pin_needs_review: boolean }[]>`
+        select district, pin_needs_review from customer_sites where id = ${siteId}`,
+    );
+    return row;
+  }
+
+  it('is refused to anyone but an Executive acting for every company', async () => {
+    const code = await pin();
+    for (const principal of [narrowExecutive, gm, principalFor('agent:triage')]) {
+      await expect(recheck(principal, code)).rejects.toSatisfy(
+        (e: unknown) =>
+          e instanceof Error &&
+          e.cause instanceof Error &&
+          e.cause.message.includes('imports.write:all'),
+      );
+    }
+  });
+
+  it("clears the flag of every company's sites once the PIN is known, and sets it again once not", async () => {
+    const code = await pin();
+    // A site of a company the Executive's own relationships do not reach.
+    const siteId = await flaggedSite(code);
+    expect(await flagOf(siteId)).toEqual({ district: null, pin_needs_review: true });
+    await addOffice(executive, { pin: code, name: 'fixture office', district: 'Fixture checked' });
+    expect(await recheck(executive, code)).toBe(1);
+    expect(await flagOf(siteId)).toEqual({ district: 'Fixture checked', pin_needs_review: false });
+    // Asked again, nothing is left to change.
+    expect(await recheck(executive, code)).toBe(0);
+    await asPrincipal(executive, ({ tx }) =>
+      tx.execute(sql`delete from pin_codes where pin = ${code}`),
+    );
+    expect(await recheck(executive, code)).toBe(1);
+    expect(await flagOf(siteId)).toEqual({ district: 'Fixture checked', pin_needs_review: true });
   });
 });
 

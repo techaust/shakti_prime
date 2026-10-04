@@ -96,7 +96,12 @@ export async function startImport(
       (ctx) => getStoredFile(ctx, input.fileId),
       { name: 'startImport.file' },
     );
-    if (file?.purpose !== 'import' || file.entityId !== input.entityId) {
+    // Only the person's own upload starts their import, never a colleague's file.
+    if (
+      file?.purpose !== 'import' ||
+      file.entityId !== input.entityId ||
+      file.createdBy !== principal.id
+    ) {
       throw new DomainError('not_found', 'the import file is not available', {
         reason: 'import_file_missing',
       });
@@ -194,13 +199,15 @@ export async function commitImportJob(
       commandOptions(meta, idempotencyKey),
     );
     if (job.state !== 'committing') return job;
+    // The worker acts for the companies the checked rows name (the PIN code list: every one).
+    const companies = job.kind === 'pin_codes' ? scope : (job.entityIds ?? [job.entityId]);
     try {
       await scheduleImportCommit(
         {
           jobId: job.id,
           entityId: job.entityId,
           userId: principal.id,
-          ...(scope.length > 1 ? { entityIds: scope } : {}),
+          ...(companies.length > 1 ? { entityIds: companies } : {}),
         },
         job.committedRows,
       );

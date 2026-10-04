@@ -5,14 +5,17 @@ import { assertEntityInScope, jobState, loadJob, toImportJobDto, updateJob } fro
 
 /**
  * `imports.job.fail` (docs/design/phase1.md §6.3): the import worker's call for a committing job
- * still failed on the queue's last retry (`Upstash-Retried`), with a lock wait that kept running
- * out or a fault of its own. The job stops as `failed` at the batch it was on, so the screen shows
- * where it stopped and offers to undo it, instead of waiting for ever; the rows committed so far
- * stay until the job is rolled back. A job no longer committing is left as it is.
+ * it can take no further: the queue's last retry failed, whatever the cause, or the person who
+ * asked for the commit may no longer go on with it (suspended, or without the permission or a
+ * company the rows name). It runs as the worker principal (`imports.process`, held by no person's
+ * role), in a request for the job's company alone. The job stops as `failed` at the batch it was
+ * on, so the screen shows where it stopped and offers to undo it, instead of waiting for ever; the
+ * rows committed so far stay until the job is rolled back. A job no longer committing is left as
+ * it is.
  */
 export const failImportJob = defineCommand({
   name: 'imports.job.fail',
-  permission: 'imports.write',
+  permission: 'imports.process',
   minScope: 'entity',
   input: FailImportJobInput,
   output: ImportJobDto,
