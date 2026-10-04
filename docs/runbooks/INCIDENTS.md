@@ -38,7 +38,7 @@ Background updates (events) leave each change through the outbox and QStash. An 
 Migrations reach a hosted database only through GitHub › **Actions** › *Migrate a hosted database*, run from `main` ([DEPLOY §2](DEPLOY.md#2-every-deploy)).
 1. Open the failed run and read the first failing step:
    - *Only from main* or *Secrets present and for this project*: the run was started from another branch, a secret is missing, or the address names another Supabase project. Fix the secret in GitHub › Settings › Secrets and variables › Actions, then run again.
-   - `pnpm db:migrate`: the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
+   - `pnpm db:migrate` (`pnpm db:migrate --rotate-passwords` on a rotation run, [DEPLOY §5](DEPLOY.md#5-rotating-a-secret)): the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
    - `pnpm db:verify`: a migration on disk is not applied exactly as written (a changed file, or one the journal skipped because its time is older than the last one applied).
    - *Seed*: the migrations are in; rerun the workflow with the same choice, since the seed is safe to repeat.
 2. **Never edit a migration that a hosted database has applied.** A fix is a new migration after the last one, merged through a pull request, then the workflow is run again.
