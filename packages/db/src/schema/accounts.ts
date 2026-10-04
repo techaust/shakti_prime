@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   index,
   jsonb,
@@ -126,11 +127,20 @@ export const customerSites = pgTable(
     type: text('type').notNull(),
     address: text('address'),
     village: text('village'),
+    /** The village as the import's dedupe compares it; see `contacts.name_key`. */
+    villageKey: text('village_key').generatedAlwaysAs(
+      sql`regexp_replace(lower(village), '[^a-z0-9]+', '', 'g')`,
+    ),
     tehsil: text('tehsil'),
     district: text('district'),
     pin: text('pin'),
     /** Two-digit GST state code of the site; the first choice for place of supply (design §6). */
     stateCode: text('state_code'),
+    /**
+     * The PIN is not in the PIN code master, so its tehsil and district could not be filled: the
+     * site is saved and waits for someone to check it (PRD CRM-02). Set by `customer_sites_pin_fill`.
+     */
+    pinNeedsReview: boolean('pin_needs_review').notNull().default(false),
     lat: numeric('lat', { precision: 9, scale: 6 }),
     lng: numeric('lng', { precision: 9, scale: 6 }),
     technicalJson: jsonb('technical_json').notNull().default({}),
@@ -152,5 +162,6 @@ export const customerSites = pgTable(
     ),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
+    index('customer_sites_village_key_idx').on(t.villageKey).where(sql`${t.archivedAt} is null`),
   ],
 );

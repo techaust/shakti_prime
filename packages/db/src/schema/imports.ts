@@ -16,7 +16,7 @@ import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 import { files } from './files';
 
-const KINDS = sql`('leads', 'accounts', 'items', 'tally_masters')`;
+const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`;
 
 /**
  * A saved column mapping for one kind of file (docs/design/backend-weeks-3-5.md §8), so the next
@@ -102,7 +102,8 @@ export const importJobs = pgTable(
     }),
     unique('import_jobs_id_entity_unique').on(t.id, t.entityId),
     index('import_jobs_entity_created_idx').on(t.entityId, t.createdAt.desc()),
-    index('import_jobs_file_idx').on(t.fileId),
+    // One uploaded file starts one job.
+    unique('import_jobs_file_unique').on(t.fileId),
     index('import_jobs_template_idx').on(t.templateId),
   ],
 );
@@ -141,7 +142,10 @@ export const importRows = pgTable(
       'import_rows_state_check',
       sql`${t.state} in ('pending', 'valid', 'invalid', 'committed', 'skipped', 'rolled_back')`,
     ),
-    check('import_rows_created_type_check', sql`${t.createdType} in ('opportunity')`),
+    check(
+      'import_rows_created_type_check',
+      sql`${t.createdType} in ('opportunity', 'account', 'pin_code')`,
+    ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),
     // The commit worker's claim: the next valid rows of a job in file order.

@@ -37,11 +37,14 @@ export const UPLOAD_CONTENT_TYPES = [
   'image/png',
   'image/webp',
   'application/pdf',
+  // An import file (`import`): a CSV or an Excel workbook.
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ] as const;
 export const UploadContentTypeSchema = z.enum(UPLOAD_CONTENT_TYPES);
 export type UploadContentType = z.infer<typeof UploadContentTypeSchema>;
 
-/** 15 MB: a compressed phone photo is well under it; a scanned PDF fits. */
+/** 15 MB: a compressed phone photo is well under it; a scanned PDF fits; an import file is 10 MB at most. */
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 /** A file's SHA-256 as lowercase hex, as `files.sha256` stores it. */
@@ -84,10 +87,13 @@ export function withUploadRules<T extends z.ZodType<{ purpose: FilePurpose; cont
       message: 'a signature is a PNG',
       path: ['contentType'],
     })
-    .refine((v) => v.purpose !== 'import', {
-      message: 'an import file is uploaded through the import screen',
-      path: ['purpose'],
-    });
+    .refine(
+      (v) =>
+        (v.purpose === 'import') ===
+        (v.contentType === 'text/csv' ||
+          v.contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+      { message: 'a CSV or a workbook is an import file, and an import file is one of them', path: ['contentType'] },
+    );
 }
 
 /**

@@ -61,7 +61,7 @@ export const MarkFileScannedInput = z
 export type MarkFileScannedInput = z.infer<typeof MarkFileScannedInput>;
 
 /** What the worker did to the bytes before the file became usable. */
-export const FileSanitisingSchema = z.enum(['re_encoded', 'pdf_checked', 'masked']);
+export const FileSanitisingSchema = z.enum(['re_encoded', 'pdf_checked', 'masked', 'sheet_checked']);
 export type FileSanitising = z.infer<typeof FileSanitisingSchema>;
 
 /**
@@ -113,6 +113,28 @@ export const RecheckFilesInput = z
   .object({ olderThanMinutes: z.number().int().min(0).max(1440).default(10) })
   .strict();
 export type RecheckFilesInput = z.infer<typeof RecheckFilesInput>;
+
+/**
+ * `files.upload.sweep` (the worker, on a schedule): uploads still `pending` this many minutes
+ * after they began never completed (the upload address lasts 15 minutes), so each is refused as
+ * abandoned and whatever bytes landed are deleted.
+ */
+export const SweepUploadsInput = z
+  .object({ olderThanMinutes: z.number().int().min(60).max(10080).default(1440) })
+  .strict();
+export type SweepUploadsInput = z.infer<typeof SweepUploadsInput>;
+
+/** The most abandoned uploads one sweep refuses; the next run takes the rest. */
+export const SWEEP_UPLOADS_LIMIT = 500;
+
+/** The uploads one sweep refused, with the store keys whose bytes the worker deletes. */
+export const SweepUploadsDto = z
+  .object({
+    abandoned: z.number().int().min(0).max(SWEEP_UPLOADS_LIMIT),
+    keys: z.array(FileKeySchema).max(SWEEP_UPLOADS_LIMIT),
+  })
+  .strict();
+export type SweepUploadsDto = z.infer<typeof SweepUploadsDto>;
 
 /** The most files one call sends back to their checks; call again for more. */
 export const RECHECK_FILES_LIMIT = 500;

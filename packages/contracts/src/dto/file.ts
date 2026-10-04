@@ -22,6 +22,8 @@ export const FileRejectReasonSchema = z.enum([
   'file_pdf_active_content',
   // The masking step could not find the numbers it must cover, so nothing was kept.
   'file_mask_failed',
+  // The upload began but never completed; the sweep refused it.
+  'file_upload_abandoned',
 ]);
 export type FileRejectReason = z.infer<typeof FileRejectReasonSchema>;
 

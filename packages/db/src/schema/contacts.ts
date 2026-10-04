@@ -24,6 +24,14 @@ export const contacts = pgTable(
     name: text('name').notNull(),
     email: text('email'),
     preferredLanguage: text('preferred_language').notNull().default('hinglish'),
+    /**
+     * The name as the import's dedupe compares it (`matchKey` in packages/domain/src/imports/leads.ts):
+     * lower case, letters and digits only. Stored, so an equality on it is an index condition under
+     * the policies (docs/DATABASE.md §4.2).
+     */
+    nameKey: text('name_key').generatedAlwaysAs(
+      sql`regexp_replace(lower(name), '[^a-z0-9]+', '', 'g')`,
+    ),
     ...archivable,
     ...timestamps,
     ...actorsRequired,
@@ -31,6 +39,7 @@ export const contacts = pgTable(
   (t) => [
     check('contacts_preferred_language_check', sql`${t.preferredLanguage} in ('hinglish', 'en')`),
     index('contacts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
+    index('contacts_name_key_idx').on(t.nameKey).where(sql`${t.archivedAt} is null`),
   ],
 );
 

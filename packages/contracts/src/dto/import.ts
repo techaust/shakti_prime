@@ -8,8 +8,8 @@ import {
   ImportJobStateSchema,
   ImportKindSchema,
   ImportRowErrorCodeSchema,
+  ImportFieldSchema,
   ImportRowStateSchema,
-  LeadImportFieldSchema,
 } from '../imports/enums';
 
 const Count = z.number().int().min(0);
@@ -46,10 +46,10 @@ export const ImportJobDto = z
   .strict();
 export type ImportJobDto = z.infer<typeof ImportJobDto>;
 
-/** A finding on one row: the lead field it concerns (or the whole row) and why. */
+/** A finding on one row: the field it concerns (or the whole row) and why. */
 export const ImportRowErrorDto = z
   .object({
-    field: LeadImportFieldSchema.or(z.literal('row')),
+    field: ImportFieldSchema.or(z.literal('row')),
     code: ImportRowErrorCodeSchema,
   })
   .strict();

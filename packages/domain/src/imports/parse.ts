@@ -1,5 +1,6 @@
 import { DomainError, IMPORT_LIMITS, type ImportFormat } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
+import { Readable } from 'node:stream';
 import Papa from 'papaparse';
 import { checkZipArchive } from './zip-guard';
 
@@ -89,27 +90,60 @@ export function cellText(value: unknown): string {
   return '';
 }
 
+/**
+ * The rows of a workbook's first sheet that has any, read with ExcelJS's streaming reader: the
+ * sheet's XML is parsed as it is unpacked and each row becomes a list of strings at once, so the
+ * workbook is never held as a model of cells (which takes many times the file's unpacked size)
+ * and memory stays flat whatever the sheet's length. Shared strings and number formats are kept,
+ * so text and dates read as the person sees them; a sheet stored before its shared strings is
+ * spooled to a temporary file by the reader.
+ */
 async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[][]> {
   // The packed size was checked; what the parts unpack to is checked before anything unpacks.
   const verdict = checkZipArchive(bytes, limits);
   if (!verdict.ok) throw refuse(verdict.reason, verdict.why);
-  const workbook = new ExcelJS.Workbook();
-  try {
-    await workbook.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
-  } catch {
-    throw refuse('import_file_unreadable', 'not a readable workbook');
-  }
-  const sheet = workbook.worksheets.find((s) => s.actualRowCount > 0);
-  if (sheet === undefined) return [];
-  if (sheet.actualRowCount > limits.maxRows + limits.headerSearchRows) {
-    throw refuse('import_too_many_rows', 'sheet is too long');
-  }
-  const rows: string[][] = [];
-  sheet.eachRow({ includeEmpty: false }, (row) => {
-    // `values` counts from 1; the first entry is always empty.
-    const values = Array.isArray(row.values) ? row.values.slice(1) : [];
-    rows.push(Array.from(values, (v) => cellText(v)));
+  const source = Readable.from([Buffer.from(bytes)]);
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(source, {
+    worksheets: 'emit',
+    sharedStrings: 'cache',
+    hyperlinks: 'ignore',
+    styles: 'cache',
+    entries: 'ignore',
   });
+  // The reader takes the sheets' names and the date system from `xl/workbook.xml` and assumes it
+  // came before the sheets, which a workbook may store last; it then fails on the missing values.
+  // Neither matters here (a workbook dated from 1904 is a rarity of old Mac files), so empty ones
+  // stand in until the real ones are read.
+  Object.assign(reader as unknown as Record<string, unknown>, {
+    model: { sheets: [] },
+    properties: { model: {} },
+  });
+  const most = limits.maxRows + limits.headerSearchRows;
+  const rows: string[][] = [];
+  // Set once the sheet is read: leaving the reader early may end its stream with an error.
+  let read = false;
+  try {
+    for await (const sheet of reader) {
+      for await (const row of sheet) {
+        // `values` counts from 1; the first entry is always empty.
+        const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+        const cells = Array.from(values, (v) => cellText(v));
+        if (rows.length === 0 && cells.every((c) => c.trim() === '')) continue;
+        rows.push(cells);
+        if (rows.length > most) throw refuse('import_too_many_rows', 'sheet is too long');
+      }
+      // The first sheet with rows is the one imported; the rest of the file is not read.
+      if (rows.length > 0) {
+        read = true;
+        break;
+      }
+    }
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    if (!read) throw refuse('import_file_unreadable', 'not a readable workbook');
+  } finally {
+    source.destroy();
+  }
   return rows;
 }
 

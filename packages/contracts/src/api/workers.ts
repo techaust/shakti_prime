@@ -22,9 +22,16 @@ export type OutboxPublishResponse = z.infer<typeof OutboxPublishResponse>;
 /**
  * `POST /api/v1/workers/imports/commit`: the job to commit and whose job it is. Only the app
  * sends it, through QStash, after `imports.job.commit`; the worker acts as that person.
+ * `entityIds` are the companies the job's request acts for, when more than the job's own: a
+ * customers file whose rows name other companies, or the PIN code master, which needs every one.
  */
 export const ImportCommitWorkerBody = z
-  .object({ jobId: IdSchema, entityId: EntityIdSchema, userId: IdSchema })
+  .object({
+    jobId: IdSchema,
+    entityId: EntityIdSchema,
+    userId: IdSchema,
+    entityIds: z.array(EntityIdSchema).min(1).max(20).optional(),
+  })
   .strict();
 export type ImportCommitWorkerBody = z.infer<typeof ImportCommitWorkerBody>;
 
