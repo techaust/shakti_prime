@@ -57,7 +57,11 @@ export async function chromiumForRuntime(
 
 /** Pages in a PDF Chromium wrote: one `/Type /Page` object each (not `/Pages`). */
 export function pageCount(pdf: Uint8Array): number {
-  return (Buffer.from(pdf).toString('latin1').match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []).length;
+  return (
+    Buffer.from(pdf)
+      .toString('latin1')
+      .match(/\/Type\s*\/Page(?![a-zA-Z])/g) ?? []
+  ).length;
 }
 
 async function isolated(context: BrowserContext): Promise<void> {

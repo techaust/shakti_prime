@@ -195,7 +195,8 @@
     "price_list_version_taken": "Someone started another version of this price list at the same moment. Refresh the page and try again.",
     "catalogue_needs_all_companies": "The catalogue is shared by every company in the group. Choose All companies at the top of the screen, then make the change again.",
     "price_list_approval_clash": "Another price list for this tier was approved at the same moment. Refresh the page and check the dates before you approve again.",
-    "price_list_archive_in_use": "A price list that is in use, or was, is kept because quotes were priced from it. Start a new price list instead."
+    "price_list_archive_in_use": "A price list that is in use, or was, is kept because quotes were priced from it. Start a new price list instead.",
+    "document_type_unknown": "This kind of document cannot be printed yet."
   },
   "auth": {
     "signIn": {
@@ -657,7 +658,8 @@
       "gstin": "GSTIN",
       "address": "Registered address",
       "upi": "UPI ID",
-      "actions": "Actions"
+      "actions": "Actions",
+      "bank": "Bank account"
     },
     "edit": "Edit",
     "editTitle": "Edit {name}",
@@ -689,7 +691,29 @@
     "current": "Current file: {name}",
     "none": "None uploaded yet.",
     "open": "Open",
-    "ready": "Saved. Documents from this company print it from now on."
+    "ready": "Saved. Documents from this company print it from now on.",
+    "bank": "Bank account",
+    "bankRecorded": "Recorded",
+    "bankTitle": "Bank account of {name}",
+    "bankIntro": "Quotes and other documents from this company print this account for payment. Only Executives see the full number.",
+    "bankLoading": "Opening the bank account…",
+    "bankName": "Bank",
+    "bankNameHelper": "The bank’s name as it appears on a cheque",
+    "accountNumber": "Account number",
+    "accountNumberHelper": "9 to 18 digits",
+    "ifsc": "IFSC",
+    "ifscHelper": "11 letters and numbers, as printed on a cheque of this account",
+    "branch": "Branch",
+    "branchHelper": "The branch name and its town",
+    "saveBank": "Save bank account",
+    "bankDone": "The bank account of {name} is saved.",
+    "proof": "Print a proof page",
+    "proofTitle": "Proof page of {name}",
+    "proofIntro": "One page with the letterhead, logo, address, GSTIN and bank account, exactly as this company’s documents print them.",
+    "proofWorking": "Printing the proof page. This takes a few seconds.",
+    "proofReady": "The proof page is ready.",
+    "proofSlow": "The proof page is taking longer than usual. Close this and try again in a minute.",
+    "openProof": "Open the proof page"
   },
   "priceMaster": {
     "title": "Price lists",
@@ -1420,7 +1444,7 @@
     "company": {
       "gstin": "GSTIN",
       "logo": "Logo of {name}",
-      "bank": "Bank account for payment",
+      "bankHeading": "Bank account for payment",
       "bankName": "Bank",
       "accountName": "Account name",
       "accountNumber": "Account number",

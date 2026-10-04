@@ -23,7 +23,9 @@ export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
  * back as the event's dead letter.
  */
 export const EVENT_JOB_ROUTES: Readonly<
-  Partial<Record<DeliveredEvent['type'], { path: string; body: (event: DeliveredEvent) => unknown }>>
+  Partial<
+    Record<DeliveredEvent['type'], { path: string; body: (event: DeliveredEvent) => unknown }>
+  >
 > = {
   'print.document.requested': {
     path: PDF_RENDER_PATH,

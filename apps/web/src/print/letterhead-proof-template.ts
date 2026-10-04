@@ -31,7 +31,7 @@ table.checks td{padding:6px;border-bottom:1px solid var(--border);vertical-align
 function check(label: string, value: Html | string | null, t: PrintCopy): Html {
   return html`<tr>
     <th scope="row">${label}</th>
-    <td>${value === null ? html`<span class="missing">${t('proof.missing')}</span>` : value}</td>
+    <td>${value ?? html`<span class="missing">${t('proof.missing')}</span>`}</td>
   </tr>`;
 }
 

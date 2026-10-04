@@ -1,9 +1,4 @@
-import {
-  DomainError,
-  EVENT_VERSION,
-  PdfRenderJob,
-  type DeliveredEvent,
-} from '@shakti/contracts';
+import { DomainError, EVENT_VERSION, PdfRenderJob, type DeliveredEvent } from '@shakti/contracts';
 
 /*
  * A render job and the outbox event it comes from (ADR 0009, docs/API.md §3.6), each made from the
@@ -19,11 +14,11 @@ export const RENDER_EVENT = 'print.document.requested';
  * idempotency key, its company the selling company, its payload the document.
  */
 export function renderJobOf(event: DeliveredEvent): PdfRenderJob {
-  const { v: _version, ...document } = event.payload;
+  const { documentType, documentId, version } = event.payload;
   return PdfRenderJob.parse({
     eventId: event.id,
     entityId: event.entityId,
-    target: { kind: 'document', ...document },
+    target: { kind: 'document', documentType, documentId, version },
   });
 }
 

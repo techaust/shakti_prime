@@ -406,7 +406,9 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
       case 'scanStatus':
         return oneOf(SCAN_STATUSES, value) ? files(`scanStatus.${value}`) : wordsOf(value);
       case 'documentType':
-        return oneOf(PDF_DOCUMENT_TYPES, value) ? t(`values.documentType.${value}`) : wordsOf(value);
+        return oneOf(PDF_DOCUMENT_TYPES, value)
+          ? t(`values.documentType.${value}`)
+          : wordsOf(value);
     }
   };
 }

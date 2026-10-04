@@ -63,13 +63,15 @@ export function letterheadStrip(company: CompanyPrint): Html | '' {
 /** The logo, legal name, registered address and GSTIN; a missing detail is left out. */
 export function companyBlock(company: CompanyPrint, t: PrintCopy): Html {
   return html`<div class="company">
-    ${company.logo === null
-      ? ''
-      : html`<img
-          class="logo"
-          src="${imageSource(company.logo)}"
-          alt="${t('company.logo', { name: company.brandName })}"
-        />`}
+    ${
+      company.logo === null
+        ? ''
+        : html`<img
+            class="logo"
+            src="${imageSource(company.logo)}"
+            alt="${t('company.logo', { name: company.brandName })}"
+          />`
+    }
     <div>
       <h1>${company.legalName}</h1>
       ${company.addressLines.map((line) => html`<p>${line}</p>`)}
@@ -83,7 +85,7 @@ export function bankBlock(company: CompanyPrint, t: PrintCopy): Html | '' {
   const bank = company.bank;
   if (bank === null) return '';
   return html`<section class="bank">
-    <p class="label">${t('company.bank')}</p>
+    <p class="label">${t('company.bankHeading')}</p>
     <dl>
       <dt>${t('company.bankName')}</dt>
       <dd>${bank.bankName}</dd>

@@ -141,7 +141,9 @@ const percent = (bp: number) => `${bp / 100}%`;
  * The selling company of the spike documents, with a made-up address, GSTIN and bank account, and
  * the logo and letterhead when the caller has them (`spikeImages`).
  */
-export function spikeCompany(images: { logo?: PrintImage; letterhead?: PrintImage } = {}): CompanyPrint {
+export function spikeCompany(
+  images: { logo?: PrintImage; letterhead?: PrintImage } = {},
+): CompanyPrint {
   return {
     legalName: 'Agro Solar Hub',
     brandName: 'Agro Solar Hub',
