@@ -27,7 +27,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `reject` *(proposed)* | `submitted` → `rejected` | `projects.gate.approve` | the rejection reason is recorded | `request_documents`: ask the customer for the missing or corrected documents on WhatsApp |
 | `resubmit` *(proposed)* | `rejected` → `submitted` | `projects.write` | every document in `required_docs_json` is in the vault (a gate never closes with one missing) | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `subsidy_gate_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `subsidy_gate_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

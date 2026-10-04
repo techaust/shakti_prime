@@ -19,17 +19,17 @@ Items marked *proposed* are not named in the governing documents; they were chos
 
 ## Transitions
 
-| Event | From → To | Permitted actor | Guard | Effects |
-|---|---|---|---|---|
-| `create` *(proposed)* | (new) → `open` | `crm.lead.write` or the platform | – | – |
-| `stage.move` | `open` → `open` | `crm.lead.write` | the target stage belongs to the opportunity pipeline; the exit rules of the current stage are met (its required fields are filled) | `set_stage`: update `stage_id`; `handover_if_qualified`: when the target stage is `qualified`, run the handover: weighted round-robin over Lead Converters by presence, capacity, language and segment (TEL-02), within 10 s |
-| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none) |
-| `nurture` | `open` → `nurture` | `crm.lead.write` | a reason is given | `schedule_nurture`: schedule the nurture cadence (Workflow; cadence is a workshop input) |
-| `reopen` | `nurture`, `lost` → `open` | `crm.lead.write` | from lost: lost within the last 30 days | `first_open_stage`: stage = the first open stage |
-| `win` | `open` → `won` | `crm.lead.write` | an accepted quote or a confirmed sales order references the opportunity | – |
-| `lose` | `open`, `nurture` → `lost` | `crm.lead.write` | a lost-reason code is given | – |
+| Event | From → To | Permitted actor | Guard | Effects | Emits |
+|---|---|---|---|---|---|
+| `create` *(proposed)* | (new) → `open` | `crm.lead.write` or the platform | – | – | `crm.lead.created` |
+| `stage.move` | `open` → `open` | `crm.lead.write` | the target stage belongs to the opportunity pipeline; the exit rules of the current stage are met (its required fields are filled) | `set_stage`: update `stage_id`; `handover_if_qualified`: when the target stage is `qualified`, run the handover: weighted round-robin over Lead Converters by presence, capacity, language and segment (TEL-02), within 10 s | `crm.opportunity.stage_moved` |
+| `assign` | `open` → `open` | `crm.lead.assign` or the platform | the ownership lock has passed, or the caller holds crm.lead.assign at team scope or wider; the platform handover always passes | `set_owner`: set `owner_id` and `team_id`; `lock_owner`: set `locked_until` = now + the pipeline's `lock_hours` (48 h, the workshop default, when the pipeline has none) | `crm.opportunity.assigned` |
+| `nurture` | `open` → `nurture` | `crm.lead.write` | a reason is given | `schedule_nurture`: follow-up tasks on the nurture cadence (Phase 1; the cadence is a workshop input); a workflow engine is a later choice | `crm.opportunity.nurtured` |
+| `reopen` | `nurture`, `lost` → `open` | `crm.lead.write` | from lost: lost within the last 30 days | `first_open_stage`: stage = the first open stage | `crm.opportunity.reopened` |
+| `win` | `open` → `won` | `crm.lead.write` | an accepted quote or a confirmed sales order references the opportunity | – | `crm.opportunity.won` |
+| `lose` | `open`, `nurture` → `lost` | `crm.lead.write` | a lost-reason code is given | – | `crm.opportunity.lost` |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `opportunity_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `opportunity_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `opportunities.state` and the time to `opportunities.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
 
 ## Notes
 

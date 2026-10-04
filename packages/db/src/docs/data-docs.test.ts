@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   groupModules,
   inferReference,
+  mermaidType,
   parseCatalogue,
   parseMigrations,
   parsePolicyRoleSweep,
@@ -232,5 +233,34 @@ describe('reading the SQL migrations', () => {
     expect(tables.get('rates')?.exclusions.get('rates_period_excl')?.definition).toBe(
       "exclude using gist (hsn with =, daterange(a, b, '[)') with &&)",
     );
+  });
+});
+
+describe('mermaidType', () => {
+  it('draws a type Mermaid accepts and keeps the precision for the comment', () => {
+    expect(mermaidType('numeric(14, 2)')).toEqual({ type: 'numeric', detail: '(14,2)' });
+    expect(mermaidType('timestamp with time zone')).toEqual({ type: 'timestamptz', detail: null });
+    expect(mermaidType('uuid')).toEqual({ type: 'uuid', detail: null });
+  });
+});
+
+describe('the ERD note on created_by and updated_by', () => {
+  const sources = readSources(repoRoot);
+  const { erd } = renderDataDocs(sources);
+
+  it('names every built table that lacks either column, and no other', () => {
+    for (const table of Object.values(sources.snapshot.tables)) {
+      const lacks = !('created_by' in table.columns) || !('updated_by' in table.columns);
+      const line = erd.split('\n').find((l) => l.startsWith('Most tables')) ?? '';
+      const note = line.slice(line.indexOf('Tables without'));
+      expect(note.includes(`\`${table.name}\``), table.name).toBe(lacks);
+    }
+  });
+
+  it('draws no type with a comma or a space', () => {
+    for (const line of erd.split('\n')) {
+      const attribute = /^ {4}(\S+) [a-z_0-9]+/.exec(line);
+      if (attribute) expect(attribute[1]).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    }
   });
 });

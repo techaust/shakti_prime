@@ -91,10 +91,37 @@ const workerRoute = (type: string): string => `POST /api/v1/workers/outbox/${typ
 function deliveryCell(entry: EventCatalogueEntry): string {
   return entry.subscribed
     ? `${code(workerRoute(entry.type))} (QStash URL group ${code(`evt-${entry.type}`)})`
-    : 'none: the publisher marks it delivered without sending it';
+    : 'none';
 }
 
 const anchor = (type: string): string => type.replace(/[^a-z0-9_]/g, '');
+
+/** The module a type belongs to: the first part of its name. */
+const MODULE_TITLES: Record<string, string> = {
+  org: 'Organisation',
+  crm: 'CRM',
+  pricing: 'Pricing',
+  catalogue: 'Catalogue',
+  auth: 'Sign-in',
+  admin: 'Administration',
+  imports: 'Imports',
+  platform: 'Platform',
+  files: 'Files',
+};
+
+export function moduleOf(type: string): string {
+  return type.split('.')[0] ?? type;
+}
+
+/** The types by module, modules in the order their first type appears in the catalogue. */
+export function groupByModule(events: readonly EventCatalogueEntry[]): [string, EventCatalogueEntry[]][] {
+  const groups = new Map<string, EventCatalogueEntry[]>();
+  for (const entry of events) {
+    const key = moduleOf(entry.type);
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  }
+  return [...groups.entries()];
+}
 
 /** The whole of `docs/data/EVENTS.md`. */
 export function renderEventsDoc(): string {
@@ -113,6 +140,9 @@ export function renderEventsDoc(): string {
     '- [Rules](#rules)',
     '- [Envelope](#envelope)',
     '- [Event types](#event-types)',
+    ...groupByModule(events).map(
+      ([key]) => `  - [${MODULE_TITLES[key] ?? key}](#${(MODULE_TITLES[key] ?? key).toLowerCase()})`,
+    ),
     '- [Payloads](#payloads)',
     '',
     '## Rules',
@@ -138,15 +168,23 @@ export function renderEventsDoc(): string {
     '',
     '## Event types',
     '',
-    `${String(events.length)} types, ${String(subscribed)} with a worker.`,
-    '',
-    '| Type | Worker |',
-    '|---|---|',
-    ...events.map((e) => `| [${code(e.type)}](#${anchor(e.type)}) | ${cell(deliveryCell(e))} |`),
-    '',
-    '## Payloads',
+    `${String(events.length)} types, ${String(subscribed)} with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: \`emittedBy\` in the catalogue, which \`packages/domain/src/command/event-emitters.test.ts\` checks against the command sources (a command that runs another through \`ctx.run\` emits what that one emits).`,
     '',
   ];
+  for (const [key, entries] of groupByModule(events)) {
+    out.push(
+      `### ${MODULE_TITLES[key] ?? key}`,
+      '',
+      '| Type | Meaning | Emitted by | Worker |',
+      '|---|---|---|---|',
+      ...entries.map(
+        (e) =>
+          `| [${code(e.type)}](#${anchor(e.type)}) | ${cell(e.meaning)} | ${e.emittedBy.map(code).join(', ')} | ${cell(deliveryCell(e))} |`,
+      ),
+      '',
+    );
+  }
+  out.push('## Payloads', '');
   for (const entry of events) {
     out.push(`### ${entry.type}`, '');
     const rows = fieldRows(entry.payload);

@@ -1,5 +1,6 @@
 import {
   DomainError,
+  isEventType,
   PERMISSION_KEYS,
   type ErrorCode,
   type PermissionKey,
@@ -12,8 +13,8 @@ import { checkPermission } from '../command/run-command';
 /**
  * State machines as data (docs/design/backend-weeks-3-5.md §7.1). A machine lists its states and
  * transitions; `transition()` answers where an event takes a record and which effects the command
- * applies. It never writes: the command persists `state` and `state_changed_at`, applies the
- * effects, calls `ctx.audit()` and emits `<aggregate>.<event>`. The same data renders the
+ * applies. It never writes: the command writes the state to the column `stored` names, applies the
+ * effects, calls `ctx.audit()` and emits the event `emits` names, if any. The same data renders the
  * specification documents in `docs/state-machines/` (`pnpm --filter @shakti/domain machines:docs`).
  */
 
@@ -81,6 +82,11 @@ export interface TransitionSpec<S extends string, E extends string, R, P> {
   effects?: readonly Effect[];
   /** A line for the specification: what drives the event, or a rule enforced elsewhere. */
   note?: string;
+  /**
+   * The event-catalogue type the command emits when the transition happens; left out when it
+   * emits none. Named only on a machine whose commands are built (`stored` set).
+   */
+  emits?: string;
   /** Not in the governing documents: chosen here and marked "proposed" for review. */
   proposed?: boolean;
 }
@@ -100,7 +106,20 @@ export interface MachineSpec<S extends string, E extends string, R, P> {
   /** States the documents do not name, chosen here. */
   proposedStates?: readonly S[];
   stateNotes?: Partial<Record<S, string>>;
+  /**
+   * Where the commands that drive the machine keep the state; set exactly when commands are built
+   * (`MACHINES_IN_USE`), and checked against the schema by `machines.test.ts`.
+   */
+  stored?: StateStorage;
   transitions: readonly TransitionSpec<S, E, R, P>[];
+}
+
+/** The table and columns a built machine's commands write. */
+export interface StateStorage {
+  table: string;
+  stateColumn: string;
+  /** The column that records when the state last changed, when the table has one. */
+  changedAtColumn?: string;
 }
 
 export interface Machine<S extends string, E extends string, R, P> extends MachineSpec<S, E, R, P> {
@@ -150,6 +169,12 @@ export function defineMachine<S extends string, E extends string, R extends Mach
     }
     if (t.newPermission !== undefined && PERMISSIONS.has(t.newPermission)) {
       fail(name, `${t.newPermission} already exists; it is not a new permission`);
+    }
+    if (t.emits !== undefined) {
+      if (spec.stored === undefined)
+        fail(name, `${t.event} emits an event but no command is built`);
+      if (!isEventType(t.emits))
+        fail(name, `${t.event} emits ${t.emits}, which is not in the catalogue`);
     }
     if (t.from === 'new') {
       if (t.to !== initial) fail(name, `${t.event} creates the record outside ${initial}`);

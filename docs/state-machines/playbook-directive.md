@@ -25,7 +25,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `approve` | `draft` → `approved` | `knowledge.playbook.approve` | no unresolved conflict with an approved directive (`conflicts_with` is empty) | `set_approver`: set `approved_by`; `emit`: event so the agents reload their directives |
 | `retire` | `draft`, `approved` → `retired` | `knowledge.playbook.approve` | a reason is given | `emit`: event so the agents reload their directives |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `playbook_directive_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `playbook_directive_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

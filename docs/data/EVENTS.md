@@ -9,6 +9,15 @@ How an event travels (the outbox row written in the command's transaction, the p
 - [Rules](#rules)
 - [Envelope](#envelope)
 - [Event types](#event-types)
+  - [Organisation](#organisation)
+  - [CRM](#crm)
+  - [Pricing](#pricing)
+  - [Catalogue](#catalogue)
+  - [Sign-in](#sign-in)
+  - [Administration](#administration)
+  - [Imports](#imports)
+  - [Platform](#platform)
+  - [Files](#files)
 - [Payloads](#payloads)
 
 ## Rules
@@ -34,41 +43,83 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-31 types, 2 with a worker.
+31 types, 2 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
-| Type | Worker |
-|---|---|
-| [`org.entity.updated`](#orgentityupdated) | none: the publisher marks it delivered without sending it |
-| [`crm.lead.created`](#crmleadcreated) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.assigned`](#crmopportunityassigned) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.nurtured`](#crmopportunitynurtured) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.reopened`](#crmopportunityreopened) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.won`](#crmopportunitywon) | none: the publisher marks it delivered without sending it |
-| [`crm.opportunity.lost`](#crmopportunitylost) | none: the publisher marks it delivered without sending it |
-| [`pricing.price.changed`](#pricingpricechanged) | none: the publisher marks it delivered without sending it |
-| [`pricing.list.created`](#pricinglistcreated) | none: the publisher marks it delivered without sending it |
-| [`pricing.list.approved`](#pricinglistapproved) | none: the publisher marks it delivered without sending it |
-| [`pricing.list.archived`](#pricinglistarchived) | none: the publisher marks it delivered without sending it |
-| [`catalogue.item.created`](#catalogueitemcreated) | none: the publisher marks it delivered without sending it |
-| [`catalogue.item.updated`](#catalogueitemupdated) | none: the publisher marks it delivered without sending it |
-| [`catalogue.item.archived`](#catalogueitemarchived) | none: the publisher marks it delivered without sending it |
-| [`catalogue.kit.created`](#cataloguekitcreated) | none: the publisher marks it delivered without sending it |
-| [`catalogue.kit.updated`](#cataloguekitupdated) | none: the publisher marks it delivered without sending it |
-| [`catalogue.kit.archived`](#cataloguekitarchived) | none: the publisher marks it delivered without sending it |
-| [`catalogue.pump_curve.set`](#cataloguepump_curveset) | none: the publisher marks it delivered without sending it |
-| [`auth.session.revoked`](#authsessionrevoked) | none: the publisher marks it delivered without sending it |
-| [`admin.user.invited`](#adminuserinvited) | none: the publisher marks it delivered without sending it |
-| [`admin.user.suspended`](#adminusersuspended) | none: the publisher marks it delivered without sending it |
-| [`admin.user.two_factor_reset`](#adminusertwo_factor_reset) | none: the publisher marks it delivered without sending it |
-| [`admin.user.reactivated`](#adminuserreactivated) | none: the publisher marks it delivered without sending it |
-| [`admin.user.roles_changed`](#adminuserroles_changed) | none: the publisher marks it delivered without sending it |
-| [`admin.role.permissions_changed`](#adminrolepermissions_changed) | none: the publisher marks it delivered without sending it |
-| [`imports.job.committed`](#importsjobcommitted) | none: the publisher marks it delivered without sending it |
-| [`imports.job.failed`](#importsjobfailed) | none: the publisher marks it delivered without sending it |
-| [`platform.probe.requested`](#platformproberequested) | `POST /api/v1/workers/outbox/platform.probe.requested` (QStash URL group `evt-platform.probe.requested`) |
-| [`imports.job.rolled_back`](#importsjobrolled_back) | none: the publisher marks it delivered without sending it |
-| [`files.file.uploaded`](#filesfileuploaded) | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+### Organisation
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`org.entity.updated`](#orgentityupdated) | A company's brand name, UPI id, GSTIN, state or registered address changed; `fields` names which. | `org.entity.update` | none |
+
+### CRM
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `crm.opportunity.stage.move` | none |
+| [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
+| [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `crm.opportunity.nurture` | none |
+| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `crm.opportunity.reopen` | none |
+| [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
+| [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `crm.opportunity.lose` | none |
+
+### Pricing
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`pricing.price.changed`](#pricingpricechanged) | The price of an item or kit on a price list was set; the database also appends it to `price_change_log`. | `pricing.price.set` | none |
+| [`pricing.list.created`](#pricinglistcreated) | A draft price list of a tier was made, holding a copy of the prices in force before it starts. | `pricing.list.create` | none |
+| [`pricing.list.approved`](#pricinglistapproved) | A draft price list became its tier's list from its start date; `closedListIds` are the approved lists it ends. | `pricing.list.approve` | none |
+| [`pricing.list.archived`](#pricinglistarchived) | A draft or scheduled price list was withdrawn; `reopenedListId` is the list that takes back its end date. | `pricing.list.archive` | none |
+
+### Catalogue
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`catalogue.item.created`](#catalogueitemcreated) | An item was added to the catalogue. | `catalogue.item.create` | none |
+| [`catalogue.item.updated`](#catalogueitemupdated) | An item's details or specifications changed. | `catalogue.item.update` | none |
+| [`catalogue.item.archived`](#catalogueitemarchived) | An item was withdrawn from sale. | `catalogue.item.archive` | none |
+| [`catalogue.kit.created`](#cataloguekitcreated) | A kit was added with its components. | `catalogue.kit.create` | none |
+| [`catalogue.kit.updated`](#cataloguekitupdated) | A kit's details or components changed. | `catalogue.kit.update` | none |
+| [`catalogue.kit.archived`](#cataloguekitarchived) | A kit was withdrawn from sale. | `catalogue.kit.archive` | none |
+| [`catalogue.pump_curve.set`](#cataloguepump_curveset) | A pump's curve was replaced; `points` counts its points. | `catalogue.pump_curve.set` | none |
+
+### Sign-in
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`auth.session.revoked`](#authsessionrevoked) | One session was ended by an administrator; the row stays for the sessions screen. | `admin.session.revoke` | none |
+
+### Administration
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`admin.user.invited`](#adminuserinvited) | A person was invited with a role; the server action then mails the link to set a password. | `admin.user.invite` | none |
+| [`admin.user.suspended`](#adminusersuspended) | A person was suspended and signed out everywhere. | `admin.user.suspend` | none |
+| [`admin.user.two_factor_reset`](#adminusertwo_factor_reset) | A person's lost authenticator app was removed and they were signed out everywhere. | `admin.user.two_factor.reset` | none |
+| [`admin.user.reactivated`](#adminuserreactivated) | A suspended person may sign in again. | `admin.user.reactivate` | none |
+| [`admin.user.roles_changed`](#adminuserroles_changed) | A person's roles in the request's companies were replaced and they were signed out everywhere. | `admin.user.role.set` | none |
+| [`admin.role.permissions_changed`](#adminrolepermissions_changed) | A staff role's grants were replaced and its holders signed out, apart from the caller's own session. | `admin.role.permissions.set` | none |
+
+### Imports
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`imports.job.committed`](#importsjobcommitted) | Every valid row of an import job is in. | `imports.job.commit_batch` | none |
+| [`imports.job.failed`](#importsjobfailed) | A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back. | `imports.job.commit_batch` | none |
+| [`imports.job.rolled_back`](#importsjobrolled_back) | The leads an import job made were archived; the customers it made stay. | `imports.job.rollback` | none |
+
+### Platform
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`platform.probe.requested`](#platformproberequested) | The delivery check: its worker records when the event arrived, for Integration Health. | `platform.probe.run` | `POST /api/v1/workers/outbox/platform.probe.requested` (QStash URL group `evt-platform.probe.requested`) |
+
+### Files
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ## Payloads
 

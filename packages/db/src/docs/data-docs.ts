@@ -617,17 +617,44 @@ export function groupModules(builtTables: readonly string[], catalogue: Catalogu
 
 // --- Rendering -------------------------------------------------------------------------------
 
-/** Columns every table carries for the audit of who changed it; drawn once, not per table. */
+/** Columns most tables carry for the audit of who changed them; described once, not drawn. */
 const ACTOR_COLUMNS = new Set(['created_by', 'updated_by']);
 
 const cell = (text: string): string => text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 const code = (text: string): string => (text.includes('`') ? `\`\` ${text} \`\`` : `\`${text}\``);
 
-function mermaidType(type: string): string {
-  return type
-    .replace(' with time zone', 'tz')
-    .replace(/,\s*/g, '_')
-    .replace(/\s+/g, '_');
+/**
+ * A column type as Mermaid accepts it (a word, no comma or space), with what it leaves out: the
+ * precision of `numeric(14, 2)` goes to the attribute's comment.
+ */
+export function mermaidType(type: string): { type: string; detail: string | null } {
+  const sized = /^([a-z ]+)\((\d+(?:,\s*\d+)?)\)$/.exec(type);
+  const base = sized?.[1] ?? type;
+  const detail = sized?.[2] === undefined ? null : `(${sized[2].replace(/\s+/g, '')})`;
+  return {
+    type: base.replace(' with time zone', 'tz').trim().replace(/\s+/g, '_'),
+    detail,
+  };
+}
+
+/** The attribute's trailing comment: the precision a type leaves out and whether it may be null. */
+function attributeComment(detail: string | null, nullable: boolean): string {
+  const parts = [detail, nullable ? 'null' : null].filter((p) => p !== null);
+  return parts.length > 0 ? ` "${parts.join(', ')}"` : '';
+}
+
+/** Tables without one or both actor columns, for the ERD's opening note. */
+function actorExceptions(tables: Map<string, SnapshotTable>): { none: string[]; partial: string[] } {
+  const none: string[] = [];
+  const partial: string[] = [];
+  for (const [name, table] of [...tables.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const held = [...ACTOR_COLUMNS].filter((c) => table.columns[c] !== undefined);
+    if (held.length === 0) none.push(name);
+    else if (held.length < ACTOR_COLUMNS.size) {
+      partial.push(`${code(name)} (only ${held.map(code).join(', ')})`);
+    }
+  }
+  return { none, partial };
 }
 
 function primaryKeyOf(table: SnapshotTable): string[] {
@@ -705,8 +732,17 @@ function renderErd(
     'Entity-relationship diagram — Shakti Prime BOS',
     'The tables built so far, one diagram per module; a table another module owns appears as a name only.',
   );
+  const actors = actorExceptions(tables);
+  const exceptions = [
+    actors.none.length > 0 ? `Tables without either: ${actors.none.map(code).join(', ')}.` : null,
+    actors.partial.length > 0
+      ? `Tables with one of them: ${actors.partial.join(', ')}.`
+      : null,
+  ].filter((e) => e !== null);
   out.push(
-    'Every table also carries `created_by` and `updated_by`, which reference `principals`; those links are left out of the diagrams. Column meanings, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their DATABASE.md §6 entries.',
+    `Most tables also carry \`created_by\` and \`updated_by\`, which reference \`principals\`; those links are left out of the diagrams. ${exceptions.join(' ')}`.trimEnd(),
+    '',
+    'A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their DATABASE.md §6 entries.',
     '',
   );
   for (const module of modules) {
@@ -733,9 +769,10 @@ function renderErd(
           fkColumns.has(column.name) ? 'FK' : null,
           unique.has(column.name) ? 'UK' : null,
         ].filter((k) => k !== null);
-        const nullable = column.notNull || pk.has(column.name) ? '' : ' "null"';
+        const nullable = !(column.notNull || pk.has(column.name));
+        const { type, detail } = mermaidType(column.type);
         out.push(
-          `    ${mermaidType(column.type)} ${column.name}${keys.length > 0 ? ` ${keys.join(', ')}` : ''}${nullable}`,
+          `    ${type} ${column.name}${keys.length > 0 ? ` ${keys.join(', ')}` : ''}${attributeComment(detail, nullable)}`,
         );
       }
       out.push('  }');
@@ -770,8 +807,8 @@ function renderErd(
       if (!columns.some((c) => c.name === 'id')) out.push('    uuid id PK');
       for (const column of columns) {
         const key = column.references === null ? '' : ' FK';
-        const nullable = column.nullable ? ' "null"' : '';
-        out.push(`    ${mermaidType(column.type ?? 'untyped')} ${column.name}${key}${nullable}`);
+        const { type, detail } = mermaidType(column.type ?? 'untyped');
+        out.push(`    ${type} ${column.name}${key}${attributeComment(detail, column.nullable)}`);
       }
       out.push('  }');
     }

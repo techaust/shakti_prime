@@ -25,7 +25,7 @@ Every state and transition comes from the governing documents.
 | `reschedule` | `open` → `open` | `crm.lead.write` | the due time is not in the past | – |
 | `cancel` | `open` → `cancelled` | `crm.lead.write` | – | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `task_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `task_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `tasks.state` when the state changes, applies the effects and calls `ctx.audit()`; it emits no event.
 
 ## Notes
 
