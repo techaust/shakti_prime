@@ -6,6 +6,7 @@ import {
   type RecordSizingInput,
 } from '@shakti/contracts';
 import {
+  AGENT_PRINCIPAL_SEED,
   asMigrator,
   asOutboxPublisher,
   asPrincipal,
@@ -700,9 +701,12 @@ describe('crm.sizing.record on the timeline and for review', () => {
   it('refuses an agent, a voice session and a system role at the guard, whatever they hold', async () => {
     const id = await newLead(reviewCaller);
     const write = { permissions: [{ key: 'crm.lead.write' as const, scope: 'entity' as const }] };
+    // The seeded sizing agent: the suites add no agent principal of their own.
+    const sizingAgent = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:sizing');
+    if (!sizingAgent) throw new Error('no seeded sizing agent');
     for (const service of [
       // An agent principal, and a user principal holding an agent role.
-      await createTestPrincipal('agent:sizing', [1], write),
+      principalFor('agent:sizing', [1], { ...write, id: sizingAgent.id }),
       await createTestPrincipal('agent:copilot', [1], { ...write, kind: 'user' }),
       // A voice session, under a person's role key.
       await createTestPrincipal('tele_caller_cc', [1], { ...write, kind: 'voice_session' }),
