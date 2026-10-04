@@ -48,7 +48,7 @@ Ahead (no date is set until what it depends on is in hand):
 ## 2. Phase 0 — Discovery & foundations (6–8 weeks)
 **Deliverables (blueprint §19):** ERD and data dictionary; state-machine specifications; permission matrix; API contracts; clickable wireframes; `DESIGN.md` and preview page; ADRs; integration spikes; test strategy and security-suite skeleton; vendor quotes; Claude Code tooling.
 
-**Week plan:**
+**Week plan** (the original plan of 26-09-2026; Phase 0 was built in four days and closed on 29-09-2026, and what was built is in [CHANGELOG.md](../CHANGELOG.md)):
 | Week | Work |
 |---|---|
 | 1 | Discovery workshop (inputs in `docs/PRD.md` §7); ADRs 1–6; repo scaffold (pnpm, Turborepo, TypeScript, ESLint, Prettier, Vitest, GitHub Actions); Supabase dev/staging projects; Vercel project pinned to `bom1` |
@@ -70,7 +70,7 @@ Ahead (no date is set until what it depends on is in hand):
 **Closed on 29-09-2026 by the owner's decision**, with the hosted dev and staging environments in place (their state is in [STATUS](STATUS.md)). The unticked items above are deferred, not met, and run alongside Phase 1:
 - the client's sign-off of `DESIGN.md` and `/design`, and the screen review;
 - the Tally, Exotel, WhatsApp and voice spikes once their sandboxes exist; the Realtime spike on the production site with the client's domain; OCR on real document photos; the phone and scanner check of printed labels;
-- the review of the ERD, data dictionary, state machines, permission matrix and contracts, with ADRs 0007 and 0009 to 0013;
+- the review of the ERD, data dictionary, state machines, permission matrix and contracts, with ADRs 0007 and 0010 to 0013 (ADR 0009 was accepted on 29-09-2026);
 - the vendor quotes;
 - the workshop answers and the CA's tax golden set.
 
@@ -81,35 +81,14 @@ Each keeps its next step in [`docs/phase0/exit-gate-actions.md`](phase0/exit-gat
 
 **Plan:** 23 slices in six waves, in [`docs/design/phase1.md`](design/phase1.md) §3. Progress is in [STATUS](STATUS.md).
 
-**Carried from Phase 0** (each recorded in `DESIGN.md`, `docs/design/backend-weeks-3-5.md`, `docs/API.md` §3 or ADR 0009), with the slice that delivers it:
+**Carried from Phase 0:** the items Phase 0 left for Phase 1 are part of the slices above; each open one, with its slice, is in [STATUS, Open follow-ups](STATUS.md#open-follow-ups), their single list.
 
-| Item | Slice |
-|---|---|
-| The `system:workers` principal and the workers' event-id check in Redis, before any event type is subscribed | P1, built (#82) |
-| An alert through Sentry when the outbox publisher keeps failing, beside the readiness check | P1, built (#82) |
-| Sentry, in the group's existing US-region organisation, with personal data removed before an event is sent | P1, built (#82) |
-| A read-only login role (`app_reader`) with its own connection pool for `executeQuery()` | P1, built (#82) |
-| Audit partition detach, logged in `retention_runs` | P1, built (#82) |
-| The Integration Health page and the replay route | P1, built (#82) |
-| The purge behind `outbox-events-purge` confirmed on the hosted pg_cron (`docs/runbooks/DEPLOY.md` §2) | P1, confirmed on dev and staging on 30-09-2026 |
-| Playwright visual snapshots and Lighthouse checks in CI (the JavaScript budget per page runs in CI from Phase 0) | P3, built (#81) |
-| The grid pages under the 250 kB JavaScript aim (`DESIGN.md` §10) | P3, built (#81) |
-| The S3 store with pre-signed uploads | P2, built (#85) |
-| The Amazon SES mailer behind the `Mailer` port | P2, built (#85); switched on for production in G1 |
-| The screen where an Executive edits a role's permissions | X1, built (#88) |
-| The per-entity logos with the letterhead, and the print snapshot tests with the ADR 0009 hosting decision | P4 |
-| Imports of customers with the PIN code master that resolves village, tehsil and district (PRD CRM-02) | P2b |
-| A streaming workbook reader in place of ExcelJS's whole-file load, and the server-action body limit (11 MB for the import form) brought back down | P2b |
-| The import measured on the hosted stack, with the batch budgets tuned to it: one deadline across the set-based try, a short row-by-row slice after a set-based cut-off, a job marked failed after its last queue retry; concurrent batch workers only if it misses the five-minute target | P2b |
-| The Agent Inbox | AI0 |
-| The caller workspace | T1 |
-| The quote tables and commands; time in stage and the kW or HP on board cards | S1 |
-| The duplicate cards (PRD CRM-03), which also catch a second customer made when an import commits a brand-new number at the same moment as a lead form or another import (imports take no number lock) | D1 |
-| The top-bar notifications, and the notification that routes a lead refused as `customer_held_by_colleague` to the colleague or team lead through the Agent Inbox | N1 |
-| The sales-order tables and commands | S2 |
-| ⌘K search measured again on the client's imported leads: three letters of a very common surname pass 300 ms for an Executive or a General Manager on the spike's made-up names (`docs/spikes/lists.md`) | M1 and G1 |
-
-**Exit gate:** 2-week parallel run with legacy sheets; migration counts reconciled; UAT sign-off per role; Playwright E2E for the CC, LC, Store Manager and Executive paths; Phase 1 tooling (Playwright, Sentry, AWS) confirmed.
+**Exit gate:**
+- [ ] 2-week parallel run with legacy sheets
+- [ ] Migration counts reconciled
+- [ ] UAT sign-off per role
+- [ ] Playwright E2E for the CC, LC, Store Manager and Executive paths
+- [x] Phase 1 tooling (Playwright, Sentry, AWS) installed and confirmed with a live call (28-09-2026)
 
 ## 4. Phase 2 — Communications & live voice (9–11 weeks)
 **Scope:** WhatsApp Cloud API with one number per entity; Lead Ads webhooks; Exotel click-to-dial and recordings on DLT-registered numbers; Concierge and Caller Co-pilot from shadow to approval; WhatsApp quote acceptance and milestone messages; speech-vendor benchmark and selection; Playbook directive review; Ask the Business; live voice Teach and Ask.
@@ -153,8 +132,4 @@ Each keeps its next step in [`docs/phase0/exit-gate-actions.md`](phase0/exit-gat
 | Vendor accounts registered to the client (domain, Vercel, Supabase, AWS, Meta, Exotel, Anthropic, Google Play, GitHub, LiveKit, Upstash, Sentry) | Client | Production readiness (G1) |
 
 ## 11. Rollout and change management
-- Pilot groups per module: 2 callers → full calling team; 2–3 engineers → all field staff.
-- Role-wise training: short live sessions and videos in Hinglish, a one-page guide per role in English.
-- UAT checklist and sign-off per role before each go-live; in-app feedback with weekly triage for 8 weeks.
-- Feature flags for risky releases; expand/contract migrations; Sunday-night maintenance windows.
-- Phase exit updates `currentPhase` in `.claude/tooling.json` and the tooling check runs before the next phase begins.
+Pilots, training, UAT and feedback are as in [BLUEPRINT §15](BLUEPRINT.md#15-rollout--change-management); releases follow the change management of [BLUEPRINT §12](BLUEPRINT.md#12-reliability--operations) (expand/contract migrations, feature flags, Sunday-night maintenance windows). Each phase's exit sets `currentPhase` in `.claude/tooling.json`, and the tooling check runs before the next phase begins.

@@ -2,6 +2,8 @@
 
 Blueprint reference: §0–§2, §8, §9, §15, §16. This document turns the blueprint's scope into requirements with acceptance criteria. Requirement IDs are stable; §8 traces each one to the slice that delivers it and the tests that check it. `docs/BLUEPRINT.md` governs on any conflict.
 
+**Status:** approved with the blueprint on 26-09-2026 · last updated 04-10-2026. Whether a requirement is built is in [STATUS](STATUS.md).
+
 **Two ID families.** Requirements here have two digits (PRD CRM-05). The discovery workshop's questions in `docs/phase0/workshop-pack.md` use one digit (workshop CRM-5); where both could be confused, documents name the family. Client values that the workshop has not given are written as "the workshop value" with the question's ID; this document never sets them. Terms are explained in the [glossary](GLOSSARY.md).
 
 **Contents:** [1. Vision and goals](#1-vision-and-goals) · [2. Users and roles](#2-users-and-roles) · [3. Scope](#3-scope) · [4. Functional requirements](#4-functional-requirements) ([CRM](#41-lead-ingestion-and-crm-crm), [TEL](#42-tele-calling-tel), [SAL](#43-price-master-quotes-and-sales-orders-sal), [INV](#44-inventory-procurement-and-logistics-inv), [PRJ](#45-projects-epc-and-subsidy-prj), [WA](#46-customer-whatsapp-communication-wa), [FLD](#47-android-field-app-fld), [FIN](#48-finance-and-job-costing-fin), [HR](#49-hr-hr), [RPT](#410-dashboards-reports-search-notifications-rpt), [IMP](#411-migration-and-imports-imp), [AI](#412-ai-ai)) · [5. Non-functional requirements](#5-non-functional-requirements) · [6. Release plan](#6-release-plan) · [7. Discovery workshop inputs](#7-discovery-workshop-inputs) · [8. Traceability](#8-traceability)
@@ -9,15 +11,16 @@ Blueprint reference: §0–§2, §8, §9, §15, §16. This document turns the bl
 ## 1. Vision and goals
 Shakti Prime is the single business operating system for the four Shakti group entities. It runs lead → sale → fulfilment → installation → cash, with AI agents doing the routine lead work and leadership teaching the system through uploads and voice.
 
-**Success metrics (measured in the Executive dashboard):**
-| Metric | Target after full rollout |
+**Goals (measured in the Executive dashboard).** The business goals are stated in words; their targets are the client's to set, and none is set until the client gives them.
+
+| Goal | Measure |
 |---|---|
-| WhatsApp first response | < 60 s for 95% of inbound |
-| Lead ingestion → assignment | < 10 s |
-| Lead → qualified rate | Baseline from migration, +20% within 6 months |
-| Quote → order conversion | Baseline, +15% |
-| Project cycle time (survey → handover) | −25% |
-| Dealer overdue outstanding | −30% |
+| Fast WhatsApp replies | First response in < 60 s for 95% of inbound |
+| Fast lead routing | Lead ingestion → assignment in < 10 s |
+| More leads qualified | The lead → qualified rate, against the baseline from the migrated data |
+| More quotes won | The quote → order conversion rate, against the same baseline |
+| Shorter projects | Project cycle time from survey to handover |
+| Less dealer money overdue | Dealer overdue outstanding |
 | Staff adoption | 100% of leads, quotes and orders created in the BOS after cutover; legacy sheets retired |
 | AI actions promoted to Automatic | ≥ 95% unedited over ≥ 200 cases per action type |
 
@@ -58,7 +61,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* duplicate candidates (by phone, or by name and village) appear as cards on the lead and on the duplicates list, each with its reason and confidence, found when a lead is made and by a nightly pass.
   - *AC:* a merge and an unmerge each write an audit row, and an unmerge restores what the merge moved.
   - *AC:* a repeat enquiry for the same segment within 30 days of the last activity on an open lead attaches to that lead instead of creating one.
-  - *AC:* the cards also surface a second customer made when an import committed a brand-new number at the same moment as a lead form or another import (imports take no number lock).
+  - *AC:* the cards also surface a second customer made when an import committed a brand-new number at the same moment as a lead form or another import.
 - **CRM-04 Customer model.** Contacts, accounts, sites and opportunities as defined in blueprint §6.2.
   - *AC:* one account holds several sites and several opportunities across companies, as one customer record for the group with one relationship per company (ADR 0008).
   - *AC:* a customer has exactly one owner contact; family members are added as family contacts (workshop pack A2.2).
@@ -70,7 +73,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 - **CRM-06 Lead scoring.** Rules-based score, adjustable within bounds by the Triage agent.
   - *AC:* the score is computed from rules on source, segment, district, system size and age, whose points are the workshop value (CRM-3); with no rules every lead starts level.
   - *AC:* score, reasons and the last change (when and by whom) are visible on the lead.
-  - *AC:* an agent's adjustment outside the bounds is refused.
+  - *AC:* an agent's adjustment outside the bounds is refused; the bounds are the workshop value (CRM-7).
 - **CRM-07 Account 360.** Contacts, sites, deals, timeline, tasks, orders, projects, payments, loans and warranty claims on one page.
   - *AC:* loads in < 300 ms p95 for accounts with 1,000 activities.
   - *AC:* each part joins the page with the module that owns it: contacts, sites, leads, timeline, tasks, tags and consents, then quotes and orders, in Phase 1; projects, loans, payments and warranty claims in their phases.
@@ -117,7 +120,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* every price change is in the change log with the old and new price, who and when, and the log cannot be edited.
 - **SAL-02 Tax tables.** Effective-dated GST rates per HSN or item and composite-supply rules, maintained by Accounts.
   - *AC:* a rate change on a date changes only documents created on or after it.
-  - *AC:* only a holder of `tax.rates.write` (Executive, Accounts) working for every company changes a rate or a composite-supply rule.
+  - *AC:* only a holder of `tax.rates.write` (Executive, Accounts) working in the All companies view changes a rate or a composite-supply rule.
   - *AC:* the tax engine reproduces the CA's golden set exactly (ADR 0007; the set is the workshop value, PRICE-5).
 - **SAL-03 Quote creation.** Tier from account type; prices from the Price Master, not editable; tax from the tax engine; snapshot per line with the rate version; 15-day validity; one-click re-quote.
   - *AC:* any attempt to post an edited price is rejected by the command layer.
@@ -147,14 +150,14 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 - **INV-01 Item master** with SKU, specs, DCR/ALMM flag, HSN, unit, serial tracking, pump curves.
   - *AC:* an item has a unique SKU, a category with its own specifications, an HSN of 4, 6 or 8 digits, a unit, a serial-tracking flag and the DCR flag with its ALMM reference.
   - *AC:* a pump curve is a set of points whose head falls as flow rises; one that does not is refused.
-  - *AC:* a catalogue change needs a request that acts for every company.
+  - *AC:* a catalogue change is made only in the All companies view.
 - **INV-02 Stock ledger.** Append-only movements with reason codes; balances per warehouse and bin; the BOS is the stock authority.
   - *AC:* a movement is never edited or deleted; a correction is a new movement with its reason code.
   - *AC:* the balance per warehouse and bin equals the sum of its movements.
   - *AC:* the physical stock audit at both sites reconciles with the ledger (the Phase 3 exit gate).
 - **INV-03 Kits and availability-to-promise.** Deterministic, tested; reservations against order lines, released on cancellation or expiry.
   - *AC:* a kit's availability comes from a pure, tested function of its components' free stock and quantities.
-  - *AC:* a reservation holds stock for an order line and is released when the order is cancelled or the reservation expires.
+  - *AC:* a reservation holds stock for an order line and is released when the order is cancelled or the reservation expires; how long it holds is the workshop value (STOCK-4).
 - **INV-04 Procurement.** Vendor master, quote comparison, PO drafting from reorder alerts, goods receipt with serial capture by camera or scanner. Supplier rates visible only with `procurement.rate.read`.
   - *AC:* a person or agent without `procurement.rate.read` sees no supplier rate or PO value in any screen, export or API answer.
   - *AC:* a reorder alert drafts a PO that a person approves; a goods receipt of a serial-tracked item requires every serial.
@@ -179,7 +182,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* a gate cannot close with a missing required document; the required documents are the workshop value (PROJ-1).
   - *AC:* a DISCOM pack is generated from the project's records with no field typed again.
 - **PRJ-04 Scheduling board.** Day/week calendar by engineer or crew, map, drag-and-drop with conflict detection (double booking, leave, travel time), unassigned queue, Orchestrator suggestions confirmed by a person, automatic WhatsApp confirmation and day-before reminder.
-  - *AC:* a drop that double-books, falls on leave or leaves too little travel time is flagged before it is saved.
+  - *AC:* a drop that double-books, falls on leave or leaves less than the travel time between visits (the workshop value, PROJ-4) is flagged before it is saved.
   - *AC:* an Orchestrator suggestion changes nothing until a person confirms it; a confirmed visit sends the customer a confirmation and a reminder the day before.
 - **PRJ-05 Labour and contractor cost lines** on the project.
   - *AC:* each labour or contractor charge is a cost line on the project, visible only with `finance.cost.read`, and counts in job costing (FIN-05).
@@ -194,7 +197,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 - **WA-02 Document collection.** Requests for missing documents; incoming files malware-scanned, masked, classified and filed against the right requirement; low-confidence classifications confirmed by a person.
   - *AC:* a file is only ever filed against the sending customer.
   - *AC:* no Aadhaar number survives in storage, logs or any model call; only the last four digits and the masked copy are kept.
-  - *AC:* a classification below the confidence threshold waits for a person.
+  - *AC:* a classification below the confidence threshold (the workshop value, PROJ-3) waits for a person.
 - **WA-03 STATUS self-service** returning an instant order and project summary.
   - *AC:* a customer who sends STATUS receives a summary of their own orders and projects only.
 - **WA-04 Channel rules.** 24-hour window, approved templates, opt-out, per-entity number, portfolio messaging-limit awareness with service messages prioritised.
@@ -205,7 +208,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 - **FLD-01 Offline-first** schedule, jobs, surveys, checklists, geo- and time-stamped photos, signatures, material arrival, leftovers, QC, attendance and expense capture.
   - *AC:* every listed task can be completed with no network, and each photo carries its place and time.
 - **FLD-02 Sync** with server-authoritative transitions, field-level merge for surveys, idempotent stock and expense commands, a conflict review screen.
-  - *AC:* a device offline for 5 days syncs without data loss or duplicate movements.
+  - *AC:* a device offline for 5 days (proposed in ADR 0012; the workshop value, PROJ-4, confirms it) syncs without data loss or duplicate movements.
   - *AC:* a transition the server refuses shows on the conflict review screen; a survey edited on two devices merges field by field.
 - **FLD-03 Background uploads** with compression, FCM push, maps navigation, minimum-version gate.
   - *AC:* an app below the minimum version blocks new work and asks for the update; sync answers that the app must be updated.
@@ -215,7 +218,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* numbers are per company and financial year with no gaps, in the workshop format (SALE-1); a loan-gated milestone waits for the loan state (CRM-08).
 - **FIN-02 Tally connector** per blueprint §8.8: AlterID reads, GUID idempotency, daily snapshot with tombstones, heartbeat, self-update, purchase vouchers restricted.
   - *AC:* a voucher sent twice is applied once; a voucher deleted in Tally becomes a tombstone that reverses its effects and appears in the review queue.
-  - *AC:* 30 minutes without a heartbeat raises an alert; after a simulated 3-day outage the connector catches up (the Phase 5 exit gate).
+  - *AC:* 30 minutes without a heartbeat raises an alert; after a simulated 3-day outage (the test ADR 0013 proposes) the connector catches up (the Phase 5 exit gate).
   - *AC:* purchase vouchers are readable only with `procurement.rate.read`.
 - **FIN-03 Reconciliation** by Buyer Order No., then GSTIN or phone; review queue; receipts update milestones; credit notes adjust balances; dealer outstanding refreshed; tombstones reverse effects.
   - *AC:* a voucher whose Buyer Order No. matches a proforma or order number links to it; failing that, a unique GSTIN or phone match; otherwise it waits in the review queue.
@@ -228,11 +231,11 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 - **FIN-06 Stock valuation reconciliation** with Tally closing stock monthly.
   - *AC:* each month Accounts sees the BOS valuation beside Tally's closing stock per company, with the difference.
 - **FIN-07 Expenses.** Claims with receipts, categories, policy limits, manager → Accounts approval, project or overhead allocation, monthly export.
-  - *AC:* a line over its policy limit is flagged; a claim is paid only after the manager's and Accounts' approval; the monthly export lists every approved claim once.
+  - *AC:* a line over its policy limit (the workshop value, HR-3) is flagged; a claim is paid only after the manager's and Accounts' approval; the monthly export lists every approved claim once.
 
 ### 4.9 HR (HR)
 - **HR-01** Employee directory; office attendance by geofence and selfie; field check-in; shifts; regularisation.
-  - *AC:* a check-in outside the geofence is recorded with its distance and marked for review; a regularisation request changes attendance only once approved.
+  - *AC:* a check-in outside the geofence (its radius is the workshop value, HR-1) is recorded with its distance and marked for review; a regularisation request changes attendance only once approved.
 - **HR-02** Leave types, balances, approvals, holiday calendar.
   - *AC:* an approved leave reduces its balance, and only an approver named in the policy approves it; the types, balances, approvers and calendar are the workshop value (HR-2).
 - **HR-03** Incentive engine tied to targets; accruals released on confirmed events; covers staff and referral partners.
@@ -254,6 +257,9 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* an assignment, a due callback, an expiring quote, a blocked order or a duplicate found notifies the person who acts on it; nothing is pushed in their quiet hours.
   - *AC:* a first-contact SLA breach escalates to the GM; a lead refused because a colleague looks after its customer reaches that colleague or the team lead.
   - *AC:* the centre refreshes at least every 15 seconds while its tab is visible.
+- **RPT-05 Activity log.** The screen of the audit trail: who changed what and when, from which address and device, for every command, sign-in event and event type.
+  - *AC:* only a holder of `audit.read` opens it, and it lists entries only for the companies the viewer works in, filtered by time window, person, action and record.
+  - *AC:* each entry names the action and the changed fields in words, with phone numbers and emails shortened and identity numbers removed; refused and failed attempts are listed too.
 
 ### 4.11 Migration and imports (IMP)
 - **IMP-01** Import framework: upload → mapping templates → validation preview → dedupe suggestions → chunked commit → batch rollback.
@@ -285,21 +291,41 @@ Each requirement states what the product does, then its acceptance criteria (*AC
   - *AC:* the first reply of every conversation says it is an AI; a request for a person hands the thread to staff.
 
 ## 5. Non-functional requirements
-| Area | Requirement |
-|---|---|
-| Performance | p95 interaction < 300 ms; ingestion → assignment < 10 s; WhatsApp first response < 60 s; 50k-row import < 5 min; low-end Android over 3G/4G within the JS budget per route |
-| Scale | 100+ users; 2,000+ leads/day; load-tested at 10k leads/day and 100 concurrent users (BLUEPRINT §1, §17) |
-| Availability | 99.5% in business hours (8 AM–10 PM IST); RPO ≤ 5 min; RTO ≤ 4 h; Sunday-night maintenance windows |
-| Security | As in `docs/SECURITY.md`: RLS fail-closed, two cost permissions, 2FA for Executive/GM/Accounts, audit of every mutation |
-| Privacy | DPDP Act 2023 and Rules 2025; Aadhaar never stored; masking before LLM calls; retention schedule in blueprint §7.9 |
-| Telecom | DLT registration; 140/160-series numbers; TRAI hours; DND; WhatsApp policy |
-| Tax | Effective-dated GST rates; place-of-supply split; solar 70:30 composite supply; rupee rounding; e-way bill gate |
-| Localisation | English UI, messages, emails and documents; Roman-script Hinglish for caller scripts, voice agent speech and training videos, chosen per customer for calls (`DESIGN.md` §11.5); lakh/crore, DD-MM-YYYY, IST |
-| Product copy | Plain language for non-technical users, in English on every screen and document; no technical words, codes or internal names shown to users; no placeholder, sample or dummy text anywhere a user can see; every string final and product-specific; copy lint in CI; copy review in UAT per role (`DESIGN.md` §11) |
-| Accessibility | WCAG AA in both themes; keyboard-first caller screens |
-| Offline | Field app fully usable offline for multiple days |
-| Observability | Sentry, structured logs without PII, integration health page, spend dashboards |
-| Ownership | All vendor accounts owned by the client; ADRs, runbooks, onboarding guide |
+Each requirement states what holds across the product, then its acceptance criteria, as in §4. §8 traces each one.
+
+- **NFR-01 Performance.** p95 interaction < 300 ms; ingestion → assignment < 10 s; WhatsApp first response < 60 s; 50k-row import < 5 min; low-end Android over 3G/4G within the JavaScript budget per route (BLUEPRINT §6.4).
+  - *AC:* every list and search a slice adds answers within 300 ms p95 at its spike volume, with the plan recorded (`docs/spikes/`).
+  - *AC:* each staff page's first-load JavaScript stays within its budget in `apps/web/js-budget.json`, checked in CI.
+  - *AC:* the delivery check on Integration health shows the time from a change to its worker, the measure the 10-second handover rests on.
+- **NFR-02 Scale.** 100+ users; 2,000+ leads/day (BLUEPRINT §1).
+  - *AC:* a load test at 10k leads/day and 100 concurrent users meets NFR-01 (BLUEPRINT §17; the Phase 7 exit gate).
+- **NFR-03 Availability.** 99.5% in business hours (8 AM–10 PM IST); RPO ≤ 5 min; RTO ≤ 4 h; Sunday-night maintenance windows (BLUEPRINT §12).
+  - *AC:* the health and readiness checks answer for monitoring on every environment.
+  - *AC:* a restore drill meets the RPO and RTO (the Phase 7 exit gate).
+- **NFR-04 Security.** As in `docs/SECURITY.md`: RLS fail-closed, two cost permissions, 2FA for Executive, GM and Accounts, audit of every mutation, and the permission matrix an Executive edits (BLUEPRINT §7.1).
+  - *AC:* the security suite proves, for every table and in CI, that a request with no company sees nothing and each role reads only its own scope in each company.
+  - *AC:* an Executive, GM or Accounts user cannot reach any screen until an authenticator app is enrolled; every command writes its audit row.
+  - *AC:* an Executive changes a staff role's permissions only within the holder rules (an agent role is never editable, the Executive keeps the admin grants), and every holder of the changed role is signed out.
+- **NFR-05 Privacy.** DPDP Act 2023 and Rules 2025; Aadhaar never stored; masking before model calls; retention schedule in BLUEPRINT §7.9.
+  - *AC:* no identity number reaches storage, logs, the audit trail, error reports or a model call; each retention job records its run.
+- **NFR-06 Telecom.** DLT registration; 140/160-series numbers; TRAI hours; DND; WhatsApp policy.
+  - *AC:* as TEL-04 and WA-04.
+- **NFR-07 Tax.** Effective-dated GST rates; place-of-supply split; solar 70:30 composite supply; rupee rounding; e-way bill gate.
+  - *AC:* as SAL-02 and INV-05.
+- **NFR-08 Localisation.** English UI, messages, emails and documents; Roman-script Hinglish for caller scripts, voice agent speech and training videos, chosen per customer for calls (`DESIGN.md` §11.5); lakh/crore, DD-MM-YYYY, IST.
+  - *AC:* the copy lint refuses any Devanagari character; amounts show Indian grouping, dates DD-MM-YYYY and times IST on every screen and document.
+- **NFR-09 Product copy.** Plain language for non-technical users, in English on every screen and document; no technical words, codes or internal names shown to users; no placeholder, sample or dummy text anywhere a user can see; every string final and product-specific (`DESIGN.md` §11).
+  - *AC:* the copy lint passes in CI; the copy review in UAT is signed per role.
+- **NFR-10 Accessibility and themes.** WCAG AA in both themes; keyboard-first caller screens; each person chooses System, Light or Dark and a higher-contrast variant.
+  - *AC:* the axe checks find no WCAG 2.1 AA violation on any journey, in light and dark.
+  - *AC:* a person's theme and higher-contrast choice is kept on their profile and follows them to every device.
+- **NFR-11 Offline.** The field app is fully usable offline for at least 5 days (proposed in ADR 0012; the workshop value, PROJ-4, confirms it).
+  - *AC:* as FLD-01 and FLD-02.
+- **NFR-12 Observability.** Sentry, structured logs without personal data, the Integration health page, spend dashboards.
+  - *AC:* server and browser errors reach Sentry with personal data removed; a dead-lettered event or repeated publisher failures alert the owner.
+  - *AC:* Integration health shows waiting and held-back events by type, with Send again for a held-back one; AI spend per agent joins it with the Triage agent.
+- **NFR-13 Ownership.** All vendor accounts owned by the client; ADRs, runbooks and an onboarding guide.
+  - *AC:* every service account is held in the client's name with the development team as members before go-live (the production readiness slice, G1).
 
 ## 6. Release plan
 Delivered in Phases 0–7 as in `docs/ROADMAP.md`. The MVP is Phases 0–1, delivered by the slices of `docs/design/phase1.md`. It covers exactly these parts:
@@ -337,7 +363,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 
 | ID | Phase | Slice | Tested in |
 |---|---|---|---|
-| CRM-01 | 1, 2 | C2, C3, P2b | `packages/domain/tests/commands/create-lead.test.ts`, `packages/domain/tests/commands/imports.test.ts`, `apps/web/e2e/leads.spec.ts`, `apps/web/e2e/imports.spec.ts`; ingest contract `packages/contracts/src/api/ingest.test.ts` |
+| CRM-01 | 0, 1, 2 | C3 (walk-in form and referral codes; manual entry and lead imports built in Phase 0) | `packages/domain/tests/commands/create-lead.test.ts`, `packages/domain/tests/commands/imports.test.ts`, `apps/web/e2e/leads.spec.ts`, `apps/web/e2e/imports.spec.ts`; ingest contract `packages/contracts/src/api/ingest.test.ts` |
 | CRM-02 | 1 | P2b | `packages/contracts/src/crm/phone.test.ts`, `packages/contracts/src/crm/phone.property.test.ts` |
 | CRM-03 | 1 | D1 | The colleague's-customer guard: `packages/domain/tests/commands/lead-guard.test.ts`, `packages/db/tests/security/lead-guard.test.ts` |
 | CRM-04 | 1 | C2 | `packages/db/tests/security/crm-scope.test.ts`, `packages/db/tests/security/customer-read-through-leads.test.ts`, `packages/domain/tests/commands/customer-edits.test.ts`, `packages/domain/tests/queries/customers.test.ts` |
@@ -348,7 +374,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | CRM-09 | 1, 5 | C3, S2 | — |
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
 | TEL-01 | 1 | T1 | — |
-| TEL-02 | 1 | T2 | The delivery check: `packages/domain/tests/commands/run-probe.test.ts` |
+| TEL-02 | 1 | T2 | The handover request and the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`; the `assign` lock cases: `packages/domain/src/state-machines/machines.test.ts` |
 | TEL-03 | 1, 2 | L1 | — |
 | TEL-04 | 2 | — | `packages/domain/src/telecom/dial-policy.test.ts`, `apps/web/src/integrations/exotel/exotel.test.ts` |
 | TEL-05 | 2 | — | — |
@@ -376,14 +402,27 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | FIN-07 | 5 | — | Expense-claim machine: `packages/domain/src/state-machines/machines.test.ts` |
 | HR-01 to HR-04 | 5 | — | — |
 | RPT-01 | 1, 5 | R1 | — |
-| RPT-02 | With each module's reports | — | Activity log reads: `packages/domain/tests/queries/query-audit.test.ts` |
+| RPT-02 | With each module's reports | — | — (no export exists) |
 | RPT-03 | 0, 1, 3 | S1 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; timing `pnpm spike:lists` |
 | RPT-04 | 1, 4 | N1 | — |
+| RPT-05 | 0, 1 | — | `packages/domain/tests/queries/query-audit.test.ts`, `apps/web/e2e/admin.spec.ts` |
 | IMP-01 | 0, 1 | P2b | `packages/domain/tests/commands/imports.test.ts`, `packages/domain/tests/commands/import-lead-parity.test.ts`, `packages/db/tests/security/imports.test.ts`, `apps/web/tests/imports.test.ts`, `apps/web/e2e/imports.spec.ts`; timing `pnpm spike:import` |
 | IMP-02 | 1 | M1 | — |
 | AI-01 | 1, 2 | P2, K1 | Upload purposes: `packages/db/tests/security/files.test.ts` |
 | AI-02 | 2 | — | — |
-| AI-03 | 2, 6 | — | `apps/web/src/integrations/voice/voice.test.ts` |
-| AI-04 | 1, 2, 6 | AI0, A1 | `packages/domain/tests/security/agent-refusals.test.ts` |
+| AI-03 | 2, 6 | — | — (harness only: `apps/web/src/integrations/voice/voice.test.ts`) |
+| AI-04 | 1, 2, 6 | AI0, A1 | — (until AI0) |
 | AI-05 | 1, 2 | A1 | `packages/domain/tests/security/agent-refusals.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts` |
 | AI-06 | 2 | — | — |
+| NFR-01 | 0, 1 | P3, P1, P2b | `apps/web/scripts/js-budget.test.ts` with `pnpm --filter web js-budget`; `packages/domain/tests/commands/run-probe.test.ts` (the delivery check); timings `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:account360`, `pnpm spike:import` |
+| NFR-02 | 7 | — | — |
+| NFR-03 | 0, 7 | G1 | `apps/web/tests/ready.test.ts` |
+| NFR-04 | 0, 1 | X1 | `packages/db/tests/security/role-entity-matrix.test.ts` and the rest of `packages/db/tests/security/`; `packages/db/tests/security/role-editor.test.ts`, `packages/domain/tests/commands/admin-roles.test.ts`, `apps/web/e2e/roles.spec.ts` |
+| NFR-05 | 0, 1 | P1 | `packages/domain/src/privacy/identity-numbers.test.ts`, `apps/web/src/observability/sentry-scrub.test.ts` |
+| NFR-06 | 2 | — | As TEL-04 and WA-04 |
+| NFR-07 | 0, 1, 3 | C1 | As SAL-02 and INV-05 |
+| NFR-08, NFR-09 | 0 | — | `tools/copy-lint/src/rules.test.ts` with `pnpm copy-lint` |
+| NFR-10 | 0, 1 | P3 | The axe checks in every `apps/web/e2e/*.spec.ts`; `packages/domain/tests/commands/set-theme.test.ts`, `packages/domain/tests/commands/set-contrast.test.ts`, `apps/web/e2e/profile.spec.ts` |
+| NFR-11 | 4 | — | Contracts: `packages/contracts/src/api/sync.test.ts` |
+| NFR-12 | 1 | P1 | `apps/web/src/observability/sentry-scrub.test.ts`, `apps/web/src/observability/alerts.test.ts`, `apps/web/tests/integration-health.test.ts`, `apps/web/e2e/integrations.spec.ts` |
+| NFR-13 | 1 | G1 | — |

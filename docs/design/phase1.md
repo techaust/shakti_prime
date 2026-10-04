@@ -1,6 +1,6 @@
 # Backend and product design: Phase 1 (MVP)
 
-Date: 2026-09-29. Status: approved by the owner on 29-09-2026; built slice by slice in the order of §3, each slice recording what it built here in the same pull request; progress is in [STATUS](../STATUS.md). Governing documents: BLUEPRINT §6, §8.1 to §8.3, §8.10 to §8.12, §9.1, §9.3, §14 and §17; ROADMAP §3; PRD §4 and §6; DESIGN.md; ARCHITECTURE; DATABASE; API; SECURITY; TESTING; `docs/design/backend-weeks-3-5.md`. Where this design settles something the documents left open, the section says so; `docs/BLUEPRINT.md` governs on any conflict.
+Date: 29-09-2026 · last updated 04-10-2026. Status: approved by the owner on 29-09-2026; built slice by slice in the order of §3, each slice recording what it built here in the same pull request; progress is in [STATUS](../STATUS.md). Governing documents: BLUEPRINT §6, §8.1 to §8.3, §8.10 to §8.12, §9.1, §9.3, §14 and §17; ROADMAP §3; PRD §4 and §6; DESIGN.md; ARCHITECTURE; DATABASE; API; SECURITY; TESTING; `docs/design/backend-weeks-3-5.md`. Where this design settles something the documents left open, the section says so; `docs/BLUEPRINT.md` governs on any conflict.
 
 ## 1. Scope
 **In Phase 1:**
@@ -23,18 +23,18 @@ Date: 2026-09-29. Status: approved by the owner on 29-09-2026; built slice by sl
 ## 3. Slices
 Each slice is vertical: contract → schema, RLS and grants → command → server action or route → screen → end-to-end test, with its documents. A wave is a dependency tier.
 
-The Requirements column names the PRD requirements each slice delivers, in whole or in the part PRD §6 places in Phase 1 (PRD §8 traces each requirement to its tests). Progress per slice is in [STATUS](../STATUS.md).
+The Requirements column names the PRD requirements each slice delivers (NFR IDs are PRD §5), in whole or in the part PRD §6 places in Phase 1 (PRD §8 traces each requirement to its tests). Progress per slice is in [STATUS](../STATUS.md).
 
 | Wave | Slice | Needs | Requirements |
 |---|---|---|---|
-| 1 | P3 Quality harness | — | PRD §5 accessibility and performance (axe checks, JavaScript budget) |
-| 1 | P1 Observability and workers | — | PRD §5 observability; the delivery check behind TEL-02's 10 seconds |
+| 1 | P3 Quality harness | — | NFR-10 and NFR-01 (axe checks, JavaScript budget) |
+| 1 | P1 Observability and workers | — | NFR-12; the delivery check behind TEL-02's 10 seconds (NFR-01) |
 | 1 | P2 Files and storage | — | CRM-10 (consent proof uploads), AI-01 (vault uploads) |
 | 2 | C1 Catalogue and tax | P3 | INV-01 (the minimal catalogue), SAL-01, SAL-02 |
-| 2 | X1 Role permission editor | P3 | PRD §5 security (the permission matrix an Executive edits, BLUEPRINT §7.1) |
+| 2 | X1 Role permission editor | P3 | NFR-04 (the permission matrix an Executive edits, BLUEPRINT §7.1) |
 | 2 | P2b Imports upgrade | P3, P2 | IMP-01, CRM-02 |
 | 2 | P4 Print and letterhead | P3, P2, P1 | SAL-05 (the branded PDF) |
-| 2 | C2 Customer timeline | P3 | CRM-04, CRM-07, CRM-10 |
+| 2 | C2 Customer timeline | P3, P2 | CRM-04, CRM-07, CRM-10 |
 | 2 | C3 Pipelines, scoring and referrals | P3 | CRM-01 (walk-in and referral codes), CRM-05, CRM-06, CRM-09 (codes and rules) |
 | 2 | C4 Sizing | P3, C1 | SAL-04 (sizing and its bounds) |
 | 3 | AI0 Agent runtime and Inbox | P1 | AI-04 (Inbox, autonomy, kill switches, budgets) |
@@ -49,20 +49,20 @@ The Requirements column names the PRD requirements each slice delivers, in whole
 | 5 | R1 Targets and home pages | T1, S2 | TEL-06, RPT-01 |
 | 5 | A1 Triage in shadow | N1, D1, C3 | AI-04 (Triage in shadow), AI-05 |
 | 6 | M1 Migration and UAT packs | all | IMP-02 |
-| 6 | G1 Production readiness | all | PRD §5 availability and ownership |
+| 6 | G1 Production readiness | all | NFR-03 and NFR-13 |
 
 One slice per wave owns `crm.lead.create`, `crm.opportunity.stage.move` and the board: C2 in wave 2 (C3 reaches lead creation through `applyLeadAttribution()` in its own file, called from one line), D1 in wave 3.
 
 ## 4. New permissions
-Each gets a row in SECURITY §3.2, its seed in `packages/db/seeds/role-permissions.ts` and its oracle case, in the slice that first uses it.
+Each gets a row in SECURITY §3.2, its seed in `packages/db/seeds/role-permissions.ts` and its oracle case, in the slice that first uses it. The table names every staff role and the agents; a dash is no grant, and no agent holds any of the five.
 
-| Permission | Executive | GM | Sales Lead | CC | LC | Store | Accounts | Slice |
-|---|---|---|---|---|---|---|---|---|
-| `crm.config.write` (pipelines, stages, exit rules, dispositions, score rules, SLA) | all | – | – | – | – | – | – | C3 |
-| `calls.log` | all | entity | team | own | own | own | – | T1 |
-| `sales.targets.write` | all | entity | team | – | – | – | – | R1 |
-| `sales.credit.write` (dealer terms, manual outstanding) | all | – | – | – | – | – | entity | S2 |
-| `knowledge.vault.write` | all | all | – | – | – | – | – | K1 |
+| Permission | Executive | GM | Sales Lead | CC | LC | Store | Inventory | Project Mgr | Field | Accounts | HR | Agents | Slice |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `crm.config.write` (pipelines, stages, exit rules, dispositions, score rules, SLA) | all | – | – | – | – | – | – | – | – | – | – | – | C3 |
+| `calls.log` | all | entity | team | own | own | own | – | – | – | – | – | – | T1 |
+| `sales.targets.write` | all | entity | team | – | – | – | – | – | – | – | – | – | R1 |
+| `sales.credit.write` (dealer terms, manual outstanding) | all | – | – | – | – | – | – | – | – | entity | – | – | S2 |
+| `knowledge.vault.write` | all | all | – | – | – | – | – | – | – | – | – | – | K1 |
 
 Caller profiles are written with `crm.lead.assign`. The system principal `system:workers` (P1) holds only the grants its jobs need, listed in SECURITY §3.3, never a cost, admin or sensitive-document permission, and joins the agent refusal sweep.
 
@@ -73,15 +73,21 @@ Caller profiles are written with `crm.lead.assign`. The system principal `system
 - Helpers: `expectNoAxeViolations(page)` (`@axe-core/playwright`, WCAG 2.1 AA), `snap(page, name)` taking light, dark and 400 px captures.
 - Snapshots are made and compared only inside the pinned Linux Playwright image, so a Windows machine never writes a baseline; `pnpm --filter web e2e:snap` runs the image locally.
 - Lighthouse runs as a pinned GitHub Action against the production build on the public pages (landing and sign-in), with budgets for performance, accessibility and best practice; a signed-in staff page is left out, because its session cookie would sit in the Lighthouse settings and so in the uploaded results.
-- CI job `e2e` on every pull request and push to `main`: Postgres service, seed, `next build` and `next start`, the journeys, the axe checks, the snapshots; artefacts on failure.
+- CI job `e2e` on every pull request that changes code (pushes to `main` skip it, ADR 0017): Postgres service, seed, `next build` and `next start`, the journeys, the axe checks, the snapshots; artefacts on failure.
 - Every existing screen gets its journey and snapshots: sign-in, forgotten password, two-factor, home, leads list, board, new lead, Price Master, imports, team members, Activity log, companies, profile, `/design`.
 - Shell diet: the company switcher's and profile menu's Radix menus load on first use behind buttons drawn at once, toasts come from a region fetched once the page is idle (`toast` waits for it), the last-resort error page carries only its own sentences instead of the whole catalogue, and the design board's contrast table is measured on the server; every staff page's first load is then under the 250 kB aim.
+**Built (P3, #81):**
+- Playwright in `apps/web/e2e` (`playwright.config.ts`, the projects `desktop-light`, `desktop-dark` and `phone` at 400 px), the seed `e2e/setup/seed.ts`, the sign-in per role in `auth.setup.ts` with the authenticator codes from `support/totp.ts`, and `pnpm --filter web e2e`;
+- the helpers in `e2e/support` (`axe.ts`, `snap.ts`, `sign-in.ts`, `users.ts`), and `pnpm --filter web e2e:snap`, which runs the journeys in the pinned Linux Playwright image, the only place baselines are written (`e2e/__screenshots__`);
+- the CI job `e2e` in three shards, one per project, and the job `lighthouse` with `apps/web/lighthouserc.json` on the public pages;
+- the lighter shell: the menus and toasts loaded on first use, and the last-resort error page with only its own sentences (`global-error-copy.ts`).
+
 
 ### 5.2 P1 Observability and workers
 - **Sentry** (`@sentry/nextjs`, the group's US-region organisation): server and edge through `instrumentation.ts`; browser errors through a client loaded after the page is interactive, so first-load JavaScript does not grow; `sendDefaultPii: false`; `beforeSend` and `beforeSendTransaction` pass every event through the logger's redaction (`packages/domain/src/ports/logger.ts`), drop cookies, headers and bodies, and keep only the principal id and the request id; `release` from the commit, `environment` from `BOS_ENVIRONMENT`. Without `SENTRY_DSN` Sentry stays off (local and CI). CSP `connect-src` gains the ingest host.
 - **Outbox alert:** a publisher run that dead-letters an event, or fails three runs in a row, reports to Sentry with counts and ids only; an alert rule notifies the owner. Readiness keeps its own check.
 - **`system:workers`:** a principal and role seeded with fixed grants; event workers run commands as it.
-- **Event workers:** `POST /api/v1/workers/outbox/[type]` verifies the QStash signature after the 4 KiB body check, parses `OutboxEventDelivery`, drops an event whose `evt:{id}` key exists in Redis (7 days, set after success) and an event older than the last sequence seen for its aggregate, then calls the handler registered for the type in `apps/web/src/workers/events/registry.ts`. A type turns `subscribed: true` in the catalogue with its handler, and its QStash URL group `evt-<type>` is created on dev and staging. Without QStash, the publisher delivers subscribed types to their handlers in process.
+- **Event workers:** `POST /api/v1/workers/outbox/[type]` verifies the QStash signature after the 4 KiB body check, parses `OutboxEventDelivery`, drops an event whose `evt:{id}` key exists in Redis (7 days, set after success) and an event older than the last sequence seen for its aggregate, then calls the handler registered for the type in `apps/web/src/workers/events/registry.ts`. A type turns `subscribed: true` in the catalogue with its handler; the publisher makes the type's QStash URL group `evt-<type>` itself before its first event is sent (`apps/web/src/workers/qstash.ts`), so no group is made by hand. Without QStash, the publisher delivers subscribed types to their handlers in process.
 - **Delivery check:** the Executive's "Check delivery speed" on Integration Health emits `platform.probe.requested`; its handler records the arrival, and the page shows the time from commit to worker, the measure the handover's 10-second target rests on.
 - **Integration Health** at `/admin/integrations` (`admin.integrations.write`) and `GET /api/v1/admin/integrations`, `POST /api/v1/admin/integrations/replay`: pending, due and dead-lettered events by type, dead letters paged with replay, the last publisher run, the delivery check; AI spend per agent joins with A1, webhook counts with Phase 2. `app_user` reads no outbox row: the page reads through the definer `app.outbox_health()`, which checks `admin.integrations.write:all` and returns counts, ids, types and errors, never a payload.
 - **Retention:** `app.detach_audit_partitions()` detaches `audit_logs` partitions older than eight years into the closed schema `audit_archive`, run monthly by pg_cron and logged in `retention_runs`. The purge on the hosted pg_cron is confirmed (DEPLOY §2.2).
@@ -106,7 +112,7 @@ Caller profiles are written with `crm.lead.assign`. The system principal `system
 - **Mail:** `sesMailer` behind `Mailer` (`MAILER=ses`, `SES_FROM`, region `ap-south-1`); production still waits for the client's verified domain.
 **Built (P2):**
 - the port and both stores (`packages/domain/src/ports/file-store.ts`, `apps/web/src/files/s3-store.ts`, the development route `/api/v1/files/local/<token>`, `fileStore()`);
-- `files.purpose` with the six purposes, `status` with `scanned` and `not_scanned`, and `app.file_purpose_grant()` with the policies, the column grants and the guard trigger (the migrations after 0060), mirrored by `files/purposes.ts` and `files/limits.ts`;
+- `files.purpose` with six purposes beside `import` and the seven field purposes of Phase 0, `status` with `scanned` and `not_scanned`, and `app.file_purpose_grant()` with the policies, the column grants and the guard trigger (the migrations after 0060), mirrored by `files/purposes.ts` and `files/limits.ts`;
 - the commands `files.upload.begin` and `files.upload.complete` (the permission their input names, `PermissionByInput`) and the worker's `files.file.mark_scanned`, `files.file.mark_ready` and `files.file.reject` on the `file_upload` machine, with the permission `files.process`, which no person's role holds and `system:workers` holds at `all`;
 - the event `files.file.uploaded`, subscribed, with the checks as its worker `handleFileUploaded` in `apps/web/src/workers/files` running as `system:workers` (`files.process:all`), and `files.file.recheck` behind Check files again on Integration health;
 - the publisher makes each subscribed type's queue group itself;
@@ -202,7 +208,7 @@ Pure functions in `packages/domain/src/sizing`: TDH (static head, drawdown, fric
 - Agent Inbox in the top bar and at `/inbox` (`agents.inbox.act`): approve, edit or reject; `/admin/agents` (`agents.autonomy.write`, `agents.killswitch`).
 
 ### 7.2 T1 Cold Caller workspace
-- `calls` (`entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` gains `manual`, `disposition_id`, `attempt_no`, `started_at`, `duration_s`); `calls.log` records the call, its activity and its next action: a callback task, a retry (after the default attempts the lead moves to nurture with its cadence tasks), qualified (the stage move that asks for the handover), or lost.
+- `calls` (`entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` with the value `manual` beside `140`, `160` and `inbound` for a call dialled by hand on a phone outside the system, as every Phase 1 call is, `disposition_id`, `attempt_no`, `started_at`, `duration_s`); `calls.log` records the call, its activity and its next action: a callback task, a retry (after the default attempts the lead moves to nurture with its cadence tasks), qualified (the stage move that asks for the handover), or lost.
 - Queue `listCallQueue`: the caller's open leads in their first stages, ordered by due callbacks, SLA breach, score and age, keyset; a customer who withdrew consent is marked and cannot be logged as called.
 - `/calling`: keyboard-first (`N` next, `1`–`9` dispositions, `D` shows the number to dial, `/` search), the script card for the lead's segment and language, the exit-rule checklist, recent activity; the team lead's view of the team's queues.
 
@@ -212,7 +218,7 @@ Pure functions in `packages/domain/src/sizing`: TDH (static head, drawdown, fric
 - Quote builder, `/quotes` and the quote page; quotes on Account 360; ⌘K finds quote numbers; board cards show kW or HP and time in stage.
 
 ### 7.4 D1 Duplicates
-`duplicate_candidates` (`entity_id`, the two leads or customers, `reason` phone or name and village, `confidence`, `state`), found when a lead is made and by a nightly pass, including two customers made at the same moment by an import and a form; cards on the lead and at `/duplicates`; `crm.customer.merge` and `crm.customer.unmerge` with `customer_merges` keeping what the merge moved, audited and reversible (`crm.lead.merge`); a repeat enquiry for the same segment within 30 days of the last activity on an open lead attaches to it (`crm.lead.create` answers `attached`).
+`duplicate_candidates` (`entity_id`, the two leads or customers, `reason` phone or name and village, `confidence`, `state`), found when a lead is made and by a nightly pass, including two customers made at the same moment by an import and a form (imports take no number lock, the lead engineer's decision of 28-09-2026 in [DECISIONS](../DECISIONS.md)); cards on the lead and at `/duplicates`; `crm.customer.merge` and `crm.customer.unmerge` with `customer_merges` keeping what the merge moved, audited and reversible (`crm.lead.merge`); a repeat enquiry for the same segment within 30 days of the last activity on an open lead attaches to it (`crm.lead.create` answers `attached`).
 
 ## 8. Wave 4
 
@@ -238,11 +244,11 @@ Pure functions in `packages/domain/src/sizing`: TDH (static head, drawdown, fric
 - **G1 Production readiness**, with the owner: a paid production Supabase project, Vercel Pro, the client's domain, SES production access, production Sentry and AWS, and a GitHub plan with environments (AUDIT M45); the parallel run, the reconciliation and the ⌘K measurement on real data happen there, since staging holds synthetic data only.
 
 ## 11. Workshop defaults
-Each default lives in `packages/domain/src/workshop-defaults.ts`, is named under its question in `docs/phase0/workshop-pack.md` and changes in one place. The workshop question is in brackets:
+Each default will live in `packages/domain/src/workshop-defaults.ts`, added by the slice that first uses it, is named under its question in `docs/phase0/workshop-pack.md` and changes in one place. On `main` the file holds the lock hours (CALL-4, 48) beside the tax, quote-validity, credit and e-way bill defaults of Phase 0; C4 adds the sizing constants. The workshop question is in brackets:
 - document number format (SALE-1); customer type to price tier (PRICE-1); kits priced as a fixed kit price (PRICE-3);
 - dispositions (CALL-1); retry attempts and gaps (CALL-3); nurture cadence (CALL-5); lock hours (CALL-4, 48); converter capacity (no cap);
 - score rules (CRM-3: none, so every lead starts level); the first-contact SLA;
-- the sizing constants, for the engineering head to confirm.
+- the sizing constants, for the engineering head to confirm (ENG-1).
 
 Data that has no default stays empty until the client gives it: tax rates and the CA's golden set, price lists, items with HSN, dealer limits and outstanding, targets, commission rules, caller scripts, consent and privacy texts, legacy data and vault documents. What the client must send, and which slice waits for it, is in `docs/phase0/client-actions.md`.
 
