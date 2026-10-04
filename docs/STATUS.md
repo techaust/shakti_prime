@@ -34,7 +34,7 @@ What Shakti's people must do is on one page, [client-actions](phase0/client-acti
 | Real document photos for OCR; a phone and scanner check of printed QR labels | Client | [ocr](spikes/ocr.md), [print](spikes/print.md) |
 | Production: a paid Supabase project, Vercel Pro (or the client's Pro team), Amazon SES in Mumbai with the client's domain verified (DKIM, SPF, DMARC), production access and a send-only IAM user per environment | Owner, client | [DEPLOY](runbooks/DEPLOY.md), BLUEPRINT §5, ADR 0003 |
 | A GitHub plan that allows branch rules on `main` (AUDIT M45) | Owner | [AUDIT.md](../AUDIT.md) |
-| Vendor accounts in the client's name, DLT registration, Meta Business verification and App Review, the Google Lead Form | Client | [ROADMAP §10](ROADMAP.md#10-parallel-workstreams-start-in-phase-0), [client-actions](phase0/client-actions.md) |
+| Vendor accounts in the client's name, DLT registration, Meta Business verification and App Review, the Google Lead Form | Client | [ROADMAP §10](ROADMAP.md#10-parallel-workstreams-started-in-phase-0), [client-actions](phase0/client-actions.md) |
 | Open with the client (AUDIT §7): recorded sources of consent, consent per company, a negative moving-average cost | Client | [AUDIT.md](../AUDIT.md) |
 
 ## Waiting on the owner
