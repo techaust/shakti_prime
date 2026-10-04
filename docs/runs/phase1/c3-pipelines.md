@@ -5,8 +5,8 @@
 | Branch | `feat/c3-pipelines-r2` on GitHub (3856caf, from `main` at #82) |
 | PC worktree | `c3-pipelines`, slot 7: Postgres 54337, app 3037; its local branch `feat/c3-pipelines-scoring` is at the same commit and pushes to `feat/c3-pipelines-r2` (`git push origin HEAD:feat/c3-pipelines-r2`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
-| State | built, reviewed, review fixes done |
-| Next step | take `main` (C1, X1, C2 and the rest), renumber, then the integration list below through a builder |
+| State | integrating |
+| Next step | the lead's integration run and baselines |
 
 ## Brief
 Design: [`docs/design/phase1.md` §6.6](../../design/phase1.md#66-c3-pipelines-scoring-and-referrals), §4 (the permission `crm.config.write`) and §11 (workshop defaults); BLUEPRINT §8.1 and §8.2; PRD CRM-01, CRM-05, CRM-06, CRM-09, TEL-01; DESIGN.md §6 and §11; workshop pack CRM-1, CRM-2, CRM-3, CRM-5, CALL-1, CALL-3, CALL-4; SECURITY §3.2. Skills: `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
