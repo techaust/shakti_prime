@@ -1,6 +1,7 @@
 import { IMPORT_LIMITS } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
 import type * as Zlib from 'node:zlib';
+import { PassThrough } from 'node:stream';
 import { deflateRawSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseImportFile } from './parse';
@@ -37,6 +38,15 @@ interface Part {
   declaredUnpacked?: number;
   declaredPacked?: number;
   localExtra?: Buffer;
+  /** Sizes in the local header only, where they differ from the directory's. */
+  localPacked?: number;
+  localUnpacked?: number;
+  /** A name in the local header only. */
+  localName?: string;
+  /** Written with a data descriptor: no sizes in the local header, a descriptor after the data. */
+  descriptor?: boolean;
+  /** Written as a local header and data only, with no directory entry. */
+  localOnly?: boolean;
 }
 
 interface Shape {
@@ -48,6 +58,8 @@ interface Shape {
   directorySize?: number;
   /** Cut this many bytes off the end. */
   truncate?: number;
+  /** The directory's entries in the reverse of the parts' order. */
+  reverseDirectory?: boolean;
 }
 
 function u16(n: number): Buffer {
@@ -96,51 +108,58 @@ function zip(parts: Part[], shape: Shape = {}): Uint8Array {
     const packed = part.declaredPacked ?? data.length;
     const unpacked = part.declaredUnpacked ?? part.content.length;
     const name = Buffer.from(part.name);
+    const localName = Buffer.from(part.localName ?? part.name);
     const extra = part.localExtra ?? Buffer.alloc(0);
-    const common = [
-      u16(part.flags ?? 0),
+    const head = (packedSize: number, unpackedSize: number, nameLength: number) => [
+      u16(part.flags ?? (part.descriptor ? 8 : 0)),
       u16(method),
       u16(0),
       u16(0),
       u32(0),
-      u32(packed),
-      u32(unpacked),
-      u16(name.length),
+      u32(packedSize),
+      u32(unpackedSize),
+      u16(nameLength),
     ];
     const local = Buffer.concat([
       u32(0x04034b50),
       u16(20),
-      ...common,
+      ...(part.descriptor
+        ? head(0, 0, localName.length)
+        : head(part.localPacked ?? packed, part.localUnpacked ?? unpacked, localName.length)),
       u16(extra.length),
-      name,
+      localName,
       extra,
       data,
+      ...(part.descriptor ? [u32(0x08074b50), u32(0), u32(packed), u32(unpacked)] : []),
     ]);
-    directory.push(
-      Buffer.concat([
-        u32(0x02014b50),
-        u16(20),
-        u16(20),
-        ...common,
-        u16(0),
-        u16(0),
-        u16(0),
-        u16(0),
-        u32(0),
-        u32(offset),
-        name,
-      ]),
-    );
+    if (!part.localOnly) {
+      directory.push(
+        Buffer.concat([
+          u32(0x02014b50),
+          u16(20),
+          u16(20),
+          ...head(packed, unpacked, name.length),
+          u16(0),
+          u16(0),
+          u16(0),
+          u16(0),
+          u32(0),
+          u32(offset),
+          name,
+        ]),
+      );
+    }
     locals.push(local);
     offset += local.length;
   }
+  if (shape.reverseDirectory) directory.reverse();
   const dir = Buffer.concat(directory);
   const end = Buffer.concat([
     u32(0x06054b50),
     u16(0),
     u16(0),
-    u16(shape.entries ?? parts.length),
-    u16(shape.entries ?? parts.length),
+    u16(shape.entries ?? directory.length),
+    u16(shape.entries ?? directory.length),
     u32(shape.directorySize ?? dir.length),
     u32(shape.directoryOffset ?? offset),
     u16(0),
@@ -184,10 +203,15 @@ describe('checkZipArchive', () => {
       { name: 'xl/worksheets/sheet1.xml', content: text('<row/>'.repeat(500)) },
       { name: 'xl/styles.xml', content: text('<styles/>'), localExtra: Buffer.alloc(8, 1) },
     ]);
-    expect(checkZipArchive(bytes, limits)).toEqual({
+    expect(checkZipArchive(bytes, limits)).toMatchObject({
       ok: true,
       entries: 3,
       unzippedBytes: 8 + 3000 + 9,
+      records: [
+        { name: '[Content_Types].xml', from: 0 },
+        { name: 'xl/worksheets/sheet1.xml' },
+        { name: 'xl/styles.xml' },
+      ],
     });
   });
 
@@ -282,8 +306,80 @@ describe('checkZipArchive', () => {
       'a part longer than the file',
       zip([{ name: 'a.xml', content: text('<a/>'), declaredPacked: 100_000 }]),
     ],
+    [
+      'a part present only as a local header, between listed parts',
+      zip([
+        { name: 'a.xml', content: text('<a/>') },
+        { name: 'xl/worksheets/sheet2.xml', content: text('<row/>'.repeat(50)), localOnly: true },
+        { name: 'b.xml', content: text('<b/>') },
+      ]),
+    ],
+    [
+      'a part present only as a local header, after the listed parts',
+      zip([
+        { name: 'a.xml', content: text('<a/>') },
+        { name: 'xl/worksheets/sheet2.xml', content: text('<row/>'.repeat(50)), localOnly: true },
+      ]),
+    ],
+    [
+      'a local packed size that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'.repeat(20)), localPacked: 3 }]),
+    ],
+    [
+      'a local unpacked size that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'.repeat(20)), localUnpacked: 5000 }]),
+    ],
+    [
+      'a local name that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'), localName: 'xl/worksheets/sheet1.xml' }]),
+    ],
+    [
+      'a directory in another order than the parts',
+      zip(
+        [
+          { name: 'a.xml', content: text('<a/>') },
+          { name: 'b.xml', content: text('<b/>') },
+        ],
+        { reverseDirectory: true },
+      ),
+    ],
+    [
+      'a data descriptor flag with sizes in the local header',
+      zip([{ name: 'a.xml', content: text('<a/>'), flags: 8 }]),
+    ],
+    [
+      "a descriptor's signature inside the part's data",
+      zip([
+        {
+          name: 'a.xml',
+          content: Buffer.concat([text('<a>'), Buffer.from([0x50, 0x4b, 7, 8]), text('</a>')]),
+          method: 0,
+          descriptor: true,
+        },
+      ]),
+    ],
   ])('refuses %s as unreadable', (_label, bytes) => {
     expect(verdictOf(bytes)).toBe('import_file_unreadable');
+  });
+
+  it('passes a workbook written with data descriptors, as streaming writers write it', async () => {
+    const chunks: Buffer[] = [];
+    const out = new PassThrough();
+    out.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const book = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useSharedStrings: true });
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Mobile', 'Village']).commit();
+    sheet.addRow(['Ramesh', '9800000001', 'Sikar']).commit();
+    sheet.commit();
+    await book.commit();
+    const bytes = new Uint8Array(Buffer.concat(chunks));
+    // The streaming writer leaves the local sizes empty and writes a descriptor after each part.
+    expect(Buffer.from(bytes).readUInt16LE(6) & 8).toBe(8);
+    expect(verdictOf(bytes)).toBe('ok');
+    expect((await parseImportFile(bytes)).rows).toEqual([['Ramesh', '9800000001', 'Sikar']]);
+    expect(
+      verdictOf(zip([{ name: 'a.xml', content: text('<a/>'.repeat(30)), descriptor: true }])),
+    ).toBe('ok');
   });
 
   it('refuses a damaged local header', () => {
@@ -297,6 +393,15 @@ describe('parseImportFile with a crafted workbook', () => {
   it('refuses a workbook that unpacks beyond the limit, with its own reason', async () => {
     const bytes = zip([{ name: 'xl/worksheets/sheet1.xml', content: BOMB }]);
     expect(await reason(bytes)).toBe('import_workbook_too_large');
+  });
+
+  it('refuses a workbook with a sheet the directory does not list', async () => {
+    // The streaming reader would read this sheet; the directory leaves it out.
+    const bytes = zip([
+      { name: '[Content_Types].xml', content: text('<Types/>') },
+      { name: 'xl/worksheets/sheet1.xml', content: text('<row/>'.repeat(40)), localOnly: true },
+    ]);
+    expect(await reason(bytes)).toBe('import_file_unreadable');
   });
 
   it('refuses a workbook whose part lies about its size', async () => {

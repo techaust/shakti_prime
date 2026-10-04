@@ -90,19 +90,59 @@ export function cellText(value: unknown): string {
   return '';
 }
 
+/** The parts the reader needs, in the order it needs them: each before the sheets that use it. */
+function partRank(name: string): number {
+  if (name === 'xl/_rels/workbook.xml.rels') return 0;
+  if (name === 'xl/workbook.xml') return 1;
+  if (name === 'xl/sharedStrings.xml') return 2;
+  if (name === 'xl/styles.xml') return 3;
+  return /^xl\/worksheets\/sheet\d+\.xml$/.test(name) ? 4 : -1;
+}
+
+/**
+ * One row's cells as strings, column by column, without blanks at its end. The row is read
+ * cell by cell as ExcelJS holds it (only the cells it has), so a value far to the right is
+ * refused as soon as it is met, before any list as wide as its column is made; a cell beyond
+ * the column limit that holds nothing (formatting only) is passed over.
+ */
+function rowCells(row: ExcelJS.Row, limits: ParseLimits): string[] {
+  const cells: (string | undefined)[] = [];
+  row.eachCell((cell, column) => {
+    const text = cellText(cell.value).trim();
+    if (text === '') return;
+    if (column > limits.maxColumns) throw refuse('import_too_many_columns', 'too many columns');
+    if (text.length > limits.maxCellLength) throw refuse('import_cell_too_long', 'cell too long');
+    cells[column - 1] = text;
+  });
+  return Array.from(cells, (c) => c ?? '');
+}
+
 /**
  * The rows of a workbook's first sheet that has any, read with ExcelJS's streaming reader: the
  * sheet's XML is parsed as it is unpacked and each row becomes a list of strings at once, so the
  * workbook is never held as a model of cells (which takes many times the file's unpacked size)
  * and memory stays flat whatever the sheet's length. Shared strings and number formats are kept,
- * so text and dates read as the person sees them; a sheet stored before its shared strings is
- * spooled to a temporary file by the reader.
+ * so text and dates read as the person sees them.
+ *
+ * The reader is given only the parts it reads, each a record the guard checked, in the order it
+ * needs them: the workbook's relationships, the workbook, the shared strings and the styles
+ * before the sheets (in their order in the file), then the directory. A reader given a sheet
+ * before the shared strings spools the sheet to a temporary file, which it deletes only when it
+ * reads to the end; in this order, with empty shared strings and relationships standing in where
+ * a workbook has none, it never does.
  */
 async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[][]> {
   // The packed size was checked; what the parts unpack to is checked before anything unpacks.
   const verdict = checkZipArchive(bytes, limits);
   if (!verdict.ok) throw refuse(verdict.reason, verdict.why);
-  const source = Readable.from([Buffer.from(bytes)]);
+  const data = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const wanted = verdict.records
+    .filter((record) => partRank(record.name) >= 0)
+    .sort((x, y) => partRank(x.name) - partRank(y.name));
+  const source = Readable.from([
+    ...wanted.map((record) => data.subarray(record.from, record.to)),
+    data.subarray(verdict.directoryOffset),
+  ]);
   const reader = new ExcelJS.stream.xlsx.WorkbookReader(source, {
     worksheets: 'emit',
     sharedStrings: 'cache',
@@ -110,13 +150,14 @@ async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[
     styles: 'cache',
     entries: 'ignore',
   });
-  // The reader takes the sheets' names and the date system from `xl/workbook.xml` and assumes it
-  // came before the sheets, which a workbook may store last; it then fails on the missing values.
-  // Neither matters here (a workbook dated from 1904 is a rarity of old Mac files), so empty ones
-  // stand in until the real ones are read.
+  // The reader takes the sheets' names and the date system from `xl/workbook.xml`, which a
+  // workbook may lack; empty ones stand in until the real ones are read, as do empty shared
+  // strings and relationships, so a sheet is always read as it arrives.
   Object.assign(reader as unknown as Record<string, unknown>, {
     model: { sheets: [] },
     properties: { model: {} },
+    sharedStrings: [],
+    workbookRels: [],
   });
   const most = limits.maxRows + limits.headerSearchRows;
   const rows: string[][] = [];
@@ -125,10 +166,8 @@ async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[
   try {
     for await (const sheet of reader) {
       for await (const row of sheet) {
-        // `values` counts from 1; the first entry is always empty.
-        const values = Array.isArray(row.values) ? row.values.slice(1) : [];
-        const cells = Array.from(values, (v) => cellText(v));
-        if (rows.length === 0 && cells.every((c) => c.trim() === '')) continue;
+        const cells = rowCells(row, limits);
+        if (rows.length === 0 && cells.length === 0) continue;
         rows.push(cells);
         if (rows.length > most) throw refuse('import_too_many_rows', 'sheet is too long');
       }

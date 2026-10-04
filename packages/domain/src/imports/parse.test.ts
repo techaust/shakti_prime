@@ -1,6 +1,8 @@
 import { IMPORT_LIMITS } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
-import { describe, expect, it } from 'vitest';
+import { readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { describe, expect, it, vi } from 'vitest';
 import {
   cellText,
   detectHeaderRow,
@@ -113,6 +115,66 @@ describe('parseImportFile: XLSX', () => {
     expect(await reason(bytes, { ...IMPORT_LIMITS, maxRows: 1, headerSearchRows: 2 })).toBe(
       'import_too_many_rows',
     );
+  });
+});
+
+describe('parseImportFile: XLSX limits met row by row', () => {
+  it('refuses a value far to the right as soon as it is met', async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Mobile']);
+    sheet.addRow(['Ram', '9876543210']);
+    // The last column a workbook can have, one value in it.
+    sheet.getCell('XFD3').value = 'x';
+    for (let i = 0; i < 200; i++) sheet.addRow([`Farmer ${String(i)}`, '9812345678']);
+    const bytes = new Uint8Array(await book.xlsx.writeBuffer());
+    const made = vi.spyOn(Array, 'from');
+    let widest = 0;
+    try {
+      expect(await reason(bytes)).toBe('import_too_many_columns');
+      for (const [items] of made.mock.calls) {
+        widest = Math.max(widest, (items as Partial<ArrayLike<unknown>>).length ?? 0);
+      }
+    } finally {
+      made.mockRestore();
+    }
+    // No list as wide as the far column was made on the way.
+    expect(widest).toBeLessThanOrEqual(IMPORT_LIMITS.maxColumns);
+  });
+
+  it('passes over formatting beyond the last column that holds nothing', async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Mobile']);
+    sheet.addRow(['Ram', '9876543210']);
+    sheet.getCell('BZ2').numFmt = '0.00';
+    sheet.getCell('BZ2').value = '   ';
+    const parsed = await parseImportFile(new Uint8Array(await book.xlsx.writeBuffer()));
+    expect(parsed.columns).toEqual(['Name', 'Mobile']);
+    expect(parsed.rows).toEqual([['Ram', '9876543210']]);
+  });
+
+  it('refuses a cell over the length limit in the row it is met', async () => {
+    const bytes = await workbook([['Name'], ['a'.repeat(IMPORT_LIMITS.maxCellLength + 1)]]);
+    expect(await reason(bytes)).toBe('import_cell_too_long');
+  });
+
+  it('leaves no temporary file behind for a sheet stored before its shared strings', async () => {
+    // A workbook written in one piece stores the sheet before the shared strings.
+    const bytes = await workbook(
+      [
+        ['Name', 'Mobile'],
+        ['Ram', '9876543210'],
+      ],
+      2,
+    );
+    const names = Buffer.from(bytes).toString('latin1');
+    expect(names.indexOf('xl/worksheets/sheet')).toBeLessThan(names.indexOf('xl/sharedStrings'));
+    const mine = async () =>
+      (await readdir(tmpdir())).filter((f) => f.startsWith(`tmp-${String(process.pid)}-`));
+    const before = await mine();
+    expect((await parseImportFile(bytes)).rows).toEqual([['Ram', '9876543210']]);
+    expect(await mine()).toEqual(before);
   });
 });
 
