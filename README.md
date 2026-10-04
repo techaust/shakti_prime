@@ -1,6 +1,6 @@
 # Shakti Prime BOS
 
-Business operating system for the Shakti group (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub, RCREF). The approved blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md); working conventions are in [AGENTS.md](AGENTS.md); Claude Code guidance and the documentation map are in [CLAUDE.md](CLAUDE.md). Where the project stands is in [docs/STATUS.md](docs/STATUS.md), its history in [CHANGELOG.md](CHANGELOG.md) and the owner's decisions in [docs/DECISIONS.md](docs/DECISIONS.md).
+Business operating system for the Shakti group (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub, RCREF). Repository: `github.com/techaust/shakti_prime`. The approved blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md); working conventions are in [AGENTS.md](AGENTS.md); Claude Code guidance and the documentation map are in [CLAUDE.md](CLAUDE.md). Where the project stands is in [docs/STATUS.md](docs/STATUS.md), its history in [CHANGELOG.md](CHANGELOG.md) and the owner's decisions in [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Repository
 

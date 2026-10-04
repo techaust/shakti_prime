@@ -130,8 +130,8 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#18** (27-09-2026) Batch 11: architecture guardrails.
 - **#17** (27-09-2026) Batch 10: customer and lead reads that scale.
 - **#16** (27-09-2026) Batch 9: onboarding and lead flows.
-- **#15** (27-09-2026) Batch 8: error handling and observability: the redacting JSON logger and `onRequestError`.
-- **#14** (27-09-2026) Batch 7: sign-in hardening: the sign-in guard per account and address, the owner emailed on every tenth failure.
+- **#15** (27-09-2026) Batch 8: error handling and observability: the redacting JSON logger, `onRequestError`, and the error and not-found screens.
+- **#14** (27-09-2026) Batch 7: sign-in hardening: the sign-in guard per account and address, the owner emailed on every tenth failure; readiness checks of the database, the auth database, the key-value store and the configuration.
 - **#13** (27-09-2026) Batch 6: database hardening before hosting: `app.uuid_v7()`, the price-history trigger on `price_list_items`.
 - **#12** (27-09-2026) Batch 5: the Linear design profile, generated themes and a saved theme switch (`profile.theme.set`, `app.set_own_theme()`).
 - **#11** (27-09-2026) The English interface with Hinglish only for spoken channels (ADR 0014).
@@ -148,13 +148,13 @@ Pull requests #1 to #4 and #9 have no merge on `main`.
 Committed straight to `main` on 26-09 and 27-09-2026, before the merge-on-green workflow:
 
 - The blueprint, module documents, design system and Claude Code tooling; ADRs 0001 to 0006; the pnpm and Turborepo workspace; design tokens with the contrast test; the contracts (errors, ids, permissions, roles, principal, first DTOs); the copy lint; CI (lint, typecheck, tests, security suite, copy lint).
-- The org core (`entities`, `principals`, `roles`, `permissions`, `role_permissions`) with the request context, fail-closed RLS and the security suite; the command runner with `org.entity.update`; the Next.js app pinned to `bom1` with the health routes.
+- The org core (`entities`, `principals`, `roles`, `permissions`, `role_permissions`) with the request context, fail-closed RLS and the security suite; the command runner with `org.entity.update`; the Next.js app pinned to `bom1` with the health and readiness routes.
 - The CRM core (`teams`, `lead_sources`, `pipelines`, `pipeline_stages`, `contacts`, `contact_phones`, `accounts`, `opportunities`, `consents` and more) with own, team and entity scope; `crm.lead.create` and the keyset `listLeads`.
 - The catalogue, pricing, tax and numbering tables (`items`, `pump_curves`, `item_costs` with the cost gate, `kits`, `kit_components`, `price_tiers`, `price_lists`, `price_list_items`, `price_change_log` append-only, `tax_rates`, `composite_supply_rules`, `document_sequences` with `app.next_document_no()`); `pricing.price.set`, `listItems`, `listEntities`.
 - Week 3 slice 1, identity:
   - `users` and `user_entity_roles` under `app_user`; `sessions`, `auth_accounts`, `auth_verifications`, `user_two_factor` under the `auth_service` role;
   - Better Auth with Argon2id, the breached-password check, Turnstile, exponential lockouts and per-address request caps, revoked sessions refused on every route, mandatory TOTP with backup codes for Executive, GM and Accounts;
-  - principal resolution with narrowest-role-wins through `app.user_grants()`; the `KeyValue` and `Mailer` ports; the seven `admin.*` commands; `currentPrincipal()`;
+  - principal resolution with narrowest-role-wins through `app.user_grants()`; the `KeyValue` and `Mailer` ports; the seven `admin.*` commands; `currentPrincipal()`; the Better Auth route;
   - the public landing, sign-in, forgotten-password, set-password, two-factor and home screens.
 - One customer record for the group with a relationship per company (ADR 0008): `account_entities`, `account_contacts`, `customer_sites`, `app.attach_account_entity()`, `app.account_in_scope()`, `app.contact_in_scope()`, the trigger `app.ensure_account_entity()`.
 - Three reviews (`docs/reviews/`) and their fixes: child write scope, exact keyset cursor, database error mapping, numbering privileges, the testing-import fence, entity-consistent child keys, foreign-key indexes, customer-link scope, session revocation, admin guards, the security headers, the auth instance made on first use so `next build` needs no environment.

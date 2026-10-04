@@ -22,7 +22,7 @@ How each plugin and MCP server that `.claude/tooling.json` requires is connected
 The ten directory plugins are enabled on the owner's claude.ai account. The SessionStart hook cannot see account plugins, so it always lists them as "to confirm"; confirm them with the plugin listing tool.
 
 ## Connection notes
-- **GitHub:** the plugin has no browser sign-in and sends the token from `GITHUB_PERSONAL_ACCESS_TOKEN`; an unset variable shows as HTTP 400. When the repository moves to the client's organisation, a new token is needed. `gh` is signed in as `techaust`.
+- **GitHub:** the plugin has no browser sign-in and sends the token from `GITHUB_PERSONAL_ACCESS_TOKEN`; an unset variable shows as HTTP 400. When the repository moves to the client's organisation, a new token is needed. `gh` is signed in as `techaust`. Sentry and Expo are signed in.
 - **AWS:** runs through `uvx` with the credentials `aws configure` saved in `%USERPROFILE%\.aws` for `claude-shakti` (region `ap-south-1`, read-only). For the file storage bucket, add a permission for that one bucket rather than widening the user; the files stack does this ([files-setup](files-setup.md)).
 - **Supabase, Upstash and Vercel** hold the dev and staging environments (29-09-2026). The Vercel server was authorised again for the `shakti-prime` team on 29-09-2026 and reads its projects, variables and deployments.
 - **Context7** was signed in again on 03-10-2026; a session started before a sign-in cannot see it until it is reopened.
