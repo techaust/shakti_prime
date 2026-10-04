@@ -10,7 +10,7 @@ import { assertUserInScope, insertEntityRoles, resolveEntityRoles } from './shar
  * server action then asks the auth module for a set-password link and mails it; the first
  * sign-in moves the user to `active`. There is no self sign-up. Inviting someone who is still
  * `invited` answers that user unchanged, so the action sends them a fresh link (AUDIT M26); their
- * roles change through `admin.user.roles.set`.
+ * roles change through `admin.user.role.set`.
  */
 export const inviteUser = defineCommand({
   name: 'admin.user.invite',
