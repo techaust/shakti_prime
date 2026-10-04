@@ -22,6 +22,7 @@ export { retentionRuns } from './retention-runs';
 export { idempotencyKeys } from './idempotency-keys';
 export { savedViews } from './saved-views';
 export { files } from './files';
+export { agentConfigs, agentRuns, agentActions, inboxItems, agentEvals } from './agents';
 export { importMappingTemplates, importJobs, importRows } from './imports';
 export {
   users,

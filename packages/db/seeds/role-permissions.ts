@@ -7,6 +7,7 @@ import {
   type Scope,
   type StaffRoleKey,
   type SystemRoleKey,
+  AGENT_MATRIX,
   SYSTEM_MATRIX,
 } from '@shakti/contracts';
 
@@ -272,43 +273,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'files.process': {},
 };
 
-/** Agent principal permission sets (docs/SECURITY.md §3.3), limited to keys in the catalogue. */
-export const AGENT_MATRIX: Record<AgentRoleKey, readonly PermissionGrant[]> = {
-  'agent:triage': [
-    { key: 'crm.lead.read', scope: 'entity' },
-    { key: 'crm.lead.write', scope: 'entity' },
-    { key: 'crm.lead.assign', scope: 'entity' },
-    { key: 'crm.lead.merge', scope: 'entity' },
-  ],
-  'agent:concierge': [
-    { key: 'crm.lead.read', scope: 'own' },
-    { key: 'crm.lead.write', scope: 'own' },
-    { key: 'crm.account.read', scope: 'own' },
-    { key: 'documents.write', scope: 'own' },
-  ],
-  'agent:copilot': [
-    { key: 'crm.lead.read', scope: 'entity' },
-    { key: 'crm.lead.write', scope: 'entity' },
-    { key: 'knowledge.vault.read.staff', scope: 'all' },
-  ],
-  'agent:sizing': [
-    { key: 'pricing.read', scope: 'entity' },
-    { key: 'inventory.stock.read', scope: 'entity' },
-    { key: 'sales.quote.create', scope: 'entity' },
-  ],
-  'agent:orchestrator': [
-    { key: 'projects.read', scope: 'entity' },
-    { key: 'projects.write', scope: 'entity' },
-    { key: 'projects.schedule.write', scope: 'entity' },
-    { key: 'documents.write', scope: 'entity' },
-  ],
-  'agent:chief': [
-    { key: 'crm.lead.read', scope: 'entity' },
-    { key: 'crm.account.read', scope: 'entity' },
-    { key: 'projects.read', scope: 'entity' },
-    { key: 'inventory.stock.read', scope: 'entity' },
-  ],
-};
+/** Agent principal permission sets (docs/SECURITY.md §3.3), from the contracts the runtime shares. */
+export { AGENT_MATRIX };
 
 /** The system principal's grants (docs/SECURITY.md §3.3), from the contracts the workers share. */
 export { SYSTEM_MATRIX };
