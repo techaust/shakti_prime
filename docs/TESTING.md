@@ -88,7 +88,8 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
 | File | Source | Test | Regenerate with |
 |---|---|---|---|
 | `docs/data/ERD.md`, `docs/data/DATA-DICTIONARY.md` | Drizzle snapshot, SQL migrations, DATABASE §6 | `packages/db/src/docs/data-docs.test.ts` | `pnpm db:docs` |
-| `docs/state-machines/*.md` | `packages/domain/src/state-machines` | `render.test.ts` | `pnpm --filter @shakti/domain machines:docs` |
+| `docs/data/EVENTS.md` | `packages/contracts/src/events/catalogue.ts` | `packages/db/src/docs/events-docs.test.ts` | `pnpm db:docs` |
+| `docs/state-machines/*.md` | `packages/domain/src/state-machines` (`registry.test.ts` checks which machines the commands drive) | `render.test.ts` | `pnpm --filter @shakti/domain machines:docs` |
 | `packages/tokens/src/*.css` | `packages/tokens/src/tokens.ts` | `css.test.ts`, and the CI step below | `pnpm --filter @shakti/tokens build` |
 | `apps/web/src/app/icon.svg` | `packages/tokens/src/icon.ts` | `icon.test.ts`, and the CI step below | `pnpm --filter @shakti/tokens build` |
 | `packages/db/migrations` | `packages/db/src/schema` | The CI step below; `journal.test.ts` checks the journal order | `pnpm db:generate` |
