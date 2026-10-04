@@ -5,8 +5,8 @@
 | Branch | `feat/p2b-imports`, made from `main` when the slice starts |
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026): worktree slot 11 (Postgres 54341, app 3041); build and review move to the cloud once the environment exists |
-| State | built |
-| Next step | review |
+| State | reviewed, fixes done |
+| Next step | take main, then the lead's integration |
 
 ## Brief
 Read first:
@@ -80,6 +80,57 @@ Built on the worktree `p2b-imports` (Postgres 54341, app 3041), continuing from 
 - The spike's results go to a new `import-scale-xlsx.json`, keeping the 28-09-2026 records, and the spike fails and undoes a job an interrupted run left committing.
 - `test.slow()` on the three import journeys that upload a file, with the reason beside each.
 
+### 05-10-2026, builder on the PC (review fixes)
+Worktree `p2b-imports` (Postgres 54341, app 3041), from 7b58f03. Commits: 7bcc795 (the review table), a997ba2, 1254629, 41e154a, 2d4f272, eb6c8af, 6754b86, 389ba04, eb4f130, 68f1690, 2de2cc5, 1df5b70, b47310b and this report. Every row of the Review table names its fix.
+
+**What changed, by finding:**
+- H1: `packages/domain/src/imports/zip-guard.ts` walks the archive as `unzipper.Parse` reads it: from the first byte, each local header where the last part (and its data descriptor) ended, matched one-to-one and in order with the directory (offset, name, method, packed and unpacked sizes), the last part ending where the directory starts; a part with the data-descriptor flag must have no local sizes, its descriptor's signature first found exactly where the directory's packed size ends, and the descriptor's sizes the directory's. Each part is still unpacked with a ceiling of its declared size. The verdict now names each part's record, and `readXlsx` (`parse.ts`) feeds ExcelJS only the checked records it reads (relationships, workbook, shared strings, styles, then the sheets in file order) followed by the directory, so what the reader inflates is exactly what the guard inflated.
+- H2: `readXlsx` reads each row cell by cell (`row.eachCell`, only the cells the row has); a value beyond `maxColumns` or a cell over `maxCellLength` is refused in the row it is met, a formatted empty cell past the limit is passed over, and no list wider than the limit is made (trailing blanks never stored).
+- M5: the reader is given the shared strings and relationships first, with empty ones standing in where a workbook has none, so ExcelJS never takes its temporary-file path (it spooled a sheet stored before its shared strings and deleted the file only when read to the end). This also removed a race: "refuses a sheet longer than the limit" failed one run in three on the old reader.
+- H3: `rollback-job.ts` asks `app.import_accounts_in_use(job)` (new definer, 0095): the job's own customers now in use in any company (a live lead, a consent of a contact, a relationship whose `created_at` differs from the customer's, i.e. not made with it); only the others are archived. It also refuses up front a request that does not act for every company the job's rows name (with M2).
+- M1: `app.customer_sites_pin_fill()` now fires on every update and checks a flagged site again when its PIN is unchanged (filling only what the site leaves empty); `app.recheck_site_pins(pins)` (definer, 0095, `imports.write:all` in a group request, answers a count) is called after each PIN batch and after a PIN rollback removes offices, clearing or setting the flag of the live sites of every company with those PINs; partial index `customer_sites_pin_idx`.
+- M2: `import_jobs.entity_ids` (0094): the preview stores the companies its ready rows name, the job's own first (null for a PIN code job, which needs the whole group anyway); `imports.job.commit`, `imports.job.commit_batch` and `imports.job.rollback` refuse with `import_companies_out_of_reach` (catalogue sentence added) when the request leaves one out; `commitImportJob` passes that set to the worker (`ImportJobDto.entityIds`).
+- M3: `foldAccountRows` carries a later row's site that differs from the customer's sites so far (type, village through `matchKey`, PIN) into `moreSites` of the first row, at most `MORE_SITES_MAX` (100); the commit inserts them; the preview says per repeated row whether its site was added, was already there or was one too many (`ImportDedupeDto.site`).
+- M4: the owner's rule: a customers row whose number belongs to a customer the importer can see (the first phone match the preview finds under the importer's policies) carries `existingAccountId`; the preview marks it `linkedTo` ("This row adds its company to that customer instead of making a new one"); the commit adds each of its companies through `app.attach_account_entity` and makes nothing else (`created_type = 'account_link'`); a number held by a colleague is still refused by `app.lead_phone_status` first.
+- L1: `imports.job.create` and `startImport` take only the caller's own upload (`files.created_by = actor`); `StoredFile` carries `createdBy`.
+- L2: `await keep(tx)` before the stage and source look-ups of `commit-leads.ts` (two lines; `writeActivities` already had one). `lead-guard.test.ts`'s clock now counts those two readings.
+- L3: the same-content check counts only a job committing, committed, or failed with rows added.
+- L4: `pin_codes_pin_office_unique` is a unique index on `(pin, lower(office_name))`; the upsert's conflict target is `(pin, lower(office_name))`.
+- L5: both test files draw PINs from their own range (database 999910 to 999949, domain 999950 to 999989), never one drawn before in the file.
+- L6: new platform-only permission `imports.process` (contracts, seeds, `SYSTEM_MATRIX`, `app.platform_only_permissions()`, SECURITY, the role editor's catalogue line); `imports.job.fail` requires it; the worker principal reads and stops a job of its company (`import_jobs_process_read` for `app_user, app_reader`, `import_jobs_process_update`); the commit route fails the job as `system:workers` on a forbidden call (suspended importer, lost permission or company) and on the last retry whatever the cause.
+- L7: PRD §8 CRM-02 trace row; `grants.test.ts` comments without the branch's migration numbers; the sweep route's comment says the schedule asks for no retries.
+- Also: the ERD writer draws an array column (`smallint[]`) as Mermaid accepts it (`data-docs.ts`, a test case); the preview's and rollback's new audit fields (`linked`, `companies`, `kept`) are named on the activity screen; the customers journey's repeated row gives another village and finds "Its company and its site are added to that customer."
+
+**Migrations (branch only):** 0094 (generated: `import_jobs.entity_ids` with its check, `created_type` gains `account_link`, the PIN unique index, `customer_sites_pin_idx`) and 0095 (custom: the column grant, `imports.process`, the worker's job policies, the trigger, the two definers). 0090 to 0093 unchanged.
+
+**Tests added or changed:** `zip-guard.test.ts` +10 (a part only as a local header, between and after the listed parts; local packed and unpacked sizes differing; a local name differing; the directory in another order; a descriptor flag with local sizes; a descriptor signature inside the data; a streaming writer's workbook with descriptors passes and parses; a workbook with an unlisted sheet refused); `parse.test.ts` +4 (a value at column XFD refused with no list wider than 50 made, formatting past the limit passed over, a long cell refused in its row, no temporary file left); `pin-codes.test.ts` (database) +4; `imports.test.ts` (database) +3; `import-kinds.test.ts` +8 (folded sites, the link, companies out of reach, rollback keeping customers taken on elsewhere or with a consent, own uploads only, same-content rules, the PIN re-check and its rollback, an office in another case) and the two fail tests rewritten for the worker principal; `apps/web/tests/imports.test.ts` +2 (a colleague's upload, a suspended importer's job failed by the worker) and the same-content case rewritten; `import-wizard.test.ts` +1; parity of `MORE_SITES_MAX` in `contract-values.test.ts`; `role-entity-matrix.test.ts` knows the worker reads jobs.
+
+**Checks** (`.env` checked to name only port 54341 before each suite run; database reset with `fresh-db.sh` before each full run):
+- touched test files, each alone: database `pin-codes` and `imports` 43 passed; domain `import-kinds` 20 passed; web `imports.test.ts` 31 passed.
+- `pnpm typecheck`: `Tasks: 8 successful, 8 total`.
+- unit tests (`pnpm exec turbo run test --concurrency=1 --force`, then the three packages again after the last fixes): contracts 177, tokens 134, ui 105, copy-lint 17, db 119, domain 1,390, web 559 passed.
+- `pnpm test:security`: db `Tests 3 failed | 917 passed (920)`, the three failures each a 20-second timeout in `role-entity-matrix.test.ts` on the loaded machine (the run before it had shown two real gaps there and in `grants.test.ts`, fixed in 68f1690); that file alone: `Tests 93 passed (93)`. Turbo stops at the first failing suite, so the other two were run next by themselves: domain `Tests 524 passed (524)` in 51 files, web `Tests 218 passed (218)` in 13 files.
+- `pnpm lint` (once, whole repository): exit 0, no problems.
+- `pnpm copy-lint`: `copy-lint: catalogues and templates are clean`.
+- `pnpm db:docs`: regenerated; committed in b47310b.
+- `pnpm build`: `Tasks: 2 successful, 2 total`. `pnpm --filter web e2e imports.spec.ts`: `20 passed (1.7m)`.
+
+**EXPLAIN (ANALYZE) evidence** ([results/import-review-plans.txt](../../spikes/results/import-review-plans.txt), synthetic rows in a transaction rolled back afterwards, run as the table owner as the definers run): `app.recheck_site_pins` over 50,000 flagged sites, a batch of 40 PINs: `Index Scan using customer_sites_pin_idx` per PIN, 400 sites updated, 36.2 ms; a batch of 500 PINs (10 % of the sites) takes a hash join over a sequential scan, 4,600 sites updated, the per-row triggers most of its time. `app.import_accounts_in_use` for a job of 500 customers among 20,500: the accounts by primary key, the relationships by `account_entities_account_entity_key`, the leads and consents as hashed subplans; 2.7 ms.
+
+**Unfinished or uncertain:**
+- Byte counting inside ExcelJS was not added: its `unzipper` entry streams cannot be reached without patching the library, and the reader now receives only the records the guard walked and unpacked.
+- A rollback leaves the relationships a linked row added (and the customer itself): `account_entities` has no delete grant and no archive column, so undoing a link would need a new definer; the rollback screen says so.
+- The whole security suite in one turbo run still meets 20-second timeouts on this machine when other worktrees are busy.
+
+**Decisions the brief and the review did not settle:**
+- Data descriptors are accepted when exactly placed instead of refused: ExcelJS's own streaming writer (used by the spike and by many export tools) writes them for every part.
+- A linked row adds only the companies: the customer's name, contact and sites stay as they were, and its site is not added (the preview says the row adds its company). A linked customer archived since the check is made anew. The first phone match the importer can see is the one linked.
+- H3 is fixed both ways the review offered: the definer for cross-company dependents and the up-front refusal when the request leaves out one of the job's companies. A relationship counts as made with the customer when its `created_at` equals the customer's (the same transaction).
+- A PIN rollback flags again the live sites whose PIN no longer has an office (the review asked only for clearing).
+- Folded sites: at most 100 more per customer from one file; the preview says when a site was one too many.
+- L6 through a new permission `imports.process` rather than a definer, so the stop goes through the command with its audit row and event; the importer no longer calls `imports.job.fail` at all.
+- The new audit field is `companies` (a count), because the activity screen shows no ids.
+
 ## Review
 ### 05-10-2026, review of 6e5eac7...7b58f03 (lead session)
 | # | Severity | Finding | State |
@@ -97,7 +148,7 @@ Built on the worktree `p2b-imports` (Postgres 54341, app 3041), continuing from 
 | L3 | Low | The same-content check counts rolled-back and never-committed jobs. | fixed in 2d4f272 |
 | L4 | Low | The PIN office uniqueness is case-sensitive; make it `lower(office_name)` with a matching conflict target. | fixed in 2d4f272 (index in 1254629) |
 | L5 | Low | `pin-codes.test.ts` can draw the same PIN twice. | fixed in 41e154a and 2d4f272 |
-| L6 | Low | The commit worker does not fail the job on the last retry for every cause (a suspended importer included); fail it through a system path. | fixed in 2d4f272 (permission and policies in 1254629) |
+| L6 | Low | The commit worker does not fail the job on the last retry for every cause (a suspended importer included); fail it through a system path. | fixed in 2d4f272 (permission and policies in 1254629, the queries' role in 68f1690) |
 | L7 | Low | Documents: PRD §8 CRM-02 trace row; the migration number in `grants.test.ts`'s comment; the sweep route's comment against `retries: 0`. | fixed in eb6c8af |
 
 ## Integration notes
