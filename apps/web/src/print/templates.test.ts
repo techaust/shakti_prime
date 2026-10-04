@@ -3,10 +3,13 @@
 import QRCode from 'qrcode';
 import { describe, expect, it } from 'vitest';
 import en from '../../messages/en.json';
-import { spikeLabels, spikeQuote } from './fixtures/spike-documents';
+import { bankBlock, companyBlock, imageSource } from './company';
+import { printCopy } from './copy';
+import { spikeCompany, spikeLabels, spikeQuote } from './fixtures/spike-documents';
 import { formatRupees } from './format';
 import { escapeHtml, html, trusted } from './html';
 import { renderLabelsHtml } from './label-template';
+import { renderLetterheadProof } from './letterhead-proof-template';
 import { qrMatrix, qrSvg } from './qr';
 import { renderQuote } from './quote-template';
 import { baseCss, lightColor } from './styles';
@@ -74,6 +77,29 @@ describe('quotation template', () => {
     expect(page).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 
+  it('prints the selling company’s letterhead, logo and bank account, and no other company', async () => {
+    const images = {
+      logo: { contentType: 'image/png' as const, base64: 'AQID' },
+      letterhead: { contentType: 'image/jpeg' as const, base64: 'BAUG' },
+    };
+    const quote = { ...spikeQuote(1), company: spikeCompany(images) };
+    const { html: page, options } = await renderQuote(quote);
+    expect(page).toContain('src="data:image/jpeg;base64,BAUG"');
+    expect(page).toContain('src="data:image/png;base64,AQID"');
+    expect(page.indexOf('BAUG')).toBeLessThan(page.indexOf('AQID'));
+    const bank = quote.company.bank;
+    if (bank === null) throw new Error('the fixture has an account');
+    for (const value of Object.values(bank)) expect(page).toContain(escapeHtml(value));
+    expect(page).toContain(en.print.company.bankHeading);
+    expect(page).toContain(quote.company.gstin ?? '');
+    expect(options.footerTemplate).toContain(quote.company.brandName);
+    // Another company's details appear nowhere on it.
+    expect(page).not.toContain('Shakti Motor Pumps');
+    const without = await renderQuote({ ...quote, company: { ...quote.company, bank: null } });
+    expect(without.html).not.toContain(en.print.company.bankHeading);
+    expect(without.html).not.toContain(bank.accountNumber);
+  });
+
   it('draws the QR code for the quotation link', async () => {
     const quote = spikeQuote(1);
     const { html: page } = await renderQuote(quote);
@@ -113,5 +139,64 @@ describe('qr', () => {
     const svg = await qrSvg('https://shaktiprime.com/s/ASH26C000001');
     expect(svg).toContain(lightColor('text'));
     expect(svg).toContain(lightColor('bg'));
+  });
+});
+
+describe('the company block', () => {
+  it('inlines only images, never another address', () => {
+    expect(imageSource({ contentType: 'image/png', base64: 'AQID' })).toBe(
+      'data:image/png;base64,AQID',
+    );
+    expect(() => imageSource({ contentType: 'text/html' as 'image/png', base64: 'AQID' })).toThrow(
+      RangeError,
+    );
+    expect(() => imageSource({ contentType: 'image/png', base64: '"><script>' })).toThrow(
+      RangeError,
+    );
+  });
+
+  it('escapes a company name and leaves out what is not recorded', () => {
+    const t = printCopy();
+    const company = {
+      ...spikeCompany(),
+      legalName: '<b>Agro</b> & Sons',
+      gstin: null,
+      bank: null,
+    };
+    const block = companyBlock(company, t).value;
+    expect(block).toContain('&lt;b&gt;Agro&lt;/b&gt; &amp; Sons');
+    expect(block).not.toContain(en.print.company.gstin);
+    expect(block).not.toContain('<img');
+    expect(bankBlock(company, t)).toBe('');
+  });
+});
+
+describe('the proof page', () => {
+  it('prints every detail as documents do, and says which are not recorded yet', () => {
+    const company = spikeCompany({ logo: { contentType: 'image/png', base64: 'AQID' } });
+    const { html: page, options } = renderLetterheadProof({ company, printedOn: '2026-10-04' });
+    expect(page).toContain(en.print.proof.heading);
+    expect(page).toContain(escapeHtml(company.legalName));
+    for (const line of company.addressLines) expect(page).toContain(escapeHtml(line));
+    expect(page).toContain(company.gstin ?? '');
+    const bank = company.bank;
+    if (bank === null) throw new Error('the fixture has an account');
+    for (const value of Object.values(bank)) expect(page).toContain(escapeHtml(value));
+    expect(page).toContain(en.print.proof.printedBeside);
+    // No letterhead in the fixture: the list says so.
+    expect(page).toContain(en.print.proof.missing);
+    expect(page).not.toContain('class="letterhead-strip"');
+    expect(page).toMatch(/http-equiv="Content-Security-Policy"\s+content="default-src 'none'/);
+    expect(options).toMatchObject({ format: 'A4', margin: { left: '15mm', right: '15mm' } });
+    expect(options.footerTemplate).toContain('04-10-2026');
+    expect(options.footerTemplate).toContain(escapeHtml(company.brandName));
+  });
+
+  it('marks the GSTIN, address and account not recorded when they are not', () => {
+    const company = { ...spikeCompany(), addressLines: [], gstin: null, bank: null };
+    const { html: page } = renderLetterheadProof({ company, printedOn: '2026-10-04' });
+    // Letterhead, logo, address, GSTIN and the four bank lines.
+    expect(page.match(new RegExp(en.print.proof.missing, 'g'))).toHaveLength(8);
+    expect(page).not.toContain(en.print.company.bankHeading);
   });
 });
