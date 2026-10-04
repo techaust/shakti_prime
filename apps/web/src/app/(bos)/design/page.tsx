@@ -87,12 +87,11 @@ export default async function DesignPage() {
   const spike = spikeQuote();
   const quote = {
     ...spike,
-    entity: {
-      ...spike.entity,
+    company: {
+      ...spike.company,
       addressLines: [fill.companyPlace],
       gstin: fill.notRecorded,
-      phone: fill.notRecorded,
-      email: fill.notRecorded,
+      bank: null,
     },
     customer: {
       name: fill.customer,

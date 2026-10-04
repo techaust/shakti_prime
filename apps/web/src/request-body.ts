@@ -8,6 +8,9 @@
 /** The largest body a QStash worker call carries: a few ids, well under a kilobyte. */
 export const WORKER_BODY_MAX_BYTES = 4 * 1024;
 
+/** The render worker's cap: a `PdfRenderJob` may name a sheet of up to 500 labels, about 20 KB. */
+export const PDF_JOB_MAX_BYTES = 24 * 1024;
+
 /** True when the request declares a body over `maxBytes`, or a length that is not a number. */
 export function declaredTooLarge(headers: Headers, maxBytes: number): boolean {
   const declared = headers.get('content-length');

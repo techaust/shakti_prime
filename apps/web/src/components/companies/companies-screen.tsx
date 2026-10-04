@@ -32,9 +32,13 @@ const EditCompanyDialog = dynamic(() =>
 /** The logo and letterhead uploads, fetched the same way. */
 const BrandingDialog = dynamic(() => import('./branding-dialog').then((m) => m.BrandingDialog));
 
+/** The bank account form and the proof page, fetched the same way. */
+const BankDialog = dynamic(() => import('./bank-dialog').then((m) => m.BankDialog));
+const ProofDialog = dynamic(() => import('./proof-dialog').then((m) => m.ProofDialog));
+
 /**
- * Settings › Companies: the companies as a grid, and for an Executive the edit dialog and the
- * logo and letterhead uploads.
+ * Settings › Companies: the companies as a grid, and for an Executive the edit dialog, the logo and
+ * letterhead uploads, the bank account and the proof page that prints them all.
  */
 export function CompaniesScreen({
   initial,
@@ -54,10 +58,14 @@ export function CompaniesScreen({
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<EntityDto | undefined>();
   const [branded, setBranded] = useState<EntityDto | undefined>();
+  const [banked, setBanked] = useState<EntityDto | undefined>();
+  const [proofed, setProofed] = useState<EntityDto | undefined>();
   const router = useRouter();
   // Focus goes back to the row's Edit button, in the table or the phone card that shows.
   const editButtons = useFocusTargets<number>();
   const brandingButtons = useFocusTargets<number>();
+  const bankButtons = useFocusTargets<number>();
+  const proofButtons = useFocusTargets<number>();
 
   const columns: DataGridColumn<EntityDto>[] = [
     { id: 'name', header: t('columns.name'), cell: (c) => c.legalName, primary: true },
@@ -78,6 +86,11 @@ export function CompaniesScreen({
         ) : (
           <span className="break-words">{c.upiId}</span>
         ),
+    },
+    {
+      id: 'bank',
+      header: t('columns.bank'),
+      cell: (c) => (c.bankDetailsSet ? t('bankRecorded') : common('notSet')),
     },
   ];
   if (canEdit) {
@@ -110,6 +123,26 @@ export function CompaniesScreen({
               {t('branding')}
             </Button>
           )}
+          <Button
+            ref={bankButtons.ref(c.id)}
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setBanked(c);
+            }}
+          >
+            {t('bank')}
+          </Button>
+          <Button
+            ref={proofButtons.ref(c.id)}
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setProofed(c);
+            }}
+          >
+            {t('proof')}
+          </Button>
         </div>
       ),
     });
@@ -154,6 +187,31 @@ export function CompaniesScreen({
           }}
           onClose={() => {
             setBranded(undefined);
+          }}
+        />
+      )}
+      {banked === undefined ? null : (
+        <BankDialog
+          company={banked}
+          closeLabel={common('close')}
+          returnFocusTo={() => [bankButtons.get(banked.id)]}
+          onSaved={(saved) => {
+            setRows((all) => all.map((c) => (c.id === saved.id ? saved : c)));
+            setBanked(undefined);
+            toast.success(t('bankDone', { name: saved.legalName }));
+          }}
+          onClose={() => {
+            setBanked(undefined);
+          }}
+        />
+      )}
+      {proofed === undefined ? null : (
+        <ProofDialog
+          company={proofed}
+          closeLabel={common('close')}
+          returnFocusTo={() => [proofButtons.get(proofed.id)]}
+          onClose={() => {
+            setProofed(undefined);
           }}
         />
       )}

@@ -631,6 +631,20 @@
       "when": 1791055563729,
       "tag": "0089_customers_reader",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1791087907832,
+      "tag": "0090_print_bank_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1791087932290,
+      "tag": "0091_print_letterhead_rls",
+      "breakpoints": true
     }
   ]
 }

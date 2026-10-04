@@ -2,6 +2,7 @@ import type { DeliveredEvent } from '@shakti/contracts';
 import type { EventPublisher, PublishResult } from '@shakti/domain';
 import { Client, Receiver } from '@upstash/qstash';
 import { logger } from '../log';
+import { renderJobOf } from './pdf/job';
 
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
 export const OUTBOX_PUBLISH_PATH = '/api/v1/workers/outbox/publish';
@@ -11,6 +12,32 @@ export const OUTBOX_FAILED_PATH = '/api/v1/workers/outbox/failed';
 
 /** Where QStash calls the import worker, once per commit and again while a job has rows left. */
 export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
+
+/** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
+export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
+
+/**
+ * Event types whose worker has a route and a body of its own (docs/API.md §3.6) instead of the
+ * event worker route: the publisher sends each such event to its route as the job it stands for,
+ * with the same deduplication id and failure callback, so a job QStash gives up on still comes
+ * back as the event's dead letter.
+ */
+export const EVENT_JOB_ROUTES: Readonly<
+  Partial<
+    Record<DeliveredEvent['type'], { path: string; body: (event: DeliveredEvent) => unknown }>
+  >
+> = {
+  'print.document.requested': {
+    path: PDF_RENDER_PATH,
+    body: renderJobOf,
+  },
+};
+
+function jobRoute(type: string) {
+  return Object.hasOwn(EVENT_JOB_ROUTES, type)
+    ? EVENT_JOB_ROUTES[type as DeliveredEvent['type']]
+    : undefined;
+}
 
 /** A queue call that takes longer than this counts as failed; the next run tries again. */
 const QUEUE_TIMEOUT_MS = 5_000;
@@ -131,7 +158,8 @@ function resultOf(id: string, answer: unknown): PublishResult {
 }
 
 /**
- * Sends a run's events in one batch call, each to its type's queue group (made sure of first), with the event id as
+ * Sends a run's events in one batch call, each to its type's queue group (made sure of first), or
+ * to its own route as a job (`EVENT_JOB_ROUTES`), with the event id as
  * the deduplication id so a retried run never delivers an event twice within QStash's window, and
  * the failure callback, through which an event its worker refuses for good or still fails after
  * QStash's retries comes back as a dead letter (`OUTBOX_FAILED_PATH`).
@@ -144,16 +172,20 @@ export function qstashEventPublisher(config: QStashConfig): EventPublisher {
       await ensureUrlGroups(
         qstash,
         config,
-        events.map((e) => e.type),
+        events.filter((e) => jobRoute(e.type) === undefined).map((e) => e.type),
       );
       const answers: unknown[] = await withTimeout(
         qstash.batchJSON(
-          events.map((event) => ({
-            urlGroup: urlGroupFor(event.type),
-            body: event,
-            deduplicationId: event.id,
-            failureCallback: workerUrl(config, OUTBOX_FAILED_PATH),
-          })),
+          events.map((event) => {
+            const route = jobRoute(event.type);
+            return {
+              ...(route === undefined
+                ? { urlGroup: urlGroupFor(event.type), body: event }
+                : { url: workerUrl(config, route.path), body: route.body(event) }),
+              deduplicationId: event.id,
+              failureCallback: workerUrl(config, OUTBOX_FAILED_PATH),
+            };
+          }),
         ),
         QUEUE_TIMEOUT_MS,
       );

@@ -8,9 +8,6 @@ import {
 } from './support/fixtures';
 import { solidPng } from './support/png';
 
-/** A 240 by 80 logo in one colour. */
-const logo = (): Buffer => solidPng(240, 80, [40, 80, 200]);
-
 test.describe('the logo and letterhead of a company', () => {
   test.use(signedInAs('executive'));
 
@@ -32,14 +29,14 @@ test.describe('the logo and letterhead of a company', () => {
     await inputs.nth(0).setInputFiles({
       name: 'Shakti Supreme logo.png',
       mimeType: 'image/png',
-      buffer: logo(),
+      buffer: solidPng(),
     });
     // The checks run in the app itself on this machine (no queue), then the uploader says so.
     await expect(saved).toHaveCount(1, { timeout: 45_000 });
     await inputs.nth(1).setInputFiles({
       name: 'Shakti Supreme letterhead.png',
       mimeType: 'image/png',
-      buffer: logo(),
+      buffer: solidPng(),
     });
     await expect(saved).toHaveCount(2, { timeout: 45_000 });
     await expect(dialog.getByText('Current file: Shakti Supreme logo.png')).toBeVisible();

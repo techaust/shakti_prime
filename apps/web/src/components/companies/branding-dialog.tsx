@@ -14,13 +14,10 @@ import {
   type UploadControls,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { openFile } from '../../actions/files';
 import { fileTypeKey, sizeParts } from '../../screens/files';
 import { sendFile } from '../files/send-file';
+import { useOpenFile } from '../files/use-open-file';
 import { FailureMessage } from '../screens/failure';
-import { settle } from '../screens/settle';
-import type { CommandFailure } from '../screens/use-command';
 
 /** A purpose's limits, worked out on the server from `UPLOAD_LIMITS`. */
 export interface UploadLimitView {
@@ -104,8 +101,7 @@ function BrandingUpload({
   const t = useTranslations('companies');
   const files = useTranslations('files');
   const errors = useTranslations('errors');
-  const [opening, setOpening] = useState(false);
-  const [failure, setFailure] = useState<CommandFailure | undefined>();
+  const { open, opening, failure } = useOpenFile();
 
   const types = new Intl.ListFormat('en-IN', { type: 'disjunction' }).format(
     limit.contentTypes.flatMap((type) => {
@@ -163,26 +159,7 @@ function BrandingUpload({
             size="sm"
             pending={opening}
             onClick={() => {
-              // Opened now, while the click still counts as the person's own, so no pop-up
-              // blocker stops it; the signed address is filled in when it arrives.
-              const tab = window.open('about:blank', '_blank');
-              if (tab !== null) tab.opener = null;
-              setOpening(true);
-              void settle(() => openFile(current.id)).then((result) => {
-                setOpening(false);
-                if (result.ok) {
-                  setFailure(undefined);
-                  if (tab === null) window.location.assign(result.data.url);
-                  else tab.location.href = result.data.url;
-                  return;
-                }
-                tab?.close();
-                setFailure((previous) => ({
-                  error: result.error,
-                  reference: result.reference,
-                  attempt: (previous?.attempt ?? 0) + 1,
-                }));
-              });
+              open(current.id);
             }}
           >
             {t('open')}

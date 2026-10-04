@@ -14,7 +14,14 @@ describe('file purposes', () => {
 
   it('opens the upload flow to the purposes with a writer, never to imports or the vault yet', () => {
     expect([...UPLOADABLE_PURPOSES].sort()).toEqual(
-      ['consent_evidence', 'entity_logo', 'letterhead', 'quote_pdf', 'signed_quote'].sort(),
+      [
+        'consent_evidence',
+        'entity_logo',
+        'letterhead',
+        'print_proof',
+        'quote_pdf',
+        'signed_quote',
+      ].sort(),
     );
     expect(uploadPermission.of({ purpose: 'import' })).toBeNull();
     expect(uploadPermission.of({ purpose: 'knowledge' })).toBeNull();

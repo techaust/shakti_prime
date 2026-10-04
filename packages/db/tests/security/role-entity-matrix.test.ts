@@ -85,6 +85,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   letterhead: CONTEXT,
   knowledge: NEVER,
   consent_evidence: grant('crm.account.write', 'own'),
+  // A company's proof page prints its bank account: an Executive's alone.
+  print_proof: grant('admin.entities.write', 'own'),
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({

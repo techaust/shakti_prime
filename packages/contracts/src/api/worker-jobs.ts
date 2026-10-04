@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DeliveredEvent, EventTypeSchema } from '../events/catalogue';
+import { PdfDocumentTypeSchema } from './print-documents';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { SCRIPT_LANGUAGES } from '../templates/index';
 import { MessageRequested, MessagingRefusalSchema } from './messaging';
@@ -124,14 +125,7 @@ export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 
 // --- /workers/pdf/render ---------------------------------------------------------------------
 
-/** Documents rendered to A4 PDFs from their HTML templates (ADR 0009). */
-export const PDF_DOCUMENT_TYPES = [
-  'quote',
-  'proforma',
-  'delivery_challan',
-  'handover_kit',
-] as const;
-export const PdfDocumentTypeSchema = z.enum(PDF_DOCUMENT_TYPES);
+export { PDF_DOCUMENT_TYPES, PdfDocumentTypeSchema, type PdfDocumentType } from './print-documents';
 
 /** Label stock sizes in millimetres, one label per page (docs/spikes/print.md). */
 export const LabelSizeSchema = z.enum(['50x25', '100x50']);
@@ -139,7 +133,10 @@ export const LabelKindSchema = z.enum(['serial', 'bin', 'package']);
 
 /**
  * `POST /workers/pdf/render`: one document at a given version, or one sheet of labels. The template
- * reads the document's DTO; money and tax arrive computed and are only formatted.
+ * reads the document's DTO; money and tax arrive computed and are only formatted. `eventId` is the
+ * `print.document.requested` event the job comes from and its idempotency key: a job already
+ * rendered answers `duplicate`, and a job QStash gives up on comes back as that event's dead
+ * letter on Integration Health. `entityId` is the selling company, whose details alone it prints.
  */
 export const PdfRenderJob = z
   .object({

@@ -36,6 +36,7 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   signed_quote: { key: 'sales.quote.send', scope: 'own' },
   entity_logo: { key: 'admin.entities.write', scope: 'all' },
   letterhead: { key: 'admin.entities.write', scope: 'all' },
+  print_proof: { key: 'files.process', scope: 'entity' },
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
 };
 const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
@@ -44,6 +45,7 @@ const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   signed_quote: 'crm.lead.read',
   entity_logo: 'company',
   letterhead: 'company',
+  print_proof: 'admin.entities.write',
   consent_evidence: 'crm.account.write',
 };
 

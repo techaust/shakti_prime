@@ -21,6 +21,7 @@ import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
+import { recordRenderedFile } from '../commands/files/record-rendered';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { mapImportJob } from '../commands/imports/map-job';
@@ -37,6 +38,7 @@ import {
   createPriceList,
 } from '../commands/pricing/price-lists';
 import { runDeliveryProbe } from '../commands/platform/run-probe';
+import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
@@ -110,6 +112,8 @@ export const commands = {
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [recordRenderedFile.name]: recordRenderedFile,
+  [requestPrintProof.name]: requestPrintProof,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {
