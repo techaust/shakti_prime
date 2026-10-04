@@ -20,6 +20,7 @@ import {
 } from '@shakti/db/testing';
 import {
   commitImportJob as commitImportJobCommand,
+  createLead,
   executeCommand,
   memoryFileStore,
   sha256Hex,
@@ -330,20 +331,37 @@ describe('an import file on the pre-signed upload', () => {
     expect(await jobsOf(fileId)).toBe(1);
   });
 
-  it('starts one job from one file, and refuses the same content once its rows were added', async () => {
-    const csv = `Name,Mobile\nHari,${phone()}\n`;
+  it('starts one job from one file, and adds the same content only once', async () => {
+    const csv = `Name,Mobile,Village\nHari,${phone()},Jhunjhunu\n`;
     const fileId = await uploaded(csv);
     const first = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
     expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
       ok: false,
       error: 'import_file_duplicate',
     });
-    // The first job added nothing yet, so the same list uploaded again may start afresh.
-    ok(await startImport({ entityId: 1, kind: 'leads', fileId: await uploaded(csv) }, newId()));
-    await asMigrator(
-      (m) => m`update import_jobs set state = 'committed', valid_rows = 1, committed_rows = 1
-                where id = ${first.id}`,
+    // The first job added nothing yet, so the same list uploaded again may start beside it.
+    const second = ok(
+      await startImport({ entityId: 1, kind: 'leads', fileId: await uploaded(csv) }, newId()),
     );
+    for (const job of [first, second]) {
+      ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
+      ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    }
+    expect(ok(await commitImportJob({ entityId: 1, jobId: first.id }, newId()))).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+    });
+    // Once the first has added its rows, the second is refused at its commit, and another upload
+    // of the list at its start.
+    expect(await commitImportJob({ entityId: 1, jobId: second.id }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_duplicate',
+    });
+    expect(ok(await getImportJob({ entityId: 1, jobId: second.id }))).toMatchObject({
+      state: 'previewed',
+      committedRows: 0,
+    });
+    expect(await liveLeads(second.id)).toBe(0);
     const again = await uploaded(csv);
     expect(await startImport({ entityId: 1, kind: 'leads', fileId: again }, newId())).toEqual({
       ok: false,
@@ -476,6 +494,76 @@ describe('an import from start to finish, with no queue', () => {
     const rolled = ok(await rollbackImportJob({ entityId: 1, jobId: previewed.id }));
     expect(rolled.state).toBe('rolled_back');
     expect(await liveLeads(previewed.id)).toBe(0);
+  });
+});
+
+describe('a customers file whose number belongs to a customer of another of the importer’s companies', () => {
+  it('links the row to that customer on the worker’s path, making no second customer', async () => {
+    // A General Manager of companies 1 and 3, as the worker resolves them.
+    const user = await createTestUser(
+      [
+        { entityId: 1, roleKey: 'general_manager' },
+        { entityId: 3, roleKey: 'general_manager' },
+      ],
+      { twoFactorEnabled: true },
+    );
+    const importer = principalFor('general_manager', [1, 3], { id: user.id });
+    const gm3 = await createTestPrincipal('general_manager', [3]);
+    const number = phone();
+    const elsewhere = await executeCommand(gm3, { entityIds: [3] }, createLead, {
+      entityId: 3,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Company Three Farmer', phone: number },
+      account: { type: 'farm' },
+    });
+
+    // A file into company 1 with no company column: the row names company 1 alone.
+    request.principal = importer;
+    const fileId = await uploaded(`Name,Mobile,Village\nCompany Three Farmer,${number},Sikar\n`, {
+      name: 'customers.csv',
+      as: importer,
+    });
+    const job = ok(await startImport({ entityId: 1, kind: 'accounts', fileId }, newId()));
+    ok(
+      await mapImportJob({
+        entityId: 1,
+        jobId: job.id,
+        mapping: {
+          columns: { contactName: 'Name', phone: 'Mobile', village: 'Village' },
+          defaults: { accountType: 'farm', siteType: 'borewell' },
+        },
+      }),
+    );
+    const previewed = ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    // The customer was seen through company 3, so the worker acts for it too.
+    expect(previewed.entityIds).toEqual([1, 3]);
+
+    // With no queue, the commit runs the worker (`runImportCommit`) in this process.
+    expect(ok(await commitImportJob({ entityId: 1, jobId: job.id }, newId()))).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ created_type: string; created_id: string }[]>`
+        select created_type, created_id from import_rows where job_id = ${job.id}`,
+    );
+    expect(row).toEqual({ created_type: 'account_link', created_id: elsewhere.account.id });
+    const companies = await asMigrator(
+      (m) => m<{ entity_id: number }[]>`
+        select entity_id from account_entities where account_id = ${elsewhere.account.id}
+         order by entity_id`,
+    );
+    expect(companies.map((c) => c.entity_id)).toEqual([1, 3]);
+    const [holders] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(distinct ac.account_id)::int as n
+          from contact_phones cp
+          join account_contacts ac on ac.contact_id = cp.contact_id
+         where cp.e164 = (select cp2.e164 from contact_phones cp2
+                            join account_contacts ac2 on ac2.contact_id = cp2.contact_id
+                           where ac2.account_id = ${elsewhere.account.id} limit 1)`,
+    );
+    expect(holders?.n).toBe(1);
   });
 });
 
