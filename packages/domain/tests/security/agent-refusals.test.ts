@@ -521,9 +521,9 @@ describe("agent principals cannot run the platform's own work: the file checks a
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
     for (const agent of AGENTS) {
-      expect(
-        AGENT_MATRIX[agent].filter((g) => PLATFORM_ONLY_PERMISSIONS.includes(g.key)),
-      ).toEqual([]);
+      expect(AGENT_MATRIX[agent].filter((g) => PLATFORM_ONLY_PERMISSIONS.includes(g.key))).toEqual(
+        [],
+      );
     }
   });
 
@@ -531,8 +531,10 @@ describe("agent principals cannot run the platform's own work: the file checks a
     for (const name of Object.keys(CHECKS)) {
       const command = (commands as Record<string, AnyCommand>)[name];
       if (command === undefined) throw new Error(`no command ${name}`);
-      expect({ name, needs: needs(command).filter((k) => !PLATFORM_ONLY_PERMISSIONS.includes(k)) })
-        .toEqual({ name, needs: [] });
+      expect({
+        name,
+        needs: needs(command).filter((k) => !PLATFORM_ONLY_PERMISSIONS.includes(k)),
+      }).toEqual({ name, needs: [] });
     }
   });
 

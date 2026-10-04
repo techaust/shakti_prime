@@ -174,7 +174,9 @@ export async function listReferralPartners(
  * an Executive, so the list stays short; it is read from `referral_partners` and joined to the
  * customer by its key.
  */
-export async function listCodedReferralPartners(ctx: ReadContext): Promise<ReferralPartnerRowDto[]> {
+export async function listCodedReferralPartners(
+  ctx: ReadContext,
+): Promise<ReferralPartnerRowDto[]> {
   const a = schema.accounts;
   const rp = schema.referralPartners;
   const rows = await ctx.tx

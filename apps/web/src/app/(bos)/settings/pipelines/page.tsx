@@ -58,7 +58,9 @@ export default async function PipelineSettingsPage() {
           commissionRules={commission.data}
         />
       ) : (
-        <FailureMessage failure={firstFailure(settings, outcomes, rules, partners, coded, commission)} />
+        <FailureMessage
+          failure={firstFailure(settings, outcomes, rules, partners, coded, commission)}
+        />
       )}
     </Page>
   );

@@ -327,14 +327,20 @@ describe('crm.lead.score_refresh', () => {
 
   /** Calls a definer of the rescoring as `principal`; its rows, or the error it raised. */
   function definer<T>(principal: Principal, query: SQL): Promise<T[] | Error> {
-    return asPrincipal(principal, async ({ tx }) => (await tx.execute(query)) as unknown as T[]).then(
+    return asPrincipal(
+      principal,
+      async ({ tx }) => (await tx.execute(query)) as unknown as T[],
+    ).then(
       (rows) => rows,
       (e: unknown) => (e instanceof Error ? e : new Error(String(e))),
     );
   }
 
   /** Every row `app.lead_score_facts()` answers for `entityId`, page by page. */
-  type FactRow = { lead_id: string; score_seen: string | null };
+  interface FactRow {
+    lead_id: string;
+    score_seen: string | null;
+  }
   async function factRows(principal: Principal, entityId: number): Promise<FactRow[]> {
     const all: FactRow[] = [];
     let after: string | null = null;
@@ -430,7 +436,10 @@ describe('crm.lead.score_refresh', () => {
     })) as { id: string };
     // Asked for a company outside the request, both refuse.
     expect(
-      await definer(workers(1), sql`select * from app.lead_score_facts(2::smallint, null::uuid, 10)`),
+      await definer(
+        workers(1),
+        sql`select * from app.lead_score_facts(2::smallint, null::uuid, 10)`,
+      ),
     ).toBeInstanceOf(Error);
     expect(
       await definer(workers(1), sql`select app.write_lead_scores(2::smallint, '[]'::jsonb)`),

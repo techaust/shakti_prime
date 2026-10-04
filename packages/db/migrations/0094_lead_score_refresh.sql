@@ -1,12 +1,12 @@
 -- The nightly rescoring of open and nurture leads (CRM-06, docs/design/phase1.md §6.6) runs as
--- the worker principal `system:workers`, which holds no crm.* permission: until the owner decides
--- at T2 it follows an agent's customer rules (ADR 0020), and the rules that test agents only (the
--- note rule of activities_read, app.customer_search_ids(), the command guard's peopleOnly) rely on
--- it. It holds instead the platform-only permission crm.score.refresh, which no person's role and
--- no agent may hold, and reaches leads only through the two definers below: one answers the facts
--- a score is made from for one company's open leads, the other writes only the score columns of
--- that company's open leads. The score itself is computed between them by scoreLead() in
--- packages/domain, never in the database.
+-- the worker principal `system:workers`, which holds no crm.* permission a person may hold:
+-- until the owner decides at T2 it follows an agent's customer rules (ADR 0020), and the rules
+-- that test agents only (the note rule of activities_read, app.customer_search_ids(), the command
+-- guard's peopleOnly) rely on it. It holds instead the platform-only permission crm.score.refresh,
+-- which no person's role and no agent may hold, and reaches leads only through the two definers
+-- below: one answers the facts a score is made from for one company's open leads, the other writes
+-- only the score columns of that company's open leads. The score itself is computed between them
+-- by scoreLead() in packages/domain, never in the database.
 
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$

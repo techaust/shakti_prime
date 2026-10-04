@@ -120,10 +120,7 @@ export function fire(
  * then the stage answers false. Answers whether a live stage of a pipeline the request reads was
  * locked. The caller must hold `crm.lead.write`.
  */
-export async function shareLockStage(
-  tx: RequestTx,
-  stageId: string,
-): Promise<boolean> {
+export async function shareLockStage(tx: RequestTx, stageId: string): Promise<boolean> {
   const [row] = (await tx.execute(
     sql`select app.share_lock_stage(${stageId}::uuid) as locked`,
   )) as unknown as { locked: boolean }[];

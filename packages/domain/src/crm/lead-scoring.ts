@@ -17,7 +17,7 @@ import { scoreLead, type LeadScore, type ScoreFacts, type ScoreRule } from './sc
  * policies: a lead the caller cannot read is not scored, and one outside their write scope is
  * refused by the update policy. The nightly rescoring alone reads and writes through the two
  * definers of `crm.score.refresh` (`loadRefreshFacts`, `writeRefreshedScores`), because the worker
- * principal holds no `crm.*` permission (ADR 0020).
+ * principal holds no `crm.*` permission a person may hold (ADR 0020).
  *
  * A score write changes only the score columns, so the lead keeps its `updated_at` and
  * `updated_by` (the trigger `app.opportunities_set_updated_at()`): the leads grid's order by last

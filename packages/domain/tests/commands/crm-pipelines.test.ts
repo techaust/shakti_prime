@@ -16,6 +16,7 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { failureOf, runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { moveOpportunityStage } from '../../src/commands/crm/move-opportunity-stage';
+import { shareLockStage } from '../../src/commands/crm/opportunity-shared';
 import {
   archiveStage,
   createStage,
@@ -393,25 +394,47 @@ describe('stages', () => {
   });
 
   describe('a lead moving into a stage and the stage being archived (L1)', () => {
-    /** A transaction that runs `work`, then holds its locks until `release` is called. */
+    /**
+     * A transaction that runs `command`, then holds its locks until `release` is called;
+     * `reached` gives its connection's process id once the command has run.
+     */
     function held(principal: Principal, command: AnyCommand, input: unknown) {
       let release: () => void = () => undefined;
       const gate = new Promise<void>((resolve) => {
         release = resolve;
       });
-      let ran: () => void = () => undefined;
-      const reached = new Promise<void>((resolve) => {
+      let ran: (pid: number) => void = () => undefined;
+      const reached = new Promise<number>((resolve) => {
         ran = resolve;
       });
       const done = asPrincipal(principal, async (context) => {
+        const [me] = (await context.tx.execute(sql`select pg_backend_pid() as pid`)) as unknown as {
+          pid: number;
+        }[];
         try {
           return (await runCommand(command, { context, audit, outbox }, input)) as unknown;
         } finally {
-          ran();
+          ran(me?.pid ?? 0);
           await gate;
         }
       });
       return { reached, release, done: refusal(done) };
+    }
+
+    /** Waits until another connection waits on a lock the transaction of `pid` holds. */
+    async function blockedBy(pid: number): Promise<void> {
+      const deadline = Date.now() + 15_000;
+      for (;;) {
+        const [row] = await asMigrator(
+          (m) => m<{ waiting: boolean }[]>`
+            select exists (select 1 from pg_stat_activity
+                            where wait_event_type = 'Lock'
+                              and ${pid}::int = any (pg_blocking_pids(pid))) as waiting`,
+        );
+        if (row?.waiting === true) return;
+        if (Date.now() > deadline) throw new Error(`no connection waited on ${String(pid)}`);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
     }
 
     async function freshLead(pipelineKey: string): Promise<string> {
@@ -427,13 +450,11 @@ describe('stages', () => {
       return lead.id;
     }
 
-    const pause = () => new Promise((resolve) => setTimeout(resolve, 400));
-
     it('a move waits for an archive under way, then finds no live stage', async () => {
       const p = await testPipeline();
       const leadId = await freshLead(p.key);
       const archive = held(exec, archiveStage, { stageId: p.stages.contacted });
-      await archive.reached;
+      const pid = await archive.reached;
       const move = refusal(
         run(caller, moveOpportunityStage, {
           entityId: 1,
@@ -441,7 +462,7 @@ describe('stages', () => {
           stageId: p.stages.contacted,
         }),
       );
-      await pause();
+      await blockedBy(pid);
       archive.release();
       expect(await archive.done).toBeUndefined();
       expect(await move).toMatchObject({ details: { reason: 'stage_missing' } });
@@ -460,9 +481,9 @@ describe('stages', () => {
         opportunityId: leadId,
         stageId: p.stages.contacted,
       });
-      await move.reached;
+      const pid = await move.reached;
       const archive = refusal(run(exec, archiveStage, { stageId: p.stages.contacted }));
-      await pause();
+      await blockedBy(pid);
       move.release();
       expect(await move.done).toBeUndefined();
       expect(await archive).toMatchObject({ details: { reason: 'stage_has_open_leads' } });
@@ -483,6 +504,51 @@ describe('stages', () => {
       await run(exec, archiveStage, { stageId: p.stages.contacted });
       expect(await lock(caller, p.stages.contacted)).toBe(false);
       expect(await lock(caller, newId())).toBe(false);
+    });
+
+    it("locks a stage of the request's own company, and never another company's (L1)", async () => {
+      const own = await testPipeline(1);
+      const theirs = await testPipeline(2);
+      const lock = (principal: Principal, stage: string) =>
+        asPrincipal(principal, async ({ tx }) => shareLockStage(tx, stage));
+      expect(await lock(caller, own.stages.contacted)).toBe(true);
+      expect(await lock(caller, theirs.stages.contacted)).toBe(false);
+      expect(await lock(principalFor('tele_caller_cc', [2]), theirs.stages.contacted)).toBe(true);
+    });
+
+    it('a new lead holds the stage it enters, so a reorder waits for it and an archive then finds the lead (L2)', async () => {
+      const p = await testPipeline();
+      // Contacted first, so a new lead enters it; New is kept by every pipeline and never archived.
+      await run(exec, reorderStages, {
+        pipelineId: p.id,
+        stageIds: [p.stages.contacted, p.stages.new, p.stages.qualified, p.stages.quoted],
+      });
+      const create = held(caller, createLead, {
+        entityId: 1,
+        pipelineKey: p.key,
+        contact: {
+          name: 'Stage lock customer',
+          phone: `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`,
+        },
+        account: { type: 'farm' },
+      });
+      const pid = await create.reached;
+      // Moving that stage to second place, where it could be archived, waits for the lead.
+      const reorder = refusal(
+        run(exec, reorderStages, {
+          pipelineId: p.id,
+          stageIds: [p.stages.new, p.stages.contacted, p.stages.qualified, p.stages.quoted],
+        }),
+      );
+      await blockedBy(pid);
+      create.release();
+      expect(await create.done).toBeUndefined();
+      expect(await reorder).toBeUndefined();
+      expect(await refusal(run(exec, archiveStage, { stageId: p.stages.contacted }))).toMatchObject(
+        {
+          details: { reason: 'stage_has_open_leads' },
+        },
+      );
     });
   });
 });

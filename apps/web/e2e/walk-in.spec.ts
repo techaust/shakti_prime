@@ -59,7 +59,7 @@ test.describe('the walk-in form as a Store Manager', () => {
     ).toBeVisible();
   });
 
-  test('credits a walk-in to the partner whose code it brings, and refuses a code no partner has', async ({
+  test('accepts a referral code typed in small letters, and refuses a code no partner has', async ({
     page,
   }) => {
     await page.goto('/leads/walk-in');

@@ -257,8 +257,9 @@ export const rescoreLead = defineCommand({
  *
  * It needs the platform-only `crm.score.refresh`, which no person's role and no agent holds, and
  * reads and writes leads only through its two definers (`loadRefreshFacts`,
- * `writeRefreshedScores`): the worker holds no `crm.*` permission (ADR 0020). A lead whose score
- * changed after this batch read it (a rule change committed meanwhile) is left as it is.
+ * `writeRefreshedScores`): the worker holds no `crm.*` permission a person may hold (ADR 0020).
+ * A lead whose score changed after this batch read it (a rule change committed meanwhile) is left
+ * as it is.
  */
 export const refreshLeadScores = defineCommand({
   name: 'crm.lead.score_refresh',
