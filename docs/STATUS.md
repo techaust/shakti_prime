@@ -6,7 +6,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 
 ## Phase 1
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
-- **Merged:** wave 0 #79 (packages), #80 (design); wave 1 #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2 #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93.
+- **Merged:** wave 0 #79 (packages), #80 (design); wave 1 #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2 #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93; the project's know-how (scripts, skills, agents, runbooks) in the repository #95.
 - **Built, waiting its turn:** P4 print and letterhead on `feat/p4-print-letterhead`: bank details sealed with `FieldCipher`, the PDF render worker with `@sparticuz/chromium`, the company proof page (needs a review, the static Inter fonts, `main` merged in with its migrations renumbered, Linux baselines); C3 pipelines, scoring and referrals on `feat/c3-pipelines-r2` and C4 sizing on `feat/c4-sizing-r2` (reviewed and fixed; each takes `main`, renumbers, then its integration list).
 - **Next:** P2b imports upgrade (can start: C2 is merged), then waves 3 to 6 (AI0, T1, S1, D1; N1, T2, S2, K1; L1, R1, A1; M1, G1).
 
@@ -21,21 +21,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 Upstash Redis per environment in Mumbai; QStash in the EU region with the minute schedule on staging; Turnstile for both hostnames; Sentry project `shakti-prime-web` with the outbox alert. The AWS files stack is not yet created ([files-setup](runbooks/files-setup.md)).
 
 ## Deferred Phase 0 gate items
-What Shakti's people must do is on one page, [client-actions](phase0/client-actions.md); the developer's and owner's checklist is [exit-gate-actions](phase0/exit-gate-actions.md).
-
-| Item | Who | Tracked in |
-|---|---|---|
-| Workshop answers (42 questions: nurture cadence, lock period, numbering format and more) | Client | [workshop-pack](phase0/workshop-pack.md) |
-| The CA's confirmation of the tax golden set | CA | [ADR 0007](adr/0007-deterministic-tax-engine.md) |
-| Sign-off of `DESIGN.md` and `/design`; wireframe sessions with 1–2 users per role | Client | [design-signoff](phase0/design-signoff.md), [wireframe-review](phase0/wireframe-review.md) |
-| Review of the ERD, data dictionary, permission matrix, contracts and the proposed state-machine items ([docs/state-machines](state-machines/README.md)); acceptance of ADRs 0007 and 0009 to 0013 | Owner, client | [exit-gate-actions](phase0/exit-gate-actions.md) |
-| Vendor quote requests sent and quotes recorded | Owner | [vendor-quotes](phase0/vendor-quotes.md) |
-| Realtime spike on the production site with the client's domain; Exotel, WhatsApp, voice and Tally spikes once sandboxes, the Tally visit and 20–30 voice samples exist | Owner, vendors, client | [docs/spikes/](spikes/) |
-| Real document photos for OCR; a phone and scanner check of printed QR labels | Client | [ocr](spikes/ocr.md), [print](spikes/print.md) |
-| Production: a paid Supabase project, Vercel Pro (or the client's Pro team), Amazon SES in Mumbai with the client's domain verified (DKIM, SPF, DMARC), production access and a send-only IAM user per environment | Owner, client | [DEPLOY](runbooks/DEPLOY.md), BLUEPRINT §5, ADR 0003 |
-| A GitHub plan that allows branch rules on `main` (AUDIT M45) | Owner | [AUDIT.md](../AUDIT.md) |
-| Vendor accounts in the client's name, DLT registration, Meta Business verification and App Review, the Google Lead Form | Client | [ROADMAP §10](ROADMAP.md#10-parallel-workstreams-started-in-phase-0), [client-actions](phase0/client-actions.md) |
-| Open with the client (AUDIT §7): recorded sources of consent, consent per company, a negative moving-average cost | Client | [AUDIT.md](../AUDIT.md) |
+Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](phase0/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](phase0/client-actions.md). Nothing from the client has arrived yet: no workshop answers, no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
 - Sentry privacy settings: Data Scrubber, the default scrubbers and *Prevent Storing of IP Addresses* in the project's security settings.
