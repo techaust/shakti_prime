@@ -13,6 +13,11 @@ cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}" || exit 0
 say() { echo "[cloud-session] $*"; }
 
 [ -f .env ] || { cp .env.example .env && say ".env made from .env.example"; }
+# The journeys run the app on E2E_BASE_URL's port (apps/web/playwright.config.ts, default 3031),
+# and sign-in answers only on BETTER_AUTH_URL's, so the two agree here, as setup-worktree.sh makes them.
+if ! grep -q '^E2E_BASE_URL=' .env; then
+  echo "E2E_BASE_URL=$(grep -m1 '^BETTER_AUTH_URL=' .env | cut -d= -f2-)" >> .env
+fi
 
 if [ ! -d node_modules ]; then
   pnpm install --offline --frozen-lockfile >/tmp/cloud-session-install.log 2>&1 ||
