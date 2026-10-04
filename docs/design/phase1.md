@@ -185,7 +185,7 @@ The render worker `/api/v1/workers/pdf/render` (`PdfRenderJob`) loads a document
 - the screens `/customers` (keyset grid with saved views, phones by their last four digits) and `/customers/[accountId]` (Account 360, dialogs loaded on first use), linked from the leads list and board cards;
 - their reads granted to `app_reader` and run by `queries/reader-parity.test.ts`;
 - the journeys `e2e/customers.spec.ts` (an Executive and a tele-caller on the list and Account 360, consent with proof and its withdrawal, a task added and done, tags, a colleague's customer refused, and the snapshot company's list and Account 360);
-- the spike `pnpm spike:account360` (docs/spikes/lists.md), whose run of 04-10-2026 through `app_reader` kept Account 360, the timeline, the customers list and its searches under 300 ms at the 95th percentile for every caller on a shared machine, after two earlier runs that did not settle it;
+- the spike `pnpm spike:account360` ([docs/spikes/account360.md](../spikes/account360.md)), whose run of 04-10-2026 through `app_reader` kept Account 360, the timeline, the customers list and its searches under 300 ms at the 95th percentile for every caller on a shared machine, after two earlier runs that did not settle it;
 - the activity types `task_rescheduled`, `task_cancelled` and `untagged` and the note command, which complete the timeline of these commands.
 
 The final measure of Account 360 is taken by the lead on a quiet machine at integration and on the hosted stack.

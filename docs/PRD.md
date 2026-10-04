@@ -369,7 +369,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | CRM-04 | 1 | C2 | `packages/db/tests/security/crm-scope.test.ts`, `packages/db/tests/security/customer-read-through-leads.test.ts`, `packages/domain/tests/commands/customer-edits.test.ts`, `packages/domain/tests/queries/customers.test.ts` |
 | CRM-05 | 1 | C3 | Stage moves: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/tests/queries/lead-board.test.ts` |
 | CRM-06 | 1 | C3 | — |
-| CRM-07 | 1 | C2 | `packages/domain/tests/queries/customers.test.ts`, `packages/domain/tests/commands/timeline.test.ts`, `apps/web/e2e/customers.spec.ts`; timing `pnpm --filter @shakti/domain spike:account360` |
+| CRM-07 | 1 | C2 | `packages/domain/tests/queries/customers.test.ts`, `packages/domain/tests/commands/timeline.test.ts`, `apps/web/e2e/customers.spec.ts`; timing `pnpm --filter @shakti/domain spike:account360` (`docs/spikes/account360.md`) |
 | CRM-08 | 4 | — | State machine: `packages/domain/src/state-machines/machines.test.ts` |
 | CRM-09 | 1, 5 | C3, S2 | — |
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |

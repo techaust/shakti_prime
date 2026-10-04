@@ -1,0 +1,15 @@
+Account 360 spike (docs/spikes/account360.md): a timeline page for the team lead, the quiet run (its date is not recorded).
+EXPLAIN (ANALYZE) excerpt; the full plans of the run of 04-10-2026 are in account360.json (timelinePlan).
+
+Limit (actual time=0.091..0.181 rows=26 loops=1)
+  ->  Merge Append (actual time=0.084..0.146 rows=26 loops=1)
+        Sort Key: a.created_at DESC, a.id DESC
+        ->  Index Scan using activities_2026_09_account_id_created_at_id_idx on activities_2026_09 a_1 (actual time=0.048..0.104 rows=26 loops=1)
+              Index Cond: (account_id = '…'::uuid)
+              Filter: ((entity_id = 1) AND … EXISTS(SubPlan …) …)
+        ->  Index Scan using activities_2026_10_account_id_created_at_id_idx on activities_2026_10 a_2 (actual time=0.003..0.004 rows=0 loops=1)
+        ->  Index Scan using activities_2026_11_account_id_created_at_id_idx on activities_2026_11 a_3 (actual time=0.002..0.003 rows=0 loops=1)
+        ->  Index Scan using activities_2026_12_account_id_created_at_id_idx on activities_2026_12 a_4 (actual time=0.002..0.003 rows=0 loops=1)
+        ->  Index Scan using activities_default_account_id_created_at_id_idx on activities_default a_5 (actual time=0.028..0.029 rows=1 loops=1)
+Planning Time: 1.836 ms
+Execution Time: 0.349 ms

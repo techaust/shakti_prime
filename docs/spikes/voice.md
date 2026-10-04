@@ -1,6 +1,6 @@
 # Spike: LiveKit and speech latency, Roman-Hinglish pronunciation
 
-**Status:** ready to run. Provider interfaces, wrappers over plain HTTP and the timing harness are built and tested with fixtures; nothing has called a vendor yet.
+**Status (04-10-2026):** ready to run; waits for the LiveKit and speech-vendor sandboxes and the 20 to 30 voice samples (client-actions 19). Owner: the developer. Provider interfaces, wrappers over plain HTTP and the timing harness are built and tested with fixtures; nothing has called a vendor yet.
 **Roadmap:** §2 week 6 · **Blueprint:** §9.2 (target p50 below 1.5 s), §10 · **ADR:** 0014 (Roman-script Hinglish for speech)
 
 ## 1. What is built
