@@ -19,7 +19,8 @@ export const maxDuration = 60;
 /**
  * The sweep of abandoned uploads (docs/design/phase1.md §6.3, docs/API.md §3.6). Only the QStash
  * schedule calls it, every hour: every call must carry a valid signature for this route and body.
- * A 500 makes QStash retry; a run that fails part-way is harmless, as the next one carries on.
+ * The schedule asks for no retries, so a run that fails answers 500 and is not tried again; that
+ * is harmless, as the next hour's run carries on where it stopped.
  */
 export async function POST(request: Request): Promise<Response> {
   const requestId = incomingRequestId(request.headers);
