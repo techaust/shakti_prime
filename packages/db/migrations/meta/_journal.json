@@ -526,6 +526,20 @@
       "when": 1791054701887,
       "tag": "0074_role_editor_holders",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791087907832,
+      "tag": "0075_print_bank_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1791087932290,
+      "tag": "0076_print_letterhead_rls",
+      "breakpoints": true
     }
   ]
 }

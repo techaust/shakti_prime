@@ -3,6 +3,7 @@ import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { FilePurposeSchema } from '../api/files';
+import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 
 /**
@@ -36,6 +37,7 @@ const eventCatalogue = {
               'addressLine2',
               'city',
               'pin',
+              'bankDetails',
             ]),
           )
           .min(1),
@@ -224,6 +226,20 @@ const eventCatalogue = {
   'files.file.uploaded': {
     subscribed: true,
     payload: z.object({ purpose: FilePurposeSchema }).strict(),
+  },
+  /**
+   * A document to render (ADR 0009): delivered as a `PdfRenderJob` to `/api/v1/workers/pdf/render`,
+   * which loads it, prints it with Chromium and stores the PDF (`apps/web/src/print`).
+   */
+  'print.document.requested': {
+    subscribed: true,
+    payload: z
+      .object({
+        documentType: PdfDocumentTypeSchema,
+        documentId: IdSchema,
+        version: z.number().int().min(1),
+      })
+      .strict(),
   },
 } as const satisfies Record<string, { subscribed: boolean; payload: z.ZodType }>;
 
