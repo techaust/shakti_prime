@@ -27,6 +27,11 @@ import {
 } from '../../screens/audit';
 import {
   ACCOUNT_TYPES,
+  AGENT_ACTION_STATE_VALUES,
+  AGENT_AUTONOMY_LEVELS,
+  AGENT_ROLES,
+  AGENT_RUN_OUTCOME_VALUES,
+  agentNameKey,
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
@@ -359,11 +364,13 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
+  const agents = useTranslations('agents');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
         if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
+        if (oneOf(AGENT_ACTION_STATE_VALUES, value)) return agents(`actionState.${value}`);
         return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
@@ -439,6 +446,17 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(PDF_DOCUMENT_TYPES, value)
           ? t(`values.documentType.${value}`)
           : wordsOf(value);
+      case 'agent':
+        return oneOf(AGENT_ROLES, value) ? agents(`names.${agentNameKey(value)}`) : wordsOf(value);
+      case 'agentAction': {
+        // An action type is the command it runs, named as the Activity log names that command.
+        const key = actionKey(value);
+        return key === 'other' ? wordsOf(value.replaceAll('.', ' ')) : t(`actions.${key}`);
+      }
+      case 'autonomy':
+        return oneOf(AGENT_AUTONOMY_LEVELS, value) ? agents(`autonomy.${value}`) : wordsOf(value);
+      case 'runOutcome':
+        return oneOf(AGENT_RUN_OUTCOME_VALUES, value) ? agents(`outcome.${value}`) : wordsOf(value);
     }
   };
 }

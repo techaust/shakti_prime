@@ -53,6 +53,7 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
       autonomy: a.autonomy,
       input: a.inputJson,
       accountName: acc.name,
+      accountId: acc.id,
       createdText: sql<string>`${i.createdAt}::text`,
     })
     .from(i)
@@ -92,6 +93,7 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         subjectType: r.item.subjectType,
         subjectId: r.item.subjectId,
         subjectName: r.accountName,
+        accountId: r.accountId,
         assigneeId: r.item.assigneeId,
         fields: type === undefined ? [] : editableFields(type, proposed),
         createdAt: r.item.createdAt.toISOString(),

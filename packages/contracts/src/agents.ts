@@ -237,6 +237,8 @@ export const InboxItemDto = z
     subjectId: IdSchema,
     /** The customer's name when the caller reads the lead or customer; null otherwise. */
     subjectName: z.string().nullable(),
+    /** The customer, for a link to Account 360, when the caller reads it. */
+    accountId: IdSchema.nullable(),
     assigneeId: IdSchema.nullable(),
     fields: z.array(InboxFieldDto),
     createdAt: z.iso.datetime(),

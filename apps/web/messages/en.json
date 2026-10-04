@@ -213,7 +213,19 @@
     "consent_version_invalid": "Enter the version as printed on the consent form or script, using letters, digits, dots or hyphens, such as v2.",
     "consent_evidence_missing": "We couldn't find this proof file for this company. Upload the proof again.",
     "consent_evidence_checking": "The proof file is still being checked. Wait a minute, then record the consent again.",
-    "consent_evidence_refused": "The proof file was refused by the safety check. Upload another copy of the proof."
+    "consent_evidence_refused": "The proof file was refused by the safety check. Upload another copy of the proof.",
+    "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
+    "agent_action_unknown": "Agents cannot take this kind of action.",
+    "agent_action_not_open": "This agent cannot take this kind of action.",
+    "agent_proposal_invalid": "The agent’s suggestion did not match the lead it was for, so it was not filed.",
+    "agent_field_not_editable": "That part of the suggestion cannot be changed. Reject it if it is wrong.",
+    "agent_switched_off": "This agent is stopped, so its suggestions cannot be approved now. Reject it, or ask an Executive or General Manager to let the agent run again.",
+    "autonomy_not_earned": "Automatic needs at least 200 decided suggestions of this kind, with 95 in 100 approved without changes.",
+    "agents_need_all_companies": "Choose All companies at the top to change a setting for the whole group.",
+    "inbox_item_missing": "This suggestion is no longer in your inbox. Someone else may have decided on it.",
+    "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
+    "agent_action_transition_not_allowed": "This suggestion has already been decided.",
+    "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action."
   },
   "auth": {
     "signIn": {
@@ -297,7 +309,9 @@
     "adminIntegrations": "Integration health",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
-    "customers": "Customers"
+    "customers": "Customers",
+    "inbox": "Agent Inbox",
+    "adminAgents": "Agents"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -331,7 +345,11 @@
     "profileMenu": "Your account",
     "profile": "Your profile",
     "changePassword": "Change password",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "inbox": "Agent Inbox",
+    "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
+    "inboxMore": "99+",
+    "inboxMoreLabel": "Agent Inbox, 100 or more waiting"
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -349,6 +367,8 @@
       "settingsCompanies": "Change each company's details, logo and letterhead.",
       "design": "See every colour, text size and control in both themes.",
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
+      "inbox": "Approve, change or reject what the agents suggest.",
+      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
       "customers": "See a customer's contacts, sites, leads, tasks and history on one page."
@@ -1238,7 +1258,13 @@
       "siteUpsert": "Site details saved",
       "noteAdd": "Note added",
       "consentRecord": "Consent recorded",
-      "consentWithdraw": "Consent withdrawn"
+      "consentWithdraw": "Consent withdrawn",
+      "agentRunRecord": "Agent run recorded",
+      "inboxApprove": "Suggestion approved",
+      "inboxEdit": "Suggestion changed and approved",
+      "inboxReject": "Suggestion rejected",
+      "agentConfigSet": "Agent settings changed",
+      "agentKillSwitchSet": "Agent stopped or let run"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1415,7 +1441,14 @@
       "givenAt": "Given on",
       "withdrawnAt": "Withdrawn on",
       "evidence": "Proof attached",
-      "consentPurpose": "What the consent covers"
+      "consentPurpose": "What the consent covers",
+      "agent": "Agent",
+      "actionType": "Kind of action",
+      "autonomy": "Autonomy",
+      "outcome": "How it ended",
+      "edited": "Changed before approving",
+      "dailySpendCap": "Daily spending limit",
+      "enabled": "May run"
     },
     "values": {
       "percent": "{value}%",
@@ -2510,5 +2543,114 @@
       "archiveTagLabel": "Take {name} off the list; leads keep it"
     },
     "truncated": "Showing the first 200 matches. Add more of the name to narrow it."
+  },
+  "agents": {
+    "names": {
+      "triage": "Intake and Triage",
+      "concierge": "WhatsApp Concierge",
+      "copilot": "Caller Co-pilot",
+      "sizing": "Sizing and Quote",
+      "orchestrator": "Project Orchestrator",
+      "chief": "Chief of Staff"
+    },
+    "actionTypes": {
+      "taskCreate": "Add a follow-up task"
+    },
+    "fields": {
+      "dueAt": "Due",
+      "title": "Note on the task"
+    },
+    "autonomy": {
+      "suggest": "Suggest",
+      "needs_approval": "Needs approval",
+      "automatic": "Automatic"
+    },
+    "outcome": {
+      "proposed": "Suggested",
+      "acted": "Acted on its own",
+      "nothing_to_do": "Nothing to do",
+      "switched_off": "Stopped by a switch",
+      "cap_reached": "Daily spending limit reached",
+      "unavailable": "AI service not available",
+      "failed": "Did not finish"
+    },
+    "actionState": {
+      "proposed": "Waiting for a decision",
+      "executed": "Done by the agent",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "inbox": {
+      "title": "Agent Inbox",
+      "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
+      "caption": "Suggestions waiting for a decision",
+      "empty": "Nothing is waiting for you.",
+      "keys": "Keys: J and K move between suggestions, A approves, E opens Edit, R rejects.",
+      "suggests": "{agent} suggests",
+      "forCustomer": "For {customer}",
+      "forUnknown": "For a lead you cannot open",
+      "received": "Suggested {at}",
+      "companyLine": "In {company}",
+      "openCustomer": "Open customer",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "approved": "Approved. The suggestion has been carried out.",
+      "rejected": "Rejected. Nothing was changed.",
+      "loadMore": "Show more",
+      "editTitle": "Change before approving",
+      "editIntro": "Change what you need. Approving carries it out with your changes.",
+      "submit": "Approve with changes",
+      "noValue": "Not set",
+      "dueHelper": "Date and time in India.",
+      "titleHelper": "Up to {max} characters. Leave it empty for no note."
+    },
+    "admin": {
+      "title": "Agents",
+      "intro": "Choose how far each agent may go on its own and how much it may spend a day, and stop any agent at once.",
+      "levelGroup": "These settings apply to every company. Choose a company at the top to set one company apart.",
+      "levelCompany": "These settings apply to {company} only. Choose All companies at the top to change them for the whole group.",
+      "notConnected": "The AI service is not connected yet, so agents make no calls. These settings apply once it is.",
+      "allHeading": "All agents",
+      "allRunning": "All agents may run.",
+      "allStopped": "All agents are stopped.",
+      "stopAll": "Stop all agents",
+      "runAll": "Let all agents run",
+      "caption": "Agents and their settings",
+      "columns": {
+        "agent": "Agent",
+        "status": "Status",
+        "autonomy": "Autonomy",
+        "cap": "Daily spending limit",
+        "spent": "Spent today",
+        "runs": "Runs today",
+        "actions": "Actions"
+      },
+      "running": "Running",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "run": "Let it run",
+      "stopLabel": "Stop {agent}",
+      "runLabel": "Let {agent} run",
+      "autonomyLabel": "Autonomy of {agent}",
+      "autonomyUnset": "Not set: Suggest",
+      "capLabel": "Daily spending limit of {agent}, in rupees",
+      "capNone": "No limit set, so the agent makes no calls.",
+      "capInvalid": "Enter the amount in rupees, with at most two digits after the point.",
+      "saveCap": "Save limit",
+      "capSaved": "The spending limit of {agent} is saved.",
+      "autonomySaved": "The autonomy of {agent} is saved.",
+      "agentStopped": "{agent} is stopped.",
+      "agentRunning": "{agent} may run again.",
+      "allStoppedToast": "All agents are stopped.",
+      "allRunningToast": "All agents may run again.",
+      "actionTypesHeading": "What {agent} may do",
+      "actionTypeLabel": "Autonomy of {agent} for {action}",
+      "sameAsAgent": "Same as the agent: {autonomy}",
+      "decisions": "{approved} of {decided} approved without changes",
+      "automaticLocked": "Automatic opens after 200 decided suggestions of this kind, with 95 in 100 approved without changes.",
+      "noActionTypes": "This agent has nothing to do yet.",
+      "readOnly": "Only an Executive changes autonomy and spending limits."
+    }
   }
 }

@@ -2,7 +2,7 @@
 
 import type { Theme } from '@shakti/contracts';
 import { Button, cn, Toaster, usePaletteShortcut } from '@shakti/ui';
-import { Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
+import { Inbox, Menu, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import dynamic from 'next/dynamic';
@@ -62,6 +62,28 @@ function Brand({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+/** The Agent Inbox in the top bar, with how many items wait (99+ beyond 99). */
+function InboxLink({ count }: { count: number | null }) {
+  const t = useTranslations('shell');
+  const label =
+    count === null ? t('inbox') : count >= 100 ? t('inboxMoreLabel') : t('inboxWaiting', { count });
+  return (
+    <Button asChild variant="ghost" size="icon" className="relative">
+      <Link href="/inbox" aria-label={label} title={label}>
+        <Inbox aria-hidden />
+        {count === null || count === 0 ? null : (
+          <span
+            aria-hidden
+            className="bg-accent text-accent-fg absolute top-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs leading-none font-medium"
+          >
+            {count >= 100 ? t('inboxMore') : count}
+          </span>
+        )}
+      </Link>
+    </Button>
+  );
+}
+
 /**
  * The BOS app shell (DESIGN.md §5): a 240 px sidebar that collapses to 56 px icons and remembers
  * the choice on this device, a 48 px top bar with the company switcher, the ⌘K palette and the
@@ -77,6 +99,7 @@ export function AppShell({
   searchable,
   theme,
   sidebarCollapsed,
+  inboxCount,
   children,
 }: {
   user: { name: string; role: string };
@@ -90,6 +113,11 @@ export function AppShell({
   searchable: boolean;
   theme: Theme;
   sidebarCollapsed: boolean;
+  /**
+   * The open items of the caller's Agent Inbox, up to 100; null when the count could not be read,
+   * undefined for someone with no inbox (no `agents.inbox.act`).
+   */
+  inboxCount?: number | null | undefined;
   children: ReactNode;
 }) {
   const t = useTranslations('shell');
@@ -213,6 +241,7 @@ export function AppShell({
             </Button>
           </div>
 
+          {inboxCount === undefined ? null : <InboxLink count={inboxCount} />}
           <DeferredProfileMenu name={user.name} role={user.role} theme={theme} />
         </header>
 

@@ -117,6 +117,12 @@ const ACTIONS = {
   'profile.view.delete': 'viewDelete',
   'realtime.token.issue': 'liveUpdatesOpen',
   'profile.contrast.set': 'contrastSet',
+  'agents.run.record': 'agentRunRecord',
+  'agents.inbox.approve': 'inboxApprove',
+  'agents.inbox.edit': 'inboxEdit',
+  'agents.inbox.reject': 'inboxReject',
+  'agents.config.set': 'agentConfigSet',
+  'agents.killswitch.set': 'agentKillSwitchSet',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -264,6 +270,10 @@ const CODE_GROUPS = [
   'sanitising',
   'scanStatus',
   'documentType',
+  'agent',
+  'agentAction',
+  'autonomy',
+  'runOutcome',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -423,6 +433,14 @@ const FIELD_KINDS = [
   ['scanStatus', 'scanStatus'],
   // Printed documents
   ['documentType', 'documentType'],
+  // Agents and the Agent Inbox
+  ['agent', 'agent'],
+  ['actionType', 'agentAction'],
+  ['autonomy', 'autonomy'],
+  ['outcome', 'runOutcome'],
+  ['edited', 'yesNo'],
+  ['dailySpendCap', 'money'],
+  ['enabled', 'yesNo'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

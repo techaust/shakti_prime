@@ -10,7 +10,12 @@ import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import { actionTypeOf, automaticEarned } from '../../ai/action-types';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { moneyFromPaise } from '../../money/paise';
 import { requireEntity } from '../crm/opportunity-shared';
+
+/** A cap as the Activity log shows it: rupees, or nothing for no cap. */
+const capInRupees = (paise: number | null): string | null =>
+  paise === null ? null : moneyFromPaise(BigInt(paise));
 
 type ConfigRow = typeof schema.agentConfigs.$inferSelect;
 
@@ -133,7 +138,7 @@ export const setAgentConfig = defineCommand({
   input: SetAgentConfigInput,
   output: AgentConfigDto,
   constraintReasons: { agent_configs_cap_per_agent_check: 'spend_cap_per_agent' },
-  auditFields: ['autonomy', 'dailySpendCapPaise'],
+  auditFields: ['autonomy', 'dailySpendCap'],
   async handler(ctx, input) {
     await assertScope(ctx, input.entityId);
     if (input.actionType !== null) {
@@ -167,8 +172,11 @@ export const setAgentConfig = defineCommand({
       before:
         before === undefined
           ? null
-          : { autonomy: before.autonomy, dailySpendCapPaise: before.dailySpendCapPaise },
-      after: { autonomy: after.autonomy, dailySpendCapPaise: after.dailySpendCapPaise },
+          : {
+              autonomy: before.autonomy,
+              dailySpendCap: capInRupees(before.dailySpendCapPaise),
+            },
+      after: { autonomy: after.autonomy, dailySpendCap: capInRupees(after.dailySpendCapPaise) },
     });
     return toDto(after);
   },
