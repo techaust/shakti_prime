@@ -30,7 +30,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 Upstash Redis per environment, QStash and Turnstile for both hostnames; Sentry project `shakti-prime-web` with the outbox alert. Plans, regions and where each bill is: [accounts](runbooks/accounts.md). The AWS files stack is not yet created ([files-setup](runbooks/files-setup.md)).
 
 ## Deferred Phase 0 gate items
-Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](phase0/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](phase0/client-actions.md). Nothing from the client has arrived yet: no workshop answers (the questions blocking work first, including CRM-7, STOCK-4, PROJ-3, PROJ-4, ENG-1 and TERM-1 asked on 04-10-2026), no CA golden set, no design sign-off, no vendor quotes.
+Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](phase0/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](phase0/client-actions.md). Nothing from the client has arrived yet: no workshop answers (the pack's "Blocking work now" box first; CRM-7, STOCK-4, PROJ-3, PROJ-4, ENG-1 and TERM-1 were added on 04-10-2026), no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
 - Decide when the slice work resumes.
