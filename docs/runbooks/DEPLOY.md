@@ -52,7 +52,7 @@ The owner does these steps, once for `dev`, once for `staging`, and once for `pr
 13. Then follow §2 (the first migration and seed, the scheduled jobs and the outbox schedule), then §4 for the first Executive.
 
 ## 2. Every deploy
-This is the one procedure for bringing a hosted database and site up to `main`; the `migrate-hosted` skill and [slice-integration](slice-integration.md) follow it. Always dev first, then staging.
+This is the one procedure for bringing a hosted database and site up to `main`; the `migrate-hosted` skill and [slice-integration](slice-integration.md) follow it. The lead session runs it from the owner's PC under the owner's standing go-ahead for dev and staging ([DECISIONS](../DECISIONS.md)), or the owner runs it. Always dev first, then staging.
 
 1. **Merge.** A pull request reaches `main` only through the merge-on-green workflow (`.github/workflows/automerge.yml`), after CI passes on its latest commit; CI runs again on `main`. Vercel deploys the merge commit to every project within minutes, so run the migration straight after: until it has run, a screen that needs a table the merge adds fails.
 2. **Migrate dev.** GitHub › **Actions** › *Migrate a hosted database* › **Run workflow**: branch `main`, environment `dev`, *Seed the reference data* ticked, *Set the login roles' passwords again* unticked. From a terminal signed in to `gh`, the same run and its watch:
