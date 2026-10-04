@@ -222,7 +222,7 @@ sequenceDiagram
 - **Scheduled jobs:** pg_cron for materialised-view refresh, retention and reminders that are pure SQL (DATABASE §7); QStash schedules for jobs that call external services.
 
 ## 7. Integration patterns
-None of these is built; the vendor harnesses in `apps/web/src/integrations` (with the pure rules in `packages/domain/src/telecom` and `src/tally`) wait for the vendor sandboxes ([STATUS](STATUS.md)).
+None of these is built; the vendor harnesses in `apps/web/src/integrations` (with the pure rules in `packages/domain/src/telecom` and `packages/domain/src/tally`) wait for the vendor sandboxes ([STATUS](STATUS.md)).
 
 | Integration | Phase | Pattern |
 |---|---|---|
