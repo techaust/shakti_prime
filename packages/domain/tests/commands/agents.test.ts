@@ -55,14 +55,16 @@ async function setting(row: {
 }): Promise<string> {
   const id = newId();
   madeConfigs.push(id);
-  await asMigrator(
-    (
-      m,
-    ) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
+  await asMigrator(async (m) => {
+    // A row another suite left for the same agent, action type and company (the journeys' seed
+    // keeps the Caller Co-pilot's) gives way to this test's own.
+    await m`delete from agent_configs where agent is not distinct from ${row.agent === undefined ? 'agent:copilot' : row.agent}
+                     and action_type is not distinct from ${row.actionType ?? null} and entity_id is not distinct from ${row.entityId}`;
+    await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
              values (${id}, ${row.agent === undefined ? 'agent:copilot' : row.agent}, ${row.actionType ?? null},
                      ${row.entityId}, ${row.autonomy ?? null}, ${row.cap ?? null}, ${row.enabled ?? true},
-                     ${executive.id})`,
-  );
+                     ${executive.id})`;
+  });
   return id;
 }
 

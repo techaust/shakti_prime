@@ -154,12 +154,14 @@ describe('loadAgentSettings', () => {
   it('shows each agent’s switch, autonomy, cap and spend today at the company', async () => {
     const id = newId();
     madeConfigs.push(id);
-    await asMigrator(
-      (
-        m,
-      ) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
-               values (${id}, 'agent:copilot', null, ${ENTITY}, 'needs_approval', 9000, false, ${gm.id})`,
-    );
+    await asMigrator(async (m) => {
+      // A row another suite left for the same agent, action type and company (the journeys' seed
+      // keeps the Caller Co-pilot's) gives way to this test's own.
+      await m`delete from agent_configs where agent is not distinct from 'agent:copilot'
+                       and action_type is not distinct from null and entity_id is not distinct from ${ENTITY}`;
+      await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
+               values (${id}, 'agent:copilot', null, ${ENTITY}, 'needs_approval', 9000, false, ${gm.id})`;
+    });
     await suggestFor(null, 40);
     const settings = await asPrincipal(gm, (ctx) => loadAgentSettings(ctx));
     expect(settings.entityId).toBe(ENTITY);
