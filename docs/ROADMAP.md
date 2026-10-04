@@ -48,6 +48,8 @@ A second developer on the Android app in Phase 4 shortens the total by 2–3 mon
 
 **Exit gate:** 2-week parallel run with legacy sheets; migration counts reconciled; UAT sign-off per role; Playwright E2E for the CC, LC, Store Manager and Executive paths; Phase 1 tooling (Playwright, Sentry, AWS) confirmed.
 
+**Progress (04-10-2026):** built slice by slice from `docs/design/phase1.md`. On `main` and on the hosted dev and staging environments: the quality harness (P3), observability and workers (P1), files and storage (P2), the catalogue and tax screens (C1), the role editor (X1) and the customer timeline with Account 360 (C2). Built and waiting their turn: print and letterhead (P4), pipelines, scoring and referrals (C3) and sizing (C4). Not started: the imports upgrade (P2b) and waves 3 to 6. The exit gate's items wait on the parallel run, the client's data and UAT; Playwright and Sentry are confirmed, and AWS waits on the owner's files stack (`docs/runbooks/files-setup.md`).
+
 ## 4. Phase 2 — Communications & live voice (9–11 weeks)
 **Scope:** WhatsApp Cloud API with one number per entity; Lead Ads webhooks; Exotel click-to-dial and recordings on DLT-registered numbers; Concierge and Caller Co-pilot from shadow to approval; WhatsApp quote acceptance and milestone messages; speech-vendor benchmark and selection; Playbook directive review; Ask the Business; live voice Teach and Ask.
 
