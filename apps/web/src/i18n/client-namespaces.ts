@@ -16,6 +16,7 @@ export const CLIENT_NAMESPACES = [
   'companies',
   'priceMaster',
   'leads',
+  'pinLookup',
   'users',
   'roles',
   'adminRoles',

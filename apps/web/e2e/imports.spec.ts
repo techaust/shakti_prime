@@ -109,9 +109,7 @@ test.describe('as an Executive', () => {
     await pin.fill('999001');
     await expect(page.getByText('Tehsil Sotikul, district Balvanti.')).toBeVisible();
     // Its post offices are offered for the village.
-    await expect(page.locator('#lead-village-offices option[value="Kherovan B.O"]')).toHaveCount(
-      1,
-    );
+    await expect(page.locator('#lead-village-offices option[value="Kherovan B.O"]')).toHaveCount(1);
     await expectNoAxeViolations(page);
     await pin.fill('999999');
     await expect(

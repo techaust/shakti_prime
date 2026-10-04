@@ -39,10 +39,7 @@ import { commitImportBatch, commitImportJob } from '../../src/commands/imports/c
 import { createImportJob } from '../../src/commands/imports/create-job';
 import { failImportJob } from '../../src/commands/imports/fail-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
-import {
-  existingByNameAndVillage,
-  previewImportJob,
-} from '../../src/commands/imports/preview-job';
+import { existingByNameAndVillage, previewImportJob } from '../../src/commands/imports/preview-job';
 import { rollbackImportJob } from '../../src/commands/imports/rollback-job';
 import { matchKey } from '../../src/imports/leads';
 import { parseImportFile } from '../../src/imports/parse';
