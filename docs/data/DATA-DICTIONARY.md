@@ -2267,7 +2267,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_actions
 
-**Catalogue entry** (DATABASE.md §6.9; created in 0092; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `executed`, `approved`, `rejected`, the [agent action machine](state-machines/agent-action.md)), `edited`, `decided_input_json`, `decided_by`, `decided_at`
+**Catalogue entry** (DATABASE.md §6.9; created in 0092; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `executed`, `approved`, `rejected`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2475,7 +2475,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### inbox_items
 
-**Catalogue entry** (DATABASE.md §6.9; created in 0092): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the [inbox item machine](state-machines/inbox-item.md)), `agent_action_id` (composite key with `entity_id`, one item per action), `done_by`, `done_at`
+**Catalogue entry** (DATABASE.md §6.9; created in 0092): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the `inbox_item` machine), `agent_action_id` (composite key with `entity_id`, one item per action), `done_by`, `done_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
