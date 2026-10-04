@@ -243,7 +243,7 @@ async function openReview(ctx: CommandContext, lead: Lead, sizingId: string): Pr
           from app.open_sizing_review(${sizingId}::uuid, ${newId()}::uuid, ${dueAt.toISOString()}::timestamptz)`,
   )) as unknown as ReviewRow[];
   const review = rows[0];
-  if (review === undefined || !review.opened) return;
+  if (!review?.opened) return;
   ctx.audit({
     aggregateType: 'task',
     aggregateId: review.task_id,

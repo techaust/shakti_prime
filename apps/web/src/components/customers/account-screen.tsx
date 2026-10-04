@@ -26,6 +26,7 @@ import {
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
   OPPORTUNITY_STATES,
+  SIZING_KINDS,
   TASK_KINDS,
 } from '../../screens/contract-values';
 import { customerHref, isOneOf as oneOf } from '../../screens/customers';
@@ -37,8 +38,9 @@ import { settle } from '../screens/settle';
 import { useCommand, useQuery, type CommandFailure } from '../screens/use-command';
 import type { CustomerDialogKind } from './customer-dialogs';
 
-// The dialogs load on first use, so the page ships only what it shows.
+// The dialogs and the sizing panel load on first use, so the page ships only what it shows.
 const CustomerDialog = dynamic(() => import('./customer-dialogs').then((m) => m.CustomerDialog));
+const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m.SizingPanel));
 
 const STATE_TONE: Record<CustomerLeadDto['state'], StatusTone> = {
   open: 'accent',
@@ -501,6 +503,8 @@ function Leads({
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
   const untag = useCommand(untagLead);
+  // The lead whose sizing panel is open: one at a time, loaded when first opened.
+  const [sizing, setSizing] = useState<string | undefined>();
   return (
     <Section id="account-leads" title={t('leads.sectionTitle')}>
       <FailureMessage failure={untag.failure} />
@@ -562,6 +566,27 @@ function Leads({
                   >
                     {t('leads.addTag')}
                   </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-expanded={sizing === l.id}
+                  aria-controls={`account-sizing-${l.id}`}
+                  onClick={() => {
+                    setSizing((open) => (open === l.id ? undefined : l.id));
+                  }}
+                >
+                  {sizing === l.id ? t('leads.hideSizing') : t('leads.sizeLead')}
+                </Button>
+              </div>
+              <div id={`account-sizing-${l.id}`} hidden={sizing !== l.id} className="pt-2">
+                {sizing === l.id ? (
+                  <SizingPanel
+                    entityId={view.entityId}
+                    opportunityId={l.id}
+                    canWrite={view.canWorkLeads}
+                    onSaved={onChanged}
+                  />
                 ) : null}
               </div>
             </li>
@@ -669,6 +694,7 @@ function Tasks({
 /** A timeline row in words: what happened, a detail when it has one, who and when. */
 function TimelineRow({ item }: { item: ActivityDto }) {
   const t = useTranslations('customers');
+  const sizingT = useTranslations('sizing');
   const tagName = item.payload.tagName;
   const kind = item.payload.kind;
   const detail =
@@ -676,9 +702,18 @@ function TimelineRow({ item }: { item: ActivityDto }) {
       ? item.body
       : typeof tagName === 'string'
         ? t('timeline.tagDetail', { name: tagName })
-        : typeof kind === 'string' && oneOf(TASK_KINDS, kind)
-          ? t(`tasks.kind.${kind}`)
-          : null;
+        : item.type === 'sizing_recorded' && typeof kind === 'string' && oneOf(SIZING_KINDS, kind)
+          ? t(
+              item.payload.inBounds === true
+                ? 'timeline.sizingInBounds'
+                : 'timeline.sizingOutOfBounds',
+              {
+                kind: sizingT(`kind.${kind}`),
+              },
+            )
+          : typeof kind === 'string' && oneOf(TASK_KINDS, kind)
+            ? t(`tasks.kind.${kind}`)
+            : null;
   return (
     <li className="border-border flex min-w-0 flex-col gap-0.5 border-l-2 pl-3">
       <span className="font-medium">{t(`timeline.type.${item.type}`)}</span>

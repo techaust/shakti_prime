@@ -1729,7 +1729,6 @@
   "sizing": {
     "title": "Sizing",
     "intro": "Enter what was measured at the site. The size is worked out from these figures, never guessed.",
-    "open": "Size this lead",
     "tabsLabel": "What to size",
     "kind": {
       "pump": "Pump",
@@ -1961,7 +1960,9 @@
       "owner": "With {name}",
       "noOwner": "Not handed to anyone yet",
       "addTag": "Add tag",
-      "removeTag": "Remove the tag {name}"
+      "removeTag": "Remove the tag {name}",
+      "sizeLead": "Size this lead",
+      "hideSizing": "Hide sizing"
     },
     "timeline": {
       "sectionTitle": "History",
@@ -1987,9 +1988,12 @@
         "consent_recorded": "Consent recorded",
         "consent_withdrawn": "Consent withdrawn",
         "tagged": "Tag added",
-        "untagged": "Tag removed"
+        "untagged": "Tag removed",
+        "sizing_recorded": "Sizing worked out"
       },
-      "tagDetail": "Tag: {name}"
+      "tagDetail": "Tag: {name}",
+      "sizingInBounds": "{kind} sizing, within limits",
+      "sizingOutOfBounds": "{kind} sizing, outside limits"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",

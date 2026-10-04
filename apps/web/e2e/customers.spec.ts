@@ -174,6 +174,39 @@ test.describe('customers as a tele-caller', () => {
     await expectNoAxeViolations(page);
   });
 
+  test('sizes a lead from Account 360 and sees it in the history', async ({ page }) => {
+    await addCustomer(page, 'Bhagirath Jat');
+    const leads = section(page, 'Leads');
+    await leads.getByRole('button', { name: 'Size this lead' }).click();
+    const sizing = section(page, 'Sizing');
+    await expect(
+      sizing.getByText('Not sized yet. Enter the measurements and work out the size.'),
+    ).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    // The tabs move with the arrow keys.
+    await sizing.getByRole('tab', { name: 'Pump' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(sizing.getByRole('tab', { name: 'Rooftop solar' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await sizing.getByLabel('Units used a month (kWh)').fill('300');
+    await sizing.getByLabel('Shade-free roof area (m²)').fill('40');
+    await sizing.getByLabel('Sanctioned load (kW)').fill('5');
+    await sizing.getByRole('button', { name: 'Work out size' }).click();
+    await expect(page.getByText('Sizing saved.')).toBeVisible();
+    await expect(sizing.getByText('Within limits')).toBeVisible();
+    await expectNoAxeViolations(page);
+
+    const history = section(page, 'History');
+    await expect(history.getByText('Sizing worked out')).toBeVisible();
+    await expect(history.getByText('Rooftop solar sizing, within limits')).toBeVisible();
+
+    await leads.getByRole('button', { name: 'Hide sizing' }).click();
+    await expect(sizing).toHaveCount(0);
+  });
+
   test('cannot open a customer someone else looks after', async ({ page, browser }) => {
     // An Executive's customer in the caller's own company.
     const executive = await browser.newContext({ storageState: storageStatePath('executive') });

@@ -21,7 +21,7 @@ type Row = readonly [label: string, value: ReactNode];
 function Facts({ title, rows, total }: { title: string; rows: readonly Row[]; total?: Row }) {
   return (
     <section className="flex flex-col gap-2">
-      <h4 className="font-semibold">{title}</h4>
+      <h5 className="font-semibold">{title}</h5>
       <dl className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-x-3 gap-y-1.5">
         {[...rows, ...(total === undefined ? [] : [total])].map(([label, value], index) => (
           <div
@@ -61,7 +61,7 @@ function Advice({ advisories }: { advisories: readonly SizingAdvisory[] }) {
   if (known.length === 0) return null;
   return (
     <section className="flex flex-col gap-1">
-      <h4 className="font-semibold">{t('result.advice')}</h4>
+      <h5 className="font-semibold">{t('result.advice')}</h5>
       <ul className="text-text-muted flex list-disc flex-col gap-1 pl-5 text-sm">
         {known.map((advisory) => (
           <li key={advisory}>{t(`advisory.${advisory}`)}</li>
@@ -189,9 +189,9 @@ export function SizingResult({ sizing }: { sizing: SizingDto }) {
   return (
     <section aria-labelledby={`sizing-result-${sizing.id}`} className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id={`sizing-result-${sizing.id}`} className="text-h3">
+        <h4 id={`sizing-result-${sizing.id}`} className="text-h3">
           {t('title')}
-        </h3>
+        </h4>
         <StatusBadge tone={sizing.inBounds ? 'success' : 'danger'}>
           {sizing.inBounds ? t('inBounds') : t('outOfBounds')}
         </StatusBadge>

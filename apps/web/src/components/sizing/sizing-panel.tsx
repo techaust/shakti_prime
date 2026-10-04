@@ -196,9 +196,12 @@ export function SizingPanel({
   entityId,
   opportunityId,
   canWrite,
+  onSaved,
 }: Lead & {
   /** The caller may write the lead (`crm.lead.write`); the server decides again on save. */
   canWrite: boolean;
+  /** Told of each sizing saved, so the page around the panel can read its history again. */
+  onSaved?: (sizing: SizingDto) => void;
 }) {
   const t = useTranslations('sizing');
   const id = useId();
@@ -231,9 +234,9 @@ export function SizingPanel({
   return (
     <section aria-labelledby={`${id}-title`} className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
-        <h2 id={`${id}-title`} className="text-h2">
+        <h3 id={`${id}-title`} className="text-h3">
           {t('title')}
-        </h2>
+        </h3>
         <p className="text-text-muted text-sm">{t('intro')}</p>
       </header>
       <div role="tablist" aria-label={t('tabsLabel')} className="border-border flex gap-1 border-b">
@@ -294,6 +297,7 @@ export function SizingPanel({
                       ? was
                       : { ...was, latest: { ...was.latest, [saved.kind]: saved } },
                   );
+                  onSaved?.(saved);
                 }}
               />
             ) : (
