@@ -6,10 +6,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - **Org:** [`document_sequences`](#document_sequences), [`entities`](#entities), [`permissions`](#permissions), [`principals`](#principals), [`role_permissions`](#role_permissions), [`roles`](#roles), [`teams`](#teams)
 - **Identity:** [`auth_accounts`](#auth_accounts), [`auth_verifications`](#auth_verifications), [`sessions`](#sessions), [`user_entity_roles`](#user_entity_roles), [`user_two_factor`](#user_two_factor), [`users`](#users)
-- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_sites`](#customer_sites), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`tags`](#tags), [`tasks`](#tasks)
+- **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_sites`](#customer_sites), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`tags`](#tags), [`tasks`](#tasks)
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
 - **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`outbox_events`](#outbox_events), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views)
-- **Other:** [`opportunity_tags`](#opportunity_tags)
 - [Planned tables](#planned-tables)
 
 ## Org
@@ -415,7 +414,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `sessions_auth_service` (all, to auth_service): using `true`; with check `true`
-- `sessions_read` (select, to app_user): using `user_id = (select app.user_id()) or (select app.has_perm('admin.users.write:all'))`
+- `sessions_read` (select, to app_user, app_reader): using `user_id = (select app.user_id()) or (select app.has_perm('admin.users.write:all'))`
 - `sessions_update` (update, to app_user): using `case when (select app.has_perm('admin.users.write:all')) then user_id = (select app.user_id()) or app.user_roles_outside_request(user_id) = '{}' else false end`; with check `case when (select app.has_perm('admin.users.write:all')) then user_id = (select app.user_id()) or app.user_roles_outside_request(user_id) = '{}' else false end`
 
 ### user_entity_roles
@@ -465,7 +464,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `user_entity_roles_delete` (delete, to app_user): using `(select app.has_perm('admin.users.write:all')) and entity_id = any ((select app.entity_ids())::int[])`
 - `user_entity_roles_insert` (insert, to app_user): with check `(select app.has_perm('admin.users.write:all')) and entity_id = any ((select app.entity_ids())::int[])`
-- `user_entity_roles_read` (select, to app_user, readonly_reporter): using `entity_id = any ((select app.entity_ids())::int[]) or user_id = (select app.user_id())`
+- `user_entity_roles_read` (select, to app_user, readonly_reporter, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) or user_id = (select app.user_id())`
 - `user_entity_roles_update` (update, to app_user): using `(select app.has_perm('admin.users.write:all')) and entity_id = any ((select app.entity_ids())::int[])`; with check `(select app.has_perm('admin.users.write:all')) and entity_id = any ((select app.entity_ids())::int[])`
 
 ### user_two_factor
@@ -549,7 +548,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `users_auth_service` (all, to auth_service): using `true`; with check `true`
 - `users_insert` (insert, to app_user): with check `(select app.has_perm('admin.users.write:all'))`
-- `users_read` (select, to app_user): using `id = (select app.user_id()) or (select app.has_perm('admin.users.write:all'))`
+- `users_read` (select, to app_user, app_reader): using `id = (select app.user_id()) or (select app.has_perm('admin.users.write:all'))`
 - `users_update` (update, to app_user): using `case when (select app.has_perm('admin.users.write:all')) then id = (select app.user_id()) or app.user_roles_outside_request(id) = '{}' else false end`; with check `case when (select app.has_perm('admin.users.write:all')) then id = (select app.user_id()) or app.user_roles_outside_request(id) = '{}' else false end`
 
 ## CRM
@@ -740,7 +739,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 2 policies.
 
 - `activities_insert` (insert, to app_user): with check `actor_principal_id = (select app.user_id()) and entity_id = any ((select app.entity_ids())::int[]) and ((opportunity_id is not null and exists (select 1 from opportunities o where o.id = activities.opportunity_id and o.account_id = activities.account_id and o.entity_id = activities.entity_id)) or (opportunity_id is null and exists (select 1 from account_entities ae where ae.account_id = activities.account_id and ae.entity_id = activities.entity_id))) and (type <> 'note' or (opportunity_id is not null and exists (select 1 from opportunities o where o.id = activities.opportunity_id and o.archived_at is null and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))) or (opportunity_id is null and app.account_in_scope(account_id, 'crm.account.write')))`
-- `activities_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (type <> 'note' or (select coalesce(current_setting('app.role', true), '') not like 'agent:%' and not exists (select 1 from principals p where p.id = app.user_id() and p.kind = 'agent'))) and ((opportunity_id is not null and exists (select 1 from opportunities o where o.id = activities.opportunity_id and o.entity_id = activities.entity_id and activities.opportunity_id is not null)) or (opportunity_id is null and exists (select 1 from account_entities ae where ae.account_id = activities.account_id and ae.entity_id = activities.entity_id and activities.opportunity_id is null)))`
+- `activities_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (type <> 'note' or (select coalesce(current_setting('app.role', true), '') not like 'agent:%' and not exists (select 1 from principals p where p.id = app.user_id() and p.kind = 'agent'))) and ((opportunity_id is not null and exists (select 1 from opportunities o where o.id = activities.opportunity_id and o.entity_id = activities.entity_id and activities.opportunity_id is not null)) or (opportunity_id is null and exists (select 1 from account_entities ae where ae.account_id = activities.account_id and ae.entity_id = activities.entity_id and activities.opportunity_id is null)))`
 
 ### consents
 
@@ -1067,6 +1066,40 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `opportunities_read` (select, to public): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('crm.lead.read:entity')) or ((select app.has_perm('crm.lead.read:team')) and team_id = (select app.team_id())) or ((select app.has_perm('crm.lead.read:own')) and owner_id = (select app.user_id())))`
 - `opportunities_update` (update, to public): using `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.lead.write', owner_id, team_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.lead.write', owner_id, team_id)`
 
+### opportunity_tags
+
+**Catalogue entry** (DATABASE.md §6.2): `opportunity_id`, `tag_id`, `entity_id`, `account_id` (the lead's own); primary key `(opportunity_id, tag_id)`; the link table that puts a tag on a lead, following the child-table template with the composite foreign key `(opportunity_id, entity_id, account_id)` to the one unique key of `opportunities` that `tasks` also uses; a tag of one company is never put on another company's lead; put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `opportunity_id` | uuid | no |  | PK |
+| `account_id` | uuid | no |  |  |
+| `tag_id` | uuid | no |  | PK → `tags.id` |
+| `entity_id` | smallint | no |  | → `entities.id` |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `created_by` | uuid | no |  | → `principals.id` |
+
+**Primary key**
+
+- (`opportunity_id`, `tag_id`)
+
+**Foreign keys**
+
+- `opportunity_tags_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
+- `opportunity_tags_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
+- `opportunity_tags_opportunity_fk`: (`opportunity_id`, `entity_id`, `account_id`) → `opportunities` (`id`, `entity_id`, `account_id`)
+- `opportunity_tags_tag_id_tags_id_fk`: (`tag_id`) → `tags` (`id`)
+
+**Indexes**
+
+- `opportunity_tags_tag_idx` (btree): `tag_id`
+
+**Row-level security:** enabled and forced; 3 policies.
+
+- `opportunity_tags_delete` (delete, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))`
+- `opportunity_tags_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id)) and exists (select 1 from tags t where t.id = opportunity_tags.tag_id and t.archived_at is null and (t.entity_id is null or t.entity_id = opportunity_tags.entity_id))`
+- `opportunity_tags_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id)`
+
 ### pipeline_stages
 
 **Catalogue entry** (DATABASE.md §6.2): `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json`
@@ -1168,7 +1201,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tags
 
-**Catalogue entry** (DATABASE.md §6.2): `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; a lead carries its tags in the link table `opportunity_tags` (`opportunity_id`, `tag_id`, `entity_id`, composite foreign key to the lead), which follows the child-table template, and a tag of one company is never put on another company's lead; tags are read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a lead's tag is put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group; `opportunity_tags` carries the lead's `account_id`, so it and `tasks` refer to the one unique key `(id, entity_id, account_id)` of `opportunities`; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks)
+**Catalogue entry** (DATABASE.md §6.2): `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1202,7 +1235,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `tags_insert` (insert, to app_user): with check `(select app.has_perm('crm.lead.assign:own')) and created_by = (select app.user_id()) and (entity_id = any ((select app.entity_ids())::int[]) or (entity_id is null and (select app.request_covers_group())))`
-- `tags_read` (select, to app_user): using `(select app.has_perm('crm.lead.read:own')) and (entity_id = any ((select app.entity_ids())::int[]) or (entity_id is null and cardinality((select app.entity_ids())) > 0))`
+- `tags_read` (select, to app_user, app_reader): using `(select app.has_perm('crm.lead.read:own')) and (entity_id = any ((select app.entity_ids())::int[]) or (entity_id is null and cardinality((select app.entity_ids())) > 0))`
 - `tags_update` (update, to app_user): using `(select app.has_perm('crm.lead.assign:own')) and (entity_id = any ((select app.entity_ids())::int[]) or (entity_id is null and (select app.request_covers_group())))`; with check `(select app.has_perm('crm.lead.assign:own')) and (entity_id = any ((select app.entity_ids())::int[]) or (entity_id is null and (select app.request_covers_group())))`
 
 ### tasks
@@ -1261,7 +1294,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `tasks_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and app.scope_ok('crm.lead.write', assignee_id, team_id) and exists (select 1 from opportunities o where o.id = tasks.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))`
-- `tasks_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('crm.lead.read:entity')) or ((select app.has_perm('crm.lead.read:team')) and team_id = (select app.team_id())) or ((select app.has_perm('crm.lead.read:own')) and assignee_id = (select app.user_id()))) and exists (select 1 from opportunities o where o.id = tasks.opportunity_id)`
+- `tasks_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('crm.lead.read:entity')) or ((select app.has_perm('crm.lead.read:team')) and team_id = (select app.team_id())) or ((select app.has_perm('crm.lead.read:own')) and assignee_id = (select app.user_id()))) and exists (select 1 from opportunities o where o.id = tasks.opportunity_id)`
 - `tasks_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.lead.write', assignee_id, team_id) and exists (select 1 from opportunities o where o.id = tasks.opportunity_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('crm.lead.write', assignee_id, team_id) and exists (select 1 from opportunities o where o.id = tasks.opportunity_id)`
 
 ## Catalogue, pricing and tax
@@ -1830,7 +1863,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `audit_logs_auth_insert` (insert, to auth_service): with check `command like 'auth.%' and entity_id is null`
 - `audit_logs_insert` (insert, to app_user): with check `command not like 'auth.%' and actor_principal_id = (select app.user_id()) and (entity_id is null or entity_id = any ((select app.entity_ids())::int[]))`
-- `audit_logs_read` (select, to app_user): using `(entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('audit.read:entity'))) or (entity_id is null and (select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0)`
+- `audit_logs_read` (select, to app_user, app_reader): using `(entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('audit.read:entity'))) or (entity_id is null and (select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0)`
 
 ### files
 
@@ -1928,7 +1961,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `idempotency_keys_insert` (insert, to app_user): with check `principal_id = (select app.user_id())`
-- `idempotency_keys_read` (select, to app_user): using `principal_id = (select app.user_id())`
+- `idempotency_keys_read` (select, to app_user, app_reader): using `principal_id = (select app.user_id())`
 - `idempotency_keys_update` (update, to app_user): using `principal_id = (select app.user_id())`; with check `principal_id = (select app.user_id())`
 
 ### import_jobs
@@ -1996,7 +2029,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `import_jobs_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and created_by = (select app.user_id())`
-- `import_jobs_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
+- `import_jobs_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
 - `import_jobs_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
 
 ### import_mapping_templates
@@ -2041,7 +2074,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 2 policies.
 
 - `import_mapping_templates_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and created_by = (select app.user_id())`
-- `import_mapping_templates_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
+- `import_mapping_templates_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity'))`
 
 ### import_rows
 
@@ -2095,7 +2128,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Row-level security:** enabled and forced; 3 policies.
 
 - `import_rows_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and created_by = (select app.user_id()) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
-- `import_rows_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
+- `import_rows_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 - `import_rows_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 
 ### outbox_events
@@ -2182,7 +2215,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Row-level security:** enabled and forced; 1 policy.
 
-- `retention_runs_read` (select, to app_user): using `(select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0`
+- `retention_runs_read` (select, to app_user, app_reader): using `(select app.has_perm('audit.read:all')) and cardinality((select app.entity_ids())) > 0`
 
 ### saved_views
 
@@ -2224,44 +2257,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `saved_views_delete` (delete, to app_user): using `principal_id = (select app.user_id())`
 - `saved_views_insert` (insert, to app_user): with check `principal_id = (select app.user_id())`
-- `saved_views_read` (select, to app_user): using `principal_id = (select app.user_id())`
+- `saved_views_read` (select, to app_user, app_reader): using `principal_id = (select app.user_id())`
 - `saved_views_update` (update, to app_user): using `principal_id = (select app.user_id())`; with check `principal_id = (select app.user_id())`
-
-## Other
-
-### opportunity_tags
-
-**Catalogue entry:** none in DATABASE.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `opportunity_id` | uuid | no |  | PK |
-| `account_id` | uuid | no |  |  |
-| `tag_id` | uuid | no |  | PK → `tags.id` |
-| `entity_id` | smallint | no |  | → `entities.id` |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `created_by` | uuid | no |  | → `principals.id` |
-
-**Primary key**
-
-- (`opportunity_id`, `tag_id`)
-
-**Foreign keys**
-
-- `opportunity_tags_created_by_principals_id_fk`: (`created_by`) → `principals` (`id`)
-- `opportunity_tags_entity_id_entities_id_fk`: (`entity_id`) → `entities` (`id`)
-- `opportunity_tags_opportunity_fk`: (`opportunity_id`, `entity_id`, `account_id`) → `opportunities` (`id`, `entity_id`, `account_id`)
-- `opportunity_tags_tag_id_tags_id_fk`: (`tag_id`) → `tags` (`id`)
-
-**Indexes**
-
-- `opportunity_tags_tag_idx` (btree): `tag_id`
-
-**Row-level security:** enabled and forced; 3 policies.
-
-- `opportunity_tags_delete` (delete, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))`
-- `opportunity_tags_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id and app.scope_ok('crm.lead.write', o.owner_id, o.team_id)) and exists (select 1 from tags t where t.id = opportunity_tags.tag_id and t.archived_at is null and (t.entity_id is null or t.entity_id = opportunity_tags.entity_id))`
-- `opportunity_tags_read` (select, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and exists (select 1 from opportunities o where o.id = opportunity_tags.opportunity_id)`
 
 ## Planned tables
 
