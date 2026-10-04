@@ -57,6 +57,8 @@ interface TableRule {
    * the company they act in (`leadIn`), whatever their customer scope. Never an agent.
    */
   throughLead?: Rule;
+  /** Who sees a row marked `onLead`, agents included, in place of `read`. */
+  lead?: Rule;
   /** A visible row that breaks isolation for someone acting in company `e`, over the alias `x`. */
   leak: (e: number, groupVisible: boolean) => SQL;
 }
@@ -159,6 +161,17 @@ const RULES: Record<MatrixTable, TableRule> = {
     ownRows: CONTEXT,
     leak: (e) => sql`x.entity_id <> ${e} and x.user_id <> ${fx.ownerId}`,
   },
+  // A timeline row on a lead follows the lead; a row of no lead follows the customer (0057).
+  activities: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    lead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // The assignee is the task's owner; the matrix acts as the assignee, in their team.
+  tasks: { read: LEAD_READ, leak: otherCompany },
+  tags: { read: LEAD_READ, group: LEAD_READ, leak: otherCompany },
+  opportunity_tags: { read: LEAD_READ, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {
@@ -287,13 +300,16 @@ describe('every role acting in one company sees only that company (SECURITY §11
         const readsOwnRows = allows(principal, rule.ownRows);
         // People only: an agent reads customers by crm.account.read scope alone (0057).
         const readsThroughLead = principal.kind !== 'agent' && allows(principal, rule.throughLead);
+        const readsLead = allows(principal, rule.lead);
         const expected = fx.rows[table]
           .filter((r) =>
             r.entities === null
               ? readsGroup
-              : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
-                (readsOwnRows && r.ownedByActor === true) ||
-                (readsThroughLead && r.leadIn?.includes(entityId) === true),
+              : r.onLead === true
+                ? readsLead && r.entities.includes(entityId)
+                : (allows(principal, readRule(rule, r)) && r.entities.includes(entityId)) ||
+                  (readsOwnRows && r.ownedByActor === true) ||
+                  (readsThroughLead && r.leadIn?.includes(entityId) === true),
           )
           .map((r) => r.key)
           .sort();
@@ -303,7 +319,14 @@ describe('every role acting in one company sees only that company (SECURITY §11
           problems.push({ table, expected, seen: got.seen });
         }
         if (got.leaked !== 0) problems.push({ table, rowsOfAnotherCompany: got.leaked });
-        if (!readsOwn && !readsGroup && !readsOwnRows && !readsThroughLead && got.total !== 0) {
+        if (
+          !readsOwn &&
+          !readsGroup &&
+          !readsOwnRows &&
+          !readsThroughLead &&
+          !readsLead &&
+          got.total !== 0
+        ) {
           problems.push({ table, withoutReadPermission: got.total });
         }
       }

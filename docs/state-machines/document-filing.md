@@ -28,7 +28,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `file` | `masked` → `ready` | `documents.write` or the platform | the file is filed against the customer who sent it (WA-02); the platform files only a confident classification; a low-confidence one waits for a person | `attach`: attach to the matching requirement in the vault; `recheck_gates`: re-evaluate the completeness gates |
 | `reject` *(proposed)* | `pending`, `scanning`, `masked` → `rejected` | `documents.write` or the platform | a reason is given (infected, unreadable, wrong customer) | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `document_filing_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `document_filing_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

@@ -1,7 +1,7 @@
 import { deflateSync } from 'node:zlib';
 
-// The runner in the Linux image loads nothing native (docs/TESTING.md §5), so a picture is a PNG
-// written here byte by byte rather than drawn with an image library.
+// The runner in the Linux image loads nothing native (docs/TESTING.md §5), so a picture the
+// journeys upload is a PNG written here byte by byte rather than drawn with an image library.
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
   for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;

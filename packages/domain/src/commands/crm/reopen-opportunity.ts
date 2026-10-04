@@ -3,6 +3,7 @@ import { defineCommand } from '../../command/define-command';
 import {
   auditOpportunity,
   fire,
+  recordLeadActivity,
   firstStage,
   lockOpportunity,
   opportunityRecord,
@@ -37,6 +38,7 @@ export const reopenOpportunity = defineCommand({
         reason: 'lead_pipeline_missing',
       });
     }
+    await recordLeadActivity(ctx, row, 'reopened', { fromState: from, stageId: stage.id });
     const updated = await writeOpportunity(ctx, row, {
       state: to,
       stateChangedAt: ctx.now,

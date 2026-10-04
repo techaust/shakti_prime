@@ -71,6 +71,21 @@ function main() {
   }
 
   const phase = Number(tooling.currentPhase ?? 0);
+
+  // A cloud session (docs/runbooks/hybrid.md) has none of the PC's plugins or MCP servers, and
+  // nothing is installed there, so the PC's list would only read as missing tools.
+  if (process.env.CLAUDE_CODE_REMOTE === "true") {
+    console.log(
+      [
+        `[tooling-check] Shakti Prime — current phase: ${phase} — cloud session`,
+        "Plugins and MCP servers (Context7, Supabase, Vercel, Upstash, AWS, Sentry and the rest) are",
+        "signed in on the owner's PC only; nothing is to be installed here. The project's skills and",
+        "agents in .claude/ work. Steps that need the PC are marked local in docs/runbooks/hybrid.md.",
+      ].join("\n"),
+    );
+    return;
+  }
+
   const mcp = mcpServerNames();
   const plugins = enabledPluginNames();
   const skills = skillDirNames();

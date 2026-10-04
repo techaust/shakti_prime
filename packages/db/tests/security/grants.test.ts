@@ -70,6 +70,14 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
   > = {
     price_change_log: { i: false, u: false },
     audit_logs: { i: true, u: false },
+    activities: { i: true, u: false },
+    // A task changes only its due time and state after the insert.
+    tasks: { i: true, u: false },
+    // A number comes off a contact through crm.contact.update, which keeps one (ADR 0008).
+    contact_phones: { i: true, u: true, d: true },
+    // A tag is only archived; a tag on a lead is put on or taken off (DATABASE §6.2).
+    tags: { i: true, u: false },
+    opportunity_tags: { i: true, u: false, d: true },
     consents: { i: true, u: false },
     document_sequences: { i: false, u: false },
     user_entity_roles: { i: true, u: true, d: true },
@@ -383,6 +391,7 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
+      'app.customer_search_ids(text,text,integer)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',

@@ -1,6 +1,6 @@
-# Backend review, Phase 0 weeks 1 and 2
+# Reviews 1 and 2: backend review, Phase 0 weeks 1 and 2
 
-Date: 2026-09-27. Scope: `packages/db` (schema, migrations 0000 to 0008, `withRequestContext()`, helpers), `packages/domain` (command runner, `org.entity.update`, `crm.lead.create`, `pricing.price.set`, queries, numbering) and `packages/contracts`. Reviewed against DATABASE §2 to §5, SECURITY §3 and §4, ARCHITECTURE §5, ADR 0002, 0004 and 0006, and AGENTS.md. Checks: policy completeness per table, write paths that bypass a root policy, lock and race behaviour, idempotency, error mapping, DTO leaks, indexes for the documented queries, migration safety.
+Date: 27-09-2026 (IST; the first reviews of the day, before review 3 and the production-readiness audit). Scope: `packages/db` (schema, migrations 0000 to 0008, `withRequestContext()`, helpers), `packages/domain` (command runner, `org.entity.update`, `crm.lead.create`, `pricing.price.set`, queries, numbering) and `packages/contracts`. Reviewed against DATABASE §2 to §5, SECURITY §3 and §4, ARCHITECTURE §5, ADR 0002, 0004 and 0006, and AGENTS.md. Checks: policy completeness per table, write paths that bypass a root policy, lock and race behaviour, idempotency, error mapping, DTO leaks, indexes for the documented queries, migration safety.
 
 ## Fixed (real defects)
 
@@ -29,7 +29,7 @@ Date: 2026-09-27. Scope: `packages/db` (schema, migrations 0000 to 0008, `withRe
 
 All checks green after the fixes: lint, format, typecheck, unit tests, copy lint, security suite (290 db, 26 domain, 1 web), CI on `main`.
 
-## Part 2: tool-assisted pass (2026-09-27, after the Phase 0 plugins were enabled)
+## Part 2: tool-assisted pass (27-09-2026, after the Phase 0 plugins were enabled)
 
 Reviewers: the Security Guidance commit reviewer over the whole `main` history, and the Supabase Postgres best-practice rules (RLS, privileges, foreign-key indexes, constraints, locking, pooling, pagination) over migrations 0000 to 0010 and the helpers. The security reviewer reported no finding above its exploitability bar and three low findings; the best-practice pass found unindexed foreign keys. Everything actionable was fixed.
 
@@ -41,7 +41,7 @@ Reviewers: the Security Guidance commit reviewer over the whole `main` history, 
 | I | Child rows carried their own `entity_id` with nothing tying it to the parent's, so a multi-entity caller could attach an entity-2 phone, consent, site, contact link or opportunity to an entity-1 parent. Reads stayed correct because the parent policy gates them; integrity did not. | Migration 0011: `(id, entity_id)` unique keys on `contacts`, `accounts` and `customer_sites`, and composite foreign keys from every child. | `crm-scope.test.ts`: the table owner itself cannot insert a mismatched phone or opportunity. |
 | J | `crm.lead.create` resolved the pipeline by key alone, so an entity-1 lead could land in an entity-2 pipeline when both were in scope. | The lookup accepts shared pipelines or the lead's own entity. | `create-lead.test.ts`: an entity-2 pipeline answers `lead_pipeline_missing` for an entity-1 lead. |
 | K | Server actions parsed the input before checking the session, so an unauthenticated caller received validation feedback. | The session check runs first in all three actions. | Code order. |
-| I (later) | Superseded for the customer tables by ADR 0008 (2026-09-27): contacts, accounts and their children carry no entity any more; the trigger `app.ensure_account_entity()` keeps an opportunity inside an entity its account deals with. | Migrations 0015 and 0016. | `crm-scope.test.ts` trigger and shared-customer tests. |
+| I (later) | Superseded for the customer tables by ADR 0008 (27-09-2026): contacts, accounts and their children carry no entity any more; the trigger `app.ensure_account_entity()` keeps an opportunity inside an entity its account deals with. | Migrations 0015 and 0016. | `crm-scope.test.ts` trigger and shared-customer tests. |
 | L | Foreign keys without a leading index on join or filter columns: `opportunities` (pipeline, stage, site, source), `contacts` and `accounts` (team), `accounts.tier_id`, `account_contacts.contact_id`, `kit_components.item_id`, `price_list_items` (item, kit), `price_change_log.price_list_item_id`, `teams.entity_id`. | Migration 0011 adds them. | Generated migration reviewed. |
 
 Accepted from this pass: actor columns (`created_by`, `updated_by`, `approved_by`, `changed_by`, `lead_principal_id`) and single-column `entity_id` foreign keys stay unindexed (never filtered on their own; `entity_id` has four values and leads the composite indexes where it matters). `details.sqlstate` and `details.constraint` on database errors are internal names; the week 3 API error handler maps `details.reason` to the catalogue and drops the raw fields from the wire. `item_costs` writes keyed on `finance.cost.read` remain documented Phase 3 debt.

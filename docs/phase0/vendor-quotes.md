@@ -1,8 +1,10 @@
 # Vendor quote requests — Shakti Prime BOS
 
-Date: 27-09-2026. Status: drafts for the group's review. Nothing has been sent to any vendor. Each request is sent from the group's own account with that vendor (every account is registered to the group, with the development team as members), once the owner approves this pack.
+Prepared 27-09-2026 · last updated 04-10-2026. Status: drafts for the group's review; nothing has been sent to any vendor.
 
-Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Phase 0 ends only when vendor quotes confirm those figures (ROADMAP §2, exit-gate item 5). This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
+**Who sends:** the developer prepares each letter from the template in §2a; the owner approves this pack and sends each letter from the group's own account with that vendor (every account is registered to the group, with the development team as members); the developer records each answer in §4 and §5.
+
+Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Confirming those figures with vendor quotes was an item of the Phase 0 exit gate (ROADMAP §2); the owner closed Phase 0 on 29-09-2026 with it deferred. The quotes are needed before production readiness (slice G1), when the production plans are bought, and each telecom, WhatsApp and voice quote before Phase 2. This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
 
 Currency: the blueprint quotes most services in US dollars and telecom in rupees. Rupee figures for dollar items use ₹84 to the US dollar, the rate implied by the blueprint's own conversions. Quoted figures are recorded in the currency the vendor quotes, before GST, with GST noted separately.
 
@@ -32,6 +34,23 @@ Every vendor is asked, in addition to its own questions:
 5. **Account ownership:** the account is held by the Shakti group, with the development team added as members.
 6. Support terms and the published uptime commitment.
 
+## 2a. Letter template
+Each request is one letter in this form, with the vendor's lines from §3 filled in:
+
+> **Subject:** Quote request from the Shakti group: *service from §3*
+>
+> Dear *vendor* team,
+>
+> The Shakti group (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub and RCREF, based in Jaipur) is building one business system for its four companies and would like your quote for *service*, which it uses for *the "Used for" line*.
+>
+> Please quote at the volumes below, and at half of them for the first months: *the rows of §1 and the vendor's own volumes*.
+>
+> Please answer, with your quote: *the six questions of §2*, and *the "Ask" line of §3*.
+>
+> The account will be held in the Shakti group's name, with our development team as members. Please reply to this address by *date*.
+>
+> Regards, *name*, *role*, for the Shakti group
+
 ## 3. Quote requests
 
 ### 3.1 Vercel — web hosting
@@ -41,7 +60,7 @@ Every vendor is asked, in addition to its own questions:
 - **Blueprint estimate:** US$40–60 a month.
 
 ### 3.2 Supabase — database
-- **Used for:** the main database (Postgres 17 with row-level security, pgvector, pg_trgm, pg_cron), private realtime channels for live updates, in the Mumbai region. Three projects: development, staging and production.
+- **Used for:** the main database (Postgres 17 with row-level security and the standard extensions for name search, scheduled jobs and AI search), private realtime channels for live updates, in the Mumbai region. Three projects: development, staging and production.
 - **Plan to quote:** Pro, with Medium or Large compute for production, smaller compute for development and staging, and point-in-time recovery on production.
 - **Ask:** the compute add-on prices; the point-in-time recovery price for a 7-day window; branching for previews; realtime limits at 100 concurrent users; that all data and backups stay in Mumbai; how the Data API can be switched off; the data processing agreement and security reports.
 - **Blueprint estimate:** US$200–350 a month.
@@ -109,7 +128,7 @@ These are listed in the account-ownership plan (ROADMAP §10) or needed for the 
 |---|---|---|---|
 | Google Play developer account | Publishing the Android field app | Registration as an organisation in the group's name (needs the group's D-U-N-S number); staged roll-outs | US$25, once |
 | Domain `shaktiprime.com` | The website and web app, email sending records | Registrar in the group's name, auto-renewal, DNS access for the development team | Yearly renewal at the registrar's price |
-| GitHub plan | The code repository | A group organisation on a plan that enforces review and checks before changes reach the live system (AUDIT M45) | Team plan, about US$4 a user a month |
+| GitHub plan | The code repository | A group organisation on a plan that enforces review and checks before changes reach the live system | Team plan, about US$4 a user a month |
 | Firebase Cloud Messaging | Notifications on the Android app | A Firebase project owned by the group | No charge |
 | Cloudflare Turnstile | The bot check on sign-in and website forms | Site keys for `shaktiprime.com` and the four company websites | No charge on the free plan |
 | Expo Application Services (EAS) | Building and updating the Android app | Build and update limits on each plan against about 20 field devices and weekly updates | Plan price to be quoted |
@@ -137,11 +156,12 @@ Fill the "Quoted" columns as quotes arrive. Figures are monthly at full volume, 
 | 12 | WhatsApp per-message fees | ₹20,000 | ₹60,000 | | | |
 | 13 | Exotel plan and minutes | ₹2,00,000 | ₹3,00,000 | | | |
 | | **Telecom subtotal** | **≈ ₹2.2 lakh** | **≈ ₹3.6 lakh** | | | |
-| | **Total with transcription of lead-converter calls only** | **≈ ₹4 lakh** | **≈ ₹8 lakh** | | | |
-| | **Total with transcription of all calls** | **≈ ₹4.5 lakh** | **≈ ₹11 lakh** | | | |
+| | **Total with transcription of lead-converter calls only** | **≈ ₹4 lakh** | **≈ ₹8.3 lakh** | | | |
+| | **Total with transcription of all calls** | **≈ ₹4.6 lakh** | **≈ ₹10.6 lakh** | | | |
 
 **Reading the result:**
-- The exit-gate item is met when the quoted total with lead-converter transcription falls within ₹4–8 lakh a month, or when the group accepts a figure outside it in writing.
+- The totals above are the sums of the lines at ₹84 to the US dollar. The blueprint rounds them to about ₹4–8 lakh a month with lead-converter transcription and ₹4.5–11 lakh with all calls (BLUEPRINT §13).
+- The figures are confirmed when the quoted total with lead-converter transcription falls within the summed band, ₹4–8.3 lakh a month, or when the group accepts a figure outside it in writing.
 - A line quoted above its blueprint high is flagged to the owner with the reason and the choices (another vendor, lower coverage, a spending cap).
 - AI usage, transcription coverage and call minutes are the three figures that move the total most. Each has a cap or a coverage setting in the system, and the real cost per lead is measured in the first weeks before any AI assistant works on its own.
 - The one-time and small accounts in §3.12 are recorded separately and are not part of the monthly total.

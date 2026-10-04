@@ -3,9 +3,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  createdIn,
+  groupModules,
   inferReference,
+  mermaidType,
   parseCatalogue,
   parseMigrations,
+  parsePolicyRoleSweep,
   plannedColumns,
   readSources,
   renderDataDocs,
@@ -29,6 +33,28 @@ describe('the ERD and data dictionary (docs/data)', () => {
       expect(docs.dictionary.match(new RegExp(`^### ${table.name}$`, 'gm'))).toHaveLength(1);
       expect(docs.erd).toContain(`  ${table.name} {`);
     }
+  });
+
+  it('place every built table in a module, never under Other (give it a DATABASE.md §6 entry)', () => {
+    const catalogue = parseCatalogue(sources.databaseDoc);
+    const modules = groupModules(
+      Object.values(sources.snapshot.tables).map((t) => t.name),
+      catalogue,
+    );
+    expect(modules.find((m) => m.key === 'other')?.tables ?? []).toEqual([]);
+  });
+
+  it('name app_reader on the read policies 0062 and 0089 give it', () => {
+    const tables = parseMigrations(sources.migrations);
+    expect(tables.get('activities')?.policies.get('activities_read')?.roles).toBe(
+      'app_user, app_reader',
+    );
+    expect(tables.get('users')?.policies.get('users_read')?.roles).toBe('app_user, app_reader');
+    const sweep = sources.migrations.find((m) => m.name.startsWith('0062_'));
+    const blocks = [...(sweep?.sql ?? '').matchAll(/do\s+\$\$([\s\S]*?)\$\$/gi)];
+    expect(blocks.map((b) => parsePolicyRoleSweep(b[1] ?? '')).filter((s) => s !== null)).toEqual([
+      { holder: 'app_user', added: 'app_reader', commands: ['select', 'all'] },
+    ]);
   });
 
   it('list the tables DATABASE.md plans and no migration has built', () => {
@@ -58,6 +84,7 @@ describe('planned tables', () => {
         section: '6.4 Sales',
         qualifier: null,
         note: '`site_id null`, `state` (`draft`, `sent`), `pdf_file_id`, `embedding vector(1024)`, price columns as `quote_lines`; `later` after the list',
+        status: { built: false, detail: 'Phase 1' },
       },
       known,
     );
@@ -83,9 +110,9 @@ describe('reading the catalogue', () => {
     const doc = [
       '## 6. Table catalogue',
       '### 6.9 AI and voice',
-      '| Table | Key columns |',
-      '|---|---|',
-      '| `agent_actions` (append-only) | `run_id`, `command` |',
+      '| Table | Status | Key columns |',
+      '|---|---|---|',
+      '| `agent_actions` (append-only) | Planned (Phase 1) | `run_id`, `command` |',
       '| `roles`, `permissions` | `key` |',
       '### 6.8 HR',
       '`employees`, `attendance_events` (`type`, `geo`), `shifts`.',
@@ -97,12 +124,25 @@ describe('reading the catalogue', () => {
         section: '6.9 AI and voice',
         qualifier: 'append-only',
         note: '`run_id`, `command`',
+        status: { built: false, detail: 'Phase 1' },
       },
-      { table: 'roles', section: '6.9 AI and voice', qualifier: null, note: '`key`' },
-      { table: 'permissions', section: '6.9 AI and voice', qualifier: null, note: '`key`' },
-      { table: 'employees', section: '6.8 HR', qualifier: null, note: '' },
-      { table: 'attendance_events', section: '6.8 HR', qualifier: null, note: '`type`, `geo`' },
-      { table: 'shifts', section: '6.8 HR', qualifier: null, note: '' },
+      { table: 'roles', section: '6.9 AI and voice', qualifier: null, note: '`key`', status: null },
+      {
+        table: 'permissions',
+        section: '6.9 AI and voice',
+        qualifier: null,
+        note: '`key`',
+        status: null,
+      },
+      { table: 'employees', section: '6.8 HR', qualifier: null, note: '', status: null },
+      {
+        table: 'attendance_events',
+        section: '6.8 HR',
+        qualifier: null,
+        note: '`type`, `geo`',
+        status: null,
+      },
+      { table: 'shifts', section: '6.8 HR', qualifier: null, note: '', status: null },
     ]);
   });
 });
@@ -140,6 +180,60 @@ describe('reading the SQL migrations', () => {
     });
   });
 
+  it('applies alter policy and a do block that adds a role to the policies naming another', () => {
+    const tables = parseMigrations([
+      {
+        name: '0001_a.sql',
+        sql: [
+          'create policy w_read on widgets for select to app_user using (true);',
+          'create policy w_all on widgets to app_user using (true) with check (true);',
+          'create policy w_insert on widgets for insert to app_user with check (true);',
+          'create policy w_public on widgets for select using (true);',
+          'create policy g_read on gadgets for select to app_user using (true);',
+        ].join('\n'),
+      },
+      {
+        name: '0002_b.sql',
+        sql: [
+          'do $$',
+          'declare p record;',
+          'begin',
+          '  for p in select schemaname, tablename, policyname, roles from pg_policies',
+          "     where 'app_user' = any (roles) and not 'app_reader' = any (roles) and cmd in ('SELECT', 'ALL')",
+          '  loop',
+          "    execute format('alter policy %I on %I.%I to %s', p.policyname, p.schemaname, p.tablename,",
+          "      (select string_agg(quote_ident(r), ', ') from unnest(p.roles || array['app_reader']::name[]) r));",
+          '  end loop;',
+          'end',
+          '$$;',
+          'create policy late_read on widgets for select to app_user using (false);',
+        ].join('\n'),
+      },
+      {
+        name: '0003_c.sql',
+        sql: "alter policy late_read on widgets to app_user, app_reader using (note <> 'x');",
+      },
+    ]);
+    const roles = (table: string, policy: string) =>
+      tables.get(table)?.policies.get(policy)?.roles;
+    expect(roles('widgets', 'w_read')).toBe('app_user, app_reader');
+    expect(roles('widgets', 'w_all')).toBe('app_user, app_reader');
+    expect(roles('widgets', 'w_insert')).toBe('app_user');
+    expect(roles('widgets', 'w_public')).toBe('public');
+    expect(roles('gadgets', 'g_read')).toBe('app_user, app_reader');
+    expect(tables.get('widgets')?.policies.get('late_read')).toMatchObject({
+      roles: 'app_user, app_reader',
+      using: "note <> 'x'",
+      migration: '0003_c.sql',
+    });
+  });
+
+  it('refuses an alter policy for a policy no earlier migration created', () => {
+    expect(() =>
+      parseMigrations([{ name: '0001_a.sql', sql: 'alter policy ghost on widgets to app_user;' }]),
+    ).toThrow(/before it exists/);
+  });
+
   it('records partitioning and exclusion constraints the snapshot cannot hold', () => {
     const tables = parseMigrations([
       {
@@ -154,5 +248,57 @@ describe('reading the SQL migrations', () => {
     expect(tables.get('rates')?.exclusions.get('rates_period_excl')?.definition).toBe(
       "exclude using gist (hsn with =, daterange(a, b, '[)') with &&)",
     );
+  });
+});
+
+describe('mermaidType', () => {
+  it('draws a type Mermaid accepts and keeps the precision for the comment', () => {
+    expect(mermaidType('numeric(14, 2)')).toEqual({ type: 'numeric', detail: '(14,2)' });
+    expect(mermaidType('timestamp with time zone')).toEqual({ type: 'timestamptz', detail: null });
+    expect(mermaidType('uuid')).toEqual({ type: 'uuid', detail: null });
+  });
+});
+
+describe('the ERD note on created_by and updated_by', () => {
+  const sources = readSources(repoRoot);
+  const { erd } = renderDataDocs(sources);
+
+  it('names every built table that lacks either column, and no other', () => {
+    for (const table of Object.values(sources.snapshot.tables)) {
+      const lacks = !('created_by' in table.columns) || !('updated_by' in table.columns);
+      const line = erd.split('\n').find((l) => l.startsWith('Most tables')) ?? '';
+      const note = line.slice(line.indexOf('Tables without'));
+      expect(note.includes(`\`${table.name}\``), table.name).toBe(lacks);
+    }
+  });
+
+  it('draws no type with a comma or a space', () => {
+    for (const line of erd.split('\n')) {
+      const attribute = /^ {4}(\S+) [a-z_0-9]+/.exec(line);
+      if (attribute) expect(attribute[1]).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    }
+  });
+});
+
+describe('the status column of DATABASE.md §6', () => {
+  const sources = readSources(repoRoot);
+  const built = new Set(Object.values(sources.snapshot.tables).map((t) => t.name));
+  const catalogue = parseCatalogue(sources.databaseDoc);
+
+  it('marks every row', () => {
+    expect(catalogue.filter((e) => e.status === null).map((e) => e.table)).toEqual([]);
+  });
+
+  it('marks a table built exactly when a migration has created it, naming that migration', () => {
+    for (const entry of catalogue) {
+      expect(entry.status?.built, entry.table).toBe(built.has(entry.table));
+      if (built.has(entry.table)) {
+        const migration = createdIn(sources.migrations, entry.table);
+        expect(migration, entry.table).not.toBeNull();
+        expect(entry.status?.detail.split(', '), entry.table).toContain(migration);
+      } else {
+        expect(entry.status?.detail, entry.table).toMatch(/^Phase \d|^no phase set$/);
+      }
+    }
   });
 });

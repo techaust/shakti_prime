@@ -1,6 +1,8 @@
 # Spike: Chromium A4 PDFs and QR labels
 
-**Week 6, ROADMAP §2.** Result: **the rendering checks passed on the development laptop.** A scan of printed labels with a phone and the client's handheld scanner is still to do, and deployment (Vercel function or a separate worker) is open and is the question for ADR 0009.
+**Week 6, ROADMAP §2.** Result: **the rendering checks passed on the development laptop (27-09-2026).** A scan of printed labels with a phone and the client's handheld scanner is still to do.
+
+**Status (04-10-2026):** rendering passed; the phone and scanner check waits for the client's printer and label stock (owner: the developer, with the printer supplier). The deployment question below was settled by ADR 0009, accepted by the owner on 29-09-2026: documents render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, measured on the dev deployment before quotes depend on it. Built in P4: in the app on the development laptop (no queue, so the render runs in the process that asked), a company's proof page renders in 1.5 seconds with the browser's launch and 0.8 seconds warm, 78 KB; the render on the dev deployment is still to measure.
 
 Run it with `pnpm spike:print` (once per machine first: `pnpm --filter web exec playwright-core install chromium-headless-shell`). The raw numbers are in [results/print.json](results/print.json); the PDFs and PNGs go to `apps/web/.spike-output/print/` (ignored by git).
 
@@ -61,14 +63,14 @@ Where the time goes, for the 1-page quotation: loading the page with the inlined
 | Snapshot tests of quotes and labels (BLUEPRINT §17) | Structure tests in the default run (`templates.test.ts`); page counts, fonts and QR checks in the spike. Pixel snapshots are not set up |
 | A spike result with latency numbers (ROADMAP §2 exit gate) | Met, above |
 
-## What deployment needs (open question for ADR 0009)
-The renderer needs a Chromium binary next to it. Two ways:
+## What deployment needs (settled by ADR 0009 on 29-09-2026: option 1)
+The renderer needs a Chromium binary next to it. The two ways weighed:
 
-1. **In a Vercel function** (`bom1`). Chromium does not ship with the Node runtime; the usual route is a packaged Chromium for serverless (for example `@sparticuz/chromium`, about 60 MB compressed), which uses most of the 250 MB function limit, adds a cold start of a few seconds on top of the 0.4 s launch measured here, and needs 1 to 2 GB of memory. It keeps everything on one platform.
+1. **In a Vercel function** (`bom1`). Chromium does not ship with the Node runtime; the usual route is a packaged Chromium for serverless (for example `@sparticuz/chromium`, about 60 MB compressed), which uses most of the 250 MB function limit, adds a cold start of a few seconds on top of the 0.5 s launch measured here (523 ms in the result file), and needs 1 to 2 GB of memory. It keeps everything on one platform.
 2. **In a separate worker** (a small container in ap-south-1, for example on the same AWS account as S3), fed by the QStash event that already carries the document id, with the Playwright image (Chromium included). The browser stays warm between jobs, so a quotation costs about 1 s and a batch of 100 labels under 1 s. It is one more service to run.
 
 Also to decide:
-- **Font files.** Variable Inter is drawn as Type 3 fonts in the PDF (searchable, prints correctly). Static Inter files (Regular, Medium, SemiBold, Display SemiBold) would embed as TrueType, cut about 60 KB and 0.2 s per document. The Inter licence (SIL Open Font License 1.1) sits next to the font files in `apps/web/src/print/fonts/OFL.txt`.
+- **Font files.** Variable Inter is drawn as Type 3 fonts in the PDF (searchable, prints correctly); static Inter files embed as TrueType and cut about 60 KB and 0.2 s per document, so P4 prints with the static Regular, Medium and SemiBold files of Inter 4.1. The Inter licence (SIL Open Font License 1.1) sits next to the font files in `apps/web/src/print/fonts/OFL.txt`.
 - **Label printers.** The client's thermal printer model, its driver (does it take PDF, or does it need ZPL or TSPL), and the label stock sizes. The spike assumes PDF at the stock size.
 - **Long item names** on the 50 × 25 mm label are cut after two lines with an ellipsis.
 

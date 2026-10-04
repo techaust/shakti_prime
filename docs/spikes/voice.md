@@ -1,6 +1,6 @@
 # Spike: LiveKit and speech latency, Roman-Hinglish pronunciation
 
-**Status:** ready to run. Provider interfaces, wrappers over plain HTTP and the timing harness are built and tested with fixtures; nothing has called a vendor yet.
+**Status (04-10-2026):** ready to run; waits for the LiveKit and speech-vendor sandboxes and the 20 to 30 voice samples (client-actions 19). Owner: the developer. Provider interfaces, wrappers over plain HTTP and the timing harness are built and tested with fixtures; nothing has called a vendor yet.
 **Roadmap:** §2 week 6 · **Blueprint:** §9.2 (target p50 below 1.5 s), §10 · **ADR:** 0014 (Roman-script Hinglish for speech)
 
 ## 1. What is built
@@ -36,7 +36,7 @@ Optional: `VOICE_SPIKE_LANGUAGE` (default `hi-IN`), `VOICE_SPIKE_ROUNDS` (defaul
 - `firstAudioMs` p50 below 1 500 ms (blueprint §9.2); p95 recorded. If the batch upper bound misses, record the step that dominates and whether streaming closes the gap.
 - LiveKit room-service round trip from India recorded (p50, p95), as a proxy for the region's distance.
 - Pronunciation: every checklist line rated 4 or 5 by at least two of three listeners; lakh and crore amounts and the recording notice must pass.
-- Speech-to-text understands Hinglish questions well enough that the reply answers them (listeners mark each turn's reply as on-topic or not from the stored audio, not from a printed transcript).
+- Speech-to-text understands Hinglish questions well enough that the reply answers them (listeners mark each turn's reply as on-topic or not from the stored audio, not from a printed transcript). The measurements of this run set the speech-to-text accuracy target of the Phase 2 exit gate, before Phase 2 starts (ROADMAP §4, PRD AI-03).
 
 ## 5. Results
 Not run yet.

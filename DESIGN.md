@@ -2,6 +2,19 @@
 
 Blueprint reference: §11. Foundation: Linear's default app design (precision, density, restraint, one indigo accent), with light and dark themes generated the way Linear generates its own, for a business system used on desktops, phones and in the field.
 
+## Contents
+1. [Principles](#1-principles)
+2. [Colour tokens](#2-colour-tokens)
+3. [Typography](#3-typography)
+4. [Spacing, radius, elevation, motion](#4-spacing-radius-elevation-motion)
+5. [Layout](#5-layout)
+6. [Component patterns](#6-component-patterns)
+7. [Theme behaviour](#7-theme-behaviour)
+8. [Token delivery](#8-token-delivery)
+9. [Accessibility and formats](#9-accessibility-and-formats)
+10. [Quality checks](#10-quality-checks)
+11. [Voice and copy](#11-voice-and-copy)
+
 ## 1. Principles
 1. **Calm surface, dense where work happens.** Generous spacing on home pages and forms; tight, scannable rows in queues, grids and boards.
 2. **One accent.** Indigo `#5E6AD2`, Linear's default accent, is the only accent colour. Everything else is neutral or a semantic status colour.
@@ -110,7 +123,11 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. The kW or HP arrives with the product lines of quotes (Phase 1). |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
 | Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Document numbers join the search with quotes and orders (Phase 1), serials with inventory (Phase 3). |
-| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it; for a dialog opened from a menu item, that is the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. |
+| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it; for a dialog opened from a menu item, that is the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. A place that is hidden, disabled, inside an `inert` part of the page or not focusable is passed over (an `aria-disabled` control still counts); when no place takes focus, Radix returns it as it would anyway. |
+| Uploader | `Uploader` in `packages/ui/src/uploader.tsx`, one file at a time: a labelled "Choose a file" button (the hidden file input is not in the tab order) inside a dashed drop area that takes the accent tint while a file is dragged over it, the purpose's limits as a hint under it, and a progress bar while the bytes go. A file of the wrong type, empty or too large is refused before any byte is sent. The outcome is said in words in a polite live region: started, halfway, waiting for its checks, done (`--success`), refused or failed (`--danger`); Cancel while sending, Retry after a failure the caller marks retryable. Every word comes from the caller's catalogue. |
+| Avatar | `Avatar` in `packages/ui/src/avatar.tsx`: a 24 px circle in `--accent-soft` with `--accent-text` initials (the first letters of the first and last words; "R. K. Sharma" is RS), whose accessible name and tooltip are the full name; nothing is drawn for a name with no letters. Used for the owner on board cards. |
+| Account 360 timeline | The customer's history in one company, newest first, as a list with a left rule: each row says what happened, a detail when it has one (a note's text, a tag's name, a task's kind), and who and when in muted text. 25 rows a page with "Load more"; "Add note" in the section's header for people who work the customer's leads. |
+| Role editor | One staff role's permissions, grouped by module under a heading each, with a select per permission offering only the scopes it honours. A permission the role may not choose is read-only text in a dashed box, reachable by keyboard, with its reason under it. The two cost permissions carry a `--warning` note. A summary line says what the choices change; Save names how many people are signed out, and a request narrowed to some companies sees a notice instead of saving. |
 | Toast | Bottom-right desktop, top on phone; 4 s; actions allowed ("Undo", "Open"). |
 | Empty state | One sentence, one primary action. |
 | Skeletons | On every list and detail while loading; never spinners for content. |
@@ -157,7 +174,6 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 9. Accessibility and formats
 - WCAG AA: contrast, focus order, keyboard operability, labels on every control, `aria-live` for toasts and queue updates.
-- When a dialog or sheet closes, focus goes to the first of its named places that can take it (§6, `returnFocusTo`): a place that is hidden, disabled, inside an `inert` part of the page, or not focusable at all is passed over (an `aria-disabled` control still takes focus, as ARIA keeps it focusable), and so is one that does not take focus when asked. Radix's own return is stopped only once focus has landed, so when no place takes it, Radix returns focus as it would anyway.
 - English strings via `next-intl` from one catalogue; no concatenated sentences; plurals through ICU messages. `<html lang="en">` on every page.
 - Numbers: ₹ with paise, lakh/crore grouping (`12,34,567.00`). Dates DD-MM-YYYY, times 24 h IST.
 - Name search tolerates spelling variants of Indian names (trigram matching). Text a customer sends in Devanagari, such as a WhatsApp message, is shown as received with the device's own fonts.
@@ -168,7 +184,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
 - A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
-- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip): public pages measure 158 to 166 kB and staff pages 185 to 231 kB (the framework about 158 kB and the shared app shell about 20 kB), every staff page under the 250 kB aim. The company switcher's and profile menu's menus, the toasts and the search palette load after the page, and the last-resort error page carries only its own sentences, not the catalogue.
+- First-load JavaScript per page is checked in CI against `apps/web/js-budget.json` (`pnpm --filter web js-budget`, gzip), which holds each page's limit, its measured size and the reason for it, and the default (`defaultKb`) for a page it does not name (BLUEPRINT §11.4). The company switcher's and profile menu's menus, the toasts and the search palette load after the page, and the last-resort error page carries only its own sentences, not the catalogue.
 - Copy lint over the message catalogue, which also holds the print strings, and the template JSON files under `packages/contracts/src/templates` (none yet; the first arrive in Phase 2); caller scripts and voice prompts join it when they exist (§11.4).
 
 ## 11. Voice and copy
@@ -177,7 +193,9 @@ The people who use Shakti Prime are tele-callers, store staff, engineers in the 
 ### 11.1 Rules
 1. **Plain language.** Everyday words, short sentences, one idea per message, active voice. Say what happened, then what to do. English at a reading level a new tele-caller understands on day one.
 2. **No technical words, ever.** The user never sees error codes, HTTP statuses, stack traces, table or column names, internal command names, vendor names, or developer vocabulary. Every domain error code maps to a plain sentence in the message catalogue. If the system cannot explain a failure simply, it says "Something went wrong on our side. Please try again in a minute." and shows a short reference number the support person can look up.
-3. **Final, product-specific copy only.** No placeholder, sample, dummy or generic text anywhere a user can see it: no "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example", "Insert text here", and no invented names, phone numbers or amounts in templates, previews, seeds shown to users, screenshots or PDFs. Every string is the wording the product ships with. The one exception is the `/design` preview: to show formats it may use invented figures, places, product sizes, document numbers and serials, and it says on the page that they are not records; it never shows an invented person, phone number or company identifier.
+3. **Final, product-specific copy only.** No placeholder, sample, dummy or generic text anywhere a user can see it: no "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example", "Insert text here", and no invented names, phone numbers or amounts in templates, previews, seeds shown to users, screenshots or PDFs.
+
+   Every string is the wording the product ships with. The one exception is the `/design` preview: to show formats it may use invented figures, places, product sizes, document numbers and serials, and it says on the page that they are not records; it never shows an invented person, phone number or company identifier.
 4. **Consistent names.** One name per thing across the whole product: Lead, Customer, Site, Quote, Sales Order, Dispatch, Project, Proforma, Payment, Engineer visit, Price list, Stock, Kit, Serial number, Warranty claim. Never mix "opportunity" and "lead", or "SO" and "Sales Order", on screen.
 5. **Numbers and dates the Indian way.** ₹ with lakh and crore grouping, DD-MM-YYYY, 24-hour IST, kW and HP with a space ("5 HP", "3.3 kW").
 6. **Respectful and direct.** Customers are addressed by name with "ji" ("Ramesh ji") and, in Hinglish, as "aap"; staff messages use first names. No exclamation marks, no jargon, no blame ("Please check the phone number" rather than "Invalid input").

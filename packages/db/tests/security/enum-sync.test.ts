@@ -1,5 +1,6 @@
 import {
   AccountTypeSchema,
+  ActivityTypeSchema,
   AUDIT_OUTCOMES,
   ConsentChannelSchema,
   ConsentPurposeSchema,
@@ -26,6 +27,8 @@ import {
   SESSION_REVOKE_REASONS,
   SiteTypeSchema,
   StageKindSchema,
+  TaskKindSchema,
+  TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
   USER_STATUSES,
@@ -43,6 +46,7 @@ afterAll(closeDb);
 const PAIRS: Record<string, readonly string[]> = {
   account_contacts_role_check: ContactRoleSchema.options,
   accounts_type_check: AccountTypeSchema.options,
+  activities_type_check: ActivityTypeSchema.options,
   audit_logs_actor_kind_check: PrincipalKindSchema.options,
   audit_logs_outcome_check: AUDIT_OUTCOMES,
   composite_supply_rules_segment_check: SegmentSchema.options,
@@ -70,6 +74,8 @@ const PAIRS: Record<string, readonly string[]> = {
   roles_key_check: ROLE_KEYS,
   role_permissions_scope_check: SCOPES,
   saved_views_screen_check: SavedViewScreenSchema.options,
+  tasks_kind_check: TaskKindSchema.options,
+  tasks_state_check: TaskStateSchema.options,
   sessions_revoked_reason_check: SESSION_REVOKE_REASONS,
   users_status_check: USER_STATUSES,
   users_theme_check: ThemeSchema.options,

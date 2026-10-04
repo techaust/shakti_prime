@@ -12,6 +12,7 @@ import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
+import { taskMachine } from './machines/task';
 import { warrantyClaimMachine } from './machines/warranty-claim';
 
 /**
@@ -20,6 +21,7 @@ import { warrantyClaimMachine } from './machines/warranty-claim';
  */
 export const MACHINES: readonly AnyMachine[] = [
   opportunityMachine,
+  taskMachine,
   quoteMachine,
   salesOrderMachine,
   dispatchMachine,
@@ -34,6 +36,13 @@ export const MACHINES: readonly AnyMachine[] = [
   playbookDirectiveMachine,
   tallyVoucherMachine,
 ];
+
+/**
+ * The machines a command drives: some command in `packages/domain/src/commands` calls
+ * `transition()` with each (checked by `registry.test.ts`). The others are specifications that the
+ * commands of their phase follow when they are built.
+ */
+export const MACHINES_IN_USE: ReadonlySet<string> = new Set(['opportunity', 'task', 'file_upload']);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */
 export const MACHINE_REASONS: readonly string[] = MACHINES.map((m) => m.illegalReason);

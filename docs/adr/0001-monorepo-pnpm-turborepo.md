@@ -1,6 +1,6 @@
 # ADR 0001 — Monorepo with pnpm and Turborepo
 
-**Status:** Accepted · **Date:** 2026-09-26 · **Blueprint:** §5, §6.1 · **Architecture:** §3
+**Status:** Accepted (owner, 26-09-2026, with the blueprint) · **Date:** 26-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §6.1 · **Architecture:** §3
 
 ## Context
 Shakti Prime BOS is one product delivered as four runtimes (web app, Android field app, Tally connector, voice agent) that share contracts, domain logic, design tokens and database types. A single developer maintains all of them. Separate repositories would duplicate configuration, drift on shared schemas and multiply CI setups.

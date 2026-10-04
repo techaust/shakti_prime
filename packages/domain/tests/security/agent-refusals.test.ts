@@ -248,6 +248,202 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
   }
 });
 
+/**
+ * SECURITY §3.3: agents never write the customer master; no agent holds `crm.account.write`.
+ * Every command that needs it, read from the registry, refuses every agent at the guard: the
+ * lead form, imports, the customer edits and the consents of Account 360 (docs/design/phase1.md
+ * §6.5), and the upload of a consent's proof (the `consent_evidence` purpose names it).
+ */
+const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
+  .filter((command) => needs(command).includes('crm.account.write'))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const CUSTOMER = { entityId: 1, accountId: newId() };
+const CUSTOMER_INPUTS: Record<string, unknown> = {
+  'crm.account.update': { ...CUSTOMER, name: 'Refused customer name' },
+  'crm.contact.update': { ...CUSTOMER, contactId: newId(), name: 'Refused contact name' },
+  'crm.consent.record': {
+    ...CUSTOMER,
+    contactId: newId(),
+    channel: 'call',
+    purpose: 'service',
+    source: 'verbal',
+    textVersion: 'v1',
+    givenAt: '2026-01-01T00:00:00Z',
+  },
+  'crm.consent.withdraw': { ...CUSTOMER, consentId: newId() },
+  'crm.lead.create': {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: 'Refused lead', phone: '9800000000' },
+    account: { type: 'farm' },
+  },
+  'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // The proof of a consent, uploaded before the consent names it.
+  'files.upload.begin': {
+    entityId: 1,
+    purpose: 'consent_evidence',
+    name: 'Refused consent form.pdf',
+    contentType: 'application/pdf',
+    size: 10,
+    sha256: 'a'.repeat(64),
+    bucket: 'local',
+  },
+  'files.upload.complete': {
+    fileId: newId(),
+    purpose: 'consent_evidence',
+    stored: { size: 10, sha256: 'a'.repeat(64) },
+  },
+  // An import makes customers the way the lead form does.
+  'imports.job.commit': { entityId: 1, jobId: newId() },
+  'imports.job.commit_batch': { entityId: 1, jobId: newId() },
+};
+
+describe('agent principals never write the customer master (SECURITY §3.3)', () => {
+  it('finds the customer writes in the registry, each with a valid input here', () => {
+    expect(CUSTOMER_WRITES.map((c) => c.name)).toEqual(Object.keys(CUSTOMER_INPUTS).sort());
+    for (const command of CUSTOMER_WRITES) {
+      expect({
+        command: command.name,
+        valid: command.input.safeParse(CUSTOMER_INPUTS[command.name]).success,
+      }).toEqual({ command: command.name, valid: true });
+    }
+  });
+
+  it('no agent holds crm.account.write', () => {
+    for (const agent of AGENTS) {
+      const held = AGENT_MATRIX[agent].filter((g) => g.key === 'crm.account.write');
+      expect({ agent, held }).toEqual({ agent, held: [] });
+    }
+  });
+
+  for (const agent of AGENTS) {
+    it(`${agent} is refused at the guard by every customer write`, async () => {
+      const principal = principalFor(agent, [1]);
+      for (const command of CUSTOMER_WRITES) {
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, CUSTOMER_INPUTS[command.name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+          command: command.name,
+          stage: 'guard',
+        });
+      }
+    });
+  }
+});
+
+/**
+ * Every command of the customer timeline slice (docs/design/phase1.md §6.5), for every agent: a
+ * command the agent lacks a permission for, or one for people only (`peopleOnly`: notes and making
+ * or archiving tags, SECURITY §3.3), is refused at the guard; any other passes the guard and then
+ * finds nothing to change (the inputs name no real row). The Co-pilot's follow-up tasks and the
+ * Triage agent's tags on leads are the ones that pass.
+ */
+const TIMELINE_INPUTS: Record<string, unknown> = {
+  'crm.task.create': {
+    entityId: 1,
+    opportunityId: newId(),
+    kind: 'follow_up',
+    dueAt: '2031-01-01T10:00:00Z',
+  },
+  'crm.task.complete': { entityId: 1, taskId: newId() },
+  'crm.task.reschedule': { entityId: 1, taskId: newId(), dueAt: '2031-01-01T10:00:00Z' },
+  'crm.task.cancel': { entityId: 1, taskId: newId() },
+  'crm.tag.create': { entityId: 1, name: 'Refused tag' },
+  'crm.tag.archive': { tagId: newId() },
+  'crm.lead.tag': { entityId: 1, opportunityId: newId(), tagId: newId() },
+  'crm.lead.untag': { entityId: 1, opportunityId: newId(), tagId: newId() },
+  'crm.note.add': { ...CUSTOMER, body: 'Refused note' },
+  ...CUSTOMER_INPUTS,
+};
+const TIMELINE_COMMANDS = [
+  'crm.task.create',
+  'crm.task.complete',
+  'crm.task.reschedule',
+  'crm.task.cancel',
+  'crm.tag.create',
+  'crm.tag.archive',
+  'crm.lead.tag',
+  'crm.lead.untag',
+  'crm.note.add',
+  'crm.account.update',
+  'crm.contact.update',
+  'crm.site.upsert',
+  'crm.consent.record',
+  'crm.consent.withdraw',
+];
+
+describe('agent principals and the customer timeline commands', () => {
+  const byName = commands as Record<string, AnyCommand>;
+
+  it('has an input for each command, and each is registered', () => {
+    for (const name of TIMELINE_COMMANDS) {
+      const command = byName[name];
+      expect({ name, registered: command !== undefined }).toEqual({ name, registered: true });
+      expect({ name, valid: command?.input.safeParse(TIMELINE_INPUTS[name]).success }).toEqual({
+        name,
+        valid: true,
+      });
+    }
+  });
+
+  for (const agent of AGENTS) {
+    it(`${agent} is refused at the guard exactly where it lacks a permission or the command is for people`, async () => {
+      const principal = principalFor(agent, [1]);
+      const held = AGENT_MATRIX[agent];
+      for (const name of TIMELINE_COMMANDS) {
+        const command = byName[name];
+        if (command === undefined) throw new Error(`${name} is not registered`);
+        const holds = [
+          { permission: command.permission, minScope: command.minScope ?? 'own' },
+          ...(command.alsoRequires ?? []),
+        ].every((need) =>
+          held.some(
+            (g) =>
+              g.key === need.permission &&
+              ['own', 'team', 'entity', 'all'].indexOf(g.scope) >=
+                ['own', 'team', 'entity', 'all'].indexOf(need.minScope),
+          ),
+        );
+        const refusedAtGuard = command.peopleOnly === true || !holds;
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, TIMELINE_INPUTS[name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ name, guard: failureOf(error)?.stage === 'guard' }).toEqual({
+          name,
+          guard: refusedAtGuard,
+        });
+      }
+    });
+  }
+
+  it('lets the Co-pilot add follow-up tasks and the Triage agent tag leads, never make tags or notes', () => {
+    const passes = (agent: AgentRoleKey, name: string) => {
+      const command = byName[name];
+      const held = AGENT_MATRIX[agent].map((g) => g.key);
+      return (
+        command !== undefined &&
+        command.peopleOnly !== true &&
+        needs(command).every((k) => held.includes(k))
+      );
+    };
+    expect(passes('agent:copilot', 'crm.task.create')).toBe(true);
+    expect(passes('agent:triage', 'crm.lead.tag')).toBe(true);
+    for (const agent of AGENTS) {
+      expect(passes(agent, 'crm.note.add')).toBe(false);
+      expect(passes(agent, 'crm.tag.create')).toBe(false);
+      expect(passes(agent, 'crm.tag.archive')).toBe(false);
+    }
+  });
+});
+
 describe('agent principals cannot upload a file of any purpose', () => {
   for (const agent of AGENTS) {
     it(`${agent} is refused files.upload.begin for every purpose`, async () => {

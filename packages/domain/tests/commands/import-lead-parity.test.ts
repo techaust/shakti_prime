@@ -119,6 +119,7 @@ async function snapshot(
       customer_sites: await m<Row[]>`
         select * from customer_sites where account_id = any(${accountIds})`,
       consents: await m<Row[]>`select * from consents where contact_id = any(${contactIds})`,
+      activities: await m<Row[]>`select * from activities where account_id = any(${accountIds})`,
       idempotency_keys: await m<Row[]>`
         select * from idempotency_keys where principal_id = ${actor} and key = any(${keys})`,
       // Delivery columns change as the publisher runs; what was emitted is what must match.
@@ -237,6 +238,7 @@ describe('an import batch set-based and row by row', () => {
       contact_phones: 3,
       customer_sites: 2,
       consents: 0,
+      activities: 3,
       idempotency_keys: 3,
       outbox_events: 3,
     });

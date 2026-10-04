@@ -3,7 +3,7 @@
 What the owner does, once for dev and once for staging, so the BOS can take uploads (a company's logo and letterhead first, then signed quotes, consent proof and vault documents), seal bank details and send mail from Amazon Web Services in Mumbai. It takes about twenty minutes per environment. Everything is created by one CloudFormation stack from `infra/aws/files.yaml`; nothing is made by hand except the app user's access key.
 
 The stack makes, for the environment named `<env>` (`dev` or `staging`):
-- the bucket `shakti-prime-<env>-files`: private, owned by the account, versioned, encrypted with the environment's key, refusing any call without TLS, accepting browser uploads only from `https://shakti-prime-<env>.vercel.app`, and dropping an unfinished upload after a day;
+- the bucket `shakti-prime-<env>-files`: private, owned by the account, versioned, encrypted with the environment's key, refusing any call without TLS, accepting browser uploads only from `https://shakti-prime-<env>.vercel.app`, dropping an unfinished upload after a day, and removing a replaced or deleted file's earlier version a day after it stops being current;
 - the key `alias/shakti-prime-<env>-files`, rotated every year by AWS, which encrypts the files and seals bank details;
 - GuardDuty Malware Protection for the bucket, which scans every new file and writes its verdict on the file as a tag, with the role it needs;
 - the IAM user `shakti-prime-<env>-app`, allowed only the bucket's files, the key and, once the client's domain is verified, mail from the one sender address;
@@ -44,7 +44,7 @@ The stack makes, for the environment named `<env>` (`dev` or `staging`):
 6. **Files that waited.** The file checks run as soon as a file lands. A file that has waited more than ten minutes (for example one uploaded before the checks were switched on, or one whose checks gave up while the store was unreachable) is listed on **Admin › Integration health** under *Files waiting for their checks*: an Executive presses **Check files again** and the checks run again from where each file stopped, so nothing has to be uploaded again. Once checked, a logo shows as the company's current logo.
 
 ## 4. When the client's domain is verified in SES
-Mail goes through SES once the client's domain is verified (DKIM, SPF and DMARC) and SES production access is granted (DEPLOY §1).
+Mail goes through SES once the client's domain is verified (DKIM, SPF and DMARC) and SES production access is granted: do [§7](#7-verifying-the-clients-domain-for-mail) first.
 1. In **CloudFormation**, select the stack › **Update** › **Use existing template** › **Next**.
 2. Set `SesIdentity` to the verified domain and `SesFromAddress` to the one sender address on it that the BOS sends from (a `no-reply@` address on the domain). **Next**, **Next**, tick the IAM acknowledgement and **Submit**.
 3. In Vercel add `SES_FROM` with the same sender address and change `MAILER` to `ses`, then redeploy. A set-password or reset message now arrives by mail.
@@ -54,3 +54,16 @@ Every six months and when someone who saw it leaves (SECURITY §10): make a seco
 
 ## 6. Removing an environment
 The bucket and the key are kept when the stack is deleted, so no file or sealed value is lost by mistake. Empty and delete the bucket, and schedule the key's deletion, only when the environment's data is no longer needed.
+
+## 7. Verifying the client's domain for mail
+Once per AWS account, in Mumbai, when the group has its domain and someone who can change its DNS records ([accounts](accounts.md#planned-not-yet-opened)). Until production access is granted, SES sends only to addresses verified in it, so the BOS keeps `MAILER=log` on dev and staging.
+
+1. Sign in to the AWS console with the administrator login, region **Asia Pacific (Mumbai) ap-south-1**, and open **Amazon Simple Email Service** › **Configuration** › **Identities** › **Create identity**.
+2. Choose **Domain**, type the group's domain, and under *Verifying your domain* keep **Easy DKIM** with **RSA_2048_BIT**. Tick **Use a custom MAIL FROM domain** and type a subdomain only mail uses (for example `mail.<domain>`). Click **Create identity**.
+3. The identity's page lists the DNS records to publish. Send them to whoever runs the domain's DNS, to add exactly as shown:
+   - **DKIM:** the three `CNAME` records;
+   - **SPF:** the custom MAIL FROM domain's `MX` record and its `TXT` record (`v=spf1 include:amazonses.com ~all`);
+   - **DMARC:** a `TXT` record named `_dmarc.<domain>`, starting `v=DMARC1;`, with the policy and report address the group's mail administrator chooses.
+4. Wait until the identity shows **Verified** and *DKIM configuration* shows **Successful** (minutes to a day after the records are published; press the refresh button).
+5. **Production access:** open **Account dashboard** › **Request production access**. Mail type **Transactional**; the website is the production address; the use case in plain words (set-password, password-reset and account messages to the group's own staff; bounces and complaints kept off by SES's account-level suppression list). Submit; AWS answers by mail, usually within a day.
+6. **The sender address:** a `no-reply@<domain>` address on the verified domain. It needs no mailbox; it goes into the stack as `SesFromAddress` and into Vercel as `SES_FROM` (§4).

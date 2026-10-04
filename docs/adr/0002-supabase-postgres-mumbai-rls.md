@@ -1,6 +1,6 @@
 # ADR 0002 — Supabase Postgres in Mumbai with RLS as the isolation boundary
 
-**Status:** Accepted · **Date:** 2026-09-26 · **Blueprint:** §1, §5, §6.1, §7.2, §12 · **Database:** §1, §3, §4 · **Security:** §4
+**Status:** Accepted (owner, 26-09-2026, with the blueprint); dev and staging run without database branching (ARCHITECTURE §12) · **Date:** 26-09-2026 · **Deciders:** Owner · **Blueprint:** §1, §5, §6.1, §7.2, §12 · **Database:** §1, §3, §4 · **Security:** §4
 
 ## Context
 Four selling entities with separate GSTINs share one team, so the system is one database with entity-tagged rows rather than one tenant per company. Users can see several entities; supplier rates, costs and margins must be invisible to most roles even when they can see the rest of the record. The users are in Jaipur, so latency to the database matters, and a single developer needs managed operations.

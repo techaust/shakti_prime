@@ -7,6 +7,7 @@ import {
 import { schema } from '@shakti/db';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
+import type { ActivityValue } from '../../activities/activity';
 import type { CommandContext } from '../../command/context';
 import { transition, type TransitionResult } from '../../state-machines/define-machine';
 import {
@@ -156,6 +157,25 @@ export async function writeOpportunity(
     throw new DomainError('forbidden', `opportunity ${row.id} is outside the caller's write scope`);
   }
   return updated;
+}
+
+/**
+ * The lead's timeline row for a change, written before the lead is updated, while the caller still
+ * reads it (a handover takes it out of an own-scope caller's sight).
+ */
+export function recordLeadActivity(
+  ctx: CommandContext,
+  row: OpportunityRow,
+  type: 'stage_moved' | 'assigned' | 'nurtured' | 'reopened' | 'won' | 'lost',
+  payload: Readonly<Record<string, ActivityValue>> = {},
+): Promise<void> {
+  return ctx.activity({
+    type,
+    opportunityId: row.id,
+    accountId: row.accountId,
+    entityId: row.entityId,
+    payload,
+  });
 }
 
 /** Records the change of one lead: the fields it had and the fields it has now. */

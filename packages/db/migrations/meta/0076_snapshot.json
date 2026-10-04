@@ -1,6 +1,6 @@
 {
-  "id": "d7351968-d70f-4e30-b8db-138948e7cdc0",
-  "prevId": "c3b99409-3a87-4fd5-93fa-1395dcaf0e42",
+  "id": "d1d109ed-de14-46f3-b09d-392198c208fe",
+  "prevId": "287a66a4-9700-4b1a-9106-39f50f7a3d6d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2000,22 +2000,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "bank_json": {
-          "name": "bank_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_details_set": {
-          "name": "bank_details_set",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "generated": {
-            "type": "stored",
-            "as": "bank_json is not null"
-          }
-        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -2315,7 +2299,7 @@
       "checkConstraints": {
         "files_purpose_check": {
           "name": "files_purpose_check",
-          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'print_proof', 'knowledge', 'consent_evidence')"
+          "value": "\"files\".\"purpose\" in ('job_photo', 'survey_photo', 'qc_photo', 'receipt', 'signature', 'selfie', 'customer_document', 'import', 'quote_pdf', 'signed_quote', 'entity_logo', 'letterhead', 'knowledge', 'consent_evidence')"
         },
         "files_status_check": {
           "name": "files_status_check",

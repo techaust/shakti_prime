@@ -235,6 +235,11 @@ export const ENTITY_TABLES = [
   'import_rows',
   // read in the request's companies or as the caller's own rows (0049)
   'user_entity_roles',
+  'activities',
+  'tasks',
+  // tags allow entity_id null for the whole group, as teams do
+  'tags',
+  'opportunity_tags',
 ] as const;
 
 /**

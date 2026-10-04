@@ -1,4 +1,11 @@
 import type {
+  AccountType,
+  ActivityType,
+  ConsentChannel,
+  ConsentPurpose,
+  ConsentSource,
+  CustomerLanguage,
+  CustomerSort,
   ContrastPreference,
   ItemCategory,
   ItemSort,
@@ -27,6 +34,9 @@ import type {
   Scope,
   Segment,
   SessionRevokeReason,
+  SiteType,
+  TaskKind,
+  TaskState,
   Theme,
   UserSort,
   UserStatus,
@@ -97,6 +107,70 @@ export const OPPORTUNITY_NURTURE_REASONS = [
   'other',
 ] as const satisfies readonly OpportunityNurtureReason[];
 
+export const ACCOUNT_TYPES = [
+  'household',
+  'farm',
+  'business',
+  'dealer',
+  'referral_partner',
+] as const satisfies readonly AccountType[];
+
+export const SITE_TYPES = ['borewell', 'rooftop', 'factory'] as const satisfies readonly SiteType[];
+
+export const CUSTOMER_LANGUAGES = ['hinglish', 'en'] as const satisfies readonly CustomerLanguage[];
+
+export const CONSENT_CHANNELS = [
+  'whatsapp',
+  'call',
+  'sms',
+  'email',
+] as const satisfies readonly ConsentChannel[];
+
+export const CONSENT_PURPOSES = [
+  'service',
+  'promotional',
+] as const satisfies readonly ConsentPurpose[];
+
+export const CONSENT_SOURCES = [
+  'web_form',
+  'whatsapp_opt_in',
+  'walk_in_form',
+  'verbal',
+  'import',
+] as const satisfies readonly ConsentSource[];
+
+/** What a task asks for, in the order the Add task dialog offers them. */
+export const TASK_KINDS = [
+  'callback',
+  'follow_up',
+  'nurture',
+  'review',
+] as const satisfies readonly TaskKind[];
+
+export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
+
+/** What a customer timeline row records. */
+export const ACTIVITY_TYPES = [
+  'lead_created',
+  'stage_moved',
+  'assigned',
+  'nurtured',
+  'reopened',
+  'won',
+  'lost',
+  'task_created',
+  'task_done',
+  'task_rescheduled',
+  'task_cancelled',
+  'note',
+  'customer_updated',
+  'site_updated',
+  'consent_recorded',
+  'consent_withdrawn',
+  'tagged',
+  'untagged',
+] as const satisfies readonly ActivityType[];
+
 export const SEGMENTS = [
   'farmer_pumps',
   'residential_rooftop',
@@ -125,10 +199,12 @@ export const SAVED_VIEW_SCREENS = [
   'imports',
   'catalogue_items',
   'catalogue_kits',
+  'customers',
 ] as const satisfies readonly SavedViewScreen[];
 
 /** The columns each list sorts on the server (the contracts' `*_SORT_COLUMNS`). */
 export const LEAD_SORT_COLUMNS = ['updated'] as const satisfies readonly LeadSort['column'][];
+export const CUSTOMER_SORT_COLUMNS = ['name'] as const satisfies readonly CustomerSort['column'][];
 export const USER_SORT_COLUMNS = [
   'name',
   'email',
@@ -268,6 +344,8 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
 
+/** A customers search looks for a name, contact or village from three characters. */
+export const CUSTOMER_SEARCH_MIN_CHARS = 3;
 /** Scopes from narrowest to widest (`SCOPES`). */
 export const SCOPE_VALUES = ['own', 'team', 'entity', 'all'] as const satisfies readonly Scope[];
 
