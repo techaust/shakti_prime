@@ -31,7 +31,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `deliver` | `in_transit` → `delivered` | `inventory.dispatch.write` | the "materials arrived" photo is recorded | `advance_order`: fire `dispatch.partial` or `dispatch.complete` on the sales order |
 | `cancel` | `draft`, `ready` → `cancelled` | `inventory.dispatch.write` | a reason is given | `release_pick`: return picked stock to its bins |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `dispatch_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `dispatch_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

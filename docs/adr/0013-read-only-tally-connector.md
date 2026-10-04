@@ -1,6 +1,6 @@
 # ADR 0013 — Read-only Tally connector with AlterID reads and deletion tombstones
 
-**Status:** Proposed (2026-09-27; to be confirmed by the Tally discovery visit and the connector spike, `docs/spikes/tally.md`, which waits for the visit and a Tally instance) · **Blueprint:** §1, §4, §7.10, §8.8, §10, §12, §16, §17, §18 (risk 2) · **Architecture:** §2, §7 · **API:** §2, §3.5 · **Database:** §4.3, §6.7 · **Security:** §2 (connector signing), §9 (the client PC) · **PRD:** FIN-02
+**Status:** Proposed (27-09-2026); the Tally discovery visit and the connector spike (`docs/spikes/tally.md`) confirm it · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §1, §4, §7.10, §8.8, §10, §12, §16, §17, §18 (risk 2) · **Architecture:** §2, §7 · **API:** §2, §3.5 · **Database:** §4.3, §6.7 · **Security:** §2 (connector signing), §9 (the client PC) · **PRD:** FIN-02
 
 ## Context
 Tally Prime is the group's statutory ledger, one Tally company per selling entity, running on a PC in the Jaipur office. The BOS needs Tally's sales, receipt and credit-note vouchers to update payment milestones, dealer outstanding and reconciliation, and its purchase vouchers for job costing, without ever changing Tally's books. Tally exposes an XML interface on the local network only, has no push mechanism, slows down under heavy reads, and lets users alter or delete vouchers at any time. The office internet link and the PC can be down for days.

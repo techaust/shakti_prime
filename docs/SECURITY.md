@@ -97,7 +97,7 @@ Each arrow into the BOS crosses a check: a session with its second factor, a pro
 ## 3. Authorization
 
 ### 3.1 Model
-Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions added to the catalogue later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
+Roles are permission templates that Executives can edit; the set of roles is fixed (no custom roles), and an edited role is marked customised so a deploy never undoes the edit, while it still receives permissions the catalogue gains later. A permission is `module.resource.action` with a scope: `own`, `team`, `entity` or `all`. Users hold a role per entity; agents are service principals with fixed permission sets.
 
 **The role editor** (Admin › Roles, `admin.role.permissions.set`, `admin.roles.write:all` with `admin.users.write:all`):
 - It replaces a staff role's grants as a set, in a request acting for every active company, since a role's grants reach every company (ADR 0016); a request narrowed to some companies sees a notice and cannot save. It never edits an agent role or a system role (`role_not_editable`).
@@ -113,6 +113,8 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - Every holder's cached access is then dropped; a cache that cannot be reached is logged and the save stands, since the holders are already signed out. The editor warns in plain words on the two cost permissions.
 
 ### 3.2 Permission catalogue
+Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.ts`); CC is the Tele-Caller for cold calling (`tele_caller_cc`) and LC the Tele-Caller for lead calling (`tele_caller_lc`), which receives the leads CC qualifies.
+
 | Permission | Executive | GM | Sales Lead | CC | LC | Store | Inventory | Project Mgr | Field | Accounts | HR |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `crm.lead.read` | all | entity | team | own | own | own | – | entity | – | entity | – |
@@ -167,7 +169,9 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
-**Shared rows (ADR 0016):** GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the catalogue (`items`, `kits`, `kit_components`, `pump_curves`) carry no company, so `tax.rates.write` and `catalogue.write` change them only in a request that acts for every active company, as shared price lists are written. The catalogue commands say so (`catalogue_needs_all_companies`) and the tables' write policies enforce it; a General Manager or Inventory Manager who holds the grant in one company reads the catalogue there and changes it from All companies only, holding the grant in every company.
+**Shared rows (ADR 0016):** GST rates and composite-supply splits (`tax_rates`, `composite_supply_rules`) and the catalogue (`items`, `kits`, `kit_components`, `pump_curves`) carry no company, so `tax.rates.write` and `catalogue.write` change them only in a request that acts for every active company, as shared price lists are written.
+
+The catalogue commands say so (`catalogue_needs_all_companies`) and the tables' write policies enforce it; a General Manager or Inventory Manager who holds the grant in one company reads the catalogue there and changes it from All companies only, holding the grant in every company.
 
 **The customer timeline, tasks, tags and Account 360** (docs/design/phase1.md §6.5) add no permission:
 - A timeline row (`activities`) is read with its lead, or, for a row of no lead, with its customer in that company; a note is never read by an agent.
@@ -181,17 +185,17 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 | Principal | Permissions |
 |---|---|
 | `agent:triage` | `crm.lead.read:entity`, `crm.lead.write:entity` (score, pipeline, entity fields only), `crm.lead.assign:entity`, `crm.lead.merge:entity` (suggest only) |
-| `agent:concierge` | Read the current thread's account and opportunity; write qualification fields; book callback and site-visit slots; send approved templates and in-window messages; file documents; hand off. No cross-customer queries, no price edits, no internal notes |
+| `agent:concierge` | `crm.lead.read:own`, `crm.lead.write:own`, `crm.account.read:own`, `documents.write:own`. Read the current thread's account and opportunity; write qualification fields; book callback and site-visit slots; send approved templates and in-window messages; file documents; hand off. No cross-customer queries, no price edits, no internal notes |
 | `agent:copilot` | `crm.lead.read:entity`, write summaries, dispositions and follow-up tasks; read approved knowledge |
 | `agent:sizing` | `pricing.read:entity`, `inventory.stock.read:entity`, `sales.quote.create:entity` (draft); no cost permissions; suggests a sizing, never records one (ADR 0021) |
 | `agent:orchestrator` | `projects.read/write:entity`, `projects.schedule.write:entity` (suggest), `documents.write:entity`, message requests |
-| `agent:chief` | Read across modules at entity scope for briefings and anomalies; no cost permissions, no writes except Agent Inbox items |
+| `agent:chief` | `crm.lead.read:entity`, `crm.account.read:entity`, `projects.read:entity`, `inventory.stock.read:entity`. Read across modules at entity scope for briefings and anomalies; no cost permissions, no writes except Agent Inbox items |
 | `system:workers` | The system principal the event workers act as (`apps/web/src/workers/events`): one seeded principal of kind `system`, scoped to the company of the event it handles. Its grants are `SYSTEM_MATRIX` in `packages/contracts/src/system-principal.ts`, which the seed writes: `files.process:all` for the file checks of `files.file.uploaded` (the delivery check's worker writes no row). Each later worker adds only the grant its command needs, and never a cost, admin, audit, integrations or sensitive-document permission. It follows an agent's customer rules (ADR 0020, Proposed until the owner decides at T2): a request is a service's when its role key is `agent:%` or `system:%` or its principal row is of kind `agent` or `system` (0064) |
 
 What no agent principal holds or does:
 - No agent principal holds `procurement.rate.read`, `finance.cost.read`, `documents.sensitive.read`, `knowledge.vault.read.exec`, any admin permission, or the human controls (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch`, `knowledge.playbook.approve`, `sales.credit.release`).
 - The Triage and Co-pilot agents work on opportunity data without customer names or phone numbers.
-- No agent reads or adds a customer note, makes or archives a tag, or reads the customers screens' queries: the command guard refuses an agent principal for a command marked for people (`peopleOnly`), whatever it holds, while the Co-pilot still adds follow-up tasks and the Triage agent tags leads. Agents hold no `crm.account.*` permission, and the customer rule of §4 never lets an agent read a customer through a lead (0057).
+- No agent reads or adds a customer note, makes or archives a tag, or reads the customers screens' queries: the command guard refuses an agent principal for a command marked for people (`peopleOnly`), whatever it holds, while the Co-pilot still adds follow-up tasks and the Triage agent tags leads. No agent holds `crm.account.write`; of the agents, only the Concierge (`crm.account.read:own`) and the Chief of Staff (`crm.account.read:entity`) read customers, and the customer rule of §4 never lets an agent read a customer through a lead (0057).
 - Only people record the sizing a quote relies on: `crm.sizing.record` is for people only, and its guard also refuses a voice session and `system:workers` (ADR 0021, with the sizing slice C4).
 - An agent's lead handover never moves the customer relationship: `app.hand_over_customer()` answers `unchanged` for an agent request and touches nothing (0059).
 - Ask the Business and voice Ask run as the user.
@@ -212,9 +216,9 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - RLS on every business table with fail-closed policies (`docs/DATABASE.md` §4); `FORCE ROW LEVEL SECURITY`; `app_user` is not the owner and has no `BYPASSRLS`; queries may run as `app_reader`, which can only read (ADR 0018).
 - Two cost permissions enforced in RLS and in DTOs: `procurement.rate.read` (supplier rates, PO values, purchase vouchers) and `finance.cost.read` (item costs, job costs, margins).
 - Cost columns live in side tables (`item_costs`, `stock_movement_costs`, `job_cost_entries`, `tally_purchase_vouchers`) so operational tables carry no cost data.
-- **Customers (ADR 0008).** This is the one statement of who sees a customer; DATABASE §6.2 (`account_entities`) gives the policy that enforces it.
+- **Customers (ADR 0008).** This is the one statement of who sees a customer; [DATABASE §4.4](DATABASE.md#account_entities) gives the policy that enforces it.
   - A person sees a customer in a company through the relationship at their `crm.account.read` scope, or through one of the customer's leads there that they can read and that is not archived (0057, 0059).
-  - An agent, and the system principal of the workers, sees a customer only through `crm.account.read` (0057, 0064, ADR 0020).
+  - An agent, and the system principal of the workers, sees a customer only through `crm.account.read`, which only `agent:concierge` (own) and `agent:chief` (company) hold (§3.3; 0057, 0064, ADR 0020).
   - A new lead or import row whose number belongs to a customer a colleague looks after in the company is refused and routed (`customer_held_by_colleague`, `app.lead_phone_status()`), judged in that company only, so the All-companies view cannot get round it. A number put on a contact is refused the same way when it belongs to another customer the caller may not change anywhere in the group (`app.contact_phone_status()`).
   - The lead form holds a new customer's number while it is checked, so two leads typed at once with one new number cannot both find it free; imports take no number lock, so an import committing a brand-new number at the same moment as a form or another import can make a second customer, which the duplicate cards (CRM-03, slice D1) are to catch.
   - A lead handed over by its holder takes the customer relationship with it (`app.hand_over_customer()`, 0055); an agent's handover never does (0059).
@@ -252,7 +256,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 
 ## 8. Application security
 - CSP with nonces; CSRF origin checks on server actions; Zod validation on every input; output encoding by React.
-- **Uploads:** each purpose names the permission that creates and reads its files (`app.file_purpose_grant()`, 0066, mirrored by `packages/domain/src/files/purposes.ts`; the list is DATABASE §6.10, `files`). No AI agent holds any of those write permissions, and the checks run as the worker principal with `files.process`, which no person's role or AI agent holds; a person changes only their own pending upload's status.
+- **Uploads:** each purpose names the permission that creates and reads its files (`app.file_purpose_grant()`, 0066, mirrored by `packages/domain/src/files/purposes.ts`; the list is [DATABASE §4.4](DATABASE.md#files)). No AI agent holds any of those write permissions, and the checks run as the worker principal with `files.process`, which no person's role or AI agent holds; a person changes only their own pending upload's status.
   - Each purpose also names its types and largest size (`files/limits.ts`, checked by `files.upload.begin` and by the uploader before sending).
   - A pre-signed PUT lasts 15 minutes and binds the type, length, SHA-256 and SSE-KMS encryption into its signature, and `files.upload.complete` checks the stored size and SHA-256.
   - The bucket blocks public access, enforces its owner, keeps versions, refuses calls without TLS and accepts browser uploads from the environment's own address only (`infra/aws/files.yaml`, ADR 0019).
@@ -268,8 +272,11 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Staging holds synthetic data only.
 
 ## 9. Infrastructure security
-- Supabase: network restrictions to Vercel and workers; SSL enforced; PITR; audit of dashboard access.
-- Vercel: environment separation, protected production branch, deployment protection on previews.
+- Supabase: SSL enforced; audit of dashboard access.
+- Vercel: environment separation (a project per environment), deployment protection on previews.
+- **Targets before production** (not in place on dev and staging; the plans and accounts are in [accounts](runbooks/accounts.md)):
+  - Supabase network restrictions to Vercel and the workers, and point-in-time recovery on the production project;
+  - a protected production branch: the free GitHub plan has no branch rules, so nothing blocks a direct push to `main` today (ADR 0017; the audit ([2026-09-audit](reviews/2026-09-audit.md)) M45).
 - AWS: one least-privilege IAM user per environment for S3 and SES; KMS key per environment with rotation; S3 block public access; lifecycle rules; backup bucket in a separate account or with object lock.
 - Upstash: separate databases per environment; signing keys rotated.
 - LiveKit: room tokens with 5-minute TTL; worker credentials per environment.

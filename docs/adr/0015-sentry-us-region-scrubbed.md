@@ -1,6 +1,6 @@
 # ADR 0015 — Sentry in the group's US-region organisation, with personal data removed before sending
 
-**Status:** Accepted (owner, 28-09-2026) · **Date:** 28-09-2026 · **Blueprint:** §5, §7.5, §12 · **Architecture:** §12 · **Security:** §5, §8 · **Design:** `docs/design/phase1.md` §5.2 · **ADR:** 0014
+**Status:** Accepted (owner, 28-09-2026) · **Date:** 28-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §7.5, §12 · **Architecture:** §12 · **Security:** §5, §8 · **Design:** `docs/design/phase1.md` §5.2 · **ADR:** 0014
 
 ## Context
 Phase 1 needs error reports from the web app's server, edge and browser code, and an alert when the outbox publisher keeps failing (ROADMAP §3). The group already runs a Sentry organisation in Sentry's US region; the alternative was a new organisation for the BOS alone. Any error report can carry a URL, a header, a form value or a log line, and under the DPDP Act (blueprint §7.5) customer phone numbers, Aadhaar digits, bank details and message bodies must not leave the BOS for a vendor that has no need of them.

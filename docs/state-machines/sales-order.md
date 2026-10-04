@@ -33,7 +33,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `close` | `invoiced` → `closed` | `sales.order.confirm` | payments are settled (nothing remains due) | – |
 | `cancel` | `draft`, `confirmed` → `cancelled` | `sales.order.cancel` | a reason is given; nothing is dispatched (no dispatch other than a cancelled one) | `release_reservations`: release reservations |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `sales_order_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `sales_order_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

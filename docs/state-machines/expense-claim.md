@@ -30,7 +30,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `reject` *(proposed)* | `submitted`, `manager_approved` → `rejected` | `finance.expense.approve` at team scope or wider | a reason is given; the approver is not the claimant | – |
 | `reimburse` | `approved` → `reimbursed` | `finance.payment.write` or the platform | – | `export_line`: included in the monthly reimbursement export (HR-04) |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `expense_claim_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `expense_claim_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 

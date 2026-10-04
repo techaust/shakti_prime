@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { EVENT_TYPES, isSubscribed } from '@shakti/contracts';
+import { describeEventCatalogue, EVENT_TYPES, isSubscribed } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeSchema, renderEventsDoc } from './events-docs';
+import { describeSchema, groupByModule, moduleOf, renderEventsDoc } from './events-docs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const lf = (text: string) => text.replace(/\r\n/g, '\n');
@@ -22,6 +22,28 @@ describe('the event catalogue document (docs/data/EVENTS.md)', () => {
     }
     expect(doc).toContain('`POST /api/v1/workers/outbox/files.file.uploaded`');
     expect(doc).toContain('`POST /api/v1/workers/outbox/platform.probe.requested`');
+  });
+});
+
+describe('the event types table', () => {
+  const doc = renderEventsDoc();
+  const { events } = describeEventCatalogue();
+
+  it('prints each type once, in its module, with its meaning and the commands that emit it', () => {
+    for (const entry of events) {
+      const row = doc.split('\n').find((line) => line.startsWith(`| [\`${entry.type}\`]`));
+      expect(row, entry.type).toBeDefined();
+      expect(row).toContain(entry.meaning);
+      for (const name of entry.emittedBy) expect(row).toContain(`\`${name}\``);
+    }
+  });
+
+  it('groups every type under the first part of its name', () => {
+    const groups = groupByModule(events);
+    expect(groups.flatMap(([, entries]) => entries)).toHaveLength(events.length);
+    for (const [key, entries] of groups) {
+      for (const entry of entries) expect(moduleOf(entry.type)).toBe(key);
+    }
   });
 });
 

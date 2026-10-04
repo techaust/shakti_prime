@@ -1,9 +1,11 @@
 # ADR 0019 — Files in S3 under SSE-KMS, scanned by GuardDuty, and fields sealed with KMS data keys
 
-**Status:** Accepted (design approved by the owner 29-09-2026, `docs/design/phase1.md` §5.3; built in #85, migrations 0065 and 0066; the hosted stack is created per environment as `docs/runbooks/files-setup.md` describes) · **Date:** 29-09-2026 · **Blueprint:** §5, §7.5, §7.10 · **Architecture:** §9 · **Security:** §5, §8 · **Database:** §6.10 · **ADR:** 0005, 0009
+**Status:** Accepted: approved by the owner within the Phase 1 design, 29-09-2026 (`docs/design/phase1.md` §5.3); built in #85 (migrations 0065 and 0066) · **Date:** 29-09-2026 · **Deciders:** Owner, within the Phase 1 design · **Blueprint:** §5, §7.5, §7.10 · **Architecture:** §9 · **Security:** §5, §8 · **Database:** §6.10 · **ADR:** 0005, 0009
 
 ## Context
-Phase 1 stores files people upload (company logos and letterheads, signed quotes, consent proof, import workbooks) and files the BOS makes (quote PDFs), and later phases add site photos, receipts, recordings and identity documents. Blueprint §5 places object storage in AWS `ap-south-1`. Uploaded bytes are untrusted: they may carry malware, scripts in a PDF or personal data in image metadata, and nothing may read them before they are checked. Bank details printed on documents must be stored encrypted, with decryption only where a document is printed or a payment made (SECURITY §5). The BOS runs on Vercel functions, which have small request bodies and no resident process.
+Phase 1 stores files people upload (company logos and letterheads, signed quotes, consent proof, import workbooks) and files the BOS makes (quote PDFs), and later phases add site photos, receipts, recordings and identity documents. Blueprint §5 places object storage in AWS `ap-south-1`.
+
+Uploaded bytes are untrusted: they may carry malware, scripts in a PDF or personal data in image metadata, and nothing may read them before they are checked. Bank details printed on documents must be stored encrypted, with decryption only where a document is printed or a payment made (SECURITY §5). The BOS runs on Vercel functions, which have small request bodies and no resident process.
 
 ## Decision
 **One S3 bucket per environment, encrypted with the environment's KMS key; bytes go straight between the browser and S3 on short pre-signed URLs; GuardDuty Malware Protection scans every new object; and the same KMS key wraps the data keys that seal sensitive fields.**

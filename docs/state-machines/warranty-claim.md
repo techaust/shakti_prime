@@ -30,7 +30,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `settle` | `rma_raised` → `closed` | `procurement.grn.write` | supplier credit or a supplier replacement is received | `adjust_cost`: offset the warranty cost entry by the supplier credit or replacement |
 | `reject` *(proposed)* | `raised`, `serial_identified` → `rejected` | `inventory.warranty.write` | a reason is given | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `warranty_claim_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `warranty_claim_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Diagram
 

@@ -37,6 +37,7 @@ export const taskMachine = defineMachine<TaskMachineState, TaskEvent, TaskRecord
   states: TASK_STATES,
   initial: 'open',
   terminal: ['done', 'cancelled'],
+  stored: { table: 'tasks', stateColumn: 'state' },
   transitions: [
     {
       from: 'new',

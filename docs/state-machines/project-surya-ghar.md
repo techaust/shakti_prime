@@ -43,7 +43,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `subsidy.credited` | `dbt_tracking` → `completed` | `projects.write` | the DBT subsidy credit is recorded | `handover_kit`: send the handover kit on WhatsApp; `cmc_register`: open the CMC register entry (PRJ-07) |
 | `cancel` *(proposed)* | `survey`, `load_enhancement`, `portal_registration`, `feasibility`, `agreement`, `material`, `installation`, `qc`, `net_metering`, `dbt_tracking` → `cancelled` | `projects.write` at entity scope or wider | a reason is given | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `project_surya_ghar_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command persists `state` and `state_changed_at`, applies the effects, calls `ctx.audit()` and emits `<aggregate>.<event>`.
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `project_surya_ghar_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. No command drives this machine yet; the commands of its phase follow it (ROADMAP §3 onwards).
 
 ## Notes
 
