@@ -2,11 +2,11 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [DECISIONS.md](DECISIONS.md); open follow-ups have their single home here.
 
-**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the owner paused the slice work for two passes over the documents (#91 to #95, then the work for cloud sessions and the PC). Migrations on `main`: 0000 to 0089. Tests after #93: security suite 1,605 (database 897, domain 502, web 206), unit tests 2,461.
+**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the owner paused the slice work for two passes over the documents (#91 to #96, the second with the work for cloud sessions and the PC). Migrations on `main`: 0000 to 0089. Tests: security suite 1,605 (database 897, domain 502, web 206) after #89; unit tests 2,477 after #96.
 
 ## Phase 1
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
-- **Merged:** set-up before wave 1: #79 (packages), #80 (design); wave 1: #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2: #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93, their CHANGELOG lines #94; the project's know-how (scripts, skills, agents, runbooks) in the repository #95.
+- **Merged:** set-up before wave 1: #79 (packages), #80 (design); wave 1: #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2: #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93, their CHANGELOG lines #94; the second audit and the cloud and PC work #96; the project's know-how (scripts, skills, agents, runbooks) in the repository #95.
 - **Next:** the slices in progress below, then waves 3 to 6 (AI0, T1, S1, D1; N1, T2, S2, K1; L1, R1, A1; M1, G1).
 - **Work split:** slices are built and reviewed in cloud sessions and integrated on the PC ([hybrid](runbooks/hybrid.md)); the cloud trial of [hybrid §10](runbooks/hybrid.md#10-the-trial) has not started.
 
