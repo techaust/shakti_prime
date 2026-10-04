@@ -1,6 +1,6 @@
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import type { AnyMachine } from './define-machine';
-import { MACHINES } from './registry';
+import { MACHINES, MACHINES_IN_USE } from './registry';
 
 /**
  * Renders the machines into the specification documents in `docs/state-machines/` (BLUEPRINT §19
@@ -149,7 +149,10 @@ function flatten(value: unknown, prefix: string): [string, string][] {
 }
 
 /** The index: every machine, the workshop defaults they use and the permissions they need. */
-export function renderIndex(machines: readonly AnyMachine[]): string {
+export function renderIndex(
+  machines: readonly AnyMachine[],
+  inUse: ReadonlySet<string> = MACHINES_IN_USE,
+): string {
   const newPermissions = [
     ...new Set(
       machines.flatMap((m) =>
@@ -164,14 +167,16 @@ export function renderIndex(machines: readonly AnyMachine[]): string {
     '',
     GENERATED_NOTE,
     '',
-    'The Phase 0 state-machine specifications (BLUEPRINT §19 item 2). Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/design/backend-weeks-3-5.md §7.1).',
+    'The state-machine specifications (BLUEPRINT §19 item 2), with the checks of an upload. Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/design/backend-weeks-3-5.md §7.1).',
     '',
-    '| Machine | States | Events | Proposed items | Specification |',
-    '|---|---|---|---|---|',
+    'A machine marked **yes** under *Driven by commands* has commands that call `transition()` with it (`MACHINES_IN_USE` in `registry.ts`, checked against the commands by `registry.test.ts`). The others are specifications: the commands of their phase follow them when they are built (ROADMAP §3 onwards).',
+    '',
+    '| Machine | Driven by commands | States | Events | Proposed items | Specification |',
+    '|---|---|---|---|---|---|',
     ...machines.map((m) => {
       const proposed =
         (m.proposedStates?.length ?? 0) + m.transitions.filter((t) => t.proposed === true).length;
-      return `| ${m.title} | ${String(m.states.length)} | ${String(m.events.length)} | ${String(proposed)} | [${fileName(m)}](${fileName(m)}) |`;
+      return `| ${m.title} | ${inUse.has(m.name) ? '**yes**' : 'no'} | ${String(m.states.length)} | ${String(m.events.length)} | ${String(proposed)} | [${fileName(m)}](${fileName(m)}) |`;
     }),
     '',
     '## Workshop defaults',
