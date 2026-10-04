@@ -13,7 +13,7 @@
 // people and villages with new numbers: its preview is timed, and the name-and-village search of
 // its first thousand rows is shown with `EXPLAIN (ANALYZE, BUFFERS)` under the policies, as the
 // preview runs it. Then imports.job.rollback archives the leads again (a job still committing is
-// left as it is).
+// left as it is, and the next run fails and undoes it first).
 // Writes docs/spikes/results/import-scale-xlsx.json (or import-scale-csv.json) and the plan to
 // docs/spikes/results/import-dedupe-plan.txt. Not part of CI. It lives under tests/ because it
 // creates its caller with the testing helpers, which scripts outside the tests may not import.
@@ -37,6 +37,7 @@ import { fileURLToPath } from 'node:url';
 import { executeCommand } from '../../src/command/execute';
 import { commitImportBatch, commitImportJob } from '../../src/commands/imports/commit-job';
 import { createImportJob } from '../../src/commands/imports/create-job';
+import { failImportJob } from '../../src/commands/imports/fail-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
 import {
   existingByNameAndVillage,
@@ -300,9 +301,26 @@ async function dedupeAtScale(gm: Principal) {
   };
 }
 
+/** An earlier run stopped part-way leaves its job committing or committed: it is undone first. */
+async function undoEarlierRuns(gm: Principal): Promise<void> {
+  const left = await asMigrator(
+    (m) => m<{ id: string; state: string }[]>`
+      select j.id, j.state from import_jobs j join files f on f.id = j.file_id
+       where j.entity_id = ${ENTITY} and f.name like 'import-scale-spike.%'
+         and j.state in ('committing', 'committed', 'failed')`,
+  );
+  for (const job of left) {
+    const ref = { entityId: ENTITY, jobId: job.id };
+    if (job.state === 'committing') await executeCommand(gm, scope, failImportJob, ref);
+    await executeCommand(gm, scope, rollbackImportJob, ref);
+    log(`undid the job ${job.id} an earlier run left ${job.state}`);
+  }
+}
+
 async function main(): Promise<void> {
   await prepareDatabase();
   const gm = await createTestPrincipal('general_manager', [ENTITY]);
+  await undoEarlierRuns(gm);
   const rtt = await roundTripMs();
   log(`database round trip: ${String(rtt)} ms`);
   const host = (process.env.DATABASE_URL ?? '').replace(/^.*@/, '').replace(/\/.*$/, '');
