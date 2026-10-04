@@ -179,7 +179,7 @@ describe('org.entity.update: the bank account (docs/SECURITY.md §5)', () => {
     expect(emitted.records).toEqual([
       expect.objectContaining({
         type: 'org.entity.updated',
-        payload: expect.objectContaining({ fields: ['bankDetails'] }),
+        payload: { fields: ['bankDetails'], v: 1 },
       }),
     ]);
 
@@ -224,13 +224,13 @@ describe('reading a bank account back (docs/SECURITY.md §5)', () => {
     const gm = principalFor('general_manager', [ENTITY]);
     await expect(
       asPrincipal(gm, (ctx) => readSealedBankDetails(ctx, ENTITY)),
-    ).rejects.toMatchObject({ cause: expect.objectContaining({ code: '42501' }) });
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
     // Not even an Executive selects the column itself: only the definer reads it.
     await expect(
       asPrincipal(executive, (ctx) =>
         ctx.tx.execute(sql`select bank_json from entities where id = ${ENTITY}`),
       ),
-    ).rejects.toMatchObject({ cause: expect.objectContaining({ code: '42501' }) });
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
     const [privileges] = await asMigrator(
       (m) => m<{ user: boolean; reader: boolean; reporter: boolean; set: boolean }[]>`
         select has_column_privilege('app_user', 'entities', 'bank_json', 'SELECT') as user,
@@ -248,7 +248,7 @@ describe('reading a bank account back (docs/SECURITY.md §5)', () => {
     ).rejects.toMatchObject({ code: 'not_found' });
     await expect(
       asPrincipal(other, (ctx) => readSealedBankDetails(ctx, ENTITY)),
-    ).rejects.toMatchObject({ cause: expect.objectContaining({ code: '42501' }) });
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 
   it('does not open an account copied to another company', async () => {

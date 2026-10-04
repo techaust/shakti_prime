@@ -89,7 +89,9 @@ describe('quotation template', () => {
     expect(page.indexOf('BAUG')).toBeLessThan(page.indexOf('AQID'));
     const bank = quote.company.bank;
     if (bank === null) throw new Error('the fixture has an account');
-    for (const value of Object.values(bank)) expect(page).toContain(escapeHtml(value));
+    for (const value of [bank.bankName, bank.accountNumber, bank.ifsc, bank.branch]) {
+      expect(page).toContain(escapeHtml(value));
+    }
     expect(page).toContain(en.print.company.bankHeading);
     expect(page).toContain(quote.company.gstin ?? '');
     expect(options.footerTemplate).toContain(quote.company.brandName);
@@ -181,7 +183,9 @@ describe('the proof page', () => {
     expect(page).toContain(company.gstin ?? '');
     const bank = company.bank;
     if (bank === null) throw new Error('the fixture has an account');
-    for (const value of Object.values(bank)) expect(page).toContain(escapeHtml(value));
+    for (const value of [bank.bankName, bank.accountNumber, bank.ifsc, bank.branch]) {
+      expect(page).toContain(escapeHtml(value));
+    }
     expect(page).toContain(en.print.proof.printedBeside);
     // No letterhead in the fixture: the list says so.
     expect(page).toContain(en.print.proof.missing);
