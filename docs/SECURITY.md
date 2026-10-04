@@ -200,6 +200,13 @@ What no agent principal holds or does:
 - An agent's lead handover never moves the customer relationship: `app.hand_over_customer()` answers `unchanged` for an agent request and touches nothing (0059).
 - Ask the Business and voice Ask run as the user.
 
+**The agent runtime** (docs/design/phase1.md §7.1; DATABASE §4.4 for the tables). The principals' ids and grants are `AGENT_PRINCIPAL_IDS` and `AGENT_MATRIX` in `packages/contracts/src/agent-principals.ts`, which the seed writes and the runtime acts as (`agentPrincipal()`, scoped to the one company the run is for).
+- An agent proposes or takes only an action type listed for it in `AGENT_ACTION_TYPES` (`packages/domain/src/ai/action-types.ts`): an action type is a command the agent may run itself, never one for people only, which a unit test checks against `AGENT_MATRIX`.
+- `agents.run.record` records each run as the agent's own principal, with the permission of the command its action type runs; it refuses a person, another agent's run and an action type not open to the agent. It files the suggestion with an inbox item under Suggest and Needs approval, and under Automatic runs the command at once as the agent, under the agent's own permissions; a switch that is off records the run as stopped and files nothing.
+- `agents.inbox.approve`, `.edit` and `.reject` (`agents.inbox.act`, for people only) decide once, on an item the caller may act on; approving runs the suggested command through `ctx.run()` as the person who approves, under that person's permissions and in the same transaction, never the agent's, and is refused while a switch stops the agent (`agent_switched_off`). An edit changes only the fields its action type names and counts as edited.
+- `agents.config.set` (`agents.autonomy.write`, for people only) sets autonomy and the daily spending limit; Automatic only on one action type, and only after 200 decided suggestions of it with 95 in 100 approved without an edit in the companies the setting covers (`autonomy_not_earned`); the Executive's change is the sign-off. `agents.killswitch.set` (`agents.killswitch`, for people only) stops every agent or one, in every company or one. A setting for the group needs a request for every company (`agents_need_all_companies`).
+- The agent refusal sweep covers the five human controls; no agent reads the Agent Inbox or the agents screen's query.
+
 ### 3.4 Voice principals
 A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" session (blueprint §9.2, ADR 0010). It is not an agent: it acts as the speaking user.
 
@@ -247,6 +254,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Kill switches (global, per agent, per entity); per-agent daily spend caps; token budgets per run.
 - Prompt-injection test set (data exfiltration, price manipulation, unauthorised promises, tool misuse) runs in CI; every case must fail safely.
 - Evals gate every prompt or model change.
+- **The provider wrapper** (`packages/domain/src/ai/provider.ts`, ADR 0011) is the one way to a model: every call names its agent and purpose; every text is masked first (`maskForModel()`: Aadhaar and bank account digits, phone numbers beyond their last four, email and UPI addresses), and data from outside the business is wrapped as `untrusted_data` with its angle brackets escaped (`labelUntrusted()`); a call has a 20-second timeout per attempt, two retries for a timeout, a network failure, a 429 or a 5xx, and a circuit breaker in Redis (five failures in a minute pause the vendor for a minute); it names a model with a known price, is refused once the agent's spend today in the setting's company or group reaches its cap (`agent_spend_cap_reached`), and is charged in whole paise, rounded up, after it answers. Logs carry agent, purpose, model, tokens and cost, never a text. Without `ANTHROPIC_API_KEY` (or `VOYAGE_API_KEY`) it answers unavailable and nothing calls out. Every test uses its fake transport.
 
 ## 7. Telecom compliance
 - Each entity registered on DLT as a Principal Entity; headers and consent templates registered.

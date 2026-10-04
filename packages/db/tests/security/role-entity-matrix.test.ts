@@ -71,7 +71,7 @@ const ACCOUNT_READ = grant('crm.account.read', 'own');
 const LEAD_READ = grant('crm.lead.read', 'own');
 const IMPORTS = grant('imports.write', 'entity');
 const NEVER: Rule = { kind: 'never' };
-/** Either agent control reads the runs and actions of the company (0093). */
+/** Either agent control reads the runs and actions of the company (DATABASE §4.4). */
 const AGENT_CONTROLS: Rule = {
   kind: 'any',
   rules: [grant('agents.autonomy.write', 'entity'), grant('agents.killswitch', 'entity')],
@@ -178,7 +178,7 @@ const RULES: Record<MatrixTable, TableRule> = {
   tasks: { read: LEAD_READ, leak: otherCompany },
   tags: { read: LEAD_READ, group: LEAD_READ, leak: otherCompany },
   opportunity_tags: { read: LEAD_READ, leak: otherCompany },
-  // Every principal of a company reads its agent settings and the group's (0093).
+  // Every principal of a company reads its agent settings and the group's (DATABASE §4.4).
   agent_configs: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   agent_runs: { read: AGENT_CONTROLS, leak: otherCompany },
   // The fixture's suggestion is the owner's, in their team: the inbox reads it at own scope.

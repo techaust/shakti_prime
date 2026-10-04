@@ -411,7 +411,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | AI-01 | 1, 2 | P2, K1 | Upload purposes: `packages/db/tests/security/files.test.ts` |
 | AI-02 | 2 | — | — |
 | AI-03 | 2, 6 | — | — (harness only: `apps/web/src/integrations/voice/voice.test.ts`) |
-| AI-04 | 1, 2, 6 | AI0, A1 | — (until AI0) |
+| AI-04 | 1, 2, 6 | AI0, A1 | `packages/domain/tests/commands/agents.test.ts`, `packages/domain/tests/commands/agent-runtime.test.ts`, `packages/db/tests/security/agents.test.ts`, `packages/domain/src/ai/provider.test.ts`, `apps/web/e2e/agents.spec.ts` |
 | AI-05 | 1, 2 | A1 | `packages/domain/tests/security/agent-refusals.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts` |
 | AI-06 | 2 | — | — |
 | NFR-01 | 0, 1 | P3, P1, P2b | `apps/web/scripts/js-budget.test.ts` with `pnpm --filter web js-budget`; `packages/domain/tests/commands/run-probe.test.ts` (the delivery check); timings `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:account360`, `pnpm spike:import` |

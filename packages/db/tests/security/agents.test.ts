@@ -12,7 +12,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The agent runtime's tables under RLS (0093, docs/DATABASE.md §6.9): an agent writes its own runs,
+// The agent runtime's tables under RLS (docs/DATABASE.md §4.4 and §6.9): an agent writes its own runs,
 // actions and inbox items and reads none of them back; people read the inbox at their
 // agents.inbox.act scope and decide once; the agent controls read the runs and change the settings,
 // autonomy and caps with agents.autonomy.write and switches with agents.killswitch.
@@ -95,7 +95,7 @@ beforeAll(async () => {
   executive = await createTestPrincipal('executive');
 });
 
-describe('agent_runs (0093)', () => {
+describe('agent_runs', () => {
   it('an agent records its own run and cannot read it back; the controls read it', async () => {
     const id = newId();
     await runAs(agent(), insertRun(id));
@@ -135,7 +135,7 @@ describe('agent_runs (0093)', () => {
   });
 });
 
-describe('agent_actions and inbox_items (0093)', () => {
+describe('agent_actions and inbox_items', () => {
   it('only an agent files a suggestion, and only as proposed or executed', async () => {
     const run = newId();
     await runAs(agent(), insertRun(run));
@@ -203,7 +203,7 @@ describe('agent_actions and inbox_items (0093)', () => {
   });
 });
 
-describe('agent_configs (0093)', () => {
+describe('agent_configs', () => {
   const insertConfig = (
     id: string,
     entityId: number | null,
@@ -280,7 +280,7 @@ describe('agent_configs (0093)', () => {
   });
 });
 
-describe('agent_evals (0093)', () => {
+describe('agent_evals', () => {
   it('is a platform table: only the owner writes it, an Executive for every company reads it', async () => {
     expect(PLATFORM_TABLES).toContain('agent_evals');
     const id = newId();
