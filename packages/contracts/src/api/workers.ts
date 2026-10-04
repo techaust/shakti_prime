@@ -42,10 +42,16 @@ export type ImportCommitWorkerResponse = z.infer<typeof ImportCommitWorkerRespon
 /**
  * `POST /api/v1/workers/crm/rescore`: the nightly rescoring of open and nurture leads (CRM-06).
  * The schedule sends `{}`, every company from its first lead; a run that ran out of time hands the
- * rest to the next run with the company and the last lead it reached.
+ * rest to the next run with the company and the last lead it reached, and the night's date
+ * (`runDate`, the UTC date the night's first call started), which names the night in the
+ * hand-over's deduplication id.
  */
 export const LeadRescoreWorkerBody = z
-  .object({ entityId: EntityIdSchema.optional(), afterId: IdSchema.optional() })
+  .object({
+    entityId: EntityIdSchema.optional(),
+    afterId: IdSchema.optional(),
+    runDate: z.iso.date().optional(),
+  })
   .strict()
   .refine((b) => b.afterId === undefined || b.entityId !== undefined, {
     message: 'a lead to start after belongs to a company',

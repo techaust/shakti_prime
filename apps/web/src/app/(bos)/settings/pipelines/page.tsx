@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import {
+  listCodedReferralPartners,
   listCommissionRules,
   listDispositions,
   listReferralPartners,
@@ -33,18 +34,19 @@ export default async function PipelineSettingsPage() {
   const { access, principal } = await screenAccess(navRequires('settings-pipelines'));
   const t = await getTranslations('pipelineSettings');
   const shared = { entityId: null, segment: null };
-  const [settings, outcomes, rules, partners, commission] = await Promise.all([
+  const [settings, outcomes, rules, partners, coded, commission] = await Promise.all([
     pipelineSettings(),
     listDispositions(shared),
     listScoreRules(shared),
     listReferralPartners({ cursor: null }),
+    listCodedReferralPartners(),
     listCommissionRules(),
   ]);
   const names = companyNames(access);
   const companies = principal.entityIds.map((id) => ({ id, name: names[id] ?? String(id) }));
   return (
     <Page title={t('title')} description={t('intro')} width="detail">
-      {settings.ok && outcomes.ok && rules.ok && partners.ok && commission.ok ? (
+      {settings.ok && outcomes.ok && rules.ok && partners.ok && coded.ok && commission.ok ? (
         <PipelineSettingsScreen
           pipelines={settings.data.pipelines}
           sources={settings.data.sources}
@@ -52,10 +54,11 @@ export default async function PipelineSettingsPage() {
           sharedOutcomes={outcomes.data.dispositions}
           sharedRules={rules.data}
           partners={partners.data}
+          codedPartners={coded.data}
           commissionRules={commission.data}
         />
       ) : (
-        <FailureMessage failure={firstFailure(settings, outcomes, rules, partners, commission)} />
+        <FailureMessage failure={firstFailure(settings, outcomes, rules, partners, coded, commission)} />
       )}
     </Page>
   );

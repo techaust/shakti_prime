@@ -20,6 +20,7 @@ import {
   type PipelineSettingsViewDto,
   type ReferralPartnerDto,
   type ReferralPartnerPageDto,
+  type ReferralPartnerRowDto,
   type ScoreRuleDto,
   type ScoreRuleListDto,
   type StageSettingsDto,
@@ -30,6 +31,7 @@ import {
   createStage as createStageCommand,
   executeCommand,
   executeQuery,
+  listCodedReferralPartners as listCodedReferralPartnersQuery,
   listCommissionRules as listCommissionRulesQuery,
   listDispositions as listDispositionsQuery,
   listLeadSources,
@@ -122,6 +124,20 @@ export async function listReferralPartners(
       { requestId },
       (context) => listReferralPartnersQuery(context, input),
       { name: 'listReferralPartners' },
+    );
+  });
+}
+
+/** Every referral partner with a code, for the commission form. */
+export async function listCodedReferralPartners(): Promise<ActionResult<ReferralPartnerRowDto[]>> {
+  return toResult('listCodedReferralPartners', async () => {
+    const principal = await signedIn();
+    const { requestId } = await requestMeta();
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listCodedReferralPartnersQuery(context),
+      { name: 'listCodedReferralPartners' },
     );
   });
 }

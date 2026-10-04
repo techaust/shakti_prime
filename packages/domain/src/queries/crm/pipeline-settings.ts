@@ -8,6 +8,7 @@ import {
   PipelineSettingsViewDto,
   REFERRAL_PARTNER_PAGE_SIZE,
   ReferralPartnerPageDto,
+  ReferralPartnerRowDto,
   ScoreFactorSchema,
   ScoreRuleDto,
   SegmentSchema,
@@ -164,6 +165,25 @@ export async function listReferralPartners(
         ? { name: last.name, id: last.accountId }
         : null,
   });
+}
+
+/**
+ * Every referral partner with a code, accepted or not, whose customer is live and known to the
+ * request's companies, by name: what the commission form offers, so a rule can be set for any
+ * coded partner whatever page of the list above has been shown. Codes are given one at a time by
+ * an Executive, so the list stays short; it is read from `referral_partners` and joined to the
+ * customer by its key.
+ */
+export async function listCodedReferralPartners(ctx: ReadContext): Promise<ReferralPartnerRowDto[]> {
+  const a = schema.accounts;
+  const rp = schema.referralPartners;
+  const rows = await ctx.tx
+    .select({ accountId: a.id, name: a.name, code: rp.code, isActive: rp.isActive })
+    .from(rp)
+    .innerJoin(a, eq(a.id, rp.accountId))
+    .where(isNull(a.archivedAt))
+    .orderBy(asc(a.name), asc(a.id));
+  return rows.map((r) => ReferralPartnerRowDto.parse(r));
 }
 
 /**

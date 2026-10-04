@@ -20,6 +20,7 @@ import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
 import {
+  listCodedReferralPartners,
   listCommissionRules,
   listDispositions,
   listPipelineSettings,
@@ -85,6 +86,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listScoreRules: (ctx) => listScoreRules(ctx, { entityId: 1, segment: 'farmer_pumps' }),
   listReferralPartners: (ctx) => listReferralPartners(ctx, { cursor: null }),
   listCommissionRules: (ctx) => listCommissionRules(ctx),
+  listCodedReferralPartners: (ctx) => listCodedReferralPartners(ctx),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
   listCustomers: (ctx) => listCustomers(ctx, { limit: 20 }),
   searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),

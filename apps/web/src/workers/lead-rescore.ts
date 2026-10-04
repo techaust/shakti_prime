@@ -35,6 +35,8 @@ export async function runLeadRescore(
 ): Promise<LeadRescoreWorkerResponse> {
   const now = options.now ?? Date.now;
   const started = now();
+  // The night this run belongs to, carried by every hand-over so their ids never repeat a night's.
+  const runDate = body.runDate ?? new Date(started).toISOString().slice(0, 10);
   const { requestId } = options;
   const scope = (entityId: number) =>
     requestId === undefined ? { entityIds: [entityId] } : { entityIds: [entityId], requestId };
@@ -56,7 +58,7 @@ export async function runLeadRescore(
     }
     for (;;) {
       if (options.budgetMs !== undefined && now() - started >= options.budgetMs) {
-        await continueLeadRescore({ entityId, ...(afterId === null ? {} : { afterId }) });
+        await continueLeadRescore({ runDate, entityId, ...(afterId === null ? {} : { afterId }) });
         logger.log('info', 'crm.rescore_continued', { requestId, entityId, batches, rescored });
         return LeadRescoreWorkerResponse.parse({ batches, rescored, done: false });
       }
@@ -75,15 +77,18 @@ export async function runLeadRescore(
 }
 
 /**
- * The queue's deduplication id for a run: where it starts. A retried hand-over names the same run
- * and QStash sends it once.
+ * The queue's deduplication id for a hand-over: the night it belongs to and where it starts. A
+ * retried hand-over names the same run and QStash sends it once; another night's hand-over from
+ * the same place has another id.
  */
-export function leadRescoreRunId(body: LeadRescoreWorkerBody): string {
-  return `lead-rescore-${String(body.entityId ?? 1)}-${body.afterId ?? 'start'}`;
+export function leadRescoreRunId(body: LeadRescoreWorkerBody & { runDate: string }): string {
+  return `lead-rescore-${body.runDate}-${String(body.entityId ?? 1)}-${body.afterId ?? 'start'}`;
 }
 
 /** Hands the rest of a run to a fresh call of the worker through QStash. */
-async function continueLeadRescore(body: LeadRescoreWorkerBody): Promise<void> {
+async function continueLeadRescore(
+  body: LeadRescoreWorkerBody & { runDate: string },
+): Promise<void> {
   const config = qstashConfig();
   if (config === undefined) {
     throw new DomainError('integration_unavailable', 'no queue for the rescoring worker');

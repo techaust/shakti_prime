@@ -154,6 +154,7 @@ export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
 export {
   effectiveDispositions,
+  listCodedReferralPartners,
   listCommissionRules,
   listDispositions,
   listPipelineSettings,

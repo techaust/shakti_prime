@@ -6,6 +6,7 @@ import type {
   LeadSourceDto,
   PipelineSettingsViewDto,
   ReferralPartnerPageDto,
+  ReferralPartnerRowDto,
   ScoreRuleDto,
 } from '@shakti/contracts';
 import { Skeleton } from '@shakti/ui';
@@ -44,6 +45,7 @@ export function PipelineSettingsScreen({
   sharedOutcomes,
   sharedRules,
   partners,
+  codedPartners,
   commissionRules,
 }: {
   pipelines: PipelineSettingsViewDto[];
@@ -52,6 +54,7 @@ export function PipelineSettingsScreen({
   sharedOutcomes: DispositionDto[];
   sharedRules: ScoreRuleDto[];
   partners: ReferralPartnerPageDto;
+  codedPartners: ReferralPartnerRowDto[];
   commissionRules: CommissionRuleRowDto[];
 }) {
   const t = useTranslations('pipelineSettings');
@@ -106,6 +109,7 @@ export function PipelineSettingsScreen({
         <ReferralsEditor
           initialPartners={partners.partners}
           initialCursor={partners.nextCursor}
+          initialCoded={codedPartners}
           initialRules={commissionRules}
         />
       </section>

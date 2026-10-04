@@ -1916,9 +1916,9 @@
     "rulesSaved": "{count, plural, =0 {The rules are saved. No lead's score changed.} one {The rules are saved. # lead has a new score.} other {The rules are saved. # leads have a new score.}}",
     "loading": "Loading…",
     "referrals": "Referral partners and commission",
-    "referralsIntro": "A referral partner is a customer added with the kind Referral partner. Give each one a code to print on their card: a new lead that brings the code is credited to them.",
+    "referralsIntro": "A referral partner is a customer whose lead was added with Referral partner as the type of customer. Give each one a code to print on their card: a new lead that brings the code is credited to them.",
     "partners": "Referral partners",
-    "partnersEmpty": "No customer is a referral partner yet. Add the partner as a customer of the kind Referral partner, then give them a code here.",
+    "partnersEmpty": "No customer is a referral partner yet. Add a new lead for the partner and choose Referral partner as the type of customer, then give them a code here.",
     "codeNone": "No code yet",
     "codeIs": "Code {code}",
     "codeAccepted": "Code accepted",
@@ -2677,7 +2677,8 @@
       "admin_integrations_write": "Manage connections to other systems",
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again",
-      "files_process": "Check uploaded files before they are used"
+      "files_process": "Check uploaded files before they are used",
+      "crm_score_refresh": "Bring lead scores up to date each night"
     },
     "empty": "There are no roles to show.",
     "locked": {

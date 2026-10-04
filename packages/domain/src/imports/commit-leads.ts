@@ -5,6 +5,7 @@ import { activityRow, writeActivities } from '../activities/activity';
 import type { CommandContext } from '../command/context';
 import { createLead, leadCreatedActivity } from '../commands/crm/create-lead';
 import { scoreLeads } from '../commands/crm/lead-attribution';
+import { shareLockStage } from '../commands/crm/opportunity-shared';
 import { inputHash } from '../idempotency/hash';
 import { toLeadDto } from '../queries/crm/lead-dto';
 import { importRowKey } from './row-key';
@@ -61,6 +62,9 @@ export async function commitLeadBatch(
     if (!ctx.entityIds.includes(input.entityId)) throw new RowByRowNeeded('another company');
     if (input.existingAccountId !== undefined) throw new RowByRowNeeded('a known customer');
     if (input.consent !== undefined) throw new RowByRowNeeded('a consent');
+    // The import mapping has no referral code field yet (a follow-up after P2b), so a file's row
+    // never carries one today; kept so a row that does is credited or refused by the command, never
+    // committed here without its partner.
     if (input.referralCode !== undefined) throw new RowByRowNeeded('a referral code');
     if (input.contact === undefined || input.account === undefined) {
       throw new RowByRowNeeded('no contact or account');
@@ -130,9 +134,16 @@ export async function commitLeadBatch(
             ),
           )
           .orderBy(asc(ps.position));
+  // Each pipeline's first open stage is held `for share` until the batch commits, so it is not
+  // archived under the batch's leads; one archived meanwhile sends the batch row by row.
+  const locked = new Set<string>();
+  for (const row of pipelines) {
+    const first = stages.find((s) => s.pipelineId === row.id);
+    if (first !== undefined && (await shareLockStage(tx, first.id))) locked.add(first.id);
+  }
   const stageFor = (pipelineId: string): string => {
     const stage = stages.find((row) => row.pipelineId === pipelineId);
-    if (stage === undefined) throw new RowByRowNeeded('stage');
+    if (stage === undefined || !locked.has(stage.id)) throw new RowByRowNeeded('stage');
     return stage.id;
   };
   const sourceCodes = [

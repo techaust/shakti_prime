@@ -1,4 +1,9 @@
-import { newId, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
+import {
+  newId,
+  SYSTEM_MATRIX,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type Principal,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -7,16 +12,21 @@ import {
   createTestTeam,
   principalFor,
 } from '@shakti/db/testing';
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
+import { addNote } from '../../src/commands/crm/customer';
 import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
-import { listCommissionRules, listReferralPartners } from '../../src/queries/crm/pipeline-settings';
+import {
+  listCodedReferralPartners,
+  listCommissionRules,
+  listReferralPartners,
+} from '../../src/queries/crm/pipeline-settings';
 
 // Score rules are matched to a district of this run only, so rescoring never changes another
 // suite's leads; every rule, partner code and commission rule written here is removed afterwards.
@@ -315,13 +325,166 @@ describe('crm.lead.score_refresh', () => {
     return { rescored, audit: recorded.records };
   }
 
-  it('is refused to a caller who may write only their own leads, and outside the request', async () => {
-    expect(
-      await refusal(run(caller, refreshLeadScores, { entityId: 1, afterId: null })),
-    ).toMatchObject({ code: 'forbidden' });
+  /** Calls a definer of the rescoring as `principal`; its rows, or the error it raised. */
+  function definer<T>(principal: Principal, query: SQL): Promise<T[] | Error> {
+    return asPrincipal(principal, async ({ tx }) => (await tx.execute(query)) as unknown as T[]).then(
+      (rows) => rows,
+      (e: unknown) => (e instanceof Error ? e : new Error(String(e))),
+    );
+  }
+
+  /** Every row `app.lead_score_facts()` answers for `entityId`, page by page. */
+  type FactRow = { lead_id: string; score_seen: string | null };
+  async function factRows(principal: Principal, entityId: number): Promise<FactRow[]> {
+    const all: FactRow[] = [];
+    let after: string | null = null;
+    for (;;) {
+      const rows: FactRow[] | Error = await definer<FactRow>(
+        principal,
+        sql`select lead_id, score_seen
+              from app.lead_score_facts(${entityId}::smallint, ${after}::uuid, 1000)`,
+      );
+      if (rows instanceof Error) throw rows;
+      all.push(...rows);
+      if (rows.length < 1000) return all;
+      after = rows.at(-1)?.lead_id ?? null;
+    }
+  }
+
+  const factIds = async (principal: Principal, entityId: number) =>
+    (await factRows(principal, entityId)).map((r) => r.lead_id);
+
+  async function stampsOf(id: string) {
+    const [row] = await asMigrator(
+      (m) => m<{ updatedAt: string; updatedBy: string | null; changedAt: string | null }[]>`
+        select updated_at::text as "updatedAt", updated_by as "updatedBy",
+               score_changed_at::text as "changedAt"
+          from opportunities where id = ${id}`,
+    );
+    return row;
+  }
+
+  it('is refused to every principal without crm.score.refresh, people with crm.lead.write included, and outside the request', async () => {
+    for (const principal of [caller, gm, execOne, exec, principalFor('agent:triage', [1])]) {
+      expect(
+        await refusal(run(principal, refreshLeadScores, { entityId: 1, afterId: null })),
+      ).toMatchObject({ code: 'forbidden' });
+    }
     expect(
       await refusal(run(workers(2), refreshLeadScores, { entityId: 1, afterId: null })),
     ).toMatchObject({ code: 'forbidden' });
+  });
+
+  it('runs as a worker that holds no crm permission, reads no customer note and runs no command kept for people (H1, ADR 0020)', async () => {
+    expect(
+      SYSTEM_MATRIX['system:workers'].filter(
+        (g) => g.key.startsWith('crm.') && g.key !== 'crm.score.refresh',
+      ),
+    ).toEqual([]);
+    const l = await lead();
+    const note = {
+      entityId: 1,
+      accountId: l.accountId,
+      opportunityId: l.id,
+      body: 'Wants a call after the harvest',
+    };
+    await run(caller, addNote, note);
+    const notes = (principal: Principal) =>
+      asPrincipal(principal, async ({ tx }) => {
+        const rows = (await tx.execute(
+          sql`select count(*)::int as n from activities
+               where type = 'note' and opportunity_id = ${l.id}`,
+        )) as unknown as { n: number }[];
+        return rows[0]?.n;
+      });
+    expect(await notes(caller)).toBe(1);
+    expect(await notes(workers(1))).toBe(0);
+    expect(await refusal(run(workers(1), addNote, note))).toMatchObject({ code: 'forbidden' });
+  });
+
+  it('opens its definers only to a holder of crm.score.refresh (H1)', async () => {
+    const l = await lead();
+    const scores = JSON.stringify([{ id: l.id, score: 99, reasons: [], seen: null }]);
+    for (const principal of [caller, gm, exec, principalFor('agent:triage', [1])]) {
+      const facts = await definer(
+        principal,
+        sql`select * from app.lead_score_facts(1::smallint, null::uuid, 10)`,
+      );
+      expect(facts).toBeInstanceOf(Error);
+      const write = await definer(
+        principal,
+        sql`select app.write_lead_scores(1::smallint, ${scores}::jsonb)`,
+      );
+      expect(write).toBeInstanceOf(Error);
+    }
+    expect(await scoreOf(l.id)).toMatchObject({ score: 50 });
+  });
+
+  it("keeps each definer to the one company it is asked for, in the request's companies (H1)", async () => {
+    const own = await lead();
+    const theirs = (await run(gmTwo, createLead, {
+      entityId: 2,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Scoring customer', phone: phone() },
+      account: { type: 'farm' },
+    })) as { id: string };
+    // Asked for a company outside the request, both refuse.
+    expect(
+      await definer(workers(1), sql`select * from app.lead_score_facts(2::smallint, null::uuid, 10)`),
+    ).toBeInstanceOf(Error);
+    expect(
+      await definer(workers(1), sql`select app.write_lead_scores(2::smallint, '[]'::jsonb)`),
+    ).toBeInstanceOf(Error);
+    // Company 1's facts hold its own open lead and never company 2's.
+    const ids = await factIds(workers(1), 1);
+    expect(ids).toContain(own.id);
+    expect(ids).not.toContain(theirs.id);
+    expect(await factIds(workers(2), 2)).toContain(theirs.id);
+    // A score for company 2's lead sent with company 1 is written nowhere.
+    const sent = JSON.stringify([{ id: theirs.id, score: 99, reasons: [], seen: null }]);
+    expect(
+      await definer<{ written: number }>(
+        workers(1),
+        sql`select app.write_lead_scores(1::smallint, ${sent}::jsonb) as written`,
+      ),
+    ).toEqual([{ written: 0 }]);
+    expect(await scoreOf(theirs.id)).toMatchObject({ score: 50, by: null });
+  });
+
+  it('leaves a lead whose score changed after it was read, and never touches its last change (L3, M2)', async () => {
+    const l = await lead();
+    /** When the lead's score last changed, as a batch reads it now. */
+    const seen = async () => {
+      const row = (await factRows(workers(1), 1)).find((r) => r.lead_id === l.id);
+      if (row === undefined) throw new Error('the lead is not among the facts');
+      return row.score_seen;
+    };
+    const write = async (since: string | null) => {
+      const scores = JSON.stringify([{ id: l.id, score: 99, reasons: [], seen: since }]);
+      const rows = await definer<{ written: number }>(
+        workers(1),
+        sql`select app.write_lead_scores(1::smallint, ${scores}::jsonb) as written`,
+      );
+      if (rows instanceof Error) throw rows;
+      return rows[0]?.written;
+    };
+
+    const read = await seen();
+    // A rule change rescores the lead after the batch read it, and commits first.
+    await asMigrator(
+      (m) => m`update opportunities set score = 61, score_changed_at = clock_timestamp()
+                where id = ${l.id}`,
+    );
+    expect(await write(read)).toBe(0);
+    expect(await scoreOf(l.id)).toMatchObject({ score: 61 });
+
+    // Read again, the batch writes the score, and the lead keeps its last change and who made it.
+    const before = await stampsOf(l.id);
+    expect(await write(await seen())).toBe(1);
+    const after = await stampsOf(l.id);
+    expect(await scoreOf(l.id)).toMatchObject({ score: 99, by: SYSTEM_WORKERS_PRINCIPAL_ID });
+    expect(after).toMatchObject({ updatedAt: before?.updatedAt, updatedBy: before?.updatedBy });
+    expect(after?.changedAt).not.toBe(before?.changedAt);
   });
 
   it('catches up a lead whose district changed and one that aged past a rule (M1, M2)', async () => {
@@ -343,9 +506,15 @@ describe('crm.lead.score_refresh', () => {
     });
     try {
       expect(await scoreOf(moved.id)).toMatchObject({ score: 50 });
+      const stamped = await stampsOf(moved.id);
       const first = await sweep(workers(1));
       expect(await scoreOf(moved.id)).toMatchObject({ score: 70, by: SYSTEM_WORKERS_PRINCIPAL_ID });
       expect(await scoreOf(old.id)).toMatchObject({ score: 20, by: SYSTEM_WORKERS_PRINCIPAL_ID });
+      // The night's new score leaves the lead's last change where the grid sorts it (M2).
+      expect(await stampsOf(moved.id)).toMatchObject({
+        updatedAt: stamped?.updatedAt,
+        updatedBy: stamped?.updatedBy,
+      });
       expect(first.rescored).toBeGreaterThanOrEqual(2);
       // One row for each batch that changed a lead, counting them.
       const rows = first.audit.filter((r) => r.after !== null);
@@ -654,6 +823,7 @@ describe('the referral partners and commission rules of the settings page', () =
     await run(execOne, setReferralPartner, { accountId: coded.accountId, code, isActive: false });
     const bare = await lead('referral_partner');
     partners.push(bare.accountId);
+    const farm = await lead('farm');
 
     const all = async (principal: Principal) => {
       const rows: { accountId: string; code: string | null; isActive: boolean }[] = [];
@@ -675,10 +845,33 @@ describe('the referral partners and commission rules of the settings page', () =
       isActive: false,
     });
     // A farm customer is never listed; the order is by name, then id, with no repeats.
+    expect(seen.some((r) => r.accountId === farm.accountId)).toBe(false);
     expect(new Set(seen.map((r) => r.accountId)).size).toBe(seen.length);
+    // The database's own order of names (its collation), then ids.
+    const ordered = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from accounts where id = any(${seen.map((r) => r.accountId)}::uuid[])
+         order by name, id`,
+    );
+    expect(seen.map((r) => r.accountId)).toEqual(ordered.map((r) => r.id));
     // An Executive of another company does not see these customers at all.
     const other = await all(execTwo);
     expect(other.some((r) => r.accountId === coded.accountId)).toBe(false);
+
+    // The commission form offers every coded partner, whatever page the list has shown (L5).
+    const offered = await asPrincipal(execOne, (ctx) => listCodedReferralPartners(ctx));
+    expect(offered.find((r) => r.accountId === coded.accountId)).toMatchObject({ code });
+    expect(offered.some((r) => r.accountId === bare.accountId)).toBe(false);
+    expect(offered.some((r) => r.accountId === farm.accountId)).toBe(false);
+    expect(offered.every((r) => r.code !== null)).toBe(true);
+    const offeredOrder = await asMigrator(
+      (m) => m<{ id: string }[]>`
+        select id from accounts where id = any(${offered.map((r) => r.accountId)}::uuid[])
+         order by name, id`,
+    );
+    expect(offered.map((r) => r.accountId)).toEqual(offeredOrder.map((r) => r.id));
+    const offeredElsewhere = await asPrincipal(execTwo, (ctx) => listCodedReferralPartners(ctx));
+    expect(offeredElsewhere.some((r) => r.accountId === coded.accountId)).toBe(false);
   });
 
   it('lists the live commission rules to those who may read them, the default first', async () => {

@@ -2,6 +2,7 @@ import {
   AGENT_FORBIDDEN_PERMISSIONS,
   FILE_PURPOSES,
   newId,
+  PLATFORM_ONLY_PERMISSIONS,
   SYSTEM_ROLE_KEYS,
   type AgentRoleKey,
   type PermissionGrant,
@@ -500,8 +501,9 @@ describe('agent principals cannot upload a file of any purpose', () => {
   }
 });
 
-describe('agent principals cannot run the file checks', () => {
+describe("agent principals cannot run the platform's own work: the file checks and the nightly rescoring", () => {
   const CHECKS: Record<string, unknown> = {
+    'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {
       entityId: 1,
@@ -517,14 +519,25 @@ describe('agent principals cannot run the file checks', () => {
     'files.file.reject': { entityId: 1, fileId: newId(), reason: 'file_infected' },
   };
 
-  it('no agent in the matrix holds files.process, which only the worker principal may', () => {
+  it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
     for (const agent of AGENTS) {
-      expect(AGENT_MATRIX[agent].filter((g) => g.key === 'files.process')).toEqual([]);
+      expect(
+        AGENT_MATRIX[agent].filter((g) => PLATFORM_ONLY_PERMISSIONS.includes(g.key)),
+      ).toEqual([]);
+    }
+  });
+
+  it('runs every check and the rescoring with nothing but platform-only permissions', () => {
+    for (const name of Object.keys(CHECKS)) {
+      const command = (commands as Record<string, AnyCommand>)[name];
+      if (command === undefined) throw new Error(`no command ${name}`);
+      expect({ name, needs: needs(command).filter((k) => !PLATFORM_ONLY_PERMISSIONS.includes(k)) })
+        .toEqual({ name, needs: [] });
     }
   });
 
   for (const agent of AGENTS) {
-    it(`${agent} is refused at the guard by every file check`, async () => {
+    it(`${agent} is refused at the guard by every file check and the rescoring`, async () => {
       const principal = principalFor(agent, [1]);
       for (const [name, input] of Object.entries(CHECKS)) {
         const command = (commands as Record<string, AnyCommand>)[name];

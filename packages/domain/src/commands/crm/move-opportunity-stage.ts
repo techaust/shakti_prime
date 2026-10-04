@@ -1,6 +1,6 @@
 import { DomainError, MoveOpportunityStageInput, OpportunityDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import {
   auditOpportunity,
@@ -9,6 +9,7 @@ import {
   lockOpportunity,
   opportunityRecord,
   requireEntity,
+  shareLockStage,
   toOpportunityDto,
   writeOpportunity,
 } from './opportunity-shared';
@@ -38,7 +39,7 @@ export const moveOpportunityStage = defineCommand({
     const record = await opportunityRecord(ctx, row);
 
     // Locked before it is read, so the read below sees an archive that committed meanwhile.
-    await ctx.tx.execute(sql`select app.share_lock_stage(${input.stageId}::uuid)`);
+    await shareLockStage(ctx.tx, input.stageId);
     const ps = schema.pipelineStages;
     const [target] = await ctx.tx
       .select({ id: ps.id, pipelineId: ps.pipelineId, key: ps.key, kind: ps.kind })

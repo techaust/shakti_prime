@@ -69,6 +69,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'admin.flags.write': 'Manage feature flags',
   'integrations.dlq.replay': 'Send failed messages to other systems again',
   'files.process': 'Check uploaded files before anyone can use them',
+  'crm.score.refresh': 'Bring lead scores up to date each night',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

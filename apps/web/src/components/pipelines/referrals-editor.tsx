@@ -46,13 +46,17 @@ import { useCommand, useQuery } from '../screens/use-command';
 export function ReferralsEditor({
   initialPartners,
   initialCursor,
+  initialCoded,
   initialRules,
 }: {
   initialPartners: ReferralPartnerRowDto[];
   initialCursor: ReferralPartnerCursor | null;
+  /** Every partner with a code, whatever page of the list is shown: the commission form's choice. */
+  initialCoded: ReferralPartnerRowDto[];
   initialRules: CommissionRuleRowDto[];
 }) {
   const [partners, setPartners] = useState(initialPartners);
+  const [coded, setCoded] = useState(initialCoded);
   const [cursor, setCursor] = useState(initialCursor);
   const more = useQuery<{
     partners: ReferralPartnerRowDto[];
@@ -65,6 +69,12 @@ export function ReferralsEditor({
         loadingMore={more.pending}
         onSaved={(saved) => {
           setPartners((all) => all.map((p) => (p.accountId === saved.accountId ? saved : p)));
+          // A partner given its first code joins the commission form's choice, in name order.
+          setCoded((all) =>
+            [...all.filter((p) => p.accountId !== saved.accountId), saved].sort(
+              (a, b) => a.name.localeCompare(b.name) || a.accountId.localeCompare(b.accountId),
+            ),
+          );
         }}
         onMore={
           cursor === null
@@ -81,7 +91,7 @@ export function ReferralsEditor({
         }
       />
       <FailureMessage failure={more.failure} />
-      <CommissionRules partners={partners} initial={initialRules} />
+      <CommissionRules coded={coded} initial={initialRules} />
     </div>
   );
 }
@@ -261,10 +271,10 @@ const RULE_FIELDS = ['partnerId', 'basis', 'amount', 'effectiveFrom', 'effective
 
 /** The live commission rules, and a form that adds one from a date. */
 function CommissionRules({
-  partners,
+  coded,
   initial,
 }: {
-  partners: ReferralPartnerRowDto[];
+  coded: ReferralPartnerRowDto[];
   initial: CommissionRuleRowDto[];
 }) {
   const t = useTranslations('pipelineSettings');
@@ -282,7 +292,6 @@ function CommissionRules({
   const reload = useQuery<CommissionRuleRowDto[]>();
   const save = useCommand(setCommissionRule);
   const { fieldError, formFailure } = useFieldFailure(save.failure, RULE_FIELDS);
-  const coded = partners.filter((p) => p.code !== null);
   const fromInvalid = from.text !== '' && from.iso === undefined;
   const toInvalid = to.text !== '' && to.iso === undefined;
 

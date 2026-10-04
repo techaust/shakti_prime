@@ -4,8 +4,8 @@ import {
   OpportunityStateSchema,
   type StageKind,
 } from '@shakti/contracts';
-import { schema } from '@shakti/db';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { schema, type RequestTx } from '@shakti/db';
+import { and, asc, eq, isNull, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ActivityValue } from '../../activities/activity';
 import type { CommandContext } from '../../command/context';
@@ -114,20 +114,51 @@ export function fire(
   });
 }
 
-/** The first stage of a kind in the pipeline, by position; archived stages are skipped. */
+/**
+ * Holds a live stage `for share` until the transaction ends (`app.share_lock_stage()`), so an
+ * Executive cannot archive it under a lead entering it: an archive under way finishes first, and
+ * then the stage answers false. Answers whether a live stage of a pipeline the request reads was
+ * locked. The caller must hold `crm.lead.write`.
+ */
+export async function shareLockStage(
+  tx: RequestTx,
+  stageId: string,
+): Promise<boolean> {
+  const [row] = (await tx.execute(
+    sql`select app.share_lock_stage(${stageId}::uuid) as locked`,
+  )) as unknown as { locked: boolean }[];
+  return row?.locked === true;
+}
+
+/**
+ * The first live stage of a kind in the pipeline, by position, held `for share` for the rest of
+ * the transaction (`shareLockStage`). A stage archived between the read and the lock is passed
+ * over for the next one.
+ */
 export async function firstStage(
   ctx: CommandContext,
   pipelineId: string,
   kind: StageKind,
 ): Promise<{ id: string; key: string } | undefined> {
   const ps = schema.pipelineStages;
-  const [stage] = await ctx.tx
-    .select({ id: ps.id, key: ps.key })
-    .from(ps)
-    .where(and(eq(ps.pipelineId, pipelineId), eq(ps.kind, kind), isNull(ps.archivedAt)))
-    .orderBy(asc(ps.position))
-    .limit(1);
-  return stage;
+  const passed: string[] = [];
+  for (;;) {
+    const [stage] = await ctx.tx
+      .select({ id: ps.id, key: ps.key })
+      .from(ps)
+      .where(
+        and(
+          eq(ps.pipelineId, pipelineId),
+          eq(ps.kind, kind),
+          isNull(ps.archivedAt),
+          passed.length === 0 ? undefined : notInArray(ps.id, passed),
+        ),
+      )
+      .orderBy(asc(ps.position))
+      .limit(1);
+    if (stage === undefined || (await shareLockStage(ctx.tx, stage.id))) return stage;
+    passed.push(stage.id);
+  }
 }
 
 type OpportunityChange = Partial<

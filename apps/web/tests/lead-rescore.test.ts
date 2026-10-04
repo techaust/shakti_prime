@@ -93,8 +93,11 @@ describe('POST /api/v1/workers/crm/rescore', () => {
     expect(ErrorEnvelope.parse(await response.json()).error.code).toBe('integration_unavailable');
   });
 
-  it('refuses for good a body that names a lead without its company', async () => {
-    const body = JSON.stringify({ afterId: newId() });
+  it.each([
+    ['a lead without its company', () => ({ afterId: newId() })],
+    ['a night that is not a date', () => ({ runDate: 'yesterday' })],
+  ])('refuses for good a body that names %s', async (_label, bodyFor) => {
+    const body = JSON.stringify(bodyFor());
     const response = await call(body, sign(body));
     expect(response.status).toBe(400);
     expect(response.headers.get('upstash-nonretryable-error')).toBe('true');
@@ -113,18 +116,40 @@ describe('POST /api/v1/workers/crm/rescore', () => {
 
 describe('the rescoring run', () => {
   it('hands the rest to a fresh call when its time is spent, once for each place it stopped', async () => {
-    const result = await runLeadRescore({ entityId: 2 }, { budgetMs: 0 });
+    const night = Date.parse('2031-03-04T21:30:00Z');
+    const result = await runLeadRescore({ entityId: 2 }, { budgetMs: 0, now: () => night });
     expect(result).toEqual({ batches: 0, rescored: 0, done: false });
     expect(queue.published).toEqual([
       expect.objectContaining({
         url: ROUTE_URL,
-        body: { entityId: 2 },
-        deduplicationId: leadRescoreRunId({ entityId: 2 }),
+        body: { runDate: '2031-03-04', entityId: 2 },
+        deduplicationId: 'lead-rescore-2031-03-04-2-start',
       }),
     ]);
     const after = newId();
-    expect(leadRescoreRunId({ entityId: 3, afterId: after })).toBe(`lead-rescore-3-${after}`);
-    expect(leadRescoreRunId({})).toBe('lead-rescore-1-start');
+    expect(leadRescoreRunId({ runDate: '2031-03-04', entityId: 3, afterId: after })).toBe(
+      `lead-rescore-2031-03-04-3-${after}`,
+    );
+  });
+
+  it('carries the night of its first call through every hand-over, so a later night never repeats an id (M1)', async () => {
+    // A hand-over received after midnight keeps the night its run started on.
+    const afterMidnight = Date.parse('2031-03-05T00:10:00Z');
+    await runLeadRescore(
+      { runDate: '2031-03-04', entityId: 2 },
+      { budgetMs: 0, now: () => afterMidnight },
+    );
+    // The next night stops at the same place, and its hand-over is not taken for a repeat.
+    const nextNight = Date.parse('2031-03-05T21:30:00Z');
+    await runLeadRescore({ entityId: 2 }, { budgetMs: 0, now: () => nextNight });
+    const sent = (queue.published as { deduplicationId: string; body: unknown }[]).map((m) => [
+      m.deduplicationId,
+      m.body,
+    ]);
+    expect(sent).toEqual([
+      ['lead-rescore-2031-03-04-2-start', { runDate: '2031-03-04', entityId: 2 }],
+      ['lead-rescore-2031-03-05-2-start', { runDate: '2031-03-05', entityId: 2 }],
+    ]);
   });
 
   it('stops at the first number no company has', async () => {

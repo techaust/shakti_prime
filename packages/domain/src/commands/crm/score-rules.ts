@@ -15,7 +15,14 @@ import { schema } from '@shakti/db';
 import { and, asc, eq, gt, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
-import { loadScoreFacts, loadScoreRules, rescore, writeScores } from '../../crm/lead-scoring';
+import {
+  loadRefreshFacts,
+  loadScoreFacts,
+  loadScoreRules,
+  rescore,
+  writeRefreshedScores,
+  writeScores,
+} from '../../crm/lead-scoring';
 import { canonicalJson } from '../../idempotency/hash';
 import { scoreLead } from '../../crm/score';
 import { assertConfigScope } from './config-scope';
@@ -247,10 +254,15 @@ export const rescoreLead = defineCommand({
  * moves without either: the age of a lead (`age_days` rules) and the details it gained since, such
  * as its site's district. The nightly rescoring worker runs it batch by batch as `system:workers`
  * (`apps/web/src/workers/lead-rescore.ts`); one audit row records each batch that changed a lead.
+ *
+ * It needs the platform-only `crm.score.refresh`, which no person's role and no agent holds, and
+ * reads and writes leads only through its two definers (`loadRefreshFacts`,
+ * `writeRefreshedScores`): the worker holds no `crm.*` permission (ADR 0020). A lead whose score
+ * changed after this batch read it (a rule change committed meanwhile) is left as it is.
  */
 export const refreshLeadScores = defineCommand({
   name: 'crm.lead.score_refresh',
-  permission: 'crm.lead.write',
+  permission: 'crm.score.refresh',
   minScope: 'entity',
   input: RefreshLeadScoresInput,
   output: LeadScoreRefreshDto,
@@ -258,21 +270,9 @@ export const refreshLeadScores = defineCommand({
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const rules = await loadScoreRules(ctx, [input.entityId]);
-    const inScope = sql.join(
-      [
-        eq(o.entityId, input.entityId),
-        isNull(o.archivedAt),
-        inArray(o.state, ['open', 'nurture']),
-        ...(input.afterId === null ? [] : [gt(o.id, input.afterId)]),
-      ],
-      sql` and `,
-    );
-    const leads = await loadScoreFacts(ctx, inScope, RESCORE_BATCH);
+    const leads = await loadRefreshFacts(ctx, input.entityId, input.afterId, RESCORE_BATCH);
     const changes = rescore(leads, rules, ctx.now);
-    const written = await writeScores(ctx, changes);
-    if (written !== changes.length) {
-      throw new DomainError('forbidden', 'a lead in scope is outside the caller write scope');
-    }
+    const written = await writeRefreshedScores(ctx, input.entityId, changes);
     if (written > 0) {
       ctx.audit({
         aggregateType: 'lead_score_batch',

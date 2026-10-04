@@ -1,10 +1,11 @@
 import { CreateLeadInput, DomainError, LeadDto, newId } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
-import { and, asc, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
 import { defineCommand } from '../../command/define-command';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 import { applyLeadAttribution } from './lead-attribution';
+import { firstStage } from './opportunity-shared';
 
 /** What `app.attach_account_entity()` found (migration 0026). */
 type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';
@@ -111,19 +112,9 @@ export const createLead = defineCommand({
         ),
       )
       .limit(1);
-    const [stage] = pipeline
-      ? await ctx.tx
-          .select({ id: schema.pipelineStages.id })
-          .from(schema.pipelineStages)
-          .where(
-            and(
-              eq(schema.pipelineStages.pipelineId, pipeline.id),
-              eq(schema.pipelineStages.kind, 'open'),
-            ),
-          )
-          .orderBy(asc(schema.pipelineStages.position))
-          .limit(1)
-      : [];
+    // The first open stage, held `for share` until the lead is written, so it is not archived
+    // under the new lead (`firstStage`).
+    const stage = pipeline ? await firstStage(ctx, pipeline.id, 'open') : undefined;
     if (!pipeline || !stage) {
       throw new DomainError(
         'validation_failed',
