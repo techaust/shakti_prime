@@ -218,6 +218,8 @@ export const InboxFieldDto = z
     name: InboxFieldNameSchema,
     kind: z.enum(['date_time', 'text']),
     value: z.string().nullable(),
+    /** For text: the longest value the command accepts. */
+    maxLength: z.number().int().min(1).max(200).nullable(),
   })
   .strict();
 export type InboxFieldDto = z.infer<typeof InboxFieldDto>;

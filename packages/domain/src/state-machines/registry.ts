@@ -1,9 +1,11 @@
 import type { AnyMachine } from './define-machine';
+import { agentActionMachine } from './machines/agent-action';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
 import { fileUploadMachine } from './machines/file-upload';
+import { inboxItemMachine } from './machines/inbox-item';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -35,6 +37,8 @@ export const MACHINES: readonly AnyMachine[] = [
   expenseClaimMachine,
   playbookDirectiveMachine,
   tallyVoucherMachine,
+  agentActionMachine,
+  inboxItemMachine,
 ];
 
 /**
@@ -42,7 +46,13 @@ export const MACHINES: readonly AnyMachine[] = [
  * `transition()` with each (checked by `registry.test.ts`). The others are specifications that the
  * commands of their phase follow when they are built.
  */
-export const MACHINES_IN_USE: ReadonlySet<string> = new Set(['opportunity', 'task', 'file_upload']);
+export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
+  'opportunity',
+  'task',
+  'file_upload',
+  'agent_action',
+  'inbox_item',
+]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */
 export const MACHINE_REASONS: readonly string[] = MACHINES.map((m) => m.illegalReason);

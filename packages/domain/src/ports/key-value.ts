@@ -11,6 +11,11 @@ export interface KeyValue {
   /** Increments an integer value, creating it at 1 with the given time to live. */
   incr(key: string, ttlSeconds: number): Promise<number>;
   /**
+   * Adds a whole number to an integer value in one step, creating it at that number with the given
+   * time to live (an agent's spend today, in paise); answers the total afterwards.
+   */
+  incrBy(key: string, amount: number, ttlSeconds: number): Promise<number>;
+  /**
    * Sets the value only when the key holds none (Redis `SET NX EX`), in one step, so two callers
    * never both get it: true for the caller that set it.
    */
@@ -58,6 +63,15 @@ export function memoryKeyValue(now: () => number = Date.now): KeyValue {
     incr: (key, ttlSeconds) => {
       const entry = live(key);
       const next = (entry ? Number(entry.value) : 0) + 1;
+      entries.set(key, {
+        value: String(next),
+        expiresAt: entry?.expiresAt ?? now() + ttlSeconds * 1000,
+      });
+      return Promise.resolve(next);
+    },
+    incrBy: (key, amount, ttlSeconds) => {
+      const entry = live(key);
+      const next = (entry ? Number(entry.value) : 0) + amount;
       entries.set(key, {
         value: String(next),
         expiresAt: entry?.expiresAt ?? now() + ttlSeconds * 1000,

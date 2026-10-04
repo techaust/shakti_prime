@@ -1,5 +1,8 @@
 import { DomainError } from '@shakti/contracts';
 import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
+import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
+import { approveInboxItem, editInboxItem, rejectInboxItem } from '../commands/agents/inbox';
+import { recordAgentRun } from '../commands/agents/record-run';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
@@ -114,6 +117,12 @@ export const commands = {
   [recheckFiles.name]: recheckFiles,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
+  [recordAgentRun.name]: recordAgentRun,
+  [approveInboxItem.name]: approveInboxItem,
+  [editInboxItem.name]: editInboxItem,
+  [rejectInboxItem.name]: rejectInboxItem,
+  [setAgentConfig.name]: setAgentConfig,
+  [setKillSwitch.name]: setKillSwitch,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {
