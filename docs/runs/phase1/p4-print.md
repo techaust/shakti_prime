@@ -5,8 +5,8 @@
 | Branch | `feat/p4-print-letterhead` on GitHub (6511293, from `main` at #88) |
 | PC worktree | `p4-print`, slot 9: Postgres 54339, app 3039 |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); the review becomes the first step of the cloud [trial](../../runbooks/hybrid.md#10-the-trial) once the environment exists |
-| State | reviewed, fixes done, `main` taken (its migrations are 0090 and 0091) |
-| Next step | the integration run, the Linux baselines, the pull request |
+| State | integrated, pull request open (its migrations are 0090 and 0091) |
+| Next step | merge-on-green, then dev and staging migrated and the proof's render measured on dev |
 
 ## Brief
 Read first:
@@ -38,6 +38,11 @@ Read first:
 Done when: the checks of AGENTS §10 pass on the branch, the companies page stays within its JavaScript budget entry, and one sample PDF renders locally end to end (its size and time recorded).
 
 ## Report
+### 04-10-2026, lead session on the PC (integration)
+- Review fixes in 4f8f33c; `main` merged in c859eb9 (0075 and 0076 became 0090 and 0091; the renumber script's last snapshot was rebuilt by hand, because its `drizzle-kit` ran before `pnpm install`); `loadCompanyForPrint` added to the reader parity sweep in c4128ef; Linux baselines in 2fb887c.
+- The integration run passed every step except two: the security suite's parity test (fixed and rerun) and the journeys. The journeys timed out in C2's customer and lead specs while three builders loaded the PC. A rerun with one worker: 171 passed, 1 failed (C2's consent journey timed out in desktop-light), 2 flaky. The print journeys passed throughout.
+- Not verified locally: the Linux screenshot verification run timed out at sign-in on the overloaded PC; CI's Linux journeys compare every screenshot.
+
 ### 04-10-2026, builder on the PC
 - Built at 6511293: `entities.bank_json` sealed by `FieldCipher` under the company's context, with `bank_details_set`; no request role selects `bank_json`, read only through the definer `app.entity_bank_envelope()` for `admin.entities.write:all` or `files.process`; `org.entity.update` takes `bankDetails`, audited as `bankAccount` with the last four digits.
 - The current logo and letterhead are each company's newest ready file of that purpose, as Settings › Companies shows them, so `entities` holds no file ids; one logo serves both themes because print is always light.
