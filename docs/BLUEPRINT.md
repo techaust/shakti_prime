@@ -139,7 +139,7 @@ This document is the architecture and product blueprint. Implementation begins a
 | Observability | Sentry (web, mobile, connector, voice agent) + Vercel logs/analytics + uptime checks |
 | Feature flags | DB-backed flags table |
 | Testing | Vitest, Playwright (E2E per role), RLS/permission suite on real Postgres, webhook contract tests, AI eval sets |
-| CI/CD | GitHub Actions + Vercel previews + Supabase branching; EAS Build/Update for Android |
+| CI/CD | GitHub Actions (every migration tested on a fresh database) + a Vercel project per environment; EAS Build/Update for Android |
 
 ## 6. Multi-entity model & data architecture
 
@@ -550,7 +550,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 - In-app help: contextual tips and short walkthroughs per role in English, and a "What's new" panel; the role training videos are in Hinglish (§15).
 
 ## 12. Reliability & operations
-- **Environments:** dev, staging and prod as separate Supabase projects; Supabase branching for previews.
+- **Environments:** dev, staging and prod as separate Supabase projects and separate Vercel projects; no database branching, since CI migrates a fresh database for every pull request.
 - **Region:** Vercel functions pinned to `bom1`, next to Supabase Mumbai. The voice-agent worker runs on LiveKit Cloud Agents hosting in the India region, with AWS ECS Fargate in ap-south-1 as the alternative if Mumbai placement is not offered.
 - **Backups:** Supabase PITR + a nightly logical dump to S3 (30-day retention); quarterly restore drills.
 - **Recovery targets:** RPO ≤ 5 min; RTO ≤ 4 h. Uptime target 99.5% during business hours (8 AM–10 PM IST); maintenance windows on Sunday nights.
