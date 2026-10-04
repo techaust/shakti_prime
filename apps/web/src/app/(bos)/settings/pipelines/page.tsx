@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import {
+  listCommissionRules,
   listDispositions,
+  listReferralPartners,
   listScoreRules,
   pipelineSettings,
 } from '../../../../actions/crm-settings';
@@ -23,32 +25,37 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Settings › Pipelines (docs/design/phase1.md §6.6): an Executive shapes each pipeline and its
- * stages, the call outcomes and the lead score rules. A change to anything shared by all
- * companies is made while viewing All companies; the commands refuse it otherwise.
+ * stages, the call outcomes, the lead score rules, the referral partners' codes and the
+ * commission rules. A change to anything shared by all companies is made while viewing All
+ * companies; the commands refuse it otherwise.
  */
 export default async function PipelineSettingsPage() {
   const { access, principal } = await screenAccess(navRequires('settings-pipelines'));
   const t = await getTranslations('pipelineSettings');
   const shared = { entityId: null, segment: null };
-  const [settings, outcomes, rules] = await Promise.all([
+  const [settings, outcomes, rules, partners, commission] = await Promise.all([
     pipelineSettings(),
     listDispositions(shared),
     listScoreRules(shared),
+    listReferralPartners({ cursor: null }),
+    listCommissionRules(),
   ]);
   const names = companyNames(access);
   const companies = principal.entityIds.map((id) => ({ id, name: names[id] ?? String(id) }));
   return (
     <Page title={t('title')} description={t('intro')} width="detail">
-      {settings.ok && outcomes.ok && rules.ok ? (
+      {settings.ok && outcomes.ok && rules.ok && partners.ok && commission.ok ? (
         <PipelineSettingsScreen
           pipelines={settings.data.pipelines}
           sources={settings.data.sources}
           companies={companies}
           sharedOutcomes={outcomes.data.dispositions}
           sharedRules={rules.data}
+          partners={partners.data}
+          commissionRules={commission.data}
         />
       ) : (
-        <FailureMessage failure={firstFailure(settings, outcomes, rules)} />
+        <FailureMessage failure={firstFailure(settings, outcomes, rules, partners, commission)} />
       )}
     </Page>
   );

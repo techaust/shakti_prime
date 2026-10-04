@@ -1,9 +1,11 @@
 'use client';
 
 import type {
+  CommissionRuleRowDto,
   DispositionDto,
   LeadSourceDto,
   PipelineSettingsViewDto,
+  ReferralPartnerPageDto,
   ScoreRuleDto,
 } from '@shakti/contracts';
 import { Skeleton } from '@shakti/ui';
@@ -13,7 +15,7 @@ import { PipelineCard } from './pipeline-card';
 
 const loading = () => <Skeleton className="h-40 w-full" />;
 
-/** The two list editors, fetched after the pipelines so the page opens with its first section. */
+/** The list editors, fetched after the pipelines so the page opens with its first section. */
 const OutcomesEditor = dynamic(() => import('./outcomes-editor').then((m) => m.OutcomesEditor), {
   loading,
 });
@@ -21,6 +23,9 @@ const ScoreRulesEditor = dynamic(
   () => import('./score-rules-editor').then((m) => m.ScoreRulesEditor),
   { loading },
 );
+const ReferralsEditor = dynamic(() => import('./referrals-editor').then((m) => m.ReferralsEditor), {
+  loading,
+});
 
 export interface CompanyChoice {
   id: number;
@@ -29,7 +34,8 @@ export interface CompanyChoice {
 
 /**
  * Settings › Pipelines: each pipeline with its stages, then the call outcomes and the lead score
- * rules, each edited for the shared scope or for one company and business line.
+ * rules, each edited for the shared scope or for one company and business line, then the referral
+ * partners' codes and the commission rules.
  */
 export function PipelineSettingsScreen({
   pipelines,
@@ -37,12 +43,16 @@ export function PipelineSettingsScreen({
   companies,
   sharedOutcomes,
   sharedRules,
+  partners,
+  commissionRules,
 }: {
   pipelines: PipelineSettingsViewDto[];
   sources: LeadSourceDto[];
   companies: CompanyChoice[];
   sharedOutcomes: DispositionDto[];
   sharedRules: ScoreRuleDto[];
+  partners: ReferralPartnerPageDto;
+  commissionRules: CommissionRuleRowDto[];
 }) {
   const t = useTranslations('pipelineSettings');
   const names = Object.fromEntries(companies.map((c) => [c.id, c.name]));
@@ -84,6 +94,20 @@ export function PipelineSettingsScreen({
           <p className="text-text-muted">{t('scoringIntro')}</p>
         </div>
         <ScoreRulesEditor companies={companies} sources={sources} initial={sharedRules} />
+      </section>
+
+      <section aria-labelledby="referrals-heading" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 id="referrals-heading" className="text-h2">
+            {t('referrals')}
+          </h2>
+          <p className="text-text-muted">{t('referralsIntro')}</p>
+        </div>
+        <ReferralsEditor
+          initialPartners={partners.partners}
+          initialCursor={partners.nextCursor}
+          initialRules={commissionRules}
+        />
       </section>
     </div>
   );
