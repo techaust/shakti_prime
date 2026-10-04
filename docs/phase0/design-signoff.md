@@ -1,22 +1,24 @@
 # Design sign-off — Shakti Prime BOS
 
-Date: 27-09-2026. For: an Executive of the Shakti group, with one tele-caller and one field or store person at the review.
+Prepared 27-09-2026 · last updated 04-10-2026. For: an Executive of the Shakti group, with one tele-caller and one field or store person at the review.
 
 This sign-off was an item of the Phase 0 exit gate (ROADMAP §2). The owner closed Phase 0 on 29-09-2026 with it deferred: it is needed before the calling screen (T1) and quotes (S1) are built, so that any change lands while few screens exist, and a change agreed later is applied to every built screen before the Phase 1 user acceptance tests (M1).
 
-The design system is written down in `DESIGN.md` and shown live on the `/design` page of the system, which displays every colour, text size and component in the light and dark themes side by side. This checklist walks through what to look at and records the decision.
+The design system is written down in the design guide and shown live on the system's Design preview page, which displays every colour, text size and component in the light and dark themes side by side. This checklist walks through what to look at and records the decision.
 
 **What sign-off means:** the look, the colours, the text sizes, the spacing and the writing rules are agreed, and every screen built from now on follows them. Screens themselves are reviewed separately with real users (`wireframe-review.md`); this sign-off is about the building blocks.
 
 ## 1. Before the review
 - [ ] The development team has sent the web address of the review system and a sign-in for the reviewer.
+- [ ] The Executive reviewer has an authenticator app on their phone (the system asks for its code when an Executive signs in); the development team helps add the account before the review starts.
+- [ ] The development team has sent the private link to the clickable prototype, which holds the sample caller script (check 42).
 - [ ] The reviewer has a desktop or laptop (a screen at least 1280 pixels wide) and an Android phone that staff actually use.
 - [ ] The phone's display and text size are left at the settings staff normally use.
 - [ ] Allow 45 minutes. Do the review in daylight in an office, and repeat the phone checks outdoors for five minutes.
 
 ## 2. How to open the pages
-1. Sign in, then open `/design` (the development team shares the full address).
-2. The theme switch on the Your profile page (`/settings/profile`, from the profile menu) offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use. Below it, **Higher contrast** turns on the high-contrast variant for phones used in sunlight, also kept on the person's profile.
+1. Sign in, then open **Design preview** from the menu.
+2. The theme switch on the **Your profile** page (from the profile menu) offers **System**, **Light** and **Dark**. System follows the device; Light and Dark fix the choice for this person on every device they use. Below it, **Higher contrast** turns on the high-contrast variant for phones used in sunlight, also kept on the person's profile.
 3. Do every check below in **Light**, then again in **Dark**. On the phone, also check **System** with the phone's own dark mode turned on and off: the screen should change without a reload and without a white flash.
 
 ## 3. Checklist
@@ -41,6 +43,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 9 | Stock colours make sense: healthy (green), low (amber), out of stock (red), reserved (blue) | | | |
 | 10 | Status is never shown by colour alone: every badge also has a word | | | |
 | 11 | The four small company dots can be told apart, and are used only as small markers | | | |
+| 11a | With **Higher contrast** turned on (Your profile), text, borders and the focus outline are stronger, and the pages still look finished | | | |
 
 ### 3.3 Text
 | # | Check | Light | Dark | Notes |
@@ -82,7 +85,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 34 | On desktop, the side menu (240 wide) can shrink to icons to give more room | | | |
 
 ### 3.7 Words on screen
-The writing rules are in `DESIGN.md` §11. Check the words on the preview page and on the screens of the system: sign-in, forgotten password, home (`/home`), leads (`/leads`, `/leads/board` and `/leads/new`), your profile (`/settings/profile`), team members (`/admin/users`), activity log (`/admin/activity`), companies (`/settings/companies`), price lists (`/price-master`), catalogue (`/catalogue` and `/catalogue/kits`), customers (`/customers` and a customer's page), imports (`/imports`), tax rates (`/settings/tax`), roles (`/admin/roles`) and integration health (`/admin/integrations`). All of these are on the main app.
+The writing rules are in the design guide (its section 11). Check the words on the Design preview page and on these screens, each opened from the menu: the sign-in and forgotten-password pages, Home, Leads (the list, the board and New lead), Your profile, Team members, Activity log, Companies, Price lists, Catalogue (items and kits), Customers (the list and a customer's page), Imports, Tax rates, Roles and Integration health.
 
 | # | Check | Yes | Notes |
 |---|---|---|---|
@@ -93,16 +96,15 @@ The writing rules are in `DESIGN.md` §11. Check the words on the preview page a
 | 39 | One name is used for each thing: Lead, Customer, Site, Quote, Sales Order, Dispatch, Project, Proforma, Payment, Engineer visit, Price list, Stock, Kit, Serial number, Warranty claim. The group agrees with these names | | |
 | 40 | Customers are addressed with "ji" (for example "Ramesh ji"); staff by first name | | |
 | 41 | Hinglish appears only in caller scripts and the voice assistant, written in Roman letters, with the agreed spellings (aap, ji, haan, nahin, theek hai, dhanyavaad) | | |
-| 42 | A tele-caller has read the sample caller script aloud and it sounds natural | | |
+| 42 | A tele-caller has read the sample caller script aloud (in the prototype's cold-calling screen) and it sounds natural | | |
 
 ### 3.8 Printed documents
 | # | Check | Yes | Notes |
 |---|---|---|---|
 | 43 | The group agrees that quotes, proformas, challans and labels are always printed in the light style with the selling company's letterhead, whatever theme the user has chosen | | |
-| 44 | Each company has sent its letterhead and logo, including a logo version for dark backgrounds (workshop question SALE-2) | | |
 
 ## 4. Changes requested
-List anything that must change before sign-off. The development team makes the change, updates `DESIGN.md` and the `/design` page, and returns for a short second look at those items only.
+List anything that must change before sign-off. The development team makes the change, updates the design guide and the Design preview page, and returns for a short second look at those items only.
 
 | # | Item (check number or area) | Change requested | Must change before sign-off, or later | Done |
 |---|---|---|---|---|
@@ -114,7 +116,7 @@ List anything that must change before sign-off. The development team makes the c
 
 ## 5. Decision
 Tick one:
-- [ ] **Signed off.** The design system in `DESIGN.md` and the `/design` page is approved as it stands.
+- [ ] **Signed off.** The design system in the design guide and the Design preview page is approved as it stands.
 - [ ] **Signed off with the changes in section 4**, which the development team makes without a further review.
 - [ ] **Not yet signed off.** A second review follows once the changes marked "must change" are made.
 
@@ -124,5 +126,4 @@ Tick one:
 | Also present | | Tele-caller | | |
 | Also present | | Field or store staff | | |
 | For the development team | | | | |
-
-Version reviewed: `DESIGN.md` and the `/design` page as of the review date. The development team records the version in the sign-off note kept with this document.
+| Version reviewed | The design guide and the Design preview page as of the review date; the development team writes here the version of the system reviewed | | | |

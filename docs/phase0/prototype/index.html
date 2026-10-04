@@ -365,48 +365,61 @@
 
       const ROLES = [
         { key: 'executive', name: 'Executive', job: 'Direction, approvals, prices and profit', person: 'Rajendra Agarwal', home: 'home',
-          nav: ['home', 'board', 'calling', 'customers', 'quote', 'orders', 'credit', 'leads', 'price', 'team', 'activity', 'companies'] },
+          nav: ['home', 'calling', 'quote', 'orders', 'credit', 'leads', 'board', 'customers', 'price', 'catalogue', 'imports', 'tax', 'team', 'roles', 'activity', 'companies', 'integrations'] },
         { key: 'general_manager', name: 'General Manager', job: 'Daily operations, response times and escalations', person: 'Sunil Mathur', home: 'home',
-          nav: ['home', 'board', 'customers', 'orders', 'credit', 'leads', 'price', 'activity'] },
+          nav: ['home', 'orders', 'credit', 'leads', 'board', 'customers', 'price', 'catalogue', 'imports', 'activity'] },
         { key: 'sales_team_lead', name: 'Sales Team Lead', job: 'Callers, lead reassignment and targets', person: 'Vikram Singh Shekhawat', home: 'home',
-          nav: ['home', 'calling', 'board', 'customers', 'leads', 'price'] },
+          nav: ['home', 'calling', 'leads', 'board', 'customers', 'price', 'catalogue'] },
         { key: 'tele_caller_cc', name: 'Tele-caller, cold calling', job: 'The calling queue and qualifying leads', person: 'Priya Sharma', home: 'calling',
-          nav: ['calling', 'customers', 'leads', 'price'] },
-        { key: 'tele_caller_lc', name: 'Tele-caller, lead converter', job: 'Sizing, quotes and orders for qualified leads', person: 'Kavita Rathore', home: 'board',
-          nav: ['board', 'customers', 'quote', 'orders', 'leads', 'price'] },
+          nav: ['calling', 'leads', 'board', 'customers', 'price', 'catalogue'] },
+        { key: 'tele_caller_lc', name: 'Tele-caller, lead converter', job: 'Sizing, quotes and orders for qualified leads', person: 'Kavita Rathore', home: 'quote',
+          nav: ['quote', 'orders', 'leads', 'board', 'customers', 'price', 'catalogue'] },
         { key: 'store_manager', name: 'Store Manager', job: 'Walk-in customers at the counter', person: 'Dinesh Khandelwal', home: 'home',
-          nav: ['home', 'customers', 'quote', 'orders', 'leads', 'price'] },
+          nav: ['home', 'quote', 'orders', 'leads', 'board', 'customers', 'price', 'catalogue'] },
         { key: 'inventory_manager', name: 'Inventory Manager', job: 'Stock, purchasing and dispatch', person: 'Harish Tak', home: 'home',
-          nav: ['home', 'orders', 'price'] },
+          nav: ['home', 'orders', 'customers', 'price', 'catalogue'] },
         { key: 'project_manager', name: 'Project Manager', job: 'Installations, subsidy steps and engineer visits', person: 'Arvind Poonia', home: 'home',
-          nav: ['home', 'customers', 'price'] },
+          nav: ['home', 'leads', 'board', 'customers', 'price', 'catalogue'] },
         { key: 'field_engineer', name: 'Field Engineer', job: 'Surveys and installations, on the phone', person: 'Suresh Yadav', home: 'home',
-          nav: ['home'] },
+          nav: ['home', 'customers'] },
         { key: 'accounts', name: 'Accounts', job: 'Payments, dealer credit, tax and expenses', person: 'Meenakshi Jain', home: 'home',
-          nav: ['home', 'credit', 'orders', 'quote', 'price', 'activity'] },
+          nav: ['home', 'credit', 'orders', 'quote', 'leads', 'board', 'customers', 'price', 'catalogue', 'tax', 'activity'] },
         { key: 'hr_admin', name: 'HR Admin', job: 'Attendance, leave and incentives', person: 'Rekha Chouhan', home: 'home',
           nav: ['home'] },
       ];
       const NAV = {
         home: { label: 'Home', icon: 'home' },
         calling: { label: 'Calling', icon: 'phone' },
-        board: { label: 'Lead board', icon: 'board' },
-        customers: { label: 'Customers', icon: 'user' },
+
         quote: { label: 'Quote builder', icon: 'doc' },
         orders: { label: 'Sales orders', icon: 'box' },
         credit: { label: 'Dealer credit', icon: 'shield' },
         leads: { label: 'Leads', icon: 'list', app: true },
+        board: { label: 'Lead board', icon: 'board', app: true },
+        customers: { label: 'Customers', icon: 'user', app: true },
         price: { label: 'Price lists', icon: 'tag', app: true },
+        catalogue: { label: 'Catalogue', icon: 'box', app: true },
+        imports: { label: 'Imports', icon: 'doc', app: true },
+        tax: { label: 'Tax rates', icon: 'tag', app: true },
         team: { label: 'Team members', icon: 'users', app: true },
+        roles: { label: 'Roles', icon: 'shield', app: true },
         activity: { label: 'Activity log', icon: 'clock', app: true },
         companies: { label: 'Companies', icon: 'building', app: true },
+        integrations: { label: 'Integration health', icon: 'info', app: true },
       };
       const APP_SCREENS = {
         leads: 'The list of leads with search and filters, and the New lead form.',
-        price: 'Prices for each tier with start dates and the full history of changes. Only Executives can change a price.',
+        board: 'Leads by stage: drag a card to another stage, or use the card’s menu to move, assign, follow up later, reopen, win or lose.',
+        customers: 'The customers list, and each customer’s page with contacts, sites, leads, the timeline, tasks, tags and consent.',
+        price: 'Prices for each tier with start dates and the full history of changes, with kit prices. Only Executives can change a price.',
+        catalogue: 'Items with their specifications and pump curves, and kits with their parts.',
+        imports: 'Upload a spreadsheet of leads, match its columns, check the rows, then add them.',
+        tax: 'GST rates per HSN code and the solar 70:30 rules, each from a date.',
         team: 'Invite people, give them a role in each company, and reset a lost authenticator app.',
+        roles: 'What each role may do, by module, with a confirmation that names how many people are signed out.',
         activity: 'Who changed what, and when, for every company you can see.',
-        companies: 'Each company’s name, GSTIN, state, letterhead and bank details.',
+        companies: 'Each company’s name, brand name, GSTIN, state, registered address and UPI ID, with its logo and letterhead to upload.',
+        integrations: 'Updates waiting to go out between parts of the system, with Send again for held-back ones and a delivery check.',
       };
 
       const TIER = { retail: 'Retail price', dealer: 'Dealer price', commercial: 'Commercial price' };
@@ -755,11 +768,11 @@
             <div class="row">${badge('Prototype', 'warning')}${themeButton()}</div>
           </div>
           <h1>Screen prototype for review</h1>
-          <p class="muted" style="margin-top:4px">The Phase 1 screens for each role, to try before they are built.</p>
+          <p class="muted" style="margin-top:4px">The Phase 1 screens for each role, to try before they are built. Prepared 27-09-2026, updated 04-10-2026.</p>
           <div class="notice" style="margin-top:16px">
             <p><strong>This is a prototype.</strong> Nothing you do here is saved, sent or seen by anyone. Buttons show what would happen, and the screens reset when the page is reloaded.</p>
             <p>Every person, village, phone number and amount is invented. Prices, tax rates, document numbers and call outcomes are shown in one possible form; the real ones are set at the discovery workshop.</p>
-            <p>Some screens already work in the review system: Leads, Price lists, Team members, Activity log and Companies. They are marked "In the app" in the menu.</p>
+            <p>These screens are built and work in the review system: Leads, the lead board, Customers, Price lists, Catalogue, Imports, Tax rates, Team members, Roles, Activity log, Companies and Integration health. They are marked "In the app" in the menu.</p>
           </div>
           <h2 style="margin-top:28px">Choose a role</h2>
           <p class="muted">You will see the screens that role works with. You can change role at any time from the menu.</p>
