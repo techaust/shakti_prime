@@ -26,6 +26,10 @@ export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
+export { createTask, completeTask, rescheduleTask, cancelTask } from './commands/crm/tasks';
+export { createTag, archiveTag, tagLead, untagLead } from './commands/crm/tags';
+export { updateAccount, updateContact, upsertSite, addNote } from './commands/crm/customer';
+export { recordConsent, withdrawConsent } from './commands/crm/consent';
 export { setPrice } from './commands/pricing/set-price';
 export {
   approvePriceList,
@@ -125,6 +129,7 @@ export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { searchLeads } from './queries/crm/search-leads';
+export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';

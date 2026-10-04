@@ -7,6 +7,7 @@ The Phase 0 state-machine specifications (BLUEPRINT §19 item 2). Each machine i
 | Machine | States | Events | Proposed items | Specification |
 |---|---|---|---|---|
 | Opportunity | 4 | 7 | 1 | [opportunity.md](opportunity.md) |
+| Task | 3 | 4 | 0 | [task.md](task.md) |
 | Quote | 6 | 6 | 0 | [quote.md](quote.md) |
 | Sales order | 7 | 8 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | 5 | 6 | 4 | [dispatch.md](dispatch.md) |

@@ -121,8 +121,9 @@ describe('listBoardLeads (DESIGN.md §6, Kanban board)', () => {
       ownerName: 'test tele_caller_cc',
       sla: null,
     });
-    // Only what a card shows: never a phone number, a price or a cost.
+    // Only what a card shows, and the customer it opens: never a phone number, a price or a cost.
     expect(Object.keys(card ?? {}).sort()).toEqual([
+      'accountId',
       'customerName',
       'entityId',
       'id',

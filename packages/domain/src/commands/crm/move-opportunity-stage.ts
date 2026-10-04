@@ -5,6 +5,7 @@ import { defineCommand } from '../../command/define-command';
 import {
   auditOpportunity,
   fire,
+  recordLeadActivity,
   lockOpportunity,
   opportunityRecord,
   requireEntity,
@@ -54,6 +55,11 @@ export const moveOpportunityStage = defineCommand({
     const handover =
       target.key === HANDOVER_STAGE &&
       result.effects.some((effect) => effect.key === 'handover_if_qualified');
+    await recordLeadActivity(ctx, row, 'stage_moved', {
+      fromStageId: row.stageId,
+      toStageId: target.id,
+      toStageKey: target.key,
+    });
     const updated = await writeOpportunity(ctx, row, { stageId: target.id });
     auditOpportunity(ctx, row, { stageId: row.stageId }, { stageId: target.id, handover });
     ctx.emit({

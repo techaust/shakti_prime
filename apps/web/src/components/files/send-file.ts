@@ -90,13 +90,15 @@ const pause = (ms: number, signal: AbortSignal) =>
  * One upload from a screen (docs/ARCHITECTURE.md §9): the file's SHA-256 is worked out here, the
  * server records the file and signs an address for exactly these bytes, the browser sends them
  * there with progress, the server checks what landed, and the screen waits a while for the checks
- * to pass. Each attempt carries its own idempotency keys.
+ * to pass. Each attempt carries its own idempotency keys. `onRecorded` hears the file's id as soon
+ * as the server records it, for a form that names the file in its own command.
  */
 export async function sendFile(
   file: File,
   target: { entityId: number; purpose: FilePurpose },
   controls: UploadControls,
   text: SendFileText,
+  onRecorded?: (fileId: string) => void,
 ): Promise<UploadResult> {
   const sha256 = await sha256Hex(file);
   if (controls.signal.aborted) return { status: 'failed', message: '', canRetry: true };
@@ -114,6 +116,7 @@ export async function sendFile(
     ),
   );
   if (!slot.ok) return failedWith(slot, text);
+  onRecorded?.(slot.data.fileId);
 
   const sent = await put(file, slot.data, controls);
   if (sent !== 'sent') return { status: 'failed', message: text.failed, canRetry: true };

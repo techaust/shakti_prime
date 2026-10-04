@@ -8,6 +8,7 @@ import {
 } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import type { z } from 'zod';
+import { activityRow, writeActivities } from '../activities/activity';
 import { redactForAudit } from '../audit/redact';
 import { inputHash } from '../idempotency/hash';
 import { databaseIdempotencyStore, type IdempotencyStore } from '../idempotency/store';
@@ -132,6 +133,11 @@ export function undeclaredAuditFields(
  * an unnamed field in plain words, which is better than refusing the change.
  */
 const STRICT_AUDIT_FIELDS = process.env.NODE_ENV !== 'production';
+
+/** An agent service principal, by its kind or its role key (the test of 0057 in the database). */
+export function isAgent(principal: Pick<Principal, 'kind' | 'roleKey'>): boolean {
+  return principal.kind === 'agent' || principal.roleKey.startsWith('agent:');
+}
 
 /** Pure permission guard: the principal must hold the permission at `minScope` or wider. */
 export function checkPermission(
@@ -271,6 +277,11 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
     for (const also of command.alsoRequires ?? []) {
       checkPermission(context.principal, also.permission, also.minScope);
     }
+    if (command.peopleOnly === true && isAgent(context.principal)) {
+      throw new DomainError('forbidden', `${command.name} is for people, not agents`, {
+        permission: command.permission,
+      });
+    }
   } catch (e) {
     throw tag(e, 'guard', parsed.data);
   }
@@ -360,6 +371,8 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
       }
       changes.push(change);
     },
+    activity: (record) =>
+      writeActivities(context.tx, [activityRow(context.principal, activeEntityId, record)]),
     now,
     requestId: context.requestId,
     run: async (inner, innerInput, nested = {}) => {

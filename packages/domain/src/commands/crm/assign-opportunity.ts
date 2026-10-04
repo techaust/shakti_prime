@@ -6,6 +6,7 @@ import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import {
   auditOpportunity,
   fire,
+  recordLeadActivity,
   lockOpportunity,
   opportunityRecord,
   requireEntity,
@@ -74,6 +75,12 @@ export const assignOpportunity = defineCommand({
     const lockHours = pipeline?.lockHours ?? WORKSHOP_DEFAULTS.opportunity.handoverLockHours;
     const lockedUntil = new Date(ctx.now.getTime() + lockHours * HOUR_MS);
 
+    // Recorded first: once handed over, the lead may leave the caller's sight.
+    await recordLeadActivity(ctx, row, 'assigned', {
+      fromOwnerId: row.ownerId,
+      ownerId: input.ownerId,
+      teamId: assignee.teamId,
+    });
     const updated = await writeOpportunity(ctx, row, {
       ownerId: input.ownerId,
       teamId: assignee.teamId,

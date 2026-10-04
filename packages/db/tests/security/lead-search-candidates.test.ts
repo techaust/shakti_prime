@@ -254,9 +254,12 @@ describe('app.lead_search_ids(): served by the indexes', () => {
       // that the lookup can use the indexes. docs/spikes/lists.md measures it at 50,000 leads.
       // Plain index scans go too: on a nearly empty table the planner would otherwise walk a
       // primary key end to end, a full read in another form. A bitmap scan needs a condition
-      // its index can answer, so what remains is the trigram and reversed-phone indexes.
+      // its index can answer, so what remains is the trigram and reversed-phone indexes. Index-only
+      // scans go for the same reason: `accounts_name_id_idx` holds every name, and walking it end
+      // to end is a full read of the names.
       await tx.execute(sql`set local enable_seqscan = off`);
       await tx.execute(sql`set local enable_indexscan = off`);
+      await tx.execute(sql`set local enable_indexonlyscan = off`);
       await tx.execute(sql`select set_config('pg_trgm.word_similarity_threshold', '0.4', true)`);
       const before = await counters(tx);
       await tx.execute(call(lookup));

@@ -3,6 +3,7 @@ import { defineCommand } from '../../command/define-command';
 import {
   auditOpportunity,
   fire,
+  recordLeadActivity,
   lockOpportunity,
   opportunityRecord,
   requireEntity,
@@ -28,6 +29,7 @@ export const nurtureOpportunity = defineCommand({
     const { to } = fire(ctx, await opportunityRecord(ctx, row), 'nurture', {
       reason: input.reasonCode,
     });
+    await recordLeadActivity(ctx, row, 'nurtured', { reasonCode: input.reasonCode });
     const updated = await writeOpportunity(ctx, row, { state: to, stateChangedAt: ctx.now });
     auditOpportunity(
       ctx,

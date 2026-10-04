@@ -26,7 +26,12 @@ import {
   type CodeGroup,
 } from '../../screens/audit';
 import {
+  ACCOUNT_TYPES,
+  CONSENT_CHANNELS,
+  CONSENT_PURPOSES,
+  CONSENT_SOURCES,
   CONTRASTS,
+  CUSTOMER_LANGUAGES,
   FILE_PURPOSES,
   FILE_SANITISING,
   FILE_SCAN_VERDICTS,
@@ -40,6 +45,9 @@ import {
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SITE_TYPES,
+  TASK_KINDS,
+  TASK_STATES,
   THEMES,
   USER_STATUSES,
 } from '../../screens/contract-values';
@@ -346,6 +354,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const customers = useTranslations('customers');
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
@@ -353,6 +362,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
+        if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
         return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
@@ -382,6 +392,26 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         // A type the catalogue does not know yet reads in plain words, not as its dotted code.
         return name === undefined ? wordsOf(value.replaceAll('.', ' ')) : t(`events.${name}`);
       }
+      case 'accountType':
+        return oneOf(ACCOUNT_TYPES, value) ? leads(`accountType.${value}`) : wordsOf(value);
+      case 'language':
+        return oneOf(CUSTOMER_LANGUAGES, value) ? leads(`language.${value}`) : wordsOf(value);
+      case 'siteType':
+        return oneOf(SITE_TYPES, value) ? leads(`siteType.${value}`) : wordsOf(value);
+      case 'consentChannel':
+        return oneOf(CONSENT_CHANNELS, value)
+          ? customers(`consent.channel.${value}`)
+          : wordsOf(value);
+      case 'consentPurpose':
+        return oneOf(CONSENT_PURPOSES, value)
+          ? customers(`consent.purpose.${value}`)
+          : wordsOf(value);
+      case 'consentSource':
+        return oneOf(CONSENT_SOURCES, value)
+          ? customers(`consent.source.${value}`)
+          : wordsOf(value);
+      case 'taskKind':
+        return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
       case 'itemCategory':

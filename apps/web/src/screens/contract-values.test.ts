@@ -1,5 +1,13 @@
 import {
+  AccountTypeSchema,
+  ActivityTypeSchema,
+  ConsentChannelSchema,
+  ConsentPurposeSchema,
+  ConsentSourceSchema,
+  CustomerLanguageSchema,
   ContrastSchema,
+  CUSTOMER_SEARCH_MIN_CHARS as CONTRACT_CUSTOMER_SEARCH_MIN_CHARS,
+  CUSTOMER_SORT_COLUMNS as CONTRACT_CUSTOMER_SORT_COLUMNS,
   ITEM_SORT_COLUMNS as CONTRACT_ITEM_SORT_COLUMNS,
   ITEM_SPEC_FIELDS as CONTRACT_ITEM_SPEC_FIELDS,
   ItemCategorySchema,
@@ -27,6 +35,9 @@ import {
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SiteTypeSchema,
+  TaskKindSchema,
+  TaskStateSchema,
   ThemeSchema,
   USER_SORT_COLUMNS as CONTRACT_USER_SORT_COLUMNS,
   UserStatusSchema,
@@ -35,6 +46,14 @@ import {
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  ACCOUNT_TYPES,
+  ACTIVITY_TYPES,
+  CONSENT_CHANNELS,
+  CONSENT_PURPOSES,
+  CONSENT_SOURCES,
+  CUSTOMER_LANGUAGES,
+  CUSTOMER_SEARCH_MIN_CHARS,
+  CUSTOMER_SORT_COLUMNS,
   CONTRASTS,
   COST_PERMISSION_KEYS,
   ITEM_CATEGORIES,
@@ -67,6 +86,9 @@ import {
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SITE_TYPES,
+  TASK_KINDS,
+  TASK_STATES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -84,6 +106,15 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(TASK_KINDS).toEqual(TaskKindSchema.options);
+    expect(TASK_STATES).toEqual(TaskStateSchema.options);
+    expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
+    expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
+    expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
+    expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);
+    expect(CONSENT_CHANNELS).toEqual(ConsentChannelSchema.options);
+    expect(CONSENT_PURPOSES).toEqual(ConsentPurposeSchema.options);
+    expect(CONSENT_SOURCES).toEqual(ConsentSourceSchema.options);
     expect(ITEM_CATEGORIES).toEqual(ItemCategorySchema.options);
     expect(ITEM_UNITS).toEqual(ItemUnitSchema.options);
     expect(PRICE_LIST_STATES).toEqual(PriceListStateSchema.options);
@@ -99,6 +130,7 @@ describe('the contract values copied for the browser', () => {
   it('equal the contract’s own lists and limits', () => {
     expect(IMPLEMENTED_IMPORT_KINDS).toEqual(CONTRACT_IMPORT_KINDS);
     expect(LEAD_SORT_COLUMNS).toEqual(CONTRACT_LEAD_SORT_COLUMNS);
+    expect(CUSTOMER_SORT_COLUMNS).toEqual(CONTRACT_CUSTOMER_SORT_COLUMNS);
     expect(USER_SORT_COLUMNS).toEqual(CONTRACT_USER_SORT_COLUMNS);
     expect(PRICE_SORT_COLUMNS).toEqual(CONTRACT_PRICE_SORT_COLUMNS);
     expect(IMPORT_JOB_SORT_COLUMNS).toEqual(CONTRACT_IMPORT_JOB_SORT_COLUMNS);
@@ -113,6 +145,7 @@ describe('the contract values copied for the browser', () => {
     );
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+    expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);
   });

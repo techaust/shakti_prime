@@ -12,6 +12,7 @@ import { quoteMachine } from './machines/quote';
 import { salesOrderMachine } from './machines/sales-order';
 import { subsidyGateMachine } from './machines/subsidy-gate';
 import { tallyVoucherMachine } from './machines/tally-voucher';
+import { taskMachine } from './machines/task';
 import { warrantyClaimMachine } from './machines/warranty-claim';
 
 /**
@@ -20,6 +21,7 @@ import { warrantyClaimMachine } from './machines/warranty-claim';
  */
 export const MACHINES: readonly AnyMachine[] = [
   opportunityMachine,
+  taskMachine,
   quoteMachine,
   salesOrderMachine,
   dispatchMachine,

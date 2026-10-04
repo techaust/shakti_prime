@@ -12,6 +12,10 @@ import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
+import { recordConsent, withdrawConsent } from '../commands/crm/consent';
+import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
+import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
+import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
 import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
@@ -52,6 +56,20 @@ export const commands = {
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
+  [createTask.name]: createTask,
+  [completeTask.name]: completeTask,
+  [rescheduleTask.name]: rescheduleTask,
+  [cancelTask.name]: cancelTask,
+  [createTag.name]: createTag,
+  [archiveTag.name]: archiveTag,
+  [tagLead.name]: tagLead,
+  [untagLead.name]: untagLead,
+  [updateAccount.name]: updateAccount,
+  [updateContact.name]: updateContact,
+  [upsertSite.name]: upsertSite,
+  [addNote.name]: addNote,
+  [recordConsent.name]: recordConsent,
+  [withdrawConsent.name]: withdrawConsent,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,

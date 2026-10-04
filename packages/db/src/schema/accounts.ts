@@ -53,6 +53,8 @@ export const accounts = pgTable(
       sql`${t.billingStateCode} is null or ${t.billingStateCode} ~ '^[0-9]{2}$'`,
     ),
     index('accounts_name_trgm_idx').using('gin', t.name.op('gin_trgm_ops')),
+    // The customers list pages by name (`listCustomers`).
+    index('accounts_name_id_idx').on(t.name, t.id),
     index('accounts_tier_idx').on(t.tierId),
   ],
 );

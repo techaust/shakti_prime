@@ -526,6 +526,111 @@
       "when": 1791054701887,
       "tag": "0074_role_editor_holders",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1791054702887,
+      "tag": "0075_activities",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1791054703887,
+      "tag": "0076_activities_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1791054704887,
+      "tag": "0077_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1791054705887,
+      "tag": "0078_tasks_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1791054706887,
+      "tag": "0079_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1791054707887,
+      "tag": "0080_tags_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1791054708887,
+      "tag": "0081_customer_edits",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791054709887,
+      "tag": "0082_consent_evidence",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1791054710887,
+      "tag": "0083_consent_evidence_fixed",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791054711887,
+      "tag": "0084_customers_list",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1791054712887,
+      "tag": "0085_customers_saved_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1791054713887,
+      "tag": "0086_customer_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791054714887,
+      "tag": "0087_c2_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1791054715887,
+      "tag": "0088_c2_review_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1791055563729,
+      "tag": "0089_customers_reader",
+      "breakpoints": true
     }
   ]
 }
