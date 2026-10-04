@@ -31,13 +31,17 @@ packages/contracts    Zod schemas shared by web, field app, connector, voice age
 packages/ui           web components (shadcn/ui based)
 packages/tokens       design tokens (CSS variables + JS export) for web and Android
 tools/copy-lint       the product-copy lint run in CI
-docs/                 blueprint, module docs, ADRs
+tools/integration     slice integration scripts, the cloud setup script and the document link check
+infra/aws             the AWS file storage stack (CloudFormation)
+docs/                 blueprint, module docs, ADRs, runbooks, the Phase 1 run files
+.claude/              the project's skills, agents, session-start hooks and tooling list
+.github/              CI, merge-on-green, migrate and audit workflows; the pull-request template
 ```
 Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `packages/contracts` and on the `packages/db` schema and types (never its client), and never on Next.js, React or Expo. `packages/contracts` depends on nothing but Zod and the UUIDv7 generator. `apps/web` reaches the database only through `executeCommand()` and `executeQuery()` from `packages/domain`; `executeQuery()` runs in a read-only transaction, so a write through it fails (SQLSTATE 25006).
 
 **Import fences.** ESLint (`eslint.config.mjs`) enforces each of these; `apps/web/src/lint-fences.test.ts` proves them by linting source text under paths that do not exist.
 - The raw database client (`@shakti/db/client`) is importable only inside `packages/db`; everything else uses `withRequestContext()`. `postgres` and `drizzle-orm/postgres-js` are importable only inside `packages/db`.
-- `apps/web` names neither `withRequestContext` nor `schema` (from `@shakti/db`, from `@shakti/db/schema` or by a dynamic `import()`), nor any file of `packages/db/src` by a relative path.
+- `apps/web` names none of `withRequestContext`, `schema` and `entityIdsLiteral` (from `@shakti/db`, from `@shakti/db/schema` or by a dynamic `import()`), nor any file of `packages/db/src` by a relative path.
 - The five restricted entry points of `@shakti/db`, enforced through static imports, dynamic `import()` and `require()` alike:
 
   | Entry point | What it opens | Importable only from |
@@ -65,7 +69,7 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 - Dates: store UTC `timestamptz`, displayed in IST. Money: `numeric(14,2)` in the DB and a two-decimal string in DTOs (`MoneySchema`).
 - Formatting helpers:
   - `apps/web/src/print/format.ts`: lakh/crore grouping and DD-MM-YYYY dates in IST (`formatRupees()`, `formatAmount()`, `formatDate()`, used by the print templates);
-  - `apps/web/src/screens/format.ts`: the screens' formats, those two plus `formatDateTime()`, `formatPhone()`, `formatCount()` and `moneyFromTyped()`;
+  - `apps/web/src/screens/format.ts`: the screens' formats, `formatDate()` and `formatRupees()` from the print module plus `formatDateTime()`, `formatPhone()`, `formatCount()` and `moneyFromTyped()`;
   - `packages/ui/src/date.ts`: the DD-MM-YYYY date input (`parseDmy()`, `formatDmy()`, `maskDmy()`);
   - `packages/domain/src/money/paise.ts`: integer-paise arithmetic.
 
@@ -149,7 +153,9 @@ export const createTag = defineCommand({
 **Adding a command, step by step.**
 1. Input and strict DTO in `packages/contracts`; a new error reason gets a sentence in the `errors.*` catalogue of `apps/web/messages/en.json`.
 2. `defineCommand` in `packages/domain/src/commands/<module>/`, registered in `packages/domain/src/command/registry.ts`.
-3. Tests under `packages/domain/tests/commands` on real Postgres: permission denied, wrong company, happy path (the agent refusal sweep reads the registry, so a new admin, cost, audit, integrations, tax, price or catalogue command joins it by itself); an RLS test in `packages/db/tests/security` when a table is new or touched.
+3. Tests under `packages/domain/tests/commands` on real Postgres: permission denied, wrong company, happy path; an RLS test in `packages/db/tests/security` when a table is new or touched.
+   - The agent refusal sweep (`packages/domain/tests/security/agent-refusals.test.ts`) picks commands from the registry by permission: `isRestricted()` marks the cost and other agent-forbidden permissions, every `admin.*`, `audit.*` and `integrations.*` permission, `tax.rates.write`, `pricing.write` and `catalogue.write`.
+   - A command that needs one of them fails the sweep's first test until it has a valid input in `INPUTS`; a command that needs `crm.account.write` fails the customer-write test until it has one in `CUSTOMER_INPUTS`. Add the input with the command.
 4. A server action in `apps/web/src/actions`, modelled on `createTag` in `apps/web/src/actions/crm.ts`:
    - the caller from `signedIn()` (`actions/support.ts`, which uses `currentPrincipal()`), the input through `parseInput()`, `requestMeta()` for the request id and the caller's address;
    - `executeCommand(principal, { entityIds, requestId }, command, input, commandOptions(meta, idempotencyKey))`, wrapped in `toResult('<action name>', …)` (`actions/result.ts`) so it answers an `ActionResult`;
@@ -184,7 +190,7 @@ export const createTag = defineCommand({
   - Their read policies use `exists (select 1 from account_entities ae where ae.account_id = …)` (or `account_contacts` for contacts), which the planner can index; their write policies use `app.account_in_scope()` or `app.contact_in_scope()`.
   - An insert of a root row must not use `returning` (the row is not yet visible).
   - A direct write to `account_entities` or `account_contacts` may link a new row or one the caller already sees; any other attach goes through `app.attach_account_entity()` (review 3, finding M).
-- A `security definer` function revokes execute from `public` and `readonly_reporter` and checks a permission in its body, unless DATABASE lists it as an exception with its reason.
+- A `security definer` function revokes execute from `public` and `readonly_reporter` and checks a permission in its body, unless DATABASE lists it as an exception with its reason. A definer written from here on sets `search_path = ''` and names every object with its schema; the older migrations set `pg_catalog, public, app, pg_temp` or `public, app`, and an applied migration is never edited.
 - The identity tables are the exception to the `app_user` pattern: the auth module writes them as `auth_service` through `@shakti/db/auth`.
 
 **A partitioned table.** drizzle-kit cannot emit `PARTITION BY`, so add it by hand to the generated `create table` before the migration is ever applied (the snapshot does not record it, so `db:generate` shows no drift). The primary key includes the partition column, and the partitions live in a schema no request role may use (`audit_partitions` is the pattern), with a default partition and a pg_cron job that makes the next months.
@@ -206,8 +212,7 @@ Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except th
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `docs/<name>`, `spike/<name>`, `chore/<name>`, `phase-<n>/<name>`.
 - Conventional commits: `feat(sales): confirm sales order command`. One logical change per commit.
-- PR description: what, why, how verified, migration notes, screenshots for UI, checklist below.
-- PR checklist: tests added, RLS test for new tables, no restricted field in a DTO, no hard-coded colour, no PII in logs, all new user-facing strings in the English catalogue in plain language with no placeholder text, contracts updated, docs updated if behaviour changed.
+- PR description: the [pull-request template](.github/pull_request_template.md) (what it changes, migrations, the definition of done of §10, the checks run, what the owner must do), with screenshots for UI.
 - Merging: `.github/workflows/automerge.yml` merges a PR into `main` with a merge commit once CI passes on its latest commit, when the PR is open, not a draft, from this repository, not labelled `hold`, and by the owner or a Dependabot minor or patch bump; it then deletes the branch and runs CI on `main`. Nobody pushes to `main` directly or merges by hand, a slice branches from `main` after the previous PR has merged, and a Dependabot major waits for the owner's review.
 - Never commit secrets, `.env*` files, production data or recordings. A gitleaks secret scan over the history and `pnpm audit` run in CI.
 
@@ -220,7 +225,19 @@ Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except th
 - New external calls go through a provider wrapper with timeouts, retries and budgets.
 
 ## 10. Definition of done
-A task is done when: the code path works end to end; the tests in §7 pass locally and in CI; migrations apply cleanly on a fresh database and on a copy of staging; the security suite is green; every user-facing string is final plain-language copy (English on screen, Hinglish only in the spoken channels) and the copy lint passes; docs and contracts reflect the change; the summary states what was verified and what was not.
+A task is done when every line that applies to it holds. This is the one definition of done; the [pull-request template](.github/pull_request_template.md) copies the list.
+
+- [ ] The code path works end to end (contract → command → tests → server action or route → screen), with no layer half wired.
+- [ ] Every new table: RLS enabled, forced and failing closed; in its `*_TABLES` list with a fixture row per company and a rule in the role × company matrix; `app_reader` on its select policy and its select grant; `NARROWER` and `enum-sync` where they apply (§6).
+- [ ] Every new command: denied, wrong-company and happy-path tests on real Postgres; every `auditFields` key labelled in `apps/web/src/screens/audit.ts`; a restricted command's input in the agent refusal sweep (§5).
+- [ ] The tests of §7 pass locally and in CI, the security suite included, run on the local Postgres.
+- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging (`docs/phase0/exit-gate-actions.md`).
+- [ ] Every user-facing word is final plain language in `apps/web/messages/en.json` (English on screen, Hinglish only in the spoken channels), and `pnpm copy-lint` passes.
+- [ ] New or changed screens: an end-to-end journey with axe; Linux screenshot baselines made on a fresh database; the JavaScript budget per page holds.
+- [ ] New lists and searches: `EXPLAIN (ANALYZE)` evidence under RLS.
+- [ ] Documents and contracts match the code: the module documents, the design's "Built" record, `pnpm db:docs` and `machines:docs` regenerated; no change-log wording.
+- [ ] Nothing invented that the client must give (tax rates, prices, numbering, scripts, targets).
+- [ ] The summary states what was verified and how, and what was not.
 
 ## 11. Never
 - Write to the database outside a domain command.
@@ -229,4 +246,4 @@ A task is done when: the code path works end to end; the tests in §7 pass local
 - Show a user a technical word, code or internal name, or ship placeholder, sample or dummy text anywhere a user can see it.
 - Add a discount, override or backdoor of any kind.
 - Write to Tally.
-- Install a tool, plugin or dependency without stating it in the plan.
+- Install a tool, plugin or dependency without the owner's go-ahead.

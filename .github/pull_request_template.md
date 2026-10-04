@@ -8,13 +8,19 @@
 
 ## Definition of done (AGENTS.md §10)
 
-- [ ] Every new table: RLS forced and fail-closed, in its `*_TABLES` list, a fixture row per company and a matrix rule; `app_reader` on its select policy and grants
-- [ ] Every new command: denied, wrong-company and happy-path tests; labelled `auditFields`; in the agent refusal sweep unless an agent may run it
-- [ ] Every user-facing word final plain English in `apps/web/messages/en.json`; copy lint clean
-- [ ] New screens: end-to-end journey with axe, Linux baselines made on a fresh database; the JavaScript budget holds
-- [ ] New lists or searches: `EXPLAIN` evidence under RLS
-- [ ] Documents match the code (module documents, the design's "Built" record, `pnpm db:docs`, `machines:docs`); no change-log wording
-- [ ] Nothing invented that the client must give (tax rates, prices, numbering, scripts, targets)
+<!-- The same list as AGENTS.md §10, word for word; tick what holds, strike through a line that does not apply. -->
+
+- [ ] The code path works end to end (contract → command → tests → server action or route → screen), with no layer half wired.
+- [ ] Every new table: RLS enabled, forced and failing closed; in its `*_TABLES` list with a fixture row per company and a rule in the role × company matrix; `app_reader` on its select policy and its select grant; `NARROWER` and `enum-sync` where they apply (§6).
+- [ ] Every new command: denied, wrong-company and happy-path tests on real Postgres; every `auditFields` key labelled in `apps/web/src/screens/audit.ts`; a restricted command's input in the agent refusal sweep (§5).
+- [ ] The tests of §7 pass locally and in CI, the security suite included, run on the local Postgres.
+- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging (`docs/phase0/exit-gate-actions.md`).
+- [ ] Every user-facing word is final plain language in `apps/web/messages/en.json` (English on screen, Hinglish only in the spoken channels), and `pnpm copy-lint` passes.
+- [ ] New or changed screens: an end-to-end journey with axe; Linux screenshot baselines made on a fresh database; the JavaScript budget per page holds.
+- [ ] New lists and searches: `EXPLAIN (ANALYZE)` evidence under RLS.
+- [ ] Documents and contracts match the code: the module documents, the design's "Built" record, `pnpm db:docs` and `machines:docs` regenerated; no change-log wording.
+- [ ] Nothing invented that the client must give (tax rates, prices, numbering, scripts, targets).
+- [ ] The summary states what was verified and how, and what was not.
 
 ## Checks run
 
