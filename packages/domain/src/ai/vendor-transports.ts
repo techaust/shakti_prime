@@ -25,8 +25,15 @@ function anthropicFailure(error: unknown): ModelCallError {
  * Claude through `@anthropic-ai/sdk`. The system text is marked for the prompt cache, since it is
  * the same on every call of an agent (ADR 0011, cost controls).
  */
-export function anthropicTransport(apiKey: string): ModelTransport {
-  const client = new Anthropic({ apiKey, maxRetries: 0 });
+export function anthropicTransport(
+  apiKey: string,
+  options: { fetch?: typeof fetch } = {},
+): ModelTransport {
+  const client = new Anthropic({
+    apiKey,
+    maxRetries: 0,
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+  });
   return {
     async complete(request, signal): Promise<ModelReply> {
       let message: Anthropic.Message;
