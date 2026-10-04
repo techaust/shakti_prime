@@ -1,15 +1,11 @@
 'use client';
 
-import {
-  MORE_SITES_MAX,
-  type ImportJobDto,
-  type ImportRowDto,
-  type ImportRowPage,
-} from '@shakti/contracts';
+import type { ImportJobDto, ImportRowDto, ImportRowPage } from '@shakti/contracts';
 import { DataGrid, EmptyState, Field, Select, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { listImportRows } from '../../actions/imports';
+import { MORE_SITES_MAX } from '../../screens/contract-values';
 import {
   formatCount,
   ROW_STATE_TONE,

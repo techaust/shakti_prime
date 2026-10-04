@@ -184,6 +184,9 @@ export const IMPLEMENTED_IMPORT_KINDS = [
   'pin_codes',
 ] as const satisfies readonly ImportKind[];
 
+/** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */
+export const MORE_SITES_MAX = 100;
+
 export const IMPORT_JOB_STATES = [
   'uploaded',
   'mapped',
