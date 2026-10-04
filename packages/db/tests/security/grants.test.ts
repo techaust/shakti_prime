@@ -93,7 +93,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
 
   /**
    * Tables selected column by column: `entities`, whose sealed bank account no request role may
-   * select (0076, the test below).
+   * select (the test below).
    */
   const COLUMN_SELECT: ReadonlySet<string> = new Set(['entities']);
 
@@ -383,7 +383,7 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
        order by 1
     `);
     expect(rows.map((r) => r.fn)).toEqual([
-      // An Executive's bank account form and the print loader (0076).
+      // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
