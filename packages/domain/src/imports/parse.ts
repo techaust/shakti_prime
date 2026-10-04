@@ -19,6 +19,8 @@ export interface ParseLimits {
   maxFileBytes: number;
   maxUnzippedBytes: number;
   maxZipRatio: number;
+  maxPartBytes: number;
+  maxSharedStringsBytes: number;
   maxRows: number;
   maxColumns: number;
   maxCellLength: number;
@@ -90,13 +92,33 @@ export function cellText(value: unknown): string {
   return '';
 }
 
-/** The parts the reader needs, in the order it needs them: each before the sheets that use it. */
+/**
+ * The parts the reader needs, in the order it needs them: each before the sheets that use it. The
+ * workbook's relationships are left out: they only name the sheets, which the import does not use,
+ * and a reader given empty or damaged ones would spool every sheet to a temporary file.
+ */
 function partRank(name: string): number {
-  if (name === 'xl/_rels/workbook.xml.rels') return 0;
-  if (name === 'xl/workbook.xml') return 1;
-  if (name === 'xl/sharedStrings.xml') return 2;
-  if (name === 'xl/styles.xml') return 3;
-  return /^xl\/worksheets\/sheet\d+\.xml$/.test(name) ? 4 : -1;
+  if (name === 'xl/workbook.xml') return 0;
+  if (name === 'xl/sharedStrings.xml') return 1;
+  if (name === 'xl/styles.xml') return 2;
+  return /^xl\/worksheets\/sheet\d+\.xml$/.test(name) ? 3 : -1;
+}
+
+/**
+ * Gives the reader a list it can never lose: ExcelJS reads a sheet as it arrives only while its
+ * shared strings and relationships are set, and otherwise spools the sheet to a temporary file
+ * that it deletes only when read to the end. Whatever a part sets them to, they stay lists.
+ */
+function keepList(reader: object, key: 'sharedStrings' | 'workbookRels'): void {
+  let value: unknown = [];
+  Object.defineProperty(reader, key, {
+    configurable: true,
+    enumerable: true,
+    get: () => value,
+    set: (next: unknown) => {
+      value = Array.isArray(next) ? next : [];
+    },
+  });
 }
 
 /**
@@ -125,11 +147,10 @@ function rowCells(row: ExcelJS.Row, limits: ParseLimits): string[] {
  * so text and dates read as the person sees them.
  *
  * The reader is given only the parts it reads, each a record the guard checked, in the order it
- * needs them: the workbook's relationships, the workbook, the shared strings and the styles
- * before the sheets (in their order in the file), then the directory. A reader given a sheet
- * before the shared strings spools the sheet to a temporary file, which it deletes only when it
- * reads to the end; in this order, with empty shared strings and relationships standing in where
- * a workbook has none, it never does.
+ * needs them: the workbook, the shared strings and the styles before the sheets (in their order
+ * in the file), then the directory. A reader given a sheet before its shared strings and
+ * relationships spools the sheet to a temporary file, which it deletes only when it reads to the
+ * end; with both held as lists from the start (`keepList`), it never does.
  */
 async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[][]> {
   // The packed size was checked; what the parts unpack to is checked before anything unpacks.
@@ -151,14 +172,14 @@ async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[
     entries: 'ignore',
   });
   // The reader takes the sheets' names and the date system from `xl/workbook.xml`, which a
-  // workbook may lack; empty ones stand in until the real ones are read, as do empty shared
-  // strings and relationships, so a sheet is always read as it arrives.
+  // workbook may lack; empty ones stand in until the real ones are read. The shared strings and
+  // relationships are lists from the start, so a sheet is always read as it arrives.
   Object.assign(reader as unknown as Record<string, unknown>, {
     model: { sheets: [] },
     properties: { model: {} },
-    sharedStrings: [],
-    workbookRels: [],
   });
+  keepList(reader, 'sharedStrings');
+  keepList(reader, 'workbookRels');
   const most = limits.maxRows + limits.headerSearchRows;
   const rows: string[][] = [];
   // Set once the sheet is read: leaving the reader early may end its stream with an error.

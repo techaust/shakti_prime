@@ -6,6 +6,28 @@ export interface ZipLimits {
   maxUnzippedBytes: number;
   /** The most one large part may grow when unpacked. */
   maxZipRatio: number;
+  /**
+   * The most each of the workbook's own parts the reader takes whole (the workbook, its styles,
+   * its relationships and the content types) may hold once unpacked.
+   */
+  maxPartBytes: number;
+  /** The most the shared strings, which the reader keeps in memory, may hold once unpacked. */
+  maxSharedStringsBytes: number;
+}
+
+/** The parts held to `maxPartBytes`: small in any workbook, read whole by the reader. */
+const SMALL_PARTS = new Set([
+  '[Content_Types].xml',
+  '_rels/.rels',
+  'xl/_rels/workbook.xml.rels',
+  'xl/workbook.xml',
+  'xl/styles.xml',
+]);
+
+/** The most a part of this name may hold once unpacked, beyond the total; none for a sheet. */
+function partCap(name: string, limits: ZipLimits): number | undefined {
+  if (name === 'xl/sharedStrings.xml') return limits.maxSharedStringsBytes;
+  return SMALL_PARTS.has(name) ? limits.maxPartBytes : undefined;
 }
 
 /** Parts smaller than this once unpacked are never judged by their ratio. */
@@ -84,9 +106,10 @@ interface DirectoryPart {
  * Anything else is refused: bytes in front of, between or after the parts, a part present only as
  * a local header, a local size differing from the directory's, ZIP64 records, several disks, a
  * directory that does not end exactly where the end record starts, encryption, and packing
- * methods other than stored and deflate. The declared sizes must stay within the limits, and each
- * part is then unpacked with a ceiling of its declared size, so a part that lies about its size is
- * refused after producing no more than it declared. The bytes unpacked here are the bytes the
+ * methods other than stored and deflate. The declared sizes must stay within the limits (the total,
+ * and each of the parts the reader keeps whole: the shared strings and the workbook's own small
+ * parts), and each part is then unpacked with a ceiling of its declared size, so a part that
+ * lies about its size is refused after producing no more than it declared. The bytes unpacked here are the bytes the
  * reader later unpacks.
  */
 export function checkZipArchive(bytes: Uint8Array, limits: ZipLimits): ZipVerdict {
@@ -148,6 +171,8 @@ export function checkZipArchive(bytes: Uint8Array, limits: ZipLimits): ZipVerdic
 
     declared += unpacked;
     if (declared > limits.maxUnzippedBytes) return tooLarge('unpacks beyond the limit');
+    const cap = partCap(name.toString('utf8'), limits);
+    if (cap !== undefined && unpacked > cap) return tooLarge('a part beyond its own limit');
     if (unpacked >= RATIO_FLOOR && unpacked > packed * limits.maxZipRatio) {
       return tooLarge('implausible packing ratio');
     }

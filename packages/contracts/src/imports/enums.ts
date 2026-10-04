@@ -118,6 +118,17 @@ export const IMPORT_LIMITS = {
    * which only a crafted file reaches.
    */
   maxZipRatio: 100,
+  /**
+   * The most each of a workbook's own small parts (the workbook, its styles, its relationships and
+   * the content types) may hold once unpacked; each is a few kilobytes in any real workbook.
+   */
+  maxPartBytes: 5 * 1024 * 1024,
+  /**
+   * The most a workbook's shared strings (every distinct text of the sheet, kept in memory while
+   * the sheet is read) may hold once unpacked: a 50,000-row list of ten columns, most of its texts
+   * distinct, holds about 3 MB (measured with ExcelJS 4.4).
+   */
+  maxSharedStringsBytes: 32 * 1024 * 1024,
   maxRows: 50_000,
   maxColumns: 50,
   maxCellLength: 500,
