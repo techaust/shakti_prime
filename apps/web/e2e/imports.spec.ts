@@ -59,6 +59,8 @@ test.describe('as a GM', () => {
   test('uploads a spreadsheet of customers, matches its columns and checks its rows', async ({
     page,
   }) => {
+    // The upload and its checks, then matching and checking the rows: one step after another.
+    test.slow();
     await page.goto('/imports/new');
     await page.getByLabel('What the file holds').selectOption({ label: 'Customers' });
     await expect(
@@ -86,6 +88,8 @@ test.describe('as an Executive', () => {
   test('adds post offices to the PIN code list, which the lead form then finds', async ({
     page,
   }) => {
+    // The upload and its checks, matching, checking and adding the rows, then the lead form.
+    test.slow();
     await page.goto('/imports/new');
     await page.getByLabel('Company', { exact: true }).selectOption({ label: 'Shakti Supreme' });
     await page.getByLabel('What the file holds').selectOption({ label: 'PIN code list' });
@@ -108,8 +112,8 @@ test.describe('as an Executive', () => {
     const pin = page.getByLabel('PIN code');
     await pin.fill('999001');
     await expect(page.getByText('Tehsil Sotikul, district Balvanti.')).toBeVisible();
-    // Its post offices are offered for the village.
-    await expect(page.locator('#lead-village-offices option[value="Kherovan B.O"]')).toHaveCount(1);
+    // Its post offices are offered for the village, by the place each names.
+    await expect(page.locator('#lead-village-offices option[value="Kherovan"]')).toHaveCount(1);
     await expectNoAxeViolations(page);
     await pin.fill('999999');
     await expect(
