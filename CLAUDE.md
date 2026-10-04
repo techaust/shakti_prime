@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It holds rules only; status, history and decisions live in the documents linked below.
 
+**Contents:** [Project](#project) · [Status](#status) · [Where things live](#where-things-live) · [Working in this repo](#working-in-this-repo) · [Documentation map](#documentation-map) · [Architectural rules](#architectural-rules-that-span-the-codebase) · [Claude Code tooling](#claude-code-tooling)
+
 ## Project
 Shakti Prime BOS is the business operating system for the Shakti group. Four selling entities (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub, RCREF) share one team. It covers CRM with tele-calling, sales orders, inventory, projects/subsidy, finance with read-only Tally sync, HR and AI agents.
 
@@ -73,7 +75,8 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - Every variable a task reads must be listed for that task in `turbo.json`: Turbo runs in strict env mode and CI has no `.env`, so a variable that works locally and is "not set" in CI is missing from that list.
 - Adding a package that is a peer of `drizzle-orm` (as `@upstash/redis` is) splits `drizzle-orm` into two instances and breaks typecheck across packages; `pnpm dedupe` repairs it.
 - A production runtime counts as hosted unless `BOS_ENVIRONMENT=local` with a `BETTER_AUTH_URL` on localhost, 127.0.0.1 or [::1] and not on Vercel (the `next start` of the end-to-end journeys and Lighthouse; never set on a hosted environment).
-- A hosted runtime refuses to start without `BOS_ENVIRONMENT` (`dev`, `staging` or `production`), `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` and `MAILER`, and refuses published or short secrets, Cloudflare's Turnstile test keys, a non-https URL and any `FIELD_ENCRYPTION_KEY` (a hosted environment seals fields with its KMS key) (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, run from `instrumentation.ts`).
+- A hosted runtime refuses to start without `BOS_ENVIRONMENT` (`dev`, `staging` or `production`), `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `DATABASE_URL_OUTBOX`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` and `MAILER`, (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, run from `instrumentation.ts`).
+- It also refuses published or short secrets, Cloudflare's Turnstile test keys, a non-https URL and any `FIELD_ENCRYPTION_KEY` (a hosted environment seals fields with its KMS key).
 - `MAILER` is `ses` (Amazon SES, which needs `SES_FROM`) or `log`; production starts only with `ses`, so it waits for the client's verified domain ([DEPLOY §1](docs/runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment)). Locally and in CI the in-memory store and the console mailer are used, and with no QStash variables the outbox nudge runs the publisher in process.
 
 ### Copy

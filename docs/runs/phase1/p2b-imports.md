@@ -9,7 +9,14 @@
 | Next step | the lead pushes the branch with this file, then a builder starts |
 
 ## Brief
-Design: [`docs/design/phase1.md` §6.3](../../design/phase1.md#63-p2b-imports-upgrade); PRD IMP-01 and CRM-02; the import framework (`packages/domain/src/imports`, the `imports.job.*` commands, the worker `/api/v1/workers/imports/commit`); P2's uploads (`packages/domain/src/files`, `apps/web/src/files`); `docs/spikes/import-scale.md`. Skills: `add-command`, `add-table`, `supabase-postgres-best-practices`, `vercel-react-best-practices`. Lead creation and the import batch's attribution belong to C3's integration (its run file): coordinate any change to `packages/domain/src/imports/commit-leads.ts` with the lead session.
+Read first:
+- Design: [`docs/design/phase1.md` §6.3](../../design/phase1.md#63-p2b-imports-upgrade)
+- PRD IMP-01 and CRM-02
+- the import framework (`packages/domain/src/imports`, the `imports.job.*` commands, the worker `/api/v1/workers/imports/commit`)
+- P2's uploads (`packages/domain/src/files`, `apps/web/src/files`)
+- `docs/spikes/import-scale.md`
+- Skills: `add-command`, `add-table`, `supabase-postgres-best-practices`, `vercel-react-best-practices`.
+- Lead creation and the import batch's attribution belong to C3's integration (its run file): coordinate any change to `packages/domain/src/imports/commit-leads.ts` with the lead session.
 
 1. **Uploads:** import files arrive by the pre-signed flow of P2; the workbook is read as a stream (the `exceljs` streaming reader), so memory stays flat; the server-action body limit (`serverActions.bodySizeLimit` and `proxyClientMaxBodySize` in `apps/web/next.config.ts`, set to `UPLOAD_BODY_LIMIT` for the import form) returns to the default.
 2. **Batch budgets:** one deadline across the whole set-based try, then a short row-by-row slice; a job fails after its last queue retry (`Upstash-Retried`).

@@ -9,7 +9,15 @@
 | Next step | take `main` (C1 and C2 are on it), renumber, then the integration list below through a builder |
 
 ## Brief
-Design: [`docs/design/phase1.md` §6.7](../../design/phase1.md#67-c4-sizing) and §11 (workshop defaults); BLUEPRINT §8.3 (quote validations) and §3 ("LLMs never do this math"); PRD SAL-04; the quote machine's guards `sizingComplete`, `pumpCurveInBounds`, `dcrRuleMet` (`packages/domain/src/state-machines/machines/quote.ts`); the workshop pack; ADR 0007 for the pure-function style. Skills: `supabase-postgres-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`. The owner decided on 30-09-2026 that only people record the sizing a quote relies on; agents may only suggest one ([ADR 0021](../../adr/0021-people-record-sizing.md)).
+Read first:
+- Design: [`docs/design/phase1.md` §6.7](../../design/phase1.md#67-c4-sizing) and §11 (workshop defaults)
+- BLUEPRINT §8.3 (quote validations) and §3 ("LLMs never do this math")
+- PRD SAL-04
+- the quote machine's guards `sizingComplete`, `pumpCurveInBounds`, `dcrRuleMet` (`packages/domain/src/state-machines/machines/quote.ts`)
+- the workshop pack
+- ADR 0007 for the pure-function style
+- Skills: `supabase-postgres-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
+- The owner decided on 30-09-2026 that only people record the sizing a quote relies on; agents may only suggest one ([ADR 0021](../../adr/0021-people-record-sizing.md)).
 
 1. **Pure calculators** in `packages/domain/src/sizing/` (no framework imports; SI units inside, inputs in the units field staff use), each tested with fixture tables, boundary cases and property tests (`fast-check`), with two worked examples per calculator in the test comments: `totalDynamicHead`, `pumpPower`, `solarArrayForPump`, `rooftopSize`, `pumpDutyPoint`, `dcrRule`, `sanctionedLoadRule`. Every result carries `inBounds` and `reasons` (codes) so the quote guard can refuse and say why.
 2. **Engineering defaults** under `sizing` in `packages/domain/src/workshop-defaults.ts`, each named with its source and flagged for the client's engineering head to confirm; each in the exit-gate actions and design §11. Never presented as client facts.

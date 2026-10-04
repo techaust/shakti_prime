@@ -9,11 +9,28 @@
 | Next step | the adversarial review |
 
 ## Brief
-Design: [`docs/design/phase1.md` §6.4](../../design/phase1.md#64-p4-print-and-letterhead); ADR 0009 (PDFs render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, both installed); BLUEPRINT §11 (print always renders light) and §7 (bank details are sensitive); DESIGN.md print tokens; the print module `apps/web/src/print` and `docs/spikes/print.md`; P2's files (`packages/domain/src/files`, `apps/web/src/files`, `apps/web/src/workers/files`); `FieldCipher` (`packages/domain/src/privacy/field-cipher.ts`); the event workers (`apps/web/src/workers/events`, `system:workers` with `files.process`). Skills: `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`, `supabase-postgres-best-practices`. S1 quotes registers the quote as a document type later; P4 touches no file of C2, C3 or C4.
+Read first:
+- Design: [`docs/design/phase1.md` §6.4](../../design/phase1.md#64-p4-print-and-letterhead)
+- ADR 0009 (PDFs render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, both installed)
+- BLUEPRINT §11 (print always renders light) and §7 (bank details are sensitive)
+- DESIGN.md print tokens
+- the print module `apps/web/src/print` and `docs/spikes/print.md`
+- P2's files (`packages/domain/src/files`, `apps/web/src/files`, `apps/web/src/workers/files`)
+- `FieldCipher` (`packages/domain/src/privacy/field-cipher.ts`)
+- the event workers (`apps/web/src/workers/events`, `system:workers` with `files.process`)
+- Skills: `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`, `supabase-postgres-best-practices`.
+- S1 quotes registers the quote as a document type later; P4 touches no file of C2, C3 or C4.
 
 1. **Fonts:** static Inter files at the weights the templates use (400; 510, or 500 where no static 510 exists; 590, or 600) replace the variable font in `apps/web/src/print/fonts`, embedded as the renderer does, with the licence file kept.
-2. **Company print details:** the selling company's logo, letterhead and bank details. Logo and letterhead come from P2's files (purposes `entity_logo`, `letterhead`). `entities.bank_json` holds bank name, account number, IFSC and branch, sealed with `FieldCipher`, never stored or logged in clear; the audit records only that bank details changed and the last four digits of the account number. Set through `org.entity.update` and the companies screen by an Executive; read in clear only by the print loader and by a holder of `admin.entities.write`.
-3. **Render worker** `POST /api/v1/workers/pdf/render`, QStash-signed like the other workers, body `PdfRenderJob` (document type, document id, company id, idempotency key): a registry of document types, each with a loader that reads the document as `system:workers` through `executeQuery()`; Chromium (`@sparticuz/chromium` on Vercel, the local Playwright Chromium elsewhere, no network fetch at render time); the PDF stored through the file store; the type's attach command called as `system:workers`. The Vercel function settings set and explained. A failed render is retried by QStash and ends as a dead letter on Integration Health.
+2. **Company print details:** the selling company's logo, letterhead and bank details.
+   - Logo and letterhead come from P2's files (purposes `entity_logo`, `letterhead`).
+   - `entities.bank_json` holds bank name, account number, IFSC and branch, sealed with `FieldCipher`, never stored or logged in clear; the audit records only that bank details changed and the last four digits of the account number.
+   - Set through `org.entity.update` and the companies screen by an Executive; read in clear only by the print loader and by a holder of `admin.entities.write`.
+3. **Render worker** `POST /api/v1/workers/pdf/render`, QStash-signed like the other workers, body `PdfRenderJob` (document type, document id, company id, idempotency key):
+   - a registry of document types, each with a loader that reads the document as `system:workers` through `executeQuery()`;
+   - Chromium (`@sparticuz/chromium` on Vercel, the local Playwright Chromium elsewhere, no network fetch at render time);
+   - the PDF stored through the file store, and the type's attach command called as `system:workers`;
+   - the Vercel function settings set and explained. A failed render is retried by QStash and ends as a dead letter on Integration Health.
 4. **The first document,** a company letterhead proof (`company_letterhead_proof`): "Print a sample" on the companies screen for an Executive renders one page with the letterhead, logo, address, GSTIN and bank details through the same worker, stores it and offers it to open. The quote template prints the selling company's details from the same loader data, tested with fixtures.
 5. **Tests:** unit tests for the loaders, the registry and the template data (the selling company's details and nothing of another); security tests (a person cannot call the render route; a principal without `files.process` cannot store a PDF; bank details unreadable without `admin.entities.write` and never in the audit or the logs; a wrong company refused); the agent refusal sweep green; pixel snapshots of every template (quote and labels, light only) through `snap()`; a journey with axe for "Print a sample".
 6. **Documents:** ADR 0009 as built, design §6.4 "Built (P4)", DATABASE, SECURITY, API, DEPLOY, `pnpm db:docs`.

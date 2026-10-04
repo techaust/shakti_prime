@@ -1,6 +1,8 @@
 # Working in cloud sessions and on the PC
 
-How Shakti Prime BOS work is split between Claude Code cloud sessions and the owner's Windows PC, and how a piece of work moves between them. This page is the one owner of that split. It follows the owner's decisions of 04-10-2026 ([DECISIONS](../DECISIONS.md)): slices are built and reviewed in cloud sessions; merging with `main`, the integration run, the Linux baselines, the pull request and every hosted step stay on the PC until a trial proves the cloud can do them; the PC is the fallback for everything.
+How Shakti Prime BOS work is split between Claude Code cloud sessions and the owner's Windows PC, and how a piece of work moves between them. This page is the one owner of that split.
+
+It follows the owner's decisions of 04-10-2026 ([DECISIONS](../DECISIONS.md)): slices are built and reviewed in cloud sessions; merging with `main`, the integration run, the Linux baselines, the pull request and every hosted step stay on the PC until a trial proves the cloud can do them; the PC is the fallback for everything.
 
 The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](DEPLOY.md#2-every-deploy).
 
