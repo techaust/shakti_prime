@@ -4,7 +4,7 @@
 |---|---|
 | Branch | `feat/p4-print-letterhead` on GitHub (6511293, from `main` at #88) |
 | PC worktree | `p4-print`, slot 9: Postgres 54339, app 3039 |
-| Runs on | review: cloud (the first step of the [trial](../../runbooks/hybrid.md#10-the-trial)); fonts, merge and integration: PC |
+| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); the review becomes the first step of the cloud [trial](../../runbooks/hybrid.md#10-the-trial) once the environment exists |
 | State | built, review pending |
 | Next step | the adversarial review |
 
@@ -49,7 +49,7 @@ Done when: the checks of AGENTS §10 pass on the branch, the companies page stay
 Pending. The reviewer reads this file and `.claude/agents/slice-reviewer.md`, and writes its findings here.
 
 ## Integration notes
-1. **Static fonts:** the lead session downloads Inter 4 static woff2 files at 400, 500 and 600 (the rsms/inter release or Google Fonts) into `apps/web/src/print/fonts` and changes `FONT_FILES` in `apps/web/src/print/styles.ts`.
+1. **Static fonts:** with the owner's go-ahead for the download, the lead session downloads Inter 4 static woff2 files at 400, 500 and 600 (the rsms/inter release or Google Fonts) into `apps/web/src/print/fonts` and changes `FONT_FILES` in `apps/web/src/print/styles.ts`.
 2. **Take `main`** (C2 is on it): the branch's 0075 and 0076 move after `main`'s last migration ([slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice)); fix the numbers its documents cite.
 3. **Integrate** on the PC, then the Linux baselines on a fresh database: `print-quote`, `print-proof`, `print-label-50x25`, `print-label-100x50`, `proof-dialog`, `companies`.
 4. CI has no `FIELD_ENCRYPTION_KEY`, so no journey enters bank details.
