@@ -91,6 +91,14 @@ export const updateEntity = defineCommand({
     } else if (input.bankDetails === null) {
       sealed = null;
     }
+    // The account it replaces is opened for the audit row before the lock too, for the same
+    // reason; it feeds only the audit row, and an Executive's edit of the same company racing this
+    // one is rare enough that a before value read a moment early is acceptable. A company outside
+    // the request is left to the select below, which answers `not_found`.
+    const bankBefore =
+      bankChanged && ctx.entityIds.includes(input.entityId)
+        ? await auditedBefore(ctx, input.entityId)
+        : undefined;
 
     const e = schema.entities;
     const [before] = await ctx.tx
@@ -112,8 +120,6 @@ export const updateEntity = defineCommand({
         issues: [{ path: patch.gstin === undefined ? 'stateCode' : 'gstin', message: 'state' }],
       });
     }
-    const bankBefore = bankChanged ? await auditedBefore(ctx, before.id) : undefined;
-
     const [row] = await ctx.tx
       .update(e)
       .set({

@@ -9,7 +9,7 @@ import {
 import en from '../../../../../../../messages/en.json';
 import { defaultAuthDeps } from '../../../../../../auth/deps';
 import { logger } from '../../../../../../log';
-import { readTextWithin, WORKER_BODY_MAX_BYTES } from '../../../../../../request-body';
+import { PDF_JOB_MAX_BYTES, readTextWithin } from '../../../../../../request-body';
 import { incomingRequestId } from '../../../../../../request-id';
 import { deliverEvent } from '../../../../../../workers/events/deliver';
 import { renderEventOf } from '../../../../../../workers/pdf/job';
@@ -37,7 +37,7 @@ const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden',
 
 /**
  * The render worker (ADR 0009, docs/API.md §3.6). Only QStash calls it, with the `PdfRenderJob` a
- * `print.document.requested` event is sent as: the body is refused over 4 KiB before anything else
+ * `print.document.requested` event is sent as: the body is refused over 24 KiB (a sheet of 500 labels) before anything else
  * is read, the signature must be QStash's for this address and body, and the job's event id is
  * claimed as an event worker's is (`deliverEvent`), so a job already rendered answers `duplicate`.
  * The document is then loaded, printed and recorded as `system:workers` of the job's company
@@ -51,7 +51,7 @@ export async function POST(request: Request): Promise<Response> {
   const config = qstashConfig();
   if (config === undefined) return failure('integration_unavailable', requestId, headers);
 
-  const text = await readTextWithin(request, WORKER_BODY_MAX_BYTES);
+  const text = await readTextWithin(request, PDF_JOB_MAX_BYTES);
   if (text === undefined) {
     logger.log('warn', 'print.job_too_large', { requestId });
     return failure('validation_failed', requestId, { ...headers, ...NO_RETRY });

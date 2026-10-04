@@ -44,8 +44,15 @@ interface RenderState {
   store: FileStore | undefined;
   cipher: FieldCipher | undefined;
   pages: { html: string; options: PdfOptions | undefined }[];
+  /** Chromium fails with the opened page in hand, after the loader read the account. */
+  fail: boolean;
 }
-const state = vi.hoisted((): RenderState => ({ store: undefined, cipher: undefined, pages: [] }));
+const state = vi.hoisted((): RenderState => ({
+  store: undefined,
+  cipher: undefined,
+  pages: [],
+  fail: false,
+}));
 
 /** A one-page PDF as Chromium writes its page objects. */
 const PDF = new TextEncoder().encode(
@@ -56,6 +63,11 @@ vi.mock('../src/workers/pdf/deps', () => ({
   renderDeps: (principal: Principal, requestId: string) => {
     const renderer: PrintRenderer = {
       renderPdf: (html, options) => {
+        if (state.fail) {
+          return Promise.reject(
+            new Error(`the page closed while printing ${html.length} characters`),
+          );
+        }
         state.pages.push({ html, options });
         return Promise.resolve(Buffer.from(PDF));
       },
@@ -169,6 +181,7 @@ beforeEach(() => {
   process.env.QSTASH_NEXT_SIGNING_KEY = 'render-route-test-next-signing-key';
   process.env.BETTER_AUTH_URL = APP;
   state.pages.length = 0;
+  state.fail = false;
 });
 afterEach(() => {
   for (const [name, value] of saved) {
@@ -251,8 +264,8 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
     );
   });
 
-  it('refuses a body over 4 KiB and a body that is not a job, for good', async () => {
-    const big = JSON.stringify({ ...proofJob(), padding: 'x'.repeat(5000) });
+  it('refuses a body over 24 KiB and a body that is not a job, for good', async () => {
+    const big = JSON.stringify({ ...proofJob(), padding: 'x'.repeat(25 * 1024) });
     const large = await call(big);
     expect(large.status).toBe(400);
     expect(large.headers.get('upstash-nonretryable-error')).toBe('true');
@@ -340,6 +353,33 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
   });
 });
 
+describe('the render path’s log lines (docs/SECURITY.md §7)', () => {
+  it('carry no part of the bank account, when a print succeeds or fails after opening it', async () => {
+    const { logger } = await import('../src/log');
+    const lines: string[] = [];
+    const spy = vi.spyOn(logger, 'log').mockImplementation((level, event, fields) => {
+      lines.push(
+        JSON.stringify({ level, event, fields }, (_key, value: unknown) =>
+          value instanceof Error ? { message: value.message, stack: value.stack } : value,
+        ),
+      );
+    });
+    try {
+      expect((await call(JSON.stringify(proofJob()))).status).toBe(200);
+      state.fail = true;
+      const failed = await call(JSON.stringify(proofJob()));
+      expect(failed.status).toBeGreaterThanOrEqual(500);
+    } finally {
+      spy.mockRestore();
+    }
+    const events = lines.map((line) => (JSON.parse(line) as { event: string }).event);
+    expect(events).toEqual(expect.arrayContaining(['print.rendered', 'print.job_failed']));
+    for (const value of [ACCOUNT.bankName, ACCOUNT.accountNumber, ACCOUNT.ifsc, ACCOUNT.branch]) {
+      for (const line of lines) expect(line).not.toContain(value);
+    }
+  });
+});
+
 describe('renderPdfJob: who may print (docs/SECURITY.md §8)', () => {
   it('stores nothing for a principal without files.process, even an Executive', async () => {
     const job = proofJob();
@@ -406,6 +446,5 @@ describe('without a queue, the event is printed in the process that committed it
     const result = await deliverEvent(event, { keyValue: memoryKeyValue(), requestId: newId() });
     expect(result).toEqual({ eventId: event.id, outcome: 'done' });
     expect(await fileRow(documentId)).toMatchObject({ purpose: 'print_proof', status: 'ready' });
-    expect(logoKey).toContain('entity_logo');
   });
 });

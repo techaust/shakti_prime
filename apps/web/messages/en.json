@@ -695,7 +695,7 @@
     "bank": "Bank account",
     "bankRecorded": "Recorded",
     "bankTitle": "Bank account of {name}",
-    "bankIntro": "Quotes and other documents from this company print this account for payment. Only Executives see the full number.",
+    "bankIntro": "Quotes and other documents from this company print this account for payment. The Activity log keeps only the last four digits.",
     "bankLoading": "Opening the bank account…",
     "bankName": "Bank",
     "bankNameHelper": "The bank’s name as it appears on a cheque",

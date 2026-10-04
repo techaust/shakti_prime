@@ -33,6 +33,12 @@ describe('print styles', () => {
     const css = baseCss();
     expect(css).toContain('font-family:Inter');
     expect(css).toMatch(/src:url\(data:font\/woff2;base64,/);
+    // The static files cover every weight the templates use (400, 510, 590) without a gap.
+    expect(css.match(/font-weight:\d+ \d+/g)).toEqual([
+      'font-weight:1 449',
+      'font-weight:450 549',
+      'font-weight:550 1000',
+    ]);
     expect(css).not.toMatch(/https?:/);
     expect(css).not.toContain('prefers-color-scheme');
     expect(css).toContain(`--bg:${lightColor('bg')};`);

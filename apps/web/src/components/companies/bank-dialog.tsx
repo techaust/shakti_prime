@@ -149,7 +149,7 @@ function BankForm({
           defaultValue={current?.accountNumber ?? ''}
           required
           inputMode="numeric"
-          maxLength={18}
+          maxLength={24}
           autoComplete="off"
           spellCheck={false}
         />

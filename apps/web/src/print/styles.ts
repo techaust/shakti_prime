@@ -5,20 +5,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { colors, resolve, scale, type ColorToken } from '@shakti/tokens';
 
-// Inter (rsms/inter), SIL Open Font License 1.1: the same variable font, with the weight and
-// optical-size axes, that next/font serves to the app; the Latin and Latin Extended subsets
-// (Latin Extended carries the rupee sign).
+// Inter 4.1 (rsms/inter), SIL Open Font License 1.1: the static Regular, Medium and SemiBold
+// files of the release, which Chromium embeds in a PDF as TrueType (the variable font is drawn as
+// Type 3). Each covers a band of weights, so the type scale's 510 and 590 land on Medium and
+// SemiBold rather than on the next heavier file (docs/spikes/print.md).
 const FONT_FILES = [
-  {
-    file: 'inter-latin.woff2',
-    range:
-      'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD',
-  },
-  {
-    file: 'inter-latin-ext.woff2',
-    range:
-      'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF',
-  },
+  { file: 'Inter-Regular.woff2', weight: '1 449' },
+  { file: 'Inter-Medium.woff2', weight: '450 549' },
+  { file: 'Inter-SemiBold.woff2', weight: '550 1000' },
 ] as const;
 
 let fontCss: string | undefined;
@@ -33,9 +27,9 @@ export const FONTS_DIR = join('src', 'print', 'fonts');
 
 /** `@font-face` rules with the font files inlined as data URLs. Read once per process. */
 export function interFontFaces(): string {
-  fontCss ??= FONT_FILES.map(({ file, range }) => {
+  fontCss ??= FONT_FILES.map(({ file, weight }) => {
     const data = readFileSync(join(process.cwd(), FONTS_DIR, file)).toString('base64');
-    return `@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:block;src:url(data:font/woff2;base64,${data}) format('woff2');unicode-range:${range};}`;
+    return `@font-face{font-family:Inter;font-style:normal;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${data}) format('woff2');}`;
   }).join('\n');
   return fontCss;
 }
