@@ -4,6 +4,7 @@ Every decision the owner took (and the few the lead took pending the owner), new
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 04-10-2026 | On the PC for now: until the owner creates the cloud environment (hybrid §3), every slice step, building and reviewing included, runs on the PC with background agents in worktrees, at most three builders and one reviewer; the cloud trial starts once the environment exists | Owner | [STATUS](STATUS.md#in-progress), [hybrid §1](runbooks/hybrid.md#1-what-runs-where) |
 | 04-10-2026 | Hybrid, then decide: slices are built and reviewed in Claude Code cloud sessions, one session per slice; the merge with `main`, the integration run, the Linux baselines, the pull request and the hosted steps stay on the owner's PC until a trial proves the cloud can do them; the owner then decides whether to go fully cloud; the PC stays the fallback | Owner | [hybrid](runbooks/hybrid.md) |
 | 04-10-2026 | Run notes live in the repository: each slice's brief, report and review in `docs/runs/phase1/<slice>.md`, and an In progress section in STATUS; nothing a session needs lives only on the PC | Owner | [runs](runs/phase1/README.md), [STATUS](STATUS.md#in-progress) |
 | 04-10-2026 | Claude plan Max (5x): at most two cloud sessions at once beside the lead session on the PC | Owner | [hybrid §5](runbooks/hybrid.md#5-how-many-at-once) |

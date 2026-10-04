@@ -2,21 +2,21 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [DECISIONS.md](DECISIONS.md); open follow-ups have their single home here.
 
-**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the owner paused the slice work for two passes over the documents (#91 to #96, the second with the work for cloud sessions and the PC; the screen mock-up published as a private link). Migrations on `main`: 0000 to 0089. Tests: security suite 1,605 (database 897, domain 502, web 206) after #89; unit tests 2,477 after #96.
+**04-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](ROADMAP.md#2-phase-0--discovery--foundations-68-weeks)). After C2 the slice work paused for two passes over the documents (#91 to #96, the second with the work for cloud sessions and the PC; the screen mock-up published as a private link). Migrations on `main`: 0000 to 0089. Tests: security suite 1,605 (database 897, domain 502, web 206) after #89; unit tests 2,477 after #96.
 
 ## Phase 1
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
 - **Merged:** set-up before wave 1: #79 (packages), #80 (design); wave 1: #81 P3 quality harness, #82 P1 observability and workers, #84 CI economy, #85 P2 files and storage; wave 2: #87 C1 catalogue and tax, #88 X1 role editor, #89 C2 customer timeline; status documents #83, #86, #90; documents rebuilt #91 to #93, their CHANGELOG lines #94; the second audit and the cloud and PC work #96; the project's know-how (scripts, skills, agents, runbooks) in the repository #95.
 - **Next:** the slices in progress below, then waves 3 to 6 (AI0, T1, S1, D1; N1, T2, S2, K1; L1, R1, A1; M1, G1).
-- **Work split:** slices are built and reviewed in cloud sessions and integrated on the PC ([hybrid](runbooks/hybrid.md)); the cloud trial of [hybrid §10](runbooks/hybrid.md#10-the-trial) has not started.
+- **Work split:** on the PC for now (owner, 04-10-2026): every step, building and reviewing included, runs on the PC with background agents in worktrees until the owner creates the cloud environment ([hybrid §3](runbooks/hybrid.md#3-the-cloud-environment-once)); then slices are built and reviewed in cloud sessions and integrated on the PC, starting with the trial of [hybrid §10](runbooks/hybrid.md#10-the-trial).
 
 ### In progress
 | Slice | Branch | Run file | Runs on | State | Next step |
 |---|---|---|---|---|---|
-| P4 print and letterhead | `feat/p4-print-letterhead` | [p4-print](runs/phase1/p4-print.md) | review: cloud; the rest: PC | built, review pending | the review, then the static fonts, `main`, integration |
-| C3 pipelines, scoring and referrals | `feat/c3-pipelines-r2` | [c3-pipelines](runs/phase1/c3-pipelines.md) | PC for the merge; integration list: cloud or PC | reviewed, fixes done | take `main`, renumber, then the integration list |
-| C4 sizing | `feat/c4-sizing-r2` | [c4-sizing](runs/phase1/c4-sizing.md) | PC for the merge; integration list: cloud or PC | reviewed, fixes done | take `main`, renumber, then the integration list |
-| P2b imports upgrade | `feat/p2b-imports` (not yet made) | [p2b-imports](runs/phase1/p2b-imports.md) | build and review: cloud | brief | push the branch with the run file, start a builder |
+| P4 print and letterhead | `feat/p4-print-letterhead` | [p4-print](runs/phase1/p4-print.md) | PC (the review moves to the cloud trial once the environment exists) | built, review pending | the review, then the static fonts, `main`, integration |
+| C3 pipelines, scoring and referrals | `feat/c3-pipelines-r2` | [c3-pipelines](runs/phase1/c3-pipelines.md) | PC | reviewed, fixes done | take `main`, renumber, then the integration list |
+| C4 sizing | `feat/c4-sizing-r2` | [c4-sizing](runs/phase1/c4-sizing.md) | PC | reviewed, fixes done | take `main`, renumber, then the integration list |
+| P2b imports upgrade | `feat/p2b-imports` (not yet made) | [p2b-imports](runs/phase1/p2b-imports.md) | PC | brief | set up its worktree (slot 11), start a builder |
 
 ## Hosted environments
 | | Dev | Staging |
@@ -33,7 +33,7 @@ Upstash Redis per environment, QStash and Turnstile for both hostnames; Sentry p
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](phase0/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](phase0/client-actions.md). Nothing from the client has arrived yet: no workshop answers (the pack's "Blocking work now" box first; CRM-7, STOCK-4, PROJ-3, PROJ-4, ENG-1 and TERM-1 were added on 04-10-2026), no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
-- Decide when the slice work resumes.
+- The download of the static Inter font files for P4 (the rsms/inter release, SIL Open Font License): the lead session asks before downloading ([p4-print](runs/phase1/p4-print.md)).
 - The cloud environment, once: install the Claude GitHub App on the repository and create the environment `shakti-prime` ([hybrid §3](runbooks/hybrid.md#3-the-cloud-environment-once)).
 - Share the screen mock-up with the screen-review people from its Share menu: it is published privately at https://claude.ai/artifact/RHcRKwSryk9nyxzmVMZRPU (04-10-2026), and only the owner can open it until it is shared.
 - Sentry privacy settings: Data Scrubber, the default scrubbers and *Prevent Storing of IP Addresses* in the project's security settings.
