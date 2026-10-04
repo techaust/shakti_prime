@@ -2,7 +2,7 @@
 
 Date: 27-09-2026. Status: drafts for the group's review. Nothing has been sent to any vendor. Each request is sent from the group's own account with that vendor (every account is registered to the group, with the development team as members), once the owner approves this pack.
 
-Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Phase 0 ends only when vendor quotes confirm those figures (ROADMAP §2, exit-gate item 5). This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
+Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Confirming those figures with vendor quotes was an item of the Phase 0 exit gate (ROADMAP §2); the owner closed Phase 0 on 29-09-2026 with it deferred. The quotes are needed before production readiness (slice G1), when the production plans are bought, and each telecom, WhatsApp and voice quote before Phase 2. This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
 
 Currency: the blueprint quotes most services in US dollars and telecom in rupees. Rupee figures for dollar items use ₹84 to the US dollar, the rate implied by the blueprint's own conversions. Quoted figures are recorded in the currency the vendor quotes, before GST, with GST noted separately.
 
@@ -141,7 +141,7 @@ Fill the "Quoted" columns as quotes arrive. Figures are monthly at full volume, 
 | | **Total with transcription of all calls** | **≈ ₹4.5 lakh** | **≈ ₹11 lakh** | | | |
 
 **Reading the result:**
-- The exit-gate item is met when the quoted total with lead-converter transcription falls within ₹4–8 lakh a month, or when the group accepts a figure outside it in writing.
+- The figures are confirmed when the quoted total with lead-converter transcription falls within ₹4–8 lakh a month, or when the group accepts a figure outside it in writing.
 - A line quoted above its blueprint high is flagged to the owner with the reason and the choices (another vendor, lower coverage, a spending cap).
 - AI usage, transcription coverage and call minutes are the three figures that move the total most. Each has a cap or a coverage setting in the system, and the real cost per lead is measured in the first weeks before any AI assistant works on its own.
 - The one-time and small accounts in §3.12 are recorded separately and are not part of the monthly total.

@@ -2,7 +2,7 @@
 
 Date: 27-09-2026. For: the development team running the sessions, and the owner who picks the reviewers.
 
-The blueprint asks for clickable wireframes of the core screens for each role, reviewed with one or two real users of that role, before Phase 1 is built (BLUEPRINT §19 item 5, ROADMAP §2 week 4). This script sets out who to invite, what each person is asked to do, what to watch for, and a form for the notes.
+The blueprint asks for clickable wireframes of the core screens for each role, reviewed with one or two real users of that role (BLUEPRINT §19 item 5, ROADMAP §2 week 4). The owner closed Phase 0 on 29-09-2026 with this review deferred. It is needed before the screens the prototype shows are built: the calling screen (T1), quotes (S1), sales orders and dealer credit (S2), the lead converter's screen (L1) and the home pages (R1). This script sets out who to invite, what each person is asked to do, what to watch for, and a form for the notes.
 
 ## 1. What people will use
 
@@ -18,8 +18,14 @@ Two things are reviewed together:
 | New lead | `/leads/new` | The new lead form | Executive, General Manager, Sales Team Lead, tele-callers, Store Manager |
 | Team members | `/admin/users` | List, invite, change role, reset a lost authenticator app | Executive |
 | Activity log | `/admin/activity` | Who changed what and when | Executive, General Manager, Accounts |
-| Companies | `/settings/companies` | Each company's name, with its brand name, GSTIN, state, registered address and UPI ID to edit; letterhead and bank details come with documents in Phase 1 | Executive |
+| Customers | `/customers` | Customers list with search and saved views; phone numbers shown by their last four digits | Every role but HR Admin |
+| Customer page | `/customers/<customer>` | Contacts, sites, leads, the timeline, tasks, tags and consent with its proof, on one page | Every role but HR Admin |
+| Companies | `/settings/companies` | Each company's name, with its brand name, GSTIN, state, registered address and UPI ID to edit, and its logo and letterhead to upload; bank details and printed documents come with print and letterhead (P4) | Executive |
 | Price lists | `/price-master` | The prices on each price list, with the date the list starts and when each price last changed; a new price applies from now on | Executive edits; every role but Field Engineer and HR Admin can view |
+| Catalogue | `/catalogue`, `/catalogue/kits` | Items with their specifications and pump curves, and kits with their parts | Every role but Field Engineer and HR Admin can view; a change needs an Executive, General Manager or Inventory Manager working in "All companies" |
+| Tax rates | `/settings/tax` | GST rates per HSN code and the solar composite-supply rules, each from a date | Executive and Accounts; a change needs "All companies" |
+| Roles | `/admin/roles` | What each role may do, by module, with a confirmation that names how many people are signed out | Executive |
+| Integration health | `/admin/integrations` | Messages waiting or held back between parts of the system, with Send again and a delivery check | Executive |
 | Imports | `/imports` | Upload a spreadsheet of leads, match its columns, check the rows, then add them (customers and items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
@@ -28,7 +34,7 @@ Two things are reviewed together:
 |---|---|
 | Role home pages | All eleven roles |
 | Cold-calling workspace: queue, script, number-key call outcomes, next lead | Tele-caller (cold calling), Sales Team Lead |
-| Customer page (Account 360) | Tele-callers, Store Manager, General Manager, Project Manager, Executive |
+| Customer page (Account 360); the built page at `/customers/<customer>` is reviewed in its place | Tele-callers, Store Manager, General Manager, Project Manager, Executive |
 | Quote builder | Tele-caller (converter), Store Manager, Executive, Accounts |
 | Sales orders: list and detail | Tele-caller (converter), General Manager, Inventory Manager, Accounts, Executive |
 | Dealer credit | Accounts, Executive, General Manager |
@@ -212,8 +218,8 @@ Changes the development team proposes (filled after the session):
 ## 7. After the sessions
 1. Within two working days, the development team lists every change found, grouped by screen, with how many reviewers hit it.
 2. Changes to words go into the product's word list and the writing rules (`DESIGN.md` §11) where they apply to every screen.
-3. The owner reviews the list and marks each change "before Phase 1 build", "during Phase 1" or "not needed".
-4. The prototype is updated for the "before Phase 1 build" changes and shown again to one reviewer per affected role.
+3. The owner reviews the list and marks each change "before that screen is built", "later in Phase 1" or "not needed".
+4. The prototype is updated for the "before that screen is built" changes and shown again to one reviewer per affected role.
 
 ## 8. Record of sessions
 | Role | Reviewer 1 (date) | Reviewer 2 (date) | Changes found | Owner's review done |
