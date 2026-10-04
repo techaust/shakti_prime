@@ -33,6 +33,8 @@ test.describe('as a GM', () => {
   test.use(signedInAs('gm'));
 
   test('uploads a spreadsheet of leads and opens its job', async ({ page }) => {
+    // The upload and its checks come between three pages, each read by axe.
+    test.slow();
     await page.goto('/imports');
     await expect(page.getByRole('heading', { name: 'Imports', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
@@ -74,10 +76,21 @@ test.describe('as a GM', () => {
       `Ramesh Gurjar,${freshMobile()},Nasirabad`,
     ]);
     await expectNoAxeViolations(page);
+    // The file names villages but no kind of site: one is chosen for every row.
+    await page
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading', { name: 'Site type', level: 3 }) })
+      .getByLabel('For rows with this empty')
+      .selectOption({ index: 1 });
     await page.getByRole('button', { name: 'Check the rows' }).click();
     await expect(page.getByRole('button', { name: 'Add 2 customers' })).toBeVisible({
       timeout: 30_000,
     });
+    // The second row of one mobile number is folded into the first customer.
+    await page.getByLabel('Show').selectOption({ label: 'All rows' });
+    await expect(
+      page.getByText('Same mobile number as row 1. Its company is added to that customer.'),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });
