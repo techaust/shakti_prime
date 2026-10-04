@@ -44,3 +44,4 @@ Each slice on the PC takes a slot, and the slot gives its Postgres and app ports
 - [C3 pipelines, scoring and referrals](c3-pipelines.md)
 - [C4 sizing](c4-sizing.md)
 - [P2b imports upgrade](p2b-imports.md)
+- [AI0 agent runtime and Inbox](ai0-agent-runtime.md)
