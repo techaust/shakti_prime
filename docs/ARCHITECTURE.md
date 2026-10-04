@@ -67,14 +67,16 @@ Dotted edges are planned. The domain defines the `KeyValue` port (`packages/doma
 ### Runtime components and hosting
 | Component | Runtime | Host |
 |---|---|---|
-| `apps/web` | Next.js server actions, route handlers, QStash-triggered workers | Vercel `bom1`, one project per environment |
+| `apps/web` | Next.js server actions, route handlers, QStash-triggered workers | Vercel, functions pinned to `bom1` beside the database |
 | `apps/field` (Phase 4) | Expo Android app | Google Play (EAS Build/Update) |
 | `apps/voice-agent` (Phase 2) | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
 | `apps/tally-connector` (Phase 5) | Node Windows service | Client PC beside Tally |
-| Database | Postgres 17 with RLS, pgvector, pg_trgm, pg_cron, partitions | Supabase Mumbai, one project per environment |
-| Queue | QStash (a workflow engine is a later choice, [DECISIONS](DECISIONS.md) 29-09-2026) | Upstash, QStash in the EU region |
-| Cache, locks, counters | Redis | Upstash, one database per environment in Mumbai |
-| Object storage | S3 with KMS, lifecycle rules, backup bucket | AWS `ap-south-1` |
+| Database | Postgres 17 with RLS, pg_trgm, pg_cron, partitions (pgvector with the Knowledge Vault) | Supabase (ADR 0002) |
+| Queue | QStash (a workflow engine is a later choice, [DECISIONS](DECISIONS.md) 29-09-2026) | Upstash |
+| Cache, locks, counters | Redis | Upstash |
+| Object storage | S3 with KMS, lifecycle rules, backup bucket | AWS (ADR 0019) |
+
+Each environment has its own project or database at each provider; the projects, plans and regions are in [accounts](runbooks/accounts.md), the only place they are listed.
 
 ## 3. Monorepo and dependency rules
 ```mermaid
@@ -317,7 +319,7 @@ Planned: the Triage agent in shadow mode in Phase 1, the Concierge and Co-pilot 
 - **Metrics and uptime:** built: Integration Health (`/admin/integrations`) shows the events waiting to go out, the last publisher run, delivery speed, dead letters and files waiting for their checks; readiness reports a stalled publisher, and Sentry alerts on dead letters (§6). Planned: the connector heartbeat (Phase 5), WhatsApp quality (Phase 2), AI spend (with the agents, from Phase 1), and uptime checks on the public site, the BOS and the ingest API before go-live.
 - **Environments:** `dev`, `staging` and `production`, each its own Supabase project and its own Vercel project, with no database branching; staging holds synthetic data only. `BOS_ENVIRONMENT` names the environment (`docs/runbooks/DEPLOY.md`); the projects, plans and regions are in [accounts](runbooks/accounts.md).
 - **CI:** GitHub Actions run lint, format, copy lint, typecheck, unit tests (with the contract tests in `packages/contracts/src/api`), the production build with the JavaScript budget per page, a secret scan and dependency audit, and the security suite; a merge-on-green workflow merges a PR once that run passes and runs CI again on `main` (ADR 0017, [TESTING.md](TESTING.md)).
-- **Deployments:** Vercel builds a preview per PR and deploys each environment's project from `main`. A release runs the manual *Migrate a hosted database* workflow, then confirms that the Vercel deployment of that commit is Ready (`docs/runbooks/DEPLOY.md` §2); migrations follow expand/contract (DATABASE §8). The field app ships through EAS with staged rollouts (Phase 4).
+- **Deployments:** Vercel builds a preview per PR and deploys each environment's project from `main`. A release migrates the hosted database and checks the deployment by [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy), the one procedure for it; migrations follow expand/contract (DATABASE §8). The field app ships through EAS with staged rollouts (Phase 4).
 
 ## 13. Architecture decision records
 ADRs live in `docs/adr/` as `NNNN-title.md` (context, decision, consequences, status). An ADR records a decision when it was taken; its text is not rewritten afterwards except to correct a fact or record its status.
