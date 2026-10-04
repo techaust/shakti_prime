@@ -55,9 +55,7 @@ describe('resolveAgentConfig', () => {
       row({ actionType: TASK, autonomy: 'automatic' }),
     ];
     expect(resolveAgentConfig(rows, 'agent:copilot', TASK, 1).autonomy).toBe('automatic');
-    expect(resolveAgentConfig(rows.slice(0, 2), 'agent:copilot', TASK, 1).autonomy).toBe(
-      'suggest',
-    );
+    expect(resolveAgentConfig(rows.slice(0, 2), 'agent:copilot', TASK, 1).autonomy).toBe('suggest');
     expect(resolveAgentConfig(rows.slice(0, 2), 'agent:copilot', TASK, 2).autonomy).toBe(
       'needs_approval',
     );

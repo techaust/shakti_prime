@@ -191,9 +191,9 @@ describe('agent_actions and inbox_items (0093)', () => {
         asMigrator((m) => m`update agent_actions set state = 'rejected' where id = ${action}`),
       ),
     ).toMatch(/only its decision, once/);
-    expect(await failure(asMigrator((m) => m`delete from agent_actions where id = ${action}`))).toMatch(
-      /append-only/,
-    );
+    expect(
+      await failure(asMigrator((m) => m`delete from agent_actions where id = ${action}`)),
+    ).toMatch(/append-only/);
     const closed = await runAs(
       caller,
       sql`update inbox_items set state = 'done', done_by = ${caller.id}, done_at = now()
@@ -239,14 +239,23 @@ describe('agent_configs (0093)', () => {
     // A GM stops an agent in their company, but cannot change its autonomy.
     await runAs(gm, insertConfig(off, 1, { enabled: false }, gm.id));
     expect(
-      await failure(runAs(gm, sql`update agent_configs set autonomy = 'suggest' where id = ${off}`)),
+      await failure(
+        runAs(gm, sql`update agent_configs set autonomy = 'suggest' where id = ${off}`),
+      ),
     ).toMatch(/permission denied|agents\.autonomy\.write/);
     expect(
-      await failure(runAs(gm, insertConfig(newId(), 1, { autonomy: 'suggest', agent: 'agent:chief' }, gm.id))),
+      await failure(
+        runAs(gm, insertConfig(newId(), 1, { autonomy: 'suggest', agent: 'agent:chief' }, gm.id)),
+      ),
     ).toMatch(/agents\.autonomy\.write/);
-    await runAs(executive, sql`update agent_configs set autonomy = 'needs_approval' where id = ${off}`);
+    await runAs(
+      executive,
+      sql`update agent_configs set autonomy = 'needs_approval' where id = ${off}`,
+    );
     expect(
-      await failure(runAs(executive, sql`update agent_configs set agent = 'agent:triage' where id = ${off}`)),
+      await failure(
+        runAs(executive, sql`update agent_configs set agent = 'agent:triage' where id = ${off}`),
+      ),
     ).toMatch(/permission denied|keeps its agent/);
   });
 
@@ -265,9 +274,9 @@ describe('agent_configs (0093)', () => {
     const id = newId();
     made.configs.push(id);
     await runAs(executive, insertConfig(id, 3, { agent: 'agent:chief' }));
-    expect(await failure(runAs(executive, insertConfig(newId(), 3, { agent: 'agent:chief' })))).toMatch(
-      /agent_configs_scope_unique/,
-    );
+    expect(
+      await failure(runAs(executive, insertConfig(newId(), 3, { agent: 'agent:chief' }))),
+    ).toMatch(/agent_configs_scope_unique/);
   });
 });
 
@@ -277,7 +286,9 @@ describe('agent_evals (0093)', () => {
     const id = newId();
     made.evals.push(id);
     await asMigrator(
-      (m) => m`insert into agent_evals (id, agent, prompt_version, model, eval_set, cases_total, cases_passed, score, ran_at)
+      (
+        m,
+      ) => m`insert into agent_evals (id, agent, prompt_version, model, eval_set, cases_total, cases_passed, score, ran_at)
                values (${id}, 'agent:triage', 'v1', 'claude-haiku-4-5-20251001', 'rls', 10, 9, 90, now())`,
     );
     expect(await count(executive, 'agent_evals', id)).toBe(1);

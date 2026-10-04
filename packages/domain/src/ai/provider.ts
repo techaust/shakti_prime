@@ -176,7 +176,8 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         await keyValue.del(breakerFailuresKey(vendor)).catch(() => undefined);
         return answer;
       } catch (error) {
-        last = error instanceof ModelCallError ? error : new ModelCallError('network', { cause: error });
+        last =
+          error instanceof ModelCallError ? error : new ModelCallError('network', { cause: error });
         if (!last.retryable) break;
         if (i < retries) await sleep(BACKOFF_MS * 2 ** i);
       }
@@ -228,7 +229,8 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         agent: call.agent,
         purpose: call.purpose,
         model,
-        tokensIn: reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
+        tokensIn:
+          reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
         tokensOut: reply.usage.outputTokens,
         costPaise,
         stopped: reply.stopped,

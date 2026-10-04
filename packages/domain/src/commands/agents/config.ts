@@ -45,7 +45,7 @@ async function assertScope(ctx: CommandContext, entityId: number | null): Promis
   }
 }
 
-const isNullOr = <T>(column: Parameters<typeof eq>[0], value: T | null): SQL =>
+const isNullOr = (column: Parameters<typeof eq>[0], value: string | number | null): SQL =>
   value === null ? isNull(column) : eq(column, value);
 
 /** The row for one agent (or every agent), action type (or every one) and company (or group). */

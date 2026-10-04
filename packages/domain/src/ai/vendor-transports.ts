@@ -15,8 +15,9 @@ function anthropicFailure(error: unknown): ModelCallError {
   if (error instanceof Anthropic.APIUserAbortError) return new ModelCallError('timeout');
   if (error instanceof Anthropic.APIConnectionTimeoutError) return new ModelCallError('timeout');
   if (error instanceof Anthropic.APIConnectionError) return new ModelCallError('network');
-  if (error instanceof Anthropic.APIError && error.status !== undefined) {
-    return new ModelCallError('http', { status: error.status });
+  if (error instanceof Anthropic.APIError) {
+    const status: unknown = error.status;
+    if (typeof status === 'number') return new ModelCallError('http', { status });
   }
   return new ModelCallError('invalid_response');
 }
@@ -123,7 +124,7 @@ export function voyageTransport(
         ) {
           throw new ModelCallError('invalid_response');
         }
-        vectors.push(embedding as number[]);
+        vectors.push(embedding);
       }
       const tokens = body.usage?.total_tokens;
       if (vectors.length !== request.texts.length || typeof tokens !== 'number') {

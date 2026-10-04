@@ -56,7 +56,9 @@ async function setting(row: {
   const id = newId();
   madeConfigs.push(id);
   await asMigrator(
-    (m) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
+    (
+      m,
+    ) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
              values (${id}, ${row.agent === undefined ? 'agent:copilot' : row.agent}, ${row.actionType ?? null},
                      ${row.entityId}, ${row.autonomy ?? null}, ${row.cap ?? null}, ${row.enabled ?? true},
                      ${executive.id})`,
@@ -166,7 +168,11 @@ describe('agents.run.record', () => {
       (m) => m<{ state: string; assignee_id: string; agent_action_id: string }[]>`
         select state, assignee_id, agent_action_id from inbox_items where id = ${answer.inboxItemId}`,
     );
-    expect(item).toEqual({ state: 'open', assignee_id: caller.id, agent_action_id: answer.actionId });
+    expect(item).toEqual({
+      state: 'open',
+      assignee_id: caller.id,
+      agent_action_id: answer.actionId,
+    });
   });
 
   it('is refused to a person, and to an agent recording for another agent', async () => {
@@ -233,7 +239,8 @@ describe('agents.run.record', () => {
       );
       expect(task?.created_by).toBe(copilot().id);
       const [action] = await asMigrator(
-        (m) => m<{ state: string }[]>`select state from agent_actions where id = ${answer.actionId}`,
+        (m) =>
+          m<{ state: string }[]>`select state from agent_actions where id = ${answer.actionId}`,
       );
       expect(action?.state).toBe('executed');
     } finally {
@@ -341,14 +348,16 @@ describe('agents.inbox.approve, .edit and .reject', () => {
 
   it('rejecting runs nothing', async () => {
     const before = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
     );
     const answer = await suggest(lead);
     await expect(
       run(caller, rejectInboxItem, { entityId: 1, itemId: answer.inboxItemId }),
     ).resolves.toMatchObject({ state: 'rejected', edited: false });
     const after = await asMigrator(
-      (m) => m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
     );
     expect(after[0]?.n).toBe(before[0]?.n);
   });
@@ -386,12 +395,12 @@ describe('agents.config.set', () => {
     await expect(run(gm, setAgentConfig, input)).rejects.toMatchObject({ code: 'forbidden' });
     await expect(run(caller, setAgentConfig, input)).rejects.toMatchObject({ code: 'forbidden' });
     const narrowed = principalFor('executive', [1], { id: executive.id });
-    await expect(
-      run(narrowed, setAgentConfig, { ...input, entityId: 2 }),
-    ).rejects.toMatchObject({ code: 'forbidden' });
-    await expect(
-      run(narrowed, setAgentConfig, { ...input, entityId: null }),
-    ).rejects.toMatchObject(reason('agents_need_all_companies'));
+    await expect(run(narrowed, setAgentConfig, { ...input, entityId: 2 })).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(narrowed, setAgentConfig, { ...input, entityId: null })).rejects.toMatchObject(
+      reason('agents_need_all_companies'),
+    );
   });
 
   it('allows Automatic only on one action type with 200 decisions, 95% approved unedited', async () => {

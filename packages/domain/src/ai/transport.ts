@@ -97,9 +97,13 @@ export function fakeModelTransport(script: readonly FakeStep[] = []): FakeModelT
       const s = step();
       if (s === 'hang') {
         return new Promise((_resolve, reject) => {
-          signal.addEventListener('abort', () => reject(new ModelCallError('timeout')), {
-            once: true,
-          });
+          signal.addEventListener(
+            'abort',
+            () => {
+              reject(new ModelCallError('timeout'));
+            },
+            { once: true },
+          );
         });
       }
       return s instanceof ModelCallError ? Promise.reject(s) : Promise.resolve(s);

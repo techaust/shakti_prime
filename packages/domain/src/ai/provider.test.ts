@@ -19,7 +19,10 @@ import { fakeModelTransport, fakeReply, ModelCallError, type FakeStep } from './
 
 const NOW = new Date('2026-10-05T06:30:00Z');
 
-function setup(script: readonly FakeStep[] = [fakeReply('ok')], extra: Partial<AiProviderDeps> = {}) {
+function setup(
+  script: readonly FakeStep[] = [fakeReply('ok')],
+  extra: Partial<AiProviderDeps> = {},
+) {
   const transport = fakeModelTransport(script);
   const keyValue = memoryKeyValue(() => NOW.getTime());
   const logger = memoryLogger();

@@ -33,7 +33,10 @@ export async function loadAgentSettings(
   options: { now?: Date } = {},
 ): Promise<AgentSettingsDto> {
   const perms = ctx.principal.permissions;
-  if (!hasGrant(perms, 'agents.killswitch', 'all') && !hasGrant(perms, 'agents.autonomy.write', 'all')) {
+  if (
+    !hasGrant(perms, 'agents.killswitch', 'all') &&
+    !hasGrant(perms, 'agents.autonomy.write', 'all')
+  ) {
     throw new DomainError('forbidden', 'the agents screen needs an agent control');
   }
   const level = ctx.entityIds.length === 1 ? (ctx.entityIds[0] ?? null) : null;
@@ -57,7 +60,8 @@ export async function loadAgentSettings(
   const spend = await ctx.tx
     .select({
       agent: r.agent,
-      paise: sql<number>`coalesce(sum(${r.costPaise}), 0)::bigint`,
+      // A bigint comes back as text.
+      paise: sql<string>`coalesce(sum(${r.costPaise}), 0)::bigint`,
       runs: sql<number>`count(*)::int`,
     })
     .from(r)
@@ -78,9 +82,7 @@ export async function loadAgentSettings(
       approvedUnedited: sql<number>`count(*) filter (where ${a.state} = 'approved' and not ${a.edited})::int`,
     })
     .from(a)
-    .where(
-      level === null ? inArray(a.entityId, [...ctx.entityIds]) : eq(a.entityId, level),
-    )
+    .where(level === null ? inArray(a.entityId, [...ctx.entityIds]) : eq(a.entityId, level))
     .groupBy(a.agent, a.actionType);
 
   const resolveAt = level ?? GROUP_LEVEL;

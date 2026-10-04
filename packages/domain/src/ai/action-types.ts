@@ -85,6 +85,7 @@ export function applyEdits(
   changes: Readonly<Record<string, string>>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...input };
+  const cleared = new Set<string>();
   for (const [name, raw] of Object.entries(changes)) {
     const field = type.editable.find((f) => f.name === name);
     if (field === undefined) {
@@ -102,12 +103,12 @@ export function applyEdits(
       }
       out[name] = new Date(value).toISOString();
     } else if (value === '') {
-      delete out[name];
+      cleared.add(name);
     } else {
       out[name] = value;
     }
   }
-  return out;
+  return Object.fromEntries(Object.entries(out).filter(([key]) => !cleared.has(key)));
 }
 
 /** The record a change to Automatic needs (BLUEPRINT §9.3, SECURITY §6, PRD AI-04). */

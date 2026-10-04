@@ -4,6 +4,8 @@ import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/tes
 import { randomBytes } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
+import { countInbox, listInbox } from '../../src/queries/agents/inbox';
+import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
@@ -104,6 +106,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStoredFile: (ctx) => getStoredFile(ctx, newId()),
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
+  listInbox: (ctx) => listInbox(ctx, { limit: 20 }),
+  countInbox: (ctx) => countInbox(ctx),
+  loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */

@@ -328,7 +328,7 @@ export {
   AUTOMATIC_MIN_UNEDITED_SHARE,
   automaticEarned,
 } from './ai/action-types';
-export { loadAgentConfig, resolveAgentConfig } from './ai/config';
+export { resolveAgentConfig } from './ai/config';
 export { agentPrincipal, runAgentStep } from './ai/runtime';
 export type { AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
