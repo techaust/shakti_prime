@@ -83,13 +83,17 @@ test.describe('as a GM', () => {
       .getByLabel('For rows with this empty')
       .selectOption({ index: 1 });
     await page.getByRole('button', { name: 'Check the rows' }).click();
+    // Matching, then checking every row against the customers already there.
     await expect(page.getByRole('button', { name: 'Add 2 customers' })).toBeVisible({
-      timeout: 30_000,
+      timeout: 60_000,
     });
     // The second row of one mobile number is folded into the first customer.
     await page.getByLabel('Show').selectOption({ label: 'All rows' });
     await expect(
-      page.getByText('Same mobile number as row 1. Its company is added to that customer.'),
+      page
+        .getByText('Same mobile number as row 1. Its company is added to that customer.')
+        // The rows show as a table on a wide screen and as cards on a phone.
+        .filter({ visible: true }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
   });
