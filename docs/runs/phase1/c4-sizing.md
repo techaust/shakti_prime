@@ -5,8 +5,8 @@
 | Branch | `feat/c4-sizing-r2` on GitHub (c670631, from `main` at #82) |
 | PC worktree | `c4-sizing`, slot 8: Postgres 54338, app 3038; its local branch `feat/c4-sizing` is at the same commit and pushes to `feat/c4-sizing-r2` (`git push origin HEAD:feat/c4-sizing-r2`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
-| State | built, reviewed, review fixes done |
-| Next step | take `main` (C1 and C2 are on it), renumber, then the integration list below through a builder |
+| State | integrating |
+| Next step | the lead's integration run and baselines |
 
 ## Brief
 Read first:
@@ -30,6 +30,23 @@ Read first:
 ### 03-10-2026, builder on the PC
 - Built, reviewed and fixed. The review confirmed the formulas and found 2 high (the pump's flow short of the need; the suction lift of a surface pump) and 4 medium; all fixed. Engine version 2; `quoteSizingFacts()` for S1; people-only, voice sessions included; six engineering defaults added for the engineering head (flow tolerance, overshoot, suction lift 7 m, sanctioned-load ratio 1.0, motor margin 0.1, pipe velocity 2 m/s).
 - Checks on the branch: security suite 1,343, unit tests 2,394.
+
+### 04-10-2026, builder on the PC (second run)
+- Started from dfcb293 after the first builder stopped at the usage limit. `main` was taken at e014a7f (the sizing migrations as 0090 and 0091); `pnpm db:generate` reports no schema changes. The branch's migrations are 0090 to 0093; the lead renumbers them at the merge.
+- Integration note 2: done. `packages/contracts/src/commands/crm/sizing.ts` imports C1's `PumpTypeSchema` from `packages/contracts/src/catalogue/specs.ts`; the branch has no copy of its own.
+- Integration note 3: done. Each lead in Account 360 has a "Size this lead" button that opens the sizing panel below the lead; the panel loads on first use (`next/dynamic`), and a saved sizing reads the page again. The journey "sizes a lead from Account 360 and sees it in the history" (`apps/web/e2e/customers.spec.ts`) runs as a tele-caller with axe twice. `/customers/[accountId]` measures 194.4 kB of its 205 kB budget; its reason in `apps/web/js-budget.json` now names the sizing panel.
+- Integration note 4: done. An out-of-bounds sizing opens a `review` task for the lead's team lead through the definer `app.open_sizing_review()` (0093), audited and on the timeline as `crm.task.create` does. Four tests in `packages/domain/tests/commands/sizing.test.ts` ("crm.sizing.record on the timeline and for review") cover the timeline row, the one open review, a team with no lead, and the definer's refusals (a sizing within limits, someone else's sizing, an agent).
+- Integration note 5: done. `ctx.activity()` writes `sizing_recorded` (0092 widens the `activities` type check); the History section shows "Sizing worked out" with the kind and whether it is within limits.
+- Documents: DATABASE §4.1 (the definer) and §6.2 (`sizings`, `activities`), design §6.7 "Built (C4)", ARCHITECTURE §5 and SECURITY §3.3 name the timeline row and the review task. `pnpm db:docs` and `machines:docs` leave no change.
+- Checks, run one at a time against Postgres on 54338:
+  - `pnpm typecheck`: 8 successful, 8 total. `pnpm lint`: no warnings or errors (repeated at the end). `pnpm copy-lint`: catalogues and templates are clean.
+  - Unit tests (`turbo run test --force`): 2,679 passed (copy-lint 17, tokens 134, ui 105, contracts 177, db 118, domain 1,540, web 588).
+  - `pnpm test:security`: 1,654 passed (db 916 in 29 files, domain 532 in 51 files, web 206 in 12 files); 4 successful, 4 total.
+  - `pnpm build`, then `pnpm --filter web js-budget`: every page is within its budget (27 pages).
+  - Journeys (on Windows, not the Linux baselines): the sizing journey passed on desktop-light, desktop-dark and phone; `customers.spec.ts` on desktop-dark: 16 passed, 1 flaky ("records consent and adds a task for their own customer", which timed out at 1.1 minutes on the first try while another worktree ran its journeys, and passed on the retry).
+- `EXPLAIN (ANALYZE)` of the definer's three lookups on the suite's data (85 sizings, 2,039 leads, 1,119 role rows): the sizing by `sizings_pkey` and its lead by `opportunities_id_entity_unique`, 0.7 ms; the team lead by `user_entity_roles_team_idx`, then `principals_pkey` and `users_pkey`, 3.6 ms; the open review by `tasks_opportunity_idx` (with sequential scans off, as the table holds 36 rows), 0.3 ms.
+- Decisions the brief did not settle, taken by the first builder and kept: the review task is due at once; it goes to the active person with the Sales Team Lead role on the lead's team in its company, the longest-serving first when there are two; no task when the lead has no team or the team no lead; one open review of a lead per team lead, so a second out-of-bounds sizing adds none; the task carries no outbox event, as `crm.task.create` sends none.
+- Unfinished: the Linux baselines and the integration run, which are the lead's.
 
 ## Review
 Every finding is fixed on the branch; what needs C1 and C2 on `main` is in the integration notes.
