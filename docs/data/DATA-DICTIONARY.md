@@ -15,7 +15,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### document_sequences
 
-**Catalogue entry** (DATABASE.md §6.1): `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()`
+**Catalogue entry** (DATABASE.md §6.1; created in 0007): `entity_id`, `doc_type`, `fy`, `prefix`, `next_no`; unique `(entity_id, doc_type, fy)`; written only by `app.next_document_no()`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -55,7 +55,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### entities
 
-**Catalogue entry** (DATABASE.md §6.1): `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `id smallint`, `code`, `legal_name`, `brand_name`, `gstin` (starts with `state_code`), `state_code`, `upi_id`, and the registered address `address_line1`, `address_line2`, `city`, `pin`, entered by an Executive through `org.entity.update`; `letterhead_file_id`, the light and dark logos and `bank_json` (encrypted) arrive with documents in Phase 1
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -108,7 +108,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### permissions
 
-**Catalogue entry** (DATABASE.md §6.1): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; a staff role's grants are replaced as a set by `admin.role.permissions.set`, which sets `roles.customised_at`; `role_permissions` is written (insert, update and delete) and `roles` updated only with `admin.roles.write:all` in a request for every active company (`app.request_covers_group()`, 0073); `app_user` updates only `roles.customised_at`, `updated_by` and `updated_at` (column grants) and never inserts roles or writes `permissions`, which the seed owns (0074); the trigger `role_permissions_holder_guard` refuses a holder `app.role_may_hold(role_key, permission_key)` rejects (a platform-only permission for a role not `system:*`, `admin.*` and `integrations.dlq.replay` for a role not `executive`, `finance.cost.read` outside Executive and Accounts, `procurement.rate.read` outside Executive, Inventory Manager and Accounts) and a role the caller cannot see, whoever writes, the seed included; the deferred constraint trigger `role_permissions_executive_keeps_admin` refuses, at commit, a transaction that leaves the Executive role without `admin.roles.write:all` and `admin.users.write:all` (0074)
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -132,7 +132,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### principals
 
-**Catalogue entry** (DATABASE.md §6.1): `id`, `kind` (`user`, `agent`, `voice_session`, `system`), `display_name`; the seed writes one row per agent and the system principal of the event workers
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `id`, `kind` (`user`, `agent`, `voice_session`, `system`), `display_name`; the seed writes one row per agent and the system principal of the event workers
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -170,7 +170,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### role_permissions
 
-**Catalogue entry** (DATABASE.md §6.1): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; a staff role's grants are replaced as a set by `admin.role.permissions.set`, which sets `roles.customised_at`; `role_permissions` is written (insert, update and delete) and `roles` updated only with `admin.roles.write:all` in a request for every active company (`app.request_covers_group()`, 0073); `app_user` updates only `roles.customised_at`, `updated_by` and `updated_at` (column grants) and never inserts roles or writes `permissions`, which the seed owns (0074); the trigger `role_permissions_holder_guard` refuses a holder `app.role_may_hold(role_key, permission_key)` rejects (a platform-only permission for a role not `system:*`, `admin.*` and `integrations.dlq.replay` for a role not `executive`, `finance.cost.read` outside Executive and Accounts, `procurement.rate.read` outside Executive, Inventory Manager and Accounts) and a role the caller cannot see, whoever writes, the seed included; the deferred constraint trigger `role_permissions_executive_keeps_admin` refuses, at commit, a transaction that leaves the Executive role without `admin.roles.write:all` and `admin.users.write:all` (0074)
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -212,7 +212,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### roles
 
-**Catalogue entry** (DATABASE.md §6.1): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; a staff role's grants are replaced as a set by `admin.role.permissions.set`, which sets `roles.customised_at`; `role_permissions` is written (insert, update and delete) and `roles` updated only with `admin.roles.write:all` in a request for every active company (`app.request_covers_group()`, 0073); `app_user` updates only `roles.customised_at`, `updated_by` and `updated_at` (column grants) and never inserts roles or writes `permissions`, which the seed owns (0074); the trigger `role_permissions_holder_guard` refuses a holder `app.role_may_hold(role_key, permission_key)` rejects (a platform-only permission for a role not `system:*`, `admin.*` and `integrations.dlq.replay` for a role not `executive`, `finance.cost.read` outside Executive and Accounts, `procurement.rate.read` outside Executive, Inventory Manager and Accounts) and a role the caller cannot see, whoever writes, the seed included; the deferred constraint trigger `role_permissions_executive_keeps_admin` refuses, at commit, a transaction that leaves the Executive role without `admin.roles.write:all` and `admin.users.write:all` (0074)
+**Catalogue entry** (DATABASE.md §6.1; created in 0001): `roles(key, name, is_system, customised_at)`, `permissions(key, module, description)`, `role_permissions(role_id, permission_key, scope)`; written and guarded as [§4.4](#roles-and-role_permissions) sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -255,7 +255,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### teams
 
-**Catalogue entry** (DATABASE.md §6.1): `entity_id null`, `name`, `lead_principal_id`
+**Catalogue entry** (DATABASE.md §6.1; created in 0004): `entity_id null`, `name`, `lead_principal_id`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -298,7 +298,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### auth_accounts
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): Better Auth account store: `user_id`, `provider_id`, `account_id`, `password` (Argon2id hash); `auth_service` only
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -342,7 +342,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### auth_verifications
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth verification store for set-password and reset links; `auth_service` only
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): Better Auth verification store for set-password and reset links; `auth_service` only
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -371,7 +371,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### sessions
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`; revoked by an administrator only for a person who holds no role outside the request's companies, apart from the caller's own sessions (0056)
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): Better Auth sessions: `user_id`, `token` (readable by `auth_service` only), `ip_address`, `user_agent`, `expires_at`, `last_seen_at`, `revoked_at`, `revoked_reason`; revoked by an administrator only for a person who holds no role outside the request's companies, apart from the caller's own sessions (0056)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -419,7 +419,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_entity_roles
 
-**Catalogue entry** (DATABASE.md §6.1): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the seven tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2)
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the seven tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -469,7 +469,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_two_factor
 
-**Catalogue entry** (DATABASE.md §6.1): Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account and a person who holds a role outside the request's companies, 0059), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled`
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): Better Auth two-factor store: `user_id`, `secret` and `backup_codes` (encrypted), `verified`, `failed_verification_count`, `locked_until`; `auth_service` only, except `app.reset_two_factor(user_id)` (`security definer`, checks `admin.users.write:all`, refuses the caller's own account and a person who holds a role outside the request's companies, 0059), through which `admin.user.two_factor.reset` removes a row and clears `users.two_factor_enabled`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -499,7 +499,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### users
 
-**Catalogue entry** (DATABASE.md §6.1): `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`; an administrator updates a person only when that person holds no role outside the request's companies, apart from the caller's own row (0056)
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): `id` (= `principals.id`), `name`, `email` unique lower-cased, `email_verified`, `phone`, `theme`, `contrast` (`standard`, `high`; written only through `app.set_own_contrast()`), `status` (`invited`, `active`, `suspended`, `offboarded`), `two_factor_enabled`, `last_login_at`; an administrator updates a person only when that person holds no role outside the request's companies, apart from the caller's own row (0056)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -555,7 +555,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_contacts
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `contact_id`, `role` (named on every link: `owner`, `family`, `manager`, `accountant`, `other`); exactly one `owner` per account (partial unique index), so a lead lists once with its owner
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `account_id`, `contact_id`, `role` (named on every link: `owner`, `family`, `manager`, `accountant`, `other`); exactly one `owner` per account (partial unique index), so a lead lists once with its owner
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -599,7 +599,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### account_entities
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read; written by the lead command and by `app.attach_account_entity()` (§4.1). Who may read a customer, and how a number a colleague's customer holds is refused and routed, is the customer rule of SECURITY §4. In the policy, `account_entities_read` grants a row at the caller's `crm.account.read` scope, or to a person (never an agent or a system principal: role key `agent:%` or `system:%`, or principal kind `agent` or `system`) through a lead of that customer, not archived, in the same company (0057, 0059, 0064). The lead form holds a new customer's number with one transaction advisory lock keyed `lead-phone:<company>:<number>` while it is checked; imports take no number lock. The owner and team move with a lead handed over by its holder (`app.hand_over_customer()`), never when an agent or the system hands it over. A direct insert or update may relate a new account (no relationship yet) or one the caller already sees; every other attach goes through `app.attach_account_entity()`, and `account_contacts` follows the same rule for contacts (review 3)
+**Catalogue entry** (DATABASE.md §6.2; created in 0015): `account_id`, `entity_id`, `owner_id`, `team_id`, `first_seen_at`; unique `(account_id, entity_id)`; the scope root for `crm.account.*`, through which `account_contacts`, `contacts`, `contact_phones`, `customer_sites` and `consents` are read ([§4.4](#account_entities))
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -648,7 +648,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### accounts
 
-**Catalogue entry** (DATABASE.md §6.2): `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code` (two-digit GST state code, nullable, place of supply after the site); one record for the group (ADR 0008); a change made from Account 360 (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`, the consents) is audited and written to the timeline in the company whose page it is made from
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `type` (`household`, `farm`, `business`, `dealer`, `referral_partner`), `name`, `tier_id`, `gstin`, `billing_state_code` (two-digit GST state code, nullable, place of supply after the site); one record for the group (ADR 0008); a change made from Account 360 (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`, the consents) is audited and written to the timeline in the company whose page it is made from
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -698,7 +698,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### activities
 
-**Catalogue entry** (DATABASE.md §6.2; partitioned by month; partitioned by range (created_at)): `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json` (ids, codes, counts and short labels only, at most 2,000 bytes), `body` (a note's text only, up to 2,000 characters), `created_at`; primary key `(id, created_at)`; append-only; written by commands through `ctx.activity()` and by the import batch as `crm.lead.create` writes it; a row on a lead is read with the lead, a row of no lead with the customer in its company (`account_entities_read`, never through a lead for an agent), and a note never by an agent; the insert is the caller's own, in a company of the request, about a lead or customer the caller reads, and a lead's row names the lead's own customer and company; a note on a lead needs the caller's lead write scope over a lead that is not archived, a note on the customer the caller's customer write scope (`app.account_in_scope()`); each `exists` of the read policy also tests the row's own `opportunity_id`, which keeps the planner on the per-row index probe; like `audit_logs` it carries no foreign key to the rows it describes; indexes `(account_id, created_at desc, id desc)` and `(opportunity_id, created_at desc, id desc)` serve the timeline's keyset
+**Catalogue entry** (DATABASE.md §6.2; created in 0075; partitioned by month; partitioned by range (created_at)): `entity_id`, `opportunity_id` (null for a row about the customer), `account_id`, `type` (`lead_created`, `stage_moved`, `assigned`, `nurtured`, `reopened`, `won`, `lost`, `task_created`, `task_done`, `task_rescheduled`, `task_cancelled`, `note`, `customer_updated`, `site_updated`, `consent_recorded`, `consent_withdrawn`, `tagged`, `untagged`), `actor_principal_id`, `payload_json`, `body`, `created_at`; primary key `(id, created_at)`; append-only ([§4.4](#activities))
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -743,7 +743,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### consents
 
-**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the proof the consent rests on: a `consent_evidence` file of the page's company that the caller may read and that has passed its checks; fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series)
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `contact_id`, `channel`, `purpose`, `source`, `text_version`, `given_at`, `withdrawn_at`, `evidence_file_id` (the proof the consent rests on: a `consent_evidence` file of the page's company that the caller may read and that has passed its checks; fixed with the rest of the evidence); only `withdrawn_at` may change after the insert, and a withdrawal stands; recorded and withdrawn through `crm.consent.record` and `crm.consent.withdraw`; whether a consent is per selling entity or group-wide is a workshop question (DPDP, DLT 160-series)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -796,7 +796,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### contact_phones
 
-**Catalogue entry** (DATABASE.md §6.2): `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number goes on a contact, becomes its main one or comes off through `crm.contact.update`, which keeps at least one number on the contact and refuses a number of a live contact of another customer the caller may not change anywhere in the group (`app.contact_phone_status()`, reason `customer_held_by_colleague`), holding the lead form's number lock in each company of the request while it looks; the delete follows the contact's write rule (`app.contact_in_scope()`)
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `contact_id`, `e164`, `e164_reversed` (generated as `reverse(e164)`, with a `text_pattern_ops` index, so a search by the last digits of a phone matches it with `^@`; 0051), `is_primary`, `is_whatsapp`, `dnd_checked_at`, `is_dnd`; a number goes on a contact, becomes its main one or comes off through `crm.contact.update`, which keeps at least one number on the contact and refuses a number of a live contact of another customer the caller may not change anywhere in the group (`app.contact_phone_status()`, reason `customer_held_by_colleague`), holding the lead form's number lock in each company of the request while it looks; the delete follows the contact's write rule (`app.contact_in_scope()`)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -850,7 +850,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### contacts
 
-**Catalogue entry** (DATABASE.md §6.2): `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008)
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `name`, `email`, `preferred_language` (`hinglish` default or `en`: the language of the customer's calls and caller scripts only); shared by all entities, visible through the accounts it is linked to (ADR 0008)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -893,7 +893,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### customer_sites
 
-**Catalogue entry** (DATABASE.md §6.2): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json`
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `account_id`, `type` (`borewell`, `rooftop`, `factory`), `address`, `village`, `tehsil`, `district`, `pin`, `state_code` (two-digit GST state code, nullable, the first choice for place of supply), `lat`, `lng`, `technical_json`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -949,7 +949,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### lead_sources
 
-**Catalogue entry** (DATABASE.md §6.2): `code`, `channel`, `cost_model`
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `code`, `channel`, `cost_model`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -994,7 +994,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### opportunities
 
-**Catalogue entry** (DATABASE.md §6.2): `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the trigger `app.ensure_account_entity()` refuses an entity with no `account_entities` row for the account, and a site of another account
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `entity_id`, `account_id`, `site_id`, `pipeline_id`, `stage_id`, `owner_id`, `team_id`, `score`, `source_id`, `campaign_json`, `state` (`open`, `nurture`, `won`, `lost`, written only by the opportunity commands through the state machine), `state_changed_at`, `locked_until`; the trigger `app.ensure_account_entity()` refuses an entity with no `account_entities` row for the account, and a site of another account
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1068,7 +1068,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### opportunity_tags
 
-**Catalogue entry** (DATABASE.md §6.2): `opportunity_id`, `tag_id`, `entity_id`, `account_id` (the lead's own); primary key `(opportunity_id, tag_id)`; the link table that puts a tag on a lead, following the child-table template with the composite foreign key `(opportunity_id, entity_id, account_id)` to the one unique key of `opportunities` that `tasks` also uses; a tag of one company is never put on another company's lead; put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group
+**Catalogue entry** (DATABASE.md §6.2; created in 0079): `opportunity_id`, `tag_id`, `entity_id`, `account_id` (the lead's own); primary key `(opportunity_id, tag_id)`; the link table that puts a tag on a lead, following the child-table template with the composite foreign key `(opportunity_id, entity_id, account_id)` to the one unique key of `opportunities` that `tasks` also uses; a tag of one company is never put on another company's lead; put on and taken off (insert and delete) by whoever may write the lead, with a live tag of the lead's company or of the group
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1102,7 +1102,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### pipeline_stages
 
-**Catalogue entry** (DATABASE.md §6.2): `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json`
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1153,7 +1153,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### pipelines
 
-**Catalogue entry** (DATABASE.md §6.2): `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json`
+**Catalogue entry** (DATABASE.md §6.2; created in 0004): `pipelines.lock_hours` (1 to 720, default 48: how long an assigned lead stays with its owner), `stage_exit_rules_json`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1201,7 +1201,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tags
 
-**Catalogue entry** (DATABASE.md §6.2): `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks)
+**Catalogue entry** (DATABASE.md §6.2; created in 0079): `entity_id null` (a group-wide tag allowed), `name`, `archived_at`; unique `(entity_id, lower(name))`; free labels a team puts on leads to filter and group them (a scheme, an exhibition, a village drive) beside the fixed pipeline, stage and source; read by whoever reads leads, made and archived with `crm.lead.assign` (a group-wide tag only in a request for every company), and only `archived_at` changes; a group tag and a company tag never share a name, whatever its case (the trigger `app.tag_name_free()`, which holds a lock on the name while it looks)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1240,7 +1240,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tasks
 
-**Catalogue entry** (DATABASE.md §6.2): `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)`
+**Catalogue entry** (DATABASE.md §6.2; created in 0077): `entity_id`, `opportunity_id`, `account_id` (the lead's own, by the composite key `(opportunity_id, entity_id, account_id)`), `assignee_id`, `team_id`, `kind` (`callback`, `follow_up`, `nurture`, `review`), `title` (up to 80 characters), `due_at`, `state` (`open`, `done`, `cancelled`, written only by the task commands through the task machine), `done_at` (set exactly when done); a scope root on `crm.lead.read` / `.write` with the assignee as owner and the lead readable; only `due_at`, `state` and `done_at` change after the insert; no delete; index `(assignee_id, state, due_at)`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1301,7 +1301,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### composite_supply_rules
 
-**Catalogue entry** (DATABASE.md §6.3): `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment; written as `tax_rates` is (0048)
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `segment`, `goods_share_pct`, `services_share_pct`, `goods_rate_pct`, `services_rate_pct`, `effective_from`, `effective_to`; shares sum to 100; no overlapping periods per segment; written as `tax_rates` is (0048)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1347,7 +1347,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### item_costs
 
-**Catalogue entry** (DATABASE.md §6.3; restricted): `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs
+**Catalogue entry** (DATABASE.md §6.3; created in 0007; restricted): `item_id`, `entity_id`, `moving_avg_cost`, `last_purchase_rate`, `as_of`; reads and writes both need `finance.cost.read` until Phase 3 decides how goods receipts post costs
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1389,7 +1389,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### items
 
-**Catalogue entry** (DATABASE.md §6.3): `sku`, `name`, `category` (`pump`, `motor`, `solar_module`, `controller`, `structure`, `cable`, `pipe`, `inverter`, `battery`, `other`), `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref` (both for solar modules only), `specs_json` (always an object: the category's specifications, strict per category in `@shakti/contracts` `catalogue/specs.ts`, each key naming its unit, such as `hp`, `kw`, `wp`, `maxHeadM`); shared by every company, written with `catalogue.write` by `catalogue.item.create`, `.update` and `.archive`, and, like `kits`, `kit_components` and `pump_curves`, only by a request that acts for every active company (`app.request_covers_group()` in the write policies and the commands); an item in a kit still sold is not archived
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `sku`, `name`, `category` (`pump`, `motor`, `solar_module`, `controller`, `structure`, `cable`, `pipe`, `inverter`, `battery`, `other`), `hsn`, `unit`, `is_serial_tracked`, `is_dcr`, `almm_ref` (both for solar modules only), `specs_json` (always an object: the category's specifications, strict per category in `@shakti/contracts` `catalogue/specs.ts`, each key naming its unit, such as `hp`, `kw`, `wp`, `maxHeadM`); shared by every company, written with `catalogue.write` by `catalogue.item.create`, `.update` and `.archive`, and, like `kits`, `kit_components` and `pump_curves`, only by a request that acts for every active company (`app.request_covers_group()` in the write policies and the commands); an item in a kit still sold is not archived
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1447,7 +1447,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### kit_components
 
-**Catalogue entry** (DATABASE.md §6.3): `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1496,7 +1496,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### kits
 
-**Catalogue entry** (DATABASE.md §6.3): `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `kit_id`, `item_id`, `qty` (above zero); a kit's components are replaced as a set by `catalogue.kit.update` (delete with `catalogue.write`), and only items still in the catalogue are taken
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1535,7 +1535,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### price_change_log
 
-**Catalogue entry** (DATABASE.md §6.3; append-only): `price_list_item_id`, `old_price`, `new_price`, `reason`, `changed_by`; written only by a trigger on `price_list_items`, with the reason from the transaction setting `app.price_reason`
+**Catalogue entry** (DATABASE.md §6.3; created in 0007; append-only): `price_list_item_id`, `old_price`, `new_price`, `reason`, `changed_by`; written only by a trigger on `price_list_items`, with the reason from the transaction setting `app.price_reason`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1570,7 +1570,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### price_list_items
 
-**Catalogue entry** (DATABASE.md §6.3): `price_list_id`, `item_id` or `kit_id`, `price`
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `price_list_id`, `item_id` or `kit_id`, `price`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1624,7 +1624,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### price_lists
 
-**Catalogue entry** (DATABASE.md §6.3): `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); a list is created by `pricing.list.create` as a draft that prices nothing, from today or later, with a copy of the prices in force on the day before it starts (the company's own list then, else the group's), and only approved lists price quotes (S1 reads approved lists only); an exclusion constraint allows one live approved list per tier and company on any day, and approving a draft ends the approved list pricing its start date there; `pricing.list.archive` withdraws a draft or a scheduled list, never a live or ended one, and a withdrawn scheduled list gives its days back to the list before it; changes to one tier and company take turns on a transaction advisory lock keyed by both
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `tier_id`, `entity_id null`, `version`, `effective_from`, `effective_to` (exclusive), `approved_by` and `approved_at` (set together by `pricing.list.approve`); drafts, approval and withdrawal as [§4.4](#price_lists) sets out
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1676,7 +1676,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### price_tiers
 
-**Catalogue entry** (DATABASE.md §6.3): `code` (`retail`, `dealer`, `commercial`)
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `code` (`retail`, `dealer`, `commercial`)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1715,7 +1715,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### pump_curves
 
-**Catalogue entry** (DATABASE.md §6.3): `item_id`, `head_m`, `flow_lph`, one point per row, 2 to 30 per pump with flow rising and head falling; replaced as a set by `catalogue.pump_curve.set` (delete with `catalogue.write`), for pumps only; head bounds are derived by the sizing calculator
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `item_id`, `head_m`, `flow_lph`, one point per row, 2 to 30 per pump with flow rising and head falling; replaced as a set by `catalogue.pump_curve.set` (delete with `catalogue.write`), for pumps only; head bounds are derived by the sizing calculator
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1759,7 +1759,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### tax_rates
 
-**Catalogue entry** (DATABASE.md §6.3): `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item; carries no company, so it is written with `tax.rates.write` only by a request that acts for every active company (0048)
+**Catalogue entry** (DATABASE.md §6.3; created in 0007): `hsn` or `item_id`, `rate_pct`, `effective_from`, `effective_to`, `source_ref`; exclusion constraints reject overlapping periods per HSN or item; carries no company, so it is written with `tax.rates.write` only by a request that acts for every active company (0048)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1808,7 +1808,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### audit_logs
 
-**Catalogue entry** (DATABASE.md §6.10; partitioned, append-only; partitions in schema `audit_partitions`; partitioned by range (created_at)): `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3)
+**Catalogue entry** (DATABASE.md §6.10; created in 0032; partitioned, append-only; partitions in schema `audit_partitions`; partitioned by range (created_at)): `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/design/backend-weeks-3-5.md §3)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1867,7 +1867,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### files
 
-**Catalogue entry** (DATABASE.md §6.10): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key` (unique together; an import file's key is named by its SHA-256, an upload's is `<company>/<purpose>/<file id>.<ext>`, and a checked copy's ends `-checked`), `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`; the `file_upload` machine, and `masked` for WhatsApp filing), `scan_result` (the scanner, its verdict, how the bytes were prepared, why a file was refused and `originalKey`, the upload's own bytes the worker deletes: codes, keys and counts only); index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead. Its purpose names who creates and reads it, in one immutable helper the policies call, `app.file_purpose_grant(purpose, 'write' \| 'read')` (0066), mirrored by `packages/domain/src/files/purposes.ts`: `import` by `imports.write` at entity scope; `quote_pdf` written only by the render worker (`files.process`) and `signed_quote` with `sales.quote.send`, both read with `crm.lead.read`; `entity_logo` and `letterhead` written with `admin.entities.write` at all scope and read by every principal of the company; `consent_evidence` by `crm.account.write`; `knowledge` and the field purposes by no request yet (K1 adds `knowledge.vault.write`). A read permission held at entity scope reads every such file of the company, a narrower one the files the caller uploaded (S1 widens quote files to the lead's readers). A person inserts an upload as `pending`, as themselves, in the request's companies, and moves only their own pending upload to `scanning`; the worker principal (`files.process`, held by no person's role) reads and records every file of its companies and moves it through its checks. `app_user` updates only `status`, `scan_result`, `key`, `content_type`, `size`, `sha256` and the `updated_*` columns, and the trigger `app.files_guard_update()` stamps `updated_by` with the caller and `updated_at` with the time, and refuses a change to anything but the status from a caller without `files.process`; no delete
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id` (not null), `purpose` (`job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `knowledge`, `consent_evidence`), `bucket`, `key`, `name`, `content_type`, `size`, `sha256`, `status` (`pending`, `scanning`, `scanned`, `not_scanned`, `masked`, `ready`, `rejected`), `scan_result`; index `(entity_id, purpose, created_at desc)` for a company's current logo and letterhead ([§4.4](#files))
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1929,7 +1929,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### idempotency_keys
 
-**Catalogue entry** (DATABASE.md §6.1): `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron
+**Catalogue entry** (DATABASE.md §6.1; created in 0036): `principal_id`, `key`, `command`, `input_hash`, `response_json`, `expires_at`; primary key `(principal_id, key)`; each caller reads and writes its own keys only; claimed and completed in the command's own transaction; 7-day retention by pg_cron
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1966,7 +1966,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_jobs
 
-**Catalogue entry** (DATABASE.md §6.10): `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind`, `file_id` and `template_id` (composite keys with `entity_id`), `format` (`csv`, `xlsx`), `columns_json`, `mapping_json`, `state` (`uploaded`, `mapped`, `previewed`, `committing`, `committed`, `rolled_back`, `failed`), `total_rows`, `valid_rows`, `invalid_rows`, `skipped_rows`, `committed_rows`, `failed_batch`, `batch_count` (the batches committed so far, from which the next batch takes its number; 0058); `imports.write` in the entity; only the working columns are updatable; no delete
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2034,7 +2034,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_mapping_templates
 
-**Catalogue entry** (DATABASE.md §6.10): `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040 and 0041)
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): `entity_id`, `kind` (`leads`, `accounts`, `items`, `tally_masters`), `name` (unique per entity and kind), `mapping_json`; written once; read and written with `imports.write` in the entity (migrations 0040 and 0041)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2078,7 +2078,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### import_rows
 
-**Catalogue entry** (DATABASE.md §6.10): primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter`
+**Catalogue entry** (DATABASE.md §6.10; created in 0040): primary key `(job_id, row_no)`, `entity_id`, `raw_json` (what the file said, never updated), `normalised_json`, `errors_json`, `dedupe_json`, `state` (`pending`, `valid`, `invalid`, `committed`, `skipped`, `rolled_back`), `created_type` (`opportunity`), `created_id`, `committed_batch`; follows its job's policies; not granted to `readonly_reporter`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2133,7 +2133,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### outbox_events
 
-**Catalogue entry** (DATABASE.md §6.10; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping, whose lease, backoff, dead letters and failure callback ARCHITECTURE §6 describes. They change only through the `outbox_publisher` role; through `app.replay_dead_letter()` (`integrations.dlq.replay`), which puts a dead letter back in the queue with its attempts, error, backoff and lease cleared, the one change the append-only trigger allows on a dead-lettered row, and only as the owner of that function (0059); and through the failure callback, as `outbox_publisher`, which turns a delivered event back into a dead letter (`published_at` cleared, `dead_lettered_at` set, `last_error` `worker_failed` or `worker_refused`, nothing else changed, 0064). Events published more than 30 days ago are deleted by the retention purge (§5, §7)
+**Catalogue entry** (DATABASE.md §6.10; created in 0034; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping ([§4.4](#outbox_events))
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2188,7 +2188,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### retention_runs
 
-**Catalogue entry** (DATABASE.md §6.10): `job` (a pg_cron job name such as `outbox-events-purge` or `audit-logs-detach`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054)
+**Catalogue entry** (DATABASE.md §6.10; created in 0053): `job` (a pg_cron job name such as `outbox-events-purge` or `audit-logs-detach`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2219,7 +2219,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### saved_views
 
-**Catalogue entry** (DATABASE.md §6.10): `principal_id`, `screen` (`leads`, `team_members`, `price_lists`, `imports`, `catalogue_items`, `catalogue_kits`, `customers`), `name` (1 to 60 characters, trimmed, unique per person and screen), `settings_json` (`columns`, `sort`, `filters`, `density`); each person reads, writes and deletes their own views only, in any company; written by `profile.view.save` and `profile.view.delete` (migrations 0045, 0069 and 0085)
+**Catalogue entry** (DATABASE.md §6.10; created in 0045): `principal_id`, `screen` (`leads`, `team_members`, `price_lists`, `imports`, `catalogue_items`, `catalogue_kits`, `customers`), `name` (1 to 60 characters, trimmed, unique per person and screen), `settings_json` (`columns`, `sort`, `filters`, `density`); each person reads, writes and deletes their own views only, in any company; written by `profile.view.save` and `profile.view.delete` (migrations 0045, 0069 and 0085)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2266,130 +2266,130 @@ Tables DATABASE.md §6 documents that no migration has created yet, with the col
 
 ### 6.1 Org and identity
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `entity_channels` | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` | `entity_id` → `entities` |
-| `org_locations` | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` | `entity_id` → `entities` |
-| `mobile_devices` | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` | `user_id` → `users` |
-| `business_calendar` | `date`, `is_holiday`, `entity_id null` | `entity_id` → `entities` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `entity_channels` | Phase 2 | `entity_id`, `channel` (`whatsapp`, `call_promo_140`, `call_service_160`, `ivr`), `number_e164`, `provider_ref`, `is_active` | `entity_id` → `entities` |
+| `org_locations` | Phase 3 | `entity_id null` (shared allowed), `name`, `type` (`office`, `godown`, `factory`), `geo` | `entity_id` → `entities` |
+| `mobile_devices` | Phase 4 | `user_id`, `device_id`, `refresh_token_hash`, `refresh_family_id`, `refresh_expires_at`, `push_token`, `revoked_at` | `user_id` → `users` |
+| `business_calendar` | Phase 5 | `date`, `is_holiday`, `entity_id null` | `entity_id` → `entities` |
 
 ### 6.2 CRM
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `calls` | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `recording_file_id` → `files`, `transcript_file_id` → `files`, `disposition_id` → `call_dispositions` |
-| `call_dispositions` | `code`, `label`, `next_action` |  |
-| `whatsapp_threads` | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` | `entity_id` → `entities`, `account_id` → `accounts`, `contact_phone_id` → `contact_phones`, `channel_id` → `entity_channels` |
-| `whatsapp_messages` (partitioned) | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` | `thread_id` → `whatsapp_threads`, `file_id` → `files` |
-| `customer_loans` | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` | `account_id` → `accounts`, `opportunity_id` → `opportunities` |
-| `identity_documents` | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists | `account_id` → `accounts`, `masked_file_id` → `files` |
-| `referral_partners` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
-| `commission_accruals` | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `calls` | Phase 1 | `entity_id`, `opportunity_id`, `caller_id`, `direction`, `number_series` (`140`, `160`, `inbound`), `provider_call_id`, `recording_file_id`, `transcript_file_id`, `disposition_id`, `duration_s` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `recording_file_id` → `files`, `transcript_file_id` → `files`, `disposition_id` → `call_dispositions` |
+| `call_dispositions` | Phase 1 | `code`, `label`, `next_action` |  |
+| `whatsapp_threads` | Phase 2 | `entity_id`, `account_id`, `contact_phone_id`, `channel_id`, `window_open_until`, `opted_out_at` | `entity_id` → `entities`, `account_id` → `accounts`, `contact_phone_id` → `contact_phones`, `channel_id` → `entity_channels` |
+| `whatsapp_messages` (partitioned) | Phase 2 | `thread_id`, `direction`, `provider_message_id`, `template_name`, `body_masked`, `status`, `file_id` | `thread_id` → `whatsapp_threads`, `file_id` → `files` |
+| `customer_loans` | Phase 4 | `account_id`, `opportunity_id`, `lender`, `state` (`applied`, `sanctioned`, `disbursed`, `rejected`), `amount`, `gates_json` | `account_id` → `accounts`, `opportunity_id` → `opportunities` |
+| `identity_documents` | Phase 4 | `account_id`, `type` (`aadhaar`, `pan`, `bank_proof`), `last4`, `masked_file_id`; no full number column exists | `account_id` → `accounts`, `masked_file_id` → `files` |
+| `referral_partners` | Phase 1 | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
+| `commission_accruals` | Phase 1 | `partner_account_id`, `opportunity_id`, `amount`, `released_at` | `partner_account_id` → `accounts`, `opportunity_id` → `opportunities` |
 
 ### 6.4 Sales
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `quotes` | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `account_id` → `accounts`, `site_id` → `customer_sites`, `tier_id` → `price_tiers`, `price_list_id` → `price_lists`, `pdf_file_id` → `files` |
-| `quote_lines` | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` | `quote_id` → `quotes`, `item_id` → `items`, `kit_id` → `kits`, `tax_rate_id` → `tax_rates`, `composite_rule_id` → `composite_supply_rules` |
-| `quote_versions` | `quote_id`, `version`, `snapshot_json` | `quote_id` → `quotes` |
-| `sales_orders` | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` | `entity_id` → `entities`, `quote_id` → `quotes`, `account_id` → `accounts` |
-| `sales_order_lines` | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` | `so_id` → `sales_orders`, `item_id` → `items` |
-| `dealer_terms` | `account_id`, `tier_id`, `credit_limit`, `credit_days` | `account_id` → `accounts`, `tier_id` → `price_tiers` |
-| `targets` | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` | `entity_id` → `entities` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `quotes` | Phase 1 | `entity_id`, `quote_no`, `opportunity_id`, `account_id`, `site_id`, `tier_id`, `price_list_id`, `valid_until`, `state`, `round_off`, `pdf_file_id`, `accepted_via` | `entity_id` → `entities`, `opportunity_id` → `opportunities`, `account_id` → `accounts`, `site_id` → `customer_sites`, `tier_id` → `price_tiers`, `price_list_id` → `price_lists`, `pdf_file_id` → `files` |
+| `quote_lines` | Phase 1 | `quote_id`, `item_id` or `kit_id`, `qty`, `unit_price`, `hsn`, `tax_rate_id`, `composite_rule_id`, `taxable_value`, `goods_taxable`, `services_taxable`, `cgst`, `sgst`, `igst`, `line_total` | `quote_id` → `quotes`, `item_id` → `items`, `kit_id` → `kits`, `tax_rate_id` → `tax_rates`, `composite_rule_id` → `composite_supply_rules` |
+| `quote_versions` | Phase 1 | `quote_id`, `version`, `snapshot_json` | `quote_id` → `quotes` |
+| `sales_orders` | Phase 1 | `entity_id`, `so_no`, `quote_id null`, `account_id`, `state`, `credit_release_by null` | `entity_id` → `entities`, `quote_id` → `quotes`, `account_id` → `accounts` |
+| `sales_order_lines` | Phase 1 | `so_id`, `item_id`, `qty_ordered`, `qty_reserved`, `qty_dispatched`, price and tax columns as `quote_lines` | `so_id` → `sales_orders`, `item_id` → `items` |
+| `dealer_terms` | Phase 1 | `account_id`, `tier_id`, `credit_limit`, `credit_days` | `account_id` → `accounts`, `tier_id` → `price_tiers` |
+| `targets` | Phase 1 | `entity_id`, `scope` (`caller`, `team`), `metric`, `period`, `value` | `entity_id` → `entities` |
 
 ### 6.5 Inventory and logistics
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `warehouses` | `location_id`, `code` | `location_id` → `org_locations` |
-| `bins` | `location_id`, `code` | `location_id` → `org_locations` |
-| `stock_movements` (append-only) | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` | `entity_id` → `entities`, `item_id` → `items`, `serial_id` → `serials`, `from_bin_id` → `bins`, `to_bin_id` → `bins`, `reverses_id` → `stock_movements` |
-| `stock_movement_costs` (restricted, append-only) | `movement_id`, `unit_cost` | `movement_id` → `stock_movements` |
-| `stock_balances` | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) | `warehouse_id` → `warehouses`, `bin_id` → `bins`, `item_id` → `items` |
-| `reservations` | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` | `so_line_id` → `sales_order_lines`, `item_id` → `items` |
-| `serials` | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` | `item_id` → `items`, `bin_id` → `bins`, `customer_site_id` → `customer_sites` |
-| `surplus_pool` | `project_id`, `item_id`, `qty`, `state` | `project_id` → `projects`, `item_id` → `items` |
-| `vendors` | `name`, `gstin`, `terms_json` |  |
-| `vendor_quotes` (restricted) | `vendor_id`, `item_id`, `rate`, `valid_until` | `vendor_id` → `vendors`, `item_id` → `items` |
-| `purchase_orders` | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` | `entity_id` → `entities`, `vendor_id` → `vendors` |
-| `po_lines` | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` | `po_id` → `purchase_orders`, `entity_id` → `entities`, `item_id` → `items` |
-| `goods_receipts` | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` | `entity_id` → `entities`, `po_id` → `purchase_orders`, `warehouse_id` → `warehouses` |
-| `goods_receipt_lines` | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row | `receipt_id` → `goods_receipts`, `entity_id` → `entities`, `po_line_id` → `po_lines`, `item_id` → `items`, `bin_id` → `bins` |
-| `dispatches` | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` | `entity_id` → `entities`, `so_id` → `sales_orders` |
-| `dispatch_lines` | `dispatch_id`, `so_line_id`, `qty`, serials | `dispatch_id` → `dispatches`, `so_line_id` → `sales_order_lines` |
-| `delivery_challans` | `dispatch_id`, `challan_no`, `pdf_file_id` | `dispatch_id` → `dispatches`, `pdf_file_id` → `files` |
-| `eway_bills` | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` | `dispatch_id` → `dispatches` |
-| `warranty_claims` | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` | `serial_id` → `serials`, `account_id` → `accounts`, `replacement_serial_id` → `serials`, `cost_entry_id` → `job_cost_entries` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `warehouses` | Phase 3 | `location_id`, `code` | `location_id` → `org_locations` |
+| `bins` | Phase 3 | `location_id`, `code` | `location_id` → `org_locations` |
+| `stock_movements` (append-only) | Phase 3 | `entity_id`, `item_id`, `serial_id null`, `from_bin_id`, `to_bin_id`, `qty`, `reason`, `ref_type`, `ref_id`, `reverses_id` | `entity_id` → `entities`, `item_id` → `items`, `serial_id` → `serials`, `from_bin_id` → `bins`, `to_bin_id` → `bins`, `reverses_id` → `stock_movements` |
+| `stock_movement_costs` (restricted, append-only) | Phase 3 | `movement_id`, `unit_cost` | `movement_id` → `stock_movements` |
+| `stock_balances` | Phase 3 | `warehouse_id`, `bin_id`, `item_id`, `qty_on_hand`, `qty_reserved` (maintained by trigger from movements) | `warehouse_id` → `warehouses`, `bin_id` → `bins`, `item_id` → `items` |
+| `reservations` | Phase 3 | `so_line_id`, `item_id`, `qty`, `expires_at`, `state` | `so_line_id` → `sales_order_lines`, `item_id` → `items` |
+| `serials` | Phase 3 | `item_id`, `serial_no`, `state`, `bin_id`, `customer_site_id`, `warranty_until`, `dcr_validated_at` | `item_id` → `items`, `bin_id` → `bins`, `customer_site_id` → `customer_sites` |
+| `surplus_pool` | Phase 3 | `project_id`, `item_id`, `qty`, `state` | `project_id` → `projects`, `item_id` → `items` |
+| `vendors` | Phase 3 | `name`, `gstin`, `terms_json` |  |
+| `vendor_quotes` (restricted) | Phase 3 | `vendor_id`, `item_id`, `rate`, `valid_until` | `vendor_id` → `vendors`, `item_id` → `items` |
+| `purchase_orders` | Phase 3 | `entity_id`, `po_no`, `vendor_id`, `state`, `expected_at` | `entity_id` → `entities`, `vendor_id` → `vendors` |
+| `po_lines` | Phase 3 | `po_id`, `entity_id`, `item_id`, `qty`, `qty_received`, `unit_rate` and `amount` (both restricted to `procurement.rate.read`, §4.3), `hsn` | `po_id` → `purchase_orders`, `entity_id` → `entities`, `item_id` → `items` |
+| `goods_receipts` | Phase 3 | `entity_id`, `po_id`, `warehouse_id`, `received_at`, `received_by` | `entity_id` → `entities`, `po_id` → `purchase_orders`, `warehouse_id` → `warehouses` |
+| `goods_receipt_lines` | Phase 3 | `receipt_id`, `entity_id`, `po_line_id`, `item_id`, `bin_id`, `qty`, `unit_rate` (restricted, §4.3); each serial captured at receipt by camera or scanner becomes a `serials` row | `receipt_id` → `goods_receipts`, `entity_id` → `entities`, `po_line_id` → `po_lines`, `item_id` → `items`, `bin_id` → `bins` |
+| `dispatches` | Phase 3 | `entity_id`, `so_id`, `state` (`draft`, `ready`, `in_transit`, `delivered`, `cancelled`), `vehicle_no`, `driver_name`, `driver_phone`, `consignment_value` | `entity_id` → `entities`, `so_id` → `sales_orders` |
+| `dispatch_lines` | Phase 3 | `dispatch_id`, `so_line_id`, `qty`, serials | `dispatch_id` → `dispatches`, `so_line_id` → `sales_order_lines` |
+| `delivery_challans` | Phase 3 | `dispatch_id`, `challan_no`, `pdf_file_id` | `dispatch_id` → `dispatches`, `pdf_file_id` → `files` |
+| `eway_bills` | Phase 3 | `dispatch_id`, `ewb_no`, `valid_from`, `valid_until`, `vehicle_no`, `linked_ref_type` (`invoice`, `challan`), `linked_ref` | `dispatch_id` → `dispatches` |
+| `warranty_claims` | Phase 3 | `serial_id`, `account_id`, `state`, `replacement_serial_id`, `supplier_rma_ref`, `cost_entry_id` | `serial_id` → `serials`, `account_id` → `accounts`, `replacement_serial_id` → `serials`, `cost_entry_id` → `job_cost_entries` |
 
 ### 6.6 Projects and field
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `projects` | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `account_id` → `accounts`, `site_id` → `customer_sites`, `flow_template_id` → `project_flow_templates`, `pm_user_id` → `users` |
-| `project_flow_templates` | `segment`, `steps_json` (editable by Executives) |  |
-| `project_milestones` | `project_id`, `code`, `state`, `due_at`, `done_at` | `project_id` → `projects` |
-| `subsidy_applications` | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` | `project_id` → `projects` |
-| `subsidy_gates` | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` | `application_id` → `subsidy_applications` |
-| `surveys` | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` | `entity_id` → `entities`, `project_id` → `projects` |
-| `survey_photos` | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` | `survey_id` → `surveys`, `entity_id` → `entities`, `file_id` → `files` |
-| `checklists` | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
-| `qc_inspections` | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
-| `schedule_slots` | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` | `project_id` → `projects` |
-| `documents` | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file | `entity_id` → `entities`, `project_id` → `projects`, `account_id` → `accounts`, `file_id` → `files` |
-| `document_requirements` | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing | `entity_id` → `entities`, `flow_template_id` → `project_flow_templates` |
-| `cmc_register` | `project_id`, `starts_on`, `ends_on`, `state` | `project_id` → `projects` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `projects` | Phase 4 | `entity_id`, `so_id`, `account_id`, `site_id`, `flow_template_id`, `state`, `pm_user_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `account_id` → `accounts`, `site_id` → `customer_sites`, `flow_template_id` → `project_flow_templates`, `pm_user_id` → `users` |
+| `project_flow_templates` | Phase 4 | `segment`, `steps_json` (editable by Executives) |  |
+| `project_milestones` | Phase 4 | `project_id`, `code`, `state`, `due_at`, `done_at` | `project_id` → `projects` |
+| `subsidy_applications` | Phase 4 | `project_id`, `portal_ref`, `sanctioned_load_kw`, `state` | `project_id` → `projects` |
+| `subsidy_gates` | Phase 4 | `application_id`, `gate`, `state`, `required_docs_json`, `rejection_reason` | `application_id` → `subsidy_applications` |
+| `surveys` | Phase 4 | `entity_id`, `project_id`, `engineer_id`, `answers_json` (merged field by field on sync), `state`, `submitted_at` | `entity_id` → `entities`, `project_id` → `projects` |
+| `survey_photos` | Phase 4 | `survey_id`, `entity_id`, `file_id`, `geo`, `taken_at` (the device's time of capture), `requirement_code null` | `survey_id` → `surveys`, `entity_id` → `entities`, `file_id` → `files` |
+| `checklists` | Phase 4 | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
+| `qc_inspections` | Phase 4 | `project_id`, `items_json`, `signed_off_by` | `project_id` → `projects` |
+| `schedule_slots` | Phase 4 | `engineer_id` or `crew_id`, `project_id`, `starts_at`, `ends_at`, `state`, `travel_min` | `project_id` → `projects` |
+| `documents` | Phase 4 | `entity_id`, `project_id` or `account_id`, `requirement_code null`, `file_id`, `classification`, `confidence`, `confirmed_by`; filed only against the customer who sent the file | `entity_id` → `entities`, `project_id` → `projects`, `account_id` → `accounts`, `file_id` → `files` |
+| `document_requirements` | Phase 4 | `entity_id null`, `segment`, `flow_template_id null`, `gate null`, `code`, `name`, `is_mandatory`, `accepted_classifications`; the requirement templates a project's completeness gates check, so a gate cannot close with a mandatory document missing | `entity_id` → `entities`, `flow_template_id` → `project_flow_templates` |
+| `cmc_register` | Phase 4 | `project_id`, `starts_on`, `ends_on`, `state` | `project_id` → `projects` |
 
 ### 6.7 Finance and costing
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `proformas` | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `pdf_file_id` → `files` |
-| `payment_milestones` | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` | `so_id` → `sales_orders`, `project_id` → `projects` |
-| `payments` (append-only) | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` | `entity_id` → `entities`, `account_id` → `accounts`, `tally_voucher_id` → `tally_vouchers`, `reverses_id` → `payments` |
-| `tally_vouchers` | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` | `entity_id` → `entities` |
-| `tally_purchase_vouchers` (restricted) | same shape for `purchase` and `debit_note` |  |
-| `tally_voucher_tombstones` (append-only) | `voucher_guid`, `detected_at`, `reversal_applied_at` |  |
-| `tally_ledgers` | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |  |
-| `reconciliation_links` | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` | `voucher_id` → `tally_vouchers` |
-| `unlinked_vouchers` | review queue rows |  |
-| `dealer_outstanding` | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` | `account_id` → `accounts`, `entity_id` → `entities` |
-| `job_cost_entries` (restricted) | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` | `project_id` → `projects`, `so_id` → `sales_orders` |
-| `expense_claims` | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` | `entity_id` → `entities`, `employee_id` → `employees` |
-| `expense_lines` | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` | `claim_id` → `expense_claims`, `entity_id` → `entities`, `receipt_file_id` → `files`, `project_id` → `projects` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `proformas` | Phase 5 | `entity_id`, `proforma_no`, `so_id`, lines and tax as quotes, `pdf_file_id` | `entity_id` → `entities`, `so_id` → `sales_orders`, `pdf_file_id` → `files` |
+| `payment_milestones` | Phase 5 | `so_id` or `project_id`, `seq`, `amount`, `due_rule`, `loan_gate`, `state` | `so_id` → `sales_orders`, `project_id` → `projects` |
+| `payments` (append-only) | Phase 5 | `entity_id`, `account_id`, `amount`, `source` (`tally_receipt`, `upi`), `tally_voucher_id`, `reverses_id` | `entity_id` → `entities`, `account_id` → `accounts`, `tally_voucher_id` → `tally_vouchers`, `reverses_id` → `payments` |
+| `tally_vouchers` | Phase 5 | `entity_id`, `tally_company`, `guid`, `alter_id`, `type` (`sales`, `receipt`, `credit_note`), `date`, `party_name`, `party_gstin`, `buyer_order_no`, `amount`, `payload_json`, `deleted_at` | `entity_id` → `entities` |
+| `tally_purchase_vouchers` (restricted) | Phase 5 | same shape for `purchase` and `debit_note` |  |
+| `tally_voucher_tombstones` (append-only) | Phase 5 | `voucher_guid`, `detected_at`, `reversal_applied_at` |  |
+| `tally_ledgers` | Phase 5 | `tally_company`, `name`, `group`, `closing_balance`, `as_of` |  |
+| `reconciliation_links` | Phase 5 | `voucher_id`, `ref_type`, `ref_id`, `matched_by`, `confidence` | `voucher_id` → `tally_vouchers` |
+| `unlinked_vouchers` | Phase 5 | review queue rows |  |
+| `dealer_outstanding` | Phase 1 | `account_id`, `entity_id`, `outstanding`, `oldest_overdue_days`, `as_of` | `account_id` → `accounts`, `entity_id` → `entities` |
+| `job_cost_entries` (restricted) | Phase 5 | `project_id` or `so_id`, `type` (`material`, `labour`, `expense`, `warranty`, `other`), `amount`, `ref_type`, `ref_id` | `project_id` → `projects`, `so_id` → `sales_orders` |
+| `expense_claims` | Phase 4 | `entity_id`, `employee_id`, `state` (the expense-claim machine), `manager_approved_by`, `approved_by`, `total`, `submitted_at` | `entity_id` → `entities`, `employee_id` → `employees` |
+| `expense_lines` | Phase 4 | `claim_id`, `entity_id`, `category` (`travel`, `fuel`, `food`, `site_purchase`), `spent_on`, `amount`, `receipt_file_id`, `project_id null` (null is overhead), `over_limit` | `claim_id` → `expense_claims`, `entity_id` → `entities`, `receipt_file_id` → `files`, `project_id` → `projects` |
 
 ### 6.8 HR
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `employees` | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` | `entity_id` → `entities`, `user_id` → `users`, `shift_id` → `shifts`, `office_location_id` → `org_locations` |
-| `attendance_events` | `type`, `geo`, `selfie_file_id`, `site_id null` | `selfie_file_id` → `files`, `site_id` → `customer_sites` |
-| `shifts` | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` | `entity_id` → `entities` |
-| `leave_types` | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` | `entity_id` → `entities` |
-| `leave_requests` | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` | `entity_id` → `entities`, `employee_id` → `employees`, `leave_type_id` → `leave_types` |
-| `holidays` | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check | `entity_id` → `entities`, `location_id` → `org_locations` |
-| `incentive_rules` | `rule_json` |  |
-| `incentive_accruals` | `released_on_event` |  |
-| `salary_sheets` | `period`, `file_id` | `file_id` → `files` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `employees` | Phase 5 | `entity_id` (the employing company), `user_id null` (staff who sign in), `employee_code`, `name`, `designation`, `department`, `manager_id`, `shift_id`, `office_location_id`, `joined_on`, `left_on` | `entity_id` → `entities`, `user_id` → `users`, `shift_id` → `shifts`, `office_location_id` → `org_locations` |
+| `attendance_events` | Phase 4 | `type`, `geo`, `selfie_file_id`, `site_id null` | `selfie_file_id` → `files`, `site_id` → `customer_sites` |
+| `shifts` | Phase 5 | `entity_id null`, `name`, `start_time`, `end_time` (`time`, IST wall clock), `grace_min`, `weekly_off_days` | `entity_id` → `entities` |
+| `leave_types` | Phase 5 | `entity_id null`, `code`, `name`, `annual_quota_days`, `carries_forward`, `is_paid` | `entity_id` → `entities` |
+| `leave_requests` | Phase 5 | `entity_id`, `employee_id`, `leave_type_id`, `from_date`, `to_date`, `days`, `state` (`requested`, `approved`, `rejected`, `cancelled`), `approved_by` | `entity_id` → `entities`, `employee_id` → `employees`, `leave_type_id` → `leave_types` |
+| `holidays` | Phase 5 | `entity_id null`, `date`, `name`, `location_id null`; feeds `business_calendar` and the scheduling board's leave check | `entity_id` → `entities`, `location_id` → `org_locations` |
+| `incentive_rules` | Phase 5 | `rule_json` |  |
+| `incentive_accruals` | Phase 5 | `released_on_event` |  |
+| `salary_sheets` | Phase 5 | `period`, `file_id` | `file_id` → `files` |
 
 ### 6.9 AI and voice
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `knowledge_files` | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` | `entity_id` → `entities`, `file_id` → `files` |
-| `knowledge_chunks` | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` | `file_id` → `files`, `entity_id` → `entities` |
-| `playbook_directives` | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` | `source_file_id` → `files` |
-| `agent_configs` | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |  |
-| `agent_runs` | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` | `principal_id` → `principals` |
-| `agent_actions` (append-only) | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` | `run_id` → `agent_runs` |
-| `agent_evals` | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |  |
-| `voice_sessions` | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` | `user_id` → `users`, `audio_file_id` → `files`, `transcript_file_id` → `files` |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `knowledge_files` | Phase 1 | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` | `entity_id` → `entities`, `file_id` → `files` |
+| `knowledge_chunks` | Phase 1 | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` | `file_id` → `files`, `entity_id` → `entities` |
+| `playbook_directives` | Phase 2 | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` | `source_file_id` → `files` |
+| `agent_configs` | Phase 1 | `agent`, `action_type`, `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap`, `enabled` |  |
+| `agent_runs` | Phase 1 | `agent`, `principal_id`, `trigger_event_id`, `model`, `tokens_in`, `tokens_out`, `cost`, `state` | `principal_id` → `principals` |
+| `agent_actions` (append-only) | Phase 1 | `run_id`, `command`, `input_json`, `autonomy`, `state`, `approved_by`, `edited` | `run_id` → `agent_runs` |
+| `agent_evals` | Phase 1 | `agent`, `prompt_version`, `eval_set`, `score`, `ran_at` |  |
+| `voice_sessions` | Phase 2 | `user_id`, `mode`, `consent_recording`, `audio_file_id`, `transcript_file_id`, `minutes`, `cost` | `user_id` → `users`, `audio_file_id` → `files`, `transcript_file_id` → `files` |
 
 ### 6.10 Platform
 
-| Table | Documented columns | Refers to (inferred) |
-|---|---|---|
-| `webhook_inbox` (append-only) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |  |
-| `notifications` | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` | `user_id` → `users` |
-| `feature_flags` | `key`, `enabled`, `overrides_json` |  |
-| `privacy_incidents` | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |  |
+| Table | Phase | Documented columns | Refers to (inferred) |
+|---|---|---|---|
+| `webhook_inbox` (append-only) | Phase 2 | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |  |
+| `notifications` | Phase 1 | `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json` | `user_id` → `users` |
+| `feature_flags` | no phase set | `key`, `enabled`, `overrides_json` |  |
+| `privacy_incidents` | no phase set | `detected_at`, `summary`, `affected_count`, `board_notified_at`, `principals_notified_at`, `runbook_log_json` |  |

@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  createdIn,
   groupModules,
   inferReference,
   mermaidType,
@@ -108,9 +109,9 @@ describe('reading the catalogue', () => {
     const doc = [
       '## 6. Table catalogue',
       '### 6.9 AI and voice',
-      '| Table | Key columns |',
-      '|---|---|',
-      '| `agent_actions` (append-only) | `run_id`, `command` |',
+      '| Table | Status | Key columns |',
+      '|---|---|---|',
+      '| `agent_actions` (append-only) | Planned (Phase 1) | `run_id`, `command` |',
       '| `roles`, `permissions` | `key` |',
       '### 6.8 HR',
       '`employees`, `attendance_events` (`type`, `geo`), `shifts`.',
@@ -122,12 +123,25 @@ describe('reading the catalogue', () => {
         section: '6.9 AI and voice',
         qualifier: 'append-only',
         note: '`run_id`, `command`',
+        status: { built: false, detail: 'Phase 1' },
       },
-      { table: 'roles', section: '6.9 AI and voice', qualifier: null, note: '`key`' },
-      { table: 'permissions', section: '6.9 AI and voice', qualifier: null, note: '`key`' },
-      { table: 'employees', section: '6.8 HR', qualifier: null, note: '' },
-      { table: 'attendance_events', section: '6.8 HR', qualifier: null, note: '`type`, `geo`' },
-      { table: 'shifts', section: '6.8 HR', qualifier: null, note: '' },
+      { table: 'roles', section: '6.9 AI and voice', qualifier: null, note: '`key`', status: null },
+      {
+        table: 'permissions',
+        section: '6.9 AI and voice',
+        qualifier: null,
+        note: '`key`',
+        status: null,
+      },
+      { table: 'employees', section: '6.8 HR', qualifier: null, note: '', status: null },
+      {
+        table: 'attendance_events',
+        section: '6.8 HR',
+        qualifier: null,
+        note: '`type`, `geo`',
+        status: null,
+      },
+      { table: 'shifts', section: '6.8 HR', qualifier: null, note: '', status: null },
     ]);
   });
 });
@@ -261,6 +275,29 @@ describe('the ERD note on created_by and updated_by', () => {
     for (const line of erd.split('\n')) {
       const attribute = /^ {4}(\S+) [a-z_0-9]+/.exec(line);
       if (attribute) expect(attribute[1]).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/);
+    }
+  });
+});
+
+describe('the status column of DATABASE.md §6', () => {
+  const sources = readSources(repoRoot);
+  const built = new Set(Object.values(sources.snapshot.tables).map((t) => t.name));
+  const catalogue = parseCatalogue(sources.databaseDoc);
+
+  it('marks every row', () => {
+    expect(catalogue.filter((e) => e.status === null).map((e) => e.table)).toEqual([]);
+  });
+
+  it('marks a table built exactly when a migration has created it, naming that migration', () => {
+    for (const entry of catalogue) {
+      expect(entry.status?.built, entry.table).toBe(built.has(entry.table));
+      if (built.has(entry.table)) {
+        const migration = createdIn(sources.migrations, entry.table);
+        expect(migration, entry.table).not.toBeNull();
+        expect(entry.status?.detail.split(', '), entry.table).toContain(migration);
+      } else {
+        expect(entry.status?.detail, entry.table).toMatch(/^Phase \d|^no phase set$/);
+      }
     }
   });
 });

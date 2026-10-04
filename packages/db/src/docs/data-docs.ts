@@ -63,6 +63,13 @@ export interface DataDocSources {
   databaseDoc: string;
 }
 
+/** The first migration that creates `table`, by its four-digit number, or null. */
+export function createdIn(migrations: readonly MigrationFile[], table: string): string | null {
+  const create = new RegExp(`create table (if not exists )?("?public"?\\.)?"?${table}"?\\s*\\(`, 'i');
+  const found = migrations.find((m) => create.test(m.sql));
+  return found === undefined ? null : found.name.slice(0, 4);
+}
+
 /** Reads the inputs from a checkout: the newest snapshot, every migration, DATABASE.md. */
 export function readSources(repoRoot: string): DataDocSources {
   const folder = join(repoRoot, 'packages', 'db', 'migrations');
@@ -89,6 +96,11 @@ export interface CatalogueEntry {
   qualifier: string | null;
   /** The key-columns cell: the documented purpose and columns. */
   note: string;
+  /**
+   * The status cell: built, with the migrations that created the row's tables, or planned, with
+   * the phase that builds it (`Built (0004)`, `Planned (Phase 2)`); null when the row has none.
+   */
+  status: { built: boolean; detail: string } | null;
 }
 
 function tableNamesIn(cell: string): { names: string[]; qualifier: string | null } {
@@ -115,7 +127,7 @@ function splitTopLevel(text: string): string[] {
   return parts;
 }
 
-/** Every table DATABASE.md §6 names, with its section and documented columns. */
+/** Every table DATABASE.md §6 names, with its section, status and documented columns. */
 export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
   const lines = databaseDoc.split(/\r?\n/);
   const start = lines.findIndex((l) => l.startsWith('## 6.'));
@@ -132,7 +144,11 @@ export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
     const row = /^\| (.+?) \| (.+) \|$/.exec(line);
     if (row?.[1] !== undefined && row[2] !== undefined && row[1].includes('`')) {
       const { names, qualifier } = tableNamesIn(row[1]);
-      for (const table of names) entries.push({ table, section, qualifier, note: row[2] });
+      const marked = /^(Built|Planned) \(([^)]*)\) \| (.+)$/.exec(row[2]);
+      const status =
+        marked?.[1] === undefined ? null : { built: marked[1] === 'Built', detail: marked[2] ?? '' };
+      const note = marked?.[3] ?? row[2];
+      for (const table of names) entries.push({ table, section, qualifier, note, status });
       continue;
     }
     // A section written as one line: `a`, `b` (`col`, `col`), ...
@@ -141,7 +157,7 @@ export function parseCatalogue(databaseDoc: string): CatalogueEntry[] {
         const name = /^`([a-z_]+)`/.exec(part)?.[1];
         if (name === undefined) continue;
         const columns = /\((.*)\)$/.exec(part)?.[1] ?? '';
-        entries.push({ table: name, section, qualifier: null, note: columns });
+        entries.push({ table: name, section, qualifier: null, note: columns, status: null });
       }
     }
   }
@@ -862,8 +878,8 @@ function renderDictionary(
     out.push(
       `### ${section}`,
       '',
-      '| Table | Documented columns | Refers to (inferred) |',
-      '|---|---|---|',
+      '| Table | Phase | Documented columns | Refers to (inferred) |',
+      '|---|---|---|---|',
     );
     for (const { entry, columns } of entries) {
       const qualifier = entry.qualifier === null ? '' : ` (${entry.qualifier})`;
@@ -871,7 +887,9 @@ function renderDictionary(
         .filter((c) => c.references !== null)
         .map((c) => `\`${c.name}\` → \`${c.references ?? ''}\``)
         .join(', ');
-      out.push(`| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.note)} | ${cell(refs)} |`);
+      out.push(
+        `| \`${entry.table}\`${cell(qualifier)} | ${cell(entry.status?.detail ?? '')} | ${cell(entry.note)} | ${cell(refs)} |`,
+      );
     }
     out.push('');
   }
@@ -886,6 +904,7 @@ function renderTable(
   const out: string[] = [`### ${table.name}`, ''];
   const facts: string[] = [];
   if (entry !== undefined) facts.push(`DATABASE.md §${entry.section.split(' ')[0] ?? ''}`);
+  if (entry?.status?.built === true) facts.push(`created in ${entry.status.detail}`);
   if (entry?.qualifier) facts.push(entry.qualifier);
   if (sql?.partition) facts.push(`partitioned by ${sql.partition}`);
   out.push(
