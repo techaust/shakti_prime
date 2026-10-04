@@ -16,6 +16,7 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import { setCommissionRule, setReferralPartner } from '../../src/commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../../src/commands/crm/score-rules';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { listCommissionRules, listReferralPartners } from '../../src/queries/crm/pipeline-settings';
 
 // Score rules are matched to a district of this run only, so rescoring never changes another
 // suite's leads; every rule, partner code and commission rule written here is removed afterwards.
@@ -642,5 +643,56 @@ describe('crm.commission_rule.set', () => {
     expect(await count(gm)).toBe(0);
     expect(await count(caller)).toBe(0);
     expect(await count(principalFor('agent:triage', [1]))).toBe(0);
+  });
+});
+
+describe('the referral partners and commission rules of the settings page', () => {
+  it('lists the referral-partner customers by name with their codes, a page at a time', async () => {
+    const coded = await lead('referral_partner');
+    partners.push(coded.accountId);
+    const code = `L${newId().slice(-7)}`.toUpperCase();
+    await run(execOne, setReferralPartner, { accountId: coded.accountId, code, isActive: false });
+    const bare = await lead('referral_partner');
+    partners.push(bare.accountId);
+
+    const all = async (principal: Principal) => {
+      const rows: { accountId: string; code: string | null; isActive: boolean }[] = [];
+      let cursor: { name: string; id: string } | null = null;
+      do {
+        const page = await asPrincipal(principal, (ctx) => listReferralPartners(ctx, { cursor }));
+        rows.push(...page.partners);
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+      return rows;
+    };
+    const seen = await all(execOne);
+    expect(seen.find((r) => r.accountId === coded.accountId)).toMatchObject({
+      code,
+      isActive: false,
+    });
+    expect(seen.find((r) => r.accountId === bare.accountId)).toMatchObject({
+      code: null,
+      isActive: false,
+    });
+    // A farm customer is never listed; the order is by name, then id, with no repeats.
+    expect(new Set(seen.map((r) => r.accountId)).size).toBe(seen.length);
+    // An Executive of another company does not see these customers at all.
+    const other = await all(execTwo);
+    expect(other.some((r) => r.accountId === coded.accountId)).toBe(false);
+  });
+
+  it('lists the live commission rules to those who may read them, the default first', async () => {
+    const asExec = await asPrincipal(exec, (ctx) => listCommissionRules(ctx));
+    expect(asExec.length).toBeGreaterThan(0);
+    const defaults = asExec.filter((r) => r.partnerId === null);
+    expect(asExec.slice(0, defaults.length)).toEqual(defaults);
+    expect(asExec.filter((r) => r.partnerId !== null).every((r) => r.partnerName !== null)).toBe(
+      true,
+    );
+    const asAccounts = await asPrincipal(principalFor('accounts', [1]), (ctx) =>
+      listCommissionRules(ctx),
+    );
+    expect(asAccounts.map((r) => r.id).sort()).toEqual(asExec.map((r) => r.id).sort());
+    expect(await asPrincipal(caller, (ctx) => listCommissionRules(ctx))).toEqual([]);
   });
 });
