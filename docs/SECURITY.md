@@ -289,7 +289,7 @@ Runs on every PR against real Postgres. Items 1 to 3 run today, and item 5 for t
 2. Cost fields absent from every DTO unless the command requires a cost permission; GM sees no rates and no margins; Inventory Manager sees rates and no margins; purchase vouchers gated.
 3. Agent principals and the system principal `system:workers` cannot call cost, admin, audit, integrations, tax, price, catalogue or sensitive-document commands, and no seeded agent or system role holds those permissions. The sensitive-document commands join the sweep when they are registered, with the document vault in Phase 4.
 4. Voice tokens act only as the issuing user and expire. Phase 2, with live voice.
-5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels. The token route's tests run today; the channel-policy check runs with the hosted Supabase dev project (`pnpm --filter web realtime-spike`).
+5. Realtime JWTs for user A cannot subscribe to user B's or another entity's channels. The token route's tests run today; the channel-policy check runs with the Realtime spike on the production site with the client's domain (`docs/spikes/realtime.md`) (`pnpm --filter web realtime-spike`).
 6. Vector retrieval respects sensitivity per role. Phase 1, with the Knowledge Vault.
 7. WhatsApp documents file only against the sending customer. Phase 4, with the document vault's WhatsApp filing.
 8. Masking: Aadhaar digits never appear in storage, logs or LLM payloads (assertion on captured requests). Phase 4, with the document vault that stores the OCR worker's masked copies; the worker's masking rules have unit tests today.
