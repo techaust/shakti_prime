@@ -72,8 +72,10 @@ function InboxLink({ count }: { count: number | null }) {
       <Link href="/inbox" aria-label={label} title={label}>
         <Inbox aria-hidden />
         {count === null || count === 0 ? null : (
+          // data-dynamic: the count moves as suggestions arrive, so screenshots mask it.
           <span
             aria-hidden
+            data-dynamic
             className="bg-accent text-accent-fg absolute top-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs leading-none font-medium"
           >
             {count >= 100 ? t('inboxMore') : count}

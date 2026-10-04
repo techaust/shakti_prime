@@ -2589,7 +2589,7 @@
       "suggests": "{agent} suggests",
       "forCustomer": "For {customer}",
       "forUnknown": "For a lead you cannot open",
-      "received": "Suggested {at}",
+      "received": "Suggested",
       "companyLine": "In {company}",
       "openCustomer": "Open customer",
       "approve": "Approve",

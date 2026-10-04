@@ -149,13 +149,14 @@ export function AgentsScreen({
       id: 'spent',
       header: t('admin.columns.spent'),
       numeric: true,
-      cell: (r) => formatRupees(moneyFromPaise(r.spentTodayPaise)),
+      // data-dynamic: today's spend changes with every run, so screenshots mask it.
+      cell: (r) => <span data-dynamic>{formatRupees(moneyFromPaise(r.spentTodayPaise))}</span>,
     },
     {
       id: 'runs',
       header: t('admin.columns.runs'),
       numeric: true,
-      cell: (r) => formatCount(r.runsToday),
+      cell: (r) => <span data-dynamic>{formatCount(r.runsToday)}</span>,
     },
     {
       id: 'actions',

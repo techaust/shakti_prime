@@ -11,7 +11,6 @@ import { approveSuggestion, listInbox, rejectSuggestion } from '../../actions/ag
 import { actionTypeName, agentFieldName, inboxKeyAction } from '../../screens/agents';
 import { AGENT_ROLES, agentNameKey } from '../../screens/contract-values';
 import { customerHref } from '../../screens/customers';
-import { formatDateTime } from '../../screens/format';
 import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -170,11 +169,13 @@ export function InboxScreen({
                             {name === undefined ? field.name : t(`fields.${name}`)}
                           </dt>
                           <dd>
-                            {field.value === null
-                              ? t('inbox.noValue')
-                              : field.kind === 'date_time'
-                                ? formatDateTime(field.value)
-                                : field.value}
+                            {field.value === null ? (
+                              t('inbox.noValue')
+                            ) : field.kind === 'date_time' ? (
+                              <DateTime value={field.value} />
+                            ) : (
+                              field.value
+                            )}
                           </dd>
                         </div>
                       );
@@ -182,9 +183,7 @@ export function InboxScreen({
                   </dl>
                 )}
                 <p className="text-text-muted text-sm">
-                  {t.rich('inbox.received', {
-                    at: () => <DateTime value={item.createdAt} />,
-                  })}
+                  {t('inbox.received')} <DateTime value={item.createdAt} />
                   {severalCompanies && companies[item.entityId] !== undefined
                     ? ` · ${t('inbox.companyLine', { company: companies[item.entityId] ?? '' })}`
                     : null}
