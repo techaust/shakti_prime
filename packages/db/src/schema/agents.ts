@@ -149,7 +149,7 @@ export const agentActions = pgTable(
     ),
     check(
       'agent_actions_decided_check',
-      sql`(${t.state} in ('approved', 'rejected')) = (${t.decidedAt} is not null and ${t.decidedBy} is not null)`,
+      sql`(${t.decidedAt} is null and ${t.decidedBy} is null) = (${t.state} <> 'approved' and ${t.state} <> 'rejected')`,
     ),
     check(
       'agent_actions_input_size_check',
@@ -196,11 +196,11 @@ export const inboxItems = pgTable(
     check('inbox_items_subject_type_check', sql`${t.subjectType} in ('opportunity', 'account')`),
     check(
       'inbox_items_suggestion_check',
-      sql`(${t.kind} = 'agent_suggestion') = (${t.agentActionId} is not null)`,
+      sql`(${t.kind} <> 'agent_suggestion') = (${t.agentActionId} is null)`,
     ),
     check(
       'inbox_items_done_check',
-      sql`(${t.state} = 'done') = (${t.doneAt} is not null and ${t.doneBy} is not null)`,
+      sql`(${t.state} <> 'done') = (${t.doneAt} is null and ${t.doneBy} is null)`,
     ),
     index('inbox_items_assignee_open_idx').on(t.assigneeId, t.state, t.createdAt, t.id),
     index('inbox_items_team_open_idx').on(t.teamId, t.state, t.createdAt, t.id),

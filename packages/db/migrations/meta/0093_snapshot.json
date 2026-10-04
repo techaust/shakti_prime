@@ -949,7 +949,7 @@
         },
         "agent_actions_decided_check": {
           "name": "agent_actions_decided_check",
-          "value": "(\"agent_actions\".\"state\" in ('approved', 'rejected')) = (\"agent_actions\".\"decided_at\" is not null and \"agent_actions\".\"decided_by\" is not null)"
+          "value": "(\"agent_actions\".\"decided_at\" is null and \"agent_actions\".\"decided_by\" is null) = (\"agent_actions\".\"state\" <> 'approved' and \"agent_actions\".\"state\" <> 'rejected')"
         },
         "agent_actions_input_size_check": {
           "name": "agent_actions_input_size_check",
@@ -4382,11 +4382,11 @@
         },
         "inbox_items_suggestion_check": {
           "name": "inbox_items_suggestion_check",
-          "value": "(\"inbox_items\".\"kind\" = 'agent_suggestion') = (\"inbox_items\".\"agent_action_id\" is not null)"
+          "value": "(\"inbox_items\".\"kind\" <> 'agent_suggestion') = (\"inbox_items\".\"agent_action_id\" is null)"
         },
         "inbox_items_done_check": {
           "name": "inbox_items_done_check",
-          "value": "(\"inbox_items\".\"state\" = 'done') = (\"inbox_items\".\"done_at\" is not null and \"inbox_items\".\"done_by\" is not null)"
+          "value": "(\"inbox_items\".\"state\" <> 'done') = (\"inbox_items\".\"done_at\" is null and \"inbox_items\".\"done_by\" is null)"
         }
       },
       "isRLSEnabled": false

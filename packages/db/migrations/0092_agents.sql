@@ -17,7 +17,7 @@ CREATE TABLE "agent_actions" (
 	CONSTRAINT "agent_actions_agent_check" CHECK ("agent_actions"."agent" like 'agent:%'),
 	CONSTRAINT "agent_actions_autonomy_check" CHECK ("agent_actions"."autonomy" in ('suggest', 'needs_approval', 'automatic')),
 	CONSTRAINT "agent_actions_state_check" CHECK ("agent_actions"."state" in ('proposed', 'executed', 'approved', 'rejected')),
-	CONSTRAINT "agent_actions_decided_check" CHECK (("agent_actions"."state" in ('approved', 'rejected')) = ("agent_actions"."decided_at" is not null and "agent_actions"."decided_by" is not null)),
+	CONSTRAINT "agent_actions_decided_check" CHECK (("agent_actions"."decided_at" is null and "agent_actions"."decided_by" is null) = ("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected')),
 	CONSTRAINT "agent_actions_input_size_check" CHECK (pg_column_size("agent_actions"."input_json") <= 4000 and ("agent_actions"."decided_input_json" is null or pg_column_size("agent_actions"."decided_input_json") <= 4000))
 );
 --> statement-breakpoint
@@ -101,8 +101,8 @@ CREATE TABLE "inbox_items" (
 	CONSTRAINT "inbox_items_kind_check" CHECK ("inbox_items"."kind" in ('agent_suggestion', 'routed_work')),
 	CONSTRAINT "inbox_items_state_check" CHECK ("inbox_items"."state" in ('open', 'done')),
 	CONSTRAINT "inbox_items_subject_type_check" CHECK ("inbox_items"."subject_type" in ('opportunity', 'account')),
-	CONSTRAINT "inbox_items_suggestion_check" CHECK (("inbox_items"."kind" = 'agent_suggestion') = ("inbox_items"."agent_action_id" is not null)),
-	CONSTRAINT "inbox_items_done_check" CHECK (("inbox_items"."state" = 'done') = ("inbox_items"."done_at" is not null and "inbox_items"."done_by" is not null))
+	CONSTRAINT "inbox_items_suggestion_check" CHECK (("inbox_items"."kind" <> 'agent_suggestion') = ("inbox_items"."agent_action_id" is null)),
+	CONSTRAINT "inbox_items_done_check" CHECK (("inbox_items"."state" <> 'done') = ("inbox_items"."done_at" is null and "inbox_items"."done_by" is null))
 );
 --> statement-breakpoint
 ALTER TABLE "agent_actions" ADD CONSTRAINT "agent_actions_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
