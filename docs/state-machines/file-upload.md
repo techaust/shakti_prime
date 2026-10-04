@@ -34,7 +34,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 
 ## Notes
 
-- `upload`: `files.upload.begin`; the worker records the files it makes (a rendered PDF).
+- `upload`: `files.upload.begin`. A PDF the render worker makes is not an upload: `files.document.record` records it `ready`.
 - `complete`: `files.upload.complete`, by the person who began the upload.
 - `scan`: `files.file.mark_scanned`: the GuardDuty tag reads `NO_THREATS_FOUND`.
 - `skip_scan`: `files.file.mark_scanned` with no scanner, which the worker records only when not hosted.

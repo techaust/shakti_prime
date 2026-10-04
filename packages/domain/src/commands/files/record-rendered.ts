@@ -4,15 +4,16 @@ import { eq } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { uploadKey } from '../../files/limits';
 import { assertEntityInScope } from '../imports/shared';
-import { fireUpload, toFileDto } from './shared';
+import { toFileDto } from './shared';
 
 /**
  * `files.document.record` (ADR 0009, docs/design/phase1.md §6.4): the render worker records a PDF
- * it rendered and stored, as `ready` (the `render` event of the upload machine), with the key its
- * purpose and id name (`<company>/<purpose>/<file id>.pdf`). Only the worker principal holds
- * `files.process`. The worker picks the file's id from the job, so a delivery that runs again
- * finds the file it recorded and answers it unchanged; an id already used for another file of
- * another purpose, key or company is refused.
+ * it rendered and stored, as `ready`, with the key its purpose and id name
+ * (`<company>/<purpose>/<file id>.pdf`). It is not an upload: the worker made it from the BOS's own
+ * template, so it skips the upload machine and its checks, as an import file stored by the import
+ * screen does. Only the worker principal holds `files.process`. The worker picks the file's id
+ * from the job, so a delivery that runs again finds the file it recorded and answers it unchanged;
+ * an id already used for another file of another purpose, key or company is refused.
  */
 export const recordRenderedFile = defineCommand({
   name: 'files.document.record',
@@ -51,7 +52,7 @@ export const recordRenderedFile = defineCommand({
       }
       return toFileDto(existing);
     }
-    const { to } = fireUpload(ctx, { state: null, storedMatches: null }, 'render');
+    const to = 'ready';
     const [row] = await ctx.tx
       .insert(f)
       .values({
