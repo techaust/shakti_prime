@@ -1,6 +1,24 @@
 # Backend design: Phase 0 weeks 3 to 5
 
-Date: 2026-09-27. Status: built are slice 1 (identity, §2), ADR 0008, slice 2 (the audit trail, §3), slice 3 (the outbox and its publisher, §4), slice 4 (idempotency keys, §5), slice 1b part 1 (`admin.user.two_factor.reset`, §2.6), slice 1b part 2 (the Realtime token route, the signing-key documents and the spike script, §2.5), dead-letter replay (§4.4), the tax engine and the tax commands (§6), the state-machine runtime, the thirteen machines and the six opportunity commands (§7), and the import framework for leads (§8); slice 1 and ADR 0008 are reviewed. The rest comes later, as each section records: the mobile tokens and the Redis front for idempotency keys (slice 1b part 3) with the field app in Phase 4, the Realtime spike run with the hosted Supabase project, and the Phase 1 items named in §3, §4, §7, §8 and §9. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so.
+> **Design record for Phase 0 weeks 3 to 5, built and merged** (the merges are listed in [CHANGELOG.md](../../CHANGELOG.md)). It records why the backend took its shape; the code, [DATABASE.md](../DATABASE.md) and [ARCHITECTURE.md](../ARCHITECTURE.md) govern how it works today.
+
+Date: 2026-09-27. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to §8, SECURITY §2 to §4, DATABASE §2 to §7, API §1 to §3, ADR 0003 to 0007, ROADMAP §2. Where this design settles something the documents left open, the section says so.
+
+**Built from this design:**
+- slice 1, identity (§2), and ADR 0008, both reviewed;
+- slice 2, the audit trail (§3);
+- slice 3, the outbox and its publisher (§4), with dead-letter replay (§4.4);
+- slice 4, idempotency keys (§5);
+- slice 1b part 1, `admin.user.two_factor.reset` (§2.6);
+- slice 1b part 2, the Realtime token route, the signing-key documents and the spike script (§2.5);
+- the tax engine and the tax commands (§6);
+- the state-machine runtime, the thirteen machines and the six opportunity commands (§7);
+- the import framework for leads (§8).
+
+**Later, as each section records:**
+- the mobile tokens and the Redis front for idempotency keys (slice 1b part 3), with the field app in Phase 4;
+- the Realtime spike run on the production site (`docs/spikes/realtime.md`);
+- the Phase 1 items named in §3, §4, §7, §8 and §9, planned in [`docs/design/phase1.md`](phase1.md).
 
 Decisions taken with the client on 2026-09-27:
 - **Mixed roles in "All entities" view:** the narrowest role wins. The request carries only the grants every one of the user's roles holds; the user switches to a single entity to use a wider role there.
