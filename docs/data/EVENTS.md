@@ -44,7 +44,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-32 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+33 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -63,6 +63,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `crm.opportunity.reopen` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
 | [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `crm.opportunity.lose` | none |
+| [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
 
 ### Pricing
 
@@ -186,6 +187,15 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|
 | `fromState` | one of `open`, `nurture` |
 | `reasonCode` | one of `price_too_high`, `bought_elsewhere`, `not_interested`, `not_reachable`, `no_budget`, `not_eligible`, `duplicate`, `other` |
+
+### crm.sizing.recorded
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `kind` | one of `pump`, `rooftop` |
+| `inBounds` | true or false |
+| `reasons` | list of values from `curve_too_short`, `curve_not_monotonic`, `head_above_curve`, `head_below_curve`, `suction_lift_exceeded`, `duty_flow_short`, `duty_flow_excess`, `pump_power_short`, `above_largest_standard_hp`, `no_consumption`, `roof_too_small`, `sanctioned_load_too_small`, `sanctioned_load_exceeded`, `dcr_modules_required`, `no_modules` |
 
 ### pricing.price.changed
 

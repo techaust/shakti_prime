@@ -1,0 +1,224 @@
+import { z } from 'zod';
+import { PumpSizingInputs, RooftopSizingInputs } from '../commands/crm/sizing';
+import {
+  RooftopBoundSchema,
+  SizingAdvisorySchema,
+  SizingKindSchema,
+  SizingReasonSchema,
+} from '../crm/sizing';
+import { EntityIdSchema, IdSchema } from '../ids';
+
+/**
+ * A sizing as it is stored and read (docs/design/phase1.md §6.7): the inputs, the constants the
+ * calculators used, each calculator's result with its bounds, and the engine version. Numbers are
+ * SI units as the calculators return them; the panel rounds for display. Strict.
+ */
+const Bounded = {
+  inBounds: z.boolean(),
+  reasons: z.array(SizingReasonSchema),
+};
+const quantity = z.number().min(0);
+
+export const HeadResultSchema = z
+  .object({
+    staticHeadM: quantity,
+    drawdownM: quantity,
+    frictionM: quantity,
+    fittingsM: quantity,
+    tdhM: quantity,
+    pipeVelocityMps: quantity,
+    advisories: z.array(SizingAdvisorySchema),
+    ...Bounded,
+  })
+  .strict();
+export type HeadResultDto = z.infer<typeof HeadResultSchema>;
+
+export const PowerResultSchema = z
+  .object({
+    hydraulicKw: quantity,
+    shaftKw: quantity,
+    shaftHp: quantity,
+    motorInputKw: quantity,
+    /** Shaft power with the motor margin, the power the rating must cover. */
+    requiredHp: quantity,
+    standardHp: quantity.nullable(),
+    standardKw: quantity.nullable(),
+    ...Bounded,
+  })
+  .strict();
+export type PowerResultDto = z.infer<typeof PowerResultSchema>;
+
+export const SolarPumpResultSchema = z
+  .object({
+    requiredKwp: quantity,
+    moduleCount: z.number().int().min(0),
+    arrayKwp: quantity,
+    ...Bounded,
+  })
+  .strict();
+export type SolarPumpResultDto = z.infer<typeof SolarPumpResultSchema>;
+
+export const SuctionResultSchema = z
+  .object({ suctionLiftM: quantity, maxSuctionLiftM: z.number().positive(), ...Bounded })
+  .strict();
+export type SuctionResultDto = z.infer<typeof SuctionResultSchema>;
+
+export const DutyPointResultSchema = z
+  .object({
+    dutyFlowLph: quantity.nullable(),
+    shutoffHeadM: quantity.nullable(),
+    minHeadM: quantity.nullable(),
+    /** The flow the site needs, shown beside the duty flow. */
+    requiredFlowLph: quantity,
+    /** The least duty flow that meets the need, and the most before the pump is too large. */
+    minFlowLph: quantity,
+    maxFlowLph: quantity,
+    /** The chosen pump's rated HP from its specifications; null when not given. */
+    ratedHp: quantity.nullable(),
+    ...Bounded,
+  })
+  .strict();
+export type DutyPointResultDto = z.infer<typeof DutyPointResultSchema>;
+
+export const RooftopResultSchema = z
+  .object({
+    neededKwp: quantity,
+    roofKwp: quantity,
+    sanctionedKwp: quantity,
+    moduleCount: z.number().int().min(0),
+    recommendedKwp: quantity,
+    boundBy: RooftopBoundSchema,
+    ...Bounded,
+  })
+  .strict();
+export type RooftopResultDto = z.infer<typeof RooftopResultSchema>;
+
+/** The engineering constants a pump sizing used (workshop defaults at the time). */
+export const PumpSizingConstantsSchema = z
+  .object({
+    hazenWilliamsC: z.number().positive(),
+    fittingsLossFraction: quantity,
+    pumpEfficiency: z.number().positive().max(1),
+    motorEfficiency: z.number().positive().max(1),
+    motorMarginFraction: quantity,
+    standardHp: z.array(z.number().positive()),
+    dutyFlowTolerance: quantity.max(1),
+    dutyFlowOvershootFactor: z.number().min(1),
+    maxPipeVelocityMps: z.number().positive(),
+    /** Surface pumps only. */
+    maxSuctionLiftM: z.number().positive().nullable(),
+    /** Solar drive only. */
+    arrayOversize: z.number().positive().nullable(),
+    /** Solar drive only. */
+    moduleWp: z.number().positive().nullable(),
+  })
+  .strict();
+export type PumpSizingConstants = z.infer<typeof PumpSizingConstantsSchema>;
+
+/** The engineering constants a rooftop sizing used. */
+export const RooftopSizingConstantsSchema = z
+  .object({
+    peakSunHours: z.number().positive(),
+    performanceRatio: z.number().positive().max(1),
+    roofAreaPerKwSqm: z.number().positive(),
+    sanctionedLoadRatio: z.number().positive(),
+    moduleWp: z.number().positive(),
+  })
+  .strict();
+export type RooftopSizingConstants = z.infer<typeof RooftopSizingConstantsSchema>;
+
+export const PumpSizingResultSchema = z
+  .object({
+    kind: z.literal('pump'),
+    constants: PumpSizingConstantsSchema,
+    head: HeadResultSchema,
+    power: PowerResultSchema,
+    /** Surface pumps only. */
+    suction: SuctionResultSchema.nullable(),
+    /** Solar drive only. */
+    solar: SolarPumpResultSchema.nullable(),
+    /** Only when a catalogue pump was chosen. */
+    dutyPoint: DutyPointResultSchema.nullable(),
+    /** Advice from every part, once each; kept apart from the reasons, it never sets bounds. */
+    advisories: z.array(SizingAdvisorySchema),
+  })
+  .strict();
+export type PumpSizingResult = z.infer<typeof PumpSizingResultSchema>;
+
+export const RooftopSizingResultSchema = z
+  .object({
+    kind: z.literal('rooftop'),
+    constants: RooftopSizingConstantsSchema,
+    rooftop: RooftopResultSchema,
+    /** Advice that never sets bounds; a rooftop sizing gives none yet. */
+    advisories: z.array(SizingAdvisorySchema),
+  })
+  .strict();
+export type RooftopSizingResult = z.infer<typeof RooftopSizingResultSchema>;
+
+const SizingBase = {
+  id: IdSchema,
+  entityId: EntityIdSchema,
+  opportunityId: IdSchema,
+  siteId: IdSchema.nullable(),
+  inBounds: z.boolean(),
+  reasons: z.array(SizingReasonSchema),
+  engineVersion: z.string().min(1),
+  createdAt: z.iso.datetime(),
+};
+
+/** A recorded sizing. Strict. */
+export const SizingDto = z.discriminatedUnion('kind', [
+  z
+    .object({
+      ...SizingBase,
+      kind: z.literal('pump'),
+      itemId: IdSchema.nullable(),
+      inputs: PumpSizingInputs,
+      result: PumpSizingResultSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...SizingBase,
+      kind: z.literal('rooftop'),
+      itemId: z.null(),
+      inputs: RooftopSizingInputs,
+      result: RooftopSizingResultSchema,
+    })
+    .strict(),
+]);
+export type SizingDto = z.infer<typeof SizingDto>;
+
+/**
+ * A sizing recorded by an engine version other than today's: its stored result has another shape
+ * and may rest on other rules, so it is named, not shown, and the lead must be sized again. A
+ * quote treats it as no sizing. Strict.
+ */
+export const StaleSizingDto = z
+  .object({
+    stale: z.literal(true),
+    id: IdSchema,
+    entityId: EntityIdSchema,
+    opportunityId: IdSchema,
+    kind: SizingKindSchema,
+    engineVersion: z.string().min(1),
+    createdAt: z.iso.datetime(),
+  })
+  .strict();
+export type StaleSizingDto = z.infer<typeof StaleSizingDto>;
+
+/** `latestSizing`: today's sizing, one to size again, or none. */
+export const LatestSizingDto = z.union([SizingDto, StaleSizingDto]).nullable();
+export type LatestSizingDto = z.infer<typeof LatestSizingDto>;
+
+/** Whether the newest sizing came from an older engine and must be sized again. */
+export function isStaleSizing(sizing: SizingDto | StaleSizingDto): sizing is StaleSizingDto {
+  return 'stale' in sizing;
+}
+
+/** A catalogue pump the sizing panel offers for the duty point: one with a curve. Strict. */
+export const SizingPumpDto = z
+  .object({ id: IdSchema, sku: z.string().min(1), name: z.string().min(1) })
+  .strict();
+export type SizingPumpDto = z.infer<typeof SizingPumpDto>;

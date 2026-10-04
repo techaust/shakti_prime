@@ -46,6 +46,8 @@ import {
   SAVED_VIEW_SCREENS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
@@ -235,6 +237,8 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return t('values.percent', { value: value.value });
       case 'code':
         return code(value.group, value.value);
+      case 'codes':
+        return value.values.map((v) => code(value.group, v)).join(t('values.listSeparator'));
       case 'specs':
         return (
           <span className="flex flex-col">
@@ -355,6 +359,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const sizing = useTranslations('sizing');
   const customers = useTranslations('customers');
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
@@ -415,6 +420,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
+      case 'sizingKind':
+        return oneOf(SIZING_KINDS, value) ? sizing(`kind.${value}`) : wordsOf(value);
+      case 'sizingReason':
+        return oneOf(SIZING_REASONS, value) ? sizing(`reason.${value}`) : wordsOf(value);
       case 'itemCategory':
         return catalogue.category(value);
       case 'itemUnit':

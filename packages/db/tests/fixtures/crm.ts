@@ -68,6 +68,10 @@ export async function crmFixture(): Promise<CrmFixture> {
   await asMigrator(async (m) => {
     await m.begin(async (tx) => {
       // Remove a previous run in dependency order.
+      // Sizings are append-only children of the leads (sizings.test.ts writes them).
+      await tx`alter table sizings disable trigger sizings_append_only`;
+      await tx`delete from sizings where opportunity_id::text like ${`${P}%`}`;
+      await tx`alter table sizings enable trigger sizings_append_only`;
       await tx`delete from consents where id::text like ${`${P}%`}`;
       await tx`delete from opportunities where id::text like ${`${P}%`}`;
       await tx`delete from customer_sites where id::text like ${`${P}%`}`;

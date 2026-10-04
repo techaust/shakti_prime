@@ -170,6 +170,38 @@ const INPUTS: Record<string, unknown> = {
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
 };
 
+/** The commands only people may call (`peopleOnly`), read from the registry. */
+const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
+  .filter((command) => command.peopleOnly === true)
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+/** A valid input for each command for people only, so the refusal comes from the guard. */
+const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
+  'crm.tag.create': { entityId: 1, name: 'Refused tag' },
+  'crm.tag.archive': { tagId: newId() },
+  'crm.sizing.record': {
+    entityId: 1,
+    opportunityId: newId(),
+    sizing: {
+      kind: 'rooftop',
+      inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+    },
+  },
+};
+
+describe('commands for people only', () => {
+  it('are found in the registry, each with a valid input here', () => {
+    expect(PEOPLE_ONLY.map((c) => c.name)).toEqual(Object.keys(PEOPLE_ONLY_INPUTS).sort());
+    for (const command of PEOPLE_ONLY) {
+      expect({
+        command: command.name,
+        valid: command.input.safeParse(PEOPLE_ONLY_INPUTS[command.name]).success,
+      }).toEqual({ command: command.name, valid: true });
+    }
+  });
+});
+
 describe('agent and system principals cannot call admin, cost, audit, integrations, tax, price or catalogue commands', () => {
   it('finds the restricted commands in the registry, each with a valid input here', () => {
     expect(RESTRICTED.length).toBeGreaterThan(0);
@@ -224,6 +256,36 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
   });
 
   for (const agent of SERVICES) {
+    it(`${agent} is refused at the guard by every command for people only, even with its grants`, async () => {
+      // The owner's decision of 30-09-2026 (SECURITY §3.3): only people record the sizing a
+      // quote relies on. The principal is given every grant the command needs, so the refusal
+      // can only come from the people rule.
+      for (const command of PEOPLE_ONLY) {
+        const base = principalFor(agent, [1]);
+        const principal = {
+          ...base,
+          permissions: [
+            ...base.permissions,
+            ...needs(command).map((key) => ({ key, scope: 'all' as const })),
+          ],
+        };
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, PEOPLE_ONLY_INPUTS[command.name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ command: command.name, error }).toMatchObject({
+          command: command.name,
+          error: { code: 'forbidden', details: { reason: 'people_only' } },
+        });
+        expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+          command: command.name,
+          stage: 'guard',
+        });
+      }
+    });
+
     it(`${agent} is refused at the guard by every restricted command`, async () => {
       // principalFor, not createTestPrincipal: an agent principals row would change the agent
       // count the fail-closed suite checks.

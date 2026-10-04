@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
+import { SizingKindSchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
@@ -123,6 +124,20 @@ const eventCatalogue = {
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })
+      .strict(),
+  },
+  'crm.sizing.recorded': {
+    meaning:
+      'A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not.',
+    emittedBy: ['crm.sizing.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        kind: SizingKindSchema,
+        inBounds: z.boolean(),
+        reasons: z.array(SizingReasonSchema),
+      })
       .strict(),
   },
   'pricing.price.changed': {

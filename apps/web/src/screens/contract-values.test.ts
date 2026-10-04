@@ -31,11 +31,19 @@ import {
   OpportunityNurtureReasonSchema,
   OpportunityStateSchema,
   PASSWORD_MIN_LENGTH as CONTRACT_PASSWORD_MIN_LENGTH,
+  PipeMaterialSchema,
+  PumpDriveSchema,
+  PumpSizingInputs,
+  PumpTypeSchema,
+  RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SizingAdvisorySchema,
+  SizingKindSchema,
+  SizingReasonSchema,
   SiteTypeSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -82,12 +90,19 @@ import {
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
   PASSWORD_MIN_LENGTH,
+  PIPE_MATERIALS,
   PRICE_SORT_COLUMNS,
+  PUMP_DRIVES,
+  PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SCOPE_VALUES,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_ADVISORIES,
+  SIZING_INPUT_LIMITS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
@@ -108,6 +123,13 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
+    expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
+    // The panel offers a submersible first, the catalogue lists a surface pump first.
+    expect([...PUMP_TYPES].sort()).toEqual([...PumpTypeSchema.options].sort());
+    expect(PUMP_DRIVES).toEqual(PumpDriveSchema.options);
+    expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
@@ -151,5 +173,17 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);
+  });
+
+  it('give each sizing measurement the range the contract accepts', () => {
+    const shape = { ...PumpSizingInputs.shape, ...RooftopSizingInputs.shape };
+    for (const [field, limits] of Object.entries(SIZING_INPUT_LIMITS)) {
+      // Each of these fields is a number schema, which reports its bounds.
+      const bounds = shape[field as keyof typeof shape] as unknown as {
+        minValue: number | null;
+        maxValue: number | null;
+      };
+      expect({ field, min: bounds.minValue, max: bounds.maxValue }).toEqual({ field, ...limits });
+    }
   });
 });

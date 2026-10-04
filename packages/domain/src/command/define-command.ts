@@ -33,8 +33,9 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   /** Further permissions the command needs, each at its own narrowest scope (AUDIT L9). */
   alsoRequires?: readonly Requirement[];
   /**
-   * Only a person may run it: an agent principal is refused at the guard whatever it holds
-   * (docs/SECURITY.md §3.3), such as a customer note or a tag of the company.
+   * Only people may run it: the guard refuses an agent, a voice session and the system principal
+   * (`people_only`) before it checks the permission, whatever they hold (docs/SECURITY.md §3.3),
+   * such as a customer note, a tag of the company or a sizing (ADR 0021).
    */
   peopleOnly?: boolean;
   input: I;

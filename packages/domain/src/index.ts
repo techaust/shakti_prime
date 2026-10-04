@@ -23,6 +23,7 @@ export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
 export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
+export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
@@ -141,6 +142,8 @@ export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
+export { latestSizing } from './queries/crm/latest-sizing';
+export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
 export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
@@ -180,7 +183,7 @@ export type {
   MaskedText,
 } from './privacy/identity-numbers';
 export { WORKSHOP_DEFAULTS } from './workshop-defaults';
-export type { WorkshopDefaults } from './workshop-defaults';
+export type { SizingDefaults, WorkshopDefaults } from './workshop-defaults';
 export { divideHalfUp, fromPaise, moneyFromPaise, toPaise, toScaled } from './money/paise';
 export {
   computeDocument,
@@ -192,6 +195,50 @@ export {
   resolveRate,
 } from './tax';
 export type { CompositeParts, CompositeQuery, LineInput, RateQuery, SupplyParties } from './tax';
+export {
+  dcrRule,
+  hazenWilliamsLossM,
+  KW_PER_HP,
+  nextStandardHp,
+  pumpDutyPoint,
+  pumpMatch,
+  pumpPower,
+  pumpSpecsOf,
+  quoteSizingFacts,
+  rooftopSize,
+  sanctionedLoadRule,
+  SIZING_ENGINE_VERSION,
+  sizePump,
+  sizeRooftop,
+  solarArrayForPump,
+  suctionLift,
+  totalDynamicHead,
+} from './sizing';
+export type {
+  Bounded,
+  ChosenPump,
+  CurvePoint,
+  DcrRuleInput,
+  DcrRuleResult,
+  DutyPointResult,
+  HeadInput,
+  HeadResult,
+  ModuleLine,
+  PowerInput,
+  PowerResult,
+  PumpMatchInput,
+  PumpMatchResult,
+  PumpSpecs,
+  QuoteSizingContext,
+  QuoteSizingFacts,
+  RooftopInput,
+  RooftopResult,
+  SanctionedLoadInput,
+  SolarPumpInput,
+  SolarPumpResult,
+  SuctionInput,
+  SuctionResult,
+} from './sizing';
 export { creditCheck } from './sales/credit-check';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
 export {

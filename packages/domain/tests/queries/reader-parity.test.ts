@@ -11,6 +11,7 @@ import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
 import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue-queries';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
+import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
   listCustomers,
   listMyTasks,
@@ -19,6 +20,7 @@ import {
 } from '../../src/queries/crm/customers';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
+import { latestSizing } from '../../src/queries/crm/latest-sizing';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
 import { searchLeads } from '../../src/queries/crm/search-leads';
@@ -104,6 +106,15 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStoredFile: (ctx) => getStoredFile(ctx, newId()),
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
+  listSizingPumps: (ctx) => listSizingPumps(ctx),
+};
+
+/**
+ * Reads the app runs whose names the export check below does not match; each still runs on both
+ * pools for every caller.
+ */
+const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
@@ -146,7 +157,7 @@ describe('every query reads the same on the reader pool as on app_user', () => {
     it(`for ${role} in ${entities.join(', ')}`, async () => {
       // One principal row for both pools, so the queries that read "my own" rows match.
       const principal = principalFor(role, entities, { id: newId() });
-      for (const [name, query] of Object.entries(QUERIES)) {
+      for (const [name, query] of Object.entries({ ...QUERIES, ...OTHER_READS })) {
         const reader = await outcome(principal, 'reader', query);
         const app = await outcome(principal, 'app_user', query);
         expect({ name, reader }).toEqual({ name, reader: app });

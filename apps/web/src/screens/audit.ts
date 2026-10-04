@@ -60,6 +60,7 @@ const ACTIONS = {
   'crm.opportunity.reopen': 'opportunityReopen',
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
+  'crm.sizing.record': 'sizingRecord',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -150,6 +151,7 @@ const EVENT_NAMES = {
   'crm.opportunity.reopened': 'opportunityReopened',
   'crm.opportunity.won': 'opportunityWon',
   'crm.opportunity.lost': 'opportunityLost',
+  'crm.sizing.recorded': 'sizingRecorded',
   'pricing.price.changed': 'priceChanged',
   'pricing.list.created': 'priceListCreated',
   'pricing.list.approved': 'priceListApproved',
@@ -218,6 +220,8 @@ export type ChangeValue =
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
+  /** Several codes of one group, such as the reasons a sizing is outside its limits. */
+  | { kind: 'codes'; group: CodeGroup; values: string[] }
   | {
       kind: 'specs';
       /** An item's specifications in the order they were recorded, each a number or a code. */
@@ -247,6 +251,8 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'sizingKind',
+  'sizingReason',
   'taskKind',
   'accountType',
   'language',
@@ -328,6 +334,11 @@ const FIELD_KINDS = [
   ['handover', 'yesNo'],
   ['lostReason', 'lostReason'],
   ['nurtureReason', 'nurtureReason'],
+  // Sizing
+  ['sizingKind', 'sizingKind'],
+  ['inBounds', 'yesNo'],
+  ['sizingReasons', 'sizingReasons'],
+  ['engineVersion', 'text'],
   // Tasks
   ['taskKind', 'taskKind'],
   ['title', 'text'],
@@ -552,6 +563,10 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'sizingReasons' && Array.isArray(value)) {
+    const values = value.filter((v): v is string => typeof v === 'string');
+    return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };
+  }
   if (kind === 'listCount') {
     return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;
   }

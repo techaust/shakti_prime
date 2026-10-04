@@ -11,6 +11,7 @@ import { createLead } from '../commands/crm/create-lead';
 import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
+import { recordSizing } from '../commands/crm/record-sizing';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
@@ -58,6 +59,7 @@ export const commands = {
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
+  [recordSizing.name]: recordSizing,
   [createTask.name]: createTask,
   [completeTask.name]: completeTask,
   [rescheduleTask.name]: rescheduleTask,
