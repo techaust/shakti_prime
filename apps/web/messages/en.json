@@ -2215,6 +2215,7 @@
       "previewHeading": "The quote as it will be made",
       "previewNote": "Nothing is saved until you make the quote. Prices and tax are as they stand today.",
       "validUntil": "Valid until {date}",
+      "linesCaption": "Items on this quote",
       "linesIncomplete": "Choose an item and a quantity on every line.",
       "back": "Back to the customer",
       "made": "Quote {number} made."

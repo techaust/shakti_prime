@@ -285,7 +285,7 @@ export function QuoteBuilder({ builder }: { builder: QuoteBuilderDto }) {
               {t('validUntil', { date: formatDate(preview.validUntil) })}
             </p>
           </div>
-          <QuoteLinesTable lines={preview.lines} caption={t('previewHeading')} />
+          <QuoteLinesTable lines={preview.lines} caption={t('linesCaption')} />
           <QuoteTotals totals={preview.totals} supplyKind={preview.supplyKind} />
           <FailureMessage failure={make.failure} />
           <div className="flex flex-wrap gap-2">

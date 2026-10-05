@@ -99,7 +99,7 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
       .first()
       .click();
     const palette = page.getByRole('dialog');
-    await palette.getByLabel('Type a name, village, phone number or page').fill(quoteNo);
+    await palette.getByRole('combobox').fill(quoteNo);
     await expect(palette.getByText(quoteNo).first()).toBeVisible({ timeout: 15_000 });
     await page.keyboard.press('Escape');
 

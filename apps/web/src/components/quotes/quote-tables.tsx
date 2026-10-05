@@ -12,7 +12,13 @@ import { plainQuantity } from '../../screens/quotes';
 export function QuoteLinesTable({ lines, caption }: { lines: QuoteLineDto[]; caption: string }) {
   const t = useTranslations('quotes.page');
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
+    // A wide table scrolls on a phone: the region takes focus, so the keyboard can scroll it.
+    <div
+      role="region"
+      aria-label={caption}
+      tabIndex={0}
+      className="border-border overflow-x-auto rounded-lg border"
+    >
       <table className="w-full min-w-160 border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-2 text-text-muted text-left">
