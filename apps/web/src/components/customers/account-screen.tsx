@@ -166,7 +166,9 @@ export function AccountScreen({
         </Detail>
         {/* A caller who does not read the price tiers is not told the tier's name. */}
         {view.account.tierId !== null && view.account.tierName === null ? null : (
-          <Detail label={t('account.tier')}>{view.account.tierName ?? t('account.tierNone')}</Detail>
+          <Detail label={t('account.tier')}>
+            {view.account.tierName ?? t('account.tierNone')}
+          </Detail>
         )}
         {view.otherEntityIds.length === 0 ? null : (
           <Detail label={t('account.alsoWith')}>
