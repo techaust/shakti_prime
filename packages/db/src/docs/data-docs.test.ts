@@ -58,19 +58,22 @@ describe('the ERD and data dictionary (docs/data)', () => {
   });
 
   it('list the tables DATABASE.md plans and no migration has built', () => {
-    expect(docs.dictionary).toContain('| `quotes` |');
+    expect(docs.dictionary).toContain('| `sales_orders` |');
     expect(docs.dictionary).toContain('| `employees` |');
+    expect(docs.dictionary).not.toMatch(/^\| `quotes` \|/m);
     expect(docs.dictionary).not.toMatch(/^\| `opportunities` \|/m);
   });
 
   it('draw the planned tables per section, related by their documented *_id columns', () => {
     const planned = docs.erd.slice(docs.erd.indexOf('## Planned tables'));
     expect(planned).toContain('### Sales');
-    expect(planned).toContain('  quotes {');
-    expect(planned).toContain('  quote_lines }o--|| quotes : "quote_id"');
+    expect(planned).toContain('  sales_orders {');
+    expect(planned).toContain('  sales_order_lines }o--|| sales_orders : "so_id"');
+    // A planned table points at a built one too.
     expect(planned).toContain('  sales_orders }o--o| quotes : "quote_id"');
-    expect(planned).toContain('  quotes }o--|| customer_sites : "site_id"');
+    expect(planned).toContain('  sales_orders }o--|| accounts : "account_id"');
     expect(planned).not.toContain('  opportunities {');
+    expect(planned).not.toContain('  quotes {');
   });
 });
 
