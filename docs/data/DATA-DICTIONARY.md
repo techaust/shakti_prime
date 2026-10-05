@@ -2267,7 +2267,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_actions
 
-**Catalogue entry** (DATABASE.md §6.9; created in 0092; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `executed`, `approved`, `rejected`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
+**Catalogue entry** (DATABASE.md §6.9; created in 0092; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `executed`, `approved`, `rejected`, `dismissed`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2305,13 +2305,13 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `agent_actions_agent_check`: `"agent_actions"."agent" like 'agent:%'`
 - `agent_actions_autonomy_check`: `"agent_actions"."autonomy" in ('suggest', 'needs_approval', 'automatic')`
-- `agent_actions_decided_check`: `("agent_actions"."decided_at" is null and "agent_actions"."decided_by" is null) = ("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected')`
+- `agent_actions_decided_check`: `("agent_actions"."decided_at" is null and "agent_actions"."decided_by" is null) = ("agent_actions"."state" in ('proposed', 'executed'))`
 - `agent_actions_input_size_check`: `pg_column_size("agent_actions"."input_json") <= 4000 and ("agent_actions"."decided_input_json" is null or pg_column_size("agent_actions"."decided_input_json") <= 4000)`
-- `agent_actions_state_check`: `"agent_actions"."state" in ('proposed', 'executed', 'approved', 'rejected')`
+- `agent_actions_state_check`: `"agent_actions"."state" in ('proposed', 'executed', 'approved', 'rejected', 'dismissed')`
 
 **Indexes**
 
-- `agent_actions_record_idx` (btree): `agent, action_type, state`
+- `agent_actions_record_idx` (btree): `entity_id, agent, action_type, decided_at` where `"agent_actions"."autonomy" = 'needs_approval' and "agent_actions"."state" in ('approved', 'rejected')`
 - `agent_actions_run_idx` (btree): `run_id, entity_id`
 
 **Triggers**
@@ -2322,7 +2322,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `agent_actions_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and agent like 'agent:%' and agent = (select coalesce(current_setting('app.role', true), '')) and state in ('proposed', 'executed') and decided_by is null and decided_at is null and decided_input_json is null and not edited`
 - `agent_actions_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('agents.autonomy.write:entity')) or (select app.has_perm('agents.killswitch:entity')) or exists (select 1 from inbox_items i where i.agent_action_id = agent_actions.id))`
-- `agent_actions_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and state = 'proposed' and exists (select 1 from inbox_items i where i.agent_action_id = agent_actions.id and app.scope_ok('agents.inbox.act', i.assignee_id, i.team_id))`; with check `entity_id = any ((select app.entity_ids())::int[]) and state in ('approved', 'rejected') and decided_by = (select app.user_id())`
+- `agent_actions_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and state = 'proposed' and exists (select 1 from inbox_items i where i.agent_action_id = agent_actions.id and app.scope_ok('agents.inbox.act', i.assignee_id, i.team_id))`; with check `entity_id = any ((select app.entity_ids())::int[]) and state in ('approved', 'rejected', 'dismissed') and decided_by = (select app.user_id())`
 
 ### agent_configs
 
