@@ -45,6 +45,9 @@ import {
 
 type RoleKey = Parameters<typeof roleId>[0];
 
+/** The team of company 1 that the tele-caller and the team lead share. */
+const CALLING_TEAM = 'Tele-calling team';
+
 // The breached-password range service is the one outside call these flows make; the test phrase
 // is not in it, and the seed never depends on the network.
 // A seed that stops making progress fails with the step it was on, instead of holding a CI job
@@ -288,6 +291,22 @@ for (const role of SIGNED_IN_ROLES) {
   if (role.twoFactor) totpSecrets[role.key] = await enrolAuthenticator(id, email);
   ids[role.key] = id;
 }
+
+progress('the calling team');
+// The tele-caller and the team lead share a team in company 1, so the team lead's view of the
+// team's queues lists the tele-caller (calling.spec.ts).
+await asMigrator((m) =>
+  m.begin(async (tx) => {
+    const [found] = await tx<{ id: string }[]>`
+      select id from teams where entity_id = 1 and name = ${CALLING_TEAM}`;
+    const teamId = found?.id ?? newId();
+    if (found === undefined) {
+      await tx`insert into teams (id, entity_id, name) values (${teamId}, 1, ${CALLING_TEAM})`;
+    }
+    await tx`update user_entity_roles set team_id = ${teamId}
+              where entity_id = 1 and user_id in (${ids.teleCaller ?? ''}, ${ids.teamLead ?? ''})`;
+  }),
+);
 
 const setPasswordLinks = {} as Record<ProjectName, string>;
 const enrolEmails = {} as Record<ProjectName, string>;
