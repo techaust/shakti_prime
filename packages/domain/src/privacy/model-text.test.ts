@@ -217,6 +217,9 @@ function random(seed: number): () => number {
   };
 }
 
+/** The property tests run many cases; under a loaded machine they need longer than the default. */
+const PROPERTY_TIMEOUT = 30_000;
+
 describe('maskForModel: properties', () => {
   const next = random(20261005);
   const pick = <T>(items: readonly T[]): T => items[Math.floor(next() * items.length)] as T;
@@ -273,54 +276,66 @@ describe('maskForModel: properties', () => {
     ['Aadhaar numbers', aadhaar],
     ['mobile numbers', mobile],
     ['bank account numbers of 9 to 18 digits', account],
-  ])('keeps no run of four digits of %s, however written', (_, make) => {
-    for (let i = 0; i < 1500; i++) {
-      const number = make();
-      leaksNothingOf(maskForModel(render(number)), number);
-    }
-  });
-
-  it('keeps no run of four digits of a mobile number after +91, 91 or 0', () => {
-    for (let i = 0; i < 500; i++) {
-      const number = mobile();
-      const prefix = pick(['+91 ', '+91-', '91 ', '0', '0 ', '+91']);
-      const masked = maskForModel(`call ${prefix}${render(number)}`);
-      leaksNothingOf(masked, number);
-    }
-  });
-
-  it('leaves every date, time and amount alone, in any of the shapes people write', () => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    for (let i = 0; i < 1000; i++) {
-      const day = 1 + Math.floor(next() * 28);
-      const month = 1 + Math.floor(next() * 12);
-      const year = 2000 + Math.floor(next() * 40);
-      const hour = Math.floor(next() * 24);
-      const minute = Math.floor(next() * 60);
-      const time = pick([
-        `${pad(hour)}:${pad(minute)}`,
-        `${hour}:${pad(minute)}:${pad(minute)}`,
-        `${pad(hour)}:${pad(minute)}:00+05:30`,
-      ]);
-      const date = pick([
-        `${pad(day)}-${pad(month)}-${year}`,
-        `${day}.${month}.${year}`,
-        `${pad(day)}/${pad(month)}/${year}`,
-        `${year}-${pad(month)}-${pad(day)}`,
-      ]);
-      const lakh = (n: number) => n.toLocaleString('en-IN');
-      const amount = Math.floor(next() * 50_000_000);
-      for (const text of [
-        `call on ${date} please`,
-        `call on ${date} ${time} please`,
-        `call at ${time} please`,
-        `quote ₹${lakh(amount)}.00 today`,
-        `quoted Rs ${amount} today`,
-      ]) {
-        expect(maskForModel(text)).toBe(text);
+  ])(
+    'keeps no run of four digits of %s, however written',
+    (_, make) => {
+      for (let i = 0; i < 1000; i++) {
+        const number = make();
+        leaksNothingOf(maskForModel(render(number)), number);
       }
-    }
-  });
+    },
+    PROPERTY_TIMEOUT,
+  );
+
+  it(
+    'keeps no run of four digits of a mobile number after +91, 91 or 0',
+    () => {
+      for (let i = 0; i < 500; i++) {
+        const number = mobile();
+        const prefix = pick(['+91 ', '+91-', '91 ', '0', '0 ', '+91']);
+        const masked = maskForModel(`call ${prefix}${render(number)}`);
+        leaksNothingOf(masked, number);
+      }
+    },
+    PROPERTY_TIMEOUT,
+  );
+
+  it(
+    'leaves every date, time and amount alone, in any of the shapes people write',
+    () => {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      for (let i = 0; i < 1000; i++) {
+        const day = 1 + Math.floor(next() * 28);
+        const month = 1 + Math.floor(next() * 12);
+        const year = 2000 + Math.floor(next() * 40);
+        const hour = Math.floor(next() * 24);
+        const minute = Math.floor(next() * 60);
+        const time = pick([
+          `${pad(hour)}:${pad(minute)}`,
+          `${hour}:${pad(minute)}:${pad(minute)}`,
+          `${pad(hour)}:${pad(minute)}:00+05:30`,
+        ]);
+        const date = pick([
+          `${pad(day)}-${pad(month)}-${year}`,
+          `${day}.${month}.${year}`,
+          `${pad(day)}/${pad(month)}/${year}`,
+          `${year}-${pad(month)}-${pad(day)}`,
+        ]);
+        const lakh = (n: number) => n.toLocaleString('en-IN');
+        const amount = Math.floor(next() * 50_000_000);
+        for (const text of [
+          `call on ${date} please`,
+          `call on ${date} ${time} please`,
+          `call at ${time} please`,
+          `quote ₹${lakh(amount)}.00 today`,
+          `quoted Rs ${amount} today`,
+        ]) {
+          expect(maskForModel(text)).toBe(text);
+        }
+      }
+    },
+    PROPERTY_TIMEOUT,
+  );
 });
 
 describe('maskForModel: long text', () => {

@@ -104,12 +104,19 @@ test.describe('as a tele-caller, a suggestion to act on herself', () => {
     await expect(card.getByText('For you to act on yourself.', { exact: false })).toBeVisible();
     await expect(card.getByRole('button', { name: 'Approve' })).toHaveCount(0);
     await expect(card.getByRole('link', { name: 'Open customer' })).toBeVisible();
+    // Every server action the page sends from here on: A must send none, D only the dismissal.
+    const sent: string[] = [];
+    page.on('request', (request) => {
+      const action = request.headers()['next-action'];
+      if (request.method() === 'POST' && action !== undefined) sent.push(action);
+    });
     await card.focus();
     await page.keyboard.press('a');
     await expect(card).toHaveCount(1);
     await page.keyboard.press('d');
     await expect(page.getByText('Dismissed. Nothing was changed.')).toBeVisible();
     await expect(card).toHaveCount(0);
+    expect(sent).toHaveLength(1);
   });
 });
 
