@@ -169,5 +169,18 @@ Reviewed at `a7d13b7` (code as of `a319259`); the cloud builder's `bef6328`, `3d
 
 **Not checked:** the `EXPLAIN` figures at volume (the report's are taken as given); the screenshots, whose Linux baselines are the lead's to make; anything hosted.
 
+### 06-10-2026, the lead's fix brief (for a cloud builder)
+Fix on `feat/d1-duplicates` without taking `main`. Invoke the `writing-guidelines` skill before changing any sentence a user reads. Each fix gets the tests the finding names; mark each row of the table above `fixed in <commit>` with what was checked.
+1. **H2:** the merges, the undo, the dismissal and `previewCustomerMerge` run with the caller's own companies, keeping `entityId` as the card's company; the tests the finding lists go through the action's scope with a two-company customer.
+2. **M1:** the undo refuses with its own reason while the kept customer is archived; the answer counts what actually came back; the toast drops "as they were"; the undo test asserts sites and timeline rows return.
+3. **M2:** the definer carries the merged lead's partner to a kept lead with none (audited, in the answer) and refuses with its own reason when both leads have a partner, so a person chooses which lead to keep; test both.
+4. **M3:** the Account 360 read is a `union all` of the four indexed lookups filtered to `open`, with `EXPLAIN (ANALYZE, BUFFERS)` under RLS at a few hundred thousand candidates in the report.
+5. **L1, L2, L3:** as the findings say; for L3, an immutable `app.match_text()` used by both indexes and the definers, with a parity test against `matchText()`. 0101 and 0102 are not applied anywhere hosted yet, so they are edited in place.
+6. **L4:** design §7.4 "Built (D1)" says a lead pair's card shows on its customer's Account 360 only. **L5:** as the finding says.
+7. **L6, the owner's decisions of 06-10-2026:** (a) an enquiry for a customer whose lead is in nurture joins that lead and returns it to its caller's queue; (b) an enquiry from a known number with a different typed name makes a new lead and a duplicate card for a person to decide; with the same name, or no name, it joins the existing lead as now. Add both rows to `docs/DECISIONS.md`, and tests for each case.
+8. **L7:** delete the `turborepo-agent-rules` block from the end of `AGENTS.md`, nothing else in that file; if a turbo run writes it again, delete it again.
+9. Then run `pnpm test:security`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm copy-lint`, `python3 tools/integration/check-doc-links.py` (bad 0), `pnpm build`, `pnpm --filter web js-budget`, and `e2e/duplicates.spec.ts` with `--ignore-snapshots` on all three projects after `e2e:seed`. Write a dated Report section with the results, set State to "fixes done; awaiting re-review", commit and push.
+
 ## Integration notes
 1. P2b's imports (the customers kind, `account_link`) merge before or after D1. Whichever is second makes the nightly pass cover the other's import rows.
+2. When D1 takes `main`: `0101_duplicates` and `0102_duplicates_rls` move after `main`'s last migration, and the 0101 and 0102 that DATABASE.md cites follow them; the Linux baselines are `duplicates` and every staff screenshot that shows the Duplicates menu item.
