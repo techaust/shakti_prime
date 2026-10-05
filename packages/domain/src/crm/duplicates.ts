@@ -128,7 +128,7 @@ export async function recordDuplicates(
     id: r.candidate_id,
     kind: DuplicateKindSchema.parse(r.candidate_kind),
     reason: DuplicateReasonSchema.parse(r.candidate_reason),
-    confidence: Number(r.candidate_confidence),
+    confidence: r.candidate_confidence,
   }));
   for (const candidate of recorded) {
     ctx.emit({

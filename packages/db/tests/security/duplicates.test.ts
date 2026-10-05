@@ -33,7 +33,10 @@ let leadTwo: string;
 let customerPair: string;
 let leadPair: string;
 
-async function customer(owner: Principal, team: string): Promise<{ account: string; lead: string }> {
+async function customer(
+  owner: Principal,
+  team: string,
+): Promise<{ account: string; lead: string }> {
   const account = newId();
   const lead = newId();
   await asMigrator((m) =>
@@ -186,7 +189,9 @@ describe('the duplicate definers', () => {
     expect(
       await fails(
         asPrincipal(gm, ({ tx }) =>
-          tx.execute(sql`select * from app.duplicate_facts(1::smallint, null::uuid, 10, null::uuid)`),
+          tx.execute(
+            sql`select * from app.duplicate_facts(1::smallint, null::uuid, 10, null::uuid)`,
+          ),
         ),
       ),
     ).toBe(true);
@@ -195,7 +200,14 @@ describe('the duplicate definers', () => {
   it('record no pair that does not match, nor one outside the caller scope', async () => {
     const [low, high] = [accountOne, accountTwo].sort();
     const rows = JSON.stringify([
-      { kind: 'customer', firstId: low, secondId: high, reason: 'phone', confidence: 70, signals: [] },
+      {
+        kind: 'customer',
+        firstId: low,
+        secondId: high,
+        reason: 'phone',
+        confidence: 70,
+        signals: [],
+      },
     ]);
     const written = await asPrincipal(ccOne, async ({ tx }) => {
       const r = (await tx.execute(
@@ -212,7 +224,9 @@ describe('the timeline outside a merge', () => {
   it('stays append-only for its owner, and a merge changes only the customer a row names', async () => {
     const row = newId();
     await asMigrator(
-      (m) => m`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id)
+      (
+        m,
+      ) => m`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id)
         values (${row}, 1, ${leadOne}, ${accountOne}, 'lead_created', ${ccOne.id})`,
     );
     expect(

@@ -59,7 +59,11 @@ function run<T = unknown>(
   sinks: { outbox?: typeof outbox; audit?: typeof audit } = {},
 ): Promise<T> {
   return asPrincipal(principal, (context) =>
-    runCommand(command, { context, audit: sinks.audit ?? audit, outbox: sinks.outbox ?? outbox }, input),
+    runCommand(
+      command,
+      { context, audit: sinks.audit ?? audit, outbox: sinks.outbox ?? outbox },
+      input,
+    ),
   ) as Promise<T>;
 }
 
@@ -76,7 +80,9 @@ let numbers = 0;
 /** A mobile number of this run only, as a caller types it. */
 function phone(): string {
   numbers += 1;
-  return `93${RUN.replace(/[^0-9]/g, '7').padEnd(6, '7').slice(0, 6)}${String(numbers).padStart(2, '0')}`;
+  return `93${RUN.replace(/[^0-9]/g, '7')
+    .padEnd(6, '7')
+    .slice(0, 6)}${String(numbers).padStart(2, '0')}`;
 }
 
 interface Lead {
@@ -177,7 +183,11 @@ async function importedCustomer(args: {
 describe('crm.lead.create puts duplicates forward and attaches repeat enquiries (CRM-03)', () => {
   it('records a customer the lead form makes beside one the caller has, by its number', async () => {
     const number = phone();
-    const first = await newLead(callerA, { name: `Ram ${RUN}`, phone: number, village: `Kheda ${RUN}` });
+    const first = await newLead(callerA, {
+      name: `Ram ${RUN}`,
+      phone: number,
+      village: `Kheda ${RUN}`,
+    });
     const emitted = memoryOutboxSink();
     // Another segment, so the enquiry is not a repeat of the open lead.
     const second = await newLead(
@@ -215,7 +225,11 @@ describe('crm.lead.create puts duplicates forward and attaches repeat enquiries 
       { name: `Sita Devi ${RUN}`, phone: number },
       { outbox: emitted, audit: recorded },
     );
-    expect(again).toMatchObject({ id: first.id, outcome: 'attached', account: { id: first.account.id } });
+    expect(again).toMatchObject({
+      id: first.id,
+      outcome: 'attached',
+      account: { id: first.account.id },
+    });
     const counts = await asMigrator(
       (m) => m<{ leads: number; accounts: number; enquiries: number }[]>`
         select (select count(*)::int from opportunities where account_id = ${first.account.id}) as leads,
@@ -449,9 +463,9 @@ describe('crm.lead.merge', () => {
     const input = { entityId: 1, keptOpportunityId: kept, mergedOpportunityId: merged };
     expect(await refusal(run(callerA, mergeLeads, input))).toMatchObject({ code: 'forbidden' });
     expect(await refusal(run(gm2, mergeLeads, input))).toMatchObject({ code: 'forbidden' });
-    expect(
-      await refusal(run(principalFor('agent:triage', [1]), mergeLeads, input)),
-    ).toMatchObject(reason('people_only'));
+    expect(await refusal(run(principalFor('agent:triage', [1]), mergeLeads, input))).toMatchObject(
+      reason('people_only'),
+    );
     expect(await refusal(run(leadB, mergeLeads, input))).toMatchObject(
       reason('customer_held_by_colleague'),
     );
@@ -505,7 +519,9 @@ describe('crm.duplicate.dismiss and crm.duplicate.suggest', () => {
     });
     const [candidate] = await candidatesOf(other.account.id);
     const input = { entityId: 1, candidateId: candidate?.id };
-    expect(await refusal(run(callerA, dismissDuplicate, input))).toMatchObject({ code: 'forbidden' });
+    expect(await refusal(run(callerA, dismissDuplicate, input))).toMatchObject({
+      code: 'forbidden',
+    });
     expect(await refusal(run(gm2, dismissDuplicate, input))).toMatchObject({ code: 'forbidden' });
     expect(await run(leadA, dismissDuplicate, input)).toMatchObject({ state: 'dismissed' });
     expect(await refusal(run(leadA, dismissDuplicate, input))).toMatchObject(
@@ -533,19 +549,21 @@ describe('crm.duplicate.dismiss and crm.duplicate.suggest', () => {
     });
     const extra = newId();
     await asMigrator(
-      (m) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+      (
+        m,
+      ) => m`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
         select ${extra}, 1, ${owner.accountId}, p.id, ${stageId(1, 1)}, ${callerA.id}, ${teamA}, ${callerA.id}
           from pipelines p where p.key = 'farmer_pumps' and p.entity_id is null`,
     );
     const input = { entityId: 1, opportunityId: owner.leadId, otherOpportunityId: extra };
-    expect(await refusal(run(callerA, suggestDuplicate, input))).toMatchObject({ code: 'forbidden' });
+    expect(await refusal(run(callerA, suggestDuplicate, input))).toMatchObject({
+      code: 'forbidden',
+    });
     expect(await refusal(run(triage, suggestDuplicate, { ...input, entityId: 2 }))).toMatchObject({
       code: 'forbidden',
     });
     expect(
-      await refusal(
-        run(triage, suggestDuplicate, { ...input, otherOpportunityId: second.leadId }),
-      ),
+      await refusal(run(triage, suggestDuplicate, { ...input, otherOpportunityId: second.leadId })),
     ).toMatchObject(reason('duplicate_not_matching'));
     const suggested = await run(triage, suggestDuplicate, input);
     expect(suggested).toMatchObject({ kind: 'lead', state: 'open', confidence: 95 });
@@ -594,8 +612,18 @@ describe('crm.duplicate.scan, the nightly search', () => {
     // Every customer before these is left out: the search starts after this id.
     const start = newId();
     const number = phone();
-    const byForm = await importedCustomer({ name: `Gopal ${RUN}`, phone: number, owner: callerA, team: teamA });
-    const byImport = await importedCustomer({ name: `Gopal Rao ${RUN}`, phone: number, owner: leadB, team: teamB });
+    const byForm = await importedCustomer({
+      name: `Gopal ${RUN}`,
+      phone: number,
+      owner: callerA,
+      team: teamA,
+    });
+    const byImport = await importedCustomer({
+      name: `Gopal Rao ${RUN}`,
+      phone: number,
+      owner: leadB,
+      team: teamB,
+    });
     const sameName = await importedCustomer({
       name: `Basanti ${RUN}`,
       village: `Rampur ${RUN}`,
@@ -637,7 +665,9 @@ describe('crm.duplicate.scan, the nightly search', () => {
       reason: 'name_village',
       confidence: 60,
     });
-    expect(emitted.records.filter((r) => r.type === 'crm.duplicate.found').length).toBeGreaterThanOrEqual(2);
+    expect(
+      emitted.records.filter((r) => r.type === 'crm.duplicate.found').length,
+    ).toBeGreaterThanOrEqual(2);
     // A second night finds nothing new.
     expect(await sweep()).toBe(0);
     // Team B's lead sees only what both of its customers allow: neither card.

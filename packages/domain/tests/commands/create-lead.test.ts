@@ -32,7 +32,11 @@ const input = {
   contact: { name: 'Lead test contact', phone: typed.typed },
   account: { type: 'farm' as const },
   // A village of this run only, so no earlier run's customer is put forward as a duplicate.
-  site: { type: 'borewell' as const, village: `Lead test village ${typed.e164.slice(-6)}`, pin: '302001' },
+  site: {
+    type: 'borewell' as const,
+    village: `Lead test village ${typed.e164.slice(-6)}`,
+    pin: '302001',
+  },
   consent: {
     channel: 'whatsapp' as const,
     purpose: 'service' as const,

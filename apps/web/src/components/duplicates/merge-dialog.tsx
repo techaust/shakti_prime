@@ -64,19 +64,21 @@ export function MergeDialog({
   const t = useTranslations('duplicates.dialog');
   const common = useTranslations('common');
   const [keep, setKeep] = useState<'first' | 'second'>('first');
-  const [moved, setMoved] = useState<CustomerMergeMovedDto | undefined>();
-  const preview = useQuery<CustomerMergeMovedDto>();
+  // The counts of one choice, named by it, so a choice changed meanwhile shows none until its own.
+  const [preview, setPreview] = useState<{ key: string; moved: CustomerMergeMovedDto }>();
+  const counting = useQuery<CustomerMergeMovedDto>();
   const customers = useCommand(mergeCustomers);
   const leads = useCommand(mergeLeads);
   const kept = keep === 'first' ? row.first : row.second;
   const merged = keep === 'first' ? row.second : row.first;
   const isCustomers = row.kind === 'customer';
   const pending = customers.pending || leads.pending;
+  const choice = `${kept.accountId}:${merged.accountId}`;
+  const moved = preview?.key === choice ? preview.moved : undefined;
 
-  const { load } = preview;
+  const { load } = counting;
   useEffect(() => {
     if (!isCustomers) return;
-    setMoved(undefined);
     load(
       () =>
         previewCustomerMerge({
@@ -84,7 +86,9 @@ export function MergeDialog({
           keptAccountId: kept.accountId,
           mergedAccountId: merged.accountId,
         }),
-      setMoved,
+      (counts) => {
+        setPreview({ key: `${kept.accountId}:${merged.accountId}`, moved: counts });
+      },
     );
   }, [isCustomers, load, row.entityId, kept.accountId, merged.accountId]);
 
@@ -115,7 +119,11 @@ export function MergeDialog({
       },
       () => {
         toast.success(t('leadsMergedToast'));
-        onDone({ keptAccountId: kept.accountId, mergedAccountId: merged.accountId, merge: undefined });
+        onDone({
+          keptAccountId: kept.accountId,
+          mergedAccountId: merged.accountId,
+          merge: undefined,
+        });
       },
     );
   }
@@ -131,7 +139,9 @@ export function MergeDialog({
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <DialogHeader>
             <DialogTitle>{isCustomers ? t('customerTitle') : t('leadTitle')}</DialogTitle>
-            <DialogDescription>{isCustomers ? t('customerIntro') : t('leadIntro')}</DialogDescription>
+            <DialogDescription>
+              {isCustomers ? t('customerIntro') : t('leadIntro')}
+            </DialogDescription>
           </DialogHeader>
           <fieldset className="flex flex-col gap-2">
             <legend className="text-text-muted mb-1 text-sm font-medium">{t('keepLegend')}</legend>
@@ -159,7 +169,7 @@ export function MergeDialog({
               <h3 id="merge-moves" className="text-sm font-medium">
                 {t('moves')}
               </h3>
-              <FailureMessage failure={preview.failure} />
+              <FailureMessage failure={counting.failure} />
               {moved === undefined ? (
                 <Skeleton className="h-16 w-full" />
               ) : (

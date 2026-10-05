@@ -105,8 +105,7 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   searchCustomersByPhone: (ctx) => listCustomers(ctx, { q: '98765', limit: 20 }),
   loadAccount360: (ctx) => loadAccount360(ctx, { accountId: newId(), entityId: 1 }),
   listDuplicates: (ctx) => listDuplicates(ctx, { limit: 20 }),
-  listAccountDuplicates: (ctx) =>
-    listAccountDuplicates(ctx, { entityId: 1, accountId: newId() }),
+  listAccountDuplicates: (ctx) => listAccountDuplicates(ctx, { entityId: 1, accountId: newId() }),
   previewCustomerMerge: (ctx) =>
     previewCustomerMerge(ctx, { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() }),
   listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),

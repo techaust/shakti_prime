@@ -59,7 +59,10 @@ export async function openEnquiryLead(
     .select({ lead: o })
     .from(o)
     .innerJoin(p, and(eq(p.id, o.pipelineId), eq(p.segment, args.segment)))
-    .innerJoin(schema.accounts, and(eq(schema.accounts.id, o.accountId), isNull(schema.accounts.archivedAt)))
+    .innerJoin(
+      schema.accounts,
+      and(eq(schema.accounts.id, o.accountId), isNull(schema.accounts.archivedAt)),
+    )
     .where(
       and(
         eq(o.entityId, args.entityId),

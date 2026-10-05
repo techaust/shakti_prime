@@ -110,7 +110,12 @@ export function DuplicatesScreen({
         </ul>
       )}
       {cursor === null ? null : (
-        <Button variant="secondary" className="self-start" pending={read.pending} onClick={loadMore}>
+        <Button
+          variant="secondary"
+          className="self-start"
+          pending={read.pending}
+          onClick={loadMore}
+        >
           {common('loadMore')}
         </Button>
       )}

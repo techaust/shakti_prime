@@ -206,9 +206,13 @@ export const suggestDuplicate = defineCommand({
           })
         : undefined;
     if (found === undefined) {
-      throw new DomainError('validation_failed', 'the leads are not two open leads of one enquiry', {
-        reason: 'duplicate_not_matching',
-      });
+      throw new DomainError(
+        'validation_failed',
+        'the leads are not two open leads of one enquiry',
+        {
+          reason: 'duplicate_not_matching',
+        },
+      );
     }
     const d = schema.duplicateCandidates;
     const [inserted] = await ctx.tx
@@ -247,11 +251,7 @@ export const suggestDuplicate = defineCommand({
       .select()
       .from(d)
       .where(
-        and(
-          eq(d.kind, 'lead'),
-          eq(d.opportunityId, first.id),
-          eq(d.otherOpportunityId, second.id),
-        ),
+        and(eq(d.kind, 'lead'), eq(d.opportunityId, first.id), eq(d.otherOpportunityId, second.id)),
       )
       .limit(1);
     if (!existing) throw new DomainError('internal', 'the pair was neither written nor found');

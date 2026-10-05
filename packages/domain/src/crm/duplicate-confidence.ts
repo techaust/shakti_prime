@@ -1,8 +1,4 @@
-import type {
-  DuplicateKind,
-  DuplicateReason,
-  DuplicateSignal,
-} from '@shakti/contracts';
+import type { DuplicateKind, DuplicateReason, DuplicateSignal } from '@shakti/contracts';
 
 /**
  * How sure a duplicate match is (PRD CRM-03, docs/design/phase1.md §7.4): a pure function of the

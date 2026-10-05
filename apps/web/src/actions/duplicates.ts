@@ -40,9 +40,14 @@ export async function listDuplicates(rawInput: unknown): Promise<ActionResult<Du
     const principal = await signedIn();
     const input = parseInput(ListDuplicatesInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => listDuplicatesQuery(context, input), {
-      name: 'listDuplicates',
-    });
+    return executeQuery(
+      principal,
+      { requestId },
+      (context) => listDuplicatesQuery(context, input),
+      {
+        name: 'listDuplicates',
+      },
+    );
   });
 }
 

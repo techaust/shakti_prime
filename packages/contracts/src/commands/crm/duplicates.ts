@@ -153,7 +153,10 @@ export const DuplicateSideDto = z
     accountName: z.string(),
     accountType: AccountTypeSchema,
     /** The last four digits of the main number; never the whole number on a card. */
-    phoneLast4: z.string().regex(/^[0-9]{4}$/).nullable(),
+    phoneLast4: z
+      .string()
+      .regex(/^[0-9]{4}$/)
+      .nullable(),
     village: z.string().nullable(),
     entityIds: z.array(EntityIdSchema),
     opportunityId: IdSchema.nullable(),

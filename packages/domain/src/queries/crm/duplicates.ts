@@ -33,9 +33,7 @@ function checkPerson(ctx: Ctx): void {
   }
 }
 
-const Cursor = z
-  .object({ c: z.number().int(), t: z.string().max(40), id: z.string().uuid() })
-  .strict();
+const Cursor = z.object({ c: z.number().int(), t: z.string().max(40), id: z.uuid() }).strict();
 
 const PG_TIME = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/;
 
