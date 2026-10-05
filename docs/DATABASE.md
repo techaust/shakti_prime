@@ -127,6 +127,7 @@ Every definer fixes its search path. An empty one (`''`) means the body names ev
 | `app.expire_quotes(entity_id, quote_ids)` | `sales.quote.expire:entity` and the company in the request; marks expired only those of the named quotes still draft or sent and past their validity, stamping the caller and the time; answers the quotes it changed and their leads | `''` | 0102 |
 | `app.quote_for_print(quote_id)` | `files.process:entity` (the render worker alone) and the quote's company in the request; the quote, its lines, the customer's name and GSTIN, the site's address and the maker's name for the quotation, never a phone number; executable by `app_user` and `app_reader` | `''` | 0102 |
 | `app.attach_quote_pdf(entity_id, quote_id, file_id)` | `files.process:entity` and the company in the request; sets `pdf_file_id` of a quote with none or this one already to a ready `quote_pdf` file of its company; answers whether the quote now names the file | `''` | 0102 |
+| `app.quote_search_ids(text, limit)` | `crm.lead.read:own` in a signed-in request; the ids of at most 200 quotes of the request's companies whose number holds the text, found on the trigram index (a number that is the text first, then the newest), which `searchQuotes()` then reads under the policies; executable by `app_user` and `app_reader` | `''` | 0102 |
 
 The documented exceptions, which check no permission:
 

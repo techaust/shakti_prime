@@ -72,11 +72,39 @@ export async function listQuotes(
   now: Date = new Date(),
 ): Promise<QuotePageDto> {
   const input = parseQueryInput(ListQuotesInput, rawInput, 'sales.quote.list');
+  const order = quoteOrder();
+  const rows = await quoteListQuery(ctx, input, now);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return QuotePageDto.parse({
+    items: page.map((row) => toQuoteRow(row, now)),
+    nextCursor: nextCursor(
+      order,
+      rows.length > input.limit,
+      last === undefined ? undefined : { value: last.sortValue, id: last.id },
+    ),
+  });
+}
+
+/**
+ * The query `listQuotes` runs, unexecuted, so the plan can be read (`tests/spike/quotes-explain.ts`).
+ * Checks the permission and the companies first, as `listQuotes` does.
+ */
+export function quoteListQuery(
+  ctx: QuoteListContext,
+  input: {
+    entityId?: number | undefined;
+    state?: QuoteState | undefined;
+    cursor?: string | undefined;
+    limit: number;
+  },
+  now: Date,
+) {
   checkPermission(ctx.principal, 'crm.lead.read', 'own');
   const q = schema.quotes;
   const a = schema.accounts;
   const order = quoteOrder();
-  const rows = await ctx.tx
+  return ctx.tx
     .select({ ...QUOTE_ROW_COLUMNS, sortValue: sortText(order) })
     .from(q)
     .innerJoin(a, eq(a.id, q.accountId))
@@ -89,16 +117,6 @@ export async function listQuotes(
     )
     .orderBy(...orderTerms(order))
     .limit(input.limit + 1);
-  const page = rows.slice(0, input.limit);
-  const last = page.at(-1);
-  return QuotePageDto.parse({
-    items: page.map((row) => toQuoteRow(row, now)),
-    nextCursor: nextCursor(
-      order,
-      rows.length > input.limit,
-      last === undefined ? undefined : { value: last.sortValue, id: last.id },
-    ),
-  });
 }
 
 /** Account 360's quotes: the customer's newest quotes in one company (`quotes_account_idx`). */
@@ -134,7 +152,10 @@ export async function getQuote(
 
 /**
  * The ⌘K search for quotes by number (RPT-03): the quotes the caller can read whose number holds
- * the typed text, a number that is the text first, then the newest. Bounded by `limit`.
+ * the typed text, a number that is the text first, then the newest. Bounded by `limit`. Under the
+ * policies `ilike` is never an index condition, so the candidates come first from the definer
+ * `app.quote_search_ids()` (0102), which finds at most 200 on the trigram index of `quote_no` in the
+ * request's companies; this query then reads only those, under the policies.
  */
 export async function searchQuotes(
   ctx: QuoteListContext,
@@ -142,10 +163,24 @@ export async function searchQuotes(
   now: Date = new Date(),
 ): Promise<QuoteSearchHit[]> {
   const input = parseQueryInput(SearchInput, rawInput, 'sales.quote.search');
+  const rows = await quoteSearchQuery(ctx, input);
+  return rows.map((row) =>
+    QuoteSearchHitDto.parse({
+      id: row.id,
+      entityId: row.entityId,
+      quoteNo: row.quoteNo,
+      customerName: row.customerName,
+      state: shownQuoteState(row.state, row.validUntil, now),
+    }),
+  );
+}
+
+/** The query `searchQuotes` runs, unexecuted, so the plan can be read. Checks the permission. */
+export function quoteSearchQuery(ctx: QuoteListContext, input: { q: string; limit: number }) {
   checkPermission(ctx.principal, 'crm.lead.read', 'own');
   const q = schema.quotes;
   const a = schema.accounts;
-  const rows = await ctx.tx
+  return ctx.tx
     .select({
       id: q.id,
       entityId: q.entityId,
@@ -156,16 +191,15 @@ export async function searchQuotes(
     })
     .from(q)
     .innerJoin(a, eq(a.id, q.accountId))
-    .where(and(inArray(q.entityId, [...ctx.entityIds]), ilike(q.quoteNo, containsPattern(input.q))))
+    .where(
+      and(
+        // The candidates come from `app.quote_search_ids()` on the trigram index; the policies and
+        // the text are applied again here (DATABASE §4.1).
+        inArray(q.id, sql`(select app.quote_search_ids(${input.q}, 200))`),
+        inArray(q.entityId, [...ctx.entityIds]),
+        ilike(q.quoteNo, containsPattern(input.q)),
+      ),
+    )
     .orderBy(sql`lower(${q.quoteNo}) = lower(${input.q}) desc`, desc(q.createdAt), desc(q.id))
     .limit(input.limit);
-  return rows.map((row) =>
-    QuoteSearchHitDto.parse({
-      id: row.id,
-      entityId: row.entityId,
-      quoteNo: row.quoteNo,
-      customerName: row.customerName,
-      state: shownQuoteState(row.state, row.validUntil, now),
-    }),
-  );
 }

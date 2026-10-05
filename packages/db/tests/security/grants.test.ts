@@ -408,6 +408,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       'app.outbox_health(timestamp with time zone,uuid,integer)',
       // The quote print loader of the render worker (0102).
       'app.quote_for_print(uuid)',
+      // The ⌘K search's candidate quotes (0102).
+      'app.quote_search_ids(text,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
       'app.user_is_active(uuid)',

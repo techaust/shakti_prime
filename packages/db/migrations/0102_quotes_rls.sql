@@ -294,3 +294,32 @@ revoke execute on function app.guard_account_tier() from public, readonly_report
 --> statement-breakpoint
 create trigger accounts_tier_guard before insert or update of tier_id on accounts
   for each row execute function app.guard_account_tier();
+--> statement-breakpoint
+
+-- The ⌘K search's candidate quotes (RPT-03). Under the policies Postgres will not use `ilike` as an
+-- index condition (it is not leakproof), so a search would test every quote in the caller's scope.
+-- This answers the ids of at most 200 quotes of the request's companies whose number holds the
+-- typed text, found on quotes_quote_no_trgm_idx, a number that is the text first, then the newest;
+-- the search then reads only those under the policies, so what the caller sees is what RLS allows.
+-- Ids only, for a signed-in caller who reads leads.
+create or replace function app.quote_search_ids(p_text text, p_limit integer) returns setof uuid
+  language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_pattern text := '%' || replace(replace(replace(coalesce(p_text, ''), '\', '\'), '%', '\%'), '_', '\_') || '%';
+begin
+  if app.user_id() is null or not app.has_perm('crm.lead.read:own') then
+    raise exception 'crm.lead.read is required' using errcode = '42501';
+  end if;
+  return query
+    select q.id
+      from public.quotes q
+     where q.entity_id = any (coalesce(app.entity_ids(), '{}'::int[]))
+       and q.quote_no ilike v_pattern
+     order by lower(q.quote_no) = lower(p_text) desc, q.created_at desc, q.id desc
+     limit least(greatest(coalesce(p_limit, 0), 0), 200);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.quote_search_ids(text, integer) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.quote_search_ids(text, integer) to app_user, app_reader;
