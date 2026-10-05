@@ -276,7 +276,7 @@ export const InboxItemDto = z
     assigneeId: IdSchema.nullable(),
     /** What the suggestion does that a person cannot change, read-only on the card. */
     summary: z.array(InboxSummaryDto),
-    /** What a person may change before approving; none under Suggest. */
+    /** What a person may change before approving; shown read-only under Suggest. */
     fields: z.array(InboxFieldDto),
     createdAt: z.iso.datetime(),
   })

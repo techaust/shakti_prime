@@ -119,7 +119,7 @@ describe('listInbox and countInbox', () => {
     const third = await suggestFor(caller);
     const page = await inbox(caller, { limit: 2 });
     expect(page.items.map((i) => i.id)).toEqual([third, second]);
-    // Under Suggest the card shows what the task would be, with nothing to edit.
+    // Under Suggest the card shows what the task would be; the screen offers no edit.
     expect(page.items[0]).toMatchObject({
       agent: 'agent:copilot',
       actionType: 'crm.task.create',
@@ -130,7 +130,10 @@ describe('listInbox and countInbox', () => {
         { name: 'assigneeId', kind: 'person', value: caller.id, label: 'test tele_caller_cc' },
         { name: 'kind', kind: 'code', value: 'follow_up', label: null },
       ],
-      fields: [],
+      fields: [
+        { name: 'dueAt', kind: 'date_time' },
+        { name: 'title', kind: 'text', value: null, maxLength: 80 },
+      ],
     });
     expect(page.nextCursor).not.toBeNull();
     const next = await inbox(caller, { limit: 2, cursor: page.nextCursor });

@@ -50,8 +50,8 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
  * The caller's open inbox items in the request's companies, newest first, keyset on
  * `(created_at, id)`: their own, their team's at team scope, the company's at company scope
  * (`inbox_items_read`). A suggestion shows its agent, its action type, what it does that a person
- * cannot change (who the work is for, its kind) and, under Needs approval, the fields a person may
- * change; and the customer's name when the caller reads the lead.
+ * cannot change (who the work is for, its kind) and the fields a person may change under Needs
+ * approval; and the customer's name when the caller reads the lead.
  */
 export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageDto> {
   const input = parseQueryInput(ListInboxInput, rawInput, 'agents.inbox.list');
@@ -130,9 +130,8 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         accountId: r.accountId,
         assigneeId: r.item.assigneeId,
         summary: type === undefined ? [] : summaryFields(type, proposed, names),
-        // A Suggest item is acted on by the person themselves: nothing to change before a run.
-        fields:
-          type === undefined || r.autonomy === 'suggest' ? [] : editableFields(type, proposed),
+        // Shown on every card; only a Needs approval card offers to change them.
+        fields: type === undefined ? [] : editableFields(type, proposed),
         createdAt: r.item.createdAt.toISOString(),
       });
     }),
