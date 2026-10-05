@@ -11,6 +11,7 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 status documents
 
+- **#104** (05-10-2026) Phase 1 status after P4, C4 and C3: the workers principal's platform-only rule in `CLAUDE.md`, the session's owner decisions, the integration lessons of the 8 GB PC, D1's run file.
 - **#96** (04-10-2026) The second, strict documentation audit fixed, and work split between Claude Code cloud sessions and the PC: `docs/runbooks/hybrid.md`, the cloud setup script and session hook, run notes in `docs/runs/phase1/`, the hosted password rotation through the migrate workflow, generators that take their facts from the code (state machines, ERD, events with meaning and emitters), PRD criteria for the non-functional requirements, the client packs with needed-by dates, a sign-off record and a progress page for the client.
 - **#95** (04-10-2026) The project's know-how in the repository: the integration scripts in `tools/integration/` (Git Bash and Linux), the slice-integration and accounts runbooks, the skills `start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command` and `add-table`, the agents `slice-builder` and `slice-reviewer`, the pull-request template; the audit kept as `docs/reviews/2026-09-audit.md`.
 - **#94** (04-10-2026) CHANGELOG lines for #91 to #93 and the status after them.
@@ -23,6 +24,10 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 wave 2
 
+- **#105** (05-10-2026) P2b imports upgrade. Migrations 0101 to 0106; dev and staging migrated through 0106.
+  - Import files on the pre-signed upload (CSV or `.xlsx`, 10 MB) read by a streaming workbook reader behind a zip guard; one deadline per batch for the set-based try, then a row-by-row slice; `imports.job.fail` on the last retry through the worker's `imports.process`.
+  - The customers kind (one customer per mobile number; a number the importer sees links to that customer, owner 05-10-2026) and the PIN code list kind (an Executive in every company), each with preview, commit and rollback; a rollback keeps customers now in use (`app.import_accounts_in_use()`).
+  - `pin_codes` with the site trigger that fills tehsil and district and flags an unknown PIN; the PIN lookup on the lead form and the site dialog; the hourly sweep of abandoned uploads (`files.upload.sweep`); stored name and village keys for the dedupe.
 - **#103** (05-10-2026) C3 pipelines, scoring and referrals. Migrations 0096 to 0100; dev and staging migrated through 0100.
   - The permission `crm.config.write` and Settings › Pipelines: pipelines and stages with exit rules, call outcomes per group or company and business line, lead score rules.
   - The pure `scoreLead()`, the Score column, `crm.lead.rescore`, `crm.score_rule.set`, and the nightly rescore as `system:workers` through the platform-only `crm.score.refresh` and the definers `app.lead_score_facts()` and `app.write_lead_scores()`; score changes leave a lead's last change alone.

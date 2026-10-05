@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# cloud-setup.sh: the setup script of the Claude Code cloud environment `shakti-prime`
+# cloud-setup.sh: the setup script of the Claude Code cloud environment `shakti_prime`
 # (docs/runbooks/hybrid.md §3). It runs as root on the session's Ubuntu VM before Claude starts,
 # and what it leaves on disk is kept in the environment's snapshot. Linux only. Idempotent: each
 # step checks before it acts, so running it again changes nothing that is already in place.
