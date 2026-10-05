@@ -90,6 +90,25 @@ Existing tests changed by the new rule, each to the behaviour CRM-03 asks for: `
 - After the hosted deploy, the owner or lead runs `qstash-schedule` with `BOS_ENVIRONMENT` for dev and staging and deletes any schedule still named `outbox-publish` or `lead-rescore` without its environment (DEPLOY §2 step 6).
 - P2b's customers import (`account_link`) is on `main` now: its rows are covered by the nightly scan once merged; the merge itself is the lead's.
 
+### 05-10-2026, builder on the PC (handover to the cloud)
+The branch holds every change committed; nothing is uncommitted. The report above describes the slice as built.
+
+**Done:** everything in the Brief, items 1 to 6, with its tests and documents (the report above lists the files). The last commit of code is `a319259d`; the branch head is this note's commit.
+
+**Half done:** nothing in the code. What is not yet proven green is the whole security suite in one run:
+- The last full `pnpm test:security` (after the lead-guard and `countMergeMoves` changes): db 31 files, 954 passed, 2 failed, both `role-entity-matrix` cases timing out at 20 s under memory pressure; turbo then stopped, so the domain and web suites did not run in it. `role-entity-matrix` alone afterwards: 93 passed.
+- `pnpm --filter @shakti/domain test:security` alone afterwards (37 minutes on the loaded PC): 553 passed, 38 failed, 31 skipped, in 11 files (`admin-roles`, `catalogue`, `crm-scoring-referrals`, `files`, `lead-flows`, `run-probe`, `tasks`, `tax`, `admin-lists`, `screen-lists`, `agent-refusals`); every failure was `Test timed out` or `CONNECT_TIMEOUT 127.0.0.1:54344`, none an assertion about this slice. In the run before it, `lead-guard` and `reader-parity` failed for real and were fixed (commit "the lead guard follows repeat enquiries; the merge preview query is countMergeMoves"), then passed alone (32 passed), as did `crm-pipelines` (22), `customers` (9) and `outbox` (5).
+- The web security suite (`apps/web/tests`, including the new `duplicate-scan.test.ts`, 9 cases copied from `lead-rescore.test.ts`) has not run since that file was added.
+- Full `pnpm lint` (the root ESLint run) has not run since the last edits; ESLint per package (contracts, db, domain, web) ran clean before the test and run-file edits, and Prettier is clean on every changed file.
+
+**Checks last run, with results:** typecheck of domain and web clean after the last code change; unit tests: contracts 177, db 121, domain 1,586, web 630 passed; `pnpm build` passed; `js-budget` every page within budget; `copy-lint` clean; `check-doc-links.py` bad 0; `playwright test e2e/duplicates.spec.ts` 13 passed and 1 flaky on three projects, 10 passed on desktop-light with one worker and no retries.
+
+**Next steps, in order, for the cloud builder:**
+1. `. tools/integration/lib.sh && pnpm install` (the session hook made `.env` and Postgres on 54322).
+2. `pnpm test:security` (it migrates and seeds). Expect green; a case that hits its time limit is rerun alone before it counts as a failure. If `apps/web/tests/duplicate-scan.test.ts` fails, compare it with `lead-rescore.test.ts`, which it mirrors through the shared `nightlyWorkerRoute()` and `runCompanyBatches()`.
+3. `pnpm lint` once, then `pnpm typecheck`.
+4. Record the results in a dated Report section, set State to built, push the branch, and leave the review to the slice reviewer. Do not merge `main` (P2b is on it): the lead takes `main` and renumbers `0101_duplicates` and `0102_duplicates_rls` after it, correcting the 0101 and 0102 that DATABASE.md cites.
+
 ## Review
 None yet.
 
