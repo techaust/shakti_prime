@@ -186,7 +186,10 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   async function reserve(call: CallBase, paise: number): Promise<Reservation> {
     if (call.caps.length === 0) throw capReached(call);
     const day = istDay(now());
-    const keys = [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)] as const;
+    const keys = [
+      spendKey(call.agent, call.entityId, day),
+      spendKey(call.agent, null, day),
+    ] as const;
     const company = await store('the spend could not be reserved', () =>
       keyValue.incrBy(keys[0], paise, SPEND_TTL_SECONDS),
     );

@@ -17,8 +17,7 @@ function leaksNothingOf(masked: string, digits: string): void {
 }
 
 const DEVANAGARI = '०१२३४५६७८९';
-const inDevanagari = (digits: string) =>
-  digits.replace(/\d/g, (d) => DEVANAGARI.charAt(Number(d)));
+const inDevanagari = (digits: string) => digits.replace(/\d/g, (d) => DEVANAGARI.charAt(Number(d)));
 
 describe('maskForModel: Aadhaar and bank account numbers', () => {
   it.each([

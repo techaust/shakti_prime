@@ -85,7 +85,9 @@ export const recordAgentRun = defineCommand({
       await lockAgentSettings(ctx.tx, input.agent);
       const config = await loadAgentConfig(ctx.tx, input.agent, input.actionType, input.entityId);
       autonomy =
-        config.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE ? 'needs_approval' : config.autonomy;
+        config.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE
+          ? 'needs_approval'
+          : config.autonomy;
       if (!config.enabled) outcome = 'switched_off';
       else {
         plan = autonomy === 'automatic' ? 'act' : 'propose';

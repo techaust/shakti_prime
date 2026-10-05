@@ -1,9 +1,4 @@
-import {
-  AGENT_PRINCIPAL_IDS,
-  newId,
-  type AgentProposal,
-  type Principal,
-} from '@shakti/contracts';
+import { AGENT_PRINCIPAL_IDS, newId, type AgentProposal, type Principal } from '@shakti/contracts';
 import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
@@ -181,7 +176,10 @@ describe('runAgentStep with a stand-in agent', () => {
           select i.assignee_id, a.input_json as input from inbox_items i
             join agent_actions a on a.id = i.agent_action_id where i.id = ${answer.inboxItemId}`,
       );
-      expect(item).toEqual({ assignee_id: owner.id, input: expect.objectContaining({ assigneeId: owner.id }) as unknown });
+      expect(item).toEqual({
+        assignee_id: owner.id,
+        input: expect.objectContaining({ assigneeId: owner.id }) as unknown,
+      });
     } finally {
       await drop(cap);
     }

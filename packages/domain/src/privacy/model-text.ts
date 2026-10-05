@@ -77,9 +77,7 @@ function maskSegment(segment: string): string {
       if (digits.length < 9) return raw;
       return isPhone(raw, digits) ? '[phone]' : '[number]';
     })
-    .replace(PLACE_PIN, (whole, word: string) =>
-      NOT_A_PLACE.test(word) ? whole : `${word}[pin]`,
-    );
+    .replace(PLACE_PIN, (whole, word: string) => (NOT_A_PLACE.test(word) ? whole : `${word}[pin]`));
 }
 
 /** `text` as a model may read it. */
