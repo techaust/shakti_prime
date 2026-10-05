@@ -40,7 +40,12 @@ let teamLead: Principal;
 let slaBefore: number | null = null;
 const leads: Record<string, string> = {};
 
-function run(principal: Principal, command: AnyCommand, input: unknown, now: Date): Promise<unknown> {
+function run(
+  principal: Principal,
+  command: AnyCommand,
+  input: unknown,
+  now: Date,
+): Promise<unknown> {
   return asPrincipal(principal, (context) =>
     runCommand(command, { context, audit, outbox, now }, input),
   );
@@ -283,9 +288,7 @@ describe('loadCallLead', () => {
 
 describe('dialNumber', () => {
   const dial = (who: Principal, opportunityId: string | undefined, now: Date) =>
-    asPrincipal(who, (context) =>
-      dialNumber(context, { entityId: ENTITY, opportunityId }, now),
-    );
+    asPrincipal(who, (context) => dialNumber(context, { entityId: ENTITY, opportunityId }, now));
 
   it('shows the full number inside calling hours', async () => {
     const shown = await dial(caller, leads.due, AS_OF);

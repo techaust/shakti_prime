@@ -58,9 +58,7 @@ export function TeamQueues({
               <th scope="row" className="px-3 py-2 text-left font-medium">
                 {row.callerName}
               </th>
-              {showCompany ? (
-                <td className="px-3 py-2">{companies[row.entityId] ?? ''}</td>
-              ) : null}
+              {showCompany ? <td className="px-3 py-2">{companies[row.entityId] ?? ''}</td> : null}
               <td className={number}>{formatCount(row.waiting)}</td>
               <td className={number}>{formatCount(row.due)}</td>
               <td className={number}>{formatCount(row.late)}</td>

@@ -88,11 +88,17 @@ test.describe('calling as a tele-caller', () => {
       // Outside 9 AM to 9 PM the number stays hidden and no call can be saved.
       await page.keyboard.press('d');
       await expect(
-        page.getByText('Calls can be made only between 9 AM and 9 PM. Try again during calling hours.'),
+        page.getByText(
+          'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.',
+        ),
       ).toBeVisible();
       await page.keyboard.press('3');
       await expect(
-        page.getByText('Calls can be made only between 9 AM and 9 PM. Try again during calling hours.').last(),
+        page
+          .getByText(
+            'Calls can be made only between 9 AM and 9 PM. Try again during calling hours.',
+          )
+          .last(),
       ).toBeVisible();
       return;
     }

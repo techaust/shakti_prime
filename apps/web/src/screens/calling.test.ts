@@ -9,8 +9,10 @@ import {
   suggestedLostReason,
 } from './calling';
 
-const key = (k: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) =>
-  shortcutFor({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods });
+const key = (
+  k: string,
+  mods: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {},
+) => shortcutFor({ key: k, ctrlKey: false, metaKey: false, altKey: false, ...mods });
 
 describe('shortcutFor', () => {
   it('maps N, D, / and the number keys', () => {

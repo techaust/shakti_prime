@@ -46,9 +46,15 @@ export const calls = pgTable(
   },
   (t) => [
     check('calls_direction_check', sql`${t.direction} in ('outbound', 'inbound')`),
-    check('calls_number_series_check', sql`${t.numberSeries} in ('manual', '140', '160', 'inbound')`),
+    check(
+      'calls_number_series_check',
+      sql`${t.numberSeries} in ('manual', '140', '160', 'inbound')`,
+    ),
     check('calls_attempt_no_check', sql`${t.attemptNo} between 1 and 1000`),
-    check('calls_duration_check', sql`${t.durationS} is null or ${t.durationS} between 0 and 14400`),
+    check(
+      'calls_duration_check',
+      sql`${t.durationS} is null or ${t.durationS} between 0 and 14400`,
+    ),
     // The call belongs to its lead's company.
     foreignKey({
       name: 'calls_opportunity_entity_fk',

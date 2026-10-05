@@ -32,7 +32,10 @@ export async function createCallTask(
       );
     } catch (e) {
       // Only the refusals of setting a task for someone else fall back; anything else fails.
-      if (!(e instanceof DomainError) || (e.code !== 'forbidden' && e.code !== 'validation_failed')) {
+      if (
+        !(e instanceof DomainError) ||
+        (e.code !== 'forbidden' && e.code !== 'validation_failed')
+      ) {
         throw e;
       }
     }

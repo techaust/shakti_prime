@@ -96,7 +96,9 @@ export default async function CallingPage({
       ? undefined
       : await loadCallLead({ entityId: first.entityId, opportunityId: first.opportunityId });
   const callerName =
-    members?.ok === true ? members.data.find((m) => m.callerId === callerId)?.callerName : undefined;
+    members?.ok === true
+      ? members.data.find((m) => m.callerId === callerId)?.callerName
+      : undefined;
   return (
     <Page
       title={callerName === undefined ? t('title') : t('viewing', { name: callerName })}

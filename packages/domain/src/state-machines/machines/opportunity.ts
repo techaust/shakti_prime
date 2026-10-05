@@ -51,7 +51,9 @@ const stageInPipeline: G = {
 const exitRulesMet: G = {
   description: 'the exit rules of the current stage are met (its required fields are filled)',
   check: (record) => {
-    const missing = record.exitRequiredFields.filter((field) => !exitFieldFilled(record.fields[field]));
+    const missing = record.exitRequiredFields.filter(
+      (field) => !exitFieldFilled(record.fields[field]),
+    );
     return missing.length === 0
       ? undefined
       : { code: 'validation_failed', reason: 'stage_fields_missing', details: { missing } };

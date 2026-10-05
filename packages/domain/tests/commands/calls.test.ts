@@ -67,9 +67,7 @@ beforeAll(async () => {
     id: colleagueUser.id,
     teamId,
   });
-  const leadUser = await createTestUser([
-    { entityId: ENTITY, roleKey: 'sales_team_lead', teamId },
-  ]);
+  const leadUser = await createTestUser([{ entityId: ENTITY, roleKey: 'sales_team_lead', teamId }]);
   teamLead = await createTestPrincipal('sales_team_lead', [ENTITY], { id: leadUser.id, teamId });
 });
 
@@ -258,7 +256,9 @@ describe('calls.log: what every call records', () => {
                values (${newId()}, ${contact.id}, 'call', 'service', 'verbal', 'v1',
                        now() - interval '2 days', now() - interval '1 day', ${caller.id})`,
     );
-    await expect(log(caller, lead, 'retry')).rejects.toMatchObject(reason('call_consent_withdrawn'));
+    await expect(log(caller, lead, 'retry')).rejects.toMatchObject(
+      reason('call_consent_withdrawn'),
+    );
     await asMigrator(
       (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version,
                                      given_at, created_by)
@@ -320,7 +320,13 @@ describe('calls.log: a callback', () => {
       callbackAt: ist('2030-03-04T15:00:00').toISOString(),
     });
     // Called again at 16:00 the same day, after the callback fell due.
-    await log(caller, lead, 'callback', { callbackAt: ist('2030-03-06T10:00:00').toISOString() }, ist('2030-03-04T16:00:00'));
+    await log(
+      caller,
+      lead,
+      'callback',
+      { callbackAt: ist('2030-03-06T10:00:00').toISOString() },
+      ist('2030-03-04T16:00:00'),
+    );
     // Called again before that one falls due.
     await log(caller, lead, 'retry', {}, ist('2030-03-05T10:00:00'));
     const states = (await tasksOf(lead)).map((t) => [t.due_at.toISOString(), t.state]);

@@ -35,10 +35,7 @@ export function suggestedLostReason(nextAction: DispositionNextAction): Opportun
 
 /** What a key pressed on the workspace asks for. */
 export type Shortcut =
-  | { kind: 'next' }
-  | { kind: 'dial' }
-  | { kind: 'search' }
-  | { kind: 'outcome'; key: number };
+  { kind: 'next' } | { kind: 'dial' } | { kind: 'search' } | { kind: 'outcome'; key: number };
 
 /**
  * The workspace's keys (DESIGN.md §6, Caller workspace; PRD TEL-01): `N` the next lead, `D` the

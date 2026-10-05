@@ -137,9 +137,7 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
   const [stage] = await ctx.tx
     .select({ id: ps.id })
     .from(ps)
-    .where(
-      and(eq(ps.pipelineId, pipelineId), eq(ps.key, QUALIFIED_STAGE), isNull(ps.archivedAt)),
-    )
+    .where(and(eq(ps.pipelineId, pipelineId), eq(ps.key, QUALIFIED_STAGE), isNull(ps.archivedAt)))
     .limit(1);
   if (!stage) {
     throw new DomainError('validation_failed', `pipeline ${pipelineId} has no qualified stage`, {
@@ -284,7 +282,8 @@ export const logCall = defineCommand({
       case 'retry': {
         // A nurtured lead keeps its nurture calls; only an open lead runs the retry rule.
         if (state !== 'open') break;
-        const firstAt = attemptNo === 1 ? startedAt : ((await runStartedAt(ctx, lead.id)) ?? startedAt);
+        const firstAt =
+          attemptNo === 1 ? startedAt : ((await runStartedAt(ctx, lead.id)) ?? startedAt);
         const step = afterUnanswered(attemptNo, firstAt, ctx.now);
         if (step.kind === 'retry') {
           const task = await createCallTask(ctx, lead, 'callback', step.dueAt);

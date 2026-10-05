@@ -51,8 +51,8 @@ beforeAll(async () => {
   );
 });
 afterAll(async () => {
-  await asMigrator(
-    (m) => m.begin(async (tx) => {
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
       await tx`alter table calls disable trigger calls_append_only`;
       await tx`delete from calls where disposition_id in (${otherCompanyOutcome}, ${archivedOutcome})`;
       await tx`alter table calls enable trigger calls_append_only`;

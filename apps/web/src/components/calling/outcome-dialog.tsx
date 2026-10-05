@@ -16,7 +16,10 @@ import {
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { defaultCallbackLocal, suggestedLostReason, type OutcomeNeed } from '../../screens/calling';
-import { OPPORTUNITY_LOST_REASONS, OPPORTUNITY_NURTURE_REASONS } from '../../screens/contract-values';
+import {
+  OPPORTUNITY_LOST_REASONS,
+  OPPORTUNITY_NURTURE_REASONS,
+} from '../../screens/contract-values';
 import { dueFromLocal } from '../../screens/customers';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -24,9 +27,7 @@ import type { CommandFailure } from '../screens/use-command';
 
 /** What the dialog adds to the call: the callback time or the reason the outcome needs. */
 export type OutcomeDetail =
-  | { callbackAt: string }
-  | { lostReason: string }
-  | { nurtureReason: string };
+  { callbackAt: string } | { lostReason: string } | { nurtureReason: string };
 
 /**
  * The one detail an outcome needs before the call is saved (`outcomeNeeds`): when to call back,
