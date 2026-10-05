@@ -12,6 +12,20 @@ cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}" || exit 0
 . tools/integration/lib.sh
 say() { echo "[cloud-session] $*"; }
 
+# The image puts its own Node (22) ahead of /usr/local/bin, where the setup script installs the Node
+# of .node-version; and corepack cannot start pnpm 12 (it looks for pnpm.cjs, pnpm 12 ships pnpm.mjs).
+# So /usr/local/bin goes first for this hook and, through CLAUDE_ENV_FILE, for every later command,
+# and pnpm of package.json is installed with npm when it is missing or the wrong version.
+export PATH="/usr/local/bin:$PATH"
+[ -n "${CLAUDE_ENV_FILE:-}" ] && echo 'export PATH="/usr/local/bin:$PATH"' >> "$CLAUDE_ENV_FILE"
+want_pnpm=$(grep -m1 -oE '"packageManager": *"pnpm@[0-9.]+' package.json | grep -oE '[0-9.]+$')
+if [ -n "$want_pnpm" ] && [ "$(pnpm --version 2>/dev/null)" != "$want_pnpm" ]; then
+  corepack disable pnpm >/dev/null 2>&1 || true
+  npm install -g "pnpm@$want_pnpm" >/tmp/cloud-session-pnpm.log 2>&1 &&
+    say "pnpm $want_pnpm installed with npm" || say "pnpm $want_pnpm did not install (/tmp/cloud-session-pnpm.log)"
+fi
+say "Node $(node --version 2>/dev/null), pnpm $(pnpm --version 2>/dev/null)"
+
 [ -f .env ] || { cp .env.example .env && say ".env made from .env.example"; }
 # The journeys run the app on E2E_BASE_URL's port (apps/web/playwright.config.ts, default 3031),
 # and sign-in answers only on BETTER_AUTH_URL's, so the two agree here, as setup-worktree.sh makes them.

@@ -29,7 +29,7 @@ if [ "$have" -lt "$want" ]; then
     echo "[cloud-setup] WARNING: Node $want could not be installed"
   fi
 fi
-export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-corepack enable >/dev/null 2>&1 || echo "[cloud-setup] WARNING: corepack enable failed"
+# corepack cannot start pnpm 12; the session-start hook installs pnpm of package.json with npm.
+/usr/local/bin/npm install -g pnpm@12.6.0 >/tmp/cloud-setup-pnpm.log 2>&1 || echo "[cloud-setup] WARNING: pnpm did not install"
 echo "[cloud-setup] done"
 exit 0
