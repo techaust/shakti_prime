@@ -956,7 +956,7 @@
         },
         "agent_actions_decided_check": {
           "name": "agent_actions_decided_check",
-          "value": "(\"agent_actions\".\"decided_at\" is null and \"agent_actions\".\"decided_by\" is null) = (\"agent_actions\".\"state\" = 'proposed' or \"agent_actions\".\"state\" = 'executed')"
+          "value": "(\"agent_actions\".\"decided_at\" is null and \"agent_actions\".\"decided_by\" is null) = (\"agent_actions\".\"state\" <> 'approved' and \"agent_actions\".\"state\" <> 'rejected' and \"agent_actions\".\"state\" <> 'dismissed')"
         },
         "agent_actions_input_size_check": {
           "name": "agent_actions_input_size_check",
