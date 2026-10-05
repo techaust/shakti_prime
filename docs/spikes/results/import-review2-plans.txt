@@ -1,0 +1,166 @@
+EXPLAIN (ANALYZE, BUFFERS) of the second review's queries, 05-10-2026, local Postgres 17 on the PC (port 54341).
+Synthetic rows: 20,000 customers of a colleague and an import job's 500, each with its relationship in company 1; the job's
+500 with a contact and an import row each; 51,005 notes (two on each colleague's customer, one by the importer on each of the
+job's, five by the colleague on the job's); 2,000 leads on the colleague's customers, 1,000 of them tagged. The helper's three
+statements run as the table owner, as the definer runs them; the preview's query runs as app_user under the policies, as a
+General Manager of companies 1 and 3. The id literals of the 500 customers are shortened here.
+
+== app.import_accounts_in_use: locking a chunk of 500 of the job customers (the function body)
+Aggregate  (cost=148.58..148.59 rows=1 width=32) (actual time=1.496..1.515 rows=1 loops=1)
+  Buffers: shared hit=605
+  ->  Subquery Scan on l  (cost=148.28..148.55 rows=12 width=16) (actual time=0.952..1.404 rows=500 loops=1)
+        Buffers: shared hit=605
+        ->  LockRows  (cost=148.28..148.43 rows=12 width=28) (actual time=0.951..1.349 rows=500 loops=1)
+              Buffers: shared hit=605
+              ->  Sort  (cost=148.28..148.31 rows=12 width=28) (actual time=0.940..0.996 rows=500 loops=1)
+                    Sort Key: a.id
+                    Sort Method: quicksort  Memory: 48kB
+                    Buffers: shared hit=105
+                    ->  Hash Semi Join  (cost=24.29..148.06 rows=12 width=28) (actual time=0.368..0.857 rows=500 loops=1)
+                          Hash Cond: (a.id = r.created_id)
+                          Buffers: shared hit=105
+                          ->  Index Scan using accounts_pkey on accounts a  (cost=0.29..122.61 rows=500 width=22) (actual time=0.102..0.455 rows=500 loops=1)
+                                Index Cond: (id = ANY ('{the chunk of 500 ids}'::uuid[]))
+                                Buffers: shared hit=96
+                          ->  Hash  (cost=17.75..17.75 rows=500 width=22) (actual time=0.259..0.274 rows=500 loops=1)
+                                Buckets: 1024  Batches: 1  Memory Usage: 35kB
+                                Buffers: shared hit=9
+                                ->  Seq Scan on import_rows r  (cost=0.00..17.75 rows=500 width=22) (actual time=0.043..0.169 rows=500 loops=1)
+                                      Filter: ((job_id = '01a10904-0814-75c6-8fc7-49d1bdd6868d'::uuid) AND (state = 'committed'::text) AND (created_type = 'account'::text))
+                                      Buffers: shared hit=9
+Planning:
+  Buffers: shared hit=124
+Planning Time: 1.009 ms
+Execution Time: 1.582 ms
+
+== app.import_accounts_in_use: locking their contacts
+Subquery Scan on l  (cost=49.96..57.07 rows=316 width=4) (actual time=0.757..1.676 rows=500 loops=1)
+  Buffers: shared hit=516
+  ->  LockRows  (cost=49.96..53.91 rows=316 width=28) (actual time=0.756..1.616 rows=500 loops=1)
+        Buffers: shared hit=516
+        ->  Sort  (cost=49.96..50.75 rows=316 width=28) (actual time=0.746..1.181 rows=500 loops=1)
+              Sort Key: c.id
+              Sort Method: quicksort  Memory: 48kB
+              Buffers: shared hit=16
+              ->  Hash Join  (cost=21.50..36.84 rows=316 width=28) (actual time=0.229..0.478 rows=500 loops=1)
+                    Hash Cond: (ac.contact_id = c.id)
+                    Buffers: shared hit=16
+                    ->  Seq Scan on account_contacts ac  (cost=1.25..15.75 rows=316 width=22) (actual time=0.032..0.152 rows=500 loops=1)
+                          Filter: (account_id = ANY ('{the chunk of 500 ids}'::uuid[]))
+                          Buffers: shared hit=7
+                    ->  Hash  (cost=14.00..14.00 rows=500 width=22) (actual time=0.192..0.194 rows=500 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 35kB
+                          Buffers: shared hit=9
+                          ->  Seq Scan on contacts c  (cost=0.00..14.00 rows=500 width=22) (actual time=0.005..0.089 rows=500 loops=1)
+                                Buffers: shared hit=9
+Planning:
+  Buffers: shared hit=89
+Planning Time: 0.865 ms
+Execution Time: 1.755 ms
+
+== app.import_accounts_in_use: which of them are in use, among 20,500 customers, 51,005 activities and 1,000 tags
+Index Scan using accounts_pkey on accounts a  (cost=0.29..26644.72 rows=484 width=16) (actual time=1.420..6.642 rows=5 loops=1)
+  Index Cond: (id = ANY ('{the chunk of 500 ids}'::uuid[]))
+  Filter: ((ANY (id = (hashed SubPlan 2).col1)) OR (ANY (id = (hashed SubPlan 4).col1)) OR EXISTS(SubPlan 5) OR EXISTS(SubPlan 6) OR EXISTS(SubPlan 7))
+  Rows Removed by Filter: 495
+  Buffers: shared hit=4631
+  SubPlan 2
+    ->  Seq Scan on opportunities o  (cost=0.00..65.00 rows=2000 width=16) (actual time=0.025..0.497 rows=2000 loops=1)
+          Filter: (archived_at IS NULL)
+          Buffers: shared hit=45
+  SubPlan 4
+    ->  Hash Join  (cost=18.25..35.38 rows=300 width=16) (actual time=0.017..0.019 rows=0 loops=1)
+          Hash Cond: (c.contact_id = ac.contact_id)
+          ->  Seq Scan on consents c  (cost=0.00..13.00 rows=300 width=16) (actual time=0.016..0.016 rows=0 loops=1)
+          ->  Hash  (cost=12.00..12.00 rows=500 width=32) (never executed)
+                ->  Seq Scan on account_contacts ac  (cost=0.00..12.00 rows=500 width=32) (never executed)
+  SubPlan 5
+    ->  Index Scan using account_entities_account_entity_key on account_entities ae  (cost=0.29..8.31 rows=1 width=0) (actual time=0.002..0.002 rows=0 loops=500)
+          Index Cond: (account_id = a.id)
+          Filter: (created_at <> a.created_at)
+          Rows Removed by Filter: 1
+          Buffers: shared hit=1500
+  SubPlan 6
+    ->  Append  (cost=0.41..8.46 rows=5 width=0) (actual time=0.005..0.005 rows=0 loops=500)
+          Buffers: shared hit=2000
+          ->  Index Scan using activities_2026_10_account_id_created_at_id_idx on activities_2026_10 v_1  (cost=0.41..8.44 rows=1 width=0) (actual time=0.003..0.003 rows=0 loops=500)
+                Index Cond: ((account_id = a.id) AND (created_at >= a.created_at))
+                Filter: (actor_principal_id <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid)
+                Rows Removed by Filter: 1
+                Buffers: shared hit=2000
+          ->  Seq Scan on activities_2026_11 v_2  (cost=0.00..0.00 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=495)
+                Filter: ((created_at >= a.created_at) AND (actor_principal_id <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid) AND (account_id = a.id))
+          ->  Seq Scan on activities_2026_12 v_3  (cost=0.00..0.00 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=495)
+                Filter: ((created_at >= a.created_at) AND (actor_principal_id <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid) AND (account_id = a.id))
+          ->  Seq Scan on activities_2027_01 v_4  (cost=0.00..0.00 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=495)
+                Filter: ((created_at >= a.created_at) AND (actor_principal_id <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid) AND (account_id = a.id))
+          ->  Seq Scan on activities_default v_5  (cost=0.00..0.00 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=495)
+                Filter: ((created_at >= a.created_at) AND (actor_principal_id <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid) AND (account_id = a.id))
+  SubPlan 7
+    ->  Nested Loop  (cost=0.55..16.60 rows=1 width=0) (actual time=0.001..0.001 rows=0 loops=495)
+          Buffers: shared hit=990
+          ->  Index Scan using opportunities_account_idx on opportunities o_1  (cost=0.28..8.29 rows=1 width=16) (actual time=0.001..0.001 rows=0 loops=495)
+                Index Cond: (account_id = a.id)
+                Buffers: shared hit=990
+          ->  Index Scan using opportunity_tags_pkey on opportunity_tags g  (cost=0.28..8.30 rows=1 width=16) (never executed)
+                Index Cond: (opportunity_id = o_1.id)
+                Filter: ((created_at >= a.created_at) AND (created_by <> '01a10904-07f3-72de-b9c5-01c75808e816'::uuid))
+Planning:
+  Buffers: shared hit=544 read=13
+Planning Time: 3.951 ms
+Execution Time: 6.801 ms
+
+== preview: the companies through which a General Manager of companies 1 and 3 sees 500 linked customers, under the policies (app_user)
+Unique  (cost=4769.72..4771.51 rows=1 width=2) (actual time=0.539..0.608 rows=1 loops=1)
+  Buffers: shared hit=23
+  InitPlan 1
+    ->  Result  (cost=0.00..0.02 rows=1 width=32) (actual time=0.008..0.009 rows=1 loops=1)
+  InitPlan 2
+    ->  Result  (cost=0.00..0.02 rows=1 width=1) (actual time=0.018..0.018 rows=1 loops=1)
+  InitPlan 3
+    ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+  InitPlan 4
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  InitPlan 5
+    ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+  InitPlan 6
+    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  InitPlan 9
+    ->  Result  (cost=23.50..23.52 rows=1 width=1) (never executed)
+          InitPlan 8
+            ->  Seq Scan on principals p  (cost=0.02..23.50 rows=1 width=0) (never executed)
+                  Filter: (((InitPlan 7).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                  InitPlan 7
+                    ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+  ->  Sort  (cost=4746.07..4746.96 rows=359 width=2) (actual time=0.538..0.570 rows=500 loops=1)
+        Sort Key: account_entities.entity_id
+        Sort Method: quicksort  Memory: 25kB
+        Buffers: shared hit=23
+        ->  Bitmap Heap Scan on account_entities  (cost=136.30..4730.83 rows=359 width=2) (actual time=0.354..0.470 rows=500 loops=1)
+              Recheck Cond: ((account_id = ANY ('{the chunk of 500 ids}'::uuid[])) AND (entity_id = ANY ((InitPlan 1).col1)))
+              Filter: ((InitPlan 2).col1 OR ((InitPlan 3).col1 AND (team_id = (InitPlan 4).col1)) OR ((InitPlan 5).col1 AND (owner_id = (InitPlan 6).col1)) OR ((InitPlan 9).col1 AND (ANY ((account_id = (hashed SubPlan 23).col1) AND (entity_id = (hashed SubPlan 23).col2)))))
+              Heap Blocks: exact=10
+              Buffers: shared hit=20
+              ->  Bitmap Index Scan on account_entities_account_entity_key  (cost=0.00..134.96 rows=500 width=0) (actual time=0.316..0.317 rows=500 loops=1)
+                    Index Cond: ((account_id = ANY ('{the chunk of 500 ids}'::uuid[])) AND (entity_id = ANY ((InitPlan 1).col1)))
+                    Buffers: shared hit=10
+              SubPlan 23
+                ->  Seq Scan on opportunities o  (cost=0.13..100.14 rows=1500 width=18) (never executed)
+                      Filter: ((archived_at IS NULL) AND ((InitPlan 18).col1 OR ((InitPlan 19).col1 AND (team_id = (InitPlan 20).col1)) OR ((InitPlan 21).col1 AND (owner_id = (InitPlan 22).col1))) AND (entity_id = ANY ((InitPlan 17).col1)))
+                      InitPlan 17
+                        ->  Result  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                      InitPlan 18
+                        ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                      InitPlan 19
+                        ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                      InitPlan 20
+                        ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+                      InitPlan 21
+                        ->  Result  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                      InitPlan 22
+                        ->  Result  (cost=0.00..0.02 rows=1 width=16) (never executed)
+Planning:
+  Buffers: shared hit=612
+Planning Time: 3.384 ms
+Execution Time: 0.859 ms
+

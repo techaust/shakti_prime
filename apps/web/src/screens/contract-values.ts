@@ -239,7 +239,14 @@ export const SIZING_INPUT_LIMITS = {
 } as const;
 
 /** The import kinds a job may be created for today. */
-export const IMPLEMENTED_IMPORT_KINDS = ['leads'] as const satisfies readonly ImportKind[];
+export const IMPLEMENTED_IMPORT_KINDS = [
+  'leads',
+  'accounts',
+  'pin_codes',
+] as const satisfies readonly ImportKind[];
+
+/** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */
+export const MORE_SITES_MAX = 100;
 
 export const IMPORT_JOB_STATES = [
   'uploaded',
@@ -512,6 +519,8 @@ export const UPLOAD_CONTENT_TYPES = [
   'image/png',
   'image/webp',
   'application/pdf',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -523,6 +532,7 @@ export const FILE_REJECT_REASONS = [
   'file_image_too_large',
   'file_pdf_active_content',
   'file_mask_failed',
+  'file_upload_abandoned',
 ] as const satisfies readonly FileRejectReason[];
 
 /** What the malware scan said, and what the checks did to the bytes. */
@@ -543,4 +553,5 @@ export const FILE_SANITISING = [
   're_encoded',
   'pdf_checked',
   'masked',
+  'sheet_checked',
 ] as const satisfies readonly FileSanitising[];

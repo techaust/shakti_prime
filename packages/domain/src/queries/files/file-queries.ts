@@ -1,6 +1,6 @@
 import type { FileDto, FilePurpose } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, count, desc, eq, inArray, lt } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { AWAITING_CHECKS } from '../../commands/files/recheck-files';
 import { scanResultOf, toFileDto, type FileRow } from '../../commands/files/shared';
 
@@ -19,6 +19,8 @@ export interface StoredFile {
   size: number;
   sha256: string;
   status: FileRow['status'];
+  /** Who uploaded it, or the worker that made it. */
+  createdBy: string;
   /** The upload's own bytes, once the checks replaced or refused them (`ScanResult`). */
   originalKey: string | undefined;
 }
@@ -35,6 +37,7 @@ function toStoredFile(row: FileRow): StoredFile {
     size: row.size,
     sha256: row.sha256,
     status: row.status,
+    createdBy: row.createdBy,
     originalKey: scanResultOf(row).originalKey,
   };
 }
@@ -94,4 +97,20 @@ export async function countFilesAwaitingChecks(
     .from(f)
     .where(and(inArray(f.status, [...AWAITING_CHECKS]), lt(f.updatedAt, before)));
   return row?.n ?? 0;
+}
+
+/**
+ * The companies holding an upload still pending `olderThanMinutes` after it began, for the sweep
+ * of abandoned uploads (`files.upload.sweep`), which then runs in a request for each company
+ * alone. Only the worker principal (`files.process` at scope all) may ask
+ * (`app.stale_upload_entities()`); the request needs no company of its own.
+ */
+export async function staleUploadCompanies(
+  ctx: Pick<RequestContext, 'tx'>,
+  olderThanMinutes: number,
+): Promise<number[]> {
+  const rows = (await ctx.tx.execute(
+    sql`select entity_id from app.stale_upload_entities(${olderThanMinutes}::int) as entity_id`,
+  )) as unknown as { entity_id: number }[];
+  return rows.map((row) => row.entity_id);
 }

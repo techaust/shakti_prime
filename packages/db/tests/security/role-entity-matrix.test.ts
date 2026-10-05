@@ -154,7 +154,11 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: otherCompany,
   },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
-  import_jobs: { read: IMPORTS, leak: otherCompany },
+  // The import worker (`system:workers`) reads a job of its company to stop it.
+  import_jobs: {
+    read: { kind: 'any', rules: [IMPORTS, grant('imports.process', 'entity')] },
+    leak: otherCompany,
+  },
   import_rows: { read: IMPORTS, leak: otherCompany },
   // 0049: every role reads the role map of the acting company, and its own roles in any company
   // (the profile and the company switcher), never another person's role in another company.

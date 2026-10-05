@@ -293,8 +293,8 @@ const eventCatalogue = {
   },
   'imports.job.failed': {
     meaning:
-      'A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back.',
-    emittedBy: ['imports.job.commit_batch'],
+      'A batch of an import job failed, or its worker gave up after the last retry, and the job stopped; earlier batches stay until it is rolled back.',
+    emittedBy: ['imports.job.commit_batch', 'imports.job.fail'],
     subscribed: false,
     payload: z
       .object({
@@ -316,7 +316,8 @@ const eventCatalogue = {
     payload: z.object({ requestedAt: z.iso.datetime() }).strict(),
   },
   'imports.job.rolled_back': {
-    meaning: 'The leads an import job made were archived; the customers it made stay.',
+    meaning:
+      'An import job was undone: its leads or customers archived, or the offices it added to the PIN code master removed.',
     emittedBy: ['imports.job.rollback'],
     subscribed: false,
     payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),

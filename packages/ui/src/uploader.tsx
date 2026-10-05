@@ -273,6 +273,12 @@ export interface UploaderProps {
   upload: (file: File, controls: UploadControls) => Promise<UploadResult>;
   /** Called when an upload ends as `done` or `waiting`. */
   onUploaded?: (result: UploadResult) => void;
+  /**
+   * The file's type as the purpose counts it, when the browser's own guess is not enough: a
+   * computer with Excel calls a CSV file `application/vnd.ms-excel`, so a spreadsheet is known by
+   * its name. The browser's guess when not given.
+   */
+  typeOf?: (file: File) => string;
 }
 
 /** Picks, checks and sends one file at a time; see `UploaderView` for what it shows. */
@@ -286,6 +292,7 @@ export function Uploader({
   disabled,
   upload,
   onUploaded,
+  typeOf,
 }: UploaderProps) {
   const [phase, setPhase] = useState<UploaderPhase>({ kind: 'idle' });
   const [dragging, setDragging] = useState(false);
@@ -324,7 +331,11 @@ export function Uploader({
   );
 
   const pick = (file: File) => {
-    const problem = pickProblem(file, accept, maxBytes);
+    const problem = pickProblem(
+      { type: typeOf === undefined ? file.type : typeOf(file), size: file.size },
+      accept,
+      maxBytes,
+    );
     if (problem !== undefined) {
       setPhase({ kind: 'refused', message: text[problem] });
       return;

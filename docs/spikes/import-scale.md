@@ -2,12 +2,12 @@
 
 **Design §8 and IMP-01** ("50k rows in < 5 min"). Measured 28-09-2026 at commit `bfbd03f5`; the batch time limit came later (#70) and is not re-measured. Result: **met on the development laptop with one worker.** 50,000 made-up leads went through upload, preview and commit in 3 minutes 25 seconds, the commit alone in 3 minutes 4 seconds (272 rows a second), and the rollback took 8 seconds. Row by row, one lead command at a time, the commit runs at about 11 rows a second, which would take over an hour; the set-based batch described below makes the difference. The hosted stack (QStash workers in `bom1`, Supabase Mumbai, the 30 seconds for which each worker call starts batches) is not measured here; that is Phase 1.
 
-Run it with `pnpm spike:import` (options: `-- --rows 50000 --batch 500 --budget 420`). It needs the local Docker Postgres and refuses any other database. The numbers are in [results/import-scale.json](results/import-scale.json), and those of the row-by-row run in [results/import-scale-before.json](results/import-scale-before.json). It is not part of CI.
+Run it with `pnpm spike:import` (options: `-- --rows 50000 --batch 500 --budget 420 --dedupe 5000`, and `--csv` for a CSV file instead of a workbook). It needs the local Docker Postgres and refuses any other database. The numbers of the set-based run of 28-09-2026 are in [results/import-scale.json](results/import-scale.json), those of the row-by-row run in [results/import-scale-before.json](results/import-scale-before.json), and those of the workbook run of 04-10-2026 (below) in [results/import-scale-xlsx.json](results/import-scale-xlsx.json) with its plan in [results/import-dedupe-plan.txt](results/import-dedupe-plan.txt). It is not part of CI.
 
 ## What it does
 | Step | How |
 |---|---|
-| File | A made-up CSV built in memory: invented names and villages put together from syllables, made-up mobile numbers starting with 7, columns Name, Mobile and Village (1.86 MB for 50,000 rows) |
+| File | A made-up file built in memory: invented names and villages put together from syllables, made-up mobile numbers starting with 7, columns Name, Mobile and Village; a CSV (1.86 MB for 50,000 rows) in the run of 28-09-2026, a workbook written with ExcelJS's streaming writer (1.2 MB) since 04-10-2026, read by `parseImportFile` as the server reads an uploaded file and recorded as a checked upload |
 | Caller | A General Manager of Shakti Supreme made with the testing helpers, which is why the script lives in `packages/domain/tests/spike/import-scale.ts` |
 | Commands | `imports.job.create` → `imports.job.map` → `imports.job.preview` → `imports.job.commit` → `imports.job.commit_batch` in batches of 500 (one transaction each, as the import worker runs them) → `imports.job.rollback`, all through `executeCommand` as `app_user`, with RLS, the audit rows, the events and the dedupe suggestions (phone, then name and village) |
 | Round trip | The median of fifty `select 1` in one transaction |
@@ -36,7 +36,7 @@ That is about 13 statements a batch instead of about 6,000.
 
 The guarantees:
 - A batch is all or nothing (IMP-01: "a failed batch leaves no partial data"), with one exception: a row whose number belongs to a customer a colleague looks after in the company is marked invalid (`customer_held_by_colleague`) and the rest of the batch goes on (0055).
-- If anything in the batch is not a plain new lead (a known customer, a consent, a key used before, a row that does not parse) or the database refuses a row, the savepoint takes the batch back. The batch then runs again row by row through `crm.lead.create`, which stops at the row at fault and records it; a row refused for a colleague's customer is marked and passed over. A batch keeps to 20 seconds from its start: it tries the set-based path only while 17.2 seconds, the slowest set-based batch below, are left, and row by row it stops between rows once its time is spent, keeps the rows done as that batch, and leaves the rest to the next one.
+- If anything in the batch is not a plain new lead (a known customer, a consent, a key used before, a row that does not parse) or the database refuses a row, the savepoint takes the batch back. The batch then runs again row by row through `crm.lead.create`, which stops at the row at fault and records it; a row refused for a colleague's customer is marked and passed over. A batch keeps to 20 seconds from its start: the set-based try has one deadline across its statements, 3 seconds before the end, each statement's time limit being the time left; when it is cut off or not made, a row-by-row slice runs for at most 3 seconds, stopping between rows, keeps the rows done as that batch, and leaves the rest to the next one (design §6.3).
 - Each row is a customer of its own, as a lead typed in is. A matching name, or a number of a customer the importer may act for, stays a suggestion; a number a colleague's customer holds is refused as above.
 
 The security suite covers these cases (`packages/domain/tests/commands/imports.test.ts`):
@@ -68,3 +68,21 @@ Both runs used the local database the test suites share, as both result files re
 - The hosted stack: QStash workers, Supabase Mumbai and the 30 seconds for which each worker call starts batches.
 - Concurrent batch workers on one job, which the job lock does not allow.
 - Files with invalid or repeated rows at scale; the security suite covers those paths on small files.
+
+## The workbook read as a stream, and the name-and-village search (04-10-2026, local)
+Measured at the head of `feat/p2b-imports` on the owner's PC (Windows 11, 8 GB of memory, Node 24.19, Docker Postgres 17 of the slice's worktree on `127.0.0.1:54341`), one connection, in process. **The machine was saturated during the run**: the processor at 100 %, 345 MB of memory free, other worktrees' builds and suites running and Docker restarted shortly before after running out of memory. The round trip to the database was 4.68 ms, against 1.39 ms on 28-09-2026, and the commit times below measure that load as much as the code. The five-minute target is therefore neither confirmed nor refuted by this run; the measure that settles it is the one on the dev deployment (Integration notes of the slice).
+
+| Measure | Result |
+|---|---|
+| Workbook of 50,000 rows | 1.2 MB, written in 7.4 s |
+| Read with the streaming reader | 8.0 s; the process's resident memory rose by 114 MB (122 to 236 MB) and the heap by 64 MB at the peak, sampled every 10 ms after a full collection; the rows read hold 3.3 MB of text |
+| Read of a 5,000-row workbook | 1.1 s; resident memory up 7 MB |
+| Create the job, 50,000 rows | 62.1 s (805 rows/s) |
+| Preview, 50,000 rows | 53.9 s (928 rows/s) |
+| Commit | 50,000 rows in 1,264.9 s (39.5 rows/s) in 118 batches: median batch 8.1 s, slowest 47.7 s; 13 batches had their set-based try cut off at its deadline (11 by the statement time limit, 2 between statements) and went on row by row |
+| Roll back | 50,000 rows in 50.9 s |
+
+The commit ran at 115 rows a second over its first 5,000 rows (272 on 28-09-2026) and slowed as the machine's load grew; once a batch needed more than its 17 seconds, its try was cut off and only a 3-second slice of single rows followed, so under that load most of the time went to tries that were taken back.
+
+**The name-and-village search.** The preview's second dedupe search (`existingByNameAndVillage` in `preview-job.ts`) compares the stored keys `customer_sites.village_key` and `contacts.name_key` (0101), so each comparison is an index condition instead of a `regexp_replace` over every live site and contact, which ran past the 30-second statement limit at about 25,000 customers. With the 50,000 customers of the run in place (59,854 live sites in the company), a second file of 5,000 rows naming the same people and villages with new numbers was previewed in 22.4 s, every row with its name-and-village suggestions. `EXPLAIN (ANALYZE, BUFFERS)` of the search for its first 1,000 pairs, as a General Manager under the policies ([results/import-dedupe-plan.txt](results/import-dedupe-plan.txt)): an index scan of `customer_sites_village_key_idx` per wanted village (46 sites each here, the made-up file repeating 1,750 villages), the policies' `account_entities` probes by index, and `contacts` by its key, with the name compared on the joined row; 2.57 s on the saturated machine, 1,002,002 buffers all in memory. The work follows the number of customers in the wanted villages, not the number of customers in the group.
+

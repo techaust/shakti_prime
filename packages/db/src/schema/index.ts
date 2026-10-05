@@ -25,6 +25,7 @@ export { idempotencyKeys } from './idempotency-keys';
 export { savedViews } from './saved-views';
 export { files } from './files';
 export { importMappingTemplates, importJobs, importRows } from './imports';
+export { pinCodes } from './pin-codes';
 export {
   users,
   sessions,

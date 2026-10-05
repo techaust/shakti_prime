@@ -11,6 +11,7 @@ import {
   executeQuery,
   EXTENSIONS,
   getStoredFile,
+  importFileReadable,
   markFileReady,
   markFileScanned,
   rejectFile,
@@ -68,8 +69,9 @@ type Checked =
  *    throws `integration_unavailable`, so the queue delivers again later; a threat, or a scan that
  *    could not run, rejects the file. Where no scanner exists the file is `not_scanned`, which only
  *    an environment that is not hosted accepts.
- * 2. The bytes: an image is re-encoded, a PDF checked, a vault photo masked. A changed copy is
- *    stored under its own key and the upload's bytes are deleted, every version of them.
+ * 2. The bytes: an image is re-encoded, a PDF checked, a vault photo masked, an import file read
+ *    as the CSV or workbook it says it is. A changed copy is stored under its own key and the
+ *    upload's bytes are deleted, every version of them.
  * 3. `ready` with the checked copy's key, type, size and checksum, or `rejected` with the reason
  *    the uploader is shown; a rejected file's bytes are deleted.
  */
@@ -183,6 +185,18 @@ export function checkedKey(file: Pick<StoredFile, 'key'>, contentType: UploadCon
 }
 
 async function check(file: StoredFile, bytes: Uint8Array, deps: FileCheckDeps): Promise<Checked> {
+  if (file.purpose === 'import') {
+    // The rows are read and checked when the job starts; here, the file is what it says it is.
+    return importFileReadable(bytes, file.contentType)
+      ? {
+          ok: true,
+          sanitising: 'sheet_checked',
+          bytes,
+          contentType: file.contentType as UploadContentType,
+          regionsMasked: 0,
+        }
+      : { ok: false, reason: 'file_unreadable' };
+  }
   if (file.contentType === 'application/pdf') {
     const pdf = checkPdf(bytes);
     return pdf.ok

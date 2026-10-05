@@ -3,7 +3,14 @@
 // Run by `pnpm --filter web e2e:seed` (and so by `e2e` and `e2e:snap`) before the Playwright runner.
 import { newId } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
-import { asMigrator, closeDb, prepareDatabase, principalFor, roleId } from '@shakti/db/testing';
+import {
+  asMigrator,
+  closeDb,
+  createReadyImportFile,
+  prepareDatabase,
+  principalFor,
+  roleId,
+} from '@shakti/db/testing';
 import {
   createImportJob,
   createLead,
@@ -241,8 +248,18 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
   const bytes = new TextEncoder().encode(`${csv}\n`);
   const parsed = await parseImportFile(bytes);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
-  const key = `imports/${String(SNAPSHOT_COMPANY.entityId)}/${sha256}.${parsed.format}`;
+  // As the pre-signed upload leaves it: the bytes in the store, the file checked and ready.
+  const fileId = newId();
+  const key = `${String(SNAPSHOT_COMPANY.entityId)}/import/${fileId}.csv`;
   await store.put(key, bytes, 'text/csv');
+  await createReadyImportFile(SNAPSHOT_COMPANY.entityId, executiveId, {
+    id: fileId,
+    name: SNAPSHOT_IMPORT_FILE,
+    size: bytes.length,
+    sha256,
+    bucket: store.bucket,
+    key,
+  });
   await executeCommand(
     principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
     { entityIds: [SNAPSHOT_COMPANY.entityId] },
@@ -250,14 +267,7 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
     {
       entityId: SNAPSHOT_COMPANY.entityId,
       kind: 'leads',
-      file: {
-        name: SNAPSHOT_IMPORT_FILE,
-        contentType: 'text/csv',
-        size: bytes.length,
-        sha256,
-        bucket: store.bucket,
-        key,
-      },
+      fileId,
       format: parsed.format,
       columns: parsed.columns,
       rows: parsed.rows,

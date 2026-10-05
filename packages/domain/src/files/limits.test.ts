@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES, newId } from '@shakti/contracts';
+import { IMPORT_LIMITS, MAX_UPLOAD_BYTES, newId } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { assertFileKey } from '../ports/file-store';
 import { UPLOAD_LIMITS, uploadKey, uploadLimitProblem } from './limits';
@@ -25,7 +25,17 @@ describe('upload limits', () => {
     expect(uploadLimitProblem('entity_logo', 'application/pdf', 10)).toBe('file_type_not_allowed');
     expect(uploadLimitProblem('quote_pdf', 'image/jpeg', 10)).toBe('file_type_not_allowed');
     expect(uploadLimitProblem('signed_quote', 'image/svg+xml', 10)).toBe('file_type_not_allowed');
-    expect(uploadLimitProblem('import', 'text/csv', 10)).toBe('file_type_not_allowed');
+    expect(uploadLimitProblem('import', 'application/pdf', 10)).toBe('file_type_not_allowed');
+    expect(uploadLimitProblem('entity_logo', 'text/csv', 10)).toBe('file_type_not_allowed');
+  });
+
+  it('takes an import file as a CSV or a workbook up to the import limit', () => {
+    const max = IMPORT_LIMITS.maxFileBytes;
+    expect(uploadLimitProblem('import', 'text/csv', max)).toBeUndefined();
+    const xlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    expect(uploadLimitProblem('import', xlsx, 10)).toBeUndefined();
+    expect(uploadLimitProblem('import', 'text/csv', max + 1)).toBe('file_too_large');
+    expect(uploadKey(1, 'import', newId(), 'text/csv')).toMatch(/^1\/import\/[0-9a-f-]+\.csv$/);
   });
 
   it('makes a safe key per company, purpose and file', () => {

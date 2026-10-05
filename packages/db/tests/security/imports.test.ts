@@ -9,6 +9,9 @@ import {
   asPrincipal,
   closeDb,
   createTestPrincipal,
+  PIPELINE_SEED,
+  principalFor,
+  stageId,
   withoutContext,
 } from '../../src/testing/index';
 
@@ -118,10 +121,11 @@ describe('imports are written only as the caller, in the caller’s entity', () 
   const insertFile = (entityId: number, createdBy: string) => {
     const id = newId();
     return sql`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
-      values (${id}, ${entityId}, 'import', 'test', ${`imports/${id}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'ready', ${createdBy})`;
+      values (${id}, ${entityId}, 'import', 'test', ${`imports/${id}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'pending', ${createdBy})`;
   };
 
-  it('lets a General Manager store a file in their entity', async () => {
+  // An import file comes by the pre-signed upload, so a person records it pending (0102).
+  it('lets a General Manager record an upload in their entity', async () => {
     await asPrincipal(gm1, ({ tx }) => tx.execute(insertFile(1, gm1.id)));
   });
 
@@ -155,13 +159,31 @@ describe('imports are written only as the caller, in the caller’s entity', () 
   });
 
   it('keeps a job with a file of its own entity, even for the table owner', async () => {
+    // A file of the first company that no job uses yet: one file starts one job (0101).
+    const fileId = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+        values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'ready', ${gm1.id})`,
+    );
     const job = asMigrator(
       (
         m,
       ) => m`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, created_by)
-        values (${newId()}, 2, 'leads', ${one.fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
+        values (${newId()}, 2, 'leads', ${fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
     );
     expect(await failure(job)).toMatch(/import_jobs_file_entity_fk/);
+  });
+
+  it('starts one job from one file, even for the table owner', async () => {
+    const job = asMigrator(
+      (
+        m,
+      ) => m`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, created_by)
+        values (${newId()}, 1, 'leads', ${one.fileId}, 'csv', '[]'::jsonb, ${gm1.id})`,
+    );
+    expect(await failure(job)).toMatch(/import_jobs_file_unique/);
   });
 
   it('updates the working columns of a job and a row, never what the file said', async () => {
@@ -226,15 +248,16 @@ describe('the batch count of a job that committed before 0058 (0060)', () => {
       m
         .begin(async (tx) => {
           const f = { committed: newId(), untouched: newId(), counted: newId() };
-          const fileId = newId();
-          await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
-            values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,
-                    ${newId().replaceAll('-', '').padEnd(64, '0')}, 'ready', ${gm1.id})`;
           for (const [jobId, batchCount] of [
             [f.committed, 0],
             [f.untouched, 0],
             [f.counted, 5],
           ] as const) {
+            // Each job its own file: one file starts one job (0101).
+            const fileId = newId();
+            await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+              values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,
+                      ${newId().replaceAll('-', '').padEnd(64, '0')}, 'ready', ${gm1.id})`;
             // Last changed long ago, so a change by the backfill shows in updated_at.
             await tx`insert into import_jobs (id, entity_id, kind, file_id, format, columns_json, state, total_rows, batch_count, created_by, updated_at)
               values (${jobId}, 1, 'leads', ${fileId}, 'csv', '["Name"]'::jsonb, 'committing', 3, ${batchCount}, ${gm1.id}, '2026-01-01T00:00:00Z')`;
@@ -281,3 +304,135 @@ class RolledBack extends Error {
     super('rolled back');
   }
 }
+
+describe('the import worker stops a job of its own company (imports.process)', () => {
+  const worker = (entityIds: number[]) => principalFor('system:workers', entityIds);
+
+  it('reads and stops a job of the company it acts for, and no other', async () => {
+    const f = await fixture(1, gm1.id);
+    const stop = (principal: Principal) =>
+      asPrincipal(
+        principal,
+        async ({ tx }) =>
+          (await tx.execute(
+            sql`update import_jobs set state = 'failed' where id = ${f.jobId} returning id`,
+          )) as unknown as unknown[],
+      );
+    expect(await seen(worker([2]), countOf('import_jobs', f))).toBe(0);
+    expect(await stop(worker([2]))).toEqual([]);
+    expect(await seen(worker([1]), countOf('import_jobs', f))).toBe(1);
+    expect(await stop(worker([1]))).toHaveLength(1);
+    // The rows stay out of its reach.
+    expect(await seen(worker([1]), countOf('import_rows', f))).toBe(0);
+  });
+});
+
+describe('app.import_accounts_in_use: the customers a rollback keeps', () => {
+  /** A customers job with its committed rows, each a new customer of company 1. */
+  async function accountsJob(names: string[]) {
+    const f = await fixture(1, gm1.id);
+    const ids = names.map(() => newId());
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update import_jobs set kind = 'accounts', template_id = null where id = ${f.jobId}`;
+        await tx`delete from import_rows where job_id = ${f.jobId}`;
+        for (const [i, id] of ids.entries()) {
+          await tx`insert into accounts (id, type, name, created_by)
+            values (${id}, 'farm', ${names[i] ?? ''}, ${gm1.id})`;
+          await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+            values (${newId()}, ${id}, 1, ${gm1.id}, ${gm1.id})`;
+          await tx`insert into import_rows (job_id, entity_id, row_no, raw_json, state, created_type, created_id, created_by)
+            values (${f.jobId}, 1, ${i + 1}, '{}'::jsonb, 'committed', 'account', ${id}, ${gm1.id})`;
+        }
+      }),
+    );
+    return { jobId: f.jobId, ids };
+  }
+
+  /** The helper's answer for the given customers, in id order. */
+  const inUseQuery = (jobId: string, ids: readonly string[]) =>
+    sql`select app.import_accounts_in_use(${jobId},
+          array(select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)::uuid)) as id`;
+  const inUse = (principal: Principal, jobId: string, ids: readonly string[]) =>
+    asPrincipal(principal, async ({ tx }) =>
+      ((await tx.execute(inUseQuery(jobId, ids))) as unknown as { id: string }[])
+        .map((r) => r.id)
+        .sort(),
+    );
+
+  it('names the customers another company took on since, past the caller’s companies', async () => {
+    const { jobId, ids } = await accountsJob(['fixture free', 'fixture taken']);
+    const [free, taken] = ids;
+    // Company 2 takes the second customer on later, where company 1's GM sees nothing.
+    await asMigrator(
+      (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+               values (${newId()}, ${taken ?? ''}, 2, ${gm2.id}, ${gm2.id})`,
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([taken]);
+    expect(await inUse(gm1, jobId, [free ?? ''])).toEqual([]);
+  });
+
+  it('counts an activity or a lead’s tag someone else added after the import, not the importer’s own', async () => {
+    const { jobId, ids } = await accountsJob([
+      'fixture noted',
+      'fixture own note',
+      'fixture tagged',
+      'fixture quiet',
+    ]);
+    const [noted = '', ownNote = '', tagged = '', quiet = ''] = ids;
+    const lead = newId();
+    const tag = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into activities (id, entity_id, account_id, type, actor_principal_id, body)
+          values (${newId()}, 1, ${noted}, 'note', ${gm2.id}, 'Called about the pump'),
+                 (${newId()}, 1, ${ownNote}, 'note', ${gm1.id}, 'Checked the list')`;
+        // A tag on a lead that is archived since: only the tag keeps the customer.
+        await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, created_by, archived_at)
+          values (${lead}, 1, ${tagged}, ${PIPELINE_SEED[0]?.id ?? ''}, ${stageId(1, 1)}, ${gm1.id}, ${gm1.id}, now())`;
+        await tx`insert into tags (id, entity_id, name, created_by, updated_by)
+          values (${tag}, 1, ${`fixture ${tag.slice(-8)}`}, ${gm2.id}, ${gm2.id})`;
+        await tx`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
+          values (${lead}, ${tagged}, ${tag}, 1, ${gm2.id})`;
+      }),
+    );
+    expect(await inUse(gm1, jobId, ids)).toEqual([noted, tagged].sort());
+    expect(await inUse(gm1, jobId, [ownNote, quiet])).toEqual([]);
+  });
+
+  it('answers only the job’s own customers among those given, and locks them until the end', async () => {
+    const { jobId, ids } = await accountsJob(['fixture locked']);
+    const [locked = ''] = ids;
+    const other = await accountsJob(['fixture of another job']);
+    const [stranger = ''] = other.ids;
+    // Another job's customer, taken on elsewhere, is not this job's to name.
+    await asMigrator(
+      (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+               values (${newId()}, ${stranger}, 2, ${gm2.id}, ${gm2.id})`,
+    );
+    expect(await inUse(gm1, jobId, [locked, stranger])).toEqual([]);
+    // While the rollback's transaction is open, nobody else may lock or take on that customer.
+    const waited = await asPrincipal(gm1, async ({ tx }) => {
+      await tx.execute(inUseQuery(jobId, [locked]));
+      return asMigrator(async (m) => {
+        try {
+          await m`select id from accounts where id = ${locked} for key share nowait`;
+          return 'free';
+        } catch (e) {
+          return (e as { code?: string }).code;
+        }
+      });
+    });
+    expect(waited).toBe('55P03');
+  });
+
+  it('is refused outside the job’s company or without imports.write', async () => {
+    const { jobId } = await accountsJob(['fixture refused']);
+    const refused = (e: unknown) =>
+      e instanceof Error &&
+      e.cause instanceof Error &&
+      e.cause.message.includes('outside the request scope');
+    await expect(inUse(gm2, jobId, [])).rejects.toSatisfy(refused);
+    await expect(inUse(principalFor('tele_caller_cc', [1]), jobId, [])).rejects.toSatisfy(refused);
+  });
+});

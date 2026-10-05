@@ -1,6 +1,7 @@
 import {
   DomainError,
   ImportJobDto,
+  importMappingSchemaFor,
   MapImportJobInput,
   newId,
   type ImportMapping,
@@ -11,6 +12,8 @@ import { defineCommand } from '../../command/define-command';
 import { assertImportJobMove } from '../../imports/job-state';
 import {
   assertEntityInScope,
+  assertGroupImport,
+  implementedKind,
   jobState,
   loadJob,
   parseStoredMapping,
@@ -19,9 +22,11 @@ import {
 } from './shared';
 
 /**
- * `imports.job.map` (IMP-01): matches the job's columns to lead fields, from a mapping given now
- * or a saved template of the same kind, and saves a new mapping as a template when asked. A job
- * may be mapped again until it commits; its rows then wait for a fresh preview.
+ * `imports.job.map` (IMP-01): matches the job's columns to the fields of its kind, from a mapping
+ * given now or a saved template of the same kind, and saves a new mapping as a template when
+ * asked. A mapping that does not give what the kind needs (a lead's name, phone and pipeline; a
+ * customer's name and phone; an office's PIN, name and district) is refused. A job may be mapped
+ * again until it commits; its rows then wait for a fresh preview.
  */
 export const mapImportJob = defineCommand({
   name: 'imports.job.map',
@@ -36,6 +41,8 @@ export const mapImportJob = defineCommand({
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     const before = jobState(loaded.job);
     assertImportJobMove(before, 'mapped');
+    const kind = implementedKind(loaded.job);
+    if (kind === 'pin_codes') await assertGroupImport(ctx);
 
     let mapping: ImportMapping;
     let templateId: string | null = null;
@@ -64,6 +71,13 @@ export const mapImportJob = defineCommand({
     } else {
       throw new DomainError('validation_failed', 'a mapping or a template is required');
     }
+    const fits = importMappingSchemaFor(kind).safeParse(mapping);
+    if (!fits.success) {
+      throw new DomainError('validation_failed', 'the mapping does not fit the kind of file', {
+        reason: 'import_mapping_incomplete',
+      });
+    }
+    mapping = fits.data;
 
     const columns = new Set(loaded.job.columnsJson as string[]);
     const missing = Object.values(mapping.columns).filter((c) => !columns.has(c));

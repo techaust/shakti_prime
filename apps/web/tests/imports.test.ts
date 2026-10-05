@@ -3,15 +3,27 @@ import {
   IMPORT_LIMITS,
   ImportCommitWorkerResponse,
   newId,
+  SYSTEM_WORKERS_PRINCIPAL_ID,
+  type DeliveredEvent,
   type ImportJobDto,
   type Principal,
 } from '@shakti/contracts';
 import { closeOutboxDb } from '@shakti/db/outbox';
-import { asMigrator, closeDb, createTestUser, principalFor } from '@shakti/db/testing';
+import {
+  ALL_ENTITY_IDS,
+  asMigrator,
+  asOutboxPublisher,
+  closeDb,
+  createTestPrincipal,
+  createTestUser,
+  principalFor,
+} from '@shakti/db/testing';
 import {
   commitImportJob as commitImportJobCommand,
+  createLead,
   executeCommand,
   memoryFileStore,
+  sha256Hex,
   type FileStore,
 } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
@@ -19,7 +31,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 // The import actions and worker outside a Next.js request, as in `actions.test.ts`: the request
 // headers, the signed-in caller, the file store and the queue client are stand-ins; the commands,
-// the parser and the database are real.
+// the upload flow, the file checks, the parser and the database are real.
 interface RequestState {
   principal: Principal | undefined;
   headers: Headers;
@@ -68,13 +80,18 @@ const {
   mapImportJob,
   previewImportJob,
   rollbackImportJob,
-  uploadImportFile,
+  startImport,
 } = await import('../src/actions/imports');
+const { startUpload } = await import('../src/actions/files');
+const { completeUploadFor, presignUpload } = await import('../src/files/uploads');
+const { handleFileUploaded } = await import('../src/workers/files/handle-file-uploaded');
 const { POST } = await import('../src/app/api/v1/workers/imports/commit/route');
-const { importRunId, scheduleImportCommit } = await import('../src/workers/imports');
+const { giveUpImportCommit, importRunId, scheduleImportCommit } =
+  await import('../src/workers/imports');
 
 let files: ReturnType<typeof memoryFileStore>;
 let gm: Principal;
+let checker: Principal;
 
 beforeAll(async () => {
   // A General Manager of Shakti Supreme with an authenticator app, as the worker resolves them.
@@ -82,6 +99,10 @@ beforeAll(async () => {
     twoFactorEnabled: true,
   });
   gm = principalFor('general_manager', [1], { id: user.id });
+  // The file checks' principal, as the worker of `files.file.uploaded` acts.
+  checker = await createTestPrincipal('executive', ALL_ENTITY_IDS, {
+    permissions: [{ key: 'files.process', scope: 'all' }],
+  });
 });
 afterAll(async () => {
   await closeOutboxDb();
@@ -100,24 +121,64 @@ function phone(): string {
   return `9${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
 }
 
-function uploadForm(content: BlobPart, name = 'fair-leads.csv', kind = 'leads'): FormData {
-  const form = new FormData();
-  form.set('entityId', '1');
-  form.set('kind', kind);
-  form.set('file', new File([content], name));
-  return form;
+const CSV = 'text/csv';
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+function fileUploaded(fileId: string): DeliveredEvent {
+  return {
+    id: newId(),
+    sequence: '1',
+    type: 'files.file.uploaded',
+    entityId: 1,
+    aggregateType: 'file',
+    aggregateId: fileId,
+    payload: { purpose: 'import', v: 1 },
+  };
 }
 
-function keyOf(csv: string): string {
-  return `imports/1/${createHash('sha256').update(csv).digest('hex')}.csv`;
+/**
+ * An import file as the screen uploads it: the upload is recorded and signed, the bytes land in
+ * the store under the key it signed, the upload is completed, and, unless `check` is false, the
+ * checks run as their worker does. Answers the file's id.
+ */
+async function uploaded(
+  content: string | Uint8Array,
+  options: { name?: string; contentType?: string; check?: boolean; as?: Principal } = {},
+): Promise<string> {
+  const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+  const contentType = options.contentType ?? CSV;
+  const caller = options.as ?? gm;
+  const call = { requestId: newId(), options: {} };
+  const slot = await presignUpload(
+    caller,
+    {
+      entityId: 1,
+      purpose: 'import',
+      name: options.name ?? 'fair-leads.csv',
+      contentType,
+      size: bytes.length,
+      sha256: sha256Hex(bytes),
+    } as never,
+    call,
+    files,
+  );
+  const [key] = [...new URL(slot.uploadUrl).pathname.split('/').slice(1)].join('/').split('?');
+  await files.put(key ?? '', bytes, contentType);
+  await completeUploadFor(caller, slot.fileId, 'import', call, files);
+  if (options.check !== false) {
+    await handleFileUploaded(fileUploaded(slot.fileId), {
+      store: files,
+      principal: checker,
+      hosted: false,
+    });
+  }
+  return slot.fileId;
 }
 
-/** How many file records the first company holds for this content. */
-async function filesRecorded(csv: string): Promise<number> {
-  const sha256 = createHash('sha256').update(csv).digest('hex');
+/** How many jobs a file started. */
+async function jobsOf(fileId: string): Promise<number> {
   const [row] = await asMigrator(
-    (m) => m<{ n: number }[]>`select count(*)::int as n from files
-     where entity_id = 1 and sha256 = ${sha256}`,
+    (m) => m<{ n: number }[]>`select count(*)::int as n from import_jobs where file_id = ${fileId}`,
   );
   return row?.n ?? -1;
 }
@@ -132,10 +193,16 @@ const mapping = {
   defaults: { pipelineKey: 'farmer_pumps', accountType: 'farm', siteType: 'borewell' },
 };
 
+/** A started import of a CSV file. */
+async function startedJob(csv: string, name = 'fair-leads.csv'): Promise<ImportJobDto> {
+  const fileId = await uploaded(csv, { name });
+  return ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+}
+
 /** Uploads a CSV of the given names and takes it through mapping and preview. */
 async function previewedJob(names: string[]): Promise<ImportJobDto> {
   const csv = `Name,Mobile,Village\n${names.map((n) => `${n},${phone()},Jhunjhunu`).join('\n')}\n`;
-  const job = ok(await uploadImportFile(uploadForm(csv)));
+  const job = await startedJob(csv);
   ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
   return ok(await previewImportJob({ entityId: 1, jobId: job.id }));
 }
@@ -149,107 +216,201 @@ async function liveLeads(jobId: string): Promise<number> {
   return row?.n ?? -1;
 }
 
-describe('the upload action', () => {
-  it('refuses a file over the limit before reading it', async () => {
-    const big = new Uint8Array(IMPORT_LIMITS.maxFileBytes + 1).fill(0x41);
-    expect(await uploadImportFile(uploadForm(big))).toEqual({
-      ok: false,
-      error: 'import_file_too_large',
-    });
-    expect(files.objects.size).toBe(0);
+describe('an import file on the pre-signed upload', () => {
+  it('refuses an import file over the limit before any byte is sent', async () => {
+    const result = await startUpload(
+      {
+        entityId: 1,
+        purpose: 'import',
+        name: 'big.csv',
+        contentType: CSV,
+        size: IMPORT_LIMITS.maxFileBytes + 1,
+        sha256: 'a'.repeat(64),
+      },
+      newId(),
+    );
+    expect(result).toMatchObject({ ok: false, error: 'file_too_large' });
   });
 
-  it('refuses a file that is not a CSV or an Excel workbook', async () => {
+  it('refuses an import file of another type, and a spreadsheet of another purpose', async () => {
+    const photo = {
+      entityId: 1,
+      purpose: 'import',
+      name: 'photo.png',
+      contentType: 'image/png',
+      size: 10,
+      sha256: 'a'.repeat(64),
+    };
+    expect(await startUpload(photo, newId())).toMatchObject({
+      ok: false,
+      error: 'validation_failed',
+    });
+    expect(
+      await startUpload({ ...photo, purpose: 'consent_evidence', contentType: CSV }, newId()),
+    ).toMatchObject({ ok: false, error: 'validation_failed' });
+  });
+
+  it('refuses at the checks a file that is not the spreadsheet it says it is', async () => {
     const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
-    expect(await uploadImportFile(uploadForm(png, 'photo.csv'))).toEqual({
-      ok: false,
-      error: 'import_file_type',
+    const fileId = await uploaded(png, { name: 'photo.csv' });
+    const [row] = await asMigrator(
+      (m) => m<{ status: string; scan_result: unknown }[]>`
+        select status, scan_result from files where id = ${fileId}`,
+    );
+    expect(row).toMatchObject({
+      status: 'rejected',
+      scan_result: { rejectReason: 'file_unreadable' },
     });
-    expect(files.objects.size).toBe(0);
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_unreadable',
+    });
   });
 
-  it('refuses someone who may not import, before reading the file', async () => {
+  it('refuses someone who may not import, before the file is read', async () => {
+    const fileId = await uploaded(`Name,Mobile\nRam,${phone()}\n`);
     request.principal = principalFor('tele_caller_cc', [1]);
-    const result = await uploadImportFile(uploadForm(`Name,Mobile\nRam,${phone()}\n`));
-    expect(result).toEqual({ ok: false, error: 'forbidden' });
-    expect(files.objects.size).toBe(0);
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(await jobsOf(fileId)).toBe(0);
   });
 
-  it('stores the file under its content, then records the job and its rows', async () => {
+  it('reads the checked file and records the job and its rows', async () => {
     const csv = `Name,Mobile,Village\nGopal,${phone()},Churu\nMeera,${phone()},\n`;
-    const job = ok(await uploadImportFile(uploadForm(csv), newId()));
+    const fileId = await uploaded(csv);
+    const [row] = await asMigrator(
+      (m) => m<{ status: string; scan_result: unknown }[]>`
+        select status, scan_result from files where id = ${fileId}`,
+    );
+    expect(row).toMatchObject({ status: 'ready', scan_result: { sanitising: 'sheet_checked' } });
+    const job = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
     expect(job).toMatchObject({
       state: 'uploaded',
       kind: 'leads',
       format: 'csv',
       totalRows: 2,
-      file: { name: 'fair-leads.csv' },
+      file: { id: fileId, name: 'fair-leads.csv' },
     });
-    expect(files.objects.get(keyOf(csv))?.contentType).toBe('text/csv');
   });
 
-  it('keeps the stored copy when the command refuses the file, and the next upload reuses it', async () => {
-    const csv = `Name,Mobile\nKishan,${phone()}\n`;
-    // Items cannot be imported yet: the command refuses after the file was read and stored.
-    const result = await uploadImportFile(uploadForm(csv, 'items.csv', 'items'));
-    expect(result).toMatchObject({ ok: false, error: 'validation_failed' });
-    expect(await filesRecorded(csv)).toBe(0);
-    expect([...files.objects.keys()]).toEqual([keyOf(csv)]);
-
-    // The same file as leads: the bytes already there are the bytes of this file.
-    ok(await uploadImportFile(uploadForm(csv)));
-    expect(await filesRecorded(csv)).toBe(1);
-    expect([...files.objects.keys()]).toEqual([keyOf(csv)]);
+  it('starts a customers file in a request for the companies the person works in', async () => {
+    const csv = `Customer,Mobile No,Village\nDhanni,${phone()},Sikar\nPushpa,${phone()},Churu\n`;
+    const fileId = await uploaded(csv, { name: 'customers.csv' });
+    const job = ok(await startImport({ entityId: 1, kind: 'accounts', fileId }, newId()));
+    expect(job).toMatchObject({ kind: 'accounts', format: 'csv', totalRows: 2 });
+    expect(job.columns).toEqual(['Customer', 'Mobile No', 'Village']);
+    const rows = ok(await listImportRows({ entityId: 1, jobId: job.id }));
+    expect(rows.rows.map((r) => r.raw.Customer)).toEqual(['Dhanni', 'Pushpa']);
   });
 
-  it('records nothing when the file cannot be saved, so the same file can be tried again', async () => {
-    const csv = `Name,Mobile\nSundar,${phone()}\n`;
-    request.store = {
-      ...memoryFileStore(),
-      put: () => Promise.reject(new Error('the disk is full')),
-      get: () => Promise.resolve(undefined),
-    };
-    const failed = await uploadImportFile(uploadForm(csv), newId());
-    expect(failed).toMatchObject({ ok: false, error: 'import_store_failed' });
-    expect(failed.ok ? undefined : failed.reference).toEqual(expect.any(String));
-    expect(await filesRecorded(csv)).toBe(0);
-
-    // Once the store keeps files again, the same file is added rather than refused as a repeat.
-    request.store = files;
-    expect(ok(await uploadImportFile(uploadForm(csv), newId()))).toMatchObject({
-      state: 'uploaded',
-      totalRows: 1,
+  it('refuses a workbook whose bytes are not one, at the checks', async () => {
+    const fileId = await uploaded('Name,Mobile\nNot a workbook,9876543210\n', {
+      name: 'customers.xlsx',
+      contentType: XLSX,
     });
-    expect(await filesRecorded(csv)).toBe(1);
-    expect(files.objects.get(keyOf(csv))?.contentType).toBe('text/csv');
+    expect(await startImport({ entityId: 1, kind: 'accounts', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_unreadable',
+    });
   });
 
-  it('refuses the same file a second time and keeps the first copy', async () => {
-    const csv = `Name,Mobile\nHari,${phone()}\n`;
-    ok(await uploadImportFile(uploadForm(csv)));
-    expect(await uploadImportFile(uploadForm(csv))).toEqual({
+  it('asks again later for a file still in its checks', async () => {
+    const fileId = await uploaded(`Name,Mobile\nKishan,${phone()}\n`, { check: false });
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_not_ready',
+    });
+    await handleFileUploaded(fileUploaded(fileId), {
+      store: files,
+      principal: checker,
+      hosted: false,
+    });
+    ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+    expect(await jobsOf(fileId)).toBe(1);
+  });
+
+  it('starts one job from one file, and adds the same content only once', async () => {
+    const csv = `Name,Mobile,Village\nHari,${phone()},Jhunjhunu\n`;
+    const fileId = await uploaded(csv);
+    const first = ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
       ok: false,
       error: 'import_file_duplicate',
     });
-    expect([...files.objects.keys()]).toEqual([keyOf(csv)]);
+    // The first job added nothing yet, so the same list uploaded again may start beside it.
+    const second = ok(
+      await startImport({ entityId: 1, kind: 'leads', fileId: await uploaded(csv) }, newId()),
+    );
+    for (const job of [first, second]) {
+      ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
+      ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    }
+    expect(ok(await commitImportJob({ entityId: 1, jobId: first.id }, newId()))).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+    });
+    // Once the first has added its rows, the second is refused at its commit, and another upload
+    // of the list at its start.
+    expect(await commitImportJob({ entityId: 1, jobId: second.id }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_duplicate',
+    });
+    expect(ok(await getImportJob({ entityId: 1, jobId: second.id }))).toMatchObject({
+      state: 'previewed',
+      committedRows: 0,
+    });
+    expect(await liveLeads(second.id)).toBe(0);
+    const again = await uploaded(csv);
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId: again }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_duplicate',
+    });
+    expect(await jobsOf(again)).toBe(0);
   });
 
-  it('answers a plain sentence where no file store exists yet', async () => {
+  it("refuses to start an import from a colleague's upload", async () => {
+    const colleague = await createTestPrincipal('general_manager', [1]);
+    const fileId = await uploaded(`Name,Mobile\nNot Mine,${phone()}\n`, { as: colleague });
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_file_missing',
+    });
+    expect(await jobsOf(fileId)).toBe(0);
+  });
+
+  it('answers a plain sentence when the stored bytes are gone or no store exists', async () => {
+    const fileId = await uploaded(`Name,Mobile\nSundar,${phone()}\n`);
+    const kept = files;
+    request.store = memoryFileStore();
+    const gone = await startImport({ entityId: 1, kind: 'leads', fileId }, newId());
+    expect(gone).toMatchObject({ ok: false, error: 'import_store_failed' });
+    expect(gone.ok ? undefined : gone.reference).toEqual(expect.any(String));
     request.store = undefined;
-    const result = await uploadImportFile(uploadForm(`Name,Mobile\nRam,${phone()}\n`));
-    expect(result).toMatchObject({ ok: false, error: 'import_store_unavailable' });
+    expect(await startImport({ entityId: 1, kind: 'leads', fileId }, newId())).toMatchObject({
+      ok: false,
+      error: 'files_unavailable',
+    });
+    request.store = kept;
+    ok(await startImport({ entityId: 1, kind: 'leads', fileId }, newId()));
+  });
+
+  it('offers the PIN code list only to a request for every company', async () => {
+    const fileId = await uploaded('PIN,Office,District\n332001,Sikar H.O,Sikar\n', {
+      name: 'pin-codes.csv',
+    });
+    expect(await startImport({ entityId: 1, kind: 'pin_codes', fileId }, newId())).toEqual({
+      ok: false,
+      error: 'import_needs_all_companies',
+    });
+    expect(await jobsOf(fileId)).toBe(0);
   });
 });
 
 describe('the list of imports', () => {
   it('shows the new job among the newest, with the name of the person who started it', async () => {
-    const job = ok(
-      await uploadImportFile(
-        uploadForm(`Name,Mobile
-Lakshmi,${phone()}
-`),
-      ),
-    );
+    const job = await startedJob(`Name,Mobile\nLakshmi,${phone()}\n`);
     const page = ok(await listImportJobs({ entityId: 1, limit: 5 }));
     // Other suites add jobs to this company at the same time, so the newest few are searched.
     expect(page.items.some((j) => j.id === job.id)).toBe(true);
@@ -302,8 +463,7 @@ describe('one import and the saved column matchings', () => {
   });
 
   it('lists a matching saved from a job, and refuses someone who may not import', async () => {
-    const csv = `Name,Mobile,Village\nGanga,${phone()},Sikar\n`;
-    const job = ok(await uploadImportFile(uploadForm(csv)));
+    const job = await startedJob(`Name,Mobile,Village\nGanga,${phone()},Sikar\n`);
     const name = `Fair leads ${newId()}`;
     ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping, saveAsTemplate: { name } }));
     const templates = ok(await listImportTemplates({ entityId: 1, kind: 'leads' }));
@@ -334,6 +494,76 @@ describe('an import from start to finish, with no queue', () => {
     const rolled = ok(await rollbackImportJob({ entityId: 1, jobId: previewed.id }));
     expect(rolled.state).toBe('rolled_back');
     expect(await liveLeads(previewed.id)).toBe(0);
+  });
+});
+
+describe('a customers file whose number belongs to a customer of another of the importer’s companies', () => {
+  it('links the row to that customer on the worker’s path, making no second customer', async () => {
+    // A General Manager of companies 1 and 3, as the worker resolves them.
+    const user = await createTestUser(
+      [
+        { entityId: 1, roleKey: 'general_manager' },
+        { entityId: 3, roleKey: 'general_manager' },
+      ],
+      { twoFactorEnabled: true },
+    );
+    const importer = principalFor('general_manager', [1, 3], { id: user.id });
+    const gm3 = await createTestPrincipal('general_manager', [3]);
+    const number = phone();
+    const elsewhere = await executeCommand(gm3, { entityIds: [3] }, createLead, {
+      entityId: 3,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: 'Company Three Farmer', phone: number },
+      account: { type: 'farm' },
+    });
+
+    // A file into company 1 with no company column: the row names company 1 alone.
+    request.principal = importer;
+    const fileId = await uploaded(`Name,Mobile,Village\nCompany Three Farmer,${number},Sikar\n`, {
+      name: 'customers.csv',
+      as: importer,
+    });
+    const job = ok(await startImport({ entityId: 1, kind: 'accounts', fileId }, newId()));
+    ok(
+      await mapImportJob({
+        entityId: 1,
+        jobId: job.id,
+        mapping: {
+          columns: { contactName: 'Name', phone: 'Mobile', village: 'Village' },
+          defaults: { accountType: 'farm', siteType: 'borewell' },
+        },
+      }),
+    );
+    const previewed = ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    // The customer was seen through company 3, so the worker acts for it too.
+    expect(previewed.entityIds).toEqual([1, 3]);
+
+    // With no queue, the commit runs the worker (`runImportCommit`) in this process.
+    expect(ok(await commitImportJob({ entityId: 1, jobId: job.id }, newId()))).toMatchObject({
+      state: 'committed',
+      committedRows: 1,
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ created_type: string; created_id: string }[]>`
+        select created_type, created_id from import_rows where job_id = ${job.id}`,
+    );
+    expect(row).toEqual({ created_type: 'account_link', created_id: elsewhere.account.id });
+    const companies = await asMigrator(
+      (m) => m<{ entity_id: number }[]>`
+        select entity_id from account_entities where account_id = ${elsewhere.account.id}
+         order by entity_id`,
+    );
+    expect(companies.map((c) => c.entity_id)).toEqual([1, 3]);
+    const [holders] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(distinct ac.account_id)::int as n
+          from contact_phones cp
+          join account_contacts ac on ac.contact_id = cp.contact_id
+         where cp.e164 = (select cp2.e164 from contact_phones cp2
+                            join account_contacts ac2 on ac2.contact_id = cp2.contact_id
+                           where ac2.account_id = ${elsewhere.account.id} limit 1)`,
+    );
+    expect(holders?.n).toBe(1);
   });
 });
 
@@ -552,6 +782,105 @@ describe('POST /api/v1/workers/imports/commit', () => {
         request_id: given,
       });
     }
+  });
+
+  it('fails the job on the queue’s last retry rather than leaving it committing', async () => {
+    const job = await committingJob(['Last try one', 'Last try two']);
+    // Another run holds the job's row a little past the lock wait, so the commit gives up waiting;
+    // by the time the route fails the job, the row is free again.
+    let taken: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      taken = resolve;
+    });
+    const holder = asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`select id from import_jobs where id = ${job.id} for update`;
+        taken();
+        await new Promise((resolve) => setTimeout(resolve, 11_000));
+      }),
+    );
+    await held;
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: gm.id });
+    try {
+      const headers = new Headers({
+        'content-type': 'application/json',
+        'upstash-signature': sign(body),
+        'upstash-retried': '3',
+      });
+      const response = await POST(new Request(ROUTE_URL, { method: 'POST', headers, body }));
+      expect(response.status).toBe(200);
+      expect(ImportCommitWorkerResponse.parse(await response.json())).toMatchObject({
+        jobId: job.id,
+        state: 'failed',
+        committedRows: 0,
+      });
+    } finally {
+      await holder;
+    }
+    const failed = await asOutboxPublisher(
+      (p) => p<{ type: string; payload_json: unknown }[]>`
+        select type, payload_json from outbox_events
+         where aggregate_id = ${job.id} and type = 'imports.job.failed'`,
+    );
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.payload_json).toMatchObject({ failedBatch: 1 });
+  }, 60_000);
+
+  it('fails the job of an importer suspended since, as the worker, and is not retried', async () => {
+    const user = await createTestUser([{ entityId: 1, roleKey: 'general_manager' }], {
+      twoFactorEnabled: true,
+    });
+    const importer = principalFor('general_manager', [1], { id: user.id });
+    request.principal = importer;
+    const job = ok(
+      await startImport(
+        {
+          entityId: 1,
+          kind: 'leads',
+          fileId: await uploaded(`Name,Mobile,Village\nSuspended,${phone()},Sikar\n`, {
+            as: importer,
+          }),
+        },
+        newId(),
+      ),
+    );
+    ok(await mapImportJob({ entityId: 1, jobId: job.id, mapping }));
+    ok(await previewImportJob({ entityId: 1, jobId: job.id }));
+    await executeCommand(importer, { entityIds: [1] }, commitImportJobCommand, {
+      entityId: 1,
+      jobId: job.id,
+    });
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${user.id}`);
+    const body = JSON.stringify({ jobId: job.id, entityId: 1, userId: user.id });
+    const response = await call(body, sign(body));
+    expect(response.status).toBe(200);
+    expect(ImportCommitWorkerResponse.parse(await response.json())).toMatchObject({
+      jobId: job.id,
+      state: 'failed',
+      committedRows: 0,
+    });
+    const [stopped] = await asMigrator(
+      (m) => m<{ updated_by: string }[]>`select updated_by from import_jobs where id = ${job.id}`,
+    );
+    expect(stopped?.updated_by).toBe(SYSTEM_WORKERS_PRINCIPAL_ID);
+    expect(await liveLeads(job.id)).toBe(0);
+  });
+
+  it('gives up on a job only while it commits, and leaves a finished one as it is', async () => {
+    const job = await committingJob(['Given up']);
+    const body = { jobId: job.id, entityId: 1, userId: gm.id };
+    expect(await giveUpImportCommit(body, newId())).toMatchObject({ state: 'failed' });
+    // Asked again (a second delivery of the same last retry), nothing changes.
+    expect(await giveUpImportCommit(body, newId())).toMatchObject({ state: 'failed' });
+    const done = await committingJob(['Finished first']);
+    const run = await call(
+      JSON.stringify({ jobId: done.id, entityId: 1, userId: gm.id }),
+      sign(JSON.stringify({ jobId: done.id, entityId: 1, userId: gm.id })),
+    );
+    expect(run.status).toBe(200);
+    expect(
+      await giveUpImportCommit({ jobId: done.id, entityId: 1, userId: gm.id }, newId()),
+    ).toMatchObject({ state: 'committed', committedRows: 1 });
   });
 
   it('hands the next run to the queue with an id that names the job and its progress', async () => {

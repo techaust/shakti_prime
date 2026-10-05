@@ -52,6 +52,7 @@ export * from './commands/platform/probe';
 export * from './commands/print/print';
 export * from './imports/enums';
 export * from './commands/imports/jobs';
+export * from './commands/imports/rows';
 export * from './dto/import';
 export * from './dto/file';
 export * from './commands/files/uploads';

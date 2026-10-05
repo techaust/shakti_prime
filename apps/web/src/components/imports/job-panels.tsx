@@ -26,6 +26,7 @@ import {
   failedBatchRange,
   formatCount,
   isStalled,
+  screenKind,
 } from '../../screens/import-wizard';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, type CommandFailure } from '../screens/use-command';
@@ -161,7 +162,11 @@ export function CommitPanel({
               run({ entityId: job.entityId, jobId: job.id }, onDone);
             }}
           >
-            {t('commit', { count: job.validRows, shown: formatCount(job.validRows) })}
+            {t('commit', {
+              count: job.validRows,
+              shown: formatCount(job.validRows),
+              kind: screenKind(job.kind),
+            })}
           </Button>
         )}
       </Actions>
@@ -298,13 +303,16 @@ export function OutcomePanel({
   const t = useTranslations('imports');
   const [confirming, setConfirming] = useState(false);
   const { done, total } = commitProgress(job);
+  const kind = screenKind(job.kind);
+  // Where the records a finished import added are seen; the PIN code list has no screen of its own.
+  const seeAdded = kind === 'leads' ? '/leads' : kind === 'accounts' ? '/customers' : undefined;
 
   const title =
     job.state === 'failed'
       ? t('failed.title')
       : job.state === 'rolled_back'
         ? t('done.rolledBackTitle')
-        : t('done.title');
+        : t('done.title', { kind });
   const intro =
     job.state === 'failed' ? (
       <>
@@ -316,9 +324,9 @@ export function OutcomePanel({
         {t('failed.next')}
       </>
     ) : job.state === 'rolled_back' ? (
-      t('done.rolledBackIntro')
+      t('done.rolledBackIntro', { kind })
     ) : (
-      t('done.intro', { count: job.committedRows, shown: formatCount(job.committedRows) })
+      t('done.intro', { count: job.committedRows, shown: formatCount(job.committedRows), kind })
     );
 
   return (
@@ -338,9 +346,9 @@ export function OutcomePanel({
         <Button variant="secondary" asChild>
           <Link href="/imports/new">{t('done.another')}</Link>
         </Button>
-        {job.state === 'committed' ? (
+        {job.state === 'committed' && seeAdded !== undefined ? (
           <Button asChild>
-            <Link href="/leads">{t('done.viewLeads')}</Link>
+            <Link href={seeAdded}>{t('done.viewAdded', { kind })}</Link>
           </Button>
         ) : null}
       </Actions>
@@ -361,9 +369,11 @@ function rangeWords(range: { from: number; to: number }) {
 }
 
 /**
- * The undo, confirmed in a dialog that says what it archives: every lead the file added, newest
- * row first. Customers stay, because other leads may belong to them (ADR 0008). The dialog's form
- * is rendered afresh each time it opens, which gives it a new idempotency key.
+ * The undo, confirmed in a dialog that says what it takes back: every lead the file added, newest
+ * row first, while their customers stay, because other leads may belong to them (ADR 0008); the
+ * customers a customers file added, but one a lead now uses; the post offices a PIN code list
+ * added. The dialog's form is rendered afresh each time it opens, which gives it a new
+ * idempotency key.
  */
 function RollbackDialog({
   job,
@@ -410,7 +420,7 @@ function RollbackForm({
     e.preventDefault();
     if (pending) return;
     run({ entityId: job.entityId, jobId: job.id }, () => {
-      toast.success(t('done', { file: job.file.name }));
+      toast.success(t('done', { file: job.file.name, kind: screenKind(job.kind) }));
       onCancel();
       onDone();
     });
@@ -421,7 +431,11 @@ function RollbackForm({
       <DialogHeader>
         <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription>
-          {t('intro', { count: job.committedRows, shown: formatCount(job.committedRows) })}
+          {t('intro', {
+            count: job.committedRows,
+            shown: formatCount(job.committedRows),
+            kind: screenKind(job.kind),
+          })}
         </DialogDescription>
       </DialogHeader>
       <FailureMessage failure={failure} />

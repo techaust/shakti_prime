@@ -4,19 +4,19 @@ import {
   CommitImportJobInput,
   DomainError,
   GetImportJobInput,
-  IMPORT_LIMITS,
   ListImportJobsInput,
   ListImportRowsInput,
   ListImportTemplatesInput,
   MapImportJobInput,
   PreviewImportJobInput,
   RollbackImportJobInput,
-  UploadImportFileInput,
-  type ImportFormat,
+  StartImportInput,
   type ImportJobDto,
   type ImportJobPage,
+  type ImportKind,
   type ImportRowPage,
   type ImportTemplateDto,
+  type Principal,
 } from '@shakti/contracts';
 import {
   checkPermission,
@@ -25,6 +25,7 @@ import {
   executeCommand,
   executeQuery,
   getImportJob as getImportJobQuery,
+  getStoredFile,
   listImportJobs as listImportJobsQuery,
   listImportRows as listImportRowsQuery,
   listImportTemplates as listImportTemplatesQuery,
@@ -32,96 +33,106 @@ import {
   parseImportFile,
   previewImportJob as previewImportJobCommand,
   rollbackImportJob as rollbackImportJobCommand,
+  sha256Hex,
 } from '@shakti/domain';
-import { createHash } from 'node:crypto';
-import { fileStore } from '../files/store';
+import { requireFileStore } from '../files/uploads';
 import { logger } from '../log';
 import { scheduleImportCommit } from '../workers/imports';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Thin wrappers for the import screens (docs/API.md §4, docs/design/backend-weeks-3-5.md §8):
- * session → parse → request context → command or query → the result envelope.
+ * Thin wrappers for the import screens (docs/API.md §4, docs/design/phase1.md §6.3): session →
+ * parse → request context → command or query → the result envelope.
  */
-
-const CONTENT_TYPES: Record<ImportFormat, string> = {
-  csv: 'text/csv',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-};
 
 /**
- * The upload form (`entityId`, `kind`, `file`): the caller's right to import is checked first,
- * then the file is read and checked against the limits, the bytes are stored under a key named by
- * their SHA-256, and only then does `imports.job.create` record the file and its rows. A job
- * therefore never names bytes the store does not hold: a failed save refuses the upload with
- * nothing recorded, and the person can try again. A command refused after the save leaves the
- * bytes in the store unreferenced, which is harmless: the key names the content, so the next upload
- * of the same file in that company reuses them. Until the S3 store arrives (Phase 1) a hosted
- * deployment has no store and refuses uploads.
+ * The companies a job's request acts for: a leads file works in its own company; a customers file
+ * may name any company the person is working in, and the PIN code master needs every one of them
+ * (the commands refuse it otherwise).
  */
-export async function uploadImportFile(
-  form: FormData,
+function importScope(principal: Principal, entityId: number, kind: ImportKind): number[] {
+  if (!principal.entityIds.includes(entityId)) {
+    throw new DomainError('forbidden', 'entity outside the caller', { entityId });
+  }
+  return kind === 'leads' ? [entityId] : [...principal.entityIds];
+}
+
+/** The scope of an existing job, by its kind, read in its own company first. */
+async function jobScope(
+  principal: Principal,
+  input: { entityId: number; jobId: string },
+  requestId: string,
+): Promise<number[]> {
+  const job = await executeQuery(
+    principal,
+    { entityIds: [input.entityId], requestId },
+    (ctx) => getImportJobQuery(ctx, input),
+    { name: 'imports.jobScope' },
+  );
+  return importScope(principal, input.entityId, job.kind);
+}
+
+/**
+ * The second step of the upload, once the file came through the pre-signed upload and passed its
+ * checks: the server reads the stored file (a workbook through the streaming reader), checks it
+ * against the limits, and `imports.job.create` records the job and its rows. A file still in its
+ * checks answers `import_file_not_ready`, and the screen asks again in a moment.
+ */
+export async function startImport(
+  rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<ImportJobDto>> {
-  return toResult('uploadImportFile', async () => {
+  return toResult('startImport', async () => {
     const principal = await signedIn();
-    const input = parseInput(UploadImportFileInput, {
-      entityId: form.get('entityId'),
-      kind: form.get('kind') ?? 'leads',
-    });
-    // Nothing is read or stored for someone who may not import.
+    const input = parseInput(StartImportInput, rawInput);
+    // Nothing is read for someone who may not import.
     checkPermission(principal, 'imports.write', 'entity');
-    if (!principal.entityIds.includes(input.entityId)) {
-      throw new DomainError('forbidden', 'entity outside the caller', { entityId: input.entityId });
-    }
-    const store = fileStore();
-    if (store === undefined) {
-      throw new DomainError('integration_unavailable', 'no file store in this deployment', {
-        reason: 'import_store_unavailable',
-      });
-    }
-    const file = form.get('file');
-    if (!(file instanceof File) || file.size === 0) {
-      throw new DomainError('validation_failed', 'no file', { reason: 'import_file_empty' });
-    }
-    if (file.size > IMPORT_LIMITS.maxFileBytes) {
-      throw new DomainError('validation_failed', 'file too large', {
-        reason: 'import_file_too_large',
-      });
-    }
-
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const parsed = await parseImportFile(bytes);
-    const sha256 = createHash('sha256').update(bytes).digest('hex');
-    const key = `imports/${String(input.entityId)}/${sha256}.${parsed.format}`;
-    const contentType = CONTENT_TYPES[parsed.format];
-    try {
-      await store.put(key, bytes, contentType);
-    } catch (error) {
-      throw new DomainError(
-        'integration_unavailable',
-        'the file store did not keep the file',
-        { reason: 'import_store_failed', entityId: input.entityId },
-        { cause: error },
-      );
-    }
+    const scope = importScope(principal, input.entityId, input.kind);
     const meta = await requestMeta();
-    return executeCommand(
+    const file = await executeQuery(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
+      (ctx) => getStoredFile(ctx, input.fileId),
+      { name: 'startImport.file' },
+    );
+    // Only the person's own upload starts their import, never a colleague's file.
+    if (
+      file?.purpose !== 'import' ||
+      file.entityId !== input.entityId ||
+      file.createdBy !== principal.id
+    ) {
+      throw new DomainError('not_found', 'the import file is not available', {
+        reason: 'import_file_missing',
+      });
+    }
+    if (file.status === 'rejected') {
+      throw new DomainError('validation_failed', 'the import file did not pass its checks', {
+        reason: 'import_file_unreadable',
+      });
+    }
+    if (file.status !== 'ready') {
+      throw new DomainError('conflict', 'the import file is still being checked', {
+        reason: 'import_file_not_ready',
+      });
+    }
+    const store = requireFileStore();
+    const bytes = store.bucket === file.bucket ? await store.get(file.key) : undefined;
+    if (bytes === undefined || sha256Hex(bytes) !== file.sha256) {
+      throw new DomainError('integration_unavailable', 'the stored import file is not readable', {
+        reason: 'import_store_failed',
+        entityId: input.entityId,
+      });
+    }
+    const parsed = await parseImportFile(bytes);
+    return executeCommand(
+      principal,
+      { entityIds: scope, requestId: meta.requestId },
       createImportJob,
       {
         entityId: input.entityId,
         kind: input.kind,
-        file: {
-          name: file.name.trim().slice(0, 200) || `import.${parsed.format}`,
-          contentType,
-          size: bytes.length,
-          sha256,
-          bucket: store.bucket,
-          key,
-        },
+        fileId: file.id,
         format: parsed.format,
         columns: parsed.columns,
         rows: parsed.rows,
@@ -141,7 +152,7 @@ export async function mapImportJob(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { entityIds: await jobScope(principal, input, meta.requestId), requestId: meta.requestId },
       mapImportJobCommand,
       input,
       commandOptions(meta, idempotencyKey),
@@ -159,7 +170,7 @@ export async function previewImportJob(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { entityIds: await jobScope(principal, input, meta.requestId), requestId: meta.requestId },
       previewImportJobCommand,
       input,
       commandOptions(meta, idempotencyKey),
@@ -179,17 +190,25 @@ export async function commitImportJob(
     const principal = await signedIn();
     const input = parseInput(CommitImportJobInput, rawInput);
     const meta = await requestMeta();
+    const scope = await jobScope(principal, input, meta.requestId);
     const job = await executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { entityIds: scope, requestId: meta.requestId },
       commitImportJobCommand,
       input,
       commandOptions(meta, idempotencyKey),
     );
     if (job.state !== 'committing') return job;
+    // The worker acts for the companies the checked rows name (the PIN code list: every one).
+    const companies = job.kind === 'pin_codes' ? scope : (job.entityIds ?? [job.entityId]);
     try {
       await scheduleImportCommit(
-        { jobId: job.id, entityId: job.entityId, userId: principal.id },
+        {
+          jobId: job.id,
+          entityId: job.entityId,
+          userId: principal.id,
+          ...(companies.length > 1 ? { entityIds: companies } : {}),
+        },
         job.committedRows,
       );
     } catch (error) {
@@ -216,7 +235,7 @@ export async function rollbackImportJob(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { entityIds: await jobScope(principal, input, meta.requestId), requestId: meta.requestId },
       rollbackImportJobCommand,
       input,
       commandOptions(meta, idempotencyKey),

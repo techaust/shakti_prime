@@ -76,16 +76,27 @@ export {
   commitImportBatch,
   commitImportJob,
   IMPORT_BATCH_BUDGET_MS,
-  SET_BASED_BATCH_BOUND_MS,
+  ROW_BY_ROW_SLICE_MS,
+  SET_BASED_MIN_MS,
 } from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
+export { failImportJob } from './commands/imports/fail-job';
+export { lookupPin } from './queries/crm/pin-lookup';
+export { gstStateCode } from './imports/gst-states';
+export { checkAccountRow, companyNames, foldAccountRows } from './imports/accounts';
+export { checkPinCodeRow, localityName } from './imports/pin-codes';
 export {
   getImportJob,
   listImportJobs,
   listImportRows,
   listImportTemplates,
 } from './queries/imports/import-queries';
-export { parseImportFile, detectHeaderRow, detectImportFormat } from './imports/parse';
+export {
+  parseImportFile,
+  detectHeaderRow,
+  detectImportFormat,
+  importFileReadable,
+} from './imports/parse';
 export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
@@ -340,10 +351,16 @@ export type {
 export { beginUpload } from './commands/files/begin-upload';
 export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
-export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export {
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+  staleUploadCompanies,
+} from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';
 export {
   FILE_PURPOSE_RULES,
