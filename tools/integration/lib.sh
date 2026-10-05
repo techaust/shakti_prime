@@ -8,6 +8,12 @@ if ! command -v pnpm >/dev/null 2>&1 && [ -n "${LOCALAPPDATA:-}" ] && command -v
   export PATH
 fi
 
+# In a cloud session the image's Node comes before /usr/local/bin, where the setup script installs the
+# Node of .node-version and the pnpm of package.json; put /usr/local/bin first when its Node is there.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ -x /usr/local/bin/node ]; then
+  case ":$PATH:" in /usr/local/bin:*) ;; *) PATH="/usr/local/bin:$PATH"; export PATH ;; esac
+fi
+
 # `python3` everywhere: Git Bash on the PC may have only `python` (its `python3` can be the
 # Microsoft Store stub, which runs nothing), so `python3` falls back to `python` there.
 if ! python3 -c '' >/dev/null 2>&1 && command -v python >/dev/null 2>&1; then

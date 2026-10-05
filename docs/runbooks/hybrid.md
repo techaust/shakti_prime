@@ -46,7 +46,7 @@ From Anthropic's documentation (04-10-2026):
 - Usage counts against the owner's Claude plan, shared with the PC's sessions.
 
 What this repository adds:
-- `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node is older), corepack and pnpm, the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
+- `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node 22 comes first on `PATH`, so the session hook and `lib.sh` put `/usr/local/bin` first) and the pnpm of `package.json` from npm (corepack cannot start pnpm 12), the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
 - `.claude/hooks/cloud-session.sh` (a session-start hook that does nothing on the PC): `.env` from `.env.example` with `E2E_BASE_URL` on `BETTER_AUTH_URL`'s port, the packages when the checkout has none, the Docker daemon and the local Postgres on `127.0.0.1:54322`. The security suites and the journeys migrate and seed that database themselves (`prepareDatabase()` in `packages/db/src/testing`); the dev server needs `pnpm db:migrate && pnpm db:seed` first.
 - `.claude/hooks/tooling-check.mjs` prints a short cloud note instead of the PC's tool list.
 
