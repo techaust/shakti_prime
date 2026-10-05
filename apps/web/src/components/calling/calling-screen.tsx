@@ -124,6 +124,9 @@ function Queue({
         <ol className="flex flex-col gap-1">
           {page.items.map((item) => {
             const selected = item.opportunityId === current;
+            // --accent-soft carries --text at AA but not --text-muted in the dark theme, so the
+            // selected row's secondary lines take the full text colour.
+            const muted = selected ? 'text-text' : 'text-text-muted';
             return (
               <li key={item.opportunityId}>
                 <button
@@ -139,11 +142,11 @@ function Queue({
                 >
                   <span className="flex min-w-0 items-center justify-between gap-2">
                     <span className="truncate font-medium">{item.customerName}</span>
-                    <span className="text-text-muted shrink-0 text-xs tabular-nums">
+                    <span className={cn(muted, 'shrink-0 text-xs tabular-nums')}>
                       {t('score', { score: item.score })}
                     </span>
                   </span>
-                  <span className="text-text-muted truncate text-sm">
+                  <span className={cn(muted, 'truncate text-sm')}>
                     {[item.village, item.stageName].filter((v) => v !== null).join(' · ')}
                   </span>
                   <span className="flex flex-wrap items-center gap-1">
@@ -160,7 +163,7 @@ function Queue({
                       <StatusBadge tone="danger">{t('doNotCall')}</StatusBadge>
                     ) : null}
                     {item.attempts > 0 ? (
-                      <span className="text-text-muted text-xs">
+                      <span className={cn(muted, 'text-xs')}>
                         {t('tries', { count: item.attempts })}
                       </span>
                     ) : null}
@@ -210,9 +213,7 @@ function DialNumber({
       {shown === undefined ? null : (
         <p className="flex flex-col">
           <span className="text-text-muted text-sm">{t('numberLabel')}</span>
-          <span className="text-h2 tabular-nums">
-            {formatPhone(shown)}
-          </span>
+          <span className="text-h2 tabular-nums">{formatPhone(shown)}</span>
         </p>
       )}
       <FailureMessage failure={failure} />
@@ -523,8 +524,7 @@ export function CallingScreen({
     const cursor = queue.nextCursor;
     if (cursor === null) return;
     moreQuery.load(
-      () =>
-        listCallQueue({ limit: 50, cursor, ...(callerId === undefined ? {} : { callerId }) }),
+      () => listCallQueue({ limit: 50, cursor, ...(callerId === undefined ? {} : { callerId }) }),
       (page) => {
         setQueue((all) => ({ ...page, items: [...all.items, ...page.items] }));
       },
@@ -538,7 +538,12 @@ export function CallingScreen({
           aria-label={t('search.label')}
           className="border-border bg-surface rounded-lg border p-4"
         >
-          <Search inputRef={searchRef} onOpen={(hit) => { open({ entityId: hit.entityId, opportunityId: hit.id }); }} />
+          <Search
+            inputRef={searchRef}
+            onOpen={(hit) => {
+              open({ entityId: hit.entityId, opportunityId: hit.id });
+            }}
+          />
         </section>
         <FailureMessage failure={queueQuery.failure ?? moreQuery.failure} />
         <Queue
