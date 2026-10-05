@@ -92,7 +92,35 @@ Not in AI0: real agents (A1, Phase 2), the vault (K1), voice (Phase 2), any clie
 11. The Activity log records the cap in rupees (`dailySpendCap`) and names agents, action types, autonomy and outcomes from the `agents` catalogue.
 
 ## Review
-None yet.
+### 05-10-2026, lead session on the PC
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | HIGH | `maskForModel()` misses Aadhaar written with runs of spaces, dots or hyphens or in Devanagari digits, unlabelled 9 to 18 digit runs (bank accounts), phones in 4-3-3, 3-3-4, hyphenated and landline (0141-2345678) shapes, PAN and addresses; SECURITY §5 and §6 disagree on placeholders against last four. | open |
+| 2 | MEDIUM | An edit with no change counts as edited: the due time is compared as strings, not instants, and the form sends every field. | open |
+| 3 | MEDIUM | The inbox card does not show every input that changes the outcome (who the task is for, its kind). | open |
+| 4 | MEDIUM | `crm.task.create` proposals can leave `assigneeId` unset or name an agent principal. | open |
+| 5 | MEDIUM | The settings screen does not show the effective autonomy and cap or where each comes from; the empty choice does not name the inherited value. | open |
+| 6 | MEDIUM | `runAgentStep` and `agents.run.record` have no idempotency: a redelivered event calls the model and files the suggestion again. | open |
+| 7 | MEDIUM | `agents.config.set` overwrites every field: two Executives' edits lose one another. | open |
+| 8 | LOW | The spend cap is checked before the call and charged after, so concurrent calls can pass it together. | open |
+| 9 | LOW | Approve and record read the config rows without a lock, racing the kill switch. | open |
+| 10 | LOW | An edit accepts a time without an offset. | open |
+| 11 | LOW | The subject is not checked as readable in the company under the agent's RLS; the inbox join lacks `o.entity_id = i.entity_id`. | open |
+| 12 | LOW | ADR 0011 says Suggest is the fallback and names an outage runbook that does not exist; SECURITY §6 claims token budgets per run. | open |
+| 13 | LOW | The Automatic test depends on leftover rows. | open |
+| 14 | LOW | No two-transaction test of two decisions on one suggestion. | open |
+| 15 | LOW | `model-text` does not escape `&` first. | open |
+| 16 | LOW | The inbox card reuses one idempotency key across its actions. | open |
+| 17 | LOW | `inboxCount()` runs on every render without a measure of its cost. | open |
+
+Owner decisions (05-10-2026):
+- A. Automatic is not available in Phase 1: the level stays in the data model, `agents.config.set` refuses it with a plain reason until Phase 6, and the screen shows it disabled with a plain sentence. The promotion rule (95% approved unedited over 200 cases, Executive sign-off; rolling 90 days, per company, rejections count, only Needs-approval decisions count) is a named default flagged for later.
+- B. The rupee cost per US dollar for spend caps is a named default of ₹104 (₹88 plus 18% GST on imported services), flagged for the owner to confirm from the card statement. The model price table is named and dated, flagged for the owner to check, and holds only the models the design names (Haiku 4.5 and Voyage).
+
+Lead decisions (05-10-2026):
+- C. Suggest follows BLUEPRINT §9.3: the item appears in the Agent Inbox for a person to act on themselves (Open, Dismiss), with no one-tap run; Needs approval gets Approve, Edit and Reject.
+- D. When a company cap and a group cap both exist, both apply: the call is refused if either would be exceeded.
+- E. Address masking is best-effort (a PIN and house-number heuristic), recorded in SECURITY §6 as a known limitation; digits are masked fully.
 
 ## Integration notes
 1. Hosted keys wait on the owner (STATUS, Waiting on the owner): until `ANTHROPIC_API_KEY` is set, hosted agents answer unavailable.
