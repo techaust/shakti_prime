@@ -24,7 +24,18 @@ export function actionTypeName(type: string | null): ActionTypeNameKey | undefin
     : undefined;
 }
 
+/** A read-only input's name under `agents.inbox.summary`. */
+export type AgentSummaryNameKey = keyof (typeof en)['agents']['inbox']['summary'];
+
 const FIELD_NAMES: readonly AgentFieldNameKey[] = ['dueAt', 'title'];
+const SUMMARY_NAMES: readonly AgentSummaryNameKey[] = ['assigneeId', 'kind'];
+
+/** The name key of a read-only input, or undefined for one this screen does not know yet. */
+export function agentSummaryName(name: string): AgentSummaryNameKey | undefined {
+  return (SUMMARY_NAMES as readonly string[]).includes(name)
+    ? (name as AgentSummaryNameKey)
+    : undefined;
+}
 
 /** The name key of an editable field, or undefined for one this screen does not know yet. */
 export function agentFieldName(name: string): AgentFieldNameKey | undefined {
@@ -34,7 +45,8 @@ export function agentFieldName(name: string): AgentFieldNameKey | undefined {
 }
 
 /** What a key press does on the inbox list, or undefined for a key it leaves alone. */
-export type InboxKeyAction = 'next' | 'previous' | 'approve' | 'edit' | 'reject';
+export type InboxKeyAction =
+  'next' | 'previous' | 'approve' | 'edit' | 'reject' | 'open' | 'dismiss';
 
 export function inboxKeyAction(event: {
   key: string;
@@ -61,6 +73,12 @@ export function inboxKeyAction(event: {
     case 'r':
     case 'R':
       return 'reject';
+    case 'o':
+    case 'O':
+      return 'open';
+    case 'd':
+    case 'D':
+      return 'dismiss';
     default:
       return undefined;
   }

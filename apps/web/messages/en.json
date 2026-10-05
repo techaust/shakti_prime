@@ -217,10 +217,14 @@
     "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
     "agent_action_unknown": "Agents cannot take this kind of action.",
     "agent_action_not_open": "This agent cannot take this kind of action.",
-    "agent_proposal_invalid": "The agent’s suggestion did not match the lead it was for, so it was not filed.",
+    "agent_proposal_invalid": "The agent’s suggestion was incomplete or did not match the lead it was for, so it was not filed.",
     "agent_field_not_editable": "That part of the suggestion cannot be changed. Reject it if it is wrong.",
     "agent_switched_off": "This agent is stopped, so its suggestions cannot be approved now. Reject it, or ask an Executive or General Manager to let the agent run again.",
-    "autonomy_not_earned": "Automatic needs at least 200 decided suggestions of this kind, with 95 in 100 approved without changes.",
+    "autonomy_not_earned": "Automatic needs at least 200 decisions of this kind in one company in the last 90 days, with 95 in 100 approved without changes.",
+    "autonomy_automatic_unavailable": "Agents cannot act on their own yet. Choose Suggest or Needs approval.",
+    "agent_suggestion_only": "This suggestion is for you to act on yourself. Open the customer to act on it, or dismiss it.",
+    "agent_needs_decision": "This suggestion needs a decision. Approve it, change it or reject it.",
+    "nothing_to_change": "Choose a setting to change.",
     "agents_need_all_companies": "Choose All companies at the top to change a setting for the whole group.",
     "inbox_item_missing": "This suggestion is no longer in your inbox. Someone else may have decided on it.",
     "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
@@ -1263,6 +1267,7 @@
       "inboxApprove": "Suggestion approved",
       "inboxEdit": "Suggestion changed and approved",
       "inboxReject": "Suggestion rejected",
+      "inboxDismiss": "Suggestion dismissed",
       "agentConfigSet": "Agent settings changed",
       "agentKillSwitchSet": "Agent stopped or let run"
     },
@@ -2578,14 +2583,23 @@
       "proposed": "Waiting for a decision",
       "executed": "Done by the agent",
       "approved": "Approved",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "dismissed": "Dismissed"
     },
     "inbox": {
       "title": "Agent Inbox",
       "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
       "caption": "Suggestions waiting for a decision",
       "empty": "Nothing is waiting for you.",
-      "keys": "Keys: J and K move between suggestions, A approves, E opens Edit, R rejects.",
+      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself.",
+      "actYourself": "For you to act on yourself. Nothing is carried out from here.",
+      "summary": {
+        "assigneeId": "Task for",
+        "kind": "Kind of task"
+      },
+      "someone": "Someone you cannot see",
+      "dismiss": "Dismiss",
+      "dismissed": "Dismissed. Nothing was changed.",
       "suggests": "{agent} suggests",
       "forCustomer": "For {customer}",
       "forUnknown": "For a lead you cannot open",
@@ -2633,7 +2647,23 @@
       "stopLabel": "Stop {agent}",
       "runLabel": "Let {agent} run",
       "autonomyLabel": "Autonomy of {agent}",
-      "autonomyUnset": "Not set: Suggest",
+      "inherit": {
+        "action_company": "As set for this action here: {autonomy}",
+        "action_group": "As set for this action for the group: {autonomy}",
+        "agent_company": "As set for the agent here: {autonomy}",
+        "agent_group": "As set for the agent for the group: {autonomy}",
+        "default": "No setting: {autonomy}"
+      },
+      "appliesNow": "Applies now: {autonomy}, {source}.",
+      "source": {
+        "action_company": "set for this action in this company",
+        "action_group": "set for this action for the group",
+        "agent_company": "the agent’s setting in this company",
+        "agent_group": "the agent’s setting for the group",
+        "default": "as no setting is made"
+      },
+      "groupCapToo": "The group’s limit of {amount} a day applies as well.",
+      "groupCapOnly": "No limit for this company. The group’s limit of {amount} a day applies.",
       "capLabel": "Daily spending limit of {agent}, in rupees",
       "capNone": "No limit set, so the agent makes no calls.",
       "capInvalid": "Enter the amount in rupees, with at most two digits after the point.",
@@ -2646,9 +2676,8 @@
       "allRunningToast": "All agents may run again.",
       "actionTypesHeading": "What {agent} may do",
       "actionTypeLabel": "Autonomy of {agent} for {action}",
-      "sameAsAgent": "Same as the agent: {autonomy}",
-      "decisions": "{approved} of {decided} approved without changes",
-      "automaticLocked": "Automatic opens after 200 decided suggestions of this kind, with 95 in 100 approved without changes.",
+      "decisions": "In the last 90 days, {approved} of {decided} decisions approved without changes",
+      "automaticUnavailable": "Automatic is not available yet: agents suggest, or wait for approval, until a later phase.",
       "noActionTypes": "This agent has nothing to do yet.",
       "readOnly": "Only an Executive changes autonomy and spending limits."
     }

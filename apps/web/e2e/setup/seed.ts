@@ -352,22 +352,24 @@ for (const project of PROJECTS) {
 
 progress('the suggestions of the stand-in agent');
 // The Caller Co-pilot may run in the companies of the inbox journeys, with a daily spending
-// limit, and is not stopped anywhere a journey left it stopped. Fixed ids, so each run resets them.
+// limit, its suggestions needing approval, and is not stopped anywhere a journey left it stopped.
+// Fixed ids, so each run resets them; a setting a test left for one action type goes.
 for (const [n, entityId] of [1, 2, 3].entries()) {
   await asMigrator(
     (
       m,
-    ) => m`insert into agent_configs (id, agent, action_type, entity_id, daily_spend_cap_paise, enabled, created_by)
+    ) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
              values (${`0199e2e0-0000-7000-8000-00000000a00${String(n)}`}, 'agent:copilot', null,
-                     ${entityId}, 100000, true, ${ids.executive ?? ''})
+                     ${entityId}, 'needs_approval', 100000, true, ${ids.executive ?? ''})
              on conflict (agent, action_type, entity_id) do update
-               set daily_spend_cap_paise = 100000, enabled = true, autonomy = null`,
+               set daily_spend_cap_paise = 100000, enabled = true, autonomy = 'needs_approval'`,
   );
 }
 await asMigrator(
   (m) => m`delete from agent_configs
             where (agent is null or agent = 'agent:copilot')
-              and entity_id is null and not enabled`,
+              and ((entity_id is null and not enabled)
+                or (action_type is not null and entity_id in (1, 2, 3)))`,
 );
 // Earlier runs' open suggestions are taken away, so every inbox starts from this run's.
 await asMigrator(
@@ -375,19 +377,38 @@ await asMigrator(
             where state = 'open' and created_by = ${AGENT_PRINCIPAL_IDS['agent:copilot']}
               and entity_id in (1, 2, 3)`,
 );
+const inThreeDays = () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 const caller = { id: ids.teleCaller ?? '', entity: 1 };
 const callerLead = await leadId(caller.id, caller.entity, 'Kavita Saini');
 for (const project of PROJECTS) {
-  for (const title of Object.values(INBOX_SUGGESTIONS[project])) {
+  for (const title of [INBOX_SUGGESTIONS[project].approve, INBOX_SUGGESTIONS[project].edit]) {
     await suggestFollowUp({
       entityId: caller.entity,
       opportunityId: callerLead,
       title,
-      dueAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      dueAt: inThreeDays(),
       assigneeId: caller.id,
     });
   }
 }
+// One suggestion per project for the caller to act on herself: filed under Suggest, set for the
+// follow-ups in company 1 while it is filed.
+const suggestOnly = '0199e2e0-0000-7000-8000-00000000a010';
+await asMigrator(
+  (m) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, created_by)
+             values (${suggestOnly}, 'agent:copilot', 'crm.task.create', ${caller.entity}, 'suggest',
+                     ${ids.executive ?? ''})`,
+);
+for (const project of PROJECTS) {
+  await suggestFollowUp({
+    entityId: caller.entity,
+    opportunityId: callerLead,
+    title: INBOX_SUGGESTIONS[project].dismiss,
+    dueAt: inThreeDays(),
+    assigneeId: caller.id,
+  });
+}
+await asMigrator((m) => m`delete from agent_configs where id = ${suggestOnly}`);
 const snapshotLead = await leadId(
   ids.snapshotCaller ?? '',
   SNAPSHOT_COMPANY.entityId,
@@ -406,7 +427,8 @@ await suggestFollowUp({
   entityId: KILL_SWITCH.company.entityId,
   opportunityId: await leadId(ids.executive ?? '', KILL_SWITCH.company.entityId, secondCompanyLead),
   title: KILL_SWITCH.title,
-  dueAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+  dueAt: inThreeDays(),
+  assigneeId: ids.executive ?? '',
 });
 
 mkdirSync(AUTH_DIR, { recursive: true });

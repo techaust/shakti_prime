@@ -5,6 +5,7 @@ import type {
   AgentRoleKey,
   AgentSettingDto,
   AgentSettingsDto,
+  AppliedAutonomyDto,
 } from '@shakti/contracts';
 import {
   Button,
@@ -39,8 +40,11 @@ const AGENT_LEVELS = AGENT_AUTONOMY_LEVELS.filter((a) => a !== 'automatic');
 /**
  * Admin › Agents (docs/design/phase1.md §7.1): every agent at the level being viewed, the company
  * chosen at the top or the whole group, with its kill switch, and for an Executive its autonomy,
- * its daily spending limit and the autonomy of each action type. A switch takes effect from the
- * agent's next action; suggestions already in an inbox wait and cannot be approved while it is off.
+ * its daily spending limit and the autonomy of each action type. Each autonomy shows what applies
+ * now and where it comes from, and its empty choice names what it would inherit; at a company the
+ * group's limit is shown too, since both apply. Automatic is shown unavailable in Phase 1. A switch
+ * takes effect from the agent's next action; suggestions already in an inbox wait and cannot be
+ * approved while it is off. Every change sends only the field it changes.
  */
 export function AgentsScreen({
   initial,
@@ -59,6 +63,16 @@ export function AgentsScreen({
   const switches = useCommand(setKillSwitch);
   const level = settings.entityId;
   const name = (agent: AgentRoleKey) => t(`names.${agentNameKey(agent)}`);
+  const autonomyName = (a: AgentAutonomy) => t(`autonomy.${a}`);
+  /** The empty choice: what applies with no setting at this level. */
+  const inheritLabel = (inherited: AppliedAutonomyDto) =>
+    t(`admin.inherit.${inherited.source}`, { autonomy: autonomyName(inherited.autonomy) });
+  /** What applies now, and where it comes from. */
+  const appliesNow = (effective: AppliedAutonomyDto) =>
+    t('admin.appliesNow', {
+      autonomy: autonomyName(effective.autonomy),
+      source: t(`admin.source.${effective.source}`),
+    });
 
   /** Reads the screen again after a change, so every derived status is the database's. */
   function reload(message: string) {
@@ -80,19 +94,10 @@ export function AgentsScreen({
 
   function setAutonomy(row: AgentSettingDto, actionType: string | null, typed: string) {
     const autonomy = typed === '' ? null : (typed as AgentAutonomy);
-    config.run(
-      {
-        agent: row.agent,
-        actionType,
-        entityId: level,
-        autonomy,
-        // A cap lives on the agent's own row; an action type's row has none.
-        dailySpendCapPaise: actionType === null ? row.dailySpendCapPaise : null,
-      },
-      () => {
-        reload(t('admin.autonomySaved', { agent: name(row.agent) }));
-      },
-    );
+    // Only the autonomy changes: the limit and the switch keep their values.
+    config.run({ agent: row.agent, actionType, entityId: level, autonomy }, () => {
+      reload(t('admin.autonomySaved', { agent: name(row.agent) }));
+    });
   }
 
   const columns: DataGridColumn<AgentSettingDto>[] = [
@@ -110,28 +115,28 @@ export function AgentsScreen({
     {
       id: 'autonomy',
       header: t('admin.columns.autonomy'),
-      cell: (r) =>
-        canSetAutonomy ? (
-          <Select
-            aria-label={t('admin.autonomyLabel', { agent: name(r.agent) })}
-            value={r.autonomy ?? ''}
-            disabled={config.pending}
-            onChange={(e) => {
-              setAutonomy(r, null, e.target.value);
-            }}
-          >
-            <option value="">{t('admin.autonomyUnset')}</option>
-            {AGENT_LEVELS.map((a) => (
-              <option key={a} value={a}>
-                {t(`autonomy.${a}`)}
-              </option>
-            ))}
-          </Select>
-        ) : r.autonomy === null ? (
-          t('admin.autonomyUnset')
-        ) : (
-          t(`autonomy.${r.autonomy}`)
-        ),
+      cell: (r) => (
+        <div className="flex min-w-56 flex-col gap-1">
+          {canSetAutonomy ? (
+            <Select
+              aria-label={t('admin.autonomyLabel', { agent: name(r.agent) })}
+              value={r.autonomy ?? ''}
+              disabled={config.pending}
+              onChange={(e) => {
+                setAutonomy(r, null, e.target.value);
+              }}
+            >
+              <option value="">{inheritLabel(r.inherited)}</option>
+              {AGENT_LEVELS.map((a) => (
+                <option key={a} value={a}>
+                  {autonomyName(a)}
+                </option>
+              ))}
+            </Select>
+          ) : null}
+          <p className="text-text-muted text-xs">{appliesNow(r.effective)}</p>
+        </div>
+      ),
     },
     {
       id: 'cap',
@@ -139,10 +144,13 @@ export function AgentsScreen({
       cell: (r) =>
         canSetAutonomy ? (
           <CapForm row={r} level={level} name={name(r.agent)} onSaved={reload} />
-        ) : r.dailySpendCapPaise === null ? (
-          t('admin.capNone')
         ) : (
-          formatRupees(moneyFromPaise(r.dailySpendCapPaise))
+          <div className="flex flex-col gap-1">
+            {r.dailySpendCapPaise === null ? null : (
+              <span>{formatRupees(moneyFromPaise(r.dailySpendCapPaise))}</span>
+            )}
+            <CapNote row={r} />
+          </div>
         ),
     },
     {
@@ -252,11 +260,11 @@ export function AgentsScreen({
                         decided: formatCount(type.decided),
                       })}
                     </p>
-                    {type.automaticEarned ? null : (
-                      <p className="text-text-muted text-sm">{t('admin.automaticLocked')}</p>
+                    {settings.automaticAvailable ? null : (
+                      <p className="text-text-muted text-sm">{t('admin.automaticUnavailable')}</p>
                     )}
                   </div>
-                  <div className="w-64 max-w-full">
+                  <div className="flex w-72 max-w-full flex-col gap-1">
                     {canSetAutonomy ? (
                       <Select
                         aria-label={t('admin.actionTypeLabel', {
@@ -269,24 +277,19 @@ export function AgentsScreen({
                           setAutonomy(row, type.actionType, e.target.value);
                         }}
                       >
-                        <option value="">
-                          {t('admin.sameAsAgent', {
-                            autonomy: t(`autonomy.${row.autonomy ?? 'suggest'}`),
-                          })}
-                        </option>
+                        <option value="">{inheritLabel(type.inherited)}</option>
                         {AGENT_AUTONOMY_LEVELS.map((a) => (
                           <option
                             key={a}
                             value={a}
-                            disabled={a === 'automatic' && !type.automaticEarned}
+                            disabled={a === 'automatic' && !settings.automaticAvailable}
                           >
-                            {t(`autonomy.${a}`)}
+                            {autonomyName(a)}
                           </option>
                         ))}
                       </Select>
-                    ) : (
-                      <p>{t(`autonomy.${type.effectiveAutonomy}`)}</p>
-                    )}
+                    ) : null}
+                    <p className="text-text-muted text-xs">{appliesNow(type.effective)}</p>
                   </div>
                 </li>
               );
@@ -324,18 +327,10 @@ function CapForm({
       return;
     }
     setInvalid(false);
-    run(
-      {
-        agent: row.agent,
-        actionType: null,
-        entityId: level,
-        autonomy: row.autonomy,
-        dailySpendCapPaise: paise,
-      },
-      () => {
-        onSaved(t('admin.capSaved', { agent: name }));
-      },
-    );
+    // Only the limit changes: the autonomy and the switch keep their values.
+    run({ agent: row.agent, actionType: null, entityId: level, dailySpendCapPaise: paise }, () => {
+      onSaved(t('admin.capSaved', { agent: name }));
+    });
   }
 
   return (
@@ -358,10 +353,30 @@ function CapForm({
           {t('admin.saveCap')}
         </Button>
       </div>
-      {row.dailySpendCapPaise === null ? (
-        <p className="text-text-muted text-xs">{t('admin.capNone')}</p>
-      ) : null}
+      <CapNote row={row} />
       <FailureMessage failure={failure} />
     </form>
   );
+}
+
+/**
+ * What limits the agent besides the limit set here: at a company the group's limit applies as
+ * well; with no limit at all the agent makes no calls.
+ */
+function CapNote({ row }: { row: AgentSettingDto }) {
+  const t = useTranslations('agents');
+  const group = row.groupCapPaise;
+  if (group !== null) {
+    const amount = formatRupees(moneyFromPaise(group));
+    return (
+      <p className="text-text-muted text-xs">
+        {row.dailySpendCapPaise === null
+          ? t('admin.groupCapOnly', { amount })
+          : t('admin.groupCapToo', { amount })}
+      </p>
+    );
+  }
+  return row.dailySpendCapPaise === null ? (
+    <p className="text-text-muted text-xs">{t('admin.capNone')}</p>
+  ) : null;
 }

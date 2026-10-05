@@ -88,20 +88,29 @@ export const SEND_AGAIN_COMPANY = { entityId: 4, name: 'RCREF' } as const;
 export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 
 /**
- * The stand-in agent's suggestions (setup/stand-in-agent.ts). Per project, two for the tele-caller
- * on her lead in company 1: one she approves as it is and one she edits first; the seed files them
- * afresh on every run.
+ * The stand-in agent's suggestions (setup/stand-in-agent.ts). Per project, three for the
+ * tele-caller on her lead in company 1: one needing approval that she approves as it is, one she
+ * edits first, and one under Suggest that she dismisses; the seed files them afresh on every run.
  */
-export const INBOX_SUGGESTIONS: Record<ProjectName, { approve: string; edit: string }> = {
+export const INBOX_SUGGESTIONS: Record<
+  ProjectName,
+  { approve: string; edit: string; dismiss: string }
+> = {
   'desktop-light': {
     approve: 'Call back about the borewell depth',
     edit: 'Ask for the latest electricity bill',
+    dismiss: 'Check the pump warranty card',
   },
   'desktop-dark': {
     approve: 'Call back about the pump size',
     edit: 'Ask for a photo of the borewell',
+    dismiss: 'Check the panel mounting plan',
   },
-  phone: { approve: 'Call back about the solar panel count', edit: 'Ask about the field size' },
+  phone: {
+    approve: 'Call back about the solar panel count',
+    edit: 'Ask about the field size',
+    dismiss: 'Check the meter reading',
+  },
 };
 
 /** The note the edit journey gives a suggestion before approving it. */

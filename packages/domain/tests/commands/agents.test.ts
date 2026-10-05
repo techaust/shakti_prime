@@ -216,7 +216,9 @@ describe('agents.run.record', () => {
     const noOne = runInput(1, lead) as ReturnType<typeof runInput> & {
       proposal: Record<string, unknown>;
     };
-    const { assigneeId: _assignee, ...unassigned } = noOne.proposal;
+    const unassigned = Object.fromEntries(
+      Object.entries(noOne.proposal).filter(([key]) => key !== 'assigneeId'),
+    );
     await expect(
       run(copilot(), recordAgentRun, { ...noOne, proposal: unassigned }),
     ).rejects.toMatchObject(reason('agent_proposal_invalid'));
@@ -343,12 +345,10 @@ describe('agents.inbox.approve, .edit and .reject', () => {
       run(caller, rejectInboxItem, input),
     ]);
     const done = both.filter((r) => r.status === 'fulfilled');
-    const refused = both.filter((r) => r.status === 'rejected');
+    const refused = both.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
     expect(done).toHaveLength(1);
     expect(refused).toHaveLength(1);
-    expect((refused[0] as PromiseRejectedResult).reason).toMatchObject(
-      reason('inbox_item_transition_not_allowed'),
-    );
+    expect(refused[0]?.reason).toMatchObject(reason('inbox_item_transition_not_allowed'));
     const [counts] = await asMigrator(
       (m) => m<{ decisions: number }[]>`
         select count(*)::int as decisions from audit_logs
@@ -407,11 +407,15 @@ describe('agents.inbox.approve, .edit and .reject', () => {
     madeConfigs.push((switched as { id: string }).id);
     // The switch goes off in a transaction held open while the approval starts.
     await asPrincipal(gm, async (context) => {
-      await runCommand(setKillSwitch, { context, audit, outbox }, {
-        agent: 'agent:copilot',
-        entityId: 1,
-        enabled: false,
-      });
+      await runCommand(
+        setKillSwitch,
+        { context, audit, outbox },
+        {
+          agent: 'agent:copilot',
+          entityId: 1,
+          enabled: false,
+        },
+      );
       approval = run(caller, approveInboxItem, { entityId: 1, itemId: answer.inboxItemId }).catch(
         (e: unknown) => e,
       );

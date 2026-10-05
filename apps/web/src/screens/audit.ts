@@ -121,6 +121,7 @@ const ACTIONS = {
   'agents.inbox.approve': 'inboxApprove',
   'agents.inbox.edit': 'inboxEdit',
   'agents.inbox.reject': 'inboxReject',
+  'agents.inbox.dismiss': 'inboxDismiss',
   'agents.config.set': 'agentConfigSet',
   'agents.killswitch.set': 'agentKillSwitchSet',
   'auth.sign_in': 'signIn',

@@ -48,6 +48,10 @@ test.describe('as a tele-caller', () => {
     const card = suggestion(page, note);
     await expect(card.getByText('Caller Co-pilot suggests')).toBeVisible();
     await expect(card.getByRole('heading', { name: 'Add a follow-up task' })).toBeVisible();
+    // What the task would be, read-only: who it is for and its kind.
+    await expect(card.getByText('Task for')).toBeVisible();
+    await expect(card.getByText('Neha Saini')).toBeVisible();
+    await expect(card.getByText('Follow up', { exact: true })).toBeVisible();
 
     // The customer's page before: how many tasks carry the note.
     const customer = card.getByRole('link', { name: 'Open customer' });
@@ -88,6 +92,27 @@ test.describe('as a tele-caller', () => {
   });
 });
 
+test.describe('as a tele-caller, a suggestion to act on herself', () => {
+  test.use(signedInAs('teleCaller'));
+
+  test('a Suggest item opens the customer or is dismissed, and never runs from the inbox', async ({
+    page,
+  }) => {
+    const note = INBOX_SUGGESTIONS[projectName()].dismiss;
+    await page.goto('/inbox');
+    const card = suggestion(page, note);
+    await expect(card.getByText('For you to act on yourself.', { exact: false })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+    await expect(card.getByRole('link', { name: 'Open customer' })).toBeVisible();
+    await card.focus();
+    await page.keyboard.press('a');
+    await expect(card).toHaveCount(1);
+    await page.keyboard.press('d');
+    await expect(page.getByText('Dismissed. Nothing was changed.')).toBeVisible();
+    await expect(card).toHaveCount(0);
+  });
+});
+
 test.describe('as the snapshot caller', () => {
   test.use(signedInAs('snapshotCaller'));
 
@@ -100,9 +125,7 @@ test.describe('as the snapshot caller', () => {
       await expect(list.getByText(s.title)).toBeVisible();
     }
     await expect(
-      page.getByText(
-        'Keys: J and K move between suggestions, A approves, E opens Edit, R rejects.',
-      ),
+      page.getByText('Keys: J and K move between suggestions.', { exact: false }),
     ).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'agent-inbox');

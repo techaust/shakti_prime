@@ -1,16 +1,33 @@
 'use client';
 
 import type { InboxDecisionDto, InboxItemDto, InboxPageDto } from '@shakti/contracts';
-import { Button, EmptyState, StatusBadge, toast, useFocusTargets } from '@shakti/ui';
+import {
+  Button,
+  EmptyState,
+  StatusBadge,
+  toast,
+  useFocusTargets,
+  type FocusTargets,
+} from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, type KeyboardEvent } from 'react';
-import { approveSuggestion, listInbox, rejectSuggestion } from '../../actions/agents';
-import { actionTypeName, agentFieldName, inboxKeyAction } from '../../screens/agents';
-import { AGENT_ROLES, agentNameKey } from '../../screens/contract-values';
-import { customerHref } from '../../screens/customers';
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import {
+  approveSuggestion,
+  dismissSuggestion,
+  listInbox,
+  rejectSuggestion,
+} from '../../actions/agents';
+import {
+  actionTypeName,
+  agentFieldName,
+  agentSummaryName,
+  inboxKeyAction,
+} from '../../screens/agents';
+import { AGENT_ROLES, agentNameKey, TASK_KINDS } from '../../screens/contract-values';
+import { customerHref, isOneOf } from '../../screens/customers';
 import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
 import { useCommand, useQuery } from '../screens/use-command';
@@ -22,6 +39,9 @@ const EditSuggestionDialog = dynamic(() =>
 
 const PAGE_SIZE = 50;
 
+/** A decision a card takes: Needs approval ones are approved or rejected, Suggest ones dismissed. */
+type Decision = 'approve' | 'reject' | 'dismiss';
+
 /** Typing in a field, or a key on a control that uses it, is never a shortcut. */
 function typing(target: EventTarget): boolean {
   return (
@@ -30,11 +50,19 @@ function typing(target: EventTarget): boolean {
   );
 }
 
+/** Whether the person acts on the suggestion themselves (Suggest) rather than deciding on it. */
+const actYourself = (item: InboxItemDto): boolean => item.autonomy === 'suggest';
+
+/** Whether a key's decision applies to the item: approve and reject, or dismiss, by autonomy. */
+const fits = (item: InboxItemDto, decision: Decision): boolean =>
+  actYourself(item) === (decision === 'dismiss');
+
 /**
  * The Agent Inbox (docs/design/phase1.md §7.1): the caller's open suggestions, newest first.
- * Keyboard first: J and K (or the arrow keys) move between suggestions, A approves, E opens Edit,
- * R rejects. A decision runs as the caller, then the suggestion leaves the list and the count in
- * the top bar is read again.
+ * Keyboard first: J and K (or the arrow keys) move between suggestions; on one that needs approval
+ * A approves, E opens Edit and R rejects; on one for the person to act on themselves (Suggest) O
+ * opens the customer and D dismisses it. A decision runs as the caller, then the suggestion leaves
+ * the list and the count in the top bar is read again. Each card keeps its own idempotency keys.
  */
 export function InboxScreen({
   initial,
@@ -50,13 +78,11 @@ export function InboxScreen({
   const [cursor, setCursor] = useState(initial.nextCursor);
   const [active, setActive] = useState(0);
   const [editing, setEditing] = useState<InboxItemDto | undefined>();
-  const approve = useCommand(approveSuggestion);
-  const reject = useCommand(rejectSuggestion);
   const more = useQuery<InboxPageDto>();
   const cards = useFocusTargets<string>();
   const editButtons = useFocusTargets<string>();
+  const decisions = useRef(new Map<string, (decision: Decision) => void>());
   const heading = useRef<HTMLHeadingElement>(null);
-  const pending = approve.pending || reject.pending;
   const severalCompanies = Object.keys(companies).length > 1;
 
   function focusAt(index: number) {
@@ -71,21 +97,13 @@ export function InboxScreen({
     const index = items.findIndex((i) => i.id === item.id);
     const rest = items.filter((i) => i.id !== item.id);
     setItems(rest);
-    toast.success(t(decision.state === 'approved' ? 'inbox.approved' : 'inbox.rejected'));
+    toast.success(t(`inbox.${decision.state}`));
     router.refresh();
     const next = rest[Math.min(index, rest.length - 1)];
     setActive(Math.max(0, Math.min(index, rest.length - 1)));
     requestAnimationFrame(() => {
       if (next === undefined) heading.current?.focus();
       else cards.get(next.id)[0]?.focus();
-    });
-  }
-
-  function run(kind: 'approve' | 'reject', item: InboxItemDto) {
-    if (pending) return;
-    const command = kind === 'approve' ? approve : reject;
-    command.run({ entityId: item.entityId, itemId: item.id }, (decision) => {
-      decided(item, decision);
     });
   }
 
@@ -97,14 +115,12 @@ export function InboxScreen({
     event.preventDefault();
     if (action === 'next') focusAt(Math.min(active + 1, items.length - 1));
     else if (action === 'previous') focusAt(Math.max(active - 1, 0));
-    else if (action === 'edit') setEditing(item);
-    else run(action, item);
+    else if (action === 'edit') {
+      if (!actYourself(item) && item.fields.length > 0) setEditing(item);
+    } else if (action === 'open') {
+      if (item.accountId !== null) router.push(customerHref(item.accountId, item.entityId));
+    } else if (fits(item, action)) decisions.current.get(item.id)?.(action);
   }
-
-  const agentName = (item: InboxItemDto) => {
-    const agent = AGENT_ROLES.find((a) => a === item.agent);
-    return agent === undefined ? t('admin.columns.agent') : t(`names.${agentNameKey(agent)}`);
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,125 +128,31 @@ export function InboxScreen({
         {t('inbox.caption')}
       </h2>
       <p className="text-text-muted text-sm">{t('inbox.keys')}</p>
-      <FailureMessage failure={approve.failure ?? reject.failure} />
       {items.length === 0 ? (
         <EmptyState message={t('inbox.empty')} />
       ) : (
         <ul aria-label={t('inbox.caption')} className="flex flex-col gap-3" onKeyDown={onKeyDown}>
-          {items.map((item, index) => {
-            const action = actionTypeName(item.actionType);
-            const titleId = `inbox-item-${item.id}`;
-            return (
-              <li
-                key={item.id}
-                ref={cards.ref(item.id)}
-                tabIndex={index === active ? 0 : -1}
-                aria-labelledby={titleId}
-                onFocus={() => {
-                  setActive(index);
-                }}
-                className="border-border bg-surface focus-visible:outline-focus flex flex-col gap-3 rounded-lg border p-4 focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <p className="text-text-muted text-sm">
-                      {t('inbox.suggests', { agent: agentName(item) })}
-                    </p>
-                    <h3 id={titleId} className="text-h3">
-                      {action === undefined ? t('outcome.proposed') : t(`actionTypes.${action}`)}
-                    </h3>
-                  </div>
-                  {item.autonomy === null ? null : (
-                    <StatusBadge tone="info">{t(`autonomy.${item.autonomy}`)}</StatusBadge>
-                  )}
-                </div>
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span>
-                    {item.subjectName === null
-                      ? t('inbox.forUnknown')
-                      : t('inbox.forCustomer', { customer: item.subjectName })}
-                  </span>
-                  {item.accountId === null ? null : (
-                    <Link
-                      href={customerHref(item.accountId, item.entityId)}
-                      className="text-accent-text underline-offset-4 hover:underline"
-                    >
-                      {t('inbox.openCustomer')}
-                    </Link>
-                  )}
-                </p>
-                {item.fields.length === 0 ? null : (
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                    {item.fields.map((field) => {
-                      const name = agentFieldName(field.name);
-                      return (
-                        <div key={field.name} className="contents">
-                          <dt className="text-text-muted">
-                            {name === undefined ? field.name : t(`fields.${name}`)}
-                          </dt>
-                          <dd>
-                            {field.value === null ? (
-                              t('inbox.noValue')
-                            ) : field.kind === 'date_time' ? (
-                              <DateTime value={field.value} />
-                            ) : (
-                              field.value
-                            )}
-                          </dd>
-                        </div>
-                      );
-                    })}
-                  </dl>
-                )}
-                <p className="text-text-muted text-sm">
-                  {t('inbox.received')} <DateTime value={item.createdAt} />
-                  {severalCompanies && companies[item.entityId] !== undefined
-                    ? ` · ${t('inbox.companyLine', { company: companies[item.entityId] ?? '' })}`
-                    : null}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    aria-keyshortcuts="A"
-                    pending={approve.pending && active === index}
-                    onClick={() => {
-                      setActive(index);
-                      run('approve', item);
-                    }}
-                  >
-                    {t('inbox.approve')}
-                  </Button>
-                  {item.fields.length === 0 ? null : (
-                    <Button
-                      ref={editButtons.ref(item.id)}
-                      size="sm"
-                      variant="secondary"
-                      aria-keyshortcuts="E"
-                      disabled={pending}
-                      onClick={() => {
-                        setActive(index);
-                        setEditing(item);
-                      }}
-                    >
-                      {t('inbox.edit')}
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-keyshortcuts="R"
-                    pending={reject.pending && active === index}
-                    onClick={() => {
-                      setActive(index);
-                      run('reject', item);
-                    }}
-                  >
-                    {t('inbox.reject')}
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
+          {items.map((item, index) => (
+            <InboxCard
+              key={item.id}
+              item={item}
+              focusable={index === active}
+              company={severalCompanies ? companies[item.entityId] : undefined}
+              cards={cards}
+              editButtons={editButtons}
+              decisions={decisions}
+              onFocus={() => {
+                setActive(index);
+              }}
+              onEdit={() => {
+                setActive(index);
+                setEditing(item);
+              }}
+              onDecided={(decision) => {
+                decided(item, decision);
+              }}
+            />
+          ))}
         </ul>
       )}
       {cursor === null ? null : (
@@ -275,5 +197,200 @@ export function InboxScreen({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * One suggestion: what it would do, read-only (who the task is for, its kind) and the fields a
+ * person may change, with its own decisions, so each card's idempotency keys are its own and a
+ * failure on one card never reuses another's key.
+ */
+function InboxCard({
+  item,
+  focusable,
+  company,
+  cards,
+  editButtons,
+  decisions,
+  onFocus,
+  onEdit,
+  onDecided,
+}: {
+  item: InboxItemDto;
+  focusable: boolean;
+  /** The company's name, when the inbox lists several companies. */
+  company: string | undefined;
+  cards: FocusTargets<string>;
+  editButtons: FocusTargets<string>;
+  decisions: RefObject<Map<string, (decision: Decision) => void>>;
+  onFocus: () => void;
+  onEdit: () => void;
+  onDecided: (decision: InboxDecisionDto) => void;
+}) {
+  const t = useTranslations('agents');
+  const customers = useTranslations('customers');
+  const approve = useCommand(approveSuggestion);
+  const reject = useCommand(rejectSuggestion);
+  const dismiss = useCommand(dismissSuggestion);
+  const pending = approve.pending || reject.pending || dismiss.pending;
+  const commands = { approve, reject, dismiss };
+  const action = actionTypeName(item.actionType);
+  const titleId = `inbox-item-${item.id}`;
+  const yourself = actYourself(item);
+
+  function run(decision: Decision) {
+    if (pending || !fits(item, decision)) return;
+    commands[decision].run({ entityId: item.entityId, itemId: item.id }, onDecided);
+  }
+
+  // The list's keyboard reaches this card's decisions through the shared map, kept current.
+  useEffect(() => {
+    const map = decisions.current;
+    map.set(item.id, run);
+    return () => {
+      map.delete(item.id);
+    };
+  });
+
+  const agent = AGENT_ROLES.find((a) => a === item.agent);
+  const agentName =
+    agent === undefined ? t('admin.columns.agent') : t(`names.${agentNameKey(agent)}`);
+  const openCustomer =
+    item.accountId === null ? null : (
+      <Link
+        href={customerHref(item.accountId, item.entityId)}
+        aria-keyshortcuts={yourself ? 'O' : undefined}
+        className="text-accent-text underline-offset-4 hover:underline"
+      >
+        {t('inbox.openCustomer')}
+      </Link>
+    );
+
+  return (
+    <li
+      ref={cards.ref(item.id)}
+      tabIndex={focusable ? 0 : -1}
+      aria-labelledby={titleId}
+      onFocus={onFocus}
+      className="border-border bg-surface focus-visible:outline-focus flex flex-col gap-3 rounded-lg border p-4 focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-text-muted text-sm">{t('inbox.suggests', { agent: agentName })}</p>
+          <h3 id={titleId} className="text-h3">
+            {action === undefined ? t('outcome.proposed') : t(`actionTypes.${action}`)}
+          </h3>
+        </div>
+        {item.autonomy === null ? null : (
+          <StatusBadge tone="info">{t(`autonomy.${item.autonomy}`)}</StatusBadge>
+        )}
+      </div>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span>
+          {item.subjectName === null
+            ? t('inbox.forUnknown')
+            : t('inbox.forCustomer', { customer: item.subjectName })}
+        </span>
+        {yourself ? null : openCustomer}
+      </p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        {item.summary.map((entry) => {
+          const name = agentSummaryName(entry.name);
+          let shown: string;
+          if (entry.value === null) shown = t('inbox.noValue');
+          else if (entry.kind === 'person') shown = entry.label ?? t('inbox.someone');
+          else if (entry.name === 'kind' && isOneOf(TASK_KINDS, entry.value)) {
+            shown = customers(`tasks.kind.${entry.value}`);
+          } else shown = entry.value;
+          return (
+            <div key={entry.name} className="contents">
+              <dt className="text-text-muted">
+                {name === undefined ? entry.name : t(`inbox.summary.${name}`)}
+              </dt>
+              <dd>{shown}</dd>
+            </div>
+          );
+        })}
+        {item.fields.map((field) => {
+          const name = agentFieldName(field.name);
+          return (
+            <div key={field.name} className="contents">
+              <dt className="text-text-muted">
+                {name === undefined ? field.name : t(`fields.${name}`)}
+              </dt>
+              <dd>
+                {field.value === null ? (
+                  t('inbox.noValue')
+                ) : field.kind === 'date_time' ? (
+                  <DateTime value={field.value} />
+                ) : (
+                  field.value
+                )}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+      <p className="text-text-muted text-sm">
+        {t('inbox.received')} <DateTime value={item.createdAt} />
+        {company === undefined ? null : ` · ${t('inbox.companyLine', { company })}`}
+      </p>
+      {yourself ? <p className="text-text-muted text-sm">{t('inbox.actYourself')}</p> : null}
+      <FailureMessage failure={approve.failure ?? reject.failure ?? dismiss.failure} />
+      <div className="flex flex-wrap items-center gap-3">
+        {yourself ? (
+          <>
+            {openCustomer}
+            <Button
+              size="sm"
+              variant="secondary"
+              aria-keyshortcuts="D"
+              pending={dismiss.pending}
+              onClick={() => {
+                run('dismiss');
+              }}
+            >
+              {t('inbox.dismiss')}
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              aria-keyshortcuts="A"
+              pending={approve.pending}
+              onClick={() => {
+                run('approve');
+              }}
+            >
+              {t('inbox.approve')}
+            </Button>
+            {item.fields.length === 0 ? null : (
+              <Button
+                ref={editButtons.ref(item.id)}
+                size="sm"
+                variant="secondary"
+                aria-keyshortcuts="E"
+                disabled={pending}
+                onClick={onEdit}
+              >
+                {t('inbox.edit')}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-keyshortcuts="R"
+              pending={reject.pending}
+              onClick={() => {
+                run('reject');
+              }}
+            >
+              {t('inbox.reject')}
+            </Button>
+          </>
+        )}
+      </div>
+    </li>
   );
 }

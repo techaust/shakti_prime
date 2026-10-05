@@ -3,6 +3,7 @@ import {
   AGENT_AUTONOMY,
   AGENT_ROLE_KEYS,
   AGENT_RUN_OUTCOMES,
+  AGENT_SETTING_SOURCES,
   AccountTypeSchema,
   ActivityTypeSchema,
   ConsentChannelSchema,
@@ -99,6 +100,7 @@ import {
   AGENT_AUTONOMY_LEVELS,
   AGENT_ACTION_STATE_VALUES,
   AGENT_RUN_OUTCOME_VALUES,
+  AGENT_SETTING_SOURCE_VALUES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -122,6 +124,7 @@ describe('the contract values copied for the browser', () => {
     expect(AGENT_AUTONOMY_LEVELS).toEqual(AGENT_AUTONOMY);
     expect(AGENT_ACTION_STATE_VALUES).toEqual(AGENT_ACTION_STATES);
     expect(AGENT_RUN_OUTCOME_VALUES).toEqual(AGENT_RUN_OUTCOMES);
+    expect(AGENT_SETTING_SOURCE_VALUES).toEqual(AGENT_SETTING_SOURCES);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
     expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);

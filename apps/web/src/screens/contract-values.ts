@@ -3,6 +3,7 @@ import type {
   AgentAutonomy,
   AgentRoleKey,
   AgentRunOutcome,
+  AgentSettingSource,
   AccountType,
   ActivityType,
   ConsentChannel,
@@ -176,7 +177,17 @@ export const AGENT_ACTION_STATE_VALUES = [
   'executed',
   'approved',
   'rejected',
+  'dismissed',
 ] as const satisfies readonly AgentActionState[];
+
+/** Where a setting that applies comes from, as the agents screen names it. */
+export const AGENT_SETTING_SOURCE_VALUES = [
+  'action_company',
+  'action_group',
+  'agent_company',
+  'agent_group',
+  'default',
+] as const satisfies readonly AgentSettingSource[];
 
 /** How an agent run ended. */
 export const AGENT_RUN_OUTCOME_VALUES = [

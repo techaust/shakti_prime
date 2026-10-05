@@ -17,6 +17,7 @@ import {
 import {
   approveInboxItem as approveCommand,
   countInbox as countInboxQuery,
+  dismissInboxItem as dismissCommand,
   editInboxItem as editCommand,
   executeCommand,
   executeQuery,
@@ -78,7 +79,7 @@ async function decide(
   });
 }
 
-/** Approve: the suggestion runs as it was proposed, as the person who approves. */
+/** Approve a suggestion that needs approval: it runs as proposed, as the person who approves. */
 export async function approveSuggestion(
   rawInput: unknown,
   idempotencyKey?: unknown,
@@ -100,6 +101,14 @@ export async function rejectSuggestion(
   idempotencyKey?: unknown,
 ): Promise<ActionResult<InboxDecisionDto>> {
   return decide('rejectSuggestion', InboxItemRefInput, rejectCommand, rawInput, idempotencyKey);
+}
+
+/** Dismiss a suggestion to act on yourself: nothing runs. */
+export async function dismissSuggestion(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<InboxDecisionDto>> {
+  return decide('dismissSuggestion', InboxItemRefInput, dismissCommand, rawInput, idempotencyKey);
 }
 
 /** The agents at the level being viewed: the company chosen, or the group. */

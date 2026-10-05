@@ -3,7 +3,7 @@
 // seeded Caller Co-pilot principal, asks the model through the provider wrapper, and files a
 // follow-up task as a suggestion. The model is the fake transport, which answers the follow-up the
 // seed asks for; nothing reaches a vendor.
-import type { AgentRunDto } from '@shakti/contracts';
+import { newId, type AgentRunDto } from '@shakti/contracts';
 import {
   createAiProvider,
   fakeModelTransport,
@@ -18,8 +18,8 @@ export interface FollowUp {
   opportunityId: string;
   title: string;
   dueAt: string;
-  /** Who the suggestion is for; left out, the company's inbox. */
-  assigneeId?: string;
+  /** Who the suggestion and its task are for. */
+  assigneeId: string;
 }
 
 export async function suggestFollowUp(followUp: FollowUp): Promise<AgentRunDto> {
@@ -37,6 +37,8 @@ export async function suggestFollowUp(followUp: FollowUp): Promise<AgentRunDto> 
     {
       agent: 'agent:copilot',
       entityId: followUp.entityId,
+      // Each suggestion stands for an event of its own.
+      eventId: newId(),
       purpose: 'follow_up',
       actionType: 'crm.task.create',
       async decide(model) {
@@ -56,7 +58,7 @@ export async function suggestFollowUp(followUp: FollowUp): Promise<AgentRunDto> 
           },
           subjectType: 'opportunity',
           subjectId: followUp.opportunityId,
-          ...(followUp.assigneeId === undefined ? {} : { assigneeId: followUp.assigneeId }),
+          assigneeId: followUp.assigneeId,
         };
       },
     },
