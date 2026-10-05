@@ -5,8 +5,8 @@
 | Branch | `feat/d1-duplicates` on GitHub, from `main` when the slice starts |
 | PC worktree | `d1-duplicates`, slot 14: Postgres 54344, app 3044 (`bash tools/integration/setup-worktree.sh d1-duplicates feat/d1-duplicates 54344 3044`) |
 | Runs on | Cloud from 05-10-2026 (the owner's decision to go hybrid): the builder continues from the pushed branch per its handover section; review in the cloud; merge with `main`, integration and baselines on the PC |
-| State | built; awaiting review |
-| Next step | the slice reviewer reviews the branch; the lead session then takes `main` (P2b is merged there) and renumbers the migrations |
+| State | reviewed; fixes to make |
+| Next step | a cloud builder makes the fixes in the Review section's fix brief; then a re-review; then the lead takes `main` and renumbers the migrations |
 
 ## Brief
 Read first:
