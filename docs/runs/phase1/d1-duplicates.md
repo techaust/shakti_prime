@@ -109,6 +109,33 @@ The branch holds every change committed; nothing is uncommitted. The report abov
 3. `pnpm lint` once, then `pnpm typecheck`.
 4. Record the results in a dated Report section, set State to built, push the branch, and leave the review to the slice reviewer. Do not merge `main` (P2b is on it): the lead takes `main` and renumbers `0101_duplicates` and `0102_duplicates_rls` after it, correcting the 0101 and 0102 that DATABASE.md cites.
 
+### 05-10-2026, builder in a cloud session (Postgres 54322)
+Continued from the handover above on `feat/d1-duplicates` at `a7d13b7`; `main` was not merged in.
+
+**Session start.** The hooks printed the cloud note of `[tooling-check]` (phase 1, plugins and MCP servers on the PC only) and `[cloud-session]`: `.env` made from `.env.example`; `pnpm install failed (/tmp/cloud-session-install.log)`; Postgres up on 127.0.0.1:54322. `pg_isready` answered; every `DATABASE_URL*` in `.env` names 54322.
+
+**The pnpm failure and how it was passed.** Two causes, both outside the slice:
+- The session's `PATH` puts `/opt/node22/bin` (Node 22.22, corepack 0.34) before `/usr/local/bin`, where `cloud-setup.sh` put Node 24.21 (corepack 0.36).
+- Both corepacks expect `bin/pnpm.cjs`, while pnpm 12.6.0 ships `bin/pnpm.mjs`.
+- Passed with a wrapper in the session's scratchpad that runs corepack's downloaded pnpm 12.6.0 (`bin/pnpm.mjs`) on Node 24. `pnpm install --frozen-lockfile` then passed; no repository file and no lockfile changed. A separate task is proposed for `tools/integration/lib.sh`.
+- The journeys' Chromium (revision 1243) was missing (the VM had 1194); installed with `pnpm --filter web exec playwright install --with-deps chromium`, as the owner's instruction for this session allowed.
+
+**Fixed.** `pnpm typecheck` failed in `@shakti/db`: `tests/security/duplicates.test.ts` lines 74 and 79 passed `.sort()` pairs (`string | undefined` under `noUncheckedIndexedAccess`) to the migrator's postgres.js template. A typed `ordered()` helper in the file now gives the pair, lower id first as the table asks and in the order `.sort()` gave (commit `bef6328`). No other code changed.
+
+**Checks, each with its summary line**
+- `pnpm test:security`, one full run, no time limit hit: db 31 files, 956 passed; domain 56 files, 622 passed; web 15 files, 239 passed (`duplicate-scan.test.ts` 10 cases: seven tests, two of them `it.each` tables); turbo 4 successful, 4 total, 0 cached, 7 m 19 s. Before the fix; the fix touched only that file's typing, and the file alone after it: 8 passed.
+- `pnpm lint` (ESLint over the repository, `--max-warnings 0`): clean, before and after the fix.
+- `pnpm exec turbo run typecheck --force`: 8 successful, 8 total, 0 cached (after the fix). Prettier clean on the changed file.
+- Unit tests, `turbo run test --force`: copy-lint 17, tokens 134, ui 105, contracts 177, db 121, domain 1,586, web 630 passed; 8 successful, 0 cached.
+- `pnpm build` passed; `pnpm --filter web js-budget`: every page within its budget (30 pages); `/duplicates` 192.9 kB (203), `/customers/[accountId]` 195.5 kB (205).
+- Journeys on Linux, seeded, the production build on 3000, `--update-snapshots=none`: `playwright test e2e/duplicates.spec.ts`, three projects: 11 passed, 3 failed, 44 s. The 8 sign-ins and "finds a customer typed in twice, merges the two and undoes the merge" passed on the first try in desktop-light, desktop-dark and phone, none flaky. "show none" passed its text and axe checks in each project and failed only at `snap()`: "A snapshot doesn't exist" for `duplicates.png`, the baseline the lead makes in the pinned image. No baseline was written from this host.
+
+**Found while running the journeys (not D1)**
+- When the runner starts the server itself (`pnpm exec next start`), pnpm 12's native launcher leaves `next-server` running after the runner stops it. The runner then waits on it without printing its summary: a 30-minute hang, and a later run against the left-behind server timed out. Starting `next start -p 3000` with `BOS_ENVIRONMENT=local` by hand before the run (the config reuses a running server outside CI) gave the clean run above.
+- The server logs `request.failed` "The destination stream closed early" at error level when a browser leaves a page while it is still streaming: in the D1 journeys on `/customers/[accountId]` and `/leads`, and likewise in `leads.spec.ts` and `customers.spec.ts` (25 passed on desktop-light) on `/catalogue`, `/design`, `/price-master`, `/leads` and `/leads/walk-in`. It is not a failure of this slice.
+
+**Not done here (the lead's, on the PC):** taking `main` and renumbering `0101_duplicates` and `0102_duplicates_rls` (and the numbers DATABASE.md cites); the Linux baselines (`duplicates`, and every staff screenshot that shows the menu's new Duplicates item); the review. No skill was loaded: no command, table, screen or on-screen word changed in this session.
+
 ## Review
 None yet.
 
