@@ -4,9 +4,9 @@
 |---|---|
 | Branch | `feat/s1-quotes` on GitHub, from `main` at #103 |
 | PC worktree | `s1-quotes`, slot 13: Postgres 54343, app 3043 (`bash tools/integration/setup-worktree.sh s1-quotes feat/s1-quotes 54343 3043`) |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
-| State | built |
-| Next step | review |
+| Runs on | Built and reviewed on the PC; the integration in a cloud session (owner, 05-10-2026), the trial of [hybrid §10](../../runbooks/hybrid.md#10-the-trial); the pull request and the hosted steps from the PC |
+| State | reviewed and re-reviewed; every finding fixed (H1, M1 to M3, L1, L3 to L7, R1 to R6; L2 and L8 left by the lead) |
+| Next step | the cloud integration (the lead's brief of 06-10-2026 in Integration notes) |
 
 ## Brief
 Read first:
@@ -241,3 +241,9 @@ Not rerun by the builder or here: `pnpm build`, the JavaScript budget and the jo
 
 ## Integration notes
 1. Hosted PDFs wait on the owner's AWS files stack, as P4's do.
+2. **The lead's brief of 06-10-2026, the cloud integration (the trial of hybrid §10).** Follow `docs/runbooks/slice-integration.md` §5 to §7 in a cloud session, with `.` as the worktree. `main` is at `9647eee4` (#114), its last migration 0108.
+   1. `git rev-parse HEAD > ../s1-premerge.sha`, `git fetch`, `git merge --no-commit origin/main`; resolve lists with `merge-union.py`, `en.json` with `merge-json.py` before `git add`, `copy-lint.config.json` with `merge-copylint.py`; read every code hunk by hand. `AGENTS.md` and `turbo.json` take `main`'s version (no turbo block; `"agentGuidance": false`). `main` brought P2b, AI0 and the cloud tooling (#111 to #113) since this branch began at #103.
+   2. `pnpm install --offline --frozen-lockfile` (or without `--offline` if the store lacks a package), then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../s1-premerge.sha)`: 0101 to 0103 move to 0109 to 0111. `pnpm db:generate` must report no changes (if it writes a migration, fold it as slice-integration §10 says); `pnpm db:docs`; correct the migration numbers DATABASE.md, the design and this file cite. Commit: `chore: merge main (P2b, AI0, cloud tooling) into S1; its migrations move to 0109 to 0111`. Push.
+   3. `integrate.sh` in parts, each under 30 minutes: `INTEGRATE_STEPS="install lint format copylint generated typecheck"`, then `"unit"`, then `"security dbverify"`, then `"audit build jsbudget gitleaks"`, then `"e2e"`, each as `INTEGRATE_STEPS="…" bash tools/integration/integrate.sh . ../int-<n>.log`. Each verdict must be `INTEGRATION PARTIAL` with no `rc=` other than 0; on a failure read `../int-<n>.log.<step>`, fix, commit, push and rerun that part. The review did not run the build, the budget or the journeys (the tele-caller's changed quote journey included), so expect the first findings there.
+   4. Baselines on a fresh database: `docker compose down -v && docker compose up -d --wait`, wait until several queries in a row succeed, `pnpm db:migrate && pnpm db:seed && pnpm build`. M2 opens Quotes to every lead reader, so delete the old baselines of every staff screen whose menu gains the item, run `pnpm --filter web e2e:snap -- --update-snapshots=missing`, look at each new image (the quote builder, the quote page, `/quotes`, Account 360's quotes, the menu screens), then `pnpm --filter web e2e:snap` without updating: every screenshot must match. Commit the baselines and push.
+   5. Write below, as item 3, each part's verdict and time, what was fixed, the baselines made, and for the trial: what worked in the cloud and what did not (the session hook, Docker, the image pulls, any command that hit the 30-minute limit, the Playwright browser). Set State to "integrated; ready for the pull request". Commit and push. Never open a pull request, merge, or touch a hosted service.
