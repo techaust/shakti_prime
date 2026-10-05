@@ -496,7 +496,7 @@
           "name": "accounts_match_name_idx",
           "columns": [
             {
-              "expression": "lower(btrim(regexp_replace(\"name\", '\\s+', ' ', 'g')))",
+              "expression": "app.match_text(\"name\")",
               "isExpression": true,
               "asc": true,
               "nulls": "last"
@@ -2687,7 +2687,7 @@
           "name": "customer_sites_match_village_idx",
           "columns": [
             {
-              "expression": "lower(btrim(regexp_replace(\"village\", '\\s+', ' ', 'g')))",
+              "expression": "app.match_text(\"village\")",
               "isExpression": true,
               "asc": true,
               "nulls": "last"

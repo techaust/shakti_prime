@@ -242,7 +242,11 @@
     "merge_partner_account": "A referral partner cannot be merged into another customer. Keep the partner and merge the other customer into it.",
     "merge_undone_already": "This merge has already been undone.",
     "merge_lead_closed": "One of these leads is already won or lost, so they cannot be merged.",
-    "merge_customers_first": "These leads belong to two different customers. Merge the customers first, then the leads."
+    "merge_customers_first": "These leads belong to two different customers. Merge the customers first, then the leads.",
+    "merge_other_company": "One of these customers is also with a company of the group you aren't working in now. Switch to all companies, or ask someone who works for both.",
+    "merge_undo_later_first": "Someone has since merged this customer into another one. Undo that later merge first.",
+    "merge_leads_other_segment": "These leads are for different kinds of work, so you can't merge them.",
+    "merge_leads_two_partners": "Each lead came from a different referral partner, so you can't merge them. Close the lead that shouldn't count instead."
   },
   "auth": {
     "signIn": {
@@ -2963,12 +2967,12 @@
     "mergedFrom": "{name} was merged into this customer on {when}.",
     "mergedFromUnnamed": "Another customer was merged into this customer on {when}.",
     "undo": "Undo merge",
-    "undoneToast": "Merge undone. Both customers are back as they were.",
+    "undoneToast": "Merge undone. The other customer is open again, with everything that hasn't changed since the merge.",
     "dialog": {
       "customerTitle": "Merge customers",
       "leadTitle": "Merge leads",
       "customerIntro": "Choose the customer to keep. Everything recorded for the other customer moves to it, and the other customer is closed. You can undo this from the kept customer's page.",
-      "leadIntro": "Choose the lead to keep. The other lead's open tasks and tags move to it, and the other lead is closed. Its history stays with the customer.",
+      "leadIntro": "Choose the lead to keep. The other lead's open tasks and tags move to it, and the other lead is closed. Its history stays with the customer. If only the other lead came from a referral partner, the partner moves to the kept lead.",
       "keepLegend": "Which one to keep",
       "moves": "What moves to the kept customer",
       "counts": {

@@ -30,8 +30,11 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Duplicates (CRM-03, docs/design/phase1.md §7.4): thin wrappers (docs/API.md §4). Each command
- * runs with the request narrowed to the company whose screen it is made from.
+ * Duplicates (CRM-03, docs/design/phase1.md §7.4): thin wrappers (docs/API.md §4). Each read and
+ * command runs with every company the caller works for, and names the card's company in its
+ * input (`entityId`): a customer is shared between the companies (ADR 0008), and a merge, its undo
+ * and a dismissal must see each relationship of both customers, which a request narrowed to one
+ * company hides.
  */
 
 /** `/duplicates`: the open cards the caller sees, surest first; the next page after `cursor`. */
@@ -61,7 +64,7 @@ export async function listAccountDuplicates(
     const { requestId } = await requestMeta();
     return executeQuery(
       principal,
-      { entityIds: [input.entityId], requestId },
+      { requestId },
       (context) => listAccountDuplicatesQuery(context, input),
       { name: 'listAccountDuplicates' },
     );
@@ -76,12 +79,9 @@ export async function previewCustomerMerge(
     const principal = await signedIn();
     const input = parseInput(PreviewCustomerMergeInput, rawInput);
     const { requestId } = await requestMeta();
-    return executeQuery(
-      principal,
-      { entityIds: [input.entityId], requestId },
-      (context) => countMergeMoves(context, input),
-      { name: 'previewCustomerMerge' },
-    );
+    return executeQuery(principal, { requestId }, (context) => countMergeMoves(context, input), {
+      name: 'previewCustomerMerge',
+    });
   });
 }
 
@@ -95,7 +95,7 @@ export async function mergeCustomers(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { requestId: meta.requestId },
       mergeCustomersCommand,
       input,
       commandOptions(meta, idempotencyKey),
@@ -113,7 +113,7 @@ export async function unmergeCustomers(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { requestId: meta.requestId },
       unmergeCustomersCommand,
       input,
       commandOptions(meta, idempotencyKey),
@@ -131,7 +131,7 @@ export async function mergeLeads(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { requestId: meta.requestId },
       mergeLeadsCommand,
       input,
       commandOptions(meta, idempotencyKey),
@@ -149,7 +149,7 @@ export async function dismissDuplicate(
     const meta = await requestMeta();
     return executeCommand(
       principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
+      { requestId: meta.requestId },
       dismissDuplicateCommand,
       input,
       commandOptions(meta, idempotencyKey),

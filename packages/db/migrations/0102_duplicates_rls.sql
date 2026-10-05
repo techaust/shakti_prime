@@ -163,7 +163,7 @@ begin
   end if;
   return query
   with subjects as (
-    select a.id, lower(btrim(regexp_replace(a.name, '\s+', ' ', 'g'))) as name_key
+    select a.id, app.match_text(a.name) as name_key
       from public.accounts a
      where a.archived_at is null
        and ((p_account is not null and a.id = p_account)
@@ -184,7 +184,7 @@ begin
   ),
   subject_villages as (
     select distinct s.id as subject_id,
-           lower(btrim(regexp_replace(cs.village, '\s+', ' ', 'g'))) as village_key
+           app.match_text(cs.village) as village_key
       from subjects s
       join public.customer_sites cs on cs.account_id = s.id
      where cs.village is not null and cs.archived_at is null
@@ -201,7 +201,7 @@ begin
     select s.id as subject_id, a.id as other_id
       from subjects s
       join public.accounts a
-        on lower(btrim(regexp_replace(a.name, '\s+', ' ', 'g'))) = s.name_key
+        on app.match_text(a.name) = s.name_key
      where a.id <> s.id and a.archived_at is null
   ),
   same_villages as (
@@ -211,7 +211,7 @@ begin
       join public.customer_sites cs
         on cs.account_id = n.other_id
        and cs.village is not null and cs.archived_at is null
-       and lower(btrim(regexp_replace(cs.village, '\s+', ' ', 'g'))) = sv.village_key
+       and app.match_text(cs.village) = sv.village_key
   ),
   village_of_phone as (
     select distinct p.subject_id, p.other_id
@@ -220,7 +220,7 @@ begin
       join public.customer_sites cs
         on cs.account_id = p.other_id
        and cs.village is not null and cs.archived_at is null
-       and lower(btrim(regexp_replace(cs.village, '\s+', ' ', 'g'))) = sv.village_key
+       and app.match_text(cs.village) = sv.village_key
   ),
   customer_pairs as (
     select p.subject_id, p.other_id from by_phone p
@@ -331,16 +331,14 @@ begin
                   select 1
                     from public.accounts a1
                     join public.accounts a2
-                      on lower(btrim(regexp_replace(a2.name, '\s+', ' ', 'g')))
-                       = lower(btrim(regexp_replace(a1.name, '\s+', ' ', 'g')))
+                      on app.match_text(a2.name) = app.match_text(a1.name)
                     join public.customer_sites s1
                       on s1.account_id = a1.id and s1.village is not null
                      and s1.archived_at is null
                     join public.customer_sites s2
                       on s2.account_id = a2.id and s2.village is not null
                      and s2.archived_at is null
-                     and lower(btrim(regexp_replace(s2.village, '\s+', ' ', 'g')))
-                       = lower(btrim(regexp_replace(s1.village, '\s+', ' ', 'g')))
+                     and app.match_text(s2.village) = app.match_text(s1.village)
                    where a1.id = r."firstId" and a2.id = r."secondId")
                 else false
               end;
@@ -415,9 +413,10 @@ revoke execute on function app.request_is_person() from public, readonly_reporte
 
 -- 7. crm.customer.merge: folds p_merged into p_kept, for a person holding crm.lead.merge (team or
 --    wider) and crm.account.write, acting in a company one of the two is related to. Every
---    relationship of both customers must be in the request's companies and the caller's customer
---    write scope, and every lead of the merged one in the caller's lead write scope; otherwise a
---    colleague looks after one of them and nothing moves (held_by_other). A referral partner is
+--    relationship of both customers, and every lead of the merged one, must be in the request's
+--    companies (other_company otherwise: the request carries every company the caller works for)
+--    and in the caller's customer or lead write scope (held_by_other otherwise: a colleague looks
+--    after one of them); otherwise nothing moves. A referral partner is
 --    never merged away (partner). Moves, and records in customer_merges: the merged customer's
 --    sites; its relationships with companies the kept one has none with; its contacts not already
 --    the kept one's (its owner as other, since a customer has one owner); its leads, with their
@@ -466,13 +465,17 @@ begin
     return jsonb_build_object('status', 'missing');
   end if;
   if exists (select 1 from public.account_entities ae
+              where ae.account_id in (p_kept, p_merged) and not (ae.entity_id = any (v_entities)))
+     or exists (select 1 from public.opportunities o
+                 where o.account_id = p_merged and not (o.entity_id = any (v_entities))) then
+    return jsonb_build_object('status', 'other_company');
+  end if;
+  if exists (select 1 from public.account_entities ae
               where ae.account_id in (p_kept, p_merged)
-                and not (ae.entity_id = any (v_entities)
-                         and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id)))
+                and not app.scope_ok('crm.account.write', ae.owner_id, ae.team_id))
      or exists (select 1 from public.opportunities o
                  where o.account_id = p_merged
-                   and not (o.entity_id = any (v_entities)
-                            and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))) then
+                   and not app.scope_ok('crm.lead.write', o.owner_id, o.team_id)) then
     return jsonb_build_object('status', 'held_by_other');
   end if;
   if exists (select 1 from public.referral_partners rp where rp.account_id = p_merged) then
@@ -564,11 +567,13 @@ grant execute on function app.merge_customers(uuid, uuid, uuid, smallint, uuid) 
 
 -- 8. crm.customer.unmerge: moves back what a merge moved and returns the merged customer, for a
 --    person holding crm.lead.merge and crm.account.write who may change both customers in every
---    company each is related to, and every lead the merge moved (held_by_other otherwise). A row
---    changed since the merge stays where it is now: a site, contact or lead no longer on the kept
---    customer is not moved, and a relationship the kept customer has since used for another lead
---    is shared (the merged customer gets its own copy). Answers { status, keptAccountId,
---    mergedAccountId, candidateId, entityId, moved }.
+--    company each is related to, and every lead the merge moved (other_company or held_by_other
+--    otherwise, as for the merge). Refused while the kept customer has itself been merged away
+--    since (kept_merged: that later merge is undone first). A row changed since the merge stays
+--    where it is now: a site, contact or lead no longer on the kept customer is not moved, and a
+--    relationship the kept customer has since used for another lead is shared (the merged
+--    customer gets its own copy). Answers { status, keptAccountId, mergedAccountId, candidateId,
+--    entityId, moved }, where moved holds the ids of what actually came back.
 create or replace function app.unmerge_customers(p_merge uuid)
   returns jsonb
   language plpgsql volatile security definer set search_path = '' as $$
@@ -578,6 +583,14 @@ declare
   m public.customer_merges%rowtype;
   v_leads uuid[];
   rel record;
+  v_relationships jsonb := '[]'::jsonb;
+  v_sites jsonb;
+  v_back_leads jsonb;
+  v_contacts jsonb;
+  v_consents jsonb;
+  v_tasks jsonb;
+  v_tags jsonb;
+  v_activities jsonb;
 begin
   if v_actor is null or not app.request_is_person()
      or not app.has_perm('crm.lead.merge:team') or not app.has_perm('crm.account.write:own') then
@@ -594,16 +607,25 @@ begin
    where a.id in (m.kept_account_id, m.merged_account_id)
    order by a.id
      for update;
+  if exists (select 1 from public.accounts a
+              where a.id = m.kept_account_id and a.archived_at is not null) then
+    return jsonb_build_object('status', 'kept_merged');
+  end if;
   select coalesce(array_agg(x::uuid), '{}'::uuid[]) into v_leads
     from jsonb_array_elements_text(m.moved_json -> 'leads') x;
   if exists (select 1 from public.account_entities ae
               where ae.account_id in (m.kept_account_id, m.merged_account_id)
-                and not (ae.entity_id = any (v_entities)
-                         and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id)))
+                and not (ae.entity_id = any (v_entities)))
+     or exists (select 1 from public.opportunities o
+                 where o.id = any (v_leads) and not (o.entity_id = any (v_entities))) then
+    return jsonb_build_object('status', 'other_company');
+  end if;
+  if exists (select 1 from public.account_entities ae
+              where ae.account_id in (m.kept_account_id, m.merged_account_id)
+                and not app.scope_ok('crm.account.write', ae.owner_id, ae.team_id))
      or exists (select 1 from public.opportunities o
                  where o.id = any (v_leads)
-                   and not (o.entity_id = any (v_entities)
-                            and app.scope_ok('crm.lead.write', o.owner_id, o.team_id))) then
+                   and not app.scope_ok('crm.lead.write', o.owner_id, o.team_id)) then
     return jsonb_build_object('status', 'held_by_other');
   end if;
 
@@ -631,29 +653,64 @@ begin
          set account_id = m.merged_account_id, updated_by = v_actor
        where id = rel.id;
     end if;
+    v_relationships := v_relationships || jsonb_build_array(rel.id);
   end loop;
 
-  update public.customer_sites
-     set account_id = m.merged_account_id, updated_by = v_actor
-   where account_id = m.kept_account_id
-     and id in (select x::uuid from jsonb_array_elements_text(m.moved_json -> 'sites') x);
+  with moved as (
+    update public.customer_sites
+       set account_id = m.merged_account_id, updated_by = v_actor
+     where account_id = m.kept_account_id
+       and id in (select x::uuid from jsonb_array_elements_text(m.moved_json -> 'sites') x)
+    returning id)
+  select coalesce(jsonb_agg(moved.id order by moved.id), '[]'::jsonb) into v_sites from moved;
 
-  update public.opportunities
-     set account_id = m.merged_account_id, updated_by = v_actor
-   where account_id = m.kept_account_id and id = any (v_leads);
+  with moved as (
+    update public.opportunities
+       set account_id = m.merged_account_id, updated_by = v_actor
+     where account_id = m.kept_account_id and id = any (v_leads)
+    returning id)
+  select coalesce(jsonb_agg(moved.id order by moved.id), '[]'::jsonb)
+    into v_back_leads from moved;
 
-  update public.account_contacts ac
-     set account_id = m.merged_account_id, role = c.role, updated_by = v_actor
-    from (select (x ->> 'id')::uuid as contact_id, x ->> 'role' as role
-            from jsonb_array_elements(m.moved_json -> 'contacts') x) c
-   where ac.account_id = m.kept_account_id and ac.contact_id = c.contact_id;
+  with moved as (
+    update public.account_contacts ac
+       set account_id = m.merged_account_id, role = c.role, updated_by = v_actor
+      from (select (x ->> 'id')::uuid as contact_id, x ->> 'role' as role
+              from jsonb_array_elements(m.moved_json -> 'contacts') x) c
+     where ac.account_id = m.kept_account_id and ac.contact_id = c.contact_id
+    returning ac.contact_id, c.role)
+  select coalesce(jsonb_agg(jsonb_build_object('id', moved.contact_id, 'role', moved.role)
+                            order by moved.contact_id), '[]'::jsonb)
+    into v_contacts from moved;
+
+  -- What went back with the leads (tasks and tags, ON UPDATE CASCADE) and the contacts (consents).
+  select coalesce(jsonb_agg(t.id order by t.id), '[]'::jsonb) into v_tasks
+    from public.tasks t
+   where t.account_id = m.merged_account_id
+     and t.id in (select x::uuid from jsonb_array_elements_text(m.moved_json -> 'tasks') x);
+  select coalesce(jsonb_agg(jsonb_build_object('opportunityId', ot.opportunity_id,
+                                               'tagId', ot.tag_id)), '[]'::jsonb)
+    into v_tags
+    from public.opportunity_tags ot
+   where ot.account_id = m.merged_account_id
+     and exists (select 1 from jsonb_array_elements(m.moved_json -> 'tags') x
+                  where (x ->> 'opportunityId')::uuid = ot.opportunity_id
+                    and (x ->> 'tagId')::uuid = ot.tag_id);
+  select coalesce(jsonb_agg(c.id order by c.id), '[]'::jsonb) into v_consents
+    from public.consents c
+   where c.contact_id in (select (x ->> 'id')::uuid from jsonb_array_elements(v_contacts) x)
+     and c.id in (select x::uuid from jsonb_array_elements_text(m.moved_json -> 'consents') x);
 
   perform pg_catalog.set_config('app.customer_merge', p_merge::text, true);
-  update public.activities
-     set account_id = m.merged_account_id
-   where account_id = m.kept_account_id
-     and id in (select x::uuid
-                  from jsonb_array_elements_text(m.moved_json -> 'activities') x);
+  with moved as (
+    update public.activities
+       set account_id = m.merged_account_id
+     where account_id = m.kept_account_id
+       and id in (select x::uuid
+                    from jsonb_array_elements_text(m.moved_json -> 'activities') x)
+    returning id)
+  select coalesce(jsonb_agg(moved.id order by moved.id), '[]'::jsonb)
+    into v_activities from moved;
   perform pg_catalog.set_config('app.customer_merge', '', true);
 
   update public.customer_merges
@@ -662,7 +719,11 @@ begin
   return jsonb_build_object(
     'status', 'undone', 'keptAccountId', m.kept_account_id,
     'mergedAccountId', m.merged_account_id, 'candidateId', m.candidate_id,
-    'entityId', m.entity_id, 'moved', m.moved_json);
+    'entityId', m.entity_id,
+    'moved', jsonb_build_object(
+      'contacts', v_contacts, 'sites', v_sites, 'relationships', v_relationships,
+      'leads', v_back_leads, 'tasks', v_tasks, 'tags', v_tags, 'consents', v_consents,
+      'activities', v_activities));
 end
 $$;
 --> statement-breakpoint
@@ -671,11 +732,14 @@ revoke execute on function app.unmerge_customers(uuid) from public, readonly_rep
 grant execute on function app.unmerge_customers(uuid) to app_user;
 --> statement-breakpoint
 
--- 9. crm.lead.merge: two open or nurture leads of one customer in one company become one, for a
---    person holding crm.lead.merge who may write both leads. The merged lead's open tasks and its
---    tags move to the kept lead and the merged lead is archived; its timeline stays with the
---    customer. Answers { status, accountId, tasks, tags }: merged, missing, held_by_other,
---    not_open or different_customers.
+-- 9. crm.lead.merge: two open or nurture leads of one customer and one segment in one company
+--    become one, for a person holding crm.lead.merge who may write both leads. The merged lead's
+--    open tasks and its tags move to the kept lead and the merged lead is archived; its timeline
+--    stays with the customer. A referral partner of the merged lead goes to a kept lead with none,
+--    so the partner keeps the credit (CRM-09); two leads of two different partners are refused
+--    (two_partners), and a person decides which to close. Answers { status, accountId, tasks,
+--    tags, referralPartnerId } (the partner carried over, or null): merged, missing,
+--    held_by_other, not_open, different_customers, other_segment or two_partners.
 create or replace function app.merge_leads(p_kept uuid, p_merged uuid, p_entity smallint)
   returns jsonb
   language plpgsql volatile security definer set search_path = '' as $$
@@ -685,6 +749,7 @@ declare
   v_merged public.opportunities%rowtype;
   v_tasks integer;
   v_tags integer;
+  v_partner uuid;
 begin
   if v_actor is null or not app.request_is_person()
      or not app.has_perm('crm.lead.merge:team') or not app.has_perm('crm.lead.write:own') then
@@ -714,6 +779,20 @@ begin
   if v_kept.account_id <> v_merged.account_id then
     return jsonb_build_object('status', 'different_customers');
   end if;
+  if (select p.segment from public.pipelines p where p.id = v_kept.pipeline_id)
+     is distinct from (select p.segment from public.pipelines p where p.id = v_merged.pipeline_id) then
+    return jsonb_build_object('status', 'other_segment');
+  end if;
+  if v_kept.referral_partner_id is not null and v_merged.referral_partner_id is not null
+     and v_kept.referral_partner_id <> v_merged.referral_partner_id then
+    return jsonb_build_object('status', 'two_partners');
+  end if;
+  if v_kept.referral_partner_id is null and v_merged.referral_partner_id is not null then
+    v_partner := v_merged.referral_partner_id;
+    update public.opportunities
+       set referral_partner_id = v_partner, updated_by = v_actor
+     where id = p_kept;
+  end if;
 
   update public.tasks
      set opportunity_id = p_kept, updated_by = v_actor
@@ -732,10 +811,74 @@ begin
      set archived_at = pg_catalog.now(), updated_by = v_actor
    where id = p_merged;
   return jsonb_build_object('status', 'merged', 'accountId', v_kept.account_id,
-                            'tasks', v_tasks, 'tags', v_tags);
+                            'tasks', v_tasks, 'tags', v_tags, 'referralPartnerId', v_partner);
 end
 $$;
 --> statement-breakpoint
 revoke execute on function app.merge_leads(uuid, uuid, smallint) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.merge_leads(uuid, uuid, smallint) to app_user;
+--> statement-breakpoint
+
+-- 10. A write about a known customer (a lead, a site, a contact, a note, an attached enquiry)
+--     holds the customer's row until it commits, so a merge of that customer, which locks it
+--     for update, waits for the write and then moves its rows, or the write waits for the merge
+--     and then finds the customer archived. Key share, so two writes about one customer never
+--     wait on each other, and a write that also updates the customer row never deadlocks. Only
+--     locks: whether the caller may see or change the customer is asked by the write itself.
+create or replace function app.hold_customer(p_account uuid) returns void
+  language plpgsql volatile security definer set search_path = '' as $$
+begin
+  if app.user_id() is null
+     or not (app.has_perm('crm.account.write:own') or app.has_perm('crm.lead.write:own')) then
+    raise exception 'a customer or lead writer is required' using errcode = '42501';
+  end if;
+  perform 1 from public.accounts a where a.id = p_account for key share;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.hold_customer(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.hold_customer(uuid) to app_user;
+--> statement-breakpoint
+
+-- 11. app.attach_account_entity() (0059) as before, holding the customer as section 10 says before
+--     it asks whether the customer is live, so a lead on a known customer and a merge of it never
+--     cross.
+create or replace function app.attach_account_entity(p_account uuid, p_entity smallint) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_inserted int;
+begin
+  if app.user_id() is null or not (p_entity = any (coalesce(app.entity_ids(), '{}'::int[]))) then
+    raise exception 'entity % outside the request scope', p_entity using errcode = 'insufficient_privilege';
+  end if;
+  if not app.has_perm('crm.lead.write:own') then
+    raise exception 'permission crm.lead.write:own required' using errcode = 'insufficient_privilege';
+  end if;
+  if not app.has_perm('crm.account.write:own') then
+    raise exception 'permission crm.account.write:own required' using errcode = 'insufficient_privilege';
+  end if;
+  perform 1 from public.accounts a where a.id = p_account and a.archived_at is null for key share;
+  if not found then
+    return 'missing';
+  end if;
+  insert into public.account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+  values (app.uuid_v7(), p_account, p_entity, app.user_id(), app.team_id(), app.user_id())
+  on conflict (account_id, entity_id) do nothing;
+  get diagnostics v_inserted = row_count;
+  if v_inserted = 1 then
+    return 'attached';
+  end if;
+  if exists (select 1 from public.account_entities ae
+              where ae.account_id = p_account and ae.entity_id = p_entity
+                and app.scope_ok('crm.account.write', ae.owner_id, ae.team_id)) then
+    return 'already_yours';
+  end if;
+  return 'held_by_other';
+end
+$$;
+--> statement-breakpoint
+revoke all on function app.attach_account_entity(uuid, smallint) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.attach_account_entity(uuid, smallint) to app_user;

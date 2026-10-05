@@ -78,6 +78,18 @@ function refusal(status: string): DomainError {
       });
     case 'held_by_other':
       return heldByColleague();
+    case 'other_company':
+      return new DomainError(
+        'conflict',
+        'a customer of the merge is in a company of the group the caller does not work for',
+        {
+          reason: 'merge_other_company',
+        },
+      );
+    case 'kept_merged':
+      return new DomainError('conflict', 'the kept customer was merged into another since', {
+        reason: 'merge_undo_later_first',
+      });
     case 'partner':
       return new DomainError('validation_failed', 'a referral partner is never merged away', {
         reason: 'merge_partner_account',
@@ -93,6 +105,14 @@ function refusal(status: string): DomainError {
     case 'different_customers':
       return new DomainError('validation_failed', 'the leads belong to two customers', {
         reason: 'merge_customers_first',
+      });
+    case 'other_segment':
+      return new DomainError('validation_failed', 'the leads are for two kinds of work', {
+        reason: 'merge_leads_other_segment',
+      });
+    case 'two_partners':
+      return new DomainError('conflict', 'each lead came through its own referral partner', {
+        reason: 'merge_leads_two_partners',
       });
     default:
       return new DomainError('internal', `the merge answered ${status}`);
@@ -219,8 +239,10 @@ export const mergeCustomers = defineCommand({
 
 /**
  * `crm.customer.unmerge`: what a merge moved goes back to the customer it came from, which is no
- * longer archived; a row changed since stays where it is now (`app.unmerge_customers()`). The card
- * the merge was made from opens again. Refused under the same rule as the merge.
+ * longer archived; a row changed since stays where it is now (`app.unmerge_customers()`), and the
+ * answer counts what actually came back. The card the merge was made from opens again. Refused
+ * under the same rule as the merge, and while the kept customer has since been merged into another
+ * (`merge_undo_later_first`: that merge is undone first).
  */
 export const unmergeCustomers = defineCommand({
   name: 'crm.customer.unmerge',
@@ -291,11 +313,14 @@ export const unmergeCustomers = defineCommand({
 });
 
 /**
- * `crm.lead.merge`: two open or nurture leads of one customer in one company become one. The merged
- * lead's open tasks and its tags move to the kept lead and the merged lead is closed (archived); its
- * timeline stays with the customer (`app.merge_leads()`). Two leads of different customers are
- * refused: the customers are merged first (`merge_customers_first`). Made from a card, the card is
- * closed as merged.
+ * `crm.lead.merge`: two open or nurture leads of one customer and one segment in one company become
+ * one. The merged lead's open tasks and its tags move to the kept lead and the merged lead is closed
+ * (archived); its timeline stays with the customer (`app.merge_leads()`). A referral partner of the
+ * merged lead goes to a kept lead with none, so the partner keeps the credit for a win (CRM-09).
+ * Refused for leads of two customers (`merge_customers_first`: the customers are merged first), of
+ * two segments (`merge_leads_other_segment`) or of two referral partners
+ * (`merge_leads_two_partners`: a person closes the one that should not count). Made from a card,
+ * the card is closed as merged.
  */
 export const mergeLeads = defineCommand({
   name: 'crm.lead.merge',
@@ -305,7 +330,7 @@ export const mergeLeads = defineCommand({
   peopleOnly: true,
   input: MergeLeadsInput,
   output: LeadMergeDto,
-  auditFields: ['movedTasks', 'movedTags', 'archivedAt', 'state'],
+  auditFields: ['movedTasks', 'movedTags', 'referralPartnerId', 'archivedAt', 'state'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const candidate = await candidateOfPair(ctx, input.entityId, input.candidateId, 'lead', [
@@ -316,7 +341,13 @@ export const mergeLeads = defineCommand({
     const [answer] = (await ctx.tx.execute(sql`
       select app.merge_leads(${input.keptOpportunityId}::uuid, ${input.mergedOpportunityId}::uuid,
         ${input.entityId}::smallint) as result`)) as unknown as {
-      result: { status: string; accountId?: string; tasks?: number; tags?: number };
+      result: {
+        status: string;
+        accountId?: string;
+        tasks?: number;
+        tags?: number;
+        referralPartnerId?: string | null;
+      };
     }[];
     const result = answer?.result;
     if (result?.status !== 'merged') {
@@ -329,6 +360,10 @@ export const mergeLeads = defineCommand({
     const accountId = z.string().parse(result.accountId);
     const tasks = z.number().int().min(0).parse(result.tasks);
     const tags = z.number().int().min(0).parse(result.tags);
+    const referralPartnerId = z
+      .string()
+      .nullable()
+      .parse(result.referralPartnerId ?? null);
     await ctx.activity({
       type: 'leads_merged',
       opportunityId: input.keptOpportunityId,
@@ -341,7 +376,12 @@ export const mergeLeads = defineCommand({
       aggregateId: input.keptOpportunityId,
       entityId: input.entityId,
       before: null,
-      after: { mergedOpportunityId: input.mergedOpportunityId, movedTasks: tasks, movedTags: tags },
+      after: {
+        mergedOpportunityId: input.mergedOpportunityId,
+        movedTasks: tasks,
+        movedTags: tags,
+        ...(referralPartnerId === null ? {} : { referralPartnerId }),
+      },
     });
     ctx.audit({
       aggregateType: 'opportunity',
@@ -355,6 +395,7 @@ export const mergeLeads = defineCommand({
       keptOpportunityId: input.keptOpportunityId,
       mergedOpportunityId: input.mergedOpportunityId,
       moved: { tasks, tags },
+      referralPartnerId,
     });
   },
 });

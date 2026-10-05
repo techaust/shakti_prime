@@ -87,8 +87,8 @@ export function leadCreatedActivity(
  * (`applyLeadAttribution`); the audit row records the partner and the score.
  *
  * Duplicates (CRM-03): a repeat enquiry for the same segment from a customer whose open lead had
- * activity in the last 30 days is added to that lead and answered `attached`
- * (`openEnquiryLead`, `attachEnquiry`); otherwise the new lead's customer is looked around for
+ * activity in the last 30 days, or whose lead is in nurture, is added to that lead and answered
+ * `attached` (`openEnquiryLead`, `attachEnquiry`); otherwise the new lead's customer is looked around for
  * other customers sharing a number or a name and village, and for another open lead of the
  * segment, and each pair worth a card is recorded (`findDuplicates`, `recordDuplicates`). An
  * import batch does neither, as its set-based path does not: the nightly search
@@ -174,8 +174,8 @@ export const createLead = defineCommand({
       // A colleague already looks after this customer in this company: the enquiry goes to them
       // or their team lead, rather than a second lead nobody else can see (AUDIT M25).
       if (status === 'held_by_other') throw heldByColleague();
-      // A repeat enquiry goes to the customer's open lead of the segment (CRM-03). A relationship
-      // made just now has no lead in the company yet.
+      // A repeat enquiry goes to the customer's lead of the segment, open or in nurture (CRM-03).
+      // A relationship made just now has no lead in the company yet.
       if (status === 'already_yours' && ctx.inImportBatch !== true) {
         const open = await openEnquiryLead(ctx, {
           entityId,
@@ -204,13 +204,15 @@ export const createLead = defineCommand({
       if ((await phoneStatus(ctx.tx, contactInput.phone, entityId)) === 'held_by_other') {
         throw heldByColleague();
       }
-      // A repeat enquiry from a customer of the company with this number goes to their open lead
-      // of the segment (CRM-03), rather than a second customer.
+      // A repeat enquiry from a customer of the company with this number and name goes to their
+      // lead of the segment (CRM-03), rather than a second customer. Another name with the number
+      // makes a new customer, put forward as a duplicate below (DECISIONS 06-10-2026).
       if (ctx.inImportBatch !== true) {
         const open = await openEnquiryLead(ctx, {
           entityId,
           segment: pipeline.segment,
           phone: contactInput.phone,
+          name: contactInput.name,
         });
         if (open !== undefined) return attachEnquiry(ctx, input, open, contactInput.phone);
       }

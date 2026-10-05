@@ -69,9 +69,10 @@ export const CustomerMergeDto = z
 export type CustomerMergeDto = z.infer<typeof CustomerMergeDto>;
 
 /**
- * `crm.lead.merge`: two leads of one customer in one company become one. The merged lead's open
- * tasks and its tags move to the kept lead, and the merged lead is closed (archived); its timeline
- * stays on the customer.
+ * `crm.lead.merge`: two leads of one customer and one segment in one company become one. The merged
+ * lead's open tasks and its tags move to the kept lead, and the merged lead is closed (archived);
+ * its timeline stays on the customer. A referral partner of the merged lead goes to a kept lead
+ * with none (CRM-09); two leads of two partners are not merged.
  */
 export const MergeLeadsInput = z
   .object({
@@ -93,6 +94,8 @@ export const LeadMergeDto = z
     keptOpportunityId: IdSchema,
     mergedOpportunityId: IdSchema,
     moved: z.object({ tasks: Count, tags: Count }).strict(),
+    /** The merged lead's referral partner, now the kept lead's; null when none moved. */
+    referralPartnerId: IdSchema.nullable(),
   })
   .strict();
 export type LeadMergeDto = z.infer<typeof LeadMergeDto>;

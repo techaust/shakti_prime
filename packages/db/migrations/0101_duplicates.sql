@@ -1,5 +1,12 @@
 -- Duplicate customers and leads (PRD CRM-03, docs/design/phase1.md §7.4). The timeline check names
 -- the column alone: the table is partitioned, and each partition takes the check under its own name.
+-- app.match_text() is how the duplicate search compares a name or a village, whatever its case and
+-- spacing (matchText() in packages/domain, kept equal by a test); it is made first, for the indexes.
+create or replace function app.match_text(p_value text) returns text
+  language sql immutable parallel safe set search_path = '' as $$
+  select pg_catalog.lower(pg_catalog.btrim(pg_catalog.regexp_replace(p_value, '\s+', ' ', 'g')))
+$$;
+--> statement-breakpoint
 CREATE TABLE "customer_merges" (
 	"id" uuid PRIMARY KEY NOT NULL,
 	"entity_id" smallint NOT NULL,
@@ -81,6 +88,6 @@ CREATE INDEX "duplicate_candidates_open_idx" ON "duplicate_candidates" USING btr
 CREATE INDEX "duplicate_candidates_decided_by_idx" ON "duplicate_candidates" USING btree ("decided_by");--> statement-breakpoint
 ALTER TABLE "opportunity_tags" ADD CONSTRAINT "opportunity_tags_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id","account_id") REFERENCES "public"."opportunities"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id","account_id") REFERENCES "public"."opportunities"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
-CREATE INDEX "accounts_match_name_idx" ON "accounts" USING btree (lower(btrim(regexp_replace("name", '\s+', ' ', 'g'))));--> statement-breakpoint
-CREATE INDEX "customer_sites_match_village_idx" ON "customer_sites" USING btree (lower(btrim(regexp_replace("village", '\s+', ' ', 'g')))) WHERE "customer_sites"."village" is not null and "customer_sites"."archived_at" is null;--> statement-breakpoint
+CREATE INDEX "accounts_match_name_idx" ON "accounts" USING btree (app.match_text("name"));--> statement-breakpoint
+CREATE INDEX "customer_sites_match_village_idx" ON "customer_sites" USING btree (app.match_text("village")) WHERE "customer_sites"."village" is not null and "customer_sites"."archived_at" is null;--> statement-breakpoint
 ALTER TABLE "activities" ADD CONSTRAINT "activities_type_check" CHECK ("type" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged', 'sizing_recorded', 'enquiry_repeated', 'customers_merged', 'customer_unmerged', 'leads_merged'));

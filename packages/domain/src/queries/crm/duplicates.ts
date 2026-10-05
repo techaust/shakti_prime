@@ -11,7 +11,7 @@ import {
   type DuplicateSideDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, asc, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
@@ -236,10 +236,28 @@ export async function listAccountDuplicates(
   }
   const d = schema.duplicateCandidates;
   const o = schema.opportunities;
-  const leadsHere = ctx.tx
-    .select({ id: o.id })
-    .from(o)
-    .where(and(eq(o.accountId, input.accountId), eq(o.entityId, input.entityId)));
+  // The open candidates naming the customer, or one of its leads in the company: one indexed
+  // lookup per column that can name it (`duplicate_candidates_account_idx`, `_other_account_idx`,
+  // `_lead_pair_unique`, `_other_opportunity_idx`), so the read stays a few index probes however
+  // many decided candidates the company keeps. A lead pair of the customer is named twice; the
+  // `in` reads it once.
+  const naming = sql`(
+    select c.id from ${d} c
+     where c.kind = 'customer' and c.account_id = ${input.accountId}::uuid
+       and c.entity_id = ${input.entityId}::smallint and c.state = 'open'
+    union all
+    select c.id from ${d} c
+     where c.kind = 'customer' and c.other_account_id = ${input.accountId}::uuid
+       and c.entity_id = ${input.entityId}::smallint and c.state = 'open'
+    union all
+    select c.id from ${o} l join ${d} c on c.kind = 'lead' and c.opportunity_id = l.id
+     where l.account_id = ${input.accountId}::uuid and l.entity_id = ${input.entityId}::smallint
+       and c.entity_id = ${input.entityId}::smallint and c.state = 'open'
+    union all
+    select c.id from ${o} l join ${d} c on c.kind = 'lead' and c.other_opportunity_id = l.id
+     where l.account_id = ${input.accountId}::uuid and l.entity_id = ${input.entityId}::smallint
+       and c.entity_id = ${input.entityId}::smallint and c.state = 'open'
+  )`;
   const m = schema.customerMerges;
   const merged = schema.accounts;
   const [candidates, merges] = await Promise.all([
@@ -250,12 +268,7 @@ export async function listAccountDuplicates(
         and(
           eq(d.entityId, input.entityId),
           eq(d.state, 'open'),
-          or(
-            eq(d.accountId, input.accountId),
-            eq(d.otherAccountId, input.accountId),
-            inArray(d.opportunityId, leadsHere),
-            inArray(d.otherOpportunityId, leadsHere),
-          ),
+          sql`${d.id} in ${naming}`,
           bothLive(),
         ),
       )
@@ -316,10 +329,7 @@ function countsOf(value: unknown): CustomerMergeMovedDto {
  * policies, for the merge dialog to show before anyone confirms. The merge itself is refused when
  * anything it would move lies outside the caller's scope, so a person who may merge sees it all.
  */
-export async function countMergeMoves(
-  ctx: Ctx,
-  rawInput: unknown,
-): Promise<CustomerMergeMovedDto> {
+export async function countMergeMoves(ctx: Ctx, rawInput: unknown): Promise<CustomerMergeMovedDto> {
   const input = parseQueryInput(PreviewCustomerMergeInput, rawInput, 'crm.duplicates.preview');
   checkPerson(ctx);
   checkPermission(ctx.principal, 'crm.lead.merge', 'team');

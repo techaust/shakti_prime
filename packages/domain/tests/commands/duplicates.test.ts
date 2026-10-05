@@ -217,12 +217,13 @@ describe('crm.lead.create puts duplicates forward and attaches repeat enquiries 
 
   it('attaches a repeat enquiry for the same segment to the open lead instead of a second lead', async () => {
     const number = phone();
-    const first = await newLead(callerA, { name: `Sita ${RUN}`, phone: number });
+    const first = await newLead(callerA, { name: `Sita Devi ${RUN}`, phone: number });
     const emitted = memoryOutboxSink();
     const recorded = memoryAuditSink();
+    // The same name, whatever its case and spacing (DECISIONS 06-10-2026).
     const again = await newLead(
       callerA,
-      { name: `Sita Devi ${RUN}`, phone: number },
+      { name: `SITA  devi ${RUN}`, phone: number },
       { outbox: emitted, audit: recorded },
     );
     expect(again).toMatchObject({
@@ -243,6 +244,74 @@ describe('crm.lead.create puts duplicates forward and attaches repeat enquiries 
       aggregateId: first.id,
       after: { attached: true },
     });
+  });
+
+  it('makes a new customer and a card for a known number typed with another name (DECISIONS 06-10-2026)', async () => {
+    const number = phone();
+    const first = await newLead(callerA, { name: `Radha ${RUN}`, phone: number });
+    const other = await newLead(callerA, { name: `Mohini ${RUN}`, phone: number });
+    expect(other.outcome).toBe('created');
+    expect(other.account.id).not.toBe(first.account.id);
+    const [low, high] = [first.account.id, other.account.id].sort();
+    expect(await candidatesOf(other.account.id)).toEqual([
+      expect.objectContaining({
+        kind: 'customer',
+        account_id: low,
+        other_account_id: high,
+        reason: 'phone',
+        confidence: 70,
+        signals_json: ['same_phone'],
+        state: 'open',
+      }),
+    ]);
+  });
+
+  it('joins a lead in nurture, by number or as a known customer, and puts it back in its queue (DECISIONS 06-10-2026)', async () => {
+    const number = phone();
+    const nurtured = await importedCustomer({
+      name: `Uma ${RUN}`,
+      phone: number,
+      owner: callerA,
+      team: teamA,
+      lead: { activityDaysAgo: 200 },
+    });
+    const toNurture = (id: string | null) =>
+      asMigrator(
+        (
+          m,
+        ) => m`update opportunities set state = 'nurture', state_changed_at = now() - interval '150 days'
+          where id = ${id ?? ''}`,
+      );
+    await toNurture(nurtured.leadId);
+    const emitted = memoryOutboxSink();
+    const byNumber = await newLead(
+      callerA,
+      { name: `uma ${RUN}`, phone: number },
+      { outbox: emitted },
+    );
+    expect(byNumber).toMatchObject({ id: nurtured.leadId, outcome: 'attached' });
+    expect(emitted.records.map((r) => r.type).sort()).toEqual([
+      'crm.lead.attached',
+      'crm.opportunity.reopened',
+    ]);
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; owner: string; reopened: number; enquiries: number }[]>`
+        select o.state, o.owner_id::text as owner,
+               (select count(*)::int from activities
+                 where opportunity_id = o.id and type = 'reopened') as reopened,
+               (select count(*)::int from activities
+                 where opportunity_id = o.id and type = 'enquiry_repeated') as enquiries
+          from opportunities o where o.id = ${nurtured.leadId ?? ''}`,
+    );
+    expect(row).toEqual({ state: 'open', owner: callerA.id, reopened: 1, enquiries: 1 });
+
+    await toNurture(nurtured.leadId);
+    const known = await run<Lead>(callerA, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: nurtured.accountId,
+    });
+    expect(known).toMatchObject({ id: nurtured.leadId, outcome: 'attached', state: 'open' });
   });
 
   it('attaches a repeat enquiry for a known customer, and still refuses a referral code no partner has', async () => {
@@ -393,24 +462,40 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     ]);
     expect(cards.candidates.map((c) => c.id)).not.toContain(candidate.id);
 
-    const undone = await run<{ undoneAt: string | null }>(leadA, unmergeCustomers, {
-      entityId: 1,
-      mergeId: done.id,
-    });
+    const undone = await run<{ undoneAt: string | null; moved: Record<string, number> }>(
+      leadA,
+      unmergeCustomers,
+      { entityId: 1, mergeId: done.id },
+    );
     expect(undone.undoneAt).not.toBeNull();
+    // Nothing changed since the merge, so everything it moved came back.
+    expect(undone.moved).toEqual(done.moved);
     const back = await asMigrator(
-      (m) => m<{ archived: boolean; leadAccount: string; taskAccount: string; role: string }[]>`
+      (m) => m<
+        {
+          archived: boolean;
+          leadAccount: string;
+          taskAccount: string;
+          role: string;
+          sites: number;
+          rows: number;
+        }[]
+      >`
         select (select archived_at is not null from accounts where id = ${merged.account.id}) as archived,
                (select account_id::text from opportunities where id = ${merged.id}) as "leadAccount",
                (select account_id::text from tasks where opportunity_id = ${merged.id} limit 1) as "taskAccount",
                (select role from account_contacts
-                 where contact_id = ${merged.contact?.id ?? ''}) as role`,
+                 where contact_id = ${merged.contact?.id ?? ''}) as role,
+               (select count(*)::int from customer_sites where account_id = ${merged.account.id}) as sites,
+               (select count(*)::int from activities where account_id = ${merged.account.id}) as rows`,
     );
     expect(back[0]).toEqual({
       archived: false,
       leadAccount: merged.account.id,
       taskAccount: merged.account.id,
       role: 'owner',
+      sites: 1,
+      rows: done.moved.activities,
     });
     expect((await candidatesOf(merged.account.id))[0]).toMatchObject({
       state: 'open',
@@ -419,6 +504,91 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     expect(
       await refusal(run(leadA, unmergeCustomers, { entityId: 1, mergeId: done.id })),
     ).toMatchObject({ code: 'conflict', ...reason('merge_undone_already') });
+  });
+
+  it('counts only what came back when a row changed since the merge', async () => {
+    const { kept, merged } = await pair();
+    const elsewhere = await importedCustomer({
+      name: `Elsewhere ${RUN}`,
+      owner: callerA,
+      team: teamA,
+    });
+    // A second site of the merged customer, which no lead names.
+    const spare = newId();
+    await asMigrator(
+      (m) => m`insert into customer_sites (id, account_id, type, village, created_by)
+        values (${spare}, ${merged.account.id}, 'borewell', ${`Spare ${RUN}`}, ${callerA.id})`,
+    );
+    const done = await run<{ id: string; moved: Record<string, number> }>(leadA, mergeCustomers, {
+      entityId: 1,
+      keptAccountId: kept.account.id,
+      mergedAccountId: merged.account.id,
+    });
+    expect(done.moved.sites).toBe(2);
+    // The spare site is put on a third customer before the undo, so it stays there.
+    await asMigrator(
+      (m) => m`update customer_sites set account_id = ${elsewhere.accountId} where id = ${spare}`,
+    );
+    const undone = await run<{ moved: Record<string, number> }>(leadA, unmergeCustomers, {
+      entityId: 1,
+      mergeId: done.id,
+    });
+    expect(undone.moved).toEqual({ ...done.moved, sites: 1 });
+  });
+
+  it('refuses to undo a merge while the kept customer is merged into another, until that is undone', async () => {
+    const make = (n: string) =>
+      importedCustomer({
+        name: `Chain ${n} ${RUN}`,
+        village: `Chain ${RUN}`,
+        owner: callerA,
+        team: teamA,
+      });
+    const [a, b, c] = [await make('a'), await make('b'), await make('c')];
+    const merge = (keptAccountId: string, mergedAccountId: string) =>
+      run<{ id: string }>(leadA, mergeCustomers, { entityId: 1, keptAccountId, mergedAccountId });
+    const aIntoB = await merge(b.accountId, a.accountId);
+    const bIntoC = await merge(c.accountId, b.accountId);
+    expect(
+      await refusal(run(leadA, unmergeCustomers, { entityId: 1, mergeId: aIntoB.id })),
+    ).toMatchObject({ code: 'conflict', ...reason('merge_undo_later_first') });
+    await run(leadA, unmergeCustomers, { entityId: 1, mergeId: bIntoC.id });
+    await run(leadA, unmergeCustomers, { entityId: 1, mergeId: aIntoB.id });
+    const [row] = await asMigrator(
+      (m) => m<{ live: number; sites: number }[]>`
+        select (select count(*)::int from accounts
+                 where id in (${a.accountId}, ${b.accountId}, ${c.accountId})
+                   and archived_at is null) as live,
+               (select count(*)::int from customer_sites where account_id = ${a.accountId}) as sites`,
+    );
+    expect(row).toEqual({ live: 3, sites: 1 });
+  });
+
+  it('asks for every company a customer is with, and says so to a GM of one company', async () => {
+    const { kept, merged } = await pair();
+    // The kept customer also buys from company 2, through a colleague there.
+    await asMigrator(
+      (m) => m`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+        values (${newId()}, ${kept.account.id}, 2, ${gm2.id}, ${gm2.id})`,
+    );
+    const input = {
+      entityId: 1,
+      keptAccountId: kept.account.id,
+      mergedAccountId: merged.account.id,
+    };
+    const gm1 = await createTestPrincipal('general_manager', [1]);
+    expect(await refusal(run(gm1, mergeCustomers, input))).toMatchObject({
+      code: 'conflict',
+      ...reason('merge_other_company'),
+    });
+    const exec = await createTestPrincipal('executive', [1, 2]);
+    const done = await run<{ id: string }>(exec, mergeCustomers, input);
+    expect(
+      await refusal(run(gm1, unmergeCustomers, { entityId: 1, mergeId: done.id })),
+    ).toMatchObject(reason('merge_other_company'));
+    expect(await run(exec, unmergeCustomers, { entityId: 1, mergeId: done.id })).toMatchObject({
+      undoneAt: expect.any(String),
+    });
   });
 
   it('never merges a referral partner away', async () => {
@@ -495,6 +665,78 @@ describe('crm.lead.merge', () => {
     );
     expect(row).toEqual({ archived: true, tasks: 1, merged: 1 });
     expect((await candidatesOf(kept))[0]?.state).toBe('merged');
+  });
+
+  it('gives the kept lead the merged lead’s referral partner, and refuses two partners', async () => {
+    const partner = async (name: string, prefix: string) => {
+      const account = await importedCustomer({
+        name: `${name} ${RUN}`,
+        owner: callerA,
+        team: teamA,
+      });
+      const code = `${prefix}${RUN}`.toUpperCase().replace(/[^A-Z0-9]/g, 'X');
+      await asMigrator(
+        (m) => m`insert into referral_partners (account_id, code, created_by)
+          values (${account.accountId}, ${code}, ${callerA.id})`,
+      );
+      return account.accountId;
+    };
+    const credit = (lead: string, partnerId: string) =>
+      asMigrator(
+        (m) => m`update opportunities set referral_partner_id = ${partnerId} where id = ${lead}`,
+      );
+    const first = await twoLeads();
+    const p1 = await partner('Partner one', 'PA');
+    await credit(first.merged, p1);
+    const recorded = memoryAuditSink();
+    const done = await run<{ referralPartnerId: string | null }>(
+      leadA,
+      mergeLeads,
+      { entityId: 1, keptOpportunityId: first.kept, mergedOpportunityId: first.merged },
+      { audit: recorded },
+    );
+    expect(done.referralPartnerId).toBe(p1);
+    expect(recorded.records.find((r) => r.aggregateId === first.kept)).toMatchObject({
+      after: { referralPartnerId: p1 },
+    });
+    const [kept] = await asMigrator(
+      (m) => m<{ partner: string }[]>`
+        select referral_partner_id::text as partner from opportunities where id = ${first.kept}`,
+    );
+    expect(kept?.partner).toBe(p1);
+
+    const second = await twoLeads();
+    await credit(second.merged, p1);
+    await credit(second.kept, await partner('Partner two', 'PB'));
+    expect(
+      await refusal(
+        run(leadA, mergeLeads, {
+          entityId: 1,
+          keptOpportunityId: second.kept,
+          mergedOpportunityId: second.merged,
+        }),
+      ),
+    ).toMatchObject({ code: 'conflict', ...reason('merge_leads_two_partners') });
+  });
+
+  it('refuses two leads of one customer for two kinds of work', async () => {
+    const number = phone();
+    const pump = await newLead(callerA, { name: `Kiran ${RUN}`, phone: number });
+    const roof = await run<Lead>(callerA, createLead, {
+      entityId: 1,
+      pipelineKey: 'residential_rooftop',
+      existingAccountId: pump.account.id,
+    });
+    expect(roof.outcome).toBe('created');
+    expect(
+      await refusal(
+        run(leadA, mergeLeads, {
+          entityId: 1,
+          keptOpportunityId: pump.id,
+          mergedOpportunityId: roof.id,
+        }),
+      ),
+    ).toMatchObject(reason('merge_leads_other_segment'));
   });
 
   it('asks for the customers to be merged first when the leads are of two customers', async () => {
