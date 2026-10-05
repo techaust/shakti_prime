@@ -225,7 +225,7 @@ describe('calls.log: what every call records', () => {
     });
     const [row] = await asMigrator(
       (m) => m<{ after_json: Record<string, unknown> }[]>`
-        select after_json from audit_logs where aggregate_id = ${result.call.id} and command = 'calls.log'`,
+        select after_json from audit_logs where aggregate_id = ${result.call.id} and command = 'calls.call.log'`,
     );
     expect(row?.after_json).toMatchObject({
       outcome: 'suite_retry',

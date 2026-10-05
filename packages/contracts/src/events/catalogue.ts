@@ -76,7 +76,7 @@ const eventCatalogue = {
   'crm.opportunity.stage_moved': {
     meaning:
       'An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`.',
-    emittedBy: ['crm.opportunity.stage.move'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.stage.move'],
     subscribed: false,
     payload: z
       .object({
@@ -102,13 +102,13 @@ const eventCatalogue = {
   },
   'crm.opportunity.nurtured': {
     meaning: 'An open lead was parked in nurture with a reason code.',
-    emittedBy: ['crm.opportunity.nurture'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.nurture'],
     subscribed: false,
     payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
   },
   'crm.opportunity.reopened': {
     meaning: "A nurtured or lost lead was opened again at its pipeline's first open stage.",
-    emittedBy: ['crm.opportunity.reopen'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.reopen'],
     subscribed: false,
     payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
   },
@@ -120,7 +120,7 @@ const eventCatalogue = {
   },
   'crm.opportunity.lost': {
     meaning: 'An open or nurtured lead was closed as lost with a reason code.',
-    emittedBy: ['crm.opportunity.lose'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.lose'],
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })

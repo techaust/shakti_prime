@@ -42,6 +42,8 @@ Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.
 | `crm.scoreBase` | 50 |
 | `crm.scoreRules` | none |
 | `crm.firstContactSlaMinutes` | null |
+| `calling.attemptDays` | 0, 1, 2 |
+| `calling.nurtureCallDays` | 7, 30, 90 |
 | `sizing.hazenWilliamsC.hdpe` | 140 |
 | `sizing.hazenWilliamsC.gi` | 120 |
 | `sizing.fittingsLossFraction` | 0.1 |

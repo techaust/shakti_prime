@@ -150,8 +150,8 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
 }
 
 /**
- * `calls.log` (docs/design/phase1.md §7.2, PRD TEL-01): a person records a call they just made by
- * hand to a lead (`number_series` `manual`, as every Phase 1 call is), with an outcome of the
+ * `calls.call.log` (docs/design/phase1.md §7.2, PRD TEL-01), under the permission `calls.log`:
+ * a person records a call they just made by hand to a lead (`number_series` `manual`, as every Phase 1 call is), with an outcome of the
  * lead's list (`effectiveDispositions`), and the command does what the outcome's next step says:
  * - `callback`: a callback task at the time the caller picks, inside calling hours;
  * - `retry`: the next attempt on its day at the start of calling hours, and after the last
@@ -168,7 +168,7 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
  * to calls (`call_consent_withdrawn`). For people only.
  */
 export const logCall = defineCommand({
-  name: 'calls.log',
+  name: 'calls.call.log',
   permission: 'calls.log',
   minScope: 'own',
   peopleOnly: true,

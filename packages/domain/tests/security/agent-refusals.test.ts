@@ -207,7 +207,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
       inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
     },
   },
-  'calls.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
 };
 
 describe('commands for people only', () => {

@@ -57,12 +57,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
-| [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `crm.opportunity.stage.move` | none |
+| [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `calls.call.log`, `crm.opportunity.stage.move` | none |
 | [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
-| [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `crm.opportunity.nurture` | none |
-| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `crm.opportunity.reopen` | none |
+| [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `calls.call.log`, `crm.opportunity.nurture` | none |
+| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `calls.call.log`, `crm.opportunity.reopen` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
-| [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `crm.opportunity.lose` | none |
+| [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `calls.call.log`, `crm.opportunity.lose` | none |
 | [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
 
 ### Pricing
@@ -166,7 +166,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Field | Type |
 |---|---|
-| `reasonCode` | one of `not_ready_yet`, `waiting_for_funds`, `waiting_for_subsidy`, `waiting_for_season`, `other` |
+| `reasonCode` | one of `not_ready_yet`, `waiting_for_funds`, `waiting_for_subsidy`, `waiting_for_season`, `not_reachable`, `other` |
 
 ### crm.opportunity.reopened
 
