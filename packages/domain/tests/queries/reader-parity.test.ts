@@ -50,6 +50,15 @@ import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
+import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
+import {
+  accountQuotes,
+  getQuote,
+  listQuotes,
+  searchQuotes,
+} from '../../src/queries/sales/list-quotes';
+import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
+import { loadQuoteForPrint } from '../../src/queries/sales/quote-print';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
 import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 
@@ -66,6 +75,9 @@ const NOW = new Date(Date.now() + 60_000).toISOString();
 const PIPELINE = PIPELINE_SEED[0]?.key ?? 'farmer_pumps';
 const STAGE = STAGE_SEED[0]?.id ?? newId();
 const CIPHER = envelopeCipher(localKeyProvider(randomBytes(32).toString('base64')));
+
+/** The moment the quote reads are asked at, so both pools judge validity alike. */
+const QUOTES_AT = new Date('2026-10-05T06:00:00Z');
 
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
@@ -121,6 +133,13 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
+  listQuotes: (ctx) => listQuotes(ctx, { limit: 20 }, QUOTES_AT),
+  searchQuotes: (ctx) => searchQuotes(ctx, { q: 'Q/2026', limit: 8 }, QUOTES_AT),
+  getQuote: (ctx) => getQuote(ctx, { entityId: 1, quoteId: newId() }, QUOTES_AT),
+  loadQuoteBuilder: (ctx) =>
+    loadQuoteBuilder(ctx, { entityId: 1, opportunityId: newId() }, QUOTES_AT),
+  loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
+  listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
 };
 
 /**
@@ -129,6 +148,13 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
+  accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
+  previewQuote: (ctx) =>
+    previewQuote(
+      ctx,
+      { entityId: 1, opportunityId: newId(), lines: [{ itemId: newId(), qty: '1' }] },
+      QUOTES_AT,
+    ),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
