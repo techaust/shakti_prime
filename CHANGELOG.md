@@ -23,6 +23,19 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 wave 2
 
+- **#103** (05-10-2026) C3 pipelines, scoring and referrals. Migrations 0096 to 0100; dev and staging migrated through 0100.
+  - The permission `crm.config.write` and Settings › Pipelines: pipelines and stages with exit rules, call outcomes per group or company and business line, lead score rules.
+  - The pure `scoreLead()`, the Score column, `crm.lead.rescore`, `crm.score_rule.set`, and the nightly rescore as `system:workers` through the platform-only `crm.score.refresh` and the definers `app.lead_score_facts()` and `app.write_lead_scores()`; score changes leave a lead's last change alone.
+  - Referral partners and commission rules, referral codes on the lead and walk-in forms, the walk-in form `/leads/walk-in`; lead creation and imports apply attribution and scoring; `FOR SHARE` on first and target stages (`app.share_lock_stage()`).
+- **#102** (05-10-2026) Dependabot: the development dependency group, 7 updates.
+- **#101** (05-10-2026) Dependabot: the production dependency group, 13 updates.
+- **#100** (05-10-2026) C4 sizing. Migrations 0092 to 0095; dev and staging migrated through 0095.
+  - Pure calculators in `packages/domain/src/sizing/` (head, pump power, solar array, rooftop, duty point, DCR and sanctioned-load rules) with the engineering defaults for the engineering head to confirm.
+  - `sizings` and `crm.sizing.record` (people only, ADR 0021), `latestSizing`, `quoteSizingFacts()` for S1; the sizing panel in Account 360; the `sizing_recorded` timeline row; an out-of-bounds sizing opens one `review` task for the lead's team lead, never its recorder (`app.open_sizing_review()`).
+- **#99** (05-10-2026) P4 print and letterhead. Migrations 0090 and 0091; dev and staging migrated through 0091.
+  - A company's bank account sealed in `entities.bank_json`, read in clear only through `app.entity_bank_envelope()`; the audit keeps the last four digits.
+  - The render worker `/api/v1/workers/pdf/render` (`print.document.requested` sent as a `PdfRenderJob`), the document-type registry, `files.document.record`, and the first document: a company's proof page from Settings › Companies.
+  - Static Inter 4.1 (Regular, Medium, SemiBold) for print; Chromium traced at its real path in pnpm's store for Vercel.
 - **#89** (04-10-2026) C2 customer timeline. Migrations 0075 to 0089; dev and staging migrated through 0089.
   - `activities` partitioned by month in the closed schema `crm_partitions`, with the pg_cron job `activities-partitions` and `ctx.activity()`.
   - Tasks (the `task` state machine; `crm.task.create`, `.complete`, `.reschedule`, `.cancel`), tags (`crm.tag.create`, `.archive`, `crm.lead.tag`, `.untag`), `crm.note.add`, customer, contact and site edits (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`), consents with proof through the uploads (`crm.consent.record`, `.withdraw`).
