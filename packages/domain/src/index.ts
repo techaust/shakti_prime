@@ -160,11 +160,7 @@ export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
 export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
-export {
-  listAccountDuplicates,
-  listDuplicates,
-  previewCustomerMerge,
-} from './queries/crm/duplicates';
+export { listAccountDuplicates, listDuplicates, countMergeMoves } from './queries/crm/duplicates';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';
 export { listItems, listItemsWithCost } from './queries/catalogue/list-items';

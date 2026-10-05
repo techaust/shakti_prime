@@ -316,7 +316,7 @@ function countsOf(value: unknown): CustomerMergeMovedDto {
  * policies, for the merge dialog to show before anyone confirms. The merge itself is refused when
  * anything it would move lies outside the caller's scope, so a person who may merge sees it all.
  */
-export async function previewCustomerMerge(
+export async function countMergeMoves(
   ctx: Ctx,
   rawInput: unknown,
 ): Promise<CustomerMergeMovedDto> {

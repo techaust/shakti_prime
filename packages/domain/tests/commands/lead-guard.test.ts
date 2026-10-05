@@ -134,19 +134,30 @@ describe('crm.lead.create with a number a colleague’s customer has (0055)', ()
 
   it('goes through as before for your own customer, one you may act for, or another company’s', async () => {
     const phone = digits();
-    await run(owner, createLead, newCustomer(1, phone));
-    // The owner's repeat enquiry typed as a new customer: unchanged, a customer of their own
-    // (the duplicate cards come with CRM-03).
-    await run(owner, createLead, newCustomer(1, phone));
-    // The team lead and the General Manager may act for the owner.
+    const first = await run(owner, createLead, newCustomer(1, phone));
+    // The owner's repeat enquiry typed as a new customer goes to the open lead of the segment,
+    // with activity just now (CRM-03), and so do the team lead's and the General Manager's, who
+    // may act for the owner.
+    expect(await run(owner, createLead, newCustomer(1, phone))).toMatchObject({
+      id: first.id,
+      outcome: 'attached',
+    });
     const teamLead = await createTestPrincipal('sales_team_lead', [1], { teamId });
-    await run(teamLead, createLead, newCustomer(1, phone));
+    expect(await run(teamLead, createLead, newCustomer(1, phone))).toMatchObject({
+      id: first.id,
+      outcome: 'attached',
+    });
     const gm = await createTestPrincipal('general_manager', [1]);
-    await run(gm, createLead, newCustomer(1, phone));
-    // A caller of company 2, where nobody deals with the customer yet.
+    expect(await run(gm, createLead, newCustomer(1, phone))).toMatchObject({
+      id: first.id,
+      outcome: 'attached',
+    });
+    // A caller of company 2, where nobody deals with the customer yet, makes a customer there.
     const company2 = await createTestPrincipal('tele_caller_cc', [2]);
-    await run(company2, createLead, newCustomer(2, phone));
-    expect(await customersWith(phone)).toBe(5);
+    expect(await run(company2, createLead, newCustomer(2, phone))).toMatchObject({
+      outcome: 'created',
+    });
+    expect(await customersWith(phone)).toBe(2);
 
     // A team lead of another team may not act for the owner, so is refused.
     const otherLead = await createTestPrincipal('sales_team_lead', [1], { teamId: otherTeamId });
@@ -415,9 +426,10 @@ describe('crm.opportunity.assign takes the customer with the lead (0055)', () =>
     const to = principalFor('tele_caller_lc', [1], { id: toUser.id, teamId: otherTeamId });
     const first = await run(from, createLead, newCustomer(1, digits()));
     const accountId = first.account.id;
+    // Another line of business, so it is a second lead rather than a repeat enquiry (CRM-03).
     const second = await run(from, createLead, {
       entityId: 1,
-      pipelineKey: 'farmer_pumps',
+      pipelineKey: 'residential_rooftop',
       existingAccountId: accountId,
     });
     const gm = await createTestPrincipal('general_manager', [1]);

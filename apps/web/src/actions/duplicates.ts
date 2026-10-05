@@ -23,7 +23,7 @@ import {
   listDuplicates as listDuplicatesQuery,
   mergeCustomers as mergeCustomersCommand,
   mergeLeads as mergeLeadsCommand,
-  previewCustomerMerge as previewCustomerMergeQuery,
+  countMergeMoves,
   unmergeCustomers as unmergeCustomersCommand,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
@@ -79,7 +79,7 @@ export async function previewCustomerMerge(
     return executeQuery(
       principal,
       { entityIds: [input.entityId], requestId },
-      (context) => previewCustomerMergeQuery(context, input),
+      (context) => countMergeMoves(context, input),
       { name: 'previewCustomerMerge' },
     );
   });

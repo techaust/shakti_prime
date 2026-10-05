@@ -5,8 +5,8 @@
 | Branch | `feat/d1-duplicates` on GitHub, from `main` when the slice starts |
 | PC worktree | `d1-duplicates`, slot 14: Postgres 54344, app 3044 (`bash tools/integration/setup-worktree.sh d1-duplicates feat/d1-duplicates 54344 3044`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
-| State | brief |
-| Next step | a builder starts |
+| State | built; awaiting review |
+| Next step | the slice reviewer reviews the branch; the lead session then takes `main` (P2b is merged there) and renumbers the migrations |
 
 ## Brief
 Read first:
