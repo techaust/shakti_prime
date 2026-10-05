@@ -155,6 +155,45 @@ Not in S1: orders, acceptance and credit (S2); stock availability (Phase 3); any
   - D1 changes the same schedule script, so the merge of `apps/web/scripts/qstash-schedule.ts` needs care: the environment check and the import list.
   - A `turbo` run during this build wrote its managed "agent rules" block into `AGENTS.md`, and a work-in-progress commit picked it up. The last commit restores `AGENTS.md` exactly as on `main`, but any later `turbo` command may add the block again. Setting `"agentGuidance": false` in `turbo.json` would stop it; that change is the lead's to make, and other worktrees may show the same block.
 
+### 05-10-2026, builder on the PC (review fixes)
+- Fixes, in dc384172 (code and tests) and 49a91999 (documents); each Review row's State names its commit:
+  - H1: migration 0103 adds the select policy `files_quote_pdf_read` on `files`: a `quote_pdf` file of a company in the request is read when a quote the caller reads names it, so own and team scope open their own quotes' documents. `files_read` is unchanged for every other file.
+  - M1, L1: 0103 replaces `app.quote_search_ids()`. It joins the quote's lead and keeps only leads the caller reads (company scope, the caller's team or their own, as `app.lead_search_ids()` does) before the limit, and escapes a backslash, a percent sign and an underscore as `containsPattern()` does.
+  - M2: the quote screens open for lead readers. `/quotes` and the quote page need `crm.lead.read` at own scope (the menu item and `navRequires('quotes')`), and the builder `/quotes/new` needs `sales.quote.create` as well. Mark as sent, Re-quote and Withdraw already follow their own permissions, so the CC, Accounts and the Project Manager can now open the quotes that ⌘K and Account 360 show them.
+  - M3: one test covers send, withdraw and re-quote. An own-scope colleague gets `quote_missing`. A GM of company 1, and a caller who names company 1, are refused. The workers principal of company 1 attaches nothing to a quote of company 2.
+  - L3: a line takes at most 100,000 (`QUOTE_MAX_QTY`, refused when the input is checked). `priceQuote()` refuses a line or grand total past twelve digits of rupees with `validation_failed` and the catalogue reason `quote_amount_too_large`, in the preview and when the quote is made.
+  - L5: `quotes.page.pdfLate` now says to ask an Executive to send the document again from Integration health if it is still missing after a few minutes.
+  - L6: `crm.account.tier.set` takes the page's `entityId`. It records the audit row in that company and writes a `customer_updated` row (`{ changed: 'tierId' }`) to the customer's timeline there. The Account 360 form and the e2e set-up pass the company.
+  - L7: the tier test now checks the trigger's message (`/pricing\.write/`).
+  - L4: the PRD §8 rows for SAL-03, SAL-04, SAL-05 and RPT-03 now name S1's tests.
+  - The owner's kit rule is the DECISIONS row of 05-10-2026 (decision 2 above).
+  - DATABASE, SECURITY and design §7.3 describe the PDF read, the scoped candidates, the menu rule and the amount limit. `pnpm db:docs` was rerun for the new policy.
+  - L2 and L8 are left as the lead asked; their States say why.
+- Tests added or changed:
+  - Domain `tests/commands/quotes.test.ts`: 2 new (the quantity and amount limits; every state change refused to a colleague and to another company, with attach for another company's worker), and 2 strengthened (L6 and L7). Now 20 tests.
+  - Db `tests/security/quotes.test.ts`: 4 new (the document read with its quote; not read through a quote that names another file; the candidates kept to the caller's leads with 205 newer matches of a colleague; the backslash, percent and underscore). Now 18 tests.
+  - `src/sales/quote-pricing.test.ts`: 1 new (an overflowing line and grand total). Now 12 tests.
+  - `apps/web/src/nav.test.ts`: the own-scope lead reader now sees Quotes. `agent-refusals.test.ts` and the e2e set-up pass `entityId` to the tier command. `e2e/quotes.spec.ts`: the tele-caller now opens `/quotes` (axe), and gets not-found on `/quotes/new`.
+- Checks:
+  - `pnpm typecheck`: Tasks: 8 successful, 8 total.
+  - ESLint on `packages/contracts`, `packages/domain`, `packages/db` and `apps/web` with `--max-warnings 0`: clean.
+  - `pnpm copy-lint`: catalogues and templates are clean. Prettier on the changed code files: all use Prettier code style.
+  - Unit: `quote-pricing.test.ts` 12 passed; `nav.test.ts` 10 passed.
+  - Affected security files alone: db `quotes.test.ts` 18 passed; domain `quotes.test.ts` and `agent-refusals.test.ts` 69 passed.
+  - `pnpm test:security`, once, while the D1 builder was also running on the PC:
+    - db: 1 failed, 969 passed (970). The one failure was the new document test at its 20 s limit (20,006 ms); `quotes.test.ts` alone passed 18 of 18.
+    - turbo then stopped, so the domain and web suites ran next on their own.
+    - domain: 29 failed, 565 passed, 35 skipped (629); web: 5 failed, 234 passed (239). Every failure was a time limit or a `CONNECT_TIMEOUT` to 54343.
+    - Each failed file was rerun alone, and all passed: crm-pipelines 22, lead-flows 6, lead-guard 24, tags 11, tax 11, search 16, search-equivalence 19, reader-parity 8, actions 41, realtime-token 6, saved-views 3.
+    - tax, search-equivalence, reader-parity and actions needed a second solo run. The first actions rerun found the field engineer role left short by the aborted run's role test, which that rerun's own clean-up restored.
+  - `reader-parity`'s Executive case takes about 12 s alone, now that it also reads the quote queries, so it has little room under its 20 s limit when the PC is loaded.
+- Not done:
+  - The H1 journey as a non-Executive. No seeded non-Executive owns a quote, and the seeded team lead has no team; H1 is covered on real Postgres as an LC, a team lead and a GM.
+  - The build, the JS budget and the journeys were not rerun after the fixes. The menu change alters the tele-caller's menu, so the menu baselines change at the lead's baseline run.
+- Decisions:
+  - M2: open the quote screens to lead readers, rather than hide quote hits from those without `sales.quote.create`. Quotes are read with their leads, and every action on the page already checks its own permission.
+  - The quantity limit of 100,000 a line is a sanity bound, not client data: it only stops a typing slip from overflowing `numeric(14,2)`.
+
 ## Review
 ### 05-10-2026, review of 9f13b654..45fafe0a
 | # | Severity | Finding | State |
