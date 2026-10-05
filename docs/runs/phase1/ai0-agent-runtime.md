@@ -4,9 +4,9 @@
 |---|---|
 | Branch | `feat/ai0-agent-runtime` on GitHub, from `main` at #99 |
 | PC worktree | `ai0-agent-runtime`, slot 12: Postgres 54342, app 3042 (`bash tools/integration/setup-worktree.sh ai0-agent-runtime feat/ai0-agent-runtime 54342 3042`) |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
-| State | reviewed, fixes done |
-| Next step | take main, then the lead's integration |
+| Runs on | PC (built and integrated there before the move to cloud-first on 05-10-2026) |
+| State | integrated; pull request open |
+| Next step | the merge, then dev and staging migrated; the owner's keys and a spending limit before any agent runs |
 
 ## Brief
 Read first:
@@ -226,3 +226,8 @@ Lead decisions (05-10-2026):
 ## Integration notes
 1. Hosted keys wait on the owner (STATUS, Waiting on the owner): until `ANTHROPIC_API_KEY` is set, hosted agents answer unavailable.
 2. For the owner, before agents spend money: confirm the rupee cost of a dollar (₹104, `AGENT_DEFAULTS.paisePerUsd`) from the card statement's charge for the Anthropic and Voyage invoices, and check the dated price table in `packages/domain/src/ai/agent-defaults.ts` against the vendors' price pages.
+3. `main` taken after P2b (a04bd2b): 16 conflicts resolved (lists by union, the message catalogue and copy-lint config by their scripts, documents by hand); the matrix fixture's agent config and inbox rows moved to `per(e, 0x1c)` and `0x1d`; the migrations moved to 0107 and 0108; DATABASE and the design cite them.
+4. The integration run (05-10-2026, fresh Postgres on 54340, two builders running beside it): install, lint, format, copy lint, the generated files, typecheck, `db:verify`, the audit, the build, the JavaScript budget and the secret scan passed; the unit, security and journey steps failed only on time limits under load, each file passing alone (unit: masking speed 84 ms of its 500 ms alone; security: `lead-guard`, `customer-read-through-leads` 22 alone, the web imports file 32 alone; journeys: the phone Agent Inbox journeys 15 of 15 alone).
+   - One real gap, fixed in 635006bd: `main`'s people-only refusal list (`agent-refusals.test.ts`) had no inputs for the six Inbox and settings commands, so they were refused by validation rather than by the guard; with the inputs every agent and worker principal is refused by the guard (49 passed).
+   - The domain security suite on a fresh database after the fix: 679 passed.
+5. Linux baselines on a fresh database (99d925de), each looked at: `agent-inbox` and `admin-agents` new in every project; `home-tele-caller` (three projects), `team-members` and `imports-list` (light, dark) remade for the Agent Inbox and Agents menu items (main's `imports-list` also predated C2's menu and P2b's wording). The run after it without updating: 231 passed, 1 flaky, 3 failed on time limits (two Agent Inbox journeys on desktop light, C4's sizing and C2's consent journeys on dark); every screenshot matched; `agents.spec.ts` alone in the Linux image then passed 30 of 30.
