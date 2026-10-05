@@ -189,6 +189,7 @@ Not in S1: orders, acceptance and credit (S2); stock availability (Phase 3); any
   - `reader-parity`'s Executive case takes about 12 s alone, now that it also reads the quote queries, so it has little room under its 20 s limit when the PC is loaded.
 - Not done:
   - The H1 journey as a non-Executive. No seeded non-Executive owns a quote, and the seeded team lead has no team; H1 is covered on real Postgres as an LC, a team lead and a GM.
+  - `turbo` wrote its agent block into `AGENTS.md` again, and dc384172 took it; 94f1dbfe restores `AGENTS.md` as it was. Main's `turbo.json` now differs from this branch's, which the merge with `main` settles.
   - The build, the JS budget and the journeys were not rerun after the fixes. The menu change alters the tele-caller's menu, so the menu baselines change at the lead's baseline run.
 - Decisions:
   - M2: open the quote screens to lead readers, rather than hide quote hits from those without `sales.quote.create`. Quotes are read with their leads, and every action on the page already checks its own permission.
