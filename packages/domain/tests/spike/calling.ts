@@ -10,7 +10,8 @@
 // lead of the team and the General Manager of the company (the team lead and the GM read the
 // caller's queue through `callerId`). The time is the `durationMs` of executeQuery's
 // `query.completed` line. Prints the plan of the queue's own statement (`callQueuePageSql`) under
-// RLS for the tele-caller and the team lead, and writes docs/spikes/results/calling.json. The
+// RLS for the tele-caller and the team lead, and of the team view's counts (`teamQueueCountsSql`)
+// for the team lead, and writes docs/spikes/results/calling.json. The
 // seeded rows are removed at the end unless `--keep` is given; their timeline rows stay, since the
 // timeline is append-only. Local database only (prepareDatabase refuses any other host). Not CI.
 import { newId, type Principal } from '@shakti/contracts';
@@ -42,6 +43,7 @@ import {
   listCallQueue,
   listTeamQueues,
   loadCallLead,
+  teamQueueCountsSql,
 } from '../../src/queries/calls/call-queue';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -135,6 +137,26 @@ async function explain(principal: Principal, callerId: string, asOf: Date): Prom
     {},
     async (ctx) => {
       const query = callQueuePageSql(callerId, ctx.entityIds, asOf, 51);
+      const rows = (await ctx.tx.execute(
+        sql`explain (analyze, buffers, costs off) ${query}`,
+      )) as unknown as { 'QUERY PLAN': string }[];
+      return rows.map((r) => r['QUERY PLAN']);
+    },
+    { readOnly: true },
+  );
+}
+
+/** The plan of the team view's counts (`teamQueueCountsSql`) over `ownerIds`, under RLS. */
+async function explainTeam(
+  principal: Principal,
+  ownerIds: string[],
+  asOf: Date,
+): Promise<string[]> {
+  return withRequestContext(
+    principal,
+    {},
+    async (ctx) => {
+      const query = teamQueueCountsSql(ownerIds, ctx.entityIds, asOf);
       const rows = (await ctx.tx.execute(
         sql`explain (analyze, buffers, costs off) ${query}`,
       )) as unknown as { 'QUERY PLAN': string }[];
@@ -316,6 +338,13 @@ async function main(): Promise<void> {
   const teamLeadPlan = await explain(teamLead, caller.id, asOf);
   log('queue plan for the team lead reading the caller’s queue:');
   for (const line of teamLeadPlan) log(`  ${line}`);
+  const teamPlan = await explainTeam(
+    teamLead,
+    callers.map((p) => p.id),
+    asOf,
+  );
+  log('team view counts plan for the team lead:');
+  for (const line of teamPlan) log(`  ${line}`);
 
   writeFileSync(
     resultFile,
@@ -333,6 +362,7 @@ async function main(): Promise<void> {
         results,
         queuePlanTeleCaller: callerPlan,
         queuePlanTeamLead: teamLeadPlan,
+        teamCountsPlanTeamLead: teamPlan,
       },
       null,
       2,

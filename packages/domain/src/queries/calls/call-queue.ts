@@ -98,15 +98,23 @@ function rankedQueue(owners: SQL, entityIds: readonly number[], asOf: Date): SQL
       from (
         select o.id, o.entity_id, o.account_id, o.site_id, o.owner_id, o.score, o.created_at,
                o.state, pl.segment, pl.first_contact_sla_minutes as sla_minutes, ps.name as stage_name,
-               (select min(t.due_at) from tasks t
-                 where t.opportunity_id = o.id and t.entity_id = o.entity_id
-                   and t.account_id = o.account_id and t.assignee_id = o.owner_id
-                   and t.state = 'open' and t.kind in ('callback', 'nurture')) as next_call_at,
+               nc.next_call_at,
                lc.started_at as last_call_at,
                case when lc.next_action = 'retry' then lc.attempt_no else 0 end as attempts
           from opportunities o
           join pipeline_stages ps on ps.id = o.stage_id
           join pipelines pl on pl.id = o.pipeline_id
+          -- A pipeline has at most one stage keyed qualified (pipeline_stages_pipeline_key_unique),
+          -- so the join keeps one row per lead and is planned once, not once per lead.
+          left join pipeline_stages f
+            on f.pipeline_id = o.pipeline_id and f.key = 'qualified' and f.archived_at is null
+          -- An aggregate in a lateral join runs once per lead; as a column the planner copies it
+          -- into every place the bucket and the counts read it.
+          left join lateral (
+            select min(t.due_at) as next_call_at from tasks t
+             where t.opportunity_id = o.id and t.entity_id = o.entity_id
+               and t.account_id = o.account_id and t.assignee_id = o.owner_id
+               and t.state = 'open' and t.kind in ('callback', 'nurture')) nc on true
           left join lateral (
             select c.started_at, c.attempt_no, d.next_action
               from calls c join call_dispositions d on d.id = c.disposition_id
@@ -117,10 +125,7 @@ function rankedQueue(owners: SQL, entityIds: readonly number[], asOf: Date): SQL
            and o.entity_id = any(${`{${entityIds.join(',')}}`}::int[])
            and o.archived_at is null
            and ((o.state = 'open' and ps.kind = 'open'
-                 and ps.position < coalesce(
-                   (select f.position from pipeline_stages f
-                     where f.pipeline_id = o.pipeline_id and f.key = 'qualified'
-                       and f.archived_at is null), 2147483647))
+                 and ps.position < coalesce(f.position, 2147483647))
                 or o.state = 'nurture')
       ) q`;
 }
@@ -232,7 +237,8 @@ export async function listCallQueue(
           score: r.score,
           createdAt: toDate(r.created_at).toISOString(),
           reason: reasonOf(r.bucket, r.state, lastCallAt),
-          dueAt: r.bucket === 0 && r.next_call_at !== null ? toDate(r.next_call_at).toISOString() : null,
+          dueAt:
+            r.bucket === 0 && r.next_call_at !== null ? toDate(r.next_call_at).toISOString() : null,
           attempts: r.attempts,
           lastCallAt: lastCallAt?.toISOString() ?? null,
           consentWithdrawn: customer.withdrawn,
@@ -418,10 +424,7 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
     dispositions: outcomes.dispositions,
     attempts: last?.nextAction === 'retry' ? last.attemptNo : 0,
     maxAttempts: WORKSHOP_DEFAULTS.calling.attemptDays.length,
-    nextCall:
-      next === undefined
-        ? null
-        : { kind: next.kind, dueAt: next.dueAt.toISOString() },
+    nextCall: next === undefined ? null : { kind: next.kind, dueAt: next.dueAt.toISOString() },
     recentActivity: timeline.items,
   });
 }
@@ -462,6 +465,26 @@ export async function dialNumber(
     });
   }
   return DialNumberDto.parse({ e164: row.e164 });
+}
+
+/**
+ * How many leads wait in each of `ownerIds`' queues as of `asOf`, and how many of them are due
+ * calls (bucket 0) and late first calls (bucket 1), by owner and company. Exported so the calling
+ * spike explains the very statement the team view runs.
+ */
+export function teamQueueCountsSql(
+  ownerIds: readonly string[],
+  entityIds: readonly number[],
+  asOf: Date,
+): SQL {
+  return sql`
+    select r.owner_id, r.entity_id,
+           count(*)::int as waiting,
+           count(*) filter (where r.bucket = 0)::int as due,
+           count(*) filter (where r.bucket = 1)::int as late
+      from (${rankedQueue(sql`o.owner_id = any(${`{${ownerIds.join(',')}}`}::uuid[])`, entityIds, asOf)}) r
+     where r.bucket is not null
+     group by r.owner_id, r.entity_id`;
 }
 
 /**
@@ -507,15 +530,7 @@ export async function listTeamQueues(
   if (members.length === 0) return [];
 
   const ids = [...new Set(members.map((m) => m.id))];
-  const idList = `{${ids.join(',')}}`;
-  const counts = (await ctx.tx.execute(sql`
-    select r.owner_id, r.entity_id,
-           count(*)::int as waiting,
-           count(*) filter (where r.bucket = 0)::int as due,
-           count(*) filter (where r.bucket = 1)::int as late
-      from (${rankedQueue(sql`o.owner_id = any(${idList}::uuid[])`, entityIds, now)}) r
-     where r.bucket is not null
-     group by r.owner_id, r.entity_id`)) as unknown as {
+  const counts = (await ctx.tx.execute(teamQueueCountsSql(ids, entityIds, now))) as unknown as {
     owner_id: string;
     entity_id: number;
     waiting: number;
