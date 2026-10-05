@@ -11,8 +11,9 @@ export interface KeyValue {
   /** Increments an integer value, creating it at 1 with the given time to live. */
   incr(key: string, ttlSeconds: number): Promise<number>;
   /**
-   * Adds a whole number to an integer value in one step, creating it at that number with the given
-   * time to live (an agent's spend today, in paise); answers the total afterwards.
+   * Adds a whole number, which may be negative, to an integer value in one step, creating it at
+   * that number with the given time to live (an agent's spend today, in paise, reserved before a
+   * call and settled after it); answers the total afterwards.
    */
   incrBy(key: string, amount: number, ttlSeconds: number): Promise<number>;
   /**

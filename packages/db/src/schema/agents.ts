@@ -149,7 +149,7 @@ export const agentActions = pgTable(
     ),
     check(
       'agent_actions_decided_check',
-      sql`(${t.decidedAt} is null and ${t.decidedBy} is null) = (${t.state} in ('proposed', 'executed'))`,
+      sql`(${t.decidedAt} is null and ${t.decidedBy} is null) = (${t.state} = 'proposed' or ${t.state} = 'executed')`,
     ),
     check(
       'agent_actions_input_size_check',
