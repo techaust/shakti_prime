@@ -313,6 +313,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const twinLink = per(e, 0x1d);
         const candidate = per(e, 0x1e);
         const merge = per(e, 0x1f);
+        // A second open lead of the company's customer, put forward with the first as one: read
+        // by whoever reads both leads, agents included.
+        const secondLead = per(e, 0x20);
+        const leadPair = per(e, 0x21);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -379,6 +383,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
         await tx`insert into duplicate_candidates (id, entity_id, kind, account_id, other_account_id, reason, confidence, created_by)
           values (${candidate}, ${e}, 'customer', ${account}, ${twin}, 'name_village', 60, ${ownerId})`;
+        await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+          values (${secondLead}, ${e}, ${account}, ${site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team}, ${ownerId})`;
+        await tx`insert into duplicate_candidates (id, entity_id, kind, opportunity_id, other_opportunity_id, reason, confidence, created_by)
+          values (${leadPair}, ${e}, 'lead', ${opportunity}, ${secondLead}, 'phone', 95, ${ownerId})`;
         await tx`insert into customer_merges (id, entity_id, kept_account_id, merged_account_id, moved_json, created_by)
           values (${merge}, ${e}, ${account}, ${twin}, '{}'::jsonb, ${ownerId})`;
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
@@ -397,7 +405,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           { key: link, entities: only, leadIn: only },
           { key: twinLink, entities: only, leadIn: [] },
         );
-        rows.duplicate_candidates.push({ key: candidate, entities: only, leadIn: [] });
+        rows.duplicate_candidates.push(
+          { key: candidate, entities: only, leadIn: [] },
+          { key: leadPair, entities: only, onLead: true },
+        );
+        rows.opportunities.push({ key: secondLead, entities: only });
         rows.customer_merges.push({ key: merge, entities: only, leadIn: only });
         rows.account_contacts.push({ key: `${account}/${contact}`, entities: only, leadIn: only });
         rows.customer_sites.push({ key: site, entities: only, leadIn: only });
