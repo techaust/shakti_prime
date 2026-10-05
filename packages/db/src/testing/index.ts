@@ -285,6 +285,8 @@ export const ENTITY_TABLES = [
   // tags allow entity_id null for the whole group, as teams do
   'tags',
   'opportunity_tags',
+  // a child of the lead, read with it (docs/design/phase1.md §7.2)
+  'calls',
 ] as const;
 
 /**

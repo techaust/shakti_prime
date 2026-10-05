@@ -10,6 +10,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.account.write': 'Add and update customers',
   'crm.config.write': 'Set up pipelines, call outcomes and lead scoring',
   'calls.dial': 'Make calls from the app',
+  'calls.log': 'Log calls and their outcomes',
   'calls.recording.listen': 'Listen to call recordings',
   'sales.quote.create': 'Create quotes',
   'sales.quote.send': 'Send quotes to customers',

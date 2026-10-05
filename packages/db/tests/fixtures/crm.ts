@@ -72,6 +72,10 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`alter table sizings disable trigger sizings_append_only`;
       await tx`delete from sizings where opportunity_id::text like ${`${P}%`}`;
       await tx`alter table sizings enable trigger sizings_append_only`;
+      // Calls are append-only children of the leads (calls.test.ts writes them).
+      await tx`alter table calls disable trigger calls_append_only`;
+      await tx`delete from calls where opportunity_id::text like ${`${P}%`}`;
+      await tx`alter table calls enable trigger calls_append_only`;
       await tx`delete from consents where id::text like ${`${P}%`}`;
       await tx`delete from opportunities where id::text like ${`${P}%`}`;
       await tx`delete from customer_sites where id::text like ${`${P}%`}`;

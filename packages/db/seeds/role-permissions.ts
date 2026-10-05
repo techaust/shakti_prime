@@ -70,6 +70,14 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     tele_caller_lc: 'own',
     store_manager: 'own',
   },
+  'calls.log': {
+    ...EXEC,
+    general_manager: 'entity',
+    sales_team_lead: 'team',
+    tele_caller_cc: 'own',
+    tele_caller_lc: 'own',
+    store_manager: 'own',
+  },
   'calls.recording.listen': { ...EXEC, general_manager: 'entity', sales_team_lead: 'team' },
   'sales.quote.create': {
     ...EXEC,

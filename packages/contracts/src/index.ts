@@ -38,6 +38,7 @@ export * from './commands/crm/config';
 export * from './commands/crm/tasks';
 export * from './commands/crm/tags';
 export * from './commands/crm/customer';
+export * from './commands/crm/calls';
 export * from './commands/pricing/set-price';
 export * from './commands/pricing/price-lists';
 export * from './commands/catalogue/items';

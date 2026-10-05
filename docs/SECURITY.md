@@ -124,6 +124,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.account.read` / `.write` | all | entity | team | own | own | own | entity (read) | entity | own (read) | entity (read) | – |
 | `crm.config.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `calls.dial` | all | entity | team | own | own | own | – | – | – | – | – |
+| `calls.log` | all | entity | team | own | own | own | – | – | – | – | – |
 | `calls.recording.listen` | all | entity | team | – | – | – | – | – | – | – | – |
 | `sales.quote.create` / `.send` | all | entity | team | – | own | own | – | – | – | – | – |
 | `sales.order.create` / `.confirm` | all | entity | team | – | own | own | – | – | – | – | – |

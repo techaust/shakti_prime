@@ -2578,6 +2578,7 @@
       "crm_account_read": "See customers",
       "crm_account_write": "Add and update customers",
       "calls_dial": "Make calls from the app",
+      "calls_log": "Log calls and their outcomes",
       "calls_recording_listen": "Listen to call recordings",
       "sales_quote_create": "Create quotes",
       "sales_quote_send": "Send quotes to customers",

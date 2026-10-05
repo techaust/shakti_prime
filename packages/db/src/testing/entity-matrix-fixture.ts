@@ -58,6 +58,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   customer_sites: 'x.id::text',
   opportunities: 'x.id::text',
   sizings: 'x.id::text',
+  calls: 'x.id::text',
   consents: 'x.id::text',
   item_costs: 'x.id::text',
   document_sequences: 'x.id::text',
@@ -140,6 +141,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`alter table sizings disable trigger sizings_append_only`;
       await tx`delete from sizings where id::text like ${like}`;
       await tx`alter table sizings enable trigger sizings_append_only`;
+      await tx`alter table calls disable trigger calls_append_only`;
+      await tx`delete from calls where id::text like ${like}`;
+      await tx`alter table calls enable trigger calls_append_only`;
       await tx`delete from opportunities where id::text like ${like}`;
       await tx`delete from customer_sites where id::text like ${like}`;
       await tx`delete from account_contacts where account_id::text like ${like}`;
@@ -210,6 +214,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     customer_sites: [{ key: shared.site, entities: [1, 2], leadIn: [2] }],
     opportunities: [{ key: shared.opportunity, entities: [2] }],
     sizings: [],
+    calls: [],
     consents: [{ key: shared.consent, entities: [1, 2], leadIn: [2] }],
     item_costs: [],
     document_sequences: [],
@@ -301,6 +306,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
         const sizing = per(e, 0x1b);
+        const call = per(e, 0x30);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -322,6 +328,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${opportunity}, ${e}, ${account}, ${site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team}, ${ownerId})`;
         await tx`insert into sizings (id, entity_id, opportunity_id, site_id, kind, inputs_json, result_json, in_bounds, reasons_json, engine_version, created_by)
           values (${sizing}, ${e}, ${opportunity}, ${site}, 'rooftop', '{}'::jsonb, '{}'::jsonb, true, '[]'::jsonb, 'matrix', ${ownerId})`;
+        // An outcome of the group's own list, which the seed always writes.
+        await tx`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series, disposition_id, attempt_no, started_at)
+          select ${call}, ${e}, ${opportunity}, ${ownerId}, 'outbound', 'manual', d.id, 1, now()
+            from call_dispositions d
+           where d.entity_id is null and d.segment is null and d.archived_at is null
+           order by d.position limit 1`;
         await tx`insert into item_costs (id, item_id, entity_id, moving_avg_cost, last_purchase_rate, as_of)
           values (${cost}, ${item}, ${e}, 100.0000, 110.0000, now())`;
         await tx`insert into document_sequences (id, entity_id, doc_type, fy, prefix)
@@ -376,6 +388,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.customer_sites.push({ key: site, entities: only, leadIn: only });
         rows.opportunities.push({ key: opportunity, entities: only });
         rows.sizings.push({ key: sizing, entities: only });
+        rows.calls.push({ key: call, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
