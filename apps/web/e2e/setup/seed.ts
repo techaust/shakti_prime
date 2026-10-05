@@ -11,6 +11,7 @@ import {
   memoryKeyValue,
   memoryMailer,
   parseImportFile,
+  setReferralPartner,
 } from '@shakti/domain';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -24,6 +25,7 @@ import {
   E2E_PASSWORD,
   emailFor,
   PROJECTS,
+  REFERRAL_PARTNER,
   SIGNED_IN_ROLES,
   SEND_AGAIN_COMPANY,
   SNAPSHOT_COMPANY,
@@ -196,6 +198,30 @@ async function holdBackUpdate(id: string, entityId: number, heldAt: string): Pro
   );
 }
 
+/**
+ * The referral partner of `users.ts`, made once in company 1 by the seed's Executive as a customer
+ * of the kind Referral partner, with its code accepted on new leads. Found again by its code.
+ */
+async function ensureReferralPartner(executiveId: string): Promise<void> {
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from referral_partners
+                              where lower(code) = lower(${REFERRAL_PARTNER.code})`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  const lead = await executeCommand(executive, { entityIds: [1] }, createLead, {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: REFERRAL_PARTNER.name, phone: REFERRAL_PARTNER.phone },
+    account: { type: 'referral_partner' },
+  });
+  await executeCommand(executive, {}, setReferralPartner, {
+    accountId: lead.account.id,
+    code: REFERRAL_PARTNER.code,
+    isActive: true,
+  });
+}
+
 /** One import job in the snapshot company, from a fixed spreadsheet, made once. */
 async function ensureSnapshotImport(executiveId: string): Promise<void> {
   // Found again by the seed's Executive, whom no other suite makes, not by the company alone.
@@ -303,6 +329,9 @@ await ensureLead(
   secondCompanyLead,
   '98765 40002',
 );
+
+progress('the referral partner');
+await ensureReferralPartner(ids.executive ?? '');
 
 progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.

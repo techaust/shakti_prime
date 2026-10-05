@@ -1,4 +1,7 @@
 import type {
+  CommissionBasis,
+  ContrastPreference,
+  DispositionNextAction,
   AccountType,
   ActivityType,
   ConsentChannel,
@@ -6,7 +9,6 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
-  ContrastPreference,
   ItemCategory,
   ItemSort,
   ItemUnit,
@@ -31,12 +33,15 @@ import type {
   PermissionKey,
   PriceSort,
   SavedViewScreen,
-  Scope,
+  ScoreFactor,
   Segment,
   PipeMaterial,
   PumpDrive,
   PumpType,
   SessionRevokeReason,
+  StageExitField,
+  SystemSizeUnit,
+  Scope,
   SizingAdvisory,
   SizingKind,
   SizingReason,
@@ -258,7 +263,10 @@ export const SAVED_VIEW_SCREENS = [
 ] as const satisfies readonly SavedViewScreen[];
 
 /** The columns each list sorts on the server (the contracts' `*_SORT_COLUMNS`). */
-export const LEAD_SORT_COLUMNS = ['updated'] as const satisfies readonly LeadSort['column'][];
+export const LEAD_SORT_COLUMNS = [
+  'updated',
+  'score',
+] as const satisfies readonly LeadSort['column'][];
 export const CUSTOMER_SORT_COLUMNS = ['name'] as const satisfies readonly CustomerSort['column'][];
 export const USER_SORT_COLUMNS = [
   'name',
@@ -399,6 +407,65 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
 
+/** What the queue does after a call outcome, in the order the settings page offers them. */
+export const DISPOSITION_NEXT_ACTIONS = [
+  'callback',
+  'retry',
+  'qualified',
+  'not_interested',
+  'wrong_number',
+  'nurture',
+] as const satisfies readonly DispositionNextAction[];
+
+/** What a lead score rule looks at. */
+export const SCORE_FACTORS = [
+  'source',
+  'segment',
+  'district',
+  'system_size',
+  'age_days',
+] as const satisfies readonly ScoreFactor[];
+
+/** The units a system-size rule reads a lead's size in. */
+export const SYSTEM_SIZE_UNITS = ['kw', 'hp'] as const satisfies readonly SystemSizeUnit[];
+
+/** Every lead detail a stage's exit rules may name, recorded today or by the sizing panel. */
+export const STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'stateCode',
+  'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+] as const satisfies readonly StageExitField[];
+
+/** The lead details a stage may require today (`RECORDED_STAGE_EXIT_FIELDS`). */
+export const RECORDED_STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'source',
+] as const satisfies readonly StageExitField[];
+
+/** The stages every pipeline keeps, which cannot be archived (`PROTECTED_STAGE_KEYS`). */
+export const PROTECTED_STAGE_KEYS = ['new', 'qualified', 'quoted'] as const;
+
+/** How a referral commission is worked out. */
+export const COMMISSION_BASES = [
+  'fixed',
+  'percent',
+  'per_kw',
+  'per_hp',
+] as const satisfies readonly CommissionBasis[];
+
+/** The limits the settings forms hold to, as the contracts do. */
+export const LOCK_HOURS_MAX = 720;
+export const FIRST_CONTACT_SLA_MAX = 10_080;
+export const SCORE_POINTS_LIMIT = 50;
 /** A customers search looks for a name, contact or village from three characters. */
 export const CUSTOMER_SEARCH_MIN_CHARS = 3;
 /** Scopes from narrowest to widest (`SCOPES`). */

@@ -181,6 +181,15 @@ const RULES: Record<MatrixTable, TableRule> = {
     group: grant('pricing.read', 'entity'),
     leak: otherCompany,
   },
+  // CRM set-up: every caller reads the group's rows and their own company's.
+  call_dispositions: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  lead_score_rules: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  // A referral partner is read with its customer (ADR 0008).
+  referral_partners: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    leak: accountOutside('x.account_id'),
+  },
 };
 
 const TABLES = Object.keys(RULES) as MatrixTable[];

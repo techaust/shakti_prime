@@ -8,6 +8,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.lead.merge': 'Merge duplicate leads',
   'crm.account.read': 'See customers',
   'crm.account.write': 'Add and update customers',
+  'crm.config.write': 'Set up pipelines, call outcomes and lead scoring',
   'calls.dial': 'Make calls from the app',
   'calls.recording.listen': 'Listen to call recordings',
   'sales.quote.create': 'Create quotes',
@@ -68,6 +69,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'admin.flags.write': 'Manage feature flags',
   'integrations.dlq.replay': 'Send failed messages to other systems again',
   'files.process': 'Check uploaded files before anyone can use them',
+  'crm.score.refresh': 'Bring lead scores up to date each night',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

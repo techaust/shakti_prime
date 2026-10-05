@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { AccountTypeSchema, OpportunityStateSchema } from '../crm/enums';
+import { ScoreReasonSchema } from '../commands/crm/config';
 import { E164Schema } from '../crm/phone';
 import { EntityIdSchema, IdSchema } from '../ids';
 
@@ -12,6 +13,9 @@ export const LeadDto = z
     stageId: IdSchema,
     state: OpportunityStateSchema,
     score: z.number().int(),
+    /** Why the lead has its score (CRM-06); empty at the base. */
+    scoreReasons: z.array(ScoreReasonSchema),
+    scoreChangedAt: z.iso.datetime().nullable(),
     ownerId: IdSchema.nullable(),
     teamId: IdSchema.nullable(),
     siteId: IdSchema.nullable(),

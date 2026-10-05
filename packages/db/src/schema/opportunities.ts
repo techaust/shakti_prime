@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { accounts, customerSites } from './accounts';
 import { actorsRequired, archivable, timestamps } from './columns';
+import { referralPartners } from './crm-config';
 import { entities } from './entities';
 import { leadSources } from './lead-sources';
 import { pipelines, pipelineStages } from './pipelines';
@@ -45,7 +46,14 @@ export const opportunities = pgTable(
       .references(() => pipelineStages.id),
     ownerId: uuid('owner_id').references(() => principals.id),
     teamId: uuid('team_id').references(() => teams.id),
-    score: integer('score').notNull().default(0),
+    /** 0 to 100; the base is 50 until score rules say otherwise (CRM-06, `scoreLead()`). */
+    score: integer('score').notNull().default(50),
+    /** Why the lead has its score: `[{ factor, points, labelKey }]` from `scoreLead()`. */
+    scoreReasonsJson: jsonb('score_reasons_json').notNull().default([]),
+    scoreChangedAt: timestamp('score_changed_at', { withTimezone: true }),
+    scoreChangedBy: uuid('score_changed_by').references(() => principals.id),
+    /** The referral partner a lead's code credited (CRM-09). */
+    referralPartnerId: uuid('referral_partner_id'),
     sourceId: uuid('source_id').references(() => leadSources.id),
     campaignJson: jsonb('campaign_json').notNull().default({}),
     state: text('state').notNull().default('open'),
@@ -89,5 +97,16 @@ export const opportunities = pgTable(
     index('opportunities_pipeline_stage_idx').on(t.pipelineId, t.stageId),
     index('opportunities_site_idx').on(t.siteId),
     index('opportunities_source_idx').on(t.sourceId),
+    foreignKey({
+      name: 'opportunities_referral_partner_fk',
+      columns: [t.referralPartnerId],
+      foreignColumns: [referralPartners.accountId],
+    }),
+    index('opportunities_referral_partner_idx').on(t.referralPartnerId),
+    // The leads grid sorted by score pages off this in either direction (keyset on score, id).
+    index('opportunities_entity_score_idx').on(t.entityId, t.score, t.id),
+    // A request for every company pages the score order off this, as it pages the last change off
+    // opportunities_keyset_idx (docs/spikes/lists.md, the score cases).
+    index('opportunities_score_keyset_idx').on(t.score, t.id),
   ],
 );

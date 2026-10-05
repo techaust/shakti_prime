@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   AUTH_TABLES,
   closeDb,
+  CONFIG_TABLES,
   OUTBOX_TABLES,
   PLATFORM_TABLES,
   PRINCIPAL_TABLES,
@@ -32,6 +33,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     expect(rows.map((r) => r.name)).toEqual(
       [
         ...RLS_TABLES,
+        ...CONFIG_TABLES,
         ...AUTH_TABLES,
         ...OUTBOX_TABLES,
         ...PRINCIPAL_TABLES,
@@ -43,6 +45,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
 
   it.each([
     ...RLS_TABLES,
+    ...CONFIG_TABLES,
     ...AUTH_TABLES,
     ...OUTBOX_TABLES,
     ...PRINCIPAL_TABLES,

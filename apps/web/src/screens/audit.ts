@@ -118,6 +118,17 @@ const ACTIONS = {
   'profile.view.delete': 'viewDelete',
   'realtime.token.issue': 'liveUpdatesOpen',
   'profile.contrast.set': 'contrastSet',
+  'crm.pipeline.update': 'pipelineUpdate',
+  'crm.stage.create': 'stageCreate',
+  'crm.stage.update': 'stageUpdate',
+  'crm.stage.reorder': 'stageReorder',
+  'crm.stage.archive': 'stageArchive',
+  'crm.disposition.set': 'dispositionsSet',
+  'crm.score_rule.set': 'scoreRulesSet',
+  'crm.lead.rescore': 'leadRescore',
+  'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.referral_partner.set': 'referralPartnerSet',
+  'crm.commission_rule.set': 'commissionRuleSet',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -220,6 +231,8 @@ export type ChangeValue =
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
+  /** The lead details a stage requires before a lead leaves it. */
+  | { kind: 'stageFields'; fields: string[] }
   /** Several codes of one group, such as the reasons a sizing is outside its limits. */
   | { kind: 'codes'; group: CodeGroup; values: string[] }
   | {
@@ -251,6 +264,9 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'nextAction',
+  'scoreFactor',
+  'commissionBasis',
   'sizingKind',
   'sizingReason',
   'taskKind',
@@ -422,6 +438,21 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Pipelines, call outcomes, scoring and referrals
+  ['lockHours', 'number'],
+  ['firstContactSlaMinutes', 'number'],
+  ['position', 'number'],
+  ['requiredFields', 'stageFields'],
+  ['key', 'number'],
+  ['label', 'text'],
+  ['nextAction', 'nextAction'],
+  ['factor', 'scoreFactor'],
+  ['scorePoints', 'number'],
+  ['score', 'number'],
+  ['code', 'text'],
+  ['codeActive', 'yesNo'],
+  ['basis', 'commissionBasis'],
+  ['amount', 'text'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
@@ -563,6 +594,10 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'stageFields' && Array.isArray(value)) {
+    const fields = value.filter((v): v is string => typeof v === 'string');
+    return fields.length === 0 ? EMPTY : { kind: 'stageFields', fields };
+  }
   if (kind === 'sizingReasons' && Array.isArray(value)) {
     const values = value.filter((v): v is string => typeof v === 'string');
     return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };

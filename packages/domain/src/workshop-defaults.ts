@@ -1,9 +1,11 @@
-import type {
-  PipeMaterial,
-  PumpType,
-  Segment,
-  SubsidyScheme,
-  SupplySource,
+import {
+  WORKSHOP_DISPOSITIONS,
+  type DispositionNextAction,
+  type PipeMaterial,
+  type PumpType,
+  type Segment,
+  type SubsidyScheme,
+  type SupplySource,
 } from '@shakti/contracts';
 
 export interface WorkshopDefaults {
@@ -19,6 +21,17 @@ export interface WorkshopDefaults {
   readonly quote: { readonly validityDays: number };
   readonly credit: { readonly exposureCountsConfirmedOrders: boolean };
   readonly dispatch: { readonly ewayBillThresholdPaise: bigint };
+  readonly crm: {
+    readonly dispositions: readonly {
+      readonly key: number;
+      readonly code: string;
+      readonly label: string;
+      readonly nextAction: DispositionNextAction;
+    }[];
+    readonly scoreBase: number;
+    readonly scoreRules: readonly [];
+    readonly firstContactSlaMinutes: number | null;
+  };
   readonly sizing: SizingDefaults;
 }
 
@@ -80,6 +93,20 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   dispatch: {
     /** BLUEPRINT §8.4: consignment value in paise above which a dispatch needs an e-way bill (₹50,000). */
     ewayBillThresholdPaise: 5_000_000n,
+  },
+  crm: {
+    /**
+     * Design §11, workshop CALL-1: the pack's example call outcomes for the whole group, each with
+     * the queue's next step. The list lives in `@shakti/contracts` so the database seed writes the
+     * same one; Executives change it on the pipelines settings page.
+     */
+    dispositions: WORKSHOP_DISPOSITIONS,
+    /** Design §11, workshop CRM-3: the score every lead starts from before any rule applies. */
+    scoreBase: 50,
+    /** Design §11, workshop CRM-3: no score rules, so every lead starts level. */
+    scoreRules: [],
+    /** Design §6.6: no first-contact time limit on any pipeline until the sales head sets one. */
+    firstContactSlaMinutes: null,
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is

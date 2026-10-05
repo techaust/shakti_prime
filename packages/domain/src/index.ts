@@ -27,6 +27,18 @@ export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
+export {
+  archiveStage,
+  createStage,
+  reorderStages,
+  updatePipeline,
+  updateStage,
+} from './commands/crm/pipeline-settings';
+export { setDispositions } from './commands/crm/set-dispositions';
+export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
+export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
+export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
+export { scoreLead } from './crm/score';
 export { createTask, completeTask, rescheduleTask, cancelTask } from './commands/crm/tasks';
 export { createTag, archiveTag, tagLead, untagLead } from './commands/crm/tags';
 export { updateAccount, updateContact, upsertSite, addNote } from './commands/crm/customer';
@@ -122,7 +134,7 @@ export { jsonLogger, memoryLogger, redact, redactError, redactText } from './por
 export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
-export { listEntities } from './queries/org/list-entities';
+export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
@@ -156,6 +168,15 @@ export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-se
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
+export {
+  effectiveDispositions,
+  listCodedReferralPartners,
+  listCommissionRules,
+  listDispositions,
+  listPipelineSettings,
+  listReferralPartners,
+  listScoreRules,
+} from './queries/crm/pipeline-settings';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
 export {

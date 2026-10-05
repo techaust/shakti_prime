@@ -9,6 +9,7 @@ import {
   lockOpportunity,
   opportunityRecord,
   requireEntity,
+  shareLockStage,
   toOpportunityDto,
   writeOpportunity,
 } from './opportunity-shared';
@@ -21,7 +22,9 @@ const HANDOVER_STAGE = 'qualified';
  * pipeline once the current stage's exit rules are met. Won and lost stages are reached through
  * `crm.opportunity.win` and `crm.opportunity.lose`. Arriving at `qualified` asks for the handover
  * in the event; the handover worker (weighted round-robin over Lead Converters) arrives with the
- * tele-calling module in Phase 1.
+ * tele-calling module in Phase 1. The target stage is held `for share` until the move commits
+ * (`app.share_lock_stage()`), so it cannot be archived under the move: an archive already under
+ * way finishes first and the move then finds no live stage.
  */
 export const moveOpportunityStage = defineCommand({
   name: 'crm.opportunity.stage.move',
@@ -35,6 +38,8 @@ export const moveOpportunityStage = defineCommand({
     const row = await lockOpportunity(ctx, input);
     const record = await opportunityRecord(ctx, row);
 
+    // Locked before it is read, so the read below sees an archive that committed meanwhile.
+    await shareLockStage(ctx.tx, input.stageId);
     const ps = schema.pipelineStages;
     const [target] = await ctx.tx
       .select({ id: ps.id, pipelineId: ps.pipelineId, key: ps.key, kind: ps.kind })

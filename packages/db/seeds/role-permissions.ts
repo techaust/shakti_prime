@@ -61,6 +61,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
     store_manager: 'own',
     project_manager: 'entity',
   },
+  'crm.config.write': { ...EXEC },
   'calls.dial': {
     ...EXEC,
     general_manager: 'entity',
@@ -270,6 +271,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'integrations.dlq.replay': { ...EXEC },
   // The platform's file checks; no person's role holds it (SECURITY §3.3).
   'files.process': {},
+  // The platform's nightly rescoring of leads; no person's role holds it (SECURITY §3.3).
+  'crm.score.refresh': {},
 };
 
 /** Agent principal permission sets (docs/SECURITY.md §3.3), limited to keys in the catalogue. */

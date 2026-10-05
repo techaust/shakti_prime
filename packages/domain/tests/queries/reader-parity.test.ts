@@ -23,6 +23,14 @@ import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { latestSizing } from '../../src/queries/crm/latest-sizing';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
+import {
+  listCodedReferralPartners,
+  listCommissionRules,
+  listDispositions,
+  listPipelineSettings,
+  listReferralPartners,
+  listScoreRules,
+} from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 import {
   countFilesAwaitingChecks,
@@ -80,6 +88,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   countLeads: (ctx) => countLeads(ctx),
   listPipelines: (ctx) => listPipelines(ctx),
   listLeadSources: (ctx) => listLeadSources(ctx),
+  listPipelineSettings: (ctx) => listPipelineSettings(ctx),
+  listDispositions: (ctx) => listDispositions(ctx, { entityId: null, segment: null }),
+  listScoreRules: (ctx) => listScoreRules(ctx, { entityId: 1, segment: 'farmer_pumps' }),
+  listReferralPartners: (ctx) => listReferralPartners(ctx, { cursor: null }),
+  listCommissionRules: (ctx) => listCommissionRules(ctx),
+  listCodedReferralPartners: (ctx) => listCodedReferralPartners(ctx),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
   listCustomers: (ctx) => listCustomers(ctx, { limit: 20 }),
   searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),

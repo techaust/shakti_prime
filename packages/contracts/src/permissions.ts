@@ -9,6 +9,7 @@ export const PERMISSION_KEYS = [
   'crm.lead.merge',
   'crm.account.read',
   'crm.account.write',
+  'crm.config.write',
   'calls.dial',
   'calls.recording.listen',
   'sales.quote.create',
@@ -71,6 +72,9 @@ export const PERMISSION_KEYS = [
   // The file checks before an upload is usable (malware scan, re-encoding, masking): held only by
   // the platform's worker principal, never by a person's role.
   'files.process',
+  // The nightly rescoring of open leads (CRM-06): held only by the platform's worker principal,
+  // which reads a lead's scoring facts and writes its score through two definers, nothing more.
+  'crm.score.refresh',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -114,6 +118,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   // letter re-sends a message outside the agent's own work.
   'finance.expense.verify',
   'integrations.dlq.replay',
+  // Pipelines, stages, dispositions and score rules shape every caller's work (design §4).
+  'crm.config.write',
 ] as const satisfies readonly PermissionKey[];
 
 /**
@@ -122,7 +128,7 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
  * system role (`app.platform_only_permissions()`, which a security test keeps equal to this
  * list). Plain strings, because a key joins the catalogue with the slice that first uses it.
  */
-export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process'];
+export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process', 'crm.score.refresh'];
 
 export function isPlatformOnlyPermission(key: string): boolean {
   return PLATFORM_ONLY_PERMISSIONS.includes(key);
@@ -188,6 +194,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.lead.merge': ['team', 'entity', 'all'],
   'crm.account.read': ['own', 'team', 'entity', 'all'],
   'crm.account.write': ['own', 'team', 'entity', 'all'],
+  'crm.config.write': ['all'],
   'calls.dial': ['own', 'team', 'entity', 'all'],
   'calls.recording.listen': ['team', 'entity', 'all'],
   'sales.quote.create': ['own', 'team', 'entity', 'all'],
@@ -249,6 +256,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'integrations.dlq.replay': ['all'],
   // Held only by the platform's workers, for every company; the role editor never offers it.
   'files.process': ['all'],
+  'crm.score.refresh': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

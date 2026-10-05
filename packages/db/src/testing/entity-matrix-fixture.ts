@@ -32,7 +32,13 @@ export type EntityTable = (typeof ENTITY_TABLES)[number];
  * Shared reference tables that allow `entity_id null` for the whole group (docs/DATABASE.md §1)
  * beside rows of one company. `teams` is the fourth, and sits in ENTITY_TABLES.
  */
-export const GROUP_WIDE_SHARED_TABLES = ['pipelines', 'pipeline_stages', 'price_lists'] as const;
+export const GROUP_WIDE_SHARED_TABLES = [
+  'pipelines',
+  'pipeline_stages',
+  'price_lists',
+  'call_dispositions',
+  'lead_score_rules',
+] as const;
 export type GroupWideSharedTable = (typeof GROUP_WIDE_SHARED_TABLES)[number];
 
 export type MatrixTable = EntityTable | GroupWideSharedTable;
@@ -68,6 +74,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
+  call_dispositions: 'x.id::text',
+  lead_score_rules: 'x.id::text',
+  referral_partners: 'x.account_id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -136,9 +145,12 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from account_contacts where account_id::text like ${like}`;
       await tx`delete from contact_phones where id::text like ${like}`;
       await tx`delete from account_entities where account_id::text like ${like}`;
+      await tx`delete from referral_partners where account_id::text like ${like}`;
       await tx`delete from accounts where id::text like ${like}`;
       await tx`delete from contacts where id::text like ${like}`;
       await tx`delete from price_lists where id::text like ${like}`;
+      await tx`delete from call_dispositions where id::text like ${like}`;
+      await tx`delete from lead_score_rules where id::text like ${like}`;
       await tx`delete from pipeline_stages where id::text like ${like}`;
       await tx`delete from pipelines where id::text like ${like}`;
       await tx`delete from teams where id::text like ${like}`;
@@ -162,6 +174,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupPipeline = id(0x0004);
   const groupStage = id(0x0005);
   const groupPriceList = id(0x0006);
+  const groupOutcome = id(0x000a);
+  const groupScoreRule = id(0x000b);
   const groupTag = id(0x0008);
   // The customer shared by companies 1 and 2 (ADR 0008).
   const shared = {
@@ -212,6 +226,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
+    call_dispositions: [{ key: groupOutcome, entities: null }],
+    lead_score_rules: [{ key: groupScoreRule, entities: null }],
+    referral_partners: [{ key: shared.account, entities: [1, 2], leadIn: [2] }],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -244,6 +261,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupPriceList}, ${tierId('retail')}, null, 9000, '2090-01-01', now())`;
       await tx`insert into audit_logs (id, entity_id, actor_principal_id, actor_kind, command, outcome)
         values (${groupAudit}, null, ${ownerId}, 'user', ${ENTITY_MATRIX_AUDIT_COMMAND}, 'ok')`;
+      // A segment list, so it never meets the seeded group list's keys.
+      await tx`insert into call_dispositions (id, entity_id, segment, key, code, label, next_action, position)
+        values (${groupOutcome}, null, 'commercial_epc', 9, 'matrix_outcome', 'matrix outcome', 'retry', 9)`;
+      await tx`insert into lead_score_rules (id, entity_id, factor, match_json, points, position, created_by)
+        values (${groupScoreRule}, null, 'age_days', '{"minDays": 36500}'::jsonb, 1, 50, ${ownerId})`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -266,6 +288,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const task = per(e, 0x13);
         const tag = per(e, 0x14);
         const otherRole = per(e, 0x12);
+        const outcome = per(e, 0x19);
+        const scoreRule = per(e, 0x1a);
         // One file of each purpose besides the import file, each read by its own rule.
         const purposeFiles = [
           ['quote_pdf', per(e, 0x13), 'application/pdf'],
@@ -276,7 +300,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['consent_evidence', per(e, 0x18), 'image/jpeg'],
           ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
-        const sizing = per(e, 0x19);
+        const sizing = per(e, 0x1b);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -331,6 +355,13 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${stageE}, ${pipelineE}, ${e}, ${`matrix-${e.toString()}`}, ${`matrix stage ${e}`}, 1)`;
         await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
           values (${priceList}, ${tierId('dealer')}, ${e}, 9000, '2090-01-01', now())`;
+        await tx`insert into call_dispositions (id, entity_id, segment, key, code, label, next_action, position)
+          values (${outcome}, ${e}, 'commercial_epc', 9, 'matrix_outcome', 'matrix outcome', 'retry', 9)`;
+        // Matches no lead: a lead would need to be a hundred years old.
+        await tx`insert into lead_score_rules (id, entity_id, factor, match_json, points, position, created_by)
+          values (${scoreRule}, ${e}, 'age_days', '{"minDays": 36500}'::jsonb, 1, 50, ${ownerId})`;
+        await tx`insert into referral_partners (account_id, code, created_by)
+          values (${account}, ${`MX${e.toString()}PARTNER`}, ${ownerId})`;
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
           (${ownerRole}, ${ownerId}, ${e}, ${MATRIX_ROLE}, ${team}, ${ownerId}),
           (${otherRole}, ${otherUserId}, ${e}, ${MATRIX_ROLE}, null, ${ownerId})`;
@@ -359,6 +390,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.pipelines.push({ key: pipelineE, entities: only });
         rows.pipeline_stages.push({ key: stageE, entities: only });
         rows.price_lists.push({ key: priceList, entities: only });
+        rows.call_dispositions.push({ key: outcome, entities: only });
+        rows.lead_score_rules.push({ key: scoreRule, entities: only });
+        rows.referral_partners.push({ key: account, entities: only, leadIn: only });
         rows.tasks.push({ key: task, entities: only });
         rows.tags.push({ key: tag, entities: only });
         rows.opportunity_tags.push({ key: `${opportunity}/${tag}`, entities: only });
@@ -387,6 +421,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
       await tx`insert into customer_sites (id, account_id, type, created_by) values (${shared.site}, ${shared.account}, 'rooftop', ${ownerId})`;
       await tx`insert into consents (id, contact_id, channel, purpose, source, text_version, given_at, created_by)
         values (${shared.consent}, ${shared.contact}, 'call', 'service', 'walk_in_form', 'v1', now(), ${ownerId})`;
+      await tx`insert into referral_partners (account_id, code, created_by)
+        values (${shared.account}, 'MXSHARED', ${ownerId})`;
       await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
         values (${shared.opportunity}, 2, ${shared.account}, ${shared.site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team2}, ${ownerId})`;
       // The shared customer's own row in company 1, where it has no lead.
