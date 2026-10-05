@@ -110,6 +110,9 @@ beforeAll(async () => {
     account: { type: 'farm', name: 'Inbox list farm' },
   })) as { id: string };
   lead = made.id;
+  // The Caller Co-pilot's own row here says nothing, whatever the journeys' seed left: Suggest.
+  await setting({ entityId: ENTITY });
+  await setting({ entityId: ENTITY, actionType: 'crm.task.create' });
 });
 
 describe('listInbox and countInbox', () => {
