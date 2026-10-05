@@ -86,7 +86,9 @@ test.describe('duplicates as a sales team lead', () => {
     await expectNoAxeViolations(page);
     await merges.getByRole('button', { name: 'Undo merge' }).click();
     await expect(
-      page.getByText('Merge undone. Both customers are back as they were.'),
+      page.getByText(
+        "Merge undone. The other customer is open again, with everything that hasn't changed since the merge.",
+      ),
     ).toBeVisible();
     await expect(merges).toHaveCount(0);
     // The card is open again, on both customers' pages and on /duplicates.
