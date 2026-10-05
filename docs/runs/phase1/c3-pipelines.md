@@ -5,8 +5,8 @@
 | Branch | `feat/c3-pipelines-r2` on GitHub (3856caf, from `main` at #82) |
 | PC worktree | `c3-pipelines`, slot 7: Postgres 54337, app 3037; its local branch `feat/c3-pipelines-scoring` is at the same commit and pushes to `feat/c3-pipelines-r2` (`git push origin HEAD:feat/c3-pipelines-r2`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
-| State | integrating |
-| Next step | the lead's integration run and baselines |
+| State | integrated, pull request open (its migrations are 0096 to 0100) |
+| Next step | merge-on-green, then dev and staging migrated; then the add-partner form (owner, 05-10-2026) and referral codes in imports as follow-ups |
 
 ## Brief
 Design: [`docs/design/phase1.md` §6.6](../../design/phase1.md#66-c3-pipelines-scoring-and-referrals), §4 (the permission `crm.config.write`) and §11 (workshop defaults); BLUEPRINT §8.1 and §8.2; PRD CRM-01, CRM-05, CRM-06, CRM-09, TEL-01; DESIGN.md §6 and §11; workshop pack CRM-1, CRM-2, CRM-3, CRM-5, CALL-1, CALL-3, CALL-4; SECURITY §3.2. Skills: `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
@@ -23,6 +23,12 @@ Lead creation belonged to C2 in wave 2: C3 put what lead creation must do for it
 8. **Documents:** DATABASE §6.2, SECURITY §3.2, design §6.6 "Built (C3)", `pnpm db:docs`.
 
 ## Report
+### 05-10-2026, lead session on the PC (integration)
+- The integration work was reviewed (1 high: `system:workers` held `crm.*`; 3 medium; 8 low) and fixed (see Review); `main` taken after P4 and again after C4, the migrations now 0096 to 0100.
+- `integrate.sh` on a fresh Postgres (54340): INTEGRATION PASSED. Unit tests 2,741; security suite 1,777 (db 940, domain 608, web 229); journeys 204 passed, 3 flaky; `/settings/pipelines` 194.9 of 205 kB, `/leads/walk-in` 192.2 of 200 kB.
+- Linux baselines on a fresh database, each looked at: `settings-pipelines`, `leads-walk-in`, `leads-new-teamLead`, `leads-new-teleCaller` and `leads-list` remade in every project; `roles` (light, dark) and `home-tele-caller` (phone) remade after the full verification run found them changed by the walk-in menu item, the pipelines settings and the new permissions. The full verification run otherwise matched (196 passed, 8 flaky under load).
+- Owner decision 05-10-2026: referral partners get their own add-partner form (a partner made as a customer with no lead), a follow-up after this merge.
+
 ### 05-10-2026, builder on the PC (merge of `main`, C4)
 `main` at d8e6693 (C4 sizing, #100) taken in c1d4c30 by a merge commit; the data dictionary regenerated in 4adc175.
 - **Migrations:** C3's move from 0092 to 0096 to **0096 to 0100** (`0096_pipelines_scoring_referrals`, `0097_pipelines_scoring_referrals_rls`, `0098_stage_share_lock`, `0099_referral_partner_index`, `0100_lead_score_refresh`), each journal time after C4's 0095; `pnpm install --offline --frozen-lockfile` "Lockfile is up to date" before `renumber-migrations.mjs`; `pnpm db:generate` "No schema changes, nothing to migrate". No object is redefined by both slices: C4's 0094 rewrites `activities_type_check` with `sizing_recorded` and C3 adds no activity type; `app.platform_only_permissions()`, `app.opportunities_set_updated_at()` and the score definers are C3's alone; C4's `app.open_sizing_review()` and the `tasks` checks are untouched by C3; `SYSTEM_MATRIX` gains nothing from C4.
