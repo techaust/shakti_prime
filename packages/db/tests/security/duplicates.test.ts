@@ -33,6 +33,9 @@ let leadTwo: string;
 let customerPair: string;
 let leadPair: string;
 
+// A pair's two ids in the order the table's check asks for (lower first), as `.sort()` puts them.
+const ordered = (a: string, b: string): [string, string] => (a < b ? [a, b] : [b, a]);
+
 async function customer(
   owner: Principal,
   team: string,
@@ -68,8 +71,8 @@ beforeAll(async () => {
   leadTwo = two.lead;
   customerPair = newId();
   leadPair = newId();
-  const [lowAccount, highAccount] = [accountOne, accountTwo].sort();
-  const [lowLead, highLead] = [leadOne, leadTwo].sort();
+  const [lowAccount, highAccount] = ordered(accountOne, accountTwo);
+  const [lowLead, highLead] = ordered(leadOne, leadTwo);
   await asMigrator(
     (m) => m`insert into duplicate_candidates
       (id, entity_id, kind, account_id, other_account_id, reason, confidence, created_by) values
