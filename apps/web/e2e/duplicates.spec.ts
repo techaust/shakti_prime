@@ -39,10 +39,13 @@ test.describe('duplicates as a sales team lead', () => {
   test.use(signedInAs('teamLead'));
 
   test('finds a customer typed in twice, merges the two and undoes the merge', async ({ page }) => {
+    // Three lead forms, a merge, an undo and three accessibility checks: a long journey.
+    test.slow();
     const name = `Kishan Lal ${String(Date.now()).slice(-6)}`;
     const mobile = freshMobile();
     await addLead(page, { name, mobile, line: 'Farmer Pumps' });
-    await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible();
+    // The first save of a journey may wait on a server that has just started.
+    await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible({ timeout: 30_000 });
 
     // The same person asks about a rooftop: a second customer, put forward as a duplicate.
     await addLead(page, { name, mobile, line: 'Residential Rooftop' });
