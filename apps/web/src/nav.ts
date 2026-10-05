@@ -1,10 +1,12 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  Bot,
   Building2,
   Cable,
   Contact,
   FileUp,
   House,
+  Inbox,
   IndianRupee,
   ListTodo,
   Package,
@@ -49,6 +51,15 @@ export interface NavItem {
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'home', href: '/home', label: 'home', icon: House, group: 'work', requires: [] },
+  {
+    id: 'inbox',
+    href: '/inbox',
+    label: 'inbox',
+    icon: Inbox,
+    group: 'work',
+    // listInbox shows the suggestions the caller's inbox scope covers.
+    requires: [{ key: 'agents.inbox.act', scope: 'own' }],
+  },
   {
     id: 'leads',
     href: '/leads',
@@ -150,6 +161,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // app.outbox_health() and platform.probe.run
     requires: [{ key: 'admin.integrations.write', scope: 'all' }],
+  },
+  {
+    id: 'admin-agents',
+    href: '/admin/agents',
+    label: 'adminAgents',
+    icon: Bot,
+    group: 'admin',
+    // The kill switches, which Executives and GMs hold; autonomy and caps also need
+    // agents.autonomy.write, which only Executives hold, and the screen shows them read-only else.
+    requires: [{ key: 'agents.killswitch', scope: 'all' }],
   },
   {
     id: 'settings-companies',

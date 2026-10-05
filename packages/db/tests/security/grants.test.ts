@@ -105,6 +105,12 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     pin_codes: { i: true, u: false, d: true },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // An agent setting changes its autonomy, cap and switch only; a run is written once; an
+    // action changes only its decision, an inbox item only its state (agents.test.ts).
+    agent_configs: { i: true, u: false },
+    agent_runs: { i: true, u: false },
+    agent_actions: { i: true, u: false },
+    inbox_items: { i: true, u: false },
   };
 
   /**

@@ -71,7 +71,9 @@
         "FILES_KMS_KEY_ID",
         "AWS_REGION",
         "FIELD_ENCRYPTION_KEY",
-        "SES_FROM"
+        "SES_FROM",
+        "ANTHROPIC_API_KEY",
+        "VOYAGE_API_KEY"
       ]
     },
     "test:e2e": {
@@ -102,7 +104,9 @@
         "BOS_JWT_CURRENT_KEY",
         "BOS_JWT_NEXT_KEY",
         "E2E_BASE_URL",
-        "E2E_EXTERNAL_APP"
+        "E2E_EXTERNAL_APP",
+        "ANTHROPIC_API_KEY",
+        "VOYAGE_API_KEY"
       ]
     },
     "db:generate": {

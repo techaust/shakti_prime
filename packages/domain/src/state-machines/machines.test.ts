@@ -6,7 +6,9 @@ import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
+import { agentActionMachine } from './machines/agent-action';
 import { fileUploadMachine } from './machines/file-upload';
+import { inboxItemMachine } from './machines/inbox-item';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -45,6 +47,8 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  { machine: agentActionMachine, record: {}, params: {} },
+  { machine: inboxItemMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   {
     machine: opportunityMachine,

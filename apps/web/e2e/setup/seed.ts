@@ -1,7 +1,7 @@
 // Prepares the database for the journeys, on the host: migrates and seeds, then makes the people
 // of `e2e/support/users.ts` idempotently and writes what the specs need to `e2e/.auth/users.json`.
 // Run by `pnpm --filter web e2e:seed` (and so by `e2e` and `e2e:snap`) before the Playwright runner.
-import { newId } from '@shakti/contracts';
+import { AGENT_PRINCIPAL_IDS, newId } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import {
   asMigrator,
@@ -26,11 +26,14 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { writePrintPages } from './print-pages';
+import { suggestFollowUp } from './stand-in-agent';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
   E2E_PASSWORD,
   emailFor,
+  INBOX_SUGGESTIONS,
+  KILL_SWITCH,
   PROJECTS,
   REFERRAL_PARTNER,
   SIGNED_IN_ROLES,
@@ -39,6 +42,7 @@ import {
   SNAPSHOT_HELD_BACK_ID,
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
+  SNAPSHOT_SUGGESTIONS,
   type ProjectName,
   type SeededUsers,
 } from '../support/users';
@@ -186,6 +190,23 @@ async function ensureLead(
     consent: { channel: 'whatsapp', purpose: 'service', source: 'walk_in_form', textVersion: 'v1' },
     sourceCode: 'walk_in',
   });
+}
+
+/** The lead the seed made for this owner in this company, by its contact's name. */
+async function leadId(ownerId: string, entityId: number, name: string): Promise<string> {
+  const [found] = await asMigrator(
+    (m) => m<{ id: string }[]>`
+      select o.id
+        from opportunities o
+        join account_contacts ac on ac.account_id = o.account_id
+        join contacts c on c.id = ac.contact_id
+       where o.owner_id = ${ownerId} and o.entity_id = ${entityId} and c.name = ${name}
+       order by o.created_at
+       limit 1`,
+  );
+  if (found === undefined)
+    throw new Error(`no seeded lead for ${name} in company ${String(entityId)}`);
+  return found.id;
 }
 
 /**
@@ -367,6 +388,87 @@ for (const project of PROJECTS) {
   await holdBackUpdate(newId(), SEND_AGAIN_COMPANY.entityId, new Date().toISOString());
   progress(`a held-back update for ${project}`);
 }
+
+progress('the suggestions of the stand-in agent');
+// The Caller Co-pilot may run in the companies of the inbox journeys, with a daily spending
+// limit, its suggestions needing approval, and is not stopped anywhere a journey left it stopped.
+// Fixed ids, so each run resets them; a setting a test left for one action type goes.
+for (const [n, entityId] of [1, 2, 3].entries()) {
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
+             values (${`0199e2e0-0000-7000-8000-00000000a00${String(n)}`}, 'agent:copilot', null,
+                     ${entityId}, 'needs_approval', 100000, true, ${ids.executive ?? ''})
+             on conflict (agent, action_type, entity_id) do update
+               set daily_spend_cap_paise = 100000, enabled = true, autonomy = 'needs_approval'`,
+  );
+}
+await asMigrator(
+  (m) => m`delete from agent_configs
+            where (agent is null or agent = 'agent:copilot')
+              and ((entity_id is null and not enabled)
+                or (action_type is not null and entity_id in (1, 2, 3)))`,
+);
+// Earlier runs' open suggestions are taken away, so every inbox starts from this run's.
+await asMigrator(
+  (m) => m`delete from inbox_items
+            where state = 'open' and created_by = ${AGENT_PRINCIPAL_IDS['agent:copilot']}
+              and entity_id in (1, 2, 3)`,
+);
+const inThreeDays = () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+const caller = { id: ids.teleCaller ?? '', entity: 1 };
+const callerLead = await leadId(caller.id, caller.entity, 'Kavita Saini');
+for (const project of PROJECTS) {
+  for (const title of [INBOX_SUGGESTIONS[project].approve, INBOX_SUGGESTIONS[project].edit]) {
+    await suggestFollowUp({
+      entityId: caller.entity,
+      opportunityId: callerLead,
+      title,
+      dueAt: inThreeDays(),
+      assigneeId: caller.id,
+    });
+  }
+}
+// One suggestion per project for the caller to act on herself: filed under Suggest, set for the
+// follow-ups in company 1 while it is filed.
+const suggestOnly = '0199e2e0-0000-7000-8000-00000000a010';
+await asMigrator(
+  (m) => m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, created_by)
+             values (${suggestOnly}, 'agent:copilot', 'crm.task.create', ${caller.entity}, 'suggest',
+                     ${ids.executive ?? ''})`,
+);
+for (const project of PROJECTS) {
+  await suggestFollowUp({
+    entityId: caller.entity,
+    opportunityId: callerLead,
+    title: INBOX_SUGGESTIONS[project].dismiss,
+    dueAt: inThreeDays(),
+    assigneeId: caller.id,
+  });
+}
+await asMigrator((m) => m`delete from agent_configs where id = ${suggestOnly}`);
+const snapshotLead = await leadId(
+  ids.snapshotCaller ?? '',
+  SNAPSHOT_COMPANY.entityId,
+  SNAPSHOT_LEADS[0].name,
+);
+for (const suggestion of SNAPSHOT_SUGGESTIONS) {
+  await suggestFollowUp({
+    entityId: SNAPSHOT_COMPANY.entityId,
+    opportunityId: snapshotLead,
+    title: suggestion.title,
+    dueAt: suggestion.dueAt,
+    assigneeId: ids.snapshotCaller ?? '',
+  });
+}
+await suggestFollowUp({
+  entityId: KILL_SWITCH.company.entityId,
+  opportunityId: await leadId(ids.executive ?? '', KILL_SWITCH.company.entityId, secondCompanyLead),
+  title: KILL_SWITCH.title,
+  dueAt: inThreeDays(),
+  assigneeId: ids.executive ?? '',
+});
 
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {

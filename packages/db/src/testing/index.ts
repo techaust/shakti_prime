@@ -285,6 +285,11 @@ export const ENTITY_TABLES = [
   // tags allow entity_id null for the whole group, as teams do
   'tags',
   'opportunity_tags',
+  // agent settings allow entity_id null for the whole group, as tags do
+  'agent_configs',
+  'agent_runs',
+  'agent_actions',
+  'inbox_items',
 ] as const;
 
 /**
@@ -317,9 +322,9 @@ export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
  * Platform tables of no company that only a database job writes and only a permission at scope
  * `all` reads (docs/DATABASE.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
- * the entity loops (scoped by company) apply. Asserted in retention.test.ts.
+ * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
  */
-export const PLATFORM_TABLES = ['retention_runs'] as const;
+export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
 
 /**
  * CRM set-up tables that start empty until the workshop answers (docs/design/phase1.md §11), so

@@ -79,6 +79,10 @@ describe('createLockout', () => {
         await tick();
         return memory.incr(key, ttl);
       },
+      incrBy: async (key, amount, ttl) => {
+        await tick();
+        return memory.incrBy(key, amount, ttl);
+      },
       setIfAbsent: async (key, value, ttl) => {
         await tick();
         return memory.setIfAbsent(key, value, ttl);

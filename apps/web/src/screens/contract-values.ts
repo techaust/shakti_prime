@@ -1,4 +1,9 @@
 import type {
+  AgentActionState,
+  AgentAutonomy,
+  AgentRoleKey,
+  AgentRunOutcome,
+  AgentSettingSource,
   CommissionBasis,
   ContrastPreference,
   DispositionNextAction,
@@ -159,6 +164,59 @@ export const TASK_KINDS = [
 ] as const satisfies readonly TaskKind[];
 
 export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
+
+/** The agents (docs/SECURITY.md §3.3), in the order the agents screen lists them. */
+export const AGENT_ROLES = [
+  'agent:triage',
+  'agent:concierge',
+  'agent:copilot',
+  'agent:sizing',
+  'agent:orchestrator',
+  'agent:chief',
+] as const satisfies readonly AgentRoleKey[];
+
+/** How far an agent may go with one action type (BLUEPRINT §9.3). */
+export const AGENT_AUTONOMY_LEVELS = [
+  'suggest',
+  'needs_approval',
+  'automatic',
+] as const satisfies readonly AgentAutonomy[];
+
+/** What became of an action an agent proposed or took. */
+export const AGENT_ACTION_STATE_VALUES = [
+  'proposed',
+  'executed',
+  'approved',
+  'rejected',
+  'dismissed',
+] as const satisfies readonly AgentActionState[];
+
+/** Where a setting that applies comes from, as the agents screen names it. */
+export const AGENT_SETTING_SOURCE_VALUES = [
+  'action_company',
+  'action_group',
+  'agent_company',
+  'agent_group',
+  'default',
+] as const satisfies readonly AgentSettingSource[];
+
+/** How an agent run ended. */
+export const AGENT_RUN_OUTCOME_VALUES = [
+  'proposed',
+  'acted',
+  'nothing_to_do',
+  'switched_off',
+  'cap_reached',
+  'unavailable',
+  'failed',
+] as const satisfies readonly AgentRunOutcome[];
+
+/** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
+export function agentNameKey(agent: (typeof AGENT_ROLES)[number]): AgentNameKey {
+  return agent.slice('agent:'.length) as AgentNameKey;
+}
+
+export type AgentNameKey = 'triage' | 'concierge' | 'copilot' | 'sizing' | 'orchestrator' | 'chief';
 
 /** What a customer timeline row records. */
 export const ACTIVITY_TYPES = [

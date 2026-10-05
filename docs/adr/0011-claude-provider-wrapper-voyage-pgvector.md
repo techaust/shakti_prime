@@ -8,7 +8,7 @@ Six agents, the Executive Knowledge Brain, Ask the Business, call summaries and 
 ## Decision
 **Claude Haiku 4.5 by default and Claude Sonnet 5 where quality needs it, called only through one provider wrapper; Voyage embeddings stored in Postgres with pgvector.**
 
-- **Provider wrapper** in `packages/domain` (no framework imports) around `@anthropic-ai/sdk`: every call names its purpose and agent, passes through PII masking, carries a timeout, bounded retries with backoff and a circuit breaker, and is charged against a per-agent daily spend cap; a call over the cap is refused and the agent falls back to Suggest. Tokens and cost are recorded on `agent_runs`.
+- **Provider wrapper** in `packages/domain` (no framework imports) around `@anthropic-ai/sdk`: every call names its purpose and agent, passes through PII masking, carries a timeout, bounded retries with backoff and a circuit breaker, and is held against the agent's daily spend caps (the company's and the group's), its most possible cost reserved before it is sent; a call over a cap is refused, the run is recorded as stopped at its cap, and the agent files nothing more that day. Tokens and cost are recorded on `agent_runs`.
 - **Routing** per blueprint §9.3: Haiku 4.5 for triage, co-pilot summaries and extraction; Sonnet 5 for the WhatsApp Concierge, sizing and quote, orchestration, the Chief of Staff, Ask the Business and live voice. A route changes only with a passing eval run (`agent_evals`).
 - **Cost controls:** prompt caching of the stable system prompt, Playbook and tool definitions; the Message Batches API for non-urgent work (nightly summaries, re-embedding, back-fills); structured outputs to avoid retries; Haiku by default.
 - **Data terms:** a zero-data-retention agreement (or the vendor's shortest retention setting) with Anthropic and Voyage before any production data is sent, recorded in the vendor register and the privacy notice (SECURITY §5).
@@ -19,5 +19,5 @@ Six agents, the Executive Knowledge Brain, Ask the Business, call summaries and 
 - One place sets models, budgets, masking and retries; switching a model or adding a provider touches the wrapper and the evals, not the features.
 - Vectors live beside the rows they describe, under the same RLS, with no second datastore to secure or sync; HNSW keeps queries fast at the expected size (tens of thousands of chunks).
 - Changing the embedding model or dimension means re-embedding every chunk through the batch path; the column type is fixed at 1,024 until then.
-- Spend caps can stop an agent mid-day; the agent drops to Suggest and people take over its queue (runbook: AI provider outage).
+- Spend caps can stop an agent mid-day; it then files nothing and people work their queues as before ([INCIDENTS §8](../runbooks/INCIDENTS.md#8-the-ai-service-is-down-or-an-agent-has-stopped)).
 - Per-lead AI cost is measured in shadow mode before any agent moves to Automatic.

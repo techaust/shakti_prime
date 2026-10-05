@@ -1,8 +1,9 @@
-import { ThemeSchema } from '@shakti/contracts';
+import { hasGrant, ThemeSchema } from '@shakti/contracts';
 import { getTranslations } from 'next-intl/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { inboxCount } from '../../actions/agents';
 import { currentSession } from '../../auth/current-principal';
 import { AppShell } from '../../components/shell/app-shell';
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
@@ -30,6 +31,11 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
   // The profile's contrast, and whether this device's first-paint cookie still says otherwise.
   const high = session.access.contrast === 'high';
   const contrastStale = isHighContrast(jar.get(CONTRAST_COOKIE)?.value) !== high;
+  // The Agent Inbox's count in the top bar, for whoever acts on an inbox; read again whenever the
+  // page is refreshed, as the inbox does after each decision. A failed read shows no count.
+  const inbox = hasGrant(principal.permissions, 'agents.inbox.act', 'own')
+    ? await inboxCount()
+    : undefined;
   return (
     <>
       <ThemeSync saved={theme} />
@@ -47,6 +53,7 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
         searchable={canSearch(principal.permissions)}
         theme={theme}
         sidebarCollapsed={collapsed}
+        inboxCount={inbox === undefined ? undefined : inbox.ok ? inbox.data.open : null}
       >
         {children}
       </AppShell>

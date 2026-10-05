@@ -386,3 +386,40 @@ export type {
   FieldCipher,
   FieldEnvelope,
 } from './privacy/field-cipher';
+export { createAiProvider, istDay, spendKey } from './ai/provider';
+export type {
+  AiProvider,
+  AiProviderDeps,
+  CompleteCall,
+  CompleteResult,
+  EmbedCall,
+  EmbedResult,
+  SpendCap,
+} from './ai/provider';
+export { fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
+export type {
+  EmbeddingTransport,
+  FakeModelTransport,
+  FakeStep,
+  ModelReply,
+  ModelRequest,
+  ModelTransport,
+} from './ai/transport';
+export { vendorTransports } from './ai/env';
+export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE, automaticEarned } from './ai/action-types';
+export { AGENT_DEFAULTS } from './ai/agent-defaults';
+export { resolveAgentConfig } from './ai/config';
+export { agentPrincipal, agentStepKey, runAgentStep } from './ai/runtime';
+export type { AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
+export { maskForModel, labelUntrusted } from './privacy/model-text';
+export { recordAgentRun } from './commands/agents/record-run';
+export {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from './commands/agents/inbox';
+export { setAgentConfig, setKillSwitch } from './commands/agents/config';
+export { countInbox, listInbox } from './queries/agents/inbox';
+export { loadAgentSettings } from './queries/agents/settings';
