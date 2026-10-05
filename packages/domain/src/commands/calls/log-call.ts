@@ -165,7 +165,7 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
  * outcome; other outcomes leave it in nurture or lose it. Each step runs through its own command
  * in this transaction, so it is guarded, audited and on the timeline as when done by hand.
  * Refused outside calling hours (`outside_calling_hours`) and for a customer who withdrew consent
- * to calls (`consent_withdrawn`). For people only.
+ * to calls (`call_consent_withdrawn`). For people only.
  */
 export const logCall = defineCommand({
   name: 'calls.log',
@@ -186,7 +186,7 @@ export const logCall = defineCommand({
       refuse('validation_failed', 'outside_calling_hours', 'calls are logged in calling hours');
     }
     if (await callConsentWithdrawn(ctx.tx, lead.accountId)) {
-      refuse('conflict', 'consent_withdrawn', 'the customer withdrew consent to calls');
+      refuse('conflict', 'call_consent_withdrawn', 'the customer withdrew consent to calls');
     }
 
     const [pipeline] = await ctx.tx

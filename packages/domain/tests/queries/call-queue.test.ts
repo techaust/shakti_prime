@@ -298,7 +298,7 @@ describe('dialNumber', () => {
       details: { reason: 'outside_calling_hours' },
     });
     await expect(dial(caller, leads.late, AS_OF)).rejects.toMatchObject({
-      details: { reason: 'consent_withdrawn' },
+      details: { reason: 'call_consent_withdrawn' },
     });
   });
 });

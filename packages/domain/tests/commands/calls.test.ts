@@ -258,7 +258,7 @@ describe('calls.log: what every call records', () => {
                values (${newId()}, ${contact.id}, 'call', 'service', 'verbal', 'v1',
                        now() - interval '2 days', now() - interval '1 day', ${caller.id})`,
     );
-    await expect(log(caller, lead, 'retry')).rejects.toMatchObject(reason('consent_withdrawn'));
+    await expect(log(caller, lead, 'retry')).rejects.toMatchObject(reason('call_consent_withdrawn'));
     await asMigrator(
       (m) => m`insert into consents (id, contact_id, channel, purpose, source, text_version,
                                      given_at, created_by)

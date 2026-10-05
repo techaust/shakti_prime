@@ -240,7 +240,18 @@
     "document_type_unknown": "This kind of document cannot be printed yet.",
     "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
     "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
-    "people_only": "Only a member of the team can do this, not an automated assistant."
+    "people_only": "Only a member of the team can do this, not an automated assistant.",
+    "outside_calling_hours": "Calls can be made only between 9 AM and 9 PM. Try again during calling hours.",
+    "call_consent_withdrawn": "This customer has asked not to be called. Do not call them.",
+    "call_lead_closed": "This lead is closed, so calls can no longer be saved on it.",
+    "disposition_not_offered": "This outcome is no longer on the list. Refresh the page and choose again.",
+    "callback_time_missing": "Choose when to call back.",
+    "callback_in_past": "Choose a call back time later than now.",
+    "callback_too_far": "Choose a call back time within the next 90 days.",
+    "callback_outside_calling_hours": "Choose a call back time between 9 AM and 9 PM.",
+    "lost_reason_missing": "Choose why the lead was lost.",
+    "nurture_reason_missing": "Choose why the lead should be followed up later.",
+    "dial_number_missing": "This customer has no main phone number. Add one on the customer page."
   },
   "auth": {
     "signIn": {
@@ -313,6 +324,7 @@
   "nav": {
     "home": "Home",
     "leads": "Leads",
+    "calling": "Calling",
     "newLead": "New lead",
     "priceMaster": "Price lists",
     "imports": "Imports",
@@ -1043,6 +1055,7 @@
         "waiting_for_funds": "Waiting for money",
         "waiting_for_subsidy": "Waiting for the subsidy",
         "waiting_for_season": "Waiting for the season",
+        "not_reachable": "Could not reach the customer",
         "other": "Another reason"
       },
       "lostReason": {
@@ -1983,9 +1996,11 @@
         "consent_withdrawn": "Consent withdrawn",
         "tagged": "Tag added",
         "untagged": "Tag removed",
-        "sizing_recorded": "Sizing worked out"
+        "sizing_recorded": "Sizing worked out",
+        "call_logged": "Call made"
       },
       "tagDetail": "Tag: {name}",
+      "callDetail": "Outcome: {outcome}",
       "sizingInBounds": "{kind} sizing, within limits",
       "sizingOutOfBounds": "{kind} sizing, outside limits"
     },
@@ -2927,6 +2942,105 @@
     },
     "advisory": {
       "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
+    }
+  },
+  "calling": {
+    "title": "Calling",
+    "intro": "Your leads to call, the most urgent first. Press N for the next lead, 1 to 9 for how the call went, D for the number and / to search.",
+    "teamIntro": "How each caller on your team is doing with their queue today.",
+    "myQueue": "My queue",
+    "myTeam": "My team",
+    "viewing": "{name}'s queue",
+    "backToTeam": "Back to my team",
+    "queue": {
+      "title": "Queue",
+      "count": "{count, plural, =0 {No leads to call} one {# lead to call} other {# leads to call}}",
+      "empty": "No calls due right now. New leads appear here as they come in.",
+      "asOf": "As of {when}",
+      "refresh": "Refresh"
+    },
+    "reason": {
+      "call_due": "Call back due {when}",
+      "nurture_due": "Follow-up call due {when}",
+      "first_call_late": "First call is late",
+      "not_called": "Not called yet",
+      "to_call": "Ready to call"
+    },
+    "tries": "{count, plural, one {# try without an answer} other {# tries without an answer}}",
+    "doNotCall": "Do not call",
+    "score": "Score {score}",
+    "lead": {
+      "empty": "Choose a lead from the queue, or press N.",
+      "stage": "{pipeline}, {stage}",
+      "phoneEnding": "Phone ending {last4}",
+      "noPhone": "No phone number recorded",
+      "showNumber": "Show number",
+      "numberLabel": "Number to dial",
+      "closed": "This lead is closed. Calls can no longer be saved on it.",
+      "cannotLog": "You can see this lead, but calls on it are saved by its caller.",
+      "consentWithdrawn": "This customer has asked not to be called. Do not call them.",
+      "nextCallback": "Next call back {when}",
+      "nextNurture": "Next follow-up call {when}",
+      "noNextCall": "No call is set for later.",
+      "tries": "Tries without an answer: {count} of {max}",
+      "openCustomer": "Open customer",
+      "nextLead": "Next lead"
+    },
+    "outcomes": {
+      "title": "How did the call go?",
+      "hint": "Press the number of the outcome, or choose it here.",
+      "none": "No call outcomes are set up. Ask an Executive to add them on the pipelines settings page.",
+      "keyed": "{key}. {label}"
+    },
+    "script": {
+      "title": "Call script",
+      "none": "There is no call script for {segment} customers in {language} yet. Your sales head will add it."
+    },
+    "checklist": {
+      "title": "Needed before the lead moves on",
+      "none": "This stage needs nothing more before the lead moves on.",
+      "met": "Done",
+      "missing": "Missing"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "Nothing recorded yet."
+    },
+    "search": {
+      "label": "Find a lead",
+      "helper": "Name, village or the last digits of the phone number.",
+      "none": "No lead matches. Check the spelling or try fewer letters.",
+      "results": "Leads found"
+    },
+    "dialog": {
+      "callbackTitle": "When should we call back?",
+      "callbackIntro": "Choose a time between 9 AM and 9 PM.",
+      "callbackAt": "Call back at",
+      "lostTitle": "Why is this lead lost?",
+      "nurtureTitle": "Why follow up later?",
+      "reason": "Reason",
+      "submit": "Save call"
+    },
+    "logged": {
+      "callback": "Call saved. Call back {when}.",
+      "retry": "Call saved. Next try {when}.",
+      "usedUp": "Call saved. All tries are used, so the lead moves to follow-up. First follow-up call {when}.",
+      "nurture": "Call saved. The lead is set to follow up later.",
+      "qualified": "Call saved. The lead moved to Qualified.",
+      "lost": "Call saved. The lead is marked as lost.",
+      "saved": "Call saved."
+    },
+    "team": {
+      "caption": "Team queues",
+      "caller": "Caller",
+      "company": "Company",
+      "waiting": "Leads to call",
+      "due": "Calls due",
+      "late": "First calls late",
+      "callsToday": "Calls today",
+      "openQueue": "Open queue",
+      "openQueueFor": "Open {name}'s queue",
+      "empty": "Nobody on your team saves calls yet."
     }
   }
 }

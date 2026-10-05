@@ -115,6 +115,7 @@ export const OPPORTUNITY_NURTURE_REASONS = [
   'waiting_for_funds',
   'waiting_for_subsidy',
   'waiting_for_season',
+  'not_reachable',
   'other',
 ] as const satisfies readonly OpportunityNurtureReason[];
 
@@ -181,6 +182,7 @@ export const ACTIVITY_TYPES = [
   'tagged',
   'untagged',
   'sizing_recorded',
+  'call_logged',
 ] as const satisfies readonly ActivityType[];
 
 export const SEGMENTS = [

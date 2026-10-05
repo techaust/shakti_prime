@@ -412,7 +412,7 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
 /**
  * The full number to dial for a lead (the workspace's `D`), shown only inside calling hours
  * (`outside_calling_hours`, TRAI 9 AM to 9 PM) and to a customer who has not withdrawn consent to
- * calls (`consent_withdrawn`); the main phone of the customer's owner contact.
+ * calls (`call_consent_withdrawn`); the main phone of the customer's owner contact.
  */
 export async function dialNumber(
   ctx: Ctx,
@@ -436,12 +436,12 @@ export async function dialNumber(
      limit 1`)) as unknown as { e164: string; withdrawn: boolean }[];
   if (row?.withdrawn === true) {
     throw new DomainError('conflict', 'the customer withdrew consent to calls', {
-      reason: 'consent_withdrawn',
+      reason: 'call_consent_withdrawn',
     });
   }
   if (!row) {
     throw new DomainError('not_found', 'the customer has no main number', {
-      reason: 'phone_missing',
+      reason: 'dial_number_missing',
     });
   }
   return DialNumberDto.parse({ e164: row.e164 });
