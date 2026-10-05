@@ -431,8 +431,10 @@ export function CallingScreen({
   const open = useCallback(
     (ref: { entityId: number; opportunityId: string }) => {
       setShown(undefined);
+      // Only the lead's reference: the input is strict, and a queue row or a lead carries more.
+      const input = { entityId: ref.entityId, opportunityId: ref.opportunityId };
       leadQuery.load(
-        () => loadCallLead(ref),
+        () => loadCallLead(input),
         (loaded) => {
           setLead(loaded);
           workspaceRef.current?.focus();
