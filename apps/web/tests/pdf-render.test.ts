@@ -16,6 +16,7 @@ import {
   principalFor,
 } from '@shakti/db/testing';
 import {
+  createLead,
   databaseAuditSink,
   databaseOutboxSink,
   envelopeCipher,
@@ -281,11 +282,16 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
       entityId: ENTITY,
       target: { kind: 'labels', labelKind: 'serial', size: '50x25', ids: [newId()] },
     });
-    const quote = JSON.stringify({
+    const challan = JSON.stringify({
       ...proofJob(),
-      target: { kind: 'document', documentType: 'quote', documentId: newId(), version: 1 },
+      target: {
+        kind: 'document',
+        documentType: 'delivery_challan',
+        documentId: newId(),
+        version: 1,
+      },
     });
-    for (const body of [labels, quote]) {
+    for (const body of [labels, challan]) {
       const response = await call(body);
       expect(response.status).toBe(404);
       expect(response.headers.get('upstash-nonretryable-error')).toBe('true');
@@ -350,6 +356,111 @@ describe('POST /api/v1/workers/pdf/render (ADR 0009)', () => {
     const second = await renderPdfJob(job, renderDeps(worker, newId()));
     expect(second).toEqual(first);
     expect(state.pages).toHaveLength(1);
+  });
+});
+
+/**
+ * A quote of the printed company, written as the table owner with fixed synthetic amounts (the
+ * commands that price it are tested in packages/domain): a lead of a fresh customer, its site in
+ * Gujarat, one line taxed at its own rate and the inter-state total.
+ */
+async function quoteFixture(): Promise<{ quoteId: string; quoteNo: string; phone: string }> {
+  const executive = await createTestPrincipal('executive', [ENTITY]);
+  const phone = `95${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+  const lead = await asPrincipal(executive, (context) =>
+    runCommand(
+      createLead,
+      { context, audit: databaseAuditSink, outbox: databaseOutboxSink },
+      {
+        entityId: ENTITY,
+        pipelineKey: 'residential_rooftop',
+        contact: { name: 'Render test customer', phone },
+        account: { type: 'household' },
+        site: { type: 'rooftop', village: 'Render test village', pin: '380001' },
+      },
+    ),
+  );
+  const quoteId = newId();
+  const quoteNo = `RT/Q/2098-99/${String(Math.floor(Math.random() * 1e6)).padStart(6, '0')}`;
+  const ids = { list: newId(), item: newId(), rate: newId() };
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      await tx`update customer_sites set state_code = '24', district = 'Ahmedabad'
+               where id = (select site_id from opportunities where id = ${lead.id})`;
+      await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
+               values (${ids.list}, (select id from price_tiers where code = 'retail'), ${ENTITY},
+                       ${9200 + Math.floor(Math.random() * 1e5)}, '2090-01-01', now())`;
+      await tx`insert into items (id, sku, name, category, hsn) values
+               (${ids.item}, ${`RT-${ids.item}`}, 'render test module', 'solar_module', '8541')`;
+      await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref)
+               values (${ids.rate}, ${ids.item}, 12.00, '2090-01-01', 'render test')`;
+      await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, site_id,
+                 tier_id, price_list_id, scheme, place_of_supply_state, supply_kind, valid_until,
+                 subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+               select ${quoteId}, ${ENTITY}, ${quoteNo}, '2098-99', o.id, o.account_id, o.site_id,
+                      (select id from price_tiers where code = 'retail'), ${ids.list}, 'none', '24',
+                      'inter', '2026-10-20T18:29:59.999Z', 60000.00, 0, 0, 7200.00, 7200.00, 0,
+                      67200.00, ${executive.id}
+                 from opportunities o where o.id = ${lead.id}`;
+      await tx`insert into quote_lines (id, entity_id, quote_id, position, item_id, sku, description,
+                 unit, qty, unit_price, hsn, tax_rate_id, tax_rate_pct, taxable_value, cgst, sgst,
+                 igst, line_total)
+               values (${newId()}, ${ENTITY}, ${quoteId}, 1, ${ids.item}, ${`RT-${ids.item}`},
+                       'render test module', 'nos', 5, 12000.00, '8541', ${ids.rate}, 12.00,
+                       60000.00, 0, 0, 7200.00, 67200.00)`;
+    }),
+  );
+  return { quoteId, quoteNo, phone };
+}
+
+function quoteJob(quoteId: string): PdfRenderJob {
+  return {
+    eventId: newId(),
+    entityId: ENTITY,
+    target: { kind: 'document', documentType: 'quote', documentId: quoteId, version: 1 },
+  };
+}
+
+describe('printing a quote (docs/design/phase1.md §7.3)', () => {
+  it('prints the quote from its loader, records the PDF and attaches it to the quote, once', async () => {
+    const { quoteId, quoteNo, phone } = await quoteFixture();
+    const job = quoteJob(quoteId);
+    const result = await renderPdfJob(job, renderDeps(worker, newId()));
+    expect(result).toMatchObject({ fileId: job.eventId, pages: 1 });
+    expect(await fileRow(job.eventId)).toMatchObject({ purpose: 'quote_pdf', status: 'ready' });
+    const [quote] = await asMigrator(
+      (m) => m<{ pdf: string | null }[]>`select pdf_file_id as pdf from quotes where id = ${quoteId}`,
+    );
+    expect(quote?.pdf).toBe(job.eventId);
+
+    const [page] = state.pages;
+    for (const text of [
+      quoteNo,
+      'Render test customer',
+      'Gujarat (24)',
+      'Ahmedabad',
+      'IGST',
+      '67,200.00',
+      'Rupees Sixty Seven Thousand Two Hundred only',
+      'Prices and taxes on this quotation hold until 20-10-2026.',
+    ]) {
+      expect(page?.html).toContain(text);
+    }
+    // No phone number of the customer, no CGST row for an inter-state supply, no QR code.
+    expect(page?.html).not.toContain(phone.slice(-5));
+    expect(page?.html).not.toContain('CGST');
+    expect(page?.html).not.toContain('class="qr"');
+
+    // The same job again: the file stands, the attach changes nothing.
+    await renderPdfJob(job, renderDeps(worker, newId()));
+    expect(state.pages).toHaveLength(1);
+  });
+
+  it('prints nothing for a quote of another company', async () => {
+    await expect(
+      renderPdfJob({ ...quoteJob(newId()) }, renderDeps(worker, newId())),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    expect(state.pages).toEqual([]);
   });
 });
 

@@ -72,6 +72,9 @@ export function toQuoteRow(
   });
 }
 
+/** A withdrawal's reason stands in, so the check asks only whether a person may withdraw. */
+const GIVEN = 'given when withdrawn';
+
 /** Whether the machine lets this principal fire `event` on the quote now (no guard checked twice). */
 function allows(
   principal: Principal,
@@ -94,7 +97,7 @@ function allows(
         validUntil: record.validUntil,
       },
       event,
-      { actor: { kind: 'principal', principal }, now, params: { reason: 'shown' } },
+      { actor: { kind: 'principal', principal }, now, params: { reason: GIVEN } },
     );
     return true;
   } catch {

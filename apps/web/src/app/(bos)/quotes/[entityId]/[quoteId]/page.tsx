@@ -39,12 +39,22 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
   const quote = await getQuote({ entityId, quoteId });
   if (!quote.ok && ['quote_missing', 'forbidden'].includes(quote.error)) notFound();
   const t = await getTranslations('quotes');
+  const print = await getTranslations('print');
+  const stateKey = quote.ok ? (`states.${quote.data.placeOfSupplyState}` as 'states.08') : undefined;
   return quote.ok ? (
     <QuoteScreen
       // A fresh screen for each quote, so a re-quote opens with its own state.
       key={quote.data.id}
       initial={quote.data}
       company={companyNames(access)[quote.data.entityId] ?? ''}
+      placeOfSupply={
+        stateKey !== undefined && print.has(stateKey)
+          ? print('quote.placeOfSupplyState', {
+              state: print(stateKey),
+              code: quote.data.placeOfSupplyState,
+            })
+          : quote.data.placeOfSupplyState
+      }
     />
   ) : (
     <Page

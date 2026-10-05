@@ -48,9 +48,17 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
  * render worker has printed it (the page asks again every few seconds until then), and the moves
  * the caller may make: mark it as sent, re-quote it at today's prices, or withdraw it.
  */
-export function QuoteScreen({ initial, company }: { initial: QuoteDto; company: string }) {
+export function QuoteScreen({
+  initial,
+  company,
+  placeOfSupply,
+}: {
+  initial: QuoteDto;
+  company: string;
+  /** The state of supply in words, as the quotation prints it. */
+  placeOfSupply: string;
+}) {
   const t = useTranslations('quotes');
-  const print = useTranslations('print');
   const router = useRouter();
   const [quote, setQuote] = useState(initial);
   const [tries, setTries] = useState(0);
@@ -78,13 +86,6 @@ export function QuoteScreen({ initial, company }: { initial: QuoteDto; company: 
       clearTimeout(timer);
     };
   }, [waiting, tries, quote.entityId, quote.id]);
-
-  const stateCode = quote.placeOfSupplyState;
-  // A state the catalogue names, or the code alone for one it does not.
-  const stateKey = `states.${stateCode}` as 'states.08';
-  const placeOfSupply = print.has(stateKey)
-    ? print('quote.placeOfSupplyState', { state: print(stateKey), code: stateCode })
-    : stateCode;
 
   const failure = send.failure ?? requote.failure ?? pdf.failure;
   return (

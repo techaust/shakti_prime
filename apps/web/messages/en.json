@@ -3022,7 +3022,8 @@
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again",
       "files_process": "Check uploaded files before they are used",
-      "crm_score_refresh": "Bring lead scores up to date each night"
+      "crm_score_refresh": "Bring lead scores up to date each night",
+      "sales_quote_expire": "Mark quotes past their validity as expired each day"
     },
     "empty": "There are no roles to show.",
     "locked": {
