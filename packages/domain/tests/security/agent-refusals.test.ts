@@ -197,6 +197,11 @@ const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCo
 /** A valid input for each command for people only, so the refusal comes from the guard. */
 const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
+  // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
+  'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
+  'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
+  'crm.lead.merge': { entityId: 1, keptOpportunityId: newId(), mergedOpportunityId: newId() },
+  'crm.duplicate.dismiss': { entityId: 1, candidateId: newId() },
   'crm.tag.create': { entityId: 1, name: 'Refused tag' },
   'crm.tag.archive': { tagId: newId() },
   'crm.sizing.record': {
@@ -360,6 +365,9 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
     account: { type: 'farm' },
   },
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // A merge moves one customer's records to another (D1).
+  'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
+  'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
   // The proof of a consent, uploaded before the consent names it.
   'files.upload.begin': {
     entityId: 1,
@@ -567,6 +575,7 @@ describe('agent principals cannot upload a file of any purpose', () => {
 describe("agent principals cannot run the platform's own work: the file checks and the nightly rescoring", () => {
   const CHECKS: Record<string, unknown> = {
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
+    'crm.duplicate.scan': { entityId: 1, afterId: null },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {
       entityId: 1,

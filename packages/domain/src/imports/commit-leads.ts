@@ -1,4 +1,4 @@
-import { CreateLeadInput, newId, type LeadDto } from '@shakti/contracts';
+import { CreateLeadInput, newId, type CreateLeadResultDto } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { activityRow, writeActivities } from '../activities/activity';
@@ -304,18 +304,22 @@ export async function commitLeadBatch(
     ),
   );
 
-  const answers: { key: string; response: LeadDto }[] = [];
+  const answers: { key: string; response: CreateLeadResultDto }[] = [];
   for (const row of planned) {
     const opportunity = byId.get(row.opportunityId);
     if (opportunity === undefined) throw new RowByRowNeeded('an opportunity was not returned');
     answers.push({
       key: row.key,
-      response: toLeadDto(
-        opportunity,
-        { id: row.accountId, type: row.account.type, name: row.accountName },
-        { id: row.contactId, name: row.contact.name },
-        row.contact.phone,
-      ),
+      // The answer `crm.lead.create` gives a lead it made (`CreateLeadResultDto`).
+      response: {
+        ...toLeadDto(
+          opportunity,
+          { id: row.accountId, type: row.account.type, name: row.accountName },
+          { id: row.contactId, name: row.contact.name },
+          row.contact.phone,
+        ),
+        outcome: 'created',
+      },
     });
     ctx.emit({
       type: 'crm.lead.created',

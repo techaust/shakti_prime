@@ -31,7 +31,8 @@ const input = {
   pipelineKey: 'farmer_pumps',
   contact: { name: 'Lead test contact', phone: typed.typed },
   account: { type: 'farm' as const },
-  site: { type: 'borewell' as const, village: 'Lead test village', pin: '302001' },
+  // A village of this run only, so no earlier run's customer is put forward as a duplicate.
+  site: { type: 'borewell' as const, village: `Lead test village ${typed.e164.slice(-6)}`, pin: '302001' },
   consent: {
     channel: 'whatsapp' as const,
     purpose: 'service' as const,
@@ -128,6 +129,7 @@ describe('crm.lead.create', () => {
       'contact',
       'entityId',
       'id',
+      'outcome',
       'ownerId',
       'pipelineId',
       'score',
@@ -203,7 +205,7 @@ describe('crm.lead.create', () => {
           entityId: 2,
           pipelineKey: 'farmer_pumps',
           existingAccountId: accountId,
-          site: { type: 'rooftop', village: 'Shared village' },
+          site: { type: 'rooftop', village: `Shared village ${typed.e164.slice(-6)}` },
         },
       ),
     );
