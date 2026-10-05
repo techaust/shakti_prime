@@ -4,9 +4,9 @@
 |---|---|
 | Branch | `feat/d1-duplicates` on GitHub, from `main` when the slice starts |
 | PC worktree | `d1-duplicates`, slot 14: Postgres 54344, app 3044 (`bash tools/integration/setup-worktree.sh d1-duplicates feat/d1-duplicates 54344 3044`) |
-| Runs on | Cloud from 05-10-2026 (the owner's decision to go hybrid): the builder continues from the pushed branch per its handover section; review in the cloud; merge with `main`, integration and baselines on the PC |
-| State | fixes done; awaiting re-review |
-| Next step | the slice reviewer re-reviews the fixes; then the lead takes `main` and renumbers the migrations |
+| Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
+| State | re-reviewed; R1 to R3 open |
+| Next step | a cloud builder fixes R1 to R3 (the lead's brief of 06-10-2026 below); the integration follows once S1 has merged (part 2 of that brief) |
 
 ## Brief
 Read first:
@@ -268,6 +268,20 @@ This re-review covers the fixes at `86128a8`. `main` is not merged in, as the fi
 **Not checked:** the `EXPLAIN` at volume; the screenshots (the lead makes the Linux baselines); anything hosted.
 
 **Verdict:** ready for the lead to take `main` and renumber the migrations. R1 is a small fix that can go in before or with the integration. R2 needs the lead's choice. R3 is optional.
+
+### 06-10-2026, the lead's brief for R1 to R3 and the integration (for a cloud builder)
+**Part 1, now, without taking `main`.** Invoke the `add-command` and `writing-guidelines` skills with the Skill tool first, and read `AGENTS.md` §5 and §6 before changing a command or a definer. Mark each row R1 to R3 `fixed in <commit>` with what was checked.
+1. **R1:** `crm.consent.record` and `crm.consent.withdraw` call `holdCustomer(ctx, input.accountId)` before they read the contact; `crm.task.create` and the tag commands (`tasks.ts`, `tags.ts`) hold the customer before the lead read that gives them `account_id`, so a merge in between answers `account_missing`, never `database_rejected`. Add the consent case and the task case to "a write about a known customer and a merge of it never cross".
+2. **R2, the lead's decision:** the lead-pair search (`app.duplicate_facts()` and the `lead` check in `app.record_duplicates()`, 0102) also pairs an open lead with a lead in nurture of the same customer, company and segment; two leads in nurture are never paired. In such a pair the open lead is always the one kept: `app.merge_leads()` refuses to keep the lead in nurture (its own reason and an `errors.*` sentence), and the lead dialog offers no choice for that pair and says which lead stays and why. Test: an enquiry from a caller outside the nurture lead's scope makes a second lead and an open card; the merge keeps the open lead and refuses the other way round. Design §7.4 "Built (D1)" says so in one line. 0101 and 0102 are still edited in place (applied nowhere hosted).
+3. **R3:** `whileMerging()` waits until `pg_stat_activity` (read as the migrator) shows a backend other than the stand-in merge's with `wait_event_type = 'Lock'`, polling every 50 ms with a 10-second timeout that fails the test, then asserts the write has not settled and releases. Remove the 400 ms sleep.
+4. Run `pnpm test:security`, `pnpm lint`, `pnpm exec turbo run typecheck --force`, `pnpm exec turbo run test --force`, `pnpm copy-lint`, `pnpm db:generate` (no changes), `python3 tools/integration/check-doc-links.py` (bad 0), `pnpm build`, `pnpm --filter web js-budget` and `e2e/duplicates.spec.ts` with `--ignore-snapshots` on all three projects after `e2e:seed`. Write a dated Report section, set State to "R1 to R3 fixed; waiting for S1's merge", commit and push, then stop and say so. Delete turbo's `turborepo-agent-rules` block from `AGENTS.md` before every commit if a run writes it again.
+
+**Part 2, when the lead says S1 has merged** (the lead names `main`'s last migration in that message). Follow `docs/runbooks/slice-integration.md` §5 to §7 in this session:
+1. `git rev-parse HEAD > ../d1-premerge.sha`, `git fetch`, `git merge --no-commit origin/main`; resolve lists with `merge-union.py`, `en.json` with `merge-json.py` before `git add`, `copy-lint.config.json` with `merge-copylint.py`; read every code hunk by hand. `AGENTS.md` and `turbo.json` take `main`'s version (no turbo block; `"agentGuidance": false`).
+2. `pnpm install --offline --frozen-lockfile`, then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../d1-premerge.sha)`: 0101 and 0102 move after `main`'s last. `pnpm db:generate` must report no changes (if it writes a migration, fold it as slice-integration §10 says); `pnpm db:docs`; correct the migration numbers DATABASE.md and this file cite. Commit: `chore: merge main (<what>) into D1; its migrations move to NNNN and MMMM`. Push.
+3. `integrate.sh` in parts, each under 30 minutes, with `.` as the worktree: `INTEGRATE_STEPS="install lint format copylint generated typecheck"`, then `"unit"`, then `"security dbverify"`, then `"audit build jsbudget gitleaks"`, then `"e2e"`, each as `INTEGRATE_STEPS="…" bash tools/integration/integrate.sh . ../int-<n>.log`. Each verdict must be `INTEGRATION PARTIAL` with no `rc=` other than 0; on a failure read `../int-<n>.log.<step>`, fix, commit, push and rerun that part. If a journey run stops printing for more than 5 minutes, stop the leftover `next-server`, start `next start` yourself and rerun.
+4. Baselines on a fresh database: `docker compose down -v && docker compose up -d --wait`, wait until several queries in a row succeed, `pnpm db:migrate && pnpm db:seed && pnpm build`. Delete the old baselines of every staff screen that shows the menu (the Duplicates item changes them), run `pnpm --filter web e2e:snap -- --update-snapshots=missing`, look at each new image (`duplicates` and the menu screens), then `pnpm --filter web e2e:snap` without updating: every screenshot must match. Commit the baselines and push.
+5. Write the Integration notes (each part's verdict and time, what was fixed, the baselines made) and set State to "integrated; ready for the pull request". Commit and push. Never open a pull request, merge, or touch a hosted service.
 
 ## Integration notes
 1. P2b's imports (the customers kind, `account_link`) merge before or after D1. Whichever is second makes the nightly pass cover the other's import rows.
