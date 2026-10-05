@@ -5,8 +5,8 @@
 | Branch | `feat/p2b-imports`, made from `main` when the slice starts |
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026): worktree slot 11 (Postgres 54341, app 3041); build and review move to the cloud once the environment exists |
-| State | integrating on the PC |
-| Next step | the Linux baselines of the imports screens on a fresh database, then the pull request |
+| State | integrated; pull request open |
+| Next step | the merge, then dev and staging migrated, the `files-sweep` schedule, and the import measured on dev |
 
 ## Brief
 Read first:
@@ -235,3 +235,5 @@ Worktree `p2b-imports` (Postgres 54341, app 3041), from 04ada51; `origin/main` a
 3. The integration run (05-10-2026, on 54340 at ea96b04, with two builders running beside it): install, lint, format, copy lint, the generated files, typecheck, unit tests (2,771), `db:verify`, the audit, the build, the JavaScript budget and the secret scan passed.
    - The security suite: database 965, domain 632 and web 242 pass. Under that load three tests hit their limits (two database tests at 20 seconds, and in `lead-guard.test.ts` an import batch out of its real-time budget and the deadline test whose key holder lets go after three seconds); each passes when its file runs alone, and `lead-guard.test.ts` passed twice in full.
    - The journeys on Windows: the customers journey failed once and three tests were flaky; the Linux run on a fresh database is the check.
+4. Linux baselines (05-10-2026, fresh database on 54341): the full `e2e:snap` run without updating found two screens changed, in all three projects: `imports-upload` (the choice of what the file holds) and `customer-account` (the site's PIN check, and the walk-in menu item C3 added, which `main`'s baseline lacked). Both were deleted, made again on a fresh database, looked at and committed (eefa33a). The run after it, without updating, on a fresh database: 208 passed, 4 flaky (first tries past their time on the loaded machine), 1 failed (the single-use password link timed out loading on its first try and cannot pass on a retry, outside the slice); every screenshot matched.
+5. Until an Executive adds the PIN code list, every site with a PIN shows that its PIN is not in the list; the list goes in before the client's customer file.
