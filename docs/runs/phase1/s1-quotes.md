@@ -153,6 +153,7 @@ Not in S1: orders, acceptance and credit (S2); stock availability (Phase 3); any
   - Hosted PDFs wait on the owner's AWS files stack (integration note 1).
   - The QStash schedule must be run on each hosted environment with `BOS_ENVIRONMENT` set.
   - D1 changes the same schedule script, so the merge of `apps/web/scripts/qstash-schedule.ts` needs care: the environment check and the import list.
+  - A `turbo` run during this build wrote its managed "agent rules" block into `AGENTS.md`, and a work-in-progress commit picked it up. The last commit restores `AGENTS.md` exactly as on `main`, but any later `turbo` command may add the block again. Setting `"agentGuidance": false` in `turbo.json` would stop it; that change is the lead's to make, and other worktrees may show the same block.
 
 ## Review
 None yet.
