@@ -5,8 +5,8 @@
 | Branch | `feat/p2b-imports`, made from `main` when the slice starts |
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026): worktree slot 11 (Postgres 54341, app 3041); build and review move to the cloud once the environment exists |
-| State | reviewed, fixes done |
-| Next step | take main, then the lead's integration |
+| State | reviewed, fixes done, main taken in |
+| Next step | the lead's integration |
 
 ## Brief
 Read first:
@@ -169,6 +169,33 @@ Worktree `p2b-imports` (Postgres 54341, app 3041), from fd97f34. Commits: 12daa4
 - Finding 5: the lock is taken inside the definer (which sees every company), not by a `select for update` in the command, which would see only the caller's companies; the contacts are locked too, since a consent hangs on a contact.
 - Finding 6: the cap applies to the five small parts the review named and to the shared strings; other parts (drawings, media, a pivot cache) keep only the total and ratio limits, since the reader never reads them.
 - Finding 7: any activity type counts, not only notes and updates, when its actor is not the importer and it is dated at or after the customer's making; a tag counts when someone other than the importer put it on one of the customer's leads since, archived leads included.
+
+### 05-10-2026, builder on the PC (main taken in)
+Worktree `p2b-imports` (Postgres 54341, app 3041), from 04ada51; `origin/main` at 9f13b65 (P4 #99, C4 #100, Dependabot #101 and #102, C3 #103) taken by the merge commit cea28e2 (runbook slice-integration §5); then b71c583 and 453f09d. The branch's migrations moved from 0090 to 0095 to **0101 to 0106** (`renumber-migrations.mjs`; `pnpm db:generate`: no schema changes); every document citing them was corrected (DATABASE, design §6.3, `docs/spikes/import-scale.md`, the code comments of the testing lists and the two database suites); the earlier reports above keep the numbers they had then.
+
+**Conflicts and how each was resolved:**
+- Platform-only permissions (C3's `crm.score.refresh`, this slice's `imports.process`): both kept in `PERMISSION_KEYS`, `PLATFORM_ONLY_PERMISSIONS`, the scope table, `SYSTEM_MATRIX`, the seed's names and role rows, and SECURITY §3.2 and §3.3 (the `system:workers` row names both grants). The slice's last migration (0106) now runs last and redefines `app.platform_only_permissions()` as `files.process`, `imports.process`, `crm.score.refresh`.
+- No other function or check both sides redefine: P4 redefined `files_purpose_check` (adds `print_proof`) and `app.file_purpose_grant()` (0090, 0091), C4 `activities_type_check` (0094); the slice's migrations touch none of them (its `files_insert` policy calls `app.file_purpose_grant()` and keeps `files.process:entity` for the render worker's ready files).
+- `commit-leads.ts` merged without a textual conflict; every statement C3 added runs after a `keep`: one before each first stage's `shareLockStage` and one before `scoreLeads` (whose few statements share the time left at that point). The deadline test in `lead-guard.test.ts` reads the clock once more for the share lock (b71c583).
+- `StoredFile` gained `createdBy` on the branch: P4's `apps/web/src/print/documents.test.ts` builds one, so it now gives it.
+- Lists by union, each read: the registry (`files.upload.sweep` with P4's `files.document.record` and `print.proof.request`), the audit screen labels, the domain index, `grants.test.ts` (`pin_codes` beside C4's `sizings`; the reader's definers stay sorted, `app.entity_bank_envelope` and `app.stale_upload_entities`), `purposes.test.ts` (`import` with `print_proof`), `qstash.ts` (`FILES_SWEEP_PATH` with `LEAD_RESCORE_PATH`, `PDF_RENDER_PATH` and the event job routes), the schedule script (`files-sweep` and `lead-rescore`). The fixture's PIN office id 0x0e01 is used by nothing on main.
+- `next.config.ts`: main's Chromium packages and file tracing, with the slice's note that no body limit is raised. `en.json` by `merge-json.py` (no key both sides changed), `copy-lint.config.json` by `merge-copylint.py`.
+- Documents by hand: API §3.6 (P4's render row, the slice's commit and sweep rows, C3's rescore row), DATABASE (`app_reader`'s definers, the definers table, the `files` rules and catalogue row with `print_proof` and the pending index, `customer_sites` and `pin_codes` beside C3's and C4's rows), DEPLOY step 6 (both schedules); `docs/data/` and `docs/state-machines/` regenerated.
+- Turbo 2.11.6 (Dependabot) wrote its agent block into `AGENTS.md` during the merge's first turbo run, and the merge commit carried it; 453f09d puts `AGENTS.md` back as on `main`. Turbo writes it again on every run until `"agentGuidance": false` is set in `turbo.json`, which this slice leaves to the lead.
+
+**Checks** (`.env` checked to name only port 54341 before each suite run; database replaced with `fresh-db.sh` before the first full run and before the third):
+- `pnpm install --offline --frozen-lockfile`: done, lockfile unchanged.
+- `pnpm typecheck`: `Tasks: 8 successful, 8 total` (after the `createdBy` fix).
+- unit tests (`pnpm exec turbo run test --concurrency=1 --force`): contracts 177, db 121, domain 1,587, web 630, ui 105, tokens 134, copy-lint 17 passed; `Tasks: 8 successful, 8 total`.
+- `pnpm test:security`, three runs on the saturated machine:
+  - first: db `Test Files 31 passed (31)`; domain failed the deadline test (`expected [] to have a length of 1`, the extra clock reading, fixed in b71c583), and its other workers exited at start (0xC0000142) after the shell that started the run was stopped.
+  - second (database not reset): db `Tests 965 passed (965)`; domain `Tests 7 failed | 606 passed | 19 skipped (632)`: six 20- and 60-second timeouts (`consent.test.ts`, `search-equivalence.test.ts`) and `import-kinds.test.ts` "adds the different site of a repeated row", which matched the "Two Sites" customer the first run had left (the test's name and village are fixed, so it needs a fresh database).
+  - third (fresh database): db `Tests 1 failed | 964 passed (965)`, the one a 20-second timeout (`lead-guard.test.ts` "answers yes only for an active person"), that file alone `Tests 12 passed (12)`; turbo stopped there, so domain and web ran each by itself: domain `Tests 4 failed | 628 passed (632)` (three 20-second timeouts in `reader-parity.test.ts`, and `lead-guard.test.ts` "is marked with that reason, and the rest of the batch goes on" committing 1 of 2 rows in its batch, its row-by-row slice spent), those two files alone `Tests 33 passed (33)`; web `Tests 3 failed | 239 passed (242)`, each a 20-second timeout (`list-actions.test.ts` 2, `outbox-route.test.ts` 1), those two files alone `Tests 18 passed (18)`.
+- `pnpm lint` (once, whole repository): exit 0, no problems.
+- `pnpm copy-lint`: `copy-lint: catalogues and templates are clean`.
+- `check-doc-links.py`: `bad 1` while `AGENTS.md` carried turbo's block (it names a readme inside the turbo package); clean once restored.
+- `pnpm build`: `Tasks: 2 successful, 2 total`.
+- `pnpm --filter web e2e imports.spec.ts`: `2 failed | 4 flaky | 14 passed (12.5m)`; every failure was in the first project, desktop-light, while the machine was saturated (sign-ins taking a minute, `CONNECT_TIMEOUT 127.0.0.1:54341` in the server log, a job screen still loading after 45 seconds), and the same journeys passed in desktop-dark and phone; desktop-light alone then: `12 passed (2.4m)`. The first attempt stopped in the seed (`no end after 5 minutes, at: the people of each role`).
 
 ## Review
 ### 05-10-2026, review of 6e5eac7...7b58f03 (lead session)
