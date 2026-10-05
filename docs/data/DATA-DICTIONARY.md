@@ -2305,7 +2305,9 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 - `agent_actions_agent_check`: `"agent_actions"."agent" like 'agent:%'`
 - `agent_actions_autonomy_check`: `"agent_actions"."autonomy" in ('suggest', 'needs_approval', 'automatic')`
+- `agent_actions_decided_autonomy_check`: `("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected') or "agent_actions"."autonomy" <> 'suggest'`
 - `agent_actions_decided_check`: `("agent_actions"."decided_at" is null and "agent_actions"."decided_by" is null) = ("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected' and "agent_actions"."state" <> 'dismissed')`
+- `agent_actions_dismissed_check`: `"agent_actions"."state" <> 'dismissed' or ("agent_actions"."autonomy" <> 'needs_approval' and "agent_actions"."autonomy" <> 'automatic')`
 - `agent_actions_input_size_check`: `pg_column_size("agent_actions"."input_json") <= 4000 and ("agent_actions"."decided_input_json" is null or pg_column_size("agent_actions"."decided_input_json") <= 4000)`
 - `agent_actions_state_check`: `"agent_actions"."state" in ('proposed', 'executed', 'approved', 'rejected', 'dismissed')`
 
