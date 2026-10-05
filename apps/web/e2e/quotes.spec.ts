@@ -154,9 +154,9 @@ test.describe('the quotes of the snapshot company', () => {
     await snap(page, 'quotes-list');
 
     await grid.getByRole('link', { name: quotes.snapshotQuoteNo }).click();
-    await expect(
-      page.getByRole('heading', { name: quotes.snapshotQuoteNo, level: 1 }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: quotes.snapshotQuoteNo, level: 1 })).toBeVisible(
+      { timeout: 30_000 },
+    );
     await expect(page.getByRole('link', { name: SNAPSHOT_QUOTE_LEAD.name })).toBeVisible();
     await expect(page.getByText('The quote document is ready.')).toBeVisible({ timeout: 60_000 });
     await expectNoAxeViolations(page);
