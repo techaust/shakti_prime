@@ -57,7 +57,7 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 
 1. **Install the Claude GitHub App** on the repository: open https://github.com/apps/claude, choose Install (or Configure), pick the account `techaust`, choose *Only select repositories*, select `techaust/shakti_prime` and save.
 2. **Create the environment:** open https://claude.ai/code, open the environment menu beside the repository and choose to add an environment.
-   - **Name:** `shakti-prime`.
+   - **Name:** `shakti_prime`, as the repository.
    - **Network access:** *Custom*, with the Trusted default list kept, plus exactly these hosts (decision 4 of 04-10-2026), one per line:
      ```
      challenges.cloudflare.com
@@ -79,7 +79,7 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 ## 4. Starting a builder or a reviewer
 Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/README.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
 
-Start the session on claude.ai/code (environment `shakti-prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
+Start the session on claude.ai/code (environment `shakti_prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
 
 **Builder:**
 ```
