@@ -345,12 +345,14 @@ describe('a quote’s document (0103)', () => {
       return (rows as unknown as unknown[]).length === 1;
     };
     // The Lead Converter at own scope and the Sales Team Lead at team scope made no file, yet
-    // read it through the quote.
-    expect(await sees(a)).toBe(true);
-    expect(await sees(teamLead)).toBe(true);
-    expect(await sees(fx.principals.gm)).toBe(true);
-    for (const who of [b, fx.principals.c, fx.principals.d]) expect(await sees(who)).toBe(false);
-  });
+    // read it through the quote. The six reads run side by side, one transaction each.
+    const seen = await Promise.all(
+      [a, teamLead, fx.principals.gm, b, fx.principals.c, fx.principals.d].map(sees),
+    );
+    expect(seen).toEqual([true, true, true, false, false, false]);
+    // Eight transactions in all, one on a migrator connection of its own: the default 20 s ran out
+    // once on a loaded PC (20,006 ms in the builder's full run), so this case has the hooks' 60 s.
+  }, 60_000);
 
   it('is not read through a quote that names another file', async () => {
     const fileId = newId();

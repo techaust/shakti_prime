@@ -28,6 +28,7 @@ import { requoteQuote } from '../../src/commands/sales/requote';
 import { sendQuote } from '../../src/commands/sales/send-quote';
 import { withdrawQuote } from '../../src/commands/sales/withdraw-quote';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { loadAccount360 } from '../../src/queries/crm/customers';
 import {
   accountQuotes,
   getQuote,
@@ -852,6 +853,23 @@ describe('crm.account.tier.set (PRICE-1)', () => {
     });
     expect(cleared.tierId).toBeNull();
   });
+
+  it('refuses a customer the named company does not hold, and changes nothing', async () => {
+    // The customer is held in company 2 only; the Executive names company 1.
+    const lead = await newLead('residential_rooftop', { tier: null });
+    expect(
+      await failure(exec, setAccountTier, {
+        entityId: 1,
+        accountId: lead.accountId,
+        tierId: ids.tier,
+      }),
+    ).toMatchObject({ code: 'not_found', reason: 'account_missing' });
+    const [row] = await asMigrator(
+      (m) => m<{ tier_id: string | null }[]>`
+        select tier_id from accounts where id = ${lead.accountId}`,
+    );
+    expect(row?.tier_id).toBeNull();
+  });
 });
 
 describe('the quote reads', () => {
@@ -892,6 +910,33 @@ describe('the quote reads', () => {
     await expect(
       asPrincipal(otherLc, (context) => getQuote(context, { entityId: E, quoteId: quote.id })),
     ).rejects.toMatchObject({ code: 'not_found', details: { reason: 'quote_missing' } });
+  });
+
+  it('name the tier only to a caller who reads the price tiers, on the quote and on Account 360', async () => {
+    const quote = await sizedRooftopQuote();
+    // A customised Lead Converter role without pricing.read still reads the lead and its quote.
+    const noPrices: Principal = {
+      ...lc,
+      permissions: lc.permissions.filter((g) => g.key !== 'pricing.read'),
+    };
+    expect(lc.permissions.some((g) => g.key === 'pricing.read')).toBe(true);
+    const asIs = await asPrincipal(lc, (context) =>
+      getQuote(context, { entityId: E, quoteId: quote.id }),
+    );
+    expect(asIs.tierName).toBe('Quote test tier');
+    const hidden = await asPrincipal(noPrices, (context) =>
+      getQuote(context, { entityId: E, quoteId: quote.id }),
+    );
+    expect(hidden).toMatchObject({ id: quote.id, tierId: ids.tier, tierName: null });
+
+    const shown = await asPrincipal(lc, (context) =>
+      loadAccount360(context, { accountId: quote.accountId, entityId: E }),
+    );
+    expect(shown.account).toMatchObject({ tierId: ids.tier, tierName: 'Quote test tier' });
+    const unnamed = await asPrincipal(noPrices, (context) =>
+      loadAccount360(context, { accountId: quote.accountId, entityId: E }),
+    );
+    expect(unnamed.account).toMatchObject({ tierId: ids.tier, tierName: null });
   });
 
   it('prints a quote for the render worker alone, with no phone number', async () => {
