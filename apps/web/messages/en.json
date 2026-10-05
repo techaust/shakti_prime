@@ -394,7 +394,8 @@
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
       "adminRoles": "Choose what each role can see and do.",
       "walkIn": "Add a customer who comes to the counter as a new lead.",
-      "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline."
+      "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline.",
+      "calling": "Call your leads in order, save how each call went and see your next calls."
     }
   },
   "profile": {
@@ -1333,7 +1334,8 @@
       "commissionRuleSet": "Commission rule set",
       "fileRendered": "Document printed to a file",
       "printProofRequest": "Proof page asked for",
-      "sizingRecord": "Lead sized"
+      "sizingRecord": "Lead sized",
+      "callLog": "Call saved"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1532,7 +1534,10 @@
       "sizingKind": "What was sized",
       "inBounds": "Within limits",
       "sizingReasons": "Why it is outside limits",
-      "engineVersion": "Calculation version"
+      "engineVersion": "Calculation version",
+      "outcome": "Call outcome",
+      "attemptNo": "Try number",
+      "durationSeconds": "Call length (seconds)"
     },
     "values": {
       "percent": "{value}%",
@@ -2952,16 +2957,17 @@
     "myTeam": "My team",
     "viewing": "{name}'s queue",
     "backToTeam": "Back to my team",
+    "viewLabel": "Queues",
     "queue": {
       "title": "Queue",
       "count": "{count, plural, =0 {No leads to call} one {# lead to call} other {# leads to call}}",
       "empty": "No calls due right now. New leads appear here as they come in.",
-      "asOf": "As of {when}",
+      "asOf": "As of",
       "refresh": "Refresh"
     },
     "reason": {
-      "call_due": "Call back due {when}",
-      "nurture_due": "Follow-up call due {when}",
+      "call_due": "Call back due",
+      "nurture_due": "Follow-up call due",
       "first_call_late": "First call is late",
       "not_called": "Not called yet",
       "to_call": "Ready to call"
@@ -2979,8 +2985,8 @@
       "closed": "This lead is closed. Calls can no longer be saved on it.",
       "cannotLog": "You can see this lead, but calls on it are saved by its caller.",
       "consentWithdrawn": "This customer has asked not to be called. Do not call them.",
-      "nextCallback": "Next call back {when}",
-      "nextNurture": "Next follow-up call {when}",
+      "nextCallback": "Next call back:",
+      "nextNurture": "Next follow-up call:",
       "noNextCall": "No call is set for later.",
       "tries": "Tries without an answer: {count} of {max}",
       "openCustomer": "Open customer",
@@ -3023,7 +3029,7 @@
     },
     "logged": {
       "callback": "Call saved. Call back {when}.",
-      "retry": "Call saved. Next try {when}.",
+      "nextTry": "Call saved. Next try {when}.",
       "usedUp": "Call saved. All tries are used, so the lead moves to follow-up. First follow-up call {when}.",
       "nurture": "Call saved. The lead is set to follow up later.",
       "qualified": "Call saved. The lead moved to Qualified.",
@@ -3041,6 +3047,11 @@
       "openQueue": "Open queue",
       "openQueueFor": "Open {name}'s queue",
       "empty": "Nobody on your team saves calls yet."
+    },
+    "keys": {
+      "next": "N",
+      "dial": "D",
+      "search": "/"
     }
   }
 }

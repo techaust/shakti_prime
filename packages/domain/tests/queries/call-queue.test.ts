@@ -13,7 +13,6 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { logCall } from '../../src/commands/calls/log-call';
 import { createLead } from '../../src/commands/crm/create-lead';
-import { moveOpportunityStage } from '../../src/commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../../src/commands/crm/nurture-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import {
