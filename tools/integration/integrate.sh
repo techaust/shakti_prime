@@ -4,12 +4,19 @@
 # Lighthouse is not run; CI runs it on the pull request. Summary lines go to <log>, each step's
 # output to <log>.<step>; the last line of <log> is the verdict, INTEGRATION PASSED or
 # INTEGRATION FAILED. It runs for about 30 to 60 minutes, so start it in the background.
+# INTEGRATE_STEPS="lint format" runs only the named steps (a cloud session keeps each command under
+# its 30-minute limit); the verdict is then INTEGRATION PARTIAL unless a step failed. A step that reads
+# the database runs with the one that migrates it: "security dbverify" together; e2e seeds for itself.
 set -u
 . "$(dirname "$0")/lib.sh"
 WT="$1"; LOG="$2"; : > "$LOG"
 cd "$WT" || exit 1
 step() {
   local n="$1"; shift
+  if [ -n "${INTEGRATE_STEPS:-}" ] && [[ " $INTEGRATE_STEPS " != *" $n "* ]]; then
+    echo "=== $n skipped" >>"$LOG"
+    return 0
+  fi
   echo "=== $n start $(date +%T)" >>"$LOG"
   "$@" >>"$LOG.$n" 2>&1
   local rc=$?
@@ -52,6 +59,8 @@ step e2e pnpm --filter web e2e
 docker rm -f shakti-pg-int >/dev/null 2>&1
 if grep -qE "rc=[1-9]" "$LOG"; then
   echo "=== INTEGRATION FAILED" >>"$LOG"
+elif grep -q " skipped$" "$LOG"; then
+  echo "=== INTEGRATION PARTIAL ($INTEGRATE_STEPS)" >>"$LOG"
 else
   echo "=== INTEGRATION PASSED" >>"$LOG"
 fi

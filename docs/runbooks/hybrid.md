@@ -14,9 +14,9 @@ The slice procedure itself (brief, build, review, merge with `main`, integration
 | Write a slice's run file (its brief) | PC, the lead session | The lead plans and reviews every slice; the run file is pushed on the slice's branch before a cloud session starts |
 | Build a slice | Cloud (PC as fallback) | Each session is its own VM with Docker and its own Postgres, so slices share no ports, memory or database |
 | Review a slice | Cloud (PC as fallback) | Read-only; it runs the suites on its own database |
-| Take `main` into a slice, renumber its migrations | PC | Decision 1, until [the trial](#10-the-trial) |
-| The integration run (`integrate.sh`) | PC | Decision 1; it runs 30 to 60 minutes, longer than a cloud command may run ([§2](#2-what-a-cloud-session-has-and-lacks)) |
-| Linux screenshot baselines (`e2e:snap`) | PC | Decision 1, until the trial |
+| Take `main` into a slice, renumber its migrations | Cloud from S1, the trial (PC as fallback) | Cloud-first (owner, 05-10-2026): the 8 GB PC cannot run these beside other work |
+| The integration run (`integrate.sh`) | Cloud from S1, the trial (PC as fallback) | It runs 30 to 60 minutes, longer than a cloud command may run ([§2](#2-what-a-cloud-session-has-and-lacks)), so a cloud session runs it in parts with `INTEGRATE_STEPS` (for example `install lint format copylint generated typecheck`, then `unit`, then `security dbverify`, then `audit build jsbudget gitleaks`, then `e2e`), each under 30 minutes |
+| Linux screenshot baselines (`e2e:snap`) | Cloud from S1, the trial (PC as fallback) | The VM is Linux, as the baselines are |
 | Push for review, open the pull request | PC, the lead session | The lead checks the diff first; a cloud session never opens a pull request |
 | Migrate dev and staging, check health | PC | Decision 1; the migration count reads the hosted database through the Supabase tools, which exist only on the PC |
 | Any other change to a hosted service | PC, with the owner's go-ahead | The standing go-ahead and its scope: [DECISIONS](../DECISIONS.md) |
