@@ -4,6 +4,8 @@ import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { activityRow, writeActivities } from '../activities/activity';
 import type { CommandContext } from '../command/context';
 import { createLead, leadCreatedActivity } from '../commands/crm/create-lead';
+import { scoreLeads } from '../commands/crm/lead-attribution';
+import { shareLockStage } from '../commands/crm/opportunity-shared';
 import { inputHash } from '../idempotency/hash';
 import { toLeadDto } from '../queries/crm/lead-dto';
 import { importRowKey } from './row-key';
@@ -16,7 +18,8 @@ export interface BatchRow {
 
 /**
  * The set-based path found something it does not handle (a row that fails, a key already used,
- * a customer the group already knows, a number a colleague's customer has, a consent): the batch
+ * a customer the group already knows, a number a colleague's customer has, a consent, a referral
+ * code, which the command checks and may refuse): the batch
  * is run again row by row.
  */
 export class RowByRowNeeded extends Error {
@@ -42,12 +45,14 @@ export class RowByRowNeeded extends Error {
  * Anything outside the plain new-customer row throws `RowByRowNeeded` before a row is written,
  * and a database refusal part-way throws as it is; either way the caller's savepoint takes the
  * batch back and the batch runs again through `ctx.run(createLead)`, which finds the row at fault.
+ * `keep` runs before each statement and keeps it to the batch's one deadline (commit-job.ts).
  */
 export async function commitLeadBatch(
   ctx: CommandContext,
   tx: RequestTx,
   jobId: string,
   rows: readonly BatchRow[],
+  keep: (tx: RequestTx) => Promise<void> = () => Promise.resolve(),
 ): Promise<{ rowNo: number; id: string }[]> {
   const actor = ctx.principal.id;
   const teamId = ctx.principal.teamId ?? null;
@@ -59,6 +64,10 @@ export async function commitLeadBatch(
     if (!ctx.entityIds.includes(input.entityId)) throw new RowByRowNeeded('another company');
     if (input.existingAccountId !== undefined) throw new RowByRowNeeded('a known customer');
     if (input.consent !== undefined) throw new RowByRowNeeded('a consent');
+    // The import mapping has no referral code field yet (a follow-up after P2b), so a file's row
+    // never carries one today; kept so a row that does is credited or refused by the command, never
+    // committed here without its partner.
+    if (input.referralCode !== undefined) throw new RowByRowNeeded('a referral code');
     if (input.contact === undefined || input.account === undefined) {
       throw new RowByRowNeeded('no contact or account');
     }
@@ -79,6 +88,7 @@ export async function commitLeadBatch(
   // with an earlier one finds the caller's own new customer, which never counts against them.
   // No number lock (`lockNewNumber`): a batch waits on no lead form and no other job's batch;
   // batches of one job still take turns on the job row.
+  await keep(tx);
   const held = (await tx.execute(sql`
     select 1 as held
       from jsonb_to_recordset(${JSON.stringify(
@@ -92,6 +102,7 @@ export async function commitLeadBatch(
   const entityIds = [...new Set(parsed.map((r) => r.input.entityId))];
   const pipelineKeys = [...new Set(parsed.map((r) => r.input.pipelineKey))];
   const p = schema.pipelines;
+  await keep(tx);
   const pipelines = await tx
     .select({ id: p.id, key: p.key, entityId: p.entityId })
     .from(p)
@@ -111,6 +122,7 @@ export async function commitLeadBatch(
     return found[0].id;
   };
   const ps = schema.pipelineStages;
+  if (pipelines.length > 0) await keep(tx);
   const stages =
     pipelines.length === 0
       ? []
@@ -127,9 +139,18 @@ export async function commitLeadBatch(
             ),
           )
           .orderBy(asc(ps.position));
+  // Each pipeline's first open stage is held `for share` until the batch commits, so it is not
+  // archived under the batch's leads; one archived meanwhile sends the batch row by row.
+  const locked = new Set<string>();
+  for (const row of pipelines) {
+    const first = stages.find((s) => s.pipelineId === row.id);
+    if (first === undefined) continue;
+    await keep(tx);
+    if (await shareLockStage(tx, first.id)) locked.add(first.id);
+  }
   const stageFor = (pipelineId: string): string => {
     const stage = stages.find((row) => row.pipelineId === pipelineId);
-    if (stage === undefined) throw new RowByRowNeeded('stage');
+    if (stage === undefined || !locked.has(stage.id)) throw new RowByRowNeeded('stage');
     return stage.id;
   };
   const sourceCodes = [
@@ -138,6 +159,7 @@ export async function commitLeadBatch(
     ),
   ];
   const ls = schema.leadSources;
+  if (sourceCodes.length > 0) await keep(tx);
   const sources =
     sourceCodes.length === 0
       ? []
@@ -169,6 +191,7 @@ export async function commitLeadBatch(
 
   // Every key must be new; a key used before is a repeat the row-by-row path answers.
   const k = schema.idempotencyKeys;
+  await keep(tx);
   const claimed = await tx
     .insert(k)
     .values(
@@ -184,6 +207,7 @@ export async function commitLeadBatch(
   if (claimed.length !== planned.length) throw new RowByRowNeeded('a key was used before');
 
   // The same writes as the command, in the same order, so each policy sees what it checks.
+  await keep(tx);
   await tx.insert(schema.accounts).values(
     planned.map((row) => ({
       id: row.accountId,
@@ -192,6 +216,7 @@ export async function commitLeadBatch(
       createdBy: actor,
     })),
   );
+  await keep(tx);
   await tx.insert(schema.accountEntities).values(
     planned.map((row) => ({
       id: newId(),
@@ -202,6 +227,7 @@ export async function commitLeadBatch(
       createdBy: actor,
     })),
   );
+  await keep(tx);
   await tx.insert(schema.contacts).values(
     planned.map((row) => ({
       id: row.contactId,
@@ -210,6 +236,7 @@ export async function commitLeadBatch(
       createdBy: actor,
     })),
   );
+  await keep(tx);
   await tx.insert(schema.accountContacts).values(
     planned.map((row) => ({
       accountId: row.accountId,
@@ -218,6 +245,7 @@ export async function commitLeadBatch(
       createdBy: actor,
     })),
   );
+  await keep(tx);
   await tx.insert(schema.contactPhones).values(
     planned.map((row) => ({
       id: newId(),
@@ -242,7 +270,11 @@ export async function commitLeadBatch(
           },
         ],
   );
-  if (withSite.length > 0) await tx.insert(schema.customerSites).values(withSite);
+  if (withSite.length > 0) {
+    await keep(tx);
+    await tx.insert(schema.customerSites).values(withSite);
+  }
+  await keep(tx);
   const opportunities = await tx
     .insert(schema.opportunities)
     .values(
@@ -261,7 +293,27 @@ export async function commitLeadBatch(
     )
     .returning();
   const byId = new Map(opportunities.map((o) => [o.id, o]));
+  // Each lead scored with the rules of its company in the batch's savepoint, as the command scores
+  // it (CRM-06); the answer each key keeps carries the score. Each of its few statements is cut off
+  // at the time left before them.
+  await keep(tx);
+  const scored = await scoreLeads(
+    { ...ctx, tx },
+    opportunities.map((o) => o.id),
+    entityIds,
+  );
+  for (const [id, next] of scored) {
+    const opportunity = byId.get(id);
+    if (opportunity === undefined) continue;
+    Object.assign(opportunity, {
+      score: next.score,
+      scoreReasonsJson: next.reasons,
+      scoreChangedAt: ctx.now,
+      scoreChangedBy: actor,
+    });
+  }
   // Each lead's timeline row, as the command writes it.
+  await keep(tx);
   await writeActivities(
     tx,
     planned.map((row) =>
@@ -300,6 +352,7 @@ export async function commitLeadBatch(
   }
 
   // Each key keeps the answer a repeat of that row replays, as the command's key would.
+  await keep(tx);
   await tx.execute(sql`
     update idempotency_keys k
        set response_json = x.response

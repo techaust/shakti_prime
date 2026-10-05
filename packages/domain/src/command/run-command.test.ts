@@ -10,6 +10,7 @@ import {
   checkPermission,
   failureOf,
   isAgent,
+  isPerson,
   runCommand,
   translateDatabaseError,
   undeclaredAuditFields,
@@ -54,6 +55,46 @@ describe('checkPermission', () => {
     expect(() => {
       checkPermission(principal(), 'finance.cost.read');
     }).toThrow(expect.objectContaining({ code: 'forbidden' }));
+  });
+});
+
+describe('a command for people only', () => {
+  const personal = defineCommand({ ...echo, name: 'test.personal', peopleOnly: true });
+  const run = (p: Principal) =>
+    runCommand(
+      personal,
+      { context: context(p), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+      { value: 'x' },
+    );
+
+  it('runs for a person', async () => {
+    expect(isPerson(principal())).toBe(true);
+    await expect(run(principal())).resolves.toEqual({ value: 'x' });
+  });
+
+  it.each<[string, Partial<Principal>]>([
+    ['an agent', { kind: 'agent', roleKey: 'agent:sizing' }],
+    ['a user principal holding an agent role', { roleKey: 'agent:copilot' }],
+    ['the system principal', { kind: 'system', roleKey: 'system:workers' }],
+    ['a voice session', { kind: 'voice_session' }],
+  ])('refuses %s at the guard, whatever it holds', async (_label, over) => {
+    // The grant is the one the command needs, so only the people rule can refuse.
+    const p = principal(over);
+    expect(isPerson(p)).toBe(false);
+    const error: unknown = await run(p).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'forbidden', details: { reason: 'people_only' } });
+    expect(failureOf(error)?.stage).toBe('guard');
+  });
+
+  it('leaves a command without the rule open to service principals that hold its grant', async () => {
+    const agent = principal({ kind: 'agent', roleKey: 'agent:sizing' });
+    await expect(
+      runCommand(
+        echo,
+        { context: context(agent), audit: memoryAuditSink(), outbox: memoryOutboxSink() },
+        { value: 'y' },
+      ),
+    ).resolves.toEqual({ value: 'y' });
   });
 });
 

@@ -22,9 +22,16 @@ export type OutboxPublishResponse = z.infer<typeof OutboxPublishResponse>;
 /**
  * `POST /api/v1/workers/imports/commit`: the job to commit and whose job it is. Only the app
  * sends it, through QStash, after `imports.job.commit`; the worker acts as that person.
+ * `entityIds` are the companies the job's request acts for, when more than the job's own: a
+ * customers file whose rows name other companies, or the PIN code master, which needs every one.
  */
 export const ImportCommitWorkerBody = z
-  .object({ jobId: IdSchema, entityId: EntityIdSchema, userId: IdSchema })
+  .object({
+    jobId: IdSchema,
+    entityId: EntityIdSchema,
+    userId: IdSchema,
+    entityIds: z.array(EntityIdSchema).min(1).max(20).optional(),
+  })
   .strict();
 export type ImportCommitWorkerBody = z.infer<typeof ImportCommitWorkerBody>;
 
@@ -38,3 +45,29 @@ export const ImportCommitWorkerResponse = z
   })
   .strict();
 export type ImportCommitWorkerResponse = z.infer<typeof ImportCommitWorkerResponse>;
+
+/**
+ * `POST /api/v1/workers/crm/rescore`: the nightly rescoring of open and nurture leads (CRM-06).
+ * The schedule sends `{}`, every company from its first lead; a run that ran out of time hands the
+ * rest to the next run with the company and the last lead it reached, and the night's date
+ * (`runDate`, the UTC date the night's first call started), which names the night in the
+ * hand-over's deduplication id.
+ */
+export const LeadRescoreWorkerBody = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    afterId: IdSchema.optional(),
+    runDate: z.iso.date().optional(),
+  })
+  .strict()
+  .refine((b) => b.afterId === undefined || b.entityId !== undefined, {
+    message: 'a lead to start after belongs to a company',
+    path: ['afterId'],
+  });
+export type LeadRescoreWorkerBody = z.infer<typeof LeadRescoreWorkerBody>;
+
+/** What one rescoring run did: the batches it ran, the leads that changed, and whether it is done. */
+export const LeadRescoreWorkerResponse = z
+  .object({ batches: Count, rescored: Count, done: z.boolean() })
+  .strict();
+export type LeadRescoreWorkerResponse = z.infer<typeof LeadRescoreWorkerResponse>;

@@ -1,9 +1,9 @@
 'use client';
 
 import type {
+  ImportField,
   ImportJobDto,
   ImportTemplateDto,
-  LeadImportField,
   LeadSourceDto,
 } from '@shakti/contracts';
 import { Button, cn, Field, Input, Select } from '@shakti/ui';
@@ -13,10 +13,11 @@ import { mapImportJob, previewImportJob } from '../../actions/imports';
 import {
   buildMapInput,
   draftForFile,
+  IMPORT_FIELDS_BY_KIND,
   initialDraft,
   isDefaultable,
-  LEAD_IMPORT_FIELDS,
   mappingProblems,
+  screenKind,
   withColumn,
   withDefault,
   type DefaultableField,
@@ -32,8 +33,9 @@ export interface PipelineChoice {
 }
 
 /**
- * Step two of an import: which column of the file fills each lead field, a value for rows whose
- * cell is empty, and an optional name to save the layout under. The problems the contract would
+ * Step two of an import: which column of the file fills each field of its kind (a lead, a
+ * customer, a post office), a value for rows whose cell is empty, and an optional name to save the
+ * layout under. The problems the contract would
  * refuse are shown before anything is sent. Matching and checking the rows are two commands, run
  * one after the other, each with its own idempotency key for this rendered form.
  */
@@ -62,10 +64,11 @@ export function MapStep({
   const leads = useTranslations('leads');
   const map = useCommand(mapImportJob);
   const preview = useCommand(previewImportJob);
+  const kind = screenKind(job.kind);
   const [draft, setDraft] = useState<MappingDraft>(() => initialDraft(job));
   const [templateId, setTemplateId] = useState(job.templateId ?? '');
   const [showProblems, setShowProblems] = useState(false);
-  const problems = mappingProblems(draft);
+  const problems = mappingProblems(draft, kind);
   const hasProblems = Object.keys(problems).length > 0;
   const pending = map.pending || preview.pending || refreshing;
 
@@ -75,7 +78,7 @@ export function MapStep({
     if (template !== undefined) setDraft(draftForFile(template.mapping, job.columns));
   }
 
-  function setColumn(field: LeadImportField, column: string) {
+  function setColumn(field: ImportField, column: string) {
     setDraft((d) => withColumn(d, field, column));
   }
 
@@ -95,6 +98,7 @@ export function MapStep({
       draft,
       template: templates.find((x) => x.id === templateId),
       saveAs: typeof saveAs === 'string' ? saveAs : '',
+      kind,
     });
     map.run(input, () => {
       preview.run({ entityId: job.entityId, jobId: job.id }, onDone);
@@ -121,7 +125,7 @@ export function MapStep({
     <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
       <div className="flex flex-col gap-1">
         <h2 className="text-h2">{t('title')}</h2>
-        <p className="text-text-muted">{t('intro')}</p>
+        <p className="text-text-muted">{t('intro', { kind })}</p>
       </div>
 
       {templates.length === 0 ? null : (
@@ -143,7 +147,7 @@ export function MapStep({
       )}
 
       <ul className="border-border bg-surface flex flex-col rounded-lg border">
-        {LEAD_IMPORT_FIELDS.map((field) => {
+        {IMPORT_FIELDS_BY_KIND[kind].map((field) => {
           const column = draft.columns[field];
           const problem = showProblems ? problems[field] : undefined;
           const top = column === undefined ? undefined : (topRow[column] ?? '').trim();
@@ -153,7 +157,7 @@ export function MapStep({
               className="border-border flex flex-col gap-3 border-b p-4 last:border-b-0"
             >
               <h3 className="text-h3">{fields(field)}</h3>
-              <div className={cn('grid gap-4', isDefaultable(field) && 'sm:grid-cols-2')}>
+              <div className={cn('grid gap-4', isDefaultable(field, kind) && 'sm:grid-cols-2')}>
                 <Field
                   id={`map-${field}-column`}
                   label={t('column')}
@@ -180,7 +184,7 @@ export function MapStep({
                     ))}
                   </Select>
                 </Field>
-                {isDefaultable(field) ? (
+                {isDefaultable(field, kind) ? (
                   <Field id={`map-${field}-default`} label={t('everyRow')}>
                     <Select
                       value={draft.defaults[field] ?? ''}

@@ -56,6 +56,7 @@ function file(entityId: number, purpose: 'entity_logo' | 'letterhead', contentTy
     size: 3,
     sha256: 'a'.repeat(64),
     status: 'ready',
+    createdBy: newId(),
     originalKey: undefined,
   } satisfies StoredFile;
 }

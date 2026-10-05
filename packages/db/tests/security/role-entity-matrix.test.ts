@@ -144,6 +144,8 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: accountOutside('x.account_id'),
   },
   opportunities: { read: grant('crm.lead.read', 'own'), leak: otherCompany },
+  // A child of the lead: read with it.
+  sizings: { read: LEAD_READ, leak: otherCompany },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
@@ -158,7 +160,11 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: otherCompany,
   },
   import_mapping_templates: { read: IMPORTS, leak: otherCompany },
-  import_jobs: { read: IMPORTS, leak: otherCompany },
+  // The import worker (`system:workers`) reads a job of its company to stop it.
+  import_jobs: {
+    read: { kind: 'any', rules: [IMPORTS, grant('imports.process', 'entity')] },
+    leak: otherCompany,
+  },
   import_rows: { read: IMPORTS, leak: otherCompany },
   // 0049: every role reads the role map of the acting company, and its own roles in any company
   // (the profile and the company switcher), never another person's role in another company.
@@ -193,6 +199,15 @@ const RULES: Record<MatrixTable, TableRule> = {
     read: grant('pricing.read', 'entity'),
     group: grant('pricing.read', 'entity'),
     leak: otherCompany,
+  },
+  // CRM set-up: every caller reads the group's rows and their own company's.
+  call_dispositions: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  lead_score_rules: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  // A referral partner is read with its customer (ADR 0008).
+  referral_partners: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    leak: accountOutside('x.account_id'),
   },
 };
 

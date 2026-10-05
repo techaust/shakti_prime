@@ -23,9 +23,22 @@ export { createLead } from './commands/crm/create-lead';
 export { moveOpportunityStage } from './commands/crm/move-opportunity-stage';
 export { assignOpportunity } from './commands/crm/assign-opportunity';
 export { nurtureOpportunity } from './commands/crm/nurture-opportunity';
+export { recordSizing } from './commands/crm/record-sizing';
 export { reopenOpportunity } from './commands/crm/reopen-opportunity';
 export { winOpportunity } from './commands/crm/win-opportunity';
 export { loseOpportunity } from './commands/crm/lose-opportunity';
+export {
+  archiveStage,
+  createStage,
+  reorderStages,
+  updatePipeline,
+  updateStage,
+} from './commands/crm/pipeline-settings';
+export { setDispositions } from './commands/crm/set-dispositions';
+export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
+export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
+export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
+export { scoreLead } from './crm/score';
 export { createTask, completeTask, rescheduleTask, cancelTask } from './commands/crm/tasks';
 export { createTag, archiveTag, tagLead, untagLead } from './commands/crm/tags';
 export { updateAccount, updateContact, upsertSite, addNote } from './commands/crm/customer';
@@ -63,16 +76,27 @@ export {
   commitImportBatch,
   commitImportJob,
   IMPORT_BATCH_BUDGET_MS,
-  SET_BASED_BATCH_BOUND_MS,
+  ROW_BY_ROW_SLICE_MS,
+  SET_BASED_MIN_MS,
 } from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
+export { failImportJob } from './commands/imports/fail-job';
+export { lookupPin } from './queries/crm/pin-lookup';
+export { gstStateCode } from './imports/gst-states';
+export { checkAccountRow, companyNames, foldAccountRows } from './imports/accounts';
+export { checkPinCodeRow, localityName } from './imports/pin-codes';
 export {
   getImportJob,
   listImportJobs,
   listImportRows,
   listImportTemplates,
 } from './queries/imports/import-queries';
-export { parseImportFile, detectHeaderRow, detectImportFormat } from './imports/parse';
+export {
+  parseImportFile,
+  detectHeaderRow,
+  detectImportFormat,
+  importFileReadable,
+} from './imports/parse';
 export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
@@ -121,7 +145,7 @@ export { jsonLogger, memoryLogger, redact, redactError, redactText } from './por
 export type { Logger, LogLevel } from './ports/logger';
 export type { Mailer, MailMessage } from './ports/mailer';
 export { listAuditPeople, queryAudit, toAuditLogDto } from './queries/audit/query-audit';
-export { listEntities } from './queries/org/list-entities';
+export { companyStanding, listEntities } from './queries/org/list-entities';
 export { readOutboxHealth } from './queries/platform/outbox-health';
 export type { OutboxHealth } from './queries/platform/outbox-health';
 export { ENTITY_COLUMNS, toEntityDto } from './queries/org/entity-dto';
@@ -141,6 +165,8 @@ export { listLeads, countLeads } from './queries/crm/list-leads';
 export type { LeadPage, ListLeadsOptions } from './queries/crm/list-leads';
 export { listBoardLeads, listBoardStageLeads } from './queries/crm/list-board-leads';
 export { listLeadAssignees } from './queries/crm/list-lead-assignees';
+export { latestSizing } from './queries/crm/latest-sizing';
+export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
 export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
@@ -153,6 +179,15 @@ export { readTaxSettings, requestCoversAllCompanies } from './queries/tax/tax-se
 export { listUsers, listUserSessions } from './queries/admin/list-users';
 export { getRoleGrants, listRoles } from './queries/admin/roles';
 export { listPipelines, listLeadSources } from './queries/crm/list-pipelines';
+export {
+  effectiveDispositions,
+  listCodedReferralPartners,
+  listCommissionRules,
+  listDispositions,
+  listPipelineSettings,
+  listReferralPartners,
+  listScoreRules,
+} from './queries/crm/pipeline-settings';
 export { listPriceLists, listPrices } from './queries/pricing/list-prices';
 export { toItemDto, toItemWithCostDto } from './queries/catalogue/item-dto';
 export {
@@ -180,7 +215,7 @@ export type {
   MaskedText,
 } from './privacy/identity-numbers';
 export { WORKSHOP_DEFAULTS } from './workshop-defaults';
-export type { WorkshopDefaults } from './workshop-defaults';
+export type { SizingDefaults, WorkshopDefaults } from './workshop-defaults';
 export { divideHalfUp, fromPaise, moneyFromPaise, toPaise, toScaled } from './money/paise';
 export {
   computeDocument,
@@ -192,6 +227,50 @@ export {
   resolveRate,
 } from './tax';
 export type { CompositeParts, CompositeQuery, LineInput, RateQuery, SupplyParties } from './tax';
+export {
+  dcrRule,
+  hazenWilliamsLossM,
+  KW_PER_HP,
+  nextStandardHp,
+  pumpDutyPoint,
+  pumpMatch,
+  pumpPower,
+  pumpSpecsOf,
+  quoteSizingFacts,
+  rooftopSize,
+  sanctionedLoadRule,
+  SIZING_ENGINE_VERSION,
+  sizePump,
+  sizeRooftop,
+  solarArrayForPump,
+  suctionLift,
+  totalDynamicHead,
+} from './sizing';
+export type {
+  Bounded,
+  ChosenPump,
+  CurvePoint,
+  DcrRuleInput,
+  DcrRuleResult,
+  DutyPointResult,
+  HeadInput,
+  HeadResult,
+  ModuleLine,
+  PowerInput,
+  PowerResult,
+  PumpMatchInput,
+  PumpMatchResult,
+  PumpSpecs,
+  QuoteSizingContext,
+  QuoteSizingFacts,
+  RooftopInput,
+  RooftopResult,
+  SanctionedLoadInput,
+  SolarPumpInput,
+  SolarPumpResult,
+  SuctionInput,
+  SuctionResult,
+} from './sizing';
 export { creditCheck } from './sales/credit-check';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
 export {
@@ -272,10 +351,16 @@ export type {
 export { beginUpload } from './commands/files/begin-upload';
 export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
-export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export {
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+  staleUploadCompanies,
+} from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';
 export {
   FILE_PURPOSE_RULES,

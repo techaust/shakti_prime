@@ -3,12 +3,16 @@ import { AccountTypeSchema, CustomerLanguageSchema, SiteTypeSchema } from '../..
 import { ImportJobSortSchema } from '../../dto/list-sort';
 import { EntityIdSchema, IdSchema } from '../../ids';
 import {
+  AccountImportFieldSchema,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_LIMITS,
+  ImportFieldSchema,
   ImportFormatSchema,
   ImportKindSchema,
   ImportRowStateSchema,
   LeadImportFieldSchema,
+  PinCodeImportFieldSchema,
+  type ImplementedImportKind,
   type LeadImportField,
 } from '../../imports/enums';
 
@@ -16,6 +20,12 @@ import {
 export const ImportColumnSchema = z.string().min(1).max(IMPORT_LIMITS.maxHeaderLength);
 
 const Code = z.string().trim().min(1).max(40);
+
+/** A column fills one field at most. */
+function columnsUnique(m: { columns: Partial<Record<string, string>> }): boolean {
+  const used = Object.values(m.columns);
+  return new Set(used).size === used.length;
+}
 
 /**
  * How the columns of a leads file fill a lead (docs/design/backend-weeks-3-5.md §8). `columns`
@@ -45,45 +55,103 @@ export const LeadImportMappingSchema = z
     message: 'a pipeline column or default is required',
     path: ['defaults', 'pipelineKey'],
   })
-  .refine(
-    (m) => {
-      const used = Object.values(m.columns);
-      return new Set(used).size === used.length;
-    },
-    { message: 'a column fills one field only', path: ['columns'] },
-  );
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
 export type LeadImportMapping = z.infer<typeof LeadImportMappingSchema>;
 export type { LeadImportField };
 
-/** The mapping stored on a job or a template. Only leads exist today. */
-export const ImportMappingSchema = LeadImportMappingSchema;
-export type ImportMapping = LeadImportMapping;
-
-const kindImplemented = (kind: z.infer<typeof ImportKindSchema>) =>
-  (IMPLEMENTED_IMPORT_KINDS as readonly string[]).includes(kind);
+/**
+ * How the columns of a customers file fill a customer (docs/design/phase1.md §6.3): the contact's
+ * name and phone come from the file; a `company` column names each row's company, else the job's.
+ */
+export const AccountImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(AccountImportFieldSchema, ImportColumnSchema),
+    defaults: z
+      .object({
+        accountType: AccountTypeSchema.optional(),
+        preferredLanguage: CustomerLanguageSchema.optional(),
+        siteType: SiteTypeSchema.optional(),
+      })
+      .strict()
+      .default({}),
+  })
+  .strict()
+  .refine((m) => m.columns.contactName !== undefined && m.columns.phone !== undefined, {
+    message: 'the name and phone columns are required',
+    path: ['columns'],
+  })
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type AccountImportMapping = z.infer<typeof AccountImportMappingSchema>;
 
 /**
- * `imports.job.create`: the uploaded file and its parsed rows become a job in `uploaded` (IMP-01).
- * The server action parses the bytes first and stores them after the command commits, under a
- * key named by their SHA-256, so a refused call leaves no file behind and the same file cannot
- * start a second job in the company. The file's id is made by the command, so a repeat with the
- * same idempotency key has the same input and replays. The rows never reach the audit trail (the
- * command records a summary instead).
+ * How the columns of the India Post directory fill the PIN code master: the PIN, the office's
+ * name and its district are required; the taluk and the state are kept when the file has them.
+ */
+export const PinCodeImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(PinCodeImportFieldSchema, ImportColumnSchema),
+    defaults: z.object({}).strict().default({}),
+  })
+  .strict()
+  .refine(
+    (m) =>
+      m.columns.pin !== undefined &&
+      m.columns.officeName !== undefined &&
+      m.columns.district !== undefined,
+    { message: 'the PIN, office and district columns are required', path: ['columns'] },
+  )
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type PinCodeImportMapping = z.infer<typeof PinCodeImportMappingSchema>;
+
+/**
+ * A mapping of any kind, as a job or a template stores it and the screens read it. The command
+ * checks it again against the job's own kind (`importMappingSchemaFor`).
+ */
+export const ImportMappingSchema = z
+  .object({
+    columns: z.partialRecord(ImportFieldSchema, ImportColumnSchema),
+    defaults: z
+      .object({
+        pipelineKey: Code.optional(),
+        accountType: AccountTypeSchema.optional(),
+        preferredLanguage: CustomerLanguageSchema.optional(),
+        siteType: SiteTypeSchema.optional(),
+        sourceCode: Code.optional(),
+      })
+      .strict()
+      .default({}),
+  })
+  .strict()
+  .refine(columnsUnique, { message: 'a column fills one field only', path: ['columns'] });
+export type ImportMapping = z.infer<typeof ImportMappingSchema>;
+
+/** The mapping rules of one kind. */
+export function importMappingSchemaFor(kind: ImplementedImportKind) {
+  switch (kind) {
+    case 'leads':
+      return LeadImportMappingSchema;
+    case 'accounts':
+      return AccountImportMappingSchema;
+    case 'pin_codes':
+      return PinCodeImportMappingSchema;
+  }
+}
+
+/** A kind a job may be created for today. */
+export const ImplementedImportKindSchema = z.enum(IMPLEMENTED_IMPORT_KINDS);
+
+/**
+ * `imports.job.create`: an uploaded import file of the company, read and parsed by the server
+ * (the streaming reader for a workbook), becomes a job in `uploaded` with one pending row per data
+ * row (IMP-01). The file came through the pre-signed upload and passed its checks (`ready`); one
+ * file starts one job, and the same content cannot start a second job in the company. The rows
+ * never reach the audit trail (the command records a summary instead).
  */
 export const CreateImportJobInput = z
   .object({
     entityId: EntityIdSchema,
-    kind: ImportKindSchema.refine(kindImplemented, { message: 'this kind cannot be imported yet' }),
-    file: z
-      .object({
-        name: z.string().trim().min(1).max(200),
-        contentType: z.string().trim().min(1).max(120),
-        size: z.number().int().min(1).max(IMPORT_LIMITS.maxFileBytes),
-        sha256: z.string().regex(/^[0-9a-f]{64}$/),
-        bucket: z.string().min(1).max(63),
-        key: z.string().min(1).max(300),
-      })
-      .strict(),
+    kind: ImplementedImportKindSchema,
+    fileId: IdSchema,
     format: ImportFormatSchema,
     columns: z
       .array(ImportColumnSchema)
@@ -102,11 +170,18 @@ export const CreateImportJobInput = z
   });
 export type CreateImportJobInput = z.infer<typeof CreateImportJobInput>;
 
-/** The upload form's fields beside the file itself; form values arrive as text. */
-export const UploadImportFileInput = z
-  .object({ entityId: z.coerce.number().pipe(EntityIdSchema), kind: ImportKindSchema })
+/**
+ * The import screen's second call, once its file is uploaded and checked: the company, what the
+ * file holds, and the uploaded file. The server reads the file and starts the job.
+ */
+export const StartImportInput = z
+  .object({
+    entityId: EntityIdSchema,
+    kind: ImplementedImportKindSchema,
+    fileId: IdSchema,
+  })
   .strict();
-export type UploadImportFileInput = z.infer<typeof UploadImportFileInput>;
+export type StartImportInput = z.infer<typeof StartImportInput>;
 
 const JobRef = { entityId: EntityIdSchema, jobId: IdSchema };
 
@@ -138,6 +213,13 @@ export type MapImportJobInput = z.infer<typeof MapImportJobInput>;
 /** `imports.job.preview`: every row validated and checked for duplicates. */
 export const PreviewImportJobInput = z.object(JobRef).strict();
 export type PreviewImportJobInput = z.infer<typeof PreviewImportJobInput>;
+
+/**
+ * `imports.job.fail` (the import worker): a committing job whose worker call still failed on its
+ * last queue retry stops as `failed`, so it never waits for ever.
+ */
+export const FailImportJobInput = z.object(JobRef).strict();
+export type FailImportJobInput = z.infer<typeof FailImportJobInput>;
 
 /** `imports.job.commit`: a previewed job with valid rows starts committing. */
 export const CommitImportJobInput = z.object(JobRef).strict();

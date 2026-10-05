@@ -3,7 +3,14 @@
 // Run by `pnpm --filter web e2e:seed` (and so by `e2e` and `e2e:snap`) before the Playwright runner.
 import { AGENT_PRINCIPAL_IDS, newId } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
-import { asMigrator, closeDb, prepareDatabase, principalFor, roleId } from '@shakti/db/testing';
+import {
+  asMigrator,
+  closeDb,
+  createReadyImportFile,
+  prepareDatabase,
+  principalFor,
+  roleId,
+} from '@shakti/db/testing';
 import {
   createImportJob,
   createLead,
@@ -11,6 +18,7 @@ import {
   memoryKeyValue,
   memoryMailer,
   parseImportFile,
+  setReferralPartner,
 } from '@shakti/domain';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -27,6 +35,7 @@ import {
   INBOX_SUGGESTIONS,
   KILL_SWITCH,
   PROJECTS,
+  REFERRAL_PARTNER,
   SIGNED_IN_ROLES,
   SEND_AGAIN_COMPANY,
   SNAPSHOT_COMPANY,
@@ -217,6 +226,30 @@ async function holdBackUpdate(id: string, entityId: number, heldAt: string): Pro
   );
 }
 
+/**
+ * The referral partner of `users.ts`, made once in company 1 by the seed's Executive as a customer
+ * of the kind Referral partner, with its code accepted on new leads. Found again by its code.
+ */
+async function ensureReferralPartner(executiveId: string): Promise<void> {
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from referral_partners
+                              where lower(code) = lower(${REFERRAL_PARTNER.code})`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const executive = principalFor('executive', [1, 2, 3, 4], { id: executiveId });
+  const lead = await executeCommand(executive, { entityIds: [1] }, createLead, {
+    entityId: 1,
+    pipelineKey: 'farmer_pumps',
+    contact: { name: REFERRAL_PARTNER.name, phone: REFERRAL_PARTNER.phone },
+    account: { type: 'referral_partner' },
+  });
+  await executeCommand(executive, {}, setReferralPartner, {
+    accountId: lead.account.id,
+    code: REFERRAL_PARTNER.code,
+    isActive: true,
+  });
+}
+
 /** One import job in the snapshot company, from a fixed spreadsheet, made once. */
 async function ensureSnapshotImport(executiveId: string): Promise<void> {
   // Found again by the seed's Executive, whom no other suite makes, not by the company alone.
@@ -236,8 +269,18 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
   const bytes = new TextEncoder().encode(`${csv}\n`);
   const parsed = await parseImportFile(bytes);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
-  const key = `imports/${String(SNAPSHOT_COMPANY.entityId)}/${sha256}.${parsed.format}`;
+  // As the pre-signed upload leaves it: the bytes in the store, the file checked and ready.
+  const fileId = newId();
+  const key = `${String(SNAPSHOT_COMPANY.entityId)}/import/${fileId}.csv`;
   await store.put(key, bytes, 'text/csv');
+  await createReadyImportFile(SNAPSHOT_COMPANY.entityId, executiveId, {
+    id: fileId,
+    name: SNAPSHOT_IMPORT_FILE,
+    size: bytes.length,
+    sha256,
+    bucket: store.bucket,
+    key,
+  });
   await executeCommand(
     principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
     { entityIds: [SNAPSHOT_COMPANY.entityId] },
@@ -245,14 +288,7 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
     {
       entityId: SNAPSHOT_COMPANY.entityId,
       kind: 'leads',
-      file: {
-        name: SNAPSHOT_IMPORT_FILE,
-        contentType: 'text/csv',
-        size: bytes.length,
-        sha256,
-        bucket: store.bucket,
-        key,
-      },
+      fileId,
       format: parsed.format,
       columns: parsed.columns,
       rows: parsed.rows,
@@ -324,6 +360,9 @@ await ensureLead(
   secondCompanyLead,
   '98765 40002',
 );
+
+progress('the referral partner');
+await ensureReferralPartner(ids.executive ?? '');
 
 progress('the snapshot company');
 // The snapshot company (users.ts): its leads, all the snapshot caller's, and one import.

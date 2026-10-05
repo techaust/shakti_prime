@@ -19,6 +19,17 @@ import { createLead } from '../commands/crm/create-lead';
 import { loseOpportunity } from '../commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../commands/crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../commands/crm/nurture-opportunity';
+import {
+  archiveStage,
+  createStage,
+  reorderStages,
+  updatePipeline,
+  updateStage,
+} from '../commands/crm/pipeline-settings';
+import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
+import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { setDispositions } from '../commands/crm/set-dispositions';
+import { recordSizing } from '../commands/crm/record-sizing';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
@@ -29,9 +40,11 @@ import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
+import { sweepUploads } from '../commands/files/sweep-uploads';
 import { recordRenderedFile } from '../commands/files/record-rendered';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
+import { failImportJob } from '../commands/imports/fail-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
@@ -66,6 +79,18 @@ export const commands = {
   [reopenOpportunity.name]: reopenOpportunity,
   [winOpportunity.name]: winOpportunity,
   [loseOpportunity.name]: loseOpportunity,
+  [updatePipeline.name]: updatePipeline,
+  [createStage.name]: createStage,
+  [updateStage.name]: updateStage,
+  [reorderStages.name]: reorderStages,
+  [archiveStage.name]: archiveStage,
+  [setDispositions.name]: setDispositions,
+  [setScoreRules.name]: setScoreRules,
+  [rescoreLead.name]: rescoreLead,
+  [refreshLeadScores.name]: refreshLeadScores,
+  [setReferralPartner.name]: setReferralPartner,
+  [setCommissionRule.name]: setCommissionRule,
+  [recordSizing.name]: recordSizing,
   [createTask.name]: createTask,
   [completeTask.name]: completeTask,
   [rescheduleTask.name]: rescheduleTask,
@@ -114,12 +139,14 @@ export const commands = {
   [commitImportJob.name]: commitImportJob,
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
+  [failImportJob.name]: failImportJob,
   [beginUpload.name]: beginUpload,
   [completeUpload.name]: completeUpload,
   [markFileScanned.name]: markFileScanned,
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
   [recordAgentRun.name]: recordAgentRun,

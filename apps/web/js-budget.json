@@ -40,7 +40,7 @@
     },
     "/customers/[accountId]": {
       "maxKb": 205,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips and task buttons; its edit, task, note, consent and tag dialogs, with the proof uploader, load when one is first opened. Measured 193.1 kB on 04-10-2026, plus 5 %."
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips and task buttons; its edit, task, note, consent and tag dialogs, with the proof uploader, and the sizing panel load when one is first opened. Measured 194.4 kB on 04-10-2026, plus 5 %."
     },
     "/catalogue": {
       "maxKb": 245,
@@ -86,6 +86,10 @@
       "maxKb": 200,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the new lead form. Measured 188.2 kB on 29-09-2026, plus 5 %."
     },
+    "/leads/walk-in": {
+      "maxKb": 200,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the walk-in form. Measured 189.8 kB on 30-09-2026, plus 5 %."
+    },
     "/price-master": {
       "maxKb": 247,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the item and kit price grids, saved views and the price dialog; the list, approve and history views load when first opened. Measured 235.0 kB on 04-10-2026, plus 5 %."
@@ -97,6 +101,10 @@
     "/settings/companies": {
       "maxKb": 235,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the companies grid. Measured 219.9 kB on 29-09-2026, plus 5 %."
+    },
+    "/settings/pipelines": {
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the pipeline cards with their stage lists; the call outcome and score rule editors and the stage dialogs load after the page. Measured 192.3 kB on 30-09-2026, plus 5 %."
     },
     "/settings/profile": {
       "maxKb": 200,

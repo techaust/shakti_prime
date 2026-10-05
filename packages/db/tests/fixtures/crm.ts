@@ -68,6 +68,10 @@ export async function crmFixture(): Promise<CrmFixture> {
   await asMigrator(async (m) => {
     await m.begin(async (tx) => {
       // Remove a previous run in dependency order.
+      // Sizings are append-only children of the leads (sizings.test.ts writes them).
+      await tx`alter table sizings disable trigger sizings_append_only`;
+      await tx`delete from sizings where opportunity_id::text like ${`${P}%`}`;
+      await tx`alter table sizings enable trigger sizings_append_only`;
       await tx`delete from consents where id::text like ${`${P}%`}`;
       await tx`delete from opportunities where id::text like ${`${P}%`}`;
       await tx`delete from customer_sites where id::text like ${`${P}%`}`;
@@ -77,6 +81,7 @@ export async function crmFixture(): Promise<CrmFixture> {
       await tx`delete from accounts where id::text like ${`${P}%`}`;
       await tx`delete from contacts where id::text like ${`${P}%`}`;
       await tx`delete from teams where id::text like ${`${P}%`}`;
+      await tx`delete from pin_codes where id::text like ${`${P}%`}`;
       await tx`delete from principals where id::text like ${`${P}%`}`;
 
       for (const [key, principalId] of Object.entries(pid)) {
@@ -115,6 +120,9 @@ export async function crmFixture(): Promise<CrmFixture> {
         accounts[s.owner].push(accountId);
         contacts[s.owner].push(contactId);
       }
+      // One office of the shared PIN code master, so its reads have a row to find.
+      await tx`insert into pin_codes (id, pin, office_name, district, created_by)
+        values (${id(0x0e01)}, '999901', 'fixture office', 'fixture district', ${pid.a})`;
       // The shared customer: account 0 (owned by A in entity 1) also deals with entity 2, owned by D.
       await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
         values (${id(0x0f01)}, ${accounts.a[0] ?? ''}, 2, ${pid.d}, ${teams.t3}, ${pid.d})`;

@@ -175,6 +175,44 @@ export async function createTestUser(
   return { id, email, entityRoles };
 }
 
+/**
+ * An import file that came through the pre-signed upload and passed its checks (`ready`), as
+ * `imports.job.create` takes it, written with the migrator connection. The bytes themselves are
+ * not stored (a caller that needs them puts them in a store under `key` itself): the command reads
+ * only the record. Its checksum is random unless given, so tests
+ * that import the same rows do not meet the refusal of a file imported before.
+ */
+export async function createReadyImportFile(
+  entityId: number,
+  createdBy: string,
+  options: {
+    id?: string;
+    name?: string;
+    size?: number;
+    sha256?: string;
+    status?: string;
+    bucket?: string;
+    key?: string;
+    contentType?: string;
+  } = {},
+): Promise<string> {
+  const id = options.id ?? newId();
+  const sha256 =
+    options.sha256 ??
+    Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  await asMigrator(
+    (m) => m`
+      insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256,
+                         status, created_by)
+      values (${id}, ${entityId}, 'import', ${options.bucket ?? 'memory'},
+              ${options.key ?? `${String(entityId)}/import/${id}.csv`}, ${options.name ?? 'leads.csv'},
+              ${options.contentType ?? 'text/csv'}, ${options.size ?? 100}, ${sha256},
+              ${options.status ?? 'ready'}, ${createdBy})
+    `,
+  );
+  return id;
+}
+
 /** Run inside a request context. */
 export function asPrincipal<T>(
   principal: Principal,
@@ -211,7 +249,11 @@ export const SHARED_TABLES = [
   'price_change_log',
   'tax_rates',
   'composite_supply_rules',
+  // The PIN code master: read by every request, written only by the PIN code import (0102).
+  'pin_codes',
   'users',
+  // the group's call outcomes are seeded, so every caller with a context reads some
+  'call_dispositions',
 ] as const;
 
 /** Tables scoped by `app.entity_ids` (and, for CRM roots and children, by ownership). */
@@ -225,6 +267,7 @@ export const ENTITY_TABLES = [
   'account_contacts',
   'customer_sites',
   'opportunities',
+  'sizings',
   'consents',
   'item_costs',
   'document_sequences',
@@ -235,6 +278,8 @@ export const ENTITY_TABLES = [
   'import_rows',
   // read in the request's companies or as the caller's own rows (0049)
   'user_entity_roles',
+  // a child of the customer, read with it (ADR 0008)
+  'referral_partners',
   'activities',
   'tasks',
   // tags allow entity_id null for the whole group, as teams do
@@ -280,6 +325,15 @@ export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
  * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
  */
 export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
+
+/**
+ * CRM set-up tables that start empty until the workshop answers (docs/design/phase1.md §11), so
+ * the shared loops, which expect rows for any caller, do not apply: lead score rules (read like
+ * call outcomes, and in the role × company matrix through GROUP_WIDE_SHARED_TABLES) and
+ * commission rules (read only with `crm.config.write:all` or `sales.order.confirm`). Asserted in
+ * crm-config.test.ts.
+ */
+export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
 
 /** Every table under RLS. A new business table is added here and to one of the lists above. */
 export const RLS_TABLES = [...SHARED_TABLES, ...ENTITY_TABLES] as const;

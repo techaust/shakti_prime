@@ -9,6 +9,13 @@ describe('inputHash', () => {
     expect(inputHash('crm.lead.create', a)).toBe(inputHash('crm.lead.create', b));
   });
 
+  it('sorts the keys of objects inside lists, as a score rule read back from jsonb needs', () => {
+    expect(canonicalJson(['source', { b: 1, a: { d: 2, c: 3 } }, 5])).toBe(
+      canonicalJson(['source', { a: { c: 3, d: 2 }, b: 1 }, 5]),
+    );
+    expect(canonicalJson({ minDays: 1 })).not.toBe(canonicalJson({ minDays: 2 }));
+  });
+
   it('keeps the order of a list', () => {
     expect(inputHash('c', { tags: ['x', 'y'] })).not.toBe(inputHash('c', { tags: ['y', 'x'] }));
   });

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
+import { SizingKindSchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
@@ -123,6 +124,20 @@ const eventCatalogue = {
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })
+      .strict(),
+  },
+  'crm.sizing.recorded': {
+    meaning:
+      'A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not.',
+    emittedBy: ['crm.sizing.record'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        kind: SizingKindSchema,
+        inBounds: z.boolean(),
+        reasons: z.array(SizingReasonSchema),
+      })
       .strict(),
   },
   'pricing.price.changed': {
@@ -278,8 +293,8 @@ const eventCatalogue = {
   },
   'imports.job.failed': {
     meaning:
-      'A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back.',
-    emittedBy: ['imports.job.commit_batch'],
+      'A batch of an import job failed, or its worker gave up after the last retry, and the job stopped; earlier batches stay until it is rolled back.',
+    emittedBy: ['imports.job.commit_batch', 'imports.job.fail'],
     subscribed: false,
     payload: z
       .object({
@@ -301,7 +316,8 @@ const eventCatalogue = {
     payload: z.object({ requestedAt: z.iso.datetime() }).strict(),
   },
   'imports.job.rolled_back': {
-    meaning: 'The leads an import job made were archived; the customers it made stay.',
+    meaning:
+      'An import job was undone: its leads or customers archived, or the offices it added to the PIN code master removed.',
     emittedBy: ['imports.job.rollback'],
     subscribed: false,
     payload: z.object({ kind: ImportKindSchema, rolledBackRows: z.number().int().min(0) }).strict(),

@@ -13,9 +13,11 @@ import {
   Palette,
   Percent,
   ScrollText,
+  Store,
   ShieldCheck,
   UserPlus,
   UsersRound,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react';
 import type { Route } from 'next';
@@ -84,6 +86,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: UserPlus,
     group: 'work',
     // crm.lead.create writes the customer as well as the lead.
+    requires: [
+      { key: 'crm.lead.write', scope: 'own' },
+      { key: 'crm.account.write', scope: 'own' },
+    ],
+  },
+  {
+    id: 'leads-walk-in',
+    href: '/leads/walk-in',
+    label: 'walkIn',
+    icon: Store,
+    group: 'work',
+    // The walk-in form creates the lead through crm.lead.create, like New lead.
     requires: [
       { key: 'crm.lead.write', scope: 'own' },
       { key: 'crm.account.write', scope: 'own' },
@@ -166,6 +180,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // org.entity.update
     requires: [{ key: 'admin.entities.write', scope: 'all' }],
+  },
+  {
+    id: 'settings-pipelines',
+    href: '/settings/pipelines',
+    label: 'settingsPipelines',
+    icon: Workflow,
+    group: 'admin',
+    // crm.pipeline.update, crm.stage.*, crm.disposition.set and crm.score_rule.set
+    requires: [{ key: 'crm.config.write', scope: 'all' }],
   },
   {
     id: 'settings-tax',

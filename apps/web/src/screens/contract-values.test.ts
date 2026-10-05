@@ -4,13 +4,23 @@ import {
   AGENT_ROLE_KEYS,
   AGENT_RUN_OUTCOMES,
   AGENT_SETTING_SOURCES,
+  CommissionBasisSchema,
+  ContrastSchema,
+  FirstContactSlaSchema,
+  LockHoursSchema,
+  ScoreRuleInput,
+  DispositionNextActionSchema,
+  RECORDED_STAGE_EXIT_FIELDS as CONTRACT_RECORDED_STAGE_EXIT_FIELDS,
+  PROTECTED_STAGE_KEYS as CONTRACT_PROTECTED_STAGE_KEYS,
+  ScoreFactorSchema,
+  StageExitFieldSchema,
+  SystemSizeUnitSchema,
   AccountTypeSchema,
   ActivityTypeSchema,
   ConsentChannelSchema,
   ConsentPurposeSchema,
   ConsentSourceSchema,
   CustomerLanguageSchema,
-  ContrastSchema,
   CUSTOMER_SEARCH_MIN_CHARS as CONTRACT_CUSTOMER_SEARCH_MIN_CHARS,
   CUSTOMER_SORT_COLUMNS as CONTRACT_CUSTOMER_SORT_COLUMNS,
   ITEM_SORT_COLUMNS as CONTRACT_ITEM_SORT_COLUMNS,
@@ -31,16 +41,25 @@ import {
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
+  MORE_SITES_MAX as CONTRACT_MORE_SITES_MAX,
   LEAD_SORT_COLUMNS as CONTRACT_LEAD_SORT_COLUMNS,
   OpportunityLostReasonSchema,
   OpportunityNurtureReasonSchema,
   OpportunityStateSchema,
   PASSWORD_MIN_LENGTH as CONTRACT_PASSWORD_MIN_LENGTH,
+  PipeMaterialSchema,
+  PumpDriveSchema,
+  PumpSizingInputs,
+  PumpTypeSchema,
+  RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
+  SizingAdvisorySchema,
+  SizingKindSchema,
+  SizingReasonSchema,
   SiteTypeSchema,
   TaskKindSchema,
   TaskStateSchema,
@@ -52,6 +71,17 @@ import {
 } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  COMMISSION_BASES,
+  CONTRASTS,
+  FIRST_CONTACT_SLA_MAX,
+  LOCK_HOURS_MAX,
+  SCORE_POINTS_LIMIT,
+  DISPOSITION_NEXT_ACTIONS,
+  RECORDED_STAGE_EXIT_FIELDS,
+  PROTECTED_STAGE_KEYS,
+  SCORE_FACTORS,
+  STAGE_EXIT_FIELDS,
+  SYSTEM_SIZE_UNITS,
   ACCOUNT_TYPES,
   ACTIVITY_TYPES,
   CONSENT_CHANNELS,
@@ -60,7 +90,6 @@ import {
   CUSTOMER_LANGUAGES,
   CUSTOMER_SEARCH_MIN_CHARS,
   CUSTOMER_SORT_COLUMNS,
-  CONTRASTS,
   COST_PERMISSION_KEYS,
   ITEM_CATEGORIES,
   ITEM_SORT_COLUMNS,
@@ -83,16 +112,24 @@ import {
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
   LEAD_SORT_COLUMNS,
+  MORE_SITES_MAX,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
   PASSWORD_MIN_LENGTH,
+  PIPE_MATERIALS,
   PRICE_SORT_COLUMNS,
+  PUMP_DRIVES,
+  PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SCOPE_VALUES,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  SIZING_ADVISORIES,
+  SIZING_INPUT_LIMITS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
@@ -118,6 +155,18 @@ describe('the contract values copied for the browser', () => {
     expect(SEGMENTS).toEqual(SegmentSchema.options);
     expect(IMPORT_JOB_STATES).toEqual(ImportJobStateSchema.options);
     expect(SAVED_VIEW_SCREENS).toEqual(SavedViewScreenSchema.options);
+    expect(DISPOSITION_NEXT_ACTIONS).toEqual(DispositionNextActionSchema.options);
+    expect(SCORE_FACTORS).toEqual(ScoreFactorSchema.options);
+    expect(STAGE_EXIT_FIELDS).toEqual(StageExitFieldSchema.options);
+    expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
+    expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
+    expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
+    expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
+    // The panel offers a submersible first, the catalogue lists a surface pump first.
+    expect([...PUMP_TYPES].sort()).toEqual([...PumpTypeSchema.options].sort());
+    expect(PUMP_DRIVES).toEqual(PumpDriveSchema.options);
+    expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
     expect(AGENT_ROLES).toEqual(AGENT_ROLE_KEYS);
@@ -147,7 +196,10 @@ describe('the contract values copied for the browser', () => {
 
   it('equal the contract’s own lists and limits', () => {
     expect(IMPLEMENTED_IMPORT_KINDS).toEqual(CONTRACT_IMPORT_KINDS);
+    expect(MORE_SITES_MAX).toBe(CONTRACT_MORE_SITES_MAX);
     expect(LEAD_SORT_COLUMNS).toEqual(CONTRACT_LEAD_SORT_COLUMNS);
+    expect(RECORDED_STAGE_EXIT_FIELDS).toEqual(CONTRACT_RECORDED_STAGE_EXIT_FIELDS);
+    expect(PROTECTED_STAGE_KEYS).toEqual(CONTRACT_PROTECTED_STAGE_KEYS);
     expect(CUSTOMER_SORT_COLUMNS).toEqual(CONTRACT_CUSTOMER_SORT_COLUMNS);
     expect(USER_SORT_COLUMNS).toEqual(CONTRACT_USER_SORT_COLUMNS);
     expect(PRICE_SORT_COLUMNS).toEqual(CONTRACT_PRICE_SORT_COLUMNS);
@@ -166,5 +218,28 @@ describe('the contract values copied for the browser', () => {
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);
+  });
+
+  it('hold the settings limits the contracts hold', () => {
+    expect(LockHoursSchema.safeParse(LOCK_HOURS_MAX).success).toBe(true);
+    expect(LockHoursSchema.safeParse(LOCK_HOURS_MAX + 1).success).toBe(false);
+    expect(FirstContactSlaSchema.safeParse(FIRST_CONTACT_SLA_MAX).success).toBe(true);
+    expect(FirstContactSlaSchema.safeParse(FIRST_CONTACT_SLA_MAX + 1).success).toBe(false);
+    const rule = (points: number) =>
+      ScoreRuleInput.safeParse({ factor: 'age_days', match: { maxDays: 1 }, points }).success;
+    expect([rule(SCORE_POINTS_LIMIT), rule(-SCORE_POINTS_LIMIT)]).toEqual([true, true]);
+    expect([rule(SCORE_POINTS_LIMIT + 1), rule(-SCORE_POINTS_LIMIT - 1)]).toEqual([false, false]);
+  });
+
+  it('give each sizing measurement the range the contract accepts', () => {
+    const shape = { ...PumpSizingInputs.shape, ...RooftopSizingInputs.shape };
+    for (const [field, limits] of Object.entries(SIZING_INPUT_LIMITS)) {
+      // Each of these fields is a number schema, which reports its bounds.
+      const bounds = shape[field as keyof typeof shape] as unknown as {
+        minValue: number | null;
+        maxValue: number | null;
+      };
+      expect({ field, min: bounds.minValue, max: bounds.maxValue }).toEqual({ field, ...limits });
+    }
   });
 });

@@ -112,6 +112,8 @@ export const CustomerSiteDto = z
     tehsil: z.string().nullable(),
     district: z.string().nullable(),
     pin: z.string().nullable(),
+    /** The PIN is not in the PIN code master: the site waits for someone to check it (CRM-02). */
+    pinNeedsReview: z.boolean(),
     stateCode: z.string().nullable(),
     lat: z.number().nullable(),
     lng: z.number().nullable(),

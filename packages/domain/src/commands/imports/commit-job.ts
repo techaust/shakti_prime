@@ -3,23 +3,32 @@ import {
   CommitImportJobInput,
   DomainError,
   ImportJobDto,
-  type ImportKind,
+  type ImplementedImportKind,
+  type ImportCreatedType,
 } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import { defineCommand } from '../../command/define-command';
+import type { CommandContext } from '../../command/context';
+import { defineCommand, type Requirement } from '../../command/define-command';
 import {
   IMPORT_BATCH_BUDGET_MS,
   importBatchSettings,
-  SET_BASED_BATCH_BOUND_MS,
+  ROW_BY_ROW_SLICE_MS,
+  SET_BASED_MIN_MS,
 } from '../../imports/batch-settings';
-import { commitLeadBatch, RowByRowNeeded } from '../../imports/commit-leads';
+import { commitAccountBatch } from '../../imports/commit-accounts';
+import { commitLeadBatch, RowByRowNeeded, type BatchRow } from '../../imports/commit-leads';
+import { commitPinCodeBatch } from '../../imports/commit-pin-codes';
 import { assertImportJobMove } from '../../imports/job-state';
 import { importRowKey } from '../../imports/row-key';
 import { createLead } from '../crm/create-lead';
 import {
+  assertContentNotImported,
   assertEntityInScope,
+  assertGroupImport,
+  assertJobCompaniesCovered,
   countRows,
+  implementedKind,
   jobState,
   loadJob,
   toImportJobDto,
@@ -35,13 +44,18 @@ function isHeldByColleague(error: unknown): boolean {
   );
 }
 
-export { IMPORT_BATCH_BUDGET_MS, SET_BASED_BATCH_BOUND_MS };
+export { IMPORT_BATCH_BUDGET_MS, ROW_BY_ROW_SLICE_MS, SET_BASED_MIN_MS };
 
 /** Why a batch skipped the set-based path: a fixed phrase for the log. */
 const TOO_LITTLE_TIME = 'too little time for the set-based path';
 
-/** The shortest statement timeout a set-based try is given, however little budget is left. */
-const SET_BASED_MIN_TIMEOUT_MS = 1_000;
+/** The set-based try reached its deadline between statements. */
+class DeadlinePassed extends Error {
+  constructor() {
+    super('the set-based try reached its deadline');
+    this.name = 'DeadlinePassed';
+  }
+}
 
 /**
  * SQLSTATEs that mean another transaction kept the batch waiting (`lock_not_available`) or a
@@ -62,12 +76,13 @@ function databaseState(error: unknown): string | undefined {
 }
 
 /**
- * Why the set-based path gave the batch up, for the log: the fixed phrase of `RowByRowNeeded`, or
- * the code of a refusal or a database error. Never an error message, which may carry a value
- * from the file.
+ * Why the set-based path gave the batch up, for the log: the fixed phrase of `RowByRowNeeded`, the
+ * deadline, or the code of a refusal or a database error. Never an error message, which may carry
+ * a value from the file.
  */
 function setBasedReason(error: unknown): string {
   if (error instanceof RowByRowNeeded) return error.why;
+  if (error instanceof DeadlinePassed) return 'the set-based deadline passed';
   if (error instanceof DomainError) return error.code;
   for (let e: unknown = error, depth = 0; e instanceof Error && depth < 4; depth += 1) {
     const code = (e as Error & { code?: unknown }).code;
@@ -81,10 +96,13 @@ function setBasedReason(error: unknown): string {
 const LEAD_WRITE = [
   { permission: 'crm.lead.write', minScope: 'own' },
   { permission: 'crm.account.write', minScope: 'own' },
-] as const;
+] as const satisfies readonly Requirement[];
 
 /**
- * `imports.job.commit` (IMP-01): a previewed job with valid rows starts committing. The rows go
+ * `imports.job.commit` (IMP-01): a previewed job with valid rows starts committing, unless a job of
+ * another upload with the same content is adding its rows or has added them in the company
+ * (`import_file_duplicate`, asked under the company's lock on that content, so two such jobs never
+ * both commit). The rows go
  * in batch by batch through `imports.job.commit_batch`, run by the import worker; asking again
  * while the job commits changes nothing, so the screen can ask the worker to carry on.
  */
@@ -102,6 +120,16 @@ export const commitImportJob = defineCommand({
     const before = jobState(loaded.job);
     if (before === 'committing') return toImportJobDto(loaded);
     assertImportJobMove(before, 'committing');
+    assertJobCompaniesCovered(ctx.entityIds, loaded.job);
+    if (implementedKind(loaded.job) === 'pin_codes') await assertGroupImport(ctx);
+    // Another job of the same content may have been started beside this one, and committed since.
+    const [content] = await ctx.tx
+      .select({ id: schema.files.id, sha256: schema.files.sha256 })
+      .from(schema.files)
+      .where(eq(schema.files.id, loaded.job.fileId))
+      .limit(1);
+    if (!content) throw new DomainError('internal', 'an import job without its file');
+    await assertContentNotImported(ctx.tx, input.entityId, content, true);
     if (loaded.job.validRows === 0) {
       throw new DomainError('validation_failed', 'no valid rows to import', {
         reason: 'import_nothing_to_commit',
@@ -123,27 +151,30 @@ export const commitImportJob = defineCommand({
 });
 
 /**
- * `imports.job.commit_batch` (design §8): the next valid rows of a committing job, in file
- * order, each made as `crm.lead.create` makes it, with the idempotency key `import:{job}:{row}`,
- * inside one savepoint: first set-based for the whole batch (`commitLeadBatch`), and row by row
- * through `crm.lead.create` when the batch holds anything else or a row is refused, so the row at
- * fault is the one recorded. A row the command refuses because a colleague looks after that
- * customer in the company (`customer_held_by_colleague`) is marked invalid with that reason, and
- * the rest of the batch goes on. Any other row that fails rolls the whole batch back, and the job
- * stops there as `failed` with the batch and the row recorded; the rows committed by earlier
- * batches stay until the job is rolled back. The batch keeps to the time budget of
- * `importBatchSettings`: with less left than a set-based try may need, it goes straight to the
- * row-by-row path, and when the budget runs out there, the rows done so far are the batch and
- * the rest wait for the next; each statement of a set-based try is cut off at the budget left
- * (`statement_timeout`), after which the batch goes row by row. No number lock: `crm.lead.create`
- * leaves it out for an import row (`inImportBatch`), so a batch waits on no lead form and no other
- * job's batch; batches of one job still take turns on the job row. A lock
- * wait that runs out (55P03) or a statement cut off (57014) anywhere else fails nothing: the
- * error goes to the worker to try the batch again. When no valid row is left the job is
- * `committed`. Each batch takes the next number from the job's count of batches, a batch whose
- * every row was refused included. One audit row per batch records the
- * job, the row range and the counts; the leads write no row of their own (design §8), and their
- * events are stored only when the batch commits.
+ * `imports.job.commit_batch` (design §8 and phase1 §6.3): the next valid rows of a committing
+ * job, in file order, inside one savepoint: first set-based for the whole batch (leads as
+ * `crm.lead.create` makes them, each with the idempotency key `import:{job}:{row}`; customers with
+ * a relationship per company; offices of the PIN code master), then row by row when the batch
+ * holds anything the set-based path does not handle or a row is refused, so the row at fault is
+ * the one recorded. A row refused because a colleague looks after that customer in the company
+ * (`customer_held_by_colleague`) is marked invalid with that reason, and the rest of the batch
+ * goes on. Any other row that fails rolls the whole batch back, and the job stops there as
+ * `failed` with the batch and the row recorded; the rows committed by earlier batches stay until
+ * the job is rolled back.
+ *
+ * The batch keeps to the time of `importBatchSettings`: the set-based try has one deadline across
+ * all its statements, each cut off at the time left until it (`statement_timeout`), and is not
+ * made with less than `SET_BASED_MIN_MS` left; a row-by-row slice then runs for
+ * `ROW_BY_ROW_SLICE_MS` at most, the rows done so far are the batch, and the rest wait for the
+ * next. No number lock: `crm.lead.create` leaves it out for an import row (`inImportBatch`), so a
+ * batch waits on no lead form and no other job's batch; batches of one job still take turns on
+ * the job row. A lock wait that runs out (55P03) or a statement cut off (57014) outside the
+ * set-based try fails nothing: the error goes to the worker to try the batch again, and the job
+ * fails only after the queue's last retry (`imports.job.fail`). When no valid row is left the job
+ * is `committed`. Each batch takes the next number from the job's count of batches, a batch whose
+ * every row was refused included. One audit row per batch records the job, the row range and the
+ * counts; the leads write no row of their own (design §8), and their events are stored only when
+ * the batch commits.
  */
 export const commitImportBatch = defineCommand({
   name: 'imports.job.commit_batch',
@@ -166,12 +197,17 @@ export const commitImportBatch = defineCommand({
   ],
   async handler(ctx, input) {
     // The batch's time runs from here: a wait for the job's row, held by another batch, counts.
-    const started = importBatchSettings.now();
+    const settings = importBatchSettings;
+    const started = settings.now();
     assertEntityInScope(ctx.entityIds, input.entityId);
     const loaded = await loadJob(ctx.tx, input.entityId, input.jobId, true);
     if (jobState(loaded.job) !== 'committing') return toImportJobDto(loaded);
     const job = loaded.job;
-    const kind = job.kind as ImportKind;
+    // The worker acts for the companies the preview found; a person who has lost one stops here.
+    assertJobCompaniesCovered(ctx.entityIds, job);
+    const kind = implementedKind(job);
+    if (kind === 'pin_codes') await assertGroupImport(ctx);
+    const commit = KIND_COMMITS[kind];
     const actor = ctx.principal.id;
     const r = schema.importRows;
     const batchNo = job.batchCount + 1;
@@ -202,15 +238,26 @@ export const commitImportBatch = defineCommand({
       return toImportJobDto(committed);
     }
 
-    const markCommitted = (sp: RequestTx, created: readonly { rowNo: number; id: string }[]) =>
-      sp.execute(sql`
+    // Every row the batch went through is committed; a row that made a record names it, of the
+    // kind's type unless the row says otherwise (a customers row linked to an existing customer).
+    const markCommitted = (sp: RequestTx, done: readonly number[], created: readonly Made[]) => {
+      const made = new Map(created.map((c) => [c.rowNo, c]));
+      const marks = done.map((rowNo) => ({
+        rowNo,
+        id: made.get(rowNo)?.id ?? null,
+        type: made.get(rowNo)?.type ?? commit.createdType,
+      }));
+      return sp.execute(sql`
         update import_rows r
-           set state = 'committed', created_type = 'opportunity', created_id = x.id,
-               committed_batch = ${batchNo}, updated_by = ${actor}
-          from jsonb_to_recordset(${JSON.stringify(created)}::jsonb) as x("rowNo" int, id uuid)
+           set state = 'committed',
+               created_type = case when x.id is null then null else x.type end,
+               created_id = x.id, committed_batch = ${batchNo}, updated_by = ${actor}
+          from jsonb_to_recordset(${JSON.stringify(marks)}::jsonb)
+               as x("rowNo" int, id uuid, type text)
          where r.job_id = ${job.id} and r.row_no = x."rowNo"`);
+    };
 
-    const refusedRow = (sp: RequestTx, rowNos: readonly number[]) =>
+    const refuseRows = (sp: RequestTx, rowNos: readonly number[]) =>
       sp
         .update(r)
         .set({
@@ -221,49 +268,63 @@ export const commitImportBatch = defineCommand({
         .where(and(eq(r.jobId, job.id), inArray(r.rowNo, [...rowNos])));
 
     let failedRow: number | undefined;
-    // The rows the command refused for a customer a colleague looks after (row by row only).
+    // The rows refused for a customer a colleague looks after.
     let refused: number[] = [];
     // The rows this batch went through: all of them, unless the time ran out row by row.
     let done = rows;
     try {
       // Why the batch goes row by row, when it does.
       let rowByRow: { level: 'info' | 'warn'; reason: string } | undefined;
-      const timeLeft = importBatchSettings.budgetMs - (importBatchSettings.now() - started);
-      if (timeLeft < SET_BASED_BATCH_BOUND_MS) {
+      // The set-based try ends here, leaving the row-by-row slice its time within the budget.
+      const deadline = started + settings.budgetMs - settings.sliceMs;
+      if (deadline - settings.now() < SET_BASED_MIN_MS) {
         rowByRow = { level: 'info', reason: TOO_LITTLE_TIME };
       } else {
         try {
           // The whole batch in a few statements (docs/spikes/import-scale.md), none of them
-          // allowed past the budget left; the savepoint's end puts the timeout back.
+          // allowed past the deadline; the savepoint's end puts the timeout back.
           await ctx.savepoint(async (sp) => {
-            const left = importBatchSettings.budgetMs - (importBatchSettings.now() - started);
-            const timeout = Math.max(SET_BASED_MIN_TIMEOUT_MS, Math.floor(left));
             const [prior] = (await sp.execute(
               sql`select current_setting('statement_timeout') as timeout`,
             )) as unknown as { timeout: string }[];
-            await sp.execute(
-              sql`select set_config('statement_timeout', ${`${String(timeout)}ms`}, true)`,
-            );
-            await markCommitted(sp, await commitLeadBatch(ctx, sp, job.id, rows));
+            const keep = async (tx: RequestTx) => {
+              const left = Math.floor(deadline - settings.now());
+              if (left <= 0) throw new DeadlinePassed();
+              await tx.execute(
+                sql`select set_config('statement_timeout', ${`${String(left)}ms`}, true)`,
+              );
+            };
+            const result = await commit.setBased(ctx, sp, job.id, rows, keep);
             await sp.execute(
               sql`select set_config('statement_timeout', ${prior?.timeout ?? '0'}, true)`,
             );
+            const refusedHere = new Set(result.refused);
+            await markCommitted(
+              sp,
+              rows.flatMap((row) => (refusedHere.has(row.rowNo) ? [] : [row.rowNo])),
+              result.created,
+            );
+            if (result.refused.length > 0) await refuseRows(sp, result.refused);
+            refused = result.refused;
           });
         } catch (setBasedError) {
           // Another transaction kept a statement waiting past the lock wait: the worker tries
-          // the batch again. A statement cut off at the budget goes row by row like any other.
+          // the batch again. A statement cut off at the deadline goes row by row like any other.
           if (databaseState(setBasedError) === '55P03') throw setBasedError;
-          // Something in the batch is not a plain new lead, or a row was refused: the savepoint
-          // took the batch back, and the rows run again one by one through `crm.lead.create`,
-          // which stops at the row at fault exactly as it always has.
+          // Something in the batch is not plain, or a row was refused: the savepoint took the
+          // batch back, and the rows run again one by one, which stops at the row at fault.
+          refused = [];
           rowByRow = {
-            level: setBasedError instanceof RowByRowNeeded ? 'info' : 'warn',
+            level:
+              setBasedError instanceof RowByRowNeeded || setBasedError instanceof DeadlinePassed
+                ? 'info'
+                : 'warn',
             reason: setBasedReason(setBasedError),
           };
         }
       }
       if (rowByRow !== undefined) {
-        importBatchSettings.logger.log(rowByRow.level, 'imports.batch_row_by_row', {
+        settings.logger.log(rowByRow.level, 'imports.batch_row_by_row', {
           requestId: ctx.requestId,
           jobId: job.id,
           batch: batchNo,
@@ -271,35 +332,42 @@ export const commitImportBatch = defineCommand({
           reason: rowByRow.reason,
         });
         await ctx.savepoint(async (sp) => {
-          const created: { rowNo: number; id: string }[] = [];
+          const sliceStarted = settings.now();
+          const created: Made[] = [];
+          const went: number[] = [];
           const heldRows: number[] = [];
-          // A set-based try that used the budget up still leaves this path its first row.
+          // At least one row, even after a set-based try that used the time up.
           for (const [index, row] of rows.entries()) {
-            if (index > 0 && importBatchSettings.now() - started >= importBatchSettings.budgetMs) {
-              // Out of time: the rows so far are this batch, the rest wait for the next one.
+            const now = settings.now();
+            if (
+              index > 0 &&
+              (now - sliceStarted >= settings.sliceMs || now - started >= settings.budgetMs)
+            ) {
+              // The slice is over: the rows so far are this batch, the rest wait for the next.
               done = rows.slice(0, index);
               break;
             }
             failedRow = row.rowNo;
+            // Each row in a savepoint of its own, so a refused row leaves nothing behind.
+            let outcome: { id: string | null; type?: ImportCreatedType } | 'refused';
             try {
-              // Each row in a savepoint of its own, so a refused row leaves no claimed key.
-              const lead = await sp.transaction((rowSp) =>
-                ctx.run(createLead, row.input, {
-                  tx: rowSp,
-                  idempotencyKey: importRowKey(job.id, row.rowNo),
-                  auditedByCaller: true,
-                  inImportBatch: true,
-                }),
-              );
-              created.push({ rowNo: row.rowNo, id: lead.id });
+              outcome = await sp.transaction((rowSp) => commit.oneRow(ctx, rowSp, job.id, row));
             } catch (error) {
               if (!isHeldByColleague(error)) throw error;
+              outcome = 'refused';
+            }
+            if (outcome === 'refused') {
               heldRows.push(row.rowNo);
+            } else {
+              went.push(row.rowNo);
+              if (outcome.id !== null) {
+                created.push({ rowNo: row.rowNo, id: outcome.id, type: outcome.type });
+              }
             }
           }
           failedRow = undefined;
-          await markCommitted(sp, created);
-          if (heldRows.length > 0) await refusedRow(sp, heldRows);
+          await markCommitted(sp, went, created);
+          if (heldRows.length > 0) await refuseRows(sp, heldRows);
           refused = heldRows;
         });
       }
@@ -389,3 +457,81 @@ export const commitImportBatch = defineCommand({
     return toImportJobDto(after);
   },
 });
+
+/*
+ * What each kind's rows make, set-based and one row at a time. Kept below the batch command that
+ * uses it, so the batch's source names the functions it calls (event-emitters.test.ts reads it).
+ */
+
+/** A record a committed row made, and its type when it is not the kind's own. */
+interface Made {
+  rowNo: number;
+  id: string;
+  type?: ImportCreatedType | undefined;
+}
+
+/** What one kind's rows make, and the record type a committed row names. */
+interface KindCommit {
+  createdType: ImportCreatedType;
+  /** The whole batch in a few statements, each kept to the deadline by `keep`. */
+  setBased(
+    ctx: CommandContext,
+    sp: RequestTx,
+    jobId: string,
+    rows: readonly BatchRow[],
+    keep: (tx: RequestTx) => Promise<void>,
+  ): Promise<{ created: Made[]; refused: number[] }>;
+  /**
+   * One row in its own savepoint: what it made (none for an office it corrected), or refused; a
+   * lead refused for a colleague's customer throws that refusal instead.
+   */
+  oneRow(
+    ctx: CommandContext,
+    rowSp: RequestTx,
+    jobId: string,
+    row: BatchRow,
+  ): Promise<{ id: string | null; type?: ImportCreatedType } | 'refused'>;
+}
+
+const KIND_COMMITS: Readonly<Record<ImplementedImportKind, KindCommit>> = {
+  leads: {
+    createdType: 'opportunity',
+    async setBased(ctx, sp, jobId, rows, keep) {
+      return { created: await commitLeadBatch(ctx, sp, jobId, rows, keep), refused: [] };
+    },
+    async oneRow(ctx, rowSp, jobId, row) {
+      // A refusal for a colleague's customer throws, so the row's savepoint takes back its key.
+      const lead = await ctx.run(createLead, row.input, {
+        tx: rowSp,
+        idempotencyKey: importRowKey(jobId, row.rowNo),
+        auditedByCaller: true,
+        inImportBatch: true,
+      });
+      return { id: lead.id };
+    },
+  },
+  accounts: {
+    createdType: 'account',
+    setBased: (ctx, sp, _jobId, rows, keep) => commitAccountBatch(ctx, sp, rows, keep),
+    async oneRow(ctx, rowSp, _jobId, row) {
+      // A link that finds the customer taken by a colleague since throws that refusal.
+      const done = await commitAccountBatch(ctx, rowSp, [row]);
+      const made = done.created[0];
+      return done.refused.length > 0
+        ? 'refused'
+        : made === undefined
+          ? { id: null }
+          : { id: made.id, type: made.type };
+    },
+  },
+  pin_codes: {
+    createdType: 'pin_code',
+    async setBased(ctx, sp, _jobId, rows, keep) {
+      return { ...(await commitPinCodeBatch(ctx, sp, rows, keep)), refused: [] };
+    },
+    async oneRow(ctx, rowSp, _jobId, row) {
+      const done = await commitPinCodeBatch(ctx, rowSp, [row]);
+      return { id: done.created[0]?.id ?? null };
+    },
+  },
+};

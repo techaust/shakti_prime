@@ -5,8 +5,8 @@
 | Branch | `feat/p4-print-letterhead` on GitHub (6511293, from `main` at #88) |
 | PC worktree | `p4-print`, slot 9: Postgres 54339, app 3039 |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); the review becomes the first step of the cloud [trial](../../runbooks/hybrid.md#10-the-trial) once the environment exists |
-| State | integrated, pull request open (its migrations are 0090 and 0091) |
-| Next step | merge-on-green, then dev and staging migrated and the proof's render measured on dev |
+| State | merged (#99, 05-10-2026) |
+| Next step | none; the proof's render is measured on dev once the AWS files stack exists |
 
 ## Brief
 Read first:

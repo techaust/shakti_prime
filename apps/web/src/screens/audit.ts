@@ -60,6 +60,7 @@ const ACTIONS = {
   'crm.opportunity.reopen': 'opportunityReopen',
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
+  'crm.sizing.record': 'sizingRecord',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -94,12 +95,14 @@ const ACTIONS = {
   'imports.job.commit': 'importCommit',
   'imports.job.commit_batch': 'importCommitBatch',
   'imports.job.rollback': 'importRollback',
+  'imports.job.fail': 'importFail',
   'files.upload.begin': 'fileUploadBegin',
   'files.upload.complete': 'fileUploadComplete',
   'files.file.mark_scanned': 'fileScanned',
   'files.file.mark_ready': 'fileReady',
   'files.file.reject': 'fileRejected',
   'files.file.recheck': 'filesRecheck',
+  'files.upload.sweep': 'uploadsSweep',
   'files.document.record': 'fileRendered',
   'print.proof.request': 'printProofRequest',
   'integrations.dlq.replay': 'deadLetterReplay',
@@ -124,6 +127,17 @@ const ACTIONS = {
   'agents.inbox.dismiss': 'inboxDismiss',
   'agents.config.set': 'agentConfigSet',
   'agents.killswitch.set': 'agentKillSwitchSet',
+  'crm.pipeline.update': 'pipelineUpdate',
+  'crm.stage.create': 'stageCreate',
+  'crm.stage.update': 'stageUpdate',
+  'crm.stage.reorder': 'stageReorder',
+  'crm.stage.archive': 'stageArchive',
+  'crm.disposition.set': 'dispositionsSet',
+  'crm.score_rule.set': 'scoreRulesSet',
+  'crm.lead.rescore': 'leadRescore',
+  'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.referral_partner.set': 'referralPartnerSet',
+  'crm.commission_rule.set': 'commissionRuleSet',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -157,6 +171,7 @@ const EVENT_NAMES = {
   'crm.opportunity.reopened': 'opportunityReopened',
   'crm.opportunity.won': 'opportunityWon',
   'crm.opportunity.lost': 'opportunityLost',
+  'crm.sizing.recorded': 'sizingRecorded',
   'pricing.price.changed': 'priceChanged',
   'pricing.list.created': 'priceListCreated',
   'pricing.list.approved': 'priceListApproved',
@@ -225,6 +240,10 @@ export type ChangeValue =
   | { kind: 'date'; iso: string }
   | { kind: 'percent'; value: string }
   | { kind: 'code'; group: CodeGroup; value: string }
+  /** The lead details a stage requires before a lead leaves it. */
+  | { kind: 'stageFields'; fields: string[] }
+  /** Several codes of one group, such as the reasons a sizing is outside its limits. */
+  | { kind: 'codes'; group: CodeGroup; values: string[] }
   | {
       kind: 'specs';
       /** An item's specifications in the order they were recorded, each a number or a code. */
@@ -254,6 +273,11 @@ const CODE_GROUPS = [
   'method',
   'eventType',
   'screen',
+  'nextAction',
+  'scoreFactor',
+  'commissionBasis',
+  'sizingKind',
+  'sizingReason',
   'taskKind',
   'accountType',
   'language',
@@ -339,6 +363,11 @@ const FIELD_KINDS = [
   ['handover', 'yesNo'],
   ['lostReason', 'lostReason'],
   ['nurtureReason', 'nurtureReason'],
+  // Sizing
+  ['sizingKind', 'sizingKind'],
+  ['inBounds', 'yesNo'],
+  ['sizingReasons', 'sizingReasons'],
+  ['engineVersion', 'text'],
   // Tasks
   ['taskKind', 'taskKind'],
   ['title', 'text'],
@@ -405,6 +434,8 @@ const FIELD_KINDS = [
   ['invalidRows', 'number'],
   ['skippedRows', 'number'],
   ['suggested', 'number'],
+  ['linked', 'number'],
+  ['companies', 'number'],
   ['batch', 'number'],
   ['fromRow', 'number'],
   ['toRow', 'number'],
@@ -413,6 +444,7 @@ const FIELD_KINDS = [
   ['batches', 'number'],
   ['rolledBackRows', 'number'],
   ['archived', 'number'],
+  ['kept', 'number'],
   ['failedBatch', 'number'],
   ['failedRow', 'number'],
   ['refusedRows', 'number'],
@@ -422,6 +454,21 @@ const FIELD_KINDS = [
   ['attempts', 'number'],
   ['deadLetteredAt', 'time'],
   ['requestedAt', 'time'],
+  // Pipelines, call outcomes, scoring and referrals
+  ['lockHours', 'number'],
+  ['firstContactSlaMinutes', 'number'],
+  ['position', 'number'],
+  ['requiredFields', 'stageFields'],
+  ['key', 'number'],
+  ['label', 'text'],
+  ['nextAction', 'nextAction'],
+  ['factor', 'scoreFactor'],
+  ['scorePoints', 'number'],
+  ['score', 'number'],
+  ['code', 'text'],
+  ['codeActive', 'yesNo'],
+  ['basis', 'commissionBasis'],
+  ['amount', 'text'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],
@@ -571,6 +618,14 @@ function known(field: FieldKey, value: unknown): ChangeValue {
     return { kind: 'percent', value: String(value) };
   }
   if (kind === 'mapping' && isRecord(value)) return mappingOf(value);
+  if (kind === 'stageFields' && Array.isArray(value)) {
+    const fields = value.filter((v): v is string => typeof v === 'string');
+    return fields.length === 0 ? EMPTY : { kind: 'stageFields', fields };
+  }
+  if (kind === 'sizingReasons' && Array.isArray(value)) {
+    const values = value.filter((v): v is string => typeof v === 'string');
+    return values.length === 0 ? EMPTY : { kind: 'codes', group: 'sizingReason', values };
+  }
   if (kind === 'listCount') {
     return Array.isArray(value) ? { kind: 'number', value: value.length } : EMPTY;
   }

@@ -3,12 +3,13 @@
 // channels, permission descriptions), adds missing rows, restores the grants of system roles no
 // Executive has customised, and gives a customised role only the permissions created since.
 import { ROLE_KEYS, type RoleKey } from '@shakti/contracts';
-import { and, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { connectionOptions } from '../src/connection';
 import { requireEnv } from '../src/env';
 import {
+  callDispositions,
   entities,
   leadSources,
   permissions,
@@ -18,6 +19,7 @@ import {
   rolePermissions,
   roles,
 } from '../src/schema/index';
+import { DISPOSITION_SEED } from './dispositions';
 import { ENTITY_SEED } from './entities';
 import { LEAD_SOURCE_SEED } from './lead-sources';
 import { PERMISSION_SEED } from './permissions';
@@ -144,6 +146,15 @@ export async function runSeeds(): Promise<void> {
                  ${stage.kind}
           on conflict (id) do update set key = excluded.key, kind = excluded.kind`);
       }
+
+      // Call outcomes are the Executive's once set: the workshop default goes in only while the
+      // group has none, live or archived.
+      const [groupOutcome] = await tx
+        .select({ id: callDispositions.id })
+        .from(callDispositions)
+        .where(and(isNull(callDispositions.entityId), isNull(callDispositions.segment)))
+        .limit(1);
+      if (!groupOutcome) await tx.insert(callDispositions).values(DISPOSITION_SEED);
 
       await tx
         .insert(leadSources)

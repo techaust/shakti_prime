@@ -2,7 +2,6 @@ import { withSentryConfig } from '@sentry/nextjs/config';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { API_CONTENT_SECURITY_POLICY } from './src/csp';
-import { UPLOAD_BODY_LIMIT } from './src/files/limits';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -42,13 +41,9 @@ const config: NextConfig = {
       './src/print/fonts/**',
     ],
   },
+  // No body limit is raised: every file, an import file included, goes straight to the file store
+  // on a pre-signed address (docs/API.md §3.2), so server actions keep Next.js's default.
   poweredByHeader: false,
-  experimental: {
-    // An import file reaches its server action as a form (docs/design/backend-weeks-3-5.md §8),
-    // through the proxy, which would otherwise cut the body at 10 MB.
-    serverActions: { bodySizeLimit: UPLOAD_BODY_LIMIT },
-    proxyClientMaxBodySize: UPLOAD_BODY_LIMIT,
-  },
   headers() {
     return Promise.resolve([
       { source: '/(.*)', headers: SECURITY_HEADERS },

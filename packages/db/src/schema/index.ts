@@ -7,6 +7,8 @@ export { pipelines, pipelineStages } from './pipelines';
 export { contacts, contactPhones } from './contacts';
 export { accounts, accountEntities, accountContacts, customerSites } from './accounts';
 export { opportunities } from './opportunities';
+export { callDispositions, commissionRules, leadScoreRules, referralPartners } from './crm-config';
+export { sizings } from './sizings';
 export { consents } from './consents';
 export { activities } from './activities';
 export { tasks } from './tasks';
@@ -24,6 +26,7 @@ export { savedViews } from './saved-views';
 export { files } from './files';
 export { agentConfigs, agentRuns, agentActions, inboxItems, agentEvals } from './agents';
 export { importMappingTemplates, importJobs, importRows } from './imports';
+export { pinCodes } from './pin-codes';
 export {
   users,
   sessions,

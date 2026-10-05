@@ -91,11 +91,13 @@ const pause = (ms: number, signal: AbortSignal) =>
  * server records the file and signs an address for exactly these bytes, the browser sends them
  * there with progress, the server checks what landed, and the screen waits a while for the checks
  * to pass. Each attempt carries its own idempotency keys. `onRecorded` hears the file's id as soon
- * as the server records it, for a form that names the file in its own command.
+ * as the server records it, for a form that names the file in its own command. `contentType`
+ * names the type the upload declares when the browser's guess is not the purpose's (a CSV file
+ * on a computer with Excel).
  */
 export async function sendFile(
   file: File,
-  target: { entityId: number; purpose: FilePurpose },
+  target: { entityId: number; purpose: FilePurpose; contentType?: string },
   controls: UploadControls,
   text: SendFileText,
   onRecorded?: (fileId: string) => void,
@@ -108,7 +110,7 @@ export async function sendFile(
         entityId: target.entityId,
         purpose: target.purpose,
         name: file.name,
-        contentType: file.type,
+        contentType: target.contentType ?? file.type,
         size: file.size,
         sha256,
       },

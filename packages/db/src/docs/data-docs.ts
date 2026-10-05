@@ -641,9 +641,11 @@ const code = (text: string): string => (text.includes('`') ? `\`\` ${text} \`\``
 
 /**
  * A column type as Mermaid accepts it (a word, no comma or space), with what it leaves out: the
- * precision of `numeric(14, 2)` goes to the attribute's comment.
+ * precision of `numeric(14, 2)` goes to the attribute's comment, and so does an array's brackets
+ * (`smallint[]` is a `smallint` noted `array`).
  */
 export function mermaidType(type: string): { type: string; detail: string | null } {
+  if (type.endsWith('[]')) return { type: mermaidType(type.slice(0, -2)).type, detail: 'array' };
   const sized = /^([a-z ]+)\((\d+(?:,\s*\d+)?)\)$/.exec(type);
   const base = sized?.[1] ?? type;
   const detail = sized?.[2] === undefined ? null : `(${sized[2].replace(/\s+/g, '')})`;

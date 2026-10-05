@@ -17,6 +17,7 @@ import {
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
+import { LocalityOptions, PinHint, usePinLookup } from './pin-lookup';
 
 const FIELDS = [
   'entityId',
@@ -30,6 +31,7 @@ const FIELDS = [
   'site.type',
   'site.pin',
   'sourceCode',
+  'referralCode',
 ] as const;
 
 /**
@@ -53,6 +55,7 @@ export function NewLeadForm({
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
+  const { setPin, found } = usePinLookup();
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,6 +76,7 @@ export function NewLeadForm({
         siteType: text('siteType'),
         pin: text('pin'),
         sourceCode: text('sourceCode'),
+        referralCode: text('referralCode'),
       }),
       () => {
         toast.success(t('done', { name }));
@@ -182,8 +186,9 @@ export function NewLeadForm({
         <legend className="text-h3 mb-1">{t('site')}</legend>
         <p className="text-text-muted text-sm">{t('siteHelper')}</p>
         <Field id="lead-village" label={t('village')} error={fieldError('site.village')}>
-          <Input name="village" maxLength={120} autoComplete="off" />
+          <Input name="village" maxLength={120} autoComplete="off" list="lead-village-offices" />
         </Field>
+        <LocalityOptions id="lead-village-offices" found={found} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field id="lead-site-type" label={t('siteType')} error={fieldError('site.type')}>
             <Select name="siteType" defaultValue="">
@@ -195,8 +200,21 @@ export function NewLeadForm({
               ))}
             </Select>
           </Field>
-          <Field id="lead-pin" label={t('pin')} error={fieldError('site.pin')}>
-            <Input name="pin" inputMode="numeric" maxLength={6} autoComplete="postal-code" />
+          <Field
+            id="lead-pin"
+            label={t('pin')}
+            helper={found === undefined ? undefined : <PinHint found={found} />}
+            error={fieldError('site.pin')}
+          >
+            <Input
+              name="pin"
+              inputMode="numeric"
+              maxLength={6}
+              autoComplete="postal-code"
+              onChange={(e) => {
+                setPin(e.currentTarget.value);
+              }}
+            />
           </Field>
         </div>
       </fieldset>
@@ -210,6 +228,21 @@ export function NewLeadForm({
             </option>
           ))}
         </Select>
+      </Field>
+
+      <Field
+        id="lead-referral"
+        label={t('referral')}
+        helper={t('referralHelper')}
+        error={fieldError('referralCode')}
+      >
+        <Input
+          name="referralCode"
+          maxLength={12}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+        />
       </Field>
 
       <FailureMessage failure={formFailure} />

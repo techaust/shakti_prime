@@ -2,6 +2,7 @@ import {
   AGENT_FORBIDDEN_PERMISSIONS,
   FILE_PURPOSES,
   newId,
+  PLATFORM_ONLY_PERMISSIONS,
   SYSTEM_ROLE_KEYS,
   type AgentRoleKey,
   type PermissionGrant,
@@ -29,9 +30,9 @@ afterAll(closeDb);
 /**
  * SECURITY §11 item 3: no agent principal, and not the system principal the event workers act as
  * (`system:workers`), may call a command that needs an admin, cost, audit, integrations, tax-rate,
- * price or catalogue permission (SECURITY §3.3: agents make no price edits). The commands are read
- * from the registry, so a new one that needs such a permission is covered the day it is
- * registered.
+ * price, catalogue or CRM set-up permission (SECURITY §3.3: agents make no price edits). The
+ * commands are read from the registry, so a new one that needs such a permission is covered the
+ * day it is registered.
  */
 const PRICE_AND_CATALOGUE_EDITS: readonly PermissionKey[] = ['pricing.write', 'catalogue.write'];
 
@@ -105,6 +106,24 @@ const INPUTS: Record<string, unknown> = {
   },
   'admin.user.suspend': { userId: newId() },
   'admin.user.two_factor.reset': { userId: newId() },
+  'crm.commission_rule.set': {
+    partnerId: null,
+    basis: 'fixed',
+    amount: '500.00',
+    effectiveFrom: '2031-04-01',
+  },
+  'crm.disposition.set': {
+    entityId: 1,
+    segment: null,
+    dispositions: [{ key: 1, label: 'Interested', nextAction: 'callback' }],
+  },
+  'crm.pipeline.update': { pipelineId: newId(), lockHours: 24 },
+  'crm.referral_partner.set': { accountId: newId(), code: 'AGENT123', isActive: true },
+  'crm.score_rule.set': { entityId: 1, segment: null, rules: [] },
+  'crm.stage.archive': { stageId: newId() },
+  'crm.stage.create': { pipelineId: newId(), name: 'Refused stage' },
+  'crm.stage.reorder': { pipelineId: newId(), stageIds: [newId()] },
+  'crm.stage.update': { stageId: newId(), name: 'Refused stage' },
   'catalogue.item.archive': { itemId: newId() },
   'catalogue.item.create': {
     sku: 'REFUSED-1',
@@ -183,7 +202,39 @@ const INPUTS: Record<string, unknown> = {
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
 };
 
-describe('agent and system principals cannot call admin, cost, audit, integrations, tax, price or catalogue commands', () => {
+/** The commands only people may call (`peopleOnly`), read from the registry. */
+const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
+  .filter((command) => command.peopleOnly === true)
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+/** A valid input for each command for people only, so the refusal comes from the guard. */
+const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
+  'crm.tag.create': { entityId: 1, name: 'Refused tag' },
+  'crm.tag.archive': { tagId: newId() },
+  'crm.sizing.record': {
+    entityId: 1,
+    opportunityId: newId(),
+    sizing: {
+      kind: 'rooftop',
+      inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+    },
+  },
+};
+
+describe('commands for people only', () => {
+  it('are found in the registry, each with a valid input here', () => {
+    expect(PEOPLE_ONLY.map((c) => c.name)).toEqual(Object.keys(PEOPLE_ONLY_INPUTS).sort());
+    for (const command of PEOPLE_ONLY) {
+      expect({
+        command: command.name,
+        valid: command.input.safeParse(PEOPLE_ONLY_INPUTS[command.name]).success,
+      }).toEqual({ command: command.name, valid: true });
+    }
+  });
+});
+
+describe('agent and system principals cannot call admin, cost, audit, integrations, tax, price, catalogue or CRM set-up commands', () => {
   it('finds the restricted commands in the registry, each with a valid input here', () => {
     expect(RESTRICTED.length).toBeGreaterThan(0);
     expect(RESTRICTED.map((c) => c.name)).toEqual(Object.keys(INPUTS).sort());
@@ -237,6 +288,36 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
   });
 
   for (const agent of SERVICES) {
+    it(`${agent} is refused at the guard by every command for people only, even with its grants`, async () => {
+      // The owner's decision of 30-09-2026 (SECURITY §3.3): only people record the sizing a
+      // quote relies on. The principal is given every grant the command needs, so the refusal
+      // can only come from the people rule.
+      for (const command of PEOPLE_ONLY) {
+        const base = principalFor(agent, [1]);
+        const principal = {
+          ...base,
+          permissions: [
+            ...base.permissions,
+            ...needs(command).map((key) => ({ key, scope: 'all' as const })),
+          ],
+        };
+        const error: unknown = await asPrincipal(principal, (context) =>
+          runCommand(command, { context, audit, outbox }, PEOPLE_ONLY_INPUTS[command.name]),
+        ).then(
+          () => undefined,
+          (e: unknown) => e,
+        );
+        expect({ command: command.name, error }).toMatchObject({
+          command: command.name,
+          error: { code: 'forbidden', details: { reason: 'people_only' } },
+        });
+        expect({ command: command.name, stage: failureOf(error)?.stage }).toEqual({
+          command: command.name,
+          stage: 'guard',
+        });
+      }
+    });
+
     it(`${agent} is refused at the guard by every restricted command`, async () => {
       // principalFor, not createTestPrincipal: an agent principals row would change the agent
       // count the fail-closed suite checks.
@@ -496,8 +577,9 @@ describe('agent principals cannot upload a file of any purpose', () => {
   }
 });
 
-describe('agent principals cannot run the file checks', () => {
+describe("agent principals cannot run the platform's own work: the file checks and the nightly rescoring", () => {
   const CHECKS: Record<string, unknown> = {
+    'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {
       entityId: 1,
@@ -513,14 +595,27 @@ describe('agent principals cannot run the file checks', () => {
     'files.file.reject': { entityId: 1, fileId: newId(), reason: 'file_infected' },
   };
 
-  it('no agent in the matrix holds files.process, which only the worker principal may', () => {
+  it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {
     for (const agent of AGENTS) {
-      expect(AGENT_MATRIX[agent].filter((g) => g.key === 'files.process')).toEqual([]);
+      expect(AGENT_MATRIX[agent].filter((g) => PLATFORM_ONLY_PERMISSIONS.includes(g.key))).toEqual(
+        [],
+      );
+    }
+  });
+
+  it('runs every check and the rescoring with nothing but platform-only permissions', () => {
+    for (const name of Object.keys(CHECKS)) {
+      const command = (commands as Record<string, AnyCommand>)[name];
+      if (command === undefined) throw new Error(`no command ${name}`);
+      expect({
+        name,
+        needs: needs(command).filter((k) => !PLATFORM_ONLY_PERMISSIONS.includes(k)),
+      }).toEqual({ name, needs: [] });
     }
   });
 
   for (const agent of AGENTS) {
-    it(`${agent} is refused at the guard by every file check`, async () => {
+    it(`${agent} is refused at the guard by every file check and the rescoring`, async () => {
       const principal = principalFor(agent, [1]);
       for (const [name, input] of Object.entries(CHECKS)) {
         const command = (commands as Record<string, AnyCommand>)[name];
