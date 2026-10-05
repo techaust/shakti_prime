@@ -125,7 +125,11 @@ async function ensureSizedLead(
     });
   }
   // The journeys set the tier themselves on Account 360, so it is cleared for every run.
-  await executeCommand(owner, {}, setAccountTier, { accountId, tierId: tier ? IDS.tier : null });
+  await executeCommand(owner, {}, setAccountTier, {
+    entityId,
+    accountId,
+    tierId: tier ? IDS.tier : null,
+  });
   return { leadId, accountId };
 }
 

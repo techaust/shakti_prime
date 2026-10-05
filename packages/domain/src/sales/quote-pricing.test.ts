@@ -160,6 +160,37 @@ describe('priceQuote (design §7.3, ADR 0007)', () => {
     );
   });
 
+  it('refuses a line, or a total, past twelve digits of rupees', () => {
+    const base = {
+      segment: 'farmer_pumps' as const,
+      on: ON,
+      supply: INTRA,
+      rates,
+      compositeRules: [],
+    };
+    // ₹50 crore times 2,000 is ₹10,000 crore taxable: thirteen digits.
+    expect(() =>
+      priceQuote({
+        ...base,
+        lines: [
+          { source: item(ITEM_A, '8413', '500000000.00'), qty: '2000', worksContract: false },
+        ],
+      }),
+    ).toThrow(
+      expect.objectContaining({ details: { reason: 'quote_amount_too_large', sku: 'SKU-c004' } }),
+    );
+    // Two lines of ₹5,000 crore with 12% each: each line fits, their total does not.
+    expect(() =>
+      priceQuote({
+        ...base,
+        lines: [
+          { source: item(ITEM_A, '8413', '500000000.00'), qty: '1000', worksContract: false },
+          { source: item(ITEM_A, '8413', '500000000.00'), qty: '1000', worksContract: false },
+        ],
+      }),
+    ).toThrow(expect.objectContaining({ details: { reason: 'quote_amount_too_large' } }));
+  });
+
   it('refuses a line with no rate on the quote date', () => {
     expect(() =>
       priceQuote({

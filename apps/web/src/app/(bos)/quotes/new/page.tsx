@@ -30,7 +30,11 @@ export default async function NewQuotePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await screenAccess(navRequires('quotes'));
+  // Making a quote needs its own permission beside reading the lead.
+  await screenAccess([
+    { key: 'crm.lead.read', scope: 'own' },
+    { key: 'sales.quote.create', scope: 'own' },
+  ]);
   const query = await searchParams;
   const entityId = companyParam(query.company);
   const lead = Array.isArray(query.lead) ? query.lead[0] : query.lead;

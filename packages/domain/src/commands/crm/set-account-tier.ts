@@ -2,6 +2,7 @@ import { AccountTierDto, DomainError, SetAccountTierInput } from '@shakti/contra
 import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
+import { requireEntity } from './opportunity-shared';
 
 /**
  * `crm.account.tier.set` (docs/design/phase1.md §7.3, workshop PRICE-1): the price tier every
@@ -13,6 +14,7 @@ import { defineCommand } from '../../command/define-command';
  * move a customer to a cheaper tier. The trigger `accounts_tier_guard` refuses the change to any
  * other request in the database too. The customer is one record for the group (ADR 0008), so the
  * tier applies in every company; the update policy still needs the caller's customer write scope.
+ * The change is recorded in the company of the page it was made from, on the customer's timeline.
  */
 export const setAccountTier = defineCommand({
   name: 'crm.account.tier.set',
@@ -24,6 +26,7 @@ export const setAccountTier = defineCommand({
   output: AccountTierDto,
   auditFields: [],
   async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
     if (input.tierId !== null) {
       const t = schema.priceTiers;
       const [tier] = await ctx.tx
@@ -59,12 +62,20 @@ export const setAccountTier = defineCommand({
         reason: 'account_missing',
       });
     }
+    // Recorded in the company the change was made from, on its audit row and the customer's
+    // timeline there, as the other customer changes of Account 360 are.
     ctx.audit({
       aggregateType: 'account',
       aggregateId: row.id,
-      entityId: null,
+      entityId: input.entityId,
       before: { tierId: account.tierId },
       after: { tierId: row.tierId },
+    });
+    await ctx.activity({
+      type: 'customer_updated',
+      accountId: row.id,
+      entityId: input.entityId,
+      payload: { changed: 'tierId' },
     });
     return { accountId: row.id, tierId: row.tierId };
   },

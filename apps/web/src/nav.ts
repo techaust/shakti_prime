@@ -75,11 +75,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'quotes',
     icon: FileText,
     group: 'work',
-    // The sellers' screen: listQuotes reads the quotes of the leads the caller reads.
-    requires: [
-      { key: 'sales.quote.create', scope: 'own' },
-      { key: 'crm.lead.read', scope: 'own' },
-    ],
+    // Quotes are read with their leads (listQuotes), so whoever reads leads opens the list and the
+    // quote page; sending, re-quoting and withdrawing follow their own permissions.
+    requires: [{ key: 'crm.lead.read', scope: 'own' }],
   },
   {
     id: 'leads-new',

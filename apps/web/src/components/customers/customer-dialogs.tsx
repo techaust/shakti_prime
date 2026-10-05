@@ -181,10 +181,17 @@ function TierForm({ view, onDone, onCancel }: FormProps) {
     e.preventDefault();
     if (pending) return;
     const tierId = formText(new FormData(e.currentTarget), 'tierId');
-    run({ accountId: view.account.id, tierId: tierId === '' ? null : tierId }, () => {
-      toast.success(t('saved'));
-      onDone();
-    });
+    run(
+      {
+        entityId: view.entityId,
+        accountId: view.account.id,
+        tierId: tierId === '' ? null : tierId,
+      },
+      () => {
+        toast.success(t('saved'));
+        onDone();
+      },
+    );
   }
 
   return (

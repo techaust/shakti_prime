@@ -326,6 +326,96 @@ describe('the expiry and the printer reach quotes only through their definers', 
   });
 });
 
+describe('a quote’s document (0103)', () => {
+  it('is read with its quote: its maker, the team lead and the GM, and nobody who cannot read the quote', async () => {
+    const quoteId = await quoteOf('a', a);
+    const fileId = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+                 values (${fileId}, 1, 'quote_pdf', 'local', ${`1/quote_pdf/${fileId}.pdf`}, 'quote.pdf',
+                         'application/pdf', 10, ${'c'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`;
+        await tx`update quotes set pdf_file_id = ${fileId} where id = ${quoteId}`;
+      }),
+    );
+    const sees = async (who: Principal) => {
+      const rows = await asPrincipal(who, ({ tx }) =>
+        tx.execute(sql`select id from files where id = ${fileId}`),
+      );
+      return (rows as unknown as unknown[]).length === 1;
+    };
+    // The Lead Converter at own scope and the Sales Team Lead at team scope made no file, yet
+    // read it through the quote.
+    expect(await sees(a)).toBe(true);
+    expect(await sees(teamLead)).toBe(true);
+    expect(await sees(fx.principals.gm)).toBe(true);
+    for (const who of [b, fx.principals.c, fx.principals.d]) expect(await sees(who)).toBe(false);
+  });
+
+  it('is not read through a quote that names another file', async () => {
+    const fileId = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+               values (${fileId}, 1, 'quote_pdf', 'local', ${`1/quote_pdf/${fileId}.pdf`}, 'quote.pdf',
+                       'application/pdf', 10, ${'d'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
+    );
+    const rows = await asPrincipal(a, ({ tx }) =>
+      tx.execute(sql`select id from files where id = ${fileId}`),
+    );
+    expect(rows as unknown as unknown[]).toEqual([]);
+  });
+});
+
+describe('the ⌘K candidates (0103)', () => {
+  const ids = async (who: Principal, text: string) => {
+    const rows = await asPrincipal(who, ({ tx }) =>
+      tx.execute(sql`select app.quote_search_ids(${text}, 200) as id`),
+    );
+    return (rows as unknown as { id: string }[]).map((r) => r.id);
+  };
+
+  it('keep to the leads the caller reads before the limit, so an own older quote is not crowded out', async () => {
+    const tag = `QRLSM${newId().slice(-6)}`;
+    const own = await quoteOf('a', a);
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update quotes set quote_no = ${`${tag}/own`}, created_at = now() - interval '1 day'
+                 where id = ${own}`;
+        // 205 newer matches on a colleague's lead.
+        await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, site_id,
+                   tier_id, price_list_id, scheme, place_of_supply_state, supply_kind, valid_until,
+                   subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+                 select app.uuid_v7(), 1, ${tag} || '/' || g, '2098-99', ${lead('b')},
+                        ${leadOf.get(lead('b'))?.accountId ?? ''}, ${leadOf.get(lead('b'))?.siteId ?? null},
+                        ${tierId('retail')}, ${LIST}, 'none', '08', 'intra', now() + interval '15 days',
+                        0, 0, 0, 0, 0, 0, 0, ${fx.principals.b.id}
+                   from generate_series(1, 205) g`;
+      }),
+    );
+    expect(await ids(a, tag)).toEqual([own]);
+    // The team lead reads both leads: the newest 200 of 206.
+    const team = await ids(teamLead, tag);
+    expect(team).toHaveLength(200);
+    expect(team).not.toContain(own);
+  });
+
+  it('take a backslash, a percent sign and an underscore as themselves', async () => {
+    const tag = `QRLSE${newId().slice(-6)}`;
+    const made = await Promise.all([quoteOf('a', a), quoteOf('a', a), quoteOf('a', a)]);
+    const [slash, plain, under] = made;
+    await asMigrator(async (m) => {
+      await m`update quotes set quote_no = ${`${tag}\\X/1`} where id = ${slash ?? ''}`;
+      await m`update quotes set quote_no = ${`${tag}X/2`} where id = ${plain ?? ''}`;
+      await m`update quotes set quote_no = ${`${tag}_X/3`} where id = ${under ?? ''}`;
+    });
+    expect(await ids(a, `${tag}\\X`)).toEqual([slash]);
+    expect((await ids(a, `${tag}_`)).sort()).toEqual([under]);
+    expect((await ids(a, `${tag}%`)).sort()).toEqual([]);
+  });
+});
+
 describe('a customer’s price tier', () => {
   it('is set only with pricing.write for all companies, whoever may write the customer', async () => {
     const accountId = leadOf.get(lead('a'))?.accountId ?? '';

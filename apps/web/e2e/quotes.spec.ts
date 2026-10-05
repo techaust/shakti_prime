@@ -190,8 +190,17 @@ test.describe('the quotes of the snapshot company', () => {
 test.describe('a tele-caller', () => {
   test.use(signedInAs('teleCaller'));
 
-  test('has no Quotes screen', async ({ page }) => {
+  test('reads the quotes of their own leads, and cannot open the quote builder', async ({
+    page,
+  }) => {
+    // Quotes are read with their leads; making one takes the quote permission a caller lacks.
     await page.goto('/quotes');
+    await expect(page.getByRole('heading', { name: 'Quotes', level: 1 })).toBeVisible();
+    await expectNoAxeViolations(page);
+    const { quotes } = seededUsers();
+    await page.goto(
+      `/quotes/new?company=${String(SNAPSHOT_COMPANY.entityId)}&lead=${quotes.snapshotLeadId}`,
+    );
     await expect(page.getByRole('heading', { name: "We couldn't find this screen" })).toBeVisible();
   });
 });

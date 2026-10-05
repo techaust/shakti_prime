@@ -10,11 +10,16 @@ import { QuantitySchema } from '../../tax/engine';
  * object is strict, so a line that carries one is refused (SAL-03), and every amount comes from
  * the Price Master and the tax engine.
  */
+/** The largest quantity one line takes: a quotation's line, never a typing slip of millions. */
+export const QUOTE_MAX_QTY = 100_000;
+
 export const QuoteLineInput = z
   .object({
     itemId: IdSchema.optional(),
     kitId: IdSchema.optional(),
-    qty: QuantitySchema,
+    qty: QuantitySchema.refine((qty) => Number(qty) <= QUOTE_MAX_QTY, {
+      message: 'quantity above the most one line takes',
+    }),
     worksContract: z.boolean().default(false),
   })
   .strict()
@@ -75,8 +80,11 @@ export const AttachQuotePdfInput = z
   .strict();
 export type AttachQuotePdfInput = z.input<typeof AttachQuotePdfInput>;
 
-/** `crm.account.tier.set`: the price tier a customer's quotes are priced from, or none. */
+/**
+ * `crm.account.tier.set`: the price tier a customer's quotes are priced from, or none, set from the
+ * customer's page in one company, whose timeline records it.
+ */
 export const SetAccountTierInput = z
-  .object({ accountId: IdSchema, tierId: IdSchema.nullable() })
+  .object({ entityId: EntityIdSchema, accountId: IdSchema, tierId: IdSchema.nullable() })
   .strict();
 export type SetAccountTierInput = z.input<typeof SetAccountTierInput>;

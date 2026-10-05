@@ -116,6 +116,7 @@ export function priceQuote(input: QuotePricingInput): PricedQuote {
       lineTotal: taxed.lineTotal,
     };
   });
+  for (const line of lines) assertFits(line.lineTotal, line.sku);
   const totals = computeDocument(
     lines.map((l) => ({
       taxRateId: l.taxRateId,
@@ -130,5 +131,20 @@ export function priceQuote(input: QuotePricingInput): PricedQuote {
       lineTotal: l.lineTotal,
     })),
   );
+  assertFits(totals.grandTotal, null);
   return { lines, totals };
+}
+
+/** The most digits of rupees a quote keeps: `numeric(14,2)`. */
+const MAX_RUPEE_DIGITS = 12;
+
+/** An amount past what the quote can keep is refused in plain words, not stored as a fault. */
+function assertFits(amount: string, sku: string | null): void {
+  const rupees = amount.replace('-', '').split('.')[0] ?? '';
+  if (rupees.length > MAX_RUPEE_DIGITS) {
+    throw new DomainError('validation_failed', `amount ${amount} is past numeric(14,2)`, {
+      reason: 'quote_amount_too_large',
+      ...(sku === null ? {} : { sku }),
+    });
+  }
 }
