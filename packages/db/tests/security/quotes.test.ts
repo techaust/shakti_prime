@@ -406,9 +406,9 @@ describe('the ⌘K candidates (0103)', () => {
     const made = await Promise.all([quoteOf('a', a), quoteOf('a', a), quoteOf('a', a)]);
     const [slash, plain, under] = made;
     await asMigrator(async (m) => {
-      await m`update quotes set quote_no = ${`${tag}\\X/1`} where id = ${slash ?? ''}`;
-      await m`update quotes set quote_no = ${`${tag}X/2`} where id = ${plain ?? ''}`;
-      await m`update quotes set quote_no = ${`${tag}_X/3`} where id = ${under ?? ''}`;
+      await m`update quotes set quote_no = ${`${tag}\\X/1`} where id = ${slash}`;
+      await m`update quotes set quote_no = ${`${tag}X/2`} where id = ${plain}`;
+      await m`update quotes set quote_no = ${`${tag}_X/3`} where id = ${under}`;
     });
     expect(await ids(a, `${tag}\\X`)).toEqual([slash]);
     expect((await ids(a, `${tag}_`)).sort()).toEqual([under]);
