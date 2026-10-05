@@ -147,6 +147,7 @@ Read order for any task: this file → the relevant blueprint section → the mo
 - **Dispatch gate.** A dispatch above the e-way bill threshold cannot leave "ready" without an e-way bill number recorded on it.
 - **Append-only ledgers:** stock movements, payments, audit logs, price history.
 - **Events via outbox.** State changes write `outbox_events` in the same transaction; Upstash QStash/Workflow delivers them to workers and agents.
+- **The workers principal holds platform-only permissions.** `system:workers` holds only permissions no person's role holds (`files.process`, `crm.score.refresh`), never a person's `crm.*` or `sales.*` grant, and its jobs read and write through narrow definers that check that permission, so the agents' customer rules keep applying to it (ADR 0020).
 - **AI agents are least-privilege service principals** (subject to RLS). They act only through commands, with an autonomy level of Suggest / Needs approval / Automatic. Customer WhatsApp content is untrusted input.
 - **Webhooks:** verify signature → store in `webhook_inbox` → return 200 → process idempotently in a QStash worker.
 - **Tally is read-only.** The connector pushes outbound to the BOS; the BOS never writes to Tally. Vouchers missing from the daily GUID snapshot become tombstones. The BOS is the operational stock authority; Tally holds statutory valuation.

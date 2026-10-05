@@ -36,7 +36,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
    - `apps/web/messages/en.json`, before `git add` on it: `python3 tools/integration/merge-json.py apps/web/messages/en.json` (prints any key both sides changed; `main`'s value is kept);
    - `tools/copy-lint/copy-lint.config.json`: `python3 tools/integration/merge-copylint.py` (one conflict hunk);
    - documents and code: by hand.
-3. Renumber the slice's migrations after `main`'s last one: `node tools/integration/renumber-migrations.mjs origin/main $(cat ../<slug>-premerge.sha)`. It keeps each migration's SQL as written, restores `main`'s journal and snapshots, and gives each moved migration a journal time after `main`'s last. The hosted migrator skips a migration older than the last one applied.
+3. Install the merged packages (`pnpm install --offline --frozen-lockfile`), then renumber the slice's migrations after `main`'s last one: `node tools/integration/renumber-migrations.mjs origin/main $(cat ../<slug>-premerge.sha)`. It keeps each migration's SQL as written, restores `main`'s journal and snapshots, and gives each moved migration a journal time after `main`'s last. The hosted migrator skips a migration older than the last one applied.
 4. `pnpm db:generate` must report no changes; `pnpm db:docs`; correct any migration number the slice's documents cite.
 5. Commit the merge (`chore: merge main (<what>) into <slice>; its migrations move to NNNN to MMMM`).
 
@@ -65,3 +65,8 @@ After a pull request with migrations merges and CI on `main` is green: migrate d
 - Never force-push or delete a remote branch: the free plan does not enforce it, so it is a rule. Rewritten work goes up under a fresh branch name (`feat/c3-pipelines-r2`); the merge workflow deletes merged branches.
 - The Claude usage limit stops every agent at once, on the PC and in the cloud; work committed every 20 minutes (and pushed, in the cloud) survives, and a fresh agent continues from the branch.
 - Agents sometimes stop working for about 30 minutes without a tool call; stop them and start a fresh one from the last commit.
+- Renumbering before `pnpm install` lets the script's `drizzle-kit` run against stale packages: it writes nothing, the last moved snapshot is a copy of the one before, and `pnpm db:generate` then writes a migration. Fold that generated snapshot into the last moved migration's (keeping its `id` and `prevId`) and delete the generated SQL, snapshot and journal entry.
+- On the 8 GB PC, three agents each linting the whole repository at once used all the memory and stopped Docker. Agents lint one package at a time until one full lint at the end and never run two heavy commands together, and at most two builders run while an integration run goes.
+- Under that load a test hits vitest's 20-second limit or a journey its 60 seconds; rerun that file alone, and the suite with nothing else running, before treating it as a defect.
+- A new menu item changes every baseline that shows the menu, in screens the slice never touched. Run the full `pnpm --filter web e2e:snap` verification before the pull request and remake the baselines it finds changed; Playwright counts each baseline it writes as a failure, so only the run without updating is the check.
+- `pnpm --filter web e2e -- <spec>` runs every spec; `e2e:snap` takes spec paths.
