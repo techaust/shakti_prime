@@ -15,6 +15,7 @@ import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sin
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
+import { upsertSite } from '../../src/commands/crm/customer';
 import {
   dismissDuplicate,
   scanDuplicates,
@@ -23,6 +24,7 @@ import {
 import { mergeCustomers, mergeLeads, unmergeCustomers } from '../../src/commands/crm/merges';
 import { createTask } from '../../src/commands/crm/tasks';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
+import { matchText } from '../../src/crm/duplicate-confidence';
 import { listAccountDuplicates, listDuplicates } from '../../src/queries/crm/duplicates';
 
 // Duplicates (PRD CRM-03, docs/design/phase1.md §7.4): the cards lead creation and the nightly
@@ -586,9 +588,11 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     expect(
       await refusal(run(gm1, unmergeCustomers, { entityId: 1, mergeId: done.id })),
     ).toMatchObject(reason('merge_other_company'));
-    expect(await run(exec, unmergeCustomers, { entityId: 1, mergeId: done.id })).toMatchObject({
-      undoneAt: expect.any(String),
+    const undone = await run<{ undoneAt: string | null }>(exec, unmergeCustomers, {
+      entityId: 1,
+      mergeId: done.id,
     });
+    expect(undone.undoneAt).not.toBeNull();
   });
 
   it('never merges a referral partner away', async () => {
@@ -917,5 +921,99 @@ describe('crm.duplicate.scan, the nightly search', () => {
     expect(page.items.map((i) => i.id)).not.toContain(
       (await candidatesOf(sameName.accountId))[0]?.id,
     );
+  });
+});
+
+describe('a write about a known customer and a merge of it never cross', () => {
+  /**
+   * Holds the customer as a merge does (`for update`) and archives it once `write` has started,
+   * then answers what the write did once the merge committed.
+   */
+  async function whileMerging(accountId: string, write: () => Promise<unknown>) {
+    let locked!: () => void;
+    let release!: () => void;
+    const isLocked = new Promise<void>((resolve) => (locked = resolve));
+    const released = new Promise<void>((resolve) => (release = resolve));
+    const merging = asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`select id from accounts where id = ${accountId} for update`;
+        locked();
+        await released;
+        await tx`update accounts set archived_at = now() where id = ${accountId}`;
+      }),
+    );
+    await isLocked;
+    let settled = false;
+    const writing = refusal(write()).finally(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    // The write waits for the merge rather than reading the customer as still live.
+    expect(settled).toBe(false);
+    release();
+    await merging;
+    return writing;
+  }
+
+  it('a lead for the customer waits, then finds it merged away', async () => {
+    const target = await importedCustomer({
+      name: `Hold ${RUN}`,
+      phone: phone(),
+      owner: callerA,
+      team: teamA,
+    });
+    const refused = await whileMerging(target.accountId, () =>
+      run(callerA, createLead, {
+        entityId: 1,
+        pipelineKey: 'farmer_pumps',
+        existingAccountId: target.accountId,
+      }),
+    );
+    expect(refused).toMatchObject(reason('account_missing'));
+    const [row] = await asMigrator(
+      (m) => m<{ leads: number }[]>`
+        select count(*)::int as leads from opportunities where account_id = ${target.accountId}`,
+    );
+    expect(row?.leads).toBe(0);
+  });
+
+  it('a new site for the customer waits, then finds it merged away', async () => {
+    const target = await importedCustomer({
+      name: `Hold site ${RUN}`,
+      owner: callerA,
+      team: teamA,
+    });
+    const refused = await whileMerging(target.accountId, () =>
+      run(callerA, upsertSite, {
+        entityId: 1,
+        accountId: target.accountId,
+        type: 'borewell',
+        village: `Hold ${RUN}`,
+      }),
+    );
+    expect(refused).toMatchObject(reason('account_missing'));
+  });
+});
+
+describe('app.match_text() and matchText()', () => {
+  it('compare a name or a village the same way', async () => {
+    const samples = [
+      'Ram Kumar',
+      '  RAM\tKumar \n',
+      'ram   kumar',
+      'Élan  Rāṁ',
+      'Sitapur\u00a0Kalan',
+      "O'Neil  Farm",
+      'राम  कुमार',
+      'Ward 7  B',
+      '',
+      '   ',
+    ];
+    const rows = await asMigrator(
+      (m) => m<{ value: string; key: string }[]>`
+        select value, app.match_text(value) as key
+          from unnest(${samples}::text[]) with ordinality as s(value, n) order by n`,
+    );
+    expect(rows.map((r) => r.key)).toEqual(samples.map(matchText));
   });
 });
