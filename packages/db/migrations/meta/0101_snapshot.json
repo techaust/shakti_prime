@@ -3031,6 +3031,12 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
             }
           ],
           "isUnique": false,
@@ -3043,6 +3049,12 @@
           "columns": [
             {
               "expression": "other_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

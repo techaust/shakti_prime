@@ -88,9 +88,9 @@ export const duplicateCandidates = pgTable(
     uniqueIndex('duplicate_candidates_lead_pair_unique')
       .on(t.opportunityId, t.otherOpportunityId)
       .where(sql`${t.kind} = 'lead'`),
-    // The cards of one customer (`listAccountDuplicates`) find its pairs from either side.
-    index('duplicate_candidates_account_idx').on(t.accountId),
-    index('duplicate_candidates_other_account_idx').on(t.otherAccountId),
+    // The open cards of one customer (`listAccountDuplicates`) are one probe from either side.
+    index('duplicate_candidates_account_idx').on(t.accountId, t.state),
+    index('duplicate_candidates_other_account_idx').on(t.otherAccountId, t.state),
     index('duplicate_candidates_other_opportunity_idx').on(t.otherOpportunityId),
     // `/duplicates` pages the open candidates surest first (`listDuplicates`).
     index('duplicate_candidates_open_idx')

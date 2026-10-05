@@ -81,8 +81,8 @@ CREATE INDEX "customer_merges_candidate_idx" ON "customer_merges" USING btree ("
 CREATE INDEX "customer_merges_undone_by_idx" ON "customer_merges" USING btree ("undone_by");--> statement-breakpoint
 CREATE UNIQUE INDEX "duplicate_candidates_customer_pair_unique" ON "duplicate_candidates" USING btree ("entity_id","account_id","other_account_id") WHERE "duplicate_candidates"."kind" = 'customer';--> statement-breakpoint
 CREATE UNIQUE INDEX "duplicate_candidates_lead_pair_unique" ON "duplicate_candidates" USING btree ("opportunity_id","other_opportunity_id") WHERE "duplicate_candidates"."kind" = 'lead';--> statement-breakpoint
-CREATE INDEX "duplicate_candidates_account_idx" ON "duplicate_candidates" USING btree ("account_id");--> statement-breakpoint
-CREATE INDEX "duplicate_candidates_other_account_idx" ON "duplicate_candidates" USING btree ("other_account_id");--> statement-breakpoint
+CREATE INDEX "duplicate_candidates_account_idx" ON "duplicate_candidates" USING btree ("account_id","state");--> statement-breakpoint
+CREATE INDEX "duplicate_candidates_other_account_idx" ON "duplicate_candidates" USING btree ("other_account_id","state");--> statement-breakpoint
 CREATE INDEX "duplicate_candidates_other_opportunity_idx" ON "duplicate_candidates" USING btree ("other_opportunity_id");--> statement-breakpoint
 CREATE INDEX "duplicate_candidates_open_idx" ON "duplicate_candidates" USING btree ("confidence" DESC NULLS LAST,"created_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "duplicate_candidates"."state" = 'open';--> statement-breakpoint
 CREATE INDEX "duplicate_candidates_decided_by_idx" ON "duplicate_candidates" USING btree ("decided_by");--> statement-breakpoint
