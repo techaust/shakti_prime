@@ -53,6 +53,8 @@ import {
   SessionRevokeReasonSchema,
   SizingAdvisorySchema,
   SizingKindSchema,
+  QuoteStateSchema,
+  SubsidySchemeSchema,
   SizingReasonSchema,
   SiteTypeSchema,
   TaskKindSchema,
@@ -122,6 +124,8 @@ import {
   SIZING_ADVISORIES,
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
+  QUOTE_STATES,
+  SUBSIDY_SCHEMES,
   SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
@@ -149,6 +153,8 @@ describe('the contract values copied for the browser', () => {
     expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
     expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
+    expect(SUBSIDY_SCHEMES).toEqual(SubsidySchemeSchema.options);
     expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
     expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
     // The panel offers a submersible first, the catalogue lists a surface pump first.

@@ -427,7 +427,10 @@ function Column({
   );
 }
 
-/** A lead card: customer, village, age, owner and the SLA dot when a rule covers the lead. */
+/**
+ * A lead card: customer, village, the size of its newest sizing and how long it has been in its
+ * stage, age, owner and the SLA dot when a rule covers the lead.
+ */
 function Card({
   lead,
   showState,
@@ -448,6 +451,15 @@ function Card({
   const t = useTranslations('leads.board');
   const leads = useTranslations('leads');
   const days = daysSince(lead.stateChangedAt, now);
+  const inStage = daysSince(lead.stageSince, now);
+  const size =
+    lead.size === null
+      ? null
+      : lead.size.hp !== null
+        ? t('size.hp', { hp: formatCount(lead.size.hp) })
+        : lead.size.kwp !== null
+          ? t('size.kwp', { kwp: formatCount(lead.size.kwp) })
+          : null;
   const ageKey = lead.state === 'open' ? 'open' : lead.state === 'nurture' ? 'nurture' : 'closed';
   return (
     <BoardCard
@@ -460,6 +472,14 @@ function Card({
         </Link>
       }
       subtitle={lead.village ?? t('villageUnknown')}
+      detail={
+        <>
+          {size === null ? null : <>{size} · </>}
+          <time dateTime={lead.stageSince}>
+            {t('inStage', { count: inStage, shown: formatCount(inStage) })}
+          </time>
+        </>
+      }
       menu={menu}
       badge={
         showState ? (

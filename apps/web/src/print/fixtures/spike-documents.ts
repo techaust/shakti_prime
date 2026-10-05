@@ -161,7 +161,7 @@ export function spikeCompany(
 }
 
 /** A quotation with `sites` copies of the seven-line solar pump kit. */
-export function spikeQuote(sites = 1): QuotePrint {
+export function spikeQuote(sites = 1): QuotePrint & { link: string } {
   const lines: QuoteLinePrint[] = [];
   const taxByRate = new Map<number, number>();
   let taxable = 0;

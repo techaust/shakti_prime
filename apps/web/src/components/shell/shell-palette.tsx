@@ -2,7 +2,7 @@
 
 import type { PaletteSearchDto } from '@shakti/contracts';
 import { CommandPalette, type PaletteGroup, type PaletteItem } from '@shakti/ui';
-import { FileUp, ListTodo, MailPlus, UserPlus, UserRound } from 'lucide-react';
+import { FileText, FileUp, ListTodo, MailPlus, UserPlus, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -30,7 +30,7 @@ type Answer = { q: string; found: PaletteSearchDto } | { q: string; failed: true
 
 /**
  * The shell's ⌘K palette (DESIGN.md §6): Go to the screens the caller may open, Search their
- * leads (and team members, for a user administrator) once two characters are typed and typing
+ * leads and quotes by number (and team members, for a user administrator) once two characters are typed and typing
  * pauses, and the Actions their grants allow. How many matches were found is read out in words.
  */
 export function ShellPalette({
@@ -114,6 +114,15 @@ export function ShellPalette({
               ? t('paletteLead')
               : t('paletteLeadAt', { village: entry.hit.village }),
           icon: <ListTodo aria-hidden />,
+          onSelect: go,
+        };
+      case 'quote':
+        return {
+          id: entry.id,
+          label: entry.hit.quoteNo,
+          hint: t('paletteQuote', { name: entry.hit.customerName }),
+          keywords: [entry.hit.quoteNo],
+          icon: <FileText aria-hidden />,
           onSelect: go,
         };
       case 'person':

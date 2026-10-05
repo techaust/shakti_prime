@@ -11,18 +11,24 @@ import {
   type RenderedFilePurpose,
 } from '@shakti/contracts';
 import {
+  attachQuotePdf,
+  executeCommand,
   executeQuery,
   loadCompanyForPrint,
+  loadQuoteForPrint,
   openBankDetails,
   type CompanyForPrint,
   type FieldCipher,
   type FileStore,
+  type QuoteForPrint,
   type StoredFile,
 } from '@shakti/domain';
 import type { CompanyPrint, PrintImage } from './company';
-import { printCopy } from './copy';
+import { printCopy, type PrintCopy } from './copy';
+import { formatDate, istDay } from './format';
 import { renderLetterheadProof, type LetterheadProofPrint } from './letterhead-proof-template';
-import type { PrintDocument } from './quote-template';
+import { renderQuote, type PrintDocument, type QuotePrint } from './quote-template';
+import { rupeesInWords } from './words';
 
 /** A job's document: `kind: 'document'` of `PdfRenderJob`. */
 export type DocumentTarget = Extract<PdfRenderJob['target'], { kind: 'document' }>;
@@ -40,6 +46,14 @@ export interface LoadContext {
   today: string;
 }
 
+/** What an attach step is given: the worker principal of the job's company and the runtime. */
+export interface AttachContext {
+  principal: Principal;
+  entityId: number;
+  requestId: string;
+  hosted: boolean;
+}
+
 export interface DocumentType<D> {
   purpose: RenderedFilePurpose;
   /** The id of the file a job of this type records. */
@@ -48,6 +62,12 @@ export interface DocumentType<D> {
   fileName: (data: D) => string;
   load: (target: DocumentTarget, ctx: LoadContext) => Promise<D>;
   render: (data: D) => Promise<PrintDocument> | PrintDocument;
+  /**
+   * Attaches the recorded file to the document's own record, for a document that has one (a
+   * quote's PDF on the quote); run after the file is recorded, again on a delivery that runs
+   * again, so it must change nothing the second time.
+   */
+  attach?: (target: DocumentTarget, fileId: string, ctx: AttachContext) => Promise<void>;
 }
 
 const IMAGE_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/webp']);
@@ -128,6 +148,114 @@ const letterheadProof: DocumentType<LetterheadProofPrint> = {
   render: (data) => renderLetterheadProof(data),
 };
 
+/** A quote's site as the customer block prints it: the street, the village and the district. */
+function siteLines(site: QuoteForPrint['site']): string[] {
+  if (site === null) return [];
+  const join = (parts: (string | null)[]) =>
+    parts.filter((p): p is string => p !== null && p !== '').join(', ');
+  return [
+    join([site.address]),
+    join([site.village, site.tehsil]),
+    join([site.district, site.pin]),
+  ].filter((line) => line !== '');
+}
+
+/** A GST rate as the line prints it: its own rate, or the goods and services rates of a split. */
+function lineRate(line: QuoteForPrint['lines'][number], t: PrintCopy): string {
+  if (line.taxRatePct !== null) return t('quote.gstRate', { rate: Number(line.taxRatePct) });
+  return t('quote.gstComposite', {
+    goods: Number(line.goodsRatePct ?? '0'),
+    services: Number(line.servicesRatePct ?? '0'),
+  });
+}
+
+/** A stored quantity as printed: `5.000` becomes `5`. */
+const plainQty = (qty: string) => (qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty);
+
+/**
+ * A quote as the quotation template prints it (docs/design/phase1.md §7.3): the amounts exactly as
+ * the quote holds them, priced by the Price Master and taxed by the engine when it was made; this
+ * only places and words them. The place of supply is the state's name and code; the terms say
+ * until when the prices hold. No phone number is printed, and no QR code until customers have a
+ * page to open (Phase 2).
+ */
+export function quotePrintOf(quote: QuoteForPrint, company: CompanyPrint): QuotePrint {
+  const t = printCopy();
+  const stateKey = `states.${quote.placeOfSupplyState}` as 'states.08';
+  const validUntil = istDay(new Date(quote.validUntil));
+  const intra = quote.supplyKind === 'intra';
+  return {
+    company,
+    number: quote.quoteNo,
+    date: istDay(new Date(quote.createdAt)),
+    validUntil,
+    customer: {
+      name: quote.customerName,
+      addressLines: siteLines(quote.site),
+      ...(quote.customerGstin === null ? {} : { gstin: quote.customerGstin }),
+      placeOfSupply: t.has(stateKey)
+        ? t('quote.placeOfSupplyState', {
+            state: t(stateKey),
+            code: quote.placeOfSupplyState,
+          })
+        : quote.placeOfSupplyState,
+    },
+    lines: quote.lines.map((line) => ({
+      description: line.description,
+      detail: line.sku,
+      hsn: line.hsn ?? '',
+      quantity: plainQty(line.qty),
+      unit: t(`quote.units.${line.unit}`),
+      rate: line.unitPrice,
+      gstRate: lineRate(line, t),
+      amount: line.taxableValue,
+    })),
+    totals: {
+      taxable: quote.subtotal,
+      taxes: intra
+        ? [
+            { tax: 'CGST', amount: quote.cgst },
+            { tax: 'SGST', amount: quote.sgst },
+          ]
+        : [{ tax: 'IGST', amount: quote.igst }],
+      rounding: quote.roundOff,
+      total: quote.grandTotal,
+      totalInWords: rupeesInWords(quote.grandTotal, t),
+    },
+    terms: [t('quote.termValidity', { date: formatDate(validUntil) })],
+    preparedBy: quote.preparedBy ?? '',
+  };
+}
+
+const quoteDocument: DocumentType<QuotePrint> = {
+  purpose: 'quote_pdf',
+  // One file per request to print: a delivery that runs again finds the file it recorded.
+  fileId: (job) => job.eventId,
+  fileName: (data) => printCopy()('quote.fileName', { number: data.number.replaceAll('/', '-') }),
+  load: async (target, ctx) => {
+    const quote = await executeQuery(
+      ctx.principal,
+      { entityIds: [ctx.entityId], requestId: ctx.requestId },
+      (q) => loadQuoteForPrint(q, target.documentId),
+      { name: 'print.quote.load' },
+    );
+    if (quote.entityId !== ctx.entityId) {
+      throw new DomainError('internal', 'the print loader read another company');
+    }
+    return quotePrintOf(quote, await loadCompanyPrint(ctx));
+  },
+  render: (data) => renderQuote(data),
+  attach: async (target, fileId, ctx) => {
+    await executeCommand(
+      ctx.principal,
+      { entityIds: [ctx.entityId], requestId: ctx.requestId },
+      attachQuotePdf,
+      { entityId: ctx.entityId, quoteId: target.documentId, fileId },
+      { hosted: ctx.hosted },
+    );
+  },
+};
+
 /** A registered type, its data type hidden: what the worker calls. */
 export interface RegisteredDocument {
   purpose: RenderedFilePurpose;
@@ -137,6 +265,7 @@ export interface RegisteredDocument {
     target: DocumentTarget,
     ctx: LoadContext,
   ) => Promise<{ document: PrintDocument; fileName: string }>;
+  attach?: (target: DocumentTarget, fileId: string, ctx: AttachContext) => Promise<void>;
 }
 
 function register<D>(type: DocumentType<D>): RegisteredDocument {
@@ -147,12 +276,14 @@ function register<D>(type: DocumentType<D>): RegisteredDocument {
       const data = await type.load(target, ctx);
       return { document: await type.render(data), fileName: type.fileName(data) };
     },
+    ...(type.attach === undefined ? {} : { attach: type.attach }),
   };
 }
 
-/** The registered types; the quote joins with its record and attach command (S1). */
+/** The registered types: the proof page, and the quote with its record and attach command (S1). */
 export const DOCUMENT_TYPES: Partial<Record<PdfDocumentType, RegisteredDocument>> = {
   company_letterhead_proof: register(letterheadProof),
+  quote: register(quoteDocument),
 };
 
 /** The registered type of a job, or undefined for a type no loader prints yet. */

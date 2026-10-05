@@ -13,6 +13,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { istCalendarDate } from '../../numbering/financial-year';
+import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { latestSizing } from '../crm/latest-sizing';
 import { parseQueryInput } from '../parse-input';
 import { buildQuote, livePriceList, loadQuoteLead, quoteTier } from './quote-facts';
@@ -112,6 +113,7 @@ export async function loadQuoteBuilder(
     tierName: tier?.name ?? null,
     priceListId,
     sizing: summary,
+    worksContractOffered: WORKSHOP_DEFAULTS.tax.compositeSegments.includes(lead.segment),
     choices: choices.slice(0, MAX_CHOICES),
     today,
   });

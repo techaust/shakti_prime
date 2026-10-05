@@ -1,6 +1,6 @@
 'use client';
 
-import type { Account360Dto, CustomerTaskDto } from '@shakti/contracts';
+import type { Account360Dto, CustomerTaskDto, PriceTierOptionDto } from '@shakti/contracts';
 import {
   Button,
   Dialog,
@@ -19,7 +19,7 @@ import {
   type UploadResult,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   addNote,
   archiveTag,
@@ -33,6 +33,7 @@ import {
   upsertSite,
   withdrawConsent,
 } from '../../actions/crm';
+import { listTierOptions, setCustomerTier } from '../../actions/quotes';
 import {
   ACCOUNT_TYPES,
   CONSENT_CHANNELS,
@@ -48,7 +49,7 @@ import type { UploadLimitView } from '../companies/branding-dialog';
 import { sendFile } from '../files/send-file';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
-import { useCommand } from '../screens/use-command';
+import { useCommand, useQuery } from '../screens/use-command';
 
 /** Which dialog Account 360 shows, with what it is about. */
 export type CustomerDialogKind =
@@ -60,7 +61,8 @@ export type CustomerDialogKind =
   | { kind: 'tag'; opportunityId: string }
   | { kind: 'task' }
   | { kind: 'reschedule'; task: CustomerTaskDto }
-  | { kind: 'note' };
+  | { kind: 'note' }
+  | { kind: 'tier' };
 
 interface FormProps {
   view: Account360Dto;
@@ -114,6 +116,8 @@ export function CustomerDialog({
           <TaskForm {...props} />
         ) : dialog.kind === 'reschedule' ? (
           <RescheduleForm {...props} task={dialog.task} />
+        ) : dialog.kind === 'tier' ? (
+          <TierForm {...props} />
         ) : (
           <NoteForm {...props} />
         )}
@@ -156,6 +160,60 @@ function Footer({
 }
 
 const FORM = 'flex flex-col gap-4';
+
+/**
+ * The customer's price tier (workshop PRICE-1): every quote of the customer, in every company, is
+ * priced from the price list of this tier. An Executive's (`crm.account.tier.set`).
+ */
+function TierForm({ view, onDone, onCancel }: FormProps) {
+  const t = useTranslations('quotes.tier');
+  const { run, pending, failure } = useCommand(setCustomerTier);
+  const { fieldError, formFailure } = useFieldFailure(failure, ['tierId']);
+  const tiers = useQuery<PriceTierOptionDto[]>();
+  const [options, setOptions] = useState<PriceTierOptionDto[] | undefined>();
+  const { load } = tiers;
+
+  useEffect(() => {
+    load(() => listTierOptions(), setOptions);
+  }, [load]);
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const tierId = formText(new FormData(e.currentTarget), 'tierId');
+    run({ accountId: view.account.id, tierId: tierId === '' ? null : tierId }, () => {
+      toast.success(t('saved'));
+      onDone();
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className={FORM} noValidate>
+      <Header title={t('dialogTitle')} intro={t('intro')} />
+      <FailureMessage failure={tiers.failure} />
+      {options === undefined ? (
+        <p role="status" className="text-text-muted">
+          {t('loading')}
+        </p>
+      ) : (
+        <Field id="customer-tier" label={t('label')} error={fieldError('tierId')}>
+          <Select name="tierId" defaultValue={view.account.tierId ?? ''}>
+            <option value="">{t('none')}</option>
+            {options.map((tier) => (
+              <option key={tier.id} value={tier.id}>
+                {tier.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      <FailureMessage failure={formFailure} />
+      <Footer onCancel={onCancel} pending={pending}>
+        {t('submit')}
+      </Footer>
+    </form>
+  );
+}
 
 function AccountForm({ view, onDone, onCancel }: FormProps) {
   const t = useTranslations('customers.dialogs');

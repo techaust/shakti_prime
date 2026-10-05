@@ -171,6 +171,7 @@ export {
   searchQuotes,
 } from './queries/sales/list-quotes';
 export { loadQuoteBuilder, previewQuote } from './queries/sales/quote-builder';
+export { listPriceTierOptions } from './queries/pricing/price-tiers';
 export { loadQuoteForPrint } from './queries/sales/quote-print';
 export type { QuoteForPrint } from './queries/sales/quote-print';
 export { shownQuoteState } from './queries/sales/quote-dto';

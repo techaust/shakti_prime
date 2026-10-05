@@ -40,6 +40,7 @@ import {
   FILE_STATUSES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
+  QUOTE_STATES,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
@@ -374,12 +375,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
+  const quotes = useTranslations('quotes');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
         if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
-        return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
+        if (oneOf(IMPORT_JOB_STATES, value)) return imports(`state.${value}`);
+        return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
         return oneOf(OPPORTUNITY_LOST_REASONS, value)

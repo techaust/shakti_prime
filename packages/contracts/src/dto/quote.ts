@@ -214,6 +214,11 @@ export const QuoteBuilderDto = z
     tierName: z.string().nullable(),
     priceListId: IdSchema.nullable(),
     sizing: QuoteSizingSummaryDto.nullable(),
+    /**
+     * Whether a line may be marked as supply and installation in one job: only in the segments
+     * where composite supply applies (workshop default, ADR 0007).
+     */
+    worksContractOffered: z.boolean(),
     choices: z.array(QuoteChoiceDto),
     /** Today in IST, the day the prices and rates are read for. */
     today: CalendarDateSchema,

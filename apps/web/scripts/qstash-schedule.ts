@@ -1,10 +1,16 @@
 // Creates or updates the QStash schedules (docs/runbooks/DEPLOY.md): the outbox publisher every
-// minute, the safety net behind the nudge each command sends, and the lead rescoring each night.
-// Run once per environment, with that environment's QSTASH_TOKEN, signing keys and
+// minute, the safety net behind the nudge each command sends, the lead rescoring each night and the
+// quote expiry each day.
+// Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
 // BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
-import { LEAD_RESCORE_PATH, qstashConfig, workerUrl } from '../src/workers/qstash';
+import {
+  LEAD_RESCORE_PATH,
+  QUOTE_EXPIRE_PATH,
+  qstashConfig,
+  workerUrl,
+} from '../src/workers/qstash';
 
 /** Fixed, so running the script again updates each schedule instead of adding another. */
 const SCHEDULE_ID = 'outbox-publish';
@@ -21,6 +27,13 @@ if (config === undefined) {
 }
 if (!config.publishUrl.startsWith('https://')) {
   console.error(`QStash can only call a public https address, not ${config.publishUrl}`);
+  process.exit(1);
+}
+// One QStash account serves dev and staging: a schedule named for its environment is never
+// overwritten by the other's.
+const environment = process.env.BOS_ENVIRONMENT ?? '';
+if (!/^[a-z]+$/.test(environment)) {
+  console.error('set BOS_ENVIRONMENT (dev, staging or production) first');
   process.exit(1);
 }
 
@@ -55,3 +68,19 @@ await client.schedules.create({
   timeout: 60,
 });
 console.log(`schedule ${RESCORE_SCHEDULE_ID} calls ${rescoreUrl} at ${RESCORE_CRON} (UTC)`);
+
+// The daily expiry of quotes past their validity (docs/design/phase1.md §7.3), five minutes after
+// midnight in India, when the day's last valid quotes have lapsed.
+const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
+const QUOTE_EXPIRE_CRON = '35 18 * * *';
+const expireUrl = workerUrl(config, QUOTE_EXPIRE_PATH);
+await client.schedules.create({
+  scheduleId: QUOTE_EXPIRE_SCHEDULE_ID,
+  destination: expireUrl,
+  cron: QUOTE_EXPIRE_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(`schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`);

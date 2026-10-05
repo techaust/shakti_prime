@@ -26,7 +26,8 @@ export interface QuoteLinePrint {
 
 export interface QuoteTaxPrint {
   tax: 'CGST' | 'SGST' | 'IGST';
-  rate: string;
+  /** The rate the amount was charged at; left out for a head summed over several rates. */
+  rate?: string;
   amount: string;
 }
 
@@ -54,8 +55,11 @@ export interface QuotePrint {
   };
   terms: string[];
   preparedBy: string;
-  /** Where the QR code leads, for the customer to open the quotation online. */
-  link: string;
+  /**
+   * Where the QR code leads, for the customer to open the quotation online; no code is printed
+   * without one (a quote has no page for customers before the WhatsApp dispatch of Phase 2).
+   */
+  link?: string;
 }
 
 export interface PrintDocument {
@@ -136,7 +140,7 @@ export async function renderQuote(
   options: TemplateOptions = {},
 ): Promise<PrintDocument> {
   const t = printCopy();
-  const qr = await qrSvg(quote.link);
+  const qr = quote.link === undefined ? undefined : await qrSvg(quote.link);
   const page = html`<!doctype html>
     <html lang="en">
       <head>
@@ -209,7 +213,11 @@ export async function renderQuote(
             ${quote.totals.taxes.map(
               (x) =>
                 html`<tr>
-                  <td>${t('quote.tax', { tax: x.tax, rate: x.rate })}</td>
+                  <td>
+                    ${x.rate === undefined
+                      ? t('quote.taxHead', { tax: x.tax })
+                      : t('quote.tax', { tax: x.tax, rate: x.rate })}
+                  </td>
                   <td class="num">${formatRupees(x.amount)}</td>
                 </tr>`,
             )}
@@ -236,10 +244,12 @@ export async function renderQuote(
               <p class="muted">${t('quote.preparedBy', { name: quote.preparedBy })}</p>
             </div>
           </div>
-          <div class="qr">
-            ${trusted(qr)}
-            <p>${t('quote.scan')}</p>
-          </div>
+          ${qr === undefined
+            ? ''
+            : html`<div class="qr">
+                ${trusted(qr)}
+                <p>${t('quote.scan')}</p>
+              </div>`}
         </section>
       </body>
     </html>`;

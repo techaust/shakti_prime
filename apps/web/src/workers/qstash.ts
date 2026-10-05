@@ -16,6 +16,9 @@ export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
 /** Where the nightly schedule calls the lead rescoring worker, and a run hands on the rest. */
 export const LEAD_RESCORE_PATH = '/api/v1/workers/crm/rescore';
 
+/** Where the daily schedule calls the quote expiry worker (docs/design/phase1.md §7.3). */
+export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
+
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 
