@@ -568,7 +568,7 @@ grant execute on function app.merge_customers(uuid, uuid, uuid, smallint, uuid) 
 --    changed since the merge stays where it is now: a site, contact or lead no longer on the kept
 --    customer is not moved, and a relationship the kept customer has since used for another lead
 --    is shared (the merged customer gets its own copy). Answers { status, keptAccountId,
---    mergedAccountId, candidateId, entityId }.
+--    mergedAccountId, candidateId, entityId, moved }.
 create or replace function app.unmerge_customers(p_merge uuid)
   returns jsonb
   language plpgsql volatile security definer set search_path = '' as $$
@@ -662,7 +662,7 @@ begin
   return jsonb_build_object(
     'status', 'undone', 'keptAccountId', m.kept_account_id,
     'mergedAccountId', m.merged_account_id, 'candidateId', m.candidate_id,
-    'entityId', m.entity_id);
+    'entityId', m.entity_id, 'moved', m.moved_json);
 end
 $$;
 --> statement-breakpoint

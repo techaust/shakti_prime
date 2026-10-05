@@ -202,7 +202,8 @@ export const CustomerMergeSummaryDto = z
     id: IdSchema,
     entityId: EntityIdSchema,
     mergedAccountId: IdSchema,
-    mergedAccountName: z.string(),
+    // The merged customer's name while the caller still sees it (it keeps a relationship).
+    mergedAccountName: z.string().nullable(),
     moved: CustomerMergeMovedDto,
     mergedAt: z.iso.datetime(),
   })
