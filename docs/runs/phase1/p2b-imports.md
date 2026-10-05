@@ -5,8 +5,8 @@
 | Branch | `feat/p2b-imports`, made from `main` when the slice starts |
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026): worktree slot 11 (Postgres 54341, app 3041); build and review move to the cloud once the environment exists |
-| State | reviewed, fixes done, main taken in |
-| Next step | the lead's integration |
+| State | integrating on the PC |
+| Next step | the Linux baselines of the imports screens on a fresh database, then the pull request |
 
 ## Brief
 Read first:
@@ -232,3 +232,6 @@ Worktree `p2b-imports` (Postgres 54341, app 3041), from 04ada51; `origin/main` a
 ## Integration notes
 1. Hosted imports need `FILES_BUCKET` and the other file settings, which wait for the owner's AWS files stack ([files-setup](../../runbooks/files-setup.md)).
 2. After the merge, the import is measured on the dev deployment and recorded in `docs/spikes/import-scale.md`; concurrent batch workers only if it misses the PRD's five minutes for 50,000 rows (PRD §5).
+3. The integration run (05-10-2026, on 54340 at ea96b04, with two builders running beside it): install, lint, format, copy lint, the generated files, typecheck, unit tests (2,771), `db:verify`, the audit, the build, the JavaScript budget and the secret scan passed.
+   - The security suite: database 965, domain 632 and web 242 pass. Under that load three tests hit their limits (two database tests at 20 seconds, and in `lead-guard.test.ts` an import batch out of its real-time budget and the deadline test whose key holder lets go after three seconds); each passes when its file runs alone, and `lead-guard.test.ts` passed twice in full.
+   - The journeys on Windows: the customers journey failed once and three tests were flaky; the Linux run on a fresh database is the check.
