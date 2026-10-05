@@ -3,7 +3,7 @@
 # (docs/runbooks/hybrid.md §3). It runs as root on the session's Ubuntu VM before Claude starts,
 # and what it leaves on disk is kept in the environment's snapshot. Linux only. Idempotent: each
 # step checks before it acts, so running it again changes nothing that is already in place.
-#   1. Node of .node-version (the image ships older ones), corepack and the pnpm of package.json.
+#   1. Node of .node-version (the image ships older ones) and the pnpm of package.json, from npm.
 #   2. In parallel: the packages, then the Playwright Chromium the journeys use on the host
 #      (apps/web/playwright.config.ts: Desktop Chrome and Pixel 7, both Chromium); and the Docker
 #      images: Postgres (compose.yaml), gitleaks (CI's version) and the Linux Playwright image of
@@ -38,8 +38,13 @@ if [ "$have" -lt "$want" ]; then
 else
   say "Node $(node --version) is in place"
 fi
-export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-corepack enable >/dev/null 2>&1 || warn "corepack enable failed"
+# corepack cannot start pnpm 12 (it looks for pnpm.cjs), so pnpm of package.json comes from npm.
+export PATH="/usr/local/bin:$PATH"
+want_pnpm=$(grep -m1 -oE '"packageManager": *"pnpm@[0-9.]+' package.json | grep -oE '[0-9.]+$')
+if [ "$(pnpm --version 2>/dev/null)" != "$want_pnpm" ]; then
+  corepack disable pnpm >/dev/null 2>&1 || true
+  npm install -g "pnpm@$want_pnpm" >/tmp/cloud-setup-pnpm.log 2>&1 || warn "pnpm $want_pnpm did not install"
+fi
 pnpm --version >/dev/null 2>&1 || warn "pnpm (package.json packageManager) is not available"
 
 # 2a. Packages, then the browser.
