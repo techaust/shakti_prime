@@ -242,3 +242,7 @@ export const AccountTierDto = z
   .object({ accountId: IdSchema, tierId: IdSchema.nullable() })
   .strict();
 export type AccountTierDto = z.infer<typeof AccountTierDto>;
+
+/** What `sales.quote.pdf.attach` answers: the quote and the PDF it now names. */
+export const QuotePdfDto = z.object({ quoteId: IdSchema, pdfFileId: IdSchema }).strict();
+export type QuotePdfDto = z.infer<typeof QuotePdfDto>;
