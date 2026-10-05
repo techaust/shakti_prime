@@ -151,6 +151,36 @@ interface QueueRow extends Record<string, unknown> {
 const toDate = (v: Date | string): Date => (v instanceof Date ? v : new Date(v));
 
 /**
+ * One page of a caller's queue as SQL, in the queue's order (bucket, the due call's time, score
+ * highest first, age, id) after the keyset `after`. Exported so the calling spike explains the
+ * very statement the queue runs.
+ */
+export function callQueuePageSql(
+  callerId: string,
+  entityIds: readonly number[],
+  asOf: Date,
+  limit: number,
+  after?: z.output<typeof QueueCursor>,
+): SQL {
+  const keyset =
+    after === undefined
+      ? sql`true`
+      : sql`(r.bucket, coalesce(r.next_call_at, '-infinity'::timestamptz), -r.score, r.created_at, r.id)
+            > (${after.b}, coalesce(${after.d}::text::timestamptz, '-infinity'::timestamptz),
+               ${after.s}, ${after.c}::text::timestamptz, ${after.id}::uuid)`;
+  return sql`
+    select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text,
+           r.state, r.segment, r.stage_name, r.next_call_at,
+           case when r.bucket = 0 then r.next_call_at::text end as due_text,
+           r.last_call_at, r.attempts, r.bucket
+      from (${rankedQueue(sql`o.owner_id = ${callerId}::uuid`, entityIds, asOf)}) r
+     where r.bucket is not null and ${keyset}
+     order by r.bucket, coalesce(r.next_call_at, '-infinity'::timestamptz), r.score desc,
+              r.created_at, r.id
+     limit ${limit}`;
+}
+
+/**
  * A caller's queue (`/calling`, PRD TEL-01), a page at a time: due callbacks, retries and nurture
  * calls first (earliest due first), then new leads whose first call is late, then the rest, each
  * by score (highest first) and age (oldest first), keyset on that order. The page is read as of
@@ -173,22 +203,9 @@ export async function listCallQueue(
   const after = input.cursor === undefined ? undefined : decodeCursor(QueueCursor, input.cursor);
   const asOf = after === undefined ? now : new Date(after.asOf);
 
-  const keyset =
-    after === undefined
-      ? sql`true`
-      : sql`(r.bucket, coalesce(r.next_call_at, '-infinity'::timestamptz), -r.score, r.created_at, r.id)
-            > (${after.b}, coalesce(${after.d}::text::timestamptz, '-infinity'::timestamptz),
-               ${after.s}, ${after.c}::text::timestamptz, ${after.id}::uuid)`;
-  const rows = (await ctx.tx.execute(sql`
-    select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text,
-           r.state, r.segment, r.stage_name, r.next_call_at,
-           case when r.bucket = 0 then r.next_call_at::text end as due_text,
-           r.last_call_at, r.attempts, r.bucket
-      from (${rankedQueue(sql`o.owner_id = ${callerId}::uuid`, entityIds, asOf)}) r
-     where r.bucket is not null and ${keyset}
-     order by r.bucket, coalesce(case when r.bucket = 0 then r.next_call_at end, '-infinity'::timestamptz),
-              r.score desc, r.created_at, r.id
-     limit ${input.limit + 1}`)) as unknown as QueueRow[];
+  const rows = (await ctx.tx.execute(
+    callQueuePageSql(callerId, entityIds, asOf, input.limit + 1, after),
+  )) as unknown as QueueRow[];
 
   const page = rows.slice(0, input.limit);
   const details = await customersOf(
