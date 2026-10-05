@@ -83,4 +83,6 @@ await client.schedules.create({
   retries: 3,
   timeout: 60,
 });
-console.log(`schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`);
+console.log(
+  `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
+);

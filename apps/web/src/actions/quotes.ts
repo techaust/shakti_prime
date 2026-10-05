@@ -90,7 +90,13 @@ export async function createQuote(
   rawInput: unknown,
   idempotencyKey?: unknown,
 ): Promise<ActionResult<QuoteDto>> {
-  return quoteCommand('createQuote', CreateQuoteInput, createQuoteCommand, rawInput, idempotencyKey);
+  return quoteCommand(
+    'createQuote',
+    CreateQuoteInput,
+    createQuoteCommand,
+    rawInput,
+    idempotencyKey,
+  );
 }
 
 /** One quote with its lines, for the quote page. */

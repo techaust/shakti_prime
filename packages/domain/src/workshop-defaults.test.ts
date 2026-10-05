@@ -15,7 +15,13 @@ describe('workshop defaults', () => {
       opportunity: { handoverLockHours: 48, reopenWindowDays: 30 },
       quote: { validityDays: 15 },
       numbering: {
-        docCodes: { quote: 'Q', sales_order: 'SO', proforma: 'PI', challan: 'DC', purchase_order: 'PO' },
+        docCodes: {
+          quote: 'Q',
+          sales_order: 'SO',
+          proforma: 'PI',
+          challan: 'DC',
+          purchase_order: 'PO',
+        },
         separator: '/',
         serialDigits: 4,
       },

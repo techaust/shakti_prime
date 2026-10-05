@@ -67,7 +67,9 @@ async function ensureCatalogue(executiveId: string): Promise<void> {
         [IDS.journeyList, QUOTE_JOURNEY_COMPANY.entityId, IDS.journeyPrices],
         [IDS.snapshotList, SNAPSHOT_COMPANY.entityId, IDS.snapshotPrices],
       ] as const) {
-        const [found] = await tx<{ n: number }[]>`select count(*)::int as n from price_lists where id = ${list}`;
+        const [found] = await tx<
+          { n: number }[]
+        >`select count(*)::int as n from price_lists where id = ${list}`;
         if ((found?.n ?? 0) > 0) continue;
         await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
                  values (${list}, ${IDS.tier}, ${entityId}, 1, '2026-04-01', ${executiveId}, now())`;
@@ -144,7 +146,11 @@ async function writeRealQuotePage(quoteId: string): Promise<void> {
   if (store === undefined) throw new Error('no local file store for the printed quote');
   const printed = quotePrintOf(
     quote,
-    await companyPrintOf(company, { store, cipher: undefined, entityId: SNAPSHOT_COMPANY.entityId }),
+    await companyPrintOf(company, {
+      store,
+      cipher: undefined,
+      entityId: SNAPSHOT_COMPANY.entityId,
+    }),
   );
   mkdirSync(PRINT_PAGES_DIR, { recursive: true });
   writeFileSync(join(PRINT_PAGES_DIR, 'quote-real.html'), (await renderQuote(printed)).html);
@@ -166,9 +172,9 @@ export async function ensureQuoteJourneys(executiveId: string): Promise<QuoteJou
       select id, quote_no from quotes where opportunity_id = ${snapshot.leadId}
        order by created_at limit 1`,
   );
-  const snapshotQuote =
-    quote ??
-    (await executeCommand(
+  let snapshotQuote: { id: string; quote_no: string } | undefined = quote;
+  if (snapshotQuote === undefined) {
+    const made = await executeCommand(
       executive,
       { entityIds: [SNAPSHOT_COMPANY.entityId] },
       createQuote,
@@ -180,7 +186,9 @@ export async function ensureQuoteJourneys(executiveId: string): Promise<QuoteJou
           { itemId: IDS.cable, qty: '20' },
         ],
       },
-    ).then((q) => ({ id: q.id, quote_no: q.quoteNo })));
+    );
+    snapshotQuote = { id: made.id, quote_no: made.quoteNo };
+  }
   await writeRealQuotePage(snapshotQuote.id);
 
   const journeyLeads = {} as QuoteJourneySeed['journeyLeads'];

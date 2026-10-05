@@ -429,7 +429,8 @@ describe('printing a quote (docs/design/phase1.md §7.3)', () => {
     expect(result).toMatchObject({ fileId: job.eventId, pages: 1 });
     expect(await fileRow(job.eventId)).toMatchObject({ purpose: 'quote_pdf', status: 'ready' });
     const [quote] = await asMigrator(
-      (m) => m<{ pdf: string | null }[]>`select pdf_file_id as pdf from quotes where id = ${quoteId}`,
+      (m) =>
+        m<{ pdf: string | null }[]>`select pdf_file_id as pdf from quotes where id = ${quoteId}`,
     );
     expect(quote?.pdf).toBe(job.eventId);
 

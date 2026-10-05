@@ -378,7 +378,7 @@ const eventCatalogue = {
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },
   'sales.quote.expired': {
-    meaning: "The daily job marked a quote whose validity had passed as expired.",
+    meaning: 'The daily job marked a quote whose validity had passed as expired.',
     emittedBy: ['sales.quote.expire'],
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),

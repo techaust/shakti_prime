@@ -214,9 +214,11 @@ export async function renderQuote(
               (x) =>
                 html`<tr>
                   <td>
-                    ${x.rate === undefined
-                      ? t('quote.taxHead', { tax: x.tax })
-                      : t('quote.tax', { tax: x.tax, rate: x.rate })}
+                    ${
+                      x.rate === undefined
+                        ? t('quote.taxHead', { tax: x.tax })
+                        : t('quote.tax', { tax: x.tax, rate: x.rate })
+                    }
                   </td>
                   <td class="num">${formatRupees(x.amount)}</td>
                 </tr>`,
@@ -244,12 +246,14 @@ export async function renderQuote(
               <p class="muted">${t('quote.preparedBy', { name: quote.preparedBy })}</p>
             </div>
           </div>
-          ${qr === undefined
-            ? ''
-            : html`<div class="qr">
-                ${trusted(qr)}
-                <p>${t('quote.scan')}</p>
-              </div>`}
+          ${
+            qr === undefined
+              ? ''
+              : html`<div class="qr">
+                  ${trusted(qr)}
+                  <p>${t('quote.scan')}</p>
+                </div>`
+          }
         </section>
       </body>
     </html>`;

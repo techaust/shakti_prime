@@ -164,12 +164,7 @@ export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
-export {
-  accountQuotes,
-  getQuote,
-  listQuotes,
-  searchQuotes,
-} from './queries/sales/list-quotes';
+export { accountQuotes, getQuote, listQuotes, searchQuotes } from './queries/sales/list-quotes';
 export { loadQuoteBuilder, previewQuote } from './queries/sales/quote-builder';
 export { listPriceTierOptions } from './queries/pricing/price-tiers';
 export { loadQuoteForPrint } from './queries/sales/quote-print';

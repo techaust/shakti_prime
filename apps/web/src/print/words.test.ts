@@ -16,8 +16,14 @@ describe('rupeesInWords', () => {
     ['100000.00', 'Rupees One Lakh only'],
     ['1250000.00', 'Rupees Twelve Lakh Fifty Thousand only'],
     ['10000000.00', 'Rupees One Crore only'],
-    ['123456789.00', 'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine only'],
-    ['999999999999.00', 'Rupees Ninety Nine Thousand Nine Hundred Ninety Nine Crore Ninety Nine Lakh Ninety Nine Thousand Nine Hundred Ninety Nine only'],
+    [
+      '123456789.00',
+      'Rupees Twelve Crore Thirty Four Lakh Fifty Six Thousand Seven Hundred Eighty Nine only',
+    ],
+    [
+      '999999999999.00',
+      'Rupees Ninety Nine Thousand Nine Hundred Ninety Nine Crore Ninety Nine Lakh Ninety Nine Thousand Nine Hundred Ninety Nine only',
+    ],
   ])('%s', (amount, words) => {
     expect(rupeesInWords(amount, t)).toBe(words);
   });

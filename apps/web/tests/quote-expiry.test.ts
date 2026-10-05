@@ -68,8 +68,7 @@ describe('POST /api/v1/workers/quotes/expire', () => {
     ['a signature of another body', () => sign('{"entityId":2}')],
     [
       'a signature for another route',
-      (body: string) =>
-        sign(body, CURRENT_KEY, 'http://localhost:3000/api/v1/workers/crm/rescore'),
+      (body: string) => sign(body, CURRENT_KEY, 'http://localhost:3000/api/v1/workers/crm/rescore'),
     ],
   ])('refuses a call with %s', async (_label, signatureFor) => {
     const body = '{}';

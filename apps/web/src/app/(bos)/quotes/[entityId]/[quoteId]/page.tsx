@@ -40,7 +40,9 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
   if (!quote.ok && ['quote_missing', 'forbidden'].includes(quote.error)) notFound();
   const t = await getTranslations('quotes');
   const print = await getTranslations('print');
-  const stateKey = quote.ok ? (`states.${quote.data.placeOfSupplyState}` as 'states.08') : undefined;
+  const stateKey = quote.ok
+    ? (`states.${quote.data.placeOfSupplyState}` as 'states.08')
+    : undefined;
   return quote.ok ? (
     <QuoteScreen
       // A fresh screen for each quote, so a re-quote opens with its own state.

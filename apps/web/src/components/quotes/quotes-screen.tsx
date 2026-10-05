@@ -1,14 +1,7 @@
 'use client';
 
 import type { QuotePageDto, QuoteRowDto, QuoteState } from '@shakti/contracts';
-import {
-  DataGrid,
-  EmptyState,
-  Field,
-  Select,
-  StatusBadge,
-  type DataGridColumn,
-} from '@shakti/ui';
+import { DataGrid, EmptyState, Field, Select, StatusBadge, type DataGridColumn } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
@@ -95,7 +88,9 @@ export function QuotesScreen({
     {
       id: 'state',
       header: t('columns.state'),
-      cell: (r) => <StatusBadge tone={QUOTE_STATE_TONE[r.state]}>{t(`state.${r.state}`)}</StatusBadge>,
+      cell: (r) => (
+        <StatusBadge tone={QUOTE_STATE_TONE[r.state]}>{t(`state.${r.state}`)}</StatusBadge>
+      ),
     },
     {
       id: 'total',

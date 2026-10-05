@@ -50,10 +50,15 @@ export async function runQuoteExpiry(
         logger.log('info', 'sales.quote_expiry_stopped', { requestId, entityId, batches, expired });
         return QuoteExpireWorkerResponse.parse({ batches, expired, done: false });
       }
-      const batch: QuoteExpiryBatchDto = await executeCommand(principal, scope(entityId), expireQuotes, {
-        entityId,
-        afterId,
-      });
+      const batch: QuoteExpiryBatchDto = await executeCommand(
+        principal,
+        scope(entityId),
+        expireQuotes,
+        {
+          entityId,
+          afterId,
+        },
+      );
       batches += 1;
       expired += batch.expired;
       afterId = batch.nextAfterId;

@@ -83,7 +83,12 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
   }
   const scope = { entityIds: [job.entityId], requestId: deps.requestId };
   const fileId = registered.fileId(job, target);
-  const attachTo = { principal: deps.principal, entityId: job.entityId, requestId: deps.requestId, hosted: deps.hosted };
+  const attachTo = {
+    principal: deps.principal,
+    entityId: job.entityId,
+    requestId: deps.requestId,
+    hosted: deps.hosted,
+  };
   const done = await recorded(deps, scope, fileId);
   if (done !== undefined) {
     // A delivery that ran again: the file stands; attaching it again changes nothing.

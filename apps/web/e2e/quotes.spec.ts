@@ -34,7 +34,9 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     page,
   }) => {
     const lead = seededUsers().quotes.journeyLeads[projectName()];
-    await page.goto(`/customers/${lead.accountId}?company=${String(QUOTE_JOURNEY_COMPANY.entityId)}`);
+    await page.goto(
+      `/customers/${lead.accountId}?company=${String(QUOTE_JOURNEY_COMPANY.entityId)}`,
+    );
     await expect(page.getByRole('heading', { name: lead.name, level: 1 })).toBeVisible();
 
     // The customer has no price tier: an Executive gives it one (PRICE-1).
@@ -92,7 +94,10 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     await expect(page.getByRole('button', { name: 'Mark as sent' })).toHaveCount(0);
 
     // ⌘K finds the quote by its number (RPT-03).
-    await page.getByRole('button', { name: /^Search or go to/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Search or go to/ })
+      .first()
+      .click();
     const palette = page.getByRole('dialog');
     await palette.getByLabel('Type a name, village, phone number or page').fill(quoteNo);
     await expect(palette.getByText(quoteNo).first()).toBeVisible({ timeout: 15_000 });
@@ -119,7 +124,9 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
 test.describe('as an Executive, the board', () => {
   test.use(signedInAs('executive'));
 
-  test('shows each card’s sized kWp and how long the lead has been in its stage', async ({ page }) => {
+  test('shows each card’s sized kWp and how long the lead has been in its stage', async ({
+    page,
+  }) => {
     await page.goto(
       `/leads/board?company=${String(QUOTE_JOURNEY_COMPANY.entityId)}&pipeline=residential_rooftop`,
     );
