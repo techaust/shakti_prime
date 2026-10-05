@@ -94,6 +94,7 @@ export async function loadAgentSettings(
       and(
         level === null ? inArray(a.entityId, [...ctx.entityIds]) : eq(a.entityId, level),
         eq(a.autonomy, rule.countedAutonomy),
+        inArray(a.state, ['approved', 'rejected']),
         gte(a.decidedAt, since),
       ),
     )

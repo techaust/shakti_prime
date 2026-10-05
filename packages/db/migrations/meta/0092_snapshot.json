@@ -842,6 +842,12 @@
           "name": "agent_actions_record_idx",
           "columns": [
             {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "agent",
               "isExpression": false,
               "asc": true,
@@ -854,13 +860,14 @@
               "nulls": "last"
             },
             {
-              "expression": "state",
+              "expression": "decided_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
+          "where": "\"agent_actions\".\"autonomy\" = 'needs_approval' and \"agent_actions\".\"state\" in ('approved', 'rejected')",
           "concurrently": false,
           "method": "btree",
           "with": {}

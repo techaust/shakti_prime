@@ -28,6 +28,7 @@ import {
   setKillSwitch as setKillSwitchCommand,
   type AnyCommand,
 } from '@shakti/domain';
+import { inboxCountKey, inboxCounts } from './inbox-count-cache';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
 
@@ -43,14 +44,25 @@ export async function listInbox(rawInput: unknown): Promise<ActionResult<InboxPa
   });
 }
 
-/** How many inbox items wait for the caller, for the count in the top bar. */
+/**
+ * How many inbox items wait for the caller, for the count in the top bar: reused for a few seconds
+ * per person and company scope, since every staff page reads it (`inbox-count-cache.ts`).
+ */
 export async function inboxCount(): Promise<ActionResult<InboxCountDto>> {
   return toResult('inboxCount', async () => {
     const principal = await signedIn();
+    const key = inboxCountKey(principal.id, principal.entityIds);
+    const kept = inboxCounts.get(key, Date.now());
+    if (kept !== undefined) return { open: kept };
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => countInboxQuery(context), {
-      name: 'inboxCount',
-    });
+    const count = await executeQuery(
+      principal,
+      { requestId },
+      (context) => countInboxQuery(context),
+      { name: 'inboxCount' },
+    );
+    inboxCounts.set(key, count.open, Date.now());
+    return count;
   });
 }
 
@@ -69,13 +81,16 @@ async function decide(
     const principal = await signedIn();
     const input = parseInput(schema, rawInput);
     const meta = await requestMeta();
-    return (await executeCommand(
+    const decision = (await executeCommand(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       command,
       input,
       commandOptions(meta, idempotencyKey),
     )) as InboxDecisionDto;
+    // The top bar's count is read afresh for the person who decided.
+    inboxCounts.forget(principal.id);
+    return decision;
   });
 }
 

@@ -124,7 +124,7 @@ ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_created_by_principals_id_f
 ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_updated_by_principals_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."principals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_action_fk" FOREIGN KEY ("agent_action_id","entity_id") REFERENCES "public"."agent_actions"("id","entity_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "agent_actions_run_idx" ON "agent_actions" USING btree ("run_id","entity_id");--> statement-breakpoint
-CREATE INDEX "agent_actions_record_idx" ON "agent_actions" USING btree ("agent","action_type","state");--> statement-breakpoint
+CREATE INDEX "agent_actions_record_idx" ON "agent_actions" USING btree ("entity_id","agent","action_type","decided_at") WHERE "agent_actions"."autonomy" = 'needs_approval' and "agent_actions"."state" in ('approved', 'rejected');--> statement-breakpoint
 CREATE INDEX "agent_evals_agent_ran_idx" ON "agent_evals" USING btree ("agent","ran_at");--> statement-breakpoint
 CREATE INDEX "agent_runs_agent_day_idx" ON "agent_runs" USING btree ("agent","entity_id","created_at");--> statement-breakpoint
 CREATE INDEX "agent_runs_entity_created_idx" ON "agent_runs" USING btree ("entity_id","created_at");--> statement-breakpoint

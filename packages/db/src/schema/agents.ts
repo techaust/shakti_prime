@@ -156,7 +156,10 @@ export const agentActions = pgTable(
       sql`pg_column_size(${t.inputJson}) <= 4000 and (${t.decidedInputJson} is null or pg_column_size(${t.decidedInputJson}) <= 4000)`,
     ),
     index('agent_actions_run_idx').on(t.runId, t.entityId),
-    index('agent_actions_record_idx').on(t.agent, t.actionType, t.state),
+    // The decisions the promotion rule counts, per company, in its window (agents' defaults).
+    index('agent_actions_record_idx')
+      .on(t.entityId, t.agent, t.actionType, t.decidedAt)
+      .where(sql`${t.autonomy} = 'needs_approval' and ${t.state} in ('approved', 'rejected')`),
   ],
 );
 

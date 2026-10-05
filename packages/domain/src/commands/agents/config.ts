@@ -6,7 +6,7 @@ import {
   SetKillSwitchInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, gte, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { actionTypeOf, AUTOMATIC_AVAILABLE, automaticEarned } from '../../ai/action-types';
 import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
 import { lockAgentSettingsForChange } from '../../ai/config';
@@ -130,6 +130,7 @@ async function decisionRecord(
         eq(a.actionType, actionType),
         eq(a.entityId, entityId),
         eq(a.autonomy, rule.countedAutonomy),
+        inArray(a.state, ['approved', 'rejected']),
         gte(a.decidedAt, since),
       ),
     );
