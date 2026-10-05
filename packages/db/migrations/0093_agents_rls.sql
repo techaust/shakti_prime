@@ -163,7 +163,7 @@ create policy agent_actions_update on agent_actions for update to app_user
                       where i.agent_action_id = agent_actions.id
                         and app.scope_ok('agents.inbox.act', i.assignee_id, i.team_id)))
   with check (entity_id = any ((select app.entity_ids())::int[])
-              and state in ('approved', 'rejected')
+              and state in ('approved', 'rejected', 'dismissed')
               and decided_by = (select app.user_id()));
 --> statement-breakpoint
 grant select on agent_actions to app_user, app_reader;

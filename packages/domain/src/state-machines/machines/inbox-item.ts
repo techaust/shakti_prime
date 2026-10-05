@@ -9,7 +9,7 @@ export interface InboxItemRecord {
 
 /**
  * An item of a person's Agent Inbox (docs/design/phase1.md §7.1): open until someone it is for
- * decides on it. An agent's suggestion is done when it is approved, edited or rejected.
+ * decides on it. An agent's suggestion is done when it is approved, edited, rejected or dismissed.
  */
 export const inboxItemMachine = defineMachine<
   InboxItemState,
@@ -40,7 +40,7 @@ export const inboxItemMachine = defineMachine<
       event: 'decide',
       to: 'done',
       permission: 'agents.inbox.act',
-      note: 'With the decision on its action: approved, edited or rejected.',
+      note: 'With the decision on its action: approved, edited, rejected or dismissed.',
     },
   ],
 });

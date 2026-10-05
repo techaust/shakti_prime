@@ -1,7 +1,12 @@
 import { DomainError } from '@shakti/contracts';
 import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
 import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
-import { approveInboxItem, editInboxItem, rejectInboxItem } from '../commands/agents/inbox';
+import {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from '../commands/agents/inbox';
 import { recordAgentRun } from '../commands/agents/record-run';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
@@ -121,6 +126,7 @@ export const commands = {
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,
   [rejectInboxItem.name]: rejectInboxItem,
+  [dismissInboxItem.name]: dismissInboxItem,
   [setAgentConfig.name]: setAgentConfig,
   [setKillSwitch.name]: setKillSwitch,
 } as const satisfies Record<string, AnyCommand>;

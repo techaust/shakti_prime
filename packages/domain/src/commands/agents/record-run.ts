@@ -7,8 +7,15 @@ import {
   type PermissionKey,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { AGENT_ACTION_TYPES, actionTypeOf, type AgentActionType } from '../../ai/action-types';
-import { loadAgentConfig } from '../../ai/config';
+import { and, eq, isNull } from 'drizzle-orm';
+import {
+  AGENT_ACTION_TYPES,
+  actionTypeOf,
+  AUTOMATIC_AVAILABLE,
+  withAssignee,
+  type AgentActionType,
+} from '../../ai/action-types';
+import { loadAgentConfig, lockAgentSettings } from '../../ai/config';
 import type { CommandContext } from '../../command/context';
 import { defineCommand, type Requirement } from '../../command/define-command';
 import { isAgent } from '../../command/run-command';
@@ -37,9 +44,10 @@ type Plan = 'record_only' | 'propose' | 'act';
  * `agents.run.record` (docs/design/phase1.md §7.1): an agent records one run for one action type
  * as its own principal: which model, the tokens, the cost in paise, how long it took and how it
  * ended, never the prompt or the answer. When the model work completed with an action, the
- * settings in this transaction decide: a kill switch that is off records the run as stopped;
- * Suggest and Needs approval file the action with an inbox item; Automatic runs the command as the
- * agent, under its own permissions, at once.
+ * settings in this transaction, held still by the settings lock, decide: a kill switch that is off
+ * records the run as stopped; Suggest and Needs approval file the action with an inbox item;
+ * Automatic runs the command as the agent, under its own permissions, at once. Automatic is not
+ * available in Phase 1 (`AUTOMATIC_AVAILABLE`): a stored Automatic files a Needs approval item.
  *
  * The permission is the one of the command the action runs, so an agent proposes nothing it could
  * not do itself; only the agent named in the input may record its run.
@@ -74,11 +82,13 @@ export const recordAgentRun = defineCommand({
     let plan: Plan = 'record_only';
     let autonomy: 'suggest' | 'needs_approval' | 'automatic' = 'suggest';
     if (input.proposal !== undefined) {
+      await lockAgentSettings(ctx.tx, input.agent);
       const config = await loadAgentConfig(ctx.tx, input.agent, input.actionType, input.entityId);
-      autonomy = config.autonomy;
+      autonomy =
+        config.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE ? 'needs_approval' : config.autonomy;
       if (!config.enabled) outcome = 'switched_off';
       else {
-        plan = config.autonomy === 'automatic' ? 'act' : 'propose';
+        plan = autonomy === 'automatic' ? 'act' : 'propose';
         outcome = plan === 'act' ? 'acted' : 'proposed';
       }
     }
@@ -111,7 +121,7 @@ export const recordAgentRun = defineCommand({
     if (plan === 'record_only' || proposal === undefined) {
       return { runId, outcome, actionId: null, inboxItemId: null };
     }
-    const proposed = checkedProposal(ctx, type, input.entityId, proposal);
+    const proposed = await checkedProposal(ctx, type, input.entityId, proposal);
 
     const requirement = actionRequirement(type);
     const actor = { kind: 'principal' as const, principal: ctx.principal };
@@ -164,7 +174,7 @@ export const recordAgentRun = defineCommand({
       id: itemId,
       entityId: input.entityId,
       kind: 'agent_suggestion',
-      assigneeId: proposal.assigneeId ?? null,
+      assigneeId: proposed.assigneeId,
       teamId: proposal.teamId ?? null,
       subjectType: proposed.subjectType,
       subjectId: proposed.subjectId,
@@ -182,27 +192,70 @@ export const recordAgentRun = defineCommand({
   },
 });
 
+/** Whether the agent itself reads the subject in the run's company, under its own policies. */
+async function subjectReadable(
+  ctx: CommandContext,
+  subjectType: string,
+  subjectId: string,
+  entityId: number,
+): Promise<boolean> {
+  if (subjectType === 'opportunity') {
+    const o = schema.opportunities;
+    const [row] = await ctx.tx
+      .select({ id: o.id })
+      .from(o)
+      .where(and(eq(o.id, subjectId), eq(o.entityId, entityId), isNull(o.archivedAt)))
+      .limit(1);
+    return row !== undefined;
+  }
+  const ae = schema.accountEntities;
+  const [row] = await ctx.tx
+    .select({ id: ae.accountId })
+    .from(ae)
+    .where(and(eq(ae.accountId, subjectId), eq(ae.entityId, entityId)))
+    .limit(1);
+  return row !== undefined;
+}
+
 /**
- * The proposal's input as the command it runs reads it, in the run's company, about the subject it
- * names; anything else is refused before it reaches anyone's inbox.
+ * The proposal's input as the command it runs reads it, in the run's company, about a subject the
+ * agent reads there, with the person the work is for filled in or named (never an agent); anything
+ * else is refused before it reaches anyone's inbox.
  */
-function checkedProposal(
+async function checkedProposal(
   ctx: CommandContext,
   type: AgentActionType,
   entityId: number,
   proposal: NonNullable<RecordAgentRunInput['proposal']>,
-): { input: Record<string, unknown>; subjectType: string; subjectId: string } {
-  const parsed = type.command.input.safeParse(proposal.input);
-  const input = proposal.input;
+): Promise<{
+  input: Record<string, unknown>;
+  subjectType: string;
+  subjectId: string;
+  assigneeId: string | null;
+}> {
+  const refused = () =>
+    new DomainError('validation_failed', `${ctx.principal.roleKey} proposed a bad input`, {
+      reason: 'agent_proposal_invalid',
+    });
+  const input = withAssignee(type, proposal.input, proposal.assigneeId);
+  if (input === undefined) throw refused();
+  const parsed = type.command.input.safeParse(input);
   if (
     !parsed.success ||
     input.entityId !== entityId ||
     input[type.subjectKey] !== proposal.subjectId ||
     proposal.subjectType !== type.subjectType
   ) {
-    throw new DomainError('validation_failed', `${ctx.principal.roleKey} proposed a bad input`, {
-      reason: 'agent_proposal_invalid',
-    });
+    throw refused();
   }
-  return { input, subjectType: proposal.subjectType, subjectId: proposal.subjectId };
+  if (!(await subjectReadable(ctx, proposal.subjectType, proposal.subjectId, entityId))) {
+    throw refused();
+  }
+  const named = type.assigneeKey === undefined ? undefined : input[type.assigneeKey];
+  return {
+    input,
+    subjectType: proposal.subjectType,
+    subjectId: proposal.subjectId,
+    assigneeId: proposal.assigneeId ?? (typeof named === 'string' ? named : null),
+  };
 }

@@ -7,6 +7,7 @@ import {
   DEFAULT_CLAUDE_MODEL,
   DEFAULT_EMBEDDING_MODEL,
   isKnownModel,
+  maxCostInPaise,
   type TokenUsage,
 } from './models';
 import {
@@ -18,8 +19,9 @@ import {
 
 // The one way the BOS calls a language model or an embedding model (ADR 0011, AGENTS §9): every
 // call names its agent and purpose, its text is masked, it has a timeout, a few retries and a
-// circuit breaker in Redis, and it is charged against the agent's daily spend cap in paise,
-// checked before the call and recorded after it. Without a vendor key the wrapper answers
+// circuit breaker in Redis, and it is held against the agent's daily spend caps in paise: the most
+// it can cost is reserved before it is sent, and the reservation is settled at what it cost once it
+// answers (or released when it fails). Without a vendor key the wrapper answers
 // `integration_unavailable` and nothing calls out.
 
 /** Per attempt. A model answer for a triage-sized prompt takes a few seconds. */
@@ -38,7 +40,7 @@ const SPEND_TTL_SECONDS = 2 * 24 * 60 * 60;
 
 type Vendor = 'anthropic' | 'voyage';
 
-/** The spend cap that applies to a call: its paise, and the company it covers or the group. */
+/** A spend cap that applies to a call: its paise, and the company it covers or the group. */
 export interface SpendCap {
   paise: number;
   /** The company of the setting the cap came from; null for the group's. */
@@ -51,7 +53,17 @@ interface CallBase {
   purpose: string;
   /** The company the call works for: its spend counts there and in the group. */
   entityId: number;
-  cap: SpendCap;
+  /**
+   * Every cap that applies (the company's, the group's, or both): the call is refused if its
+   * reservation would take the spend past either. No cap means no call.
+   */
+  caps: readonly SpendCap[];
+}
+
+/** What a call holds against the caps while it runs. */
+interface Reservation {
+  keys: readonly [company: string, group: string];
+  paise: number;
 }
 
 export interface CompleteCall extends CallBase {
@@ -116,6 +128,9 @@ export function spendKey(agent: string, entityId: number | null, day: string): s
   return `ai:spend:${agent}:${entityId === null ? 'all' : String(entityId)}:${day}`;
 }
 
+/** The length of a text in UTF-8 bytes, the most tokens it can be. */
+const bytes = (text: string): number => new TextEncoder().encode(text).length;
+
 const breakerOpenKey = (vendor: Vendor): string => `ai:breaker:${vendor}:open`;
 const breakerFailuresKey = (vendor: Vendor): string => `ai:breaker:${vendor}:failures`;
 
@@ -139,32 +154,60 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   const retries = deps.retries ?? AI_CALL_RETRIES;
   const { keyValue, logger } = deps;
 
-  /** Refuses a call over its cap, or while the vendor's breaker is open. */
-  async function before(call: CallBase, vendor: Vendor): Promise<void> {
+  /** Refuses a call while the vendor's breaker is open. */
+  async function breakerClosed(vendor: Vendor): Promise<void> {
     if (await store('the breaker could not be read', () => keyValue.get(breakerOpenKey(vendor)))) {
       throw unavailable(`${vendor} is paused after repeated failures`);
     }
-    const spent = await store('the spend could not be read', () =>
-      keyValue.get(spendKey(call.agent, call.cap.entityId, istDay(now()))),
-    );
-    if (Number(spent ?? '0') >= call.cap.paise) {
-      throw new DomainError('rate_limited', `${call.agent} reached its daily spend cap`, {
-        reason: 'agent_spend_cap_reached',
-      });
+  }
+
+  function capReached(call: CallBase): DomainError {
+    return new DomainError('rate_limited', `${call.agent} reached its daily spend cap`, {
+      reason: 'agent_spend_cap_reached',
+    });
+  }
+
+  /** Moves both of a reservation's running totals by `paise`; a failure only leaves them behind. */
+  async function move(call: CallBase, held: Reservation, paise: number): Promise<void> {
+    if (paise === 0) return;
+    try {
+      for (const key of held.keys) await keyValue.incrBy(key, paise, SPEND_TTL_SECONDS);
+    } catch (error) {
+      // The run's row keeps the cost; only the caps' running totals are off.
+      logger.log('warn', 'ai.spend_not_recorded', { agent: call.agent, paise, error });
     }
   }
 
-  /** Records what a call cost, in the company and in the group. */
-  async function charge(call: CallBase, paise: number): Promise<void> {
-    if (paise <= 0) return;
+  /**
+   * Reserves the most a call can cost in the company's and the group's running totals, in one
+   * step each, and refuses the call, giving the reservation back, if either total is then past
+   * its cap; so two calls at once cannot both pass a cap.
+   */
+  async function reserve(call: CallBase, paise: number): Promise<Reservation> {
+    if (call.caps.length === 0) throw capReached(call);
     const day = istDay(now());
+    const keys = [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)] as const;
+    const company = await store('the spend could not be reserved', () =>
+      keyValue.incrBy(keys[0], paise, SPEND_TTL_SECONDS),
+    );
+    let group: number;
     try {
-      await keyValue.incrBy(spendKey(call.agent, call.entityId, day), paise, SPEND_TTL_SECONDS);
-      await keyValue.incrBy(spendKey(call.agent, null, day), paise, SPEND_TTL_SECONDS);
+      group = await keyValue.incrBy(keys[1], paise, SPEND_TTL_SECONDS);
     } catch (error) {
-      // The run's row keeps the cost; only the cap's running total is behind.
-      logger.log('warn', 'ai.spend_not_recorded', { agent: call.agent, paise, error });
+      await keyValue.incrBy(keys[0], -paise, SPEND_TTL_SECONDS).catch(() => undefined);
+      throw unavailable('the spend could not be reserved', error);
     }
+    const held: Reservation = { keys, paise };
+    if (call.caps.some((cap) => (cap.entityId === null ? group : company) > cap.paise)) {
+      await move(call, held, -paise);
+      throw capReached(call);
+    }
+    return held;
+  }
+
+  /** Settles a reservation at what the call cost: zero when it failed. */
+  function settle(call: CallBase, held: Reservation, costPaise: number): Promise<void> {
+    return move(call, held, costPaise - held.paise);
   }
 
   /** One vendor call with its timeout and retries; the breaker counts what still fails. */
@@ -211,20 +254,29 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       const claude = deps.claude;
       if (claude === undefined) throw unavailable('ANTHROPIC_API_KEY is not set');
       const model = modelOf(call.model, DEFAULT_CLAUDE_MODEL);
-      await before(call, 'anthropic');
+      await breakerClosed('anthropic');
+      const system = maskForModel(call.system);
       const user = [
         ...(call.untrusted ?? []).map((d) => labelUntrusted(d.source, d.text)),
         maskForModel(call.question),
       ].join('\n\n');
-      const started = now().getTime();
-      const reply = await attempt('anthropic', (signal) =>
-        claude.complete(
-          { model, system: maskForModel(call.system), user, maxTokens: call.maxTokens ?? 1024 },
-          signal,
-        ),
+      const maxTokens = call.maxTokens ?? 1024;
+      const held = await reserve(
+        call,
+        maxCostInPaise(model, bytes(system) + bytes(user), maxTokens),
       );
+      const started = now().getTime();
+      let reply: ModelReply;
+      try {
+        reply = await attempt('anthropic', (signal) =>
+          claude.complete({ model, system, user, maxTokens }, signal),
+        );
+      } catch (error) {
+        await settle(call, held, 0);
+        throw error;
+      }
       const costPaise = costInPaise(model, reply.usage);
-      await charge(call, costPaise);
+      await settle(call, held, costPaise);
       logger.log('info', 'ai.call', {
         agent: call.agent,
         purpose: call.purpose,
@@ -243,18 +295,32 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       const voyage = deps.voyage;
       if (voyage === undefined) throw unavailable('VOYAGE_API_KEY is not set');
       const model = modelOf(call.model, DEFAULT_EMBEDDING_MODEL);
-      await before(call, 'voyage');
+      await breakerClosed('voyage');
       const texts = call.texts.map(maskForModel);
-      const reply = await attempt('voyage', (signal) =>
-        voyage.embed({ model, texts, inputType: call.inputType }, signal),
+      const held = await reserve(
+        call,
+        maxCostInPaise(
+          model,
+          texts.reduce((sum, t) => sum + bytes(t), 0),
+          0,
+        ),
       );
+      let reply: Awaited<ReturnType<EmbeddingTransport['embed']>>;
+      try {
+        reply = await attempt('voyage', (signal) =>
+          voyage.embed({ model, texts, inputType: call.inputType }, signal),
+        );
+      } catch (error) {
+        await settle(call, held, 0);
+        throw error;
+      }
       const costPaise = costInPaise(model, {
         inputTokens: reply.tokens,
         outputTokens: 0,
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
       });
-      await charge(call, costPaise);
+      await settle(call, held, costPaise);
       logger.log('info', 'ai.embed', {
         agent: call.agent,
         purpose: call.purpose,

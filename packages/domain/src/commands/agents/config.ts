@@ -6,8 +6,10 @@ import {
   SetKillSwitchInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
-import { actionTypeOf, automaticEarned } from '../../ai/action-types';
+import { and, eq, gte, isNull, sql, type SQL } from 'drizzle-orm';
+import { actionTypeOf, AUTOMATIC_AVAILABLE, automaticEarned } from '../../ai/action-types';
+import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
+import { lockAgentSettingsForChange } from '../../ai/config';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { moneyFromPaise } from '../../money/paise';
@@ -74,12 +76,17 @@ async function lockRow(
   return row;
 }
 
-/** The row with `changes`, made when there was none; the unique index settles a race. */
+/**
+ * The row with `changes` (only the fields given; the rest keep their values), made when there was
+ * none; the unique index settles a race. The change takes the settings lock of its agent, or of
+ * every agent, so a decision in flight sees the setting before or after it, never half of it.
+ */
 async function upsert(
   ctx: CommandContext,
   key: { agent: string | null; actionType: string | null; entityId: number | null },
   changes: Partial<Pick<ConfigRow, 'autonomy' | 'dailySpendCapPaise' | 'enabled'>>,
 ): Promise<{ before: ConfigRow | undefined; after: ConfigRow }> {
+  await lockAgentSettingsForChange(ctx.tx, key.agent);
   const before = await lockRow(ctx, key);
   const c = schema.agentConfigs;
   const [after] =
@@ -98,15 +105,18 @@ async function upsert(
 }
 
 /**
- * The record behind Automatic: of the action type's decided suggestions in the companies the
- * setting covers, how many were approved without an edit (BLUEPRINT §9.3, PRD AI-04).
+ * The record behind Automatic under the promotion rule (`AGENT_DEFAULTS.promotion`): of the action
+ * type's Needs approval suggestions decided in one company in the window, how many were approved
+ * without an edit; rejections count among the decisions (BLUEPRINT §9.3, PRD AI-04).
  */
 async function decisionRecord(
   ctx: CommandContext,
   agent: string,
   actionType: string,
-  entityId: number | null,
+  entityId: number,
 ): Promise<{ decided: number; approvedUnedited: number }> {
+  const rule = AGENT_DEFAULTS.promotion;
+  const since = new Date(ctx.now.getTime() - rule.windowDays * 24 * 60 * 60 * 1000);
   const a = schema.agentActions;
   const [row] = await ctx.tx
     .select({
@@ -118,17 +128,42 @@ async function decisionRecord(
       and(
         eq(a.agent, agent),
         eq(a.actionType, actionType),
-        entityId === null ? undefined : eq(a.entityId, entityId),
+        eq(a.entityId, entityId),
+        eq(a.autonomy, rule.countedAutonomy),
+        gte(a.decidedAt, since),
       ),
     );
   return { decided: row?.decided ?? 0, approvedUnedited: row?.approvedUnedited ?? 0 };
 }
 
+/** Automatic, refused in Phase 1 and, from Phase 6, until the promotion rule is met. */
+async function checkAutomatic(
+  ctx: CommandContext,
+  input: { agent: string; actionType: string | null; entityId: number | null },
+): Promise<void> {
+  if (!AUTOMATIC_AVAILABLE) {
+    throw new DomainError('conflict', 'Automatic is not available in this phase', {
+      reason: 'autonomy_automatic_unavailable',
+    });
+  }
+  // Earned per company and per action type only.
+  const record =
+    input.actionType === null || input.entityId === null
+      ? { decided: 0, approvedUnedited: 0 }
+      : await decisionRecord(ctx, input.agent, input.actionType, input.entityId);
+  if (!automaticEarned(record.decided, record.approvedUnedited)) {
+    throw new DomainError('conflict', 'Automatic is not earned yet', {
+      reason: 'autonomy_not_earned',
+    });
+  }
+}
+
 /**
  * `agents.config.set` (`agents.autonomy.write`): an agent's autonomy, for every action type or
- * one, and its daily spend cap in paise, for one company or the group. Automatic is set only on
- * one action type, and only once its record allows it: at least 200 decided suggestions, 95% of
- * them approved without an edit; the Executive's change is the sign-off (BLUEPRINT §9.3).
+ * one, and its daily spend cap in paise, for one company or the group, patch-style: a field left
+ * out keeps its value. Automatic is refused in Phase 1 (`autonomy_automatic_unavailable`); from
+ * Phase 6 it is set only on one action type in one company, once the promotion rule is met, and
+ * the Executive's change is the sign-off (BLUEPRINT §9.3).
  */
 export const setAgentConfig = defineCommand({
   name: 'agents.config.set',
@@ -149,21 +184,13 @@ export const setAgentConfig = defineCommand({
         });
       }
     }
-    if (input.autonomy === 'automatic') {
-      const record =
-        input.actionType === null
-          ? { decided: 0, approvedUnedited: 0 }
-          : await decisionRecord(ctx, input.agent, input.actionType, input.entityId);
-      if (!automaticEarned(record.decided, record.approvedUnedited)) {
-        throw new DomainError('conflict', 'Automatic is not earned yet', {
-          reason: 'autonomy_not_earned',
-        });
-      }
-    }
+    if (input.autonomy === 'automatic') await checkAutomatic(ctx, input);
     const key = { agent: input.agent, actionType: input.actionType, entityId: input.entityId };
     const { before, after } = await upsert(ctx, key, {
-      autonomy: input.autonomy,
-      dailySpendCapPaise: input.dailySpendCapPaise,
+      ...(input.autonomy === undefined ? {} : { autonomy: input.autonomy }),
+      ...(input.dailySpendCapPaise === undefined
+        ? {}
+        : { dailySpendCapPaise: input.dailySpendCapPaise }),
     });
     ctx.audit({
       aggregateType: 'agent_config',

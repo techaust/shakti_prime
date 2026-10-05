@@ -13,7 +13,7 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { AGENT_ACTION_TYPES, editableFields } from '../../ai/action-types';
+import { AGENT_ACTION_TYPES, editableFields, summaryFields } from '../../ai/action-types';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
@@ -49,8 +49,9 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
 /**
  * The caller's open inbox items in the request's companies, newest first, keyset on
  * `(created_at, id)`: their own, their team's at team scope, the company's at company scope
- * (`inbox_items_read`). A suggestion shows its agent, its action type and the fields a person may
- * change, and the customer's name when the caller reads the lead.
+ * (`inbox_items_read`). A suggestion shows its agent, its action type, what it does that a person
+ * cannot change (who the work is for, its kind) and, under Needs approval, the fields a person may
+ * change; and the customer's name when the caller reads the lead.
  */
 export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageDto> {
   const input = parseQueryInput(ListInboxInput, rawInput, 'agents.inbox.list');
@@ -77,7 +78,10 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
     })
     .from(i)
     .leftJoin(a, and(eq(a.id, i.agentActionId), eq(a.entityId, i.entityId)))
-    .leftJoin(o, and(eq(i.subjectType, 'opportunity'), eq(o.id, i.subjectId)))
+    .leftJoin(
+      o,
+      and(eq(i.subjectType, 'opportunity'), eq(o.id, i.subjectId), eq(o.entityId, i.entityId)),
+    )
     .leftJoin(acc, eq(acc.id, o.accountId))
     .leftJoin(subjectAccount, and(eq(i.subjectType, 'account'), eq(subjectAccount.id, i.subjectId)))
     .where(
@@ -94,13 +98,25 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
     .limit(input.limit + 1);
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
+  const typed = page.map((r) => ({
+    row: r,
+    type:
+      r.actionType !== null && Object.hasOwn(AGENT_ACTION_TYPES, r.actionType)
+        ? AGENT_ACTION_TYPES[r.actionType]
+        : undefined,
+    proposed: (r.input ?? {}) as Record<string, unknown>,
+  }));
+  const names = await peopleNames(
+    ctx,
+    typed.flatMap(({ type, proposed }) =>
+      (type?.summary ?? [])
+        .filter((f) => f.kind === 'person')
+        .map((f) => proposed[f.name])
+        .filter((v): v is string => typeof v === 'string' && IdSchema.safeParse(v).success),
+    ),
+  );
   return {
-    items: page.map((r) => {
-      const type =
-        r.actionType !== null && Object.hasOwn(AGENT_ACTION_TYPES, r.actionType)
-          ? AGENT_ACTION_TYPES[r.actionType]
-          : undefined;
-      const proposed = (r.input ?? {}) as Record<string, unknown>;
+    items: typed.map(({ row: r, type, proposed }) => {
       return InboxItemDto.parse({
         id: r.item.id,
         entityId: r.item.entityId,
@@ -113,7 +129,10 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         subjectName: r.accountName,
         accountId: r.accountId,
         assigneeId: r.item.assigneeId,
-        fields: type === undefined ? [] : editableFields(type, proposed),
+        summary: type === undefined ? [] : summaryFields(type, proposed, names),
+        // A Suggest item is acted on by the person themselves: nothing to change before a run.
+        fields:
+          type === undefined || r.autonomy === 'suggest' ? [] : editableFields(type, proposed),
         createdAt: r.item.createdAt.toISOString(),
       });
     }),
@@ -122,6 +141,18 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         ? encodeCursor({ t: last.createdText, id: last.item.id })
         : null,
   };
+}
+
+/** The names of the people a page of suggestions is for, by id. */
+async function peopleNames(ctx: Ctx, ids: readonly string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const p = schema.principals;
+  const rows = await ctx.tx
+    .select({ id: p.id, name: p.displayName })
+    .from(p)
+    .where(inArray(p.id, unique));
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 /** How many open items the caller has, counted up to `INBOX_COUNT_LIMIT`, for the top bar. */

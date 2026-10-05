@@ -8,8 +8,9 @@ import {
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, eq, gte, inArray, sql } from 'drizzle-orm';
-import { AGENT_ACTION_TYPES, automaticEarned } from '../../ai/action-types';
-import { resolveAgentConfig, type AgentConfigRow } from '../../ai/config';
+import { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE } from '../../ai/action-types';
+import { AGENT_DEFAULTS } from '../../ai/agent-defaults';
+import { appliedAutonomy, resolveAgentConfig, type AgentConfigRow } from '../../ai/config';
 import { istDay } from '../../ai/provider';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -22,11 +23,16 @@ function istMidnight(at: Date): Date {
   return new Date(`${istDay(at)}T00:00:00+05:30`);
 }
 
+/** An action type no setting names: resolving at it applies only the agent's own rows. */
+const NO_ACTION_TYPE = '';
+
 /**
  * The agents screen (`/admin/agents`): every agent at one level, the company the request is
- * narrowed to or (null) the group, with its switch and whether any switch stops it there, its
- * autonomy and daily spend cap, what it spent today (from its runs), and for each action type the
- * autonomy that applies and the record behind Automatic. Opens with either agent control.
+ * narrowed to or (null) the group, with its switch and whether any switch stops it there; its
+ * autonomy, the autonomy that applies and where it comes from, and what the empty choice would
+ * inherit; its daily spend cap and, at a company, the group's cap, which applies as well; what it
+ * spent today (from its runs); and for each action type the same autonomies and the decisions the
+ * promotion rule counts in its window. Opens with either agent control.
  */
 export async function loadAgentSettings(
   ctx: Ctx,
@@ -53,8 +59,8 @@ export async function loadAgentSettings(
       })
       .from(c)
   ).filter((r) => r.entityId === null || r.entityId === level);
-  const at = (agent: string | null, actionType: string | null) =>
-    rows.find((r) => r.agent === agent && r.actionType === actionType && r.entityId === level);
+  const at = (agent: string | null, actionType: string | null, entityId = level) =>
+    rows.find((r) => r.agent === agent && r.actionType === actionType && r.entityId === entityId);
 
   const r = schema.agentRuns;
   const spend = await ctx.tx
@@ -74,6 +80,8 @@ export async function loadAgentSettings(
     .groupBy(r.agent);
 
   const a = schema.agentActions;
+  const rule = AGENT_DEFAULTS.promotion;
+  const since = new Date((options.now ?? new Date()).getTime() - rule.windowDays * 86_400_000);
   const records = await ctx.tx
     .select({
       agent: a.agent,
@@ -82,22 +90,46 @@ export async function loadAgentSettings(
       approvedUnedited: sql<number>`count(*) filter (where ${a.state} = 'approved' and not ${a.edited})::int`,
     })
     .from(a)
-    .where(level === null ? inArray(a.entityId, [...ctx.entityIds]) : eq(a.entityId, level))
+    .where(
+      and(
+        level === null ? inArray(a.entityId, [...ctx.entityIds]) : eq(a.entityId, level),
+        eq(a.autonomy, rule.countedAutonomy),
+        gte(a.decidedAt, since),
+      ),
+    )
     .groupBy(a.agent, a.actionType);
 
   const resolveAt = level ?? GROUP_LEVEL;
+  /** What applies with, and without, the row at this level for the agent and action type. */
+  const applied = (agent: AgentRoleKey, actionType: string | null) => {
+    const name = actionType ?? NO_ACTION_TYPE;
+    const here = at(agent, actionType);
+    return {
+      effective: appliedAutonomy(rows, agent, name, resolveAt),
+      inherited: appliedAutonomy(
+        rows.filter((r) => r !== here),
+        agent,
+        name,
+        resolveAt,
+      ),
+    };
+  };
   return AgentSettingsDto.parse({
     entityId: level,
     allEnabled: at(null, null)?.enabled ?? true,
+    automaticAvailable: AUTOMATIC_AVAILABLE,
     agents: AGENT_ROLE_KEYS.map((agent: AgentRoleKey) => {
       const own = at(agent, null);
       const spent = spend.find((s) => s.agent === agent);
+      const group = level === null ? undefined : at(agent, null, null);
       return {
         agent,
         enabled: own?.enabled ?? true,
-        stopped: !resolveAgentConfig(rows, agent, '', resolveAt).enabled,
+        stopped: !resolveAgentConfig(rows, agent, NO_ACTION_TYPE, resolveAt).enabled,
         autonomy: (own?.autonomy as AgentAutonomy | null | undefined) ?? null,
+        ...applied(agent, null),
         dailySpendCapPaise: own?.dailySpendCapPaise ?? null,
+        groupCapPaise: group?.dailySpendCapPaise ?? null,
         spentTodayPaise: Number(spent?.paise ?? 0),
         runsToday: spent?.runs ?? 0,
         actionTypes: Object.values(AGENT_ACTION_TYPES)
@@ -106,16 +138,12 @@ export async function loadAgentSettings(
             const record = records.find(
               (x) => x.agent === agent && x.actionType === t.command.name,
             );
-            const decided = record?.decided ?? 0;
-            const approvedUnedited = record?.approvedUnedited ?? 0;
             return {
               actionType: t.command.name,
               autonomy: (at(agent, t.command.name)?.autonomy as AgentAutonomy | undefined) ?? null,
-              effectiveAutonomy: resolveAgentConfig(rows, agent, t.command.name, resolveAt)
-                .autonomy,
-              decided,
-              approvedUnedited,
-              automaticEarned: automaticEarned(decided, approvedUnedited),
+              ...applied(agent, t.command.name),
+              decided: record?.decided ?? 0,
+              approvedUnedited: record?.approvedUnedited ?? 0,
             };
           }),
       };

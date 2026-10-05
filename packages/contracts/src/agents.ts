@@ -37,8 +37,17 @@ export const AGENT_RUN_ENDINGS = [
 export const AgentRunEndingSchema = z.enum(AGENT_RUN_ENDINGS);
 export type AgentRunEnding = z.infer<typeof AgentRunEndingSchema>;
 
-/** `agent_actions.state`, the `agent_action` machine. */
-export const AGENT_ACTION_STATES = ['proposed', 'executed', 'approved', 'rejected'] as const;
+/**
+ * `agent_actions.state`, the `agent_action` machine: a Needs approval suggestion is approved or
+ * rejected; a Suggest one, which a person acts on themselves, is dismissed.
+ */
+export const AGENT_ACTION_STATES = [
+  'proposed',
+  'executed',
+  'approved',
+  'rejected',
+  'dismissed',
+] as const;
 export const AgentActionStateSchema = z.enum(AGENT_ACTION_STATES);
 export type AgentActionState = z.infer<typeof AgentActionStateSchema>;
 
@@ -80,7 +89,7 @@ export const PaiseSchema = z.number().int().min(0).max(100_000_000_000);
 
 const Count = z.number().int().min(0).max(100_000_000);
 
-/** `agents.inbox.approve` and `agents.inbox.reject`: one open suggestion of the company. */
+/** `agents.inbox.approve`, `.reject` and `.dismiss`: one open suggestion of the company. */
 export const InboxItemRefInput = z.object({ entityId: EntityIdSchema, itemId: IdSchema }).strict();
 export type InboxItemRefInput = z.infer<typeof InboxItemRefInput>;
 
@@ -91,8 +100,9 @@ export const InboxFieldNameSchema = z
   .max(40);
 
 /**
- * `agents.inbox.edit`: approve a suggestion with some of its fields changed; only the fields its
- * action type lets a person change, each checked again by the command it runs.
+ * `agents.inbox.edit`: approve a suggestion with the fields a person changed; only the fields its
+ * action type lets a person change, each checked again by the command it runs. No change at all
+ * approves it as it was, unedited.
  */
 export const EditInboxItemInput = z
   .object({
@@ -100,7 +110,7 @@ export const EditInboxItemInput = z
     itemId: IdSchema,
     changes: z
       .record(InboxFieldNameSchema, z.string().max(200))
-      .refine((c) => Object.keys(c).length > 0 && Object.keys(c).length <= 10),
+      .refine((c) => Object.keys(c).length <= 10),
   })
   .strict();
 export type EditInboxItemInput = z.infer<typeof EditInboxItemInput>;
@@ -110,7 +120,7 @@ export const InboxDecisionDto = z
   .object({
     itemId: IdSchema,
     actionId: IdSchema,
-    state: z.enum(['approved', 'rejected']),
+    state: z.enum(['approved', 'rejected', 'dismissed']),
     edited: z.boolean(),
   })
   .strict();
@@ -119,18 +129,23 @@ export type InboxDecisionDto = z.infer<typeof InboxDecisionDto>;
 /**
  * `agents.config.set`: one agent's autonomy, for every action type (`actionType` null) or one,
  * and its daily spend cap, for every company (`entityId` null, in a request for every company) or
- * one. A cap is set on the agent's row for every action type only; null clears a setting.
+ * one. Patch-style: a field left out keeps its value, null clears it, and at least one is given. A
+ * cap is set on the agent's row for every action type only.
  */
 export const SetAgentConfigInput = z
   .object({
     agent: AgentRoleKeySchema,
     actionType: AgentActionTypeSchema.nullable(),
     entityId: EntityIdSchema.nullable(),
-    autonomy: AgentAutonomySchema.nullable(),
-    dailySpendCapPaise: PaiseSchema.nullable(),
+    autonomy: AgentAutonomySchema.nullable().optional(),
+    dailySpendCapPaise: PaiseSchema.nullable().optional(),
   })
   .strict()
-  .refine((i) => i.actionType === null || i.dailySpendCapPaise === null, {
+  .refine((i) => i.autonomy !== undefined || i.dailySpendCapPaise !== undefined, {
+    path: ['autonomy'],
+    message: 'nothing_to_change',
+  })
+  .refine((i) => i.actionType === null || i.dailySpendCapPaise == null, {
     path: ['dailySpendCapPaise'],
     message: 'spend_cap_per_agent',
   });
@@ -163,7 +178,10 @@ export const AgentConfigDto = z
   .strict();
 export type AgentConfigDto = z.infer<typeof AgentConfigDto>;
 
-/** The action an agent proposes or takes: the command's input and what it is about. */
+/**
+ * The action an agent proposes or takes: the command's input and what it is about. An action type
+ * whose work is for someone (a task's assignee) fills them in from `assigneeId`, or requires it.
+ */
 export const AgentProposalSchema = z
   .object({
     input: z.record(z.string(), z.unknown()),
@@ -212,6 +230,22 @@ export const AgentRunDto = z
   .strict();
 export type AgentRunDto = z.infer<typeof AgentRunDto>;
 
+/**
+ * An input of a suggestion that changes its outcome and that a person cannot edit, shown on the
+ * card as it is: who the work is for (`person`, with the name when the caller reads it) or a code
+ * the screen names from the action type's catalogue (`code`).
+ */
+export const InboxSummaryDto = z
+  .object({
+    name: InboxFieldNameSchema,
+    kind: z.enum(['person', 'code']),
+    value: z.string().max(64).nullable(),
+    /** A person's name, when the caller reads it. */
+    label: z.string().nullable(),
+  })
+  .strict();
+export type InboxSummaryDto = z.infer<typeof InboxSummaryDto>;
+
 /** One editable field of a suggestion as the inbox shows it. */
 export const InboxFieldDto = z
   .object({
@@ -240,6 +274,9 @@ export const InboxItemDto = z
     /** The customer, for a link to Account 360, when the caller reads it. */
     accountId: IdSchema.nullable(),
     assigneeId: IdSchema.nullable(),
+    /** What the suggestion does that a person cannot change, read-only on the card. */
+    summary: z.array(InboxSummaryDto),
+    /** What a person may change before approving; none under Suggest. */
     fields: z.array(InboxFieldDto),
     createdAt: z.iso.datetime(),
   })
@@ -262,18 +299,39 @@ export const ListInboxInput = z
   .strict();
 export type ListInboxInput = z.infer<typeof ListInboxInput>;
 
+/**
+ * Where a setting that applies comes from: the action type's own or the agent's, in the company
+ * or for the group, or no setting at all (Suggest).
+ */
+export const AGENT_SETTING_SOURCES = [
+  'action_company',
+  'action_group',
+  'agent_company',
+  'agent_group',
+  'default',
+] as const;
+export const AgentSettingSourceSchema = z.enum(AGENT_SETTING_SOURCES);
+export type AgentSettingSource = z.infer<typeof AgentSettingSourceSchema>;
+
+/** An autonomy that applies, and where it comes from. */
+export const AppliedAutonomyDto = z
+  .object({ autonomy: AgentAutonomySchema, source: AgentSettingSourceSchema })
+  .strict();
+export type AppliedAutonomyDto = z.infer<typeof AppliedAutonomyDto>;
+
 /** One action type of one agent on the agents screen. */
 export const AgentActionTypeSettingDto = z
   .object({
     actionType: AgentActionTypeSchema,
-    /** The autonomy set for this action type in the company or group, if any. */
+    /** The autonomy set for this action type at this level, if any. */
     autonomy: AgentAutonomySchema.nullable(),
-    /** What applies: this row, the agent's own default, or Suggest. */
-    effectiveAutonomy: AgentAutonomySchema,
+    /** What applies here, and where it comes from. */
+    effective: AppliedAutonomyDto,
+    /** What would apply with no setting at this level: the empty choice. */
+    inherited: AppliedAutonomyDto,
+    /** Decisions the promotion rule counts (the agents' defaults), and how many were unedited. */
     decided: z.number().int().min(0),
     approvedUnedited: z.number().int().min(0),
-    /** Whether the record allows Automatic (BLUEPRINT §9.3). */
-    automaticEarned: z.boolean(),
   })
   .strict();
 
@@ -285,8 +343,16 @@ export const AgentSettingDto = z
     enabled: z.boolean(),
     /** Whether any switch (every agent, this agent, this company) stops it here. */
     stopped: z.boolean(),
+    /** The agent's autonomy set at this level, if any. */
     autonomy: AgentAutonomySchema.nullable(),
+    /** What applies to an action type with no setting of its own, and where it comes from. */
+    effective: AppliedAutonomyDto,
+    /** What would apply with no setting at this level: the empty choice. */
+    inherited: AppliedAutonomyDto,
+    /** The daily spend cap set at this level, if any. */
     dailySpendCapPaise: PaiseSchema.nullable(),
+    /** At a company, the group's cap, which applies as well: a call passes neither. */
+    groupCapPaise: PaiseSchema.nullable(),
     spentTodayPaise: PaiseSchema,
     runsToday: z.number().int().min(0),
     actionTypes: z.array(AgentActionTypeSettingDto),
@@ -300,6 +366,8 @@ export const AgentSettingsDto = z
     entityId: EntityIdSchema.nullable(),
     /** The switch for every agent at this level. */
     allEnabled: z.boolean(),
+    /** Whether an agent may be set to Automatic yet (not in Phase 1). */
+    automaticAvailable: z.boolean(),
     agents: z.array(AgentSettingDto),
   })
   .strict();

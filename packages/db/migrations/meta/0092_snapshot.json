@@ -945,11 +945,11 @@
         },
         "agent_actions_state_check": {
           "name": "agent_actions_state_check",
-          "value": "\"agent_actions\".\"state\" in ('proposed', 'executed', 'approved', 'rejected')"
+          "value": "\"agent_actions\".\"state\" in ('proposed', 'executed', 'approved', 'rejected', 'dismissed')"
         },
         "agent_actions_decided_check": {
           "name": "agent_actions_decided_check",
-          "value": "(\"agent_actions\".\"decided_at\" is null and \"agent_actions\".\"decided_by\" is null) = (\"agent_actions\".\"state\" <> 'approved' and \"agent_actions\".\"state\" <> 'rejected')"
+          "value": "(\"agent_actions\".\"decided_at\" is null and \"agent_actions\".\"decided_by\" is null) = (\"agent_actions\".\"state\" in ('proposed', 'executed'))"
         },
         "agent_actions_input_size_check": {
           "name": "agent_actions_input_size_check",

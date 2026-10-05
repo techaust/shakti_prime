@@ -322,18 +322,19 @@ export type {
 } from './ai/transport';
 export { vendorTransports } from './ai/env';
 export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
-export {
-  AGENT_ACTION_TYPES,
-  AUTOMATIC_MIN_DECIDED,
-  AUTOMATIC_MIN_UNEDITED_SHARE,
-  automaticEarned,
-} from './ai/action-types';
+export { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE, automaticEarned } from './ai/action-types';
+export { AGENT_DEFAULTS } from './ai/agent-defaults';
 export { resolveAgentConfig } from './ai/config';
-export { agentPrincipal, runAgentStep } from './ai/runtime';
+export { agentPrincipal, agentStepKey, runAgentStep } from './ai/runtime';
 export type { AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
-export { approveInboxItem, editInboxItem, rejectInboxItem } from './commands/agents/inbox';
+export {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from './commands/agents/inbox';
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';

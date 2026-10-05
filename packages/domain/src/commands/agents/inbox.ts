@@ -7,11 +7,10 @@ import {
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, eq } from 'drizzle-orm';
-import { actionTypeOf, applyEdits } from '../../ai/action-types';
-import { loadAgentConfig } from '../../ai/config';
+import { actionTypeOf, applyEdits, wasEdited } from '../../ai/action-types';
+import { loadAgentConfig, lockAgentSettings } from '../../ai/config';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
-import { canonicalJson } from '../../idempotency/hash';
 import { transition } from '../../state-machines/define-machine';
 import { agentActionMachine } from '../../state-machines/machines/agent-action';
 import { inboxItemMachine } from '../../state-machines/machines/inbox-item';
@@ -51,13 +50,25 @@ async function lockSuggestion(
   return { item, action };
 }
 
-/** Fires the decision on both machines: a decided suggestion is refused as already decided. */
+/**
+ * Fires the decision on both machines: a decided suggestion is refused as already decided. A
+ * Needs approval suggestion is approved or rejected; a Suggest one, which a person acts on
+ * themselves, is only dismissed (BLUEPRINT §9.3).
+ */
 function decide(
   ctx: CommandContext,
   item: ItemRow,
   action: ActionRow,
-  event: 'approve' | 'reject',
+  event: 'approve' | 'reject' | 'dismiss',
 ): void {
+  const suggestOnly = action.autonomy === 'suggest';
+  if (suggestOnly !== (event === 'dismiss')) {
+    throw new DomainError(
+      'conflict',
+      `a ${action.autonomy} suggestion cannot be met with ${event}`,
+      { reason: suggestOnly ? 'agent_suggestion_only' : 'agent_needs_decision' },
+    );
+  }
   const actor = { kind: 'principal' as const, principal: ctx.principal };
   transition(inboxItemMachine, { state: item.state as 'open' | 'done' }, 'decide', {
     actor,
@@ -66,7 +77,7 @@ function decide(
   });
   transition(
     agentActionMachine,
-    { state: action.state as 'proposed' | 'executed' | 'approved' | 'rejected' },
+    { state: action.state as 'proposed' | 'executed' | 'approved' | 'rejected' | 'dismissed' },
     event,
     { actor, now: ctx.now, params: {} },
   );
@@ -77,7 +88,11 @@ async function record(
   ctx: CommandContext,
   item: ItemRow,
   action: ActionRow,
-  decision: { state: 'approved' | 'rejected'; edited: boolean; input?: Record<string, unknown> },
+  decision: {
+    state: 'approved' | 'rejected' | 'dismissed';
+    edited: boolean;
+    input?: Record<string, unknown>;
+  },
 ): Promise<InboxDecisionDto> {
   const a = schema.agentActions;
   await ctx.tx
@@ -114,7 +129,9 @@ async function record(
 
 /**
  * Runs the suggested command as the person who decides, under their own permissions and in this
- * transaction, never as the agent; refused while a kill switch stops the agent (PRD AI-04).
+ * transaction, never as the agent; refused while a kill switch stops the agent (PRD AI-04). The
+ * settings lock holds the switches still until the decision commits. Counted as edited only when
+ * an editable field changed, a time compared as an instant.
  */
 async function approve(
   ctx: CommandContext,
@@ -125,14 +142,15 @@ async function approve(
   decide(ctx, item, action, 'approve');
   const type = actionTypeOf(action.actionType);
   const agent = AgentRoleKeySchema.parse(action.agent);
+  await lockAgentSettings(ctx.tx, agent);
   const config = await loadAgentConfig(ctx.tx, agent, action.actionType, action.entityId);
   if (!config.enabled) {
     throw new DomainError('conflict', `${agent} is switched off`, { reason: 'agent_switched_off' });
   }
   const proposed = action.inputJson as Record<string, unknown>;
   const runInput = changes === undefined ? proposed : applyEdits(type, proposed, changes);
-  const edited = canonicalJson(runInput) !== canonicalJson(proposed);
-  await ctx.run(type.command, runInput);
+  const edited = wasEdited(type, proposed, runInput);
+  await ctx.run(type.command, edited ? runInput : proposed);
   return record(ctx, item, action, {
     state: 'approved',
     edited,
@@ -143,7 +161,7 @@ async function approve(
 /** The fields of a decision the Activity log names. */
 const DECISION_FIELDS = ['state', 'edited'];
 
-/** `agents.inbox.approve`: the suggestion runs as it was proposed. */
+/** `agents.inbox.approve`: a Needs approval suggestion runs as it was proposed. */
 export const approveInboxItem = defineCommand({
   name: 'agents.inbox.approve',
   permission: 'agents.inbox.act',
@@ -170,7 +188,7 @@ export const editInboxItem = defineCommand({
   handler: (ctx, input) => approve(ctx, input, input.changes),
 });
 
-/** `agents.inbox.reject`: nothing runs; the suggestion is closed as rejected. */
+/** `agents.inbox.reject`: nothing runs; a Needs approval suggestion is closed as rejected. */
 export const rejectInboxItem = defineCommand({
   name: 'agents.inbox.reject',
   permission: 'agents.inbox.act',
@@ -183,5 +201,24 @@ export const rejectInboxItem = defineCommand({
     const { item, action } = await lockSuggestion(ctx, input);
     decide(ctx, item, action, 'reject');
     return record(ctx, item, action, { state: 'rejected', edited: false });
+  },
+});
+
+/**
+ * `agents.inbox.dismiss`: a Suggest suggestion leaves the inbox; nothing runs. The person acts on
+ * it themselves, from the lead or customer it is about, or chooses not to (BLUEPRINT §9.3).
+ */
+export const dismissInboxItem = defineCommand({
+  name: 'agents.inbox.dismiss',
+  permission: 'agents.inbox.act',
+  minScope: 'own',
+  peopleOnly: true,
+  input: InboxItemRefInput,
+  output: InboxDecisionDto,
+  auditFields: DECISION_FIELDS,
+  async handler(ctx, input) {
+    const { item, action } = await lockSuggestion(ctx, input);
+    decide(ctx, item, action, 'dismiss');
+    return record(ctx, item, action, { state: 'dismissed', edited: false });
   },
 });
