@@ -187,8 +187,8 @@ The catalogue commands say so (`catalogue_needs_all_companies`) and the tables' 
 **Duplicates and merges** (docs/design/phase1.md §7.4, CRM-03) add `crm.duplicates.scan` (platform-only, §3.3) and use `crm.lead.merge`:
 - A duplicate card is read by whoever reads both of its customers (`account_entities_read`) or both of its leads; `/duplicates` needs `crm.lead.merge` (a team lead and above).
 - `crm.customer.merge`, `crm.customer.unmerge`, `crm.lead.merge` and `crm.duplicate.dismiss` are for people only (`peopleOnly`, and the merge definers refuse an agent, a voice session and the system principal as well); `crm.duplicate.suggest`, which puts two open leads of one customer forward as a card, is the one step an agent may take.
-- A merge never reaches past the caller: every relationship of both customers must be in the request's companies and the caller's customer write scope, and every lead it moves in the caller's lead write scope; otherwise it is refused as `customer_held_by_colleague` and nothing moves (§4). A referral partner is never merged away.
-- A customer merge records every id it moved (`customer_merges`) and is undone by `crm.customer.unmerge`; each merge, undo and decision is audited.
+- A merge never reaches past the caller: every relationship of both customers, and every lead it moves, must be in the request's companies (the duplicate actions request every company the caller works for, since a customer is shared, ADR 0008; otherwise `merge_other_company`) and in the caller's customer or lead write scope (otherwise `customer_held_by_colleague`, §4), or nothing moves. A referral partner is never merged away; a lead merge gives the kept lead the merged lead's partner when it has none and refuses two leads of two partners.
+- A customer merge records every id it moved (`customer_merges`) and is undone by `crm.customer.unmerge`, which is refused while the kept customer has since been merged away; each merge, undo and decision is audited. A write about a known customer holds its row (`app.hold_customer()`), so it never lands on a customer a merge is archiving.
 
 ### 3.3 Agent principals
 | Principal | Permissions |

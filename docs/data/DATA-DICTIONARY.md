@@ -684,7 +684,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Indexes**
 
-- `accounts_match_name_idx` (btree): `lower(btrim(regexp_replace("name", '\s+', ' ', 'g')))`
+- `accounts_match_name_idx` (btree): `app.match_text("name")`
 - `accounts_name_id_idx` (btree): `name, id`
 - `accounts_name_trgm_idx` (gin): `name gin_trgm_ops`
 - `accounts_referral_partner_name_idx` (btree): `name, id` where `"accounts"."type" = 'referral_partner' and "accounts"."archived_at" is null`
@@ -1099,7 +1099,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Indexes**
 
 - `customer_sites_account_idx` (btree): `account_id`
-- `customer_sites_match_village_idx` (btree): `lower(btrim(regexp_replace("village", '\s+', ' ', 'g')))` where `"customer_sites"."village" is not null and "customer_sites"."archived_at" is null`
+- `customer_sites_match_village_idx` (btree): `app.match_text("village")` where `"customer_sites"."village" is not null and "customer_sites"."archived_at" is null`
 - `customer_sites_village_trgm_idx` (gin): `village gin_trgm_ops`
 
 **Triggers**
@@ -1114,7 +1114,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### duplicate_candidates
 
-**Catalogue entry** (DATABASE.md §6.2; created in 0101): `entity_id` (the company it was found in), `kind` (`customer`, `lead`), `account_id` and `other_account_id` (a customer pair) or `opportunity_id` and `other_opportunity_id` (a lead pair of the company, composite keys to the leads' `(id, entity_id)`), always the lower id first, `reason` (`phone`, `name_village`), `signals_json` (the facts behind it: `same_phone`, `same_name`, `same_village`, `same_customer`), `confidence` (1 to 100, `duplicateConfidence()`), `state` (`open`, `merged`, `dismissed`, written only by the duplicate commands through the `duplicate_candidate` machine), `decided_by`, `decided_at` (set exactly when decided); one row per pair and company, whatever its state, so a pair set aside is never put forward again; found by `crm.lead.create` and the nightly `crm.duplicate.scan` through `app.record_duplicates()` (§4.1) and suggested as a lead pair by `crm.duplicate.suggest` (insert policy: `crm.lead.merge` and both leads readable); read by whoever reads both customers (`account_entities_read`) or both leads, by `app_user` and `app_reader`; only `state`, `decided_by` and `decided_at` change, by a person holding `crm.lead.merge`; no delete; `/duplicates` pages the open ones off `(confidence desc, created_at desc, id desc) where state = 'open'`
+**Catalogue entry** (DATABASE.md §6.2; created in 0101): `entity_id` (the company it was found in), `kind` (`customer`, `lead`), `account_id` and `other_account_id` (a customer pair) or `opportunity_id` and `other_opportunity_id` (a lead pair of the company, composite keys to the leads' `(id, entity_id)`), always the lower id first, `reason` (`phone`, `name_village`), `signals_json` (the facts behind it: `same_phone`, `same_name`, `same_village`, `same_customer`), `confidence` (1 to 100, `duplicateConfidence()`), `state` (`open`, `merged`, `dismissed`, written only by the duplicate commands through the `duplicate_candidate` machine), `decided_by`, `decided_at` (set exactly when decided); one row per pair and company, whatever its state, so a pair set aside is never put forward again; found by `crm.lead.create` and the nightly `crm.duplicate.scan` through `app.record_duplicates()` (§4.1) and suggested as a lead pair by `crm.duplicate.suggest` (insert policy: `crm.lead.merge` and both leads readable); read by whoever reads both customers (`account_entities_read`) or both leads, by `app_user` and `app_reader`; only `state`, `decided_by` and `decided_at` change, by a person holding `crm.lead.merge`; no delete; `/duplicates` pages the open ones off `(confidence desc, created_at desc, id desc) where state = 'open'`, and Account 360 reads a customer's open ones by four index probes, `(account_id, state)`, `(other_account_id, state)` and the two lead columns
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -1163,12 +1163,12 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Indexes**
 
-- `duplicate_candidates_account_idx` (btree): `account_id`
+- `duplicate_candidates_account_idx` (btree): `account_id, state`
 - `duplicate_candidates_customer_pair_unique` (btree, unique): `entity_id, account_id, other_account_id` where `"duplicate_candidates"."kind" = 'customer'`
 - `duplicate_candidates_decided_by_idx` (btree): `decided_by`
 - `duplicate_candidates_lead_pair_unique` (btree, unique): `opportunity_id, other_opportunity_id` where `"duplicate_candidates"."kind" = 'lead'`
 - `duplicate_candidates_open_idx` (btree): `confidence desc, created_at desc, id desc` where `"duplicate_candidates"."state" = 'open'`
-- `duplicate_candidates_other_account_idx` (btree): `other_account_id`
+- `duplicate_candidates_other_account_idx` (btree): `other_account_id, state`
 - `duplicate_candidates_other_opportunity_idx` (btree): `other_opportunity_id`
 
 **Triggers**

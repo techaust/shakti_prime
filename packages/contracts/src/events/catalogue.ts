@@ -76,14 +76,14 @@ const eventCatalogue = {
   },
   'crm.lead.attached': {
     meaning:
-      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, instead of a new lead (CRM-03). Never for a row of an import batch, which `crm.lead.create` runs for it.",
+      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates.",
     emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
   },
   'crm.duplicate.found': {
     meaning:
-      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers.',
+      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates.',
     emittedBy: [
       'crm.lead.create',
       'crm.duplicate.scan',
@@ -133,8 +133,9 @@ const eventCatalogue = {
     payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
   },
   'crm.opportunity.reopened': {
-    meaning: "A nurtured or lost lead was opened again at its pipeline's first open stage.",
-    emittedBy: ['crm.opportunity.reopen'],
+    meaning:
+      "A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead.",
+    emittedBy: ['crm.lead.create', 'crm.opportunity.reopen', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
   },

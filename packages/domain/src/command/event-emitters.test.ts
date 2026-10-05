@@ -13,7 +13,8 @@ import { commands } from './registry';
  *
  * A command emits a type when its own source calls `ctx.emit` with it, when it calls a module
  * function outside `commands/` that does (the set-based import batch), or when it runs another
- * command that does through `ctx.run`.
+ * command that does through `ctx.run`, itself or in such a module function (a repeat enquiry
+ * reopening a lead in nurture).
  */
 
 const src = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,6 +28,7 @@ function files(folder: string): string[] {
 }
 
 const EMIT = /\bemit\(\{\s*type: '([a-z_.]+)'/g;
+const RUN = /ctx\.run\((\w+)/g;
 
 function emitted(text: string): string[] {
   return [...text.matchAll(EMIT)].map((m) => m[1] ?? '');
@@ -54,26 +56,32 @@ function derivedEmitters(): Map<string, Set<string>> {
   const commandFiles = files(join(src, 'commands'));
   const all = commandFiles.flatMap((path) => segments(path).segments);
 
-  // Modules outside `commands/` that emit, by the functions they export.
+  // Modules outside `commands/` that emit or run a command, by the functions they export.
   const helpers = files(src)
     .filter((path) => !relative(src, path).startsWith('commands'))
     .flatMap((path) => {
       const text = readFileSync(path, 'utf8');
       const types = emitted(text);
-      if (types.length === 0) return [];
+      const runs = [...text.matchAll(RUN)].map((m) => m[1] ?? '');
+      if (types.length === 0 && runs.length === 0) return [];
       const exported = [...text.matchAll(/export (?:async )?function (\w+)/g)].map((m) => m[1]);
-      return [{ exported, types }];
+      return [{ exported, types, runs }];
     });
 
   const byCommand = new Map<string, Set<string>>();
+  // The commands each command runs through `ctx.run`, by their export names.
+  const runsOf = new Map<string, string[]>();
   for (const segment of all) {
     const types = new Set(emitted(segment.text));
+    const runs = [...segment.text.matchAll(RUN)].map((m) => m[1] ?? '');
     for (const helper of helpers) {
       if (helper.exported.some((fn) => new RegExp(`\\b${fn ?? ''}\\(`).test(segment.text))) {
         for (const type of helper.types) types.add(type);
+        runs.push(...helper.runs);
       }
     }
     byCommand.set(segment.name, types);
+    runsOf.set(segment.name, runs);
   }
 
   // `ctx.run(other, …)` emits what the other command emits, until nothing more is added.
@@ -83,8 +91,8 @@ function derivedEmitters(): Map<string, Set<string>> {
     grew = false;
     for (const segment of all) {
       const own = byCommand.get(segment.name) ?? new Set<string>();
-      for (const m of segment.text.matchAll(/ctx\.run\((\w+)/g)) {
-        const inner = byCommand.get(byExport.get(m[1] ?? '') ?? '') ?? new Set<string>();
+      for (const run of runsOf.get(segment.name) ?? []) {
+        const inner = byCommand.get(byExport.get(run) ?? '') ?? new Set<string>();
         for (const type of inner) {
           if (!own.has(type)) {
             own.add(type);
