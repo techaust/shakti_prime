@@ -330,7 +330,7 @@ export const mergeLeads = defineCommand({
   peopleOnly: true,
   input: MergeLeadsInput,
   output: LeadMergeDto,
-  auditFields: ['movedTasks', 'movedTags', 'referralPartnerId', 'archivedAt', 'state'],
+  auditFields: ['movedTasks', 'movedTags', 'archivedAt', 'state'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const candidate = await candidateOfPair(ctx, input.entityId, input.candidateId, 'lead', [
