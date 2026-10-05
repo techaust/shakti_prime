@@ -8,7 +8,8 @@ import {
   StageExitFieldSchema,
   TaskKindSchema,
 } from '../../crm/enums';
-import { DispositionDto, DispositionNextActionSchema } from './config';
+import { DispositionNextActionSchema } from '../../crm/config';
+import { DispositionDto } from './config';
 import { ActivityDto } from '../../dto/customer';
 import { SearchTextSchema } from '../../dto/search';
 import { EntityIdSchema, IdSchema } from '../../ids';

@@ -30,7 +30,8 @@ type G = Guard<OpportunityRecord, OpportunityParams>;
 
 const DAY_MS = 86_400_000;
 
-function filled(value: unknown): boolean {
+/** Whether a lead detail an exit rule names is filled in (the workspace's checklist shows each). */
+export function exitFieldFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -50,7 +51,7 @@ const stageInPipeline: G = {
 const exitRulesMet: G = {
   description: 'the exit rules of the current stage are met (its required fields are filled)',
   check: (record) => {
-    const missing = record.exitRequiredFields.filter((field) => !filled(record.fields[field]));
+    const missing = record.exitRequiredFields.filter((field) => !exitFieldFilled(record.fields[field]));
     return missing.length === 0
       ? undefined
       : { code: 'validation_failed', reason: 'stage_fields_missing', details: { missing } };
@@ -169,8 +170,7 @@ export const opportunityMachine = defineMachine<
       effects: [
         {
           key: 'schedule_nurture',
-          description:
-            'follow-up tasks on the nurture cadence (Phase 1; the cadence is a workshop input); a workflow engine is a later choice',
+          description: `nurture call tasks for the lead's owner on day ${WORKSHOP_DEFAULTS.calling.nurtureCallDays.join(', ')} after the lead enters nurture, at the start of calling hours (the owner's default for workshop CALL-5); a workflow engine is a later choice`,
         },
       ],
       emits: 'crm.opportunity.nurtured',

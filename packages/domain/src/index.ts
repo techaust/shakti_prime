@@ -43,6 +43,19 @@ export { createTask, completeTask, rescheduleTask, cancelTask } from './commands
 export { createTag, archiveTag, tagLead, untagLead } from './commands/crm/tags';
 export { updateAccount, updateContact, upsertSite, addNote } from './commands/crm/customer';
 export { recordConsent, withdrawConsent } from './commands/crm/consent';
+export { logCall } from './commands/calls/log-call';
+export {
+  dialNumber,
+  listCallQueue,
+  listTeamQueues,
+  loadCallLead,
+} from './queries/calls/call-queue';
+export {
+  afterUnanswered,
+  callingStartOnDay,
+  istDayStart,
+  nurtureCallTimes,
+} from './telecom/call-schedule';
 export { setPrice } from './commands/pricing/set-price';
 export {
   approvePriceList,
