@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
+import { DuplicateKindSchema, DuplicateReasonSchema } from '../crm/duplicates';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { SizingKindSchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
@@ -70,6 +71,26 @@ const eventCatalogue = {
         pipelineKey: Code,
         sourceCode: Code.nullable(),
         existingAccount: z.boolean(),
+      })
+      .strict(),
+  },
+  'crm.lead.attached': {
+    meaning:
+      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, instead of a new lead (CRM-03).",
+    emittedBy: ['crm.lead.create'],
+    subscribed: false,
+    payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
+  },
+  'crm.duplicate.found': {
+    meaning:
+      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03).',
+    emittedBy: ['crm.lead.create', 'crm.duplicate.scan', 'crm.duplicate.suggest'],
+    subscribed: false,
+    payload: z
+      .object({
+        kind: DuplicateKindSchema,
+        reason: DuplicateReasonSchema,
+        confidence: z.number().int().min(1).max(100),
       })
       .strict(),
   },

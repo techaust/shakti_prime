@@ -273,6 +273,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'files.process': {},
   // The platform's nightly rescoring of leads; no person's role holds it (SECURITY §3.3).
   'crm.score.refresh': {},
+  // The platform's nightly search for duplicates; no person's role holds it (SECURITY §3.3).
+  'crm.duplicates.scan': {},
 };
 
 /** Agent principal permission sets (docs/SECURITY.md §3.3), limited to keys in the catalogue. */
