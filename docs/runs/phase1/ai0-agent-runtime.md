@@ -169,5 +169,20 @@ Lead decisions (05-10-2026):
 - D. When a company cap and a group cap both exist, both apply: the call is refused if either would be exceeded. Applied in 5a30d342, 01ea9c3c.
 - E. Address masking is best-effort (a PIN and house-number heuristic), recorded in SECURITY §6 as a known limitation; digits are masked fully. Applied in 5a30d342, 01ea9c3c; SECURITY §6 in e56d8038.
 
+### Second review (05-10-2026)
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | HIGH | `maskForModel()` still misses numbers joined by other Unicode spaces (U+00A0, U+2009, U+202F), line breaks, four or more spaces, `/`, `,`, `_` or U+2212, and digits touching letters (`UID234567890123`, `Mob9876543210`, `98765 43210ji`); patterns are added one spelling at a time. | fixed in 317c1205 (by method: normalised reading mapped back to the original, safe shapes set aside, every run of nine digits); long words linear in 7a37e138 |
+| 2 | MEDIUM | The masking over-masks ordinary text: dates with times, timestamps, ranges, amounts (`quoted 245000`, `amount 1250000.50`), `block 2`, `sector 7`, `order #1234`, `SP-7.5-100-2026` and six digits after any word. | fixed in 317c1205 |
+| 3 | MEDIUM | UPI misses a sentence-ending dot and hyphenated handles; PAN and GSTIN with spaces or hyphens are missed; the email rule can run quadratically; SECURITY §5 and §6 do not say what is and is not caught. | fixed in 317c1205 (SECURITY §5 and §6 state both); the logs' email rule in 7a37e138 |
+| 4 | LOW | With Automatic unavailable, the settings screen and `appliedAutonomy()` report a stored Automatic as Automatic; the agent-level select cannot show it. | fixed in 204f568b (`automaticHeld` and its note; the stored value shown, disabled) |
+| 5 | LOW | The assignee is not checked as a person with a role in the company, and the item's team is the agent's word. | fixed in 204f568b (`teamId` removed from the proposal; taken from `user_entity_roles`) |
+| 6 | LOW | `runAgentStep` turns every failure of the record into a failed run, so a database failure is never retried. | fixed in 204f568b (only `validation_failed`, `forbidden`, `not_found`) |
+| 7 | LOW | The UPI lookahead and the email lookbehind. | fixed with 1 in 317c1205 and 7a37e138 |
+| 8 | LOW | ₹104 a dollar and the price table are unconfirmed. | integration note 2 |
+| 9 | LOW | The kill-switch race test sleeps; the Suggest journey does not show that A sends nothing; no test of a store that fails. | fixed in 204f568b (`pg_locks` wait, a failing `KeyValue`) and 7a37e138 (the journey counts server actions) |
+| 10 | LOW | No check ties a decision to the autonomy: a Needs approval action could be dismissed, a Suggest one approved. | fixed in 204f568b (`agent_actions_dismissed_check`, `agent_actions_decided_autonomy_check`, in 0092 in place); `db:docs` in 314a4bfa |
+
 ## Integration notes
 1. Hosted keys wait on the owner (STATUS, Waiting on the owner): until `ANTHROPIC_API_KEY` is set, hosted agents answer unavailable.
+2. For the owner, before agents spend money: confirm the rupee cost of a dollar (₹104, `AGENT_DEFAULTS.paisePerUsd`) from the card statement's charge for the Anthropic and Voyage invoices, and check the dated price table in `packages/domain/src/ai/agent-defaults.ts` against the vendors' price pages.

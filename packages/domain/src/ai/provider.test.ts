@@ -249,10 +249,10 @@ describe('createAiProvider', () => {
   ] as const)('fails closed when the store fails %s: nothing is sent', async (_, failing) => {
     const store = memoryKeyValue(() => NOW.getTime());
     const down = (): Promise<never> => Promise.reject(new Error('the store is down'));
-    const keyValue = {
+    const keyValue: typeof store = {
       ...store,
       ...Object.fromEntries(failing.map((name) => [name, down])),
-    } as typeof store;
+    };
     const { provider, transport } = setup([fakeReply('ok')], { keyValue });
     await expect(provider.complete(call())).rejects.toMatchObject({
       code: 'integration_unavailable',
