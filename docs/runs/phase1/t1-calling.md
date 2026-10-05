@@ -4,7 +4,7 @@
 |---|---|
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
+| Runs on | Cloud from 05-10-2026 (the owner's decision to go hybrid): the builder continues from the pushed branch per its handover section; review in the cloud; merge with `main`, integration and baselines on the PC |
 | State | building |
 | Next step | a cloud builder continues from the handover in the Report (spike, in-hours journey, whole-suite checks), then the review |
 
