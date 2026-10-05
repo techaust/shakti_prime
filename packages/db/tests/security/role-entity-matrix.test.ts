@@ -184,6 +184,11 @@ const RULES: Record<MatrixTable, TableRule> = {
   // CRM set-up: every caller reads the group's rows and their own company's.
   call_dispositions: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   lead_score_rules: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  // A duplicate is read by whoever reads both customers (D1); the fixture's second customer has
+  // no lead, so only customer scope reads it.
+  duplicate_candidates: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: otherCompany },
+  // A merge is read with the customer it was merged into.
+  customer_merges: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: otherCompany },
   // A referral partner is read with its customer (ADR 0008).
   referral_partners: {
     read: ACCOUNT_READ,

@@ -36,6 +36,9 @@ import {
   TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
+  DuplicateKindSchema,
+  DuplicateReasonSchema,
+  DuplicateStateSchema,
   USER_STATUSES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -65,6 +68,12 @@ const PAIRS: Record<string, readonly string[]> = {
   contacts_preferred_language_check: CustomerLanguageSchema.options,
   customer_sites_type_check: SiteTypeSchema.options,
   document_sequences_doc_type_check: DocTypeSchema.options,
+  duplicate_candidates_kind_check: DuplicateKindSchema.options,
+  duplicate_candidates_reason_check: DuplicateReasonSchema.options,
+  duplicate_candidates_state_check: DuplicateStateSchema.options,
+  // Which pair columns a candidate fills is named by its kind; only an open one is undecided.
+  duplicate_candidates_pair_check: DuplicateKindSchema.options,
+  duplicate_candidates_decided_check: DuplicateStateSchema.extract(['open']).options,
   files_purpose_check: FilePurposeSchema.options,
   files_status_check: FileStatusSchema.options,
   import_jobs_format_check: ImportFormatSchema.options,

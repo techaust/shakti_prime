@@ -102,6 +102,10 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     import_rows: { i: true, u: false },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // A candidate changes only its state and who decided it; a merge is written only by its
+    // definers (DATABASE §4.1).
+    duplicate_candidates: { i: true, u: false },
+    customer_merges: { i: false, u: false },
   };
 
   /**

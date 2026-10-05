@@ -245,6 +245,10 @@ export const ENTITY_TABLES = [
   // tags allow entity_id null for the whole group, as teams do
   'tags',
   'opportunity_tags',
+  // read when both customers, or both leads of the company, are readable (D1)
+  'duplicate_candidates',
+  // read with the kept customer (D1)
+  'customer_merges',
 ] as const;
 
 /**
