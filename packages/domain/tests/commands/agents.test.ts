@@ -119,7 +119,6 @@ function runInput(entityId: number, opportunityId: string | null, extra: object 
             subjectType: 'opportunity',
             subjectId: opportunityId,
             assigneeId: caller.id,
-            teamId,
           },
         }),
     ...extra,
@@ -135,6 +134,30 @@ async function suggest(opportunityId: string, proposalInput: object = {}): Promi
     ...input,
     proposal: { ...input.proposal, input: { ...input.proposal.input, ...proposalInput } },
   })) as RunAnswer;
+}
+
+/** A suggestion in company 1 whose task and item are for `assigneeId`. */
+function suggestTo(opportunityId: string, assigneeId: string): Promise<unknown> {
+  const input = runInput(1, opportunityId) as ReturnType<typeof runInput> & {
+    proposal: Record<string, unknown>;
+  };
+  return run(copilot(), recordAgentRun, { ...input, proposal: { ...input.proposal, assigneeId } });
+}
+
+/** Waits until a transaction waits for the agent's settings lock, held by another one. */
+async function waitForSettingsLock(): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from pg_locks
+         where locktype = 'advisory' and not granted
+           and ((classid::bigint << 32) | objid::bigint) = hashtextextended('agent-config:agent:copilot', 0)`,
+    );
+    if ((row?.n ?? 0) > 0) return;
+    if (Date.now() > deadline) throw new Error('the approval never waited for the switch');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 }
 
 /** A suggestion filed under Suggest: the person acts on it themselves. */
@@ -222,6 +245,32 @@ describe('agents.run.record', () => {
     await expect(
       run(copilot(), recordAgentRun, { ...noOne, proposal: unassigned }),
     ).rejects.toMatchObject(reason('agent_proposal_invalid'));
+  });
+
+  it('files an item only for a person with a role in the company, and takes their team there', async () => {
+    const answer = await suggest(lead);
+    const [item] = await asMigrator(
+      (m) => m<{ team_id: string | null }[]>`
+        select team_id from inbox_items where id = ${answer.inboxItemId}`,
+    );
+    expect(item?.team_id).toBe(teamId);
+    // The agent cannot name a team: the proposal has no such field.
+    const named = runInput(1, lead) as ReturnType<typeof runInput> & {
+      proposal: Record<string, unknown>;
+    };
+    await expect(
+      run(copilot(), recordAgentRun, { ...named, proposal: { ...named.proposal, teamId } }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+
+    const noRole = await createTestPrincipal('tele_caller_cc', [1]);
+    const elsewhere = await createTestUser([{ entityId: 2, roleKey: 'tele_caller_cc' }]);
+    const archived = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
+    await asMigrator((m) => m`update principals set archived_at = now() where id = ${archived.id}`);
+    for (const someone of [noRole.id, elsewhere.id, archived.id, newId()]) {
+      await expect(suggestTo(lead, someone)).rejects.toMatchObject(
+        reason('agent_proposal_invalid'),
+      );
+    }
   });
 
   it('is refused to a person, and to an agent recording for another agent', async () => {
@@ -419,7 +468,8 @@ describe('agents.inbox.approve, .edit and .reject', () => {
       approval = run(caller, approveInboxItem, { entityId: 1, itemId: answer.inboxItemId }).catch(
         (e: unknown) => e,
       );
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // The approval waits for the switch's lock before the switch commits.
+      await waitForSettingsLock();
     });
     try {
       expect(await approval).toMatchObject(reason('agent_switched_off'));

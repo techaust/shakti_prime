@@ -243,6 +243,23 @@ describe('createAiProvider', () => {
     expect(transport.embeddings[0]?.texts[0]).not.toContain('123456789012');
   });
 
+  it.each([
+    ['every read and write', ['get', 'set', 'del', 'incr', 'incrBy']],
+    ['the spend reservation', ['incrBy']],
+  ] as const)('fails closed when the store fails %s: nothing is sent', async (_, failing) => {
+    const store = memoryKeyValue(() => NOW.getTime());
+    const down = (): Promise<never> => Promise.reject(new Error('the store is down'));
+    const keyValue = {
+      ...store,
+      ...Object.fromEntries(failing.map((name) => [name, down])),
+    } as typeof store;
+    const { provider, transport } = setup([fakeReply('ok')], { keyValue });
+    await expect(provider.complete(call())).rejects.toMatchObject({
+      code: 'integration_unavailable',
+    });
+    expect(transport.requests).toEqual([]);
+  });
+
   it('counts the day in India', () => {
     expect(istDay(new Date('2026-10-05T18:29:00Z'))).toBe('2026-10-05');
     expect(istDay(new Date('2026-10-05T18:31:00Z'))).toBe('2026-10-06');

@@ -1,7 +1,7 @@
 import type { AgentAutonomy, AgentRoleKey, AgentSettingSource } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
-import { DEFAULT_AUTONOMY } from './action-types';
+import { AUTOMATIC_AVAILABLE, DEFAULT_AUTONOMY } from './action-types';
 import type { SpendCap } from './provider';
 
 // How the settings of `agent_configs` apply to one agent, action type and company (docs/design/
@@ -38,13 +38,25 @@ export function sourceOf(row: Pick<AgentConfigRow, 'actionType' | 'entityId'>): 
   return row.entityId === null ? 'action_group' : 'action_company';
 }
 
-/** The autonomy that applies, from the most specific row of the agent's own that sets one. */
+/** The autonomy that applies and where it comes from. */
+export interface AppliedAutonomy {
+  autonomy: AgentAutonomy;
+  source: AgentSettingSource;
+  /** A stored Automatic that works as Needs approval while Automatic is not available. */
+  automaticHeld: boolean;
+}
+
+/**
+ * The autonomy that applies, from the most specific row of the agent's own that sets one. While
+ * Automatic is not available (`AUTOMATIC_AVAILABLE`), a stored Automatic applies as Needs approval,
+ * and says so.
+ */
 export function appliedAutonomy(
   rows: readonly AgentConfigRow[],
   agent: AgentRoleKey,
   actionType: string,
   entityId: number,
-): { autonomy: AgentAutonomy; source: AgentSettingSource } {
+): AppliedAutonomy {
   const found = rows
     .filter(
       (r) =>
@@ -54,9 +66,15 @@ export function appliedAutonomy(
         (r.entityId === null || r.entityId === entityId),
     )
     .sort((a, b) => specificity(b) - specificity(a))[0];
-  return found === undefined
-    ? { autonomy: DEFAULT_AUTONOMY, source: 'default' }
-    : { autonomy: found.autonomy as AgentAutonomy, source: sourceOf(found) };
+  if (found === undefined) {
+    return { autonomy: DEFAULT_AUTONOMY, source: 'default', automaticHeld: false };
+  }
+  const held = found.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE;
+  return {
+    autonomy: held ? 'needs_approval' : (found.autonomy as AgentAutonomy),
+    source: sourceOf(found),
+    automaticHeld: held,
+  };
 }
 
 export function resolveAgentConfig(

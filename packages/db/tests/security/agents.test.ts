@@ -58,9 +58,9 @@ const insertRun = (id: string, entityId = 1, name = 'agent:copilot', principalId
   sql`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, request_id)
       values (${id}, ${entityId}, ${name}, ${principalId}, 'rls_check', 'crm.task.create', 'proposed', 'rls')`;
 
-const insertAction = (id: string, runId: string, state = 'proposed') =>
+const insertAction = (id: string, runId: string, state = 'proposed', autonomy = 'suggest') =>
   sql`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy, state, created_by)
-      values (${id}, 1, ${runId}, 'agent:copilot', 'crm.task.create', '{}'::jsonb, 'suggest', ${state}, ${COPILOT})`;
+      values (${id}, 1, ${runId}, 'agent:copilot', 'crm.task.create', '{}'::jsonb, ${autonomy}, ${state}, ${COPILOT})`;
 
 const insertItem = (id: string, actionId: string, assignee: string | null, team: string | null) =>
   sql`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, agent_action_id, created_by)
@@ -70,10 +70,11 @@ const insertItem = (id: string, actionId: string, assignee: string | null, team:
 async function suggestion(
   assignee: string | null,
   team: string | null,
+  autonomy = 'suggest',
 ): Promise<{ run: string; action: string; item: string }> {
   const ids = { run: newId(), action: newId(), item: newId() };
   await runAs(agent(), insertRun(ids.run));
-  await runAs(agent(), insertAction(ids.action, ids.run));
+  await runAs(agent(), insertAction(ids.action, ids.run, 'proposed', autonomy));
   await runAs(agent(), insertItem(ids.item, ids.action, assignee, team));
   made.items.push(ids.item);
   return ids;
@@ -139,9 +140,9 @@ describe('agent_actions and inbox_items', () => {
   it('only an agent files a suggestion, and only as proposed or executed', async () => {
     const run = newId();
     await runAs(agent(), insertRun(run));
-    expect(await failure(runAs(agent(), insertAction(newId(), run, 'approved')))).toMatch(
-      /row-level security/,
-    );
+    expect(
+      await failure(runAs(agent(), insertAction(newId(), run, 'approved', 'needs_approval'))),
+    ).toMatch(/row-level security/);
     const action = newId();
     expect(await failure(runAs(gm, insertAction(action, run)))).toMatch(/row-level security/);
     await runAs(agent(), insertAction(action, run));
@@ -170,7 +171,7 @@ describe('agent_actions and inbox_items', () => {
   });
 
   it('takes a decision once, as the caller’s own, and never changes what was proposed', async () => {
-    const { item, action } = await suggestion(caller.id, team);
+    const { item, action } = await suggestion(caller.id, team, 'needs_approval');
     const decide = (who: Principal, by: string) =>
       runAs(
         who,
@@ -210,6 +211,28 @@ describe('agent_actions and inbox_items', () => {
       );
     expect(await dismiss()).toHaveLength(1);
     expect(await dismiss()).toHaveLength(0);
+  });
+});
+
+describe('agent_actions decisions by autonomy', () => {
+  it('dismisses only a Suggest action, and approves or rejects only another one, even as the owner', async () => {
+    const run = newId();
+    await runAs(agent(), insertRun(run));
+    const insert = (state: string, autonomy: string) =>
+      asMigrator(
+        (
+          m,
+        ) => m`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy, state, decided_by, decided_at, created_by)
+          values (${newId()}, 1, ${run}, 'agent:copilot', 'crm.task.create', '{}'::jsonb, ${autonomy}, ${state}, ${caller.id}, now(), ${COPILOT})`,
+      );
+    await expect(insert('dismissed', 'needs_approval')).rejects.toMatchObject({
+      constraint_name: 'agent_actions_dismissed_check',
+    });
+    for (const state of ['approved', 'rejected']) {
+      await expect(insert(state, 'suggest')).rejects.toMatchObject({
+        constraint_name: 'agent_actions_decided_autonomy_check',
+      });
+    }
   });
 });
 

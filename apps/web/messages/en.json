@@ -2678,6 +2678,7 @@
       "actionTypeLabel": "Autonomy of {agent} for {action}",
       "decisions": "In the last 90 days, {approved} of {decided} decisions approved without changes",
       "automaticUnavailable": "Automatic is not available yet: agents suggest, or wait for approval, until a later phase.",
+      "automaticHeld": "Automatic is set here, and works as Needs approval until Automatic is available.",
       "noActionTypes": "This agent has nothing to do yet.",
       "readOnly": "Only an Executive changes autonomy and spending limits."
     }

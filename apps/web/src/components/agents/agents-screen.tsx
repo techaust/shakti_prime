@@ -67,12 +67,16 @@ export function AgentsScreen({
   /** The empty choice: what applies with no setting at this level. */
   const inheritLabel = (inherited: AppliedAutonomyDto) =>
     t(`admin.inherit.${inherited.source}`, { autonomy: autonomyName(inherited.autonomy) });
-  /** What applies now, and where it comes from. */
-  const appliesNow = (effective: AppliedAutonomyDto) =>
-    t('admin.appliesNow', {
-      autonomy: autonomyName(effective.autonomy),
-      source: t(`admin.source.${effective.source}`),
-    });
+  /** What applies now and where it comes from, with a stored Automatic's note. */
+  const appliesNow = (applied: AppliedAutonomyDto) => (
+    <p className="text-text-muted text-xs">
+      {t('admin.appliesNow', {
+        autonomy: autonomyName(applied.autonomy),
+        source: t(`admin.source.${applied.source}`),
+      })}
+      {applied.automaticHeld ? ` ${t('admin.automaticHeld')}` : null}
+    </p>
+  );
 
   /** Reads the screen again after a change, so every derived status is the database's. */
   function reload(message: string) {
@@ -127,14 +131,19 @@ export function AgentsScreen({
               }}
             >
               <option value="">{inheritLabel(r.inherited)}</option>
-              {AGENT_LEVELS.map((a) => (
-                <option key={a} value={a}>
+              {/* A stored Automatic is shown as it is stored, and cannot be chosen again. */}
+              {(r.autonomy === 'automatic' ? AGENT_AUTONOMY_LEVELS : AGENT_LEVELS).map((a) => (
+                <option
+                  key={a}
+                  value={a}
+                  disabled={a === 'automatic' && !settings.automaticAvailable}
+                >
                   {autonomyName(a)}
                 </option>
               ))}
             </Select>
           ) : null}
-          <p className="text-text-muted text-xs">{appliesNow(r.effective)}</p>
+          {appliesNow(r.effective)}
         </div>
       ),
     },
@@ -289,7 +298,7 @@ export function AgentsScreen({
                         ))}
                       </Select>
                     ) : null}
-                    <p className="text-text-muted text-xs">{appliesNow(type.effective)}</p>
+                    {appliesNow(type.effective)}
                   </div>
                 </li>
               );

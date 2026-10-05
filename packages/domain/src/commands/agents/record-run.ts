@@ -11,7 +11,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import {
   AGENT_ACTION_TYPES,
   actionTypeOf,
-  AUTOMATIC_AVAILABLE,
   withAssignee,
   type AgentActionType,
 } from '../../ai/action-types';
@@ -47,7 +46,8 @@ type Plan = 'record_only' | 'propose' | 'act';
  * settings in this transaction, held still by the settings lock, decide: a kill switch that is off
  * records the run as stopped; Suggest and Needs approval file the action with an inbox item;
  * Automatic runs the command as the agent, under its own permissions, at once. Automatic is not
- * available in Phase 1 (`AUTOMATIC_AVAILABLE`): a stored Automatic files a Needs approval item.
+ * available in Phase 1 (`AUTOMATIC_AVAILABLE`): a stored Automatic resolves, and files, as Needs
+ * approval (`appliedAutonomy()`).
  *
  * The permission is the one of the command the action runs, so an agent proposes nothing it could
  * not do itself; only the agent named in the input may record its run.
@@ -84,10 +84,8 @@ export const recordAgentRun = defineCommand({
     if (input.proposal !== undefined) {
       await lockAgentSettings(ctx.tx, input.agent);
       const config = await loadAgentConfig(ctx.tx, input.agent, input.actionType, input.entityId);
-      autonomy =
-        config.autonomy === 'automatic' && !AUTOMATIC_AVAILABLE
-          ? 'needs_approval'
-          : config.autonomy;
+      // A stored Automatic resolves as Needs approval while it is not available (`appliedAutonomy`).
+      autonomy = config.autonomy;
       if (!config.enabled) outcome = 'switched_off';
       else {
         plan = autonomy === 'automatic' ? 'act' : 'propose';
@@ -177,7 +175,7 @@ export const recordAgentRun = defineCommand({
       entityId: input.entityId,
       kind: 'agent_suggestion',
       assigneeId: proposed.assigneeId,
-      teamId: proposal.teamId ?? null,
+      teamId: proposed.teamId,
       subjectType: proposed.subjectType,
       subjectId: proposed.subjectId,
       state: 'open',
@@ -234,6 +232,8 @@ async function checkedProposal(
   subjectType: string;
   subjectId: string;
   assigneeId: string | null;
+  /** The assignee's team in the company, from their role there. */
+  teamId: string | null;
 }> {
   const refused = () =>
     new DomainError('validation_failed', `${ctx.principal.roleKey} proposed a bad input`, {
@@ -254,10 +254,35 @@ async function checkedProposal(
     throw refused();
   }
   const named = type.assigneeKey === undefined ? undefined : input[type.assigneeKey];
+  const assigneeId = proposal.assigneeId ?? (typeof named === 'string' ? named : null);
+  const member =
+    assigneeId === null ? { teamId: null } : await companyMember(ctx, assigneeId, entityId);
+  if (member === undefined) throw refused();
   return {
     input,
     subjectType: proposal.subjectType,
     subjectId: proposal.subjectId,
-    assigneeId: proposal.assigneeId ?? (typeof named === 'string' ? named : null),
+    assigneeId,
+    teamId: member.teamId,
   };
+}
+
+/**
+ * The person's place in the company, when they are a person (never an agent or the workers), not
+ * archived, and hold a role there: the inbox item takes their team there, never the agent's word.
+ */
+async function companyMember(
+  ctx: CommandContext,
+  personId: string,
+  entityId: number,
+): Promise<{ teamId: string | null } | undefined> {
+  const p = schema.principals;
+  const uer = schema.userEntityRoles;
+  const [row] = await ctx.tx
+    .select({ teamId: uer.teamId })
+    .from(uer)
+    .innerJoin(p, and(eq(p.id, uer.userId), eq(p.kind, 'user'), isNull(p.archivedAt)))
+    .where(and(eq(uer.userId, personId), eq(uer.entityId, entityId)))
+    .limit(1);
+  return row;
 }

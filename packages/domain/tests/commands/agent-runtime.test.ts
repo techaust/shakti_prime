@@ -1,5 +1,11 @@
 import { AGENT_PRINCIPAL_IDS, newId, type AgentProposal, type Principal } from '@shakti/contracts';
-import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import {
+  asMigrator,
+  asPrincipal,
+  closeDb,
+  createTestPrincipal,
+  createTestUser,
+} from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
 import { runAgentStep, type AgentStep, type RunModel } from '../../src/ai/runtime';
@@ -78,7 +84,9 @@ async function leadIn(principal: Principal, entityId: number): Promise<string> {
 }
 
 beforeAll(async () => {
-  owner = await createTestPrincipal('general_manager', [ENTITY]);
+  // The lead's owner works in the company, so a follow-up may be for them.
+  const user = await createTestUser([{ entityId: ENTITY, roleKey: 'general_manager' }]);
+  owner = await createTestPrincipal('general_manager', [ENTITY], { id: user.id });
   lead = await leadIn(owner, ENTITY);
   otherCompanyLead = await leadIn(await createTestPrincipal('general_manager', [1]), 1);
 });
@@ -283,9 +291,10 @@ describe('runAgentStep with a stand-in agent', () => {
         // A lead the agent cannot see, and one of another company.
         standIn(newId()),
         standIn(otherCompanyLead),
-        // A task for no one, and one for an agent.
+        // A task for no one, for an agent, and for someone with no role in the company.
         standIn(lead, { assigneeId: null }),
         standIn(lead, { assigneeId: AGENT_PRINCIPAL_IDS['agent:copilot'] }),
+        standIn(lead, { assigneeId: (await createTestPrincipal('general_manager', [1])).id }),
       ]) {
         expect(await runAgentStep(step, deps)).toMatchObject({
           outcome: 'failed',

@@ -100,6 +100,11 @@ function recordedRun(principal: Principal, entityId: number, key: string) {
   );
 }
 
+/** The refusals a proposal can meet: kept as a failed run, never retried. */
+const REFUSALS: ReadonlySet<string> = new Set(['validation_failed', 'forbidden', 'not_found']);
+const refusal = (error: unknown): boolean =>
+  error instanceof DomainError && REFUSALS.has(error.code);
+
 /** Whether an error is a repeat of a key another delivery used with other numbers. */
 const usedKey = (error: unknown): boolean =>
   error instanceof DomainError && error.details?.reason === 'idempotency_mismatch';
@@ -192,7 +197,10 @@ export async function runAgentStep(step: AgentStep, deps: AgentStepDeps): Promis
   try {
     return await record({ ...base, ended, proposal }, scope);
   } catch (error) {
-    // The proposal was refused, or acting on it failed: the run is still kept, as failed.
+    // Anything but a refusal (the database, a lost connection) fails the delivery, which is
+    // retried: nothing was written, so the retry finds no run recorded under the step's key.
+    if (!refusal(error)) throw error;
+    // The proposal was refused, or acting on it was: the run is still kept, as failed.
     logger.log('warn', 'agent.action_refused', { agent: step.agent, requestId, error });
     return record({ ...base, ended: 'failed' }, { ...scope, requestId: newId() });
   }

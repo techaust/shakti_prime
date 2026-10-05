@@ -54,10 +54,11 @@ describe('resolveAgentConfig', () => {
     const rows = [
       row({ autonomy: 'needs_approval' }),
       row({ entityId: 1, autonomy: 'suggest' }),
-      row({ actionType: TASK, autonomy: 'automatic' }),
+      row({ actionType: TASK, autonomy: 'needs_approval' }),
     ];
+    // The action type's row for the group comes before the agent's row for the company.
     expect(resolveAgentConfig(rows, 'agent:copilot', TASK, 1)).toMatchObject({
-      autonomy: 'automatic',
+      autonomy: 'needs_approval',
       autonomySource: 'action_group',
     });
     expect(resolveAgentConfig(rows.slice(0, 2), 'agent:copilot', TASK, 1).autonomy).toBe('suggest');
@@ -83,7 +84,7 @@ describe('resolveAgentConfig', () => {
   it('names where the autonomy comes from', () => {
     expect(
       appliedAutonomy([row({ entityId: 1, autonomy: 'needs_approval' })], 'agent:copilot', TASK, 1),
-    ).toEqual({ autonomy: 'needs_approval', source: 'agent_company' });
+    ).toEqual({ autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false });
     expect(
       appliedAutonomy(
         [row({ actionType: TASK, entityId: 1, autonomy: 'suggest' })],
@@ -91,9 +92,19 @@ describe('resolveAgentConfig', () => {
         TASK,
         1,
       ),
-    ).toEqual({ autonomy: 'suggest', source: 'action_company' });
+    ).toEqual({ autonomy: 'suggest', source: 'action_company', automaticHeld: false });
     expect(
       appliedAutonomy([row({ autonomy: 'needs_approval' })], 'agent:copilot', TASK, 1),
-    ).toEqual({ autonomy: 'needs_approval', source: 'agent_group' });
+    ).toEqual({ autonomy: 'needs_approval', source: 'agent_group', automaticHeld: false });
+  });
+
+  it('reports a stored Automatic as Needs approval while Automatic is not available', () => {
+    const rows = [row({ actionType: TASK, entityId: 1, autonomy: 'automatic' })];
+    expect(appliedAutonomy(rows, 'agent:copilot', TASK, 1)).toEqual({
+      autonomy: 'needs_approval',
+      source: 'action_company',
+      automaticHeld: true,
+    });
+    expect(resolveAgentConfig(rows, 'agent:copilot', TASK, 1).autonomy).toBe('needs_approval');
   });
 });

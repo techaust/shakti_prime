@@ -187,9 +187,11 @@ export const AgentProposalSchema = z
     input: z.record(z.string(), z.unknown()),
     subjectType: InboxSubjectTypeSchema,
     subjectId: IdSchema,
-    /** Who the inbox item is for; left out, anyone who acts on the company's inbox. */
+    /**
+     * Who the inbox item is for: a person who works in the company, whose team there the item
+     * takes; left out, anyone who acts on the company's inbox.
+     */
     assigneeId: IdSchema.optional(),
-    teamId: IdSchema.optional(),
   })
   .strict();
 export type AgentProposal = z.infer<typeof AgentProposalSchema>;
@@ -315,7 +317,12 @@ export type AgentSettingSource = z.infer<typeof AgentSettingSourceSchema>;
 
 /** An autonomy that applies, and where it comes from. */
 export const AppliedAutonomyDto = z
-  .object({ autonomy: AgentAutonomySchema, source: AgentSettingSourceSchema })
+  .object({
+    autonomy: AgentAutonomySchema,
+    source: AgentSettingSourceSchema,
+    /** Automatic is stored there, and works as Needs approval while it is not available. */
+    automaticHeld: z.boolean(),
+  })
   .strict();
 export type AppliedAutonomyDto = z.infer<typeof AppliedAutonomyDto>;
 

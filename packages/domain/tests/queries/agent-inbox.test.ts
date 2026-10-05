@@ -5,6 +5,7 @@ import {
   closeDb,
   createTestPrincipal,
   createTestTeam,
+  createTestUser,
   principalFor,
 } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -86,7 +87,6 @@ async function suggestFor(assignee: Principal, costPaise = 0): Promise<string> {
       subjectType: 'opportunity',
       subjectId: lead,
       assigneeId: assignee.id,
-      teamId: team,
     },
   })) as { inboxItemId: string };
   return answer.inboxItemId;
@@ -97,8 +97,18 @@ const inbox = (who: Principal, input: object = { limit: 50 }) =>
 
 beforeAll(async () => {
   team = await createTestTeam(ENTITY, 'inbox list team');
-  caller = await createTestPrincipal('tele_caller_cc', [ENTITY], { teamId: team });
-  otherCaller = await createTestPrincipal('tele_caller_cc', [ENTITY], { teamId: team });
+  // Suggestions are only for people who work in the company (`agents.run.record`).
+  const callerOf = async () => {
+    const user = await createTestUser(
+      [{ entityId: ENTITY, roleKey: 'tele_caller_cc', teamId: team }],
+      {
+        name: 'test tele_caller_cc',
+      },
+    );
+    return createTestPrincipal('tele_caller_cc', [ENTITY], { id: user.id, teamId: team });
+  };
+  caller = await callerOf();
+  otherCaller = await callerOf();
   gm = await createTestPrincipal('general_manager', [ENTITY]);
   const made = (await run(gm, createLead, {
     entityId: ENTITY,
@@ -230,8 +240,8 @@ describe('loadAgentSettings', () => {
         expect.objectContaining({
           actionType: 'crm.task.create',
           autonomy: null,
-          effective: { autonomy: 'needs_approval', source: 'agent_company' },
-          inherited: { autonomy: 'needs_approval', source: 'agent_company' },
+          effective: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
+          inherited: { autonomy: 'needs_approval', source: 'agent_company', automaticHeld: false },
         }),
       ]);
       expect(settings.agents.find((a) => a.agent === 'agent:chief')).toMatchObject({
@@ -244,6 +254,26 @@ describe('loadAgentSettings', () => {
     } finally {
       await drop(group);
       await drop(company);
+    }
+  });
+
+  it('reports a stored Automatic as Needs approval, with its note, and shows the stored value', async () => {
+    // Only the owner could have stored it: `agents.config.set` refuses Automatic in Phase 1.
+    const automatic = await setting({
+      entityId: ENTITY,
+      actionType: 'crm.task.create',
+      autonomy: 'automatic',
+    });
+    try {
+      const settings = await asPrincipal(gm, (ctx) => loadAgentSettings(ctx));
+      const copilot = settings.agents.find((a) => a.agent === 'agent:copilot');
+      expect(copilot?.actionTypes[0]).toMatchObject({
+        autonomy: 'automatic',
+        effective: { autonomy: 'needs_approval', source: 'action_company', automaticHeld: true },
+      });
+    } finally {
+      await setting({ entityId: ENTITY, actionType: 'crm.task.create' });
+      await drop(automatic);
     }
   });
 

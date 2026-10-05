@@ -151,6 +151,16 @@ export const agentActions = pgTable(
       'agent_actions_decided_check',
       sql`(${t.decidedAt} is null and ${t.decidedBy} is null) = (${t.state} <> 'approved' and ${t.state} <> 'rejected' and ${t.state} <> 'dismissed')`,
     ),
+    // Dismissed is a Suggest action's only decision; approved and rejected are never a Suggest's.
+    // Not-equal tests only, so the enum pairing does not read them as value lists.
+    check(
+      'agent_actions_dismissed_check',
+      sql`${t.state} <> 'dismissed' or (${t.autonomy} <> 'needs_approval' and ${t.autonomy} <> 'automatic')`,
+    ),
+    check(
+      'agent_actions_decided_autonomy_check',
+      sql`(${t.state} <> 'approved' and ${t.state} <> 'rejected') or ${t.autonomy} <> 'suggest'`,
+    ),
     check(
       'agent_actions_input_size_check',
       sql`pg_column_size(${t.inputJson}) <= 4000 and (${t.decidedInputJson} is null or pg_column_size(${t.decidedInputJson}) <= 4000)`,

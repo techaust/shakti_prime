@@ -18,6 +18,8 @@ CREATE TABLE "agent_actions" (
 	CONSTRAINT "agent_actions_autonomy_check" CHECK ("agent_actions"."autonomy" in ('suggest', 'needs_approval', 'automatic')),
 	CONSTRAINT "agent_actions_state_check" CHECK ("agent_actions"."state" in ('proposed', 'executed', 'approved', 'rejected', 'dismissed')),
 	CONSTRAINT "agent_actions_decided_check" CHECK (("agent_actions"."decided_at" is null and "agent_actions"."decided_by" is null) = ("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected' and "agent_actions"."state" <> 'dismissed')),
+	CONSTRAINT "agent_actions_dismissed_check" CHECK ("agent_actions"."state" <> 'dismissed' or ("agent_actions"."autonomy" <> 'needs_approval' and "agent_actions"."autonomy" <> 'automatic')),
+	CONSTRAINT "agent_actions_decided_autonomy_check" CHECK (("agent_actions"."state" <> 'approved' and "agent_actions"."state" <> 'rejected') or "agent_actions"."autonomy" <> 'suggest'),
 	CONSTRAINT "agent_actions_input_size_check" CHECK (pg_column_size("agent_actions"."input_json") <= 4000 and ("agent_actions"."decided_input_json" is null or pg_column_size("agent_actions"."decided_input_json") <= 4000))
 );
 --> statement-breakpoint
