@@ -8,7 +8,7 @@ Replace this page, never append to it, at the end of each working session. Histo
 - **Design:** [docs/design/phase1.md](design/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](design/phase1.md#3-slices).
 - **Merged (10 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; documents #83, #86, #90 to #96, #97, #98, #104.
 - **Next:** AI0's pull request, then S1 (it takes `main` after AI0), D1 and T1 in wave 3; then waves 4 to 6 (N1, T2, S2, K1; L1, R1, A1; M1, G1).
-- **Work split:** hybrid (owner, 05-10-2026): slices are built and reviewed in cloud sessions of the environment `shakti_prime` (at most two at once), D1 and T1 first; the merge with `main`, the integration run, the Linux baselines, the pull request and the hosted steps run on the PC ([hybrid §1](runbooks/hybrid.md#1-what-runs-where)). On the 8 GB PC a full Linux journey run needs every other agent and database paused ([slice-integration §10](runbooks/slice-integration.md#10-lessons)).
+- **Work split:** cloud-first (owner, 05-10-2026): slices are built and reviewed in cloud sessions of the environment `shakti_prime` (at most two at once), and from S1 on, taking `main`, the integration run (in parts, `INTEGRATE_STEPS`) and the Linux baselines run there too, S1 being the trial; the lead session on the PC writes the briefs, opens the pull requests and runs the hosted steps ([hybrid §1](runbooks/hybrid.md#1-what-runs-where)). The owner starts each cloud session on claude.ai/code with the message the lead gives (the PC's terminal cannot start one).
 
 ### In progress
 | Slice | Branch | Run file | Runs on | State | Next step |
