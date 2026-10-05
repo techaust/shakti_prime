@@ -141,6 +141,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
   states: QUOTE_STATES,
   initial: 'draft',
   terminal: ['accepted', 'superseded', 'withdrawn'],
+  stored: { table: 'quotes', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   stateNotes: {
     expired: 'Past `valid_until`; only a re-quote at current prices continues the sale.',
     superseded: 'Replaced by a newer quote; the old one is kept in `quote_versions`.',
@@ -151,6 +152,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'create',
       to: 'draft',
       permission: 'sales.quote.create',
+      emits: 'sales.quote.created',
       guard: allOf(priceListReady, sized, pumpCurve, dcrRule),
       effects: [
         { key: 'price_lines', description: 'lines priced from the price list (never from input)' },
@@ -170,6 +172,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'send',
       to: 'sent',
       permission: 'sales.quote.send',
+      emits: 'sales.quote.sent',
       guard: allOf(pdfRendered, notExpired),
       effects: [
         { key: 'whatsapp_dispatch', description: 'send the PDF on WhatsApp (worker on the event)' },
@@ -190,6 +193,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       to: 'expired',
       permission: null,
       system: true,
+      emits: 'sales.quote.expired',
       guard: pastValidity,
       note: 'A daily job, plus a lazy check when the quote is read.',
     },
@@ -198,6 +202,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'requote',
       to: 'superseded',
       permission: 'sales.quote.create',
+      emits: 'sales.quote.superseded',
       effects: [
         { key: 'new_quote', description: 'a new quote at current prices and current tax rates' },
         { key: 'snapshot_version', description: '`quote_versions` snapshot of the old quote' },
@@ -208,6 +213,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'withdraw',
       to: 'withdrawn',
       permission: 'sales.quote.send',
+      emits: 'sales.quote.withdrawn',
       guard: reasonGiven(),
     },
   ],

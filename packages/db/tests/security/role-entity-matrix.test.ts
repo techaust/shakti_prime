@@ -140,6 +140,10 @@ const RULES: Record<MatrixTable, TableRule> = {
   opportunities: { read: grant('crm.lead.read', 'own'), leak: otherCompany },
   // A child of the lead: read with it.
   sizings: { read: LEAD_READ, leak: otherCompany },
+  // A quote, its lines and its versions are children of the lead: read with it.
+  quotes: { read: LEAD_READ, leak: otherCompany },
+  quote_lines: { read: LEAD_READ, leak: otherCompany },
+  quote_versions: { read: LEAD_READ, leak: otherCompany },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },

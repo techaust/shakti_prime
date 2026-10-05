@@ -1,9 +1,4 @@
-import {
-  CreateQuoteInput,
-  newId,
-  QuoteDto,
-  RequoteInput,
-} from '@shakti/contracts';
+import { CreateQuoteInput, newId, QuoteDto, RequoteInput } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { asc, eq, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
@@ -11,7 +6,8 @@ import { readQuote } from '../../queries/sales/quote-dto';
 import { buildQuote } from '../../queries/sales/quote-facts';
 import { transition } from '../../state-machines/define-machine';
 import { quoteMachine } from '../../state-machines/machines/quote';
-import { lockQuote, QUOTE_AUDIT_FIELDS, quoteRecordOf, saveQuote } from './quote-shared';
+import { QUOTE_AUDIT_FIELDS, saveQuote } from '../../sales/save-quote';
+import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /** A stored quantity (`5.000`) as the input takes it (`5`). */
 const plainQty = (qty: string) => (qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty);
@@ -113,4 +109,3 @@ export const requoteQuote = defineCommand({
     return readQuote(ctx, old.entityId, id);
   },
 });
-

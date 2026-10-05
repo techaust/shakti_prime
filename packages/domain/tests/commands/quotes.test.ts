@@ -164,7 +164,7 @@ async function failure(
   principal: Principal,
   command: AnyCommand,
   input: unknown,
-): Promise<{ code?: string; reason?: unknown; stage?: string }> {
+): Promise<{ code?: string | undefined; reason?: unknown; stage?: string | undefined }> {
   const error: unknown = await run(principal, command, input).then(
     () => undefined,
     (e: unknown) => e,
@@ -247,7 +247,9 @@ async function sizedRooftopQuote(owner: Principal = lc): Promise<QuoteDto> {
 async function readyPdf(entityId = E): Promise<string> {
   const id = newId();
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
              values (${id}, ${entityId}, 'quote_pdf', 'local', ${`${String(entityId)}/quote_pdf/${id}.pdf`}, 'quote.pdf',
                      'application/pdf', 10, ${'b'.repeat(64)}, 'ready', ${SYSTEM_WORKERS_PRINCIPAL_ID})`,
   );
@@ -290,7 +292,9 @@ describe('sales.quote.create (design §7.3, SAL-03, SAL-04)', () => {
     });
     expect(quote.quoteNo).toMatch(/^SMP\/Q\/\d{4}-\d{2}\/\d{4,}$/);
     // 5 modules at 12,000 = 60,000 at 12%; 10 m of cable at 85.50 = 855 at 18%.
-    expect(quote.lines.map((l) => [l.sku, l.unitPrice, l.taxableValue, l.cgst, l.sgst, l.igst])).toEqual([
+    expect(
+      quote.lines.map((l) => [l.sku, l.unitPrice, l.taxableValue, l.cgst, l.sgst, l.igst]),
+    ).toEqual([
       ['QT-MODULE', '12000.00', '60000.00', '3600.00', '3600.00', '0.00'],
       ['QT-CABLE', '85.50', '855.00', '76.95', '76.95', '0.00'],
     ]);
@@ -334,7 +338,12 @@ describe('sales.quote.create (design §7.3, SAL-03, SAL-04)', () => {
     expect(audits).toMatchObject([
       {
         command: 'sales.quote.create',
-        after_json: { quoteNo: quote.quoteNo, state: 'draft', lineCount: 2, grandTotal: '68209.00' },
+        after_json: {
+          quoteNo: quote.quoteNo,
+          state: 'draft',
+          lineCount: 2,
+          grandTotal: '68209.00',
+        },
       },
     ]);
   });
@@ -557,7 +566,11 @@ describe('sending, withdrawing and re-quoting', () => {
       (p) => p<{ payload_json: Record<string, unknown> }[]>`
         select payload_json from outbox_events where aggregate_id = ${quote.id} and type = 'sales.quote.sent'`,
     );
-    expect(event?.payload_json).toEqual({ v: 1, opportunityId: quote.opportunityId, pdfFileId: fileId });
+    expect(event?.payload_json).toEqual({
+      v: 1,
+      opportunityId: quote.opportunityId,
+      pdfFileId: fileId,
+    });
   });
 
   it('withdraws a quote with a reason and keeps the reason', async () => {
@@ -566,7 +579,11 @@ describe('sending, withdrawing and re-quoting', () => {
       await failure(lc, withdrawQuote, { entityId: E, quoteId: quote.id, reason: ' ' }),
     ).toMatchObject({ code: 'validation_failed' });
     expect(
-      await failure(cc, withdrawQuote, { entityId: E, quoteId: quote.id, reason: 'No longer needed' }),
+      await failure(cc, withdrawQuote, {
+        entityId: E,
+        quoteId: quote.id,
+        reason: 'No longer needed',
+      }),
     ).toMatchObject({ code: 'forbidden', stage: 'guard' });
     const withdrawn = await run(lc, withdrawQuote, {
       entityId: E,
@@ -579,9 +596,10 @@ describe('sending, withdrawing and re-quoting', () => {
       canRequote: false,
       canWithdraw: false,
     });
-    expect(
-      await failure(lc, requoteQuote, { entityId: E, quoteId: quote.id }),
-    ).toMatchObject({ code: 'conflict', reason: 'quote_transition_not_allowed' });
+    expect(await failure(lc, requoteQuote, { entityId: E, quoteId: quote.id })).toMatchObject({
+      code: 'conflict',
+      reason: 'quote_transition_not_allowed',
+    });
   });
 
   it('re-quotes at today’s prices, keeping the old quote as superseded', async () => {
@@ -604,7 +622,11 @@ describe('sending, withdrawing and re-quoting', () => {
         opportunityId: old.opportunityId,
       });
       expect(next.quoteNo).not.toBe(old.quoteNo);
-      expect(next.lines[0]).toMatchObject({ sku: 'QT-MODULE', qty: '5.000', unitPrice: '12500.00' });
+      expect(next.lines[0]).toMatchObject({
+        sku: 'QT-MODULE',
+        qty: '5.000',
+        unitPrice: '12500.00',
+      });
       const before = await asPrincipal(lc, (context) =>
         getQuote(context, { entityId: E, quoteId: old.id }),
       );
@@ -647,7 +669,11 @@ describe('sales.quote.expire (the daily job)', () => {
     expect(shown).toMatchObject({ state: 'expired', canSend: false, canRequote: true });
     // A lapsed quote cannot be sent.
     const draft = await sizedRooftopQuote();
-    await run(workers(), attachQuotePdf, { entityId: E, quoteId: draft.id, fileId: await readyPdf() });
+    await run(workers(), attachQuotePdf, {
+      entityId: E,
+      quoteId: draft.id,
+      fileId: await readyPdf(),
+    });
     await asMigrator(
       (m) => m`update quotes set valid_until = now() - interval '1 minute' where id = ${draft.id}`,
     );
@@ -735,7 +761,9 @@ describe('crm.account.tier.set (PRICE-1)', () => {
 describe('the quote reads', () => {
   it('list, search and Account 360 show the quotes the caller can read, and no other team’s', async () => {
     const quote = await sizedRooftopQuote();
-    const page = await asPrincipal(lc, (context) => listQuotes(context, { entityId: E, limit: 100 }));
+    const page = await asPrincipal(lc, (context) =>
+      listQuotes(context, { entityId: E, limit: 100 }),
+    );
     expect(page.items.map((r) => r.id)).toContain(quote.id);
     const others = await asPrincipal(otherLc, (context) =>
       listQuotes(context, { entityId: E, limit: 100 }),
@@ -751,10 +779,14 @@ describe('the quote reads', () => {
       searchQuotes(context, { q: quote.quoteNo, limit: 8 }),
     );
     expect(hits[0]).toMatchObject({ id: quote.id, quoteNo: quote.quoteNo, state: 'draft' });
-    const bySerial = await asPrincipal(lc, (context) => searchQuotes(context, { q: serial, limit: 20 }));
+    const bySerial = await asPrincipal(lc, (context) =>
+      searchQuotes(context, { q: serial, limit: 20 }),
+    );
     expect(bySerial.map((h) => h.id)).toContain(quote.id);
     expect(
-      await asPrincipal(otherLc, (context) => searchQuotes(context, { q: quote.quoteNo, limit: 8 })),
+      await asPrincipal(otherLc, (context) =>
+        searchQuotes(context, { q: quote.quoteNo, limit: 8 }),
+      ),
     ).toEqual([]);
 
     const ofAccount = await asPrincipal(lc, (context) =>

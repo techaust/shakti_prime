@@ -102,6 +102,11 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     import_rows: { i: true, u: false },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // A quote changes only its state and withdrawal reason (column grants, 0102); its lines and
+    // versions are append-only.
+    quotes: { i: true, u: false },
+    quote_lines: { i: true, u: false },
+    quote_versions: { i: true, u: false },
   };
 
   /**
@@ -401,6 +406,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // The quote print loader of the render worker (0102).
+      'app.quote_for_print(uuid)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
       'app.user_is_active(uuid)',

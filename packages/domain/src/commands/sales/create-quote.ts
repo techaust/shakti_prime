@@ -2,7 +2,7 @@ import { CreateQuoteInput, QuoteDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
 import { buildQuote } from '../../queries/sales/quote-facts';
 import { readQuote } from '../../queries/sales/quote-dto';
-import { QUOTE_AUDIT_FIELDS, saveQuote } from './quote-shared';
+import { QUOTE_AUDIT_FIELDS, saveQuote } from '../../sales/save-quote';
 
 /**
  * `sales.quote.create` (docs/design/phase1.md §7.3, PRD SAL-03, SAL-04): a quote for a lead. The

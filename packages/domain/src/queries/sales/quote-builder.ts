@@ -45,7 +45,8 @@ export async function loadQuoteBuilder(
   const lead = await loadQuoteLead(read, input.entityId, input.opportunityId);
   const tier = await quoteTier(read, lead);
   const today = istCalendarDate(now);
-  const priceListId = tier === null ? null : await livePriceList(read, tier.id, lead.entityId, today);
+  const priceListId =
+    tier === null ? null : await livePriceList(read, tier.id, lead.entityId, today);
   const kind = SIZED_KIND[lead.segment];
   const sizing = await latestSizing(ctx, {
     entityId: lead.entityId,

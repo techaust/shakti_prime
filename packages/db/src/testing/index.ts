@@ -228,6 +228,10 @@ export const ENTITY_TABLES = [
   'customer_sites',
   'opportunities',
   'sizings',
+  // children of the lead, read with it (docs/design/phase1.md §7.3)
+  'quotes',
+  'quote_lines',
+  'quote_versions',
   'consents',
   'item_costs',
   'document_sequences',

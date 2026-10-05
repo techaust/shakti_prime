@@ -5,7 +5,8 @@ import { defineCommand } from '../../command/define-command';
 import { readQuote } from '../../queries/sales/quote-dto';
 import { transition } from '../../state-machines/define-machine';
 import { quoteMachine } from '../../state-machines/machines/quote';
-import { lockQuote, QUOTE_AUDIT_FIELDS, quoteRecordOf } from './quote-shared';
+import { QUOTE_AUDIT_FIELDS } from '../../sales/save-quote';
+import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
  * `sales.quote.send` (docs/design/phase1.md §7.3, PRD SAL-05): marks a draft quote as sent to the
@@ -22,12 +23,11 @@ export const sendQuote = defineCommand({
   auditFields: [...QUOTE_AUDIT_FIELDS],
   async handler(ctx, input) {
     const row = await lockQuote(ctx, input.entityId, input.quoteId);
-    const result = transition(
-      quoteMachine,
-      quoteRecordOf(row),
-      'send',
-      { actor: { kind: 'principal', principal: ctx.principal }, now: ctx.now, params: {} },
-    );
+    const result = transition(quoteMachine, quoteRecordOf(row), 'send', {
+      actor: { kind: 'principal', principal: ctx.principal },
+      now: ctx.now,
+      params: {},
+    });
     if (row.pdfFileId === null) throw new DomainError('internal', 'sent without a PDF');
     await ctx.tx
       .update(schema.quotes)

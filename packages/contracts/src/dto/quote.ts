@@ -3,7 +3,12 @@ import { MoneySchema, SignedMoneySchema, HsnSchema, ItemUnitSchema } from '../ca
 import { SegmentSchema } from '../crm/enums';
 import { SizingKindSchema, SubsidySchemeSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
-import { CalendarDateSchema, PercentSchema, StateCodeSchema, SupplyKindSchema } from '../tax/engine';
+import {
+  CalendarDateSchema,
+  PercentSchema,
+  StateCodeSchema,
+  SupplyKindSchema,
+} from '../tax/engine';
 
 /**
  * Where a quote stands (docs/design/phase1.md §7.3, the quote machine). `quotes.state` holds the

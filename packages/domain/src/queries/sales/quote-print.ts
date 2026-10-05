@@ -1,10 +1,19 @@
-import { DomainError, HsnSchema, ItemUnitSchema, MoneySchema, SignedMoneySchema } from '@shakti/contracts';
+import {
+  DomainError,
+  HsnSchema,
+  ItemUnitSchema,
+  MoneySchema,
+  SignedMoneySchema,
+} from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 const money = MoneySchema;
-const percent = z.string().regex(/^\d{1,3}\.\d{2}$/).nullable();
+const percent = z
+  .string()
+  .regex(/^\d{1,3}\.\d{2}$/)
+  .nullable();
 
 /** One line of a quote as the render worker prints it. */
 const QuotePrintLineSchema = z

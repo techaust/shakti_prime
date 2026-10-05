@@ -155,7 +155,9 @@ describe('priceQuote (design §7.3, ADR 0007)', () => {
         compositeRules: [rule],
         lines: [{ source: kit, qty: '1', worksContract: false }],
       }),
-    ).toThrow(expect.objectContaining({ details: { reason: 'quote_kit_tax_missing', sku: 'KIT-1' } }));
+    ).toThrow(
+      expect.objectContaining({ details: { reason: 'quote_kit_tax_missing', sku: 'KIT-1' } }),
+    );
   });
 
   it('refuses a line with no rate on the quote date', () => {
@@ -168,7 +170,11 @@ describe('priceQuote (design §7.3, ADR 0007)', () => {
         compositeRules: [],
         lines: [{ source: item(ITEM_A, '8413', '100.00'), qty: '1', worksContract: false }],
       }),
-    ).toThrow(expect.objectContaining({ details: expect.objectContaining({ reason: 'tax_rate_missing' }) as unknown }));
+    ).toThrow(
+      expect.objectContaining({
+        details: expect.objectContaining({ reason: 'tax_rate_missing' }) as unknown,
+      }),
+    );
   });
 
   it('refuses a works contract in a composite segment with no rule on the quote date', () => {
@@ -181,7 +187,11 @@ describe('priceQuote (design §7.3, ADR 0007)', () => {
         compositeRules: [],
         lines: [{ source: kit, qty: '1', worksContract: true }],
       }),
-    ).toThrow(expect.objectContaining({ details: expect.objectContaining({ reason: 'composite_rule_missing' }) as unknown }));
+    ).toThrow(
+      expect.objectContaining({
+        details: expect.objectContaining({ reason: 'composite_rule_missing' }) as unknown,
+      }),
+    );
   });
 });
 
@@ -219,7 +229,14 @@ describe('quote totals, property tests', () => {
       const { lines, rows } = randomLines(random);
       const supply = random.chance() ? INTRA : INTER;
       const segment = random.pick(['farmer_pumps', 'residential_rooftop'] as const);
-      const quote = priceQuote({ segment, on: ON, supply, rates: rows, compositeRules: [rule], lines });
+      const quote = priceQuote({
+        segment,
+        on: ON,
+        supply,
+        rates: rows,
+        compositeRules: [rule],
+        lines,
+      });
       const sum = (key: 'taxableValue' | 'cgst' | 'sgst' | 'igst' | 'lineTotal') =>
         quote.lines.reduce((total, l) => total + toPaise(l[key]), 0n);
       const { totals } = quote;

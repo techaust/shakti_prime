@@ -5,7 +5,8 @@ import { defineCommand } from '../../command/define-command';
 import { readQuote } from '../../queries/sales/quote-dto';
 import { transition } from '../../state-machines/define-machine';
 import { quoteMachine } from '../../state-machines/machines/quote';
-import { lockQuote, QUOTE_AUDIT_FIELDS, quoteRecordOf } from './quote-shared';
+import { QUOTE_AUDIT_FIELDS } from '../../sales/save-quote';
+import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
  * `sales.quote.withdraw` (docs/design/phase1.md §7.3): a draft or sent quote no longer stands, for
@@ -21,16 +22,11 @@ export const withdrawQuote = defineCommand({
   auditFields: [...QUOTE_AUDIT_FIELDS, 'withdrawnReason'],
   async handler(ctx, input) {
     const row = await lockQuote(ctx, input.entityId, input.quoteId);
-    const result = transition(
-      quoteMachine,
-      quoteRecordOf(row),
-      'withdraw',
-      {
-        actor: { kind: 'principal', principal: ctx.principal },
-        now: ctx.now,
-        params: { reason: input.reason },
-      },
-    );
+    const result = transition(quoteMachine, quoteRecordOf(row), 'withdraw', {
+      actor: { kind: 'principal', principal: ctx.principal },
+      now: ctx.now,
+      params: { reason: input.reason },
+    });
     await ctx.tx
       .update(schema.quotes)
       .set({

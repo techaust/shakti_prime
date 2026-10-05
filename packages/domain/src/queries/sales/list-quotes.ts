@@ -13,7 +13,14 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, ilike, inArray, lt, or, sql, type SQL } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
-import { afterCursor, keysetOrder, nextCursor, orderTerms, sortText, type SortKeys } from '../keyset-sort';
+import {
+  afterCursor,
+  keysetOrder,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
 import { containsPattern } from '../search-text';
 import { QUOTE_ROW_COLUMNS, readQuote, shownQuoteState, toQuoteRow } from './quote-dto';
@@ -85,7 +92,7 @@ export async function listQuotes(
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return QuotePageDto.parse({
-    items: page.map(({ sortValue: _sort, ...row }) => toQuoteRow(row, now)),
+    items: page.map((row) => toQuoteRow(row, now)),
     nextCursor: nextCursor(
       order,
       rows.length > input.limit,
@@ -149,9 +156,7 @@ export async function searchQuotes(
     })
     .from(q)
     .innerJoin(a, eq(a.id, q.accountId))
-    .where(
-      and(inArray(q.entityId, [...ctx.entityIds]), ilike(q.quoteNo, containsPattern(input.q))),
-    )
+    .where(and(inArray(q.entityId, [...ctx.entityIds]), ilike(q.quoteNo, containsPattern(input.q))))
     .orderBy(sql`lower(${q.quoteNo}) = lower(${input.q}) desc`, desc(q.createdAt), desc(q.id))
     .limit(input.limit);
   return rows.map((row) =>

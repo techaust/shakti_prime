@@ -1,6 +1,6 @@
 import {
   CompositeRuleRowSchema,
-  CreateQuoteInput,
+  type CreateQuoteInput,
   DomainError,
   ItemUnitSchema,
   SegmentSchema,
@@ -279,8 +279,9 @@ export async function loadQuoteSources(
     if (!byKey.has(key)) {
       throw new DomainError('validation_failed', `${key} has no price on the list`, {
         reason: 'quote_price_missing',
-        sku: (itemRows.find((r) => `item:${r.id}` === key) ?? kitRows.find((r) => `kit:${r.id}` === key))
-          ?.sku,
+        sku: (
+          itemRows.find((r) => `item:${r.id}` === key) ?? kitRows.find((r) => `kit:${r.id}` === key)
+        )?.sku,
       });
     }
   }
@@ -420,15 +421,11 @@ export interface BuiltQuote {
  * the place of supply from the site (ADR 0007), and the 15-day validity. The preview runs it read
  * only; the commands save what it answers.
  */
-export async function buildQuote(
-  ctx: QuoteReadContext,
-  input: QuoteInput,
-): Promise<BuiltQuote> {
+export async function buildQuote(ctx: QuoteReadContext, input: QuoteInput): Promise<BuiltQuote> {
   const lead = await loadQuoteLead(ctx, input.entityId, input.opportunityId);
   const tier = await quoteTier(ctx, lead);
   const day = istCalendarDate(ctx.now);
-  const priceListId =
-    tier === null ? null : await livePriceList(ctx, tier.id, lead.entityId, day);
+  const priceListId = tier === null ? null : await livePriceList(ctx, tier.id, lead.entityId, day);
   const kind = SIZED_KIND[lead.segment];
   const sizing = await latestSizing(ctx, {
     entityId: lead.entityId,
@@ -459,10 +456,7 @@ export async function buildQuote(
   }
 
   const sources = await loadQuoteSources(ctx, priceListId, input.lines);
-  const facts = quoteSizingFacts(
-    sizing,
-    quoteSizingContextOf(sources, lead.segment, input.scheme),
-  );
+  const facts = quoteSizingFacts(sizing, quoteSizingContextOf(sources, lead.segment, input.scheme));
   transition(
     quoteMachine,
     {
