@@ -7,7 +7,7 @@ import { findDuplicates, recordDuplicates } from '../../crm/duplicates';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 import { applyLeadAttribution } from './lead-attribution';
 import { firstStage } from './opportunity-shared';
-import { attachEnquiry, customerOwner, openEnquiryLead } from './repeat-enquiry';
+import { attachEnquiry, customerOwner, openEnquiryLead } from '../../crm/repeat-enquiry';
 
 /** What `app.attach_account_entity()` found (migration 0026). */
 type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';

@@ -76,15 +76,20 @@ const eventCatalogue = {
   },
   'crm.lead.attached': {
     meaning:
-      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, instead of a new lead (CRM-03).",
-    emittedBy: ['crm.lead.create'],
+      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, instead of a new lead (CRM-03). Never for a row of an import batch, which `crm.lead.create` runs for it.",
+    emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
     subscribed: false,
     payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
   },
   'crm.duplicate.found': {
     meaning:
-      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03).',
-    emittedBy: ['crm.lead.create', 'crm.duplicate.scan', 'crm.duplicate.suggest'],
+      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers.',
+    emittedBy: [
+      'crm.lead.create',
+      'crm.duplicate.scan',
+      'crm.duplicate.suggest',
+      'imports.job.commit_batch',
+    ],
     subscribed: false,
     payload: z
       .object({

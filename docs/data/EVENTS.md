@@ -44,7 +44,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-33 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+35 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -57,6 +57,8 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, instead of a new lead (CRM-03). Never for a row of an import batch, which `crm.lead.create` runs for it. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `crm.opportunity.stage.move` | none |
 | [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
 | [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `crm.opportunity.nurture` | none |
@@ -144,6 +146,21 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `pipelineKey` | text from 1 to 40 characters |
 | `sourceCode` | text from 1 to 40 characters or null |
 | `existingAccount` | true or false |
+
+### crm.lead.attached
+
+| Field | Type |
+|---|---|
+| `pipelineKey` | text from 1 to 40 characters |
+| `sourceCode` | text from 1 to 40 characters or null |
+
+### crm.duplicate.found
+
+| Field | Type |
+|---|---|
+| `kind` | one of `customer`, `lead` |
+| `reason` | one of `phone`, `name_village` |
+| `confidence` | whole number from 1 to 100 |
 
 ### crm.opportunity.stage_moved
 

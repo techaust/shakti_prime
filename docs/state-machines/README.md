@@ -10,6 +10,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 |---|---|---|---|---|---|
 | Opportunity | **yes** | 4 | 7 | 1 | [opportunity.md](opportunity.md) |
 | Task | **yes** | 3 | 4 | 0 | [task.md](task.md) |
+| Duplicate candidate | **yes** | 3 | 3 | 0 | [duplicate-candidate.md](duplicate-candidate.md) |
 | Quote | no | 6 | 6 | 0 | [quote.md](quote.md) |
 | Sales order | no | 7 | 8 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |

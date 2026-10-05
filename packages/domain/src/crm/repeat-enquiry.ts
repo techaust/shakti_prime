@@ -7,10 +7,10 @@ import {
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, desc, eq, exists, gte, inArray, isNull, sql } from 'drizzle-orm';
-import type { CommandContext } from '../../command/context';
-import { toLeadDto } from '../../queries/crm/lead-dto';
-import { referralCodeUnknown } from './lead-attribution';
-import { partnerForCode } from './referrals';
+import type { CommandContext } from '../command/context';
+import { toLeadDto } from '../queries/crm/lead-dto';
+import { referralCodeUnknown } from '../commands/crm/lead-attribution';
+import { partnerForCode } from '../commands/crm/referrals';
 
 /**
  * Repeat enquiries (PRD CRM-03, docs/design/phase1.md §7.4): an enquiry for the same segment from
