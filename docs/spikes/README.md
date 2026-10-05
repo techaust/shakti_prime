@@ -9,6 +9,7 @@ A spike is a short, measured experiment that answers one technical question befo
 | [import-scale.md](import-scale.md) | 50,000 leads imported within 5 minutes | Met locally; the hosted stack to measure (P2b) | Record | 28-09-2026 |
 | [lists.md](lists.md) | List, board, ⌘K and Activity log latency at 50,000 leads | Met apart from short common prefixes; the hosted stack and real data to measure | Record | 29-09-2026 |
 | [account360.md](account360.md) | Account 360, the timeline and the customers list | Met on the run of 04-10-2026; a quiet machine and the hosted stack to measure | Record | By 30-09-2026 (slice C2) |
+| [calling.md](calling.md) | The Cold Caller queue, the workspace's lead and the team view at 2,000 leads a caller | Met on the run of 06-10-2026; the hosted stack and real calling history to measure | Record | 06-10-2026 (slice T1) |
 | [realtime.md](realtime.md) | Supabase Realtime with BOS-signed tokens | Deferred to the production site with the client's domain | Living until it runs | Not run |
 | [exotel.md](exotel.md) | Exotel click-to-dial on 140 and 160 numbers | Ready to run; waits for the sandbox and DLT numbers | Living until it runs | Not run |
 | [whatsapp.md](whatsapp.md) | WhatsApp Cloud API send and receive | Ready to run; waits for Meta verification and a number | Living until it runs | Not run |
