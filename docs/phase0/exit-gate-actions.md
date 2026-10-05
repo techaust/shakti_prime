@@ -36,6 +36,7 @@ Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has starte
 | 13 | Confirm the place-of-supply rule, the rounding and the tax golden set (ADR 0007) | The group's CA | Not started | Quotes (S1) |
 | 14 | Return quotes against the volumes in the quote pack | Vendors | Not started | As action 3 |
 | 15 | Name the thermal label printer model and label stock for the QR label check | The printer supplier | Not started | Phase 3 |
+| 16 | Confirm or change the owner's calling defaults of 05-10-2026, which the Cold Caller workspace uses: three attempts for an unanswered lead on the day of the first call, the next day and day 3 (CALL-3), and nurture calls on day 7, 30 and 90 (CALL-5); a change is one edit of `WORKSHOP_DEFAULTS.calling` | Sales head, at the workshop | Not started | The Cold Caller workspace in daily use (T1) |
 
 Every other client task (the workshop answers, the design sign-off, the screen review, the letterheads and data files, the vendor accounts in the client's name, DLT registration and Meta verification, the voice samples, real document photos and the Tally visit) is in [client-actions.md](client-actions.md), with who does it and which slice waits for it.
 
