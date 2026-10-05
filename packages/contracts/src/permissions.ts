@@ -75,6 +75,10 @@ export const PERMISSION_KEYS = [
   // The nightly rescoring of open leads (CRM-06): held only by the platform's worker principal,
   // which reads a lead's scoring facts and writes its score through two definers, nothing more.
   'crm.score.refresh',
+  // The daily expiry of quotes past their validity (docs/design/phase1.md §7.3): held only by the
+  // platform's worker principal, which reads the lapsed quotes and marks them expired through two
+  // definers, nothing more.
+  'sales.quote.expire',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -128,7 +132,11 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
  * system role (`app.platform_only_permissions()`, which a security test keeps equal to this
  * list). Plain strings, because a key joins the catalogue with the slice that first uses it.
  */
-export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = ['files.process', 'crm.score.refresh'];
+export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
+  'files.process',
+  'crm.score.refresh',
+  'sales.quote.expire',
+];
 
 export function isPlatformOnlyPermission(key: string): boolean {
   return PLATFORM_ONLY_PERMISSIONS.includes(key);
@@ -257,6 +265,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   // Held only by the platform's workers, for every company; the role editor never offers it.
   'files.process': ['all'],
   'crm.score.refresh': ['all'],
+  'sales.quote.expire': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

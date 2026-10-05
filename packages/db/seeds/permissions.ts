@@ -70,6 +70,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'integrations.dlq.replay': 'Send failed messages to other systems again',
   'files.process': 'Check uploaded files before anyone can use them',
   'crm.score.refresh': 'Bring lead scores up to date each night',
+  'sales.quote.expire': 'Mark quotes past their validity as expired each day',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

@@ -708,6 +708,20 @@
       "when": 1791136768891,
       "tag": "0100_lead_score_refresh",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1791180627563,
+      "tag": "0101_quotes",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1791180640708,
+      "tag": "0102_quotes_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -336,7 +336,7 @@ const eventCatalogue = {
   'print.document.requested': {
     meaning:
       'A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF.',
-    emittedBy: ['print.proof.request'],
+    emittedBy: ['print.proof.request', 'sales.quote.create', 'sales.quote.requote'],
     subscribed: true,
     payload: z
       .object({
@@ -345,6 +345,43 @@ const eventCatalogue = {
         version: z.number().int().min(1),
       })
       .strict(),
+  },
+  'sales.quote.created': {
+    meaning:
+      'A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced.',
+    emittedBy: ['sales.quote.create', 'sales.quote.requote'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        supersedesId: IdSchema.nullable(),
+        lineCount: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'sales.quote.sent': {
+    meaning: 'A quote with its PDF was marked as sent to the customer.',
+    emittedBy: ['sales.quote.send'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema, pdfFileId: IdSchema }).strict(),
+  },
+  'sales.quote.superseded': {
+    meaning: 'A quote was replaced by a re-quote at current prices (`supersededById`).',
+    emittedBy: ['sales.quote.requote'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema, supersededById: IdSchema }).strict(),
+  },
+  'sales.quote.withdrawn': {
+    meaning: 'A draft or sent quote was withdrawn, with a reason a person gave.',
+    emittedBy: ['sales.quote.withdraw'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema }).strict(),
+  },
+  'sales.quote.expired': {
+    meaning: "The daily job marked a quote whose validity had passed as expired.",
+    emittedBy: ['sales.quote.expire'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

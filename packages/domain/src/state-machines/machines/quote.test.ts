@@ -38,6 +38,7 @@ describe('accepting against the validity', () => {
   const record: QuoteRecord = {
     state: 'sent',
     segment: 'farmer_pumps',
+    tierId: newId(),
     priceListId: newId(),
     sizingComplete: true,
     pumpCurveInBounds: true,

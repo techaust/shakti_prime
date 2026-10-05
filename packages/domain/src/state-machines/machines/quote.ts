@@ -20,7 +20,12 @@ export type QuoteAcceptedVia = (typeof QUOTE_ACCEPTED_VIA)[number];
 export interface QuoteRecord {
   state: QuoteMachineState | null;
   segment: Segment;
-  /** The current price list for the tier (from the account type) and the entity, if any. */
+  /**
+   * The customer's price tier: their own (`accounts.tier_id`), else the workshop map by customer
+   * type (PRICE-1, empty until the workshop answers); null when neither gives one.
+   */
+  tierId: string | null;
+  /** The live price list of the tier for the lead's company, else for the group, if any. */
   priceListId: string | null;
   /** TDH and kW sizing is complete (required for pumps and rooftop). */
   sizingComplete: boolean;
@@ -63,11 +68,13 @@ const SIZED_SEGMENTS: readonly Segment[] = ['farmer_pumps', 'residential_rooftop
 
 const priceListReady: G = {
   description:
-    'the tier comes from the account type and a current price list exists for the tier and entity',
+    'the customer has a price tier (their own, else the workshop map by customer type) and a live price list exists for the tier in the company or the group',
   check: (record) =>
-    record.priceListId === null
-      ? { code: 'validation_failed', reason: 'price_list_missing' }
-      : undefined,
+    record.tierId === null
+      ? { code: 'validation_failed', reason: 'quote_tier_missing' }
+      : record.priceListId === null
+        ? { code: 'validation_failed', reason: 'quote_price_list_missing' }
+        : undefined,
 };
 
 const sized: G = {
@@ -127,6 +134,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
     '`quotes.state`. Lines snapshot Price Master prices and the tax-rate version at creation.',
   sources: [
     'docs/design/backend-weeks-3-5.md §7.3',
+    'docs/design/phase1.md §7.3',
     'BLUEPRINT §8.3',
     'PRD SAL-03, SAL-04, SAL-05',
   ],
@@ -162,7 +170,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       event: 'send',
       to: 'sent',
       permission: 'sales.quote.send',
-      guard: pdfRendered,
+      guard: allOf(pdfRendered, notExpired),
       effects: [
         { key: 'whatsapp_dispatch', description: 'send the PDF on WhatsApp (worker on the event)' },
       ],
@@ -177,7 +185,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       effects: [{ key: 'create_order_draft', description: 'create the sales order draft' }],
     },
     {
-      from: ['sent'],
+      from: ['draft', 'sent'],
       event: 'expire',
       to: 'expired',
       permission: null,
@@ -186,7 +194,7 @@ export const quoteMachine = defineMachine<QuoteMachineState, QuoteEvent, QuoteRe
       note: 'A daily job, plus a lazy check when the quote is read.',
     },
     {
-      from: ['sent', 'expired'],
+      from: ['draft', 'sent', 'expired'],
       event: 'requote',
       to: 'superseded',
       permission: 'sales.quote.create',

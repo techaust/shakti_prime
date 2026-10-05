@@ -1,4 +1,5 @@
 import type { DocType, FinancialYear } from '@shakti/contracts';
+import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 
 /** India has one time zone and no daylight saving: a fixed offset is exact. */
 const IST_OFFSET_MS = 330 * 60_000;
@@ -25,20 +26,17 @@ export function financialYear(at: Date): FinancialYear {
   return `${String(start)}-${String((start + 1) % 100).padStart(2, '0')}`;
 }
 
-const DOC_CODES: Record<DocType, string> = {
-  quote: 'Q',
-  sales_order: 'SO',
-  proforma: 'PI',
-  challan: 'DC',
-  purchase_order: 'PO',
-};
-
-/** Series prefix per entity and document type. Format is a discovery-workshop input (BLUEPRINT §19). */
+/**
+ * Series prefix per entity and document type, in the workshop default format (SALE-1,
+ * `WORKSHOP_DEFAULTS.numbering`).
+ */
 export function documentPrefix(entityCode: string, docType: DocType): string {
-  return `${entityCode}/${DOC_CODES[docType]}`;
+  const { docCodes, separator } = WORKSHOP_DEFAULTS.numbering;
+  return `${entityCode}${separator}${docCodes[docType]}`;
 }
 
-/** The printed number. Change the format here and nowhere else. */
+/** The printed number (SALE-1): the series prefix, the financial year and the padded serial. */
 export function formatDocumentNo(prefix: string, fy: FinancialYear, no: number): string {
-  return `${prefix}/${fy}/${String(no).padStart(4, '0')}`;
+  const { separator, serialDigits } = WORKSHOP_DEFAULTS.numbering;
+  return `${prefix}${separator}${fy}${separator}${String(no).padStart(serialDigits, '0')}`;
 }
