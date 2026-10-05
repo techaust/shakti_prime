@@ -5,8 +5,8 @@
 | Branch | `feat/s1-quotes` on GitHub, from `main` at #103 |
 | PC worktree | `s1-quotes`, slot 13: Postgres 54343, app 3043 (`bash tools/integration/setup-worktree.sh s1-quotes feat/s1-quotes 54343 3043`) |
 | Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026) |
-| State | brief |
-| Next step | a builder starts |
+| State | built |
+| Next step | review |
 
 ## Brief
 Read first:
@@ -62,7 +62,97 @@ Done when: the checks of AGENTS §10 pass on the branch, and a journey takes a s
 Not in S1: orders, acceptance and credit (S2); stock availability (Phase 3); any tax rate value, price or number the client must give. The tax rates and price lists stay empty until the client gives them; tests and journeys use clearly synthetic fixtures.
 
 ## Report
-None yet.
+### 05-10-2026, builder on the PC
+- Brief items 1 to 6 are built from 795154e. Before building, the builder stopped: the workshop pack proposed no default for SALE-1 or PRICE-1. The owner then decided on 05-10-2026, and the decisions are recorded in DECISIONS, design §7.3 "Built (S1)", design §11, exit-gate action 16, and the "Today" lines of the workshop pack for SALE-1 and PRICE-1:
+  - SALE-1 is the pack's first example, `<company code>/Q/<year>/0001`. It lives in `WORKSHOP_DEFAULTS.numbering`, which `documentPrefix()` and `formatDocumentNo()` read. The series is Phase 0's `document_sequences`, so no new series table was added.
+  - PRICE-1 has no map (`tierByAccountType: {}`). A quote takes the customer's own `accounts.tier_id`, which an Executive sets with the new `crm.account.tier.set`.
+  - PRICE-3 is fixed kit prices (`kitPricing: 'fixed'`).
+  - The schedule id is `quote-expire-${BOS_ENVIRONMENT}`.
+- Migrations:
+  - 0101, generated: `quotes`, `quote_lines` and `quote_versions`.
+  - 0102, custom: RLS, column grants, the append-only triggers, `app.platform_only_permissions()` with every existing key plus `sales.quote.expire`, the definers and the trigger `accounts_tier_guard`.
+  - The definers are `app.lapsed_quotes()`, `app.expire_quotes()`, `app.quote_for_print()`, `app.attach_quote_pdf()` and `app.quote_search_ids()`.
+  - The lead renumbers both at the merge.
+- Domain:
+  - Seven commands: `sales.quote.create`, `.send`, `.requote`, `.withdraw`, `.expire`, `.pdf.attach` and `crm.account.tier.set`.
+  - The pure `priceQuote()` (`packages/domain/src/sales/quote-pricing.ts`) and `saveQuote()`.
+  - The reads `buildQuote()` (shared by create, re-quote and preview), `readQuote()`, `listQuotes()`, `accountQuotes()`, `getQuote()`, `searchQuotes()`, `loadQuoteBuilder()`, `previewQuote()`, `loadQuoteForPrint()` and `listPriceTierOptions()`.
+  - The quote machine is now stored (`stored`, each move's event). `send` needs a validity that has not passed, and `expire` and `requote` also start from a draft.
+  - Board cards carry `stageSince` and `size`. Account 360 carries the tier, `canSetTier`, `canQuote` and the customer's quotes.
+  - The seeded random generator moved to `src/seeded-generator.ts`, and the sizing property tests use it.
+- Contracts:
+  - `commands/sales/quotes.ts` and `dto/quote.ts`.
+  - The permission `sales.quote.expire`: platform-only, in `SYSTEM_MATRIX` and in the seed.
+  - Five events, `sales.quote.created`, `.sent`, `.superseded`, `.withdrawn` and `.expired`; `print.document.requested` now also comes from create and re-quote.
+  - `QuoteExpireWorkerBody` and `QuoteExpireWorkerResponse`. The palette search now answers quotes.
+- Web:
+  - Pages: `/quotes`, `/quotes/new?company=&lead=` (the builder, from Make a quote on a lead) and `/quotes/<company>/<quote>` (lines, totals, the document polled for until printed, Mark as sent, Re-quote, Withdraw).
+  - Account 360 gains the price tier with its dialog, Make a quote, and a Quotes section. ⌘K finds quotes by number. Board cards show HP or kWp and the time in the stage. The menu gains a Quotes item.
+  - Printing: the registered document type `quote` (loader, template, attach). `print/words.ts` writes amounts in words, and the template prints without a QR code or a per-rate tax line when given none.
+  - The worker `/api/v1/workers/quotes/expire` and its schedule in `qstash-schedule.ts`. Named JavaScript budgets for the three quote pages. All copy is in `en.json`, and `copy-lint.config.json` lists the new button keys.
+- Documents: DATABASE (definers, append-only list, §6.4, `accounts`), SECURITY (§3.1, §3.2, §3.3 and the quotes paragraph), API §3.6, DEPLOY §2 step 6, design §7.3 and §11, DECISIONS, the exit-gate actions, the workshop pack, README and TESTING (the spike command). `pnpm db:docs` and `machines:docs` were regenerated and leave no change.
+- Tests added:
+  - Domain unit: `quote-pricing.test.ts` with 11 tests, 4 of them property tests on the totals (sum of lines, rupee rounding, CGST and SGST against IGST, the composite split); quote machine fixtures for the tier, list and lapsed-send guards; 1 board unit test in web; `print/words.test.ts` with 14 cases (amounts in words, Indian style).
+  - Real Postgres:
+    - `packages/domain/tests/commands/quotes.test.ts`: 18 tests (denied, wrong-company and happy paths for each command, SAL-03, SAL-04, expiry as `system:workers`, the tier, the reads).
+    - `packages/db/tests/security/quotes.test.ts`: 14 tests (policies, append-only, definers, the tier trigger).
+    - In existing tests: the quote tables in the role × company matrix, NARROWER, enum-sync and the reader-definer list; the agent sweep (`crm.account.tier.set` as restricted, customer-write and people-only; `sales.quote.expire` and `.pdf.attach` as platform-only); reader parity; 1 board query test.
+    - Web: 2 quote tests in `pdf-render.test.ts` and 8 in `quote-expiry.test.ts`.
+  - Journeys:
+    - `e2e/quotes.spec.ts`: a sized lead to a sent quote per project (the tier set, the builder, the preview, the quote made, the PDF printed in process and fetched, sent, found in ⌘K, re-quoted, withdrawn); the snapshot company's list, quote page and builder screenshots; Account 360's quotes; the board's kWp; a tele-caller without the screen.
+    - `print.spec.ts`: `print-quote-real`, the quotation printed by the seed from its real quote with the real loader.
+  - Seed: `e2e/setup/quotes.ts` adds a tier of its own ("Journey prices"), two items with item rates and two lists, with test values only.
+- Checks, one at a time against Postgres on 54343 (the PC ran at 100 % CPU and about 400 MB free for long stretches, under other agents):
+  - `pnpm typecheck`: 8 successful, 8 total.
+  - `pnpm lint`: no warnings or errors (the full run at the end).
+  - `pnpm copy-lint`: catalogues and templates are clean.
+  - Unit tests: 2,771 passed (tokens 134, contracts 177, ui 105, copy-lint 17, db 121, domain 1,573, web 644).
+  - `pnpm test:security`:
+    - db: 966 passed in 31 files, in the first full run and again in the last.
+    - domain: 626 of 627 in the last full run. The one failure, `screen-lists.test.ts` > `listPrices` paging, was a 20 s timeout under load; the file passes alone (8 of 8).
+    - web: 239 of 239 when run on its own after the domain run.
+    - Earlier full runs under load had 20 s timeouts in unrelated files, each of which passed when run again. The only real failures were in tests this slice had changed the shape for (the board card's keys, reader parity, the palette's answer), and they are fixed.
+  - `pnpm build`, then `pnpm --filter web js-budget`: every page is within its budget (32 pages: `/quotes` 225.5 kB, the quote page 208.9 kB, the builder 194.6 kB, Account 360 195.7 kB).
+  - Journeys, on Windows (not Linux baselines), `e2e/quotes.spec.ts` and `e2e/print.spec.ts`: 29 passed and 2 flaky, exit 0. Both flaky tests were on desktop-dark and passed on retry: a page load past 30 s, after which those waits were raised. 10 were skipped (the print templates run on desktop-light only).
+- `EXPLAIN (ANALYZE, BUFFERS)` under RLS (`pnpm --filter @shakti/domain spike:quotes`: 20,000 quotes on 2,000 leads in company 2, 200 of them the Lead Converter's):
+
+  | Query | Plan | Time |
+  |---|---|---|
+  | `/quotes`, Executive, company 2 | Index Scan Backward on `quotes_entity_created_idx` | 2.9 ms |
+  | `/quotes`, Executive, every company | Index Scan Backward on `quotes_created_idx` | 2.1 ms |
+  | `/quotes`, GM, sent | Index Scan Backward on `quotes_entity_created_idx` | 6.7 ms |
+  | `/quotes`, Lead Converter (own) | Index Scan Backward on `quotes_entity_created_idx` | 9.5 ms |
+  | ⌘K, a full number | `quotes_pkey` over `app.quote_search_ids()` candidates | 18.0 ms |
+  | ⌘K, a serial, Lead Converter | `quotes_pkey` over `app.quote_search_ids()` candidates | 3.5 ms |
+  | Account 360's quotes | Bitmap Index Scan on `quotes_account_idx` | 0.8 ms |
+  | Board: time in stage, 50 cards | the activities partitions' `(opportunity_id, created_at, id)` indexes | 0.5 ms |
+  | Board: size, 50 cards | Bitmap Index Scan on `sizings_opportunity_kind_latest_idx` | 0.2 ms |
+
+  Before the search definer, ⌘K was a sequential scan of every quote under the policies (225 ms at 20,000 quotes), because `ilike` is not leakproof. That is why `app.quote_search_ids()` was added, following the lead search's pattern.
+- Decisions the brief did not settle:
+  1. `crm.account.tier.set` takes `pricing.write:all` plus `crm.account.write:own`, and is people-only. `pricing.write` is Executive-only. `crm.account.write` alone would let callers move their own customer to a cheaper tier. A database trigger enforces the same rule.
+  2. A kit has no HSN, so a kit line is taxed only as a works contract by the composite rule (rooftop and EPC). Any other kit line is refused with `quote_kit_tax_missing` rather than taxed at a guessed rate. Pump sets sold as kits under `farmer_pumps` therefore cannot be quoted as kits until the CA says how they are taxed (PRICE-4); their items can be quoted one by one. **This needs the owner's or CA's answer.**
+  3. A works contract is a per-line choice in the builder, offered only in the composite segments.
+  4. The live list is the company's own approved list of the tier in force today, else the group's. A quote is priced from one list only, and an item missing from it is refused.
+  5. Quote creation is not people-only, because the sizing agent holds `sales.quote.create` (SECURITY §3.3). It reads no lead, so it cannot make one today.
+  6. Display state: a draft or sent quote past its validity reads as expired.
+     - The machine's `send` now refuses a lapsed quote; `expire` and `requote` also start from a draft.
+     - The daily job runs at 00:05 IST in batches of 500 and stops after 40 s (the rest goes the next day), with no hand-over.
+  7. Versions: version 1 is written when a quote is made, and version n+1 of the old quote when a re-quote replaces it. Withdrawal takes a free-text reason of up to 300 characters, kept on the quote.
+  8. The PDF's file id is the event id of the print request, so a repeated delivery attaches nothing new. A quote is printed once, after it is made, and there is no "print again" command. If printing fails for good, the quote page says the document is late; the event's dead letter can be sent again from Integration health.
+  9. The quotation prints the site's address and the customer's GSTIN, but no phone number and no QR code; the QR returns when customers have a quote page (Phase 2).
+     - The state of supply is printed in words from a new `print.states` list of the statutory GST state codes.
+     - The only term is the validity date, because the client's payment and delivery terms are not given.
+  10. `/quotes` is in the menu for `sales.quote.create` at own scope. Its read takes `crm.lead.read`, so quotes are read with their leads.
+  11. Board cards: the time in the stage comes from the lead's last `stage_moved` timeline row (no new column). Design §3 gives D1 the board in wave 3, so the change is kept to the board's read and the card's one line.
+  12. Account 360: a person with no `pricing.read` sees no tier name.
+  13. Test data: quote tests run in company 2, because the catalogue fixture resets company 1's quote series. The journeys use company 2 and the snapshot company, with the seed's own tier and lists.
+  14. The P4 template's `link` and a tax line's `rate` are now optional.
+- Not done or uncertain:
+  - The Linux baselines and the integration run, which are the lead's. These baselines change: `catalogue-items` and `tax-rates` (the two journey items and their rates), `price-master-executive` (the journey tier's lists), `leads-board` (the card's new line), and possibly `customer-account` and `customer-sizing` (the tier row, Make a quote, the Quotes section). New baselines: `quotes-list`, `quote-page`, `quote-builder` and `print-quote-real`.
+  - Hosted PDFs wait on the owner's AWS files stack (integration note 1).
+  - The QStash schedule must be run on each hosted environment with `BOS_ENVIRONMENT` set.
+  - D1 changes the same schedule script, so the merge of `apps/web/scripts/qstash-schedule.ts` needs care: the environment check and the import list.
 
 ## Review
 None yet.
