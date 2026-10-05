@@ -2218,6 +2218,7 @@
       "validUntil": "Valid until {date}",
       "linesCaption": "Items on this quote",
       "linesIncomplete": "Choose an item and a quantity on every line.",
+      "quantityTooLarge": "One line takes at most {max}. Lower the quantity on this line.",
       "back": "Back to the customer",
       "made": "Quote {number} made."
     },

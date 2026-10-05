@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { createQuote, previewQuote } from '../../actions/quotes';
-import { SUBSIDY_SCHEMES } from '../../screens/contract-values';
+import { QUOTE_MAX_QTY, SUBSIDY_SCHEMES } from '../../screens/contract-values';
 import { isOneOf } from '../../screens/customers';
 import { formatCount, formatDate, formatRupees } from '../../screens/format';
 import { quoteHref } from '../../screens/quotes';
@@ -31,13 +31,25 @@ interface DraftLine {
 /** A quantity the quote takes: above zero, at most three decimals. */
 const QUANTITY = /^\d{1,9}(\.\d{1,3})?$/;
 
+/** A line with no item, or no quantity above zero. */
+function lineMissing(line: DraftLine): boolean {
+  const qty = line.qty.trim();
+  return line.choice.split(':')[1] === undefined || !QUANTITY.test(qty) || Number(qty) <= 0;
+}
+
+/** A quantity past the most one line takes, which the server refuses too. */
+function tooLarge(line: DraftLine): boolean {
+  const qty = line.qty.trim();
+  return QUANTITY.test(qty) && Number(qty) > QUOTE_MAX_QTY;
+}
+
 /** The lines as the commands take them, or undefined while a line is not filled in. */
 function linesOf(draft: readonly DraftLine[]): QuoteLineInput[] | undefined {
   const lines: QuoteLineInput[] = [];
   for (const line of draft) {
     const qty = line.qty.trim();
     const [kind, id] = line.choice.split(':');
-    if (id === undefined || !QUANTITY.test(qty) || Number(qty) <= 0) return undefined;
+    if (id === undefined || lineMissing(line) || tooLarge(line)) return undefined;
     lines.push({
       ...(kind === 'kit' ? { kitId: id } : { itemId: id }),
       qty,
@@ -199,7 +211,15 @@ export function QuoteBuilder({ builder }: { builder: QuoteBuilderDto }) {
                     ))}
                   </Select>
                 </Field>
-                <Field id={`quote-line-${String(line.key)}-qty`} label={t('quantity')}>
+                <Field
+                  id={`quote-line-${String(line.key)}-qty`}
+                  label={t('quantity')}
+                  error={
+                    incomplete && tooLarge(line)
+                      ? t('quantityTooLarge', { max: formatCount(QUOTE_MAX_QTY) })
+                      : undefined
+                  }
+                >
                   <Input
                     inputMode="decimal"
                     value={line.qty}
@@ -265,7 +285,7 @@ export function QuoteBuilder({ builder }: { builder: QuoteBuilderDto }) {
               {t('workOut')}
             </Button>
           </div>
-          {incomplete ? (
+          {incomplete && lines.some(lineMissing) ? (
             <p role="alert" className="text-danger text-sm">
               {t('linesIncomplete')}
             </p>

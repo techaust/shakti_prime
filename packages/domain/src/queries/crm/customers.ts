@@ -515,7 +515,11 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     : [];
 
   return Account360Dto.parse({
-    account: { ...here.account, tierName: here.tierName },
+    // The tiers' own policy lets any signed-in caller read them, so the name is kept here.
+    account: {
+      ...here.account,
+      tierName: hasGrant(perms, 'pricing.read', 'own') ? here.tierName : null,
+    },
     entityId,
     otherEntityIds: relationships.map((r) => r.entityId).filter((e) => e !== entityId),
     ownerId: here.ownerId,

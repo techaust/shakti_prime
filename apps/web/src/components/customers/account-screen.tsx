@@ -164,11 +164,10 @@ export function AccountScreen({
         <Detail label={t('account.billingState')}>
           {view.account.billingStateCode ?? t('notRecorded')}
         </Detail>
-        <Detail label={t('account.tier')}>
-          {view.account.tierId === null
-            ? t('account.tierNone')
-            : (view.account.tierName ?? t('account.tierNone'))}
-        </Detail>
+        {/* A caller who does not read the price tiers is not told the tier's name. */}
+        {view.account.tierId !== null && view.account.tierName === null ? null : (
+          <Detail label={t('account.tier')}>{view.account.tierName ?? t('account.tierNone')}</Detail>
+        )}
         {view.otherEntityIds.length === 0 ? null : (
           <Detail label={t('account.alsoWith')}>
             <span className="flex flex-wrap gap-x-3">

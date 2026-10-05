@@ -106,6 +106,8 @@ export const QuoteDto = z
     siteId: IdSchema.nullable(),
     sizingId: IdSchema.nullable(),
     ...pricedWith,
+    /** The tier's name for a caller who reads the price tiers (`pricing.read`); null otherwise. */
+    tierName: z.string().nullable(),
     state: QuoteStateSchema,
     lines: z.array(QuoteLineDto),
     totals: QuoteTotalsDto,

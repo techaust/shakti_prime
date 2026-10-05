@@ -426,6 +426,9 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
 
+/** The largest quantity one quote line takes (`QUOTE_MAX_QTY`). */
+export const QUOTE_MAX_QTY = 100_000;
+
 /** What the queue does after a call outcome, in the order the settings page offers them. */
 export const DISPOSITION_NEXT_ACTIONS = [
   'callback',

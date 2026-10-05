@@ -1,3 +1,4 @@
+import type { PermissionGrant } from '@shakti/contracts';
 import { Button } from '@shakti/ui';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -7,7 +8,6 @@ import { loadQuoteBuilder } from '../../../../actions/quotes';
 import { QuoteBuilder } from '../../../../components/quotes/quote-builder';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
-import { navRequires } from '../../../../nav';
 import { screenAccess, screenTitle } from '../../../../screens/access';
 import { companyParam, customerHref } from '../../../../screens/customers';
 import { firstFailure } from '../../../../screens/result';
@@ -16,8 +16,14 @@ export const dynamic = 'force-dynamic';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Making a quote needs its own permission beside reading the lead; the title follows the page.
+const BUILDER_REQUIRES: readonly PermissionGrant[] = [
+  { key: 'crm.lead.read', scope: 'own' },
+  { key: 'sales.quote.create', scope: 'own' },
+];
+
 export async function generateMetadata(): Promise<Metadata> {
-  return screenTitle(navRequires('quotes'), (await getTranslations('quotes'))('builder.pageTitle'));
+  return screenTitle(BUILDER_REQUIRES, (await getTranslations('quotes'))('builder.pageTitle'));
 }
 
 /**
@@ -30,11 +36,7 @@ export default async function NewQuotePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // Making a quote needs its own permission beside reading the lead.
-  await screenAccess([
-    { key: 'crm.lead.read', scope: 'own' },
-    { key: 'sales.quote.create', scope: 'own' },
-  ]);
+  await screenAccess(BUILDER_REQUIRES);
   const query = await searchParams;
   const entityId = companyParam(query.company);
   const lead = Array.isArray(query.lead) ? query.lead[0] : query.lead;

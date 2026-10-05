@@ -40,10 +40,14 @@ export const setAccountTier = defineCommand({
         });
       }
     }
+    // The customer as held in the page's company, as readableAccount() reads it: the timeline row
+    // is written there, so a company that does not hold the customer answers account_missing.
     const a = schema.accounts;
+    const ae = schema.accountEntities;
     const [account] = await ctx.tx
       .select({ id: a.id, tierId: a.tierId })
       .from(a)
+      .innerJoin(ae, and(eq(ae.accountId, a.id), eq(ae.entityId, input.entityId)))
       .where(and(eq(a.id, input.accountId), isNull(a.archivedAt)))
       .limit(1);
     if (!account) {

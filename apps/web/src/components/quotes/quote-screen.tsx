@@ -165,7 +165,9 @@ export function QuoteScreen({
         <Detail label={t('page.validUntil')}>
           <time dateTime={quote.validUntil}>{formatDate(quote.validUntil)}</time>
         </Detail>
-        <Detail label={t('page.tier')}>{quote.tierName}</Detail>
+        {quote.tierName === null ? null : (
+          <Detail label={t('page.tier')}>{quote.tierName}</Detail>
+        )}
         <Detail label={t('page.placeOfSupply')}>{placeOfSupply}</Detail>
         <Detail label={t('page.scheme')}>{t(`builder.schemes.${quote.scheme}`)}</Detail>
         {quote.supersedesId === null ? null : (

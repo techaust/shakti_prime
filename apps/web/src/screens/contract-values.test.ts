@@ -48,6 +48,7 @@ import {
   RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
+  QUOTE_MAX_QTY as CONTRACT_QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
@@ -118,6 +119,7 @@ import {
   PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SCOPE_VALUES,
+  QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
@@ -203,6 +205,7 @@ describe('the contract values copied for the browser', () => {
     );
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+    expect(QUOTE_MAX_QTY).toBe(CONTRACT_QUOTE_MAX_QTY);
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);

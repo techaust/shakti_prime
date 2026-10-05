@@ -181,7 +181,9 @@ export async function readQuote(
     siteId: quote.siteId,
     sizingId: quote.sizingId,
     tierId: quote.tierId,
-    tierName: row.tierName ?? '',
+    // The tier's name only for a caller who reads the price tiers, as on Account 360: the tiers'
+    // own policy lets any signed-in caller read them, and the quote page opens to lead readers.
+    tierName: hasGrant(ctx.principal.permissions, 'pricing.read', 'own') ? row.tierName : null,
     priceListId: quote.priceListId,
     scheme: SubsidySchemeSchema.parse(quote.scheme),
     placeOfSupplyState: quote.placeOfSupplyState,
