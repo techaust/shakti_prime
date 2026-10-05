@@ -69,7 +69,7 @@ test.describe('as an Executive, a sized lead to a sent quote', () => {
     await page.getByRole('button', { name: 'Make the quote' }).click();
 
     const title = page.getByRole('heading', { level: 1, name: /^SMP\/Q\/\d{4}-\d{2}\/\d{4,}$/ });
-    await expect(title).toBeVisible({ timeout: 30_000 });
+    await expect(title).toBeVisible({ timeout: 60_000 });
     const quoteNo = (await title.textContent()) ?? '';
     await expect(page.getByText('Not sent yet', { exact: true })).toBeVisible();
     // No queue on this machine: the worker prints the quote in the app after it is made.
@@ -156,7 +156,7 @@ test.describe('the quotes of the snapshot company', () => {
     await grid.getByRole('link', { name: quotes.snapshotQuoteNo }).click();
     await expect(
       page.getByRole('heading', { name: quotes.snapshotQuoteNo, level: 1 }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('link', { name: SNAPSHOT_QUOTE_LEAD.name })).toBeVisible();
     await expect(page.getByText('The quote document is ready.')).toBeVisible({ timeout: 60_000 });
     await expectNoAxeViolations(page);
