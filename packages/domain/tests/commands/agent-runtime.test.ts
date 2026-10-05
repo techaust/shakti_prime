@@ -1,4 +1,9 @@
-import { newId, type AgentProposal, type Principal } from '@shakti/contracts';
+import {
+  AGENT_PRINCIPAL_IDS,
+  newId,
+  type AgentProposal,
+  type Principal,
+} from '@shakti/contracts';
 import { asMigrator, asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAiProvider } from '../../src/ai/provider';
@@ -19,8 +24,9 @@ import { memoryLogger } from '../../src/ports/logger';
 
 // The runtime's own path (docs/design/phase1.md §7.1) with a stand-in agent defined here only: it
 // asks the model, through the fake transport, how many days until a follow-up, and proposes a
-// follow-up task on the lead. No real agent ships in AI0 and nothing reaches a vendor. The tests use
-// company 4 and remove their settings.
+// follow-up task on the lead for its owner. No real agent ships in AI0 and nothing reaches a
+// vendor. The tests use company 4; each writes its own settings, replacing any row a run left with
+// the same key, and removes them.
 
 const ENTITY = 4;
 const madeConfigs: string[] = [];
@@ -40,8 +46,8 @@ async function setting(row: {
   const id = newId();
   madeConfigs.push(id);
   await asMigrator(async (m) => {
-    // A row another suite left for the same agent, action type and company (the journeys' seed
-    // keeps the Caller Co-pilot's) gives way to this test's own.
+    // A row another suite or run left for the same agent, action type and company (the journeys'
+    // seed keeps the Caller Co-pilot's) gives way to this test's own.
     await m`delete from agent_configs where agent is not distinct from 'agent:copilot'
                      and action_type is not distinct from ${row.actionType ?? null} and entity_id is not distinct from ${ENTITY}`;
     await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
@@ -55,15 +61,15 @@ const drop = (id: string) => asMigrator((m) => m`delete from agent_configs where
 
 let owner: Principal;
 let lead: string;
+let otherCompanyLead: string;
 
-beforeAll(async () => {
-  owner = await createTestPrincipal('general_manager', [ENTITY]);
-  const made = (await asPrincipal(owner, (context) =>
+async function leadIn(principal: Principal, entityId: number): Promise<string> {
+  const made = (await asPrincipal(principal, (context) =>
     runCommand(
       createLead,
       { context, audit, outbox },
       {
-        entityId: ENTITY,
+        entityId,
         pipelineKey: 'farmer_pumps',
         contact: {
           name: 'Runtime customer',
@@ -73,14 +79,28 @@ beforeAll(async () => {
       },
     ),
   )) as { id: string };
-  lead = made.id;
+  return made.id;
+}
+
+beforeAll(async () => {
+  owner = await createTestPrincipal('general_manager', [ENTITY]);
+  lead = await leadIn(owner, ENTITY);
+  otherCompanyLead = await leadIn(await createTestPrincipal('general_manager', [1]), 1);
 });
 
-/** The stand-in agent: one model call, then a follow-up on the lead in the days it answered. */
-function standIn(opportunityId: string): AgentStep {
+/**
+ * The stand-in agent: one model call, then a follow-up on the lead in the days it answered, for
+ * the person `assigneeId` names (the lead's owner by default; null for nobody).
+ */
+function standIn(
+  opportunityId: string,
+  options: { eventId?: string; assigneeId?: string | null } = {},
+): AgentStep {
+  const assigneeId = options.assigneeId === undefined ? owner.id : options.assigneeId;
   return {
     agent: 'agent:copilot',
     entityId: ENTITY,
+    eventId: options.eventId ?? newId(),
     purpose: 'follow_up',
     actionType: 'crm.task.create',
     async decide(model: RunModel): Promise<AgentProposal | null> {
@@ -101,6 +121,7 @@ function standIn(opportunityId: string): AgentStep {
         },
         subjectType: 'opportunity',
         subjectId: opportunityId,
+        ...(assigneeId === null ? {} : { assigneeId }),
       };
     },
   };
@@ -148,11 +169,41 @@ describe('runAgentStep with a stand-in agent', () => {
       expect(answer).toMatchObject({ outcome: 'proposed' });
       expect(answer.inboxItemId).not.toBeNull();
       expect(transport.requests[0]?.user).not.toContain('98765');
+      expect(transport.requests[0]?.user).toContain('call me on [phone] next week');
+      // 2,000 input and 20 output tokens of Haiku 4.5 at ₹104 a dollar: 21.84 paise, rounded up.
       expect(await runRow(answer.runId)).toMatchObject({
         outcome: 'proposed',
-        cost_paise: '19',
+        cost_paise: '22',
         model: 'claude-haiku-4-5-20251001',
       });
+      const [item] = await asMigrator(
+        (m) => m<{ assignee_id: string; input: { assigneeId: string } }[]>`
+          select i.assignee_id, a.input_json as input from inbox_items i
+            join agent_actions a on a.id = i.agent_action_id where i.id = ${answer.inboxItemId}`,
+      );
+      expect(item).toEqual({ assignee_id: owner.id, input: expect.objectContaining({ assigneeId: owner.id }) as unknown });
+    } finally {
+      await drop(cap);
+    }
+  });
+
+  it('answers a redelivered event from the run it recorded, with no second model call', async () => {
+    const cap = await setting({ cap: 100_000 });
+    try {
+      const { transport, deps } = provider([fakeReply('2')]);
+      const eventId = newId();
+      const first = await runAgentStep(standIn(lead, { eventId }), deps);
+      const again = await runAgentStep(standIn(lead, { eventId }), deps);
+      expect(again).toEqual(first);
+      expect(transport.requests).toHaveLength(1);
+      const [count] = await asMigrator(
+        (m) => m<{ n: number }[]>`
+          select count(*)::int as n from inbox_items where agent_action_id = ${first.actionId}`,
+      );
+      expect(count?.n).toBe(1);
+      // Another event is another step.
+      const next = await runAgentStep(standIn(lead), deps);
+      expect(next.runId).not.toBe(first.runId);
     } finally {
       await drop(cap);
     }
@@ -172,7 +223,7 @@ describe('runAgentStep with a stand-in agent', () => {
   });
 
   it('stops at the daily cap', async () => {
-    const cap = await setting({ cap: 1 });
+    const cap = await setting({ cap: 100 });
     try {
       const { transport, deps } = provider([fakeReply('2', { inputTokens: 200_000 })]);
       expect((await runAgentStep(standIn(lead), deps)).outcome).toBe('proposed');
@@ -207,18 +258,44 @@ describe('runAgentStep with a stand-in agent', () => {
     }
   });
 
-  it('acts when Automatic, and records a refused action as a failed run', async () => {
+  it('files a stored Automatic as Needs approval in Phase 1, and never acts', async () => {
     const cap = await setting({ cap: 100_000 });
     const automatic = await setting({ actionType: 'crm.task.create', autonomy: 'automatic' });
     try {
       const { deps } = provider([fakeReply('3')]);
-      const acted = await runAgentStep(standIn(lead), deps);
-      expect(acted).toMatchObject({ outcome: 'acted', inboxItemId: null });
-      // A lead the agent cannot see: the task is refused, and the run is kept as failed.
-      const missing = await runAgentStep(standIn(newId()), deps);
-      expect(missing).toMatchObject({ outcome: 'failed', actionId: null });
+      const answer = await runAgentStep(standIn(lead), deps);
+      expect(answer).toMatchObject({ outcome: 'proposed' });
+      expect(answer.inboxItemId).not.toBeNull();
+      const [action] = await asMigrator(
+        (m) => m<{ autonomy: string; state: string }[]>`
+          select autonomy, state from agent_actions where id = ${answer.actionId}`,
+      );
+      expect(action).toEqual({ autonomy: 'needs_approval', state: 'proposed' });
     } finally {
       await drop(automatic);
+      await drop(cap);
+    }
+  });
+
+  it('keeps a refused proposal as a failed run: an unreadable lead, no one or an agent to do it', async () => {
+    const cap = await setting({ cap: 100_000 });
+    try {
+      const { deps } = provider([fakeReply('3')]);
+      for (const step of [
+        // A lead the agent cannot see, and one of another company.
+        standIn(newId()),
+        standIn(otherCompanyLead),
+        // A task for no one, and one for an agent.
+        standIn(lead, { assigneeId: null }),
+        standIn(lead, { assigneeId: AGENT_PRINCIPAL_IDS['agent:copilot'] }),
+      ]) {
+        expect(await runAgentStep(step, deps)).toMatchObject({
+          outcome: 'failed',
+          actionId: null,
+          inboxItemId: null,
+        });
+      }
+    } finally {
       await drop(cap);
     }
   });

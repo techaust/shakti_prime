@@ -15,20 +15,27 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { failureOf, runCommand } from '../../src/command/run-command';
 import { setAgentConfig, setKillSwitch } from '../../src/commands/agents/config';
-import { approveInboxItem, editInboxItem, rejectInboxItem } from '../../src/commands/agents/inbox';
+import {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from '../../src/commands/agents/inbox';
 import { recordAgentRun } from '../../src/commands/agents/record-run';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
-// agents.run.record, agents.inbox.approve, .edit and .reject, agents.config.set and
+// agents.run.record, agents.inbox.approve, .edit, .reject and .dismiss, agents.config.set and
 // agents.killswitch.set (docs/design/phase1.md §7.1): an agent records its runs and files
-// suggestions as itself; a person approves one, and the command runs as that person; the agent
-// controls set autonomy, caps and kill switches. Each test uses its own company's settings and
-// removes them, so no other suite finds an agent stopped.
+// suggestions as itself; a person approves a Needs approval one, and the command runs as that
+// person, or dismisses a Suggest one, which they act on themselves; the agent controls set
+// autonomy, caps and kill switches. Each test writes its own company's settings, replacing any row
+// a run left with the same key, and removes them, so no other suite finds an agent stopped.
 
 const HOUR = 3_600_000;
 const later = (hours = 24): string => new Date(Date.now() + hours * HOUR).toISOString();
 const reason = (r: string) => ({ details: { reason: r } });
+const TASK = 'crm.task.create';
 
 const madeConfigs: string[] = [];
 afterAll(async () => {
@@ -44,7 +51,7 @@ function run(principal: Principal, command: AnyCommand, input: unknown): Promise
   );
 }
 
-/** A setting written as the owner, so a test can set Automatic without its record. */
+/** A setting written as the owner, replacing any row with the same agent, action type and company. */
 async function setting(row: {
   agent?: string | null;
   actionType?: string | null;
@@ -55,13 +62,12 @@ async function setting(row: {
 }): Promise<string> {
   const id = newId();
   madeConfigs.push(id);
+  const agent = row.agent === undefined ? 'agent:copilot' : row.agent;
   await asMigrator(async (m) => {
-    // A row another suite left for the same agent, action type and company (the journeys' seed
-    // keeps the Caller Co-pilot's) gives way to this test's own.
-    await m`delete from agent_configs where agent is not distinct from ${row.agent === undefined ? 'agent:copilot' : row.agent}
+    await m`delete from agent_configs where agent is not distinct from ${agent}
                      and action_type is not distinct from ${row.actionType ?? null} and entity_id is not distinct from ${row.entityId}`;
     await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
-             values (${id}, ${row.agent === undefined ? 'agent:copilot' : row.agent}, ${row.actionType ?? null},
+             values (${id}, ${agent}, ${row.actionType ?? null},
                      ${row.entityId}, ${row.autonomy ?? null}, ${row.cap ?? null}, ${row.enabled ?? true},
                      ${executive.id})`;
   });
@@ -98,7 +104,7 @@ function runInput(entityId: number, opportunityId: string | null, extra: object 
     entityId,
     agent: 'agent:copilot',
     purpose: 'follow_up',
-    actionType: 'crm.task.create',
+    actionType: TASK,
     model: 'claude-haiku-4-5-20251001',
     tokensIn: 1200,
     tokensOut: 80,
@@ -120,8 +126,26 @@ function runInput(entityId: number, opportunityId: string | null, extra: object 
   };
 }
 
-async function suggest(opportunityId: string): Promise<RunAnswer> {
-  return (await run(copilot(), recordAgentRun, runInput(1, opportunityId))) as RunAnswer;
+/** A suggestion filed in company 1 under the autonomy the settings give it there. */
+async function suggest(opportunityId: string, proposalInput: object = {}): Promise<RunAnswer> {
+  const input = runInput(1, opportunityId) as ReturnType<typeof runInput> & {
+    proposal: { input: Record<string, unknown> };
+  };
+  return (await run(copilot(), recordAgentRun, {
+    ...input,
+    proposal: { ...input.proposal, input: { ...input.proposal.input, ...proposalInput } },
+  })) as RunAnswer;
+}
+
+/** A suggestion filed under Suggest: the person acts on it themselves. */
+async function suggestOnly(opportunityId: string): Promise<RunAnswer> {
+  const mode = await setting({ entityId: 1, actionType: TASK, autonomy: 'suggest' });
+  try {
+    return await suggest(opportunityId);
+  } finally {
+    await setting({ entityId: 1, actionType: TASK, autonomy: 'needs_approval' });
+    await drop(mode);
+  }
 }
 
 let teamId: string;
@@ -139,6 +163,8 @@ beforeAll(async () => {
   gm = await createTestPrincipal('general_manager', [1]);
   executive = await createTestPrincipal('executive');
   lead = await leadOf(caller);
+  // The Caller Co-pilot's follow-ups need approval in company 1, so a person decides on them.
+  await setting({ entityId: 1, actionType: TASK, autonomy: 'needs_approval' });
 });
 
 describe('agents.run.record', () => {
@@ -177,6 +203,25 @@ describe('agents.run.record', () => {
     });
   });
 
+  it('fills the task’s assignee from the inbox item, and refuses a task for an agent', async () => {
+    const answer = await suggest(lead);
+    const [action] = await asMigrator(
+      (m) => m<{ input: { assigneeId: string } }[]>`
+        select input_json as input from agent_actions where id = ${answer.actionId}`,
+    );
+    expect(action?.input.assigneeId).toBe(caller.id);
+    await expect(suggest(lead, { assigneeId: copilot().id })).rejects.toMatchObject(
+      reason('agent_proposal_invalid'),
+    );
+    const noOne = runInput(1, lead) as ReturnType<typeof runInput> & {
+      proposal: Record<string, unknown>;
+    };
+    const { assigneeId: _assignee, ...unassigned } = noOne.proposal;
+    await expect(
+      run(copilot(), recordAgentRun, { ...noOne, proposal: unassigned }),
+    ).rejects.toMatchObject(reason('agent_proposal_invalid'));
+  });
+
   it('is refused to a person, and to an agent recording for another agent', async () => {
     const person = run(executive, recordAgentRun, runInput(1, null));
     await expect(person).rejects.toMatchObject({ code: 'forbidden' });
@@ -200,7 +245,7 @@ describe('agents.run.record', () => {
     expect(failureOf(error)?.stage).toBe('guard');
   });
 
-  it('is refused for another company, and for a proposal outside its run', async () => {
+  it('is refused for another company, and for a proposal about a lead the run does not read', async () => {
     await expect(run(copilot(1), recordAgentRun, runInput(2, null))).rejects.toMatchObject({
       code: 'forbidden',
     });
@@ -212,6 +257,17 @@ describe('agents.run.record', () => {
       run(copilot(), recordAgentRun, {
         ...input,
         proposal: { ...input.proposal, subjectId: otherCompanyLead },
+      }),
+    ).rejects.toMatchObject(reason('agent_proposal_invalid'));
+    // The input and the subject agree, but the lead is in company 2.
+    await expect(
+      run(copilot(), recordAgentRun, {
+        ...input,
+        proposal: {
+          ...input.proposal,
+          input: { ...input.proposal.input, opportunityId: otherCompanyLead },
+          subjectId: otherCompanyLead,
+        },
       }),
     ).rejects.toMatchObject(reason('agent_proposal_invalid'));
   });
@@ -226,26 +282,19 @@ describe('agents.run.record', () => {
     }
   });
 
-  it('acts at once when the action type is Automatic: the task is made as the agent', async () => {
-    const automatic = await setting({
-      entityId: 1,
-      actionType: 'crm.task.create',
-      autonomy: 'automatic',
-    });
+  it('files a stored Automatic as Needs approval in Phase 1: nothing runs as the agent', async () => {
+    const automatic = await setting({ entityId: 1, actionType: TASK, autonomy: 'automatic' });
     try {
       const answer = await suggest(lead);
-      expect(answer).toMatchObject({ outcome: 'acted', inboxItemId: null });
-      const [task] = await asMigrator(
-        (m) => m<{ created_by: string }[]>`
-          select created_by from tasks where opportunity_id = ${lead} order by created_at desc limit 1`,
-      );
-      expect(task?.created_by).toBe(copilot().id);
+      expect(answer).toMatchObject({ outcome: 'proposed' });
+      expect(answer.inboxItemId).not.toBeNull();
       const [action] = await asMigrator(
-        (m) =>
-          m<{ state: string }[]>`select state from agent_actions where id = ${answer.actionId}`,
+        (m) => m<{ state: string; autonomy: string }[]>`
+          select state, autonomy from agent_actions where id = ${answer.actionId}`,
       );
-      expect(action?.state).toBe('executed');
+      expect(action).toEqual({ state: 'proposed', autonomy: 'needs_approval' });
     } finally {
+      await setting({ entityId: 1, actionType: TASK, autonomy: 'needs_approval' });
       await drop(automatic);
     }
   });
@@ -286,6 +335,29 @@ describe('agents.inbox.approve, .edit and .reject', () => {
     ).rejects.toMatchObject(reason('inbox_item_transition_not_allowed'));
   });
 
+  it('takes one of two decisions made at once, in two transactions', async () => {
+    const answer = await suggest(lead);
+    const input = { entityId: 1, itemId: answer.inboxItemId };
+    const both = await Promise.allSettled([
+      run(caller, approveInboxItem, input),
+      run(caller, rejectInboxItem, input),
+    ]);
+    const done = both.filter((r) => r.status === 'fulfilled');
+    const refused = both.filter((r) => r.status === 'rejected');
+    expect(done).toHaveLength(1);
+    expect(refused).toHaveLength(1);
+    expect((refused[0] as PromiseRejectedResult).reason).toMatchObject(
+      reason('inbox_item_transition_not_allowed'),
+    );
+    const [counts] = await asMigrator(
+      (m) => m<{ decisions: number }[]>`
+        select count(*)::int as decisions from audit_logs
+         where aggregate_id = ${answer.actionId} and outcome = 'ok'
+           and command in ('agents.inbox.approve', 'agents.inbox.reject')`,
+    );
+    expect(counts?.decisions).toBe(1);
+  });
+
   it('is refused to a role without the inbox, to an agent, to someone it is not for, and in another company', async () => {
     const answer = await suggest(lead);
     const input = { entityId: 1, itemId: answer.inboxItemId };
@@ -324,6 +396,34 @@ describe('agents.inbox.approve, .edit and .reject', () => {
     }
   });
 
+  it('an approval waits for a switch being turned off, and then sees it', async () => {
+    const answer = await suggest(lead);
+    let approval: Promise<unknown> | undefined;
+    const switched = await run(gm, setKillSwitch, {
+      agent: 'agent:copilot',
+      entityId: 1,
+      enabled: true,
+    });
+    madeConfigs.push((switched as { id: string }).id);
+    // The switch goes off in a transaction held open while the approval starts.
+    await asPrincipal(gm, async (context) => {
+      await runCommand(setKillSwitch, { context, audit, outbox }, {
+        agent: 'agent:copilot',
+        entityId: 1,
+        enabled: false,
+      });
+      approval = run(caller, approveInboxItem, { entityId: 1, itemId: answer.inboxItemId }).catch(
+        (e: unknown) => e,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+    try {
+      expect(await approval).toMatchObject(reason('agent_switched_off'));
+    } finally {
+      await run(gm, setKillSwitch, { agent: 'agent:copilot', entityId: 1, enabled: true });
+    }
+  });
+
   it('editing changes only the fields a person may change, and counts as edited', async () => {
     const answer = await suggest(lead);
     const due = later(72);
@@ -348,6 +448,35 @@ describe('agents.inbox.approve, .edit and .reject', () => {
     expect(task?.title).toBe('Ask about the borewell');
   });
 
+  it('an edit with no change counts as unedited: the same moment written another way', async () => {
+    const due = new Date(Date.now() + 30 * HOUR);
+    due.setUTCSeconds(0, 0);
+    const answer = await suggest(lead, { dueAt: due.toISOString() });
+    // The same moment in India time, as the edit form sends it.
+    const ist = new Date(due.getTime() + 330 * 60_000).toISOString().slice(0, 16);
+    const decided = await run(caller, editInboxItem, {
+      entityId: 1,
+      itemId: answer.inboxItemId,
+      changes: { dueAt: `${ist}+05:30` },
+    });
+    expect(decided).toMatchObject({ state: 'approved', edited: false });
+    const none = await suggest(lead);
+    await expect(
+      run(caller, editInboxItem, { entityId: 1, itemId: none.inboxItemId, changes: {} }),
+    ).resolves.toMatchObject({ state: 'approved', edited: false });
+  });
+
+  it('an edit needs a time with its offset', async () => {
+    const answer = await suggest(lead);
+    await expect(
+      run(caller, editInboxItem, {
+        entityId: 1,
+        itemId: answer.inboxItemId,
+        changes: { dueAt: '2031-01-02T09:30' },
+      }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
+  });
+
   it('rejecting runs nothing', async () => {
     const before = await asMigrator(
       (m) =>
@@ -365,8 +494,72 @@ describe('agents.inbox.approve, .edit and .reject', () => {
   });
 });
 
+describe('agents.inbox.dismiss and Suggest', () => {
+  it('a Suggest item is only dismissed: no one-tap run, and nothing runs', async () => {
+    const before = await asMigrator(
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
+    );
+    const answer = await suggestOnly(lead);
+    const input = { entityId: 1, itemId: answer.inboxItemId };
+    for (const command of [approveInboxItem, rejectInboxItem]) {
+      await expect(run(caller, command, input)).rejects.toMatchObject(
+        reason('agent_suggestion_only'),
+      );
+    }
+    await expect(
+      run(caller, editInboxItem, { ...input, changes: { title: 'Ask again' } }),
+    ).rejects.toMatchObject(reason('agent_suggestion_only'));
+    await expect(run(caller, dismissInboxItem, input)).resolves.toMatchObject({
+      state: 'dismissed',
+      edited: false,
+    });
+    const after = await asMigrator(
+      (m) =>
+        m<{ n: number }[]>`select count(*)::int as n from tasks where opportunity_id = ${lead}`,
+    );
+    expect(after[0]?.n).toBe(before[0]?.n);
+    const [action] = await asMigrator(
+      (m) => m<{ state: string; decided_by: string }[]>`
+        select state, decided_by from agent_actions where id = ${answer.actionId}`,
+    );
+    expect(action).toEqual({ state: 'dismissed', decided_by: caller.id });
+  });
+
+  it('a Needs approval item is not dismissed', async () => {
+    const answer = await suggest(lead);
+    await expect(
+      run(caller, dismissInboxItem, { entityId: 1, itemId: answer.inboxItemId }),
+    ).rejects.toMatchObject(reason('agent_needs_decision'));
+  });
+
+  it('is refused to a role without the inbox, to an agent, to someone it is not for, and in another company', async () => {
+    const answer = await suggestOnly(lead);
+    const input = { entityId: 1, itemId: answer.inboxItemId };
+    const field = await createTestPrincipal('field_engineer', [1]);
+    await expect(run(field, dismissInboxItem, input)).rejects.toMatchObject({ code: 'forbidden' });
+    const withInbox = principalFor('agent:copilot', [1], {
+      permissions: [{ key: 'agents.inbox.act', scope: 'entity' }],
+    });
+    await expect(run(withInbox, dismissInboxItem, input)).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(run(otherCaller, dismissInboxItem, input)).rejects.toMatchObject(
+      reason('inbox_item_missing'),
+    );
+    const elsewhere = await createTestPrincipal('general_manager', [2]);
+    await expect(run(elsewhere, dismissInboxItem, input)).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+  });
+});
+
 describe('agents.config.set', () => {
   it('an Executive sets an agent’s autonomy and daily cap for a company', async () => {
+    await asMigrator(
+      (m) => m`delete from agent_configs where agent = 'agent:sizing' and action_type is null
+                and entity_id = 2`,
+    );
     const dto = (await run(executive, setAgentConfig, {
       agent: 'agent:sizing',
       actionType: null,
@@ -386,13 +579,32 @@ describe('agents.config.set', () => {
     expect(again.id).toBe(dto.id);
   });
 
+  it('changes only the fields given: two Executives’ edits keep each other’s', async () => {
+    await asMigrator(
+      (m) => m`delete from agent_configs where agent = 'agent:orchestrator' and action_type is null
+                and entity_id = 3`,
+    );
+    const key = { agent: 'agent:orchestrator', actionType: null, entityId: 3 };
+    const first = (await run(executive, setAgentConfig, {
+      ...key,
+      autonomy: 'needs_approval',
+    })) as { id: string };
+    madeConfigs.push(first.id);
+    const second = await run(executive, setAgentConfig, { ...key, dailySpendCapPaise: 30_000 });
+    expect(second).toMatchObject({ autonomy: 'needs_approval', dailySpendCapPaise: 30_000 });
+    const third = await run(executive, setAgentConfig, { ...key, autonomy: null });
+    expect(third).toMatchObject({ autonomy: null, dailySpendCapPaise: 30_000 });
+    await expect(run(executive, setAgentConfig, key)).rejects.toMatchObject({
+      code: 'validation_failed',
+    });
+  });
+
   it('is refused to a GM and a caller, and for a company outside the request', async () => {
     const input = {
       agent: 'agent:sizing',
       actionType: null,
       entityId: 1,
       autonomy: 'suggest',
-      dailySpendCapPaise: null,
     };
     await expect(run(gm, setAgentConfig, input)).rejects.toMatchObject({ code: 'forbidden' });
     await expect(run(caller, setAgentConfig, input)).rejects.toMatchObject({ code: 'forbidden' });
@@ -405,53 +617,44 @@ describe('agents.config.set', () => {
     );
   });
 
-  it('allows Automatic only on one action type with 200 decisions, 95% approved unedited', async () => {
-    const input = {
-      agent: 'agent:copilot',
-      actionType: 'crm.task.create',
-      entityId: 3,
-      autonomy: 'automatic',
-      dailySpendCapPaise: null,
-    };
-    await expect(
-      run(executive, setAgentConfig, { ...input, actionType: null }),
-    ).rejects.toMatchObject(reason('autonomy_not_earned'));
-    const [record] = await asMigrator(
-      (m) => m<{ n: number }[]>`
-        select count(*) filter (where state = 'approved' and not edited)::int as n
-          from agent_actions where agent = 'agent:copilot' and action_type = 'crm.task.create'
-           and entity_id = 3`,
+  it('refuses Automatic in Phase 1, whatever the record', async () => {
+    // A fresh company-and-action key nobody else writes, and a record far past the rule's,
+    // written as the owner: Automatic is still refused.
+    const runId = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, request_id)
+                 values (${runId}, 3, 'agent:copilot', ${copilot(3).id}, 'record', ${TASK}, 'proposed', 'record')`;
+        await tx`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy, state, decided_by, decided_at, created_by)
+                 select gen_random_uuid(), 3, ${runId}, 'agent:copilot', ${TASK}, '{}'::jsonb,
+                        'needs_approval', 'approved', ${executive.id}, now(), ${copilot(3).id}
+                   from generate_series(1, 250)`;
+      }),
     );
-    if ((record?.n ?? 0) < 200) {
-      await expect(run(executive, setAgentConfig, input)).rejects.toMatchObject(
-        reason('autonomy_not_earned'),
-      );
-      // The record, written as the owner: 200 suggestions approved as they were.
-      await asMigrator((m) =>
-        m.begin(async (tx) => {
-          const runId = newId();
-          await tx`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, request_id)
-                   values (${runId}, 3, 'agent:copilot', ${copilot(3).id}, 'record', 'crm.task.create', 'proposed', 'record')`;
-          await tx`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy, state, decided_by, decided_at, created_by)
-                   select gen_random_uuid(), 3, ${runId}, 'agent:copilot', 'crm.task.create', '{}'::jsonb,
-                          'needs_approval', 'approved', ${executive.id}, now(), ${copilot(3).id}
-                     from generate_series(1, 200)`;
-        }),
-      );
+    for (const at of [
+      { actionType: TASK, entityId: 3 },
+      { actionType: null, entityId: 3 },
+      { actionType: TASK, entityId: null },
+    ]) {
+      await expect(
+        run(executive, setAgentConfig, { agent: 'agent:copilot', ...at, autonomy: 'automatic' }),
+      ).rejects.toMatchObject(reason('autonomy_automatic_unavailable'));
     }
-    const dto = (await run(executive, setAgentConfig, input)) as { id: string; autonomy: string };
-    madeConfigs.push(dto.id);
-    expect(dto.autonomy).toBe('automatic');
+    const [rows] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from agent_configs where agent = 'agent:copilot'
+           and autonomy = 'automatic'`,
+    );
+    expect(rows?.n).toBe(0);
   });
 
   it('refuses an action type the agent does not take', async () => {
     await expect(
       run(executive, setAgentConfig, {
         agent: 'agent:chief',
-        actionType: 'crm.task.create',
+        actionType: TASK,
         entityId: 1,
         autonomy: 'suggest',
-        dailySpendCapPaise: null,
       }),
     ).rejects.toMatchObject(reason('agent_action_unknown'));
   });
@@ -459,6 +662,10 @@ describe('agents.config.set', () => {
 
 describe('agents.killswitch.set', () => {
   it('a GM stops an agent in their company and lets it run again', async () => {
+    await asMigrator(
+      (m) => m`delete from agent_configs where agent = 'agent:orchestrator' and action_type is null
+                and entity_id = 1`,
+    );
     const off = (await run(gm, setKillSwitch, {
       agent: 'agent:orchestrator',
       entityId: 1,

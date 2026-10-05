@@ -18,7 +18,8 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 
-// The Agent Inbox and the agents screen's reads (docs/design/phase1.md §7.1), on company 2.
+// The Agent Inbox and the agents screen's reads (docs/design/phase1.md §7.1), on company 2. Each
+// test writes its own settings, replacing any row a run left with the same key, and removes them.
 
 const ENTITY = 2;
 const madeConfigs: string[] = [];
@@ -35,13 +36,35 @@ function run(principal: Principal, command: AnyCommand, input: unknown): Promise
   );
 }
 
+/** A setting for the Caller Co-pilot written as the owner, replacing any row with its key. */
+async function setting(row: {
+  actionType?: string | null;
+  entityId: number | null;
+  autonomy?: string | null;
+  cap?: number | null;
+  enabled?: boolean;
+}): Promise<string> {
+  const id = newId();
+  madeConfigs.push(id);
+  await asMigrator(async (m) => {
+    await m`delete from agent_configs where agent = 'agent:copilot'
+                     and action_type is not distinct from ${row.actionType ?? null} and entity_id is not distinct from ${row.entityId}`;
+    await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
+             values (${id}, 'agent:copilot', ${row.actionType ?? null}, ${row.entityId}, ${row.autonomy ?? null},
+                     ${row.cap ?? null}, ${row.enabled ?? true}, ${gm.id})`;
+  });
+  return id;
+}
+
+const drop = (id: string) => asMigrator((m) => m`delete from agent_configs where id = ${id}`);
+
 let team: string;
 let caller: Principal;
 let otherCaller: Principal;
 let gm: Principal;
 let lead: string;
 
-async function suggestFor(assignee: Principal | null, costPaise = 0): Promise<string> {
+async function suggestFor(assignee: Principal, costPaise = 0): Promise<string> {
   const answer = (await run(agentPrincipal('agent:copilot', ENTITY), recordAgentRun, {
     entityId: ENTITY,
     agent: 'agent:copilot',
@@ -62,7 +85,8 @@ async function suggestFor(assignee: Principal | null, costPaise = 0): Promise<st
       },
       subjectType: 'opportunity',
       subjectId: lead,
-      ...(assignee === null ? {} : { assigneeId: assignee.id, teamId: team }),
+      assigneeId: assignee.id,
+      teamId: team,
     },
   })) as { inboxItemId: string };
   return answer.inboxItemId;
@@ -95,16 +119,18 @@ describe('listInbox and countInbox', () => {
     const third = await suggestFor(caller);
     const page = await inbox(caller, { limit: 2 });
     expect(page.items.map((i) => i.id)).toEqual([third, second]);
+    // Under Suggest the card shows what the task would be, with nothing to edit.
     expect(page.items[0]).toMatchObject({
       agent: 'agent:copilot',
       actionType: 'crm.task.create',
       autonomy: 'suggest',
       subjectId: lead,
       assigneeId: caller.id,
-      fields: [
-        { name: 'dueAt', kind: 'date_time' },
-        { name: 'title', kind: 'text', value: null, maxLength: 80 },
+      summary: [
+        { name: 'assigneeId', kind: 'person', value: caller.id, label: 'test tele_caller_cc' },
+        { name: 'kind', kind: 'code', value: 'follow_up', label: null },
       ],
+      fields: [],
     });
     expect(page.nextCursor).not.toBeNull();
     const next = await inbox(caller, { limit: 2, cursor: page.nextCursor });
@@ -112,21 +138,40 @@ describe('listInbox and countInbox', () => {
     expect((await asPrincipal(caller, (ctx) => countInbox(ctx))).open).toBeGreaterThanOrEqual(3);
   });
 
+  it('shows the fields a person may change under Needs approval', async () => {
+    const mode = await setting({
+      entityId: ENTITY,
+      actionType: 'crm.task.create',
+      autonomy: 'needs_approval',
+    });
+    try {
+      const id = await suggestFor(caller);
+      const item = (await inbox(caller)).items.find((i) => i.id === id);
+      expect(item).toMatchObject({
+        autonomy: 'needs_approval',
+        fields: [
+          { name: 'dueAt', kind: 'date_time' },
+          { name: 'title', kind: 'text', value: null, maxLength: 80 },
+        ],
+      });
+    } finally {
+      await drop(mode);
+    }
+  });
+
   it('never shows another caller’s item; the company’s items show at company scope only', async () => {
     const mine = await suggestFor(caller);
-    const nobodys = await suggestFor(null);
     const other = (await inbox(otherCaller)).items.map((i) => i.id);
     expect(other).not.toContain(mine);
-    expect(other).not.toContain(nobodys);
     const all = (await inbox(gm)).items.map((i) => i.id);
-    expect(all).toEqual(expect.arrayContaining([mine, nobodys]));
+    expect(all).toContain(mine);
     expect(
       (await inbox(principalFor('general_manager', [1]))).items.map((i) => i.id),
     ).not.toContain(mine);
   });
 
   it('shows the customer’s name to whoever reads the lead', async () => {
-    const id = await suggestFor(null);
+    const id = await suggestFor(caller);
     const item = (await inbox(gm)).items.find((i) => i.id === id);
     expect(item?.subjectName).toBe('Inbox list farm');
   });
@@ -151,40 +196,49 @@ describe('listInbox and countInbox', () => {
 });
 
 describe('loadAgentSettings', () => {
-  it('shows each agent’s switch, autonomy, cap and spend today at the company', async () => {
-    const id = newId();
-    madeConfigs.push(id);
-    await asMigrator(async (m) => {
-      // A row another suite left for the same agent, action type and company (the journeys' seed
-      // keeps the Caller Co-pilot's) gives way to this test's own.
-      await m`delete from agent_configs where agent is not distinct from 'agent:copilot'
-                       and action_type is not distinct from null and entity_id is not distinct from ${ENTITY}`;
-      await m`insert into agent_configs (id, agent, action_type, entity_id, autonomy, daily_spend_cap_paise, enabled, created_by)
-               values (${id}, 'agent:copilot', null, ${ENTITY}, 'needs_approval', 9000, false, ${gm.id})`;
-    });
-    await suggestFor(null, 40);
-    const settings = await asPrincipal(gm, (ctx) => loadAgentSettings(ctx));
-    expect(settings.entityId).toBe(ENTITY);
-    const copilot = settings.agents.find((a) => a.agent === 'agent:copilot');
-    expect(copilot).toMatchObject({
-      enabled: false,
-      stopped: true,
+  it('shows each agent’s switch, autonomy, caps and spend today at the company, and where each comes from', async () => {
+    const company = await setting({
+      entityId: ENTITY,
       autonomy: 'needs_approval',
-      dailySpendCapPaise: 9000,
+      cap: 9000,
+      enabled: false,
     });
-    expect(copilot?.spentTodayPaise).toBeGreaterThanOrEqual(40);
-    expect(copilot?.actionTypes).toEqual([
-      expect.objectContaining({
-        actionType: 'crm.task.create',
-        effectiveAutonomy: 'needs_approval',
-        automaticEarned: false,
-      }),
-    ]);
-    expect(settings.agents.find((a) => a.agent === 'agent:chief')).toMatchObject({
-      enabled: true,
-      stopped: false,
-      actionTypes: [],
-    });
+    const group = await setting({ entityId: null, autonomy: 'suggest', cap: 50_000 });
+    try {
+      await suggestFor(caller, 40);
+      const settings = await asPrincipal(gm, (ctx) => loadAgentSettings(ctx));
+      expect(settings).toMatchObject({ entityId: ENTITY, automaticAvailable: false });
+      const copilot = settings.agents.find((a) => a.agent === 'agent:copilot');
+      expect(copilot).toMatchObject({
+        enabled: false,
+        stopped: true,
+        autonomy: 'needs_approval',
+        effective: { autonomy: 'needs_approval', source: 'agent_company' },
+        // The empty choice would take the group's setting.
+        inherited: { autonomy: 'suggest', source: 'agent_group' },
+        dailySpendCapPaise: 9000,
+        groupCapPaise: 50_000,
+      });
+      expect(copilot?.spentTodayPaise).toBeGreaterThanOrEqual(40);
+      expect(copilot?.actionTypes).toEqual([
+        expect.objectContaining({
+          actionType: 'crm.task.create',
+          autonomy: null,
+          effective: { autonomy: 'needs_approval', source: 'agent_company' },
+          inherited: { autonomy: 'needs_approval', source: 'agent_company' },
+        }),
+      ]);
+      expect(settings.agents.find((a) => a.agent === 'agent:chief')).toMatchObject({
+        enabled: true,
+        stopped: false,
+        effective: { autonomy: 'suggest', source: 'default' },
+        groupCapPaise: null,
+        actionTypes: [],
+      });
+    } finally {
+      await drop(group);
+      await drop(company);
+    }
   });
 
   it('is refused without an agent control', async () => {

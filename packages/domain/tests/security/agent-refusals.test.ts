@@ -73,18 +73,18 @@ function grantsOf(role: AgentRoleKey | SystemRoleKey): readonly PermissionGrant[
  * below until it has an input here.
  */
 const INPUTS: Record<string, unknown> = {
-  // The human controls of the agents (SECURITY §3.3): no agent approves its own suggestions,
+  // The human controls of the agents (SECURITY §3.3): no agent decides on its own suggestions,
   // changes its autonomy or stops agents.
   'agents.config.set': {
     agent: 'agent:copilot',
     actionType: 'crm.task.create',
     entityId: 1,
-    autonomy: 'automatic',
-    dailySpendCapPaise: null,
+    autonomy: 'needs_approval',
   },
   'agents.inbox.approve': { entityId: 1, itemId: newId() },
   'agents.inbox.edit': { entityId: 1, itemId: newId(), changes: { title: 'Refused edit' } },
   'agents.inbox.reject': { entityId: 1, itemId: newId() },
+  'agents.inbox.dismiss': { entityId: 1, itemId: newId() },
   'agents.killswitch.set': { agent: null, entityId: 1, enabled: true },
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',

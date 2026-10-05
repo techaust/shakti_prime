@@ -27,7 +27,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 ## Notes
 
 - `file`: Filed by an agent with the action it proposes; only an agent files one in Phase 1.
-- `decide`: With the decision on its action: approved, edited or rejected.
+- `decide`: With the decision on its action: approved, edited, rejected or dismissed.
 
 ## Diagram
 

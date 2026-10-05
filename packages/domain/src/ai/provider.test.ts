@@ -2,7 +2,7 @@ import { DomainError } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import { memoryKeyValue } from '../ports/key-value';
 import { memoryLogger } from '../ports/logger';
-import { costInPaise, DEFAULT_CLAUDE_MODEL, PAISE_PER_USD } from './models';
+import { costInPaise, DEFAULT_CLAUDE_MODEL, maxCostInPaise, PAISE_PER_USD } from './models';
 import {
   BREAKER_FAILURES,
   createAiProvider,
@@ -14,7 +14,8 @@ import {
 import { fakeModelTransport, fakeReply, ModelCallError, type FakeStep } from './transport';
 
 // The provider wrapper (ADR 0011): every call is masked, timed out, retried a bounded number of
-// times, stopped by an open breaker and by the agent's daily cap, and charged after it answers.
+// times, stopped by an open breaker and by the agent's daily caps (the company's and the group's
+// both), with the most it can cost reserved before it is sent and settled at its cost after.
 // Every test uses the fake transport; nothing here reaches a vendor.
 
 const NOW = new Date('2026-10-05T06:30:00Z');
@@ -47,7 +48,7 @@ const call = (over: Partial<CompleteCall> = {}): CompleteCall => ({
   agent: 'agent:copilot',
   purpose: 'follow_up',
   entityId: 1,
-  cap: { paise: 10_000, entityId: null },
+  caps: [{ paise: 10_000, entityId: null }],
   system: 'You suggest follow-up tasks.',
   question: 'What should happen next?',
   ...over,
@@ -88,7 +89,8 @@ describe('createAiProvider', () => {
     const sent = transport.requests[0];
     expect(sent?.model).toBe(DEFAULT_CLAUDE_MODEL);
     expect(sent?.user).not.toMatch(/98765|rekha@|2345 6789/);
-    expect(sent?.user).toContain('3210');
+    expect(sent?.user).toContain('Call [phone] or write to [email]');
+    expect(sent?.user).toContain('My Aadhaar is [number].');
     expect(sent?.user).toContain('<untrusted_data source="whatsapp">');
     // The data cannot close its own label.
     expect(sent?.user.match(/<\/untrusted_data>/g)).toHaveLength(1);
@@ -144,8 +146,10 @@ describe('createAiProvider', () => {
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     });
+    // ₹104 a dollar (the agents' defaults): a million input tokens of Haiku 4.5 at $1.
+    expect(PAISE_PER_USD).toBe(10_400);
     expect(price).toBe(PAISE_PER_USD);
-    const capped = call({ cap: { paise: price, entityId: 1 } });
+    const capped = call({ caps: [{ paise: price, entityId: 1 }] });
     await expect(provider.complete(capped)).resolves.toMatchObject({ costPaise: price });
     const day = istDay(NOW);
     expect(await keyValue.get(spendKey('agent:copilot', 1, day))).toBe(String(price));
@@ -154,10 +158,62 @@ describe('createAiProvider', () => {
       code: 'rate_limited',
       details: { reason: 'agent_spend_cap_reached' },
     });
+    // The refused call gave its reservation back.
+    expect(await keyValue.get(spendKey('agent:copilot', 1, day))).toBe(String(price));
     // Another company's cap counts only that company's spend.
     await expect(
-      provider.complete(call({ entityId: 2, cap: { paise: price, entityId: 2 } })),
+      provider.complete(call({ entityId: 2, caps: [{ paise: price, entityId: 2 }] })),
     ).resolves.toBeDefined();
+  });
+
+  it('applies the company’s cap and the group’s cap both', async () => {
+    const usage = { inputTokens: 100_000, outputTokens: 0 };
+    const { provider } = setup([fakeReply('ok', usage)]);
+    // The group's cap is reached by company 1's spend, so company 2's call is refused although
+    // its own cap is far off.
+    const group = { paise: 1_060, entityId: null };
+    await expect(
+      provider.complete(call({ entityId: 1, caps: [{ paise: 100_000, entityId: 1 }, group] })),
+    ).resolves.toMatchObject({ costPaise: 1_040 });
+    await expect(
+      provider.complete(call({ entityId: 2, caps: [{ paise: 100_000, entityId: 2 }, group] })),
+    ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
+    // With no cap at all, no call is made.
+    await expect(provider.complete(call({ caps: [] }))).rejects.toMatchObject({
+      details: { reason: 'agent_spend_cap_reached' },
+    });
+  });
+
+  it('reserves the most a call can cost before sending it, so two at once cannot both pass', async () => {
+    const { provider, keyValue, transport } = setup([fakeReply('ok', { outputTokens: 10 })]);
+    const most = maxCostInPaise(
+      DEFAULT_CLAUDE_MODEL,
+      new TextEncoder().encode(call().system).length +
+        new TextEncoder().encode(call().question).length,
+      1024,
+    );
+    const caps = [{ paise: most + 1, entityId: 1 }];
+    const both = await Promise.allSettled([
+      provider.complete(call({ caps })),
+      provider.complete(call({ caps })),
+    ]);
+    expect(both.map((r) => r.status).sort()).toEqual(['fulfilled', 'rejected']);
+    expect(transport.requests).toHaveLength(1);
+    // Settled at what the one call cost.
+    const cost = costInPaise(DEFAULT_CLAUDE_MODEL, {
+      inputTokens: 100,
+      outputTokens: 10,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe(String(cost));
+  });
+
+  it('gives the reservation back when the call fails', async () => {
+    const { provider, keyValue } = setup([new ModelCallError('http', { status: 400 })]);
+    await expect(provider.complete(call())).rejects.toBeInstanceOf(DomainError);
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
   });
 
   it('refuses a model with no price, so no spend goes uncounted', async () => {

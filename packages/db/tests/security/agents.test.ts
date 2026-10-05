@@ -200,6 +200,16 @@ describe('agent_actions and inbox_items', () => {
            where id = ${item} returning id`,
     );
     expect(closed).toHaveLength(1);
+    // A Suggest suggestion is dismissed the same way, once.
+    const dismissed = await suggestion(caller.id, team);
+    const dismiss = () =>
+      runAs(
+        caller,
+        sql`update agent_actions set state = 'dismissed', decided_by = ${caller.id}, decided_at = now()
+             where id = ${dismissed.action} returning id`,
+      );
+    expect(await dismiss()).toHaveLength(1);
+    expect(await dismiss()).toHaveLength(0);
   });
 });
 
