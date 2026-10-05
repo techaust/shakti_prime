@@ -1,38 +1,209 @@
 import { redactText } from '../ports/redaction';
 
 // Text on its way to a language model (SECURITY §5 and §6, AGENTS §9). Personal data is replaced
-// by placeholders, never kept in part: a phone number becomes `[phone]`; any other run of nine or
-// more digits (an Aadhaar or bank account number, however it is spaced, dotted or hyphenated, and
-// in Devanagari or other Indian digits) becomes `[number]`; email and UPI addresses, PAN and GSTIN
-// become `[email]`, `[upi]`, `[pan]` and `[gstin]`. Street addresses are masked on a best-effort
-// heuristic only (SECURITY §6, a known limitation): a house, flat, plot or similar number after
-// its label becomes `[address]`, and a PIN code after its label or a place name becomes `[pin]`.
+// by placeholders, never kept in part, by one method rather than a pattern per spelling:
+//
+// 1. The text is read in a normalised form, for finding things only: every decimal digit of any
+//    script as an ASCII digit; every space, tab, line break, format character and Unicode dash or
+//    minus as one space; full-width letters and signs as ASCII. Each normalised position maps back
+//    to the original, so a placeholder replaces exactly the original characters.
+// 2. UUIDs, then email and UPI addresses, GSTIN and PAN (with or without spaces or hyphens between
+//    their groups) are found first.
+// 3. Shapes known to be safe are set aside next, but only when they stand alone (no digit joined
+//    to them by a separator): dates, times, timestamps with their offset, ranges of them, rupee
+//    amounts after ₹, Rs, INR or an amount word, quantities with their unit, and product codes.
+// 4. Then any run of digit groups joined by at most three separators (space . , / _ - : and
+//    brackets), digits touching letters included, holding nine or more digits becomes `[phone]`
+//    (a mobile or landline shape) or `[number]` (an Aadhaar, bank account or any other number).
+// 5. Addresses on a best-effort heuristic (SECURITY §6, a known limitation): a house, plot, flat,
+//    khasra, ward or gali number after its label becomes `[address]`, and a PIN code after its
+//    label or after a capitalised place name becomes `[pin]`.
+//
+// Texts longer than `MODEL_TEXT_LIMIT` are cut first, so no pattern runs on unbounded input.
 // Callers still send only the fields a run needs.
 
-/** The zero of each Indian script's digits, the Arabic-Indic ones and the full-width ones. */
-const DIGIT_ZEROS = [
-  0x0660, 0x06f0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0xff10,
-];
+/** The longest text masked and sent; the rest is cut off with a marker. */
+export const MODEL_TEXT_LIMIT = 20_000;
+const TRUNCATED = ' [truncated]';
+
+const DECIMAL_DIGIT = /^\p{Nd}$/u;
+const digitValues = new Map<number, number>();
+
+/**
+ * The value of a decimal digit of any script. Unicode keeps each script's digits as ten
+ * consecutive code points from zero, so the value is the distance from the start of the run.
+ */
+function digitValue(point: number): number {
+  const known = digitValues.get(point);
+  if (known !== undefined) return known;
+  let start = point;
+  while (start > 0 && point - start < 60 && DECIMAL_DIGIT.test(String.fromCodePoint(start - 1)))
+    start -= 1;
+  const value = (point - start) % 10;
+  digitValues.set(point, value);
+  return value;
+}
 
 /** `text` with every decimal digit of any script written as an ASCII digit. */
 export function asciiDigits(text: string): string {
-  return text.replace(/\p{Nd}/gu, (c) => {
-    if (/[0-9]/.test(c)) return c;
-    const point = c.codePointAt(0) ?? 0x30;
-    const zero = DIGIT_ZEROS.find((z) => point >= z && point <= z + 9);
-    // A digit of another script still counts as a digit; which one does not matter for masking.
-    return zero === undefined ? '0' : String(point - zero);
-  });
+  return text.replace(/\p{Nd}/gu, (c) =>
+    /[0-9]/.test(c) ? c : String(digitValue(c.codePointAt(0) ?? 0x30)),
+  );
 }
 
-/** A UUID, which may hold long runs of digits and is never personal data: kept as it is. */
-const UUID = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+/** Characters read as a space: every space, tab, line break, format character, dash and minus. */
+const SPACE_LIKE = /^[\p{Zs}\p{Cf}\s‐-―−]$/u;
 
-/** What may join the groups of a number as people write it: spaces, dots, hyphens, brackets. */
-const SEP = '[ \\t.()\\u2010-\\u2015-]{1,3}';
+interface Normalised {
+  text: string;
+  /** For each code unit of `text`, where its character starts and ends in the original. */
+  starts: number[];
+  ends: number[];
+}
 
-/** Digits in groups, standing alone: no word character, and no joined digit, on either side. */
-const DIGIT_RUN = new RegExp(`(?<!\\w|\\d${SEP})\\(?\\+?\\d+(?:${SEP}\\d+)*(?!\\w|${SEP}\\d)`, 'g');
+/** The text as the masks read it, with the map back to the original (step 1). */
+function normalise(original: string): Normalised {
+  const out: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let i = 0;
+  while (i < original.length) {
+    const point = original.codePointAt(i) ?? 0;
+    const width = point > 0xffff ? 2 : 1;
+    const char = String.fromCodePoint(point);
+    let read: string;
+    if (point < 0x80) read = /\s/.test(char) ? ' ' : char;
+    else if (SPACE_LIKE.test(char)) read = ' ';
+    else if (DECIMAL_DIGIT.test(char)) read = String(digitValue(point));
+    else {
+      const compatible = char.normalize('NFKC');
+      read = compatible.length === 1 && compatible.charCodeAt(0) < 0x80 ? compatible : char;
+    }
+    if (read === ' ' && out.at(-1) === ' ') {
+      // A run of spaces reads as one.
+      ends[ends.length - 1] = i + width;
+    } else {
+      for (let u = 0; u < read.length; u++) {
+        out.push(read.charAt(u));
+        starts.push(i);
+        ends.push(i + width);
+      }
+    }
+    i += width;
+  }
+  return { text: out.join(''), starts, ends };
+}
+
+/** A stretch of the normalised text: masked by a placeholder, or (null) kept as safe. */
+interface Span {
+  start: number;
+  end: number;
+  placeholder: string | null;
+}
+
+/** What stands in for a stretch already taken: no pattern reads it as anything. */
+const TAKEN = '\u0001';
+
+/**
+ * Runs one pattern over the text not yet taken, records the stretches `decide` keeps or masks, and
+ * returns the text with them taken.
+ */
+function pass(
+  work: string,
+  spans: Span[],
+  pattern: RegExp,
+  decide: (match: RegExpExecArray) => Span | null,
+): string {
+  const found: Span[] = [];
+  for (const match of work.matchAll(pattern)) {
+    const span = decide(match);
+    if (span !== null && span.end > span.start) found.push(span);
+  }
+  if (found.length === 0) return work;
+  spans.push(...found);
+  let out = '';
+  let at = 0;
+  for (const span of found) {
+    out += work.slice(at, span.start) + TAKEN.repeat(span.end - span.start);
+    at = span.end;
+  }
+  return out + work.slice(at);
+}
+
+/** The whole match as one stretch. */
+const whole =
+  (placeholder: string | null) =>
+  (match: RegExpExecArray): Span => ({
+    start: match.index,
+    end: match.index + match[0].length,
+    placeholder,
+  });
+
+// What may join the groups of a number as people write it.
+const SEP = '[ .,/_:()-]';
+/** Nothing joined on the left: no letter or digit touching it, no digit a separator away. */
+const ALONE_BEFORE = `(?<![\\p{L}\\p{N}_]|\\d${SEP}{1,3})`;
+/** Nothing joined on the right. */
+const ALONE_AFTER = `(?![\\p{L}\\p{N}_]|${SEP}{1,3}\\d)`;
+
+// Step 2: shapes that are personal data whatever surrounds them.
+const UUID =
+  /(?<![0-9a-z])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![0-9a-z])/gi;
+const EMAIL = /(?<![\w.+-])[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+/** A UPI address; a sentence's full stop after it still ends it. */
+const UPI = /(?<![\w.+-])[\w.-]{2,256}@[a-z][a-z-]{1,63}(?![\w@-]|\.[a-z])/gi;
+const G = '[ -]?';
+const PAN_BODY = `[a-z]{3}[abcfghljpt][a-z]${G}\\d{4}${G}[a-z]`;
+const GSTIN = new RegExp(
+  `(?<![\\p{L}\\p{N}])\\d{2}${G}${PAN_BODY}${G}[1-9a-z]${G}z${G}[\\da-z](?![\\p{L}\\p{N}])`,
+  'giu',
+);
+const PAN = new RegExp(`(?<![\\p{L}\\p{N}])${PAN_BODY}(?![\\p{L}\\p{N}])`, 'giu');
+
+// Step 3: shapes kept as they are when they stand alone.
+const DAY = '(?:0?[1-9]|[12]\\d|3[01])';
+const MONTH = '(?:0?[1-9]|1[0-2])';
+const YEAR = '(?:19|20)\\d{2}';
+const HOUR = '(?:[01]?\\d|2[0-3])';
+const MINUTE = '[0-5]\\d';
+const CLOCK = `${HOUR}:${MINUTE}(?::${MINUTE}(?:\\.\\d{1,6})?)?(?: ?(?:[+-]\\d{2}(?::?\\d{2})?|Z))?(?: ?[aApP]\\.?[mM]\\.?)?`;
+const TIME = `(?:${CLOCK}|${HOUR}\\.${MINUTE})`;
+const DATE = `(?:${DAY}-${MONTH}-${YEAR}|${DAY}\\.${MONTH}\\.${YEAR}|${DAY}/${MONTH}/${YEAR}|${YEAR}-${MONTH}-${DAY}|${YEAR}/${MONTH}/${DAY})`;
+const DATE_TIME = `${DATE}(?:[ T]${CLOCK})?`;
+const RANGE = '(?: ?- ?| | to | till | until )';
+const DATES = new RegExp(
+  `${ALONE_BEFORE}${DATE_TIME}(?:${RANGE}${DATE_TIME})?${ALONE_AFTER}`,
+  'gu',
+);
+const TIMES = new RegExp(`${ALONE_BEFORE}${TIME}(?:${RANGE}${TIME})?${ALONE_AFTER}`, 'gu');
+/** A rupee figure: lakh or western commas (at most eleven digits), or nine digits plain. */
+const RUPEES =
+  '(?:\\d{1,2}(?:,\\d{2}){1,3},\\d{3}|\\d{1,3}(?:,\\d{3}){1,2}|\\d{1,9})(?:\\.\\d{1,2})?(?: ?/-)?(?: ?(?:lakhs?|lacs?|crores?|cr))?';
+const CURRENCY = '(?:₹|rs\\.?|inr|rupees?)';
+const AMOUNT_WORD =
+  '(?:amount|budget|costs?|quoted|price|total|paid|balance|mrp|value|emi)(?: of| is| at)?:?';
+const AMOUNTS = new RegExp(
+  `${ALONE_BEFORE}(?:${CURRENCY} ?|${AMOUNT_WORD} ?(?:${CURRENCY} ?)?)${RUPEES}(?: ?- ?(?:${CURRENCY} ?)?${RUPEES})?${ALONE_AFTER}`,
+  'giu',
+);
+const QUANTITY_NUMBER = '\\d{1,6}(?:\\.\\d{1,3})?';
+const UNIT =
+  '(?:kwp|kwh|kw|kva|hp|mm|cm|m|ft|feet|inch(?:es)?|%|panels?|nos\\.?|litres?|liters?|v|w)';
+const QUANTITIES = new RegExp(
+  `${ALONE_BEFORE}${QUANTITY_NUMBER}(?: ?(?:-|to) ?${QUANTITY_NUMBER})? ?${UNIT}${ALONE_AFTER}`,
+  'giu',
+);
+/** A product or document code (`SP-7.5-100-2026`): capitals, then short groups and a year. */
+const CODES = new RegExp(
+  `(?<![\\p{L}\\p{N}_-])[A-Z]{1,4}(?:-[A-Z]{1,4})*(?:-\\d{1,3}(?:\\.\\d{1,2})?)+(?:-${YEAR})?${ALONE_AFTER}`,
+  'gu',
+);
+/** The most digits a code keeps, its year aside: a code never hides a number. */
+const CODE_DIGITS = 6;
+
+// Step 4: runs of digits.
+const DIGIT_RUN = new RegExp(`(?<![\\d+(])(?:\\+ ?|\\( ?)?\\d+(?:${SEP}{1,3}\\d+)*`, 'g');
+const MASKED_DIGITS = 9;
 
 /** Whether a run of digits reads as an Indian mobile or landline number. */
 function isPhone(raw: string, digits: string): boolean {
@@ -44,50 +215,121 @@ function isPhone(raw: string, digits: string): boolean {
   return false;
 }
 
-/** A label before a house, flat, plot or similar number, then the number itself. */
-const HOUSE_NUMBER =
-  /\b(?:h(?:ouse)?\.?\s?no|flat(?:\s?no)?|plot(?:\s?no)?|door\s?no|khasra(?:\s?no)?|ward(?:\s?no)?|gali(?:\s?no)?|street\s?no|sector|block|quarter\s?no|shop\s?no)\b\.?\s*[:#-]?\s*[\w/-]*\d[\w/-]*/gi;
+// Step 5: addresses, after their labels only.
+const HOUSE_NUMBER = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(?:(?:house|h|door|shop|quarter|qtr)\\.? ?(?:no|number)\\.?|(?:plot|flat|khasra|ward|gali)(?:\\.? ?(?:no|number)\\.?)?) ?[:#-]? ?[\\p{L}\\p{N}/-]*\\d[\\p{L}\\p{N}/-]*`,
+  'giu',
+);
+const LABELLED_PIN = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(?:pin ?code|pin|postal ?code)\\.? ?[:#-]? ?[1-9]\\d{2} ?\\d{3}(?!\\p{N})`,
+  'giu',
+);
+/** Six digits right after a capitalised place name (`Jaipur 302001`, `Rajasthan - 302 001`). */
+const PLACE_PIN = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(\\p{Lu}\\p{Ll}{2,})(,? ?-? ?)([1-8]\\d{2} ?\\d{3})(?![\\p{L}\\p{N}_]|[.,]\\d|${SEP}{1,3}\\d| ?%)`,
+  'gu',
+);
+/** Capitalised words before six digits that are not places. */
+const NOT_A_PLACE = new Set([
+  'about',
+  'account',
+  'amount',
+  'approx',
+  'around',
+  'balance',
+  'bill',
+  'budget',
+  'call',
+  'code',
+  'cost',
+  'costs',
+  'emi',
+  'invoice',
+  'lead',
+  'mobile',
+  'mrp',
+  'number',
+  'only',
+  'order',
+  'paid',
+  'paise',
+  'phone',
+  'price',
+  'qty',
+  'quote',
+  'quoted',
+  'rate',
+  'receipt',
+  'ref',
+  'rupee',
+  'rupees',
+  'total',
+  'value',
+  'year',
+]);
 
-/** A hash and a number, as `#12` is written in an address. */
-const HASH_NUMBER = /(?<![\w&])#\s?\d[\w/-]*/g;
+/** The stretches of the normalised text to mask, in order (steps 2 to 5). */
+function findSpans(text: string): Span[] {
+  const spans: Span[] = [];
+  let work = text;
+  work = pass(work, spans, UUID, whole(null));
+  work = pass(work, spans, EMAIL, whole('[email]'));
+  work = pass(work, spans, UPI, whole('[upi]'));
+  work = pass(work, spans, GSTIN, whole('[gstin]'));
+  work = pass(work, spans, PAN, whole('[pan]'));
+  work = pass(work, spans, DATES, whole(null));
+  work = pass(work, spans, TIMES, whole(null));
+  work = pass(work, spans, AMOUNTS, whole(null));
+  work = pass(work, spans, QUANTITIES, whole(null));
+  work = pass(work, spans, CODES, (match) => {
+    const groups = match[0].split('-').filter((g) => /\d/.test(g));
+    const last = groups.at(-1) ?? '';
+    const yearless = new RegExp(`^${YEAR}$`).test(last) ? groups.slice(0, -1) : groups;
+    const digits = yearless.join('').replace(/\D/g, '').length;
+    return digits <= CODE_DIGITS ? whole(null)(match) : null;
+  });
+  work = pass(work, spans, HOUSE_NUMBER, whole('[address]'));
+  work = pass(work, spans, LABELLED_PIN, whole('[pin]'));
+  work = pass(work, spans, DIGIT_RUN, (match) => {
+    const digits = match[0].replace(/\D/g, '');
+    if (digits.length < MASKED_DIGITS) return null;
+    return whole(isPhone(match[0], digits) ? '[phone]' : '[number]')(match);
+  });
+  pass(work, spans, PLACE_PIN, (match) => {
+    const [all, word = '', , pin = ''] = match;
+    if (NOT_A_PLACE.has(word.toLowerCase())) return null;
+    const end = match.index + all.length;
+    return { start: end - pin.length, end, placeholder: '[pin]' };
+  });
+  return spans.sort((a, b) => a.start - b.start);
+}
 
-/** A PIN code after its label. */
-const LABELLED_PIN = /\b(?:pin(?:\s?code)?|postal\s?code)\b\.?\s*[:#-]?\s*[1-9]\d{2}\s?\d{3}\b/gi;
+/** Whether a cut text may end on this character: anything that could be part of a number. */
+const PART_OF_A_NUMBER = /^[\p{Nd}\p{Zs}\p{Cf}\s.,/_:()+‐-―−-]$/u;
 
-/** Six digits after a word (`Jaipur 302001`, `Rajasthan - 302 001`); kept after a currency. */
-const PLACE_PIN = /\b([A-Za-z]{2,}\.?,?\s?-?\s?)([1-8]\d{2}\s?\d{3})(?![\w.,]?\d|\s?%)/g;
-const NOT_A_PLACE = /^(?:rs|inr|rupees?|paise|amount|total|price|cost|mrp|qty|no|number)\b/i;
-
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
-const UPI = /(?<![\w.+-])[\w.-]{2,256}@[a-z]{2,64}(?![\w.@-])/gi;
-const GSTIN = /\b\d{2}[a-z]{5}\d{4}[a-z][a-z\d]z[a-z\d]\b/gi;
-const PAN = /\b[a-z]{3}[abcfghljpt][a-z]\d{4}[a-z]\b/gi;
-
-function maskSegment(segment: string): string {
-  return segment
-    .replace(EMAIL, '[email]')
-    .replace(UPI, '[upi]')
-    .replace(GSTIN, '[gstin]')
-    .replace(PAN, '[pan]')
-    .replace(HOUSE_NUMBER, '[address]')
-    .replace(HASH_NUMBER, '[address]')
-    .replace(LABELLED_PIN, '[pin]')
-    .replace(DIGIT_RUN, (raw) => {
-      const digits = raw.replace(/\D/g, '');
-      if (digits.length < 9) return raw;
-      return isPhone(raw, digits) ? '[phone]' : '[number]';
-    })
-    .replace(PLACE_PIN, (whole, word: string) => (NOT_A_PLACE.test(word) ? whole : `${word}[pin]`));
+/** `text` cut to `MODEL_TEXT_LIMIT`, with no number left half-written at the cut. */
+function capped(text: string): string {
+  if (text.length <= MODEL_TEXT_LIMIT) return text;
+  let end = MODEL_TEXT_LIMIT;
+  while (end > 0 && PART_OF_A_NUMBER.test(text.charAt(end - 1))) end -= 1;
+  return text.slice(0, end) + TRUNCATED;
 }
 
 /** `text` as a model may read it. */
 export function maskForModel(text: string): string {
-  const masked = asciiDigits(text)
-    .split(UUID)
-    .map((part, i) => (i % 2 === 1 ? part : maskSegment(part)))
-    .join('');
+  const original = capped(text);
+  const { text: read, starts, ends } = normalise(original);
+  let out = '';
+  let at = 0;
+  for (const span of findSpans(read)) {
+    if (span.placeholder === null) continue;
+    const from = starts[span.start] ?? at;
+    const to = ends[span.end - 1] ?? from;
+    out += asciiDigits(original.slice(at, from)) + span.placeholder;
+    at = to;
+  }
   // Links, keys and passwords pasted into text, scrubbed as the logs scrub them.
-  return redactText(masked);
+  return redactText(out + asciiDigits(original.slice(at)));
 }
 
 /**
