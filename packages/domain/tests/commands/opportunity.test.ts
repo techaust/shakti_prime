@@ -402,10 +402,16 @@ describe('the opportunity commands (design §7.2)', () => {
         ),
       );
       expect(parked).toMatchObject({ state: 'nurture', stageId: stageId(1, 2) });
-      expect(recorded.records[0]?.after).toEqual({
+      expect(recorded.records.find((r) => r.aggregateType === 'opportunity')?.after).toEqual({
         state: 'nurture',
         nurtureReason: 'waiting_for_subsidy',
       });
+      // Its nurture calls on day 7, 30 and 90 (the owner's default for CALL-5), as tasks.
+      expect(
+        recorded.records
+          .filter((r) => r.command === 'crm.task.create')
+          .map((r) => (r.after as { taskKind: string }).taskKind),
+      ).toEqual(['nurture', 'nurture', 'nurture']);
       expect(emitted.records[0]).toMatchObject({
         type: 'crm.opportunity.nurtured',
         payload: { reasonCode: 'waiting_for_subsidy' },

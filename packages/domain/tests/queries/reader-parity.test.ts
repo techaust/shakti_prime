@@ -13,6 +13,12 @@ import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
 import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
+  dialNumber,
+  listCallQueue,
+  listTeamQueues,
+  loadCallLead,
+} from '../../src/queries/calls/call-queue';
+import {
   listCustomers,
   listMyTasks,
   listTimeline,
@@ -121,6 +127,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
+  listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
+  loadCallLead: (ctx) => loadCallLead(ctx, { entityId: 1, opportunityId: newId() }),
+  listTeamQueues: (ctx) => listTeamQueues(ctx, {}, new Date(NOW)),
 };
 
 /**
@@ -129,6 +138,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
  */
 const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
+  dialNumber: (ctx) =>
+    dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */

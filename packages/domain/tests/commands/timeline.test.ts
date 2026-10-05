@@ -134,6 +134,10 @@ describe('the timeline rows of the lead commands', () => {
       'stage_moved',
       'assigned',
       'nurtured',
+      // The nurture calls on day 7, 30 and 90 (CALL-5).
+      'task_created',
+      'task_created',
+      'task_created',
       'reopened',
       'lost',
     ]);
@@ -147,7 +151,7 @@ describe('the timeline rows of the lead commands', () => {
     });
     expect(rows[2]?.payload_json).toEqual({ fromOwnerId: gm.id, ownerId: converter, teamId });
     expect(rows[3]?.payload_json).toEqual({ reasonCode: 'waiting_for_funds' });
-    expect(rows[5]?.payload_json).toMatchObject({ reasonCode: 'no_budget' });
+    expect(rows[8]?.payload_json).toMatchObject({ reasonCode: 'no_budget' });
   });
 
   it('a refused command writes no row', async () => {
