@@ -314,10 +314,38 @@ export async function listTimeline(ctx: Ctx, rawInput: unknown): Promise<Timelin
               .where(inArray(schema.tags.id, tagIds))
           ).map((t) => [t.id, t.name]),
         );
+  // A logged call keeps its outcome's id; the outcome's name is read now, as a tag's is.
+  const outcomeIds = [
+    ...new Set(
+      page.flatMap((r) => {
+        const id = (r.payload as Record<string, unknown>).dispositionId;
+        return r.type === 'call_logged' && typeof id === 'string' && IdSchema.safeParse(id).success
+          ? [id]
+          : [];
+      }),
+    ),
+  ];
+  const outcomeNames =
+    outcomeIds.length === 0
+      ? new Map<string, string>()
+      : new Map(
+          (
+            await ctx.tx
+              .select({ id: schema.callDispositions.id, label: schema.callDispositions.label })
+              .from(schema.callDispositions)
+              .where(inArray(schema.callDispositions.id, outcomeIds))
+          ).map((d) => [d.id, d.label]),
+        );
   const withNames = (payload: unknown): Record<string, unknown> => {
     const p = payload as Record<string, unknown>;
     const name = typeof p.tagId === 'string' ? tagNames.get(p.tagId) : undefined;
-    return name === undefined ? p : { ...p, tagName: name };
+    const outcome =
+      typeof p.dispositionId === 'string' ? outcomeNames.get(p.dispositionId) : undefined;
+    return {
+      ...p,
+      ...(name === undefined ? {} : { tagName: name }),
+      ...(outcome === undefined ? {} : { outcomeName: outcome }),
+    };
   };
   return {
     items: page.map((r): Activity =>

@@ -250,7 +250,6 @@ export const logCall = defineCommand({
         callId: call.id,
         dispositionId: outcome.id,
         code: outcome.code,
-        label: outcome.label,
         nextAction,
         attemptNo,
       },
