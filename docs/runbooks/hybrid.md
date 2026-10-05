@@ -58,7 +58,7 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 1. **Install the Claude GitHub App** on the repository: open https://github.com/apps/claude, choose Install (or Configure), pick the account `techaust`, choose *Only select repositories*, select `techaust/shakti_prime` and save.
 2. **Create the environment:** open https://claude.ai/code, open the environment menu beside the repository and choose to add an environment.
    - **Name:** `shakti_prime`, as the repository.
-   - **Network access:** *Custom*, with the Trusted default list kept, plus exactly these hosts (decision 4 of 04-10-2026), one per line:
+   - **Network access:** *Custom*, with **Also include default list of common package managers** ticked (without it the npm registry, nodejs.org, Docker Hub and the other image registries are refused), plus exactly these hosts (decision 4 of 04-10-2026), one per line:
      ```
      challenges.cloudflare.com
      api.pwnedpasswords.com
@@ -73,7 +73,7 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
      BASH_DEFAULT_TIMEOUT_MS=600000
      BASH_MAX_TIMEOUT_MS=1800000
      ```
-   - **Setup script:** `bash tools/integration/cloud-setup.sh`. If the script runs outside the checkout and cannot find the file, paste the file's content instead.
+   - **Setup script:** paste the whole of `tools/integration/cloud-setup-env.sh`. The box runs before the checkout is in the session's working directory (a bare `bash tools/integration/cloud-setup.sh` stops with *No such file or directory*), so the pasted script finds the repository's `cloud-setup.sh` and runs it, or installs Node 24 and pnpm and leaves the rest to the session-start hook.
 3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and a `[cloud-session]` line saying Postgres is up. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
 
 ## 4. Starting a builder or a reviewer

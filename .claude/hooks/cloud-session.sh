@@ -25,6 +25,14 @@ if [ ! -d node_modules ]; then
     say "pnpm install failed (/tmp/cloud-session-install.log); run it before any check"
 fi
 
+# The journeys' Chromium (apps/web/playwright.config.ts), installed in the background when missing,
+# since the setup script's fallback leaves it to the session.
+if ! ls "${HOME}/.cache/ms-playwright"/chromium-* >/dev/null 2>&1 && [ -d node_modules ]; then
+  (pnpm --filter web exec playwright install --with-deps chromium >/tmp/cloud-session-browser.log 2>&1 ||
+    pnpm --filter web exec playwright install chromium >>/tmp/cloud-session-browser.log 2>&1) &
+  say "installing the journeys' Chromium in the background (/tmp/cloud-session-browser.log)"
+fi
+
 if ! ensure_docker 2>/dev/null; then
   say "Docker did not start, so the local Postgres is down (/tmp/dockerd.log); the unit tests still run"
   exit 0
