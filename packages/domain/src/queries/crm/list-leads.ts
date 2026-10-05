@@ -23,11 +23,13 @@ export interface LeadPage {
 }
 
 /**
- * The columns the leads list sorts by (`LEAD_SORT_COLUMNS`): only the last change, which the
- * `(updated_at, id)` indexes serve for every scope.
+ * The columns the leads list sorts by (`LEAD_SORT_COLUMNS`): the last change, which the
+ * `(updated_at, id)` indexes serve for every scope, and the score, which
+ * `opportunities_entity_score_idx` and, for every company, `opportunities_score_keyset_idx` serve.
  */
 const LEAD_SORT_KEYS: SortKeys<LeadSort['column']> = {
   updated: { expr: schema.opportunities.updatedAt, type: 'timestamptz', nullable: false },
+  score: { expr: schema.opportunities.score, type: 'integer', nullable: false },
 };
 
 type LeadContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;

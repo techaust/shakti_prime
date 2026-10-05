@@ -1,14 +1,17 @@
 import { newId, type Principal, type RoleKey } from '@shakti/contracts';
 import type { RequestContext } from '@shakti/db';
 import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/testing';
+import { randomBytes } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
+import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
 import { searchPeople } from '../../src/queries/admin/search-people';
 import { listAuditPeople, queryAudit } from '../../src/queries/audit/query-audit';
 import { getItem, getKit, listKits } from '../../src/queries/catalogue/catalogue-queries';
 import { listItems, listItemsWithCost } from '../../src/queries/catalogue/list-items';
+import { listSizingPumps } from '../../src/queries/catalogue/list-sizing-pumps';
 import {
   listCustomers,
   listMyTasks,
@@ -17,8 +20,17 @@ import {
 } from '../../src/queries/crm/customers';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
+import { latestSizing } from '../../src/queries/crm/latest-sizing';
 import { countLeads, listLeads } from '../../src/queries/crm/list-leads';
 import { listLeadSources, listPipelines } from '../../src/queries/crm/list-pipelines';
+import {
+  listCodedReferralPartners,
+  listCommissionRules,
+  listDispositions,
+  listPipelineSettings,
+  listReferralPartners,
+  listScoreRules,
+} from '../../src/queries/crm/pipeline-settings';
 import { searchLeads } from '../../src/queries/crm/search-leads';
 import {
   countFilesAwaitingChecks,
@@ -32,6 +44,8 @@ import {
   listImportRows,
   listImportTemplates,
 } from '../../src/queries/imports/import-queries';
+import { readEntityBankDetails, readSealedBankDetails } from '../../src/queries/org/bank-details';
+import { loadCompanyForPrint } from '../../src/queries/org/company-print';
 import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
@@ -51,6 +65,7 @@ const WEEK_AGO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 const NOW = new Date(Date.now() + 60_000).toISOString();
 const PIPELINE = PIPELINE_SEED[0]?.key ?? 'farmer_pumps';
 const STAGE = STAGE_SEED[0]?.id ?? newId();
+const CIPHER = envelopeCipher(localKeyProvider(randomBytes(32).toString('base64')));
 
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
@@ -73,6 +88,12 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   countLeads: (ctx) => countLeads(ctx),
   listPipelines: (ctx) => listPipelines(ctx),
   listLeadSources: (ctx) => listLeadSources(ctx),
+  listPipelineSettings: (ctx) => listPipelineSettings(ctx),
+  listDispositions: (ctx) => listDispositions(ctx, { entityId: null, segment: null }),
+  listScoreRules: (ctx) => listScoreRules(ctx, { entityId: 1, segment: 'farmer_pumps' }),
+  listReferralPartners: (ctx) => listReferralPartners(ctx, { cursor: null }),
+  listCommissionRules: (ctx) => listCommissionRules(ctx),
+  listCodedReferralPartners: (ctx) => listCodedReferralPartners(ctx),
   searchLeads: (ctx) => searchLeads(ctx, { q: 'ram' }),
   listCustomers: (ctx) => listCustomers(ctx, { limit: 20 }),
   searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),
@@ -85,6 +106,9 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listImportRows: (ctx) => listImportRows(ctx, { entityId: 1, jobId: newId(), limit: 20 }),
   listImportTemplates: (ctx) => listImportTemplates(ctx, { entityId: 1, kind: 'leads' }),
   listEntities: (ctx) => listEntities(ctx),
+  readSealedBankDetails: (ctx) => readSealedBankDetails(ctx, 1),
+  readEntityBankDetails: (ctx) => readEntityBankDetails(ctx, CIPHER, 1),
+  loadCompanyForPrint: (ctx) => loadCompanyForPrint(ctx, 1),
   readOutboxHealth: (ctx) => readOutboxHealth(ctx, { limit: 20 }),
   listPriceLists: (ctx) => listPriceLists(ctx, new Date('2026-09-29T00:00:00Z')),
   listPrices: (ctx) => listPrices(ctx, { priceListId: newId(), limit: 20 }),
@@ -96,6 +120,15 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStoredFile: (ctx) => getStoredFile(ctx, newId()),
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
+  listSizingPumps: (ctx) => listSizingPumps(ctx),
+};
+
+/**
+ * Reads the app runs whose names the export check below does not match; each still runs on both
+ * pools for every caller.
+ */
+const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
+  latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */
@@ -138,7 +171,7 @@ describe('every query reads the same on the reader pool as on app_user', () => {
     it(`for ${role} in ${entities.join(', ')}`, async () => {
       // One principal row for both pools, so the queries that read "my own" rows match.
       const principal = principalFor(role, entities, { id: newId() });
-      for (const [name, query] of Object.entries(QUERIES)) {
+      for (const [name, query] of Object.entries({ ...QUERIES, ...OTHER_READS })) {
         const reader = await outcome(principal, 'reader', query);
         const app = await outcome(principal, 'app_user', query);
         expect({ name, reader }).toEqual({ name, reader: app });

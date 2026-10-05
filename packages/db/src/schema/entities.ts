@@ -1,12 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { check, pgTable, smallint, text } from 'drizzle-orm/pg-core';
+import { boolean, check, jsonb, pgTable, smallint, text } from 'drizzle-orm/pg-core';
 import { actors, archivable, timestamps } from './columns';
 
 /**
  * The four selling entities (docs/DATABASE.md §6.1). The registered address is entered in Admin by
  * an Executive (workshop pack SALE-2); its state is `state_code`, which the GSTIN starts with.
- * `letterhead_file_id` and the logos join with the letterhead in Phase 1, and the encrypted bank
- * details when the field-level encryption helper exists.
+ * The company's current logo and letterhead are its newest ready files of those purposes
+ * (`files`). `bank_json` holds the bank account sealed by the field cipher (bank name, account
+ * number, IFSC and branch, never in clear); no request role may select it, and it is read only
+ * through `app.entity_bank_envelope()`, by an Executive or the render worker.
  */
 export const entities = pgTable(
   'entities',
@@ -22,6 +24,11 @@ export const entities = pgTable(
     addressLine2: text('address_line2'),
     city: text('city'),
     pin: text('pin'),
+    bankJson: jsonb('bank_json'),
+    /** Whether a bank account is recorded, readable where the sealed value is not. */
+    bankDetailsSet: boolean('bank_details_set')
+      .notNull()
+      .generatedAlwaysAs(sql`bank_json is not null`),
     ...archivable,
     ...timestamps,
     ...actors,

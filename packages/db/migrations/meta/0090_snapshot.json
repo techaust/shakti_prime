@@ -1,5 +1,5 @@
 {
-  "id": "869e3b3d-eded-4e59-9420-73c19add35c1",
+  "id": "7cca4885-6b58-4e6d-872b-420e15072a00",
   "prevId": "4de56de8-f994-4b18-8f7a-b2eb6b62c895",
   "version": "7",
   "dialect": "postgresql",
@@ -1763,16 +1763,6 @@
           "notNull": true,
           "default": "'hinglish'"
         },
-        "name_key": {
-          "name": "name_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "generated": {
-            "as": "regexp_replace(lower(name), '[^a-z0-9]+', '', 'g')",
-            "type": "stored"
-          }
-        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -1821,22 +1811,6 @@
           "isUnique": false,
           "concurrently": false,
           "method": "gin",
-          "with": {}
-        },
-        "contacts_name_key_idx": {
-          "name": "contacts_name_key_idx",
-          "columns": [
-            {
-              "expression": "name_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"contacts\".\"archived_at\" is null",
-          "concurrently": false,
-          "method": "btree",
           "with": {}
         }
       },
@@ -1913,16 +1887,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "village_key": {
-          "name": "village_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "generated": {
-            "as": "regexp_replace(lower(village), '[^a-z0-9]+', '', 'g')",
-            "type": "stored"
-          }
-        },
         "tehsil": {
           "name": "tehsil",
           "type": "text",
@@ -1946,13 +1910,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "pin_needs_review": {
-          "name": "pin_needs_review",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "lat": {
           "name": "lat",
@@ -2034,22 +1991,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "customer_sites_village_key_idx": {
-          "name": "customer_sites_village_key_idx",
-          "columns": [
-            {
-              "expression": "village_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"customer_sites\".\"archived_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2866,6 +2807,21 @@
           "method": "btree",
           "with": {}
         },
+        "import_jobs_file_idx": {
+          "name": "import_jobs_file_idx",
+          "columns": [
+            {
+              "expression": "file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "import_jobs_template_idx": {
           "name": "import_jobs_template_idx",
           "columns": [
@@ -2962,20 +2918,13 @@
             "id",
             "entity_id"
           ]
-        },
-        "import_jobs_file_unique": {
-          "name": "import_jobs_file_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "file_id"
-          ]
         }
       },
       "policies": {},
       "checkConstraints": {
         "import_jobs_kind_check": {
           "name": "import_jobs_kind_check",
-          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')"
+          "value": "\"import_jobs\".\"kind\" in ('leads', 'accounts', 'items', 'tally_masters')"
         },
         "import_jobs_state_check": {
           "name": "import_jobs_state_check",
@@ -3127,7 +3076,7 @@
       "checkConstraints": {
         "import_mapping_templates_kind_check": {
           "name": "import_mapping_templates_kind_check",
-          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')"
+          "value": "\"import_mapping_templates\".\"kind\" in ('leads', 'accounts', 'items', 'tally_masters')"
         }
       },
       "isRLSEnabled": false
@@ -3349,7 +3298,7 @@
         },
         "import_rows_created_type_check": {
           "name": "import_rows_created_type_check",
-          "value": "\"import_rows\".\"created_type\" in ('opportunity', 'account', 'pin_code')"
+          "value": "\"import_rows\".\"created_type\" in ('opportunity')"
         },
         "import_rows_row_no_check": {
           "name": "import_rows_row_no_check",
@@ -4913,138 +4862,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.pin_codes": {
-      "name": "pin_codes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "pin": {
-          "name": "pin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "office_name": {
-          "name": "office_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "taluk": {
-          "name": "taluk",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "district": {
-          "name": "district",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state_code": {
-          "name": "state_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "pin_codes_created_by_principals_id_fk": {
-          "name": "pin_codes_created_by_principals_id_fk",
-          "tableFrom": "pin_codes",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "pin_codes_updated_by_principals_id_fk": {
-          "name": "pin_codes_updated_by_principals_id_fk",
-          "tableFrom": "pin_codes",
-          "tableTo": "principals",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "pin_codes_pin_office_unique": {
-          "name": "pin_codes_pin_office_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "pin",
-            "office_name"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "pin_codes_pin_check": {
-          "name": "pin_codes_pin_check",
-          "value": "\"pin_codes\".\"pin\" ~ '^[1-9][0-9]{5}$'"
-        },
-        "pin_codes_office_name_check": {
-          "name": "pin_codes_office_name_check",
-          "value": "char_length(\"pin_codes\".\"office_name\") between 1 and 120"
-        },
-        "pin_codes_taluk_check": {
-          "name": "pin_codes_taluk_check",
-          "value": "\"pin_codes\".\"taluk\" is null or char_length(\"pin_codes\".\"taluk\") between 1 and 120"
-        },
-        "pin_codes_district_check": {
-          "name": "pin_codes_district_check",
-          "value": "char_length(\"pin_codes\".\"district\") between 2 and 120"
-        },
-        "pin_codes_state_code_check": {
-          "name": "pin_codes_state_code_check",
-          "value": "\"pin_codes\".\"state_code\" is null or \"pin_codes\".\"state_code\" ~ '^[0-9]{2}$'"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.pipeline_stages": {

@@ -19,6 +19,7 @@ describe('file purposes', () => {
         'entity_logo',
         'import',
         'letterhead',
+        'print_proof',
         'quote_pdf',
         'signed_quote',
       ].sort(),

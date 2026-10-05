@@ -19,6 +19,15 @@ describe('the failure callback, read', () => {
     expect(failedEventId({ status: 500, sourceBody: base64(['list']) })).toBeUndefined();
     expect(failedEventId({ status: 500, sourceBody: 'bm90IGpzb24=' })).toBeUndefined();
   });
+
+  it('finds the event id of a job an event was sent as (the render job)', () => {
+    const eventId = newId();
+    const job = { eventId, entityId: 1, target: { kind: 'document' } };
+    expect(failedEventId({ status: 503, sourceBody: base64(job) })).toBe(eventId);
+    expect(
+      failedEventId({ status: 503, sourceBody: base64({ eventId: 'not an id' }) }),
+    ).toBeUndefined();
+  });
 });
 
 describe('holdBackFailure', () => {

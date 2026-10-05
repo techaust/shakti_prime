@@ -1,4 +1,7 @@
 import type {
+  CommissionBasis,
+  ContrastPreference,
+  DispositionNextAction,
   AccountType,
   ActivityType,
   ConsentChannel,
@@ -6,7 +9,6 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
-  ContrastPreference,
   ItemCategory,
   ItemSort,
   ItemUnit,
@@ -19,6 +21,7 @@ import type {
   FileSanitising,
   FileScanVerdictInput,
   FileStatus,
+  PdfDocumentType,
   UploadContentType,
   ImportJobSort,
   ImportJobState,
@@ -30,9 +33,18 @@ import type {
   PermissionKey,
   PriceSort,
   SavedViewScreen,
-  Scope,
+  ScoreFactor,
   Segment,
+  PipeMaterial,
+  PumpDrive,
+  PumpType,
   SessionRevokeReason,
+  StageExitField,
+  SystemSizeUnit,
+  Scope,
+  SizingAdvisory,
+  SizingKind,
+  SizingReason,
   SiteType,
   TaskKind,
   TaskState,
@@ -168,6 +180,7 @@ export const ACTIVITY_TYPES = [
   'consent_withdrawn',
   'tagged',
   'untagged',
+  'sizing_recorded',
 ] as const satisfies readonly ActivityType[];
 
 export const SEGMENTS = [
@@ -176,6 +189,54 @@ export const SEGMENTS = [
   'commercial_epc',
   'dealer_wholesale',
 ] as const satisfies readonly Segment[];
+
+/** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
+export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
+
+/** Where the pump sits, what drives it and what the pipe is made of, as the panel offers them. */
+export const PUMP_TYPES = ['submersible', 'surface'] as const satisfies readonly PumpType[];
+export const PUMP_DRIVES = ['grid', 'solar'] as const satisfies readonly PumpDrive[];
+export const PIPE_MATERIALS = ['hdpe', 'gi'] as const satisfies readonly PipeMaterial[];
+
+/** Why a sizing is outside its limits; the panel and the Activity log name each one. */
+export const SIZING_REASONS = [
+  'curve_too_short',
+  'curve_not_monotonic',
+  'head_above_curve',
+  'head_below_curve',
+  'suction_lift_exceeded',
+  'duty_flow_short',
+  'duty_flow_excess',
+  'pump_power_short',
+  'above_largest_standard_hp',
+  'no_consumption',
+  'roof_too_small',
+  'sanctioned_load_too_small',
+  'sanctioned_load_exceeded',
+  'dcr_modules_required',
+  'no_modules',
+] as const satisfies readonly SizingReason[];
+
+/** Advice on a sizing that never sets its bounds; the panel names each one. */
+export const SIZING_ADVISORIES = [
+  'pipe_velocity_high',
+] as const satisfies readonly SizingAdvisory[];
+
+/**
+ * The range each sizing measurement accepts (`PumpSizingInputs`, `RooftopSizingInputs`), so the
+ * panel's fields refuse a typing slip before the server does.
+ */
+export const SIZING_INPUT_LIMITS = {
+  staticLevelM: { min: 0, max: 500 },
+  drawdownM: { min: 0, max: 200 },
+  deliveryHeightM: { min: 0, max: 100 },
+  pipeLengthM: { min: 0, max: 3000 },
+  pipeInnerDiameterMm: { min: 10, max: 300 },
+  flowLph: { min: 0, max: 1_000_000 },
+  monthlyUnitsKwh: { min: 0, max: 1_000_000 },
+  roofAreaSqm: { min: 0, max: 100_000 },
+  sanctionedLoadKw: { min: 0, max: 10_000 },
+} as const;
 
 /** The import kinds a job may be created for today. */
 export const IMPLEMENTED_IMPORT_KINDS = [
@@ -209,7 +270,10 @@ export const SAVED_VIEW_SCREENS = [
 ] as const satisfies readonly SavedViewScreen[];
 
 /** The columns each list sorts on the server (the contracts' `*_SORT_COLUMNS`). */
-export const LEAD_SORT_COLUMNS = ['updated'] as const satisfies readonly LeadSort['column'][];
+export const LEAD_SORT_COLUMNS = [
+  'updated',
+  'score',
+] as const satisfies readonly LeadSort['column'][];
 export const CUSTOMER_SORT_COLUMNS = ['name'] as const satisfies readonly CustomerSort['column'][];
 export const USER_SORT_COLUMNS = [
   'name',
@@ -350,6 +414,65 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
 
+/** What the queue does after a call outcome, in the order the settings page offers them. */
+export const DISPOSITION_NEXT_ACTIONS = [
+  'callback',
+  'retry',
+  'qualified',
+  'not_interested',
+  'wrong_number',
+  'nurture',
+] as const satisfies readonly DispositionNextAction[];
+
+/** What a lead score rule looks at. */
+export const SCORE_FACTORS = [
+  'source',
+  'segment',
+  'district',
+  'system_size',
+  'age_days',
+] as const satisfies readonly ScoreFactor[];
+
+/** The units a system-size rule reads a lead's size in. */
+export const SYSTEM_SIZE_UNITS = ['kw', 'hp'] as const satisfies readonly SystemSizeUnit[];
+
+/** Every lead detail a stage's exit rules may name, recorded today or by the sizing panel. */
+export const STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'stateCode',
+  'source',
+  'pumpDepthFt',
+  'requiredHp',
+  'monthlyBillRupees',
+  'roofAreaSqFt',
+  'sanctionedLoadKw',
+] as const satisfies readonly StageExitField[];
+
+/** The lead details a stage may require today (`RECORDED_STAGE_EXIT_FIELDS`). */
+export const RECORDED_STAGE_EXIT_FIELDS = [
+  'site',
+  'village',
+  'pin',
+  'source',
+] as const satisfies readonly StageExitField[];
+
+/** The stages every pipeline keeps, which cannot be archived (`PROTECTED_STAGE_KEYS`). */
+export const PROTECTED_STAGE_KEYS = ['new', 'qualified', 'quoted'] as const;
+
+/** How a referral commission is worked out. */
+export const COMMISSION_BASES = [
+  'fixed',
+  'percent',
+  'per_kw',
+  'per_hp',
+] as const satisfies readonly CommissionBasis[];
+
+/** The limits the settings forms hold to, as the contracts do. */
+export const LOCK_HOURS_MAX = 720;
+export const FIRST_CONTACT_SLA_MAX = 10_080;
+export const SCORE_POINTS_LIMIT = 50;
 /** A customers search looks for a name, contact or village from three characters. */
 export const CUSTOMER_SEARCH_MIN_CHARS = 3;
 /** Scopes from narrowest to widest (`SCOPES`). */
@@ -385,6 +508,7 @@ export const FILE_PURPOSES = [
   'signed_quote',
   'entity_logo',
   'letterhead',
+  'print_proof',
   'knowledge',
   'consent_evidence',
 ] as const satisfies readonly FilePurpose[];
@@ -416,6 +540,15 @@ export const FILE_SCAN_VERDICTS = [
   'no_threats_found',
   'not_scanned',
 ] as const satisfies readonly FileScanVerdictInput[];
+/** The documents the render worker prints, each with its name under `activity.values`. */
+export const PDF_DOCUMENT_TYPES = [
+  'quote',
+  'proforma',
+  'delivery_challan',
+  'handover_kit',
+  'company_letterhead_proof',
+] as const satisfies readonly PdfDocumentType[];
+
 export const FILE_SANITISING = [
   're_encoded',
   'pdf_checked',

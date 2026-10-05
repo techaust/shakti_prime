@@ -1,0 +1,1 @@
+CREATE INDEX "accounts_referral_partner_name_idx" ON "accounts" USING btree ("name","id") WHERE "accounts"."type" = 'referral_partner' and "accounts"."archived_at" is null;

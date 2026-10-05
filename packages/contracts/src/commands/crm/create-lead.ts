@@ -7,6 +7,7 @@ import {
   CustomerLanguageSchema,
   SiteTypeSchema,
 } from '../../crm/enums';
+import { ReferralCodeSchema } from '../../crm/config';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
@@ -59,6 +60,8 @@ export const CreateLeadInput = z
       .strict()
       .optional(),
     sourceCode: z.string().trim().min(1).max(40).optional(),
+    /** A referral partner's code: the lead is credited to the partner, or refused (CRM-09). */
+    referralCode: ReferralCodeSchema.optional(),
   })
   .strict()
   .refine(

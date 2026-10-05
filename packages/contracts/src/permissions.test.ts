@@ -23,7 +23,12 @@ describe('permission catalogue', () => {
 
   it('keeps platform-only permissions apart from the grants the Executive role keeps', () => {
     expect(isPlatformOnlyPermission('files.process')).toBe(true);
+    expect(isPlatformOnlyPermission('crm.score.refresh')).toBe(true);
     expect(isPlatformOnlyPermission('crm.lead.read')).toBe(false);
+    for (const key of PLATFORM_ONLY_PERMISSIONS) {
+      expect(PERMISSION_KEYS).toContain(key);
+      expect(PERMISSION_SCOPES[key as (typeof PERMISSION_KEYS)[number]]).toEqual(['all']);
+    }
     expect(isPlatformOnlyPermission('')).toBe(false);
     for (const g of EXECUTIVE_KEPT_GRANTS) {
       expect(PERMISSION_KEYS).toContain(g.key);
@@ -44,6 +49,10 @@ describe('permission catalogue', () => {
     expect(roleMayHold('agent:chief', 'procurement.rate.read')).toBe(false);
     expect(roleMayHold('system:workers', 'files.process')).toBe(true);
     expect(roleMayHold('executive', 'files.process')).toBe(false);
+    expect(roleMayHold('system:workers', 'crm.score.refresh')).toBe(true);
+    expect(roleMayHold('executive', 'crm.score.refresh')).toBe(false);
+    expect(roleMayHold('general_manager', 'crm.score.refresh')).toBe(false);
+    expect(roleMayHold('agent:triage', 'crm.score.refresh')).toBe(false);
     expect(roleMayHold('tele_caller_cc', 'crm.lead.read')).toBe(true);
   });
 

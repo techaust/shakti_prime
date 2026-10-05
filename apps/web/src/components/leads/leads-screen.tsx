@@ -14,10 +14,11 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { listLeads } from '../../actions/crm';
-import { LEAD_SORT_COLUMNS } from '../../screens/contract-values';
+import { oneOf } from '../../screens/audit';
+import { LEAD_SORT_COLUMNS, SCORE_FACTORS } from '../../screens/contract-values';
 import { customerHref } from '../../screens/customers';
 import { DateTime } from '../date-time';
-import { formatPhone } from '../../screens/format';
+import { formatDateTime, formatPhone } from '../../screens/format';
 import { FailureMessage } from '../screens/failure';
 import { sortInput, toListSort } from '../screens/list-sort';
 import { useQuery } from '../screens/use-command';
@@ -34,9 +35,9 @@ const STATE_TONE: Record<LeadDto['state'], StatusTone> = {
 };
 
 /**
- * The leads grid with Load more; stage names come from the pipelines the lead form uses. Only the
- * last change sorts, on the server over every lead (`LEAD_SORT_COLUMNS`); a new sort reads the
- * first page again.
+ * The leads grid with Load more; stage names come from the pipelines the lead form uses. The last
+ * change and the score sort, on the server over every lead (`LEAD_SORT_COLUMNS`); a new sort
+ * reads the first page again.
  */
 export function LeadsScreen({
   initial,
@@ -142,6 +143,13 @@ export function LeadsScreen({
     });
   }
   columns.push({
+    id: 'score',
+    header: t('score.column'),
+    numeric: true,
+    cell: (l) => <ScoreCell lead={l} />,
+    sortable: true,
+  });
+  columns.push({
     id: 'updated',
     header: t('columns.updated'),
     numeric: true,
@@ -188,5 +196,43 @@ export function LeadsScreen({
         }
       />
     </div>
+  );
+}
+
+/**
+ * A lead's score (CRM-06) as a disclosure: the number, and on press (mouse, keyboard or touch) why
+ * the lead has it, each matching rule's points and when the score last changed.
+ */
+function ScoreCell({ lead }: { lead: Pick<LeadDto, 'score' | 'scoreReasons' | 'scoreChangedAt'> }) {
+  const t = useTranslations('leads.score');
+  const lines =
+    lead.scoreReasons.length === 0
+      ? [t('base')]
+      : [
+          ...lead.scoreReasons.map((r) =>
+            t('reason', {
+              factor: oneOf(SCORE_FACTORS, r.factor) ? t(`reasons.${r.factor}`) : r.factor,
+              signed: `${r.points > 0 ? '+' : ''}${String(r.points)}`,
+              points: r.points,
+            }),
+          ),
+          ...(lead.scoreChangedAt === null
+            ? []
+            : [t('changed', { when: formatDateTime(lead.scoreChangedAt) })]),
+        ];
+  return (
+    <details className="group">
+      <summary
+        className="text-accent-text flex min-h-8 cursor-pointer items-center list-none underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden"
+        aria-label={t('label', { score: lead.score })}
+      >
+        {lead.score}
+      </summary>
+      <ul className="text-text-muted mt-1 flex max-w-60 flex-col gap-0.5 text-start text-xs whitespace-normal">
+        {lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </details>
   );
 }

@@ -87,6 +87,16 @@ export const SEND_AGAIN_COMPANY = { entityId: 4, name: 'RCREF' } as const;
 /** The spreadsheet the seed imports once into the snapshot company. */
 export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 
+/**
+ * The referral partner the seed makes once in company 1 and gives a code: the walk-in journey
+ * credits a customer to it, and Settings › Pipelines lists it. No journey changes its code.
+ */
+export const REFERRAL_PARTNER = {
+  name: 'Kisan Seva Kendra Chomu',
+  phone: '98765 40031',
+  code: 'KSK2026',
+} as const;
+
 export function emailFor(key: string): string {
   return `e2e-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}@shakti.test`;
 }

@@ -16,6 +16,8 @@ export const EntityDto = z
     addressLine2: z.string().nullable(),
     city: z.string().nullable(),
     pin: z.string().nullable(),
+    /** Whether a bank account is recorded; the account itself never leaves in this DTO. */
+    bankDetailsSet: z.boolean(),
   })
   .strict();
 

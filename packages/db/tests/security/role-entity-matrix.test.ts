@@ -85,6 +85,8 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   letterhead: CONTEXT,
   knowledge: NEVER,
   consent_evidence: grant('crm.account.write', 'own'),
+  // A company's proof page prints its bank account: an Executive's alone.
+  print_proof: grant('admin.entities.write', 'own'),
 };
 /** The file checks' permission (`system:workers`) reads every file of the company as well. */
 const fileRead = (purpose: string | undefined): Rule => ({
@@ -136,6 +138,8 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: accountOutside('x.account_id'),
   },
   opportunities: { read: grant('crm.lead.read', 'own'), leak: otherCompany },
+  // A child of the lead: read with it.
+  sizings: { read: LEAD_READ, leak: otherCompany },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
@@ -180,6 +184,15 @@ const RULES: Record<MatrixTable, TableRule> = {
     read: grant('pricing.read', 'entity'),
     group: grant('pricing.read', 'entity'),
     leak: otherCompany,
+  },
+  // CRM set-up: every caller reads the group's rows and their own company's.
+  call_dispositions: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  lead_score_rules: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  // A referral partner is read with its customer (ADR 0008).
+  referral_partners: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    leak: accountOutside('x.account_id'),
   },
 };
 

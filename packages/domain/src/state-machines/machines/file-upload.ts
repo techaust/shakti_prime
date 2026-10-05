@@ -74,7 +74,7 @@ export const fileUploadMachine = defineMachine<
       permission: null,
       permissionByInput: BY_PURPOSE,
       system: true,
-      note: '`files.upload.begin`; the worker records the files it makes (a rendered PDF).',
+      note: '`files.upload.begin`. A PDF the render worker makes is not an upload: `files.document.record` records it `ready`.',
     },
     {
       from: ['pending'],

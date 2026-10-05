@@ -217,7 +217,30 @@
     "import_file_missing": "We couldn't find this file. Upload it again.",
     "import_needs_all_companies": "Only an Executive working in all companies can add the PIN code list. Switch to All companies and try again.",
     "import_companies_out_of_reach": "This file adds customers to companies you are not working in now. Switch to All companies, or to the companies the file names, and try again.",
-    "file_upload_abandoned": "This upload did not finish, so it was cleared. Upload the file again."
+    "file_upload_abandoned": "This upload did not finish, so it was cleared. Upload the file again.",
+    "config_company_scope": "This company is not in the companies you are viewing. Switch to it and try again.",
+    "config_group_scope": "This setting is shared by all companies. Switch to all companies to change it.",
+    "pipeline_missing": "We couldn't find this pipeline. Refresh the page to see the current pipelines.",
+    "stage_unavailable": "This stage has been archived or removed. Refresh the page to see the current stages.",
+    "stage_name_taken": "Another stage in this pipeline has this name. Choose a different name.",
+    "stage_closing": "Won and Lost stay in every pipeline, and a lead needs no details to leave them.",
+    "stage_field_not_recorded": "Leads don't record this detail yet, so a stage can't require it. Choose another detail.",
+    "stage_first_open": "New leads start in the first stage, so it can't be archived. Move another stage to the top first.",
+    "stage_has_open_leads": "Some leads are still in this stage. Move them to another stage, then archive it.",
+    "stage_order_mismatch": "The stages changed while you were working. Refresh the page and put them in order again.",
+    "disposition_key_taken": "Two call outcomes share a number key. Give each outcome its own key.",
+    "disposition_code_taken": "Two call outcomes have the same name. Give each outcome its own name.",
+    "dispositions_group_empty": "Callers need at least one call outcome. Add an outcome before you save.",
+    "referral_code_unknown": "No active referral partner has this code. Check the code with the customer, or leave it empty.",
+    "referral_code_taken": "Another referral partner already has this code. Choose a different code.",
+    "referral_account_type": "Only a customer marked as a referral partner can have a referral code.",
+    "commission_partner_missing": "We couldn't find this referral partner. Refresh the page and try again.",
+    "commission_rule_overlap": "Another commission rule already covers some of these dates for this partner. Choose a start date after it.",
+    "stage_protected": "Every pipeline keeps this stage, so it can't be archived. You can rename it or move it instead.",
+    "document_type_unknown": "This kind of document cannot be printed yet.",
+    "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
+    "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
+    "people_only": "Only a member of the team can do this, not an automated assistant."
   },
   "auth": {
     "signIn": {
@@ -301,7 +324,9 @@
     "adminIntegrations": "Integration health",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
-    "adminRoles": "Roles"
+    "adminRoles": "Roles",
+    "settingsPipelines": "Pipelines",
+    "walkIn": "Walk-in customer"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -355,7 +380,9 @@
       "adminIntegrations": "See updates waiting to go out, send held-back ones again, and time delivery.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
-      "adminRoles": "Choose what each role can see and do."
+      "adminRoles": "Choose what each role can see and do.",
+      "walkIn": "Add a customer who comes to the counter as a new lead.",
+      "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline."
     }
   },
   "profile": {
@@ -681,7 +708,8 @@
       "gstin": "GSTIN",
       "address": "Registered address",
       "upi": "UPI ID",
-      "actions": "Actions"
+      "actions": "Actions",
+      "bank": "Bank account"
     },
     "edit": "Edit",
     "editTitle": "Edit {name}",
@@ -713,7 +741,29 @@
     "current": "Current file: {name}",
     "none": "None uploaded yet.",
     "open": "Open",
-    "ready": "Saved. Documents from this company print it from now on."
+    "ready": "Saved. Documents from this company print it from now on.",
+    "bank": "Bank account",
+    "bankRecorded": "Recorded",
+    "bankTitle": "Bank account of {name}",
+    "bankIntro": "Quotes and other documents from this company print this account for payment. The Activity log keeps only the last four digits.",
+    "bankLoading": "Opening the bank account…",
+    "bankName": "Bank",
+    "bankNameHelper": "The bank’s name as it appears on a cheque",
+    "accountNumber": "Account number",
+    "accountNumberHelper": "9 to 18 digits",
+    "ifsc": "IFSC",
+    "ifscHelper": "11 letters and numbers, as printed on a cheque of this account",
+    "branch": "Branch",
+    "branchHelper": "The branch name and its town",
+    "saveBank": "Save bank account",
+    "bankDone": "The bank account of {name} is saved.",
+    "proof": "Print a proof page",
+    "proofTitle": "Proof page of {name}",
+    "proofIntro": "One page with the letterhead, logo, address, GSTIN and bank account, exactly as this company’s documents print them.",
+    "proofWorking": "Printing the proof page. This takes a few seconds.",
+    "proofReady": "The proof page is ready.",
+    "proofSlow": "The proof page is taking longer than usual. Close this and try again in a minute.",
+    "openProof": "Open the proof page"
   },
   "priceMaster": {
     "title": "Price lists",
@@ -878,7 +928,9 @@
       "choose": "Choose one",
       "submit": "Save lead",
       "cancel": "Cancel",
-      "done": "Lead saved for {name}."
+      "done": "Lead saved for {name}.",
+      "referral": "Referral code",
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card."
     },
     "accountType": {
       "household": "Household",
@@ -1004,6 +1056,41 @@
         "other": "Another reason"
       },
       "stages": "Lead stages"
+    },
+    "score": {
+      "column": "Score",
+      "label": "Score {score} out of 100, see why",
+      "base": "Every lead starts at 50. No rule has changed this score.",
+      "changed": "Last changed {when}",
+      "reasons": {
+        "source": "Where the lead came from",
+        "segment": "Business line",
+        "district": "District",
+        "system_size": "System size",
+        "age_days": "Days since the lead was added"
+      },
+      "reason": "{factor}: {signed} {points, plural, =1 {point} =-1 {point} other {points}}"
+    },
+    "walkIn": {
+      "title": "Walk-in customer",
+      "intro": "Add a customer at the counter. The name, mobile number and interest are enough; the rest can wait for the first call.",
+      "noCompany": "You can't add leads in the companies you are viewing. Switch company or ask your manager.",
+      "company": "Company",
+      "name": "Customer name",
+      "phone": "Mobile number",
+      "phoneHelper": "The 10-digit mobile number",
+      "interest": "Interested in",
+      "choose": "Choose one",
+      "village": "Village or town",
+      "pin": "PIN code",
+      "placeHelper": "Fill in the village, or the village and its PIN code.",
+      "villageNeeded": "Enter the village for this PIN code.",
+      "referral": "Referral code",
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
+      "consent": "Consent",
+      "walkInSubmit": "Save walk-in",
+      "done": "Walk-in saved for {name}. The form is ready for the next customer.",
+      "language": "Language for calls"
     }
   },
   "users": {
@@ -1219,7 +1306,21 @@
       "kitArchive": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
       "priceListArchive": "Price list withdrawn",
-      "rolePermissions": "Role permissions changed"
+      "rolePermissions": "Role permissions changed",
+      "pipelineUpdate": "Pipeline settings changed",
+      "stageCreate": "Stage added",
+      "stageUpdate": "Stage changed",
+      "stageReorder": "Stages put in a new order",
+      "stageArchive": "Stage archived",
+      "dispositionsSet": "Call outcomes changed",
+      "scoreRulesSet": "Lead score rules changed",
+      "leadRescore": "Lead scored again",
+      "leadScoreRefresh": "Lead scores brought up to date overnight",
+      "referralPartnerSet": "Referral code set",
+      "commissionRuleSet": "Commission rule set",
+      "fileRendered": "Document printed to a file",
+      "printProofRequest": "Proof page asked for",
+      "sizingRecord": "Lead sized"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1252,7 +1353,9 @@
       "kitArchived": "Kit no longer sold",
       "pumpCurveSet": "Pump curve saved",
       "priceListArchived": "Price list withdrawn",
-      "rolePermissionsChanged": "Role permissions changed"
+      "rolePermissionsChanged": "Role permissions changed",
+      "documentRequested": "Document sent for printing",
+      "sizingRecorded": "Lead sized"
     },
     "sheet": {
       "title": "{action}",
@@ -1396,7 +1499,27 @@
       "approvedAt": "Approved at",
       "grants": "Permissions",
       "customisedAt": "Changed from the standard set",
-      "holders": "People holding the role"
+      "holders": "People holding the role",
+      "lockHours": "Hours a lead stays with its caller",
+      "firstContactSlaMinutes": "Minutes to first contact",
+      "position": "Place in the list",
+      "requiredFields": "Details needed to move on",
+      "key": "Number key",
+      "label": "Call outcome",
+      "nextAction": "What happens next",
+      "factor": "What the rule looks at",
+      "score": "Score",
+      "code": "Code",
+      "basis": "How commission is worked out",
+      "amount": "Amount",
+      "scorePoints": "Points",
+      "codeActive": "Code in use",
+      "bankAccount": "Bank account",
+      "documentType": "Document",
+      "sizingKind": "What was sized",
+      "inBounds": "Within limits",
+      "sizingReasons": "Why it is outside limits",
+      "engineVersion": "Calculation version"
     },
     "values": {
       "percent": "{value}%",
@@ -1433,7 +1556,15 @@
       },
       "viewSettings": "{hidden, plural, =0 {All columns shown} one {One column hidden} other {# columns hidden}}, {filters, plural, =0 {no filters} one {one filter} other {# filters}}, {sorted, select, yes {sorted by a column} other {in the usual order}}, {density, select, compact {compact rows} other {comfortable rows}}",
       "spec": "{name}: {value}",
-      "grant": "{permission}: {scope}"
+      "grant": "{permission}: {scope}",
+      "documentType": {
+        "quote": "Quotation",
+        "proforma": "Proforma invoice",
+        "delivery_challan": "Delivery challan",
+        "handover_kit": "Handover kit",
+        "company_letterhead_proof": "Proof page of the letterhead"
+      },
+      "listSeparator": ", "
     }
   },
   "print": {
@@ -1471,6 +1602,31 @@
       "serial": "Serial number",
       "item": "Item code",
       "scan": "Scan for warranty"
+    },
+    "company": {
+      "gstin": "GSTIN",
+      "logo": "Logo of {name}",
+      "bankHeading": "Bank account for payment",
+      "bankName": "Bank",
+      "accountName": "Account name",
+      "accountNumber": "Account number",
+      "ifsc": "IFSC",
+      "branch": "Branch"
+    },
+    "proof": {
+      "title": "Proof page of {name}",
+      "heading": "Proof page",
+      "intro": "This page shows the letterhead, logo, address, GSTIN and bank account exactly as the company's documents print them. Check each line before quotes go out. Anything not recorded yet can be added on Settings, Companies.",
+      "missing": "Not recorded yet",
+      "letterhead": "Letterhead",
+      "printedAbove": "Printed at the top of this page",
+      "logo": "Logo",
+      "printedBeside": "Printed beside the company name",
+      "legalName": "Legal name",
+      "brandName": "Brand name",
+      "address": "Registered address",
+      "printedOn": "Printed on {date}",
+      "fileName": "Proof page of {name}.pdf"
     }
   },
   "imports": {
@@ -1798,7 +1954,9 @@
       "owner": "With {name}",
       "noOwner": "Not handed to anyone yet",
       "addTag": "Add tag",
-      "removeTag": "Remove the tag {name}"
+      "removeTag": "Remove the tag {name}",
+      "sizeLead": "Size this lead",
+      "hideSizing": "Hide sizing"
     },
     "timeline": {
       "sectionTitle": "History",
@@ -1824,9 +1982,12 @@
         "consent_recorded": "Consent recorded",
         "consent_withdrawn": "Consent withdrawn",
         "tagged": "Tag added",
-        "untagged": "Tag removed"
+        "untagged": "Tag removed",
+        "sizing_recorded": "Sizing worked out"
       },
-      "tagDetail": "Tag: {name}"
+      "tagDetail": "Tag: {name}",
+      "sizingInBounds": "{kind} sizing, within limits",
+      "sizingOutOfBounds": "{kind} sizing, outside limits"
     },
     "dialogs": {
       "accountTitle": "Edit customer details",
@@ -1992,7 +2153,8 @@
       "entity_logo": "Company logo",
       "letterhead": "Letterhead",
       "knowledge": "Knowledge Vault document",
-      "consent_evidence": "Proof of consent"
+      "consent_evidence": "Proof of consent",
+      "print_proof": "Proof page"
     },
     "types": {
       "jpeg": "JPEG picture",
@@ -2475,7 +2637,9 @@
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again",
       "files_process": "Check uploaded files before they are used",
-      "imports_process": "Stop an import that could not finish"
+      "imports_process": "Stop an import that could not finish",
+      "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
+      "crm_score_refresh": "Bring lead scores up to date each night"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -2490,5 +2654,278 @@
     "district": "District {district}.",
     "known": "This PIN is in the PIN code list.",
     "unknown": "This PIN is not in the PIN code list. The site is saved and marked for someone to check."
+  },
+  "pipelineSettings": {
+    "title": "Pipelines and call outcomes",
+    "intro": "Set how leads move through each pipeline, what callers record after a call and how leads are scored.",
+    "nextAction": {
+      "callback": "Call back at a set time",
+      "retry": "Try again later",
+      "qualified": "Pass to a Lead Converter",
+      "not_interested": "Close as not interested",
+      "wrong_number": "Mark the number as wrong",
+      "nurture": "Follow up later"
+    },
+    "factor": {
+      "source": "Where the lead came from",
+      "segment": "Business line",
+      "district": "District",
+      "system_size": "System size",
+      "age_days": "Days since the lead was added"
+    },
+    "stageField": {
+      "site": "Site",
+      "village": "Village",
+      "pin": "PIN code",
+      "stateCode": "GST state code",
+      "source": "Where the lead came from",
+      "pumpDepthFt": "Pump depth (feet)",
+      "requiredHp": "Pump power needed (HP)",
+      "monthlyBillRupees": "Monthly electricity bill (₹)",
+      "roofAreaSqFt": "Roof area (sq ft)",
+      "sanctionedLoadKw": "Sanctioned load (kW)"
+    },
+    "basis": {
+      "fixed": "Fixed amount per order",
+      "percent": "Share of the order value",
+      "per_kw": "Amount per kW",
+      "per_hp": "Amount per HP"
+    },
+    "pipelines": "Pipelines",
+    "pipelinesIntro": "Each business line has its own pipeline. Leads start in the first stage and move on until they are won or lost.",
+    "groupWide": "Shared by all companies",
+    "companyOnly": "{company} only",
+    "name": "Pipeline name",
+    "lockHours": "Hours a lead stays with its caller",
+    "lockHoursHelper": "From 1 to 720. While this time runs, the lead stays with the caller who has it.",
+    "sla": "Minutes to first contact",
+    "slaHelper": "Leave empty for no limit. A new lead should be called within this time.",
+    "savePipeline": "Save pipeline",
+    "pipelineSaved": "{name} is saved.",
+    "stages": "Stages of {name}",
+    "closing": "Closes the lead",
+    "requiredNone": "No details needed to move on",
+    "requiredList": "Needs {fields}",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "edit": "Edit",
+    "editLabel": "Edit {name}",
+    "archive": "Archive",
+    "archiveLabel": "Archive {name}",
+    "addStage": "Add stage",
+    "newStage": "New stage name",
+    "stageDialogTitle": "Edit a stage",
+    "stageDialogIntro": "Rename the stage and choose what a lead needs before it moves on.",
+    "stageName": "Stage name",
+    "requiredFields": "Details needed before a lead moves on",
+    "requiredFieldsHelper": "A lead can't leave this stage until each ticked detail is filled in.",
+    "laterField": "{field} (leads don't record this yet)",
+    "saveStage": "Save stage",
+    "stageSaved": "{name} is saved.",
+    "stageAdded": "{name} is added as the last open stage.",
+    "archiveTitle": "Archive this stage?",
+    "archiveBody": "{name} leaves the board. Leads that passed through it keep their history.",
+    "archiveConfirm": "Archive stage",
+    "stageArchived": "{name} is archived.",
+    "orderSaved": "The new order of stages is saved.",
+    "outcomes": "Call outcomes",
+    "outcomesIntro": "What a caller records after each call, the number key that picks it and what happens next. Callers get one whole list: a company's list for their business line if there is one, else the company's list, else the shared list for the business line, else the shared list.",
+    "scopeCompany": "Company",
+    "scopeGroup": "All companies (shared)",
+    "scopeSegment": "Business line",
+    "scopeAllSegments": "Every business line",
+    "outcomeKey": "Key",
+    "outcomeLabel": "Call outcome",
+    "outcomeNext": "What happens next",
+    "addOutcome": "Add outcome",
+    "remove": "Remove",
+    "removeLabel": "Remove {name}",
+    "removeUnnamed": "Remove this row",
+    "saveOutcomes": "Save outcomes",
+    "outcomesSaved": "The call outcomes are saved.",
+    "outcomesEmpty": "There is no list here. Callers use the wider list until you add outcomes.",
+    "keysFull": "All nine number keys are in use.",
+    "scoring": "Lead score",
+    "scoringIntro": "Every lead starts at 50. Each rule that matches adds or takes away points, and the score stays between 0 and 100. Shared rules and a company's own rules all count.",
+    "rulesEmpty": "There are no rules here, so they add nothing to a lead's score.",
+    "ruleFactor": "Looks at",
+    "rulePoints": "Points",
+    "pointsHelper": "From -50 to 50, never 0.",
+    "sources": "Lead sources",
+    "segments": "Business lines",
+    "districts": "Districts",
+    "districtsHelper": "Separate districts with commas.",
+    "unit": "Unit",
+    "unitKw": "kW",
+    "unitHp": "HP",
+    "sizeFrom": "From",
+    "sizeTo": "Up to",
+    "ageFrom": "From day",
+    "ageTo": "Up to day",
+    "rangeHelper": "Fill in one or both.",
+    "sizeNotRecorded": "Leads get a system size once the sizing panel is in use. Until then this rule matches no lead.",
+    "ruleLegend": "Rule {position}",
+    "addRule": "Add rule",
+    "saveRules": "Save rules",
+    "rulesSaved": "{count, plural, =0 {The rules are saved. No lead's score changed.} one {The rules are saved. # lead has a new score.} other {The rules are saved. # leads have a new score.}}",
+    "loading": "Loading…",
+    "referrals": "Referral partners and commission",
+    "referralsIntro": "A referral partner is a customer whose lead was added with Referral partner as the type of customer. Give each one a code to print on their card: a new lead that brings the code is credited to them.",
+    "partners": "Referral partners",
+    "partnersEmpty": "No customer is a referral partner yet. Add a new lead for the partner and choose Referral partner as the type of customer, then give them a code here.",
+    "codeNone": "No code yet",
+    "codeIs": "Code {code}",
+    "codeAccepted": "Code accepted",
+    "codeStopped": "Code not accepted",
+    "setCode": "Set code",
+    "setCodeLabel": "Set the code of {name}",
+    "morePartners": "Show more partners",
+    "codeDialogTitle": "Set a referral code",
+    "codeDialogIntro": "The code {name} gives to customers. A new lead that brings it is credited to {name}.",
+    "codeLabel": "Referral code",
+    "codeHelper": "4 to 12 letters and digits. Capital and small letters count as the same.",
+    "codeActive": "Accept this code on new leads",
+    "saveCode": "Save code",
+    "codeSaved": "The code of {name} is saved.",
+    "commission": "Commission rules",
+    "commissionIntro": "What a partner earns when an order they brought is confirmed. A partner's own rule comes before the default rule. A new rule from a date ends the rule before it on that date.",
+    "commissionEmpty": "There are no commission rules yet, so no commission is earned. Add them once the group has agreed them.",
+    "defaultPartner": "Every partner (default rule)",
+    "partnerHidden": "A partner of another company",
+    "percentValue": "{value}%",
+    "datesFrom": "From {from}",
+    "datesBetween": "From {from} to {to}",
+    "rulePartner": "Partner",
+    "ruleBasis": "How it is worked out",
+    "ruleAmount": "Amount",
+    "ruleAmountHelper": "In rupees, or the percentage for a share of the order value.",
+    "ruleFrom": "From",
+    "ruleUntil": "Until",
+    "ruleUntilHelper": "Leave empty to keep the rule going.",
+    "dateHelper": "As DD-MM-YYYY.",
+    "dateInvalid": "Enter a real date as DD-MM-YYYY.",
+    "addCommissionRule": "Add commission rule",
+    "commissionSaved": "The commission rule is saved."
+  },
+  "sizing": {
+    "title": "Sizing",
+    "intro": "Enter what was measured at the site. The size is worked out from these figures, never guessed.",
+    "tabsLabel": "What to size",
+    "kind": {
+      "pump": "Pump",
+      "rooftop": "Rooftop solar"
+    },
+    "loading": "Loading the latest sizing",
+    "empty": "Not sized yet. Enter the measurements and work out the size.",
+    "stale": "This lead was sized under earlier rules. Enter the measurements again to size it.",
+    "submit": "Work out size",
+    "done": "Sizing saved.",
+    "readOnly": "You can see this lead's sizing but not change it.",
+    "pump": {
+      "legend": "The pump and the borewell",
+      "pumpType": "Where the pump sits",
+      "pumpTypes": {
+        "submersible": "In the borewell (submersible)",
+        "surface": "On the surface"
+      },
+      "drive": "What runs the pump",
+      "drives": {
+        "grid": "Electricity supply",
+        "solar": "Solar panels"
+      },
+      "pipeMaterial": "Pipe",
+      "pipeMaterials": {
+        "hdpe": "HDPE (plastic)",
+        "gi": "GI (iron)"
+      },
+      "staticLevelM": "Water level at rest, below ground (m)",
+      "staticLevelHelper": "Measured with the pump off.",
+      "drawdownM": "Drop in water level while pumping (m)",
+      "deliveryHeightM": "Outlet height above ground (m)",
+      "pipeLengthM": "Pipe length, pump to outlet (m)",
+      "pipeInnerDiameterMm": "Pipe inside width (mm)",
+      "flowLph": "Water needed (litres an hour)",
+      "item": "Pump to check",
+      "itemNone": "No pump chosen",
+      "itemHelper": "Checks the chosen pump's curve at the worked-out height."
+    },
+    "rooftop": {
+      "legend": "The bills and the roof",
+      "monthlyUnitsKwh": "Units used a month (kWh)",
+      "monthlyUnitsHelper": "The average of recent electricity bills.",
+      "roofAreaSqm": "Shade-free roof area (m²)",
+      "sanctionedLoadKw": "Sanctioned load (kW)",
+      "sanctionedLoadHelper": "As printed on the electricity bill."
+    },
+    "result": {
+      "title": "Latest result",
+      "savedAt": "Worked out on",
+      "inBounds": "Within limits",
+      "outOfBounds": "Outside limits",
+      "advice": "Advice",
+      "headTitle": "Total height to lift",
+      "staticHead": "Water level and outlet height",
+      "drawdown": "Drop while pumping",
+      "friction": "Pipe friction",
+      "fittings": "Bends and valves",
+      "total": "Total",
+      "suctionLift": "Depth a surface pump draws from",
+      "suctionLimit": "A surface pump can draw from at most {max}",
+      "powerTitle": "Pump size",
+      "shaftHp": "Power the pump needs",
+      "requiredHp": "Power to cover, with a safety margin",
+      "standardHp": "Motor to fit",
+      "noStandardHp": "Larger than any motor on sale",
+      "motorInputKw": "Power drawn at this duty",
+      "solarTitle": "Solar panels for the pump",
+      "arrayKwp": "Panel size",
+      "moduleCount": "Panels",
+      "dutyTitle": "Chosen pump at this height",
+      "dutyFlow": "Water it delivers",
+      "requiredFlow": "Water the site needs",
+      "ratedHp": "Its motor",
+      "notGiven": "Not given in the catalogue",
+      "curveRange": "Its curve runs from {min} to {max}",
+      "flowBand": "It should give from {min} to {max}",
+      "rooftopTitle": "System size",
+      "neededKwp": "Size the usage needs",
+      "roofKwp": "Size the roof holds",
+      "sanctionedKwp": "Size the sanctioned load allows",
+      "recommendedKwp": "Recommended size",
+      "boundBy": {
+        "need": "Set by the units used",
+        "roof": "Set by the roof area",
+        "sanctioned_load": "Set by the sanctioned load"
+      },
+      "none": "None"
+    },
+    "units": {
+      "m": "{value} m",
+      "lph": "{value} litres an hour",
+      "kw": "{value} kW",
+      "hp": "{value} HP",
+      "kwp": "{value} kWp",
+      "panels": "{count, plural, one {# panel} other {# panels}}"
+    },
+    "reason": {
+      "curve_too_short": "This pump's curve has too few points to check. Ask for the pump's full curve.",
+      "curve_not_monotonic": "This pump's curve does not read correctly. Ask for it to be checked.",
+      "head_above_curve": "The height to lift is more than this pump can reach. Choose a stronger pump.",
+      "head_below_curve": "The height to lift is below this pump's curve, so it would overload. Choose a smaller pump.",
+      "suction_lift_exceeded": "The water is too deep for a surface pump to draw up. Choose a submersible pump.",
+      "duty_flow_short": "This pump gives less water at this height than the site needs. Choose a larger pump.",
+      "duty_flow_excess": "This pump gives far more water than the site needs. Choose a smaller pump.",
+      "pump_power_short": "This pump's motor is smaller than the size worked out. Choose a pump with a larger motor.",
+      "above_largest_standard_hp": "The pump needed is larger than any motor on sale. Ask the engineering head.",
+      "no_consumption": "Enter the units used a month to size the system.",
+      "roof_too_small": "The roof is too small for even one panel.",
+      "sanctioned_load_too_small": "The sanctioned load is too small for even one panel.",
+      "sanctioned_load_exceeded": "The system is larger than the sanctioned load allows.",
+      "dcr_modules_required": "This scheme needs made-in-India (DCR) panels on every line.",
+      "no_modules": "This scheme needs panels on the quote."
+    },
+    "advisory": {
+      "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
+    }
   }
 }

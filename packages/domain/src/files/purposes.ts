@@ -37,6 +37,8 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   signed_quote: { write: needs('sales.quote.send', 'own'), read: 'crm.lead.read' },
   entity_logo: { write: needs('admin.entities.write', 'all'), read: 'company' },
   letterhead: { write: needs('admin.entities.write', 'all'), read: 'company' },
+  // A company's proof page prints its bank account: rendered by the worker, read by an Executive.
+  print_proof: { write: needs('files.process', 'entity'), read: 'admin.entities.write' },
   knowledge: { write: null, read: null },
   consent_evidence: { write: needs('crm.account.write', 'own'), read: 'crm.account.write' },
 };

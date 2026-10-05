@@ -124,7 +124,7 @@ describe('imports are written only as the caller, in the caller’s entity', () 
       values (${id}, ${entityId}, 'import', 'test', ${`imports/${id}`}, 'leads.csv', 'text/csv', 10, ${SHA}, 'pending', ${createdBy})`;
   };
 
-  // An import file comes by the pre-signed upload, so a person records it pending (0091).
+  // An import file comes by the pre-signed upload, so a person records it pending (0102).
   it('lets a General Manager record an upload in their entity', async () => {
     await asPrincipal(gm1, ({ tx }) => tx.execute(insertFile(1, gm1.id)));
   });
@@ -159,7 +159,7 @@ describe('imports are written only as the caller, in the caller’s entity', () 
   });
 
   it('keeps a job with a file of its own entity, even for the table owner', async () => {
-    // A file of the first company that no job uses yet: one file starts one job (0090).
+    // A file of the first company that no job uses yet: one file starts one job (0101).
     const fileId = newId();
     await asMigrator(
       (
@@ -253,7 +253,7 @@ describe('the batch count of a job that committed before 0058 (0060)', () => {
             [f.untouched, 0],
             [f.counted, 5],
           ] as const) {
-            // Each job its own file: one file starts one job (0090).
+            // Each job its own file: one file starts one job (0101).
             const fileId = newId();
             await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
               values (${fileId}, 1, 'import', 'test', ${`imports/${fileId}`}, 'leads.csv', 'text/csv', 10,

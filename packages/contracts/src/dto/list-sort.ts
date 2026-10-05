@@ -13,11 +13,12 @@ export const listSortOf = <const K extends readonly [string, ...string[]]>(colum
   z.object({ column: z.enum(columns), direction: SortDirectionSchema }).strict();
 
 /**
- * Leads: only the last change, which the `(updated_at, id)` indexes serve. The customer,
- * contact, phone, stage, status and company columns are not offered: each would need a join or
- * an index of its own to sort a large company's leads.
+ * Leads: the last change, which the `(updated_at, id)` indexes serve, and the score, which the
+ * `(entity_id, score, id)` and `(score, id)` indexes serve. The customer, contact, phone, stage, status and company
+ * columns are not offered: each would need a join or an index of its own to sort a large
+ * company's leads.
  */
-export const LEAD_SORT_COLUMNS = ['updated'] as const;
+export const LEAD_SORT_COLUMNS = ['updated', 'score'] as const;
 export const LeadSortSchema = listSortOf(LEAD_SORT_COLUMNS);
 export type LeadSort = z.infer<typeof LeadSortSchema>;
 

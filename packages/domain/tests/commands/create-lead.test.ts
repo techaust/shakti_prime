@@ -131,6 +131,8 @@ describe('crm.lead.create', () => {
       'ownerId',
       'pipelineId',
       'score',
+      'scoreChangedAt',
+      'scoreReasons',
       'siteId',
       'stageId',
       'state',

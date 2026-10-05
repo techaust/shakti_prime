@@ -30,6 +30,16 @@ const typed: LeadFormFields = {
 };
 
 describe('the New lead form', () => {
+  it('sends a referral code trimmed, and none when the box is empty', () => {
+    expect(buildLeadInput({ ...typed, referralCode: ' SP42 ' })).toMatchObject({
+      referralCode: 'SP42',
+    });
+    expect(buildLeadInput({ ...typed, referralCode: ' ' })).not.toHaveProperty('referralCode');
+    expect(
+      CreateLeadInput.safeParse(buildLeadInput({ ...typed, referralCode: 'SP42' })).success,
+    ).toBe(true);
+  });
+
   it('sends a new customer with only what was filled in, which the contract accepts', () => {
     const input = buildLeadInput(typed);
     expect(input).toEqual({

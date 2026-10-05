@@ -8,10 +8,11 @@ grant update (entity_ids) on import_jobs to app_user;
 
 -- imports.process: held only by the platform's workers (system:workers), never by a person's role.
 -- The import worker stops a job whose last queue try failed as that principal, whatever became of
--- the person who asked for the commit (docs/SECURITY.md §3.3).
+-- the person who asked for the commit (docs/SECURITY.md §3.3). The list keeps every platform-only
+-- permission defined before it: the file checks' and the nightly lead rescoring's.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
-  select array['files.process', 'imports.process']::text[]
+  select array['files.process', 'imports.process', 'crm.score.refresh']::text[]
 $$;
 --> statement-breakpoint
 -- The queries' own role reads under the same rule, as every select policy of app_user.

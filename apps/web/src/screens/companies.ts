@@ -1,7 +1,7 @@
 // Settings › Companies: what the edit form sends, and how a registered address reads in the grid.
 // Pure functions, so the screen and its tests share them.
 
-import type { EntityDto } from '@shakti/contracts';
+import type { BankDetails, EntityDto } from '@shakti/contracts';
 
 /** The fields of the edit form, in the order it shows them. */
 export const COMPANY_FIELDS = [
@@ -46,4 +46,23 @@ export function addressLine(company: EntityDto): string | undefined {
   const place = parts.join(', ');
   if (company.pin === null) return place === '' ? undefined : place;
   return place === '' ? company.pin : `${place} ${company.pin}`;
+}
+
+/** The fields of the bank account form, in the order it shows them. */
+export const BANK_FIELDS = ['bankName', 'accountNumber', 'ifsc', 'branch'] as const;
+
+export type BankField = (typeof BANK_FIELDS)[number];
+
+/**
+ * The bank account the form sends, as typed: spaces trimmed, the IFSC in capitals and the account
+ * number without the spaces people type between groups of digits. The command checks the rest.
+ */
+export function bankDetailsFrom(typed: Readonly<Record<string, string>>): BankDetails {
+  const text = (field: BankField) => (typed[field] ?? '').trim();
+  return {
+    bankName: text('bankName'),
+    accountNumber: text('accountNumber').replace(/\s+/g, ''),
+    ifsc: text('ifsc').toUpperCase(),
+    branch: text('branch'),
+  };
 }

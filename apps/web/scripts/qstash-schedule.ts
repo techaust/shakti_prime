@@ -1,14 +1,22 @@
-// Creates or updates the QStash schedules: the outbox publisher every minute, the safety net behind
-// the nudge each command sends, and the sweep of abandoned uploads every hour (docs/runbooks/
-// DEPLOY.md). Run once per environment, with that environment's QSTASH_TOKEN, signing keys and
-// BETTER_AUTH_URL set.
+// Creates or updates the QStash schedules (docs/runbooks/DEPLOY.md): the outbox publisher every
+// minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
+// hour and the lead rescoring each night. Run once per environment, with that environment's
+// QSTASH_TOKEN, signing keys and BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
-import { FILES_SWEEP_PATH, qstashConfig, workerUrl } from '../src/workers/qstash';
+import {
+  FILES_SWEEP_PATH,
+  LEAD_RESCORE_PATH,
+  qstashConfig,
+  workerUrl,
+} from '../src/workers/qstash';
 
 /** Fixed, so running the script again updates each schedule instead of adding another. */
 const SCHEDULE_ID = 'outbox-publish';
 const SWEEP_SCHEDULE_ID = 'files-sweep';
+const RESCORE_SCHEDULE_ID = 'lead-rescore';
+/** 21:30 UTC, three in the morning in India, when no one is calling. */
+const RESCORE_CRON = '30 21 * * *';
 
 const config = qstashConfig();
 if (config === undefined) {
@@ -53,3 +61,17 @@ await client.schedules.create({
   timeout: 60,
 });
 console.log(`schedule ${SWEEP_SCHEDULE_ID} calls ${sweepUrl} every hour`);
+
+// The nightly rescoring of open leads (CRM-06): a lead's age and the details it gained since its
+// last score. A run that runs out of time hands the rest on itself.
+const rescoreUrl = workerUrl(config, LEAD_RESCORE_PATH);
+await client.schedules.create({
+  scheduleId: RESCORE_SCHEDULE_ID,
+  destination: rescoreUrl,
+  cron: RESCORE_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(`schedule ${RESCORE_SCHEDULE_ID} calls ${rescoreUrl} at ${RESCORE_CRON} (UTC)`);

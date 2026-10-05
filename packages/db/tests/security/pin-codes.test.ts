@@ -10,7 +10,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The PIN code master and what reads it (docs/design/phase1.md §6.3, migration 0091): shared by
+// The PIN code master and what reads it (docs/design/phase1.md §6.3, migration 0102): shared by
 // every company, read by every request, written only by an Executive acting for every company;
 // a site's PIN filled from it; and an import file that must arrive by the pre-signed upload.
 // Every PIN here starts 9999, outside the India Post directory, and names a fixture office.

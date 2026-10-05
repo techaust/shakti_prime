@@ -26,6 +26,8 @@ import {
   type CodeGroup,
 } from '../../screens/audit';
 import {
+  COMMISSION_BASES,
+  DISPOSITION_NEXT_ACTIONS,
   ACCOUNT_TYPES,
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
@@ -41,10 +43,15 @@ import {
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
+  PDF_DOCUMENT_TYPES,
   PRICE_TIER_CODES,
   SAVED_VIEW_SCREENS,
+  SCORE_FACTORS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
+  STAGE_EXIT_FIELDS,
+  SIZING_KINDS,
+  SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
@@ -213,6 +220,7 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
   const theme = useTranslations('theme');
   const code = useCodeText();
   const leadField = useLeadFieldName();
+  const settings = useTranslations('pipelineSettings');
   const catalogue = useCatalogueText();
   const text = (() => {
     switch (value.kind) {
@@ -234,6 +242,12 @@ function Value({ value, companies }: { value: ChangeValue; companies: Record<num
         return t('values.percent', { value: value.value });
       case 'code':
         return code(value.group, value.value);
+      case 'stageFields':
+        return value.fields
+          .map((f) => (oneOf(STAGE_EXIT_FIELDS, f) ? settings(`stageField.${f}`) : wordsOf(f)))
+          .join(', ');
+      case 'codes':
+        return value.values.map((v) => code(value.group, v)).join(t('values.listSeparator'));
       case 'specs':
         return (
           <span className="flex flex-col">
@@ -354,6 +368,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const leads = useTranslations('leads');
   const imports = useTranslations('imports');
   const errors = useTranslations('errors');
+  const settings = useTranslations('pipelineSettings');
+  const sizing = useTranslations('sizing');
   const customers = useTranslations('customers');
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
@@ -414,6 +430,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(TASK_KINDS, value) ? customers(`tasks.kind.${value}`) : wordsOf(value);
       case 'screen':
         return oneOf(SAVED_VIEW_SCREENS, value) ? t(`values.screen.${value}`) : wordsOf(value);
+      case 'nextAction':
+        return oneOf(DISPOSITION_NEXT_ACTIONS, value)
+          ? settings(`nextAction.${value}`)
+          : wordsOf(value);
+      case 'scoreFactor':
+        return oneOf(SCORE_FACTORS, value) ? settings(`factor.${value}`) : wordsOf(value);
+      case 'commissionBasis':
+        return oneOf(COMMISSION_BASES, value) ? settings(`basis.${value}`) : wordsOf(value);
+      case 'sizingKind':
+        return oneOf(SIZING_KINDS, value) ? sizing(`kind.${value}`) : wordsOf(value);
+      case 'sizingReason':
+        return oneOf(SIZING_REASONS, value) ? sizing(`reason.${value}`) : wordsOf(value);
       case 'itemCategory':
         return catalogue.category(value);
       case 'itemUnit':
@@ -434,6 +462,10 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(FILE_SANITISING, value) ? files(`sanitising.${value}`) : wordsOf(value);
       case 'scanStatus':
         return oneOf(SCAN_STATUSES, value) ? files(`scanStatus.${value}`) : wordsOf(value);
+      case 'documentType':
+        return oneOf(PDF_DOCUMENT_TYPES, value)
+          ? t(`values.documentType.${value}`)
+          : wordsOf(value);
     }
   };
 }

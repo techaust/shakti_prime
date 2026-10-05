@@ -24,6 +24,8 @@ export const FILE_PURPOSES = [
   // A company's logo and letterhead, printed on its documents.
   'entity_logo',
   'letterhead',
+  // A company's proof page, rendered to check its letterhead, logo and bank details in print.
+  'print_proof',
   // A Knowledge Vault document (K1).
   'knowledge',
   // The evidence of a customer's consent (a signed form, a photo of it).

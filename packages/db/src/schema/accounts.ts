@@ -57,6 +57,10 @@ export const accounts = pgTable(
     // The customers list pages by name (`listCustomers`).
     index('accounts_name_id_idx').on(t.name, t.id),
     index('accounts_tier_idx').on(t.tierId),
+    // The referral partners of Settings › Pipelines page by name (`listReferralPartners`).
+    index('accounts_referral_partner_name_idx')
+      .on(t.name, t.id)
+      .where(sql`${t.type} = 'referral_partner' and ${t.archivedAt} is null`),
   ],
 );
 
