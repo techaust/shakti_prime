@@ -9,6 +9,10 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
+  DuplicateKind,
+  DuplicateReason,
+  DuplicateSignal,
+  DuplicateState,
   ItemCategory,
   ItemSort,
   ItemUnit,
@@ -181,7 +185,29 @@ export const ACTIVITY_TYPES = [
   'tagged',
   'untagged',
   'sizing_recorded',
+  'enquiry_repeated',
+  'customers_merged',
+  'customer_unmerged',
+  'leads_merged',
 ] as const satisfies readonly ActivityType[];
+
+/** Duplicate cards (CRM-03): what a pair is, the facts behind it and where it stands. */
+export const DUPLICATE_KINDS = ['customer', 'lead'] as const satisfies readonly DuplicateKind[];
+export const DUPLICATE_REASONS = [
+  'phone',
+  'name_village',
+] as const satisfies readonly DuplicateReason[];
+export const DUPLICATE_SIGNALS = [
+  'same_phone',
+  'same_name',
+  'same_village',
+  'same_customer',
+] as const satisfies readonly DuplicateSignal[];
+export const DUPLICATE_STATES = [
+  'open',
+  'merged',
+  'dismissed',
+] as const satisfies readonly DuplicateState[];
 
 export const SEGMENTS = [
   'farmer_pumps',

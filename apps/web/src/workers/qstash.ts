@@ -16,6 +16,9 @@ export const IMPORT_COMMIT_PATH = '/api/v1/workers/imports/commit';
 /** Where the nightly schedule calls the lead rescoring worker, and a run hands on the rest. */
 export const LEAD_RESCORE_PATH = '/api/v1/workers/crm/rescore';
 
+/** Where the nightly schedule calls the duplicate search, and a run hands on the rest. */
+export const DUPLICATE_SCAN_PATH = '/api/v1/workers/crm/duplicates';
+
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 
@@ -231,17 +234,19 @@ export async function publishImportCommit(
 }
 
 /**
- * Asks QStash to call the lead rescoring worker with the rest of a run; retried if the worker
- * fails, and sent once for a `deduplicationId` already taken.
+ * Asks QStash to call a nightly worker (`path`: the lead rescoring, the duplicate search) with
+ * the rest of a run; retried if the worker fails, and sent once for a `deduplicationId` already
+ * taken.
  */
-export async function publishLeadRescore(
+export async function publishWorkerRun(
   config: QStashConfig,
+  path: string,
   body: unknown,
   deduplicationId: string,
 ): Promise<void> {
   await withTimeout(
     client(config).publishJSON({
-      url: workerUrl(config, LEAD_RESCORE_PATH),
+      url: workerUrl(config, path),
       body,
       retries: 3,
       deduplicationId,

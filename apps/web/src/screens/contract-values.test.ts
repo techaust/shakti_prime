@@ -1,5 +1,9 @@
 import {
   CommissionBasisSchema,
+  DuplicateKindSchema,
+  DuplicateReasonSchema,
+  DuplicateSignalSchema,
+  DuplicateStateSchema,
   ContrastSchema,
   FirstContactSlaSchema,
   LockHoursSchema,
@@ -124,6 +128,10 @@ import {
   SIZING_KINDS,
   SIZING_REASONS,
   SITE_TYPES,
+  DUPLICATE_KINDS,
+  DUPLICATE_REASONS,
+  DUPLICATE_SIGNALS,
+  DUPLICATE_STATES,
   TASK_KINDS,
   TASK_STATES,
   THEMES,
@@ -158,6 +166,10 @@ describe('the contract values copied for the browser', () => {
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
+    expect(DUPLICATE_KINDS).toEqual(DuplicateKindSchema.options);
+    expect(DUPLICATE_REASONS).toEqual(DuplicateReasonSchema.options);
+    expect(DUPLICATE_SIGNALS).toEqual(DuplicateSignalSchema.options);
+    expect(DUPLICATE_STATES).toEqual(DuplicateStateSchema.options);
     expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);

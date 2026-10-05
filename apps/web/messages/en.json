@@ -235,7 +235,14 @@
     "document_type_unknown": "This kind of document cannot be printed yet.",
     "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
     "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
-    "people_only": "Only a member of the team can do this, not an automated assistant."
+    "people_only": "Only a member of the team can do this, not an automated assistant.",
+    "duplicate_missing": "This possible duplicate has been dealt with, or you cannot see both customers. Reload the page to see the latest.",
+    "duplicate_not_matching": "These two leads are not open leads of the same customer for the same kind of work, so they cannot be put forward as one.",
+    "duplicate_candidate_transition_not_allowed": "This possible duplicate has already been dealt with. Reload the page to see the latest.",
+    "merge_partner_account": "A referral partner cannot be merged into another customer. Keep the partner and merge the other customer into it.",
+    "merge_undone_already": "This merge has already been undone.",
+    "merge_lead_closed": "One of these leads is already won or lost, so they cannot be merged.",
+    "merge_customers_first": "These leads belong to two different customers. Merge the customers first, then the leads."
   },
   "auth": {
     "signIn": {
@@ -321,7 +328,8 @@
     "customers": "Customers",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
-    "adminRoles": "Roles"
+    "adminRoles": "Roles",
+    "duplicates": "Duplicates"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -377,7 +385,8 @@
       "customers": "See a customer's contacts, sites, leads, tasks and history on one page.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
-      "adminRoles": "Choose what each role can see and do."
+      "adminRoles": "Choose what each role can see and do.",
+      "duplicates": "Merge customers and leads that were entered twice, or set them aside."
     }
   },
   "profile": {
@@ -925,7 +934,8 @@
       "cancel": "Cancel",
       "done": "Lead saved for {name}.",
       "referral": "Referral code",
-      "referralHelper": "If a referral partner sent the customer, enter the code from their card."
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
+      "attached": "{name} already has an open lead for this. The enquiry was added to it."
     },
     "accountType": {
       "household": "Household",
@@ -1085,7 +1095,8 @@
       "consent": "Consent",
       "walkInSubmit": "Save walk-in",
       "done": "Walk-in saved for {name}. The form is ready for the next customer.",
-      "language": "Language for calls"
+      "language": "Language for calls",
+      "attached": "{name} already has an open lead for this. The enquiry was added to it."
     }
   },
   "users": {
@@ -1313,7 +1324,13 @@
       "rolePermissions": "Role permissions changed",
       "fileRendered": "Document printed to a file",
       "printProofRequest": "Proof page asked for",
-      "sizingRecord": "Lead sized"
+      "sizingRecord": "Lead sized",
+      "duplicateScan": "Possible duplicates looked for overnight",
+      "duplicateDismiss": "Possible duplicate set aside",
+      "duplicateSuggest": "Possible duplicate put forward",
+      "customerMerge": "Customers merged",
+      "customerUnmerge": "Customer merge undone",
+      "leadMerge": "Leads merged"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1348,7 +1365,9 @@
       "priceListArchived": "Price list withdrawn",
       "rolePermissionsChanged": "Role permissions changed",
       "documentRequested": "Document sent for printing",
-      "sizingRecorded": "Lead sized"
+      "sizingRecorded": "Lead sized",
+      "leadAttached": "Repeat enquiry added to an open lead",
+      "duplicateFound": "Possible duplicate found"
     },
     "sheet": {
       "title": "{action}",
@@ -1509,7 +1528,19 @@
       "sizingKind": "What was sized",
       "inBounds": "Within limits",
       "sizingReasons": "Why it is outside limits",
-      "engineVersion": "Calculation version"
+      "engineVersion": "Calculation version",
+      "attached": "Added to an open lead",
+      "confidence": "Match, out of 100",
+      "duplicateReason": "Why it was put forward",
+      "undoneAt": "Undone on",
+      "movedContacts": "Contacts moved",
+      "movedSites": "Sites moved",
+      "movedRelationships": "Companies moved",
+      "movedLeads": "Leads moved",
+      "movedTasks": "Tasks moved",
+      "movedTags": "Tags moved",
+      "movedConsents": "Consents moved",
+      "movedActivities": "History entries moved"
     },
     "values": {
       "percent": "{value}%",
@@ -2166,7 +2197,11 @@
         "consent_withdrawn": "Consent withdrawn",
         "tagged": "Tag added",
         "untagged": "Tag removed",
-        "sizing_recorded": "Sizing worked out"
+        "sizing_recorded": "Sizing worked out",
+        "enquiry_repeated": "Enquired again",
+        "customers_merged": "Another customer merged into this one",
+        "customer_unmerged": "Customer merge undone",
+        "leads_merged": "Another lead merged into this one"
       },
       "tagDetail": "Tag: {name}",
       "sizingInBounds": "{kind} sizing, within limits",
@@ -2755,7 +2790,8 @@
       "admin_flags_write": "Turn features on and off",
       "integrations_dlq_replay": "Send failed messages to other systems again",
       "files_process": "Check uploaded files before they are used",
-      "crm_score_refresh": "Bring lead scores up to date each night"
+      "crm_score_refresh": "Bring lead scores up to date each night",
+      "crm_duplicates_scan": "Look for duplicate customers and leads each night"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -2884,6 +2920,76 @@
     },
     "advisory": {
       "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
+    }
+  },
+  "duplicates": {
+    "title": "Possible duplicates",
+    "intro": "Customers and leads that may have been entered twice. Merge the ones that are the same, and set aside the ones that are not.",
+    "empty": "No possible duplicates right now.",
+    "filterLabel": "Show",
+    "filter": {
+      "all": "All",
+      "customer": "Customers",
+      "lead": "Leads"
+    },
+    "kind": {
+      "customer": "Possible duplicate customer",
+      "lead": "Possible duplicate lead"
+    },
+    "match": "{confidence}% match",
+    "reason": {
+      "phone": "Same phone number",
+      "name_village": "Same name and village"
+    },
+    "signal": {
+      "same_phone": "Same phone number",
+      "same_name": "Same name",
+      "same_village": "Same village",
+      "same_customer": "Same customer"
+    },
+    "phoneEnding": "Phone ending {digits}",
+    "noPhone": "No phone recorded",
+    "noVillage": "No village recorded",
+    "withCompanies": "With {companies}",
+    "lead": "{pipeline}, {stage}",
+    "owner": "Looked after by {name}",
+    "noOwner": "Not handed to anyone yet",
+    "found": "Found {when}",
+    "merge": "Merge",
+    "notSame": "Not the same",
+    "notSameToast": "Set aside. This pair will not be put forward again.",
+    "accountSection": "Possible duplicates",
+    "mergedSection": "Merged into this customer",
+    "mergedFrom": "{name} was merged into this customer on {when}.",
+    "mergedFromUnnamed": "Another customer was merged into this customer on {when}.",
+    "undo": "Undo merge",
+    "undoneToast": "Merge undone. Both customers are back as they were.",
+    "dialog": {
+      "customerTitle": "Merge customers",
+      "leadTitle": "Merge leads",
+      "customerIntro": "Choose the customer to keep. Everything recorded for the other customer moves to it, and the other customer is closed. You can undo this from the kept customer's page.",
+      "leadIntro": "Choose the lead to keep. The other lead's open tasks and tags move to it, and the other lead is closed. Its history stays with the customer.",
+      "keepLegend": "Which one to keep",
+      "moves": "What moves to the kept customer",
+      "counts": {
+        "contacts": "Contacts",
+        "sites": "Sites",
+        "relationships": "Companies",
+        "leads": "Leads",
+        "tasks": "Tasks",
+        "tags": "Tags",
+        "consents": "Consents",
+        "activities": "History entries"
+      },
+      "submitCustomers": "Merge customers",
+      "submitLeads": "Merge leads",
+      "mergedToast": "Customers merged.",
+      "leadsMergedToast": "Leads merged."
+    },
+    "state": {
+      "open": "Open",
+      "merged": "Merged",
+      "dismissed": "Set aside"
     }
   }
 }

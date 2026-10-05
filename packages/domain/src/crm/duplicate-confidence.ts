@@ -40,13 +40,13 @@ export interface DuplicateConfidence {
 const RULES: readonly {
   when: (f: DuplicateFacts) => boolean;
   confidence: number;
-  reason: DuplicateReason;
+  basis: DuplicateReason;
 }[] = [
-  { when: (f) => f.kind === 'lead' && f.sameCustomer, confidence: 95, reason: 'phone' },
-  { when: (f) => f.samePhone && f.sameName, confidence: 95, reason: 'phone' },
-  { when: (f) => f.samePhone && f.sameVillage, confidence: 85, reason: 'phone' },
-  { when: (f) => f.samePhone, confidence: 70, reason: 'phone' },
-  { when: (f) => f.sameName && f.sameVillage, confidence: 60, reason: 'name_village' },
+  { when: (f) => f.kind === 'lead' && f.sameCustomer, confidence: 95, basis: 'phone' },
+  { when: (f) => f.samePhone && f.sameName, confidence: 95, basis: 'phone' },
+  { when: (f) => f.samePhone && f.sameVillage, confidence: 85, basis: 'phone' },
+  { when: (f) => f.samePhone, confidence: 70, basis: 'phone' },
+  { when: (f) => f.sameName && f.sameVillage, confidence: 60, basis: 'name_village' },
 ];
 
 /**
@@ -61,7 +61,7 @@ export function duplicateConfidence(facts: DuplicateFacts): DuplicateConfidence 
   if (facts.samePhone) signals.push('same_phone');
   if (facts.sameName) signals.push('same_name');
   if (facts.sameVillage) signals.push('same_village');
-  return { reason: rule.reason, confidence: rule.confidence, signals };
+  return { reason: rule.basis, confidence: rule.confidence, signals };
 }
 
 /**

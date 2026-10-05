@@ -127,6 +127,12 @@ const ACTIONS = {
   'crm.score_rule.set': 'scoreRulesSet',
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.duplicate.scan': 'duplicateScan',
+  'crm.duplicate.dismiss': 'duplicateDismiss',
+  'crm.duplicate.suggest': 'duplicateSuggest',
+  'crm.customer.merge': 'customerMerge',
+  'crm.customer.unmerge': 'customerUnmerge',
+  'crm.lead.merge': 'leadMerge',
   'crm.referral_partner.set': 'referralPartnerSet',
   'crm.commission_rule.set': 'commissionRuleSet',
   'auth.sign_in': 'signIn',
@@ -156,6 +162,8 @@ export function actionKey(command: string): ActionKey {
 const EVENT_NAMES = {
   'org.entity.updated': 'entityUpdated',
   'crm.lead.created': 'leadCreated',
+  'crm.lead.attached': 'leadAttached',
+  'crm.duplicate.found': 'duplicateFound',
   'crm.opportunity.stage_moved': 'opportunityStageMoved',
   'crm.opportunity.assigned': 'opportunityAssigned',
   'crm.opportunity.nurtured': 'opportunityNurtured',
@@ -286,6 +294,7 @@ const CODE_GROUPS = [
   'sanitising',
   'scanStatus',
   'documentType',
+  'duplicateReason',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -340,6 +349,7 @@ const FIELD_KINDS = [
   ['revokedReason', 'endReason'],
   ['existingAccount', 'yesNo'],
   ['consent', 'recorded'],
+  ['attached', 'yesNo'],
   // Sign-in
   ['detail', 'signInDetail'],
   ['method', 'method'],
@@ -465,6 +475,18 @@ const FIELD_KINDS = [
   ['scanStatus', 'scanStatus'],
   // Printed documents
   ['documentType', 'documentType'],
+  // Duplicates and merges
+  ['confidence', 'number'],
+  ['duplicateReason', 'duplicateReason'],
+  ['movedContacts', 'number'],
+  ['movedSites', 'number'],
+  ['movedRelationships', 'number'],
+  ['movedLeads', 'number'],
+  ['movedTasks', 'number'],
+  ['movedTags', 'number'],
+  ['movedConsents', 'number'],
+  ['movedActivities', 'number'],
+  ['undoneAt', 'time'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

@@ -55,6 +55,20 @@ export function movedCounts(value: unknown): CustomerMergeMovedDto {
   });
 }
 
+/** The counts a merge moved as the audit row names them (`movedLeads`, …). */
+function movedFields(moved: CustomerMergeMovedDto): Record<string, number> {
+  return {
+    movedContacts: moved.contacts,
+    movedSites: moved.sites,
+    movedRelationships: moved.relationships,
+    movedLeads: moved.leads,
+    movedTasks: moved.tasks,
+    movedTags: moved.tags,
+    movedConsents: moved.consents,
+    movedActivities: moved.activities,
+  };
+}
+
 /** A refusal of a definer's answer that is not `merged` or `undone`. */
 function refusal(status: string): DomainError {
   switch (status) {
@@ -142,14 +156,14 @@ export const mergeCustomers = defineCommand({
   input: MergeCustomersInput,
   output: CustomerMergeDto,
   auditFields: [
-    'contacts',
-    'sites',
-    'relationships',
-    'leads',
-    'tasks',
-    'tags',
-    'consents',
-    'activities',
+    'movedContacts',
+    'movedSites',
+    'movedRelationships',
+    'movedLeads',
+    'movedTasks',
+    'movedTags',
+    'movedConsents',
+    'movedActivities',
     'archivedAt',
     'state',
   ],
@@ -183,7 +197,7 @@ export const mergeCustomers = defineCommand({
       aggregateId: input.keptAccountId,
       entityId: input.entityId,
       before: null,
-      after: { mergeId, mergedAccountId: input.mergedAccountId, ...moved },
+      after: { mergeId, mergedAccountId: input.mergedAccountId, ...movedFields(moved) },
     });
     ctx.audit({
       aggregateType: 'customer',
@@ -291,7 +305,7 @@ export const mergeLeads = defineCommand({
   peopleOnly: true,
   input: MergeLeadsInput,
   output: LeadMergeDto,
-  auditFields: ['tasks', 'tags', 'archivedAt', 'state'],
+  auditFields: ['movedTasks', 'movedTags', 'archivedAt', 'state'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const candidate = await candidateOfPair(ctx, input.entityId, input.candidateId, 'lead', [
@@ -327,7 +341,7 @@ export const mergeLeads = defineCommand({
       aggregateId: input.keptOpportunityId,
       entityId: input.entityId,
       before: null,
-      after: { mergedOpportunityId: input.mergedOpportunityId, tasks, tags },
+      after: { mergedOpportunityId: input.mergedOpportunityId, movedTasks: tasks, movedTags: tags },
     });
     ctx.audit({
       aggregateType: 'opportunity',

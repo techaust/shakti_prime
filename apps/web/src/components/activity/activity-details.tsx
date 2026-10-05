@@ -34,6 +34,8 @@ import {
   CONSENT_SOURCES,
   CONTRASTS,
   CUSTOMER_LANGUAGES,
+  DUPLICATE_REASONS,
+  DUPLICATE_STATES,
   FILE_PURPOSES,
   FILE_SANITISING,
   FILE_SCAN_VERDICTS,
@@ -374,11 +376,13 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
+  const duplicates = useTranslations('duplicates');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
         if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
+        if (oneOf(DUPLICATE_STATES, value)) return duplicates(`state.${value}`);
         return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
@@ -466,6 +470,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(PDF_DOCUMENT_TYPES, value)
           ? t(`values.documentType.${value}`)
           : wordsOf(value);
+      case 'duplicateReason':
+        return oneOf(DUPLICATE_REASONS, value) ? duplicates(`reason.${value}`) : wordsOf(value);
     }
   };
 }

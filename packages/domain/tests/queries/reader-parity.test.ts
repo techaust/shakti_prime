@@ -18,6 +18,11 @@ import {
   listTimeline,
   loadAccount360,
 } from '../../src/queries/crm/customers';
+import {
+  listAccountDuplicates,
+  listDuplicates,
+  previewCustomerMerge,
+} from '../../src/queries/crm/duplicates';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { latestSizing } from '../../src/queries/crm/latest-sizing';
@@ -99,6 +104,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),
   searchCustomersByPhone: (ctx) => listCustomers(ctx, { q: '98765', limit: 20 }),
   loadAccount360: (ctx) => loadAccount360(ctx, { accountId: newId(), entityId: 1 }),
+  listDuplicates: (ctx) => listDuplicates(ctx, { limit: 20 }),
+  listAccountDuplicates: (ctx) =>
+    listAccountDuplicates(ctx, { entityId: 1, accountId: newId() }),
+  previewCustomerMerge: (ctx) =>
+    previewCustomerMerge(ctx, { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() }),
   listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
   listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
