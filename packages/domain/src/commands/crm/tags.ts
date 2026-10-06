@@ -11,6 +11,7 @@ import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { holdLeadCustomer } from '../../crm/hold-customer';
 import { lockOpportunity, requireEntity } from './opportunity-shared';
 
 type TagRow = typeof schema.tags.$inferSelect;
@@ -119,6 +120,7 @@ export const tagLead = defineCommand({
   auditFields: [],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    await holdLeadCustomer(ctx, input);
     const lead = await lockOpportunity(ctx, input);
     const tag = await usableTag(ctx, input.tagId, lead.entityId);
     const added = await ctx.tx
@@ -161,6 +163,7 @@ export const untagLead = defineCommand({
   auditFields: [],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    await holdLeadCustomer(ctx, input);
     const lead = await lockOpportunity(ctx, input);
     const ot = schema.opportunityTags;
     const removed = await ctx.tx

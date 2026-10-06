@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { databaseAuditSink as audit, memoryAuditSink } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
+import { recordConsent } from '../../src/commands/crm/consent';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { upsertSite } from '../../src/commands/crm/customer';
 import {
@@ -146,7 +147,7 @@ async function importedCustomer(args: {
   owner: Principal;
   team: string;
   lead?: { stage?: string; activityDaysAgo?: number };
-}): Promise<{ accountId: string; leadId: string | null }> {
+}): Promise<{ accountId: string; contactId: string; leadId: string | null }> {
   const accountId = newId();
   const contactId = newId();
   const leadId = args.lead === undefined ? null : newId();
@@ -179,7 +180,7 @@ async function importedCustomer(args: {
       }
     }),
   );
-  return { accountId, leadId };
+  return { accountId, contactId, leadId };
 }
 
 describe('crm.lead.create puts duplicates forward and attaches repeat enquiries (CRM-03)', () => {
@@ -926,33 +927,59 @@ describe('crm.duplicate.scan, the nightly search', () => {
 
 describe('a write about a known customer and a merge of it never cross', () => {
   /**
-   * Holds the customer as a merge does (`for update`) and archives it once `write` has started,
-   * then answers what the write did once the merge committed.
+   * Holds the customer as a merge does (`for update`) and archives it once `write` is waiting on
+   * that lock, then answers what the write did once the merge committed. The wait is read from
+   * `pg_stat_activity`: a backend blocked by the stand-in merge's, polled every 50 ms for at most
+   * 10 seconds, so a write that never waits fails the test on any machine.
    */
   async function whileMerging(accountId: string, write: () => Promise<unknown>) {
-    let locked!: () => void;
+    let locked!: (pid: number) => void;
     let release!: () => void;
-    const isLocked = new Promise<void>((resolve) => (locked = resolve));
+    const isLocked = new Promise<number>((resolve) => (locked = resolve));
     const released = new Promise<void>((resolve) => (release = resolve));
     const merging = asMigrator((m) =>
       m.begin(async (tx) => {
+        const [me] = await tx<{ pid: number }[]>`select pg_backend_pid() as pid`;
         await tx`select id from accounts where id = ${accountId} for update`;
-        locked();
+        locked(me?.pid ?? 0);
         await released;
         await tx`update accounts set archived_at = now() where id = ${accountId}`;
       }),
     );
-    await isLocked;
+    const standIn = await isLocked;
     let settled = false;
     const writing = refusal(write()).finally(() => {
       settled = true;
     });
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    // The write waits for the merge rather than reading the customer as still live.
-    expect(settled).toBe(false);
-    release();
-    await merging;
+    try {
+      await waitForLockWait(standIn);
+      // The write waits for the merge rather than reading the customer as still live.
+      expect(settled).toBe(false);
+    } finally {
+      release();
+      await merging;
+    }
     return writing;
+  }
+
+  /** Polls until a backend other than `standIn` waits on a lock it holds; fails after 10 s. */
+  async function waitForLockWait(standIn: number): Promise<void> {
+    const deadline = Date.now() + 10_000;
+    await asMigrator(async (m) => {
+      for (;;) {
+        const [row] = await m<{ waiting: number }[]>`
+          select count(*)::int as waiting
+            from pg_stat_activity
+           where pid <> ${standIn}
+             and wait_event_type = 'Lock'
+             and ${standIn} = any (pg_blocking_pids(pid))`;
+        if ((row?.waiting ?? 0) > 0) return;
+        if (Date.now() > deadline) {
+          throw new Error('no write waited on the stand-in merge within 10 seconds');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    });
   }
 
   it('a lead for the customer waits, then finds it merged away', async () => {
@@ -992,6 +1019,57 @@ describe('a write about a known customer and a merge of it never cross', () => {
       }),
     );
     expect(refused).toMatchObject(reason('account_missing'));
+  });
+
+  it('a consent for a contact of the customer waits, then finds it merged away', async () => {
+    const target = await importedCustomer({
+      name: `Hold consent ${RUN}`,
+      owner: callerA,
+      team: teamA,
+    });
+    const refused = await whileMerging(target.accountId, () =>
+      run(callerA, recordConsent, {
+        entityId: 1,
+        accountId: target.accountId,
+        contactId: target.contactId,
+        channel: 'whatsapp',
+        purpose: 'promotional',
+        source: 'walk_in_form',
+        textVersion: 'v2',
+        givenAt: new Date(Date.now() - 3_600_000).toISOString(),
+      }),
+    );
+    expect(refused).toMatchObject(reason('account_missing'));
+    const [row] = await asMigrator(
+      (m) => m<{ consents: number; rows: number }[]>`
+        select (select count(*)::int from consents where contact_id = ${target.contactId}) as consents,
+               (select count(*)::int from activities
+                 where account_id = ${target.accountId} and type = 'consent_recorded') as rows`,
+    );
+    expect(row).toEqual({ consents: 0, rows: 0 });
+  });
+
+  it('a task on a lead of the customer waits, then finds it merged away', async () => {
+    const target = await importedCustomer({
+      name: `Hold task ${RUN}`,
+      owner: callerA,
+      team: teamA,
+      lead: {},
+    });
+    const refused = await whileMerging(target.accountId, () =>
+      run(callerA, createTask, {
+        entityId: 1,
+        opportunityId: target.leadId,
+        kind: 'callback',
+        dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    );
+    expect(refused).toMatchObject(reason('account_missing'));
+    const [row] = await asMigrator(
+      (m) => m<{ tasks: number }[]>`
+        select count(*)::int as tasks from tasks where account_id = ${target.accountId}`,
+    );
+    expect(row?.tasks).toBe(0);
   });
 });
 
