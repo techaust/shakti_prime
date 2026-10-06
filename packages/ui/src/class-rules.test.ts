@@ -22,7 +22,7 @@ describe('tokenBypasses', () => {
     ]);
   });
 
-  it('finds the weights DESIGN.md §3 does not use', () => {
+  it('finds the weights docs/08-design-system.md §3 does not use', () => {
     expect(tokenBypasses('font-bold font-light font-medium font-semibold font-normal')).toEqual([
       'font-bold',
       'font-light',

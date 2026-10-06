@@ -920,7 +920,7 @@ describe('screen guards match the menu', () => {
   });
 });
 
-describe('Admin › Roles actions (docs/design/phase1.md §6.2)', () => {
+describe('Admin › Roles actions (docs/03-roadmap-appendix/phase1.md §6.2)', () => {
   const addSession = async (userId: string): Promise<string> => {
     const id = newId();
     await asMigrator(

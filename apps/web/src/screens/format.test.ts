@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeDevice, formatDateTime, formatPhone, moneyFromTyped } from './format';
 
-describe('screen formats (DESIGN.md §9)', () => {
+describe('screen formats (docs/08-design-system.md §9)', () => {
   it('shows an instant as DD-MM-YYYY HH:mm in IST, 24-hour', () => {
     expect(formatDateTime('2026-09-27T18:45:00Z')).toBe('28-09-2026 00:15');
     expect(formatDateTime('2026-01-05T08:05:00Z')).toBe('05-01-2026 13:35');

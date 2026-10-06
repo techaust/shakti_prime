@@ -30,7 +30,7 @@ import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox
 import { matchText } from '../../src/crm/duplicate-confidence';
 import { listAccountDuplicates, listDuplicates } from '../../src/queries/crm/duplicates';
 
-// Duplicates (PRD CRM-03, docs/design/phase1.md §7.4): the cards lead creation and the nightly
+// Duplicates (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): the cards lead creation and the nightly
 // search record, repeat enquiries attached to the open lead, and the customer and lead merges, with
 // their undo, each refused to a role without crm.lead.merge, outside the request's companies, to
 // an agent, and across a colleague's customer. The suites never clean the CRM tables, so every

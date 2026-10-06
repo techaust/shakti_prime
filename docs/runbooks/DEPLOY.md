@@ -1,7 +1,7 @@
 # Deploying to a hosted environment
 
 How the BOS reaches dev, staging and production: the outside services, the database and its secrets, every deploy, the first sign-in and secret rotation. Each step names who does it.
-- Which environments exist and their addresses: [STATUS](../STATUS.md#hosted-environments). Plans, regions and bills of every service: [accounts](accounts.md).
+- Which environments exist and their addresses: [STATUS](../10-status.md#hosted-environments). Plans, regions and bills of every service: [accounts](accounts.md).
 - What to do when something breaks: [INCIDENTS](INCIDENTS.md). File storage and mail on AWS: [files-setup](files-setup.md).
 - Production waits for the items in the *Before production* column of [accounts](accounts.md#in-use), among them a GitHub plan with environments; no workflow migrates it until then.
 
@@ -22,7 +22,7 @@ The owner does these steps, once for `dev`, once for `staging`, and once for `pr
    - `DATABASE_URL_MIGRATOR_<ENV>`, `APP_USER_PASSWORD_<ENV>`, `AUTH_SERVICE_PASSWORD_<ENV>`, `OUTBOX_PUBLISHER_PASSWORD_<ENV>`, `DATABASE_CA_CERT_<ENV>`, and, optional, `APP_READER_PASSWORD_<ENV>`;
    - `DATABASE_URL_MIGRATOR_<ENV>` is the project's **session pooler** address for `postgres` (dashboard › **Connect** › Session pooler), with the database password in place of `[YOUR-PASSWORD]`; GitHub's runners reach no IPv6-only direct address. The workflow stops when a secret is missing or its address names another project;
    - a secret cannot be read back from GitHub once saved, so the owner keeps every password of this section in their own password store;
-   - production is migrated only after the repository moves to a plan with environments (the audit ([2026-09-audit](../reviews/2026-09-audit.md)) M45): a `production` environment holding the same six secrets without a suffix (the reader's password optional), with a required reviewer, and `production` added to the workflow's choices.
+   - production is migrated only after the repository moves to a plan with environments (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45): a `production` environment holding the same six secrets without a suffix (the reader's password optional), with a required reviewer, and `production` added to the workflow's choices.
 5. **Upstash Redis** (console.upstash.com › Redis › **Create database**): name `shakti-prime-<env>`, primary region Mumbai, the Pay as You Go plan, eviction off. On the database's page, the REST API section shows the address and the read-write key: they are `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (never the read-only key).
 6. **Upstash QStash** (console.upstash.com › QStash): one QStash account serves every environment. Its page shows `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY`; `QSTASH_URL` is set only when the account's region is not QStash's default endpoint. The schedule and the URL groups are made later (§2, steps 6 and 7).
 7. **Cloudflare Turnstile** (dash.cloudflare.com › Turnstile › **Add widget**): name `shakti-prime-<env>`, the hostname of `BETTER_AUTH_URL` (for example `shakti-prime-dev.vercel.app`), widget mode Managed. The widget's site key and secret key are `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`; the app checks each answer against that hostname.
@@ -30,7 +30,7 @@ The owner does these steps, once for `dev`, once for `staging`, and once for `pr
    - in the project's settings, switch on *Prevent storing of IP addresses* and server-side data scrubbing (the default and the additional sensitive fields), a second guard behind the app's own scrubber;
    - create one alert rule per environment: when an event's message is `outbox.dead_lettered` or `outbox.publisher_failing`, notify the owner. The publisher sends the first when a run dead-letters any event, or when QStash's failure callback holds an event back, and the second on the third run in a row that delivers nothing, each with counts and event ids only.
 9. **AWS files stack and mail:** [files-setup](files-setup.md) §1 to §3 for the bucket, the key and the app user; [files-setup §7](files-setup.md#7-verifying-the-clients-domain-for-mail) for the client's domain in Amazon SES (DKIM, SPF, DMARC, production access and the sender address).
-10. **Vercel project** `shakti-prime-<env>`, connected to the repository, with its functions pinned to `bom1`. Vercel builds every push to `main` and serves it on the production target of every project within minutes. The repository cannot require a green CI run before merging (the audit ([2026-09-audit](../reviews/2026-09-audit.md)) M45), so only the merge-on-green workflow merges into `main`. Set the runtime variables of step 11 on the **Production** target.
+10. **Vercel project** `shakti-prime-<env>`, connected to the repository, with its functions pinned to `bom1`. Vercel builds every push to `main` and serves it on the production target of every project within minutes. The repository cannot require a green CI run before merging (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45), so only the merge-on-green workflow merges into `main`. Set the runtime variables of step 11 on the **Production** target.
 11. **Vercel variables** (project › Settings › Environment Variables; mark each password, key and secret **Sensitive**):
     - `DATABASE_URL`, `DATABASE_URL_AUTH` and `DATABASE_URL_OUTBOX`: the **transaction pooler** addresses (dashboard › **Connect** › Transaction pooler) for `app_user`, `auth_service` and `outbox_publisher`: the user `postgres.<project ref>` becomes `<role>.<project ref>`, with that role's own password;
     - `DATABASE_URL_READER` (optional): the transaction pooler address for `app_reader`, once its password is set; with it every query reads on that pool;
@@ -54,7 +54,7 @@ The owner does these steps, once for `dev`, once for `staging`, and once for `pr
 13. Then follow §2 (the first migration and seed, the scheduled jobs and the outbox schedule), then §4 for the first Executive.
 
 ## 2. Every deploy
-This is the one procedure for bringing a hosted database and site up to `main`; the `migrate-hosted` skill and [slice-integration](slice-integration.md) follow it. The lead session runs it from the owner's PC under the owner's standing go-ahead for dev and staging ([DECISIONS](../DECISIONS.md)), or the owner runs it. Always dev first, then staging.
+This is the one procedure for bringing a hosted database and site up to `main`; the `migrate-hosted` skill and [slice-integration](slice-integration.md) follow it. The lead session runs it from the owner's PC under the owner's standing go-ahead for dev and staging ([DECISIONS](../11-decisions.md)), or the owner runs it. Always dev first, then staging.
 
 1. **Merge.** A pull request reaches `main` only through the merge-on-green workflow (`.github/workflows/automerge.yml`), after CI passes on its latest commit; CI runs again on `main`. Vercel deploys the merge commit to every project within minutes, so run the migration straight after: until it has run, a screen that needs a table the merge adds fails.
 2. **Migrate dev.** GitHub › **Actions** › *Migrate a hosted database* › **Run workflow**: branch `main`, environment `dev`, *Seed the reference data* ticked, *Set the login roles' passwords again* unticked. From a terminal signed in to `gh`, the same run and its watch:
@@ -78,7 +78,7 @@ This is the one procedure for bringing a hosted database and site up to `main`; 
    - The app makes each subscribed type's QStash URL group itself: before the first event of a type a process publishes, it adds the endpoint `<BETTER_AUTH_URL>/api/v1/workers/outbox/<type>` to the group `evt-<type>` (creating the group, or leaving it as it is), once per process. A failed attempt is logged as `outbox.url_group_failed` and tried again on the next run, while the events wait under the usual backoff. So `BETTER_AUTH_URL` must be the environment's public address before the first event goes out.
    - Every event is published with the failure callback `<BETTER_AUTH_URL>/api/v1/workers/outbox/failed`, which needs no setting in the console either: an event its worker refuses for good, or that still fails after QStash's retries, comes back there and is held back with `worker_refused` or `worker_failed`.
    - After a deploy that switches on a worker, open Admin › Integration health and press **Check delivery speed**: the check arrives within seconds.
-8. Record the environment's last migration and the date in [STATUS](../STATUS.md#hosted-environments).
+8. Record the environment's last migration and the date in [STATUS](../10-status.md#hosted-environments).
 
 ## 3. A migration that builds an index concurrently
 `create index concurrently` cannot run inside the migrator's transaction. Write the migration with a plain `create index if not exists`, and before running the workflow, build the same index by hand on the hosted database with `create index concurrently if not exists …` under the same name. The migration then finds it and does nothing, without locking the table.
@@ -115,6 +115,6 @@ Once per environment, after its first migration, from the owner's PC in Git Bash
 - **BOS signing keys (`BOS_JWT_CURRENT_KEY`, `BOS_JWT_NEXT_KEY`, every 6 months, ADR 0003):**
   1. make a key with `pnpm --silent --filter web realtime-keys` straight into Vercel as `BOS_JWT_NEXT_KEY` and redeploy;
   2. after at least 10 minutes (the key list's cache and Supabase's), swap the two values so the new key signs and the old one stays published, and redeploy;
-  3. after another 30 minutes (the longest token life twice over), clear `BOS_JWT_NEXT_KEY` and redeploy. The steps and their checks are in `docs/spikes/realtime.md` §5.
+  3. after another 30 minutes (the longest token life twice over), clear `BOS_JWT_NEXT_KEY` and redeploy. The steps and their checks are in `docs/04-architecture-appendix/realtime.md` §5.
 - **AWS access key** of the app user: [files-setup §5](files-setup.md#5-rotating-the-access-key).
 - **`BETTER_AUTH_SECRET`:** never replace it outright; it also encrypts stored authenticator secrets. Follow SECURITY §10.

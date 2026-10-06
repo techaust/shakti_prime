@@ -14,7 +14,7 @@ import {
 
 const Count = z.number().int().min(0);
 
-/** An import job as the import screens see it (docs/design/backend-weeks-3-5.md §8). Strict. */
+/** An import job as the import screens see it (docs/03-roadmap-appendix/backend-weeks-3-5.md §8). Strict. */
 export const ImportJobDto = z
   .object({
     id: IdSchema,

@@ -10,7 +10,7 @@
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §7.3](../../design/phase1.md#73-s1-quotes), §11 (workshop defaults) and §12
+- Design: [`docs/03-roadmap-appendix/phase1.md` §7.3](../../03-roadmap-appendix/phase1.md#73-s1-quotes), §11 (workshop defaults) and §12
 - BLUEPRINT §8.3 (quote validations and validity), §3 (prices only from Price Master tiers, no discounts; tax only from the engine; LLMs never do this math)
 - PRD SAL-03, SAL-04, RPT-03 (quote numbers in ⌘K)
 - ADR 0007 (the tax engine), ADR 0009 (print), ADR 0021 (people record the sizing a quote relies on)
@@ -21,7 +21,7 @@ Read first:
 - The workshop pack (SALE-1, PRICE-1, PRICE-3)
 - Skills: `add-command`, `add-table`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
 
-1. **Workshop defaults**, added to `packages/domain/src/workshop-defaults.ts`, each named under its question, flagged in `docs/phase0/exit-gate-actions.md` and design §11, and never presented as a client fact:
+1. **Workshop defaults**, added to `packages/domain/src/workshop-defaults.ts`, each named under its question, flagged in `docs/13-client-packs/exit-gate-actions.md` and design §11, and never presented as a client fact:
    - the document number format (SALE-1);
    - the customer type to price tier map (PRICE-1);
    - kits priced as a fixed kit price (PRICE-3).
@@ -243,7 +243,7 @@ Not rerun by the builder or here: `pnpm build`, the JavaScript budget and the jo
 1. Hosted PDFs wait on the owner's AWS files stack, as P4's do.
 2. **The lead's brief of 06-10-2026, the cloud integration (the trial of hybrid §10).** Follow `docs/runbooks/slice-integration.md` §5 to §7 in a cloud session, with `.` as the worktree. `main` is at `9647eee4` (#114), its last migration 0108.
    1. `git rev-parse HEAD > ../s1-premerge.sha`, `git fetch`, `git merge --no-commit origin/main`; resolve lists with `merge-union.py`, `en.json` with `merge-json.py` before `git add`, `copy-lint.config.json` with `merge-copylint.py`; read every code hunk by hand. `AGENTS.md` and `turbo.json` take `main`'s version (no turbo block; `"agentGuidance": false`). `main` brought P2b, AI0 and the cloud tooling (#111 to #113) since this branch began at #103.
-   2. `pnpm install --offline --frozen-lockfile` (or without `--offline` if the store lacks a package), then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../s1-premerge.sha)`: 0101 to 0103 move to 0109 to 0111. `pnpm db:generate` must report no changes (if it writes a migration, fold it as slice-integration §10 says); `pnpm db:docs`; correct the migration numbers DATABASE.md, the design and this file cite. Commit: `chore: merge main (P2b, AI0, cloud tooling) into S1; its migrations move to 0109 to 0111`. Push.
+   2. `pnpm install --offline --frozen-lockfile` (or without `--offline` if the store lacks a package), then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../s1-premerge.sha)`: 0101 to 0103 move to 0109 to 0111. `pnpm db:generate` must report no changes (if it writes a migration, fold it as slice-integration §10 says); `pnpm db:docs`; correct the migration numbers 05-database.md, the design and this file cite. Commit: `chore: merge main (P2b, AI0, cloud tooling) into S1; its migrations move to 0109 to 0111`. Push.
    3. `integrate.sh` in parts, each under 30 minutes: `INTEGRATE_STEPS="install lint format copylint generated typecheck"`, then `"unit"`, then `"security dbverify"`, then `"audit build jsbudget gitleaks"`, then `"e2e"`, each as `INTEGRATE_STEPS="…" bash tools/integration/integrate.sh . ../int-<n>.log`. Each verdict must be `INTEGRATION PARTIAL` with no `rc=` other than 0; on a failure read `../int-<n>.log.<step>`, fix, commit, push and rerun that part. The review did not run the build, the budget or the journeys (the tele-caller's changed quote journey included), so expect the first findings there.
    4. Baselines on a fresh database: `docker compose down -v && docker compose up -d --wait`, wait until several queries in a row succeed, `pnpm db:migrate && pnpm db:seed && pnpm build`. M2 opens Quotes to every lead reader, so delete the old baselines of every staff screen whose menu gains the item, run `pnpm --filter web e2e:snap -- --update-snapshots=missing`, look at each new image (the quote builder, the quote page, `/quotes`, Account 360's quotes, the menu screens), then `pnpm --filter web e2e:snap` without updating: every screenshot must match. Commit the baselines and push.
    5. Write below, as item 3, each part's verdict and time, what was fixed, the baselines made, and for the trial: what worked in the cloud and what did not (the session hook, Docker, the image pulls, any command that hit the 30-minute limit, the Playwright browser). Set State to "integrated; ready for the pull request". Commit and push. Never open a pull request, merge, or touch a hosted service.

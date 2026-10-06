@@ -90,7 +90,7 @@ function health(
 const executive = (entities: number[] = [1, 2, 3, 4]) => principalFor('executive', entities);
 const ours = (h: Health) => h.byType.find((t) => t.type === TYPE);
 
-describe('app.outbox_health() (Integration Health, docs/design/phase1.md §5.2)', () => {
+describe('app.outbox_health() (Integration Health, docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('may be called by the application and the reader only', async () => {
     const [grants] = await withoutContext<Record<string, boolean>>(sql`
       select has_function_privilege('app_user', 'app.outbox_health(timestamptz,uuid,integer)', 'execute') as app,

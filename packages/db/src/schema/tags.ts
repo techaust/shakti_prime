@@ -16,7 +16,7 @@ import { opportunities } from './opportunities';
 import { principals } from './principals';
 
 /**
- * A free label a team puts on leads to filter and group them (docs/DATABASE.md §6.2): a scheme, an
+ * A free label a team puts on leads to filter and group them (docs/05-database.md §6.2): a scheme, an
  * exhibition, a village drive. `entity_id` null is a tag for the whole group. A name is unique in
  * its company, whatever its case (`tags_entity_name_unique`, with nulls not distinct, written in
  * the migration because drizzle-kit cannot express it).

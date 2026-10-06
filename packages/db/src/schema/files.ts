@@ -14,7 +14,7 @@ import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 
 /**
- * A stored file (docs/DATABASE.md §6.10): the bytes live in the file store under `bucket` and
+ * A stored file (docs/05-database.md §6.10): the bytes live in the file store under `bucket` and
  * `key`, this row records what they are. `purpose` (the `FILE_PURPOSES` of the contracts) decides
  * who may create and read the row, through `app.file_purpose_grant()`, the one place the mapping
  * lives in SQL (mirrored by `packages/domain/src/files/purposes.ts`). An upload is `pending` until
@@ -53,7 +53,7 @@ export const files = pgTable(
     check('files_sha256_check', sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
     check('files_name_length_check', sql`char_length(${t.name}) between 1 and 200`),
     unique('files_bucket_key_unique').on(t.bucket, t.key),
-    // The target of the composite keys of rows that use a file (docs/DATABASE.md §2).
+    // The target of the composite keys of rows that use a file (docs/05-database.md §2).
     unique('files_id_entity_unique').on(t.id, t.entityId),
     index('files_entity_idx').on(t.entityId),
     // A company's latest file of a purpose (its logo, its letterhead).

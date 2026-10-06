@@ -81,7 +81,7 @@ export function itemsQuery(ctx: Pick<RequestContext, 'tx'>, options: ListItemsOp
 
 /**
  * The catalogue as every reader sees it, a page at a time by name unless another order is asked
- * for: never joins `item_costs`. Items are shared by every company (docs/DATABASE.md), so RLS
+ * for: never joins `item_costs`. Items are shared by every company (docs/05-database.md), so RLS
  * gives every reader the same rows.
  */
 export async function listItems(
@@ -104,7 +104,7 @@ export async function listItems(
 }
 
 /**
- * The catalogue with one entity's cost side (docs/SECURITY.md §4), a page at a time by name.
+ * The catalogue with one entity's cost side (docs/07-security.md §4), a page at a time by name.
  * Guarded twice: the permission check here and the cost-gate policy on `item_costs`, so a caller
  * without `finance.cost.read` is refused before the query and would see null costs even if it
  * were not.

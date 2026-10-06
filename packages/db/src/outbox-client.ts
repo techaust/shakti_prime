@@ -1,5 +1,5 @@
 // The outbox publisher's connection: the non-superuser `outbox_publisher`, which may read
-// `outbox_events` and update its six delivery columns, nothing else (docs/DATABASE.md §3,
+// `outbox_events` and update its six delivery columns, nothing else (docs/05-database.md §3,
 // migrations 0035 and 0054). The publisher in apps/web/src/workers is its only caller;
 // importing it anywhere else is a lint error.
 import postgres from 'postgres';

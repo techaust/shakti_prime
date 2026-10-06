@@ -1,6 +1,6 @@
 # Incidents: what to do when something goes wrong
 
-Plain steps for the owner or the developer on duty, one section per kind of trouble. Each step names the screen or the page to open. The hosted environments are listed in [STATUS](../STATUS.md#hosted-environments); how they are set up is in [DEPLOY](DEPLOY.md). Nothing here changes a hosted environment without the owner's go-ahead.
+Plain steps for the owner or the developer on duty, one section per kind of trouble. Each step names the screen or the page to open. The hosted environments are listed in [STATUS](../10-status.md#hosted-environments); how they are set up is in [DEPLOY](DEPLOY.md). Nothing here changes a hosted environment without the owner's go-ahead.
 
 **Who to tell.** When a step does not clear the trouble, or before anything is changed by hand, the owner tells the developer (Techaust) by phone or message with:
 - the site's address (dev or staging) and the time it started, in IST;
@@ -56,7 +56,7 @@ Migrations reach a hosted database only through GitHub › **Actions** › *Migr
 Replace it at once, following [DEPLOY §5](DEPLOY.md#5-rotating-a-secret) for the kind of secret; for the AWS access key, [files-setup §5](files-setup.md#5-rotating-the-access-key). A secret committed to the repository stays in its history, which is never rewritten on GitHub: replace the secret, then add the scan's fingerprint of the old value to `.gitleaksignore` in a pull request. Never replace `BETTER_AUTH_SECRET` outright: follow SECURITY §10.
 
 ## 6. Restore from a backup
-The backups, the recovery targets and the restore drill are in [DATABASE §10](../DATABASE.md#10-backups-and-recovery). Restore into a new scratch project first, check it as the drill describes, and only then decide with the owner how to bring the data back.
+The backups, the recovery targets and the restore drill are in [DATABASE §10](../05-database.md#10-backups-and-recovery). Restore into a new scratch project first, check it as the drill describes, and only then decide with the owner how to bring the data back.
 
 ## 7. A paused Supabase project
 Dev and staging run on Supabase's free plan, which pauses a project that has seen no activity for a while ([accounts](accounts.md#in-use)).

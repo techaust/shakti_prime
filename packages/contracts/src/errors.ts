@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Stable error codes (docs/API.md §1). Users never see these; the catalogue maps each to a sentence. */
+/** Stable error codes (docs/06-api.md §1). Users never see these; the catalogue maps each to a sentence. */
 export const ERROR_CODES = [
   'validation_failed',
   'unauthorized',

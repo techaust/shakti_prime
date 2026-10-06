@@ -1,4 +1,4 @@
-# Dependency updates (docs/SECURITY.md §8, supply chain). Grouped weekly so the lockfile moves in one PR, which the
+# Dependency updates (docs/07-security.md §8, supply chain). Grouped weekly so the lockfile moves in one PR, which the
 # merge-on-green workflow merges once CI passes. Majors come one at a time, outside the groups
 # (AUDIT L25), and wait for the owner's review: a TypeScript or ESLint major waits until
 # typescript-eslint and the Next.js config support it.

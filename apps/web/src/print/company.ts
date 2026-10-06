@@ -1,4 +1,4 @@
-// The selling company as every printed document shows it (BLUEPRINT §8.3, DESIGN.md §6 Print
+// The selling company as every printed document shows it (BLUEPRINT §8.3, docs/08-design-system.md §6 Print
 // templates): its letterhead strip across the top, its logo beside its legal name, registered
 // address and GSTIN, and its bank account for payment. The print loader fills this in for the
 // one company a job names (`documents.ts`); a template never reads the database.

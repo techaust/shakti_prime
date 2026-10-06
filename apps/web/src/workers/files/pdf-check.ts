@@ -1,7 +1,7 @@
 import { inflateSync } from 'node:zlib';
 
 /**
- * The PDF check before a file is usable (docs/SECURITY.md §8). It fails closed: whatever it cannot
+ * The PDF check before a file is usable (docs/07-security.md §8). It fails closed: whatever it cannot
  * read, it refuses.
  *
  * A PDF must start with its header and end with its end-of-file marker, and must name no script

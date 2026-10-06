@@ -32,7 +32,7 @@ async function eventsOf(probeId: string) {
   );
 }
 
-describe('platform.probe.run (the delivery check, docs/design/phase1.md §5.2)', () => {
+describe('platform.probe.run (the delivery check, docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('is denied without admin.integrations.write at scope all, and emits nothing', async () => {
     for (const role of [
       'general_manager',

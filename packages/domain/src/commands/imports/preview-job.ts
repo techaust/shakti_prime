@@ -100,8 +100,8 @@ function pairKey(pair: { name: string; village: string }): string {
  * village, compared through `matchKey` on both sides: the second dedupe suggestion of design §8,
  * for the many farmers a file lists without the number the office already has. The database
  * keeps each side's key as a stored column (`customer_sites.village_key`, `contacts.name_key`),
- * so each equality is an index condition under the policies (docs/DATABASE.md §4.2) and the
- * search stays fast however many customers the group has (docs/spikes/import-scale.md).
+ * so each equality is an index condition under the policies (docs/05-database.md §4.2) and the
+ * search stays fast however many customers the group has (docs/04-architecture-appendix/import-scale.md).
  */
 export async function existingByNameAndVillage(
   tx: RequestTx,

@@ -1,4 +1,4 @@
-// The Activity log's date window and its reading of a change (docs/design/backend-weeks-3-5.md
+// The Activity log's date window and its reading of a change (docs/03-roadmap-appendix/backend-weeks-3-5.md
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';

@@ -14,7 +14,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The customer timeline (docs/DATABASE.md §6.2): a row on a lead is read by whoever reads the lead,
+// The customer timeline (docs/05-database.md §6.2): a row on a lead is read by whoever reads the lead,
 // a row of no lead by whoever reads the customer in the row's company, which an agent never does
 // through a lead (0057). Commands write rows as the caller, about what the caller reads.
 //
@@ -249,7 +249,7 @@ describe('writing the timeline as the application', () => {
   });
 });
 
-describe('monthly partitions (docs/DATABASE.md §7)', () => {
+describe('monthly partitions (docs/05-database.md §7)', () => {
   it('no request role can use the partitions schema', async () => {
     const found = await asMigrator(
       (m) => m<{ role: string; usable: boolean }[]>`

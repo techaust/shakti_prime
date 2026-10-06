@@ -32,7 +32,7 @@ export type QuoteLineInput = z.input<typeof QuoteLineInput>;
 export const QUOTE_MAX_LINES = 40;
 
 /**
- * `sales.quote.create` (docs/design/phase1.md §7.3): a quote for a lead, its lines priced from the
+ * `sales.quote.create` (docs/03-roadmap-appendix/phase1.md §7.3): a quote for a lead, its lines priced from the
  * live price list of the customer's tier in the lead's company. The same shape previews a quote
  * (`sales.quote.preview`) without saving it.
  */

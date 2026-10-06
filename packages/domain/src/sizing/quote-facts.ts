@@ -35,7 +35,7 @@ const SIZED_KIND: Partial<Record<Segment, SizingKind>> = {
 };
 
 /**
- * The sizing facts of a quote (docs/design/phase1.md §6.7, BLUEPRINT §8.3), from the lead's newest
+ * The sizing facts of a quote (docs/03-roadmap-appendix/phase1.md §6.7, BLUEPRINT §8.3), from the lead's newest
  * sizing as `latestSizing` answers it and the quote's own lines, so every quote command fills the
  * quote machine's guards the same way:
  *

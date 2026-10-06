@@ -44,7 +44,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * The quote page (docs/design/phase1.md §7.3): the quote as it was made, its document once the
+ * The quote page (docs/03-roadmap-appendix/phase1.md §7.3): the quote as it was made, its document once the
  * render worker has printed it (the page asks again every few seconds until then), and the moves
  * the caller may make: mark it as sent, re-quote it at today's prices, or withdraw it.
  */

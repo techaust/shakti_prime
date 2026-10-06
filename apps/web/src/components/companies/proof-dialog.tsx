@@ -27,7 +27,7 @@ const POLL_LIMIT_MS = 90_000;
 type Stage = { kind: 'printing' } | { kind: 'ready'; fileId: string } | { kind: 'slow' };
 
 /**
- * Settings › Companies: an Executive prints a company's proof page (docs/design/phase1.md §6.4),
+ * Settings › Companies: an Executive prints a company's proof page (docs/03-roadmap-appendix/phase1.md §6.4),
  * loaded on demand by the companies screen. Opening the dialog asks for the page once; the render
  * worker prints it (in this process when no queue is configured, so it is often ready at once),
  * and the dialog waits for its file, then offers to open it.

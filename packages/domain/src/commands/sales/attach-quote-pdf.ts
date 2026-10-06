@@ -4,7 +4,7 @@ import { defineCommand } from '../../command/define-command';
 import { assertEntityInScope } from '../imports/shared';
 
 /**
- * `sales.quote.pdf.attach` (ADR 0009, docs/design/phase1.md §7.3): the render worker attaches the
+ * `sales.quote.pdf.attach` (ADR 0009, docs/03-roadmap-appendix/phase1.md §7.3): the render worker attaches the
  * PDF it printed and recorded (`files.document.record`) to its quote, so the quote can be sent.
  * Only the worker principal holds `files.process`, and it reaches the quote only through
  * `app.attach_quote_pdf()`, which takes a ready `quote_pdf` file of the quote's company and a

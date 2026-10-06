@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('design'), t('title'));
 }
 
-/** The standard themes, then their high-contrast variants for field phones (DESIGN.md §2.1). */
+/** The standard themes, then their high-contrast variants for field phones (docs/08-design-system.md §2.1). */
 const PANELS: readonly { theme: Theme; contrast: Contrast }[] = [
   { theme: 'light', contrast: 'standard' },
   { theme: 'dark', contrast: 'standard' },
@@ -56,7 +56,7 @@ const STAGES = [
   'stage-won',
   'stage-lost',
 ] as const satisfies readonly (keyof typeof aliases)[];
-/** The status scales of DESIGN.md §2.4 other than the lead stages, each with its meaning. */
+/** The status scales of docs/08-design-system.md §2.4 other than the lead stages, each with its meaning. */
 const ALIAS_GROUPS = [
   { group: 'sla', names: ['sla-ok', 'sla-warn', 'sla-breach'] },
   { group: 'stock', names: ['stock-healthy', 'stock-low', 'stock-out', 'stock-reserved'] },
@@ -70,7 +70,7 @@ const MOTIONS = Object.entries(scale.motion);
 
 /**
  * Every token and every `@shakti/ui` component in light and dark side by side, and again in the
- * high-contrast variants (DESIGN.md §2.1, §8, §10), for the design review: each colour with its
+ * high-contrast variants (docs/08-design-system.md §2.1, §8, §10), for the design review: each colour with its
  * contrast on a card, the status scales, type sizes, spacing, corners, shadows, motion and focus,
  * the §2.5 contrast pairs, the kanban column and card, and the print preview, which is light only.
  */
@@ -80,7 +80,7 @@ export default async function DesignPage() {
   const copy: DesignCopy = (await getMessages()).design;
   const navIds = visibleNav(principal.permissions).map((item) => item.id);
   // The print spike's quotation lines and label, rendered by the real templates, with no invented
-  // person, phone number or company identifier (DESIGN.md §11.1 rule 3): the customer is a place,
+  // person, phone number or company identifier (docs/08-design-system.md §11.1 rule 3): the customer is a place,
   // and company details the workshop has not supplied read as not recorded. The screen's own font
   // stands in for the embedded one (the page may load fonts only from the app).
   const fill = copy.printFill;

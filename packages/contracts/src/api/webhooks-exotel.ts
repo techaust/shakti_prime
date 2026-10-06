@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 /**
- * Exotel callbacks (docs/API.md §3.4), shaped as Exotel's call API and Passthru applet references
+ * Exotel callbacks (docs/06-api.md §3.4), shaped as Exotel's call API and Passthru applet references
  * describe them. Exotel sends every value as a string (form fields or a JSON body when the call
  * asks for `StatusCallbackContentType: application/json`), and adds fields over time, so the
  * objects are loose. How each callback is authenticated is fixed by the week 6 Exotel spike
- * (docs/ROADMAP.md §2); nothing is parsed before that check passes.
+ * (docs/03-roadmap.md §2); nothing is parsed before that check passes.
  */
 
 /** `YYYY-MM-DD HH:mm:ss`, in IST, as Exotel writes times. */

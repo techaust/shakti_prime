@@ -4,7 +4,7 @@ import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { AUTOMATIC_AVAILABLE, DEFAULT_AUTONOMY } from './action-types';
 import type { SpendCap } from './provider';
 
-// How the settings of `agent_configs` apply to one agent, action type and company (docs/design/
+// How the settings of `agent_configs` apply to one agent, action type and company (docs/03-roadmap-appendix/
 // phase1.md §7.1, BLUEPRINT §9.3): a kill switch that is off at any level (every agent, the agent,
 // the company, the action type) stops the agent; autonomy comes from the most specific row that
 // sets it; the company's cap and the group's cap both apply, so a call is refused if it would pass
@@ -109,7 +109,7 @@ const settingLock = (agent: string | null): string => `agent-config:${agent ?? '
  * Holds the agent's settings still for the rest of the transaction: a decision or a run that acts
  * on them takes the shared lock for every agent and for the agent, and a change of a setting or a
  * switch takes the exclusive lock of its own, so a switch turned off waits for, or is seen by,
- * every decision in flight (docs/design/phase1.md §7.1).
+ * every decision in flight (docs/03-roadmap-appendix/phase1.md §7.1).
  */
 export async function lockAgentSettings(tx: RequestTx, agent: AgentRoleKey): Promise<void> {
   await tx.execute(

@@ -1,4 +1,4 @@
-// What leaves the app for Sentry (docs/SECURITY.md §5, docs/design/phase1.md §5.2). Every event,
+// What leaves the app for Sentry (docs/07-security.md §5, docs/03-roadmap-appendix/phase1.md §5.2). Every event,
 // transaction and breadcrumb passes through here in `beforeSend`, `beforeSendTransaction` and
 // `beforeBreadcrumb`, on the server and in the browser: the same redaction as the log lines
 // (`redact` and `redactText` of the logger), no cookies, headers, query strings or bodies, and no

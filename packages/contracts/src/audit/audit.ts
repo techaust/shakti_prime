@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { PrincipalKindSchema } from '../principal';
 
-/** How a recorded action ended (docs/design/backend-weeks-3-5.md §3.2). */
+/** How a recorded action ended (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.2). */
 export const AUDIT_OUTCOMES = ['ok', 'denied', 'failed'] as const;
 export const AuditOutcomeSchema = z.enum(AUDIT_OUTCOMES);
 export type AuditOutcome = z.infer<typeof AuditOutcomeSchema>;

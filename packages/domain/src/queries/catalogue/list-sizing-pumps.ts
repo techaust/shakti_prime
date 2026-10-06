@@ -7,7 +7,7 @@ import { checkPermission } from '../../command/run-command';
 const MAX_PUMPS = 500;
 
 /**
- * The pumps a sizing can be checked against (docs/design/phase1.md §6.7): items on sale that
+ * The pumps a sizing can be checked against (docs/03-roadmap-appendix/phase1.md §6.7): items on sale that
  * have a head-flow curve, by name. A pump is known by its curve, not by its category's name, so
  * the list holds whatever the catalogue calls it. Items and curves are shared by every company.
  */

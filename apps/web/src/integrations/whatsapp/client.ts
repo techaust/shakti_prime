@@ -10,7 +10,7 @@ import {
 } from '../http';
 
 /**
- * WhatsApp Cloud API sends (BLUEPRINT §10, docs/API.md §6). Transport only: the messaging worker
+ * WhatsApp Cloud API sends (BLUEPRINT §10, docs/06-api.md §6). Transport only: the messaging worker
  * decides whether a message may go (opt-out, 24-hour window, template approval, tier budget,
  * output filter) before it calls this, and records the returned message id.
  */

@@ -1,4 +1,4 @@
-// Integration Health's reading of the outbox (docs/design/phase1.md §5.2). Pure functions, so the
+// Integration Health's reading of the outbox (docs/03-roadmap-appendix/phase1.md §5.2). Pure functions, so the
 // screen and its tests share them.
 
 /** Why an update was held back, by the key of its sentence under `integrations.reasons`. */

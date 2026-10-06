@@ -3,11 +3,11 @@ import { SizingKindSchema } from '../crm/sizing';
 import { OpportunityStateSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 
-/** How the SLA dot on a lead card reads (DESIGN.md §2.4): on time, due soon, or late. */
+/** How the SLA dot on a lead card reads (docs/08-design-system.md §2.4): on time, due soon, or late. */
 export const SlaStatusSchema = z.enum(['ok', 'warn', 'breach']);
 export type SlaStatus = z.infer<typeof SlaStatusSchema>;
 
-/** How many cards a stage shows at first, and how many each "Load more" adds (DESIGN.md §6). */
+/** How many cards a stage shows at first, and how many each "Load more" adds (docs/08-design-system.md §6). */
 export const BOARD_PAGE_SIZE = 100;
 
 /** Which company, which pipeline and which statuses a board shows. */
@@ -25,7 +25,7 @@ const boardFilter = {
 };
 
 /**
- * The leads board of one pipeline (DESIGN.md §6, Kanban board): which company, which pipeline
+ * The leads board of one pipeline (docs/08-design-system.md §6, Kanban board): which company, which pipeline
  * and which statuses. Open leads only unless the caller asks for others.
  */
 export const ListBoardLeadsInput = z.object(boardFilter).strict();

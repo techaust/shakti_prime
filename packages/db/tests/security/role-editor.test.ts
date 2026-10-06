@@ -18,7 +18,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The role editor's database rules (docs/SECURITY.md §3.1): a role's grants reach every company,
+// The role editor's database rules (docs/07-security.md §3.1): a role's grants reach every company,
 // so they are written only by admin.roles.write:all in a request acting for every company; who may
 // hold a permission at all (a platform-only one only a system role, admin.* and the replay of
 // failed messages only the Executive role, a cost permission only its listed roles) is refused,

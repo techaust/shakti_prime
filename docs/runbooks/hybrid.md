@@ -2,9 +2,9 @@
 
 How Shakti Prime BOS work is split between Claude Code cloud sessions and the owner's Windows PC, and how a piece of work moves between them. This page is the one owner of that split.
 
-**Paused (owner, 06-10-2026):** Phase 1 continues on the PC only, one slice at a time with Docker Desktop ([DECISIONS](../DECISIONS.md)); this page holds the cloud procedure for when cloud sessions resume.
+**Paused (owner, 06-10-2026):** Phase 1 continues on the PC only, one slice at a time with Docker Desktop ([DECISIONS](../11-decisions.md)); this page holds the cloud procedure for when cloud sessions resume.
 
-It follows the owner's decisions of 05-10-2026 ([DECISIONS](../DECISIONS.md)): slices are built, reviewed, merged with `main`, integrated and given their Linux baselines in cloud sessions (the trial of [§10](#10-the-trial) passed on 06-10-2026); the pull request and every hosted step stay on the PC, which runs no Docker; a step that fails in the cloud runs again in a new cloud session.
+It follows the owner's decisions of 05-10-2026 ([DECISIONS](../11-decisions.md)): slices are built, reviewed, merged with `main`, integrated and given their Linux baselines in cloud sessions (the trial of [§10](#10-the-trial) passed on 06-10-2026); the pull request and every hosted step stay on the PC, which runs no Docker; a step that fails in the cloud runs again in a new cloud session.
 
 The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](DEPLOY.md#2-every-deploy).
 
@@ -21,7 +21,7 @@ The slice procedure itself (brief, build, review, merge with `main`, integration
 | Linux screenshot baselines (`e2e:snap`) | Cloud (a new cloud session as fallback) | The VM is Linux, as the baselines are |
 | Push for review, open the pull request | PC, the lead session | The lead checks the diff first; a cloud session never opens a pull request |
 | Migrate dev and staging, check health | PC | Decision 1; the migration count reads the hosted database through the Supabase tools, which exist only on the PC |
-| Any other change to a hosted service | PC, with the owner's go-ahead | The standing go-ahead and its scope: [DECISIONS](../DECISIONS.md) |
+| Any other change to a hosted service | PC, with the owner's go-ahead | The standing go-ahead and its scope: [DECISIONS](../11-decisions.md) |
 | STATUS, CHANGELOG and DECISIONS at the end of a session | PC, the lead session | The `end-session` skill |
 | Look up a library's documentation with Context7 | PC | Context7 is a plugin signed in on the PC; in the cloud, read the installed package's types and README under `node_modules` |
 
@@ -134,6 +134,6 @@ The PC keeps every task of [§1](#1-what-runs-where) marked PC until a trial sho
 2. A builder in the cloud on a slice in flight.
 3. The merge with `main`, `integrate.sh` and `e2e:snap` in a cloud session on a slice ready to integrate, compared with the same run on the PC.
 
-The result goes into `docs/STATUS.md`; the owner then decides whether to go fully cloud, and the decision becomes a row in [DECISIONS](../DECISIONS.md).
+The result goes into `docs/10-status.md`; the owner then decides whether to go fully cloud, and the decision becomes a row in [DECISIONS](../11-decisions.md).
 
 The result (06-10-2026): step 3 ran in the cloud for S1, D1 and T1 (#115, #118, #119). Each took `main` by a merge commit, renumbered its migrations, ran `integrate.sh` in five parts (the longest about 14 minutes, none near the 30-minute limit) and made its baselines in the Linux image; each merge with `main` found a clash the plain merge did not show and fixed it. The environment problems above were the only failures.

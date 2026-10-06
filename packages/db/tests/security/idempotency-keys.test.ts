@@ -49,7 +49,7 @@ beforeAll(async () => {
   await asPrincipal(owner, ({ tx }) => tx.execute(insertKey(owner.id, key)));
 });
 
-describe('idempotency keys belong to their caller (docs/design/backend-weeks-3-5.md §5)', () => {
+describe('idempotency keys belong to their caller (docs/03-roadmap-appendix/backend-weeks-3-5.md §5)', () => {
   it('shows nothing and takes nothing without a request context', async () => {
     const [row] = await withoutContext<{ n: number }>(
       sql`select count(*)::int as n from idempotency_keys`,

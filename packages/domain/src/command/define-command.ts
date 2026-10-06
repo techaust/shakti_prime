@@ -34,7 +34,7 @@ export interface Command<I extends z.ZodType, O extends z.ZodType> {
   alsoRequires?: readonly Requirement[];
   /**
    * Only people may run it: the guard refuses an agent, a voice session and the system principal
-   * (`people_only`) before it checks the permission, whatever they hold (docs/SECURITY.md §3.3),
+   * (`people_only`) before it checks the permission, whatever they hold (docs/07-security.md §3.3),
    * such as a customer note, a tag of the company or a sizing (ADR 0021).
    */
   peopleOnly?: boolean;

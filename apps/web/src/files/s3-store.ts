@@ -54,7 +54,7 @@ function alreadyThere(error: unknown): boolean {
 }
 
 /**
- * The hosted file store (docs/ARCHITECTURE.md §9): one S3 bucket per environment in Mumbai,
+ * The hosted file store (docs/04-architecture.md §9): one S3 bucket per environment in Mumbai,
  * versioned, with SSE-KMS under the environment's key and GuardDuty Malware Protection tagging
  * each new object with its verdict. Uploads and downloads use signed addresses that work for
  * `PRESIGN_SECONDS`; an upload's type, length, SHA-256 and encryption are part of its signature,

@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * New import, step one: the company, what the file holds and the file itself. In All companies
  * mode the person chooses the company; only companies where their role may import are offered.
  * The PIN code list is shared by every company, so it is offered only to an Executive working in
- * all of them (docs/design/phase1.md §6.3).
+ * all of them (docs/03-roadmap-appendix/phase1.md §6.3).
  */
 export default async function NewImportPage() {
   const { principal, access } = await screenAccess(navRequires('imports'));

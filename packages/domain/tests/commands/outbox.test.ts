@@ -57,7 +57,7 @@ const lead = {
   account: { type: 'farm' },
 };
 
-describe('events of a command (ADR 0005, docs/design/backend-weeks-3-5.md §4.1)', () => {
+describe('events of a command (ADR 0005, docs/03-roadmap-appendix/backend-weeks-3-5.md §4.1)', () => {
   it('are stored with the change, checked and versioned, and handed on after the commit', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const onCommitted = vi.fn();

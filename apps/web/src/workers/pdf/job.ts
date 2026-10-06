@@ -1,7 +1,7 @@
 import { DomainError, EVENT_VERSION, PdfRenderJob, type DeliveredEvent } from '@shakti/contracts';
 
 /*
- * A render job and the outbox event it comes from (ADR 0009, docs/API.md §3.6), each made from the
+ * A render job and the outbox event it comes from (ADR 0009, docs/06-api.md §3.6), each made from the
  * other. Kept apart from the renderer, so the publisher and the routes that only route a job never
  * load Chromium's driver.
  */

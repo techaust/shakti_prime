@@ -55,7 +55,7 @@ async function quoteCommand<T>(
   });
 }
 
-/** What the quote builder of one lead opens with (docs/design/phase1.md §7.3). */
+/** What the quote builder of one lead opens with (docs/03-roadmap-appendix/phase1.md §7.3). */
 export async function loadQuoteBuilder(rawInput: unknown): Promise<ActionResult<QuoteBuilderDto>> {
   return toResult('loadQuoteBuilder', async () => {
     const principal = await signedIn();

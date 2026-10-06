@@ -25,7 +25,7 @@ export interface SweepDeps {
 }
 
 /**
- * The sweep of abandoned uploads (docs/design/phase1.md §6.3), run by the worker principal on a
+ * The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3), run by the worker principal on a
  * schedule (`POST /api/v1/workers/files/sweep`): it asks which companies hold an upload still
  * pending a day after it began, then, in a request for each company alone, refuses those uploads
  * as abandoned (`files.upload.sweep`) and deletes whatever bytes landed under their keys. A

@@ -13,7 +13,7 @@
 // team lead of that team, the General Manager of the company and the tele-caller who owns the
 // leads. The time is the `durationMs` of executeQuery's `query.completed` line. Prints the plans of
 // the timeline query and the customers search under RLS and writes
-// docs/spikes/results/account360.json. The seeded customers and leads are removed at the end
+// docs/04-architecture-appendix/results/account360.json. The seeded customers and leads are removed at the end
 // unless `--keep` is given; their timeline rows stay, since the timeline is append-only. Local
 // database only (prepareDatabase refuses any other host). Not part of CI.
 import { newId, type Principal } from '@shakti/contracts';
@@ -43,7 +43,7 @@ import { listCustomers, listTimeline, loadAccount360 } from '../../src/queries/c
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
-const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'account360.json');
+const resultFile = join(repoRoot, 'docs', '04-architecture-appendix', 'results', 'account360.json');
 
 function numberArg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);

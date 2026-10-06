@@ -89,7 +89,7 @@ function ratioText(ratio: number): string {
 }
 
 /**
- * Every `@shakti/ui` component on one theme panel of the design preview (DESIGN.md §2.1, §10).
+ * Every `@shakti/ui` component on one theme panel of the design preview (docs/08-design-system.md §2.1, §10).
  * Dialogs, sheets and menus open in the panel's theme; the palette and toasts follow the page's.
  */
 export function ComponentGallery({

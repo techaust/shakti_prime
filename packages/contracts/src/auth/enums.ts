@@ -1,20 +1,20 @@
 import { z } from 'zod';
 import type { StaffRoleKey } from '../roles';
 
-/** Lifecycle of a staff user (docs/DATABASE.md §6.1). */
+/** Lifecycle of a staff user (docs/05-database.md §6.1). */
 export const USER_STATUSES = ['invited', 'active', 'suspended', 'offboarded'] as const;
 export const UserStatusSchema = z.enum(USER_STATUSES);
 export type UserStatus = z.infer<typeof UserStatusSchema>;
 
-/** Theme preference (DESIGN.md §7): System by default, Light or Dark override. */
+/** Theme preference (docs/08-design-system.md §7): System by default, Light or Dark override. */
 export const ThemeSchema = z.enum(['system', 'light', 'dark']);
 export type Theme = z.infer<typeof ThemeSchema>;
 
-/** Contrast preference (DESIGN.md §2.1): standard, or the higher contrast for field phones. */
+/** Contrast preference (docs/08-design-system.md §2.1): standard, or the higher contrast for field phones. */
 export const ContrastSchema = z.enum(['standard', 'high']);
 export type ContrastPreference = z.infer<typeof ContrastSchema>;
 
-/** Roles that must enrol an authenticator app before they can act (docs/SECURITY.md §2). */
+/** Roles that must enrol an authenticator app before they can act (docs/07-security.md §2). */
 export const TOTP_REQUIRED_ROLES: readonly StaffRoleKey[] = [
   'executive',
   'general_manager',
@@ -25,12 +25,12 @@ export function requiresTotp(roleKeys: readonly string[]): boolean {
   return roleKeys.some((key) => (TOTP_REQUIRED_ROLES as readonly string[]).includes(key));
 }
 
-/** Password policy (docs/SECURITY.md §2). Length is checked here and by Better Auth. */
+/** Password policy (docs/07-security.md §2). Length is checked here and by Better Auth. */
 export const PASSWORD_MIN_LENGTH = 12;
 export const PASSWORD_MAX_LENGTH = 128;
 export const PasswordSchema = z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH);
 
-/** Session limits (docs/SECURITY.md §2). Idle is enforced by Better Auth, absolute by the app. */
+/** Session limits (docs/07-security.md §2). Idle is enforced by Better Auth, absolute by the app. */
 export const SESSION_IDLE_SECONDS = 12 * 60 * 60;
 export const SESSION_ABSOLUTE_SECONDS = 7 * 24 * 60 * 60;
 

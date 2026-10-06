@@ -1,4 +1,4 @@
-// A4 quotation (BLUEPRINT §8 quotes, DESIGN.md §6 Print templates): the selling company's
+// A4 quotation (BLUEPRINT §8 quotes, docs/08-design-system.md §6 Print templates): the selling company's
 // letterhead, logo and bank account from the print loader (`company.ts`), light theme, 15 mm side
 // margins, Inter embedded, the QR block bottom-right.
 // Every amount arrives already computed by the domain (Price Master snapshot and the tax

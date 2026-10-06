@@ -15,7 +15,7 @@ export function sqlClient(): ReturnType<typeof postgres> {
   const url = requireEnv('DATABASE_URL');
   pool ??= postgres(url, {
     ...connectionOptions(url, 'shakti-app'),
-    // Supavisor transaction mode: no prepared statements, modest pool (docs/DATABASE.md §1).
+    // Supavisor transaction mode: no prepared statements, modest pool (docs/05-database.md §1).
     prepare: false,
     max: 10,
     idle_timeout: 20,
@@ -40,7 +40,7 @@ export function rawDb(): Db {
 let readerPool: ReturnType<typeof postgres> | undefined;
 let reader: Db | undefined;
 
-/** Whether the queries have their own `app_reader` pool (docs/DATABASE.md §3). */
+/** Whether the queries have their own `app_reader` pool (docs/05-database.md §3). */
 export function readerConfigured(): boolean {
   return optionalEnv('DATABASE_URL_READER') !== undefined;
 }

@@ -74,7 +74,7 @@ beforeAll(async () => {
   };
 });
 
-describe('searchLeads (DESIGN.md §6, Command palette)', () => {
+describe('searchLeads (docs/08-design-system.md §6, Command palette)', () => {
   it('is refused without crm.lead.read', async () => {
     const hr = await createTestPrincipal('hr_admin', [1]);
     await expect(search(hr, tag)).rejects.toMatchObject({ code: 'forbidden' });
@@ -144,7 +144,7 @@ describe('searchLeads (DESIGN.md §6, Command palette)', () => {
   });
 });
 
-describe('searchLeads by spelling (DESIGN.md §9, trigram matching)', () => {
+describe('searchLeads by spelling (docs/08-design-system.md §9, trigram matching)', () => {
   it('finds a name spelt with a letter dropped or changed', async () => {
     expect(await found(people.caller, 'Rmesh')).toEqual([ids.mine]);
     expect(await found(people.caller, 'ramash')).toEqual([ids.mine]);

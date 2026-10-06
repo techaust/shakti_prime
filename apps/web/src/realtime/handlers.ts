@@ -92,7 +92,7 @@ export interface TokenRouteDeps {
 }
 
 /**
- * `POST /api/v1/realtime/token` (docs/API.md §3.1): a Realtime token for the signed-in person.
+ * `POST /api/v1/realtime/token` (docs/06-api.md §3.1): a Realtime token for the signed-in person.
  * A call from another site is refused even with the cookie: the token is only for the BOS's own
  * screens. So is a call with no `Origin` at all: a browser always sends one on a POST, so only a
  * hand-made request lacks it. (Server actions let a missing `Origin` through with a warning; this

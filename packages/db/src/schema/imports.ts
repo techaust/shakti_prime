@@ -19,7 +19,7 @@ import { files } from './files';
 const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`;
 
 /**
- * A saved column mapping for one kind of file (docs/design/backend-weeks-3-5.md §8), so the next
+ * A saved column mapping for one kind of file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8), so the next
  * file from the same source maps in one step. Kept per entity like every business row.
  */
 export const importMappingTemplates = pgTable(
@@ -100,7 +100,7 @@ export const importJobs = pgTable(
       'import_jobs_entity_ids_check',
       sql`${t.entityIds} is null or cardinality(${t.entityIds}) between 1 and 20`,
     ),
-    // A job uses a file and a template of its own entity (docs/DATABASE.md §2).
+    // A job uses a file and a template of its own entity (docs/05-database.md §2).
     foreignKey({
       name: 'import_jobs_file_entity_fk',
       columns: [t.fileId, t.entityId],

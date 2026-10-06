@@ -1,4 +1,4 @@
-// WCAG 2.x relative luminance and contrast ratio, used by the CI contrast check (DESIGN.md §2.4).
+// WCAG 2.x relative luminance and contrast ratio, used by the CI contrast check (docs/08-design-system.md §2.4).
 
 function channel(hex: string): number {
   const c = Number.parseInt(hex, 16) / 255;

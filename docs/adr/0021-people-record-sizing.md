@@ -1,9 +1,9 @@
 # ADR 0021 — Only people record the sizing a quote relies on; agents only suggest
 
-**Status:** Accepted (owner, 30-09-2026); applies from the sizing slice C4 · **Date:** 30-09-2026 · **Deciders:** Owner · **Blueprint:** §1, §8.3, §9.3 · **PRD:** SAL-04 · **Security:** §3.3 · **Design:** `docs/design/phase1.md` §6.7, §7.3 · **ADR:** 0004
+**Status:** Accepted (owner, 30-09-2026); applies from the sizing slice C4 · **Date:** 30-09-2026 · **Deciders:** Owner · **Blueprint:** §1, §8.3, §9.3 · **PRD:** SAL-04 · **Security:** §3.3 · **Design:** `docs/03-roadmap-appendix/phase1.md` §6.7, §7.3 · **ADR:** 0004
 
 ## Context
-A quote is refused when its lead's sizing is missing or out of bounds (PRD SAL-04, `docs/design/phase1.md` §7.3), so the recorded sizing decides what a customer is offered: the pump, the solar array, the rooftop kW. The calculators are deterministic (CLAUDE.md, "Deterministic core"), but their inputs (borewell depth, water level, distance, monthly units, roof area) come from a conversation or a site visit.
+A quote is refused when its lead's sizing is missing or out of bounds (PRD SAL-04, `docs/03-roadmap-appendix/phase1.md` §7.3), so the recorded sizing decides what a customer is offered: the pump, the solar array, the rooftop kW. The calculators are deterministic (CLAUDE.md, "Deterministic core"), but their inputs (borewell depth, water level, distance, monthly units, roof area) come from a conversation or a site visit.
 
 The Sizing agent (`agent:sizing`, SECURITY §3.3) and the voice agent could fill them in from a transcript or a message. A wrong figure recorded by a machine would flow into a quote with nobody having vouched for it.
 

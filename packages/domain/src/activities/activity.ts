@@ -11,7 +11,7 @@ import { schema, type RequestTx } from '@shakti/db';
 export type ActivityValue = string | number | boolean | null;
 
 /**
- * One row of the customer timeline (docs/DATABASE.md §6.2, CRM-04). `entityId` defaults to the
+ * One row of the customer timeline (docs/05-database.md §6.2, CRM-04). `entityId` defaults to the
  * request's single company; `opportunityId` is left out for a change to the customer itself.
  */
 export interface ActivityRecord {

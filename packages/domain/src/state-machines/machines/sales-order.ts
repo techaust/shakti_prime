@@ -93,7 +93,11 @@ export const salesOrderMachine = defineMachine<
   title: 'Sales order',
   summary:
     '`sales_orders.state`. The backbone of fulfilment: reservations, dispatches, proforma, payment milestones and projects hang off it.',
-  sources: ['docs/design/backend-weeks-3-5.md §7.4', 'BLUEPRINT §8.3', 'PRD SAL-06, SAL-07'],
+  sources: [
+    'docs/03-roadmap-appendix/backend-weeks-3-5.md §7.4',
+    'BLUEPRINT §8.3',
+    'PRD SAL-06, SAL-07',
+  ],
   states: SALES_ORDER_STATES,
   initial: 'draft',
   terminal: ['closed', 'cancelled'],

@@ -19,7 +19,7 @@ import { roles } from './roles';
 import { teams } from './teams';
 
 /**
- * Identity tables (docs/DATABASE.md §6.1, docs/design/backend-weeks-3-5.md §2.1). The Drizzle
+ * Identity tables (docs/05-database.md §6.1, docs/03-roadmap-appendix/backend-weeks-3-5.md §2.1). The Drizzle
  * property names are the field names Better Auth expects, so its adapter needs only the table
  * names mapped. Five of the six tables are owned by the auth module through the `auth_service`
  * role; `app_user` reads `users`, `user_entity_roles` and the non-secret columns of `sessions`.
@@ -38,7 +38,7 @@ export const users = pgTable(
     image: text('image'),
     phone: text('phone'),
     theme: text('theme').notNull().default('system'),
-    /** Higher contrast for phones in daylight (DESIGN.md §2.1), kept per person like the theme. */
+    /** Higher contrast for phones in daylight (docs/08-design-system.md §2.1), kept per person like the theme. */
     contrast: text('contrast').notNull().default('standard'),
     status: text('status').notNull().default('invited'),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),

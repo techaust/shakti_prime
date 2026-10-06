@@ -21,14 +21,14 @@ export const LEAD_RESCORE_PATH = '/api/v1/workers/crm/rescore';
 
 /** Where the nightly schedule calls the duplicate search, and a run hands on the rest. */
 export const DUPLICATE_SCAN_PATH = '/api/v1/workers/crm/duplicates';
-/** Where the daily schedule calls the quote expiry worker (docs/design/phase1.md §7.3). */
+/** Where the daily schedule calls the quote expiry worker (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
 
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 
 /**
- * Event types whose worker has a route and a body of its own (docs/API.md §3.6) instead of the
+ * Event types whose worker has a route and a body of its own (docs/06-api.md §3.6) instead of the
  * event worker route: the publisher sends each such event to its route as the job it stands for,
  * with the same deduplication id and failure callback, so a job QStash gives up on still comes
  * back as the event's dead letter.

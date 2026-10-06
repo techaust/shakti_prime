@@ -37,7 +37,7 @@ import { lookupPin } from '../../src/queries/crm/pin-lookup';
 import { staleUploadCompanies } from '../../src/queries/files/file-queries';
 import { getImportJob, listImportRows } from '../../src/queries/imports/import-queries';
 
-// The import kinds of the imports upgrade (docs/design/phase1.md §6.3) on real Postgres: customers
+// The import kinds of the imports upgrade (docs/03-roadmap-appendix/phase1.md §6.3) on real Postgres: customers
 // with a relationship per row's company and repeats folded into one, the PIN code master, the
 // fail command the worker runs after its last retry, and the sweep of abandoned uploads. PINs
 // start 9999 and name fixture offices, outside the India Post directory.

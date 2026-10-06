@@ -12,7 +12,7 @@ import {
 import { principals } from './principals';
 
 /**
- * Idempotency keys (docs/design/backend-weeks-3-5.md §5, docs/API.md §1). A command run with a
+ * Idempotency keys (docs/03-roadmap-appendix/backend-weeks-3-5.md §5, docs/06-api.md §1). A command run with a
  * key claims the row inside its own transaction and stores its answer there, so the row exists
  * exactly when the change committed; a repeat with the same key replays that answer. A caller
  * sees and writes only its own keys (migration 0037); pg_cron removes them after 7 days.

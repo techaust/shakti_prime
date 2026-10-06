@@ -17,7 +17,7 @@ import {
   SNAPSHOT_SUGGESTIONS,
 } from './support/users';
 
-// The Agent Inbox and Admin › Agents (docs/design/phase1.md §7.1). The seed's stand-in agent
+// The Agent Inbox and Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1). The seed's stand-in agent
 // (setup/stand-in-agent.ts) files suggestions through the real runtime; here a person approves,
 // edits or rejects them, and the command runs as that person.
 

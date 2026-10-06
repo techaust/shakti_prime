@@ -17,7 +17,7 @@ export interface AuthEvent {
 }
 
 /**
- * Records a sign-in or account event in the audit trail (docs/design/backend-weeks-3-5.md §2.6,
+ * Records a sign-in or account event in the audit trail (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.6,
  * §3.3) through the auth module's connection. These events are not part of a transaction that
  * could carry the row, so a failure to write one is logged and never stops the person signing in.
  */

@@ -8,7 +8,7 @@ import type { CommandFailure } from './use-command';
 
 /**
  * The sentence for a failed answer, from the catalogue, with the reference of an unexpected one
- * (DESIGN.md §11). Announced as an alert, and again after each further failed try.
+ * (docs/08-design-system.md §11). Announced as an alert, and again after each further failed try.
  */
 export function FailureMessage({ failure }: { failure: CommandFailure | undefined }) {
   const id = useId();

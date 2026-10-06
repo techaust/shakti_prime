@@ -45,7 +45,7 @@ function rendered(fileId = newId(), overrides: Record<string, unknown> = {}) {
 const run = (principal: Principal, command: Parameters<typeof runCommand>[0], input: unknown) =>
   asPrincipal(principal, (context) => runCommand(command, { context, audit, outbox }, input));
 
-describe('print.proof.request (docs/design/phase1.md §6.4)', () => {
+describe('print.proof.request (docs/03-roadmap-appendix/phase1.md §6.4)', () => {
   it('is refused to a General Manager, an agent and the worker principal', async () => {
     for (const role of [
       'general_manager',

@@ -9,7 +9,7 @@ import {
 import { EntityIdSchema, IdSchema } from '../ids';
 
 /**
- * A sizing as it is stored and read (docs/design/phase1.md §6.7): the inputs, the constants the
+ * A sizing as it is stored and read (docs/03-roadmap-appendix/phase1.md §6.7): the inputs, the constants the
  * calculators used, each calculator's result with its bounds, and the engine version. Numbers are
  * SI units as the calculators return them; the panel rounds for display. Strict.
  */

@@ -22,7 +22,7 @@ import { useCommand } from '../screens/use-command';
 
 /**
  * Step one of an import: the company, what the file holds and the file. The file goes straight to
- * the file store on a signed address (docs/API.md §3.2) and passes its checks; then the server
+ * the file store on a signed address (docs/06-api.md §3.2) and passes its checks; then the server
  * reads it and starts the import, and the screen opens the job. A file whose checks take longer
  * than the uploader waits is started with the button once they are done.
  */

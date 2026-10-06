@@ -42,7 +42,7 @@ function due(row: LapsedRow, now: Date): boolean {
 }
 
 /**
- * `sales.quote.expire` (docs/design/phase1.md §7.3): the next `QUOTE_EXPIRY_BATCH` draft and sent
+ * `sales.quote.expire` (docs/03-roadmap-appendix/phase1.md §7.3): the next `QUOTE_EXPIRY_BATCH` draft and sent
  * quotes of a company whose validity has passed, in id order after `afterId`, marked expired. The
  * daily QStash job (`apps/web/src/workers/quote-expiry.ts`) runs it batch by batch as
  * `system:workers`, which holds the platform-only `sales.quote.expire` and no `sales.*` or `crm.*`

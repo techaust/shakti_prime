@@ -6,7 +6,7 @@ import { Button } from './button';
 import { cn } from './cn';
 import { Skeleton } from './skeleton';
 
-/** The six lead-stage colours (DESIGN.md §2.4), for a column's 3 px top bar. */
+/** The six lead-stage colours (docs/08-design-system.md §2.4), for a column's 3 px top bar. */
 export type BoardStageTone = 'new' | 'contacted' | 'qualified' | 'quoted' | 'won' | 'lost';
 
 /** Whole class names, so the style build sees every one of them. */
@@ -19,7 +19,7 @@ const STAGE_BAR: Record<BoardStageTone, string> = {
   lost: 'bg-stage-lost',
 };
 
-/** How the SLA dot reads (DESIGN.md §2.4): on time, due soon, or late. */
+/** How the SLA dot reads (docs/08-design-system.md §2.4): on time, due soon, or late. */
 export type BoardSlaTone = 'ok' | 'warn' | 'breach';
 
 const SLA_DOT: Record<BoardSlaTone, string> = {
@@ -51,7 +51,7 @@ export interface BoardColumnProps extends Omit<ComponentProps<'section'>, 'title
   loadMore?: BoardLoadMore | undefined;
 }
 
-/** A column's "Load more" (DESIGN.md §6: keyset pages, never numbered ones). */
+/** A column's "Load more" (docs/08-design-system.md §6: keyset pages, never numbered ones). */
 export interface BoardLoadMore {
   /** The button's words, such as "Load more". */
   label: ReactNode;
@@ -65,7 +65,7 @@ export interface BoardLoadMore {
 }
 
 /**
- * A kanban column (DESIGN.md §6, Kanban board): the stage colour on a 3 px top bar, the stage's
+ * A kanban column (docs/08-design-system.md §6, Kanban board): the stage colour on a 3 px top bar, the stage's
  * name and count, then its cards, or a sentence when it holds none, and a "Load more" at the foot
  * while the stage holds more cards than it shows. Drop handlers and other
  * section attributes pass through, so the screen decides what a drop means. Every word comes
@@ -184,7 +184,7 @@ export interface BoardCardProps {
 }
 
 /**
- * A kanban card (DESIGN.md §6): name, village, the size in kW or HP and the time in the stage,
+ * A kanban card (docs/08-design-system.md §6): name, village, the size in kW or HP and the time in the stage,
  * age, owner with their avatar, and the SLA dot. It is dragged only when the screen passes
  * `dragId`; the menu, badge and facts come from the screen.
  */

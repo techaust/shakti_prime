@@ -3,7 +3,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { GeoPointSchema } from './common';
 
 /**
- * `POST /attendance/check-in` (docs/API.md §3.2, docs/BLUEPRINT.md §8.9): office attendance by
+ * `POST /attendance/check-in` (docs/06-api.md §3.2, docs/01-blueprint.md §8.9): office attendance by
  * geofence and selfie, or a field check-in at the job site. Recorded offline with the device's
  * time and position, and sent when the app is back online.
  */

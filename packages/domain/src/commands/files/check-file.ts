@@ -12,7 +12,7 @@ import { assertEntityInScope } from '../imports/shared';
 import { fireUpload, lockFile, scanResultOf, toFileDto, writeFile, type FileRow } from './shared';
 
 /*
- * The checks before a file is usable (docs/ARCHITECTURE.md §9), run by the worker principal
+ * The checks before a file is usable (docs/04-architecture.md §9), run by the worker principal
  * (`files.process`, never a person's role) from `handleFileUploaded` in apps/web. Each records
  * codes and counts only.
  */

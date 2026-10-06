@@ -21,7 +21,7 @@
         "--bind",
         "127.0.0.1",
         "--directory",
-        "docs/phase0/prototype"
+        "docs/13-client-packs/prototype"
       ],
       "port": 4100
     }

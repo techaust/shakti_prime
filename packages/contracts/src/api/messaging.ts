@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { IdSchema } from '../ids';
 
 /**
- * `message.requested` (docs/API.md §6): what a command emits when a customer should get a WhatsApp
+ * `message.requested` (docs/06-api.md §6): what a command emits when a customer should get a WhatsApp
  * message. Commands never call Meta; the messaging worker (`/workers/messaging/send`) checks the
  * opt-out, the 24-hour window for session messages, the template's approval, the portfolio tier
  * budget (service messages first), the deterministic output filter and the per-conversation rate

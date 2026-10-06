@@ -4,7 +4,7 @@ export const SortDirectionSchema = z.enum(['asc', 'desc']);
 export type SortDirection = z.infer<typeof SortDirectionSchema>;
 
 /**
- * The order a grid asks its list for (DESIGN.md §6): one whitelisted column, up or down. The
+ * The order a grid asks its list for (docs/08-design-system.md §6): one whitelisted column, up or down. The
  * column keys are the grid's own column ids, so a saved view's sort is sent as it is. A list
  * sorts over every row it can read, not over the rows already on screen, and its keyset cursor
  * belongs to one sort: "Load more" sends the same sort with the cursor.

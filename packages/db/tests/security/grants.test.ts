@@ -13,7 +13,7 @@ import {
 
 afterAll(closeDb);
 
-describe('app_user role (docs/DATABASE.md §3)', () => {
+describe('app_user role (docs/05-database.md §3)', () => {
   it('is not a superuser and cannot bypass RLS', async () => {
     const [row] = await withoutContext<{ rolsuper: boolean; rolbypassrls: boolean }>(
       sql`select rolsuper, rolbypassrls from pg_roles where rolname = current_user`,
@@ -66,7 +66,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
    * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
    * user_entity_roles, a kit's components and a pump's curve are replaced as a set
-   * (docs/DATABASE.md §6.1, §6.3).
+   * (docs/05-database.md §6.1, §6.3).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
@@ -297,7 +297,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
       `);
       expect(row, fn).toEqual({ app: true, reporter: false, pub: false });
     }
-    // no read policy calls them: reads use a plain exists (docs/DATABASE.md §4.2)
+    // no read policy calls them: reads use a plain exists (docs/05-database.md §4.2)
     const readers = await withoutContext<{ policy: string }>(sql`
       select tablename || '.' || policyname as policy from pg_policies
        where cmd in ('SELECT', 'ALL')
@@ -334,7 +334,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
   });
 });
 
-describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', () => {
+describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('logs in, cannot bypass RLS, is no superuser and reads only, as its own setting', async () => {
     const [row] = await withoutContext(sql`
       select r.rolcanlogin as login, r.rolsuper as super, r.rolbypassrls as bypass,

@@ -28,7 +28,7 @@ const RESCORE: CompanyBatchSpec = {
 };
 
 /**
- * The nightly rescoring of open and nurture leads (CRM-06, docs/design/phase1.md §6.6): every
+ * The nightly rescoring of open and nurture leads (CRM-06, docs/03-roadmap-appendix/phase1.md §6.6): every
  * company in turn, each batch one `crm.lead.score_refresh` as `system:workers` scoped to that
  * company (`runCompanyBatches`).
  */

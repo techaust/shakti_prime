@@ -34,8 +34,8 @@ const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
 
 /**
- * One outbox event, delivered by QStash to the worker of its type (docs/API.md §3.6,
- * docs/design/phase1.md §5.2). The body is refused over 4 KiB before anything else is read, then
+ * One outbox event, delivered by QStash to the worker of its type (docs/06-api.md §3.6,
+ * docs/03-roadmap-appendix/phase1.md §5.2). The body is refused over 4 KiB before anything else is read, then
  * the signature is checked for this address and body, then the body must be the publisher's
  * `DeliveredEvent` of the type the address names. `deliverEvent` answers `duplicate` for an id
  * already handled or an event older than the newest one of its aggregate, and otherwise runs the

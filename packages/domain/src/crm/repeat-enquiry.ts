@@ -15,7 +15,7 @@ import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { holdCustomer } from './hold-customer';
 
 /**
- * Repeat enquiries (PRD CRM-03, docs/design/phase1.md §7.4): an enquiry for the same segment from
+ * Repeat enquiries (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): an enquiry for the same segment from
  * a customer with an open lead that had activity in the last `REPEAT_ENQUIRY_DAYS` days, or with a
  * lead in nurture the caller may work (the owner's decision of 06-10-2026), is added to that lead,
  * and `crm.lead.create` answers `attached` instead of making a second lead; a lead in nurture is

@@ -74,7 +74,7 @@ function companies(ctx: Ctx, entityId: number | undefined): number[] {
 }
 
 /**
- * The leads in callers' queues as of `asOf`, ranked (docs/design/phase1.md §7.2, PRD TEL-01): the
+ * The leads in callers' queues as of `asOf`, ranked (docs/03-roadmap-appendix/phase1.md §7.2, PRD TEL-01): the
  * owners' open leads in their pipeline's first stages (the open stages before Qualified) and their
  * nurtured leads, each with
  * - `next_call_at`, the owner's earliest open callback on it, or nurture call while it is in

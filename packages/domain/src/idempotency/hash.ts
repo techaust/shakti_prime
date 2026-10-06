@@ -14,7 +14,7 @@ export function canonicalJson(value: unknown): string {
 }
 
 /**
- * What a repeat must match to replay the first answer (docs/design/backend-weeks-3-5.md §5): the
+ * What a repeat must match to replay the first answer (docs/03-roadmap-appendix/backend-weeks-3-5.md §5): the
  * command and its parsed input. The same key sent to another command is a different call.
  */
 export function inputHash(command: string, input: unknown): string {

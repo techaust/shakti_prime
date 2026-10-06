@@ -1,4 +1,4 @@
-// Sentry's settings for the server, the edge and the browser (docs/design/phase1.md §5.2): the
+// Sentry's settings for the server, the edge and the browser (docs/03-roadmap-appendix/phase1.md §5.2): the
 // group's US-region organisation, with personal data removed before an event is sent. No DSN,
 // no Sentry: locally and in CI nothing is started.
 

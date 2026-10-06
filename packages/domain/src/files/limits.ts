@@ -20,7 +20,7 @@ const SHEETS: readonly UploadContentType[] = [
 const MB = 1024 * 1024;
 
 /**
- * Limits per purpose (docs/SECURITY.md §8), checked by `files.upload.begin` and by the uploader
+ * Limits per purpose (docs/07-security.md §8), checked by `files.upload.begin` and by the uploader
  * before any byte is sent. A logo and a letterhead are images, because documents print them as
  * pictures; a quote's PDF is a PDF; a signed quote, consent evidence or vault file may be a photo
  * or a scan; an import file is a CSV or an Excel workbook within the import's own limit. The

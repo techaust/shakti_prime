@@ -104,7 +104,7 @@ console.log(
   `schedule ${DUPLICATE_SCAN_SCHEDULE_ID} calls ${scanUrl} at ${DUPLICATE_SCAN_CRON} (UTC)`,
 );
 
-// The daily expiry of quotes past their validity (docs/design/phase1.md §7.3), five minutes after
+// The daily expiry of quotes past their validity (docs/03-roadmap-appendix/phase1.md §7.3), five minutes after
 // midnight in India, when the day's last valid quotes have lapsed.
 const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
 const QUOTE_EXPIRE_CRON = '35 18 * * *';

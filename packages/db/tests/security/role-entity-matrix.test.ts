@@ -34,7 +34,7 @@ import {
  * to another company. The customer master has no company of its own and is scoped through
  * `account_entities` (ADR 0008), whose rows a person, never an agent, also reads through a lead of
  * that customer they can read in the same company (0057); group-wide rows (`entity_id null`) are visible or not as their
- * table's policy says (docs/DATABASE.md §1, §4).
+ * table's policy says (docs/05-database.md §1, §4).
  */
 
 type Rule =

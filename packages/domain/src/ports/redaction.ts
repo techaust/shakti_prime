@@ -1,6 +1,6 @@
 /**
  * The redaction every log line, audit row and Sentry event passes through (AUDIT M10,
- * docs/design/phase1.md §5.2): secret-named keys dropped, identity numbers hidden, and text
+ * docs/03-roadmap-appendix/phase1.md §5.2): secret-named keys dropped, identity numbers hidden, and text
  * scrubbed of links, tokens, emails, UPI addresses, phones and Aadhaar-like numbers. No Node API,
  * so the edge runtime and the browser's error reporting use it too (`@shakti/domain/redaction`).
  */

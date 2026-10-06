@@ -25,7 +25,7 @@ import {
 const SaveRoleDialog = dynamic(() => import('./save-role-dialog').then((m) => m.SaveRoleDialog));
 
 /**
- * One staff role's permissions (docs/design/phase1.md §6.2): the catalogue grouped by module with
+ * One staff role's permissions (docs/03-roadmap-appendix/phase1.md §6.2): the catalogue grouped by module with
  * a scope picker for each, offering only the scopes the permission honours, a locked line with its
  * reason where the role may not choose, a running summary of what the choices change, and a save
  * that names how many people are signed out before it runs. A request narrowed to some companies

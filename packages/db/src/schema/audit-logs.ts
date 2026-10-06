@@ -15,7 +15,7 @@ import { entities } from './entities';
 import { principals } from './principals';
 
 /**
- * The audit trail (docs/design/backend-weeks-3-5.md §3). Partitioned by month on `created_at`,
+ * The audit trail (docs/03-roadmap-appendix/backend-weeks-3-5.md §3). Partitioned by month on `created_at`,
  * so the key includes it; the partitions live in the `audit_partitions` schema, which no request
  * role can use (migration 0033). Append-only: no role may update or delete a row.
  */

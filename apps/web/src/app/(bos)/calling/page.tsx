@@ -42,7 +42,7 @@ async function ViewSwitch({ current }: { current: 'queue' | 'team' }) {
 }
 
 /**
- * Calling (`/calling`, PRD TEL-01, docs/design/phase1.md §7.2): the caller's queue and the
+ * Calling (`/calling`, PRD TEL-01, docs/03-roadmap-appendix/phase1.md §7.2): the caller's queue and the
  * workspace, opened on the first lead of the queue. A team lead (`calls.log` at team scope or
  * wider) also has My team, the team's queues, and opens a caller's queue from there
  * (`?caller=<id>&company=<id>`).

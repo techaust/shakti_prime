@@ -52,7 +52,7 @@ export function scopeFilter(ctx: LeadContext) {
 
 /**
  * Leads visible to the caller, newest change first unless `sort` asks for the oldest,
- * keyset-paginated by `(updated_at, id)` (docs/DATABASE.md §7). RLS decides the rows; this query
+ * keyset-paginated by `(updated_at, id)` (docs/05-database.md §7). RLS decides the rows; this query
  * only shapes them. The page of leads is found first, on `opportunities` alone, and only its
  * customers are fetched after (AUDIT M31): joining every visible customer before the limit grows
  * with the company, not with the page. The cursor carries the timestamp as Postgres text: rows

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Sizing enumerations (docs/design/phase1.md §6.7, BLUEPRINT §8.3, PRD SAL-04). The calculators in
+ * Sizing enumerations (docs/03-roadmap-appendix/phase1.md §6.7, BLUEPRINT §8.3, PRD SAL-04). The calculators in
  * `@shakti/domain` return these codes; the quote guard refuses on them and the sizing panel names
  * each in plain words (`sizing.reason.*` in the message catalogue).
  */

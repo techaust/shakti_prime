@@ -1,5 +1,5 @@
 // Printed words come from the message catalogue like every other string a person reads
-// (DESIGN.md §11.4), so the copy lint checks them.
+// (docs/08-design-system.md §11.4), so the copy lint checks them.
 import { createTranslator } from 'next-intl';
 import en from '../../messages/en.json';
 

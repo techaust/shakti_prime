@@ -1,6 +1,6 @@
 # ADR 0020 — The event workers' principal `system:workers` follows an agent's customer rules
 
-**Status:** Proposed (lead, 30-09-2026, for slice P1, migration 0064); the owner confirms or changes it with the handover slice T2 (`docs/design/phase1.md` §8.2) · **Date:** 30-09-2026 · **Deciders:** Lead developer; the owner decides at T2 · **Blueprint:** §6.2, §7.2, §9.3 · **Security:** §3.3 · **Database:** §6.2 · **ADR:** 0004, 0005, 0008
+**Status:** Proposed (lead, 30-09-2026, for slice P1, migration 0064); the owner confirms or changes it with the handover slice T2 (`docs/03-roadmap-appendix/phase1.md` §8.2) · **Date:** 30-09-2026 · **Deciders:** Lead developer; the owner decides at T2 · **Blueprint:** §6.2, §7.2, §9.3 · **Security:** §3.3 · **Database:** §6.2 · **ADR:** 0004, 0005, 0008
 
 ## Context
 Event workers change data only through commands (ADR 0004), so they need a principal. Slice P1 seeded one, `system:workers` (principal kind `system`, `SYSTEM_MATRIX` in `packages/contracts/src/system-principal.ts`), scoped to the company of the event it handles.

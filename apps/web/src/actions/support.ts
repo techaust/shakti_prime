@@ -16,7 +16,7 @@ export async function signedIn(): Promise<Principal> {
  * One id per incoming request (AUDIT M35): Vercel's own request id when present, so a log line
  * from the database transaction and the platform's request log share it; otherwise a new one.
  * It is passed to `withRequestContext`, which sets `app.request_id` for the audit trail, with the
- * caller's address and browser, which the audit row records (docs/design/backend-weeks-3-5.md §3).
+ * caller's address and browser, which the audit row records (docs/03-roadmap-appendix/backend-weeks-3-5.md §3).
  */
 export async function requestMeta(): Promise<{ requestId: string; client: ClientMeta }> {
   const h = await headers();
@@ -26,7 +26,7 @@ export async function requestMeta(): Promise<{ requestId: string; client: Client
 /**
  * The options every action passes to `executeCommand`: the caller's address and browser for the
  * audit row, the nudge that has the outbox publisher deliver the command's events at once, and
- * the form's idempotency key when it sent one, so a double submit acts once (docs/API.md §1).
+ * the form's idempotency key when it sent one, so a double submit acts once (docs/06-api.md §1).
  */
 export function commandOptions(
   meta: { client: ClientMeta },

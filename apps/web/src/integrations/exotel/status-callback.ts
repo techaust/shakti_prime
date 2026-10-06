@@ -2,7 +2,7 @@ import { ExotelCallStatusWebhook } from '@shakti/contracts';
 import { asObject, hmacSha256Hex, safeEqual } from '../http';
 
 /**
- * Verifying Exotel's call-status callback (docs/API.md §3.4, `POST /webhooks/exotel/call-status`).
+ * Verifying Exotel's call-status callback (docs/06-api.md §3.4, `POST /webhooks/exotel/call-status`).
  *
  * Exotel does not sign its callbacks with a header the BOS could check, so the BOS signs the
  * callback address instead: each dial gets a StatusCallback URL carrying the BOS call reference,

@@ -1,4 +1,4 @@
-// OCR masking of customer document photos (BLUEPRINT §5 and §7.5, SECURITY.md §5,
+// OCR masking of customer document photos (BLUEPRINT §5 and §7.5, 07-security.md §5,
 // ARCHITECTURE §9). Reads the photo, finds Aadhaar and bank account numbers, covers the hidden
 // digits and every QR code with opaque boxes, and hands back only the masked image, the masked
 // text and the last four digits. The caller's buffer is overwritten with zeros once it has been read, and

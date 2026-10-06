@@ -41,13 +41,13 @@ export interface NavItem {
   group: NavGroup;
   /**
    * Every grant the screen needs, each at the narrowest scope that still lets its main query or
-   * command run (docs/SECURITY.md §3.2). Empty: everyone who is signed in.
+   * command run (docs/07-security.md §3.2). Empty: everyone who is signed in.
    */
   requires: readonly PermissionGrant[];
 }
 
 /**
- * The single list of BOS screens (DESIGN.md §5, BLUEPRINT §11.1): the sidebar, the phone menu,
+ * The single list of BOS screens (docs/08-design-system.md §5, BLUEPRINT §11.1): the sidebar, the phone menu,
  * the command palette's "Go to" group and the home shortcuts all read it. An item is shown when
  * the principal's own grants allow it, never by role name; the screen and the command behind it
  * check again, so hiding an item is a courtesy, not the guard.

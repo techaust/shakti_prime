@@ -10,7 +10,7 @@
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §7.1](../../design/phase1.md#71-ai0-agent-runtime-and-inbox), §4 and §12
+- Design: [`docs/03-roadmap-appendix/phase1.md` §7.1](../../03-roadmap-appendix/phase1.md#71-ai0-agent-runtime-and-inbox), §4 and §12
 - BLUEPRINT §9.3 (agent autopilot) and §7.8 (AI threat model)
 - PRD AI-04 (Phase 1 part: the runtime and the Agent Inbox; Triage in shadow is A1's)
 - SECURITY §3.2 (`agents.inbox.act`, `agents.autonomy.write`, `agents.killswitch` are in the catalogue already), §3.3 (agent principals) and §6 (AI security)
@@ -122,7 +122,7 @@ Not in AI0: real agents (A1, Phase 2), the vault (K1), voice (Phase 2), any clie
 
 **Not finished or uncertain:**
 - Linux baselines (`agent-inbox`, `admin-agents` and the staff pages with the inbox count) are the lead's step; the inbox cards now show the summary and the fields.
-- The owner's decisions A and B are recorded here and in design §7.1; DECISIONS.md is the lead's.
+- The owner's decisions A and B are recorded here and in design §7.1; 11-decisions.md is the lead's.
 - ₹104 and the two prices are flagged for the owner; `apps/web/src/integrations/voice/claude-stream.ts` (the voice spike, outside this slice) still names `claude-sonnet-5`.
 - `enum-sync.test.ts` "a site point is on the globe" passes only after another file has made an account (pre-existing).
 - The inbox count may lag up to 10 seconds for a suggestion filed or decided by someone else, and is kept per server instance.

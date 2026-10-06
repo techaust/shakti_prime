@@ -60,7 +60,7 @@ type Checked =
   | { ok: false; reason: FileRejectReason };
 
 /**
- * `files.file.uploaded` (docs/ARCHITECTURE.md §9): the checks an upload passes before anyone can
+ * `files.file.uploaded` (docs/04-architecture.md §9): the checks an upload passes before anyone can
  * use it, run as the worker principal. Safe to deliver more than once: each step starts from the
  * file's recorded status, so a repeat carries on where the last delivery stopped, and a file
  * already `ready` or `rejected` is left alone.

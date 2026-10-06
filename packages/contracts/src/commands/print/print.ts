@@ -4,7 +4,7 @@ import { EntityIdSchema, IdSchema } from '../../ids';
 import { FileKeySchema } from '../files/uploads';
 
 /**
- * Printed documents (ADR 0009, docs/design/phase1.md §6.4). A command that issues a document emits
+ * Printed documents (ADR 0009, docs/03-roadmap-appendix/phase1.md §6.4). A command that issues a document emits
  * `print.document.requested`; the render worker loads the document, renders its template with
  * Chromium, records the PDF with `files.document.record` and attaches it to the document.
  */

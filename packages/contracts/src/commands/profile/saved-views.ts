@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { IdSchema } from '../../ids';
 
 /**
- * The grids a person can save views of (DESIGN.md §6), each by one key; the database checks the
+ * The grids a person can save views of (docs/08-design-system.md §6), each by one key; the database checks the
  * same list (`saved_views_screen_check`).
  */
 export const SavedViewScreenSchema = z.enum([

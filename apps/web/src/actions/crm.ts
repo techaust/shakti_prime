@@ -88,7 +88,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
 
 /**
- * Thin wrapper (docs/API.md §4): parse → request context → command → DTO. The request is
+ * Thin wrapper (docs/06-api.md §4): parse → request context → command → DTO. The request is
  * narrowed to the company the lead is for, so a person viewing All companies acts with their
  * team in that company (AUDIT M24, `withRequestContext`).
  */
@@ -123,7 +123,7 @@ export async function listLeads(rawInput: unknown): Promise<ActionResult<LeadPag
 }
 
 /**
- * The leads board of one pipeline (DESIGN.md §6). A board for one company is read with the
+ * The leads board of one pipeline (docs/08-design-system.md §6). A board for one company is read with the
  * request narrowed to it, so a team lead viewing All companies sees their team there (AUDIT M24).
  */
 export async function listBoardLeads(rawInput: unknown): Promise<ActionResult<LeadBoardDto>> {

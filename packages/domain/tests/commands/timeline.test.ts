@@ -24,7 +24,7 @@ import { winOpportunity } from '../../src/commands/crm/win-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
 // Every lead command writes its row of the customer timeline in its own transaction, as the
-// caller (ctx.activity, docs/ARCHITECTURE.md §5); a refused command writes none.
+// caller (ctx.activity, docs/04-architecture.md §5); a refused command writes none.
 
 afterAll(closeDb);
 

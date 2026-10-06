@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Pieces shared by the `/api/v1` contracts (docs/API.md §1): headers, pagination, versions and
+ * Pieces shared by the `/api/v1` contracts (docs/06-api.md §1): headers, pagination, versions and
  * the token shapes the BOS itself signs.
  */
 
@@ -18,7 +18,7 @@ export const API_HEADERS = {
 } as const;
 
 /**
- * `details.reason` values the `/api/v1` routes give beside an error code (docs/API.md §3), for the
+ * `details.reason` values the `/api/v1` routes give beside an error code (docs/06-api.md §3), for the
  * callers that act on them: the field app's update gate and conflict screen, the connector's
  * re-read, the website form, the Integration Health page's replay. The mobile sign-in reasons are
  * `MOBILE_AUTH_REASONS`.
@@ -40,7 +40,7 @@ export const API_ERROR_REASONS = [
 export const ApiErrorReasonSchema = z.enum(API_ERROR_REASONS);
 export type ApiErrorReason = z.infer<typeof ApiErrorReasonSchema>;
 
-/** `?cursor=<opaque>&limit=<1..200>` on every list (docs/API.md §1). */
+/** `?cursor=<opaque>&limit=<1..200>` on every list (docs/06-api.md §1). */
 export const CursorSchema = z.string().min(1).max(512);
 export const PageLimitSchema = z.coerce.number().int().min(1).max(200).default(50);
 
@@ -69,7 +69,7 @@ export function compareSemver(a: Semver, b: Semver): number {
 
 /**
  * What every provider webhook answers once the payload is stored in `webhook_inbox`, within 2 s
- * and before any processing (docs/API.md §3.4). A duplicate delivery gets the same answer.
+ * and before any processing (docs/06-api.md §3.4). A duplicate delivery gets the same answer.
  */
 export const WebhookAck = z.object({ received: z.literal(true) }).strict();
 export type WebhookAck = z.infer<typeof WebhookAck>;
@@ -103,7 +103,7 @@ export const TOKEN_AUDIENCES = {
   voice: 'shakti-voice',
 } as const;
 
-/** Lifetimes in seconds (docs/API.md §2, docs/SECURITY.md §2). */
+/** Lifetimes in seconds (docs/06-api.md §2, docs/07-security.md §2). */
 export const TOKEN_LIFETIMES = {
   realtimeMax: 15 * 60,
   mobileAccess: 15 * 60,

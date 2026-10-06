@@ -110,7 +110,7 @@ async function envelope(response: Response) {
   return ErrorEnvelope.parse(await response.json()).error;
 }
 
-describe('POST /api/v1/workers/outbox/:type (docs/design/phase1.md §5.2)', () => {
+describe('POST /api/v1/workers/outbox/:type (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('delivers a signed event to its worker, which records its arrival', async () => {
     const event = probe();
     const response = await call(TYPE, JSON.stringify(event));

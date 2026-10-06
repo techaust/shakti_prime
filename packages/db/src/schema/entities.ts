@@ -3,7 +3,7 @@ import { boolean, check, jsonb, pgTable, smallint, text } from 'drizzle-orm/pg-c
 import { actors, archivable, timestamps } from './columns';
 
 /**
- * The four selling entities (docs/DATABASE.md §6.1). The registered address is entered in Admin by
+ * The four selling entities (docs/05-database.md §6.1). The registered address is entered in Admin by
  * an Executive (workshop pack SALE-2); its state is `state_code`, which the GSTIN starts with.
  * The company's current logo and letterhead are its newest ready files of those purposes
  * (`files`). `bank_json` holds the bank account sealed by the field cipher (bank name, account

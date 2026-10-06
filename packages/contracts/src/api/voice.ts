@@ -10,7 +10,7 @@ import {
 } from './common';
 
 /**
- * `POST /voice/session` (docs/API.md §2, §3.1; docs/BLUEPRINT.md §9.2; ADR 0010). Starts a "Talk to
+ * `POST /voice/session` (docs/06-api.md §2, §3.1; docs/01-blueprint.md §9.2; ADR 0010). Starts a "Talk to
  * Shakti" session for an Executive or GM: the LiveKit room and the person's join token, and the
  * 5-minute BOS token the voice worker uses to call `/api/v1` as that person.
  */
@@ -49,7 +49,7 @@ export const VoiceSessionResponse = z
       .strict(),
     limits: z
       .object({
-        /** Minutes left today under the per-user cap (docs/BLUEPRINT.md §9.2). */
+        /** Minutes left today under the per-user cap (docs/01-blueprint.md §9.2). */
         minutesRemainingToday: z.number().int().min(0),
         maxSessionMinutes: z.number().int().positive(),
       })

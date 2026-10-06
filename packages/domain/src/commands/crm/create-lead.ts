@@ -161,7 +161,7 @@ export const createLead = defineCommand({
 
     if (input.existingAccountId !== undefined) {
       // The caller may not see this customer yet; the helper checks the caller's right to attach
-      // their entity and writes the relationship, owned by the caller (docs/DATABASE.md §4.2).
+      // their entity and writes the relationship, owned by the caller (docs/05-database.md §4.2).
       const attached = (await ctx.tx.execute(
         sql`select app.attach_account_entity(${input.existingAccountId}::uuid, ${entityId}::smallint) as status`,
       )) as unknown as { status: AttachStatus }[];

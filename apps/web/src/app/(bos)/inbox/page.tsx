@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The Agent Inbox (docs/design/phase1.md §7.1, `agents.inbox.act`): the agents' suggestions waiting
+ * The Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1, `agents.inbox.act`): the agents' suggestions waiting
  * for the caller's decision, in the companies being viewed. Approving runs the suggestion as the
  * caller, under the caller's own permissions.
  */
