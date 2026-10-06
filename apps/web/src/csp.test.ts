@@ -10,6 +10,8 @@ describe('Content-Security-Policy (AUDIT L43)', () => {
     expect(scripts).not.toContain("'unsafe-inline'");
     expect(scripts).not.toContain("'unsafe-eval'");
     expect(csp).toContain("frame-ancestors 'none'");
+    // The push service worker loads from this site only (docs/design/phase1.md §8.1).
+    expect(csp).toContain("worker-src 'self'");
   });
 
   it("allows eval only in development, where React's error stacks need it", () => {
