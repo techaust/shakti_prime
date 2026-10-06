@@ -427,7 +427,8 @@ export function CallingScreen({
   const queueQuery = useQuery<CallQueuePageDto>();
   const moreQuery = useQuery<CallQueuePageDto>();
   const dial = useQuery<{ e164: string }>();
-  const save = useCommand(logCall);
+  // One form per lead: another lead's call is sent under a key of its own.
+  const save = useCommand(logCall, lead?.opportunityId);
 
   const open = useCallback(
     (ref: { entityId: number; opportunityId: string }) => {
