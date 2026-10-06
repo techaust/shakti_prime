@@ -18,6 +18,7 @@ import {
   prepareDatabase,
 } from '@shakti/db/testing';
 import { sql, type SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { dealerCreditQuery } from '../../src/queries/sales/dealer-credit';
 import { salesOrderListQuery } from '../../src/queries/sales/list-orders';
 
@@ -39,7 +40,7 @@ function inline(query: { sql: string; params: unknown[] }): string {
           ? `'${value.toISOString()}'`
           : value === null
             ? 'null'
-            : `'${String(value).replaceAll("'", "''")}'`;
+            : `'${(typeof value === 'string' ? value : JSON.stringify(value)).replaceAll("'", "''")}'`;
     text = text.replaceAll(`$${String(i)}`, literal);
   }
   return text;
@@ -71,7 +72,7 @@ async function explainSql(
   build: (ctx: RequestContext) => SQL,
 ): Promise<void> {
   const text = await asPrincipal(principal, (ctx) => {
-    const query = ctx.tx.dialect.sqlToQuery(build(ctx));
+    const query = new PgDialect().sqlToQuery(build(ctx));
     return Promise.resolve(inline(query));
   });
   await explainText(label, principal, text);
