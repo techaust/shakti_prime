@@ -8,6 +8,7 @@ import {
   createTestTeam,
   principalFor,
   stageId,
+  tierId,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -507,6 +508,41 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     expect(
       await refusal(run(leadA, unmergeCustomers, { entityId: 1, mergeId: done.id })),
     ).toMatchObject({ code: 'conflict', ...reason('merge_undone_already') });
+  });
+
+  it("moves a lead's quote with the lead, and back on undo (quotes_opportunity_fk)", async () => {
+    const { kept, merged } = await pair();
+    const list = '01990000-0000-7000-8000-0000000d1001';
+    const quote = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        // An archived list of this file only: a quote names a price list of its company.
+        await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, archived_at)
+          values (${list}, ${tierId('retail')}, 1, 9200, '2090-01-01', now())
+          on conflict (id) do nothing`;
+        await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, tier_id,
+                   price_list_id, scheme, place_of_supply_state, supply_kind, valid_until, subtotal,
+                   cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+          values (${quote}, 1, ${`D1/${quote}`}, '2098-99', ${merged.id}, ${merged.account.id},
+                  ${tierId('retail')}, ${list}, 'none', '08', 'intra', now() + interval '15 days',
+                  0, 0, 0, 0, 0, 0, 0, ${callerA.id})`;
+      }),
+    );
+    const quoteAccount = async () => {
+      const [row] = await asMigrator(
+        (m) => m<{ account: string }[]>`
+          select account_id::text as account from quotes where id = ${quote}`,
+      );
+      return row?.account;
+    };
+    const done = await run<{ id: string }>(leadA, mergeCustomers, {
+      entityId: 1,
+      keptAccountId: kept.account.id,
+      mergedAccountId: merged.account.id,
+    });
+    expect(await quoteAccount()).toBe(kept.account.id);
+    await run(leadA, unmergeCustomers, { entityId: 1, mergeId: done.id });
+    expect(await quoteAccount()).toBe(merged.account.id);
   });
 
   it('counts only what came back when a row changed since the merge', async () => {
