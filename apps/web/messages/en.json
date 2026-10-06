@@ -459,6 +459,8 @@
       "calling": "Call your leads in order, save how each call went and see your next calls.",
       "duplicates": "Merge customers and leads that were entered twice, or set them aside.",
       "quotes": "See the quotes of your leads, open their documents and send them.",
+      "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
+      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "inbox": "Approve, change or reject what the agents suggest.",
       "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents."
     }
