@@ -78,7 +78,10 @@ describe('outcomeForKey and nextLead', () => {
     const items = [item('a'), item('b'), item('c')];
     expect(nextLead(items, undefined)?.opportunityId).toBe('a');
     expect(nextLead(items, 'a')?.opportunityId).toBe('b');
-    expect(nextLead(items, 'c')).toBeUndefined();
+    // From the last lead, back to the first.
+    expect(nextLead(items, 'c')?.opportunityId).toBe('a');
+    // The only lead of the queue is already open: there is no other.
+    expect(nextLead([item('a')], 'a')).toBeUndefined();
     // The open lead left the queue after its call: the first lead is next.
     expect(nextLead(items, 'gone')?.opportunityId).toBe('a');
     expect(nextLead([], undefined)).toBeUndefined();

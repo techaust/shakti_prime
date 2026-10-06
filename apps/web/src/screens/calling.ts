@@ -72,13 +72,17 @@ export function outcomeForKey(
   return outcomes.find((o) => o.key === key);
 }
 
-/** The lead after `current` in the queue; the first lead when none is open or it left the queue. */
+/**
+ * The lead after `current` in the queue; the first lead when none is open, when it left the queue
+ * or when it was the last one, so `N` never does nothing while another lead waits.
+ */
 export function nextLead(
   items: readonly CallQueueItemDto[],
   current: string | undefined,
 ): CallQueueItemDto | undefined {
   const at = current === undefined ? -1 : items.findIndex((i) => i.opportunityId === current);
-  return items[at + 1] ?? (at === -1 ? items[0] : undefined);
+  const next = items[at + 1] ?? items[0];
+  return next?.opportunityId === current ? undefined : next;
 }
 
 const HOUR_MS = 3_600_000;

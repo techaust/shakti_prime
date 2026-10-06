@@ -508,8 +508,11 @@ export function CallingScreen({
       event.preventDefault();
       if (shortcut.kind === 'next') goNext();
       else if (shortcut.kind === 'dial') showNumber();
-      else if (shortcut.kind === 'search') searchRef.current?.focus();
-      else if (lead !== null) {
+      else if (shortcut.kind === 'search') {
+        // The last search is selected, so the next name typed replaces it.
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (lead !== null) {
         const outcome = outcomeForKey(lead.dispositions, shortcut.key);
         if (outcome !== undefined) pick(outcome);
       }

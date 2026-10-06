@@ -33,9 +33,13 @@ async function addLead(page: Page, first: string): Promise<string> {
 
 /** Opens a lead in the workspace from the keyboard: `/`, its name, Enter, then the hit. */
 async function findLead(page: Page, name: string): Promise<void> {
-  await page.locator('body').press('/');
   const search = page.getByRole('searchbox', { name: /Find a lead/ });
-  await expect(search).toBeFocused();
+  // The workspace's keys work once the page has hydrated; a `/` pressed before then does nothing,
+  // so it is pressed again until the search takes the keyboard.
+  await expect(async () => {
+    await page.locator('body').press('/');
+    await expect(search).toBeFocused({ timeout: 1_000 });
+  }).toPass();
   await page.keyboard.type(name);
   await page.keyboard.press('Enter');
   const hit = page.getByRole('list', { name: 'Leads found' }).getByRole('button').first();
