@@ -9,7 +9,7 @@ import { API_FIXTURES } from './fixtures';
 import { MOBILE_AUTH_REASONS } from './mobile-auth';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const apiDoc = readFileSync(join(here, '../../../../docs/API.md'), 'utf8');
+const apiDoc = readFileSync(join(here, '../../../../docs/06-api.md'), 'utf8');
 
 /** `METHOD /path` for every route row in docs/06-api.md §3.1 to §3.5 and §3.7. */
 function documentedRoutes(): string[] {

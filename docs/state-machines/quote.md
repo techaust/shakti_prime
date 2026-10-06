@@ -4,7 +4,7 @@
 
 `quotes.state`. Lines snapshot Price Master prices and the tax-rate version at creation.
 
-Sources: docs/design/backend-weeks-3-5.md §7.3; docs/design/phase1.md §7.3; BLUEPRINT §8.3; PRD SAL-03, SAL-04, SAL-05.
+Sources: docs/03-roadmap-appendix/backend-weeks-3-5.md §7.3; docs/03-roadmap-appendix/phase1.md §7.3; BLUEPRINT §8.3; PRD SAL-03, SAL-04, SAL-05.
 
 Every state and transition comes from the governing documents.
 

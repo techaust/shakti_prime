@@ -4,7 +4,7 @@
 
 `duplicate_candidates.state`. Two customers, or two leads of one company, that look like one, with the reason and how sure the match is. Found open by `crm.lead.create`, the nightly `crm.duplicate.scan` and `crm.duplicate.suggest`; decided by a person holding `crm.lead.merge`.
 
-Sources: docs/design/phase1.md §7.4; PRD CRM-03; DATABASE §6.2 `duplicate_candidates`.
+Sources: docs/03-roadmap-appendix/phase1.md §7.4; PRD CRM-03; DATABASE §6.2 `duplicate_candidates`.
 
 Every state and transition comes from the governing documents.
 

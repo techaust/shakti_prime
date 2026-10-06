@@ -86,7 +86,7 @@ function parseMatrix(markdown: string): Map<string, Partial<Record<StaffRoleKey,
   return matrix;
 }
 
-const document = readFileSync(new URL('../../../docs/SECURITY.md', import.meta.url), 'utf8');
+const document = readFileSync(new URL('../../../docs/07-security.md', import.meta.url), 'utf8');
 const fromDocument = parseMatrix(document);
 
 describe('the seeded permission matrix equals docs/07-security.md §3.2', () => {
