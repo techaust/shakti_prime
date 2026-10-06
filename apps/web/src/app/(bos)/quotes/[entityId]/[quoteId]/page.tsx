@@ -1,3 +1,4 @@
+import { UPLOAD_LIMITS } from '@shakti/domain';
 import { Button } from '@shakti/ui';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -18,6 +19,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 interface Params {
   entityId: string;
   quoteId: string;
+}
+
+/** The limits of a signed copy, for the uploader to check before it sends a byte. */
+function signedCopyLimit() {
+  const found = UPLOAD_LIMITS.signed_quote;
+  if (found === undefined) throw new Error('no upload limits for signed_quote');
+  return { contentTypes: [...found.contentTypes], maxBytes: found.maxBytes };
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,6 +57,7 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
       key={quote.data.id}
       initial={quote.data}
       company={companyNames(access)[quote.data.entityId] ?? ''}
+      {...(quote.data.canAccept ? { acceptLimit: signedCopyLimit() } : {})}
       placeOfSupply={
         stateKey !== undefined && print.has(stateKey)
           ? print('quote.placeOfSupplyState', {

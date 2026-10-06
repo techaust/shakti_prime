@@ -48,6 +48,9 @@ import {
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
   QUOTE_STATES,
+  SALES_ORDER_STATES,
+  QUOTE_ACCEPTED_VIA,
+  COMMISSION_ACCRUAL_STATES,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
@@ -384,6 +387,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const files = useTranslations('files');
   const duplicates = useTranslations('duplicates');
   const quotes = useTranslations('quotes');
+  const orders = useTranslations('orders');
   const agents = useTranslations('agents');
   return (group, value) => {
     switch (group) {
@@ -395,6 +399,14 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         if (oneOf(IMPORT_JOB_STATES, value)) return imports(`state.${value}`);
         return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       }
+      case 'orderState':
+        return oneOf(SALES_ORDER_STATES, value) ? orders(`state.${value}`) : wordsOf(value);
+      case 'acceptedVia':
+        return oneOf(QUOTE_ACCEPTED_VIA, value) ? orders(`acceptedVia.${value}`) : wordsOf(value);
+      case 'commissionState':
+        return oneOf(COMMISSION_ACCRUAL_STATES, value)
+          ? orders(`commissionState.${value}`)
+          : wordsOf(value);
       case 'lostReason':
         return oneOf(OPPORTUNITY_LOST_REASONS, value)
           ? leads(`board.lostReason.${value}`)

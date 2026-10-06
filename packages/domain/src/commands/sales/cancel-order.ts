@@ -50,8 +50,8 @@ export const cancelSalesOrder = defineCommand({
           aggregateType: 'commission_accrual',
           aggregateId: result.id,
           entityId: row.entityId,
-          before: { state: 'accrued' },
-          after: { state: 'cancelled' },
+          before: { commissionState: 'accrued' },
+          after: { commissionState: 'cancelled' },
         });
       }
     }
@@ -59,8 +59,8 @@ export const cancelSalesOrder = defineCommand({
       aggregateType: 'sales_order',
       aggregateId: row.id,
       entityId: row.entityId,
-      before: { state: row.state },
-      after: { state: cancelled.to, cancelReason: input.reason },
+      before: { orderState: row.state },
+      after: { orderState: cancelled.to, cancelReason: input.reason },
     });
     ctx.emit({
       type: 'sales.order.cancelled',

@@ -30,6 +30,7 @@ import {
 } from '../../screens/contract-values';
 import { customerHref, isOneOf as oneOf } from '../../screens/customers';
 import { formatDate, formatDateTime, formatPhone, formatRupees } from '../../screens/format';
+import { dealerOrderHref, ORDER_STATE_TONE, orderHref } from '../../screens/orders';
 import { QUOTE_STATE_TONE, quoteBuilderHref, quoteHref } from '../../screens/quotes';
 import { Page } from '../shell/page';
 import type { UploadLimitView } from '../companies/branding-dialog';
@@ -241,6 +242,7 @@ export function AccountScreen({
             onChanged={reload}
           />
           <Quotes view={view} />
+          <Orders view={view} />
           <Tasks
             view={view}
             onAdd={() => {
@@ -667,6 +669,56 @@ function Quotes({ view }: { view: Account360Dto }) {
                 {t('quotes.summary', {
                   total: formatRupees(q.grandTotal),
                   date: formatDate(q.validUntil),
+                })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * The customer's orders in this company, newest first, each opening its order page; for a dealer
+ * the caller may order for, a new order without a quote (`sales.order.create`).
+ */
+function Orders({ view }: { view: Account360Dto }) {
+  const t = useTranslations('customers');
+  const ordersT = useTranslations('orders');
+  return (
+    <Section
+      id="account-orders"
+      title={t('orders.sectionTitle')}
+      actions={
+        view.canOrder ? (
+          <Button asChild size="sm" variant="secondary">
+            <Link href={dealerOrderHref(view.entityId, view.account.id)}>{t('orders.new')}</Link>
+          </Button>
+        ) : undefined
+      }
+    >
+      {view.orders.length === 0 ? (
+        <p className="text-text-muted">{t('orders.empty')}</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {view.orders.map((o) => (
+            <li key={o.id} className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                  href={orderHref(o.entityId, o.id)}
+                  className="text-accent-text font-medium tabular-nums hover:underline"
+                >
+                  {o.soNo}
+                </Link>
+                <StatusBadge tone={o.creditHeld ? 'warning' : ORDER_STATE_TONE[o.state]}>
+                  {o.creditHeld ? ordersT('heldForCredit') : ordersT(`state.${o.state}`)}
+                </StatusBadge>
+              </div>
+              <span className="text-text-muted text-sm tabular-nums">
+                {t('orders.summary', {
+                  total: formatRupees(o.grandTotal),
+                  date: formatDate(o.createdAt),
                 })}
               </span>
             </li>

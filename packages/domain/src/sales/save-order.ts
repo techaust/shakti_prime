@@ -1,4 +1,9 @@
-import { newId, type PlaceOfSupply, type QuoteLineDto, type QuoteTotalsDto } from '@shakti/contracts';
+import {
+  newId,
+  type PlaceOfSupply,
+  type QuoteLineDto,
+  type QuoteTotalsDto,
+} from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import type { CommandContext } from '../command/context';
 import { nextDocumentNo } from '../numbering/next-document-no';
@@ -6,13 +11,14 @@ import { nextDocumentNo } from '../numbering/next-document-no';
 /** The keys an order's audit rows record besides its ids (`auditFields` of the order commands). */
 export const ORDER_AUDIT_FIELDS = [
   'soNo',
-  'state',
+  'orderState',
   'lineCount',
   'grandTotal',
   'creditHoldReason',
   'creditReleaseReason',
   'cancelReason',
   'released',
+  'commissionState',
 ] as const;
 
 /** Everything an order is made from, worked out and checked, before it is numbered and saved. */
@@ -75,7 +81,7 @@ export async function saveSalesOrder(
     entityId: order.entityId,
     after: {
       soNo: number.formatted,
-      state: 'draft',
+      orderState: 'draft',
       quoteId: order.quoteId,
       opportunityId: order.opportunityId,
       accountId: order.accountId,

@@ -125,10 +125,7 @@ async function leadSize(
  * `app.record_commission_accrual()`, which checks it again. No rule, or a per-kW or per-HP rule
  * with no current sizing of the lead, records nothing: nothing is invented (CRM-5).
  */
-async function accrueCommission(
-  ctx: CommandContext,
-  row: SalesOrderRow,
-): Promise<void> {
+async function accrueCommission(ctx: CommandContext, row: SalesOrderRow): Promise<void> {
   if (row.opportunityId === null) return;
   const [rule] = (await ctx.tx.execute(
     sql`select rule_id as "ruleId", partner_id as "partnerId", basis, amount::numeric(14, 2)::text as "amount"
@@ -212,8 +209,8 @@ export const confirmSalesOrder = defineCommand({
         aggregateType: 'sales_order',
         aggregateId: row.id,
         entityId: row.entityId,
-        before: { state: row.state, creditHoldReason: row.creditHoldReason },
-        after: { state: row.state, creditHoldReason: reason },
+        before: { orderState: row.state, creditHoldReason: row.creditHoldReason },
+        after: { orderState: row.state, creditHoldReason: reason },
       });
       ctx.emit({
         type: 'sales.order.credit_held',
@@ -243,8 +240,8 @@ export const confirmSalesOrder = defineCommand({
       aggregateType: 'sales_order',
       aggregateId: row.id,
       entityId: row.entityId,
-      before: { state: row.state, creditHoldReason: row.creditHoldReason },
-      after: { state: confirmed.to, creditHoldReason: null, released: check.released },
+      before: { orderState: row.state, creditHoldReason: row.creditHoldReason },
+      after: { orderState: confirmed.to, creditHoldReason: null, released: check.released },
     });
     ctx.emit({
       type: 'sales.order.confirmed',
@@ -259,6 +256,9 @@ export const confirmSalesOrder = defineCommand({
     });
     await winLead(ctx, row);
     await accrueCommission(ctx, row);
-    return { outcome: 'confirmed' as const, order: await readSalesOrder(ctx, row.entityId, row.id) };
+    return {
+      outcome: 'confirmed' as const,
+      order: await readSalesOrder(ctx, row.entityId, row.id),
+    };
   },
 });

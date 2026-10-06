@@ -18,8 +18,10 @@ import {
   ScrollText,
   Store,
   ShieldCheck,
+  ShoppingCart,
   UserPlus,
   UsersRound,
+  Wallet,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
@@ -109,6 +111,27 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Quotes are read with their leads (listQuotes), so whoever reads leads opens the list and the
     // quote page; sending, re-quoting and withdrawing follow their own permissions.
     requires: [{ key: 'crm.lead.read', scope: 'own' }],
+  },
+  {
+    id: 'orders',
+    href: '/orders',
+    label: 'orders',
+    icon: ShoppingCart,
+    group: 'work',
+    // An order of a quote is read with its lead, a dealer's own order with the dealer
+    // (listSalesOrders takes either read); confirming, releasing and cancelling follow their own
+    // permissions. Every role that reads leads also reads customers at own scope or wider.
+    requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
+    id: 'dealer-credit',
+    href: '/dealer-credit',
+    label: 'dealerCredit',
+    icon: Wallet,
+    group: 'work',
+    // Accounts enter dealer terms and outstanding (sales.dealer_terms.set,
+    // sales.dealer_outstanding.record) and read the exposure (app.dealer_credit_position()).
+    requires: [{ key: 'sales.credit.write', scope: 'entity' }],
   },
   {
     id: 'leads-new',

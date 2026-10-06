@@ -32,6 +32,7 @@ import {
   type SortKeys,
 } from '../keyset-sort';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
+import { accountSalesOrders } from '../sales/list-orders';
 import { accountQuotes } from '../sales/list-quotes';
 import { containsPattern, phoneDigits } from '../search-text';
 
@@ -530,7 +531,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     ]);
 
   const perms = ctx.principal.permissions;
-  const covers = (key: 'crm.account.write' | 'crm.lead.write') =>
+  const covers = (key: 'crm.account.write' | 'crm.lead.write' | 'sales.order.create') =>
     hasGrant(perms, key, 'entity') ||
     (hasGrant(perms, key, 'team') &&
       here.teamId !== null &&
@@ -541,6 +542,8 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
   const quotes = hasGrant(perms, 'crm.lead.read', 'own')
     ? await accountQuotes(ctx, accountId, entityId)
     : [];
+  // Its orders in this company, read with their leads or, for a dealer's own order, with it.
+  const orders = await accountSalesOrders(ctx, accountId, entityId);
 
   return Account360Dto.parse({
     // The tiers' own policy lets any signed-in caller read them, so the name is kept here.
@@ -559,6 +562,8 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     canSetTier: hasGrant(perms, 'pricing.write', 'all') && covers('crm.account.write'),
     canQuote: hasGrant(perms, 'sales.quote.create', 'own'),
     quotes,
+    canOrder: here.account.type === 'dealer' && covers('sales.order.create'),
+    orders,
     contacts: contacts.map((x) => ({
       ...x,
       phones: phones
