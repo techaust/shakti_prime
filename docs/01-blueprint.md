@@ -520,7 +520,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
   - Admin (users, roles, entities, integrations, audit, imports, feature flags, costs);
   - the public website: a landing page at the root of the domain with a "Staff sign in" button.
 
-### 11.2 docs/08-design-system.md
+### 11.2 Design system
 - **Foundation:** Linear's default app design, for its precision, information density, restraint and single-accent discipline. Like Linear, the light and dark themes are generated from three inputs (a base colour, the accent and a contrast level) in the LCH colour space.
 - **Shakti Prime adaptations:**
   1. System-aware light and dark themes, designed as equals.
@@ -528,7 +528,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
   3. Larger touch targets and higher contrast for mobile and field use.
   4. Inter throughout, self-hosted, with its display optical size for headings.
   5. Status colour tokens for pipeline stages, SLAs and stock health, plus data-grid, Kanban and form patterns.
-- `docs/08-design-system.md` lives at the repo root, and its tokens map to Tailwind v4 + shadcn/ui CSS variables. A companion preview page shows every component in both themes.
+- The design system is [08-design-system](08-design-system.md), in `docs/`, and its tokens map to Tailwind v4 + shadcn/ui CSS variables. A companion preview page shows every component in both themes.
 
 ### 11.3 Theme behaviour
 - **Default: System.** The interface follows the device's `prefers-color-scheme` and switches live when the OS setting changes.
@@ -558,7 +558,7 @@ In-app notification centre (Realtime), browser push and FCM, with per-user prefe
 - **Backups:** Supabase PITR + a nightly logical dump to S3 (30-day retention); quarterly restore drills.
 - **Recovery targets:** RPO ≤ 5 min; RTO ≤ 4 h. Uptime target 99.5% during business hours (8 AM–10 PM IST); maintenance windows on Sunday nights.
 - **Ownership and continuity:**
-  - All accounts (domain, Vercel, Supabase, AWS, Meta, Exotel, Anthropic, Google Play, GitHub) are registered to the client's organisation, with the development team as members.
+  - All accounts are registered to the client's organisation, with the development team as members; the list of accounts is in [accounts](runbooks/accounts.md).
   - ADRs, runbooks and an onboarding guide let a new developer be productive within a week.
 - **Change management:** expand/contract migrations; feature flags for risky releases.
 - **Monitoring:** Sentry; alerts on queue depth and DLQ, connector heartbeat, WhatsApp quality rating, AI and voice spend.
@@ -742,7 +742,7 @@ The deliverables of Phase 0, which the owner closed on 29-09-2026; the items tha
 | supabase | Plugin (skills + MCP) | Anthropic plugin directory | Phase 0 | Supabase sign-in or personal access token |
 | context7 | Plugin (MCP) | Anthropic plugin directory | Phase 0 | Optional `CONTEXT7_API_KEY` |
 | frontend-design | Plugin (skill) | Anthropic plugin directory | Phase 0 | — |
-| Security Guidance | Plugin (hooks) | Anthropic plugin directory | Phase 0 | — |
+| security-guidance | Plugin (hooks) | Anthropic plugin directory | Phase 0 | — |
 | Upstash Redis | Plugin (skills + MCP) | Anthropic plugin directory | Phase 0 | Upstash email + API key |
 | Vercel MCP | MCP (project scope) | `claude mcp add --transport http vercel https://mcp.vercel.com --scope project` | Phase 0 | Vercel sign-in (OAuth) |
 | Vercel agent skills | Skills | `npx skills add vercel-labs/agent-skills -a claude-code` | Phase 0 | — |
@@ -752,7 +752,6 @@ The deliverables of Phase 0, which the owner closed on 29-09-2026; the items tha
 | sentry | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | Sentry sign-in |
 | aws-core | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | AWS credentials (least-privilege IAM user) |
 | expo | Plugin (skills + MCP) | Anthropic plugin directory | Phase 4 | Expo account |
-| feature-dev, pr-review-toolkit | Plugins (optional) | Anthropic plugin directory | Any phase | — |
 
 **Built in, nothing to install:** `claude-api` (agents, voice, Knowledge Brain), `/code-review`, `/security-review`, `/simplify`, `run`.
 

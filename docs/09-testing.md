@@ -92,7 +92,7 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
   | `lead-rescore.test.ts`, `duplicate-scan.test.ts`, `quote-expiry.test.ts` | The nightly rescoring, the nightly duplicate search and the daily quote expiry routes, with the real signature check, commands and database (and a stand-in queue client for the two that hand work on) |
   | `duplicate-actions.test.ts` | The duplicate actions, each run for every company the caller works for |
   | `files.test.ts` | The upload actions on the development store end to end, the file checks with a store that answers GuardDuty's tag, a PDF with a script, a masked vault photo, and the upload routes |
-- **Hosted build:** CI builds without `SENTRY_AUTH_TOKEN`, so the build Sentry wraps is budget-checked once by hand on dev ([DEPLOY §1](runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment) step 11).
+- **Hosted build:** CI builds without `SENTRY_AUTH_TOKEN`, so the build Sentry wraps is budget-checked once by hand on dev ([DEPLOY §1](runbooks/deploy.md#1-before-the-first-deploy-once-per-environment) step 11).
 - **Still to come**, each with its feature:
   - voice tokens act only as the issuing user (Phase 2);
   - Realtime channel policies refuse one user's token on another user's or another entity's channels: the token route's tests exist; the channel-policy check waits for the Realtime spike, `pnpm --filter web realtime-spike`, on the production site with the client's domain (`docs/04-architecture-appendix/realtime.md`);
@@ -105,8 +105,8 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
 ## 4. Generated files
 | File | Source | Test | Regenerate with |
 |---|---|---|---|
-| `docs/data/ERD.md`, `docs/data/DATA-DICTIONARY.md` | Drizzle snapshot, SQL migrations, DATABASE §6 | `packages/db/src/docs/data-docs.test.ts` | `pnpm db:docs` |
-| `docs/data/EVENTS.md` | `packages/contracts/src/events/catalogue.ts` | `packages/db/src/docs/events-docs.test.ts` | `pnpm db:docs` |
+| `docs/data/erd.md`, `docs/data/data-dictionary.md` | Drizzle snapshot, SQL migrations, DATABASE §6 | `packages/db/src/docs/data-docs.test.ts` | `pnpm db:docs` |
+| `docs/data/events.md` | `packages/contracts/src/events/catalogue.ts` | `packages/db/src/docs/events-docs.test.ts` | `pnpm db:docs` |
 | `docs/state-machines/*.md` | `packages/domain/src/state-machines` (`registry.test.ts` checks which machines the commands drive) | `render.test.ts` | `pnpm --filter @shakti/domain machines:docs` |
 | `packages/tokens/src/*.css` | `packages/tokens/src/tokens.ts` | `css.test.ts`, and the CI step below | `pnpm --filter @shakti/tokens build` |
 | `apps/web/src/app/icon.svg` | `packages/tokens/src/icon.ts` | `icon.test.ts`, and the CI step below | `pnpm --filter @shakti/tokens build` |
@@ -171,7 +171,7 @@ Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is
 
 `.github/workflows/audit.yml` repeats the dependency audit weekly.
 
-`.github/workflows/automerge.yml` (*Merge on green*) starts when CI succeeds on a pull request: it merges the owner's pull requests and Dependabot's minor and patch bumps, deletes the branch and runs CI again on `main`; a pull request labelled `hold` is skipped (ADR 0017, [AGENTS §8](../AGENTS.md#8-git-and-pull-requests)). `.github/workflows/migrate.yml` (*Migrate a hosted database*) is started by hand for dev or staging: it migrates from a commit on `main`, seeds when asked and checks that every migration is applied as it is on disk ([DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy)).
+`.github/workflows/automerge.yml` (*Merge on green*) starts when CI succeeds on a pull request: it merges the owner's pull requests and Dependabot's minor and patch bumps, deletes the branch and runs CI again on `main`; a pull request labelled `hold` is skipped (ADR 0017, [AGENTS §8](../AGENTS.md#8-git-and-pull-requests)). `.github/workflows/migrate.yml` (*Migrate a hosted database*) is started by hand for dev or staging: it migrates from a commit on `main`, seeds when asked and checks that every migration is applied as it is on disk ([DEPLOY §2](runbooks/deploy.md#2-every-deploy)).
 
 Spike scripts and coverage (`pnpm coverage`, report only) do not run in CI.
 

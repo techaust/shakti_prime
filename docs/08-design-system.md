@@ -1,4 +1,4 @@
-# docs/08-design-system.md — Shakti Prime design system
+# Design system — Shakti Prime BOS
 
 Blueprint reference: §11. Foundation: Linear's default app design (precision, density, restraint, one indigo accent), with light and dark themes generated the way Linear generates its own, for a business system used on desktops, phones and in the field.
 

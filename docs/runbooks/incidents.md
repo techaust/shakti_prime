@@ -1,6 +1,6 @@
 # Incidents: what to do when something goes wrong
 
-Plain steps for the owner or the developer on duty, one section per kind of trouble. Each step names the screen or the page to open. The hosted environments are listed in [STATUS](../10-status.md#hosted-environments); how they are set up is in [DEPLOY](DEPLOY.md). Nothing here changes a hosted environment without the owner's go-ahead.
+Plain steps for the owner or the developer on duty, one section per kind of trouble. Each step names the screen or the page to open. The hosted environments are listed in [STATUS](../10-status.md#hosted-environments); how they are set up is in [DEPLOY](deploy.md). Nothing here changes a hosted environment without the owner's go-ahead.
 
 **Who to tell.** When a step does not clear the trouble, or before anything is changed by hand, the owner tells the developer (Techaust) by phone or message with:
 - the site's address (dev or staging) and the time it started, in IST;
@@ -24,7 +24,7 @@ Never send a password, key or secret value; a screenshot of a settings page is c
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
 2. Open `<site>/api/v1/health/ready`. A 200 with `status: ok` means every dependency answers. A 503 means one is down: the database, the auth database, the key-value store (Upstash Redis), the configuration, or the outbox (an update has waited more than five minutes past its time, so the publisher is not running). The page never names which.
-3. In Vercel, open the project (`shakti-prime-dev` or `shakti-prime-staging`) › **Deployments**: the latest deployment of `main` must be **Ready**. A failed build shows its log there; a deployment that refuses to start lists the missing or unsafe variables in its runtime log (`productionConfigProblems()`, [DEPLOY §1](DEPLOY.md#1-before-the-first-deploy-once-per-environment)).
+3. In Vercel, open the project (`shakti-prime-dev` or `shakti-prime-staging`) › **Deployments**: the latest deployment of `main` must be **Ready**. A failed build shows its log there; a deployment that refuses to start lists the missing or unsafe variables in its runtime log (`productionConfigProblems()`, [DEPLOY §1](deploy.md#1-before-the-first-deploy-once-per-environment)).
 4. In Vercel › **Logs**, search for `health.not_ready` with the request id the readiness page returned (header `x-request-id`): the line names the check that is down.
 5. Check the provider of that check: the Supabase project's dashboard and status page for the database, the Upstash console for Redis and QStash, Cloudflare for Turnstile. A provider outage is waited out; a changed or expired value is fixed in Vercel's variables, then the deployment is redeployed. A database check down on dev or staging is most often a paused project (§7).
 6. When the deployment itself is at fault (it broke after a merge), roll it back (§4).
@@ -38,14 +38,14 @@ Background updates (events) leave each change through the outbox and QStash. An 
 5. Sentry's alert rule *Message queue failing (outbox)* emails the owner when the publisher holds an update back (`outbox.dead_lettered`) or when a third sending round in a row fails to deliver anything it tried (`outbox.publisher_failing`). The alert carries counts and ids only; the page above shows the detail.
 
 ## 3. A migration failed
-Migrations reach a hosted database only through GitHub › **Actions** › *Migrate a hosted database*, run from `main` ([DEPLOY §2](DEPLOY.md#2-every-deploy)).
+Migrations reach a hosted database only through GitHub › **Actions** › *Migrate a hosted database*, run from `main` ([DEPLOY §2](deploy.md#2-every-deploy)).
 1. Open the failed run and read the first failing step:
    - *Only from main* or *Secrets present and for this project*: the run was started from another branch, a secret is missing, or the address names another Supabase project. Fix the secret in GitHub › Settings › Secrets and variables › Actions, then run again.
-   - `pnpm db:migrate` (`pnpm db:migrate --rotate-passwords` on a rotation run, [DEPLOY §5](DEPLOY.md#5-rotating-a-secret)): the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
+   - `pnpm db:migrate` (`pnpm db:migrate --rotate-passwords` on a rotation run, [DEPLOY §5](deploy.md#5-rotating-a-secret)): the database's own error is in the log. The migrator applies every pending migration in one transaction under an advisory lock, so a failure leaves the database as it was. A table lock held by live traffic for more than 10 seconds also stops it; run again at a quiet moment.
    - `pnpm db:verify`: a migration on disk is not applied exactly as written (a changed file, or one the journal skipped because its time is older than the last one applied).
    - *Seed*: the migrations are in; rerun the workflow with the same choice, since the seed is safe to repeat.
 2. **Never edit a migration that a hosted database has applied.** A fix is a new migration after the last one, merged through a pull request, then the workflow is run again.
-3. A migration that builds an index concurrently cannot run in the migrator's transaction: build the index by hand first ([DEPLOY §3](DEPLOY.md#3-a-migration-that-builds-an-index-concurrently)).
+3. A migration that builds an index concurrently cannot run in the migrator's transaction: build the index by hand first ([DEPLOY §3](deploy.md#3-a-migration-that-builds-an-index-concurrently)).
 4. After a successful run, check `/api/v1/health/ready` on the environment's site.
 
 ## 4. Roll back a bad deploy
@@ -54,7 +54,7 @@ Migrations reach a hosted database only through GitHub › **Actions** › *Migr
 3. Migrations only go forward. Rolling the app back does not undo a migration; a schema fix is a new migration (§3). An older deployment keeps working on a newer schema only while the migration was additive, which is the rule for every migration (expand, then contract, [AGENTS §6](../../AGENTS.md#6-database-changes)).
 
 ## 5. A secret leaked
-Replace it at once, following [DEPLOY §5](DEPLOY.md#5-rotating-a-secret) for the kind of secret; for the AWS access key, [files-setup §5](files-setup.md#5-rotating-the-access-key). A secret committed to the repository stays in its history, which is never rewritten on GitHub: replace the secret, then add the scan's fingerprint of the old value to `.gitleaksignore` in a pull request. Never replace `BETTER_AUTH_SECRET` outright: follow SECURITY §10.
+Replace it at once, following [DEPLOY §5](deploy.md#5-rotating-a-secret) for the kind of secret; for the AWS access key, [files-setup §5](files-setup.md#5-rotating-the-access-key). A secret committed to the repository stays in its history, which is never rewritten on GitHub: replace the secret, then add the scan's fingerprint of the old value to `.gitleaksignore` in a pull request. Never replace `BETTER_AUTH_SECRET` outright: follow SECURITY §10.
 
 ## 6. Restore from a backup
 The backups, the recovery targets and the restore drill are in [DATABASE §10](../05-database.md#10-backups-and-recovery). Restore into a new scratch project first, check it as the drill describes, and only then decide with the owner how to bring the data back.

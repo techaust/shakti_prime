@@ -47,7 +47,7 @@ Wave 4, built on the PC beside each other (their run files are on their branches
 
 T2 starts after N1 merges.
 
-## Merged
+## Merged (slices built with a run file; wave 1, C1, X1 and C2 predate run files)
 - [P4 print and letterhead](p4-print.md) (#99)
 - [C4 sizing](c4-sizing.md) (#100)
 - [C3 pipelines, scoring and referrals](c3-pipelines.md) (#103)

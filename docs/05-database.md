@@ -2,7 +2,7 @@
 
 Blueprint reference: §6. This document fixes the conventions every table follows, the RLS templates, the table catalogue with key columns, and the migration workflow. `docs/01-blueprint.md` governs on any conflict.
 
-Generated from the code and this document by `pnpm db:docs`, with a unit test that fails when they are stale: the ERD ([docs/data/ERD.md](data/ERD.md)), the data dictionary ([docs/data/DATA-DICTIONARY.md](data/DATA-DICTIONARY.md), every column, constraint, index, trigger and policy as the migrations leave them) and the event catalogue ([docs/data/EVENTS.md](data/EVENTS.md)).
+Generated from the code and this document by `pnpm db:docs`, with a unit test that fails when they are stale: the ERD ([docs/data/erd.md](data/erd.md)), the data dictionary ([docs/data/data-dictionary.md](data/data-dictionary.md), every column, constraint, index, trigger and policy as the migrations leave them) and the event catalogue ([docs/data/events.md](data/events.md)).
 
 ## Contents
 1. [Platform](#1-platform)
@@ -27,7 +27,7 @@ Supabase Postgres 17, extensions `pg_trgm` (migration 0003, in schema `public`),
 | Business keys | Human-facing numbers (`quote_no`, `so_no`, `proforma_no`, `challan_no`) come from `document_sequences` per entity, document type and financial year; gapless within a series |
 | Entity scope | Every business table has `entity_id smallint not null references entities(id)`; a child of a scoped parent also carries a composite foreign key `(parent_id, entity_id) references parent(id, entity_id)`, so a row can never sit in a different entity from its parent. Exceptions: the shared customer master (`contacts`, `accounts` and their children carry no entity; `account_entities` is the scope root, ADR 0008) and shared reference rows (`teams`, `pipelines`, `price_lists`, `tags` allow `entity_id null` for the whole group) |
 | Timestamps | `created_at timestamptz not null default now()`, `updated_at timestamptz not null` (trigger), stored in UTC |
-| Actor columns | Most tables carry `created_by` and `updated_by`, referencing `principals(id)` (users, agent principals, voice sessions, the system principal); the auth module's tables, the append-only and log tables and the bookkeeping tables do not, and the [ERD](data/ERD.md)'s opening note lists every table without them, from the schema |
+| Actor columns | Most tables carry `created_by` and `updated_by`, referencing `principals(id)` (users, agent principals, voice sessions, the system principal); the auth module's tables, the append-only and log tables and the bookkeeping tables do not, and the [ERD](data/erd.md)'s opening note lists every table without them, from the schema |
 | Soft removal | Masters use `archived_at`; ledgers, documents and audit rows are never deleted by the app |
 | Money | `numeric(14,2)`; quantities `numeric(12,3)`; rates `numeric(14,4)`; percentages `numeric(5,2)` |
 | Enums | `text` columns with a `check` constraint listing allowed values; values are `snake_case`; state columns are written only by state machines |
@@ -307,7 +307,7 @@ The agent runtime and the Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1,
 - **Partitions:** a partitioned append-only table keeps its partitions in a schema no request role may use (`audit_partitions` for `audit_logs`, `crm_partitions` for `activities`), so a partition is never read or written around the policies and grants on the parent.
 
 ## 6. Table catalogue
-Key columns only; every table also has the standard columns from §2. Every column, constraint, index, trigger and policy of a built table is in the [data dictionary](data/DATA-DICTIONARY.md); a built table's row keeps what the dictionary cannot say.
+Key columns only; every table also has the standard columns from §2. Every column, constraint, index, trigger and policy of a built table is in the [data dictionary](data/data-dictionary.md); a built table's row keeps what the dictionary cannot say.
 
 ### 6.1 Org and identity
 | Table | Status | Key columns |
@@ -471,7 +471,7 @@ Key columns only; every table also has the standard columns from §2. Every colu
 ### 6.10 Platform
 | Table | Status | Key columns |
 |---|---|---|
-| `outbox_events` (append-only) | Built (0034) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4) |
+| `outbox_events` (append-only) | Built (0034) | `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/events.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4) |
 | `webhook_inbox` (append-only) | Planned (Phase 2) | `provider`, `provider_event_id` (unique per provider), `signature_ok`, `payload_json`, `processed_at`, `error` |
 | `audit_logs` (partitioned, append-only; partitions in schema `audit_partitions`) | Built (0032) | `entity_id`, `actor_principal_id`, `actor_kind`, `on_behalf_of_user_id`, `command`, `aggregate_type`, `aggregate_id`, `outcome`, `error_code`, `input_json`, `before_json`, `after_json`, `ip`, `device`, `request_id`; `app_user` inserts its own rows, `auth_service` inserts `auth.*` events only (docs/03-roadmap-appendix/backend-weeks-3-5.md §3) |
 | `retention_runs` | Built (0053) | `job` (a pg_cron job name such as `outbox-events-purge` or `audit-logs-detach`), `started_at`, `finished_at`, `rows_affected`, `error` (at most 500 characters); one row per run of a retention job, written only by the jobs, which pg_cron runs as the table owner; read with `audit.read:all`; no request role inserts, updates or deletes (migrations 0053 and 0054) |
@@ -515,9 +515,9 @@ Key columns only; every table also has the standard columns from §2. Every colu
    - its name in `SHARED_TABLES` or `ENTITY_TABLES` of the testing module, so the fail-closed loop covers it; a table in `ENTITY_TABLES` also gets a fixture row per company in `packages/db/src/testing/entity-matrix-fixture.ts` and a read rule in `role-entity-matrix.test.ts`;
    - or, outside the generic loops, its own list with its own test file: `AUTH_TABLES` (owned by the auth module), `OUTBOX_TABLES` (insert-only for the application), `PRINCIPAL_TABLES` (scoped to the calling principal), `PLATFORM_TABLES` (written only by a database job, read at scope `all`) or `CONFIG_TABLES` (CRM set-up tables that start empty until the workshop answers).
 4. Expand/contract for renames and type changes: add the new column, dual-write, backfill, switch reads, drop the old column in a later release.
-5. `pnpm db:migrate` runs in CI against a fresh database. Once staging holds data worth keeping, every migration is also applied to a copy of staging before it reaches production; the hosted procedure is [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy).
+5. `pnpm db:migrate` runs in CI against a fresh database. Once staging holds data worth keeping, every migration is also applied to a copy of staging before it reaches production; the hosted procedure is [DEPLOY §2](runbooks/deploy.md#2-every-deploy).
 6. Applied migrations are never edited.
-7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate only by [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy), and indexes built `concurrently` by its §3.
+7. The migrator takes an advisory lock, gives up on a busy table lock after 10 s, and fails unless every migration on disk is applied exactly as written; `pnpm db:verify` runs the same check alone. A migration never changes after it merges: a fix is a new migration, with a journal time after the last one (a unit test checks the journal). Hosted environments migrate only by [DEPLOY §2](runbooks/deploy.md#2-every-deploy), and indexes built `concurrently` by its §3.
 8. Supabase's database advisors on a migrated project report five kinds of notice, each accepted. The list below was last checked on the dev project on 29-09-2026, at migration 0060. Migrations from 0062 on bring definers and policies of their own, so the check is run again as a G1 task ([phase 1 design §10](03-roadmap-appendix/phase1.md#10-wave-6)) before production:
    - `function_search_path_mutable` for eight `security invoker` helpers (`app.entity_ids()`, `app.user_id()`, `app.team_id()`, `app.has_perm()`, `app.scope_ok()`, the trigger functions `app.set_updated_at()` and `app.raise_append_only()`, and the procedure `app.purge_outbox_events()`): they name no table without its schema, run with the caller's own rights, and are reached by request roles that can create nothing in any schema and no temporary table, while a `set search_path` would stop the SQL helpers being inlined into the policies;
    - `extension_in_public` for `pg_trgm` and `btree_gist`, placed there on purpose (DEPLOY §1.1, 0003, 0052);
@@ -541,4 +541,4 @@ Key columns only; every table also has the standard columns from §2. Every colu
 4. Sign in as an Executive and open a lead, a quote and the activity log.
 5. Record the time from start to a working sign-in against the 4-hour RTO, then delete the scratch project.
 
-Hosted environments are created and migrated as [DEPLOY](runbooks/DEPLOY.md) describes; its §2 is the one procedure for a hosted migration.
+Hosted environments are created and migrated as [DEPLOY](runbooks/deploy.md) describes; its §2 is the one procedure for a hosted migration.

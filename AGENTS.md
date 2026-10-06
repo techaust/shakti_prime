@@ -195,7 +195,7 @@ export const createTag = defineCommand({
 
 **A partitioned table.** drizzle-kit cannot emit `PARTITION BY`, so add it by hand to the generated `create table` before the migration is ever applied (the snapshot does not record it, so `db:generate` shows no drift). The primary key includes the partition column, and the partitions live in a schema no request role may use (`audit_partitions` is the pattern), with a default partition and a pg_cron job that makes the next months.
 
-**A new login role** (as `auth_service`, `outbox_publisher` and `app_reader` are): create it in `ensureRoles()` in `packages/db/src/migrate.ts`; add its password and connection variables to `requireEnv()` in `packages/db/src/env.ts`, to the `test:security` list in `turbo.json`, to `ci.yml`, `migrate.yml`, `.env.example` and `docs/runbooks/DEPLOY.md`; `prepareDatabase()` checks its URL is local.
+**A new login role** (as `auth_service`, `outbox_publisher` and `app_reader` are): create it in `ensureRoles()` in `packages/db/src/migrate.ts`; add its password and connection variables to `requireEnv()` in `packages/db/src/env.ts`, to the `test:security` list in `turbo.json`, to `ci.yml`, `migrate.yml`, `.env.example` and `docs/runbooks/deploy.md`; `prepareDatabase()` checks its URL is local.
 
 ## 7. Testing
 | Change type | Required tests |

@@ -4,7 +4,7 @@ How Shakti Prime BOS work is split between Claude Code cloud sessions and the ow
 
 **Cloud sessions are paused** (owner, 06-10-2026): Phase 1 continues on the PC only, with Docker Desktop and the rules in [CLAUDE.md](../../CLAUDE.md) ([DECISIONS](../11-decisions.md)). This page holds the procedure for when they resume: slices are built, reviewed, merged with `main`, integrated and given their Linux baselines in cloud sessions (the trial of [§10](#10-the-trial) passed); the pull request and every hosted step stay on the PC; a step that fails in the cloud runs again in a new cloud session.
 
-The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](DEPLOY.md#2-every-deploy).
+The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](deploy.md#2-every-deploy).
 
 **Contents:** [1. What runs where](#1-what-runs-where) · [2. What a cloud session has and lacks](#2-what-a-cloud-session-has-and-lacks) · [3. The cloud environment, once](#3-the-cloud-environment-once) · [4. Starting a builder or a reviewer](#4-starting-a-builder-or-a-reviewer) · [5. How many at once](#5-how-many-at-once) · [6. How a cloud session ends](#6-how-a-cloud-session-ends) · [7. Moving a session between the cloud and the PC](#7-moving-a-session-between-the-cloud-and-the-pc) · [8. What stays on the PC, and why](#8-what-stays-on-the-pc-and-why) · [9. A reclaimed VM or a usage limit](#9-a-reclaimed-vm-or-a-usage-limit) · [10. The trial](#10-the-trial)
 
@@ -83,7 +83,7 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and a `[cloud-session]` line saying Postgres is up. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
 
 ## 4. Starting a builder or a reviewer
-Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/README.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
+Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/readme.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
 
 Start the session on claude.ai/code (environment `shakti_prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
 
@@ -122,7 +122,7 @@ Every move goes through a pushed branch: commit and push before moving.
 - A branch that GitHub refuses to update without a force push (history rewritten on one side) goes up under a fresh name, such as `feat/c3-pipelines-r2`; the run file names the branch in use.
 
 ## 8. What stays on the PC, and why
-- **Hosted steps:** migrating dev and staging and checking them ([DEPLOY §2](DEPLOY.md#2-every-deploy), the `migrate-hosted` skill). The migration count and any other look at a hosted project use the Supabase, Vercel, Upstash, AWS and Sentry tools signed in on the PC ([tooling](tooling.md)).
+- **Hosted steps:** migrating dev and staging and checking them ([DEPLOY §2](deploy.md#2-every-deploy), the `migrate-hosted` skill). The migration count and any other look at a hosted project use the Supabase, Vercel, Upstash, AWS and Sentry tools signed in on the PC ([tooling](tooling.md)).
 - **The pull request:** the lead checks the pushed branch against the session's report first; a cloud session never opens one.
 - **Worktrees and their ports:** `D:/shakti-wt` (`WT_ROOT=/d/shakti-wt`), one Postgres container and app port per slice ([slice-integration §1](slice-integration.md#1-machines-and-ports)). A cloud session has one checkout, Postgres on 54322 and the app on 3000.
 - **The browser pane** (`.claude/launch.json`, the preview logs) is part of the desktop app.
@@ -130,7 +130,7 @@ Every move goes through a pushed branch: commit and push before moving.
 ## 9. A reclaimed VM or a usage limit
 - **The VM was reclaimed or paused:** the conversation is kept, the running commands are not. Reopen the session (or start a fresh one on the branch with the same first message); the session-start hook brings Postgres back, and the suites prepare the database again. Work committed and pushed survives; anything else is lost, which is why a cloud builder pushes after every commit.
 - **The usage limit stopped the session:** every session on the plan stops at once. After the limit resets, continue the same session, or start a fresh one with the first message of [§4](#4-starting-a-builder-or-a-reviewer); the run file and the branch say where it stopped.
-- **A session is stuck** (no tool call for about 30 minutes): stop it and start a fresh one from the last pushed commit, with the run file updated to say what is left.
+- **A session is stuck** (no tool call for about 20 minutes): stop it and start a fresh one from the last pushed commit, with the run file updated to say what is left.
 
 ## 10. The trial
 The trial showed that the cloud can run the steps of [§1](#1-what-runs-where) marked cloud: a review in the cloud, a builder in the cloud on a slice in flight, and the merge with `main`, `integrate.sh` and `e2e:snap` in a cloud session on a slice ready to integrate.

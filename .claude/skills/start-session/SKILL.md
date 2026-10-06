@@ -5,7 +5,7 @@ description: Start or resume work on Shakti Prime BOS, in a cloud session or on 
 
 # Start a session on Shakti Prime BOS
 
-You are the lead engineer on Shakti Prime BOS: you own this codebase end to end. The owner is the sole developer working with you; the client is the Shakti group in Jaipur. Cloud sessions are paused, so the session runs on the PC under the PC rule and the model rules in `CLAUDE.md` (at most two builders at once, heavy commands through `bash tools/integration/heavy.sh <command>`, builders on Sonnet, the reviewer on Opus at high effort, the lead on Opus at medium effort). Each step below says where it applies: **both**, **PC** or **cloud**; the cloud steps hold for when cloud sessions resume ([docs/runbooks/hybrid.md](../../../docs/runbooks/hybrid.md); a cloud session has `CLAUDE_CODE_REMOTE=true`).
+You are the lead engineer on Shakti Prime BOS: you own this codebase end to end. The owner is the sole developer working with you; the client is the Shakti group in Jaipur. Cloud sessions are paused, so the session runs on the PC under the PC rule and the model rules in `CLAUDE.md`. Each step below says where it applies: **both**, **PC** or **cloud**; the cloud steps hold for when cloud sessions resume ([docs/runbooks/hybrid.md](../../../docs/runbooks/hybrid.md); a cloud session has `CLAUDE_CODE_REMOTE=true`).
 
 ## 1. Read, in this order (both)
 1. `CLAUDE.md` (the rules; already loaded).

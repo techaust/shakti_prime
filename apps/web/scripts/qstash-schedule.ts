@@ -1,4 +1,4 @@
-// Creates or updates the QStash schedules (docs/runbooks/DEPLOY.md): the outbox publisher every
+// Creates or updates the QStash schedules (docs/runbooks/deploy.md): the outbox publisher every
 // minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
 // hour, the lead rescoring and the duplicate search each night and the quote expiry each day.
 // Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and

@@ -24,7 +24,7 @@ export const EVENT_VERSION = 1;
 const Code = z.string().trim().min(1).max(40);
 
 /**
- * One type: what it means (one line, for `docs/data/EVENTS.md`), the commands that emit it
+ * One type: what it means (one line, for `docs/data/events.md`), the commands that emit it
  * (checked against the command sources by `event-emitters.test.ts` in `packages/domain`), whether
  * a worker listens, and its payload.
  */
@@ -467,7 +467,7 @@ export const DeliveredEvent = z
   .strict();
 export type DeliveredEvent = z.infer<typeof DeliveredEvent>;
 
-/** One catalogue entry with its payload as JSON Schema, for `docs/data/EVENTS.md` (`pnpm db:docs`). */
+/** One catalogue entry with its payload as JSON Schema, for `docs/data/events.md` (`pnpm db:docs`). */
 export interface EventCatalogueEntry {
   type: EventType;
   meaning: string;

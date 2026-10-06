@@ -63,7 +63,7 @@ Ahead (no date is set until what it depends on is in hand):
 - the vendor quotes;
 - the workshop answers and the CA's tax golden set.
 
-Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-client-packs/exit-gate-actions.md); what the client's people do is in [`docs/13-client-packs/client-actions.md`](13-client-packs/client-actions.md). The client packs are indexed in [docs/13-client-packs/README.md](13-client-packs/README.md), the spikes in [docs/04-architecture-appendix/README.md](04-architecture-appendix/README.md) and the reviews in [docs/14-reviews/README.md](14-reviews/README.md).
+Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-client-packs/exit-gate-actions.md); what the client's people do is in [`docs/13-client-packs/client-actions.md`](13-client-packs/client-actions.md). The client packs are indexed in [docs/13-client-packs/readme.md](13-client-packs/readme.md), the spikes in [docs/04-architecture-appendix/readme.md](04-architecture-appendix/readme.md) and the reviews in [docs/14-reviews/readme.md](14-reviews/readme.md).
 
 ## 3. Phase 1 — MVP (12–14 weeks)
 **Scope:** non-integration ingestion (walk-in, import, manual, referral codes); dedupe; four pipelines with stage-exit rules; CC and LC workspaces with manual call logging; round-robin handover; targets and leaderboards; Price Master tiers with the minimal catalogue (items, HSN, tax rates, kits as saleable bundles, pump curves); sizing calculators; quotes with PDF; sales orders; dealer credit with manual outstanding; notifications; Knowledge Vault uploads with embeddings; data migration; Triage agent in shadow mode.
@@ -118,7 +118,7 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 | Tally discovery visit (companies, version, Buyer Order No., stock, e-way practice) | Developer + Accounts | The Tally spike, deferred from Phase 0; before Phase 5 |
 | 20–30 executive voice samples for the speech benchmark | Client | The voice spike, deferred from Phase 0; before Phase 2 |
 | Privacy notice, consent texts, recording notice | Client + developer | Phase 1 go-live |
-| Vendor accounts registered to the client (domain, Vercel, Supabase, AWS, Meta, Exotel, Anthropic, Google Play, GitHub, LiveKit, Upstash, Sentry) | Client | Production readiness (G1) |
+| Vendor accounts registered to the client ([accounts](runbooks/accounts.md)) | Client | Production readiness (G1) |
 
 ## 11. Rollout and change management
 Pilots, training, UAT and feedback are as in [BLUEPRINT §15](01-blueprint.md#15-rollout--change-management); releases follow the change management of [BLUEPRINT §12](01-blueprint.md#12-reliability--operations) (expand/contract migrations, feature flags, Sunday-night maintenance windows). Each phase's exit sets `currentPhase` in `.claude/tooling.json`, and the tooling check runs before the next phase begins.

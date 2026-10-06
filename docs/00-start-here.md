@@ -38,29 +38,29 @@ Each holds the detail of the numbered document with the same number.
 | Folder | What it holds |
 |---|---|
 | [03-roadmap-appendix/](03-roadmap-appendix/) | The Phase 1 design (23 slices in six waves) and the backend weeks 3 to 5 design. Read the design before building what it covers. |
-| [04-architecture-appendix/](04-architecture-appendix/README.md) | Spike notes: short, measured experiments (print, OCR, imports, lists, Account 360, calling, Exotel, WhatsApp, voice, Tally, Realtime). |
-| [13-client-packs/](13-client-packs/README.md) | Documents the Shakti group and the development team work through together: the workshop pack, client actions, the wireframe review, design sign-off, vendor quotes, progress for the client, and the Phase 0 gate checklist. Written in business words. |
-| [14-reviews/](14-reviews/README.md) | Dated review notes and the production-readiness audit with its resolution record. |
+| [04-architecture-appendix/](04-architecture-appendix/readme.md) | Spike notes: short, measured experiments (print, OCR, imports, lists, Account 360, calling, Exotel, WhatsApp, voice, Tally, Realtime). |
+| [13-client-packs/](13-client-packs/readme.md) | Documents the Shakti group and the development team work through together: the workshop pack, client actions, the wireframe review, design sign-off, vendor quotes, progress for the client, and the Phase 0 gate checklist. Written in business words. |
+| [14-reviews/](14-reviews/readme.md) | Dated review notes and the production-readiness audit with its resolution record. |
 
 ## Other folders
 | Folder | What it holds |
 |---|---|
 | [adr/](adr/) | Architecture decision records, one file per decision, numbered. The index is in [04-architecture.md](04-architecture.md). |
-| [runbooks/](runbooks/) | Procedures: [DEPLOY](runbooks/DEPLOY.md), [INCIDENTS](runbooks/INCIDENTS.md), [slice-integration](runbooks/slice-integration.md), [hybrid](runbooks/hybrid.md) (cloud and PC), [accounts](runbooks/accounts.md), [files-setup](runbooks/files-setup.md), [tooling](runbooks/tooling.md). |
-| [runs/phase1/](runs/phase1/README.md) | One run file per slice: its brief, the builder's report, the review and the integration notes. |
+| [runbooks/](runbooks/) | Procedures: [DEPLOY](runbooks/deploy.md), [INCIDENTS](runbooks/incidents.md), [slice-integration](runbooks/slice-integration.md), [hybrid](runbooks/hybrid.md) (cloud and PC), [accounts](runbooks/accounts.md), [files-setup](runbooks/files-setup.md), [tooling](runbooks/tooling.md). |
+| [runs/phase1/](runs/phase1/readme.md) | One run file per slice: its brief, the builder's report, the review and the integration notes. |
 
 ## Generated files
 Two folders are written by commands from the code and are never edited by hand; a test fails when either is stale.
 - [data/](data/): the ERD, the data dictionary and the event catalogue, regenerated with `pnpm db:docs`.
-- [state-machines/](state-machines/README.md): one specification per state machine, regenerated with `pnpm --filter @shakti/domain machines:docs`.
+- [state-machines/](state-machines/readme.md): one specification per state machine, regenerated with `pnpm --filter @shakti/domain machines:docs`.
 
 ## Who reads what
 | Reader | Start with |
 |---|---|
-| The owner | [10-status.md](10-status.md), [11-decisions.md](11-decisions.md), then [13-client-packs/exit-gate-actions.md](13-client-packs/exit-gate-actions.md) for what waits on people. |
-| The client's people | [13-client-packs/README.md](13-client-packs/README.md): the progress page, then client actions and the workshop pack. |
+| The owner | Each day starts with "start the day" and ends with "end the day" in the lead conversation ([12-glossary](12-glossary.md#how-the-work-is-run)); then [10-status.md](10-status.md), [11-decisions.md](11-decisions.md), then [13-client-packs/exit-gate-actions.md](13-client-packs/exit-gate-actions.md) for what waits on people. |
+| The client's people | [13-client-packs/readme.md](13-client-packs/readme.md): the progress page, then client actions and the workshop pack. |
 | A developer or a coding agent | [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md), then the read order above. |
 | A reviewer | The slice's run file, its design section in [03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), then the module documents it touches. |
-| Whoever runs a deploy or meets an incident | [runbooks/DEPLOY.md](runbooks/DEPLOY.md) and [runbooks/INCIDENTS.md](runbooks/INCIDENTS.md). |
+| Whoever runs a deploy or meets an incident | [runbooks/deploy.md](runbooks/deploy.md) and [runbooks/incidents.md](runbooks/incidents.md). |
 
 The approved documents state how things are, with no change-log wording: history goes to [CHANGELOG.md](../CHANGELOG.md), decisions to [11-decisions.md](11-decisions.md) and status to [10-status.md](10-status.md).

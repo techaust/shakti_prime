@@ -4,7 +4,7 @@ The tables built so far, one diagram per module; a table another module owns app
 
 Most tables also carry `created_by` and `updated_by`, which reference `principals`; those links are left out of the diagrams. Tables without either: `activities`, `agent_runs`, `audit_logs`, `auth_accounts`, `auth_verifications`, `calls`, `document_sequences`, `idempotency_keys`, `outbox_events`, `permissions`, `price_change_log`, `quote_lines`, `retention_runs`, `saved_views`, `sessions`, `user_two_factor`. Tables with one of them: `agent_actions` (only `created_by`), `opportunity_tags` (only `created_by`), `quote_versions` (only `created_by`), `sizings` (only `created_by`).
 
-A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their 05-database.md §6 entries.
+A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](data-dictionary.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their 05-database.md §6 entries.
 
 ## Org
 

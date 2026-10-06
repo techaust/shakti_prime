@@ -120,7 +120,7 @@ async function assertAllApplied(sql: postgres.Sql): Promise<void> {
  * Applies the migrations once, even when two deploys start together (an advisory lock), and
  * gives up on a table lock held by live traffic after 10 s instead of queueing every request
  * behind it. A migration that builds an index `concurrently` cannot run in the migrator's
- * transaction; it is applied by hand first, as docs/runbooks/DEPLOY.md describes.
+ * transaction; it is applied by hand first, as docs/runbooks/deploy.md describes.
  */
 export async function runMigrations(
   options: { rotatePasswords?: boolean; verifyOnly?: boolean } = {},

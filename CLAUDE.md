@@ -60,7 +60,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - Never push to `main` directly: a private repository on the free plan cannot block it, and branch rules need a public repository, the client's organisation or a paid plan (the audit ([2026-09-audit](docs/14-reviews/2026-09-audit.md)) M45).
 - Branch the next slice from `main` after the previous pull request has merged; never stack. A slice built while others merged takes `main` by a merge commit, never a rebase, and its migrations move after `main`'s last one with journal times after `main`'s, because the migrator skips a migration older than the last one applied.
 - Taking `main` into a slice, check every function, check constraint and foreign key the slice's migrations redefine against `main`'s latest version: a moved migration that redefines `app.platform_only_permissions()` or the `activities` type check drops what `main` added, and a merge that the conflicts do not show is still a clash ([slice-integration §10](docs/runbooks/slice-integration.md#10-lessons)).
-- CI is trimmed because GitHub's free plan allows 2,000 Actions minutes a month ([DECISIONS](docs/11-decisions.md)). When they run out, GitHub starts no job: the run fails with no log, and the check run's annotation names billing. The repository is public for now, so its minutes are free; before it goes private, an Actions budget is set.
+- CI is trimmed because GitHub's free plan allows 2,000 Actions minutes a month ([DECISIONS](docs/11-decisions.md)). When they run out, GitHub starts no job: the run fails with no log, and the check run's annotation names billing.
 
 ### Tests
 - How to run everything, one file or one case: [TESTING §7](docs/09-testing.md#7-running-tests-locally). Workspace names are `web`, `@shakti/db`, `@shakti/domain`, `@shakti/contracts`, `@shakti/tokens`, `@shakti/ui` and `@shakti/copy-lint`.
@@ -71,7 +71,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 ### Local database
 - `docker compose up -d --wait` starts the Supabase Postgres 17 image on `127.0.0.1:54322`; `.env` comes from `.env.example`. An older `.env` lacks later lines: without `DATABASE_URL_OUTBOX` and `OUTBOX_PUBLISHER_PASSWORD` `pnpm db:migrate` stops, and the reader tests need `DATABASE_URL_READER` and `APP_READER_PASSWORD`; copy them across.
 - `pnpm test:security` migrates and seeds first, then runs the db, domain and web suites (each suite prepares the database itself).
-- `pnpm db:migrate` sets the role passwords only when it creates the roles; `--rotate-passwords` re-applies them locally. On a hosted database the rotation goes through the migrate workflow's `rotate_passwords` input ([DEPLOY §5](docs/runbooks/DEPLOY.md#5-rotating-a-secret)).
+- `pnpm db:migrate` sets the role passwords only when it creates the roles; `--rotate-passwords` re-applies them locally. On a hosted database the rotation goes through the migrate workflow's `rotate_passwords` input ([DEPLOY §5](docs/runbooks/deploy.md#5-rotating-a-secret)).
 - `pnpm db:seed` is safe to re-run after any Admin edit: it writes only code-owned columns (keys, codes, kinds, segments, channels), adds missing rows (a new stage goes last when its position is taken), restores the grants of roles no Executive has customised (`roles.customised_at` null), gives a customised role only permissions created after its customisation, and never overwrites an entity.
 - First sign-in locally: `pnpm --filter web invite-executive -- --email <you> --name <name>` prints the set-password link (add `--force` when the suites have already created Executive users).
 - To check a flow in the browser without an authenticator app, use a person in a role outside Executive, GM and Accounts.
@@ -87,8 +87,8 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - Every variable a task reads must be listed for that task in `turbo.json`: Turbo runs in strict env mode and CI has no `.env`, so a variable that works locally and is "not set" in CI is missing from that list.
 - Adding a package that is a peer of `drizzle-orm` (as `@upstash/redis` is) splits `drizzle-orm` into two instances and breaks typecheck across packages; `pnpm dedupe` repairs it.
 - A production runtime counts as hosted unless `BOS_ENVIRONMENT=local` with a `BETTER_AUTH_URL` on localhost, 127.0.0.1 or [::1] and not on Vercel (the `next start` of the end-to-end journeys and Lighthouse; never set on a hosted environment).
-- A hosted runtime refuses to start with a missing or unsafe value: a missing required variable, a published or short secret, Cloudflare's Turnstile test keys, a non-https URL, or any `FIELD_ENCRYPTION_KEY` (a hosted environment seals fields with its KMS key). The list is [DEPLOY §1](docs/runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment) step 12 (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, run from `instrumentation.ts`).
-- `MAILER` is `ses` (Amazon SES, which needs `SES_FROM`) or `log`; production starts only with `ses`, so it waits for the client's verified domain ([DEPLOY §1](docs/runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment)). Locally and in CI the in-memory store and the console mailer are used, and with no QStash variables the outbox nudge runs the publisher in process.
+- A hosted runtime refuses to start with a missing or unsafe value: a missing required variable, a published or short secret, Cloudflare's Turnstile test keys, a non-https URL, or any `FIELD_ENCRYPTION_KEY` (a hosted environment seals fields with its KMS key). The list is [DEPLOY §1](docs/runbooks/deploy.md#1-before-the-first-deploy-once-per-environment) step 12 (`productionConfigProblems()` in `apps/web/src/auth/deps.ts`, run from `instrumentation.ts`).
+- `MAILER` is `ses` (Amazon SES, which needs `SES_FROM`) or `log`; production starts only with `ses`, so it waits for the client's verified domain ([DEPLOY §1](docs/runbooks/deploy.md#1-before-the-first-deploy-once-per-environment)). Locally and in CI the in-memory store and the console mailer are used, and with no QStash variables the outbox nudge runs the publisher in process.
 
 ### Copy
 - Every user-facing string goes in `apps/web/messages/en.json`, in English; Roman-script Hinglish is written only in caller scripts and voice prompts (`docs/08-design-system.md` §11.5, ADR 0014). The full rule is [AGENTS §4a](AGENTS.md#4a-product-copy) and `docs/08-design-system.md` §11.
@@ -104,43 +104,13 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 - Dependabot opens grouped minor and patch bumps for production and development dependencies, one pull request per GitHub Actions bump (they are pinned by commit SHA), and holds TypeScript, ESLint and `@types/node` majors; merge a bump when its CI run is green.
 
 ### Approved documents
-`docs/`, `docs/08-design-system.md`, `CLAUDE.md` and `AGENTS.md` are excluded from Prettier; edit them by hand only, in single targeted lines. They state how things are, with no change-log wording; history goes to `CHANGELOG.md`.
+`docs/`, `CLAUDE.md` and `AGENTS.md` are excluded from Prettier; edit them by hand only, in single targeted lines. They state how things are, with no change-log wording; history goes to `CHANGELOG.md`.
 
 ## Documentation map
-[docs/00-start-here.md](docs/00-start-here.md) is the guide: what each document is for, who reads it and in what order.
+[docs/00-start-here.md](docs/00-start-here.md) is the single guide to the documents: what each numbered document, appendix and runbook is for, who reads it and in what order. Beside the documents:
 
-| Document | Use it for |
+| Where | Use it for |
 |---|---|
-| [docs/00-start-here.md](docs/00-start-here.md) | The guide to the documents, the read order and the generated files. |
-| [docs/01-blueprint.md](docs/01-blueprint.md) | Scope, stack, data model, phase order. Governs on conflict. |
-| [docs/02-prd.md](docs/02-prd.md) | Requirements with IDs and acceptance criteria; non-functional requirements. |
-| [docs/03-roadmap.md](docs/03-roadmap.md) | Phases, week plan for Phase 0, exit-gate checklists, parallel workstreams. |
-| [docs/03-roadmap-appendix/](docs/03-roadmap-appendix/) | The Phase 1 design (`phase1.md`) and the backend weeks 3 to 5 design; read the design before building what it covers. |
-| [docs/04-architecture.md](docs/04-architecture.md) | Runtime components, request lifecycle, command layer, events, integrations, ADR index. |
-| [docs/04-architecture-appendix/](docs/04-architecture-appendix/) | Spike notes with measured numbers. |
-| [docs/05-database.md](docs/05-database.md) | Schema conventions, RLS templates, table catalogue, migrations, backups. |
-| [docs/06-api.md](docs/06-api.md) | `/api/v1` conventions, endpoint catalogue, webhook and connector contracts. |
-| [docs/07-security.md](docs/07-security.md) | Threat model, auth, permission catalogue, data protection, AI and telecom compliance. |
-| [docs/08-design-system.md](docs/08-design-system.md) | Design tokens, typography, component patterns, theme behaviour, copy rules. |
-| [docs/09-testing.md](docs/09-testing.md) | Test layers, the security suite, generated files, what CI runs, running tests locally. |
-| [docs/10-status.md](docs/10-status.md) | Where the project stands: the only place for status and counts. |
-| [docs/11-decisions.md](docs/11-decisions.md) | Every owner decision, with its date and where it is applied, and the standing rules in force. |
-| [docs/12-glossary.md](docs/12-glossary.md) | The business and technical terms the documents use, and the [slice codes](docs/12-glossary.md#slice-codes) (P3, C1, X1 and the rest). |
-| [docs/13-client-packs/](docs/13-client-packs/README.md) | The client packs for the exit gate, including [client-actions](docs/13-client-packs/client-actions.md) (what the client's people must do) and [exit-gate-actions](docs/13-client-packs/exit-gate-actions.md) (the developer's and owner's checklist for the deferred gate items). |
-| [docs/14-reviews/](docs/14-reviews/README.md) | Dated review notes, including the production-readiness audit of 27-09-2026 and its resolution record ([2026-09-audit](docs/14-reviews/2026-09-audit.md)). |
-| [docs/adr/](docs/adr/) | Architecture decision records. |
-| [README.md](README.md) | Setup, the repository's parts and every command. |
-| [CHANGELOG.md](CHANGELOG.md) | One entry per merged pull request, by phase and wave. |
-| [AGENTS.md](AGENTS.md) | Working method, conventions, the command and table recipes, import fences, definition of done. |
-| [docs/runs/phase1/](docs/runs/phase1/README.md) | One run file per slice in flight: brief, report, review findings, integration notes. |
-| [docs/runbooks/DEPLOY.md](docs/runbooks/DEPLOY.md) | Hosted environments: secrets, migrations, the first Executive, secret rotation. |
-| [docs/runbooks/slice-integration.md](docs/runbooks/slice-integration.md) | How a slice is built, reviewed, merged with `main`, checked and taken to the hosted environments. |
-| [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) | What runs in a cloud session and what on the PC; the cloud environment; moving a session between them. |
-| [docs/runbooks/accounts.md](docs/runbooks/accounts.md) | Every outside service and account: plan, use, where its bill is, what changes before production. |
-| [docs/runbooks/INCIDENTS.md](docs/runbooks/INCIDENTS.md) | What to do when the site is down, updates are stuck, a migration fails, a deploy is bad or a secret leaks. |
-| [docs/runbooks/files-setup.md](docs/runbooks/files-setup.md) | The owner's steps for the AWS file storage stack per environment. |
-| [docs/runbooks/tooling.md](docs/runbooks/tooling.md) | How each Claude Code plugin and MCP server is connected. |
-| [docs/data/](docs/data/), [docs/data/EVENTS.md](docs/data/EVENTS.md), [docs/state-machines/](docs/state-machines/) | Generated: the ERD and data dictionary, the event catalogue, the state-machine specifications. Never edited by hand. |
 | `tools/integration/` | The scripts those runbooks use: worktree set-up, the heavy-command lock, the integration run, the merge helpers, the migration renumbering, the cloud setup and the document link check (`check-doc-links.py`). |
 | Skills in `.claude/skills/` | [start-session](.claude/skills/start-session/SKILL.md) and [end-session](.claude/skills/end-session/SKILL.md) (a session's start and close), [integrate-slice](.claude/skills/integrate-slice/SKILL.md) and [migrate-hosted](.claude/skills/migrate-hosted/SKILL.md) (a slice onto `main` and the hosted environments), [add-command](.claude/skills/add-command/SKILL.md) and [add-table](.claude/skills/add-table/SKILL.md) (the two recipes' checklists). |
 | Agents in `.claude/agents/` | [slice-builder](.claude/agents/slice-builder.md) (builds a slice from its run file) and [slice-reviewer](.claude/agents/slice-reviewer.md) (reviews a slice before it merges). |

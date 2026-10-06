@@ -19,5 +19,5 @@ Six agents, the Executive Knowledge Brain, Ask the Business, call summaries and 
 - One place sets models, budgets, masking and retries; switching a model or adding a provider touches the wrapper and the evals, not the features.
 - Vectors live beside the rows they describe, under the same RLS, with no second datastore to secure or sync; HNSW keeps queries fast at the expected size (tens of thousands of chunks).
 - Changing the embedding model or dimension means re-embedding every chunk through the batch path; the column type is fixed at 1,024 until then.
-- Spend caps can stop an agent mid-day; it then files nothing and people work their queues as before ([INCIDENTS §8](../runbooks/INCIDENTS.md#8-the-ai-service-is-down-or-an-agent-has-stopped)).
+- Spend caps can stop an agent mid-day; it then files nothing and people work their queues as before ([INCIDENTS §8](../runbooks/incidents.md#8-the-ai-service-is-down-or-an-agent-has-stopped)).
 - Per-lead AI cost is measured in shadow mode before any agent moves to Automatic.

@@ -31,7 +31,7 @@ const config: NextConfig = {
   // time, so they stay plain packages rather than bundled (ADR 0009).
   serverExternalPackages: ['postgres', '@node-rs/argon2', 'playwright-core', '@sparticuz/chromium'],
   // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
-  // the render route, the one function that prints on a hosted runtime (docs/runbooks/DEPLOY.md).
+  // the render route, the one function that prints on a hosted runtime (docs/runbooks/deploy.md).
   // The package finds `bin` beside its own real path in pnpm's store, so that path is the one
   // traced: the link under the app's node_modules would not be followed if the function's files
   // were copied as plain files.

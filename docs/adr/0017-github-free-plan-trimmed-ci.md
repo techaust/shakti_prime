@@ -22,4 +22,4 @@ The repository has been public since 06-10-2026 (owner), so its Actions minutes 
 - CI cannot block a direct push to `main`; the rule against it is a working rule (`AGENTS.md`), not an enforced one. Vercel deploys what reaches `main`, so a red commit there would deploy.
 - A documents-only pull request skips the build and the security suite, so a document that a code test reads (06-api.md §3, SECURITY §3.2, DATABASE §6) is still checked, by the unit tests.
 - A failure that only the end-to-end journeys would catch after a merge is caught on the pull request instead; `main` is not re-run through them.
-- Hosted migrations run from the manual *Migrate a hosted database* workflow with suffixed repository secrets, since the plan has no environments (`docs/runbooks/DEPLOY.md`).
+- Hosted migrations run from the manual *Migrate a hosted database* workflow with suffixed repository secrets, since the plan has no environments (`docs/runbooks/deploy.md`).

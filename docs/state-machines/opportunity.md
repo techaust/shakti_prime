@@ -29,7 +29,7 @@ Items marked *proposed* are not named in the governing documents; they were chos
 | `win` | `open` → `won` | `crm.lead.write` | an accepted quote or a confirmed sales order references the opportunity | – | `crm.opportunity.won` |
 | `lose` | `open`, `nurture` → `lost` | `crm.lead.write` | a lost-reason code is given | `end_call_tasks`: cancel the lead's open callbacks and nurture calls | `crm.opportunity.lost` |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `opportunity_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `opportunities.state` and the time to `opportunities.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `opportunity_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `opportunities.state` and the time to `opportunities.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 

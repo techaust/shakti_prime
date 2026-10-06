@@ -8,7 +8,7 @@ How one slice of a phase goes from a brief to `main` and the hosted environments
 - Bash is required: Git Bash on Windows, bash on Linux. Docker runs every database; Python 3 runs the merge helpers and the link check. Every command starts with `cd "<checkout>" && . tools/integration/lib.sh &&`, which puts pnpm on `PATH` on the PC and maps `python3` to `python` where Git Bash has only that.
 - On the PC, each slice has its own worktree under `$WT_ROOT` (default: a `shakti-wt` folder beside the main checkout; on the owner's PC `WT_ROOT=/d/shakti-wt`), its own Postgres container `shakti-pg-<slug>` and its own app port. A cloud session has one checkout, with Postgres on 54322 and the app on 3000 ([hybrid §8](hybrid.md#8-what-stays-on-the-pc-and-why)).
 - Ports on the PC: the main checkout uses Postgres 54322 and app 3000; the integration database is always 54340. A slice takes a free slot *n* from 1 to 19 except 10, and uses Postgres 54330 + *n* and app 3030 + *n*: slot 7 is 54337 and 3037, slot 11 is 54341 and 3041. Slot 10 is never used (54340 is the integration database). The slot is written in the slice's run file and freed when the slice merges.
-- On the owner's 8 GB PC: at most two building agents at once, and one heavy command (whole-repository lint, typecheck, build, the security suite, journeys, `integrate.sh`, `e2e:snap`) at a time through `bash tools/integration/heavy.sh <command>`, a lock shared by every worktree; the rule, its dates and the model rules are in [CLAUDE.md](../../CLAUDE.md) and [DECISIONS](../11-decisions.md). Not on the owner's PC: three builders and one reviewer at a time on a machine with 8 GB of memory, and never more than the Claude plan allows across the PC and the cloud ([hybrid §5](hybrid.md#5-how-many-at-once)).
+- On the owner's 8 GB PC: at most two building agents at once, and one heavy command (whole-repository lint, typecheck, build, the security suite, journeys, `integrate.sh`, `e2e:snap`) at a time through `bash tools/integration/heavy.sh <command>`, a lock shared by every worktree; the rule, its dates and the model rules are in [CLAUDE.md](../../CLAUDE.md) and [DECISIONS](../11-decisions.md). Never more than the Claude plan allows across the PC and the cloud ([hybrid §5](hybrid.md#5-how-many-at-once)).
 
 ## 2. Set up a slice
 - `bash tools/integration/setup-worktree.sh <slug> <branch> <db-port> <app-port>` from any checkout on the PC.
@@ -18,7 +18,7 @@ How one slice of a phase goes from a brief to `main` and the hosted environments
 - A slice built in a cloud session needs none of this: the session clones the branch and its start hook makes `.env` and starts Postgres ([hybrid §2](hybrid.md#2-what-a-cloud-session-has-and-lacks)).
 
 ## 3. Build
-- Write the slice's run file `docs/runs/phase1/<slug>.md` from [the template](../runs/phase1/README.md): goal, the design section, files owned, tables, contracts, what another slice owns, the stop triggers. The rules every builder follows are in `.claude/agents/slice-builder.md` and the definition of done in [AGENTS §10](../../AGENTS.md#10-definition-of-done); the run file does not repeat them.
+- Write the slice's run file `docs/runs/phase1/<slug>.md` from [the template](../runs/phase1/readme.md): goal, the design section, files owned, tables, contracts, what another slice owns, the stop triggers. The rules every builder follows are in `.claude/agents/slice-builder.md` and the definition of done in [AGENTS §10](../../AGENTS.md#10-definition-of-done); the run file does not repeat them.
 - Push the branch with the run file, then start the builder: a cloud session with the first message of [hybrid §4](hybrid.md#4-starting-a-builder-or-a-reviewer), or the `slice-builder` agent on the PC with the run file's path and the worktree.
 - One slice per wave owns the hot files (`crm.lead.create`, the opportunity commands, the board); shared lists (`testing/index.ts`, the matrix fixture, `nav.ts`, `en.json`, the registry, the event catalogue) are append-only.
 - On the PC, watch for stalls: run `bash tools/integration/watchdog.sh` under a monitor; it prints a line for a worktree idle for 20 minutes. An agent that stalls is stopped and a fresh one starts from the last commit with a precise list.
@@ -56,7 +56,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 - The `hold` label stops a merge; after removing it, re-run the CI run (`gh run rerun <id>`), since the workflow acts only when a run finishes.
 
 ## 9. Hosted environments
-After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](DEPLOY.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../11-decisions.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](INCIDENTS.md) says what to do.
+After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](deploy.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../11-decisions.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](incidents.md) says what to do.
 
 ## 10. Lessons
 Each is a rule that a past slice earned.

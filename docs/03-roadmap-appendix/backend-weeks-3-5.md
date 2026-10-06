@@ -12,7 +12,7 @@ Date: 2026-09-27. Governing documents: BLUEPRINT §5 to §8, ARCHITECTURE §4 to
 - slice 1b part 1, `admin.user.two_factor.reset` (§2.6);
 - slice 1b part 2, the Realtime token route, the signing-key documents and the spike script (§2.5);
 - the tax engine and the tax commands (§6);
-- the state-machine runtime, its machines (listed in [state-machines/README.md](../state-machines/README.md)) and the six opportunity commands (§7);
+- the state-machine runtime, its machines (listed in [state-machines/readme.md](../state-machines/readme.md)) and the six opportunity commands (§7);
 - the import framework for leads (§8).
 
 **Later, as each section records:**
@@ -208,7 +208,7 @@ States: `draft`, `confirmed`, `partially_dispatched`, `dispatched`, `invoiced`, 
 
 Exposure is per entity (`dealer_outstanding` is keyed by account and entity). Until Tally sync, outstanding is entered manually (Phase 1 note in the blueprint).
 
-Built (2026-09-27, branch `feat/tax-and-machines`): the runtime in `packages/domain/src/state-machines/define-machine.ts`; the machines of BLUEPRINT §19 item 2 (listed in [state-machines/README.md](../state-machines/README.md)) as data in `packages/domain/src/state-machines/machines` (opportunity, quote and sales order as §7.2 to §7.4, plus a proposed `credit.release` event that sets `credit_release_by`; the others with every state or event the documents do not name marked proposed); the dealer credit check in `packages/domain/src/sales/credit-check.ts`; the specifications generated into `docs/state-machines/` by `pnpm --filter @shakti/domain machines:docs` and checked for staleness by a unit test. The quote tables and commands are S1's and the sales order's are S2's ([phase1.md §7.3 and §8.3](phase1.md)).
+Built (2026-09-27, branch `feat/tax-and-machines`): the runtime in `packages/domain/src/state-machines/define-machine.ts`; the machines of BLUEPRINT §19 item 2 (listed in [state-machines/readme.md](../state-machines/readme.md)) as data in `packages/domain/src/state-machines/machines` (opportunity, quote and sales order as §7.2 to §7.4, plus a proposed `credit.release` event that sets `credit_release_by`; the others with every state or event the documents do not name marked proposed); the dealer credit check in `packages/domain/src/sales/credit-check.ts`; the specifications generated into `docs/state-machines/` by `pnpm --filter @shakti/domain machines:docs` and checked for staleness by a unit test. The quote tables and commands are S1's and the sales order's are S2's ([phase1.md §7.3 and §8.3](phase1.md)).
 
 Built (2026-09-28, branch `feat/week5-commands`, migrations 0043 and 0044): `nurture` in the `opportunities.state` check and `OpportunityStateSchema`, `opportunities.state_changed_at` and `pipelines.lock_hours` (default 48); the six opportunity commands `crm.opportunity.stage.move`, `assign`, `nurture`, `reopen`, `win` and `lose` run every change through the opportunity machine, record `state_changed_at`, audit and emit `crm.opportunity.*`, with server actions in `apps/web/src/actions/crm.ts`; `win` answers `conflict` (`win_needs_order`) until orders exist (S2); the warranty and expense machines use the catalogue permissions `inventory.warranty.write`, `finance.expense.submit` and `finance.expense.verify`.
 

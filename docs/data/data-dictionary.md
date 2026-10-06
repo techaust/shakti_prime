@@ -2638,7 +2638,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### outbox_events
 
-**Catalogue entry** (05-database.md §6.10; created in 0034; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/EVENTS.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4)
+**Catalogue entry** (05-database.md §6.10; created in 0034; append-only): `sequence`, `entity_id`, `type`, `aggregate_type`, `aggregate_id`, `payload_json` (ids, codes, counts and times only; every type and payload is in docs/data/events.md), `published_at`, `attempts`, `last_error`, `dead_lettered_at`, `next_attempt_at`, `claimed_until`; the last six are delivery bookkeeping (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3247,7 +3247,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ## Planned tables
 
-Tables 05-database.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](ERD.md#planned-tables) draws them. Each gains a full entry above when its migration lands.
+Tables 05-database.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](erd.md#planned-tables) draws them. Each gains a full entry above when its migration lands.
 
 ### 6.1 Org and identity
 

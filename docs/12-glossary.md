@@ -87,11 +87,12 @@ The words the documents, the code and the group use, each in one or two plain se
 | Dead letter | An event that could not be delivered after its attempts. It waits on Integration health until someone sends it again (`integrations.dlq.replay`). |
 | Definer | A database function that runs with its owner's rights (`security definer`) to answer one narrow question the caller's own rights cannot, checking a permission itself (`docs/05-database.md`). |
 | Gate item | One line of a phase's exit-gate checklist in `docs/03-roadmap.md`. A phase closes when every item is met or the owner defers it. |
+| Start the day, end the day | The owner's two phrases: "start the day" opens a new lead conversation with the `start-session` skill (status, checks, the next item); "end the day" closes it with the `end-session` skill (STATUS, CHANGELOG, DECISIONS, the documents pull request). |
 | Heavy-command lock | The lock `bash tools/integration/heavy.sh <command>` takes, so only one heavy command (whole-repository lint, typecheck, build, the security suite, journeys) runs at a time on the PC; a lock older than 90 minutes is cleared. |
 | Idempotency key | A unique value a form or client sends with a command so that a repeat of the same call (a double click, a retry) returns the first answer instead of doing the work twice. |
 | Outbox | The table (`outbox_events`) where a change records the events it causes, in the same transaction; the publisher then sends them through QStash to the workers. |
 | Reader pool | The read-only database connections (role `app_reader`) that run reads under the same row rules as everything else (ADR 0018). |
-| Run file | The file `docs/runs/phase1/<slice>.md` that holds one slice's brief, builder reports, review findings and integration notes, and is where its state and next step are recorded (`docs/runs/phase1/README.md`). |
+| Run file | The file `docs/runs/phase1/<slice>.md` that holds one slice's brief, builder reports, review findings and integration notes, and is where its state and next step are recorded (`docs/runs/phase1/readme.md`). |
 | Slice | A vertical piece of a phase, from contract and schema to screen and tests, built on its own branch and merged by one pull request (`docs/03-roadmap-appendix/phase1.md` §3). |
 | Spike | A short, measured experiment that answers one technical question before the build relies on it; each has its note in `docs/04-architecture-appendix/`. |
 | Standing go-ahead | The owner's standing permission for the hosted steps after a green merge: migrate dev then staging, redeploy, check health and readiness, and the few settings listed in `docs/11-decisions.md`. Anything else on a hosted service asks the owner first. |

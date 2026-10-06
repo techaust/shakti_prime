@@ -24,8 +24,8 @@ describe('the ERD and data dictionary (docs/data)', () => {
   const docs = renderDataDocs(sources);
 
   it('match the latest snapshot, the migrations and 05-database.md; run pnpm db:docs when not', () => {
-    expect(lf(read('ERD.md'))).toBe(docs.erd);
-    expect(lf(read('DATA-DICTIONARY.md'))).toBe(docs.dictionary);
+    expect(lf(read('erd.md'))).toBe(docs.erd);
+    expect(lf(read('data-dictionary.md'))).toBe(docs.dictionary);
   });
 
   it('cover every built table and place each in the dictionary once', () => {

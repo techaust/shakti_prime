@@ -5,7 +5,7 @@ Prepared 27-09-2026 · last updated 07-10-2026. For: the development team runnin
 The blueprint asks for clickable wireframes of the core screens for each role, reviewed with one or two real users of that role (BLUEPRINT §19 item 5, ROADMAP §2 week 4). The owner closed Phase 0 on 29-09-2026 with this review deferred. It is needed before the screens the prototype still shows are built: sales orders and dealer credit, the lead converter's screen and the home pages. The calling screen, quotes and the other screens already built are reviewed in the app. This script sets out who to invite, what each person is asked to do, what to watch for, and a form for the notes.
 
 ## 1a. Before the sessions
-The development team prepares these on the review system (the staging site) and confirms each before the first session; building the demo data loader and publishing the prototype link are tracked in [STATUS, Open follow-ups](../10-status.md#open-follow-ups):
+The development team prepares these on the review system (the staging site) and confirms each before the first session; building the demo data loader is tracked in [STATUS, Open follow-ups](../10-status.md#open-follow-ups):
 - **Demo data:** a small set, every record clearly labelled as demo data: items and kits with their prices on the Retail, Dealer and Commercial lists, and a few customers with leads in more than one company, a site, a note on the timeline and a consent. It includes the customer the tasks name (Bhanwar Lal Jat). The development team loads it on staging only, never on the live system, and removes it after the last session.
 - **One account per role:** a sign-in for each of the eleven roles, given to the reviewer of that role at the session and closed after the reviews.
 - **Authenticator apps:** the Executive, General Manager and Accounts reviewers must have an authenticator app on their phone before the session (the system asks for its code when they sign in); the development team helps them add the account at the start of their session.
@@ -43,7 +43,7 @@ Two things are reviewed together:
 | Imports | `/imports` | Upload a spreadsheet of leads, customers or the PIN code list, match its columns, check the rows, then add them (items come later) | Executive, General Manager |
 | Design preview | `/design` | Every colour, text size and component in the light and dark themes (reviewed in `design-signoff.md`) | All roles |
 
-**The clickable prototype** (the private link of §1a, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet; the screens built since are marked as built in it and are reviewed in the app. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
+**The clickable prototype** (the private link of §1a, opened in any browser on desktop or phone, with no sign-in). It shows the Phase 1 screens that are not built yet; the prototype marks only the twelve screens named in its opening note as built; the screens built since (Calling, Quotes, Duplicates, Agent Inbox, Agents, Pipelines, Walk-in customer) are reviewed in the app. Nothing in it is saved; every person, village and amount in it is invented. The first screen says it is a prototype and asks the reviewer to pick a role:
 | Prototype screen | Roles |
 |---|---|
 | Role home pages | All eleven roles |
