@@ -1,6 +1,16 @@
 import type { Browser, Page } from '@playwright/test';
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
-import { storageStatePath } from './support/users';
+import {
+  expect,
+  expectNoAxeViolations,
+  projectName,
+  signedInAs,
+  snap,
+  test,
+} from './support/fixtures';
+import { storageStatePath, type ProjectName } from './support/users';
+
+/** The one project that marks all of the shared tele-caller's notices read. */
+const MARK_ALL_PROJECT: ProjectName = 'desktop-light';
 
 // Notifications (PRD RPT-04, docs/design/phase1.md §8.1): a lead a team lead gives a tele-caller
 // reaches her bell and opens from the notification centre; a possible duplicate of her own
@@ -118,10 +128,6 @@ test.describe('notices as a tele-caller', () => {
     await expect(notice.getByText('Not read yet')).toHaveCount(0);
     await expectNoAxeViolations(page, { include: '[role="dialog"]' });
     await snap(page, 'notification-centre', { mask: [centre.getByRole('list')] });
-
-    await centre.getByRole('button', { name: 'Mark all as read' }).click();
-    await expect(page.getByText('All notices are marked as read.')).toBeVisible();
-    await expect(centre.getByText('Not read yet')).toHaveCount(0);
   });
 
   test('she chooses which notices reach her, and her quiet hours', async ({ page }) => {
@@ -166,5 +172,28 @@ test.describe('notices as a tele-caller', () => {
     await page.getByRole('button', { name: 'Your account' }).click();
     await page.getByRole('menuitem', { name: 'Notification settings' }).click();
     await expect(page).toHaveURL(/\/settings\/notifications$/);
+  });
+});
+
+test.describe('all notices read at once, as a store manager', () => {
+  test.use(signedInAs('storeManager'));
+
+  test('marks every unread notice read', async ({ page }) => {
+    // Every project signs in as the same store manager, so one project alone marks all of his
+    // notices read; no other journey reads his notices.
+    test.skip(projectName() !== MARK_ALL_PROJECT, 'marked read once, in one project');
+    test.slow();
+    const name = `Mangal Singh ${String(Date.now()).slice(-6)}`;
+    const mobile = freshMobile();
+    await addLead(page, { name, mobile, line: 'Farmer Pumps' });
+    await addLead(page, { name, mobile, line: 'Residential Rooftop' });
+
+    const centre = await openCentre(page);
+    await expect(centre.getByText('Not read yet').first()).toBeVisible();
+    await centre.getByRole('button', { name: 'Mark all as read' }).click();
+    await expect(page.getByText('All notices are marked as read.')).toBeVisible();
+    await expect(centre.getByText('Not read yet')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
   });
 });
