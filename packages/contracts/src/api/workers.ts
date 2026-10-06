@@ -113,7 +113,7 @@ export const QuoteExpireWorkerResponse = z
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
 
 /**
- * The notification scan (`notifications.scan`, docs/design/phase1.md §8.1), called by the QStash
+ * The notification scan (`notifications.due.scan`, docs/design/phase1.md §8.1), called by the QStash
  * schedule `notification-scan-<environment>` every five minutes with an empty body: every company
  * in turn, each batch in its own transaction as `system:workers`. A run out of time hands the rest
  * to the next call with the company it reached, `afterId` `more` when that company still had

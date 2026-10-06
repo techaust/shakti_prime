@@ -125,7 +125,7 @@ interface LateRow {
 }
 
 /**
- * `notifications.scan`: one batch of a company's notices that no event announces, run every five
+ * `notifications.due.scan`: one batch of a company's notices that no event announces, run every five
  * minutes by the scan worker: callbacks and nurture calls that fell due (for their person), quotes
  * that lapse within a day (for their lead's owner), and new leads past the first-contact limit and
  * never called (for the company's General Managers, once per lead). Each find comes with the
@@ -133,7 +133,7 @@ interface LateRow {
  * writes nothing twice; `more` asks for another batch when a kind filled its batch.
  */
 export const scanNotices = defineCommand({
-  name: 'notifications.scan',
+  name: 'notifications.due.scan',
   permission: 'notifications.send',
   minScope: 'entity',
   input: ScanNoticesInput,

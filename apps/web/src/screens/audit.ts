@@ -137,7 +137,7 @@ const ACTIONS = {
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
   'notifications.event.notify': 'noticesSend',
-  'notifications.scan': 'noticesScan',
+  'notifications.due.scan': 'noticesScan',
   'notifications.push.record': 'pushRecord',
   'notifications.notice.read': 'noticesRead',
   'notifications.notice.read_all': 'noticesReadAll',

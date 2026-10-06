@@ -25,7 +25,7 @@ export function scanMinute(at: number): string {
 function spec(sender: PushSender | undefined): CompanyBatchSpec {
   return {
     runName: 'notification-scan',
-    logPrefix: 'notifications.scan',
+    logPrefix: 'notifications.due.scan',
     path: NOTIFICATION_SCAN_PATH,
     async batch(principal, scope, entityId) {
       const found = await executeCommand(principal, scope, scanNotices, { entityId });
@@ -45,7 +45,7 @@ function spec(sender: PushSender | undefined): CompanyBatchSpec {
 
 /**
  * The notification scan (docs/design/phase1.md §8.1), every five minutes: every company in turn,
- * each batch one `notifications.scan` as `system:workers` scoped to that company, whose notices
+ * each batch one `notifications.due.scan` as `system:workers` scoped to that company, whose notices
  * are then pushed (`runCompanyBatches`). It finds what no event announces: calls falling due,
  * quotes about to lapse and first calls running late.
  */

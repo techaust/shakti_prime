@@ -275,7 +275,7 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
 ]);
 export type NotifyEventInput = z.infer<typeof NotifyEventInput>;
 
-/** `notifications.scan`: one company's due calls, lapsing quotes and late first calls. */
+/** `notifications.due.scan`: one company's due calls, lapsing quotes and late first calls. */
 export const ScanNoticesInput = z.object({ entityId: EntityIdSchema }).strict();
 export type ScanNoticesInput = z.infer<typeof ScanNoticesInput>;
 

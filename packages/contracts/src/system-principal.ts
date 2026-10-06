@@ -31,7 +31,7 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The daily quote expiry (`sales.quote.expire`): it reads the company's lapsed quotes and
     // marks them expired through two definers, nothing more.
     { key: 'sales.quote.expire', scope: 'all' },
-    // The notify worker and its scan (`notifications.event.notify`, `notifications.scan`,
+    // The notify worker and its scan (`notifications.event.notify`, `notifications.due.scan`,
     // `notifications.push.record`): it finds who a notice is for and writes it through definers,
     // nothing more.
     { key: 'notifications.send', scope: 'all' },
