@@ -5,8 +5,8 @@
 | Branch | `feat/k1-knowledge` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `k1-knowledge`, slot 18: Postgres 54348, app 3048 (`bash tools/integration/setup-worktree.sh k1-knowledge feat/k1-knowledge 54348 3048`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| State | building |
-| Next step | the builder agent on the PC builds the slice from this brief |
+| State | built, awaiting review |
+| Next step | the lead reviews the branch and reruns the journeys on a quiet machine |
 
 ## Brief
 Read first:
@@ -39,6 +39,24 @@ Done when: the checks of AGENTS §10 pass on the branch; the sensitivity cases o
 Not in K1: audio, Playbook directives and their review, Ask the Business (Phase 2); any vault document (the client's; tests use clearly synthetic text); the vendor keys on hosted environments (the owner's). Files another slice owns: N1 owns notifications, S2 orders and credit.
 
 ## Report
+
+### 07-10-2026, builder on the PC
+Built by the earlier builder (12 commits: contracts, the `vector` extension, `knowledge_files` and `knowledge_chunks` with RLS and definers, the `knowledge_file` machine, chunking, extraction, the index job and route, commands, queries, the `/knowledge` screen and copy, tests, journey, spike, documents). This session finished the checks on the database the lead recreated empty (54348) and fixed the journey's waits. Skills named in the brief were loaded by the earlier builder; none loaded this session.
+
+Changed this session: `apps/web/e2e/knowledge.spec.ts` only (the upload journey waits up to 45 seconds for the dialog to close and for the search hit, and has a 150-second test limit, because the loaded PC made it flaky).
+
+Checks:
+- `pnpm typecheck`: 8 of 8 tasks successful.
+- `pnpm test:security` (fresh database): `@shakti/db` 36 files, 1,097 tests; `@shakti/domain` 64 files, 791 tests; `web` 19 files, 271 tests; all passed. The earlier `import-kinds` failure was the leftover "Two Sites" account of a used database and did not recur.
+- `pnpm test`: tokens 134, ui 105, copy-lint 17, contracts 177, db 126, domain 1,908, web 678; all passed (8 of 8 tasks). `pnpm copy-lint`: clean.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (37 pages).
+- Journeys (`pnpm --filter web e2e`, whole run, PC under heavy shared load, 1.1 hours): 234 passed, 17 flaky, 21 failed, 12 skipped, 3 did not run. The failures are spread over agents, customers, imports, leads, quotes, pipelines, duplicates and walk-in specs this slice does not touch, with Postgres connect timeouts and statement timeouts (57014) in the server log: load, not logic. The lead should rerun the whole set on a quiet machine. The knowledge spec on its own (`playwright test e2e/knowledge.spec.ts --workers=1`), after the wait fix: 14 passed on desktop-light, desktop-dark and phone (setup included).
+- `pnpm lint`: whole repository, through the lock, after the last edit: exit 0 (`--max-warnings 0`).
+- `EXPLAIN (ANALYZE)`: `docs/spikes/knowledge.md` and `docs/spikes/results/knowledge-plans.txt` (search under RLS at 20,000 passages, 1 ms).
+
+Snapshots: one new, `knowledge` (taken in the snapshot company's tele-caller journey); no existing snapshot changed. The lead makes the Linux baseline.
+
+Decisions the brief did not settle (all in the design section 8.4 "Built (K1)"): passage size 1,500 characters with 200 repeated; the vault's own daily caps, 500 rupees for reading and 100 for search, flagged for the owner; `AI_TRANSPORT=fake` for the journeys, refused on hosted runtimes; a company's vault upload readable by its uploader while they hold the write.
 
 ## Review
 | # | Severity | Finding | State |

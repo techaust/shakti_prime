@@ -20,6 +20,8 @@ test.describe('as an Executive', () => {
   test.use(signedInAs('executive'));
 
   test('uploads a Word file, sees it read for search, and finds it', async ({ page }) => {
+    // Upload, checks, reading and search in turn, each with its own wait.
+    test.setTimeout(150_000);
     // A word of this run's own, so the search finds this run's file and no earlier one.
     const word = `drip${projectName().replace(/[^a-z]/g, '')}${Date.now().toString(36)}`;
     const title = `Irrigation notes ${word}`;
@@ -51,7 +53,7 @@ test.describe('as an Executive', () => {
       timeout: 45_000,
     });
     await dialog.getByRole('button', { name: 'Add to the vault' }).click();
-    await expect(dialog).toBeHidden();
+    await expect(dialog).toBeHidden({ timeout: 45_000 });
     await expect(page.getByText('Added. The file is being read for search.')).toBeVisible();
 
     // The app reads it at once on this machine; the list is read again until it is ready.
@@ -63,7 +65,7 @@ test.describe('as an Executive', () => {
     await page.getByLabel('What do you want to know?').fill(`when to run the ${word} line`);
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     const hit = page.getByRole('listitem').filter({ hasText: `From ${title}` });
-    await expect(hit).toBeVisible();
+    await expect(hit).toBeVisible({ timeout: 45_000 });
     await expect(
       hit.getByText(`Run the ${word} line for twenty minutes at sunrise.`),
     ).toBeVisible();
