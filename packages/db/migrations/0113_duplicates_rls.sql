@@ -11,7 +11,8 @@
 -- 1. The nightly search's permission is platform-only, like crm.score.refresh (0100).
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
-  select array['files.process', 'crm.score.refresh', 'crm.duplicates.scan']::text[]
+  select array['files.process', 'imports.process', 'crm.score.refresh', 'crm.duplicates.scan',
+               'sales.quote.expire']::text[]
 $$;
 --> statement-breakpoint
 

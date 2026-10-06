@@ -45,6 +45,19 @@ test.describe('the print templates (ADR 0009), light only', () => {
     await snap(tab, 'print-quote');
   });
 
+  test('the quotation of a real quote, as the render worker prints it', async ({ page: tab }) => {
+    // Written by the seed from its quote in the snapshot company, with the real loader
+    // (`e2e/setup/quotes.ts`): Price Master prices, the tax engine's amounts, words and terms.
+    await show(tab, printPage('quote-real'), A4);
+    await expect(tab.getByRole('heading', { name: 'Quotation' })).toBeVisible();
+    await expect(tab.getByText('Mohan Lal Saini')).toBeVisible();
+    await expect(tab.getByText(/^Rupees .* only$/)).toBeVisible();
+    // The quote's own dates change with the day the seed made it.
+    await snap(tab, 'print-quote-real', {
+      mask: [tab.locator('.meta dd'), tab.locator('.terms li')],
+    });
+  });
+
   test('the company proof page', async ({ page: tab }) => {
     await show(tab, printPage('proof'), A4);
     await expect(tab.getByRole('heading', { name: 'Proof page' })).toBeVisible();

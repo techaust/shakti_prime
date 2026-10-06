@@ -88,6 +88,55 @@ export const SEND_AGAIN_COMPANY = { entityId: 4, name: 'RCREF' } as const;
 export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 
 /**
+ * The stand-in agent's suggestions (setup/stand-in-agent.ts). Per project, three for the
+ * tele-caller on her lead in company 1: one needing approval that she approves as it is, one she
+ * edits first, and one under Suggest that she dismisses; the seed files them afresh on every run.
+ */
+export const INBOX_SUGGESTIONS: Record<
+  ProjectName,
+  { approve: string; edit: string; dismiss: string }
+> = {
+  'desktop-light': {
+    approve: 'Call back about the borewell depth',
+    edit: 'Ask for the latest electricity bill',
+    dismiss: 'Check the pump warranty card',
+  },
+  'desktop-dark': {
+    approve: 'Call back about the pump size',
+    edit: 'Ask for a photo of the borewell',
+    dismiss: 'Check the panel mounting plan',
+  },
+  phone: {
+    approve: 'Call back about the solar panel count',
+    edit: 'Ask about the field size',
+    dismiss: 'Check the meter reading',
+  },
+};
+
+/** The note the edit journey gives a suggestion before approving it. */
+export const EDITED_NOTE = 'Ask again before noon';
+
+/**
+ * The snapshot caller's two suggestions in the snapshot company, filed afresh each run with fixed
+ * due times and never decided by a journey, so the inbox's screenshot shows the same cards.
+ */
+export const SNAPSHOT_SUGGESTIONS = [
+  { title: 'Call back about the pump quote', dueAt: '2031-01-15T05:00:00.000Z' },
+  { title: 'Confirm the site visit date', dueAt: '2031-01-16T06:30:00.000Z' },
+] as const;
+
+/**
+ * Where the kill switch journey works, in one project only, since the switch reaches every
+ * project's run: a suggestion for the company's inbox, which the Executive cannot approve while
+ * the Caller Co-pilot is stopped there.
+ */
+export const KILL_SWITCH = {
+  company: { entityId: 2, name: 'Shakti Motor Pumps' },
+  title: 'Send the borewell survey checklist',
+  project: 'desktop-light',
+} as const;
+
+/**
  * The referral partner the seed makes once in company 1 and gives a code: the walk-in journey
  * credits a customer to it, and Settings › Pipelines lists it. No journey changes its code.
  */
@@ -96,6 +145,30 @@ export const REFERRAL_PARTNER = {
   phone: '98765 40031',
   code: 'KSK2026',
 } as const;
+
+/** Where the quote journeys price, make and send their quotes (`e2e/quotes.spec.ts`). */
+export const QUOTE_JOURNEY_COMPANY = { entityId: 2, name: 'Shakti Motor Pumps' } as const;
+
+/** The price tier the seed makes for the quote journeys, with its own price lists. */
+export const QUOTE_TIER = 'Journey prices';
+
+/** The sized lead the seed quotes once in the snapshot company, for the quote screenshots. */
+export const SNAPSHOT_QUOTE_LEAD = { name: 'Mohan Lal Saini', phone: '98765 40051' } as const;
+
+/** Per project: a sized lead in the journeys' company whose customer has no tier yet. */
+export const QUOTE_JOURNEY_LEADS: Record<ProjectName, { name: string; phone: string }> = {
+  'desktop-light': { name: 'Hemraj Kumawat', phone: '98765 40052' },
+  'desktop-dark': { name: 'Sushila Bairwa', phone: '98765 40053' },
+  phone: { name: 'Mangilal Jat', phone: '98765 40054' },
+};
+
+/** What the quote journeys need of the seed's quote fixtures. */
+export interface QuoteJourneySeed {
+  snapshotLeadId: string;
+  snapshotQuoteId: string;
+  snapshotQuoteNo: string;
+  journeyLeads: Record<ProjectName, { accountId: string; name: string }>;
+}
 
 export function emailFor(key: string): string {
   return `e2e-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}@shakti.test`;
@@ -118,6 +191,8 @@ export interface SeededUsers {
   profileUsers: Record<ProjectName, { email: string; secret: string }>;
   /** A lead only company 2 holds, for the company switcher journey. */
   secondCompanyLead: string;
+  /** The quote journeys' fixtures. */
+  quotes: QuoteJourneySeed;
 }
 
 export const AUTH_DIR = join(import.meta.dirname, '..', '.auth');

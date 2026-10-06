@@ -1,4 +1,9 @@
 import {
+  AGENT_ACTION_STATES,
+  AGENT_AUTONOMY,
+  AGENT_ROLE_KEYS,
+  AGENT_RUN_OUTCOMES,
+  AGENT_SETTING_SOURCES,
   CommissionBasisSchema,
   DuplicateKindSchema,
   DuplicateReasonSchema,
@@ -40,6 +45,7 @@ import {
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
+  MORE_SITES_MAX as CONTRACT_MORE_SITES_MAX,
   LEAD_SORT_COLUMNS as CONTRACT_LEAD_SORT_COLUMNS,
   OpportunityLostReasonSchema,
   OpportunityNurtureReasonSchema,
@@ -52,11 +58,14 @@ import {
   RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
+  QUOTE_MAX_QTY as CONTRACT_QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
   SizingAdvisorySchema,
   SizingKindSchema,
+  QuoteStateSchema,
+  SubsidySchemeSchema,
   SizingReasonSchema,
   SiteTypeSchema,
   TaskKindSchema,
@@ -110,6 +119,7 @@ import {
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
   LEAD_SORT_COLUMNS,
+  MORE_SITES_MAX,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
@@ -120,12 +130,15 @@ import {
   PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SCOPE_VALUES,
+  QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
   SIZING_ADVISORIES,
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
+  QUOTE_STATES,
+  SUBSIDY_SCHEMES,
   SIZING_REASONS,
   SITE_TYPES,
   DUPLICATE_KINDS,
@@ -134,6 +147,11 @@ import {
   DUPLICATE_STATES,
   TASK_KINDS,
   TASK_STATES,
+  AGENT_ROLES,
+  AGENT_AUTONOMY_LEVELS,
+  AGENT_ACTION_STATE_VALUES,
+  AGENT_RUN_OUTCOME_VALUES,
+  AGENT_SETTING_SOURCE_VALUES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -157,6 +175,8 @@ describe('the contract values copied for the browser', () => {
     expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
     expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
+    expect(SUBSIDY_SCHEMES).toEqual(SubsidySchemeSchema.options);
     expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
     expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
     // The panel offers a submersible first, the catalogue lists a surface pump first.
@@ -165,6 +185,11 @@ describe('the contract values copied for the browser', () => {
     expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
+    expect(AGENT_ROLES).toEqual(AGENT_ROLE_KEYS);
+    expect(AGENT_AUTONOMY_LEVELS).toEqual(AGENT_AUTONOMY);
+    expect(AGENT_ACTION_STATE_VALUES).toEqual(AGENT_ACTION_STATES);
+    expect(AGENT_RUN_OUTCOME_VALUES).toEqual(AGENT_RUN_OUTCOMES);
+    expect(AGENT_SETTING_SOURCE_VALUES).toEqual(AGENT_SETTING_SOURCES);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
     expect(DUPLICATE_KINDS).toEqual(DuplicateKindSchema.options);
     expect(DUPLICATE_REASONS).toEqual(DuplicateReasonSchema.options);
@@ -191,6 +216,7 @@ describe('the contract values copied for the browser', () => {
 
   it('equal the contract’s own lists and limits', () => {
     expect(IMPLEMENTED_IMPORT_KINDS).toEqual(CONTRACT_IMPORT_KINDS);
+    expect(MORE_SITES_MAX).toBe(CONTRACT_MORE_SITES_MAX);
     expect(LEAD_SORT_COLUMNS).toEqual(CONTRACT_LEAD_SORT_COLUMNS);
     expect(RECORDED_STAGE_EXIT_FIELDS).toEqual(CONTRACT_RECORDED_STAGE_EXIT_FIELDS);
     expect(PROTECTED_STAGE_KEYS).toEqual(CONTRACT_PROTECTED_STAGE_KEYS);
@@ -209,6 +235,7 @@ describe('the contract values copied for the browser', () => {
     );
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+    expect(QUOTE_MAX_QTY).toBe(CONTRACT_QUOTE_MAX_QTY);
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);

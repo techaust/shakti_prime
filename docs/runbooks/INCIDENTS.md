@@ -17,6 +17,7 @@ Never send a password, key or secret value; a screenshot of a settings page is c
 5. [A secret leaked](#5-a-secret-leaked)
 6. [Restore from a backup](#6-restore-from-a-backup)
 7. [A paused Supabase project](#7-a-paused-supabase-project)
+8. [The AI service is down or an agent has stopped](#8-the-ai-service-is-down-or-an-agent-has-stopped)
 
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
@@ -64,3 +65,11 @@ Dev and staging run on Supabase's free plan, which pauses a project that has see
 3. Open `<site>/api/v1/health/ready`: it answers 200 with `status: ok`. Sign in once to confirm.
 4. Nothing else is needed: the migrations, the roles and their passwords, and the scheduled jobs come back as they were, and the outbox delivers what waited on the next minute's run. Updates still listed as waiting after ten minutes are handled as in §2.
 5. When the dashboard offers no restore, tell the developer (see *Who to tell*); never create a new project in its place without the owner's go-ahead.
+
+## 8. The AI service is down or an agent has stopped
+Agents only file suggestions in the Agent Inbox; when they stop, nothing else stops, and people work their leads and queues as before. An Executive or a General Manager sees each agent on **Admin › Agents** (`/admin/agents`).
+- **What it looks like:** no new suggestions arrive. On **Admin › Agents** an agent shows **Stopped** (a kill switch), or its spending today has reached its daily limit (the company's or the group's, both apply), or the page says the AI service is not connected. In Vercel › **Logs**, `ai.breaker_opened` means the AI service failed five times in a minute and calls are paused for a minute.
+1. A stopped agent: let it run again on **Admin › Agents** if it was stopped by mistake; suggestions already in an inbox wait and can be approved once it runs.
+2. A limit reached: the agent starts again at midnight India time; an Executive may raise the limit on **Admin › Agents** if the day needs more.
+3. The AI service failing: check the vendor's status page (Anthropic for Claude, Voyage for embeddings) and wait it out; the runs are recorded as unavailable and nothing is retried by hand.
+4. When the service is up and the agent runs but still files nothing, tell the developer (see *Who to tell*).

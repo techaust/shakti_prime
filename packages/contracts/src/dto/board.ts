@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SizingKindSchema } from '../crm/sizing';
 import { OpportunityStateSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
 
@@ -50,6 +51,16 @@ export const BoardLeadDto = z
     stateChangedAt: z.iso.datetime(),
     /** Null while no SLA rule covers the lead; the card then shows no dot. */
     sla: SlaStatusSchema.nullable(),
+    /** When the lead entered its stage: its last stage move, else when it was made. */
+    stageSince: z.iso.datetime(),
+    /**
+     * The size of the lead's newest sizing from today's engine: a pump's standard HP, or a rooftop
+     * system's kWp; null when the lead has none.
+     */
+    size: z
+      .object({ kind: SizingKindSchema, hp: z.number().nullable(), kwp: z.number().nullable() })
+      .strict()
+      .nullable(),
     updatedAt: z.iso.datetime(),
   })
   .strict();

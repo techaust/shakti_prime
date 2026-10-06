@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { QuoteRowDto } from './quote';
 import {
   AccountTypeSchema,
   ActivityTypeSchema,
@@ -112,6 +113,8 @@ export const CustomerSiteDto = z
     tehsil: z.string().nullable(),
     district: z.string().nullable(),
     pin: z.string().nullable(),
+    /** The PIN is not in the PIN code master: the site waits for someone to check it (CRM-02). */
+    pinNeedsReview: z.boolean(),
     stateCode: z.string().nullable(),
     lat: z.number().nullable(),
     lng: z.number().nullable(),
@@ -180,6 +183,10 @@ export const Account360Dto = z
         type: AccountTypeSchema,
         gstin: z.string().nullable(),
         billingStateCode: z.string().nullable(),
+        /** The price tier the customer's quotes are priced from (PRICE-1); null until set. */
+        tierId: IdSchema.nullable(),
+        /** Its name, for a caller who reads the price tiers (`pricing.read`). */
+        tierName: z.string().nullable(),
       })
       .strict(),
     entityId: EntityIdSchema,
@@ -193,6 +200,12 @@ export const Account360Dto = z
     canWorkLeads: z.boolean(),
     /** Whether the caller may make tags (`crm.lead.assign`). */
     canManageTags: z.boolean(),
+    /** Whether the caller may set the customer's price tier (`crm.account.tier.set`). */
+    canSetTier: z.boolean(),
+    /** Whether the caller may make a quote on the customer's leads (`sales.quote.create`). */
+    canQuote: z.boolean(),
+    /** The customer's newest quotes in this company (`sales.quote.*`, read with their leads). */
+    quotes: z.array(QuoteRowDto),
     contacts: z.array(CustomerContactDto),
     sites: z.array(CustomerSiteDto),
     leads: z.array(CustomerLeadDto),

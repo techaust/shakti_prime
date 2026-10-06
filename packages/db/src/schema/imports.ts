@@ -16,7 +16,7 @@ import { actorsRequired, timestamps } from './columns';
 import { entities } from './entities';
 import { files } from './files';
 
-const KINDS = sql`('leads', 'accounts', 'items', 'tally_masters')`;
+const KINDS = sql`('leads', 'accounts', 'pin_codes', 'items', 'tally_masters')`;
 
 /**
  * A saved column mapping for one kind of file (docs/design/backend-weeks-3-5.md §8), so the next
@@ -71,6 +71,13 @@ export const importJobs = pgTable(
      * the next number and `imports.job.committed` counts them right.
      */
     batchCount: integer('batch_count').notNull().default(0),
+    /**
+     * The companies the preview found the rows naming, the job's own included, and those through
+     * which the importer saw a customer a row is linked to: a commit or a rollback is refused up
+     * front in a request that does not act for all of them, and the import worker acts for
+     * exactly these. Null until the rows are checked.
+     */
+    entityIds: smallint('entity_ids').array(),
     ...timestamps,
     ...actorsRequired,
   },
@@ -89,6 +96,10 @@ export const importJobs = pgTable(
     ),
     check('import_jobs_failed_batch_check', sql`${t.failedBatch} is null or ${t.failedBatch} >= 1`),
     check('import_jobs_batch_count_check', sql`${t.batchCount} >= 0`),
+    check(
+      'import_jobs_entity_ids_check',
+      sql`${t.entityIds} is null or cardinality(${t.entityIds}) between 1 and 20`,
+    ),
     // A job uses a file and a template of its own entity (docs/DATABASE.md §2).
     foreignKey({
       name: 'import_jobs_file_entity_fk',
@@ -102,7 +113,8 @@ export const importJobs = pgTable(
     }),
     unique('import_jobs_id_entity_unique').on(t.id, t.entityId),
     index('import_jobs_entity_created_idx').on(t.entityId, t.createdAt.desc()),
-    index('import_jobs_file_idx').on(t.fileId),
+    // One uploaded file starts one job.
+    unique('import_jobs_file_unique').on(t.fileId),
     index('import_jobs_template_idx').on(t.templateId),
   ],
 );
@@ -141,7 +153,10 @@ export const importRows = pgTable(
       'import_rows_state_check',
       sql`${t.state} in ('pending', 'valid', 'invalid', 'committed', 'skipped', 'rolled_back')`,
     ),
-    check('import_rows_created_type_check', sql`${t.createdType} in ('opportunity')`),
+    check(
+      'import_rows_created_type_check',
+      sql`${t.createdType} in ('opportunity', 'account', 'account_link', 'pin_code')`,
+    ),
     check('import_rows_row_no_check', sql`${t.rowNo} >= 1`),
     check('import_rows_created_check', sql`(${t.createdType} is null) = (${t.createdId} is null)`),
     // The commit worker's claim: the next valid rows of a job in file order.

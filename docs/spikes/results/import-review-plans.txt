@@ -1,0 +1,124 @@
+== app.recheck_site_pins: a batch of 40 PINs over 50,000 flagged sites (the function body)
+Update on customer_sites s  (cost=26.26..1643.29 rows=0 width=0) (actual time=27.790..27.793 rows=0 loops=1)
+  Buffers: shared hit=9853 dirtied=11 written=11
+  ->  Nested Loop  (cost=26.26..1643.29 rows=200 width=272) (actual time=0.324..1.358 rows=400 loops=1)
+        Buffers: shared hit=1337
+        ->  Subquery Scan on k  (cost=25.97..28.47 rows=40 width=282) (actual time=0.250..0.463 rows=40 loops=1)
+              Buffers: shared hit=17
+              ->  GroupAggregate  (cost=25.97..28.07 rows=40 width=129) (actual time=0.245..0.435 rows=40 loops=1)
+                    Group Key: w.pin
+                    Buffers: shared hit=17
+                    ->  Sort  (cost=25.97..26.07 rows=40 width=76) (actual time=0.232..0.242 rows=40 loops=1)
+                          Sort Key: w.pin, p.taluk
+                          Sort Method: quicksort  Memory: 27kB
+                          Buffers: shared hit=17
+                          ->  Hash Right Join  (cost=1.40..24.90 rows=40 width=76) (actual time=0.071..0.148 rows=40 loops=1)
+                                Hash Cond: (p.pin = w.pin)
+                                Buffers: shared hit=17
+                                ->  Seq Scan on pin_codes p  (cost=0.00..22.14 rows=514 width=51) (actual time=0.006..0.053 rows=514 loops=1)
+                                      Buffers: shared hit=17
+                                ->  Hash  (cost=0.90..0.90 rows=40 width=32) (actual time=0.047..0.048 rows=40 loops=1)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                      ->  HashAggregate  (cost=0.50..0.90 rows=40 width=32) (actual time=0.038..0.043 rows=40 loops=1)
+                                            Group Key: w.pin
+                                            Batches: 1  Memory Usage: 24kB
+                                            ->  Function Scan on unnest w  (cost=0.00..0.40 rows=40 width=32) (actual time=0.007..0.010 rows=40 loops=1)
+                                                  Filter: (pin IS NOT NULL)
+        ->  Index Scan using customer_sites_pin_idx on customer_sites s  (cost=0.29..40.32 rows=5 width=44) (actual time=0.010..0.018 rows=10 loops=40)
+              Index Cond: (pin = k.pin)
+              Filter: ((archived_at IS NULL) AND (k.known = pin_needs_review))
+              Buffers: shared hit=1320
+Planning:
+  Buffers: shared hit=148
+Planning Time: 0.581 ms
+Trigger for constraint customer_sites_account_id_accounts_id_fk: time=2.700 calls=400
+Trigger for constraint customer_sites_created_by_principals_id_fk: time=2.576 calls=400
+Trigger for constraint customer_sites_updated_by_principals_id_fk: time=2.720 calls=400
+Trigger customer_sites_pin_fill: time=12.182 calls=400
+Trigger set_updated_at: time=0.915 calls=400
+Execution Time: 36.194 ms
+
+== app.recheck_site_pins: a batch of 500 PINs over 50,000 flagged sites (the function body)
+Update on customer_sites s  (cost=57.46..3014.03 rows=0 width=0) (actual time=380.445..380.450 rows=0 loops=1)
+  Buffers: shared hit=104539 dirtied=167 written=167
+  ->  Hash Join  (cost=57.46..3014.03 rows=1005 width=272) (actual time=3.488..21.403 rows=4600 loops=1)
+        Hash Cond: ((s.pin = k.pin) AND (s.pin_needs_review = k.known))
+        Buffers: shared hit=2203
+        ->  Seq Scan on customer_sites s  (cost=0.00..2691.25 rows=50525 width=44) (actual time=0.011..11.655 rows=50271 loops=1)
+              Filter: (archived_at IS NULL)
+              Buffers: shared hit=2186
+        ->  Hash  (cost=54.46..54.46 rows=200 width=282) (actual time=1.958..1.962 rows=500 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 67kB
+              Buffers: shared hit=17
+              ->  Subquery Scan on k  (cost=41.94..54.46 rows=200 width=282) (actual time=0.763..1.845 rows=500 loops=1)
+                    Buffers: shared hit=17
+                    ->  GroupAggregate  (cost=41.94..52.46 rows=200 width=129) (actual time=0.758..1.718 rows=500 loops=1)
+                          Group Key: w.pin
+                          Buffers: shared hit=17
+                          ->  Sort  (cost=41.94..42.44 rows=201 width=76) (actual time=0.742..0.775 rows=500 loops=1)
+                                Sort Key: w.pin, p.taluk
+                                Sort Method: quicksort  Memory: 56kB
+                                Buffers: shared hit=17
+                                ->  Hash Right Join  (cost=10.75..34.25 rows=201 width=76) (actual time=0.322..0.487 rows=500 loops=1)
+                                      Hash Cond: (p.pin = w.pin)
+                                      Buffers: shared hit=17
+                                      ->  Seq Scan on pin_codes p  (cost=0.00..22.14 rows=514 width=51) (actual time=0.007..0.062 rows=514 loops=1)
+                                            Buffers: shared hit=17
+                                      ->  Hash  (cost=8.25..8.25 rows=200 width=32) (actual time=0.294..0.295 rows=500 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 28kB
+                                            ->  HashAggregate  (cost=6.25..8.25 rows=200 width=32) (actual time=0.187..0.238 rows=500 loops=1)
+                                                  Group Key: w.pin
+                                                  Batches: 1  Memory Usage: 89kB
+                                                  ->  Function Scan on unnest w  (cost=0.00..5.00 rows=498 width=32) (actual time=0.026..0.057 rows=500 loops=1)
+                                                        Filter: (pin IS NOT NULL)
+Planning Time: 0.385 ms
+Trigger for constraint customer_sites_account_id_accounts_id_fk: time=29.497 calls=4600
+Trigger for constraint customer_sites_created_by_principals_id_fk: time=29.544 calls=4600
+Trigger for constraint customer_sites_updated_by_principals_id_fk: time=28.746 calls=4600
+Trigger customer_sites_pin_fill: time=143.714 calls=4600
+Trigger set_updated_at: time=10.416 calls=4600
+Execution Time: 469.131 ms
+
+== app.import_accounts_in_use: a job of 500 customers among 20,500 (the function body)
+Nested Loop  (cost=0.30..9637.63 rows=239 width=16) (actual time=2.550..2.552 rows=0 loops=1)
+  Buffers: shared hit=3044
+  ->  Seq Scan on import_rows r  (cost=0.00..41.18 rows=313 width=16) (actual time=0.055..0.150 rows=500 loops=1)
+        Filter: ((job_id = '5677067b-4b9a-4cec-b83f-cc4c1f3b836f'::uuid) AND (state = 'committed'::text) AND (created_type = 'account'::text))
+        Rows Removed by Filter: 196
+        Buffers: shared hit=29
+  ->  Memoize  (cost=0.30..31.86 rows=1 width=16) (actual time=0.005..0.005 rows=0 loops=500)
+        Cache Key: r.created_id
+        Cache Mode: logical
+        Hits: 0  Misses: 500  Evictions: 0  Overflows: 0  Memory Usage: 40kB
+        Buffers: shared hit=3015
+        ->  Index Scan using accounts_pkey on accounts a  (cost=0.29..31.85 rows=1 width=16) (actual time=0.004..0.004 rows=0 loops=500)
+              Index Cond: (id = r.created_id)
+              Filter: ((ANY (id = (hashed SubPlan 2).col1)) OR (ANY (id = (hashed SubPlan 4).col1)) OR EXISTS(SubPlan 5))
+              Rows Removed by Filter: 1
+              Buffers: shared hit=3015
+              SubPlan 2
+                ->  Seq Scan on opportunities o  (cost=0.00..12.40 rows=330 width=16) (actual time=0.019..0.176 rows=333 loops=1)
+                      Filter: (archived_at IS NULL)
+                      Rows Removed by Filter: 10
+                      Buffers: shared hit=9
+              SubPlan 4
+                ->  Hash Join  (cost=1.20..10.98 rows=9 width=16) (actual time=0.015..0.139 rows=27 loops=1)
+                      Hash Cond: (ac.contact_id = c.contact_id)
+                      Buffers: shared hit=6
+                      ->  Seq Scan on account_contacts ac  (cost=0.00..8.41 rows=341 width=32) (actual time=0.004..0.105 rows=341 loops=1)
+                            Buffers: shared hit=5
+                      ->  Hash  (cost=1.09..1.09 rows=9 width=16) (actual time=0.008..0.008 rows=27 loops=1)
+                            Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                            Buffers: shared hit=1
+                            ->  Seq Scan on consents c  (cost=0.00..1.09 rows=9 width=16) (actual time=0.002..0.004 rows=27 loops=1)
+                                  Buffers: shared hit=1
+              SubPlan 5
+                ->  Index Scan using account_entities_account_entity_key on account_entities ae  (cost=0.29..8.31 rows=1 width=0) (actual time=0.001..0.001 rows=0 loops=500)
+                      Index Cond: (account_id = a.id)
+                      Filter: (created_at <> a.created_at)
+                      Rows Removed by Filter: 1
+                      Buffers: shared hit=1500
+Planning:
+  Buffers: shared hit=492
+Planning Time: 2.271 ms
+Execution Time: 2.630 ms

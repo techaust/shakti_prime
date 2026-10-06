@@ -236,6 +236,54 @@ describe('the rows of the check step', () => {
     expect(rowFindings({ errors: [], dedupe: null }, {})).toEqual([]);
   });
 
+  it('names the customer a row is added to once, and what became of a repeated row’s site', () => {
+    const linked = newId();
+    const other = newId();
+    expect(
+      rowFindings(
+        {
+          errors: [],
+          dedupe: {
+            inFileRowNo: null,
+            linkedTo: linked,
+            existing: [
+              { accountId: linked, contactId: newId(), matchedBy: 'phone' },
+              { accountId: other, contactId: newId(), matchedBy: 'name_village' },
+            ],
+          },
+        },
+        { [linked]: 'Known Farm', [other]: 'Other Farm' },
+      ),
+    ).toEqual([
+      { kind: 'linked', name: 'Known Farm' },
+      { kind: 'customer', name: 'Other Farm', matchedBy: 'name_village' },
+    ]);
+    expect(
+      rowFindings({ errors: [], dedupe: { inFileRowNo: 3, existing: [], site: 'added' } }, {}),
+    ).toEqual([{ kind: 'sameAsRow', rowNo: 3, site: 'added' }]);
+  });
+
+  it('says a linked row and its repeats leave the customer’s sites as they are', () => {
+    const linked = newId();
+    expect(
+      rowFindings(
+        {
+          errors: [],
+          dedupe: {
+            inFileRowNo: null,
+            linkedTo: linked,
+            site: 'kept',
+            existing: [{ accountId: linked, contactId: newId(), matchedBy: 'phone' }],
+          },
+        },
+        { [linked]: 'Known Farm' },
+      ),
+    ).toEqual([{ kind: 'linked', name: 'Known Farm', site: 'kept' }]);
+    expect(
+      rowFindings({ errors: [], dedupe: { inFileRowNo: 2, existing: [], site: 'kept' } }, {}),
+    ).toEqual([{ kind: 'sameAsRow', rowNo: 2, site: 'kept' }]);
+  });
+
   it('reads a field through the job’s matching', () => {
     const mapping = { columns: { contactName: 'Name' }, defaults: {} };
     expect(rowValue({ raw: { Name: ' Gopal ' } }, mapping, 'contactName')).toBe('Gopal');

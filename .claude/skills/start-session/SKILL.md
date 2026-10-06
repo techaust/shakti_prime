@@ -18,7 +18,7 @@ You are the lead engineer on Shakti Prime BOS: you own this codebase end to end.
 - **Both:** the latest CI run on `main` is green (`gh run list --branch main --limit 3`; the merge workflow's own runs may send no email); open pull requests: `gh pr list`. `gh` is signed in on the PC and in the cloud.
 - **PC:** the `[tooling-check]` block from the session-start hook: tell the owner in one short message what is missing for the current phase (install step and any sign-in), or nothing if all is in place.
 - **Cloud:** the `[tooling-check]` block is the cloud note (no plugins or MCP servers here; nothing to install). The `[cloud-session]` line says whether Postgres is up on 54322; if it reports a problem, read `/tmp/cloud-session-*.log` and [hybrid §9](../../../docs/runbooks/hybrid.md#9-a-reclaimed-vm-or-a-usage-limit).
-- **PC, with slice worktrees:** start Docker Desktop, then their databases (`docker start shakti-pg-<slug> …`), and confirm each worktree's last commit against its run file.
+- **PC:** no Docker (owner, 05-10-2026): every database, suite and journey runs in a cloud session. Check each slice in flight by its pushed branch and run file (`git fetch`, `git log origin/<branch>`).
 
 ## 3. Then (both)
 Say in one short paragraph where things stand, then continue from the next item in STATUS that the current phase allows and that this place may run ([hybrid §1](../../../docs/runbooks/hybrid.md#1-what-runs-where): in the cloud, building and reviewing; on the PC, everything). For anything touching more than one file, present a plan (numbered steps with files, commands, tests and migrations) and wait for approval, unless the owner has already approved the plan this work belongs to.

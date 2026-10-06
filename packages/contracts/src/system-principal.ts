@@ -10,7 +10,8 @@ export const SYSTEM_WORKERS_PRINCIPAL_ID = '01990000-0000-7000-8000-000000000501
  * The seed writes these rows and the workers build their principal from the same list, so the two
  * cannot differ. The delivery check's handler writes nothing to the database; the file checks
  * (`files.file.uploaded`) move a file through them with `files.file.*`, which need `files.process`
- * and nothing else. Each slice that gives the workers a command adds its grant here and in
+ * and nothing else; the import worker stops a job whose last try failed with `imports.job.fail`,
+ * which needs `imports.process`. Each slice that gives the workers a command adds its grant here and in
  * SECURITY §3.3.
  *
  * The workers hold no `crm.*` permission a person may hold: until the owner decides at T2 they
@@ -20,11 +21,15 @@ export const SYSTEM_WORKERS_PRINCIPAL_ID = '01990000-0000-7000-8000-000000000501
 export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = {
   'system:workers': [
     { key: 'files.process', scope: 'all' },
+    { key: 'imports.process', scope: 'all' },
     // The nightly rescoring (`crm.lead.score_refresh`): it reads each open lead's scoring facts and
     // writes its score through two definers, nothing more.
     { key: 'crm.score.refresh', scope: 'all' },
     // The nightly duplicate search (`crm.duplicate.scan`): it reads the matching facts of one
     // company's customers and records candidates through two definers, nothing more.
     { key: 'crm.duplicates.scan', scope: 'all' },
+    // The daily quote expiry (`sales.quote.expire`): it reads the company's lapsed quotes and
+    // marks them expired through two definers, nothing more.
+    { key: 'sales.quote.expire', scope: 'all' },
   ],
 };

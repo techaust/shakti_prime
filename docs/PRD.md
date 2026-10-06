@@ -364,7 +364,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | ID | Phase | Slice | Tested in |
 |---|---|---|---|
 | CRM-01 | 0, 1, 2 | C3 (walk-in form and referral codes; manual entry and lead imports built in Phase 0) | `packages/domain/tests/commands/create-lead.test.ts`, `packages/domain/tests/commands/imports.test.ts`, `apps/web/e2e/leads.spec.ts`, `apps/web/e2e/imports.spec.ts`; ingest contract `packages/contracts/src/api/ingest.test.ts` |
-| CRM-02 | 1 | P2b | `packages/contracts/src/crm/phone.test.ts`, `packages/contracts/src/crm/phone.property.test.ts` |
+| CRM-02 | 1 | P2b | `packages/contracts/src/crm/phone.test.ts`, `packages/contracts/src/crm/phone.property.test.ts`; the PIN code master and the site's PIN: `packages/db/tests/security/pin-codes.test.ts`, `packages/domain/tests/commands/import-kinds.test.ts`, `apps/web/e2e/imports.spec.ts` |
 | CRM-03 | 1 | D1 | The colleague's-customer guard: `packages/domain/tests/commands/lead-guard.test.ts`, `packages/db/tests/security/lead-guard.test.ts` |
 | CRM-04 | 1 | C2 | `packages/db/tests/security/crm-scope.test.ts`, `packages/db/tests/security/customer-read-through-leads.test.ts`, `packages/domain/tests/commands/customer-edits.test.ts`, `packages/domain/tests/queries/customers.test.ts` |
 | CRM-05 | 1 | C3 | Stage moves: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/tests/queries/lead-board.test.ts` |
@@ -381,9 +381,9 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | TEL-06 | 1 | R1 | — |
 | SAL-01 | 1 | C1 | `packages/domain/tests/commands/set-price.test.ts`, `packages/domain/tests/commands/price-lists.test.ts`, `packages/db/tests/security/catalogue-scope.test.ts`, `apps/web/e2e/price-master.spec.ts` |
 | SAL-02 | 1 | C1 | `packages/domain/src/tax/tax.test.ts`, `packages/domain/src/tax/golden.test.ts`, `packages/domain/tests/commands/tax.test.ts`, `apps/web/e2e/catalogue.spec.ts` |
-| SAL-03 | 1 | S1 | Quote machine: `packages/domain/src/state-machines/machines/quote.test.ts`; numbering `packages/domain/tests/numbering/next-document-no.test.ts` |
-| SAL-04 | 1, 3 | C4, S1 | — |
-| SAL-05 | 1, 2 | P4, S1, S2 | Print templates: `apps/web/src/print/templates.test.ts` |
+| SAL-03 | 1 | S1 | Quote machine: `packages/domain/src/state-machines/machines/quote.test.ts`; numbering `packages/domain/tests/numbering/next-document-no.test.ts`; prices from the list and a price in the input refused: `packages/domain/tests/commands/quotes.test.ts`, `packages/domain/src/sales/quote-pricing.test.ts`; policies `packages/db/tests/security/quotes.test.ts`; journey `apps/web/e2e/quotes.spec.ts` |
+| SAL-04 | 1, 3 | C4, S1 | Sizing facts `packages/domain/src/sizing/quote-facts.test.ts`; a quote refused for missing or out-of-bounds sizing, the pump curve or the DCR and sanctioned-load rules: `packages/domain/tests/commands/quotes.test.ts` |
+| SAL-05 | 1, 2 | P4, S1, S2 | Print templates: `apps/web/src/print/templates.test.ts`; a quote printed, recorded and attached: `apps/web/tests/pdf-render.test.ts`; sent only with its PDF: `packages/domain/tests/commands/quotes.test.ts`; the quotation of a real quote and a quote sent with its PDF: `apps/web/e2e/print.spec.ts`, `apps/web/e2e/quotes.spec.ts` |
 | SAL-06 | 1, 3, 5 | S2 | State machine: `packages/domain/src/state-machines/machines.test.ts` |
 | SAL-07 | 1, 5 | S2 | `packages/domain/src/sales/credit-check.test.ts` |
 | INV-01 | 1, 3 | C1 | `packages/domain/tests/commands/catalogue.test.ts`, `packages/domain/tests/queries/catalogue-queries.test.ts`, `packages/domain/tests/queries/list-items.test.ts`, `apps/web/e2e/catalogue.spec.ts` |
@@ -403,7 +403,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | HR-01 to HR-04 | 5 | — | — |
 | RPT-01 | 1, 5 | R1 | — |
 | RPT-02 | With each module's reports | — | — (no export exists) |
-| RPT-03 | 0, 1, 3 | S1 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; timing `pnpm spike:lists` |
+| RPT-03 | 0, 1, 3 | S1 | `packages/domain/tests/queries/search.test.ts`, `packages/domain/tests/queries/search-equivalence.test.ts`, `packages/db/tests/security/lead-search-candidates.test.ts`; quote numbers `packages/domain/tests/commands/quotes.test.ts`, `packages/db/tests/security/quotes.test.ts`, `apps/web/e2e/quotes.spec.ts`; timing `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:quotes` |
 | RPT-04 | 1, 4 | N1 | — |
 | RPT-05 | 0, 1 | — | `packages/domain/tests/queries/query-audit.test.ts`, `apps/web/e2e/admin.spec.ts` |
 | IMP-01 | 0, 1 | P2b | `packages/domain/tests/commands/imports.test.ts`, `packages/domain/tests/commands/import-lead-parity.test.ts`, `packages/db/tests/security/imports.test.ts`, `apps/web/tests/imports.test.ts`, `apps/web/e2e/imports.spec.ts`; timing `pnpm spike:import` |
@@ -411,7 +411,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | AI-01 | 1, 2 | P2, K1 | Upload purposes: `packages/db/tests/security/files.test.ts` |
 | AI-02 | 2 | — | — |
 | AI-03 | 2, 6 | — | — (harness only: `apps/web/src/integrations/voice/voice.test.ts`) |
-| AI-04 | 1, 2, 6 | AI0, A1 | — (until AI0) |
+| AI-04 | 1, 2, 6 | AI0, A1 | `packages/domain/tests/commands/agents.test.ts`, `packages/domain/tests/commands/agent-runtime.test.ts`, `packages/db/tests/security/agents.test.ts`, `packages/domain/src/ai/provider.test.ts`, `apps/web/e2e/agents.spec.ts` |
 | AI-05 | 1, 2 | A1 | `packages/domain/tests/security/agent-refusals.test.ts`, `packages/domain/src/privacy/identity-numbers.test.ts` |
 | AI-06 | 2 | — | — |
 | NFR-01 | 0, 1 | P3, P1, P2b | `apps/web/scripts/js-budget.test.ts` with `pnpm --filter web js-budget`; `packages/domain/tests/commands/run-probe.test.ts` (the delivery check); timings `pnpm spike:lists`, `pnpm --filter @shakti/domain spike:account360`, `pnpm spike:import` |

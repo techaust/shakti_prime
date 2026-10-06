@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { forAllSeeded, type SeededGenerator } from '../seeded-generator';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import { pumpDutyPoint, type CurvePoint } from './duty-point';
 import { totalDynamicHead, type HeadInput } from './head';
@@ -11,26 +12,8 @@ import { solarArrayForPump } from './solar-pump';
 // generator (mulberry32) keeps each run the same, so a failure names a case that repeats.
 const RUNS = 500;
 
-function generator(seed: number) {
-  let state = seed >>> 0;
-  const next = (): number => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
-  };
-  return {
-    between: (min: number, max: number): number => min + next() * (max - min),
-    int: (min: number, max: number): number => Math.floor(min + next() * (max - min + 1)),
-    pick: <T>(values: readonly T[]): T => values[Math.floor(next() * values.length)] as T,
-    chance: (): boolean => next() < 0.5,
-  };
-}
-
-function forAll(seed: number, check: (random: ReturnType<typeof generator>) => void): void {
-  const random = generator(seed);
-  for (let run = 0; run < RUNS; run += 1) check(random);
+function forAll(seed: number, check: (random: SeededGenerator) => void): void {
+  forAllSeeded(seed, RUNS, check);
 }
 
 const TOLERANCE = 1e-9;
@@ -48,7 +31,7 @@ function lastOf<T>(values: readonly T[]): T {
 }
 const { sizing } = WORKSHOP_DEFAULTS;
 
-function headInput(random: ReturnType<typeof generator>): HeadInput {
+function headInput(random: SeededGenerator): HeadInput {
   return {
     staticLevelM: random.between(0, 300),
     drawdownM: random.between(0, 50),
@@ -185,7 +168,7 @@ describe('rooftopSize properties', () => {
   });
 });
 
-function curve(random: ReturnType<typeof generator>): CurvePoint[] {
+function curve(random: SeededGenerator): CurvePoint[] {
   const points: CurvePoint[] = [];
   let head = random.between(5, 30);
   let flow = random.between(10_000, 80_000);

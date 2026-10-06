@@ -1,0 +1,212 @@
+Name-and-village search of the import preview (existingByNameAndVillage), 1000 pairs,
+run as a General Manager of company 1 under the policies, with 59854 live customer sites in the company.
+Recorded by pnpm spike:import on 2026-10-04T16:32:02.784Z.
+
+Unique (actual time=30.319..2567.053 rows=5002 loops=1)
+  Buffers: shared hit=1002002
+  ->  Incremental Sort (actual time=30.318..2565.648 rows=5002 loops=1)
+        Sort Key: x.village, x.name, ac.account_id, ac.contact_id
+        Presorted Key: x.village, x.name
+        Full-sort Groups: 143  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Buffers: shared hit=1002002
+        ->  Nested Loop (actual time=13.693..2530.324 rows=5002 loops=1)
+              Buffers: shared hit=1002002
+              ->  Nested Loop (actual time=13.620..2415.170 rows=5002 loops=1)
+                    Join Filter: (x.name = c.name_key)
+                    Rows Removed by Join Filter: 40027
+                    Buffers: shared hit=961986
+                    ->  Nested Loop (actual time=13.434..1314.532 rows=45029 loops=1)
+                          Buffers: shared hit=511696
+                          ->  Nested Loop (actual time=13.347..682.520 rows=45029 loops=1)
+                                Buffers: shared hit=192058
+                                ->  Unique (actual time=13.232..29.027 rows=985 loops=1)
+                                      ->  Sort (actual time=13.229..14.917 rows=985 loops=1)
+                                            Sort Key: x.village, x.name
+                                            Sort Method: quicksort  Memory: 63kB
+                                            ->  Function Scan on jsonb_to_recordset x (actual time=0.481..0.639 rows=985 loops=1)
+                                ->  Index Scan using customer_sites_village_key_idx on customer_sites s (actual time=0.062..0.639 rows=46 loops=985)
+                                      Index Cond: (village_key = x.village)
+                                      Filter: EXISTS(SubPlan 24)
+                                      Buffers: shared hit=192058
+                                      SubPlan 24
+                                        ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.009..0.009 rows=1 loops=45029)
+                                              Index Cond: ((account_id = s.account_id) AND (entity_id = ANY ((InitPlan 1).col1)))
+                                              Filter: ((InitPlan 2).col1 OR ((InitPlan 3).col1 AND (team_id = (InitPlan 4).col1)) OR ((InitPlan 5).col1 AND (owner_id = (InitPlan 6).col1)) OR ((InitPlan 9).col1 AND EXISTS(SubPlan 16)))
+                                              Buffers: shared hit=180116
+                                              InitPlan 1
+                                                ->  Result (actual time=0.015..0.015 rows=1 loops=1)
+                                              InitPlan 2
+                                                ->  Result (actual time=0.009..0.010 rows=1 loops=1)
+                                              InitPlan 3
+                                                ->  Result (never executed)
+                                              InitPlan 4
+                                                ->  Result (never executed)
+                                              InitPlan 5
+                                                ->  Result (never executed)
+                                              InitPlan 6
+                                                ->  Result (never executed)
+                                              InitPlan 9
+                                                ->  Result (never executed)
+                                                      InitPlan 8
+                                                        ->  Seq Scan on principals p (never executed)
+                                                              Filter: (((InitPlan 7).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                                              InitPlan 7
+                                                                ->  Result (never executed)
+                                              SubPlan 16
+                                                ->  Index Scan using opportunities_account_idx on opportunities o (never executed)
+                                                      Index Cond: (account_id = ae.account_id)
+                                                      Filter: ((archived_at IS NULL) AND (entity_id = ae.entity_id) AND ((InitPlan 11).col1 OR ((InitPlan 12).col1 AND (team_id = (InitPlan 13).col1)) OR ((InitPlan 14).col1 AND (owner_id = (InitPlan 15).col1))) AND (entity_id = ANY ((InitPlan 10).col1)))
+                                                      InitPlan 10
+                                                        ->  Result (never executed)
+                                                      InitPlan 11
+                                                        ->  Result (never executed)
+                                                      InitPlan 12
+                                                        ->  Result (never executed)
+                                                      InitPlan 13
+                                                        ->  Result (never executed)
+                                                      InitPlan 14
+                                                        ->  Result (never executed)
+                                                      InitPlan 15
+                                                        ->  Result (never executed)
+                          ->  Index Only Scan using account_contacts_account_id_contact_id_pk on account_contacts ac (actual time=0.012..0.012 rows=1 loops=45029)
+                                Index Cond: (account_id = s.account_id)
+                                Filter: EXISTS(SubPlan 120)
+                                Heap Fetches: 4434
+                                Buffers: shared hit=319638
+                                SubPlan 120
+                                  ->  Index Scan using account_entities_account_entity_key on account_entities ae_2 (actual time=0.005..0.005 rows=1 loops=45029)
+                                        Index Cond: ((account_id = ac.account_id) AND (entity_id = ANY ((InitPlan 97).col1)))
+                                        Filter: ((InitPlan 98).col1 OR ((InitPlan 99).col1 AND (team_id = (InitPlan 100).col1)) OR ((InitPlan 101).col1 AND (owner_id = (InitPlan 102).col1)) OR ((InitPlan 105).col1 AND EXISTS(SubPlan 112)))
+                                        Buffers: shared hit=180116
+                                        InitPlan 97
+                                          ->  Result (actual time=0.005..0.005 rows=1 loops=1)
+                                        InitPlan 98
+                                          ->  Result (actual time=0.005..0.006 rows=1 loops=1)
+                                        InitPlan 99
+                                          ->  Result (never executed)
+                                        InitPlan 100
+                                          ->  Result (never executed)
+                                        InitPlan 101
+                                          ->  Result (never executed)
+                                        InitPlan 102
+                                          ->  Result (never executed)
+                                        InitPlan 105
+                                          ->  Result (never executed)
+                                                InitPlan 104
+                                                  ->  Seq Scan on principals p_2 (never executed)
+                                                        Filter: (((InitPlan 103).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                                        InitPlan 103
+                                                          ->  Result (never executed)
+                                        SubPlan 112
+                                          ->  Index Scan using opportunities_account_idx on opportunities o_2 (never executed)
+                                                Index Cond: (account_id = ae_2.account_id)
+                                                Filter: ((archived_at IS NULL) AND (entity_id = ae_2.entity_id) AND ((InitPlan 107).col1 OR ((InitPlan 108).col1 AND (team_id = (InitPlan 109).col1)) OR ((InitPlan 110).col1 AND (owner_id = (InitPlan 111).col1))) AND (entity_id = ANY ((InitPlan 106).col1)))
+                                                InitPlan 106
+                                                  ->  Result (never executed)
+                                                InitPlan 107
+                                                  ->  Result (never executed)
+                                                InitPlan 108
+                                                  ->  Result (never executed)
+                                                InitPlan 109
+                                                  ->  Result (never executed)
+                                                InitPlan 110
+                                                  ->  Result (never executed)
+                                                InitPlan 111
+                                                  ->  Result (never executed)
+                    ->  Index Scan using contacts_pkey on contacts c (actual time=0.022..0.022 rows=1 loops=45029)
+                          Index Cond: (id = ac.contact_id)
+                          Filter: ((archived_at IS NULL) AND EXISTS(SubPlan 193))
+                          Buffers: shared hit=450290
+                          SubPlan 193
+                            ->  Index Scan using account_contacts_contact_idx on account_contacts ac_1 (actual time=0.017..0.017 rows=1 loops=45029)
+                                  Index Cond: (contact_id = c.id)
+                                  Filter: EXISTS(SubPlan 168)
+                                  Buffers: shared hit=315203
+                                  SubPlan 168
+                                    ->  Index Scan using account_entities_account_entity_key on account_entities ae_3 (actual time=0.007..0.007 rows=1 loops=45029)
+                                          Index Cond: ((account_id = ac_1.account_id) AND (entity_id = ANY ((InitPlan 145).col1)))
+                                          Filter: ((InitPlan 146).col1 OR ((InitPlan 147).col1 AND (team_id = (InitPlan 148).col1)) OR ((InitPlan 149).col1 AND (owner_id = (InitPlan 150).col1)) OR ((InitPlan 153).col1 AND EXISTS(SubPlan 160)))
+                                          Buffers: shared hit=180116
+                                          InitPlan 145
+                                            ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+                                          InitPlan 146
+                                            ->  Result (actual time=0.005..0.006 rows=1 loops=1)
+                                          InitPlan 147
+                                            ->  Result (never executed)
+                                          InitPlan 148
+                                            ->  Result (never executed)
+                                          InitPlan 149
+                                            ->  Result (never executed)
+                                          InitPlan 150
+                                            ->  Result (never executed)
+                                          InitPlan 153
+                                            ->  Result (never executed)
+                                                  InitPlan 152
+                                                    ->  Seq Scan on principals p_3 (never executed)
+                                                          Filter: (((InitPlan 151).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                                          InitPlan 151
+                                                            ->  Result (never executed)
+                                          SubPlan 160
+                                            ->  Index Scan using opportunities_account_idx on opportunities o_3 (never executed)
+                                                  Index Cond: (account_id = ae_3.account_id)
+                                                  Filter: ((archived_at IS NULL) AND (entity_id = ae_3.entity_id) AND ((InitPlan 155).col1 OR ((InitPlan 156).col1 AND (team_id = (InitPlan 157).col1)) OR ((InitPlan 158).col1 AND (owner_id = (InitPlan 159).col1))) AND (entity_id = ANY ((InitPlan 154).col1)))
+                                                  InitPlan 154
+                                                    ->  Result (never executed)
+                                                  InitPlan 155
+                                                    ->  Result (never executed)
+                                                  InitPlan 156
+                                                    ->  Result (never executed)
+                                                  InitPlan 157
+                                                    ->  Result (never executed)
+                                                  InitPlan 158
+                                                    ->  Result (never executed)
+                                                  InitPlan 159
+                                                    ->  Result (never executed)
+              ->  Index Scan using accounts_pkey on accounts a (actual time=0.021..0.021 rows=1 loops=5002)
+                    Index Cond: (id = s.account_id)
+                    Filter: ((archived_at IS NULL) AND EXISTS(SubPlan 72))
+                    Buffers: shared hit=40016
+                    SubPlan 72
+                      ->  Index Scan using account_entities_account_entity_key on account_entities ae_1 (actual time=0.004..0.004 rows=1 loops=5002)
+                            Index Cond: ((account_id = a.id) AND (entity_id = ANY ((InitPlan 49).col1)))
+                            Filter: ((InitPlan 50).col1 OR ((InitPlan 51).col1 AND (team_id = (InitPlan 52).col1)) OR ((InitPlan 53).col1 AND (owner_id = (InitPlan 54).col1)) OR ((InitPlan 57).col1 AND EXISTS(SubPlan 64)))
+                            Buffers: shared hit=20008
+                            InitPlan 49
+                              ->  Result (actual time=0.004..0.005 rows=1 loops=1)
+                            InitPlan 50
+                              ->  Result (actual time=0.005..0.006 rows=1 loops=1)
+                            InitPlan 51
+                              ->  Result (never executed)
+                            InitPlan 52
+                              ->  Result (never executed)
+                            InitPlan 53
+                              ->  Result (never executed)
+                            InitPlan 54
+                              ->  Result (never executed)
+                            InitPlan 57
+                              ->  Result (never executed)
+                                    InitPlan 56
+                                      ->  Seq Scan on principals p_1 (never executed)
+                                            Filter: (((InitPlan 55).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                            InitPlan 55
+                                              ->  Result (never executed)
+                            SubPlan 64
+                              ->  Index Scan using opportunities_account_idx on opportunities o_1 (never executed)
+                                    Index Cond: (account_id = ae_1.account_id)
+                                    Filter: ((archived_at IS NULL) AND (entity_id = ae_1.entity_id) AND ((InitPlan 59).col1 OR ((InitPlan 60).col1 AND (team_id = (InitPlan 61).col1)) OR ((InitPlan 62).col1 AND (owner_id = (InitPlan 63).col1))) AND (entity_id = ANY ((InitPlan 58).col1)))
+                                    InitPlan 58
+                                      ->  Result (never executed)
+                                    InitPlan 59
+                                      ->  Result (never executed)
+                                    InitPlan 60
+                                      ->  Result (never executed)
+                                    InitPlan 61
+                                      ->  Result (never executed)
+                                    InitPlan 62
+                                      ->  Result (never executed)
+                                    InitPlan 63
+                                      ->  Result (never executed)
+Planning:
+  Buffers: shared hit=140 read=6
+Planning Time: 51.496 ms
+Execution Time: 2568.901 ms

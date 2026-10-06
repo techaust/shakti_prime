@@ -29,6 +29,7 @@ Every state and transition comes from the governing documents.
 | `skip_scan` | `scanning` → `not_scanned` | `files.process` at entity scope or wider or the platform | – | – | – |
 | `ready` | `scanned`, `not_scanned` → `ready` | `files.process` at entity scope or wider or the platform | – | `replace`: record the checked copy (re-encoded, checked or masked) in place of the upload | – |
 | `reject` | `scanning`, `scanned`, `not_scanned` → `rejected` | `files.process` at entity scope or wider or the platform | a reason is given (a threat, an unreadable file, active content) | – | – |
+| `abandon` | `pending` → `rejected` | `files.process` at entity scope or wider or the platform | – | `delete`: delete whatever bytes landed under the key | – |
 
 Any other event, or an event from a state not listed for it, answers `conflict` with reason `file_upload_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `files.status` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
 
@@ -40,6 +41,7 @@ Any other event, or an event from a state not listed for it, answers `conflict` 
 - `skip_scan`: `files.file.mark_scanned` with no scanner, which the worker records only when not hosted.
 - `ready`: `files.file.mark_ready`.
 - `reject`: `files.file.reject`; the reason is shown to the uploader.
+- `abandon`: `files.upload.sweep`: an upload still pending a day after it began never completed.
 
 ## Diagram
 
@@ -54,6 +56,7 @@ stateDiagram-v2
   scanning --> rejected : reject
   scanned --> rejected : reject
   not_scanned --> rejected : reject
+  pending --> rejected : abandon
   ready --> [*]
   rejected --> [*]
 ```

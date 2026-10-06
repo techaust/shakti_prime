@@ -74,6 +74,21 @@ function grantsOf(role: AgentRoleKey | SystemRoleKey): readonly PermissionGrant[
  * below until it has an input here.
  */
 const INPUTS: Record<string, unknown> = {
+  // A customer's price tier decides every price they are quoted (PRICE-1).
+  'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
+  // The human controls of the agents (SECURITY §3.3): no agent decides on its own suggestions,
+  // changes its autonomy or stops agents.
+  'agents.config.set': {
+    agent: 'agent:copilot',
+    actionType: 'crm.task.create',
+    entityId: 1,
+    autonomy: 'needs_approval',
+  },
+  'agents.inbox.approve': { entityId: 1, itemId: newId() },
+  'agents.inbox.edit': { entityId: 1, itemId: newId(), changes: { title: 'Refused edit' } },
+  'agents.inbox.reject': { entityId: 1, itemId: newId() },
+  'agents.inbox.dismiss': { entityId: 1, itemId: newId() },
+  'agents.killswitch.set': { agent: null, entityId: 1, enabled: true },
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',
     grants: [{ permission: 'crm.lead.read', scope: 'all' }],
@@ -196,6 +211,17 @@ const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCo
 
 /** A valid input for each command for people only, so the refusal comes from the guard. */
 const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
+  ...Object.fromEntries(
+    [
+      'agents.config.set',
+      'agents.inbox.approve',
+      'agents.inbox.dismiss',
+      'agents.inbox.edit',
+      'agents.inbox.reject',
+      'agents.killswitch.set',
+    ].map((name) => [name, INPUTS[name]]),
+  ),
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
@@ -204,6 +230,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'crm.duplicate.dismiss': { entityId: 1, candidateId: newId() },
   'crm.tag.create': { entityId: 1, name: 'Refused tag' },
   'crm.tag.archive': { tagId: newId() },
+  'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
   'crm.sizing.record': {
     entityId: 1,
     opportunityId: newId(),
@@ -347,6 +374,7 @@ const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, A
 const CUSTOMER = { entityId: 1, accountId: newId() };
 const CUSTOMER_INPUTS: Record<string, unknown> = {
   'crm.account.update': { ...CUSTOMER, name: 'Refused customer name' },
+  'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
   'crm.contact.update': { ...CUSTOMER, contactId: newId(), name: 'Refused contact name' },
   'crm.consent.record': {
     ...CUSTOMER,
@@ -572,10 +600,12 @@ describe('agent principals cannot upload a file of any purpose', () => {
   }
 });
 
-describe("agent principals cannot run the platform's own work: the file checks and the nightly rescoring", () => {
+describe("agent principals cannot run the platform's own work: the file checks, the nightly rescoring and the quote expiry", () => {
   const CHECKS: Record<string, unknown> = {
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
+    'sales.quote.expire': { entityId: 1, afterId: null },
+    'sales.quote.pdf.attach': { entityId: 1, quoteId: newId(), fileId: newId() },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {
       entityId: 1,

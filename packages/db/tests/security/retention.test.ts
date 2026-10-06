@@ -264,8 +264,8 @@ describe('the purge procedure as written (0060)', () => {
 });
 
 describe('retention_runs (docs/DATABASE.md §7)', () => {
-  it('is the one platform table, forced under RLS and not owned by the application', async () => {
-    expect([...PLATFORM_TABLES]).toEqual(['retention_runs']);
+  it('is a platform table, forced under RLS and not owned by the application', async () => {
+    expect(PLATFORM_TABLES).toContain('retention_runs');
     const [row] = await withoutContext<{ owner: string; forced: boolean }>(sql`
       select pg_get_userbyid(c.relowner) as owner, c.relforcerowsecurity as forced
         from pg_class c join pg_namespace n on n.oid = c.relnamespace

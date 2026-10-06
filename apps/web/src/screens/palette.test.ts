@@ -36,6 +36,15 @@ const FOUND: PaletteSearchDto = {
       village: null,
     },
   ],
+  quotes: [
+    {
+      id: id(4),
+      entityId: 2,
+      quoteNo: 'SMP/Q/2026-27/0012',
+      customerName: 'Ramesh Patil',
+      state: 'sent',
+    },
+  ],
   people: [{ id: id(3), displayName: 'Ramesh Kale', email: 'ramesh.kale@shakti.test' }],
 };
 
@@ -80,9 +89,9 @@ describe('the palette search', () => {
     );
   });
 
-  it('counts the leads and the team members found', () => {
-    expect(foundCount(FOUND)).toBe(3);
-    expect(foundCount({ leads: [], people: [] })).toBe(0);
+  it('counts the leads, the quotes and the team members found', () => {
+    expect(foundCount(FOUND)).toBe(4);
+    expect(foundCount({ leads: [], quotes: [], people: [] })).toBe(0);
   });
 });
 
@@ -110,7 +119,7 @@ describe('paletteSections', () => {
     expect(goto?.entries.map((e) => e.id)).toEqual(['home', 'leads-new']);
   });
 
-  it('puts the leads and then the team members found between Go to and Actions, as found', () => {
+  it('puts the leads, the quotes and then the team members found between Go to and Actions, as found', () => {
     const sections = paletteSections({ nav: [], actions: [], found: FOUND });
     expect(sections.map((s) => s.id)).toEqual(['goto', 'search', 'actions']);
     const search = sections[1];
@@ -118,12 +127,17 @@ describe('paletteSections', () => {
     expect(search?.entries.map((e) => [e.kind, e.id, e.href])).toEqual([
       ['lead', `lead-${id(1)}`, '/leads/board?company=2&pipeline=farmer_pumps'],
       ['lead', `lead-${id(2)}`, '/leads/board?company=1&pipeline=solar_rooftop&show=nurture'],
+      ['quote', `quote-${id(4)}`, `/quotes/2/${id(4)}`],
       ['person', `person-${id(3)}`, '/admin/users'],
     ]);
   });
 
   it('keeps an empty Search section when nothing matched, for the sentence that says so', () => {
-    const sections = paletteSections({ nav: [], actions: [], found: { leads: [], people: [] } });
+    const sections = paletteSections({
+      nav: [],
+      actions: [],
+      found: { leads: [], quotes: [], people: [] },
+    });
     expect(sections.find((s) => s.id === 'search')?.entries).toEqual([]);
   });
 });

@@ -56,6 +56,7 @@ function file(entityId: number, purpose: 'entity_logo' | 'letterhead', contentTy
     size: 3,
     sha256: 'a'.repeat(64),
     status: 'ready',
+    createdBy: newId(),
     originalKey: undefined,
   } satisfies StoredFile;
 }
@@ -176,9 +177,9 @@ describe('the document registry', () => {
     expect(registered?.fileId(job, job.target)).toBe(documentId);
   });
 
-  it('has no loader yet for a quote or any other document', () => {
-    expect(Object.keys(DOCUMENT_TYPES)).toEqual(['company_letterhead_proof']);
-    expect(documentType('quote')).toBeUndefined();
+  it('prints the proof page and the quote, and has no loader yet for any other document', () => {
+    expect(Object.keys(DOCUMENT_TYPES)).toEqual(['company_letterhead_proof', 'quote']);
+    expect(documentType('quote')?.purpose).toBe('quote_pdf');
     expect(documentType('delivery_challan')).toBeUndefined();
   });
 });

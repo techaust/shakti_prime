@@ -19,6 +19,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Platform](#platform)
   - [Files](#files)
   - [print](#print)
+  - [sales](#sales)
 - [Payloads](#payloads)
 
 ## Rules
@@ -44,7 +45,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-35 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+40 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -110,8 +111,8 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`imports.job.committed`](#importsjobcommitted) | Every valid row of an import job is in. | `imports.job.commit_batch` | none |
-| [`imports.job.failed`](#importsjobfailed) | A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back. | `imports.job.commit_batch` | none |
-| [`imports.job.rolled_back`](#importsjobrolled_back) | The leads an import job made were archived; the customers it made stay. | `imports.job.rollback` | none |
+| [`imports.job.failed`](#importsjobfailed) | A batch of an import job failed, or its worker gave up after the last retry, and the job stopped; earlier batches stay until it is rolled back. | `imports.job.commit_batch`, `imports.job.fail` | none |
+| [`imports.job.rolled_back`](#importsjobrolled_back) | An import job was undone: its leads or customers archived, or the offices it added to the PIN code master removed. | `imports.job.rollback` | none |
 
 ### Platform
 
@@ -129,7 +130,17 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+
+### sales
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
+| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer. | `sales.quote.send` | none |
+| [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
+| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A draft or sent quote was withdrawn, with a reason a person gave. | `sales.quote.withdraw` | none |
+| [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
 
 ## Payloads
 
@@ -338,7 +349,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -346,7 +357,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -360,7 +371,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded
@@ -376,3 +387,37 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### sales.quote.created
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `supersedesId` | id or null |
+| `lineCount` | whole number from 1 |
+
+### sales.quote.sent
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `pdfFileId` | id |
+
+### sales.quote.superseded
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `supersededById` | id |
+
+### sales.quote.withdrawn
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+
+### sales.quote.expired
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |

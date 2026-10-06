@@ -8,8 +8,8 @@ import {
   ImportJobStateSchema,
   ImportKindSchema,
   ImportRowErrorCodeSchema,
+  ImportFieldSchema,
   ImportRowStateSchema,
-  LeadImportFieldSchema,
 } from '../imports/enums';
 
 const Count = z.number().int().min(0);
@@ -39,6 +39,12 @@ export const ImportJobDto = z
     committedRows: Count,
     /** The batch that failed, counted from 1, when the job stopped as `failed`. */
     failedBatch: z.number().int().min(1).nullable(),
+    /**
+     * The companies the checked rows name, the job's own included, and those through which the
+     * importer saw a customer a row is linked to; null until the rows are checked. Adding the rows
+     * and undoing them need a request that acts for all of them.
+     */
+    entityIds: z.array(EntityIdSchema).nullable(),
     createdBy: IdSchema,
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
@@ -46,10 +52,10 @@ export const ImportJobDto = z
   .strict();
 export type ImportJobDto = z.infer<typeof ImportJobDto>;
 
-/** A finding on one row: the lead field it concerns (or the whole row) and why. */
+/** A finding on one row: the field it concerns (or the whole row) and why. */
 export const ImportRowErrorDto = z
   .object({
-    field: LeadImportFieldSchema.or(z.literal('row')),
+    field: ImportFieldSchema.or(z.literal('row')),
     code: ImportRowErrorCodeSchema,
   })
   .strict();
@@ -58,11 +64,22 @@ export type ImportRowErrorDto = z.infer<typeof ImportRowErrorDto>;
 /**
  * Possible duplicates of a row: an earlier row of the same file with the same phone, and
  * customers the caller can already see with that phone or with the same name in the same
- * village, each with the reason it was suggested. Suggestions only.
+ * village, each with the reason it was suggested. Suggestions only, but for a customers file:
+ * a row whose mobile number belongs to a customer the caller can see is linked to that customer
+ * (`linkedTo`), and a row with a site that is folded or linked says what became of it (`site`).
  */
 export const ImportDedupeDto = z
   .object({
     inFileRowNo: z.number().int().min(1).nullable(),
+    /** A customers row: the existing customer it is added to instead of making a new one. */
+    linkedTo: IdSchema.optional(),
+    /**
+     * A customers row with a site, folded into an earlier one: its site is added to that
+     * customer, is the same as one already there, or is past the most one customer takes. A row
+     * linked to an existing customer, or folded into one that is, adds no site: `kept`, the
+     * customer's sites stay as they are.
+     */
+    site: z.enum(['added', 'same', 'too_many', 'kept']).optional(),
     existing: z
       .array(
         z

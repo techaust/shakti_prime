@@ -9,7 +9,8 @@ export const FILE_UPLOAD_STATES = [
   'rejected',
 ] as const;
 export type FileUploadState = (typeof FILE_UPLOAD_STATES)[number];
-export type FileUploadEvent = 'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject';
+export type FileUploadEvent =
+  'upload' | 'complete' | 'scan' | 'skip_scan' | 'ready' | 'reject' | 'abandon';
 
 export interface FileUploadRecord {
   state: FileUploadState | null;
@@ -128,6 +129,16 @@ export const fileUploadMachine = defineMachine<
       system: true,
       guard: reasonGiven('a reason is given (a threat, an unreadable file, active content)'),
       note: '`files.file.reject`; the reason is shown to the uploader.',
+    },
+    {
+      from: ['pending'],
+      event: 'abandon',
+      to: 'rejected',
+      permission: 'files.process',
+      scope: 'entity',
+      system: true,
+      effects: [{ key: 'delete', description: 'delete whatever bytes landed under the key' }],
+      note: '`files.upload.sweep`: an upload still pending a day after it began never completed.',
     },
   ],
 });

@@ -35,6 +35,13 @@ export {
   updateStage,
 } from './commands/crm/pipeline-settings';
 export { setDispositions } from './commands/crm/set-dispositions';
+export { setAccountTier } from './commands/crm/set-account-tier';
+export { createQuote } from './commands/sales/create-quote';
+export { sendQuote } from './commands/sales/send-quote';
+export { requoteQuote } from './commands/sales/requote';
+export { withdrawQuote } from './commands/sales/withdraw-quote';
+export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
+export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { dismissDuplicate, scanDuplicates, suggestDuplicate } from './commands/crm/duplicates';
 export { mergeCustomers, mergeLeads, unmergeCustomers } from './commands/crm/merges';
@@ -78,16 +85,27 @@ export {
   commitImportBatch,
   commitImportJob,
   IMPORT_BATCH_BUDGET_MS,
-  SET_BASED_BATCH_BOUND_MS,
+  ROW_BY_ROW_SLICE_MS,
+  SET_BASED_MIN_MS,
 } from './commands/imports/commit-job';
 export { rollbackImportJob } from './commands/imports/rollback-job';
+export { failImportJob } from './commands/imports/fail-job';
+export { lookupPin } from './queries/crm/pin-lookup';
+export { gstStateCode } from './imports/gst-states';
+export { checkAccountRow, companyNames, foldAccountRows } from './imports/accounts';
+export { checkPinCodeRow, localityName } from './imports/pin-codes';
 export {
   getImportJob,
   listImportJobs,
   listImportRows,
   listImportTemplates,
 } from './queries/imports/import-queries';
-export { parseImportFile, detectHeaderRow, detectImportFormat } from './imports/parse';
+export {
+  parseImportFile,
+  detectHeaderRow,
+  detectImportFormat,
+  importFileReadable,
+} from './imports/parse';
 export type { ImportFileReason, ParsedImportFile } from './imports/parse';
 export { checkLeadRow, firstRowByPhone, leadCandidate } from './imports/leads';
 export { assertImportJobMove, canMoveImportJob } from './imports/job-state';
@@ -159,6 +177,13 @@ export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
+export { accountQuotes, getQuote, listQuotes, searchQuotes } from './queries/sales/list-quotes';
+export { loadQuoteBuilder, previewQuote } from './queries/sales/quote-builder';
+export { listPriceTierOptions } from './queries/pricing/price-tiers';
+export { loadQuoteForPrint } from './queries/sales/quote-print';
+export type { QuoteForPrint } from './queries/sales/quote-print';
+export { shownQuoteState } from './queries/sales/quote-dto';
+export { priceQuote } from './sales/quote-pricing';
 export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { listAccountDuplicates, listDuplicates, countMergeMoves } from './queries/crm/duplicates';
 export { searchPeople } from './queries/admin/search-people';
@@ -343,10 +368,16 @@ export type {
 export { beginUpload } from './commands/files/begin-upload';
 export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
+export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
 export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
-export { getFile, getStoredFile, listCompanyFiles } from './queries/files/file-queries';
+export {
+  getFile,
+  getStoredFile,
+  listCompanyFiles,
+  staleUploadCompanies,
+} from './queries/files/file-queries';
 export type { StoredFile } from './queries/files/file-queries';
 export {
   FILE_PURPOSE_RULES,
@@ -372,3 +403,40 @@ export type {
   FieldCipher,
   FieldEnvelope,
 } from './privacy/field-cipher';
+export { createAiProvider, istDay, spendKey } from './ai/provider';
+export type {
+  AiProvider,
+  AiProviderDeps,
+  CompleteCall,
+  CompleteResult,
+  EmbedCall,
+  EmbedResult,
+  SpendCap,
+} from './ai/provider';
+export { fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
+export type {
+  EmbeddingTransport,
+  FakeModelTransport,
+  FakeStep,
+  ModelReply,
+  ModelRequest,
+  ModelTransport,
+} from './ai/transport';
+export { vendorTransports } from './ai/env';
+export { costInPaise, DEFAULT_CLAUDE_MODEL, DEFAULT_EMBEDDING_MODEL } from './ai/models';
+export { AGENT_ACTION_TYPES, AUTOMATIC_AVAILABLE, automaticEarned } from './ai/action-types';
+export { AGENT_DEFAULTS } from './ai/agent-defaults';
+export { resolveAgentConfig } from './ai/config';
+export { agentPrincipal, agentStepKey, runAgentStep } from './ai/runtime';
+export type { AgentStep, AgentStepDeps, RunModel } from './ai/runtime';
+export { maskForModel, labelUntrusted } from './privacy/model-text';
+export { recordAgentRun } from './commands/agents/record-run';
+export {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from './commands/agents/inbox';
+export { setAgentConfig, setKillSwitch } from './commands/agents/config';
+export { countInbox, listInbox } from './queries/agents/inbox';
+export { loadAgentSettings } from './queries/agents/settings';

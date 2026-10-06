@@ -60,6 +60,8 @@ ALTER TABLE "opportunity_tags" DROP CONSTRAINT "opportunity_tags_opportunity_fk"
 --> statement-breakpoint
 ALTER TABLE "tasks" DROP CONSTRAINT "tasks_opportunity_fk";
 --> statement-breakpoint
+ALTER TABLE "quotes" DROP CONSTRAINT "quotes_opportunity_fk";
+--> statement-breakpoint
 ALTER TABLE "customer_merges" ADD CONSTRAINT "customer_merges_entity_id_entities_id_fk" FOREIGN KEY ("entity_id") REFERENCES "public"."entities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_merges" ADD CONSTRAINT "customer_merges_kept_account_id_accounts_id_fk" FOREIGN KEY ("kept_account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_merges" ADD CONSTRAINT "customer_merges_merged_account_id_accounts_id_fk" FOREIGN KEY ("merged_account_id") REFERENCES "public"."accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -88,6 +90,7 @@ CREATE INDEX "duplicate_candidates_open_idx" ON "duplicate_candidates" USING btr
 CREATE INDEX "duplicate_candidates_decided_by_idx" ON "duplicate_candidates" USING btree ("decided_by");--> statement-breakpoint
 ALTER TABLE "opportunity_tags" ADD CONSTRAINT "opportunity_tags_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id","account_id") REFERENCES "public"."opportunities"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id","account_id") REFERENCES "public"."opportunities"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
+ALTER TABLE "quotes" ADD CONSTRAINT "quotes_opportunity_fk" FOREIGN KEY ("opportunity_id","entity_id","account_id") REFERENCES "public"."opportunities"("id","entity_id","account_id") ON DELETE no action ON UPDATE cascade;--> statement-breakpoint
 CREATE INDEX "accounts_match_name_idx" ON "accounts" USING btree (app.match_text("name"));--> statement-breakpoint
 CREATE INDEX "customer_sites_match_village_idx" ON "customer_sites" USING btree (app.match_text("village")) WHERE "customer_sites"."village" is not null and "customer_sites"."archived_at" is null;--> statement-breakpoint
 ALTER TABLE "activities" ADD CONSTRAINT "activities_type_check" CHECK ("type" in ('lead_created', 'stage_moved', 'assigned', 'nurtured', 'reopened', 'won', 'lost', 'task_created', 'task_done', 'task_rescheduled', 'task_cancelled', 'note', 'customer_updated', 'site_updated', 'consent_recorded', 'consent_withdrawn', 'tagged', 'untagged', 'sizing_recorded', 'enquiry_repeated', 'customers_merged', 'customer_unmerged', 'leads_merged'));

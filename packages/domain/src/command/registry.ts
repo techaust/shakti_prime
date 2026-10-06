@@ -1,5 +1,13 @@
 import { DomainError } from '@shakti/contracts';
 import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
+import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
+import {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from '../commands/agents/inbox';
+import { recordAgentRun } from '../commands/agents/record-run';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
@@ -20,6 +28,7 @@ import {
 } from '../commands/crm/pipeline-settings';
 import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { setAccountTier } from '../commands/crm/set-account-tier';
 import { setDispositions } from '../commands/crm/set-dispositions';
 import { recordSizing } from '../commands/crm/record-sizing';
 import { dismissDuplicate, scanDuplicates, suggestDuplicate } from '../commands/crm/duplicates';
@@ -34,9 +43,11 @@ import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
+import { sweepUploads } from '../commands/files/sweep-uploads';
 import { recordRenderedFile } from '../commands/files/record-rendered';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
+import { failImportJob } from '../commands/imports/fail-job';
 import { mapImportJob } from '../commands/imports/map-job';
 import { previewImportJob } from '../commands/imports/preview-job';
 import { rollbackImportJob } from '../commands/imports/rollback-job';
@@ -53,6 +64,12 @@ import {
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
+import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
+import { createQuote } from '../commands/sales/create-quote';
+import { expireQuotes } from '../commands/sales/expire-quotes';
+import { requoteQuote } from '../commands/sales/requote';
+import { sendQuote } from '../commands/sales/send-quote';
+import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
@@ -137,14 +154,30 @@ export const commands = {
   [commitImportJob.name]: commitImportJob,
   [commitImportBatch.name]: commitImportBatch,
   [rollbackImportJob.name]: rollbackImportJob,
+  [failImportJob.name]: failImportJob,
   [beginUpload.name]: beginUpload,
   [completeUpload.name]: completeUpload,
   [markFileScanned.name]: markFileScanned,
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
+  [setAccountTier.name]: setAccountTier,
+  [createQuote.name]: createQuote,
+  [sendQuote.name]: sendQuote,
+  [requoteQuote.name]: requoteQuote,
+  [withdrawQuote.name]: withdrawQuote,
+  [expireQuotes.name]: expireQuotes,
+  [attachQuotePdf.name]: attachQuotePdf,
+  [recordAgentRun.name]: recordAgentRun,
+  [approveInboxItem.name]: approveInboxItem,
+  [editInboxItem.name]: editInboxItem,
+  [rejectInboxItem.name]: rejectInboxItem,
+  [dismissInboxItem.name]: dismissInboxItem,
+  [setAgentConfig.name]: setAgentConfig,
+  [setKillSwitch.name]: setKillSwitch,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

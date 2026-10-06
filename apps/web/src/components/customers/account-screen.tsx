@@ -31,7 +31,8 @@ import {
   TASK_KINDS,
 } from '../../screens/contract-values';
 import { customerHref, isOneOf as oneOf } from '../../screens/customers';
-import { formatDateTime, formatPhone } from '../../screens/format';
+import { formatDate, formatDateTime, formatPhone, formatRupees } from '../../screens/format';
+import { QUOTE_STATE_TONE, quoteBuilderHref, quoteHref } from '../../screens/quotes';
 import { Page } from '../shell/page';
 import type { UploadLimitView } from '../companies/branding-dialog';
 import { FailureMessage } from '../screens/failure';
@@ -142,6 +143,16 @@ export function AccountScreen({
           <Button asChild variant="secondary">
             <Link href="/customers">{t('account.back')}</Link>
           </Button>
+          {view.canSetTier ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDialog({ kind: 'tier' });
+              }}
+            >
+              {t('account.setTier')}
+            </Button>
+          ) : null}
           {view.canEdit ? (
             <Button
               onClick={() => {
@@ -161,6 +172,12 @@ export function AccountScreen({
         <Detail label={t('account.billingState')}>
           {view.account.billingStateCode ?? t('notRecorded')}
         </Detail>
+        {/* A caller who does not read the price tiers is not told the tier's name. */}
+        {view.account.tierId !== null && view.account.tierName === null ? null : (
+          <Detail label={t('account.tier')}>
+            {view.account.tierName ?? t('account.tierNone')}
+          </Detail>
+        )}
         {view.otherEntityIds.length === 0 ? null : (
           <Detail label={t('account.alsoWith')}>
             <span className="flex flex-wrap gap-x-3">
@@ -224,6 +241,7 @@ export function AccountScreen({
             }}
             onChanged={reload}
           />
+          <Quotes view={view} />
           <Tasks
             view={view}
             onAdd={() => {
@@ -372,6 +390,9 @@ function Sites({
                   .filter((part) => part !== null && part !== '')
                   .join(', ') || t('notRecorded')}
               </span>
+              {s.pinNeedsReview ? (
+                <span className="text-warning text-sm">{t('sites.pinNeedsReview')}</span>
+              ) : null}
               {s.lat === null || s.lng === null ? null : (
                 <span className="text-text-subtle text-xs tabular-nums">
                   {t('sites.location', { lat: s.lat.toFixed(5), lng: s.lng.toFixed(5) })}
@@ -585,6 +606,11 @@ function Leads({
                     {t('leads.addTag')}
                   </Button>
                 ) : null}
+                {view.canQuote ? (
+                  <Button asChild size="sm" variant="ghost">
+                    <Link href={quoteBuilderHref(view.entityId, l.id)}>{t('leads.makeQuote')}</Link>
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -607,6 +633,43 @@ function Leads({
                   />
                 ) : null}
               </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+/** The customer's quotes in this company, newest first, each opening its quote page. */
+function Quotes({ view }: { view: Account360Dto }) {
+  const t = useTranslations('customers');
+  const quotesT = useTranslations('quotes');
+  return (
+    <Section id="account-quotes" title={t('quotes.sectionTitle')}>
+      {view.quotes.length === 0 ? (
+        <p className="text-text-muted">{t('quotes.empty')}</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {view.quotes.map((q) => (
+            <li key={q.id} className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                  href={quoteHref(q.entityId, q.id)}
+                  className="text-accent-text font-medium tabular-nums hover:underline"
+                >
+                  {q.quoteNo}
+                </Link>
+                <StatusBadge tone={QUOTE_STATE_TONE[q.state]}>
+                  {quotesT(`state.${q.state}`)}
+                </StatusBadge>
+              </div>
+              <span className="text-text-muted text-sm tabular-nums">
+                {t('quotes.summary', {
+                  total: formatRupees(q.grandTotal),
+                  date: formatDate(q.validUntil),
+                })}
+              </span>
             </li>
           ))}
         </ul>

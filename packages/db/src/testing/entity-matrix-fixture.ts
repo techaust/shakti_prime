@@ -6,7 +6,7 @@
 // never copy.
 // `user_entity_roles` is the one table whose policy also shows the caller's own rows in any
 // company (0049), so the owner holds a role in every company, as does a second person.
-import { newId } from '@shakti/contracts';
+import { AGENT_PRINCIPAL_IDS, newId } from '@shakti/contracts';
 import { ALL_ENTITY_IDS } from '../../seeds/entities';
 import { PIPELINE_SEED, stageId } from '../../seeds/pipelines';
 import { tierId } from '../../seeds/price-tiers';
@@ -58,6 +58,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   customer_sites: 'x.id::text',
   opportunities: 'x.id::text',
   sizings: 'x.id::text',
+  quotes: 'x.id::text',
+  quote_lines: 'x.id::text',
+  quote_versions: 'x.id::text',
   consents: 'x.id::text',
   item_costs: 'x.id::text',
   document_sequences: 'x.id::text',
@@ -71,6 +74,10 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   tasks: 'x.id::text',
   tags: 'x.id::text',
   opportunity_tags: "x.opportunity_id::text || '/' || x.tag_id::text",
+  agent_configs: 'x.id::text',
+  agent_runs: 'x.id::text',
+  agent_actions: 'x.id::text',
+  inbox_items: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -126,6 +133,19 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // Quotes first: they name the company's price list, a lead and the item's rate.
+      await tx`alter table quote_lines disable trigger quote_lines_append_only`;
+      await tx`alter table quote_versions disable trigger quote_versions_append_only`;
+      await tx`delete from quote_versions where id::text like ${like}`;
+      await tx`delete from quote_lines where id::text like ${like}`;
+      await tx`delete from quotes where id::text like ${like}`;
+      await tx`alter table quote_lines enable trigger quote_lines_append_only`;
+      await tx`alter table quote_versions enable trigger quote_versions_append_only`;
+      await tx`delete from tax_rates where id::text like ${like}`;
+      // Agent runs and actions are append-only and keep new ids each run, as audit rows do; the
+      // inbox items naming them are removed, so no screen shows a fixture's suggestion.
+      await tx`delete from inbox_items where id::text like ${like}`;
+      await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
       await tx`delete from import_rows where job_id::text like ${like}`;
@@ -180,6 +200,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupPriceList = id(0x0006);
   const groupOutcome = id(0x000a);
   const groupScoreRule = id(0x000b);
+  // An item's own rate, so a fixture quote line has the rate row every line names.
+  const itemRate = id(0x0009);
   const groupTag = id(0x0008);
   // The customer shared by companies 1 and 2 (ADR 0008).
   const shared = {
@@ -214,6 +236,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     customer_sites: [{ key: shared.site, entities: [1, 2], leadIn: [2] }],
     opportunities: [{ key: shared.opportunity, entities: [2] }],
     sizings: [],
+    quotes: [],
+    quote_lines: [],
+    quote_versions: [],
     consents: [{ key: shared.consent, entities: [1, 2], leadIn: [2] }],
     item_costs: [],
     document_sequences: [],
@@ -227,6 +252,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     tasks: [],
     tags: [],
     opportunity_tags: [],
+    agent_configs: [],
+    agent_runs: [],
+    agent_actions: [],
+    inbox_items: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -239,6 +268,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
   rows.tags.push({ key: groupTag, entities: null });
+  const groupAgentConfig = id(0x0009);
+  rows.agent_configs.push({ key: groupAgentConfig, entities: null });
+  // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
+  const MATRIX_AGENT = 'agent:orchestrator';
+  const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
 
   const pipeline = PIPELINE_SEED[0];
   if (!pipeline) throw new Error('pipeline seed missing');
@@ -256,8 +290,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         (${otherUserId}, 'entity matrix other user', 'entity-matrix-other@shakti.test')`;
       await tx`insert into teams (id, entity_id, name) values (${groupTeam}, null, 'matrix group team')`;
       await tx`insert into tags (id, entity_id, name, created_by) values (${groupTag}, null, 'matrix group tag', ${ownerId})`;
+      await tx`insert into agent_configs (id, agent, action_type, entity_id, created_by)
+        values (${groupAgentConfig}, ${MATRIX_AGENT}, null, null, ${ownerId})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
+      await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref)
+        values (${itemRate}, ${item}, 0.00, '2090-01-01', 'matrix')`;
       await tx`insert into pipelines (id, entity_id, key, name, segment)
         values (${groupPipeline}, null, 'matrix-group', 'matrix group pipeline', 'farmer_pumps')`;
       await tx`insert into pipeline_stages (id, pipeline_id, entity_id, key, name, position)
@@ -296,6 +334,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const otherRole = per(e, 0x12);
         const outcome = per(e, 0x19);
         const scoreRule = per(e, 0x1a);
+        const agentConfig = per(e, 0x1c);
+        const inboxItem = per(e, 0x1d);
+        const agentRun = newId();
+        const agentAction = newId();
         // One file of each purpose besides the import file, each read by its own rule.
         const purposeFiles = [
           ['quote_pdf', per(e, 0x13), 'application/pdf'],
@@ -307,16 +349,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
         const sizing = per(e, 0x1b);
+        const quote = per(e, 0x1c);
+        const quoteLine = per(e, 0x1d);
+        const quoteVersion = per(e, 0x1e);
         // A second customer of the company with the first one's name, put forward as its
         // duplicate and merged into it: the candidate needs both customers, the merge the first.
-        const twin = per(e, 0x1c);
-        const twinLink = per(e, 0x1d);
-        const candidate = per(e, 0x1e);
-        const merge = per(e, 0x1f);
+        const twin = per(e, 0x22);
+        const twinLink = per(e, 0x23);
+        const candidate = per(e, 0x24);
+        const merge = per(e, 0x25);
         // A second open lead of the company's customer, put forward with the first as one: read
         // by whoever reads both leads, agents included.
-        const secondLead = per(e, 0x20);
-        const leadPair = per(e, 0x21);
+        const secondLead = per(e, 0x26);
+        const leadPair = per(e, 0x27);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -353,6 +398,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${tag}, ${e}, ${`matrix tag ${e.toString()}`}, ${ownerId})`;
         await tx`insert into opportunity_tags (opportunity_id, account_id, tag_id, entity_id, created_by)
           values (${opportunity}, ${account}, ${tag}, ${e}, ${ownerId})`;
+        await tx`insert into agent_configs (id, agent, action_type, entity_id, created_by)
+          values (${agentConfig}, ${MATRIX_AGENT}, null, ${e}, ${ownerId})`;
+        await tx`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, request_id)
+          values (${agentRun}, ${e}, ${MATRIX_AGENT}, ${agentId}, 'matrix', 'crm.task.create', 'proposed', 'matrix')`;
+        await tx`insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy, state, created_by)
+          values (${agentAction}, ${e}, ${agentRun}, ${MATRIX_AGENT}, 'crm.task.create', '{}'::jsonb, 'suggest', 'proposed', ${agentId})`;
+        await tx`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, agent_action_id, created_by)
+          values (${inboxItem}, ${e}, 'agent_suggestion', ${ownerId}, ${team}, 'opportunity', ${opportunity}, ${agentAction}, ${agentId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         for (const [purpose, fileId, type] of purposeFiles) {
@@ -376,6 +429,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // Matches no lead: a lead would need to be a hundred years old.
         await tx`insert into lead_score_rules (id, entity_id, factor, match_json, points, position, created_by)
           values (${scoreRule}, ${e}, 'age_days', '{"minDays": 36500}'::jsonb, 1, 50, ${ownerId})`;
+        // After the company's price list, which the quote names.
+        await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, site_id, tier_id,
+                   price_list_id, scheme, place_of_supply_state, supply_kind, valid_until, subtotal, cgst,
+                   sgst, igst, tax_total, round_off, grand_total, created_by)
+          values (${quote}, ${e}, ${`MX${e.toString()}/Q/2098-99/0001`}, '2098-99', ${opportunity}, ${account},
+                  ${site}, ${tierId('dealer')}, ${priceList}, 'none', '08', 'intra', now() + interval '15 days',
+                  0, 0, 0, 0, 0, 0, 0, ${ownerId})`;
+        await tx`insert into quote_lines (id, entity_id, quote_id, position, item_id, sku, description, unit, qty,
+                   unit_price, hsn, tax_rate_id, tax_rate_pct, taxable_value, cgst, sgst, igst, line_total)
+          values (${quoteLine}, ${e}, ${quote}, 1, ${item}, 'FX-MATRIX', 'matrix item', 'nos', 1, 0, '8413',
+                  ${itemRate}, 0.00, 0, 0, 0, 0, 0)`;
+        await tx`insert into quote_versions (id, entity_id, quote_id, version, snapshot_json, created_by)
+          values (${quoteVersion}, ${e}, ${quote}, 1, '{}'::jsonb, ${ownerId})`;
         await tx`insert into referral_partners (account_id, code, created_by)
           values (${account}, ${`MX${e.toString()}PARTNER`}, ${ownerId})`;
         await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
@@ -415,6 +481,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.customer_sites.push({ key: site, entities: only, leadIn: only });
         rows.opportunities.push({ key: opportunity, entities: only });
         rows.sizings.push({ key: sizing, entities: only });
+        rows.quotes.push({ key: quote, entities: only });
+        rows.quote_lines.push({ key: quoteLine, entities: only });
+        rows.quote_versions.push({ key: quoteVersion, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
@@ -435,6 +504,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.tasks.push({ key: task, entities: only });
         rows.tags.push({ key: tag, entities: only });
         rows.opportunity_tags.push({ key: `${opportunity}/${tag}`, entities: only });
+        rows.agent_configs.push({ key: agentConfig, entities: only });
+        rows.agent_runs.push({ key: agentRun, entities: only });
+        rows.agent_actions.push({ key: agentAction, entities: only });
+        rows.inbox_items.push({ key: inboxItem, entities: only });
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

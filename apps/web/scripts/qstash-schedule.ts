@@ -1,13 +1,15 @@
 // Creates or updates the QStash schedules (docs/runbooks/DEPLOY.md): the outbox publisher every
-// minute, the safety net behind the nudge each command sends, and the lead rescoring and the
-// duplicate search each night.
+// minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
+// hour, the lead rescoring and the duplicate search each night and the quote expiry each day.
 // Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
 // BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
 import {
   DUPLICATE_SCAN_PATH,
+  FILES_SWEEP_PATH,
   LEAD_RESCORE_PATH,
+  QUOTE_EXPIRE_PATH,
   qstashConfig,
   workerUrl,
 } from '../src/workers/qstash';
@@ -33,6 +35,7 @@ if (!/^[a-z]+$/.test(environment)) {
 
 /** Named for the environment, so running the script again updates each schedule in place. */
 const SCHEDULE_ID = `outbox-publish-${environment}`;
+const SWEEP_SCHEDULE_ID = `files-sweep-${environment}`;
 const RESCORE_SCHEDULE_ID = `lead-rescore-${environment}`;
 /** 21:30 UTC, three in the morning in India, when no one is calling. */
 const RESCORE_CRON = '30 21 * * *';
@@ -54,6 +57,20 @@ await client.schedules.create({
   timeout: 30,
 });
 console.log(`schedule ${SCHEDULE_ID} calls ${config.publishUrl} every minute`);
+
+const sweepUrl = workerUrl(config, FILES_SWEEP_PATH);
+await client.schedules.create({
+  scheduleId: SWEEP_SCHEDULE_ID,
+  destination: sweepUrl,
+  // Seventeen minutes past each hour, away from the top of the hour other jobs favour.
+  cron: '17 * * * *',
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  // A missed run is covered by the next hour's.
+  retries: 0,
+  timeout: 60,
+});
+console.log(`schedule ${SWEEP_SCHEDULE_ID} calls ${sweepUrl} every hour`);
 
 // The nightly rescoring of open leads (CRM-06): a lead's age and the details it gained since its
 // last score. A run that runs out of time hands the rest on itself.
@@ -85,4 +102,22 @@ await client.schedules.create({
 });
 console.log(
   `schedule ${DUPLICATE_SCAN_SCHEDULE_ID} calls ${scanUrl} at ${DUPLICATE_SCAN_CRON} (UTC)`,
+);
+
+// The daily expiry of quotes past their validity (docs/design/phase1.md §7.3), five minutes after
+// midnight in India, when the day's last valid quotes have lapsed.
+const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
+const QUOTE_EXPIRE_CRON = '35 18 * * *';
+const expireUrl = workerUrl(config, QUOTE_EXPIRE_PATH);
+await client.schedules.create({
+  scheduleId: QUOTE_EXPIRE_SCHEDULE_ID,
+  destination: expireUrl,
+  cron: QUOTE_EXPIRE_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(
+  `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
 );

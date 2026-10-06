@@ -22,9 +22,16 @@ export type OutboxPublishResponse = z.infer<typeof OutboxPublishResponse>;
 /**
  * `POST /api/v1/workers/imports/commit`: the job to commit and whose job it is. Only the app
  * sends it, through QStash, after `imports.job.commit`; the worker acts as that person.
+ * `entityIds` are the companies the job's request acts for, when more than the job's own: a
+ * customers file whose rows name other companies, or the PIN code master, which needs every one.
  */
 export const ImportCommitWorkerBody = z
-  .object({ jobId: IdSchema, entityId: EntityIdSchema, userId: IdSchema })
+  .object({
+    jobId: IdSchema,
+    entityId: EntityIdSchema,
+    userId: IdSchema,
+    entityIds: z.array(EntityIdSchema).min(1).max(20).optional(),
+  })
   .strict();
 export type ImportCommitWorkerBody = z.infer<typeof ImportCommitWorkerBody>;
 
@@ -89,3 +96,18 @@ export const DuplicateScanWorkerResponse = z
   .object({ batches: Count, found: Count, done: z.boolean() })
   .strict();
 export type DuplicateScanWorkerResponse = z.infer<typeof DuplicateScanWorkerResponse>;
+
+/**
+ * The daily quote expiry (`sales.quote.expire`, docs/design/phase1.md §7.3), called by the QStash
+ * schedule `quote-expire-<environment>` with an empty body: every company in turn, each batch in
+ * its own transaction as `system:workers`. A quote a run leaves for want of time is expired the
+ * next day, and every read already shows it as expired.
+ */
+export const QuoteExpireWorkerBody = z.object({}).strict();
+export type QuoteExpireWorkerBody = z.infer<typeof QuoteExpireWorkerBody>;
+
+/** What one expiry run did: the batches it ran, the quotes it expired, and whether it finished. */
+export const QuoteExpireWorkerResponse = z
+  .object({ batches: Count, expired: Count, done: z.boolean() })
+  .strict();
+export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;

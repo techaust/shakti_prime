@@ -5,6 +5,7 @@ import {
   asOutboxPublisher,
   asPrincipal,
   closeDb,
+  createReadyImportFile,
   createTestPrincipal,
   createTestTeam,
   createTestUser,
@@ -12,7 +13,6 @@ import {
   principalFor,
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
-import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { z } from 'zod';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -24,7 +24,8 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import {
   commitImportBatch,
   commitImportJob,
-  SET_BASED_BATCH_BOUND_MS,
+  ROW_BY_ROW_SLICE_MS,
+  SET_BASED_MIN_MS,
 } from '../../src/commands/imports/commit-job';
 import { createImportJob } from '../../src/commands/imports/create-job';
 import { mapImportJob } from '../../src/commands/imports/map-job';
@@ -169,20 +170,16 @@ describe('crm.lead.create with a number a colleague’s customer has (0055)', ()
 });
 
 /** The command input for a CSV file, parsed the way the upload action parses it. */
-async function fileInput(entityId: number, csv: string) {
+async function fileInput(entityId: number, csv: string, owner: Principal) {
   const bytes = new TextEncoder().encode(csv);
   const parsed = await parseImportFile(bytes);
   return {
     entityId,
     kind: 'leads' as const,
-    file: {
+    fileId: await createReadyImportFile(entityId, owner.id, {
       name: 'lead-guard.csv',
-      contentType: 'text/csv',
       size: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-      bucket: 'memory',
-      key: `imports/${String(entityId)}/${newId()}`,
-    },
+    }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,
@@ -193,7 +190,7 @@ async function previewedJob(principal: Principal, rows: string[]): Promise<Impor
   const created = await run(
     principal,
     createImportJob,
-    await fileInput(1, `Name,Mobile,Village\n${rows.join('\n')}\n`),
+    await fileInput(1, `Name,Mobile,Village\n${rows.join('\n')}\n`, principal),
   );
   await run(principal, mapImportJob, {
     entityId: 1,
@@ -732,6 +729,9 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     }
   }
 
+  /** The longest budget with too little time for a set-based try before its deadline. */
+  const NO_SET_BASED_BUDGET = ROW_BY_ROW_SLICE_MS + SET_BASED_MIN_MS - 1;
+
   /**
    * A clock that stands still at `at` milliseconds after the batch began, and moves `step` on at
    * each reading after the first two (the batch's start and its choice of path).
@@ -745,7 +745,7 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     };
   }
 
-  it('skips the set-based try when less than the slowest set-based batch is left', async () => {
+  it('skips the set-based try when less than its least time is left before its deadline', async () => {
     const importer = await narrowImporter();
     const job = await previewedJob(importer, [
       `Late One,${digits()},Sikar`,
@@ -755,9 +755,10 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
     const log = memoryLogger();
     const budget = importBatchSettings.budgetMs;
-    // The batch waited so long for its start that one millisecond less than a try needs is left.
+    // The batch waited so long for its start that one millisecond less than a try needs is left
+    // before the set-based deadline, which keeps the row-by-row slice its time.
     const done = await withSettings(
-      { logger: log, now: fakeClock(budget - SET_BASED_BATCH_BOUND_MS + 1) },
+      { logger: log, now: fakeClock(budget - ROW_BY_ROW_SLICE_MS - SET_BASED_MIN_MS + 1) },
       () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
     );
     // Plain rows every one, so only the time sent them row by row; with the clock standing
@@ -780,19 +781,44 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     ]);
     await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
     const budget = importBatchSettings.budgetMs;
-    // Each row takes four seconds and the batch began with seven left: it stops after the
-    // second row and leaves the third for the next batch.
-    const left = 7_000;
-    const first = await withSettings(
-      { logger: memoryLogger(), now: fakeClock(budget - left, 4_000) },
-      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    // Too little time for a set-based try, and each reading after that choice moves 1.5 seconds
+    // on: the slice begins at the third reading and its second row is read past the budget, so
+    // the batch stops there, having done its first row.
+    const at = budget - ROW_BY_ROW_SLICE_MS - SET_BASED_MIN_MS + 1;
+    const first = await withSettings({ logger: memoryLogger(), now: fakeClock(at, 1_500) }, () =>
+      run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
     );
-    expect(first).toMatchObject({ state: 'committing', committedRows: 2 });
+    expect(first).toMatchObject({ state: 'committing', committedRows: 1 });
     const second = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
     expect(second).toMatchObject({ state: 'committed', committedRows: 3 });
   });
 
-  it('tries the set-based path when the slowest set-based batch still fits', async () => {
+  it('keeps a row-by-row slice short and hands the rest back to the set-based path', async () => {
+    const held = digits();
+    await run(owner, createLead, newCustomer(1, held));
+    const importer = await narrowImporter();
+    const job = await previewedJob(importer, [
+      `Sliced Held,${held},Sikar`,
+      `Sliced Two,${digits()},Sikar`,
+      `Sliced Three,${digits()},Sikar`,
+      `Sliced Four,${digits()},Sikar`,
+    ]);
+    await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
+    // A clock a second on at every reading, and a long budget: the set-based try meets the
+    // colleague's customer at its first statement; the slice then does its first two rows and
+    // stops at the third, read three seconds after the slice began.
+    let tick = 0;
+    const first = await withSettings(
+      { logger: memoryLogger(), budgetMs: 60_000, now: () => 1_000 * tick++ },
+      () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
+    );
+    expect(first).toMatchObject({ state: 'committing', committedRows: 1, invalidRows: 1 });
+    const second = await run(importer, commitImportBatch, { entityId: 1, jobId: job.id });
+    expect(second).toMatchObject({ state: 'committed', committedRows: 3, invalidRows: 1 });
+    expect(await jobState(job.id)).toMatchObject({ state: 'committed', batches: 2 });
+  });
+
+  it('tries the set-based path with its least time left before its deadline', async () => {
     const importer = await narrowImporter();
     const job = await previewedJob(importer, [
       `Timely One,${digits()},Sikar`,
@@ -802,7 +828,7 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     const log = memoryLogger();
     const budget = importBatchSettings.budgetMs;
     const done = await withSettings(
-      { logger: log, now: fakeClock(budget - SET_BASED_BATCH_BOUND_MS) },
+      { logger: log, now: fakeClock(budget - ROW_BY_ROW_SLICE_MS - SET_BASED_MIN_MS) },
       () => run(importer, commitImportBatch, { entityId: 1, jobId: job.id }),
     );
     expect(done).toMatchObject({ state: 'committed', committedRows: 2 });
@@ -821,7 +847,7 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     // A budget too short for a set-based try, and a clock that stands still: both batches go row
     // by row, in file order, at the same time. Neither holds a number, so neither waits.
     const results = await withSettings(
-      { logger: memoryLogger(), now: () => 0, budgetMs: SET_BASED_BATCH_BOUND_MS - 1 },
+      { logger: memoryLogger(), now: () => 0, budgetMs: NO_SET_BASED_BUDGET },
       () =>
         Promise.all(
           [forward, backward].map((job) =>
@@ -869,7 +895,7 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
 
   it('takes no lock on a number: one held elsewhere neither delays nor fails a batch', async () => {
     const importer = await narrowImporter();
-    for (const change of [{}, { budgetMs: SET_BASED_BATCH_BOUND_MS - 1 }]) {
+    for (const change of [{}, { budgetMs: NO_SET_BASED_BUDGET }]) {
       const held = digits();
       const job = await previewedJob(importer, [
         `Unheld One,${digits()},Sikar`,
@@ -985,7 +1011,7 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
   it('hands a lock wait that runs out mid-batch to the worker, failing nothing', async () => {
     const importer = await narrowImporter();
     // Set-based, then row by row with too little time for a set-based try.
-    for (const change of [{}, { budgetMs: SET_BASED_BATCH_BOUND_MS - 1, now: () => 0 }]) {
+    for (const change of [{}, { budgetMs: NO_SET_BASED_BUDGET, now: () => 0 }]) {
       const job = await previewedJob(importer, [`Waited One,${digits()},Sikar`]);
       await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
       const holder = await holdRowKey(importer, job.id, 3_000);
@@ -1013,14 +1039,17 @@ describe('an import batch begun late, and two jobs sharing numbers (the last-mil
     }
   });
 
-  it('cuts a set-based statement off at the budget left and goes row by row', async () => {
+  it('cuts a set-based statement off at its deadline and goes row by row', async () => {
     const importer = await narrowImporter();
     const job = await previewedJob(importer, [`Cut One,${digits()},Sikar`]);
     await run(importer, commitImportJob, { entityId: 1, jobId: job.id });
-    // The set-based try is made with all the budget, then finds a millisecond left when it sets
-    // its statement timeout, which is given its floor of one second.
-    const budget = importBatchSettings.budgetMs;
-    const readings = [0, 0, budget - 1];
+    // The set-based try is made with all the budget; its first five statements (the colleague
+    // check, the pipelines, their first stages, the share lock on the first stage and the lead
+    // sources) find all the time left, and the key's claim finds one second left before the
+    // deadline, which becomes its statement timeout. The clock reads 0 after that, so the
+    // row-by-row slice has all its time.
+    const deadline = importBatchSettings.budgetMs - ROW_BY_ROW_SLICE_MS;
+    const readings = [0, 0, 0, 0, 0, 0, 0, deadline - 1_000];
     const log = memoryLogger();
     // The row's key is claimed elsewhere for three seconds: the set-based insert waits and is cut
     // off after one second, and the row-by-row claim waits out the rest within its lock wait.

@@ -17,7 +17,8 @@
     "spike:import": "tsx tests/spike/import-scale.ts",
     "spike:lists": "tsx tests/spike/lists.ts",
     "spike:account360": "tsx tests/spike/account360.ts",
-    "spike:catalogue": "tsx tests/spike/catalogue-explain.ts"
+    "spike:catalogue": "tsx tests/spike/catalogue-explain.ts",
+    "spike:quotes": "tsx tests/spike/quotes-explain.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

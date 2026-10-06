@@ -1,6 +1,9 @@
 import { IMPORT_LIMITS } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
+import { readdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import type * as Zlib from 'node:zlib';
+import { PassThrough } from 'node:stream';
 import { deflateRawSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { parseImportFile } from './parse';
@@ -37,6 +40,20 @@ interface Part {
   declaredUnpacked?: number;
   declaredPacked?: number;
   localExtra?: Buffer;
+  /** Sizes in the local header only, where they differ from the directory's. */
+  localPacked?: number;
+  localUnpacked?: number;
+  /** A name in the local header only. */
+  localName?: string;
+  /** Written with a data descriptor: no sizes in the local header, a descriptor after the data. */
+  descriptor?: boolean;
+  /** With `descriptor`: the sizes are written in the local header as well. */
+  descriptorLocalSizes?: boolean;
+  /** With `descriptor`: sizes in the descriptor only, where they differ from the directory's. */
+  descriptorPacked?: number;
+  descriptorUnpacked?: number;
+  /** Written as a local header and data only, with no directory entry. */
+  localOnly?: boolean;
 }
 
 interface Shape {
@@ -48,6 +65,8 @@ interface Shape {
   directorySize?: number;
   /** Cut this many bytes off the end. */
   truncate?: number;
+  /** The directory's entries in the reverse of the parts' order. */
+  reverseDirectory?: boolean;
 }
 
 function u16(n: number): Buffer {
@@ -96,51 +115,65 @@ function zip(parts: Part[], shape: Shape = {}): Uint8Array {
     const packed = part.declaredPacked ?? data.length;
     const unpacked = part.declaredUnpacked ?? part.content.length;
     const name = Buffer.from(part.name);
+    const localName = Buffer.from(part.localName ?? part.name);
     const extra = part.localExtra ?? Buffer.alloc(0);
-    const common = [
-      u16(part.flags ?? 0),
+    const head = (packedSize: number, unpackedSize: number, nameLength: number) => [
+      u16(part.flags ?? (part.descriptor ? 8 : 0)),
       u16(method),
       u16(0),
       u16(0),
       u32(0),
-      u32(packed),
-      u32(unpacked),
-      u16(name.length),
+      u32(packedSize),
+      u32(unpackedSize),
+      u16(nameLength),
     ];
     const local = Buffer.concat([
       u32(0x04034b50),
       u16(20),
-      ...common,
+      ...(part.descriptor && part.descriptorLocalSizes !== true
+        ? head(0, 0, localName.length)
+        : head(part.localPacked ?? packed, part.localUnpacked ?? unpacked, localName.length)),
       u16(extra.length),
-      name,
+      localName,
       extra,
       data,
+      ...(part.descriptor
+        ? [
+            u32(0x08074b50),
+            u32(0),
+            u32(part.descriptorPacked ?? packed),
+            u32(part.descriptorUnpacked ?? unpacked),
+          ]
+        : []),
     ]);
-    directory.push(
-      Buffer.concat([
-        u32(0x02014b50),
-        u16(20),
-        u16(20),
-        ...common,
-        u16(0),
-        u16(0),
-        u16(0),
-        u16(0),
-        u32(0),
-        u32(offset),
-        name,
-      ]),
-    );
+    if (!part.localOnly) {
+      directory.push(
+        Buffer.concat([
+          u32(0x02014b50),
+          u16(20),
+          u16(20),
+          ...head(packed, unpacked, name.length),
+          u16(0),
+          u16(0),
+          u16(0),
+          u16(0),
+          u32(0),
+          u32(offset),
+          name,
+        ]),
+      );
+    }
     locals.push(local);
     offset += local.length;
   }
+  if (shape.reverseDirectory) directory.reverse();
   const dir = Buffer.concat(directory);
   const end = Buffer.concat([
     u32(0x06054b50),
     u16(0),
     u16(0),
-    u16(shape.entries ?? parts.length),
-    u16(shape.entries ?? parts.length),
+    u16(shape.entries ?? directory.length),
+    u16(shape.entries ?? directory.length),
     u32(shape.directorySize ?? dir.length),
     u32(shape.directoryOffset ?? offset),
     u16(0),
@@ -155,6 +188,12 @@ const limits: ZipLimits = IMPORT_LIMITS;
 function verdictOf(bytes: Uint8Array, given: ZipLimits = limits): string {
   const verdict = checkZipArchive(bytes, given);
   return verdict.ok ? 'ok' : verdict.reason;
+}
+
+/** Why the guard refused a file, in its own words (never shown to anyone). */
+function whyOf(bytes: Uint8Array, given: ZipLimits = limits): string {
+  const verdict = checkZipArchive(bytes, given);
+  return verdict.ok ? 'ok' : verdict.why;
 }
 
 async function reason(bytes: Uint8Array): Promise<unknown> {
@@ -184,10 +223,15 @@ describe('checkZipArchive', () => {
       { name: 'xl/worksheets/sheet1.xml', content: text('<row/>'.repeat(500)) },
       { name: 'xl/styles.xml', content: text('<styles/>'), localExtra: Buffer.alloc(8, 1) },
     ]);
-    expect(checkZipArchive(bytes, limits)).toEqual({
+    expect(checkZipArchive(bytes, limits)).toMatchObject({
       ok: true,
       entries: 3,
       unzippedBytes: 8 + 3000 + 9,
+      records: [
+        { name: '[Content_Types].xml', from: 0 },
+        { name: 'xl/worksheets/sheet1.xml' },
+        { name: 'xl/styles.xml' },
+      ],
     });
   });
 
@@ -282,8 +326,117 @@ describe('checkZipArchive', () => {
       'a part longer than the file',
       zip([{ name: 'a.xml', content: text('<a/>'), declaredPacked: 100_000 }]),
     ],
+    [
+      'a part present only as a local header, between listed parts',
+      zip([
+        { name: 'a.xml', content: text('<a/>') },
+        { name: 'xl/worksheets/sheet2.xml', content: text('<row/>'.repeat(50)), localOnly: true },
+        { name: 'b.xml', content: text('<b/>') },
+      ]),
+    ],
+    [
+      'a part present only as a local header, after the listed parts',
+      zip([
+        { name: 'a.xml', content: text('<a/>') },
+        { name: 'xl/worksheets/sheet2.xml', content: text('<row/>'.repeat(50)), localOnly: true },
+      ]),
+    ],
+    [
+      'a local packed size that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'.repeat(20)), localPacked: 3 }]),
+    ],
+    [
+      'a local unpacked size that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'.repeat(20)), localUnpacked: 5000 }]),
+    ],
+    [
+      'a local name that differs from the directory',
+      zip([{ name: 'a.xml', content: text('<a/>'), localName: 'xl/worksheets/sheet1.xml' }]),
+    ],
+    [
+      'a directory in another order than the parts',
+      zip(
+        [
+          { name: 'a.xml', content: text('<a/>') },
+          { name: 'b.xml', content: text('<b/>') },
+        ],
+        { reverseDirectory: true },
+      ),
+    ],
+    [
+      "a descriptor's signature inside the part's data",
+      zip([
+        {
+          name: 'a.xml',
+          content: Buffer.concat([text('<a>'), Buffer.from([0x50, 0x4b, 7, 8]), text('</a>')]),
+          method: 0,
+          descriptor: true,
+        },
+      ]),
+    ],
   ])('refuses %s as unreadable', (_label, bytes) => {
     expect(verdictOf(bytes)).toBe('import_file_unreadable');
+  });
+
+  it('refuses a data descriptor whose part also gives its sizes in the local header', () => {
+    // A real descriptor in its place with the directory's sizes: only the local sizes are wrong.
+    const part = { name: 'a.xml', content: text('<a/>'.repeat(30)), descriptor: true };
+    expect(whyOf(zip([part]))).toBe('ok');
+    const bytes = zip([{ ...part, descriptorLocalSizes: true }]);
+    expect(verdictOf(bytes)).toBe('import_file_unreadable');
+    expect(whyOf(bytes)).toBe('data descriptor with local sizes');
+  });
+
+  it("refuses a data descriptor whose sizes differ from the directory's", () => {
+    const part = { name: 'a.xml', content: text('<a/>'.repeat(30)), descriptor: true };
+    for (const differing of [{ descriptorPacked: 7 }, { descriptorUnpacked: 9000 }]) {
+      const bytes = zip([{ ...part, ...differing }]);
+      expect(verdictOf(bytes)).toBe('import_file_unreadable');
+      expect(whyOf(bytes)).toBe('data descriptor size differs from the directory');
+    }
+  });
+
+  it('passes a workbook written with data descriptors, as streaming writers write it', async () => {
+    const chunks: Buffer[] = [];
+    const out = new PassThrough();
+    out.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const book = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: out, useSharedStrings: true });
+    const sheet = book.addWorksheet('Leads');
+    sheet.addRow(['Name', 'Mobile', 'Village']).commit();
+    sheet.addRow(['Ramesh', '9800000001', 'Sikar']).commit();
+    sheet.commit();
+    await book.commit();
+    const bytes = new Uint8Array(Buffer.concat(chunks));
+    // The streaming writer leaves the local sizes empty and writes a descriptor after each part.
+    expect(Buffer.from(bytes).readUInt16LE(6) & 8).toBe(8);
+    expect(verdictOf(bytes)).toBe('ok');
+    expect((await parseImportFile(bytes)).rows).toEqual([['Ramesh', '9800000001', 'Sikar']]);
+    expect(
+      verdictOf(zip([{ name: 'a.xml', content: text('<a/>'.repeat(30)), descriptor: true }])),
+    ).toBe('ok');
+  });
+
+  it("refuses a workbook's own small part, or its shared strings, past its own limit", () => {
+    const small = { ...limits, maxPartBytes: 100, maxSharedStringsBytes: 300 };
+    const body = text('<x/>'.repeat(50));
+    for (const name of [
+      '[Content_Types].xml',
+      '_rels/.rels',
+      'xl/_rels/workbook.xml.rels',
+      'xl/workbook.xml',
+      'xl/styles.xml',
+    ]) {
+      const bytes = zip([{ name, content: body }]);
+      expect(verdictOf(bytes, small)).toBe('import_workbook_too_large');
+      expect(whyOf(bytes, small)).toBe('a part beyond its own limit');
+    }
+    // The sheet holds the rows, and the shared strings have a limit of their own.
+    const sheet = { name: 'xl/worksheets/sheet1.xml', content: body };
+    expect(verdictOf(zip([sheet, { name: 'xl/sharedStrings.xml', content: body }]), small)).toBe(
+      'ok',
+    );
+    const strings = { name: 'xl/sharedStrings.xml', content: text('<x/>'.repeat(100)) };
+    expect(whyOf(zip([sheet, strings]), small)).toBe('a part beyond its own limit');
   });
 
   it('refuses a damaged local header', () => {
@@ -298,6 +451,63 @@ describe('parseImportFile with a crafted workbook', () => {
     const bytes = zip([{ name: 'xl/worksheets/sheet1.xml', content: BOMB }]);
     expect(await reason(bytes)).toBe('import_workbook_too_large');
   });
+
+  it('refuses a workbook with a sheet the directory does not list', async () => {
+    // The streaming reader would read this sheet; the directory leaves it out.
+    const bytes = zip([
+      { name: '[Content_Types].xml', content: text('<Types/>') },
+      { name: 'xl/worksheets/sheet1.xml', content: text('<row/>'.repeat(40)), localOnly: true },
+    ]);
+    expect(await reason(bytes)).toBe('import_file_unreadable');
+  });
+
+  it("refuses a workbook whose styles pass the workbook's own part limit", async () => {
+    const styles = text('<styles>'.padEnd(IMPORT_LIMITS.maxPartBytes + 1, ' '));
+    const bytes = zip([{ name: 'xl/styles.xml', content: styles }]);
+    expect(bytes.length).toBeLessThan(IMPORT_LIMITS.maxFileBytes);
+    expect(await reason(bytes)).toBe('import_workbook_too_large');
+  });
+
+  /** A sheet of inline text, as some tools write it, with no shared strings. */
+  function inlineSheet(rows: string[][]): Buffer {
+    const cells = (row: string[], r: number) =>
+      row
+        .map((v, c) => {
+          const ref = `${String.fromCharCode(65 + c)}${String(r)}`;
+          return `<c r="${ref}" t="inlineStr"><is><t>${v}</t></is></c>`;
+        })
+        .join('');
+    return text(
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' +
+        rows.map((row, i) => `<row r="${String(i + 1)}">${cells(row, i + 1)}</row>`).join('') +
+        '</sheetData></worksheet>',
+    );
+  }
+
+  it.each([
+    ['empty', Buffer.alloc(0)],
+    ['with no root element', text('<?xml version="1.0" encoding="UTF-8"?>')],
+  ])(
+    'reads a workbook whose relationships are %s, leaving no temporary file',
+    async (_label, rels) => {
+      const bytes = zip([
+        { name: '[Content_Types].xml', content: text('<Types/>') },
+        { name: 'xl/_rels/workbook.xml.rels', content: rels },
+        {
+          name: 'xl/worksheets/sheet1.xml',
+          content: inlineSheet([
+            ['Name', 'Mobile'],
+            ['Ram', '9876543210'],
+          ]),
+        },
+      ]);
+      const mine = async () =>
+        (await readdir(tmpdir())).filter((f) => f.startsWith(`tmp-${String(process.pid)}-`));
+      const before = await mine();
+      expect((await parseImportFile(bytes)).rows).toEqual([['Ram', '9876543210']]);
+      expect(await mine()).toEqual(before);
+    },
+  );
 
   it('refuses a workbook whose part lies about its size', async () => {
     const bytes = zip([
