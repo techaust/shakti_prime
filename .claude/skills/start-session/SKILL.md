@@ -1,6 +1,6 @@
 ---
 name: start-session
-description: Start or resume work on Shakti Prime BOS, in a cloud session or on the PC. Use at the beginning of a session, or when the owner says "continue", "continue Phase N", "resume" or "where are we". Reads the status and the run files, checks CI and the tooling, and proposes the next item.
+description: Start or resume work on Shakti Prime BOS, in a cloud session or on the PC. Use at the beginning of a session, or when the owner says "start the day", "good morning", "continue", "continue Phase N", "resume" or "where are we". Reads the status and the run files, checks CI and the tooling, and proposes the next item.
 ---
 
 # Start a session on Shakti Prime BOS

@@ -13,6 +13,7 @@ The approved master blueprint is [docs/BLUEPRINT.md](docs/BLUEPRINT.md). It is t
 - Where the project stands (phase, work merged and next, hosted environments, test counts, deferred items, follow-ups): [docs/STATUS.md](docs/STATUS.md).
 - What the client's people must do: [docs/phase0/client-actions.md](docs/phase0/client-actions.md); the developer's and owner's checklist for the deferred gate items: [docs/phase0/exit-gate-actions.md](docs/phase0/exit-gate-actions.md).
 - What each merged pull request did: [CHANGELOG.md](CHANGELOG.md). Every owner decision: [docs/DECISIONS.md](docs/DECISIONS.md).
+- The owner starts each day in a new conversation with "start the day" (the `start-session` skill, also typed as `/start-session`) and ends it with "end the day" (the `end-session` skill).
 - At the start of a session, follow the `start-session` skill: confirm the latest CI run on `main` is green (the merge workflow's own runs may send no email), then build from ROADMAP §3, the Phase 1 design first.
 - Record a deferred gate item as it closes where its document says (the workshop answers in the workshop pack, the CA's golden set in ADR 0007, each spike's numbers in `docs/spikes/`).
 - At the end of a session, follow the `end-session` skill: replace STATUS.md and add one CHANGELOG line per merged pull request; never append status or history to this file.

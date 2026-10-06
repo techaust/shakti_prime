@@ -1,6 +1,6 @@
 ---
 name: end-session
-description: Close a lead session on Shakti Prime BOS on the PC. Use when the owner says to stop, pause or wrap up, or after the last pull request of a session merges. Replaces docs/STATUS.md, adds CHANGELOG lines, checks the document links and opens the documents pull request.
+description: Close a lead session on Shakti Prime BOS on the PC. Use when the owner says "end the day", "stop for today", or otherwise to stop, pause or wrap up, or after the last pull request of a session merges. Replaces docs/STATUS.md, adds CHANGELOG lines, checks the document links and opens the documents pull request.
 ---
 
 # End a session
