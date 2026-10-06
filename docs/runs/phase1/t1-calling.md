@@ -5,8 +5,8 @@
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
 | Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | fixes done; awaiting re-review |
-| Next step | the re-review of the fixes; the integration follows D1's merge |
+| State | re-reviewed; two low findings in the documents |
+| Next step | a cloud builder fixes R1 and R2 and integrates (the lead's brief of 06-10-2026 below) |
 
 ## Brief
 Read first:
@@ -364,5 +364,17 @@ The seven findings are fixed, and each fix's test fails on the code before it. T
 - `pnpm build`: passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.8 kB of 206.
 
 **Not checked:** the secret scan (no gitleaks image here) and the screenshot baselines, both on the PC at integration. The idempotency hook was not rendered in a test, since `apps/web` has no DOM test library.
+
+### 06-10-2026, the lead's brief for R1 and R2 and the integration (for a cloud builder)
+`main` is at `ab8b6a83` (#118, D1), its last migration `0113_duplicates_rls`, so T1's 0107 and 0108 move to 0114 and 0115. Invoke the `writing-guidelines` skill before writing any sentence.
+1. **R1:** design §8.2, design §7.2 "Built (T1)" and the opportunity machine's `move_call_tasks` effect text say that `crm.opportunity.assign` moves an open lead's callbacks; a nurtured lead's owner and nurture calls are T2's to settle (allow `assign` from `nurture`, or move them in `crm.lead.reassign_all`), and T2 tests the handover with a callback open, since `system:workers` holds no `crm.lead.write` and would move nothing. `pnpm --filter @shakti/domain machines:docs`.
+2. **R2:** one line in SECURITY §3.3: the triage agent's reassignment moves the lead's open callbacks to the new owner through the task commands, audited under the agent.
+3. Mark R1 and R2 `fixed in <commit>`; commit and push.
+4. **Take `main`** as `docs/runbooks/slice-integration.md` §5 says: `git rev-parse HEAD > ../t1-premerge.sha`, `git fetch`, `git merge --no-commit origin/main`; lists with `merge-union.py` (read every hunk), `en.json` with `merge-json.py` before `git add`, `copy-lint.config.json` with `merge-copylint.py`; the rest by hand. `AGENTS.md` and `turbo.json` take `main`'s. Watch for what `main`'s slices change under T1: `app.platform_only_permissions()` must keep all five keys if 0115 redefines it; S1's quotes and D1's merges touch leads, tasks and the timeline (a customer merge moves a lead's calls? `calls` keys on the lead: check its foreign keys follow a merge as tasks and quotes do, and add the test); the matrix fixture's offsets (T1 uses 0x30; S1 and D1 use 0x1c to 0x27); the menu, `nav.ts` and the session gate; the timeline's activity types.
+5. `pnpm install --frozen-lockfile`, then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../t1-premerge.sha)`. `pnpm db:generate` must report no changes; `pnpm db:docs`; correct the numbers DATABASE.md and this file cite. Commit `chore: merge main (S1 quotes, D1 duplicates, cloud fixes) into T1; its migrations move to 0114 and 0115` and push.
+6. `. tools/integration/lib.sh && ensure_playwright_browsers && ensure_gitleaks_image && echo ready` (if gitleaks fails, retry the Docker Hub pull after a minute: it answered 429 once in D1's session).
+7. `integrate.sh` in parts, each under 30 minutes: `INTEGRATE_STEPS="install lint format copylint generated typecheck"`, `"unit"`, `"security dbverify"`, `"audit build jsbudget gitleaks"`, `"e2e"` (inside calling hours, 09:00 to 21:00 IST, for the calling journey), each as `INTEGRATE_STEPS="…" bash tools/integration/integrate.sh . ../int-<n>.log`; each verdict `INTEGRATION PARTIAL` with every `rc=0`.
+8. Baselines on a fresh database (`docker compose down -v && docker compose up -d --wait`, several queries in a row, `pnpm db:migrate && pnpm db:seed && pnpm build`): T1 adds the Calling menu item, so delete every desktop staff baseline that shows the menu, run `pnpm --filter web e2e:snap -- --update-snapshots=missing` (inside calling hours), look at `calling` in each project and at each menu image (compare old and new; only the menu should change), then `pnpm --filter web e2e:snap` without updating must match. Commit and push.
+9. Write the Integration notes (each part's verdict and time, what the merge fixed, the baselines), set State to "integrated; ready for the pull request", commit and push. Never open a pull request, merge, or touch a hosted service.
 
 ## Integration notes
