@@ -29,6 +29,7 @@ export const CLIENT_NAMESPACES = [
   'pipelineSettings',
   'sizing',
   'files',
+  'duplicates',
   'quotes',
   'agents',
 ] as const;

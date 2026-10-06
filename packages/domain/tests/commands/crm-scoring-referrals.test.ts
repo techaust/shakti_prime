@@ -384,7 +384,10 @@ describe('crm.lead.score_refresh', () => {
   it('runs as a worker that holds no crm permission, reads no customer note and runs no command kept for people (H1, ADR 0020)', async () => {
     expect(
       SYSTEM_MATRIX['system:workers'].filter(
-        (g) => g.key.startsWith('crm.') && g.key !== 'crm.score.refresh',
+        (g) =>
+          g.key.startsWith('crm.') &&
+          g.key !== 'crm.score.refresh' &&
+          g.key !== 'crm.duplicates.scan',
       ),
     ).toEqual([]);
     const l = await lead();

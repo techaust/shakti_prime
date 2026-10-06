@@ -8,6 +8,8 @@ import {
   SiteTypeSchema,
 } from '../../crm/enums';
 import { ReferralCodeSchema } from '../../crm/config';
+import { CreateLeadOutcomeSchema } from '../../crm/duplicates';
+import { LeadDto } from '../../dto/lead';
 import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
@@ -78,3 +80,10 @@ export const CreateLeadInput = z
   );
 
 export type CreateLeadInput = z.infer<typeof CreateLeadInput>;
+
+/**
+ * What `crm.lead.create` answers: the lead it made, or the customer's open lead of the same
+ * segment that a repeat enquiry within `REPEAT_ENQUIRY_DAYS` was added to (`attached`, CRM-03).
+ */
+export const CreateLeadResultDto = LeadDto.extend({ outcome: CreateLeadOutcomeSchema }).strict();
+export type CreateLeadResultDto = z.infer<typeof CreateLeadResultDto>;

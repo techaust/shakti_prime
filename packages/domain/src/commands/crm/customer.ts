@@ -12,6 +12,7 @@ import { schema } from '@shakti/db';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { holdCustomer } from '../../crm/hold-customer';
 import { heldByColleague, lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
@@ -27,6 +28,8 @@ import { requireEntity } from './opportunity-shared';
 /** The customer, as the caller reads it in the page's company; a customer they cannot is missing. */
 async function readableAccount(ctx: CommandContext, accountId: string, entityId: number) {
   requireEntity(ctx, entityId);
+  // Before the read: a merge of the customer that commits first leaves it archived (CRM-03).
+  await holdCustomer(ctx, accountId);
   const a = schema.accounts;
   const ae = schema.accountEntities;
   const [row] = await ctx.tx
@@ -480,6 +483,7 @@ export const addNote = defineCommand({
       )) as unknown as { writable: boolean }[];
       if (scope?.writable !== true) throw denied(`account ${account.id}`);
     } else {
+      await holdCustomer(ctx, input.accountId);
       const o = schema.opportunities;
       const [lead] = await ctx.tx
         .select({

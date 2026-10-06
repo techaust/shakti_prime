@@ -4,6 +4,7 @@ import type { Requirement } from '../command/define-command';
 import { findTransition, transition, type Actor, type AnyMachine } from './define-machine';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
+import { duplicateCandidateMachine } from './machines/duplicate-candidate';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
 import { agentActionMachine } from './machines/agent-action';
@@ -50,6 +51,7 @@ const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
   { machine: inboxItemMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
+  { machine: duplicateCandidateMachine, record: {}, params: {} },
   {
     machine: opportunityMachine,
     record: {

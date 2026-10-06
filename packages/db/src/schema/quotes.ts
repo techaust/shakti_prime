@@ -84,12 +84,13 @@ export const quotes = pgTable(
     unique('quotes_entity_quote_no_unique').on(t.entityId, t.quoteNo),
     // The key the lines and a re-quote point at, so they stay in the quote's company.
     unique('quotes_id_entity_unique').on(t.id, t.entityId),
-    // The quote belongs to its lead's company and customer.
+    // The quote belongs to its lead's company and customer; it follows the lead when a customer
+    // merge moves the lead, and back when the merge is undone (`app.merge_customers()`).
     foreignKey({
       name: 'quotes_opportunity_fk',
       columns: [t.opportunityId, t.entityId, t.accountId],
       foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
-    }),
+    }).onUpdate('cascade'),
     foreignKey({
       name: 'quotes_supersedes_fk',
       columns: [t.supersedesId, t.entityId],

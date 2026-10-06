@@ -3,6 +3,7 @@ import {
   Bot,
   Building2,
   Cable,
+  Combine,
   Contact,
   FileText,
   FileUp,
@@ -79,6 +80,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Every staff role that reads leads also reads customers at own scope or wider; listCustomers
     // shows the customers they look after and those of their leads (0057).
     requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
+    id: 'duplicates',
+    href: '/duplicates',
+    label: 'duplicates',
+    icon: Combine,
+    group: 'work',
+    // A team lead and above decide the cards (crm.lead.merge, SECURITY §3.2).
+    requires: [{ key: 'crm.lead.merge', scope: 'team' }],
   },
   {
     id: 'quotes',

@@ -45,7 +45,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-38 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+40 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -58,10 +58,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `crm.opportunity.stage.move` | none |
 | [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
 | [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `crm.opportunity.nurture` | none |
-| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `crm.opportunity.reopen` | none |
+| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead. | `crm.lead.create`, `crm.opportunity.reopen`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
 | [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `crm.opportunity.lose` | none |
 | [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
@@ -155,6 +157,21 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `pipelineKey` | text from 1 to 40 characters |
 | `sourceCode` | text from 1 to 40 characters or null |
 | `existingAccount` | true or false |
+
+### crm.lead.attached
+
+| Field | Type |
+|---|---|
+| `pipelineKey` | text from 1 to 40 characters |
+| `sourceCode` | text from 1 to 40 characters or null |
+
+### crm.duplicate.found
+
+| Field | Type |
+|---|---|
+| `kind` | one of `customer`, `lead` |
+| `reason` | one of `phone`, `name_village` |
+| `confidence` | whole number from 1 to 100 |
 
 ### crm.opportunity.stage_moved
 

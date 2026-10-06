@@ -84,6 +84,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   call_dispositions: 'x.id::text',
   lead_score_rules: 'x.id::text',
   referral_partners: 'x.account_id::text',
+  duplicate_candidates: 'x.id::text',
+  customer_merges: 'x.id::text',
 };
 
 /** One fixture row: its key as MATRIX_ROW_KEY renders it, and the companies it belongs to. */
@@ -153,6 +155,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from item_costs where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
       await tx`delete from document_sequences where id::text like ${like}`;
+      await tx`delete from customer_merges where id::text like ${like}`;
+      await tx`delete from duplicate_candidates where id::text like ${like}`;
       await tx`delete from tasks where id::text like ${like}`;
       await tx`delete from opportunity_tags where opportunity_id::text like ${like}`;
       await tx`delete from tags where id::text like ${like}`;
@@ -258,6 +262,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     call_dispositions: [{ key: groupOutcome, entities: null }],
     lead_score_rules: [{ key: groupScoreRule, entities: null }],
     referral_partners: [{ key: shared.account, entities: [1, 2], leadIn: [2] }],
+    duplicate_candidates: [],
+    customer_merges: [],
   };
   const groupAudit = newId();
   rows.audit_logs.push({ key: groupAudit, entities: null });
@@ -346,6 +352,16 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
+        // A second customer of the company with the first one's name, put forward as its
+        // duplicate and merged into it: the candidate needs both customers, the merge the first.
+        const twin = per(e, 0x22);
+        const twinLink = per(e, 0x23);
+        const candidate = per(e, 0x24);
+        const merge = per(e, 0x25);
+        // A second open lead of the company's customer, put forward with the first as one: read
+        // by whoever reads both leads, agents included.
+        const secondLead = per(e, 0x26);
+        const leadPair = per(e, 0x27);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -428,6 +444,17 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${quoteVersion}, ${e}, ${quote}, 1, '{}'::jsonb, ${ownerId})`;
         await tx`insert into referral_partners (account_id, code, created_by)
           values (${account}, ${`MX${e.toString()}PARTNER`}, ${ownerId})`;
+        await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+          values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
+        await tx`insert into duplicate_candidates (id, entity_id, kind, account_id, other_account_id, reason, confidence, created_by)
+          values (${candidate}, ${e}, 'customer', ${account}, ${twin}, 'name_village', 60, ${ownerId})`;
+        await tx`insert into opportunities (id, entity_id, account_id, site_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+          values (${secondLead}, ${e}, ${account}, ${site}, ${pipeline.id}, ${firstStage}, ${ownerId}, ${team}, ${ownerId})`;
+        await tx`insert into duplicate_candidates (id, entity_id, kind, opportunity_id, other_opportunity_id, reason, confidence, created_by)
+          values (${leadPair}, ${e}, 'lead', ${opportunity}, ${secondLead}, 'phone', 95, ${ownerId})`;
+        await tx`insert into customer_merges (id, entity_id, kept_account_id, merged_account_id, moved_json, created_by)
+          values (${merge}, ${e}, ${account}, ${twin}, '{}'::jsonb, ${ownerId})`;
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
           (${ownerRole}, ${ownerId}, ${e}, ${MATRIX_ROLE}, ${team}, ${ownerId}),
           (${otherRole}, ${otherUserId}, ${e}, ${MATRIX_ROLE}, null, ${ownerId})`;
@@ -436,8 +463,20 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.teams.push({ key: team, entities: only });
         rows.contacts.push({ key: contact, entities: only, leadIn: only });
         rows.contact_phones.push({ key: phone, entities: only, leadIn: only });
-        rows.accounts.push({ key: account, entities: only, leadIn: only });
-        rows.account_entities.push({ key: link, entities: only, leadIn: only });
+        rows.accounts.push(
+          { key: account, entities: only, leadIn: only },
+          { key: twin, entities: only, leadIn: [] },
+        );
+        rows.account_entities.push(
+          { key: link, entities: only, leadIn: only },
+          { key: twinLink, entities: only, leadIn: [] },
+        );
+        rows.duplicate_candidates.push(
+          { key: candidate, entities: only, leadIn: [] },
+          { key: leadPair, entities: only, onLead: true },
+        );
+        rows.opportunities.push({ key: secondLead, entities: only });
+        rows.customer_merges.push({ key: merge, entities: only, leadIn: only });
         rows.account_contacts.push({ key: `${account}/${contact}`, entities: only, leadIn: only });
         rows.customer_sites.push({ key: site, entities: only, leadIn: only });
         rows.opportunities.push({ key: opportunity, entities: only });

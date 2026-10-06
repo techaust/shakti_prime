@@ -35,17 +35,7 @@ export async function applyLeadAttribution(
 
   if (args.input.referralCode !== undefined) {
     const partner = await partnerForCode(ctx.tx, args.input.referralCode, args.entityId);
-    if (partner === undefined) {
-      throw new DomainError(
-        'validation_failed',
-        'no active partner of this company has this code',
-        {
-          reason: 'referral_code_unknown',
-          // So a form shows the sentence under its referral code box.
-          issues: [{ path: 'referralCode', message: 'referral_code_unknown' }],
-        },
-      );
-    }
+    if (partner === undefined) throw referralCodeUnknown();
     const [row] = await ctx.tx
       .update(o)
       .set({ referralPartnerId: partner })
@@ -94,4 +84,13 @@ export async function scoreLeads(
   }
   for (const c of changes) out.set(c.id, { score: c.next.score, reasons: c.next.reasons });
   return out;
+}
+
+/** The refusal of a referral code no active partner of the lead's company has (CRM-09). */
+export function referralCodeUnknown(): DomainError {
+  return new DomainError('validation_failed', 'no active partner of this company has this code', {
+    reason: 'referral_code_unknown',
+    // So a form shows the sentence under its referral code box.
+    issues: [{ path: 'referralCode', message: 'referral_code_unknown' }],
+  });
 }

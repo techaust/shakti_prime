@@ -105,6 +105,10 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     pin_codes: { i: true, u: false, d: true },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // A candidate changes only its state and who decided it; a merge is written only by its
+    // definers (DATABASE §4.1).
+    duplicate_candidates: { i: true, u: false },
+    customer_merges: { i: false, u: false },
     // A quote changes only its state and withdrawal reason (column grants, 0110); its lines and
     // versions are append-only.
     quotes: { i: true, u: false },

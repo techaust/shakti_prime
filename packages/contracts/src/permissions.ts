@@ -78,6 +78,9 @@ export const PERMISSION_KEYS = [
   // The nightly rescoring of open leads (CRM-06): held only by the platform's worker principal,
   // which reads a lead's scoring facts and writes its score through two definers, nothing more.
   'crm.score.refresh',
+  // The nightly search for duplicate customers and leads (CRM-03): held only by the platform's
+  // worker principal, which reads matching facts and records candidates through two definers.
+  'crm.duplicates.scan',
   // The daily expiry of quotes past their validity (docs/design/phase1.md §7.3): held only by the
   // platform's worker principal, which reads the lapsed quotes and marks them expired through two
   // definers, nothing more.
@@ -139,6 +142,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'files.process',
   'imports.process',
   'crm.score.refresh',
+  'crm.duplicates.scan',
   'sales.quote.expire',
 ];
 
@@ -270,6 +274,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'files.process': ['all'],
   'imports.process': ['all'],
   'crm.score.refresh': ['all'],
+  'crm.duplicates.scan': ['all'],
   'sales.quote.expire': ['all'],
 };
 

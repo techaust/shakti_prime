@@ -2,6 +2,7 @@ import type { AnyMachine } from './define-machine';
 import { agentActionMachine } from './machines/agent-action';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
+import { duplicateCandidateMachine } from './machines/duplicate-candidate';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
 import { fileUploadMachine } from './machines/file-upload';
@@ -24,6 +25,7 @@ import { warrantyClaimMachine } from './machines/warranty-claim';
 export const MACHINES: readonly AnyMachine[] = [
   opportunityMachine,
   taskMachine,
+  duplicateCandidateMachine,
   quoteMachine,
   salesOrderMachine,
   dispatchMachine,
@@ -50,6 +52,7 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'opportunity',
   'task',
   'file_upload',
+  'duplicate_candidate',
   'quote',
   'agent_action',
   'inbox_item',

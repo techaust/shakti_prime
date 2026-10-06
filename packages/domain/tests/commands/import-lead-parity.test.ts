@@ -61,6 +61,9 @@ const rowByRow = defineCommand({
       const lead = await ctx.run(createLead, row.input, {
         idempotencyKey: importRowKey(input.jobId, row.rowNo),
         auditedByCaller: true,
+        // As `imports.job.commit_batch` runs it: an import row takes no number lock, attaches no
+        // repeat enquiry and looks for no duplicate, which the nightly search catches (D1).
+        inImportBatch: true,
       });
       made.push({ rowNo: row.rowNo, id: lead.id });
     }

@@ -5,6 +5,10 @@ import {
   AGENT_RUN_OUTCOMES,
   AGENT_SETTING_SOURCES,
   CommissionBasisSchema,
+  DuplicateKindSchema,
+  DuplicateReasonSchema,
+  DuplicateSignalSchema,
+  DuplicateStateSchema,
   ContrastSchema,
   FirstContactSlaSchema,
   LockHoursSchema,
@@ -137,6 +141,10 @@ import {
   SUBSIDY_SCHEMES,
   SIZING_REASONS,
   SITE_TYPES,
+  DUPLICATE_KINDS,
+  DUPLICATE_REASONS,
+  DUPLICATE_SIGNALS,
+  DUPLICATE_STATES,
   TASK_KINDS,
   TASK_STATES,
   AGENT_ROLES,
@@ -183,6 +191,10 @@ describe('the contract values copied for the browser', () => {
     expect(AGENT_RUN_OUTCOME_VALUES).toEqual(AGENT_RUN_OUTCOMES);
     expect(AGENT_SETTING_SOURCE_VALUES).toEqual(AGENT_SETTING_SOURCES);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
+    expect(DUPLICATE_KINDS).toEqual(DuplicateKindSchema.options);
+    expect(DUPLICATE_REASONS).toEqual(DuplicateReasonSchema.options);
+    expect(DUPLICATE_SIGNALS).toEqual(DuplicateSignalSchema.options);
+    expect(DUPLICATE_STATES).toEqual(DuplicateStateSchema.options);
     expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
     expect(CUSTOMER_LANGUAGES).toEqual(CustomerLanguageSchema.options);

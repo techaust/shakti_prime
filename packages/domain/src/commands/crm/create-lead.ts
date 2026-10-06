@@ -1,11 +1,13 @@
-import { CreateLeadInput, DomainError, LeadDto, newId } from '@shakti/contracts';
+import { CreateLeadInput, CreateLeadResultDto, DomainError, newId } from '@shakti/contracts';
 import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { ActivityRecord } from '../../activities/activity';
 import { defineCommand } from '../../command/define-command';
+import { findDuplicates, recordDuplicates } from '../../crm/duplicates';
 import { toLeadDto } from '../../queries/crm/lead-dto';
 import { applyLeadAttribution } from './lead-attribution';
 import { firstStage } from './opportunity-shared';
+import { attachEnquiry, customerOwner, openEnquiryLead } from '../../crm/repeat-enquiry';
 
 /** What `app.attach_account_entity()` found (migration 0026). */
 type AttachStatus = 'attached' | 'already_yours' | 'held_by_other' | 'missing';
@@ -82,8 +84,15 @@ export function leadCreatedActivity(
  * caller's entity is added if missing. Walk-in, manual entry and imports come through here
  * (CRM-01). A referral code credits the lead to its partner, or refuses the lead (CRM-09), and
  * the lead is scored with the rules of its company (CRM-06), in the same transaction
- * (`applyLeadAttribution`); the audit row records the partner and the score. Dedupe suggestions
- * are Phase 1.
+ * (`applyLeadAttribution`); the audit row records the partner and the score.
+ *
+ * Duplicates (CRM-03): a repeat enquiry for the same segment from a customer whose open lead had
+ * activity in the last 30 days, or whose lead is in nurture, is added to that lead and answered
+ * `attached` (`openEnquiryLead`, `attachEnquiry`); otherwise the new lead's customer is looked around for
+ * other customers sharing a number or a name and village, and for another open lead of the
+ * segment, and each pair worth a card is recorded (`findDuplicates`, `recordDuplicates`). An
+ * import batch does neither, as its set-based path does not: the nightly search
+ * (`crm.duplicate.scan`) catches its rows.
  */
 export const createLead = defineCommand({
   name: 'crm.lead.create',
@@ -92,8 +101,8 @@ export const createLead = defineCommand({
   // A lead creates or attaches a customer, which is a customer write too (ADR 0008, AUDIT L9).
   alsoRequires: [{ permission: 'crm.account.write', minScope: 'own' }],
   input: CreateLeadInput,
-  output: LeadDto,
-  auditFields: ['existingAccount', 'consent', 'score'],
+  output: CreateLeadResultDto,
+  auditFields: ['existingAccount', 'consent', 'score', 'attached'],
   async handler(ctx, input) {
     if (!ctx.entityIds.includes(input.entityId)) {
       throw new DomainError('forbidden', 'entity outside the request scope', {
@@ -102,7 +111,7 @@ export const createLead = defineCommand({
     }
 
     const [pipeline] = await ctx.tx
-      .select({ id: schema.pipelines.id })
+      .select({ id: schema.pipelines.id, segment: schema.pipelines.segment })
       .from(schema.pipelines)
       .where(
         and(
@@ -165,39 +174,17 @@ export const createLead = defineCommand({
       // A colleague already looks after this customer in this company: the enquiry goes to them
       // or their team lead, rather than a second lead nobody else can see (AUDIT M25).
       if (status === 'held_by_other') throw heldByColleague();
-      const [row] = await ctx.tx
-        .select({
-          account: {
-            id: schema.accounts.id,
-            type: schema.accounts.type,
-            name: schema.accounts.name,
-          },
-          contact: { id: schema.contacts.id, name: schema.contacts.name },
-          phone: schema.contactPhones.e164,
-        })
-        .from(schema.accounts)
-        .innerJoin(
-          schema.accountContacts,
-          and(
-            eq(schema.accountContacts.accountId, schema.accounts.id),
-            eq(schema.accountContacts.role, 'owner'),
-          ),
-        )
-        .innerJoin(schema.contacts, eq(schema.contacts.id, schema.accountContacts.contactId))
-        .innerJoin(
-          schema.contactPhones,
-          and(
-            eq(schema.contactPhones.contactId, schema.contacts.id),
-            eq(schema.contactPhones.isPrimary, true),
-          ),
-        )
-        .where(eq(schema.accounts.id, input.existingAccountId))
-        .limit(1);
-      if (!row) {
-        throw new DomainError('not_found', 'account has no owner contact', {
-          reason: 'account_missing',
+      // A repeat enquiry goes to the customer's lead of the segment, open or in nurture (CRM-03).
+      // A relationship made just now has no lead in the company yet.
+      if (status === 'already_yours' && ctx.inImportBatch !== true) {
+        const open = await openEnquiryLead(ctx, {
+          entityId,
+          segment: pipeline.segment,
+          accountId: input.existingAccountId,
         });
+        if (open !== undefined) return attachEnquiry(ctx, input, open, undefined);
       }
+      const row = await customerOwner(ctx, input.existingAccountId);
       account = row.account;
       contact = row.contact;
       phone = row.phone;
@@ -216,6 +203,18 @@ export const createLead = defineCommand({
       if (ctx.inImportBatch !== true) await lockNewNumber(ctx.tx, contactInput.phone, entityId);
       if ((await phoneStatus(ctx.tx, contactInput.phone, entityId)) === 'held_by_other') {
         throw heldByColleague();
+      }
+      // A repeat enquiry from a customer of the company with this number and name goes to their
+      // lead of the segment (CRM-03), rather than a second customer. Another name with the number
+      // makes a new customer, put forward as a duplicate below (DECISIONS 06-10-2026).
+      if (ctx.inImportBatch !== true) {
+        const open = await openEnquiryLead(ctx, {
+          entityId,
+          segment: pipeline.segment,
+          phone: contactInput.phone,
+          name: contactInput.name,
+        });
+        if (open !== undefined) return attachEnquiry(ctx, input, open, contactInput.phone);
       }
       // No `returning` here: the row becomes visible only once its relationship row exists, and
       // Postgres applies the select policy to returned rows.
@@ -355,6 +354,12 @@ export const createLead = defineCommand({
       },
     });
 
-    return toLeadDto(opportunity, account, contact, phone);
+    // Other customers that may be this one, and another open lead of the segment (CRM-03).
+    if (ctx.inImportBatch !== true) {
+      const found = await findDuplicates(ctx, entityId, { accountId: account.id });
+      await recordDuplicates(ctx, entityId, found.pairs);
+    }
+
+    return { ...toLeadDto(opportunity, account, contact, phone), outcome: 'created' as const };
   },
 });

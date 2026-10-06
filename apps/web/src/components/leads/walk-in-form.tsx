@@ -89,8 +89,13 @@ export function WalkInForm({
         referralCode: text('referralCode'),
         consent: consent !== undefined && data.get('consent') === 'yes' ? consent : undefined,
       }),
-      () => {
-        toast.success(t('done', { name }));
+      (lead) => {
+        // A repeat enquiry was added to the customer's open lead (CRM-03).
+        toast.success(
+          lead.outcome === 'attached'
+            ? t('attached', { name: lead.account.name })
+            : t('done', { name }),
+        );
         form.reset();
         setPipelineKey('');
         nameRef.current?.focus();

@@ -13,6 +13,7 @@ export { consents } from './consents';
 export { activities } from './activities';
 export { tasks } from './tasks';
 export { tags, opportunityTags } from './tags';
+export { duplicateCandidates, customerMerges } from './duplicates';
 export { items, pumpCurves, itemCosts } from './items';
 export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';

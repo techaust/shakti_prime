@@ -14,6 +14,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { checkPermission } from '../../command/run-command';
+import { holdLeadCustomer } from '../../crm/hold-customer';
 import { transition } from '../../state-machines/define-machine';
 import {
   taskMachine,
@@ -115,6 +116,8 @@ export const createTask = defineCommand({
   auditFields: TASK_FIELDS,
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    // The task names the lead's customer: a merge of it must not move the lead meanwhile.
+    await holdLeadCustomer(ctx, input);
     const o = schema.opportunities;
     const [lead] = await ctx.tx
       .select({ id: o.id, accountId: o.accountId })

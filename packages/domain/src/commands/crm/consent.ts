@@ -9,6 +9,7 @@ import { schema } from '@shakti/db';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { holdCustomer, requireLiveCustomer } from '../../crm/hold-customer';
 import { requireEntity } from './opportunity-shared';
 
 /** A consent given a minute ahead of the clock still counts as now: clocks drift. */
@@ -72,12 +73,16 @@ async function requireEvidence(
   return file.id;
 }
 
-/** A contact of the customer, as the caller reads it in the page's company. */
+/**
+ * A contact of the customer, as the caller reads it in the page's company, with the customer held
+ * first (`holdCustomer`): a merge of it that commits meanwhile leaves it archived (CRM-03).
+ */
 async function contactOfCustomer(
   ctx: CommandContext,
   input: { entityId: number; accountId: string; contactId: string },
 ): Promise<void> {
   requireEntity(ctx, input.entityId);
+  await holdCustomer(ctx, input.accountId);
   const ac = schema.accountContacts;
   const ae = schema.accountEntities;
   const [found] = await ctx.tx
@@ -91,6 +96,7 @@ async function contactOfCustomer(
       reason: 'contact_missing',
     });
   }
+  await requireLiveCustomer(ctx, input.accountId);
 }
 
 /**
@@ -180,6 +186,7 @@ export const withdrawConsent = defineCommand({
   auditFields: ['withdrawnAt'],
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
+    await holdCustomer(ctx, input.accountId);
     const c = schema.consents;
     const ac = schema.accountContacts;
     const ae = schema.accountEntities;
@@ -202,6 +209,7 @@ export const withdrawConsent = defineCommand({
         reason: 'consent_already_withdrawn',
       });
     }
+    await requireLiveCustomer(ctx, input.accountId);
     const [row] = await ctx.tx
       .update(c)
       .set({ withdrawnAt: ctx.now, updatedBy: ctx.principal.id })

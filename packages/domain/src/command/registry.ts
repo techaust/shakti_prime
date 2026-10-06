@@ -31,6 +31,8 @@ import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/s
 import { setAccountTier } from '../commands/crm/set-account-tier';
 import { setDispositions } from '../commands/crm/set-dispositions';
 import { recordSizing } from '../commands/crm/record-sizing';
+import { dismissDuplicate, scanDuplicates, suggestDuplicate } from '../commands/crm/duplicates';
+import { mergeCustomers, mergeLeads, unmergeCustomers } from '../commands/crm/merges';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
@@ -98,6 +100,12 @@ export const commands = {
   [setReferralPartner.name]: setReferralPartner,
   [setCommissionRule.name]: setCommissionRule,
   [recordSizing.name]: recordSizing,
+  [scanDuplicates.name]: scanDuplicates,
+  [dismissDuplicate.name]: dismissDuplicate,
+  [suggestDuplicate.name]: suggestDuplicate,
+  [mergeCustomers.name]: mergeCustomers,
+  [unmergeCustomers.name]: unmergeCustomers,
+  [mergeLeads.name]: mergeLeads,
   [createTask.name]: createTask,
   [completeTask.name]: completeTask,
   [rescheduleTask.name]: rescheduleTask,

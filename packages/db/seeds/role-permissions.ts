@@ -276,6 +276,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'imports.process': {},
   // The platform's nightly rescoring of leads; no person's role holds it (SECURITY §3.3).
   'crm.score.refresh': {},
+  // The platform's nightly search for duplicates; no person's role holds it (SECURITY §3.3).
+  'crm.duplicates.scan': {},
   // The platform's daily expiry of lapsed quotes; no person's role holds it (SECURITY §3.3).
   'sales.quote.expire': {},
 };

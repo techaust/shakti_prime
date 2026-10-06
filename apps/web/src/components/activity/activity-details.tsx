@@ -39,6 +39,8 @@ import {
   CONSENT_SOURCES,
   CONTRASTS,
   CUSTOMER_LANGUAGES,
+  DUPLICATE_REASONS,
+  DUPLICATE_STATES,
   FILE_PURPOSES,
   FILE_SANITISING,
   FILE_SCAN_VERDICTS,
@@ -380,6 +382,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
+  const duplicates = useTranslations('duplicates');
   const quotes = useTranslations('quotes');
   const agents = useTranslations('agents');
   return (group, value) => {
@@ -388,6 +391,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
         if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
         if (oneOf(AGENT_ACTION_STATE_VALUES, value)) return agents(`actionState.${value}`);
+        if (oneOf(DUPLICATE_STATES, value)) return duplicates(`state.${value}`);
         if (oneOf(IMPORT_JOB_STATES, value)) return imports(`state.${value}`);
         return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       }
@@ -476,6 +480,8 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(PDF_DOCUMENT_TYPES, value)
           ? t(`values.documentType.${value}`)
           : wordsOf(value);
+      case 'duplicateReason':
+        return oneOf(DUPLICATE_REASONS, value) ? duplicates(`reason.${value}`) : wordsOf(value);
       case 'agent':
         return oneOf(AGENT_ROLES, value) ? agents(`names.${agentNameKey(value)}`) : wordsOf(value);
       case 'agentAction': {

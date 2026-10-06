@@ -2,6 +2,7 @@
 
 import type {
   Account360Dto,
+  AccountDuplicatesDto,
   ActivityDto,
   CustomerLeadDto,
   CustomerTaskDto,
@@ -42,6 +43,10 @@ import type { CustomerDialogKind } from './customer-dialogs';
 // The dialogs and the sizing panel load on first use, so the page ships only what it shows.
 const CustomerDialog = dynamic(() => import('./customer-dialogs').then((m) => m.CustomerDialog));
 const SizingPanel = dynamic(() => import('../sizing/sizing-panel').then((m) => m.SizingPanel));
+// The duplicate cards load only for a customer that has one (CRM-03).
+const AccountDuplicates = dynamic(() =>
+  import('../duplicates/account-duplicates').then((m) => m.AccountDuplicates),
+);
 
 const STATE_TONE: Record<CustomerLeadDto['state'], StatusTone> = {
   open: 'accent',
@@ -88,11 +93,14 @@ export function AccountScreen({
   initial,
   companies,
   proofLimit,
+  duplicates,
 }: {
   initial: Account360Dto;
   companies: Record<number, string>;
   /** The limits of proof of consent, for a caller who may record consent. */
   proofLimit?: UploadLimitView;
+  /** The customer's duplicate cards and the merges into it, when it has any. */
+  duplicates?: AccountDuplicatesDto | undefined;
 }) {
   const t = useTranslations('customers');
   const leadsT = useTranslations('leads');
@@ -187,6 +195,16 @@ export function AccountScreen({
         )}
       </dl>
       {view.canEdit ? null : <p className="text-text-muted text-sm">{t('account.readOnly')}</p>}
+      {duplicates === undefined ||
+      (duplicates.candidates.length === 0 && duplicates.merges.length === 0) ? null : (
+        <AccountDuplicates
+          initial={duplicates}
+          accountId={view.account.id}
+          entityId={view.entityId}
+          companies={companies}
+          onChanged={reload}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">

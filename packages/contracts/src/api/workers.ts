@@ -73,6 +73,31 @@ export const LeadRescoreWorkerResponse = z
 export type LeadRescoreWorkerResponse = z.infer<typeof LeadRescoreWorkerResponse>;
 
 /**
+ * `POST /api/v1/workers/crm/duplicates`: the nightly search for duplicate customers and leads
+ * (CRM-03). The schedule sends `{}`, every company from its first customer; a run that ran out of
+ * time hands the rest to the next run with the company and the last customer it reached, and the
+ * night's date (`runDate`), which names the night in the hand-over's deduplication id.
+ */
+export const DuplicateScanWorkerBody = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    afterId: IdSchema.optional(),
+    runDate: z.iso.date().optional(),
+  })
+  .strict()
+  .refine((b) => b.afterId === undefined || b.entityId !== undefined, {
+    message: 'a customer to start after belongs to a company',
+    path: ['afterId'],
+  });
+export type DuplicateScanWorkerBody = z.infer<typeof DuplicateScanWorkerBody>;
+
+/** What one search run did: the batches it ran, the candidates it found, and whether it is done. */
+export const DuplicateScanWorkerResponse = z
+  .object({ batches: Count, found: Count, done: z.boolean() })
+  .strict();
+export type DuplicateScanWorkerResponse = z.infer<typeof DuplicateScanWorkerResponse>;
+
+/**
  * The daily quote expiry (`sales.quote.expire`, docs/design/phase1.md §7.3), called by the QStash
  * schedule `quote-expire-<environment>` with an empty body: every company in turn, each batch in
  * its own transaction as `system:workers`. A quote a run leaves for want of time is expired the

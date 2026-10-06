@@ -21,6 +21,7 @@ import {
   UpsertSiteInput,
   WithdrawConsentInput,
   type Account360Dto,
+  type CreateLeadResultDto,
   type ConsentDto,
   type CustomerChangeDto,
   type CustomerPageDto,
@@ -42,7 +43,6 @@ import {
   type BoardStagePageDto,
   type LeadAssigneeDto,
   type LeadBoardDto,
-  type LeadDto,
   type LeadSourceDto,
   type OpportunityDto,
   type PipelineDto,
@@ -95,7 +95,7 @@ import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from '
 export async function createLead(
   rawInput: unknown,
   idempotencyKey?: unknown,
-): Promise<ActionResult<LeadDto>> {
+): Promise<ActionResult<CreateLeadResultDto>> {
   return toResult('createLead', async () => {
     const principal = await signedIn();
     const input = parseInput(CreateLeadInput, rawInput);
