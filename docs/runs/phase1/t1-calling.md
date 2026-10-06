@@ -4,9 +4,9 @@
 |---|---|
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
-| Runs on | Cloud from 05-10-2026 (the owner's decision to go hybrid): the builder continues from the pushed branch per its handover section; review in the cloud; merge with `main`, integration and baselines on the PC |
-| State | built |
-| Next step | the review (slice-reviewer, in the cloud), then the merge with `main`, integration and baselines on the PC |
+| Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
+| State | reviewed (1 high, 2 medium, 4 low) |
+| Next step | a cloud builder fixes the findings (the lead's fix brief of 06-10-2026 below); then the re-review; the integration follows D1's merge |
 
 ## Brief
 Read first:
@@ -223,5 +223,16 @@ One high and two medium findings, all in the calling rules' tasks and stage move
 - **`e2e/calling.spec.ts`** at 11:23 IST, inside calling hours, against `next start -p 3000`: 17 passed, including the keyboard path on desktop light, desktop dark and phone. The 3 "snapshot company" cases failed only for want of their `calling.png` baselines; those files were deleted and are made on the PC. The browsers are `chromium-1243` and `chromium_headless_shell-1243`, copied from the Playwright image.
 
 **Not checked:** the secret scan (no gitleaks image here) and the screenshot baselines, both made on the PC at integration; the spike's timings were not re-measured.
+
+### 06-10-2026, the lead's fix brief (for a cloud builder)
+Fix on `feat/t1-calling` without taking `main`. Invoke the `add-command` and `writing-guidelines` skills with the Skill tool first. Each fix gets the test its finding names (the reviewer's cases A to F), and each must fail on the code before the fix; mark each row of the table above `fixed in <commit>` with what was checked.
+1. **Finding 1 (high):** one shared helper cancels a lead's open `nurture` tasks whenever the lead leaves nurture: on `crm.opportunity.reopen` and on `crm.opportunity.lose` (lose also cancels the lead's open `callback` tasks), in the same transaction, each cancellation through the task machine and audited as the other task changes are. `calls.call.log` uses the same helper, so the board and the workspace behave alike. `scheduleNurtureCalls` cancels any open nurture tasks of the lead before it sets the three new ones. In `rankedQueue`, a `nurture` task holds a lead back only while the lead is in state `nurture` (`t.kind = 'callback' or o.state = 'nurture'`). Tests: A, B, C, and the queue case.
+2. **Finding 2 (medium):** a run of unanswered attempts counts only calls made after the lead's `state_changed_at`, so a lead that left nurture starts again at attempt 1; the workspace's "Tries without an answer" and the queue's count read the same rule (one function, used by `log-call.ts`, `loadCallLead` and the queue). Tests: D, and the count shown for a nurture call.
+3. **Finding 3 (medium):** a Qualified outcome moves the lead only when its stage is positioned before the pipeline's Qualified stage; otherwise the call is saved and the stage left as it is (no second handover). Test: F, a lead at Quoted.
+4. **Finding 4 (low), the lead's decision:** `crm.opportunity.assign` moves the lead's open `callback` and `nurture` tasks to the new owner in the same transaction, audited, so the time the customer asked for travels with the lead. T2's `crm.lead.reassign_all` will use the same command. Test: a callback at 16:00, reassigned at noon, shows in the new owner's queue as a callback at 16:00 and not in the old owner's tasks.
+5. **Finding 5 (low):** each lead gets its own idempotency key: key the `useCommand(logCall)` form to the open lead, so opening another lead starts a new form. Unit test of the key change if the hook allows; otherwise say how it was checked.
+6. **Finding 6 (low):** SECURITY §7 says in one line that the workspace's number button guides the caller and `calls.call.log` is the control that refuses a call outside the hours or without consent. Marking a withdrawn consent on Account 360 is a follow-up outside T1; the lead records it.
+7. **Finding 7 (low):** PRD §8 traces TEL-01 to the four test files the finding names.
+8. Then run `pnpm test:security`, `pnpm lint`, `pnpm exec turbo run typecheck --force`, `pnpm exec turbo run test --force`, `pnpm copy-lint`, `pnpm db:generate` (no changes), `python3 tools/integration/check-doc-links.py` (bad 0), `pnpm build`, `pnpm --filter web js-budget`, and `e2e/calling.spec.ts` with `--ignore-snapshots` on all three projects after `e2e:seed`, inside calling hours (09:00 to 21:00 IST). Write a dated Report section, set State to "fixes done; awaiting re-review", commit and push. Delete turbo's `turborepo-agent-rules` block from `AGENTS.md` before every commit if a run writes it.
 
 ## Integration notes
