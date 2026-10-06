@@ -184,6 +184,50 @@ describe('createAiProvider', () => {
     });
   });
 
+  it('counts work of the whole group in the group only, against the group cap', async () => {
+    const usage = { inputTokens: 100_000, outputTokens: 0 };
+    const { provider, keyValue } = setup([fakeReply('ok', usage)]);
+    const day = istDay(NOW);
+    await expect(
+      provider.complete(
+        call({
+          agent: 'knowledge:index',
+          entityId: null,
+          caps: [{ paise: 1_060, entityId: null }],
+        }),
+      ),
+    ).resolves.toMatchObject({ costPaise: 1_040 });
+    expect(await keyValue.get(spendKey('knowledge:index', null, day))).toBe('1040');
+    expect(await keyValue.get(spendKey('knowledge:index', 1, day))).toBeNull();
+    await expect(
+      provider.complete(
+        call({ agent: 'knowledge:index', entityId: null, caps: [{ paise: 1_060, entityId: null }] }),
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
+  });
+
+  it('sends a document with the question and reserves the model’s whole context for it', async () => {
+    const { provider, transport, keyValue } = setup([fakeReply('read', { outputTokens: 10 })]);
+    const pdf = { mediaType: 'application/pdf' as const, bytes: new Uint8Array([37, 80, 68, 70]) };
+    const most = maxCostInPaise(DEFAULT_CLAUDE_MODEL, 200_000, 4_000);
+    // One paisa short of the reservation: refused before anything is sent.
+    await expect(
+      provider.complete(
+        call({ documents: [pdf], maxTokens: 4_000, caps: [{ paise: most - 1, entityId: null }] }),
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
+    expect(transport.requests).toHaveLength(0);
+    await expect(
+      provider.complete(
+        call({ documents: [pdf], maxTokens: 4_000, caps: [{ paise: most, entityId: null }] }),
+      ),
+    ).resolves.toMatchObject({ text: 'read' });
+    expect(transport.requests[0]?.documents).toEqual([pdf]);
+    // Settled at what it cost, not at the reservation.
+    const day = istDay(NOW);
+    expect(Number(await keyValue.get(spendKey('agent:copilot', null, day)))).toBeLessThan(most);
+  });
+
   it('reserves the most a call can cost before sending it, so two at once cannot both pass', async () => {
     const { provider, keyValue, transport } = setup([fakeReply('ok', { outputTokens: 10 })]);
     const most = maxCostInPaise(

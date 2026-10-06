@@ -453,3 +453,27 @@ export {
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
+export {
+  addKnowledgeFile,
+  archiveKnowledgeFile,
+  reindexKnowledgeFile,
+} from './commands/knowledge/files';
+export { recordKnowledgeIndex } from './commands/knowledge/record-index';
+export { knowledgeFileForIndex } from './commands/knowledge/shared';
+export {
+  getKnowledgeFile,
+  KNOWLEDGE_PAGE_SIZE,
+  listKnowledgeFiles,
+  searchKnowledge,
+} from './queries/knowledge/vault';
+export { chunkText, KNOWLEDGE_CHUNKING } from './knowledge/chunk';
+export {
+  extractWorkbook,
+  KNOWLEDGE_EXTRACT_SYSTEM,
+  knowledgeSourceType,
+} from './knowledge/extract';
+export { EMBED_BATCH, indexKnowledgeFile } from './knowledge/index-file';
+export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
+export { knowledgeQueryVector } from './knowledge/search';
+export { readWorkbookSheets } from './imports/parse';
+export { checkZipArchive } from './imports/zip-guard';

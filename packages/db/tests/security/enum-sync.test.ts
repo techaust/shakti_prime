@@ -50,6 +50,10 @@ import {
   DuplicateKindSchema,
   DuplicateReasonSchema,
   DuplicateStateSchema,
+  KNOWLEDGE_ERROR_REASONS,
+  KNOWLEDGE_FILE_STATES,
+  KNOWLEDGE_SENSITIVITIES,
+  KNOWLEDGE_SOURCE_TYPES,
   USER_STATUSES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -129,6 +133,11 @@ const PAIRS: Record<string, readonly string[]> = {
   users_status_check: USER_STATUSES,
   users_theme_check: ThemeSchema.options,
   users_contrast_check: ContrastSchema.options,
+  knowledge_files_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
+  knowledge_files_source_type_check: KNOWLEDGE_SOURCE_TYPES,
+  knowledge_files_state_check: KNOWLEDGE_FILE_STATES,
+  knowledge_files_error_reason_check: KNOWLEDGE_ERROR_REASONS,
+  knowledge_chunks_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

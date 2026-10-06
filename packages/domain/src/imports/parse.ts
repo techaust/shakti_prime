@@ -153,6 +153,92 @@ function rowCells(row: ExcelJS.Row, limits: ParseLimits): string[] {
  * end; with both held as lists from the start (`keepList`), it never does.
  */
 async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[][]> {
+  const { reader, source } = openWorkbook(bytes, limits);
+  const most = limits.maxRows + limits.headerSearchRows;
+  const rows: string[][] = [];
+  // Set once the sheet is read: leaving the reader early may end its stream with an error.
+  let read = false;
+  try {
+    for await (const sheet of reader) {
+      for await (const row of sheet) {
+        const cells = rowCells(row, limits);
+        if (rows.length === 0 && cells.length === 0) continue;
+        rows.push(cells);
+        if (rows.length > most) throw refuse('import_too_many_rows', 'sheet is too long');
+      }
+      // The first sheet with rows is the one imported; the rest of the file is not read.
+      if (rows.length > 0) {
+        read = true;
+        break;
+      }
+    }
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    if (!read) throw refuse('import_file_unreadable', 'not a readable workbook');
+  } finally {
+    source.destroy();
+  }
+  return rows;
+}
+
+/** One sheet of a workbook: its name and its rows, each a list of cell texts. */
+export interface WorkbookSheet {
+  name: string;
+  rows: string[][];
+}
+
+/**
+ * Every sheet of a workbook with its rows, in their order, read by the same guarded streaming
+ * reader as an import file and held to the same limits, the rows counted over all the sheets
+ * together: the text of a Knowledge Vault workbook (docs/design/phase1.md §8.4). Empty rows and
+ * sheets are left out. Refuses as `readXlsx` does.
+ */
+export async function readWorkbookSheets(
+  bytes: Uint8Array,
+  limits: ParseLimits = IMPORT_LIMITS,
+): Promise<WorkbookSheet[]> {
+  if (bytes.length === 0 || bytes.length > limits.maxFileBytes) {
+    throw refuse('import_file_too_large', 'workbook too large');
+  }
+  if (detectImportFormat(bytes) !== 'xlsx') throw refuse('import_file_type', 'not a workbook');
+  const { reader, source } = openWorkbook(bytes, limits);
+  const sheets: WorkbookSheet[] = [];
+  let count = 0;
+  try {
+    for await (const sheet of reader) {
+      const rows: string[][] = [];
+      for await (const row of sheet) {
+        const cells = rowCells(row, limits);
+        if (cells.every((c) => c === '')) continue;
+        rows.push(cells);
+        count += 1;
+        if (count > limits.maxRows) throw refuse('import_too_many_rows', 'workbook is too long');
+      }
+      const name = (sheet as unknown as { name?: unknown }).name;
+      if (rows.length > 0) {
+        sheets.push({
+          name: typeof name === 'string' && name.trim() !== '' ? name.trim() : '',
+          rows,
+        });
+      }
+    }
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    throw refuse('import_file_unreadable', 'not a readable workbook');
+  } finally {
+    source.destroy();
+  }
+  return sheets;
+}
+
+/**
+ * A streaming reader over a workbook whose ZIP structure and unpacked sizes passed
+ * `checkZipArchive`, given only the parts it reads, in the order it needs them.
+ */
+function openWorkbook(
+  bytes: Uint8Array,
+  limits: ParseLimits,
+): { reader: ExcelJS.stream.xlsx.WorkbookReader; source: Readable } {
   // The packed size was checked; what the parts unpack to is checked before anything unpacks.
   const verdict = checkZipArchive(bytes, limits);
   if (!verdict.ok) throw refuse(verdict.reason, verdict.why);
@@ -180,31 +266,7 @@ async function readXlsx(bytes: Uint8Array, limits: ParseLimits): Promise<string[
   });
   keepList(reader, 'sharedStrings');
   keepList(reader, 'workbookRels');
-  const most = limits.maxRows + limits.headerSearchRows;
-  const rows: string[][] = [];
-  // Set once the sheet is read: leaving the reader early may end its stream with an error.
-  let read = false;
-  try {
-    for await (const sheet of reader) {
-      for await (const row of sheet) {
-        const cells = rowCells(row, limits);
-        if (rows.length === 0 && cells.length === 0) continue;
-        rows.push(cells);
-        if (rows.length > most) throw refuse('import_too_many_rows', 'sheet is too long');
-      }
-      // The first sheet with rows is the one imported; the rest of the file is not read.
-      if (rows.length > 0) {
-        read = true;
-        break;
-      }
-    }
-  } catch (error) {
-    if (error instanceof DomainError) throw error;
-    if (!read) throw refuse('import_file_unreadable', 'not a readable workbook');
-  } finally {
-    source.destroy();
-  }
-  return rows;
+  return { reader, source };
 }
 
 /** The upload types of an import file, by the format its bytes must have. */

@@ -44,6 +44,43 @@ describe('anthropicTransport', () => {
     });
   });
 
+  it('sends a document and a picture before the question', async () => {
+    let sent: unknown;
+    const transport = anthropicTransport('test phrase', {
+      fetch: (_url, init) => {
+        sent = JSON.parse(String(init?.body));
+        return Promise.resolve(
+          new Response(JSON.stringify(MESSAGE), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      },
+    });
+    await transport.complete(
+      {
+        ...REQUEST,
+        documents: [
+          { mediaType: 'application/pdf', bytes: new Uint8Array([1, 2]) },
+          { mediaType: 'image/jpeg', bytes: new Uint8Array([3]) },
+        ],
+      },
+      signal(),
+    );
+    expect(sent).toMatchObject({
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'AQI=' } },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'Aw==' } },
+            { type: 'text', text: 'u' },
+          ],
+        },
+      ],
+    });
+  });
+
   it('turns a refusal and a vendor error into its own terms', async () => {
     const refused = anthropicTransport('test phrase', {
       fetch: respond(200, { ...MESSAGE, stop_reason: 'refusal' }),

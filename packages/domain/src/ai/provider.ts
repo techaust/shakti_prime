@@ -1,4 +1,5 @@
 import { DomainError, type AgentRoleKey } from '@shakti/contracts';
+import { AGENT_DEFAULTS } from './agent-defaults';
 import { labelUntrusted, maskForModel } from '../privacy/model-text';
 import type { KeyValue } from '../ports/key-value';
 import type { Logger } from '../ports/logger';
@@ -8,10 +9,12 @@ import {
   DEFAULT_EMBEDDING_MODEL,
   isKnownModel,
   maxCostInPaise,
+  MODEL_CONTEXT_TOKENS,
   type TokenUsage,
 } from './models';
 import {
   ModelCallError,
+  type ModelDocument,
   type EmbeddingTransport,
   type ModelReply,
   type ModelTransport,
@@ -47,12 +50,24 @@ export interface SpendCap {
   entityId: number | null;
 }
 
+/**
+ * Who a call's spend is counted under: an agent, or the Knowledge Vault's own work, which no agent
+ * does (`AGENT_DEFAULTS.knowledge`).
+ */
+export type AiSpender =
+  | AgentRoleKey
+  | (typeof AGENT_DEFAULTS.knowledge)['indexName']
+  | (typeof AGENT_DEFAULTS.knowledge)['searchName'];
+
 interface CallBase {
-  agent: AgentRoleKey;
+  agent: AiSpender;
   /** What the call is for, as a code (`lead_triage`). */
   purpose: string;
-  /** The company the call works for: its spend counts there and in the group. */
-  entityId: number;
+  /**
+   * The company the call works for: its spend counts there and in the group. Null for work of the
+   * whole group (a vault file for every company), counted in the group's total only.
+   */
+  entityId: number | null;
   /**
    * Every cap that applies (the company's, the group's, or both): the call is refused if its
    * reservation would take the spend past either. No cap means no call.
@@ -60,9 +75,9 @@ interface CallBase {
   caps: readonly SpendCap[];
 }
 
-/** What a call holds against the caps while it runs. */
+/** What a call holds against the caps while it runs: the company's total (if any), then the group's. */
 interface Reservation {
-  keys: readonly [company: string, group: string];
+  keys: readonly string[];
   paise: number;
 }
 
@@ -74,6 +89,12 @@ export interface CompleteCall extends CallBase {
   untrusted?: readonly { source: string; text: string }[];
   /** The question, from the agent's own code. */
   question: string;
+  /**
+   * Files the model reads with the question: a PDF, or a photo the file checks have masked. They
+   * cannot be masked here, so only a vault file that passed its checks is sent; the call reserves
+   * the model's whole context window against the caps, since their tokens cannot be counted first.
+   */
+  documents?: readonly ModelDocument[];
   maxTokens?: number;
 }
 
@@ -186,20 +207,25 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   async function reserve(call: CallBase, paise: number): Promise<Reservation> {
     if (call.caps.length === 0) throw capReached(call);
     const day = istDay(now());
-    const keys = [
-      spendKey(call.agent, call.entityId, day),
-      spendKey(call.agent, null, day),
-    ] as const;
-    const company = await store('the spend could not be reserved', () =>
-      keyValue.incrBy(keys[0], paise, SPEND_TTL_SECONDS),
-    );
-    let group: number;
-    try {
-      group = await keyValue.incrBy(keys[1], paise, SPEND_TTL_SECONDS);
-    } catch (error) {
-      await keyValue.incrBy(keys[0], -paise, SPEND_TTL_SECONDS).catch(() => undefined);
-      throw unavailable('the spend could not be reserved', error);
+    const keys =
+      call.entityId === null
+        ? [spendKey(call.agent, null, day)]
+        : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
+    const totals: number[] = [];
+    for (const key of keys) {
+      try {
+        totals.push(await keyValue.incrBy(key, paise, SPEND_TTL_SECONDS));
+      } catch (error) {
+        // Give back what this call already reserved before refusing it.
+        for (const done of keys.slice(0, totals.length)) {
+          await keyValue.incrBy(done, -paise, SPEND_TTL_SECONDS).catch(() => undefined);
+        }
+        throw unavailable('the spend could not be reserved', error);
+      }
     }
+    const group = totals.at(-1) ?? 0;
+    // A call of the whole group has no company total: a company's cap is held against the group's.
+    const company = totals[0] ?? group;
     const held: Reservation = { keys, paise };
     if (call.caps.some((cap) => (cap.entityId === null ? group : company) > cap.paise)) {
       await move(call, held, -paise);
@@ -264,15 +290,21 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         maskForModel(call.question),
       ].join('\n\n');
       const maxTokens = call.maxTokens ?? 1024;
-      const held = await reserve(
-        call,
-        maxCostInPaise(model, bytes(system) + bytes(user), maxTokens),
-      );
+      const documents = call.documents ?? [];
+      // A document's tokens cannot be counted from its bytes; the context window bounds them all.
+      const inputBound =
+        documents.length > 0
+          ? (MODEL_CONTEXT_TOKENS[model] ?? Number.MAX_SAFE_INTEGER)
+          : bytes(system) + bytes(user);
+      const held = await reserve(call, maxCostInPaise(model, inputBound, maxTokens));
       const started = now().getTime();
       let reply: ModelReply;
       try {
         reply = await attempt('anthropic', (signal) =>
-          claude.complete({ model, system, user, maxTokens }, signal),
+          claude.complete(
+            { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
+            signal,
+          ),
         );
       } catch (error) {
         await settle(call, held, 0);
@@ -287,6 +319,7 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         tokensIn:
           reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
         tokensOut: reply.usage.outputTokens,
+        documents: documents.length,
         costPaise,
         stopped: reply.stopped,
         durationMs: now().getTime() - started,

@@ -79,6 +79,8 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   agent_runs: 'x.id::text',
   agent_actions: 'x.id::text',
   inbox_items: 'x.id::text',
+  knowledge_files: 'x.id::text',
+  knowledge_chunks: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -152,6 +154,8 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       await tx`delete from import_rows where job_id::text like ${like}`;
       await tx`delete from import_jobs where id::text like ${like}`;
       await tx`delete from import_mapping_templates where id::text like ${like}`;
+      await tx`delete from knowledge_chunks where id::text like ${like}`;
+      await tx`delete from knowledge_files where id::text like ${like}`;
       await tx`delete from files where id::text like ${like}`;
       await tx`delete from item_costs where id::text like ${like}`;
       await tx`delete from items where id::text like ${like}`;
@@ -261,6 +265,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     agent_runs: [],
     agent_actions: [],
     inbox_items: [],
+    knowledge_files: [],
+    knowledge_chunks: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -275,6 +281,14 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   rows.tags.push({ key: groupTag, entities: null });
   const groupAgentConfig = id(0x0009);
   rows.agent_configs.push({ key: groupAgentConfig, entities: null });
+  // A vault file of the whole group, stored in company 1, with one chunk: a reader of staff
+  // knowledge sees both acting in any company; its upload stays company 1's.
+  const groupVaultUpload = id(0x000c);
+  const groupVaultFile = id(0x000d);
+  const groupVaultChunk = id(0x000e);
+  rows.knowledge_files.push({ key: groupVaultFile, entities: null });
+  rows.knowledge_chunks.push({ key: groupVaultChunk, entities: null });
+  rows.files.push({ key: groupVaultUpload, entities: [1], purpose: 'knowledge' });
   // The fixture's agent rows name an agent no other suite sets, so its settings change nothing.
   const MATRIX_AGENT = 'agent:orchestrator';
   const agentId = AGENT_PRINCIPAL_IDS[MATRIX_AGENT];
@@ -315,6 +329,12 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupOutcome}, null, 'commercial_epc', 9, 'matrix_outcome', 'matrix outcome', 'retry', 9)`;
       await tx`insert into lead_score_rules (id, entity_id, factor, match_json, points, position, created_by)
         values (${groupScoreRule}, null, 'age_days', '{"minDays": 36500}'::jsonb, 1, 50, ${ownerId})`;
+      await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+        values (${groupVaultUpload}, 1, 'knowledge', 'matrix', ${`matrix/${groupVaultUpload}`}, 'matrix file', 'application/pdf', 1, ${sha}, 'ready', ${ownerId})`;
+      await tx`insert into knowledge_files (id, entity_id, file_id, title, sensitivity, source_type, state, created_by)
+        values (${groupVaultFile}, null, ${groupVaultUpload}, 'matrix group vault file', 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
+      await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
+        values (${groupVaultChunk}, ${groupVaultFile}, null, 'staff_ai_ok', 0, 'matrix group passage', array_fill(0.1::real, array[1024])::vector)`;
 
       for (const e of ALL_ENTITY_IDS) {
         const team = per(e, 0x01);
@@ -353,6 +373,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['consent_evidence', per(e, 0x18), 'image/jpeg'],
           ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
+        // The company's vault file (staff knowledge) on its vault upload, with one chunk.
+        const vaultFile = per(e, 0x31);
+        const vaultChunk = per(e, 0x32);
         const sizing = per(e, 0x1b);
         const call = per(e, 0x30);
         const quote = per(e, 0x1c);
@@ -424,6 +447,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
             values (${fileId}, ${e}, ${purpose}, 'matrix', ${`matrix/${fileId}`}, 'matrix file', ${type}, 1, ${sha}, 'ready', ${ownerId})`;
         }
+        await tx`insert into knowledge_files (id, entity_id, file_id, title, sensitivity, source_type, state, created_by)
+          values (${vaultFile}, ${e}, ${per(e, 0x17)}, ${`matrix vault file ${e.toString()}`}, 'staff_ai_ok', 'pdf', 'indexed', ${ownerId})`;
+        await tx`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
+          values (${vaultChunk}, ${vaultFile}, ${e}, 'staff_ai_ok', 0, 'matrix passage', array_fill(0.1::real, array[1024])::vector)`;
         await tx`insert into import_mapping_templates (id, entity_id, kind, name, mapping_json, created_by)
           values (${template}, ${e}, 'leads', 'matrix template', '{}'::jsonb, ${ownerId})`;
         await tx`insert into import_jobs (id, entity_id, kind, file_id, template_id, format, columns_json, created_by)
@@ -521,6 +548,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.agent_runs.push({ key: agentRun, entities: only });
         rows.agent_actions.push({ key: agentAction, entities: only });
         rows.inbox_items.push({ key: inboxItem, entities: only });
+        rows.knowledge_files.push({ key: vaultFile, entities: only });
+        rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

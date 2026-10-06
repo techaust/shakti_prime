@@ -183,7 +183,7 @@ create policy files_knowledge_read on files for select to app_user, app_reader u
 
 -- 6. The index job's definers. Each needs knowledge.index (system:workers alone, SECURITY §3.3) and
 --    reaches only vault files whose upload is stored in a company of the request; none answers a
---    chunk's text or a file's title.
+--    chunk's text or a file's title. The job calls them on app_user's pool only.
 
 -- The vault files waiting on an upload that has just passed its checks or been refused by them.
 create or replace function app.knowledge_files_waiting_on(p_file_id uuid)
@@ -206,21 +206,22 @@ $$;
 --> statement-breakpoint
 revoke execute on function app.knowledge_files_waiting_on(uuid) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.knowledge_files_waiting_on(uuid) to app_user, app_reader;
+grant execute on function app.knowledge_files_waiting_on(uuid) to app_user;
 --> statement-breakpoint
 
 -- What the index job needs to read one vault file: its company and sensitivity, its upload and
--- where that is stored, what it is and where it stands.
+-- where that is stored, what it is, where it stands and how many passages it has.
 create or replace function app.knowledge_file_for_index(p_id uuid)
   returns table (knowledge_file_id uuid, entity_id smallint, file_id uuid, file_entity_id smallint,
-                 sensitivity text, source_type text, state text)
+                 sensitivity text, source_type text, state text, chunks integer)
   language plpgsql stable security definer set search_path = '' as $$
 begin
   if not app.has_perm('knowledge.index:entity') then
     raise exception 'knowledge.index is required' using errcode = '42501';
   end if;
   return query
-    select kf.id, kf.entity_id, kf.file_id, f.entity_id, kf.sensitivity, kf.source_type, kf.state
+    select kf.id, kf.entity_id, kf.file_id, f.entity_id, kf.sensitivity, kf.source_type, kf.state,
+           kf.chunks
       from public.knowledge_files kf
       join public.files f on f.id = kf.file_id
      where kf.id = p_id
@@ -230,7 +231,7 @@ $$;
 --> statement-breakpoint
 revoke execute on function app.knowledge_file_for_index(uuid) from public, readonly_reporter;
 --> statement-breakpoint
-grant execute on function app.knowledge_file_for_index(uuid) to app_user, app_reader;
+grant execute on function app.knowledge_file_for_index(uuid) to app_user;
 --> statement-breakpoint
 
 -- Records how reading a waiting vault file went. `indexed` replaces the file's chunks with

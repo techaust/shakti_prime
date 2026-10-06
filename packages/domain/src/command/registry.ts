@@ -46,6 +46,12 @@ import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
 import { sweepUploads } from '../commands/files/sweep-uploads';
 import { recordRenderedFile } from '../commands/files/record-rendered';
+import {
+  addKnowledgeFile,
+  archiveKnowledgeFile,
+  reindexKnowledgeFile,
+} from '../commands/knowledge/files';
+import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
@@ -180,6 +186,10 @@ export const commands = {
   [dismissInboxItem.name]: dismissInboxItem,
   [setAgentConfig.name]: setAgentConfig,
   [setKillSwitch.name]: setKillSwitch,
+  [addKnowledgeFile.name]: addKnowledgeFile,
+  [reindexKnowledgeFile.name]: reindexKnowledgeFile,
+  [archiveKnowledgeFile.name]: archiveKnowledgeFile,
+  [recordKnowledgeIndex.name]: recordKnowledgeIndex,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

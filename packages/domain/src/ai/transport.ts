@@ -4,6 +4,15 @@ import { NO_USAGE, type TokenUsage } from './models';
 // wrapper and its tests never touch a network: the Anthropic and Voyage transports implement
 // these, and the fake transport stands in for both in every test.
 
+/**
+ * A file a chat model reads with the question: a PDF, or a photo the file checks have masked
+ * (a Knowledge Vault file, docs/design/phase1.md §8.4).
+ */
+export interface ModelDocument {
+  mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp';
+  bytes: Uint8Array;
+}
+
 /** One text request to a chat model. Every text here has already been masked by the wrapper. */
 export interface ModelRequest {
   model: string;
@@ -11,6 +20,8 @@ export interface ModelRequest {
   system: string;
   /** The turn: the labelled data and the question. */
   user: string;
+  /** Files read with the turn, before its text. */
+  documents?: readonly ModelDocument[];
   maxTokens: number;
 }
 

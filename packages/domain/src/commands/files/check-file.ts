@@ -1,14 +1,17 @@
 import {
   DomainError,
   FileDto,
+  KnowledgeSensitivitySchema,
   MarkFileReadyInput,
   MarkFileScannedInput,
   RejectFileInput,
 } from '@shakti/contracts';
+import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import type { FileUploadState } from '../../state-machines/machines/file-upload';
 import { assertEntityInScope } from '../imports/shared';
+import { fireKnowledgeFileAsJob, holdVaultUpload } from '../knowledge/shared';
 import { fireUpload, lockFile, scanResultOf, toFileDto, writeFile, type FileRow } from './shared';
 
 /*
@@ -36,6 +39,24 @@ const record = (row: FileRow) => ({
   state: row.status as FileUploadState,
   storedMatches: null,
 });
+
+/**
+ * The vault files waiting on a vault upload whose checks just ended (docs/design/phase1.md §8.4),
+ * read through `app.knowledge_files_waiting_on()` (`knowledge.index`, which the worker principal
+ * holds) after holding the upload, so a vault file added at the same moment is either seen here
+ * or sees the upload's new status itself (`knowledge.file.add`).
+ */
+async function vaultFilesWaitingOn(
+  ctx: CommandContext,
+  row: FileRow,
+): Promise<{ knowledge_file_id: string; entity_id: number | null; sensitivity: string }[]> {
+  if (row.purpose !== 'knowledge') return [];
+  await holdVaultUpload(ctx.tx, row.id);
+  return (await ctx.tx.execute(
+    sql`select knowledge_file_id, entity_id, sensitivity
+          from app.knowledge_files_waiting_on(${row.id}::uuid)`,
+  )) as unknown as { knowledge_file_id: string; entity_id: number | null; sensitivity: string }[];
+}
 
 /** `files.file.mark_scanned`: the malware scan found nothing, or no scanner exists here. */
 export const markFileScanned = defineCommand({
@@ -98,6 +119,19 @@ export const markFileReady = defineCommand({
         ...(input.stored.key === row.key ? {} : { originalKey: row.key }),
       },
     });
+    // A vault upload's vault files are sent to be read now that the upload is usable.
+    for (const vault of await vaultFilesWaitingOn(ctx, row)) {
+      ctx.emit({
+        type: 'knowledge.file.index_requested',
+        entityId: row.entityId,
+        aggregateType: 'knowledge_file',
+        aggregateId: vault.knowledge_file_id,
+        payload: {
+          knowledgeEntityId: vault.entity_id,
+          sensitivity: KnowledgeSensitivitySchema.parse(vault.sensitivity),
+        },
+      });
+    }
     ctx.audit({
       aggregateType: 'file',
       aggregateId: row.id,
@@ -122,7 +156,7 @@ export const rejectFile = defineCommand({
   minScope: 'entity',
   input: RejectFileInput,
   output: FileDto,
-  auditFields: ['fileStatus', 'rejectReason', 'scanStatus'],
+  auditFields: ['fileStatus', 'rejectReason', 'scanStatus', 'knowledgeState', 'errorReason'],
   async handler(ctx, input) {
     const row = await lockInCompany(ctx, input);
     const { to } = fireUpload(ctx, record(row), 'reject', { reason: input.reason });
@@ -136,6 +170,21 @@ export const rejectFile = defineCommand({
         originalKey: row.key,
       },
     });
+    // A refused vault upload's vault files can never be read: they fail with that reason.
+    for (const vault of await vaultFilesWaitingOn(ctx, row)) {
+      const failed = fireKnowledgeFileAsJob(ctx, 'waiting', 'fail');
+      await ctx.tx.execute(
+        sql`select app.record_knowledge_index(${vault.knowledge_file_id}::uuid, ${failed},
+                                              'knowledge_file_rejected', null)`,
+      );
+      ctx.audit({
+        aggregateType: 'knowledge_file',
+        aggregateId: vault.knowledge_file_id,
+        entityId: vault.entity_id,
+        before: { knowledgeState: 'waiting' },
+        after: { knowledgeState: failed, errorReason: 'knowledge_file_rejected' },
+      });
+    }
     ctx.audit({
       aggregateType: 'file',
       aggregateId: row.id,

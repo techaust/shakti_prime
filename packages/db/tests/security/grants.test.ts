@@ -122,6 +122,10 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     agent_runs: { i: true, u: false },
     agent_actions: { i: true, u: false },
     inbox_items: { i: true, u: false },
+    // A vault file changes only its state (indexed again or archived, a column grant, 0118); its
+    // chunks are written only by the index job's definer (knowledge.test.ts).
+    knowledge_files: { i: true, u: false },
+    knowledge_chunks: { i: false, u: false },
   };
 
   /**
