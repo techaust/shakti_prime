@@ -258,6 +258,7 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - 140-series numbers for promotional outbound; 160-series for service calls to leads with recorded consent; inbound IVR on standard virtual numbers.
 - TRAI hours (9 AM–9 PM) and DND scrubbing enforced in the dial command; recording notice on every call.
 - Phase 1 calls are dialled by hand on a phone outside the system (`calls.number_series` `manual`): the Cold Caller workspace shows a lead's full number (`dialNumber`) only inside TRAI hours and for a customer none of whose contacts has withdrawn consent to calls, and `calls.call.log` refuses a call saved outside those hours (`outside_calling_hours`) or for such a customer (`call_consent_withdrawn`); the queue marks such a customer.
+- The workspace's number button only guides the caller, since Account 360 shows every phone in full; the control is `calls.call.log`, which refuses a call saved outside calling hours or for a customer who withdrew consent.
 - WhatsApp: opt-in and opt-out, 24-hour window, approved templates per number, quality-rating monitoring, portfolio messaging-limit budget with service messages first.
 
 ## 8. Application security

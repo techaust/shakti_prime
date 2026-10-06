@@ -373,7 +373,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | CRM-08 | 4 | — | State machine: `packages/domain/src/state-machines/machines.test.ts` |
 | CRM-09 | 1, 5 | C3, S2 | — |
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
-| TEL-01 | 1 | T1 | — |
+| TEL-01 | 1 | T1 | `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts`, `apps/web/e2e/calling.spec.ts` |
 | TEL-02 | 1 | T2 | The handover request and the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`; the `assign` lock cases: `packages/domain/src/state-machines/machines.test.ts` |
 | TEL-03 | 1, 2 | L1 | — |
 | TEL-04 | 2 | — | `packages/domain/src/telecom/dial-policy.test.ts`, `apps/web/src/integrations/exotel/exotel.test.ts` |

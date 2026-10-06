@@ -19,7 +19,8 @@ import { principals } from './principals';
  * A call to a lead and its outcome (docs/design/phase1.md §7.2, docs/DATABASE.md §6.2, TEL-01), a
  * child of `opportunities`: read with the lead, logged by `calls.log` by a person whose `calls.log`
  * scope covers the lead. Append-only. `attempt_no` counts the unanswered attempts in a row the
- * call belongs to (1 for a call after an answered one), which the retry rule (CALL-3) reads.
+ * call belongs to (1 for a call after an answered one, or once the lead's state has changed since
+ * the last call), which the retry rule (CALL-3) reads.
  * `disposition_id` names the outcome row, which is archived and never deleted when the outcome
  * list changes, so a call keeps its meaning.
  */
