@@ -2819,6 +2819,7 @@
       "sales_order_confirm": "Confirm sales orders",
       "sales_order_cancel": "Cancel sales orders",
       "sales_credit_release": "Release a dealer credit hold",
+      "sales_credit_write": "Enter dealer credit limits and outstanding",
       "pricing_read": "See price lists",
       "pricing_write": "Change price lists",
       "catalogue_write": "Keep the item list up to date",

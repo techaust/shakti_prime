@@ -110,6 +110,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   },
   'sales.order.cancel': { ...EXEC, general_manager: 'entity' },
   'sales.credit.release': { ...EXEC },
+  'sales.credit.write': { ...EXEC, accounts: 'entity' },
   'pricing.read': {
     ...EXEC,
     general_manager: 'entity',

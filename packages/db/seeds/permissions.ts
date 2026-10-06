@@ -18,6 +18,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'sales.order.confirm': 'Confirm sales orders',
   'sales.order.cancel': 'Cancel sales orders',
   'sales.credit.release': 'Release a dealer credit hold',
+  'sales.credit.write': 'Enter dealer credit limits and outstanding',
   'pricing.read': 'See price lists',
   'pricing.write': 'Change price lists',
   'catalogue.write': 'Maintain the item list',

@@ -130,6 +130,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `sales.order.create` / `.confirm` | all | entity | team | – | own | own | – | – | – | – | – |
 | `sales.order.cancel` | all | entity | – | – | – | – | – | – | – | – | – |
 | `sales.credit.release` | all | – | – | – | – | – | – | – | – | – | – |
+| `sales.credit.write` | all | – | – | – | – | – | – | – | – | entity | – |
 | `pricing.read` | all | entity | entity | entity | entity | entity | entity | entity | – | entity | – |
 | `pricing.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `catalogue.write` | all | entity | – | – | – | – | entity | – | – | – | – |

@@ -63,6 +63,10 @@ export const accounts = pgTable(
     index('accounts_referral_partner_name_idx')
       .on(t.name, t.id)
       .where(sql`${t.type} = 'referral_partner' and ${t.archivedAt} is null`),
+    // The dealers of `/dealer-credit` page by name (`listDealerCredit`).
+    index('accounts_dealer_name_idx')
+      .on(t.name, t.id)
+      .where(sql`${t.type} = 'dealer' and ${t.archivedAt} is null`),
   ],
 );
 
