@@ -14,6 +14,8 @@ The decisions that govern day-to-day work now, each with its row below:
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 07-10-2026 | Every file under `docs/` is lowercase; the root files README.md, CLAUDE.md, AGENTS.md and CHANGELOG.md keep their names | Owner | [00-start-here](00-start-here.md) |
+| 07-10-2026 | The heavy-command lock (`bash /d/shakti-wt/heavy.sh …` and `bash tools/integration/heavy.sh …`) is allowed in the project's local permissions on the PC, so builders run their checks without a refusal | Owner | the local permission settings on the PC (not in the repository) |
 | 07-10-2026 | The documents are restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`), with appendix folders and a guide, [00-start-here](00-start-here.md); the approved documents may be restructured for this task | Owner | [00-start-here](00-start-here.md), [CLAUDE.md](../CLAUDE.md#documentation-map) |
 | 07-10-2026 | The owner starts each day in a new conversation with "start the day" and ends it with "end the day"; the lead session then follows the `start-session` or `end-session` skill | Owner | [CLAUDE.md](../CLAUDE.md#session-routine), `.claude/skills/start-session/SKILL.md`, `.claude/skills/end-session/SKILL.md` |
 | 07-10-2026 | Models and usage: slice builders on Sonnet, the slice reviewer on Opus at high effort, the lead session on Opus at medium effort; at most two builders at once on the PC, heavy commands one at a time through the PC-wide lock; the lead reports only on events (a builder finishes or stalls, memory runs low), never with progress check-ins | Owner | `.claude/agents/slice-builder.md`, `.claude/agents/slice-reviewer.md`, `CLAUDE.md` |

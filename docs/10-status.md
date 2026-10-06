@@ -2,12 +2,12 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**07-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; wave 4 (N1, S2, K1, then T2) is being built on the PC. Migrations on `main`: 0000 to 0115. Tests: security suite 2,098 (database 1,060, domain 774, web 264) and unit tests 3,070, from T1's integration run on 06-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
+**07-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; in wave 4, N1 and K1 are built and wait for review, S2 waits for a builder place, and T2 follows N1. Migrations on `main`: 0000 to 0115. Tests: security suite 2,098 (database 1,060, domain 774, web 264) and unit tests 3,070, from T1's integration run on 06-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
-- **Merged (14 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; tooling #107, #109, #111, #112, #113, #116, #117; dependency bumps #101, #102; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #124 and the documents restructure ([CHANGELOG](../CHANGELOG.md)).
-- **Next:** wave 4 (N1, S2, K1 building now; T2 after N1) from design §3; then waves 5 and 6 (L1, R1, A1; M1, G1).
+- **Merged (14 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; tooling #107, #109, #111, #112, #113, #116, #117; dependency bumps #101, #102, #127, #128; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #126, #129 ([CHANGELOG](../CHANGELOG.md)).
+- **Next:** review N1 and K1 (the reviewer on Opus), S2's builder finishes its journeys, then each slice is integrated and merged in turn; T2 after N1; then then waves 5 and 6 (L1, R1, A1; M1, G1).
 - **Work split:** the PC only, at most two builders at once, heavy commands one at a time through the lock; the rule is in [CLAUDE.md](../CLAUDE.md#session-routine). Cloud sessions are paused; S1, D1 and T1 showed the cloud procedure works ([hybrid §10](runbooks/hybrid.md#10-the-trial)).
 
 ### In progress
@@ -15,9 +15,9 @@ Wave 4 started from `main` at #121. Each slice's run file is `docs/runs/phase1/<
 
 | Slice | Branch | Run file | Where | State | Next step |
 |---|---|---|---|---|---|
-| N1 Notifications | `feat/n1-notifications` | `n1-notifications.md` | PC worktree `n1-notifications`, slot 16 (Postgres 54346, app 3046) | Building, finishing its checks | Review |
-| K1 Knowledge Vault | `feat/k1-knowledge` | `k1-knowledge.md` | PC worktree `k1-knowledge`, slot 18 (Postgres 54348, app 3048) | Building, finishing its checks | Review |
-| S2 Orders, acceptance and credit | `feat/s2-orders` | `s2-orders.md` | PC worktree `s2-orders`, slot 17 (Postgres 54347, app 3047) | Built up to its journeys, waiting for a free builder place | Its journeys, then review |
+| N1 Notifications | `feat/n1-notifications` | `n1-notifications.md` | PC worktree `n1-notifications`, slot 16 (Postgres 54346, app 3046; stopped) | Built 07-10-2026: its own journeys pass; typecheck, unit tests, build and budgets pass | Review; the whole journey set on a fresh database at integration |
+| K1 Knowledge Vault | `feat/k1-knowledge` | `k1-knowledge.md` | PC worktree `k1-knowledge`, slot 18 (Postgres 54348, app 3048; stopped) | Built 07-10-2026: security suite, unit tests, build, budgets and the whole-repository lint pass; its journeys pass | Review; the whole journey set on a fresh database at integration |
+| S2 Orders, acceptance and credit | `feat/s2-orders` | `s2-orders.md` | PC worktree `s2-orders`, slot 17 (Postgres 54347, app 3047; stopped) | Built up to its final checks; its builder stopped at the usage limit | A builder (Sonnet) finishes its checks and report, then review |
 | T2 Handover | not started | not written | | Starts after N1 merges | The lead writes the brief |
 
 ## Hosted environments
@@ -41,6 +41,7 @@ Every item below, with step-by-step guides and shared ticks, is on the private c
 - **Before the repository goes private again:** set a GitHub Actions budget (Settings › Billing and plans; Linux minutes at $0.006, about $5 on a busy day) or wait for the 1 November reset; private with neither, no check runs and nothing merges. Confirm with Shakti that the code being public for now is acceptable under the agreement.
 - **After cloud sessions resume ([hybrid §10](runbooks/hybrid.md#10-the-trial)):** decide whether to keep everything but the briefs, pull requests and hosted steps in the cloud (fully cloud), as S1, D1 and T1 ran.
 - **The Anthropic and Voyage keys** on dev and staging, and a spending limit on Admin › Agents.
+- **Confirm the Knowledge Vault's daily AI caps** (₹500 for reading documents, ₹100 for search; named defaults K1 set, in design §8.4).
 - **Confirm ₹104 per US dollar** from the card statement.
 - **Approve the vendor quote letters** once the development team prepares them.
 - **An upload on each site** (Settings › Companies › logo) to prove the AWS files stack end to end; then the proof page's render is measured on dev.
@@ -55,6 +56,8 @@ Every item below, with step-by-step guides and shared ticks, is on the private c
 |---|---|
 | A nurtured lead's owner and nurture calls on reassignment (`crm.opportunity.assign` runs only from open), and the handover tested with a callback open: as `system:workers`, which holds no `crm.lead.write`, `moveCallTasks` moves nothing | 1 / T2 |
 | Winning a lead ends its open callbacks, as losing does | 1 / S2 (the first slice that lets a lead be won) |
+| The journeys are not repeatable on a used database: a run leaves the shared Executive's selected company on another company and the pipelines journey's stages behind, so a second run fails in other journeys (N1 and K1, 07-10-2026); reset that state in the journeys' set-up | 1 / any slice |
+| `/settings/profile` is at 192.3 kB against its 200 kB budget (186.0 on 29-09-2026; the bell is part of the growth) | 1 / N1 integration |
 | Account 360 marks a withdrawn call consent beside the number and drops its `tel:` link | 1 / any slice |
 | The Activity log reads a duplicate card set aside as "Dismissed", the agent action's word (states are looked up by value alone) | 1 / any slice |
 | `files.spec.ts`'s logo journey: axe can run on `/settings/companies` before the page has its title | 1 / any slice |
