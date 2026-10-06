@@ -6,6 +6,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
+import { fakeEmbedding } from '../../src/ai/transport';
+import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
@@ -152,6 +154,8 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listInbox: (ctx) => listInbox(ctx, { limit: 20 }),
   countInbox: (ctx) => countInbox(ctx),
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
+  listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
+  searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
   listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
   loadCallLead: (ctx) => loadCallLead(ctx, { entityId: 1, opportunityId: newId() }),

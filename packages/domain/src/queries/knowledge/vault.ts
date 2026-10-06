@@ -8,7 +8,7 @@ import {
   DomainError,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { checkPermission } from '../../command/run-command';
 import { knowledgeFileDto } from '../../commands/knowledge/shared';
@@ -70,18 +70,6 @@ export async function listKnowledgeFiles(
         ? encodeCursor({ t: last.createdText, id: last.file.id })
         : null,
   });
-}
-
-/** One vault file the caller may read, or undefined. */
-export async function getKnowledgeFile(ctx: Ctx, knowledgeFileId: string) {
-  checkPermission(ctx.principal, 'knowledge.vault.read.staff', 'all');
-  const k = schema.knowledgeFiles;
-  const [row] = await ctx.tx
-    .select()
-    .from(k)
-    .where(eq(k.id, IdSchema.parse(knowledgeFileId)))
-    .limit(1);
-  return row === undefined ? undefined : knowledgeFileDto(row);
 }
 
 const QueryVector = z.array(z.number()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS);

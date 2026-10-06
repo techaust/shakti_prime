@@ -461,7 +461,6 @@ export {
 export { recordKnowledgeIndex } from './commands/knowledge/record-index';
 export { knowledgeFileForIndex } from './commands/knowledge/shared';
 export {
-  getKnowledgeFile,
   KNOWLEDGE_PAGE_SIZE,
   listKnowledgeFiles,
   searchKnowledge,
@@ -475,5 +474,4 @@ export {
 export { EMBED_BATCH, indexKnowledgeFile } from './knowledge/index-file';
 export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
 export { knowledgeQueryVector } from './knowledge/search';
-export { readWorkbookSheets } from './imports/parse';
 export { checkZipArchive } from './imports/zip-guard';
