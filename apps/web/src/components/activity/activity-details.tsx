@@ -29,17 +29,25 @@ import {
   COMMISSION_BASES,
   DISPOSITION_NEXT_ACTIONS,
   ACCOUNT_TYPES,
+  AGENT_ACTION_STATE_VALUES,
+  AGENT_AUTONOMY_LEVELS,
+  AGENT_ROLES,
+  AGENT_RUN_OUTCOME_VALUES,
+  agentNameKey,
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
   CONTRASTS,
   CUSTOMER_LANGUAGES,
+  DUPLICATE_REASONS,
+  DUPLICATE_STATES,
   FILE_PURPOSES,
   FILE_SANITISING,
   FILE_SCAN_VERDICTS,
   FILE_STATUSES,
   IMPLEMENTED_IMPORT_KINDS,
   IMPORT_JOB_STATES,
+  QUOTE_STATES,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
@@ -374,12 +382,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const priceMaster = useTranslations('priceMaster');
   const catalogue = useCatalogueText();
   const files = useTranslations('files');
+  const duplicates = useTranslations('duplicates');
+  const quotes = useTranslations('quotes');
+  const agents = useTranslations('agents');
   return (group, value) => {
     switch (group) {
       case 'state': {
         if (oneOf(OPPORTUNITY_STATES, value)) return leads(`state.${value}`);
         if (oneOf(TASK_STATES, value)) return customers(`tasks.state.${value}`);
-        return oneOf(IMPORT_JOB_STATES, value) ? imports(`state.${value}`) : wordsOf(value);
+        if (oneOf(AGENT_ACTION_STATE_VALUES, value)) return agents(`actionState.${value}`);
+        if (oneOf(DUPLICATE_STATES, value)) return duplicates(`state.${value}`);
+        if (oneOf(IMPORT_JOB_STATES, value)) return imports(`state.${value}`);
+        return oneOf(QUOTE_STATES, value) ? quotes(`state.${value}`) : wordsOf(value);
       }
       case 'lostReason':
         return oneOf(OPPORTUNITY_LOST_REASONS, value)
@@ -466,6 +480,19 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(PDF_DOCUMENT_TYPES, value)
           ? t(`values.documentType.${value}`)
           : wordsOf(value);
+      case 'duplicateReason':
+        return oneOf(DUPLICATE_REASONS, value) ? duplicates(`reason.${value}`) : wordsOf(value);
+      case 'agent':
+        return oneOf(AGENT_ROLES, value) ? agents(`names.${agentNameKey(value)}`) : wordsOf(value);
+      case 'agentAction': {
+        // An action type is the command it runs, named as the Activity log names that command.
+        const key = actionKey(value);
+        return key === 'other' ? wordsOf(value.replaceAll('.', ' ')) : t(`actions.${key}`);
+      }
+      case 'autonomy':
+        return oneOf(AGENT_AUTONOMY_LEVELS, value) ? agents(`autonomy.${value}`) : wordsOf(value);
+      case 'runOutcome':
+        return oneOf(AGENT_RUN_OUTCOME_VALUES, value) ? agents(`outcome.${value}`) : wordsOf(value);
     }
   };
 }

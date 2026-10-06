@@ -12,11 +12,11 @@ The slice procedure itself (brief, build, review, merge with `main`, integration
 | Task | Where | Why |
 |---|---|---|
 | Write a slice's run file (its brief) | PC, the lead session | The lead plans and reviews every slice; the run file is pushed on the slice's branch before a cloud session starts |
-| Build a slice | Cloud (PC as fallback) | Each session is its own VM with Docker and its own Postgres, so slices share no ports, memory or database |
-| Review a slice | Cloud (PC as fallback) | Read-only; it runs the suites on its own database |
-| Take `main` into a slice, renumber its migrations | PC | Decision 1, until [the trial](#10-the-trial) |
-| The integration run (`integrate.sh`) | PC | Decision 1; it runs 30 to 60 minutes, longer than a cloud command may run ([§2](#2-what-a-cloud-session-has-and-lacks)) |
-| Linux screenshot baselines (`e2e:snap`) | PC | Decision 1, until the trial |
+| Build a slice | Cloud (a new cloud session as fallback) | Each session is its own VM with Docker and its own Postgres, so slices share no ports, memory or database |
+| Review a slice | Cloud (a new cloud session as fallback) | Read-only; it runs the suites on its own database |
+| Take `main` into a slice, renumber its migrations | Cloud from S1, the trial (a new cloud session as fallback) | Cloud-first (owner, 05-10-2026): the 8 GB PC cannot run these beside other work |
+| The integration run (`integrate.sh`) | Cloud from S1, the trial (a new cloud session as fallback) | It runs 30 to 60 minutes, longer than a cloud command may run ([§2](#2-what-a-cloud-session-has-and-lacks)), so a cloud session runs it in parts with `INTEGRATE_STEPS` (for example `install lint format copylint generated typecheck`, then `unit`, then `security dbverify`, then `audit build jsbudget gitleaks`, then `e2e`), each under 30 minutes |
+| Linux screenshot baselines (`e2e:snap`) | Cloud from S1, the trial (a new cloud session as fallback) | The VM is Linux, as the baselines are |
 | Push for review, open the pull request | PC, the lead session | The lead checks the diff first; a cloud session never opens a pull request |
 | Migrate dev and staging, check health | PC | Decision 1; the migration count reads the hosted database through the Supabase tools, which exist only on the PC |
 | Any other change to a hosted service | PC, with the owner's go-ahead | The standing go-ahead and its scope: [DECISIONS](../DECISIONS.md) |
@@ -46,7 +46,7 @@ From Anthropic's documentation (04-10-2026):
 - Usage counts against the owner's Claude plan, shared with the PC's sessions.
 
 What this repository adds:
-- `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node is older), corepack and pnpm, the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
+- `tools/integration/cloud-setup.sh` (the setup script): Node of `.node-version` (24; the image's Node 22 comes first on `PATH`, so the session hook and `lib.sh` put `/usr/local/bin` first) and the pnpm of `package.json` from npm (corepack cannot start pnpm 12), the packages, the Playwright Chromium the journeys use, and the Postgres, gitleaks and Playwright images, pulled in parallel.
 - `.claude/hooks/cloud-session.sh` (a session-start hook that does nothing on the PC): `.env` from `.env.example` with `E2E_BASE_URL` on `BETTER_AUTH_URL`'s port, the packages when the checkout has none, the Docker daemon and the local Postgres on `127.0.0.1:54322`. The security suites and the journeys migrate and seed that database themselves (`prepareDatabase()` in `packages/db/src/testing`); the dev server needs `pnpm db:migrate && pnpm db:seed` first.
 - `.claude/hooks/tooling-check.mjs` prints a short cloud note instead of the PC's tool list.
 
@@ -57,8 +57,8 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
 
 1. **Install the Claude GitHub App** on the repository: open https://github.com/apps/claude, choose Install (or Configure), pick the account `techaust`, choose *Only select repositories*, select `techaust/shakti_prime` and save.
 2. **Create the environment:** open https://claude.ai/code, open the environment menu beside the repository and choose to add an environment.
-   - **Name:** `shakti-prime`.
-   - **Network access:** *Custom*, with the Trusted default list kept, plus exactly these hosts (decision 4 of 04-10-2026), one per line:
+   - **Name:** `shakti_prime`, as the repository.
+   - **Network access:** *Custom*, with **Also include default list of common package managers** ticked (without it the npm registry, nodejs.org, Docker Hub and the other image registries are refused), plus exactly these hosts (decision 4 of 04-10-2026), one per line:
      ```
      challenges.cloudflare.com
      api.pwnedpasswords.com
@@ -73,13 +73,13 @@ The owner does these steps once, in the browser. The labels follow Anthropic's d
      BASH_DEFAULT_TIMEOUT_MS=600000
      BASH_MAX_TIMEOUT_MS=1800000
      ```
-   - **Setup script:** `bash tools/integration/cloud-setup.sh`. If the script runs outside the checkout and cannot find the file, paste the file's content instead.
+   - **Setup script:** paste the whole of `tools/integration/cloud-setup-env.sh`. The box runs before the checkout is in the session's working directory (a bare `bash tools/integration/cloud-setup.sh` stops with *No such file or directory*), so the pasted script finds the repository's `cloud-setup.sh` and runs it, or installs Node 24 and pnpm and leaves the rest to the session-start hook.
 3. **Check it:** start a session on `main` and send `Say what the session-start hooks printed.` The answer names the cloud note of `[tooling-check]` and a `[cloud-session]` line saying Postgres is up. If a line reports a problem, the setup script's log is in `/tmp/cloud-setup-*.log` and the hook's in `/tmp/cloud-session-*.log`.
 
 ## 4. Starting a builder or a reviewer
 Before a cloud session starts, the lead session on the PC writes or updates the slice's run file `docs/runs/phase1/<slice>.md` ([the run files](../runs/phase1/README.md)), commits it on the slice's branch and pushes the branch. The session clones that branch.
 
-Start the session on claude.ai/code (environment `shakti-prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
+Start the session on claude.ai/code (environment `shakti_prime`, the slice's branch), or from the PC with `claude --cloud "<message>"`, which starts a cloud session on the checkout's current branch once it is pushed. The first message, with the slice's names filled in:
 
 **Builder:**
 ```

@@ -185,7 +185,7 @@ export const logCall = defineCommand({
   peopleOnly: true,
   input: LogCallInput,
   output: LogCallResultDto,
-  auditFields: ['outcome', 'nextAction', 'attemptNo', 'durationSeconds'],
+  auditFields: ['callOutcome', 'nextAction', 'attemptNo', 'durationSeconds'],
   async handler(ctx, input): Promise<LogCallResult> {
     requireEntity(ctx, input.entityId);
     const lead = await lockOpportunity(ctx, input);
@@ -245,7 +245,7 @@ export const logCall = defineCommand({
       after: {
         opportunityId: lead.id,
         dispositionId: outcome.id,
-        outcome: outcome.code,
+        callOutcome: outcome.code,
         nextAction,
         attemptNo,
         durationSeconds: durationS,

@@ -4,9 +4,12 @@ import type { Requirement } from '../command/define-command';
 import { findTransition, transition, type Actor, type AnyMachine } from './define-machine';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
+import { duplicateCandidateMachine } from './machines/duplicate-candidate';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
+import { agentActionMachine } from './machines/agent-action';
 import { fileUploadMachine } from './machines/file-upload';
+import { inboxItemMachine } from './machines/inbox-item';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -45,7 +48,10 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  { machine: agentActionMachine, record: {}, params: {} },
+  { machine: inboxItemMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
+  { machine: duplicateCandidateMachine, record: {}, params: {} },
   {
     machine: opportunityMachine,
     record: {
@@ -62,6 +68,7 @@ const FIXTURES: Fixture[] = [
     machine: quoteMachine,
     record: {
       segment: 'farmer_pumps',
+      tierId: newId(),
       priceListId: newId(),
       sizingComplete: true,
       pumpCurveInBounds: true,
@@ -418,9 +425,17 @@ const GUARDS: GuardCase[] = [
     fixture: 'quote',
     from: null,
     event: 'create',
+    record: { tierId: null },
+    code: 'validation_failed',
+    reason: 'quote_tier_missing',
+  },
+  {
+    fixture: 'quote',
+    from: null,
+    event: 'create',
     record: { priceListId: null },
     code: 'validation_failed',
-    reason: 'price_list_missing',
+    reason: 'quote_price_list_missing',
   },
   {
     fixture: 'quote',
@@ -453,6 +468,14 @@ const GUARDS: GuardCase[] = [
     record: { pdfFileId: null },
     code: 'conflict',
     reason: 'quote_pdf_missing',
+  },
+  {
+    fixture: 'quote',
+    from: 'draft',
+    event: 'send',
+    record: { validUntil: new Date(NOW.getTime() - 1) },
+    code: 'conflict',
+    reason: 'quote_expired',
   },
   {
     fixture: 'quote',

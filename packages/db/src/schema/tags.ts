@@ -58,11 +58,12 @@ export const opportunityTags = pgTable(
   },
   (t) => [
     primaryKey({ name: 'opportunity_tags_pkey', columns: [t.opportunityId, t.tagId] }),
+    // A customer merge moves a lead to the kept customer; its tags follow it (`ON UPDATE CASCADE`).
     foreignKey({
       name: 'opportunity_tags_opportunity_fk',
       columns: [t.opportunityId, t.entityId, t.accountId],
       foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
-    }),
+    }).onUpdate('cascade'),
     index('opportunity_tags_tag_idx').on(t.tagId),
   ],
 );

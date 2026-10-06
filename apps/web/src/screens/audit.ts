@@ -61,6 +61,13 @@ const ACTIONS = {
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
   'crm.sizing.record': 'sizingRecord',
+  'crm.account.tier.set': 'accountTierSet',
+  'sales.quote.create': 'quoteCreate',
+  'sales.quote.send': 'quoteSend',
+  'sales.quote.requote': 'quoteRequote',
+  'sales.quote.withdraw': 'quoteWithdraw',
+  'sales.quote.expire': 'quoteExpire',
+  'sales.quote.pdf.attach': 'quotePdfAttach',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -120,6 +127,13 @@ const ACTIONS = {
   'profile.view.delete': 'viewDelete',
   'realtime.token.issue': 'liveUpdatesOpen',
   'profile.contrast.set': 'contrastSet',
+  'agents.run.record': 'agentRunRecord',
+  'agents.inbox.approve': 'inboxApprove',
+  'agents.inbox.edit': 'inboxEdit',
+  'agents.inbox.reject': 'inboxReject',
+  'agents.inbox.dismiss': 'inboxDismiss',
+  'agents.config.set': 'agentConfigSet',
+  'agents.killswitch.set': 'agentKillSwitchSet',
   'crm.pipeline.update': 'pipelineUpdate',
   'crm.stage.create': 'stageCreate',
   'crm.stage.update': 'stageUpdate',
@@ -129,6 +143,12 @@ const ACTIONS = {
   'crm.score_rule.set': 'scoreRulesSet',
   'crm.lead.rescore': 'leadRescore',
   'crm.lead.score_refresh': 'leadScoreRefresh',
+  'crm.duplicate.scan': 'duplicateScan',
+  'crm.duplicate.dismiss': 'duplicateDismiss',
+  'crm.duplicate.suggest': 'duplicateSuggest',
+  'crm.customer.merge': 'customerMerge',
+  'crm.customer.unmerge': 'customerUnmerge',
+  'crm.lead.merge': 'leadMerge',
   'crm.referral_partner.set': 'referralPartnerSet',
   'crm.commission_rule.set': 'commissionRuleSet',
   'calls.call.log': 'callLog',
@@ -159,6 +179,8 @@ export function actionKey(command: string): ActionKey {
 const EVENT_NAMES = {
   'org.entity.updated': 'entityUpdated',
   'crm.lead.created': 'leadCreated',
+  'crm.lead.attached': 'leadAttached',
+  'crm.duplicate.found': 'duplicateFound',
   'crm.opportunity.stage_moved': 'opportunityStageMoved',
   'crm.opportunity.assigned': 'opportunityAssigned',
   'crm.opportunity.nurtured': 'opportunityNurtured',
@@ -190,6 +212,11 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  'sales.quote.created': 'quoteCreated',
+  'sales.quote.sent': 'quoteSent',
+  'sales.quote.superseded': 'quoteSuperseded',
+  'sales.quote.withdrawn': 'quoteWithdrawn',
+  'sales.quote.expired': 'quoteExpired',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -289,6 +316,11 @@ const CODE_GROUPS = [
   'sanitising',
   'scanStatus',
   'documentType',
+  'duplicateReason',
+  'agent',
+  'agentAction',
+  'autonomy',
+  'runOutcome',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -343,6 +375,7 @@ const FIELD_KINDS = [
   ['revokedReason', 'endReason'],
   ['existingAccount', 'yesNo'],
   ['consent', 'recorded'],
+  ['attached', 'yesNo'],
   // Sign-in
   ['detail', 'signInDetail'],
   ['method', 'method'],
@@ -460,7 +493,7 @@ const FIELD_KINDS = [
   ['basis', 'commissionBasis'],
   ['amount', 'text'],
   // Calls
-  ['outcome', 'text'],
+  ['callOutcome', 'text'],
   ['attemptNo', 'number'],
   ['durationSeconds', 'number'],
   // Uploaded files and their checks
@@ -475,6 +508,32 @@ const FIELD_KINDS = [
   ['scanStatus', 'scanStatus'],
   // Printed documents
   ['documentType', 'documentType'],
+  // Duplicates and merges
+  ['confidence', 'number'],
+  ['duplicateReason', 'duplicateReason'],
+  ['movedContacts', 'number'],
+  ['movedSites', 'number'],
+  ['movedRelationships', 'number'],
+  ['movedLeads', 'number'],
+  ['movedTasks', 'number'],
+  ['movedTags', 'number'],
+  ['movedConsents', 'number'],
+  ['movedActivities', 'number'],
+  ['undoneAt', 'time'],
+  // Quotes
+  ['quoteNo', 'text'],
+  ['lineCount', 'number'],
+  ['grandTotal', 'money'],
+  ['validUntil', 'time'],
+  ['withdrawnReason', 'text'],
+  // Agents and the Agent Inbox
+  ['agent', 'agent'],
+  ['actionType', 'agentAction'],
+  ['autonomy', 'autonomy'],
+  ['outcome', 'runOutcome'],
+  ['edited', 'yesNo'],
+  ['dailySpendCap', 'money'],
+  ['enabled', 'yesNo'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

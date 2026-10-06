@@ -71,6 +71,12 @@ const ACCOUNT_READ = grant('crm.account.read', 'own');
 const LEAD_READ = grant('crm.lead.read', 'own');
 const IMPORTS = grant('imports.write', 'entity');
 const NEVER: Rule = { kind: 'never' };
+/** Either agent control reads the runs and actions of the company (DATABASE §4.4). */
+const AGENT_CONTROLS: Rule = {
+  kind: 'any',
+  rules: [grant('agents.autonomy.write', 'entity'), grant('agents.killswitch', 'entity')],
+};
+const INBOX = grant('agents.inbox.act', 'own');
 
 /**
  * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
@@ -142,6 +148,10 @@ const RULES: Record<MatrixTable, TableRule> = {
   sizings: { read: LEAD_READ, leak: otherCompany },
   // A child of the lead: read with it.
   calls: { read: LEAD_READ, leak: otherCompany },
+  // A quote, its lines and its versions are children of the lead: read with it.
+  quotes: { read: LEAD_READ, leak: otherCompany },
+  quote_lines: { read: LEAD_READ, leak: otherCompany },
+  quote_versions: { read: LEAD_READ, leak: otherCompany },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
@@ -180,6 +190,15 @@ const RULES: Record<MatrixTable, TableRule> = {
   tasks: { read: LEAD_READ, leak: otherCompany },
   tags: { read: LEAD_READ, group: LEAD_READ, leak: otherCompany },
   opportunity_tags: { read: LEAD_READ, leak: otherCompany },
+  // Every principal of a company reads its agent settings and the group's (DATABASE §4.4).
+  agent_configs: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  agent_runs: { read: AGENT_CONTROLS, leak: otherCompany },
+  // The fixture's suggestion is the owner's, in their team: the inbox reads it at own scope.
+  agent_actions: {
+    read: { kind: 'any', rules: [AGENT_CONTROLS, INBOX] },
+    leak: otherCompany,
+  },
+  inbox_items: { read: INBOX, leak: otherCompany },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {
@@ -190,6 +209,17 @@ const RULES: Record<MatrixTable, TableRule> = {
   // CRM set-up: every caller reads the group's rows and their own company's.
   call_dispositions: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   lead_score_rules: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
+  // A duplicate is read by whoever reads both customers (D1); the fixture's second customer has
+  // no lead, so only customer scope reads it.
+  // A customer pair needs both customers, a lead pair both leads (agents included).
+  duplicate_candidates: {
+    read: ACCOUNT_READ,
+    throughLead: LEAD_READ,
+    lead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // A merge is read with the customer it was merged into.
+  customer_merges: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: otherCompany },
   // A referral partner is read with its customer (ADR 0008).
   referral_partners: {
     read: ACCOUNT_READ,

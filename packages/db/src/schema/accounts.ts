@@ -57,6 +57,8 @@ export const accounts = pgTable(
     // The customers list pages by name (`listCustomers`).
     index('accounts_name_id_idx').on(t.name, t.id),
     index('accounts_tier_idx').on(t.tierId),
+    // The duplicate search compares names whatever their case and spacing (`app.match_text()`).
+    index('accounts_match_name_idx').using('btree', sql`app.match_text(${t.name})`),
     // The referral partners of Settings › Pipelines page by name (`listReferralPartners`).
     index('accounts_referral_partner_name_idx')
       .on(t.name, t.id)
@@ -166,6 +168,10 @@ export const customerSites = pgTable(
     ),
     index('customer_sites_village_trgm_idx').using('gin', t.village.op('gin_trgm_ops')),
     index('customer_sites_account_idx').on(t.accountId),
+    // The duplicate search compares villages whatever their case and spacing (`app.match_text()`).
+    index('customer_sites_match_village_idx')
+      .using('btree', sql`app.match_text(${t.village})`)
+      .where(sql`${t.village} is not null and ${t.archivedAt} is null`),
     index('customer_sites_village_key_idx')
       .on(t.villageKey)
       .where(sql`${t.archivedAt} is null`),

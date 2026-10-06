@@ -30,4 +30,7 @@ export const CLIENT_NAMESPACES = [
   'sizing',
   'files',
   'calling',
+  'duplicates',
+  'quotes',
+  'agents',
 ] as const;

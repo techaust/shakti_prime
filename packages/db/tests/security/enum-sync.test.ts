@@ -1,4 +1,10 @@
 import {
+  AGENT_ACTION_STATES,
+  AGENT_AUTONOMY,
+  AGENT_RUN_OUTCOMES,
+  INBOX_ITEM_KINDS,
+  INBOX_ITEM_STATES,
+  INBOX_SUBJECT_TYPES,
   AccountTypeSchema,
   CallDirectionSchema,
   CallNumberSeriesSchema,
@@ -26,6 +32,7 @@ import {
   LeadChannelSchema,
   OpportunityStateSchema,
   PrincipalKindSchema,
+  QuoteStateSchema,
   ROLE_KEYS,
   SavedViewScreenSchema,
   SCOPES,
@@ -34,10 +41,15 @@ import {
   SiteTypeSchema,
   SizingKindSchema,
   StageKindSchema,
+  SubsidySchemeSchema,
+  SupplyKindSchema,
   TaskKindSchema,
   TaskStateSchema,
   ThemeSchema,
   ContrastSchema,
+  DuplicateKindSchema,
+  DuplicateReasonSchema,
+  DuplicateStateSchema,
   USER_STATUSES,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
@@ -51,6 +63,13 @@ afterAll(closeDb);
  * added on one side only would pass validation and then fail in the database, or the reverse.
  */
 const PAIRS: Record<string, readonly string[]> = {
+  agent_actions_autonomy_check: AGENT_AUTONOMY,
+  agent_actions_state_check: AGENT_ACTION_STATES,
+  agent_configs_autonomy_check: AGENT_AUTONOMY,
+  agent_runs_outcome_check: AGENT_RUN_OUTCOMES,
+  inbox_items_kind_check: INBOX_ITEM_KINDS,
+  inbox_items_state_check: INBOX_ITEM_STATES,
+  inbox_items_subject_type_check: INBOX_SUBJECT_TYPES,
   account_contacts_role_check: ContactRoleSchema.options,
   accounts_type_check: AccountTypeSchema.options,
   activities_type_check: ActivityTypeSchema.options,
@@ -67,6 +86,12 @@ const PAIRS: Record<string, readonly string[]> = {
   contacts_preferred_language_check: CustomerLanguageSchema.options,
   customer_sites_type_check: SiteTypeSchema.options,
   document_sequences_doc_type_check: DocTypeSchema.options,
+  duplicate_candidates_kind_check: DuplicateKindSchema.options,
+  duplicate_candidates_reason_check: DuplicateReasonSchema.options,
+  duplicate_candidates_state_check: DuplicateStateSchema.options,
+  // Which pair columns a candidate fills is named by its kind; only an open one is undecided.
+  duplicate_candidates_pair_check: DuplicateKindSchema.options,
+  duplicate_candidates_decided_check: DuplicateStateSchema.extract(['open']).options,
   files_purpose_check: FilePurposeSchema.options,
   files_status_check: FileStatusSchema.options,
   import_jobs_format_check: ImportFormatSchema.options,
@@ -88,6 +113,12 @@ const PAIRS: Record<string, readonly string[]> = {
   role_permissions_scope_check: SCOPES,
   saved_views_screen_check: SavedViewScreenSchema.options,
   sizings_kind_check: SizingKindSchema.options,
+  quotes_state_check: QuoteStateSchema.options,
+  quotes_scheme_check: SubsidySchemeSchema.options,
+  quotes_supply_kind_check: SupplyKindSchema.options,
+  // Only a withdrawn quote carries the reason it was withdrawn.
+  quotes_withdrawn_reason_check: QuoteStateSchema.extract(['withdrawn']).options,
+  quote_lines_unit_check: ItemUnitSchema.options,
   // Only a pump sizing names a catalogue pump.
   sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
   tasks_kind_check: TaskKindSchema.options,

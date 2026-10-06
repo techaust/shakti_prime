@@ -1,22 +1,18 @@
 // Creates or updates the QStash schedules (docs/runbooks/DEPLOY.md): the outbox publisher every
 // minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
-// hour and the lead rescoring each night. Run once per environment, with that environment's
-// QSTASH_TOKEN, signing keys and BETTER_AUTH_URL set.
+// hour, the lead rescoring and the duplicate search each night and the quote expiry each day.
+// Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
+// BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
 import { Client } from '@upstash/qstash';
 import {
+  DUPLICATE_SCAN_PATH,
   FILES_SWEEP_PATH,
   LEAD_RESCORE_PATH,
+  QUOTE_EXPIRE_PATH,
   qstashConfig,
   workerUrl,
 } from '../src/workers/qstash';
-
-/** Fixed, so running the script again updates each schedule instead of adding another. */
-const SCHEDULE_ID = 'outbox-publish';
-const SWEEP_SCHEDULE_ID = 'files-sweep';
-const RESCORE_SCHEDULE_ID = 'lead-rescore';
-/** 21:30 UTC, three in the morning in India, when no one is calling. */
-const RESCORE_CRON = '30 21 * * *';
 
 const config = qstashConfig();
 if (config === undefined) {
@@ -29,6 +25,20 @@ if (!config.publishUrl.startsWith('https://')) {
   console.error(`QStash can only call a public https address, not ${config.publishUrl}`);
   process.exit(1);
 }
+// One QStash account serves dev and staging: a schedule named for its environment is never
+// overwritten by the other's.
+const environment = process.env.BOS_ENVIRONMENT ?? '';
+if (!/^[a-z]+$/.test(environment)) {
+  console.error('set BOS_ENVIRONMENT (dev, staging or production) first');
+  process.exit(1);
+}
+
+/** Named for the environment, so running the script again updates each schedule in place. */
+const SCHEDULE_ID = `outbox-publish-${environment}`;
+const SWEEP_SCHEDULE_ID = `files-sweep-${environment}`;
+const RESCORE_SCHEDULE_ID = `lead-rescore-${environment}`;
+/** 21:30 UTC, three in the morning in India, when no one is calling. */
+const RESCORE_CRON = '30 21 * * *';
 
 const client = new Client({
   token: config.token,
@@ -75,3 +85,39 @@ await client.schedules.create({
   timeout: 60,
 });
 console.log(`schedule ${RESCORE_SCHEDULE_ID} calls ${rescoreUrl} at ${RESCORE_CRON} (UTC)`);
+
+// The nightly search for duplicate customers and leads (CRM-03), half an hour after the
+// rescoring: two customers an import and a form made at the same moment, and an import's rows.
+const DUPLICATE_SCAN_SCHEDULE_ID = `duplicate-scan-${environment}`;
+const DUPLICATE_SCAN_CRON = '0 22 * * *';
+const scanUrl = workerUrl(config, DUPLICATE_SCAN_PATH);
+await client.schedules.create({
+  scheduleId: DUPLICATE_SCAN_SCHEDULE_ID,
+  destination: scanUrl,
+  cron: DUPLICATE_SCAN_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(
+  `schedule ${DUPLICATE_SCAN_SCHEDULE_ID} calls ${scanUrl} at ${DUPLICATE_SCAN_CRON} (UTC)`,
+);
+
+// The daily expiry of quotes past their validity (docs/design/phase1.md §7.3), five minutes after
+// midnight in India, when the day's last valid quotes have lapsed.
+const QUOTE_EXPIRE_SCHEDULE_ID = `quote-expire-${environment}`;
+const QUOTE_EXPIRE_CRON = '35 18 * * *';
+const expireUrl = workerUrl(config, QUOTE_EXPIRE_PATH);
+await client.schedules.create({
+  scheduleId: QUOTE_EXPIRE_SCHEDULE_ID,
+  destination: expireUrl,
+  cron: QUOTE_EXPIRE_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 3,
+  timeout: 60,
+});
+console.log(
+  `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
+);

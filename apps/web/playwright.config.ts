@@ -89,7 +89,9 @@ export default defineConfig({
     : {
         webServer: {
           // The production build, started as a local production run (apps/web/src/auth/deps.ts).
-          command: `pnpm exec next start -p ${port}`,
+          // `next` straight from the script's PATH: under `pnpm exec`, pnpm 12 on Linux outlives
+          // the runner's stop and leaves the server holding the port.
+          command: `next start -p ${port}`,
           url: `${baseURL}/api/v1/health`,
           env: { BOS_ENVIRONMENT: 'local' },
           reuseExistingServer: process.env.CI === undefined,

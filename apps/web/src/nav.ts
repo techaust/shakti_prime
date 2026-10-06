@@ -1,10 +1,14 @@
 import type { PermissionGrant } from '@shakti/contracts';
 import {
+  Bot,
   Building2,
   Cable,
+  Combine,
   Contact,
+  FileText,
   FileUp,
   House,
+  Inbox,
   IndianRupee,
   ListTodo,
   Package,
@@ -51,6 +55,15 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { id: 'home', href: '/home', label: 'home', icon: House, group: 'work', requires: [] },
   {
+    id: 'inbox',
+    href: '/inbox',
+    label: 'inbox',
+    icon: Inbox,
+    group: 'work',
+    // listInbox shows the suggestions the caller's inbox scope covers.
+    requires: [{ key: 'agents.inbox.act', scope: 'own' }],
+  },
+  {
     id: 'leads',
     href: '/leads',
     label: 'leads',
@@ -77,6 +90,25 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Every staff role that reads leads also reads customers at own scope or wider; listCustomers
     // shows the customers they look after and those of their leads (0057).
     requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
+    id: 'duplicates',
+    href: '/duplicates',
+    label: 'duplicates',
+    icon: Combine,
+    group: 'work',
+    // A team lead and above decide the cards (crm.lead.merge, SECURITY §3.2).
+    requires: [{ key: 'crm.lead.merge', scope: 'team' }],
+  },
+  {
+    id: 'quotes',
+    href: '/quotes',
+    label: 'quotes',
+    icon: FileText,
+    group: 'work',
+    // Quotes are read with their leads (listQuotes), so whoever reads leads opens the list and the
+    // quote page; sending, re-quoting and withdrawing follow their own permissions.
+    requires: [{ key: 'crm.lead.read', scope: 'own' }],
   },
   {
     id: 'leads-new',
@@ -160,6 +192,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'admin',
     // app.outbox_health() and platform.probe.run
     requires: [{ key: 'admin.integrations.write', scope: 'all' }],
+  },
+  {
+    id: 'admin-agents',
+    href: '/admin/agents',
+    label: 'adminAgents',
+    icon: Bot,
+    group: 'admin',
+    // The kill switches, which Executives and GMs hold; autonomy and caps also need
+    // agents.autonomy.write, which only Executives hold, and the screen shows them read-only else.
+    requires: [{ key: 'agents.killswitch', scope: 'all' }],
   },
   {
     id: 'settings-companies',

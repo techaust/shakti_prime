@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { loadAccount360 } from '../../../../actions/crm';
+import { listAccountDuplicates } from '../../../../actions/duplicates';
 import { AccountScreen } from '../../../../components/customers/account-screen';
 import { FailureMessage } from '../../../../components/screens/failure';
 import { Page } from '../../../../components/shell/page';
@@ -46,12 +47,17 @@ export default async function AccountPage({
     ...(entityId === undefined ? {} : { entityId }),
   });
   if (!view.ok && view.error === 'account_missing') notFound();
+  // The duplicate cards of the company shown (CRM-03); a page without them still shows the rest.
+  const duplicates = view.ok
+    ? await listAccountDuplicates({ entityId: view.data.entityId, accountId })
+    : undefined;
   const t = await getTranslations('customers');
   return view.ok ? (
     <AccountScreen
       initial={view.data}
       companies={companyNames(access)}
       {...(view.data.canEdit ? { proofLimit: proofLimit() } : {})}
+      duplicates={duplicates?.ok === true ? duplicates.data : undefined}
     />
   ) : (
     <Page title={t('title')}>

@@ -14,6 +14,18 @@ describe('workshop defaults', () => {
       },
       opportunity: { handoverLockHours: 48, reopenWindowDays: 30 },
       quote: { validityDays: 15 },
+      numbering: {
+        docCodes: {
+          quote: 'Q',
+          sales_order: 'SO',
+          proforma: 'PI',
+          challan: 'DC',
+          purchase_order: 'PO',
+        },
+        separator: '/',
+        serialDigits: 4,
+      },
+      pricing: { tierByAccountType: {}, kitPricing: 'fixed' },
       credit: { exposureCountsConfirmedOrders: true },
       dispatch: { ewayBillThresholdPaise: 5_000_000n },
       crm: {

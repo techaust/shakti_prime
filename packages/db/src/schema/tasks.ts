@@ -44,11 +44,12 @@ export const tasks = pgTable(
     ...actorsRequired,
   },
   (t) => [
+    // A customer merge moves a lead to the kept customer; its tasks follow it (`ON UPDATE CASCADE`).
     foreignKey({
       name: 'tasks_opportunity_fk',
       columns: [t.opportunityId, t.entityId, t.accountId],
       foreignColumns: [opportunities.id, opportunities.entityId, opportunities.accountId],
-    }),
+    }).onUpdate('cascade'),
     check('tasks_kind_check', sql`${t.kind} in ('callback', 'follow_up', 'nurture', 'review')`),
     check('tasks_state_check', sql`${t.state} in ('open', 'done', 'cancelled')`),
     check('tasks_done_at_check', sql`(${t.state} <> 'done') = (${t.doneAt} is null)`),

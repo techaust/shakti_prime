@@ -19,6 +19,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Platform](#platform)
   - [Files](#files)
   - [print](#print)
+  - [sales](#sales)
 - [Payloads](#payloads)
 
 ## Rules
@@ -44,7 +45,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-33 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+40 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -57,10 +58,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.lead.create`, `imports.job.commit_batch` | none |
+| [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `calls.call.log`, `crm.opportunity.stage.move` | none |
 | [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
 | [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `calls.call.log`, `crm.opportunity.nurture` | none |
-| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage. | `calls.call.log`, `crm.opportunity.reopen` | none |
+| [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead. | `calls.call.log`, `crm.lead.create`, `crm.opportunity.reopen`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
 | [`crm.opportunity.lost`](#crmopportunitylost) | An open or nurtured lead was closed as lost with a reason code. | `calls.call.log`, `crm.opportunity.lose` | none |
 | [`crm.sizing.recorded`](#crmsizingrecorded) | A person recorded a pump or rooftop sizing of a lead, worked out on the server, with whether it is within the engineering limits and the reason codes when it is not. | `crm.sizing.record` | none |
@@ -127,7 +130,17 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+| [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+
+### sales
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`sales.quote.created`](#salesquotecreated) | A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced. | `sales.quote.create`, `sales.quote.requote` | none |
+| [`sales.quote.sent`](#salesquotesent) | A quote with its PDF was marked as sent to the customer. | `sales.quote.send` | none |
+| [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
+| [`sales.quote.withdrawn`](#salesquotewithdrawn) | A draft or sent quote was withdrawn, with a reason a person gave. | `sales.quote.withdraw` | none |
+| [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
 
 ## Payloads
 
@@ -144,6 +157,21 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `pipelineKey` | text from 1 to 40 characters |
 | `sourceCode` | text from 1 to 40 characters or null |
 | `existingAccount` | true or false |
+
+### crm.lead.attached
+
+| Field | Type |
+|---|---|
+| `pipelineKey` | text from 1 to 40 characters |
+| `sourceCode` | text from 1 to 40 characters or null |
+
+### crm.duplicate.found
+
+| Field | Type |
+|---|---|
+| `kind` | one of `customer`, `lead` |
+| `reason` | one of `phone`, `name_village` |
+| `confidence` | whole number from 1 to 100 |
 
 ### crm.opportunity.stage_moved
 
@@ -359,3 +387,37 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### sales.quote.created
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `supersedesId` | id or null |
+| `lineCount` | whole number from 1 |
+
+### sales.quote.sent
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `pdfFileId` | id |
+
+### sales.quote.superseded
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `supersededById` | id |
+
+### sales.quote.withdrawn
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+
+### sales.quote.expired
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |

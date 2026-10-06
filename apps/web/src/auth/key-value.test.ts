@@ -85,6 +85,12 @@ function fakeUpstash(now: () => number) {
         cells.set(key, { value: String(next), expiresAt: cell?.expiresAt ?? null });
         return { reply: next };
       }
+      case 'INCRBY': {
+        const cell = live(key);
+        const next = (cell ? Number(cell.value) : 0) + Number(args[0]);
+        cells.set(key, { value: String(next), expiresAt: cell?.expiresAt ?? null });
+        return { reply: next };
+      }
       case 'EVAL': {
         // Only the one script the adapter sends: raise a stored whole number (`raiseTo`).
         const [target = '', value = '', ttl = '0'] = args.slice(1);
@@ -223,6 +229,17 @@ describe.each(stores)('KeyValue contract: %s', (_name, make) => {
     expect(await kv.get('claim')).toBe('c');
   });
 
+  it('adds amounts to a counter that keeps the time to live of its first addition', async () => {
+    const kv = make();
+    expect(await kv.incrBy('spend', 250, 60)).toBe(250);
+    clock += 30_000;
+    expect(await kv.incrBy('spend', 125, 60)).toBe(375);
+    expect(await kv.get('spend')).toBe('375');
+    clock += 30_001;
+    expect(await kv.get('spend')).toBeNull();
+    expect(await kv.incrBy('spend', 5, 60)).toBe(5);
+  });
+
   it('raises a stored whole number and never lowers it, compared as numbers', async () => {
     const kv = make();
     expect(await kv.raiseTo('seq', '9', 60)).toBe('9');
@@ -264,6 +281,7 @@ describe('principal cache failures are misses, not errors', () => {
     set: () => Promise.reject(new Error('store unreachable')),
     del: () => Promise.reject(new Error('store unreachable')),
     incr: () => Promise.reject(new Error('store unreachable')),
+    incrBy: () => Promise.reject(new Error('store unreachable')),
     setIfAbsent: () => Promise.reject(new Error('store unreachable')),
     raiseTo: () => Promise.reject(new Error('store unreachable')),
   };

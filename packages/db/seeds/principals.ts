@@ -1,4 +1,5 @@
 import {
+  AGENT_PRINCIPAL_IDS,
   SYSTEM_WORKERS_PRINCIPAL_ID,
   type AgentRoleKey,
   type SystemRoleKey,
@@ -11,32 +12,32 @@ export const AGENT_PRINCIPAL_SEED: readonly {
   displayName: string;
 }[] = [
   {
-    id: '01990000-0000-7000-8000-000000000301',
+    id: AGENT_PRINCIPAL_IDS['agent:triage'],
     roleKey: 'agent:triage',
     displayName: 'Intake & Triage',
   },
   {
-    id: '01990000-0000-7000-8000-000000000302',
+    id: AGENT_PRINCIPAL_IDS['agent:concierge'],
     roleKey: 'agent:concierge',
     displayName: 'WhatsApp Concierge',
   },
   {
-    id: '01990000-0000-7000-8000-000000000303',
+    id: AGENT_PRINCIPAL_IDS['agent:copilot'],
     roleKey: 'agent:copilot',
     displayName: 'Caller Co-pilot',
   },
   {
-    id: '01990000-0000-7000-8000-000000000304',
+    id: AGENT_PRINCIPAL_IDS['agent:sizing'],
     roleKey: 'agent:sizing',
     displayName: 'Sizing & Quote',
   },
   {
-    id: '01990000-0000-7000-8000-000000000305',
+    id: AGENT_PRINCIPAL_IDS['agent:orchestrator'],
     roleKey: 'agent:orchestrator',
     displayName: 'Project Orchestrator',
   },
   {
-    id: '01990000-0000-7000-8000-000000000306',
+    id: AGENT_PRINCIPAL_IDS['agent:chief'],
     roleKey: 'agent:chief',
     displayName: 'Chief of Staff',
   },

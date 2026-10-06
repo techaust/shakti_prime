@@ -14,6 +14,10 @@
       "maxKb": 240,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Activity log grid and its filters. Measured 225.9 kB on 29-09-2026, plus 5 %."
     },
+    "/admin/agents": {
+      "maxKb": 238,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the agents grid with its switches, autonomy choices and spending limits. Measured 226.1 kB on 05-10-2026, plus 5 %."
+    },
     "/admin/integrations": {
       "maxKb": 240,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Integration health grids, the delivery check and Send again. Measured 224.6 kB on 30-09-2026, plus 5 %."
@@ -40,7 +44,11 @@
     },
     "/customers/[accountId]": {
       "maxKb": 205,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips and task buttons; its edit, task, note, consent and tag dialogs, with the proof uploader, and the sizing panel load when one is first opened. Measured 194.4 kB on 04-10-2026, plus 5 %."
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips, task buttons and quotes; its edit, task, note, consent and tag dialogs, with the proof uploader, the sizing panel and the duplicate cards with the merge dialog load when one is first opened or shown. Measured 195.7 kB on 05-10-2026 with the quotes and the price tier, plus 5 %; 196.8 kB on 06-10-2026 with the duplicate cards as well."
+    },
+    "/duplicates": {
+      "maxKb": 203,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the duplicate cards with their filter and buttons; the merge dialog loads when first opened. Measured 192.8 kB on 05-10-2026, plus 5 %; 193.7 kB on 06-10-2026 after taking main."
     },
     "/catalogue": {
       "maxKb": 245,
@@ -121,6 +129,22 @@
     "/two-factor": {
       "maxKb": 175,
       "reason": "Public page opened on phones before sign-in, kept near its measured size (166.3 kB on 29-09-2026, plus 5 %) rather than the 250 kB default."
+    },
+    "/quotes": {
+      "maxKb": 237,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB) and the quotes grid with its status choice (the data grid, as the customers list loads it). Measured 225.5 kB on 05-10-2026, plus 5 %."
+    },
+    "/quotes/new": {
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB) and the quote builder: the line editor, the server's preview and its tables. Measured 194.6 kB on 05-10-2026, plus 5 %."
+    },
+    "/quotes/[entityId]/[quoteId]": {
+      "maxKb": 220,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB) and the quote page: its lines and totals, the document's opener and the withdraw dialog. Measured 208.9 kB on 05-10-2026, plus 5 %."
+    },
+    "/inbox": {
+      "maxKb": 204,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the Agent Inbox's suggestion cards; the edit dialog loads when first opened. Measured 193.4 kB on 05-10-2026, plus 5 %."
     }
   }
 }

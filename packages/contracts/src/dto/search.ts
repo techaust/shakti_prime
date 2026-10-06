@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { OpportunityStateSchema } from '../crm/enums';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { QuoteSearchHitDto } from './quote';
 
 /** The fewest characters a search looks for: one letter finds half the customers. */
 export const SEARCH_MIN_CHARS = 2;
@@ -49,6 +50,11 @@ export type PaletteSearchInput = z.input<typeof PaletteSearchInput>;
 
 /** What the palette's search found; a kind the caller may not read comes back empty. */
 export const PaletteSearchDto = z
-  .object({ leads: z.array(LeadSearchHitDto), people: z.array(PersonSearchHitDto) })
+  .object({
+    leads: z.array(LeadSearchHitDto),
+    /** Quotes by their number (RPT-03). */
+    quotes: z.array(QuoteSearchHitDto),
+    people: z.array(PersonSearchHitDto),
+  })
   .strict();
 export type PaletteSearchDto = z.infer<typeof PaletteSearchDto>;

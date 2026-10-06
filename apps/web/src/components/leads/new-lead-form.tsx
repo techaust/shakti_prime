@@ -78,8 +78,13 @@ export function NewLeadForm({
         sourceCode: text('sourceCode'),
         referralCode: text('referralCode'),
       }),
-      () => {
-        toast.success(t('done', { name }));
+      (lead) => {
+        // A repeat enquiry was added to the customer's open lead (CRM-03).
+        toast.success(
+          lead.outcome === 'attached'
+            ? t('attached', { name: lead.account.name })
+            : t('done', { name }),
+        );
         router.push('/leads');
       },
     );

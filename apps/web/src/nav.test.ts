@@ -15,9 +15,9 @@ describe('visibleNav', () => {
     expect(ids([])).toEqual(['home', 'design']);
   });
 
-  it('shows Leads to an own-scope reader, and New lead only with both write grants', () => {
+  it('shows Leads and their Quotes to an own-scope reader, and New lead only with both write grants', () => {
     const reader: PermissionGrant[] = [{ key: 'crm.lead.read', scope: 'own' }];
-    expect(ids(reader)).toEqual(['home', 'leads', 'design']);
+    expect(ids(reader)).toEqual(['home', 'leads', 'quotes', 'design']);
     expect(ids([...reader, { key: 'crm.lead.write', scope: 'own' }])).not.toContain('leads-new');
     expect(
       ids([

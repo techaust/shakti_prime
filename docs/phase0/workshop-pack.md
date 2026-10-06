@@ -157,7 +157,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **PRICE-1 · Price tiers and who gets which** — Owner, Sales head
 - *Context:* every quote takes its prices from one tier, chosen by the customer type (household, farm, business, dealer, referral partner).
 - *Options:* keep Retail, Dealer and Commercial, or add tiers (for example a large-dealer tier); map each customer type to a tier.
-- *Today:* Retail, Dealer and Commercial exist; no mapping from customer type to tier is set.
+- *Today:* Retail, Dealer and Commercial exist; no mapping from customer type to tier is set, so an Executive gives each customer its tier on the customer's page, and a customer without one cannot be quoted.
 
 **PRICE-2 · One price list for the group, or one per company** — Owner
 - *Context:* a price list can be shared by all four companies or set for one company.
@@ -190,7 +190,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **SALE-1 · Document number format** — Accounts, Owner
 - *Context:* quotes, sales orders, proformas, challans and purchase orders are numbered per company and per financial year (for example 2026-27), with no gaps.
 - *Options:* for example `ASH/Q/2026-27/0001`, `SMP-SO-26-27-0001`, or the formats used today.
-- *Today:* numbering by company, document type and financial year works; the format is not set, and no document can be numbered until it is.
+- *Today:* numbering by company, document type and financial year works, without gaps; until you decide, quotes use the first example, `ASH/Q/2026-27/0001` (the company's code, the document's code, the year and a four-digit number), which changes in one place.
 - *Bring:* a sample of each document as issued today.
 
 **SALE-2 · Letterheads, logos and bank details** — Accounts

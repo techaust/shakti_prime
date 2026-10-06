@@ -1,5 +1,13 @@
 import { DomainError } from '@shakti/contracts';
 import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
+import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
+import {
+  approveInboxItem,
+  dismissInboxItem,
+  editInboxItem,
+  rejectInboxItem,
+} from '../commands/agents/inbox';
+import { recordAgentRun } from '../commands/agents/record-run';
 import { inviteUser } from '../commands/admin/invite-user';
 import { revokeSession } from '../commands/admin/revoke-session';
 import { setRolePermissions } from '../commands/admin/set-role-permissions';
@@ -21,8 +29,11 @@ import {
 } from '../commands/crm/pipeline-settings';
 import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { setAccountTier } from '../commands/crm/set-account-tier';
 import { setDispositions } from '../commands/crm/set-dispositions';
 import { recordSizing } from '../commands/crm/record-sizing';
+import { dismissDuplicate, scanDuplicates, suggestDuplicate } from '../commands/crm/duplicates';
+import { mergeCustomers, mergeLeads, unmergeCustomers } from '../commands/crm/merges';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
 import { recordConsent, withdrawConsent } from '../commands/crm/consent';
 import { addNote, updateAccount, updateContact, upsertSite } from '../commands/crm/customer';
@@ -54,6 +65,12 @@ import {
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
+import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
+import { createQuote } from '../commands/sales/create-quote';
+import { expireQuotes } from '../commands/sales/expire-quotes';
+import { requoteQuote } from '../commands/sales/requote';
+import { sendQuote } from '../commands/sales/send-quote';
+import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
@@ -84,6 +101,12 @@ export const commands = {
   [setReferralPartner.name]: setReferralPartner,
   [setCommissionRule.name]: setCommissionRule,
   [recordSizing.name]: recordSizing,
+  [scanDuplicates.name]: scanDuplicates,
+  [dismissDuplicate.name]: dismissDuplicate,
+  [suggestDuplicate.name]: suggestDuplicate,
+  [mergeCustomers.name]: mergeCustomers,
+  [unmergeCustomers.name]: unmergeCustomers,
+  [mergeLeads.name]: mergeLeads,
   [createTask.name]: createTask,
   [completeTask.name]: completeTask,
   [rescheduleTask.name]: rescheduleTask,
@@ -143,6 +166,20 @@ export const commands = {
   [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
+  [setAccountTier.name]: setAccountTier,
+  [createQuote.name]: createQuote,
+  [sendQuote.name]: sendQuote,
+  [requoteQuote.name]: requoteQuote,
+  [withdrawQuote.name]: withdrawQuote,
+  [expireQuotes.name]: expireQuotes,
+  [attachQuotePdf.name]: attachQuotePdf,
+  [recordAgentRun.name]: recordAgentRun,
+  [approveInboxItem.name]: approveInboxItem,
+  [editInboxItem.name]: editInboxItem,
+  [rejectInboxItem.name]: rejectInboxItem,
+  [dismissInboxItem.name]: dismissInboxItem,
+  [setAgentConfig.name]: setAgentConfig,
+  [setKillSwitch.name]: setKillSwitch,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

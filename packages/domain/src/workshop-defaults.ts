@@ -1,6 +1,9 @@
 import {
   WORKSHOP_DISPOSITIONS,
+  type AccountType,
   type DispositionNextAction,
+  type DocType,
+  type PriceTierCode,
   type PipeMaterial,
   type PumpType,
   type Segment,
@@ -19,6 +22,23 @@ export interface WorkshopDefaults {
     readonly reopenWindowDays: number;
   };
   readonly quote: { readonly validityDays: number };
+  readonly numbering: {
+    /** The document's code inside its number: `Q` in `ASH/Q/2026-27/0001`. */
+    readonly docCodes: Readonly<Record<DocType, string>>;
+    /** Between the company's code, the document's code, the year and the serial. */
+    readonly separator: string;
+    /** The serial is padded with zeros to this many digits. */
+    readonly serialDigits: number;
+  };
+  readonly pricing: {
+    /**
+     * The tier each kind of customer is priced from when the customer has none of its own. Empty:
+     * no map is set, so a quote takes the tier an Executive gives the customer.
+     */
+    readonly tierByAccountType: Readonly<Partial<Record<AccountType, PriceTierCode>>>;
+    /** How a kit is priced on a quote: its own fixed price on the price list. */
+    readonly kitPricing: 'fixed';
+  };
   readonly credit: { readonly exposureCountsConfirmedOrders: boolean };
   readonly dispatch: { readonly ewayBillThresholdPaise: bigint };
   readonly crm: {
@@ -97,6 +117,38 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   quote: {
     /** BLUEPRINT §8.3: calendar days of validity, ending at the end of the day in IST. */
     validityDays: 15,
+  },
+  /**
+   * Workshop SALE-1 (Accounts, Owner): the format of every document number, per company, document
+   * and financial year with no gaps (ADR 0006). This is the pack's first example,
+   * `ASH/Q/2026-27/0001`, which numbering has used since Phase 0; Accounts confirm or change it
+   * here, in one place (docs/phase0/exit-gate-actions.md). A series keeps the prefix it started
+   * its year with.
+   */
+  numbering: {
+    docCodes: {
+      quote: 'Q',
+      sales_order: 'SO',
+      proforma: 'PI',
+      challan: 'DC',
+      purchase_order: 'PO',
+    },
+    separator: '/',
+    serialDigits: 4,
+  },
+  pricing: {
+    /**
+     * Workshop PRICE-1 (Owner, Sales head): which tier each kind of customer is priced from. The
+     * pack proposes no map, so none is set: a quote is priced from the tier an Executive gives the
+     * customer on Account 360 (`crm.account.tier.set`), and a customer with none cannot be quoted
+     * until they have one (the owner's decision of 05-10-2026).
+     */
+    tierByAccountType: {},
+    /**
+     * Workshop PRICE-3 (Owner): a kit is sold as one line at its own fixed price on each price list
+     * (Price lists › Kits), as the pack describes today; the sum of its parts' prices is not used.
+     */
+    kitPricing: 'fixed',
   },
   credit: {
     /** Design §11 q3: dealer exposure counts confirmed orders not yet paid. */

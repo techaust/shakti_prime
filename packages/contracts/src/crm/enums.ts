@@ -154,6 +154,10 @@ export const ActivityTypeSchema = z.enum([
   'tagged',
   'untagged',
   'sizing_recorded',
+  'enquiry_repeated',
+  'customers_merged',
+  'customer_unmerged',
+  'leads_merged',
   'call_logged',
 ]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;

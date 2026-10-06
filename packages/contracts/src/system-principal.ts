@@ -25,5 +25,11 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The nightly rescoring (`crm.lead.score_refresh`): it reads each open lead's scoring facts and
     // writes its score through two definers, nothing more.
     { key: 'crm.score.refresh', scope: 'all' },
+    // The nightly duplicate search (`crm.duplicate.scan`): it reads the matching facts of one
+    // company's customers and records candidates through two definers, nothing more.
+    { key: 'crm.duplicates.scan', scope: 'all' },
+    // The daily quote expiry (`sales.quote.expire`): it reads the company's lapsed quotes and
+    // marks them expired through two definers, nothing more.
+    { key: 'sales.quote.expire', scope: 'all' },
   ],
 };

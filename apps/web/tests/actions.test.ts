@@ -618,7 +618,7 @@ describe('command and query actions answer a result, never a thrown error (revie
     });
   });
 
-  it('search the palette for leads and, for an Executive only, team members', async () => {
+  it('search the palette for leads and quotes and, for an Executive only, team members', async () => {
     // Long and random: the search also matches by spelling, and short tags that share the
     // "palette" start would resemble the ones earlier runs left behind.
     const tag = `palette${newId().slice(-12)}${newId().slice(-12)}`;
@@ -639,8 +639,11 @@ describe('command and query actions answer a result, never a thrown error (revie
     expect(forExecutive.people.map((p) => p.id)).toEqual([person.id]);
     expect(forExecutive.leads.map((l) => l.id)).toContain(created.id);
 
+    // Quotes are found by their number for whoever reads leads; nobody's number holds the tag.
+    expect(forExecutive.quotes).toEqual([]);
+
     request.principal = await createTestPrincipal('hr_admin', [1]);
-    expect(ok(await searchPalette({ q: tag }))).toEqual({ leads: [], people: [] });
+    expect(ok(await searchPalette({ q: tag }))).toEqual({ leads: [], quotes: [], people: [] });
   });
 
   it('list team members and their sign-ins for an Executive only', async () => {

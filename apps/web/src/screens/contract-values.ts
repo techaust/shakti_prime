@@ -1,4 +1,9 @@
 import type {
+  AgentActionState,
+  AgentAutonomy,
+  AgentRoleKey,
+  AgentRunOutcome,
+  AgentSettingSource,
   CommissionBasis,
   ContrastPreference,
   DispositionNextAction,
@@ -9,6 +14,10 @@ import type {
   ConsentSource,
   CustomerLanguage,
   CustomerSort,
+  DuplicateKind,
+  DuplicateReason,
+  DuplicateSignal,
+  DuplicateState,
   ItemCategory,
   ItemSort,
   ItemUnit,
@@ -44,6 +53,8 @@ import type {
   Scope,
   SizingAdvisory,
   SizingKind,
+  QuoteState,
+  SubsidyScheme,
   SizingReason,
   SiteType,
   TaskKind,
@@ -161,6 +172,59 @@ export const TASK_KINDS = [
 
 export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
 
+/** The agents (docs/SECURITY.md §3.3), in the order the agents screen lists them. */
+export const AGENT_ROLES = [
+  'agent:triage',
+  'agent:concierge',
+  'agent:copilot',
+  'agent:sizing',
+  'agent:orchestrator',
+  'agent:chief',
+] as const satisfies readonly AgentRoleKey[];
+
+/** How far an agent may go with one action type (BLUEPRINT §9.3). */
+export const AGENT_AUTONOMY_LEVELS = [
+  'suggest',
+  'needs_approval',
+  'automatic',
+] as const satisfies readonly AgentAutonomy[];
+
+/** What became of an action an agent proposed or took. */
+export const AGENT_ACTION_STATE_VALUES = [
+  'proposed',
+  'executed',
+  'approved',
+  'rejected',
+  'dismissed',
+] as const satisfies readonly AgentActionState[];
+
+/** Where a setting that applies comes from, as the agents screen names it. */
+export const AGENT_SETTING_SOURCE_VALUES = [
+  'action_company',
+  'action_group',
+  'agent_company',
+  'agent_group',
+  'default',
+] as const satisfies readonly AgentSettingSource[];
+
+/** How an agent run ended. */
+export const AGENT_RUN_OUTCOME_VALUES = [
+  'proposed',
+  'acted',
+  'nothing_to_do',
+  'switched_off',
+  'cap_reached',
+  'unavailable',
+  'failed',
+] as const satisfies readonly AgentRunOutcome[];
+
+/** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
+export function agentNameKey(agent: (typeof AGENT_ROLES)[number]): AgentNameKey {
+  return agent.slice('agent:'.length) as AgentNameKey;
+}
+
+export type AgentNameKey = 'triage' | 'concierge' | 'copilot' | 'sizing' | 'orchestrator' | 'chief';
+
 /** What a customer timeline row records. */
 export const ACTIVITY_TYPES = [
   'lead_created',
@@ -182,8 +246,30 @@ export const ACTIVITY_TYPES = [
   'tagged',
   'untagged',
   'sizing_recorded',
+  'enquiry_repeated',
+  'customers_merged',
+  'customer_unmerged',
+  'leads_merged',
   'call_logged',
 ] as const satisfies readonly ActivityType[];
+
+/** Duplicate cards (CRM-03): what a pair is, the facts behind it and where it stands. */
+export const DUPLICATE_KINDS = ['customer', 'lead'] as const satisfies readonly DuplicateKind[];
+export const DUPLICATE_REASONS = [
+  'phone',
+  'name_village',
+] as const satisfies readonly DuplicateReason[];
+export const DUPLICATE_SIGNALS = [
+  'same_phone',
+  'same_name',
+  'same_village',
+  'same_customer',
+] as const satisfies readonly DuplicateSignal[];
+export const DUPLICATE_STATES = [
+  'open',
+  'merged',
+  'dismissed',
+] as const satisfies readonly DuplicateState[];
 
 export const SEGMENTS = [
   'farmer_pumps',
@@ -194,6 +280,23 @@ export const SEGMENTS = [
 
 /** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
 export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
+
+/** Where a quote stands, as the quote screens show it (docs/design/phase1.md §7.3). */
+export const QUOTE_STATES = [
+  'draft',
+  'sent',
+  'accepted',
+  'expired',
+  'superseded',
+  'withdrawn',
+] as const satisfies readonly QuoteState[];
+
+/** The subsidy schemes a quote may be sold under, as the builder offers them. */
+export const SUBSIDY_SCHEMES = [
+  'none',
+  'pm_surya_ghar',
+  'pm_kusum',
+] as const satisfies readonly SubsidyScheme[];
 
 /** Where the pump sits, what drives it and what the pipe is made of, as the panel offers them. */
 export const PUMP_TYPES = ['submersible', 'surface'] as const satisfies readonly PumpType[];
@@ -415,6 +518,9 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
+
+/** The largest quantity one quote line takes (`QUOTE_MAX_QTY`). */
+export const QUOTE_MAX_QTY = 100_000;
 
 /** What the queue does after a call outcome, in the order the settings page offers them. */
 export const DISPOSITION_NEXT_ACTIONS = [

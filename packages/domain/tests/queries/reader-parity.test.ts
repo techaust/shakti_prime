@@ -4,6 +4,8 @@ import { closeDb, PIPELINE_SEED, principalFor, STAGE_SEED } from '@shakti/db/tes
 import { randomBytes } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
+import { countInbox, listInbox } from '../../src/queries/agents/inbox';
+import { loadAgentSettings } from '../../src/queries/agents/settings';
 import { envelopeCipher, localKeyProvider } from '../../src/privacy/field-cipher';
 import { listUsers, listUserSessions } from '../../src/queries/admin/list-users';
 import { getRoleGrants, listRoles } from '../../src/queries/admin/roles';
@@ -24,6 +26,11 @@ import {
   listTimeline,
   loadAccount360,
 } from '../../src/queries/crm/customers';
+import {
+  listAccountDuplicates,
+  listDuplicates,
+  countMergeMoves,
+} from '../../src/queries/crm/duplicates';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
 import { latestSizing } from '../../src/queries/crm/latest-sizing';
@@ -56,6 +63,15 @@ import { listEntities } from '../../src/queries/org/list-entities';
 import { readOutboxHealth } from '../../src/queries/platform/outbox-health';
 import { listPriceLists, listPrices } from '../../src/queries/pricing/list-prices';
 import { listKitPrices, listPriceChanges } from '../../src/queries/pricing/price-history';
+import { listPriceTierOptions } from '../../src/queries/pricing/price-tiers';
+import {
+  accountQuotes,
+  getQuote,
+  listQuotes,
+  searchQuotes,
+} from '../../src/queries/sales/list-quotes';
+import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
+import { loadQuoteForPrint } from '../../src/queries/sales/quote-print';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
 import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 
@@ -72,6 +88,9 @@ const NOW = new Date(Date.now() + 60_000).toISOString();
 const PIPELINE = PIPELINE_SEED[0]?.key ?? 'farmer_pumps';
 const STAGE = STAGE_SEED[0]?.id ?? newId();
 const CIPHER = envelopeCipher(localKeyProvider(randomBytes(32).toString('base64')));
+
+/** The moment the quote reads are asked at, so both pools judge validity alike. */
+const QUOTES_AT = new Date('2026-10-05T06:00:00Z');
 
 const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listUsers: (ctx) => listUsers(ctx, { limit: 20 }),
@@ -105,6 +124,10 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   searchCustomers: (ctx) => listCustomers(ctx, { q: 'ram', limit: 20 }),
   searchCustomersByPhone: (ctx) => listCustomers(ctx, { q: '98765', limit: 20 }),
   loadAccount360: (ctx) => loadAccount360(ctx, { accountId: newId(), entityId: 1 }),
+  listDuplicates: (ctx) => listDuplicates(ctx, { limit: 20 }),
+  listAccountDuplicates: (ctx) => listAccountDuplicates(ctx, { entityId: 1, accountId: newId() }),
+  countMergeMoves: (ctx) =>
+    countMergeMoves(ctx, { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() }),
   listTimeline: (ctx) => listTimeline(ctx, { entityId: 1, accountId: newId() }),
   listMyTasks: (ctx) => listMyTasks(ctx, { limit: 20 }),
   getImportJob: (ctx) => getImportJob(ctx, { entityId: 1, jobId: newId() }),
@@ -126,10 +149,20 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   getStoredFile: (ctx) => getStoredFile(ctx, newId()),
   listCompanyFiles: (ctx) => listCompanyFiles(ctx, ['entity_logo', 'letterhead']),
   countFilesAwaitingChecks: (ctx) => countFilesAwaitingChecks(ctx, 10, new Date(NOW)),
+  listInbox: (ctx) => listInbox(ctx, { limit: 20 }),
+  countInbox: (ctx) => countInbox(ctx),
+  loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
   listSizingPumps: (ctx) => listSizingPumps(ctx),
   listCallQueue: (ctx) => listCallQueue(ctx, { limit: 20 }, new Date(NOW)),
   loadCallLead: (ctx) => loadCallLead(ctx, { entityId: 1, opportunityId: newId() }),
   listTeamQueues: (ctx) => listTeamQueues(ctx, {}, new Date(NOW)),
+  listQuotes: (ctx) => listQuotes(ctx, { limit: 20 }, QUOTES_AT),
+  searchQuotes: (ctx) => searchQuotes(ctx, { q: 'Q/2026', limit: 8 }, QUOTES_AT),
+  getQuote: (ctx) => getQuote(ctx, { entityId: 1, quoteId: newId() }, QUOTES_AT),
+  loadQuoteBuilder: (ctx) =>
+    loadQuoteBuilder(ctx, { entityId: 1, opportunityId: newId() }, QUOTES_AT),
+  loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
+  listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
 };
 
 /**
@@ -140,6 +173,13 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
+  accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
+  previewQuote: (ctx) =>
+    previewQuote(
+      ctx,
+      { entityId: 1, opportunityId: newId(), lines: [{ itemId: newId(), qty: '1' }] },
+      QUOTES_AT,
+    ),
 };
 
 /** The answer, or the refusal's code, so a query that refuses one pool must refuse the other. */

@@ -251,7 +251,43 @@
     "callback_outside_calling_hours": "Choose a call back time between 9 AM and 9 PM.",
     "lost_reason_missing": "Choose why the lead was lost.",
     "nurture_reason_missing": "Choose why the lead should be followed up later.",
-    "dial_number_missing": "This customer has no main phone number. Add one on the customer page."
+    "dial_number_missing": "This customer has no main phone number. Add one on the customer page.",
+    "duplicate_missing": "This possible duplicate has been dealt with, or you cannot see both customers. Reload the page to see the latest.",
+    "duplicate_not_matching": "These two leads are not open leads of the same customer for the same kind of work, so they cannot be put forward as one.",
+    "duplicate_candidate_transition_not_allowed": "This possible duplicate has already been dealt with. Reload the page to see the latest.",
+    "merge_partner_account": "A referral partner cannot be merged into another customer. Keep the partner and merge the other customer into it.",
+    "merge_undone_already": "This merge has already been undone.",
+    "merge_lead_closed": "One of these leads is already won or lost, so they cannot be merged.",
+    "merge_customers_first": "These leads belong to two different customers. Merge the customers first, then the leads.",
+    "merge_other_company": "One of these customers is also with a company of the group you aren't working in now. Switch to all companies, or ask someone who works for both.",
+    "merge_undo_later_first": "Someone has since merged this customer into another one. Undo that later merge first.",
+    "merge_leads_other_segment": "These leads are for different kinds of work, so you can't merge them.",
+    "merge_leads_two_partners": "Each lead came from a different referral partner, so you can't merge them. Close the lead that shouldn't count instead.",
+    "merge_leads_keep_open": "Keep the open lead, and merge the lead set to follow up later into it.",
+    "quote_tier_missing": "This customer has no price tier yet. Ask an Executive to set it on the customer's page, then make the quote.",
+    "quote_price_list_missing": "There is no price list in use for this customer's price tier today. Ask an Executive to approve one.",
+    "quote_item_missing": "An item or kit on this quote is no longer on sale. Remove it and try again.",
+    "quote_price_missing": "An item or kit on this quote has no price on the price list. Ask an Executive to add its price, or remove it.",
+    "quote_amount_too_large": "An amount on this quote is larger than a quote can hold. Check the quantities and try again.",
+    "quote_kit_tax_missing": "This kit can only be quoted as supply and installation for rooftop or project work. Quote its items one by one instead.",
+    "quote_missing": "We couldn't find this quote. It may belong to another company or a colleague's lead.",
+    "quote_pdf_mismatch": "This quote already has its document. Refresh the page to see it.",
+    "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
+    "agent_action_unknown": "Agents cannot take this kind of action.",
+    "agent_action_not_open": "This agent cannot take this kind of action.",
+    "agent_proposal_invalid": "The agent’s suggestion was incomplete or did not match the lead it was for, so it was not filed.",
+    "agent_field_not_editable": "That part of the suggestion cannot be changed. Reject it if it is wrong.",
+    "agent_switched_off": "This agent is stopped, so its suggestions cannot be approved now. Reject it, or ask an Executive or General Manager to let the agent run again.",
+    "autonomy_not_earned": "Automatic needs at least 200 decisions of this kind in one company in the last 90 days, with 95 in 100 approved without changes.",
+    "autonomy_automatic_unavailable": "Agents cannot act on their own yet. Choose Suggest or Needs approval.",
+    "agent_suggestion_only": "This suggestion is for you to act on yourself. Open the customer to act on it, or dismiss it.",
+    "agent_needs_decision": "This suggestion needs a decision. Approve it, change it or reject it.",
+    "nothing_to_change": "Choose a setting to change.",
+    "agents_need_all_companies": "Choose All companies at the top to change a setting for the whole group.",
+    "inbox_item_missing": "This suggestion is no longer in your inbox. Someone else may have decided on it.",
+    "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
+    "agent_action_transition_not_allowed": "This suggestion has already been decided.",
+    "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action."
   },
   "auth": {
     "signIn": {
@@ -338,7 +374,11 @@
     "settingsTax": "Tax rates",
     "adminRoles": "Roles",
     "settingsPipelines": "Pipelines",
-    "walkIn": "Walk-in customer"
+    "walkIn": "Walk-in customer",
+    "duplicates": "Duplicates",
+    "quotes": "Quotes",
+    "inbox": "Agent Inbox",
+    "adminAgents": "Agents"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -372,7 +412,12 @@
     "profileMenu": "Your account",
     "profile": "Your profile",
     "changePassword": "Change password",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "paletteQuote": "Quote for {name}",
+    "inbox": "Agent Inbox",
+    "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
+    "inboxMore": "99+",
+    "inboxMoreLabel": "Agent Inbox, 100 or more waiting"
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -395,7 +440,11 @@
       "adminRoles": "Choose what each role can see and do.",
       "walkIn": "Add a customer who comes to the counter as a new lead.",
       "settingsPipelines": "Set the stages, call outcomes and lead scores for each pipeline.",
-      "calling": "Call your leads in order, save how each call went and see your next calls."
+      "calling": "Call your leads in order, save how each call went and see your next calls.",
+      "duplicates": "Merge customers and leads that were entered twice, or set them aside.",
+      "quotes": "See the quotes of your leads, open their documents and send them.",
+      "inbox": "Approve, change or reject what the agents suggest.",
+      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents."
     }
   },
   "profile": {
@@ -943,7 +992,8 @@
       "cancel": "Cancel",
       "done": "Lead saved for {name}.",
       "referral": "Referral code",
-      "referralHelper": "If a referral partner sent the customer, enter the code from their card."
+      "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
+      "attached": "{name} already has an open lead for this. The enquiry was added to it."
     },
     "accountType": {
       "household": "Household",
@@ -1069,7 +1119,12 @@
         "duplicate": "Already a lead",
         "other": "Another reason"
       },
-      "stages": "Lead stages"
+      "stages": "Lead stages",
+      "size": {
+        "hp": "{hp} HP",
+        "kwp": "{kwp} kWp"
+      },
+      "inStage": "{count, plural, =0 {In this stage since today} one {In this stage for {shown} day} other {In this stage for {shown} days}}"
     },
     "score": {
       "column": "Score",
@@ -1104,7 +1159,8 @@
       "consent": "Consent",
       "walkInSubmit": "Save walk-in",
       "done": "Walk-in saved for {name}. The form is ready for the next customer.",
-      "language": "Language for calls"
+      "language": "Language for calls",
+      "attached": "{name} already has an open lead for this. The enquiry was added to it."
     }
   },
   "users": {
@@ -1335,7 +1391,27 @@
       "fileRendered": "Document printed to a file",
       "printProofRequest": "Proof page asked for",
       "sizingRecord": "Lead sized",
-      "callLog": "Call saved"
+      "callLog": "Call saved",
+      "duplicateScan": "Possible duplicates looked for overnight",
+      "duplicateDismiss": "Possible duplicate set aside",
+      "duplicateSuggest": "Possible duplicate put forward",
+      "customerMerge": "Customers merged",
+      "customerUnmerge": "Customer merge undone",
+      "leadMerge": "Leads merged",
+      "accountTierSet": "Customer's price tier set",
+      "quoteCreate": "Quote made",
+      "quoteSend": "Quote marked as sent",
+      "quoteRequote": "Quote made again at today's prices",
+      "quoteWithdraw": "Quote withdrawn",
+      "quoteExpire": "Quotes past their validity marked as expired",
+      "quotePdfAttach": "Quote document attached",
+      "agentRunRecord": "Agent run recorded",
+      "inboxApprove": "Suggestion approved",
+      "inboxEdit": "Suggestion changed and approved",
+      "inboxReject": "Suggestion rejected",
+      "inboxDismiss": "Suggestion dismissed",
+      "agentConfigSet": "Agent settings changed",
+      "agentKillSwitchSet": "Agent stopped or let run"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1370,7 +1446,14 @@
       "priceListArchived": "Price list withdrawn",
       "rolePermissionsChanged": "Role permissions changed",
       "documentRequested": "Document sent for printing",
-      "sizingRecorded": "Lead sized"
+      "sizingRecorded": "Lead sized",
+      "leadAttached": "Repeat enquiry added to an open lead",
+      "duplicateFound": "Possible duplicate found",
+      "quoteCreated": "Quote made",
+      "quoteSent": "Quote marked as sent",
+      "quoteSuperseded": "Quote replaced by a new one",
+      "quoteWithdrawn": "Quote withdrawn",
+      "quoteExpired": "Quote expired"
     },
     "sheet": {
       "title": "{action}",
@@ -1535,9 +1618,33 @@
       "inBounds": "Within limits",
       "sizingReasons": "Why it is outside limits",
       "engineVersion": "Calculation version",
-      "outcome": "Call outcome",
+      "callOutcome": "Call outcome",
+      "outcome": "How it ended",
       "attemptNo": "Try number",
-      "durationSeconds": "Call length (seconds)"
+      "durationSeconds": "Call length (seconds)",
+      "attached": "Added to an open lead",
+      "confidence": "Match, out of 100",
+      "duplicateReason": "Why it was put forward",
+      "undoneAt": "Undone on",
+      "movedContacts": "Contacts moved",
+      "movedSites": "Sites moved",
+      "movedRelationships": "Companies moved",
+      "movedLeads": "Leads moved",
+      "movedTasks": "Tasks moved",
+      "movedTags": "Tags moved",
+      "movedConsents": "Consents moved",
+      "movedActivities": "History entries moved",
+      "quoteNo": "Quote number",
+      "lineCount": "Items on the quote",
+      "grandTotal": "Total",
+      "validUntil": "Valid until",
+      "withdrawnReason": "Why it was withdrawn",
+      "agent": "Agent",
+      "actionType": "Kind of action",
+      "autonomy": "Autonomy",
+      "edited": "Changed before approving",
+      "dailySpendCap": "Daily spending limit",
+      "enabled": "May run"
     },
     "values": {
       "percent": "{value}%",
@@ -1614,7 +1721,22 @@
       "signatory": "For {entity}",
       "preparedBy": "Prepared by {name}",
       "scan": "Scan to open this quotation",
-      "page": "Page {page} of {total}"
+      "page": "Page {page} of {total}",
+      "placeOfSupplyState": "{state} ({code})",
+      "taxHead": "{tax}",
+      "gstRate": "{rate}%",
+      "gstComposite": "{goods}% and {services}%",
+      "fileName": "Quotation {number}.pdf",
+      "units": {
+        "nos": "nos",
+        "set": "set",
+        "metre": "m",
+        "kg": "kg",
+        "litre": "L",
+        "kw": "kW",
+        "hour": "h"
+      },
+      "termValidity": "Prices and taxes on this quotation hold until {date}."
     },
     "label": {
       "serial": "Serial number",
@@ -1645,6 +1767,84 @@
       "address": "Registered address",
       "printedOn": "Printed on {date}",
       "fileName": "Proof page of {name}.pdf"
+    },
+    "states": {
+      "01": "Jammu and Kashmir",
+      "02": "Himachal Pradesh",
+      "03": "Punjab",
+      "04": "Chandigarh",
+      "05": "Uttarakhand",
+      "06": "Haryana",
+      "07": "Delhi",
+      "08": "Rajasthan",
+      "09": "Uttar Pradesh",
+      "10": "Bihar",
+      "11": "Sikkim",
+      "12": "Arunachal Pradesh",
+      "13": "Nagaland",
+      "14": "Manipur",
+      "15": "Mizoram",
+      "16": "Tripura",
+      "17": "Meghalaya",
+      "18": "Assam",
+      "19": "West Bengal",
+      "20": "Jharkhand",
+      "21": "Odisha",
+      "22": "Chhattisgarh",
+      "23": "Madhya Pradesh",
+      "24": "Gujarat",
+      "26": "Dadra and Nagar Haveli and Daman and Diu",
+      "27": "Maharashtra",
+      "29": "Karnataka",
+      "30": "Goa",
+      "31": "Lakshadweep",
+      "32": "Kerala",
+      "33": "Tamil Nadu",
+      "34": "Puducherry",
+      "35": "Andaman and Nicobar Islands",
+      "36": "Telangana",
+      "37": "Andhra Pradesh",
+      "38": "Ladakh",
+      "97": "Other Territory"
+    },
+    "words": {
+      "units": {
+        "1": "One",
+        "2": "Two",
+        "3": "Three",
+        "4": "Four",
+        "5": "Five",
+        "6": "Six",
+        "7": "Seven",
+        "8": "Eight",
+        "9": "Nine",
+        "10": "Ten",
+        "11": "Eleven",
+        "12": "Twelve",
+        "13": "Thirteen",
+        "14": "Fourteen",
+        "15": "Fifteen",
+        "16": "Sixteen",
+        "17": "Seventeen",
+        "18": "Eighteen",
+        "19": "Nineteen"
+      },
+      "tens": {
+        "2": "Twenty",
+        "3": "Thirty",
+        "4": "Forty",
+        "5": "Fifty",
+        "6": "Sixty",
+        "7": "Seventy",
+        "8": "Eighty",
+        "9": "Ninety"
+      },
+      "zero": "Zero",
+      "hundred": "{n} Hundred",
+      "thousand": "{n} Thousand",
+      "lakh": "{n} Lakh",
+      "crore": "{n} Crore",
+      "rupees": "Rupees {words} only"
     }
   },
   "imports": {
@@ -1941,7 +2141,10 @@
       "billingState": "Billing state code",
       "alsoWith": "Also a customer of",
       "edit": "Edit details",
-      "readOnly": "You can see this customer through your leads. Ask the person who looks after them to change their details."
+      "readOnly": "You can see this customer through your leads. Ask the person who looks after them to change their details.",
+      "tier": "Price tier",
+      "tierNone": "Not set",
+      "setTier": "Set price tier"
     },
     "contacts": {
       "sectionTitle": "Contacts",
@@ -1974,7 +2177,8 @@
       "addTag": "Add tag",
       "removeTag": "Remove the tag {name}",
       "sizeLead": "Size this lead",
-      "hideSizing": "Hide sizing"
+      "hideSizing": "Hide sizing",
+      "makeQuote": "Make a quote"
     },
     "timeline": {
       "sectionTitle": "History",
@@ -2002,7 +2206,11 @@
         "tagged": "Tag added",
         "untagged": "Tag removed",
         "sizing_recorded": "Sizing worked out",
-        "call_logged": "Call made"
+        "call_logged": "Call made",
+        "enquiry_repeated": "Enquired again",
+        "customers_merged": "Another customer merged into this one",
+        "customer_unmerged": "Customer merge undone",
+        "leads_merged": "Another lead merged into this one"
       },
       "tagDetail": "Tag: {name}",
       "callDetail": "Outcome: {outcome}",
@@ -2086,7 +2294,12 @@
       "archiveTag": "Take off the list",
       "archiveTagLabel": "Take {name} off the list; leads keep it"
     },
-    "truncated": "Showing the first 200 matches. Add more of the name to narrow it."
+    "truncated": "Showing the first 200 matches. Add more of the name to narrow it.",
+    "quotes": {
+      "sectionTitle": "Quotes",
+      "empty": "No quotes for this customer in this company yet.",
+      "summary": "{total}, valid until {date}"
+    }
   },
   "integrations": {
     "title": "Integration health",
@@ -2660,7 +2873,9 @@
       "files_process": "Check uploaded files before they are used",
       "imports_process": "Stop an import that could not finish",
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
-      "crm_score_refresh": "Bring lead scores up to date each night"
+      "crm_score_refresh": "Bring lead scores up to date each night",
+      "crm_duplicates_scan": "Look for duplicate customers and leads each night",
+      "sales_quote_expire": "Mark quotes past their validity as expired each day"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3052,6 +3267,345 @@
       "next": "N",
       "dial": "D",
       "search": "/"
+    }
+  },
+  "duplicates": {
+    "title": "Possible duplicates",
+    "intro": "Customers and leads that may have been entered twice. Merge the ones that are the same, and set aside the ones that are not.",
+    "empty": "No possible duplicates right now.",
+    "filterLabel": "Show",
+    "filter": {
+      "all": "All",
+      "customer": "Customers",
+      "lead": "Leads"
+    },
+    "kind": {
+      "customer": "Possible duplicate customer",
+      "lead": "Possible duplicate lead"
+    },
+    "match": "{confidence}% match",
+    "reason": {
+      "phone": "Same phone number",
+      "name_village": "Same name and village"
+    },
+    "signal": {
+      "same_phone": "Same phone number",
+      "same_name": "Same name",
+      "same_village": "Same village",
+      "same_customer": "Same customer"
+    },
+    "phoneEnding": "Phone ending {digits}",
+    "noPhone": "No phone recorded",
+    "noVillage": "No village recorded",
+    "withCompanies": "With {companies}",
+    "lead": "{pipeline}, {stage}",
+    "owner": "Looked after by {name}",
+    "noOwner": "Not handed to anyone yet",
+    "found": "Found {when}",
+    "merge": "Merge",
+    "notSame": "Not the same",
+    "notSameToast": "Set aside. This pair will not be put forward again.",
+    "accountSection": "Possible duplicates",
+    "mergedSection": "Merged into this customer",
+    "mergedFrom": "{name} was merged into this customer on {when}.",
+    "mergedFromUnnamed": "Another customer was merged into this customer on {when}.",
+    "undo": "Undo merge",
+    "undoneToast": "Merge undone. The other customer is open again, with everything that hasn't changed since the merge.",
+    "dialog": {
+      "customerTitle": "Merge customers",
+      "leadTitle": "Merge leads",
+      "customerIntro": "Choose the customer to keep. Everything recorded for the other customer moves to it, and the other customer is closed. You can undo this from the kept customer's page.",
+      "leadIntro": "Choose the lead to keep. The other lead's open tasks and tags move to it, and the other lead is closed. Its history stays with the customer. If only the other lead came from a referral partner, the partner moves to the kept lead.",
+      "leadIntroKeepOpen": "You keep the open lead, because it's the one being worked on. The lead set to follow up later is closed, and its open tasks and tags move to the open lead. Its history stays with the customer. If only the closed lead came from a referral partner, the partner moves to the open lead.",
+      "keepLegend": "Which one to keep",
+      "moves": "What moves to the kept customer",
+      "counts": {
+        "contacts": "Contacts",
+        "sites": "Sites",
+        "relationships": "Companies",
+        "leads": "Leads",
+        "tasks": "Tasks",
+        "tags": "Tags",
+        "consents": "Consents",
+        "activities": "History entries"
+      },
+      "submitCustomers": "Merge customers",
+      "submitLeads": "Merge leads",
+      "mergedToast": "Customers merged.",
+      "leadsMergedToast": "Leads merged."
+    },
+    "state": {
+      "open": "Open",
+      "merged": "Merged",
+      "dismissed": "Set aside"
+    }
+  },
+  "quotes": {
+    "title": "Quotes",
+    "intro": "The quotes of your leads, newest first. Make a new quote from a lead on the customer's page.",
+    "caption": "Quotes",
+    "filterState": "Show",
+    "allStates": "All quotes",
+    "empty": "No quotes yet. Make one from a lead on the customer's page.",
+    "emptyState": "No quotes in this list.",
+    "columns": {
+      "number": "Quote number",
+      "customer": "Customer",
+      "state": "Status",
+      "total": "Total",
+      "validUntil": "Valid until",
+      "created": "Made on",
+      "company": "Company"
+    },
+    "state": {
+      "draft": "Not sent yet",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "expired": "Expired",
+      "superseded": "Replaced",
+      "withdrawn": "Withdrawn"
+    },
+    "builder": {
+      "pageTitle": "New quote",
+      "intro": "Choose the items and quantities. Prices come from the customer's price list and tax is worked out for you.",
+      "for": "Quote for {name}",
+      "lead": "Lead",
+      "tier": "Price list",
+      "tierNone": "Not set",
+      "tierMissing": "This customer has no price tier yet. Ask an Executive to set it on the customer's page.",
+      "listMissing": "There is no price list in use for this customer's price tier today. Ask an Executive to approve one.",
+      "sizing": "Sizing",
+      "sizingNone": "Not sized yet. Size the lead on the customer's page first.",
+      "sizingStale": "The sizing was worked out with an older method. Size the lead again.",
+      "sizingPump": "{hp} HP pump",
+      "sizingPumpNoHp": "Pump sizing",
+      "sizingRooftop": "{kwp} kWp rooftop system",
+      "sizingOutside": "Outside the limits",
+      "sizingInside": "Within limits",
+      "scheme": "Subsidy scheme",
+      "schemes": {
+        "none": "No subsidy",
+        "pm_surya_ghar": "PM Surya Ghar",
+        "pm_kusum": "PM-KUSUM"
+      },
+      "linesHeading": "Items",
+      "noChoices": "Nothing is priced on this customer's price list yet.",
+      "item": "Item or kit",
+      "itemChoose": "Choose an item or kit",
+      "itemOption": "{name} ({sku}), {price}",
+      "kitOption": "Kit: {name} ({sku}), {price}",
+      "quantity": "Quantity",
+      "worksContract": "Supply and installation as one job",
+      "worksContractHelper": "For rooftop and project work, the price is taxed as goods and installation.",
+      "remove": "Remove",
+      "removeLine": "Remove line {n}",
+      "addLine": "Add another item",
+      "workOut": "Work out the quote",
+      "createQuote": "Make the quote",
+      "previewHeading": "The quote as it will be made",
+      "previewNote": "Nothing is saved until you make the quote. Prices and tax are as they stand today.",
+      "validUntil": "Valid until {date}",
+      "linesCaption": "Items on this quote",
+      "linesIncomplete": "Choose an item and a quantity on every line.",
+      "quantityTooLarge": "One line takes at most {max}. Lower the quantity on this line.",
+      "back": "Back to the customer",
+      "made": "Quote {number} made."
+    },
+    "page": {
+      "status": "Status",
+      "customer": "Customer",
+      "madeBy": "Made by",
+      "madeOn": "Made on",
+      "validUntil": "Valid until",
+      "tier": "Price list",
+      "placeOfSupply": "Place of supply",
+      "scheme": "Subsidy scheme",
+      "replaces": "Replaces",
+      "replacedBy": "Replaced by",
+      "withdrawnBecause": "Withdrawn because",
+      "linesCaption": "Items on this quote",
+      "lineColumns": {
+        "position": "No.",
+        "item": "Item",
+        "hsn": "HSN",
+        "quantity": "Quantity",
+        "rate": "Rate",
+        "taxable": "Taxable value",
+        "gst": "GST",
+        "total": "Amount"
+      },
+      "worksContract": "Supply and installation, taxed {goods}% on goods and {services}% on installation",
+      "gstRate": "{rate}%",
+      "noHsn": "None",
+      "totalsHeading": "Totals",
+      "subtotal": "Taxable value",
+      "cgst": "CGST",
+      "sgst": "SGST",
+      "igst": "IGST",
+      "roundOff": "Rounding",
+      "grandTotal": "Total",
+      "pdfHeading": "Quote document",
+      "pdfReady": "The quote document is ready.",
+      "pdfWaiting": "The quote document is being prepared. This takes a few seconds.",
+      "pdfLate": "The quote document has not been made. If it is still missing in a few minutes, ask an Executive to send it again from Integration health, then open this quote again.",
+      "open": "Open the document",
+      "send": "Mark as sent",
+      "sendIntro": "Mark this quote as sent once you have given the customer its document.",
+      "sent": "Quote marked as sent.",
+      "requote": "Re-quote",
+      "requoteIntro": "Make a new quote of the same items at today's prices. This quote is kept as replaced.",
+      "requoted": "New quote {number} made at today's prices.",
+      "withdraw": "Withdraw",
+      "withdrawTitle": "Withdraw this quote",
+      "withdrawIntro": "A withdrawn quote can no longer be sent or accepted.",
+      "withdrawReason": "Why it is withdrawn",
+      "submitWithdraw": "Withdraw the quote",
+      "withdrawn": "Quote withdrawn.",
+      "expiredNote": "This quote has expired. Re-quote to give the customer today's prices.",
+      "back": "All quotes"
+    },
+    "tier": {
+      "dialogTitle": "Price tier",
+      "intro": "Every quote for this customer is priced from the price list of this tier, in every company.",
+      "label": "Price tier",
+      "none": "No tier",
+      "loading": "Loading the price tiers.",
+      "submit": "Save the tier",
+      "saved": "Price tier saved."
+    }
+  },
+  "agents": {
+    "names": {
+      "triage": "Intake and Triage",
+      "concierge": "WhatsApp Concierge",
+      "copilot": "Caller Co-pilot",
+      "sizing": "Sizing and Quote",
+      "orchestrator": "Project Orchestrator",
+      "chief": "Chief of Staff"
+    },
+    "actionTypes": {
+      "taskCreate": "Add a follow-up task"
+    },
+    "fields": {
+      "dueAt": "Due",
+      "title": "Note on the task"
+    },
+    "autonomy": {
+      "suggest": "Suggest",
+      "needs_approval": "Needs approval",
+      "automatic": "Automatic"
+    },
+    "outcome": {
+      "proposed": "Suggested",
+      "acted": "Acted on its own",
+      "nothing_to_do": "Nothing to do",
+      "switched_off": "Stopped by a switch",
+      "cap_reached": "Daily spending limit reached",
+      "unavailable": "AI service not available",
+      "failed": "Did not finish"
+    },
+    "actionState": {
+      "proposed": "Waiting for a decision",
+      "executed": "Done by the agent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "dismissed": "Dismissed"
+    },
+    "inbox": {
+      "title": "Agent Inbox",
+      "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
+      "caption": "Suggestions waiting for a decision",
+      "empty": "Nothing is waiting for you.",
+      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself.",
+      "actYourself": "For you to act on yourself. Nothing is carried out from here.",
+      "summary": {
+        "assigneeId": "Task for",
+        "kind": "Kind of task"
+      },
+      "someone": "Someone you cannot see",
+      "dismiss": "Dismiss",
+      "dismissed": "Dismissed. Nothing was changed.",
+      "suggests": "{agent} suggests",
+      "forCustomer": "For {customer}",
+      "forUnknown": "For a lead you cannot open",
+      "received": "Suggested",
+      "companyLine": "In {company}",
+      "openCustomer": "Open customer",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "approved": "Approved. The suggestion has been carried out.",
+      "rejected": "Rejected. Nothing was changed.",
+      "loadMore": "Show more",
+      "editTitle": "Change before approving",
+      "editIntro": "Change what you need. Approving carries it out with your changes.",
+      "submit": "Approve with changes",
+      "noValue": "Not set",
+      "dueHelper": "Date and time in India.",
+      "titleHelper": "Up to {max} characters. Leave it empty for no note."
+    },
+    "admin": {
+      "title": "Agents",
+      "intro": "Choose how far each agent may go on its own and how much it may spend a day, and stop any agent at once.",
+      "levelGroup": "These settings apply to every company. Choose a company at the top to set one company apart.",
+      "levelCompany": "These settings apply to {company} only. Choose All companies at the top to change them for the whole group.",
+      "notConnected": "The AI service is not connected yet, so agents make no calls. These settings apply once it is.",
+      "allHeading": "All agents",
+      "allRunning": "All agents may run.",
+      "allStopped": "All agents are stopped.",
+      "stopAll": "Stop all agents",
+      "runAll": "Let all agents run",
+      "caption": "Agents and their settings",
+      "columns": {
+        "agent": "Agent",
+        "status": "Status",
+        "autonomy": "Autonomy",
+        "cap": "Daily spending limit",
+        "spent": "Spent today",
+        "runs": "Runs today",
+        "actions": "Actions"
+      },
+      "running": "Running",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "run": "Let it run",
+      "stopLabel": "Stop {agent}",
+      "runLabel": "Let {agent} run",
+      "autonomyLabel": "Autonomy of {agent}",
+      "inherit": {
+        "action_company": "As set for this action here: {autonomy}",
+        "action_group": "As set for this action for the group: {autonomy}",
+        "agent_company": "As set for the agent here: {autonomy}",
+        "agent_group": "As set for the agent for the group: {autonomy}",
+        "default": "No setting: {autonomy}"
+      },
+      "appliesNow": "Applies now: {autonomy}, {source}.",
+      "source": {
+        "action_company": "set for this action in this company",
+        "action_group": "set for this action for the group",
+        "agent_company": "the agent’s setting in this company",
+        "agent_group": "the agent’s setting for the group",
+        "default": "as no setting is made"
+      },
+      "groupCapToo": "The group’s limit of {amount} a day applies as well.",
+      "groupCapOnly": "No limit for this company. The group’s limit of {amount} a day applies.",
+      "capLabel": "Daily spending limit of {agent}, in rupees",
+      "capNone": "No limit set, so the agent makes no calls.",
+      "capInvalid": "Enter the amount in rupees, with at most two digits after the point.",
+      "saveCap": "Save limit",
+      "capSaved": "The spending limit of {agent} is saved.",
+      "autonomySaved": "The autonomy of {agent} is saved.",
+      "agentStopped": "{agent} is stopped.",
+      "agentRunning": "{agent} may run again.",
+      "allStoppedToast": "All agents are stopped.",
+      "allRunningToast": "All agents may run again.",
+      "actionTypesHeading": "What {agent} may do",
+      "actionTypeLabel": "Autonomy of {agent} for {action}",
+      "decisions": "In the last 90 days, {approved} of {decided} decisions approved without changes",
+      "automaticUnavailable": "Automatic is not available yet: agents suggest, or wait for approval, until a later phase.",
+      "automaticHeld": "Automatic is set here, and works as Needs approval until Automatic is available.",
+      "noActionTypes": "This agent has nothing to do yet.",
+      "readOnly": "Only an Executive changes autonomy and spending limits."
     }
   }
 }

@@ -6,12 +6,14 @@ import {
   ListBoardLeadsInput,
   ListBoardStageLeadsInput,
   OpportunityStateSchema,
+  SizingKindSchema,
   type BoardStageCursorDto,
   type OpportunityState,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
+import { SIZING_ENGINE_VERSION } from '../../sizing/size';
 import {
   afterCursor,
   keysetOrder,
@@ -49,6 +51,7 @@ interface CardRow {
   siteId: string | null;
   ownerId: string | null;
   stateChangedAt: Date;
+  createdAt: Date;
   updatedAt: Date;
   sortValue: string | null;
 }
@@ -128,6 +131,7 @@ export async function listBoardLeads(ctx: BoardContext, rawInput: unknown): Prom
       siteId: o.siteId,
       ownerId: o.ownerId,
       stateChangedAt: o.stateChangedAt,
+      createdAt: o.createdAt,
       updatedAt: o.updatedAt,
       sortValue: sortText(order).as('sort_value'),
       rank: sql<number>`row_number() over (partition by ${o.stageId} order by ${o.updatedAt} desc, ${o.id} desc)`.as(
@@ -187,6 +191,7 @@ export async function listBoardStageLeads(
       siteId: o.siteId,
       ownerId: o.ownerId,
       stateChangedAt: o.stateChangedAt,
+      createdAt: o.createdAt,
       updatedAt: o.updatedAt,
       sortValue: sortText(order),
     })
@@ -223,6 +228,9 @@ async function cardsOf(ctx: BoardContext, rows: readonly CardRow[]): Promise<Boa
     ctx,
     rows.flatMap((r) => (r.ownerId === null ? [] : [r.ownerId])),
   );
+  const leadIds = rows.map((r) => r.id);
+  const stageMoves = await stageMovesOf(ctx, leadIds);
+  const sizes = await sizesOf(ctx, leadIds);
   // A lead's customer is always readable to whoever reads the lead (AUDIT M25); one that is not
   // is left out rather than shown half-empty, as the leads list does.
   return rows.flatMap((r) => {
@@ -242,6 +250,8 @@ async function cardsOf(ctx: BoardContext, rows: readonly CardRow[]): Promise<Boa
         stateChangedAt: r.stateChangedAt.toISOString(),
         // No SLA rules exist yet (they arrive with the tele-calling queues in Phase 1).
         sla: null,
+        stageSince: (stageMoves.get(r.id) ?? r.createdAt).toISOString(),
+        size: sizes.get(r.id) ?? null,
         updatedAt: r.updatedAt.toISOString(),
       }),
     ];
@@ -280,4 +290,58 @@ async function ownersOf(ctx: BoardContext, ids: readonly string[]): Promise<Map<
     .from(pr)
     .where(inArray(pr.id, [...new Set(ids)]));
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/**
+ * When each lead last moved stage (`stage_moved` on its timeline, read with the lead), for the
+ * card's time in stage; a lead that never moved has none and counts from when it was made.
+ */
+async function stageMovesOf(ctx: BoardContext, ids: readonly string[]): Promise<Map<string, Date>> {
+  if (ids.length === 0) return new Map();
+  const a = schema.activities;
+  const rows = await ctx.tx
+    .select({ id: a.opportunityId, at: sql<Date>`max(${a.createdAt})`.mapWith(a.createdAt) })
+    .from(a)
+    .where(and(inArray(a.opportunityId, [...ids]), eq(a.type, 'stage_moved')))
+    .groupBy(a.opportunityId);
+  return new Map(rows.flatMap((r) => (r.id === null ? [] : [[r.id, r.at] as const])));
+}
+
+/**
+ * The size of each lead's newest sizing, read with the lead (docs/design/phase1.md §7.3, the
+ * board's follow-up): a pump's standard HP or a rooftop system's recommended kWp, from today's
+ * engine only (an older engine's result has another shape), recorded by a person (SECURITY §3.3).
+ */
+async function sizesOf(
+  ctx: BoardContext,
+  ids: readonly string[],
+): Promise<Map<string, NonNullable<BoardLeadDto['size']>>> {
+  if (ids.length === 0) return new Map();
+  const s = schema.sizings;
+  const p = schema.principals;
+  const rows = await ctx.tx
+    .selectDistinctOn([s.opportunityId], {
+      id: s.opportunityId,
+      kind: s.kind,
+      hp: sql<string | null>`${s.resultJson} -> 'power' ->> 'standardHp'`,
+      kwp: sql<string | null>`${s.resultJson} -> 'rooftop' ->> 'recommendedKwp'`,
+    })
+    .from(s)
+    .innerJoin(p, and(eq(p.id, s.createdBy), eq(p.kind, 'user')))
+    .where(and(inArray(s.opportunityId, [...ids]), eq(s.engineVersion, SIZING_ENGINE_VERSION)))
+    .orderBy(s.opportunityId, desc(s.createdAt), desc(s.id));
+  const number = (value: string | null) => {
+    const n = value === null ? Number.NaN : Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        kind: SizingKindSchema.parse(r.kind),
+        hp: r.kind === 'pump' ? number(r.hp) : null,
+        kwp: r.kind === 'rooftop' ? number(r.kwp) : null,
+      },
+    ]),
+  );
 }

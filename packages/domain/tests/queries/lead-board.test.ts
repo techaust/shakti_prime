@@ -15,6 +15,7 @@ import { runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { moveOpportunityStage } from '../../src/commands/crm/move-opportunity-stage';
+import { recordSizing } from '../../src/commands/crm/record-sizing';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { listBoardLeads, listBoardStageLeads } from '../../src/queries/crm/list-board-leads';
 import { listLeadAssignees } from '../../src/queries/crm/list-lead-assignees';
@@ -129,13 +130,45 @@ describe('listBoardLeads (DESIGN.md §6, Kanban board)', () => {
       'id',
       'ownerId',
       'ownerName',
+      'size',
       'sla',
       'stageId',
+      'stageSince',
       'state',
       'stateChangedAt',
       'updatedAt',
       'village',
     ]);
+  });
+
+  it('shows how long each card has been in its stage and the size of its newest sizing', async () => {
+    const before = await board(caller, { entityId: ENTITY });
+    const moved = before.items.find((l) => l.id === ids.a);
+    const fresh = before.items.find((l) => l.id === ids.c);
+    // `a` moved stage after it was made: its time in the stage starts at the move.
+    const [move] = await asMigrator(
+      (m) => m<{ at: Date }[]>`
+        select max(created_at) as at from activities
+         where opportunity_id = ${ids.a} and type = 'stage_moved'`,
+    );
+    expect(moved?.stageSince).toBe(move?.at.toISOString());
+    expect(Date.parse(fresh?.stageSince ?? '')).toBeLessThanOrEqual(
+      Date.parse(moved?.stageSince ?? ''),
+    );
+    expect(moved?.size).toBeNull();
+
+    await run(caller, recordSizing, {
+      entityId: ENTITY,
+      opportunityId: ids.c,
+      sizing: {
+        kind: 'rooftop',
+        inputs: { monthlyUnitsKwh: 300, roofAreaSqm: 40, sanctionedLoadKw: 5 },
+      },
+    });
+    const after = await board(caller, { entityId: ENTITY });
+    const sized = after.items.find((l) => l.id === ids.c);
+    expect(sized?.size).toMatchObject({ kind: 'rooftop', hp: null });
+    expect(sized?.size?.kwp).toBeGreaterThan(0);
   });
 
   it('orders the cards of a stage by their latest change', async () => {

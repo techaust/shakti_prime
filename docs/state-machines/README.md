@@ -10,7 +10,8 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 |---|---|---|---|---|---|
 | Opportunity | **yes** | 4 | 7 | 1 | [opportunity.md](opportunity.md) |
 | Task | **yes** | 3 | 4 | 0 | [task.md](task.md) |
-| Quote | no | 6 | 6 | 0 | [quote.md](quote.md) |
+| Duplicate candidate | **yes** | 3 | 3 | 0 | [duplicate-candidate.md](duplicate-candidate.md) |
+| Quote | **yes** | 6 | 6 | 0 | [quote.md](quote.md) |
 | Sales order | no | 7 | 8 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |
 | Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
@@ -23,6 +24,8 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Expense claim | no | 6 | 6 | 7 | [expense-claim.md](expense-claim.md) |
 | Playbook directive | no | 3 | 4 | 1 | [playbook-directive.md](playbook-directive.md) |
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
+| Agent action | **yes** | 5 | 5 | 0 | [agent-action.md](agent-action.md) |
+| Inbox item | **yes** | 2 | 2 | 0 | [inbox-item.md](inbox-item.md) |
 
 ## Workshop defaults
 
@@ -36,6 +39,14 @@ Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.
 | `opportunity.handoverLockHours` | 48 |
 | `opportunity.reopenWindowDays` | 30 |
 | `quote.validityDays` | 15 |
+| `numbering.docCodes.quote` | Q |
+| `numbering.docCodes.sales_order` | SO |
+| `numbering.docCodes.proforma` | PI |
+| `numbering.docCodes.challan` | DC |
+| `numbering.docCodes.purchase_order` | PO |
+| `numbering.separator` | / |
+| `numbering.serialDigits` | 4 |
+| `pricing.kitPricing` | fixed |
 | `credit.exposureCountsConfirmedOrders` | true |
 | `dispatch.ewayBillThresholdPaise` | 5000000 |
 | `crm.dispositions` | key: 1; code: interested; label: Interested; nextAction: callback<br>key: 2; code: call_back_later; label: Call back later; nextAction: callback<br>key: 3; code: not_reachable; label: Not reachable; nextAction: retry<br>key: 4; code: switched_off; label: Switched off; nextAction: retry<br>key: 5; code: wrong_number; label: Wrong number; nextAction: wrong_number<br>key: 6; code: not_interested; label: Not interested; nextAction: not_interested<br>key: 7; code: already_bought; label: Already bought; nextAction: not_interested<br>key: 8; code: qualified; label: Qualified; nextAction: qualified |

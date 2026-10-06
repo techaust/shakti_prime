@@ -14,6 +14,7 @@ export { consents } from './consents';
 export { activities } from './activities';
 export { tasks } from './tasks';
 export { tags, opportunityTags } from './tags';
+export { duplicateCandidates, customerMerges } from './duplicates';
 export { items, pumpCurves, itemCosts } from './items';
 export { kits, kitComponents } from './kits';
 export { priceTiers, priceLists, priceListItems, priceChangeLog } from './pricing';
@@ -25,6 +26,7 @@ export { retentionRuns } from './retention-runs';
 export { idempotencyKeys } from './idempotency-keys';
 export { savedViews } from './saved-views';
 export { files } from './files';
+export { agentConfigs, agentRuns, agentActions, inboxItems, agentEvals } from './agents';
 export { importMappingTemplates, importJobs, importRows } from './imports';
 export { pinCodes } from './pin-codes';
 export {
@@ -35,3 +37,4 @@ export {
   userTwoFactor,
   userEntityRoles,
 } from './identity';
+export { quotes, quoteLines, quoteVersions } from './quotes';

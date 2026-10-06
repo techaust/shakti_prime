@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ItemCategorySchema, MoneySchema } from '../catalogue/enums';
+import { DuplicateKindSchema, DuplicateReasonSchema } from '../crm/duplicates';
 import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../crm/enums';
 import { SizingKindSchema, SizingReasonSchema } from '../crm/sizing';
 import { EntityIdSchema, IdSchema } from '../ids';
@@ -73,6 +74,31 @@ const eventCatalogue = {
       })
       .strict(),
   },
+  'crm.lead.attached': {
+    meaning:
+      "A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates.",
+    emittedBy: ['crm.lead.create', 'imports.job.commit_batch'],
+    subscribed: false,
+    payload: z.object({ pipelineKey: Code, sourceCode: Code.nullable() }).strict(),
+  },
+  'crm.duplicate.found': {
+    meaning:
+      'Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates.',
+    emittedBy: [
+      'crm.lead.create',
+      'crm.duplicate.scan',
+      'crm.duplicate.suggest',
+      'imports.job.commit_batch',
+    ],
+    subscribed: false,
+    payload: z
+      .object({
+        kind: DuplicateKindSchema,
+        reason: DuplicateReasonSchema,
+        confidence: z.number().int().min(1).max(100),
+      })
+      .strict(),
+  },
   'crm.opportunity.stage_moved': {
     meaning:
       'An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`.',
@@ -107,8 +133,14 @@ const eventCatalogue = {
     payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
   },
   'crm.opportunity.reopened': {
-    meaning: "A nurtured or lost lead was opened again at its pipeline's first open stage.",
-    emittedBy: ['calls.call.log', 'crm.opportunity.reopen'],
+    meaning:
+      "A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead.",
+    emittedBy: [
+      'calls.call.log',
+      'crm.lead.create',
+      'crm.opportunity.reopen',
+      'imports.job.commit_batch',
+    ],
     subscribed: false,
     payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
   },
@@ -337,7 +369,7 @@ const eventCatalogue = {
   'print.document.requested': {
     meaning:
       'A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF.',
-    emittedBy: ['print.proof.request'],
+    emittedBy: ['print.proof.request', 'sales.quote.create', 'sales.quote.requote'],
     subscribed: true,
     payload: z
       .object({
@@ -346,6 +378,43 @@ const eventCatalogue = {
         version: z.number().int().min(1),
       })
       .strict(),
+  },
+  'sales.quote.created': {
+    meaning:
+      'A quote was made for a lead, priced from the Price Master and taxed by the tax engine; `supersedesId` names the quote a re-quote replaced.',
+    emittedBy: ['sales.quote.create', 'sales.quote.requote'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        supersedesId: IdSchema.nullable(),
+        lineCount: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'sales.quote.sent': {
+    meaning: 'A quote with its PDF was marked as sent to the customer.',
+    emittedBy: ['sales.quote.send'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema, pdfFileId: IdSchema }).strict(),
+  },
+  'sales.quote.superseded': {
+    meaning: 'A quote was replaced by a re-quote at current prices (`supersededById`).',
+    emittedBy: ['sales.quote.requote'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema, supersededById: IdSchema }).strict(),
+  },
+  'sales.quote.withdrawn': {
+    meaning: 'A draft or sent quote was withdrawn, with a reason a person gave.',
+    emittedBy: ['sales.quote.withdraw'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema }).strict(),
+  },
+  'sales.quote.expired': {
+    meaning: 'The daily job marked a quote whose validity had passed as expired.',
+    emittedBy: ['sales.quote.expire'],
+    subscribed: false,
+    payload: z.object({ opportunityId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
