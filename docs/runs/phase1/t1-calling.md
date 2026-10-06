@@ -5,8 +5,8 @@
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
 | Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | reviewed (1 high, 2 medium, 4 low) |
-| Next step | a cloud builder fixes the findings (the lead's fix brief of 06-10-2026 below); then the re-review; the integration follows D1's merge |
+| State | fixes done; awaiting re-review |
+| Next step | the re-review of the fixes; the integration follows D1's merge |
 
 ## Brief
 Read first:
@@ -137,19 +137,85 @@ The slice is built and every check of AGENTS §10 that runs in the cloud passes.
 - The spike's numbers come from a quiet cloud VM with 20,000 made-up leads. The lead engineer measures again at integration and on the hosted stack.
 - The selected row's secondary text is now as dark as the customer's name; the reviewer may prefer a token change so that `--text-muted` holds AA on `--accent-soft`, which is a design-system decision outside this slice.
 
+### 06-10-2026, cloud builder: the review's fixes
+The seven findings are fixed on `feat/t1-calling` without `main`, and every check of the fix brief passes. Each fix has its test from the review's cases. The ten new security-suite tests failed on `986c4e8` before the fixes (commit `78b3343`: 10 failed, 31 passed).
+
+**Built (files):**
+- `packages/domain/src/commands/crm/call-tasks.ts`:
+  - `cancelCallTasks` cancels a lead's open call tasks of the kinds named, each through `crm.task.cancel`.
+  - `moveCallTasks` moves a lead's open callbacks and nurture calls to a new owner.
+  - `scheduleNurtureCalls` cancels any open nurture calls before it sets the three new ones.
+- The commands:
+  - `crm.opportunity.reopen` cancels the lead's open nurture calls.
+  - `crm.opportunity.lose` cancels its open callbacks and nurture calls.
+  - `crm.opportunity.assign` moves its open callbacks and nurture calls to the new owner, before the owner changes.
+  - The opportunity machine names each of these as an effect; `machines:docs` regenerated.
+- `calls.call.log` (`log-call.ts`):
+  - `settleCallTasks` completes the due callbacks and nurture calls, and cancels later callbacks through `cancelCallTasks`. Later nurture calls end in reopen or lose.
+  - A Qualified outcome moves the lead only from a stage positioned before Qualified.
+- `unansweredAttempts` (`src/telecom/call-schedule.ts`) counts a run's unanswered attempts, from calls made after `opportunities.state_changed_at` only. `log-call.ts`, `loadCallLead` and the queue all call it.
+- The queue (`rankedQueue`): a nurture task holds a lead back only while the lead is in nurture. `loadCallLead` shows a nurture call as the next call by the same rule.
+- Web: `useCommand(action, form)` and `formKeyFor` (`src/components/screens/use-command.ts`); the workspace keys its log form to the open lead.
+- Documents: SECURITY §7 (one line), PRD §8 (TEL-01), DATABASE (`calls.attempt_no`) and the schema comment, design §7.2 "Built (T1)" and §8.2, `docs/spikes/calling.md` and `results/calling.json`; `pnpm db:docs` and `machines:docs` regenerated.
+
+**Tests added (17):**
+- `packages/domain/tests/commands/calls.test.ts`, 6:
+  - A: a lead reopened on the board keeps no nurture calls, with three audited cancellations.
+  - B: a nurtured lead lost on the board keeps no nurture calls, and a lost lead keeps no callback.
+  - C: nurtured, reopened and nurtured again, a lead has one set of nurture calls.
+  - D: a lead reopened after its three tries starts again at attempt 1, and the workspace shows 0 tries.
+  - D: an unanswered nurture call is saved as attempt 1, and the workspace shows 1 of 3.
+  - F: a lead at Quoted stays there, with no stage move.
+- `packages/domain/tests/queries/call-queue.test.ts`, 4:
+  - A: a lead nurtured and reopened is back in its owner's queue as not called.
+  - An open lead with a nurture task is in the queue.
+  - D: the queue shows 1 try for a nurture call, where it showed 4.
+  - A callback at 16:00, reassigned at noon: the old owner has no open task on the lead. The new owner's queue leaves the lead out at 12:30 and shows it as a due callback at 16:00 when read at 16:30.
+- `src/telecom/call-schedule.test.ts`, 4 (`unansweredAttempts`); `apps/web/src/components/screens/use-command.test.ts`, 3 (`formKeyFor`).
+- Changed: `timeline.test.ts` expects the reopen's three `task_cancelled` rows.
+
+**The spike** (`pnpm spike:calling`, 12:01 IST, the same cloud VM with 4 cores and 16 GB, on a database the suites had used):
+- **Times:** every case is under 300 ms at the 95th percentile:
+  - queue: p95 67.0 ms for the tele-caller, 72.1 ms for the team lead;
+  - lead: p95 57.5 ms or less;
+  - team view: p95 177.9 ms for the team lead (11 callers), 186.5 ms for the General Manager (98 callers).
+- **`EXPLAIN (ANALYZE, BUFFERS)` under RLS:**
+  - Queue page: execution 37.0 ms for the tele-caller, 28.9 ms for the team lead.
+  - Team view's counts: execution 188.2 ms, 88,914 buffers.
+  - The plans keep their shape. The team view is slower than at 00:14 (p95 127.2 and 136.4 ms then) with about the same buffers (88,142 then). It was not measured again on a fresh database.
+
+**Checks** (the cloud VM, Postgres on 54322, with the code of `2d2b8b6`):
+- `pnpm test:security`: db 32 files and 984 tests, domain 58 and 673, web 15 and 242, all passed.
+- `pnpm lint`: clean. `pnpm exec turbo run typecheck --force`: 8 tasks successful.
+- `pnpm exec turbo run test --force`, 8 tasks, all passed: tokens 134, copy-lint 17, ui 105, contracts 177, db 122, domain 1,603 and web 641.
+- `pnpm copy-lint` and `pnpm format:check`: clean. `pnpm db:generate`: no schema changes. `check-doc-links.py`: bad 0.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.8 kB of 206.
+- `e2e/calling.spec.ts --ignore-snapshots` after `e2e:seed`, against `next start -p 3000`, from 12:00 IST: 20 passed, setup included. The keyboard path and the team lead's view passed on desktop-light, desktop-dark and phone.
+- Not run here: the secret scan and the screenshot baselines, both on the PC at integration.
+
+**Decisions the brief did not settle:**
+- The app may not change a task's person: 0078 grants update on `due_at`, `state`, `done_at` and the `updated_*` columns only. The assign move therefore creates a task for the new owner at the same time and cancels the old one, both through the task commands. A callback already due moves to the current time, since a task may not be created in the past.
+- The assign move takes every open callback and nurture call on the lead that the assigner may change, whoever holds it, and skips any the new owner already holds.
+- `cancelCallTasks` and `moveCallTasks` act only on tasks whose person the caller's own lead write scope covers (`app.scope_ok`, as the task update policy asks). Other tasks are left, so a reopen or a lose by a caller with own scope is never refused over a colleague's task. The queue reads only the owner's tasks.
+- A call made at the same moment as the state change does not count: its `started_at` must be later. The third try parks the lead at that moment, so a nurture call that goes unanswered is attempt 1.
+- `crm.opportunity.win` cancels no call tasks, as the brief did not ask for it. A won lead holds no nurture calls after these fixes, but a pending callback stays open on it.
+
+**Uncertain:**
+- The idempotency fix has a unit test of the key rule only, because `apps/web` has no DOM test library to render the hook. The calling journey saved three calls on three leads in a row on each project.
+
 ## Review
 ### Review of cbec38fc..986c4e8, 06-10-2026, slice-reviewer in the cloud
 One high and two medium findings, all in the calling rules' tasks and stage moves; the rest is low. The security model, the command's guards, the queue's SQL, the copy and the journeys hold. The findings marked confirmed were reproduced on the cloud VM's Postgres, with a scratch test the review did not commit. Each failing case is described under the finding, so the builder can turn it into a real test.
 
 | # | Severity | Finding | State |
 |---|---|---|---|
-| 1 | High | Nurture calls outlive nurture: a lead reopened from the board drops out of its owner's queue, and lost or re-nurtured leads keep or double their nurture calls | Open |
-| 2 | Medium | The unanswered-attempt count runs on across nurture: a reopened lead goes back to nurture on its first unanswered call | Open |
-| 3 | Medium | A qualified outcome moves a lead back from a later stage and asks for the handover again | Open |
-| 4 | Low | A reassigned lead's callback stays with its old owner, and the new owner's queue shows the lead as ready to call | Open |
-| 5 | Low | After a lost answer, the workspace's one idempotency key blocks every later call until the page reloads | Open |
-| 6 | Low | `D`'s calling-hours and consent gate is one click from Account 360's full number and `tel:` link | Open |
-| 7 | Low | PRD §8 still traces TEL-01 to "—" | Open |
+| 1 | High | Nurture calls outlive nurture: a lead reopened from the board drops out of its owner's queue, and lost or re-nurtured leads keep or double their nurture calls | Fixed in `c81bd50`: cases A, B and C, the reopened lead in the queue and the nurture-task rule, each failing on `986c4e8` |
+| 2 | Medium | The unanswered-attempt count runs on across nurture: a reopened lead goes back to nurture on its first unanswered call | Fixed in `c81bd50`: case D and a nurture call's count, in the command, the workspace and the queue, each failing on `986c4e8` |
+| 3 | Medium | A qualified outcome moves a lead back from a later stage and asks for the handover again | Fixed in `c81bd50`: case F, a lead at Quoted, failing on `986c4e8` |
+| 4 | Low | A reassigned lead's callback stays with its old owner, and the new owner's queue shows the lead as ready to call | Fixed in `c81bd50`: the 16:00 callback reassigned at noon, failing on `986c4e8` |
+| 5 | Low | After a lost answer, the workspace's one idempotency key blocks every later call until the page reloads | Fixed in `0455cd2`: the key rule `formKeyFor` has a unit test; the hook is not rendered in a test (no DOM test library) |
+| 6 | Low | `D`'s calling-hours and consent gate is one click from Account 360's full number and `tel:` link | Fixed in `b6e7bf6`: SECURITY §7; marking a withdrawn consent on Account 360 is the lead's follow-up |
+| 7 | Low | PRD §8 still traces TEL-01 to "—" | Fixed in `b6e7bf6`: the four test files |
 
 **1. Nurture calls outlive nurture (high, confirmed).**
 - **Where:** `packages/domain/src/commands/crm/nurture-opportunity.ts:36` sets three `nurture` tasks every time a lead enters nurture. `reopen-opportunity.ts` and `lose-opportunity.ts` never cancel them. Only `calls.call.log` does, through `settleCallTasks` when the call itself takes the lead out of nurture. The queue (`packages/domain/src/queries/calls/call-queue.ts:93`, `rankedQueue`) leaves out any lead whose owner holds a later open `callback` or `nurture` task, whatever the lead's state.
