@@ -5,8 +5,8 @@
 | Branch | `feat/ai0-agent-runtime` on GitHub, from `main` at #99 |
 | PC worktree | `ai0-agent-runtime`, slot 12: Postgres 54342, app 3042 (`bash tools/integration/setup-worktree.sh ai0-agent-runtime feat/ai0-agent-runtime 54342 3042`) |
 | Runs on | PC (built and integrated there before the move to cloud-first on 05-10-2026) |
-| State | integrated; pull request open |
-| Next step | the merge, then dev and staging migrated; the owner's keys and a spending limit before any agent runs |
+| State | merged (#108) |
+| Next step | none: dev and staging migrated through 0108 on the day it merged |
 
 ## Brief
 Read first:

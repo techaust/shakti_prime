@@ -1,11 +1,11 @@
 ---
 name: integrate-slice
-description: Bring a built and reviewed slice branch of Shakti Prime BOS onto main, on the PC. Use when a slice's builder has finished and its review findings are fixed. Takes main into the branch, renumbers its migrations, runs every check, makes the Linux screenshot baselines and opens the pull request.
+description: Bring a built and reviewed slice branch of Shakti Prime BOS onto main, in a cloud session (the PC opens the pull request). Use when a slice's builder has finished and its review findings are fixed. Takes main into the branch, renumbers its migrations, runs every check, makes the Linux screenshot baselines and opens the pull request.
 ---
 
 # Integrate a slice
 
-**PC:** every step runs on the PC until the cloud trial says otherwise ([hybrid §1 and §10](../../../docs/runbooks/hybrid.md#1-what-runs-where)). The procedure, the reasons and the lessons are in `docs/runbooks/slice-integration.md` §5 to §8; follow it exactly. Every command starts with `cd "<worktree>" && . tools/integration/lib.sh &&`. In short:
+**Cloud, with the pull request on the PC:** steps 1 to 4 run in a cloud session on the slice's branch, with `.` as the worktree and `integrate.sh` in parts (`INTEGRATE_STEPS`, each under 30 minutes); step 5's pull request and step 6 run in the lead session on the PC ([hybrid §1 and §10](../../../docs/runbooks/hybrid.md#1-what-runs-where)). The procedure, the reasons and the lessons are in `docs/runbooks/slice-integration.md` §5 to §8; follow it exactly. Every command starts with `cd "<worktree>" && . tools/integration/lib.sh &&`. In short:
 
 1. **Ready?** The slice's run file has the builder's report and the review's findings, every medium or worse is fixed and verified, and the worktree is clean (`git status`). Work done in a cloud session is fetched into the worktree first.
 2. **Take main:** record the pre-merge commit, `git merge --no-commit origin/main`, resolve with `python3 tools/integration/merge-union.py`, `merge-json.py` (before `git add` on `en.json`) and `merge-copylint.py` (read every code hunk by hand), then `node tools/integration/renumber-migrations.mjs origin/main <pre-merge sha>`. `pnpm db:generate` must report no changes; run `pnpm db:docs`; fix the migration numbers the slice's documents cite; commit the merge.

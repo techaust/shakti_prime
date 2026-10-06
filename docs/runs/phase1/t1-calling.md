@@ -5,8 +5,8 @@
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
 | Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | integrated; ready for the pull request |
-| Next step | the lead opens the pull request from the PC (part 5's four host-only screenshots: see the Integration notes), then the hosted migrations |
+| State | merged (#119) |
+| Next step | none: dev and staging migrated through 0115 on the day it merged |
 
 ## Brief
 Read first:

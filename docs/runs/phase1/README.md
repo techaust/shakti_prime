@@ -40,12 +40,14 @@ Done when: the slice-specific checks beyond AGENTS §10.
 Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. A cloud session uses the defaults of its own VM (Postgres 54322, app 3000).
 
 ## Slices in flight
-- [AI0 agent runtime and Inbox](ai0-agent-runtime.md)
-- [D1 duplicates](d1-duplicates.md)
-- [S1 quotes](s1-quotes.md)
+None; wave 4's run files are written next.
 
 ## Merged
 - [P4 print and letterhead](p4-print.md) (#99)
 - [C4 sizing](c4-sizing.md) (#100)
 - [C3 pipelines, scoring and referrals](c3-pipelines.md) (#103)
 - [P2b imports upgrade](p2b-imports.md) (#105)
+- [AI0 agent runtime and Inbox](ai0-agent-runtime.md) (#108)
+- [S1 quotes](s1-quotes.md) (#115)
+- [D1 duplicates](d1-duplicates.md) (#118)
+- [T1 cold caller workspace](t1-calling.md) (#119)

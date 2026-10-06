@@ -18,6 +18,7 @@ Never send a password, key or secret value; a screenshot of a settings page is c
 6. [Restore from a backup](#6-restore-from-a-backup)
 7. [A paused Supabase project](#7-a-paused-supabase-project)
 8. [The AI service is down or an agent has stopped](#8-the-ai-service-is-down-or-an-agent-has-stopped)
+9. [CI jobs do not start](#9-ci-jobs-do-not-start)
 
 ## 1. The site is down
 1. Open `<site>/api/v1/health`. A 200 means the app is running; no answer means the deployment itself is down (go to step 3).
@@ -73,3 +74,8 @@ Agents only file suggestions in the Agent Inbox; when they stop, nothing else st
 2. A limit reached: the agent starts again at midnight India time; an Executive may raise the limit on **Admin › Agents** if the day needs more.
 3. The AI service failing: check the vendor's status page (Anthropic for Claude, Voyage for embeddings) and wait it out; the runs are recorded as unavailable and nothing is retried by hand.
 4. When the service is up and the agent runs but still files nothing, tell the developer (see *Who to tell*).
+
+## 9. CI jobs do not start
+A run fails within seconds with no log, and a pull request does not merge. Open the failed job's check run: an annotation saying the job was not started because of payments or the spending limit means the month's Actions minutes are used up.
+1. The owner sets an Actions budget in GitHub › Settings › Billing and plans, or the repository is public (its minutes are free), or the work waits for the monthly reset.
+2. Then rerun the failed run (`gh run rerun <id>`); a merge-on-green run that failed this way is rerun the same way. A pull request whose CI started before `main` changed takes `main` by a merge commit and is pushed again.
