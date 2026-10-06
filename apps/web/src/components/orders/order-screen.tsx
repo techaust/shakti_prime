@@ -61,9 +61,7 @@ function HoldNote({ hold }: { hold: CreditHoldDto }) {
     >
       <p className="font-medium">{t('heading')}</p>
       <p>{text}</p>
-      <p className="text-text-muted text-sm">
-        {t('heldAt', { time: formatDateTime(hold.heldAt) })}
-      </p>
+      <p className="text-sm">{t('heldAt', { time: formatDateTime(hold.heldAt) })}</p>
     </div>
   );
 }

@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * shows the not-found screen.
  */
 export default async function QuotePage({ params }: { params: Promise<Params> }) {
-  const { access } = await screenAccess(navRequires('quotes'));
+  const { access, can } = await screenAccess(navRequires('quotes'));
   const { entityId: rawEntityId, quoteId } = await params;
   const entityId = Number(rawEntityId);
   if (!Number.isInteger(entityId) || entityId < 1 || entityId > 32_767 || !UUID.test(quoteId)) {
@@ -57,7 +57,10 @@ export default async function QuotePage({ params }: { params: Promise<Params> })
       key={quote.data.id}
       initial={quote.data}
       company={companyNames(access)[quote.data.entityId] ?? ''}
-      {...(quote.data.canAccept ? { acceptLimit: signedCopyLimit() } : {})}
+      // For a caller who may record an acceptance once the quote is sent, whatever it is now.
+      {...(can('sales.quote.send', 'own') && can('sales.order.create', 'own')
+        ? { acceptLimit: signedCopyLimit() }
+        : {})}
       placeOfSupply={
         stateKey !== undefined && print.has(stateKey)
           ? print('quote.placeOfSupplyState', {
