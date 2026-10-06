@@ -26,6 +26,7 @@ import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
 import { writePrintPages } from './print-pages';
+import { ensureOrderJourneys } from './orders';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { totpCode } from '../support/totp';
@@ -403,6 +404,9 @@ await ensureSnapshotImport(ids.executive ?? '');
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
 
+progress('the orders and dealers');
+const orders = await ensureOrderJourneys(ids.executive ?? '');
+
 progress('the held-back updates');
 // Integration health: one fixed update held back in the snapshot company, and one per project
 // for the Send again journey, which sends one back each run.
@@ -502,6 +506,7 @@ const seeded: SeededUsers = {
   profileUsers,
   secondCompanyLead,
   quotes,
+  orders,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

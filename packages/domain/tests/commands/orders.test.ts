@@ -44,11 +44,12 @@ import {
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 import { commissionAmount } from '../../src/sales/commission';
 
-// Orders are made in company 3 (Agro Solar Hub), which no other command suite numbers orders in.
+// Orders are made in company 4 (RCREF): no other command suite numbers orders there, and company 3
+// is kept for the journeys' screenshots.
 // Every price, rate, limit, outstanding figure and commission rule here is a synthetic test value
 // made for this file, never a client figure (SALE-4, SALE-6, CRM-5); the rows it adds that other
 // suites read whole (tax rates, commission rules) are removed afterwards.
-const E = 3;
+const E = 4;
 const P = '01990000-0000-7000-8000-000000a5';
 const fixed = (n: number) => `${P}${n.toString(16).padStart(4, '0')}`;
 const ids = {
@@ -320,7 +321,7 @@ describe('sales.quote.accept (SAL-05, SAL-06)', () => {
       signedFileId: signed,
       canAccept: false,
     });
-    expect(accepted.orderNo).toMatch(/^ASH\/SO\/\d{4}-\d{2}\/\d{4,}$/);
+    expect(accepted.orderNo).toMatch(/^RCREF\/SO\/\d{4}-\d{2}\/\d{4,}$/);
     const order = await asPrincipal(lc, (context) =>
       getSalesOrder(context, { entityId: E, orderId: accepted.orderId ?? '' }),
     );
@@ -441,7 +442,7 @@ describe('sales.order.create (SAL-06, SAL-03)', () => {
       placeOfSupplyState: '08',
       supplyKind: 'intra',
     });
-    expect(order.soNo).toMatch(/^ASH\/SO\/\d{4}-\d{2}\/\d{4,}$/);
+    expect(order.soNo).toMatch(/^RCREF\/SO\/\d{4}-\d{2}\/\d{4,}$/);
     // 2 modules at 12,000 = 24,000 at 12%.
     expect(order.lines.map((l) => [l.sku, l.unitPrice, l.taxableValue, l.cgst, l.sgst])).toEqual([
       ['OT-MODULE', '12000.00', '24000.00', '1440.00', '1440.00'],
@@ -607,7 +608,7 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
       accountId: late,
       outstanding: '1000.00',
       oldestOverdueDays: 45,
-      oldestOverdueInvoiceNo: 'ASH/SI/TEST/0001',
+      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0001',
       asOf: today(),
     });
     const overdue = await dealerOrder(late, 1);
@@ -618,7 +619,7 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
       order: {
         creditHold: {
           reason: 'credit_overdue',
-          invoiceNo: 'ASH/SI/TEST/0001',
+          invoiceNo: 'RCREF/SI/TEST/0001',
           overdueDays: 45,
           creditDays: 30,
         },
@@ -815,7 +816,7 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
       accountId: dealer,
       outstanding: '5000.00',
       oldestOverdueDays: 10,
-      oldestOverdueInvoiceNo: 'ASH/SI/TEST/0002',
+      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0002',
       asOf: yesterday(),
     });
     const order = await dealerOrder(dealer, 1);
@@ -843,7 +844,7 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
       creditLimit: '40000.00',
       creditDays: 30,
       outstanding: '5000.00',
-      oldestOverdueInvoiceNo: 'ASH/SI/TEST/0002',
+      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0002',
       asOf: yesterday(),
       confirmedUnpaid: '13440.00',
       exposure: '18440.00',
