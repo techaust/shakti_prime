@@ -110,7 +110,11 @@ test.describe('notices as a tele-caller', () => {
       .filter({ hasText: name })
       .first();
     await expect(notice).toBeVisible();
-    await notice.getByRole('button', { name: 'Mark this notice as read' }).click();
+    await notice
+      .getByRole('button', {
+        name: 'Mark as read: A customer or lead of yours may be a duplicate',
+      })
+      .click();
     await expect(notice.getByText('Not read yet')).toHaveCount(0);
     await expectNoAxeViolations(page, { include: '[role="dialog"]' });
     await snap(page, 'notification-centre', { mask: [centre.getByRole('list')] });

@@ -229,7 +229,7 @@ function NoticeRow({
           size="sm"
           variant="ghost"
           className="self-start"
-          aria-label={t('markReadLabel')}
+          aria-label={t('markReadLabel', { notice: t(`types.${notice.type}`) })}
           pending={mark.pending}
           onClick={read}
         >

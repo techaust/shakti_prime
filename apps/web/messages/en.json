@@ -436,7 +436,7 @@
     "empty": "Nothing here yet. When a lead is given to you, a call falls due or a quote is about to lapse, it shows here.",
     "markAllRead": "Mark all as read",
     "markRead": "Mark as read",
-    "markReadLabel": "Mark this notice as read",
+    "markReadLabel": "Mark as read: {notice}",
     "allRead": "All notices are marked as read.",
     "unread": "Not read yet",
     "loadMore": "Show more",
