@@ -309,10 +309,60 @@ Re-review the fixes `78b3343...3d62262` against the findings and the fix brief, 
 4. The calling spike's slower team view (178 to 187 ms against 127 to 136 ms): is it the fix's SQL or the database the suites had filled?
 
 ### Re-review of 78b3343..3d62262, 06-10-2026, slice-reviewer in the cloud
-In progress. Done so far, on the branch at `81b40a8`:
-- `e2e/calling.spec.ts --ignore-snapshots` after `e2e:seed`, against `next start -p 3000`, at 12:13 IST (inside calling hours): 20 passed on desktop light, desktop dark and phone.
-- Focus 1, reproduced with a scratch test the review does not commit: `agent:triage` assigns an open lead with a callback at 16:00, and the assignment succeeds. The callback moves: a new task for the new owner at 16:00 and the old one cancelled, both audited (`actor_kind` `agent`) and on the timeline under the agent.
-- Focus 4, the spike run four times on one database, alternating the fix's `call-queue.ts` with `986c4e8`'s: the team view's counts read 89,029 and 90,696 buffers with the fix and 91,235 and 91,236 without, and its p95 for the team lead is 124.9 and 131.3 ms with the fix and 116.0 and 106.0 ms without. The fix's SQL costs the same; the builder's 178 to 187 ms came from the database.
-- Still to come: focus 2 and 3, the findings one by one, and the checks.
+The seven findings are fixed, and each fix's test fails on the code before it. The re-review found no new defect in the code; it found two low findings in the documents. An agent's reassignment works and moves the callback. No role leaves a nurture call that hides a lead from its owner's queue. The spike's slower team view came from the database, not the fix's SQL. The cases marked reproduced ran on the cloud VM's Postgres in a scratch test the review did not commit.
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| R1 | Low | Design §8.2 says a leaving caller's nurture calls go with their leads through `crm.opportunity.assign`, but a nurtured lead cannot be assigned | Open |
+| R2 | Low | SECURITY §3.3 limits the triage agent's lead writes to "score, pipeline, entity fields only"; its reassignment now creates and cancels people's tasks | Open |
+
+**R1. A nurtured lead cannot be assigned (low, confirmed).**
+- **Where:** the opportunity machine allows `assign` only from `open` (`open` → `open`). Design §8.2 now says "`crm.lead.reassign_all` moves a leaving caller's leads through `crm.opportunity.assign`, so their callbacks and nurture calls go with them". The machine's `move_call_tasks` effect and design §7.2 "Built (T1)" also say assign moves the nurture calls.
+- **Reproduced:** `agent:triage`, the GM and a team lead each assigning a nurtured lead are refused (`conflict`, `opportunity_transition_not_allowed`), and its three nurture calls stay with the old owner. On an open lead, `moveCallTasks` moves only nurture calls left open by mistake, which the queue does not read.
+- **What happens:** when T2 builds `crm.lead.reassign_all` on `crm.opportunity.assign`, a leaving caller's parked leads are refused or skipped. Their nurture calls stay with the leaver, and those leads never come back in anyone's queue.
+- **Fix:** in design §8.2, say that `crm.opportunity.assign` moves an open lead's callbacks. A nurtured lead's owner and nurture calls are for T2 to settle, either by allowing `assign` from `nurture` in the machine or in `crm.lead.reassign_all` itself. Give the machine's `move_call_tasks` text and §7.2 "Built (T1)" the same wording.
+
+**R2. The triage agent's reassignment writes tasks (low, confirmed).**
+- **Where:** SECURITY §3.3 gives `agent:triage` `crm.lead.write:entity` "(score, pipeline, entity fields only)". `crm.opportunity.assign` now runs `crm.task.create` and `crm.task.cancel` for the lead's callbacks (`moveCallTasks`).
+- **Reproduced:** the agent assigns an open lead with a callback at 16:00, and the assignment succeeds. The new owner has a callback at 16:00 that the agent created, and the old one is cancelled. The audit rows `crm.task.create` and `crm.task.cancel` carry `actor_kind` `agent` and the agent's id, beside its `crm.opportunity.assign`. The timeline rows `task_created` and `task_cancelled` name the agent too.
+- **Why it matters:** the behaviour is right, since a callback must not be lost when the agent reassigns a lead. The security document no longer states everything the agent writes, though.
+- **Fix:** add one line to SECURITY §3.3: the triage agent's reassignment moves the lead's open callbacks to the new owner through the task commands, audited under the agent.
+
+**The findings of the first review:**
+1. **Nurture calls outlive nurture: fixed.** `crm.opportunity.reopen` and `crm.opportunity.lose` cancel through `cancelCallTasks`. `scheduleNurtureCalls` cancels before it sets new ones. In `rankedQueue` and `loadCallLead`, a nurture call holds back only a lead in `nurture`. Cases A, B, C and the queue case pass, and each failed on `986c4e8`'s domain code: the review ran the fix's `calls.test.ts` and `call-queue.test.ts` against it, and 10 failed.
+2. **The attempt count runs on: fixed.** `unansweredAttempts()` counts only a `retry` call made after `state_changed_at`. Only nurture, reopen, lose and win write that column, so a stage move or an assignment never resets a run. The command, the workspace and the queue all use it. `runStartedAt` still takes the latest attempt 1, which is the current run's.
+3. **A qualified outcome moves a lead backwards: fixed.** The move runs only when the stage's position is before Qualified's. The check reads the stage after a reopen (`now.stageId`), so a nurtured lead that answers still moves forward. Case F passes.
+4. **A reassigned lead's callback: fixed.** The review reproduced it for a team lead and the GM. The new owner has the callback at 16:00 and the old owner none. The lead is absent from the new owner's queue at 12:30 and shows as `call_due` at 16:30. A tele-caller may not assign (`forbidden`).
+5. **One idempotency key: fixed.** The workspace keys `useCommand(logCall, lead?.opportunityId)`, and the dialog shares that form. Another lead gets a new key. The same lead keeps its key after a lost answer, so a second press acts once. A different outcome on that lead is answered `idempotency_mismatch`, which is right, because the first one was saved. A refusal stores nothing, so the caller can correct a refused outcome and send it again. `formKeyFor`'s unit test covers the rule.
+6. **The number gate: fixed** by the SECURITY §7 line. The Account 360 follow-up (mark a withdrawn consent beside the number and drop its `tel:` link) is not yet in STATUS.md's follow-ups; the lead records it.
+7. **PRD §8: fixed.** TEL-01 names the four test files.
+
+**The lead's focus:**
+1. **An agent's reassignment:** it succeeds and moves the callback, audited and on the timeline under the agent (R2). The agent cannot assign a nurtured lead, and neither can anyone else (R1). For T2: the handover worker is planned to assign as `system:workers`, which holds no `crm.lead.write`. Under that principal, `openCallTasks` would find no task in scope and silently move nothing. T2 should test the handover with a callback open.
+2. **Whoever cannot change a task** (reproduced for a team lead, the GM and a tele-caller of one team, on a lead the caller owns):
+   - A reopen by each leaves no open task, and the lead is in the owner's queue as `not_called`.
+   - A loss by each leaves no open task. The lost lead, reopened, is back in the queue as `not_called`.
+   - A reassignment of an open lead by the team lead or the GM moves the callback (finding 4). The tele-caller is refused.
+   - A callback held by a caller of another team is left with that caller when the team lead reassigns the lead, and the assignment succeeds.
+   - None of these hides the lead: the queue reads only the owner's tasks, and a nurture call no longer holds back an open lead.
+3. **The builder's three decisions:**
+   - **A move is a new task plus a cancelled one:** sound. 0078 grants no update on `assignee_id` or `team_id`, and both writes go through the task commands, so both are audited and on the timeline. What changes is the task's id and `created_by` (the assigner), and a callback already due moves to the moment of the assignment.
+   - **Tasks outside the caller's scope are left:** sound. The alternative refuses a reopen, a loss or an assignment over a task the caller cannot see. A task left this way cannot hide the lead, since the queue reads only the owner's tasks.
+   - **A win cancels nothing:** sound for now. Until quotes and orders exist, `crm.opportunity.win` refuses every lead (`win_needs_order`). The slice that lets a lead be won should end its callbacks as `lose` does, because a callback left on a won lead stays on the owner's task list and in Account 360.
+4. **The spike's slower team view:** the cause is the database, not the fix's SQL.
+   - The spike was run four times on one database, alternating the fix's `call-queue.ts` with `986c4e8`'s, 12:15 to 12:22 IST.
+   - The team view's counts read 89,029 and 90,696 buffers with the fix, and 91,235 and 91,236 without; the builder had 88,914 and 88,142.
+   - The team lead's p95 was 124.9 and 131.3 ms with the fix, and 116.0 and 106.0 ms without. That spread is noise between runs, and every case is under 300 ms.
+   - Each spike run leaves its 11 test people behind, so the GM's view grew from 19 to 52 callers over the four runs. The suites leave their test people as well. A well-used database therefore gives a slower GM view, which explains the builder's 98 callers and slower times.
+
+**Run by the re-review** (cloud VM, Postgres on 54322, branch at `81b40a8`):
+- `e2e/calling.spec.ts --ignore-snapshots`, after `e2e:seed`, against `next start -p 3000`, at 12:13 IST (inside calling hours): 20 passed. That covers the keyboard path and the team lead's view on desktop light, desktop dark and phone. The browsers are `chromium-1243` and `chromium_headless_shell-1243`, copied from the Playwright image.
+- `pnpm test:security`: db 32 files and 984 tests, domain 58 and 673, web 15 and 242, all passed.
+- `pnpm lint`: clean. `pnpm exec turbo run typecheck --force`: 8 tasks successful.
+- `pnpm exec turbo run test --force`, all passed: tokens 134, copy-lint 17, ui 105, contracts 177, db 122, domain 1,603 and web 641.
+- `pnpm copy-lint` and `pnpm format:check`: clean. `pnpm db:generate`: no schema changes. `check-doc-links.py`: bad 0.
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.8 kB of 206.
+
+**Not checked:** the secret scan (no gitleaks image here) and the screenshot baselines, both on the PC at integration. The idempotency hook was not rendered in a test, since `apps/web` has no DOM test library.
 
 ## Integration notes
