@@ -19,6 +19,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Platform](#platform)
   - [Files](#files)
   - [print](#print)
+  - [knowledge](#knowledge)
   - [sales](#sales)
 - [Payloads](#payloads)
 
@@ -45,7 +46,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-40 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+41 types, 4 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -131,6 +132,12 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+
+### knowledge
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again. | `knowledge.file.add`, `knowledge.file.reindex`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
 
 ### sales
 
@@ -387,6 +394,13 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### knowledge.file.index_requested
+
+| Field | Type |
+|---|---|
+| `knowledgeEntityId` | whole number from 1 to 32767 or null |
+| `sensitivity` | one of `staff_ai_ok`, `management`, `exec_only` |
 
 ### sales.quote.created
 
