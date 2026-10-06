@@ -12,20 +12,20 @@ import {
   type OpportunityState,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { callConsentWithdrawn } from '../../queries/calls/consent';
 import { effectiveDispositions } from '../../queries/crm/pipeline-settings';
-import { afterUnanswered } from '../../telecom/call-schedule';
+import { afterUnanswered, unansweredAttempts } from '../../telecom/call-schedule';
 import { withinCallingHours } from '../../telecom/dial-policy';
-import { createCallTask } from '../crm/call-tasks';
+import { cancelCallTasks, createCallTask } from '../crm/call-tasks';
 import { loseOpportunity } from '../crm/lose-opportunity';
 import { moveOpportunityStage } from '../crm/move-opportunity-stage';
 import { nurtureOpportunity } from '../crm/nurture-opportunity';
 import { lockOpportunity, requireEntity, type OpportunityRow } from '../crm/opportunity-shared';
 import { reopenOpportunity } from '../crm/reopen-opportunity';
-import { cancelTask, completeTask } from '../crm/tasks';
+import { completeTask } from '../crm/tasks';
 
 const DAY_MS = 86_400_000;
 
@@ -76,7 +76,7 @@ async function lastCall(ctx: CommandContext, opportunityId: string) {
   const c = schema.calls;
   const d = schema.callDispositions;
   const [row] = await ctx.tx
-    .select({ attemptNo: c.attemptNo, nextAction: d.nextAction })
+    .select({ attemptNo: c.attemptNo, nextAction: d.nextAction, startedAt: c.startedAt })
     .from(c)
     .innerJoin(d, eq(d.id, c.dispositionId))
     .where(eq(c.opportunityId, opportunityId))
@@ -98,19 +98,16 @@ async function runStartedAt(ctx: CommandContext, opportunityId: string): Promise
 }
 
 /**
- * The call tasks this call answers, for the caller and the lead's owner: a due callback or nurture
- * call is done; a later callback is cancelled, since the outcome sets the next step; a later
- * nurture call is kept while the lead stays in nurture and cancelled when it leaves.
+ * The call tasks this call answers: a due callback or nurture call of the caller or the lead's
+ * owner is done; a later callback is cancelled (`cancelCallTasks`), since the outcome sets the next
+ * step. Later nurture calls end when the outcome takes the lead out of nurture, in
+ * `crm.opportunity.reopen` or `crm.opportunity.lose`.
  */
-async function settleCallTasks(
-  ctx: CommandContext,
-  lead: OpportunityRow,
-  leavesNurture: boolean,
-): Promise<void> {
+async function settleCallTasks(ctx: CommandContext, lead: OpportunityRow): Promise<void> {
   const t = schema.tasks;
   const people = [...new Set([ctx.principal.id, ...(lead.ownerId === null ? [] : [lead.ownerId])])];
-  const open = await ctx.tx
-    .select({ id: t.id, kind: t.kind, dueAt: t.dueAt })
+  const due = await ctx.tx
+    .select({ id: t.id })
     .from(t)
     .where(
       and(
@@ -119,23 +116,23 @@ async function settleCallTasks(
         eq(t.state, 'open'),
         inArray(t.kind, ['callback', 'nurture']),
         inArray(t.assigneeId, people),
+        lte(t.dueAt, ctx.now),
       ),
     );
-  for (const task of open) {
-    const ref = { entityId: lead.entityId, taskId: task.id };
-    if (task.dueAt.getTime() <= ctx.now.getTime()) {
-      await ctx.run(completeTask, ref);
-    } else if (task.kind === 'callback' || leavesNurture) {
-      await ctx.run(cancelTask, ref);
-    }
+  for (const task of due) {
+    await ctx.run(completeTask, { entityId: lead.entityId, taskId: task.id });
   }
+  await cancelCallTasks(ctx, lead, ['callback'], ctx.now);
 }
 
-/** The pipeline's qualified stage, live. */
-async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<string> {
+/** The pipeline's qualified stage, live, with its position. */
+async function qualifiedStage(
+  ctx: CommandContext,
+  pipelineId: string,
+): Promise<{ id: string; position: number }> {
   const ps = schema.pipelineStages;
   const [stage] = await ctx.tx
-    .select({ id: ps.id })
+    .select({ id: ps.id, position: ps.position })
     .from(ps)
     .where(and(eq(ps.pipelineId, pipelineId), eq(ps.key, QUALIFIED_STAGE), isNull(ps.archivedAt)))
     .limit(1);
@@ -144,7 +141,23 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
       reason: 'stage_missing',
     });
   }
-  return stage.id;
+  return stage;
+}
+
+/** Whether the stage comes before `qualified` in its pipeline, as the queue's first stages do. */
+async function before(
+  ctx: CommandContext,
+  stageId: string,
+  qualified: { position: number },
+): Promise<boolean> {
+  const ps = schema.pipelineStages;
+  const [stage] = await ctx.tx
+    .select({ position: ps.position })
+    .from(ps)
+    .where(eq(ps.id, stageId))
+    .limit(1);
+  if (!stage) throw new DomainError('internal', `stage ${stageId} is not visible`);
+  return stage.position < qualified.position;
 }
 
 /**
@@ -156,7 +169,7 @@ async function qualifiedStage(ctx: CommandContext, pipelineId: string): Promise<
  *   unanswered attempt the lead moves to nurture, whose calls are set as tasks (CALL-3 and CALL-5,
  *   the owner's defaults of 05-10-2026 in `WORKSHOP_DEFAULTS.calling`);
  * - `qualified`: the stage move to Qualified through `crm.opportunity.stage.move`, with its exit
- *   rules, which asks for the handover;
+ *   rules, which asks for the handover; a lead already at Qualified or past it keeps its stage;
  * - `not_interested` and `wrong_number`: the lead is lost with the reason the caller gives;
  * - `nurture`: the lead is parked with its reason.
  * A nurtured lead called on its nurture call is opened again for a callback or a qualified
@@ -205,8 +218,7 @@ export const logCall = defineCommand({
     const nextAction = DispositionNextActionSchema.parse(outcome.nextAction);
     const callbackAt = checkOutcomeInput(ctx, nextAction, input, state);
 
-    const previous = await lastCall(ctx, lead.id);
-    const attemptNo = previous?.nextAction === 'retry' ? previous.attemptNo + 1 : 1;
+    const attemptNo = unansweredAttempts(await lastCall(ctx, lead.id), lead.stateChangedAt) + 1;
     const durationS = input.durationSeconds ?? null;
     const startedAt = new Date(ctx.now.getTime() - (durationS ?? 0) * 1000);
     const callId = newId();
@@ -253,13 +265,7 @@ export const logCall = defineCommand({
       },
     });
 
-    const leavesNurture =
-      state === 'nurture' &&
-      (nextAction === 'callback' ||
-        nextAction === 'qualified' ||
-        nextAction === 'not_interested' ||
-        nextAction === 'wrong_number');
-    await settleCallTasks(ctx, lead, leavesNurture);
+    await settleCallTasks(ctx, lead);
 
     const ref = { entityId: lead.entityId, opportunityId: lead.id };
     let now = { state: state as OpportunityState, stageId: lead.stageId };
@@ -269,7 +275,8 @@ export const logCall = defineCommand({
     let nextCall: LogCallResult['nextCall'] = null;
     let attemptsUsedUp = false;
 
-    if (leavesNurture && (nextAction === 'callback' || nextAction === 'qualified')) {
+    // A nurtured lead that answers is opened again, which ends its nurture calls.
+    if (state === 'nurture' && (nextAction === 'callback' || nextAction === 'qualified')) {
       track(await ctx.run(reopenOpportunity, ref));
     }
     switch (nextAction) {
@@ -296,9 +303,10 @@ export const logCall = defineCommand({
         break;
       }
       case 'qualified': {
-        const stageId = await qualifiedStage(ctx, lead.pipelineId);
-        if (now.stageId !== stageId) {
-          track(await ctx.run(moveOpportunityStage, { ...ref, stageId }));
+        // Only forwards: a lead at Qualified or past it has had its handover asked for already.
+        const qualified = await qualifiedStage(ctx, lead.pipelineId);
+        if (await before(ctx, now.stageId, qualified)) {
+          track(await ctx.run(moveOpportunityStage, { ...ref, stageId: qualified.id }));
         }
         break;
       }

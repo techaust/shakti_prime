@@ -329,9 +329,7 @@ describe('listCallQueue after the board and a reassignment (review of 06-10-2026
       ist('2030-03-05T12:00:00'),
     );
     expect(await openTasks(lead, owner.id)).toEqual([]);
-    expect(await openTasks(lead, newOwner.id)).toEqual([
-      { kind: 'callback', due_at: callbackAt },
-    ]);
+    expect(await openTasks(lead, newOwner.id)).toEqual([{ kind: 'callback', due_at: callbackAt }]);
     const atNoon = await queue(newOwner, {}, ist('2030-03-05T12:30:00'));
     expect(atNoon.items.find((i) => i.opportunityId === lead)).toBeUndefined();
     const at4 = await queue(newOwner, {}, ist('2030-03-05T16:30:00'));

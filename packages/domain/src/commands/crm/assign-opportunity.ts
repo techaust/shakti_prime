@@ -3,6 +3,7 @@ import { schema, type RequestTx } from '@shakti/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
+import { moveCallTasks } from './call-tasks';
 import {
   auditOpportunity,
   fire,
@@ -31,6 +32,9 @@ const HOUR_MS = 3_600_000;
  * else holds is left as it is, and so is every relationship when an agent hands the lead over
  * (0059): agents never write the customer master (SECURITY §3.3), and the new owner reads the
  * customer through the lead (0057).
+ *
+ * The lead's open callbacks and nurture calls move to the new owner (`moveCallTasks`), so the time
+ * the customer asked for travels with the lead and the old owner keeps no call on it.
  */
 export const assignOpportunity = defineCommand({
   name: 'crm.opportunity.assign',
@@ -81,6 +85,8 @@ export const assignOpportunity = defineCommand({
       ownerId: input.ownerId,
       teamId: assignee.teamId,
     });
+    // Before the lead is handed over, while it is still in the caller's sight.
+    await moveCallTasks(ctx, row, input.ownerId);
     const updated = await writeOpportunity(ctx, row, {
       ownerId: input.ownerId,
       teamId: assignee.teamId,

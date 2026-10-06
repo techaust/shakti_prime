@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
-import { afterUnanswered, callingStartOnDay, istDayStart, nurtureCallTimes } from './call-schedule';
+import {
+  afterUnanswered,
+  callingStartOnDay,
+  istDayStart,
+  nurtureCallTimes,
+  unansweredAttempts,
+} from './call-schedule';
 import { withinCallingHours } from './dial-policy';
 
 /** An instant given as IST wall-clock time. */
@@ -110,5 +116,29 @@ describe('nurtureCallTimes with the owner’s default (day 7, 30 and 90)', () =>
       ist('2026-10-12T09:00:00'),
       ist('2026-11-04T09:00:00'),
     ]);
+  });
+});
+
+describe('unansweredAttempts', () => {
+  const changed = ist('2026-10-05T10:00:00');
+  const call = (nextAction: string, attemptNo: number, startedAt: string) => ({
+    nextAction,
+    attemptNo,
+    startedAt: ist(startedAt),
+  });
+
+  it('is none before the first call, and after an answered one', () => {
+    expect(unansweredAttempts(undefined, changed)).toBe(0);
+    expect(unansweredAttempts(call('callback', 2, '2026-10-05T11:00:00'), changed)).toBe(0);
+  });
+
+  it('is the last unanswered attempt made since the lead last changed state', () => {
+    expect(unansweredAttempts(call('retry', 2, '2026-10-05T11:00:00'), changed)).toBe(2);
+  });
+
+  it('starts again once the lead enters or leaves nurture, also at the same moment', () => {
+    expect(unansweredAttempts(call('retry', 3, '2026-10-04T11:00:00'), changed)).toBe(0);
+    // The third try parks the lead in the same transaction: the call is not after the change.
+    expect(unansweredAttempts(call('retry', 3, '2026-10-05T10:00:00'), changed)).toBe(0);
   });
 });

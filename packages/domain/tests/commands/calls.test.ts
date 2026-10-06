@@ -486,7 +486,7 @@ describe('calls.log and the board: a lead that leaves nurture (review of 06-10-2
     expect(await openOf(lead, 'nurture')).toEqual([]);
     const [cancelled] = await asMigrator(
       (m) => m<{ n: number }[]>`
-        select count(*)::int as n from audit_logs a join tasks t on t.id = a.aggregate_id
+        select count(*)::int as n from audit_logs a join tasks t on t.id::text = a.aggregate_id
          where t.opportunity_id = ${lead} and a.command = 'crm.task.cancel'`,
     );
     expect(cancelled?.n).toBe(3);

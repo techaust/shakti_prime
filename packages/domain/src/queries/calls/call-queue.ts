@@ -26,7 +26,7 @@ import { z } from 'zod';
 import { checkPermission, isAgent } from '../../command/run-command';
 import { opportunityRecord } from '../../commands/crm/opportunity-shared';
 import { exitFieldFilled } from '../../state-machines/machines/opportunity';
-import { istDayStart } from '../../telecom/call-schedule';
+import { istDayStart, unansweredAttempts } from '../../telecom/call-schedule';
 import { withinCallingHours } from '../../telecom/dial-policy';
 import { WORKSHOP_DEFAULTS } from '../../workshop-defaults';
 import { listTimeline } from '../crm/customers';
@@ -77,7 +77,8 @@ function companies(ctx: Ctx, entityId: number | undefined): number[] {
  * The leads in callers' queues as of `asOf`, ranked (docs/design/phase1.md §7.2, PRD TEL-01): the
  * owners' open leads in their pipeline's first stages (the open stages before Qualified) and their
  * nurtured leads, each with
- * - `next_call_at`, the owner's earliest open callback or nurture call on it;
+ * - `next_call_at`, the owner's earliest open callback on it, or nurture call while it is in
+ *   nurture (a nurture call never holds back an open lead);
  * - `bucket`: 0 when that call is due, 1 for a lead never called whose first-contact limit
  *   (`pipelines.first_contact_sla_minutes`) has passed, 2 for any other lead with no call set, and
  *   null for a lead whose next call is later or a nurtured lead with no call due, which stays out
@@ -99,8 +100,9 @@ function rankedQueue(owners: SQL, entityIds: readonly number[], asOf: Date): SQL
         select o.id, o.entity_id, o.account_id, o.site_id, o.owner_id, o.score, o.created_at,
                o.state, pl.segment, pl.first_contact_sla_minutes as sla_minutes, ps.name as stage_name,
                nc.next_call_at,
-               lc.started_at as last_call_at,
-               case when lc.next_action = 'retry' then lc.attempt_no else 0 end as attempts
+               o.state_changed_at,
+               lc.started_at as last_call_at, lc.attempt_no as last_attempt_no,
+               lc.next_action as last_next_action
           from opportunities o
           join pipeline_stages ps on ps.id = o.stage_id
           join pipelines pl on pl.id = o.pipeline_id
@@ -114,7 +116,8 @@ function rankedQueue(owners: SQL, entityIds: readonly number[], asOf: Date): SQL
             select min(t.due_at) as next_call_at from tasks t
              where t.opportunity_id = o.id and t.entity_id = o.entity_id
                and t.account_id = o.account_id and t.assignee_id = o.owner_id
-               and t.state = 'open' and t.kind in ('callback', 'nurture')) nc on true
+               and t.state = 'open'
+               and (t.kind = 'callback' or (t.kind = 'nurture' and o.state = 'nurture'))) nc on true
           left join lateral (
             select c.started_at, c.attempt_no, d.next_action
               from calls c join call_dispositions d on d.id = c.disposition_id
@@ -148,8 +151,10 @@ interface QueueRow extends Record<string, unknown> {
   stage_name: string;
   next_call_at: Date | string | null;
   due_text: string | null;
+  state_changed_at: Date | string;
   last_call_at: Date | string | null;
-  attempts: number;
+  last_attempt_no: number | null;
+  last_next_action: string | null;
   bucket: number;
 }
 
@@ -177,7 +182,7 @@ export function callQueuePageSql(
     select r.id, r.entity_id, r.account_id, r.score, r.created_at, r.created_at::text as created_text,
            r.state, r.segment, r.stage_name, r.next_call_at,
            case when r.bucket = 0 then r.next_call_at::text end as due_text,
-           r.last_call_at, r.attempts, r.bucket
+           r.state_changed_at, r.last_call_at, r.last_attempt_no, r.last_next_action, r.bucket
       from (${rankedQueue(sql`o.owner_id = ${callerId}::uuid`, entityIds, asOf)}) r
      where r.bucket is not null and ${keyset}
      order by r.bucket, coalesce(r.next_call_at, '-infinity'::timestamptz), r.score desc,
@@ -239,7 +244,16 @@ export async function listCallQueue(
           reason: reasonOf(r.bucket, r.state, lastCallAt),
           dueAt:
             r.bucket === 0 && r.next_call_at !== null ? toDate(r.next_call_at).toISOString() : null,
-          attempts: r.attempts,
+          attempts: unansweredAttempts(
+            lastCallAt === null || r.last_attempt_no === null || r.last_next_action === null
+              ? undefined
+              : {
+                  attemptNo: r.last_attempt_no,
+                  nextAction: r.last_next_action,
+                  startedAt: lastCallAt,
+                },
+            toDate(r.state_changed_at),
+          ),
           lastCallAt: lastCallAt?.toISOString() ?? null,
           consentWithdrawn: customer.withdrawn,
         }),
@@ -366,7 +380,7 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
   const [outcomes, latest, nextTask, timeline] = await Promise.all([
     effectiveDispositions(ctx, lead.entityId, segment),
     ctx.tx
-      .select({ attemptNo: c.attemptNo, nextAction: d.nextAction })
+      .select({ attemptNo: c.attemptNo, nextAction: d.nextAction, startedAt: c.startedAt })
       .from(c)
       .innerJoin(d, eq(d.id, c.dispositionId))
       .where(eq(c.opportunityId, lead.id))
@@ -380,7 +394,8 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
           eq(t.opportunityId, lead.id),
           eq(t.entityId, lead.entityId),
           eq(t.state, 'open'),
-          inArray(t.kind, ['callback', 'nurture']),
+          // As in the queue: a nurture call is the next call only while the lead is in nurture.
+          inArray(t.kind, lead.state === 'nurture' ? ['callback', 'nurture'] : ['callback']),
           inArray(t.assigneeId, people),
         ),
       )
@@ -422,7 +437,7 @@ export async function loadCallLead(ctx: Ctx, rawInput: unknown): Promise<CallLea
     canLog: covers && (state === 'open' || state === 'nurture'),
     exitChecks,
     dispositions: outcomes.dispositions,
-    attempts: last?.nextAction === 'retry' ? last.attemptNo : 0,
+    attempts: unansweredAttempts(last, lead.stateChangedAt),
     maxAttempts: WORKSHOP_DEFAULTS.calling.attemptDays.length,
     nextCall: next === undefined ? null : { kind: next.kind, dueAt: next.dueAt.toISOString() },
     recentActivity: timeline.items,

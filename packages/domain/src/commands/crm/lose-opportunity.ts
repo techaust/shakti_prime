@@ -1,5 +1,6 @@
 import { DomainError, LoseOpportunityInput, OpportunityDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
+import { cancelCallTasks } from './call-tasks';
 import {
   auditOpportunity,
   fire,
@@ -15,7 +16,8 @@ import {
 /**
  * `crm.opportunity.lose` (design §7.2): an open or nurtured lead is closed without a sale, with a
  * reason code, at the pipeline's lost stage when it has one. The reason is kept in the audit row
- * and the event, where reports count it.
+ * and the event, where reports count it. The lead's open callbacks and nurture calls are
+ * cancelled (`cancelCallTasks`).
  */
 export const loseOpportunity = defineCommand({
   name: 'crm.opportunity.lose',
@@ -41,6 +43,7 @@ export const loseOpportunity = defineCommand({
       stateChangedAt: ctx.now,
       stageId,
     });
+    await cancelCallTasks(ctx, row, ['callback', 'nurture']);
     auditOpportunity(
       ctx,
       row,

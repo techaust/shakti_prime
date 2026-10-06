@@ -54,3 +54,24 @@ export function nurtureCallTimes(
 ): Date[] {
   return [...days].sort((a, b) => a - b).map((d) => callingStartOnDay(enteredAt, d));
 }
+
+/** A lead's latest call, as the attempt count reads it. */
+export interface LastCall {
+  attemptNo: number;
+  /** The `next_action` of the call's outcome; `retry` is an unanswered attempt. */
+  nextAction: string;
+  startedAt: Date;
+}
+
+/**
+ * The unanswered attempts of a lead's current run, which `calls.call.log` numbers the next call
+ * from and the workspace and the queue show: the latest call's attempt number when it went
+ * unanswered (a `retry` outcome) and was made after the lead's state last changed
+ * (`opportunities.state_changed_at`); otherwise none. A lead that enters or leaves nurture starts
+ * again at its first attempt, so a reopened lead gets its three tries and a nurture call counts
+ * from the start of nurture.
+ */
+export function unansweredAttempts(last: LastCall | undefined, stateChangedAt: Date): number {
+  if (last?.nextAction !== 'retry') return 0;
+  return last.startedAt.getTime() > stateChangedAt.getTime() ? last.attemptNo : 0;
+}
