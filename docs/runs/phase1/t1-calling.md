@@ -308,4 +308,10 @@ Re-review the fixes `78b3343...3d62262` against the findings and the fix brief, 
 3. **The builder's three decisions** in its report (a move is a new task plus a cancelled one; tasks outside scope are left; a win cancels nothing). Say for each whether it is sound.
 4. The calling spike's slower team view (178 to 187 ms against 127 to 136 ms): is it the fix's SQL or the database the suites had filled?
 
+### Re-review of 78b3343..3d62262, 06-10-2026, slice-reviewer in the cloud
+In progress. Done so far, on the branch at `81b40a8`:
+- `e2e/calling.spec.ts --ignore-snapshots` after `e2e:seed`, against `next start -p 3000`, at 12:13 IST (inside calling hours): 20 passed on desktop light, desktop dark and phone.
+- Focus 1, reproduced with a scratch test the review does not commit: `agent:triage` assigns an open lead with a callback at 16:00, and the assignment succeeds. The callback moves: a new task for the new owner at 16:00 and the old one cancelled, both audited (`actor_kind` `agent`) and on the timeline under the agent.
+- Still to come: focus 2 to 4, the findings one by one, and the checks.
+
 ## Integration notes
