@@ -163,7 +163,8 @@ export const opportunityMachine = defineMachine<
         },
         {
           key: 'move_call_tasks',
-          description: "the lead's open callbacks and nurture calls go to the new owner",
+          description:
+            "the open lead's callbacks go to the new owner; a nurtured lead's owner and nurture calls are T2's to settle",
         },
       ],
     },
