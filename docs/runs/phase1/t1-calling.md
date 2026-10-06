@@ -5,8 +5,8 @@
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
 | Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | re-reviewed; two low findings in the documents |
-| Next step | a cloud builder fixes R1 and R2 and integrates (the lead's brief of 06-10-2026 below) |
+| State | integrated; ready for the pull request |
+| Next step | the lead opens the pull request from the PC (part 5's four host-only screenshots: see the Integration notes), then the hosted migrations |
 
 ## Brief
 Read first:
@@ -378,3 +378,44 @@ The seven findings are fixed, and each fix's test fails on the code before it. T
 9. Write the Integration notes (each part's verdict and time, what the merge fixed, the baselines), set State to "integrated; ready for the pull request", commit and push. Never open a pull request, merge, or touch a hosted service.
 
 ## Integration notes
+### 06-10-2026, cloud builder: R1, R2, the merge with `main` and the integration
+T1 is merged with `main` at `ab8b6a83` and integrated in the cloud; the baselines are made in the Linux image. Parts 1 to 4 pass. Part 5 passes in the Linux image, which CI uses; on this VM's host, four of `main`'s screenshots differ in font rendering and fail (below).
+
+**R1 and R2** (`4a88d3f`): design §7.2 and §8.2 and the machine's `move_call_tasks` text say `crm.opportunity.assign` moves an open lead's callbacks, and that T2 settles a nurtured lead's owner and nurture calls and tests the handover with a callback open. SECURITY §3.3 has the triage agent's line. `machines:docs` regenerated.
+
+**The merge** (`87a68dc`, `chore: merge main (S1 quotes, D1 duplicates, cloud fixes) into T1; its migrations move to 0114 and 0115`):
+- **Migrations:** `renumber-migrations.mjs` moved `0107_calls` to `0114_calls` and `0108_calls_rls` to `0115_calls_rls`, with journal times after 0113's. `pnpm db:generate`: no schema changes. `0115` redefines no function, so `app.platform_only_permissions()` keeps `main`'s keys.
+- **The `activities` type check:** `0114_calls` drops and adds the check after D1's `0112`, so as written it removed D1's four types. It now lists `enquiry_repeated`, `customers_merged`, `customer_unmerged` and `leads_merged` beside `call_logged`, as the schema does.
+- **An audit field with two kinds:** `main`'s agent runs record `outcome` as `runOutcome`, and T1's call recorded `outcome` as text. `FIELD_KINDS` builds a map, so the later kind won and a call's outcome code would have been read as an agent run's. The call's field is now `callOutcome` ("Call outcome"); `activity.fields.outcome` keeps `main`'s "How it ended". The first part 3 caught the test that still read `outcome` (`e4426fe`).
+- **Merges and calls:** `calls` keys on the lead's `(id, entity_id)` alone, so a customer merge moves no call row: the lead moves to the kept customer and its calls go with it, and back on undo. A lead merge moved every open task of the merged lead to the kept lead. For a merged lead in nurture, that gave an open kept lead three nurture calls, or a nurtured one a second set (the review's case C by another path). `crm.lead.merge` now cancels the merged lead's open nurture calls through `cancelCallTasks()` before the definer runs. Its callbacks still move, and its calls stay with it, as its timeline rows do. Two tests in `duplicates.test.ts`; the lead-merge one failed before the fix (3 nurture calls on the kept lead).
+- **Lists and documents:** the testing lists, grants, the matrix rules and fixture (T1's 0x30 stays unique; `main` already repeats 0x1c and 0x1d across two tables), reader parity, `contract-values.ts`, the activity types, the client namespaces and the copy-lint keys take both sides. `reopened` names `calls.call.log` in its meaning and `emittedBy`. T1's exit-gate action is 17, since S1 took 16. DECISIONS, design §11 and DATABASE take both sides; DATABASE names `calls` and `call_logged` as 0114. `AGENTS.md` and `turbo.json` are `main`'s. The menu, `BOS_PREFIXES` and the timeline labels hold every slice's entries. `db:docs` and `machines:docs` regenerated.
+
+**`integrate.sh` in parts** (fresh Postgres on 54340 each time; times IST):
+
+| Part | Steps | Time | Verdict |
+|---|---|---|---|
+| 1 | install, lint, format, copy lint, generated, typecheck | 13:02 to 13:10 | `INTEGRATION PARTIAL`, every rc=0 |
+| 2 | unit | 13:10 to 13:11 | `INTEGRATION PARTIAL`, rc=0: 8 tasks; tokens 134, copy-lint 17, ui 105, contracts 177, db 124, domain 1,844, web 669 |
+| 3 | security, dbverify | 13:11 to 13:18 | Failed: `calls.test.ts` read the audit field `outcome` |
+| 3, again | security, dbverify | 13:18 to 13:27 | `INTEGRATION PARTIAL`, every rc=0: db 35 files and 1,060 tests, domain 63 and 774, web 18 and 264; every migration applied as on disk |
+| 4 | audit, build, jsbudget, gitleaks | 13:27 to 13:29 | `INTEGRATION PARTIAL`, every rc=0: 3 advisories already reviewed and ignored; 36 pages within budget, `/calling` 197.8 of 206 kB; 39 commits scanned, no leaks |
+| 5 | e2e | 13:29 to 13:41 | Failed: 252 passed, 16 failed, 1 flaky. 3 for the missing `calling.png`, 9 for the menu and the tele-caller's home, 4 on host rendering (below). The flaky one was Account 360's sizing on desktop dark, passed on retry |
+| 5, after the baselines | e2e | 14:07 to 14:18 | Failed: 265 passed, 12 skipped, 4 failed, all 4 on host rendering |
+
+**The four host-only failures:** phone `team-members`, `agent-inbox` and `tax-rates-one-company`, and desktop-light `print-label-50x25`. They are `main`'s screens, and they failed the same way before any baseline changed. The label's diff shows the same QR code and text, with different glyph hinting; the phone images differ in their text the same way. The Linux image's run passes all four, so no baseline was made from the host. On this VM the host's comparison cannot pass them; D1's session passed them on its host.
+
+**Baselines** (fresh database, 5 queries in a row answered, `db:migrate`, `db:seed`, `pnpm build`):
+- Deleted every desktop baseline that shows the menu (all but the public pages and the print templates: 72) and the phone `home-tele-caller`.
+- `e2e:snap -- --update-snapshots=missing` from 13:43: 76 images written in 68 tests (Playwright counts each such test as failed), 201 passed, nothing else failed.
+- Each remade image was compared with the one before, pixel by pixel:
+  - 4 were unchanged and kept as they were: `profile` and Accounts' `tax-rates-one-company`, light and dark.
+  - In 38 of the 68 desktop images every changed pixel is in the menu: Calling sits after Leads.
+  - The content changes in `home-tele-caller` (the Calling tile, third; on the phone the page is 110 px taller) and `roles` (one more permission for the six roles that hold `calls.log`).
+  - In the other 26, the content changes only at the masks' edges and in anti-aliasing, with the same text and controls; in `team-members` the columns move by a few pixels, with the same rows. Each was looked at, old beside new.
+- `calling.png` for desktop light, desktop dark and phone was looked at: the queue of three leads, the selected row, the outcomes on 1 to 8, the script card saying no script exists yet, the checklist and the timeline; on the phone the queue stacks above the lead.
+- `e2e:snap` without updating, from 13:57: 269 passed, 12 skipped, no retry. Committed in `405748b`.
+
+**Left for the lead:**
+- The pull request, with part 5's host result above.
+- `main`'s phone baselines still lack the Agent Inbox icon in the top bar; they pass in the image under its 1 % allowance.
+- The cloud environment needed the same fix as before: Node 24 from `/usr/local/bin` first in `PATH` and pnpm 12.6.0 installed with npm.
