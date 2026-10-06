@@ -179,7 +179,8 @@ export function KnowledgeScreen({
                   </div>
                 </dl>
                 <p className="text-text-subtle text-xs">
-                  {t('files.added', { date: formatDate(file.createdAt) })}
+                  {t('files.added')}{' '}
+                  <time dateTime={file.createdAt}>{formatDate(file.createdAt)}</time>
                 </p>
                 {file.errorReason === null ? null : <ReasonText reason={file.errorReason} />}
                 {writer === undefined ? null : (

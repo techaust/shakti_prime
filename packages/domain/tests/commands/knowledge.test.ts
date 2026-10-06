@@ -183,6 +183,8 @@ describe('knowledge.file.add', () => {
     });
     const whole = await add(executive, await upload(executive), { wholeGroup: true });
     expect(whole).toMatchObject({ entityId: null, state: 'waiting' });
+    // Archived again, so the journeys' screens of every company never list this suite's file.
+    await run(executive, archiveKnowledgeFile, { entityId: 1, knowledgeFileId: whole.id });
   });
 
   it('adds a checked upload and sends it to be indexed; an upload still checked waits', async () => {

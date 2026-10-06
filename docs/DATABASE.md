@@ -17,7 +17,7 @@ Generated from the code and this document by `pnpm db:docs`, with a unit test th
 10. [Backups and recovery](#10-backups-and-recovery)
 
 ## 1. Platform
-Supabase Postgres 17, extensions `pg_trgm` (migration 0003, in schema `public`), `btree_gist` (0006) and `pg_cron` (0033); `pgvector` is created with the Knowledge Vault (Phase 1) and `pgcrypto` with the first migration that uses it. One database per environment, each its own Supabase project (dev, staging, production); the projects, plans and regions are in [accounts](runbooks/accounts.md). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
+Supabase Postgres 17, extensions `pg_trgm` (migration 0003, in schema `public`), `btree_gist` (0006) and `pg_cron` (0033) and `vector` (pgvector, the Knowledge Vault's migration of slice K1, in schema `public`, as `pg_trgm` is: DEPLOY §1); `pgcrypto` is created with the first migration that uses it. One database per environment, each its own Supabase project (dev, staging, production); the projects, plans and regions are in [accounts](runbooks/accounts.md). Connection through Supavisor in transaction mode; prepared statements disabled in the driver.
 
 ## 2. Conventions
 | Concern | Rule |
@@ -136,6 +136,10 @@ Every definer fixes its search path. An empty one (`''`) means the body names ev
 | `app.expire_quotes(entity_id, quote_ids)` | `sales.quote.expire:entity` and the company in the request; marks expired only those of the named quotes still draft or sent and past their validity, stamping the caller and the time; answers the quotes it changed and their leads | `''` | 0110 |
 | `app.quote_for_print(quote_id)` | `files.process:entity` (the render worker alone) and the quote's company in the request; the quote, its lines, the customer's name and GSTIN, the site's address and the maker's name for the quotation, never a phone number; executable by `app_user` and `app_reader` | `''` | 0110 |
 | `app.attach_quote_pdf(entity_id, quote_id, file_id)` | `files.process:entity` and the company in the request; sets `pdf_file_id` of a quote with none or this one already to a ready `quote_pdf` file of its company; answers whether the quote now names the file | `''` | 0110 |
+| `app.knowledge_files_waiting_on(file_id)` | `knowledge.index:entity` (platform-only, held by `system:workers` alone) and the upload's company in the request; the vault files still waiting on a vault upload whose checks just ended (id, company, sensitivity), for `files.file.mark_ready` and `files.file.reject`; executable by `app_user` only | `''` | K1 |
+| `app.knowledge_file_for_index(id)` | `knowledge.index:entity` and the upload's company in the request; what the index job needs of one vault file (its company, sensitivity, upload and the upload's company, source type, state and passage count), never its title or text; executable by `app_user` only | `''` | K1 |
+| `app.record_knowledge_index(id, state, reason, chunks)` | `knowledge.index:entity` and the upload's company in the request; locks the vault file and, only while it is waiting, records `indexed` by replacing its passages with the given ones (each with the file's company and sensitivity) and answering how many it replaced, or `failed` or `unavailable` with the reason, keeping the passages it had; answers null for a file no longer waiting | `''` | K1 |
+| `app.vault_upload_readable(file_id)` | Applies `knowledge_files_read` (a company of the request or the group, and the read permission of the sensitivity) to the vault files of an upload, for the policy `files_knowledge_read`, which may not read `knowledge_files` under its own policy since that table's insert check reads `files`; answers only yes or no; executable by `app_user` and `app_reader` | `''` | K1 |
 | `app.quote_search_ids(text, limit)` | `crm.lead.read:own` in a signed-in request; the ids of at most 200 quotes whose number holds the text (escaped for LIKE as `containsPattern()` does), of leads the caller reads under the `opportunities_read` rule (a company of the request, then company scope, the caller's team or their own), applied before the limit, found on the trigram index (a number that is the text first, then the newest), which `searchQuotes()` then reads under the policies; executable by `app_user` and `app_reader` | `''` | 0111 |
 
 The documented exceptions, which check no permission:
@@ -146,6 +150,7 @@ The documented exceptions, which check no permission:
 | `app.request_covers_group()` | Answers only whether the request acts for every active company, which the policies of shared price lists, `tax_rates`, `composite_supply_rules`, the catalogue tables, roles and group tags need and which RLS hides from `app_user` (ADR 0016) | `''` | 0019 |
 | `app.tag_name_free()` (trigger) | Holds a lock on a tag's name and refuses a name a group tag and a company tag would share, reading every company's tags; no role calls it directly | `''` | 0088 |
 | `app.log_price_change()` (trigger) | Writes `price_change_log` from the price change itself, so history cannot be forged, skipped or given a stale old price (the audit ([2026-09-audit](reviews/2026-09-audit.md)) M18); no role calls it directly | `pg_catalog, public, app, pg_temp` | 0024 |
+| `app.knowledge_files_archived()` (trigger) | Removes an archived vault file's passages as the owner, since no request writes `knowledge_chunks`; no role calls it directly | `''` | K1 |
 | `app.ensure_account_entity()` (trigger) | Refuses an opportunity whose account has no relationship with its company, or whose site belongs to another account; no role calls it directly | `pg_catalog, public, app, pg_temp` | 0016 (0024) |
 
 ### 4.2 Policy templates
@@ -233,7 +238,7 @@ Rules:
 | `stock_movements.unit_cost` | `finance.cost.read`; the column lives in a side table `stock_movement_costs` so the ledger itself is readable by inventory roles |
 | `identity_documents`, KYC files | `documents.sensitive.read`; views audited |
 | `sessions.token`, `auth_accounts`, `auth_verifications`, `user_two_factor` | `auth_service` only; no grant to `app_user` or `readonly_reporter` |
-| `knowledge_chunks` with sensitivity `exec_only` / `management` | `knowledge.vault.read.exec` / `.management` |
+| `knowledge_files` and `knowledge_chunks` with sensitivity `exec_only` / `management` / `staff_ai_ok` | `knowledge.vault.read.exec` / `.management` / `.staff`, each held for all companies (§4.4) |
 
 ### 4.4 Rules of particular tables
 The rules of the tables whose policies go beyond the templates of §4.2; each table's row in §6 keeps its columns.
@@ -283,10 +288,16 @@ Events published more than 30 days ago are deleted by the retention purge (§5, 
   - `entity_logo` and `letterhead` written with `admin.entities.write` at all scope and read by every principal of the company;
   - `print_proof`, a company's proof page with its bank account, written only by the render worker and read with `admin.entities.write` (0091);
   - `consent_evidence` by `crm.account.write`;
-  - `knowledge` and the field purposes by no request yet (K1 adds `knowledge.vault.write`).
+  - `knowledge` written with `knowledge.vault.write` at all scope (Executive and GM) and read by no general rule: the policy `files_knowledge_read` reads a vault upload of a company of the request with a vault file the caller may read (`app.vault_upload_readable()`), or by its uploader while they hold `knowledge.vault.write`;
+  - the field purposes by no request yet.
 - A read permission held at entity scope reads every such file of the company, a narrower one the files the caller uploaded (S1 widens quote files to the lead's readers).
 - A person inserts an upload as `pending`, as themselves, in the request's companies, and moves only their own pending upload to `scanning`; the worker principal (`files.process`, held by no person's role) reads and records every file of its companies and moves it through its checks; a PDF the render worker makes is recorded `ready` by `files.document.record` under `<company>/<purpose>/<file id>.pdf`, outside the upload machine, with `scan_result` `{ scanner: none, sanitising: rendered }`. An upload still `pending` a day after it began is refused as abandoned (`file_upload_abandoned`) by the hourly sweep, which learns the companies to visit from `app.stale_upload_entities()` and deletes whatever bytes landed (`files.upload.sweep`, 0102 and 0104).
 - `app_user` updates only `status`, `scan_result`, `key`, `content_type`, `size`, `sha256` and the `updated_*` columns; the trigger `app.files_guard_update()` stamps `updated_by` with the caller and `updated_at` with the time, and refuses a change to anything but the status from a caller without `files.process`. No delete.
+- **The Knowledge Vault** (docs/design/phase1.md §8.4, SECURITY §11 item 6):
+  - `knowledge_files` and `knowledge_chunks` are read (`app_user`, `app_reader`) in a company of the request, or for the whole group (`entity_id` null) in any request with a company, only with the read permission of the row's sensitivity held for all companies: `staff_ai_ok` `knowledge.vault.read.staff`, `management` `knowledge.vault.read.management`, `exec_only` `knowledge.vault.read.exec`. A passage carries its file's company and sensitivity, so a search filters on the passage itself and the HNSW index is read under the policy.
+  - A vault file is inserted only with `knowledge.vault.write:all`, by the person whose `knowledge` upload of a company of the request it names, waiting, with nothing indexed, with a sensitivity the person reads, the upload's source type, and the upload's company or, in a request for every company (`app.request_covers_group()`), the whole group; one vault file per upload (`knowledge_files_file_unique`).
+  - A request updates only `state` (column grant), only to `waiting` (index again, which clears the reason) or `archived` (which sets `chunks` to 0 and, by the trigger `app.knowledge_files_archived()`, removes the passages), with the same write and read rule (`app.knowledge_files_guard()`); a whole-group file only from a request for every company. No delete.
+  - No request writes a passage: the index job (`system:workers`, the platform-only `knowledge.index`) records its outcome through `app.record_knowledge_index()` and reads a file's facts through `app.knowledge_file_for_index()` and `app.knowledge_files_waiting_on()` (§4.1).
 
 #### agent_configs, agent_runs, agent_actions and inbox_items
 The agent runtime and the Agent Inbox (docs/design/phase1.md §7.1, SECURITY §3.3 and §6); an agent's request is one whose `app.role` is `agent:%` (0107, 0108).
@@ -456,8 +467,8 @@ Key columns only; every table also has the standard columns from §2.
 ### 6.9 AI and voice
 | Table | Status | Key columns |
 |---|---|---|
-| `knowledge_files` | Planned (Phase 1) | `entity_id null`, `file_id`, `sensitivity` (`exec_only`, `management`, `staff_ai_ok`), `source_type` |
-| `knowledge_chunks` | Planned (Phase 1) | `file_id`, `entity_id null`, `sensitivity`, `chunk_text`, `embedding vector(1024)` |
+| `knowledge_files` | Built (K1) | `entity_id` (null for the whole group), `file_id` (a `knowledge` upload, one vault file each), `title`, `sensitivity` (`staff_ai_ok`, `management`, `exec_only`), `source_type` (`pdf`, `photo`, `word`, `excel`), `state` (`waiting`, `indexed`, `failed`, `unavailable`, `archived`, the `knowledge_file` machine), `chunks`, `indexed_at`, `error_reason`; index `(entity_id, created_at desc, id desc)` for the vault list (§4.4) |
+| `knowledge_chunks` | Built (K1) | `knowledge_file_id`, `entity_id` and `sensitivity` (copied from the file), `position`, `chunk_text` (masked, at most 4,000 characters), `embedding vector(1024)`; HNSW index on cosine distance; unique `(knowledge_file_id, position)`; written only by `app.record_knowledge_index()` (§4.4) |
 | `playbook_directives` | Planned (Phase 2) | `type`, `text`, `source_file_id`, `state` (`draft`, `approved`, `retired`), `approved_by`, `conflicts_with` |
 | `agent_configs` | Built (0107) | `agent` (an agent's role key, null for every agent), `action_type` (the command an action runs, null for every one), `entity_id` (null for the group), `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap_paise`, `enabled` (the kill switch); one row per agent, action type and company (§4.4) |
 | `agent_runs` (append-only) | Built (0107) | `entity_id`, `agent`, `principal_id`, `purpose` (a code), `action_type`, `model`, `tokens_in`, `tokens_out`, `cost_paise`, `outcome` (`proposed`, `acted`, `nothing_to_do`, `switched_off`, `cap_reached`, `unavailable`, `failed`), `duration_ms`, `request_id`; no prompt or answer text |
@@ -492,7 +503,8 @@ Key columns only; every table also has the standard columns from §2.
   - search: trigram on `accounts.name`, `contacts.name` and `customer_sites.village`, which ⌘K lead search reaches through `app.lead_search_ids()` (§4.1, §4.2);
   - leads: `opportunities(entity_id, stage_id, owner_id, updated_at desc)`;
   - outbox: `outbox_events_pending_idx` on `outbox_events(sequence) where published_at is null and dead_lettered_at is null`, and `outbox_events_dead_letters_idx` on `outbox_events(dead_lettered_at) where dead_lettered_at is not null`;
-  - planned with their tables (§6): unique `webhook_inbox(provider, provider_event_id)`, `tally_vouchers(guid)` and `serials(serial_no)`, and HNSW on `knowledge_chunks.embedding`.
+  - vault: HNSW on `knowledge_chunks.embedding` with `vector_cosine_ops`, read with `hnsw.iterative_scan = relaxed_order` by the search ([spikes/knowledge.md](spikes/knowledge.md));
+  - planned with their tables (§6): unique `webhook_inbox(provider, provider_event_id)`, `tally_vouchers(guid)` and `serials(serial_no)`.
 - **Keyset pagination** on every list by the chosen sort column and `id` (`packages/domain/src/queries/keyset-sort.ts`), each list with its own default order (the leads list and board by `(updated_at, id)`, the customers list by `(name, id)` through the index `accounts_name_id_idx`), the Activity log and the customer timeline by `(created_at, id)`, and a person's open tasks by `(due_at, id)`; the cursor carries the sort value as Postgres text, never a millisecond `Date`, because rows written in one transaction share `now()` to the microsecond.
 - **Materialised views (planned, with the dashboards of their phases):** `mv_pipeline_by_stage`, `mv_collections_ageing`, `mv_stock_health` and `mv_project_margins` (restricted), refreshed by pg_cron every 5 minutes.
 - **Built pg_cron jobs:**

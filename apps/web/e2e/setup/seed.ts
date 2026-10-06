@@ -1,7 +1,7 @@
 // Prepares the database for the journeys, on the host: migrates and seeds, then makes the people
 // of `e2e/support/users.ts` idempotently and writes what the specs need to `e2e/.auth/users.json`.
 // Run by `pnpm --filter web e2e:seed` (and so by `e2e` and `e2e:snap`) before the Playwright runner.
-import { AGENT_PRINCIPAL_IDS, newId } from '@shakti/contracts';
+import { AGENT_PRINCIPAL_IDS, newId, SYSTEM_WORKERS_PRINCIPAL_ID } from '@shakti/contracts';
 import { closeAuthDb } from '@shakti/db/auth';
 import {
   asMigrator,
@@ -12,10 +12,15 @@ import {
   roleId,
 } from '@shakti/db/testing';
 import {
+  addKnowledgeFile,
+  createAiProvider,
   createImportJob,
   createLead,
   executeCommand,
+  fakeModelTransport,
+  indexKnowledgeFile,
   memoryKeyValue,
+  memoryLogger,
   memoryMailer,
   parseImportFile,
   setReferralPartner,
@@ -25,6 +30,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
+import { readWordText } from '../../src/workers/knowledge/read-word';
+import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
@@ -44,6 +51,7 @@ import {
   SNAPSHOT_IMPORT_FILE,
   SNAPSHOT_LEADS,
   SNAPSHOT_SUGGESTIONS,
+  SNAPSHOT_VAULT,
   type ProjectName,
   type SeededUsers,
 } from '../support/users';
@@ -300,6 +308,69 @@ async function ensureSnapshotImport(executiveId: string): Promise<void> {
   );
 }
 
+/**
+ * One Knowledge Vault file in the snapshot company, made once: a checked Word upload added by the
+ * Executive (`knowledge.file.add`) and indexed at once by the index job through the fake
+ * transport, as the app does on this machine.
+ */
+async function ensureSnapshotVault(executiveId: string): Promise<void> {
+  const [found] = await asMigrator(
+    (m) => m<{ n: number }[]>`select count(*)::int as n from knowledge_files
+                              where entity_id = ${SNAPSHOT_COMPANY.entityId}
+                                and created_by = ${executiveId}`,
+  );
+  if ((found?.n ?? 0) > 0) return;
+  const store = fileStore();
+  if (store === undefined) throw new Error('no local file store for the snapshot vault');
+  const bytes = wordDocument(SNAPSHOT_VAULT.paragraphs);
+  const fileId = newId();
+  const type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const key = `${String(SNAPSHOT_COMPANY.entityId)}/knowledge/${fileId}.docx`;
+  await store.put(key, bytes, type);
+  await asMigrator(
+    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+      values (${fileId}, ${SNAPSHOT_COMPANY.entityId}, 'knowledge', ${store.bucket}, ${key}, 'Solar pump care.docx',
+              ${type}, ${bytes.length}, ${createHash('sha256').update(bytes).digest('hex')}, 'ready', ${executiveId})`,
+  );
+  const added = await executeCommand(
+    principalFor('executive', [1, 2, 3, 4], { id: executiveId }),
+    { entityIds: [SNAPSHOT_COMPANY.entityId] },
+    addKnowledgeFile,
+    {
+      entityId: SNAPSHOT_COMPANY.entityId,
+      fileId,
+      title: SNAPSHOT_VAULT.title,
+      sensitivity: 'staff_ai_ok',
+    },
+  );
+  const fake = fakeModelTransport();
+  await indexKnowledgeFile(
+    {
+      eventId: newId(),
+      knowledgeFileId: added.id,
+      entityId: SNAPSHOT_COMPANY.entityId,
+      fileEntityId: SNAPSHOT_COMPANY.entityId,
+      sensitivity: 'staff_ai_ok',
+    },
+    {
+      principal: principalFor('system:workers', [SNAPSHOT_COMPANY.entityId], {
+        id: SYSTEM_WORKERS_PRINCIPAL_ID,
+      }),
+      store,
+      provider: createAiProvider({
+        claude: fake,
+        voyage: fake,
+        keyValue: memoryKeyValue(),
+        logger: memoryLogger(),
+      }),
+      readWord: readWordText,
+      requestId: newId(),
+      hosted: false,
+      logger: memoryLogger(),
+    },
+  );
+}
+
 progress('migrating and seeding the database');
 await prepareDatabase();
 
@@ -399,6 +470,8 @@ for (const lead of SNAPSHOT_LEADS) {
   );
 }
 await ensureSnapshotImport(ids.executive ?? '');
+progress('the snapshot company’s Knowledge Vault file');
+await ensureSnapshotVault(ids.executive ?? '');
 
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');

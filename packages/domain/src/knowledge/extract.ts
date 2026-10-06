@@ -96,8 +96,10 @@ export async function extractWithModel(
 }
 
 /**
- * An Excel workbook's text, sheet by sheet: each sheet's name on a line of its own, then its rows,
- * each on a line with its cells separated by ` | `, a blank line between sheets. A file the
+ * An Excel workbook's text, sheet by sheet: each sheet's name as the guarded reader knows it (its
+ * place in the file, `Sheet1`, since the reader is not given the workbook's relationships) on a
+ * line of its own, then its rows, each on a line with its cells separated by ` | `, a blank line
+ * between sheets. A file the
  * reader refuses is `knowledge_unreadable`, one past the row limit `knowledge_too_long`.
  */
 export async function extractWorkbook(bytes: Uint8Array): Promise<string> {

@@ -3662,7 +3662,7 @@
       "everyCompany": "Every company",
       "findBy": "Who can find it",
       "kind": "Kind",
-      "added": "Added {date}",
+      "added": "Added on",
       "passages": "{count, plural, one {# passage} other {# passages}}",
       "actions": "Actions for {title}"
     },
