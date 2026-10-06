@@ -45,7 +45,7 @@ const COUNT_KEYS = [
  * The lead a pair of an open lead and a lead in nurture must keep: the open one, being worked on
  * (`merge_leads_keep_open`). Any other pair is the caller's choice.
  */
-function openLeadOf(row: DuplicateRowDto): 'first' | 'second' | undefined {
+export function openLeadOf(row: DuplicateRowDto): 'first' | 'second' | undefined {
   if (row.kind !== 'lead') return undefined;
   const { first, second } = row;
   if (first.opportunityState === 'open' && second.opportunityState === 'nurture') return 'first';
