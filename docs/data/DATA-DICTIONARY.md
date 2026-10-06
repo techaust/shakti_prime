@@ -3044,7 +3044,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### knowledge_chunks
 
-**Catalogue entry** (DATABASE.md §6.9; created in K1): `knowledge_file_id`, `entity_id` and `sensitivity` (copied from the file), `position`, `chunk_text` (masked, at most 4,000 characters), `embedding vector(1024)`; HNSW index on cosine distance; unique `(knowledge_file_id, position)`; written only by `app.record_knowledge_index()` (§4.4)
+**Catalogue entry** (DATABASE.md §6.9; created in 0117): `knowledge_file_id`, `entity_id` and `sensitivity` (copied from the file), `position`, `chunk_text` (masked, at most 4,000 characters), `embedding vector(1024)`; HNSW index on cosine distance; unique `(knowledge_file_id, position)`; written only by `app.record_knowledge_index()` (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3086,7 +3086,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### knowledge_files
 
-**Catalogue entry** (DATABASE.md §6.9; created in K1): `entity_id` (null for the whole group), `file_id` (a `knowledge` upload, one vault file each), `title`, `sensitivity` (`staff_ai_ok`, `management`, `exec_only`), `source_type` (`pdf`, `photo`, `word`, `excel`), `state` (`waiting`, `indexed`, `failed`, `unavailable`, `archived`, the `knowledge_file` machine), `chunks`, `indexed_at`, `error_reason`; index `(entity_id, created_at desc, id desc)` for the vault list (§4.4)
+**Catalogue entry** (DATABASE.md §6.9; created in 0117): `entity_id` (null for the whole group), `file_id` (a `knowledge` upload, one vault file each), `title`, `sensitivity` (`staff_ai_ok`, `management`, `exec_only`), `source_type` (`pdf`, `photo`, `word`, `excel`), `state` (`waiting`, `indexed`, `failed`, `unavailable`, `archived`, the `knowledge_file` machine), `chunks`, `indexed_at`, `error_reason`; index `(entity_id, created_at desc, id desc)` for the vault list (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
