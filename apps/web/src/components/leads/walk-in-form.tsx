@@ -4,7 +4,7 @@ import type { PipelineDto } from '@shakti/contracts';
 import { Button, Field, Input, Select, toast } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { createLead } from '../../actions/crm';
+import { takeEnquiry } from '../../actions/crm';
 import { CUSTOMER_LANGUAGES, pipelinesFor } from '../../screens/lead-form';
 import {
   buildWalkInInput,
@@ -47,7 +47,7 @@ export function WalkInForm({
 }) {
   const t = useTranslations('leads.walkIn');
   const leads = useTranslations('leads');
-  const { run, pending, failure } = useCommand(createLead);
+  const { run, pending, failure } = useCommand(takeEnquiry);
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
   const [pipelineKey, setPipelineKey] = useState('');

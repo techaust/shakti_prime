@@ -94,17 +94,37 @@ import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from '
  * Thin wrapper (docs/API.md §4): parse → request context → command → DTO. The request is
  * narrowed to the company the lead is for, so a person viewing All companies acts with their
  * team in that company (AUDIT M24, `withRequestContext`).
- *
- * A lead refused because a colleague looks after the customer in the company
- * (`customer_held_by_colleague`) is passed to that colleague (PRD RPT-04 criterion 2): the refusal
- * rolled its transaction back, so `crm.enquiry.route` runs in a fresh one and the form says, by
- * name, who the enquiry went to (`outcome: 'routed'`).
  */
 export async function createLead(
   rawInput: unknown,
   idempotencyKey?: unknown,
-): Promise<ActionResult<CreateLeadResultDto | RoutedEnquiryDto>> {
+): Promise<ActionResult<CreateLeadResultDto>> {
   return toResult('createLead', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CreateLeadInput, rawInput);
+    const meta = await requestMeta();
+    return executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      createLeadCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+  });
+}
+
+/**
+ * The lead and walk-in forms' save: `createLead`, except that a lead refused because a colleague
+ * looks after the customer in the company (`customer_held_by_colleague`) is passed to that
+ * colleague (PRD RPT-04 criterion 2). The refusal rolled its transaction back, so
+ * `crm.enquiry.route` runs in a fresh one, and the form says, by name, who the enquiry went to
+ * (`outcome: 'routed'`). An import row is still refused, as it was.
+ */
+export async function takeEnquiry(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CreateLeadResultDto | RoutedEnquiryDto>> {
+  return toResult('takeEnquiry', async () => {
     const principal = await signedIn();
     const input = parseInput(CreateLeadInput, rawInput);
     const meta = await requestMeta();

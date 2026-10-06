@@ -43,6 +43,8 @@ export function contentSecurityPolicy(
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
+    // The push service worker (`/push-sw.js`), registered from this site only.
+    "worker-src 'self'",
     `connect-src 'self' ${connect}`,
     `frame-src ${TURNSTILE}`,
     "frame-ancestors 'none'",

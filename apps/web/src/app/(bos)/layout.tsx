@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { inboxCount } from '../../actions/agents';
+import { noticeCount } from '../../actions/notifications';
+import { vapidConfig } from '../../notifications/push';
 import { currentSession } from '../../auth/current-principal';
 import { AppShell } from '../../components/shell/app-shell';
 import { isSidebarCollapsed, SIDEBAR_COOKIE } from '../../components/shell/sidebar-state';
@@ -33,9 +35,11 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
   const contrastStale = isHighContrast(jar.get(CONTRAST_COOKIE)?.value) !== high;
   // The Agent Inbox's count in the top bar, for whoever acts on an inbox; read again whenever the
   // page is refreshed, as the inbox does after each decision. A failed read shows no count.
-  const inbox = hasGrant(principal.permissions, 'agents.inbox.act', 'own')
-    ? await inboxCount()
-    : undefined;
+  // The bell's unread count, for everyone signed in; a failed read shows no count.
+  const [inbox, notices] = await Promise.all([
+    hasGrant(principal.permissions, 'agents.inbox.act', 'own') ? inboxCount() : undefined,
+    noticeCount(),
+  ]);
   return (
     <>
       <ThemeSync saved={theme} />
@@ -54,6 +58,8 @@ export default async function BosLayout({ children }: { children: ReactNode }) {
         theme={theme}
         sidebarCollapsed={collapsed}
         inboxCount={inbox === undefined ? undefined : inbox.ok ? inbox.data.open : null}
+        noticeCount={notices.ok ? notices.data.unread : null}
+        pushKey={vapidConfig()?.publicKey ?? null}
       >
         {children}
       </AppShell>

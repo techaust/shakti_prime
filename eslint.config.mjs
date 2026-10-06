@@ -543,5 +543,10 @@ export default tseslint.config(
     files: ['**/*.{js,mjs,cjs}'],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  {
+    // The push service worker (docs/design/phase1.md §8.1): a static file the browser runs.
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
   prettier,
 );
