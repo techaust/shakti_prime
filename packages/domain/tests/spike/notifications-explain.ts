@@ -17,8 +17,8 @@ import {
   prepareDatabase,
   principalFor,
 } from '@shakti/db/testing';
-import { sql } from 'drizzle-orm';
-import { noticeCountQuery, noticeListQuery } from '../../src/queries/notifications/notices';
+import { sql, type SQL } from 'drizzle-orm';
+import { noticeCountQuery, noticeListSql } from '../../src/queries/notifications/notices';
 
 const ENTITY = 2;
 const PEOPLE = 100;
@@ -49,6 +49,21 @@ async function explainAs(label: string, principal: Principal, text: string): Pro
   const plan = await asPrincipal(principal, async (ctx) => {
     const rows = (await ctx.tx.execute(
       sql.raw(`explain (analyze, buffers, costs off) ${text}`),
+    )) as unknown as Record<string, string>[];
+    return rows.map((r) => Object.values(r)[0]).join('\n');
+  });
+  process.stdout.write(`\n=== ${label} ===\n${plan}\n`);
+}
+
+/** The plan of a statement built as SQL, run under the policies as the person. */
+async function explainSql(
+  label: string,
+  principal: Principal,
+  build: (ctx: RequestContext) => SQL,
+): Promise<void> {
+  const plan = await asPrincipal(principal, async (ctx) => {
+    const rows = (await ctx.tx.execute(
+      sql`explain (analyze, buffers, costs off) ${build(ctx)}`,
     )) as unknown as Record<string, string>[];
     return rows.map((r) => Object.values(r)[0]).join('\n');
   });
@@ -196,8 +211,8 @@ async function main(): Promise<void> {
   );
 
   const reader = principalFor('tele_caller_cc', [ENTITY], { id: me });
-  await explainQuery('centre, first page (21 rows), the person with 2,000 notices', reader, (ctx) =>
-    noticeListQuery(ctx, 21),
+  await explainSql('centre, first page (21 rows), the person with 2,000 notices', reader, (ctx) =>
+    noticeListSql(ctx, 21),
   );
   const [middle] = await asMigrator(
     (m) => m<{ t: string; id: string }[]>`
@@ -205,8 +220,14 @@ async function main(): Promise<void> {
        order by created_at desc, id desc offset 1000 limit 1`,
   );
   if (middle) {
-    await explainQuery('centre, a page 1,000 notices down (keyset)', reader, (ctx) =>
-      noticeListQuery(ctx, 21, { t: middle.t, id: middle.id }),
+    await explainSql('centre, a page 1,000 notices down (keyset)', reader, (ctx) =>
+      noticeListSql(ctx, 21, { t: middle.t, id: middle.id }),
+    );
+    const gm = principalFor('general_manager', [ENTITY], { id: me });
+    await explainSql(
+      'centre, first page, as a reader of every customer of the company',
+      gm,
+      (ctx) => noticeListSql(ctx, 21),
     );
   }
   await explainQuery('bell count (up to 100 unread)', reader, (ctx) => noticeCountQuery(ctx));

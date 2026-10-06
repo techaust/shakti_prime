@@ -223,7 +223,7 @@ describe('a possible duplicate (duplicate_found)', () => {
       (
         m,
       ) => m`insert into duplicate_candidates (id, entity_id, kind, opportunity_id, other_opportunity_id, reason, confidence, created_by)
-               values (${candidate}, 1, 'lead', ${low}, ${high}, 'phone', 90, ${callerA.id})`,
+               values (${candidate}, 1, 'lead', ${low ?? ''}, ${high ?? ''}, 'phone', 90, ${callerA.id})`,
     );
     const input = {
       event: 'crm.duplicate.found',
@@ -458,7 +458,7 @@ describe('a person’s choices: quiet hours and the centre', () => {
       (
         m,
       ) => m`insert into duplicate_candidates (id, entity_id, kind, opportunity_id, other_opportunity_id, reason, confidence, created_by)
-               values (${candidate}, 1, 'lead', ${low}, ${high}, 'phone', 90, ${callerA.id})`,
+               values (${candidate}, 1, 'lead', ${low ?? ''}, ${high ?? ''}, 'phone', 90, ${callerA.id})`,
     );
     const batch = await notify({
       event: 'crm.duplicate.found',

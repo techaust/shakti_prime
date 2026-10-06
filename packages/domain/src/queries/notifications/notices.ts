@@ -9,7 +9,7 @@ import {
   type NoticePageDto,
 } from '@shakti/contracts';
 import { schema, type RequestContext } from '@shakti/db';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
@@ -18,45 +18,52 @@ type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 const NoticeCursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
 const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
-/**
- * One page of the caller's notices as a query, `limit` rows after the keyset `after`; exported
- * so the notifications spike explains the very statement the centre runs.
- */
-export function noticeListQuery(
-  ctx: Ctx,
-  limit: number,
-  after?: z.output<typeof NoticeCursor>,
-) {
-  const n = schema.notifications;
-  const a = schema.accounts;
-  const q = schema.quotes;
-  return ctx.tx
-    .select({
-      notice: n,
-      customerName: a.name,
-      quoteNo: q.quoteNo,
-      createdText: sql<string>`${n.createdAt}::text`,
-    })
-    .from(n)
-    .leftJoin(a, sql`${a.id} = (${n.payloadJson} ->> 'accountId')::uuid`)
-    .leftJoin(
-      q,
-      and(sql`${q.id} = (${n.payloadJson} ->> 'quoteId')::uuid`, eq(q.entityId, n.entityId)),
-    )
-    .where(
-      and(
-        eq(n.userId, ctx.principal.id),
-        inArray(n.entityId, [...ctx.entityIds]),
-        // A kind the person turned off in the centre is kept only to stop a repeat.
-        sql`coalesce(${n.channelSentJson} ->> 'inApp', 'true') <> 'false'`,
-        after === undefined
-          ? undefined
-          : sql`(${n.createdAt}, ${n.id}) < (${after.t}::text::timestamptz, ${after.id}::uuid)`,
-      ),
-    )
-    .orderBy(desc(n.createdAt), desc(n.id))
-    .limit(limit);
+interface NoticeRow extends Record<string, unknown> {
+  id: string;
+  entity_id: number;
+  type: string;
+  subject_type: string;
+  subject_id: string;
+  payload_json: unknown;
+  created_at: Date | string;
+  created_text: string;
+  read_at: Date | string | null;
+  customer_name: string | null;
+  quote_no: string | null;
 }
+
+/**
+ * One page of the caller's notices as SQL, `limit` rows after the keyset `after`, exported so the
+ * notifications spike explains the very statement the centre runs. The page is cut first, off
+ * `notifications_user_created_idx`, and only its rows look up their customer and quote, each by
+ * its key under the policies, so a reader of many customers never pays for all of them.
+ */
+export function noticeListSql(ctx: Ctx, limit: number, after?: z.output<typeof NoticeCursor>): SQL {
+  const keyset =
+    after === undefined
+      ? sql`true`
+      : sql`(n.created_at, n.id) < (${after.t}::text::timestamptz, ${after.id}::uuid)`;
+  return sql`
+    select p.id, p.entity_id, p.type, p.subject_type, p.subject_id, p.payload_json, p.created_at,
+           p.created_at::text as created_text, p.read_at, c.name as customer_name,
+           q.quote_no
+      from (select n.* from notifications n
+             where n.user_id = ${ctx.principal.id}::uuid
+               and n.entity_id = any(${`{${ctx.entityIds.join(',')}}`}::int[])
+               -- A kind the person keeps out of the centre is kept only to stop a repeat.
+               and coalesce(n.channel_sent_json ->> 'inApp', 'true') <> 'false'
+               and ${keyset}
+             order by n.created_at desc, n.id desc
+             limit ${limit}) p
+      left join lateral (
+        select a.name from accounts a where a.id = (p.payload_json ->> 'accountId')::uuid) c on true
+      left join lateral (
+        select qt.quote_no from quotes qt
+         where qt.id = (p.payload_json ->> 'quoteId')::uuid and qt.entity_id = p.entity_id) q on true
+     order by p.created_at desc, p.id desc`;
+}
+
+const toIso = (v: Date | string): string => (v instanceof Date ? v : new Date(v)).toISOString();
 
 /**
  * The caller's notices in the request's companies that show in the centre, newest first, keyset
@@ -70,30 +77,32 @@ export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePa
   if (after !== undefined && !PG_TIME.test(after.t)) {
     throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });
   }
-  const rows = await noticeListQuery(ctx, input.limit + 1, after);
+  const rows = (await ctx.tx.execute(
+    noticeListSql(ctx, input.limit + 1, after),
+  )) as unknown as NoticeRow[];
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return {
     items: page.map((r) => {
-      const payload = NoticePayloadSchema.catch({}).parse(r.notice.payloadJson);
+      const payload = NoticePayloadSchema.catch({}).parse(r.payload_json);
       return NoticeDto.parse({
-        id: r.notice.id,
-        entityId: r.notice.entityId,
-        type: r.notice.type,
-        subjectType: r.notice.subjectType,
-        subjectId: r.notice.subjectId,
+        id: r.id,
+        entityId: r.entity_id,
+        type: r.type,
+        subjectType: r.subject_type,
+        subjectId: r.subject_id,
         accountId: payload.accountId ?? null,
         opportunityId: payload.opportunityId ?? null,
         quoteId: payload.quoteId ?? null,
-        customerName: r.customerName,
-        quoteNo: r.quoteNo,
-        createdAt: r.notice.createdAt.toISOString(),
-        readAt: r.notice.readAt?.toISOString() ?? null,
+        customerName: r.customer_name,
+        quoteNo: r.quote_no,
+        createdAt: toIso(r.created_at),
+        readAt: r.read_at === null ? null : toIso(r.read_at),
       });
     }),
     nextCursor:
       rows.length > input.limit && last !== undefined
-        ? encodeCursor({ t: last.createdText, id: last.notice.id })
+        ? encodeCursor({ t: last.created_text, id: last.id })
         : null,
   };
 }

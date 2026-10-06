@@ -31,7 +31,9 @@ export interface VapidConfig {
 }
 
 /** The VAPID keys when all three are set, otherwise nothing: push is then off. */
-export function vapidConfig(env: NodeJS.ProcessEnv = process.env): VapidConfig | undefined {
+export function vapidConfig(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): VapidConfig | undefined {
   const publicKey = (env.VAPID_PUBLIC_KEY ?? '').trim();
   const privateKey = (env.VAPID_PRIVATE_KEY ?? '').trim();
   const subject = (env.VAPID_SUBJECT ?? '').trim();
@@ -77,7 +79,9 @@ export function webPushSender(config: VapidConfig): PushSender {
 }
 
 /** The app's sender: web push when the VAPID keys are set, none otherwise. */
-export function pushSender(env: NodeJS.ProcessEnv = process.env): PushSender | undefined {
+export function pushSender(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): PushSender | undefined {
   const config = vapidConfig(env);
   return config === undefined ? undefined : webPushSender(config);
 }
