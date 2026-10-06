@@ -3,10 +3,10 @@ import {
   asMigrator,
   asPrincipal,
   closeDb,
+  createReadyImportFile,
   createTestPrincipal,
   principalFor,
 } from '@shakti/db/testing';
-import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { z } from 'zod';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
@@ -49,14 +49,10 @@ async function uploadedJob(principal: Principal, entityId: number, rows: string[
   return run(principal, createImportJob, {
     entityId,
     kind: 'leads',
-    file: {
+    fileId: await createReadyImportFile(entityId, principal.id, {
       name: `list-jobs-${newId()}.csv`,
-      contentType: 'text/csv',
       size: bytes.length,
-      sha256: createHash('sha256').update(bytes).digest('hex'),
-      bucket: 'memory',
-      key: `imports/${String(entityId)}/${newId()}`,
-    },
+    }),
     format: parsed.format,
     columns: parsed.columns,
     rows: parsed.rows,

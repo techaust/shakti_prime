@@ -105,10 +105,11 @@ grant select on quotes, quote_lines, quote_versions to app_reader, readonly_repo
 -- sales.quote.expire, which no person's role and no agent may hold, and reaches quotes only
 -- through the two definers below: one answers the lapsed draft and sent quotes of one company of
 -- the request, the other marks those still lapsed as expired. The quote machine's expire guard
--- runs between them in packages/domain.
+-- runs between them in packages/domain. The list keeps every platform-only permission defined
+-- before it: the file checks', the import worker's and the nightly lead rescoring's.
 create or replace function app.platform_only_permissions() returns text[]
   language sql immutable set search_path = '' as $$
-  select array['files.process', 'crm.score.refresh', 'sales.quote.expire']::text[]
+  select array['files.process', 'imports.process', 'crm.score.refresh', 'sales.quote.expire']::text[]
 $$;
 --> statement-breakpoint
 

@@ -8,6 +8,12 @@ if ! command -v pnpm >/dev/null 2>&1 && [ -n "${LOCALAPPDATA:-}" ] && command -v
   export PATH
 fi
 
+# In a cloud session the image's Node comes before /usr/local/bin, where the setup script installs the
+# Node of .node-version and the pnpm of package.json; put /usr/local/bin first when its Node is there.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && [ -x /usr/local/bin/node ]; then
+  case ":$PATH:" in /usr/local/bin:*) ;; *) PATH="/usr/local/bin:$PATH"; export PATH ;; esac
+fi
+
 # `python3` everywhere: Git Bash on the PC may have only `python` (its `python3` can be the
 # Microsoft Store stub, which runs nothing), so `python3` falls back to `python` there.
 if ! python3 -c '' >/dev/null 2>&1 && command -v python >/dev/null 2>&1; then
@@ -52,8 +58,15 @@ start_db() {
   docker run -d --name "$1" -p "127.0.0.1:$2:5432" -e POSTGRES_PASSWORD=postgres_local \
     --health-cmd "pg_isready -U postgres" --health-interval 3s "$(pg_image)" >/dev/null
   for _ in $(seq 1 60); do
-    [ "$(docker inspect -f '{{.State.Health.Status}}' "$1")" = healthy ] && return 0
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$1")" = healthy ] && break
     sleep 3
+  done
+  # pg_isready answers while the image is still starting (SQLSTATE 57P03): wait for real queries.
+  local ok=0
+  for _ in $(seq 1 60); do
+    if docker exec "$1" psql -U postgres -tAc 'select 1' >/dev/null 2>&1; then ok=$((ok + 1)); else ok=0; fi
+    [ "$ok" -ge 5 ] && return 0
+    sleep 2
   done
   echo "$1 did not become healthy" >&2
   return 1

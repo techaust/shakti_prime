@@ -1,4 +1,9 @@
 import {
+  AGENT_ACTION_STATES,
+  AGENT_AUTONOMY,
+  AGENT_ROLE_KEYS,
+  AGENT_RUN_OUTCOMES,
+  AGENT_SETTING_SOURCES,
   CommissionBasisSchema,
   ContrastSchema,
   FirstContactSlaSchema,
@@ -36,6 +41,7 @@ import {
   IMPLEMENTED_IMPORT_KINDS as CONTRACT_IMPORT_KINDS,
   IMPORT_JOB_SORT_COLUMNS as CONTRACT_IMPORT_JOB_SORT_COLUMNS,
   ImportJobStateSchema,
+  MORE_SITES_MAX as CONTRACT_MORE_SITES_MAX,
   LEAD_SORT_COLUMNS as CONTRACT_LEAD_SORT_COLUMNS,
   OpportunityLostReasonSchema,
   OpportunityNurtureReasonSchema,
@@ -109,6 +115,7 @@ import {
   IMPORT_JOB_SORT_COLUMNS,
   IMPORT_JOB_STATES,
   LEAD_SORT_COLUMNS,
+  MORE_SITES_MAX,
   OPPORTUNITY_LOST_REASONS,
   OPPORTUNITY_NURTURE_REASONS,
   OPPORTUNITY_STATES,
@@ -132,6 +139,11 @@ import {
   SITE_TYPES,
   TASK_KINDS,
   TASK_STATES,
+  AGENT_ROLES,
+  AGENT_AUTONOMY_LEVELS,
+  AGENT_ACTION_STATE_VALUES,
+  AGENT_RUN_OUTCOME_VALUES,
+  AGENT_SETTING_SOURCE_VALUES,
   THEMES,
   USER_SORT_COLUMNS,
   USER_STATUSES,
@@ -165,6 +177,11 @@ describe('the contract values copied for the browser', () => {
     expect(PIPE_MATERIALS).toEqual(PipeMaterialSchema.options);
     expect(TASK_KINDS).toEqual(TaskKindSchema.options);
     expect(TASK_STATES).toEqual(TaskStateSchema.options);
+    expect(AGENT_ROLES).toEqual(AGENT_ROLE_KEYS);
+    expect(AGENT_AUTONOMY_LEVELS).toEqual(AGENT_AUTONOMY);
+    expect(AGENT_ACTION_STATE_VALUES).toEqual(AGENT_ACTION_STATES);
+    expect(AGENT_RUN_OUTCOME_VALUES).toEqual(AGENT_RUN_OUTCOMES);
+    expect(AGENT_SETTING_SOURCE_VALUES).toEqual(AGENT_SETTING_SOURCES);
     expect(ACTIVITY_TYPES).toEqual(ActivityTypeSchema.options);
     expect(ACCOUNT_TYPES).toEqual(AccountTypeSchema.options);
     expect(SITE_TYPES).toEqual(SiteTypeSchema.options);
@@ -187,6 +204,7 @@ describe('the contract values copied for the browser', () => {
 
   it('equal the contract’s own lists and limits', () => {
     expect(IMPLEMENTED_IMPORT_KINDS).toEqual(CONTRACT_IMPORT_KINDS);
+    expect(MORE_SITES_MAX).toBe(CONTRACT_MORE_SITES_MAX);
     expect(LEAD_SORT_COLUMNS).toEqual(CONTRACT_LEAD_SORT_COLUMNS);
     expect(RECORDED_STAGE_EXIT_FIELDS).toEqual(CONTRACT_RECORDED_STAGE_EXIT_FIELDS);
     expect(PROTECTED_STAGE_KEYS).toEqual(CONTRACT_PROTECTED_STAGE_KEYS);

@@ -154,7 +154,7 @@ export async function getQuote(
  * The ⌘K search for quotes by number (RPT-03): the quotes the caller can read whose number holds
  * the typed text, a number that is the text first, then the newest. Bounded by `limit`. Under the
  * policies `ilike` is never an index condition, so the candidates come first from the definer
- * `app.quote_search_ids()` (0102), which finds at most 200 on the trigram index of `quote_no` in the
+ * `app.quote_search_ids()` (0110), which finds at most 200 on the trigram index of `quote_no` in the
  * request's companies; this query then reads only those, under the policies.
  */
 export async function searchQuotes(

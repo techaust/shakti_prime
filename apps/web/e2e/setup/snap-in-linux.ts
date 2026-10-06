@@ -25,12 +25,14 @@ async function answering(): Promise<boolean> {
 
 let app: ChildProcess | undefined;
 if (!(await answering())) {
-  // One command line through the shell, so Windows finds pnpm's own launcher.
-  app = spawn(`pnpm exec next start -p ${port}`, {
+  // One command line through the shell, so Windows finds `next`'s launcher on the script's PATH.
+  // Elsewhere the server leads its own process group, so the stop below reaches the shell's child.
+  app = spawn(`next start -p ${port}`, {
     cwd: webDir,
     env: { ...process.env, BOS_ENVIRONMENT: 'local' },
     stdio: 'ignore',
     shell: true,
+    detached: process.platform !== 'win32',
   });
   const deadline = Date.now() + 120_000;
   while (!(await answering())) {
@@ -81,8 +83,13 @@ const result = spawnSync(
 if (app !== undefined) {
   if (process.platform === 'win32' && app.pid !== undefined) {
     spawnSync('taskkill', ['/pid', String(app.pid), '/t', '/f'], { stdio: 'ignore' });
-  } else {
-    app.kill();
+  } else if (app.pid !== undefined) {
+    // The whole group, forcibly: a server that has lost its output can ignore SIGTERM.
+    try {
+      process.kill(-app.pid, 'SIGKILL');
+    } catch {
+      // The group has already gone.
+    }
   }
 }
 process.exit(result.status ?? 1);

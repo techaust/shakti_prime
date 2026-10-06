@@ -109,8 +109,8 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`imports.job.committed`](#importsjobcommitted) | Every valid row of an import job is in. | `imports.job.commit_batch` | none |
-| [`imports.job.failed`](#importsjobfailed) | A batch of an import job failed and the job stopped; earlier batches stay until it is rolled back. | `imports.job.commit_batch` | none |
-| [`imports.job.rolled_back`](#importsjobrolled_back) | The leads an import job made were archived; the customers it made stay. | `imports.job.rollback` | none |
+| [`imports.job.failed`](#importsjobfailed) | A batch of an import job failed, or its worker gave up after the last retry, and the job stopped; earlier batches stay until it is rolled back. | `imports.job.commit_batch`, `imports.job.fail` | none |
+| [`imports.job.rolled_back`](#importsjobrolled_back) | An import job was undone: its leads or customers archived, or the offices it added to the PIN code master removed. | `imports.job.rollback` | none |
 
 ### Platform
 
@@ -332,7 +332,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `committedRows` | whole number from 0 |
 | `batches` | whole number from 1 |
 
@@ -340,7 +340,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `committedRows` | whole number from 0 |
 | `failedBatch` | whole number from 1 |
 
@@ -354,7 +354,7 @@ No fields apart from `v`.
 
 | Field | Type |
 |---|---|
-| `kind` | one of `leads`, `accounts`, `items`, `tally_masters` |
+| `kind` | one of `leads`, `accounts`, `pin_codes`, `items`, `tally_masters` |
 | `rolledBackRows` | whole number from 0 |
 
 ### files.file.uploaded

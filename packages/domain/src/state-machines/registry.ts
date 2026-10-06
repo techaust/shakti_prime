@@ -1,9 +1,11 @@
 import type { AnyMachine } from './define-machine';
+import { agentActionMachine } from './machines/agent-action';
 import { customerLoanMachine } from './machines/customer-loan';
 import { dispatchMachine } from './machines/dispatch';
 import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
 import { fileUploadMachine } from './machines/file-upload';
+import { inboxItemMachine } from './machines/inbox-item';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -35,6 +37,8 @@ export const MACHINES: readonly AnyMachine[] = [
   expenseClaimMachine,
   playbookDirectiveMachine,
   tallyVoucherMachine,
+  agentActionMachine,
+  inboxItemMachine,
 ];
 
 /**
@@ -47,6 +51,8 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'task',
   'file_upload',
   'quote',
+  'agent_action',
+  'inbox_item',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

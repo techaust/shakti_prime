@@ -1,4 +1,10 @@
 import {
+  AGENT_ACTION_STATES,
+  AGENT_AUTONOMY,
+  AGENT_RUN_OUTCOMES,
+  INBOX_ITEM_KINDS,
+  INBOX_ITEM_STATES,
+  INBOX_SUBJECT_TYPES,
   AccountTypeSchema,
   CommissionBasisSchema,
   CommissionTriggerSchema,
@@ -52,6 +58,13 @@ afterAll(closeDb);
  * added on one side only would pass validation and then fail in the database, or the reverse.
  */
 const PAIRS: Record<string, readonly string[]> = {
+  agent_actions_autonomy_check: AGENT_AUTONOMY,
+  agent_actions_state_check: AGENT_ACTION_STATES,
+  agent_configs_autonomy_check: AGENT_AUTONOMY,
+  agent_runs_outcome_check: AGENT_RUN_OUTCOMES,
+  inbox_items_kind_check: INBOX_ITEM_KINDS,
+  inbox_items_state_check: INBOX_ITEM_STATES,
+  inbox_items_subject_type_check: INBOX_SUBJECT_TYPES,
   account_contacts_role_check: ContactRoleSchema.options,
   accounts_type_check: AccountTypeSchema.options,
   activities_type_check: ActivityTypeSchema.options,

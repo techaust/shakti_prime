@@ -1,4 +1,9 @@
 import type {
+  AgentActionState,
+  AgentAutonomy,
+  AgentRoleKey,
+  AgentRunOutcome,
+  AgentSettingSource,
   CommissionBasis,
   ContrastPreference,
   DispositionNextAction,
@@ -162,6 +167,59 @@ export const TASK_KINDS = [
 
 export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
 
+/** The agents (docs/SECURITY.md §3.3), in the order the agents screen lists them. */
+export const AGENT_ROLES = [
+  'agent:triage',
+  'agent:concierge',
+  'agent:copilot',
+  'agent:sizing',
+  'agent:orchestrator',
+  'agent:chief',
+] as const satisfies readonly AgentRoleKey[];
+
+/** How far an agent may go with one action type (BLUEPRINT §9.3). */
+export const AGENT_AUTONOMY_LEVELS = [
+  'suggest',
+  'needs_approval',
+  'automatic',
+] as const satisfies readonly AgentAutonomy[];
+
+/** What became of an action an agent proposed or took. */
+export const AGENT_ACTION_STATE_VALUES = [
+  'proposed',
+  'executed',
+  'approved',
+  'rejected',
+  'dismissed',
+] as const satisfies readonly AgentActionState[];
+
+/** Where a setting that applies comes from, as the agents screen names it. */
+export const AGENT_SETTING_SOURCE_VALUES = [
+  'action_company',
+  'action_group',
+  'agent_company',
+  'agent_group',
+  'default',
+] as const satisfies readonly AgentSettingSource[];
+
+/** How an agent run ended. */
+export const AGENT_RUN_OUTCOME_VALUES = [
+  'proposed',
+  'acted',
+  'nothing_to_do',
+  'switched_off',
+  'cap_reached',
+  'unavailable',
+  'failed',
+] as const satisfies readonly AgentRunOutcome[];
+
+/** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
+export function agentNameKey(agent: (typeof AGENT_ROLES)[number]): AgentNameKey {
+  return agent.slice('agent:'.length) as AgentNameKey;
+}
+
+export type AgentNameKey = 'triage' | 'concierge' | 'copilot' | 'sizing' | 'orchestrator' | 'chief';
+
 /** What a customer timeline row records. */
 export const ACTIVITY_TYPES = [
   'lead_created',
@@ -258,7 +316,14 @@ export const SIZING_INPUT_LIMITS = {
 } as const;
 
 /** The import kinds a job may be created for today. */
-export const IMPLEMENTED_IMPORT_KINDS = ['leads'] as const satisfies readonly ImportKind[];
+export const IMPLEMENTED_IMPORT_KINDS = [
+  'leads',
+  'accounts',
+  'pin_codes',
+] as const satisfies readonly ImportKind[];
+
+/** The most sites later rows of one customer add to it from one file (`MORE_SITES_MAX`). */
+export const MORE_SITES_MAX = 100;
 
 export const IMPORT_JOB_STATES = [
   'uploaded',
@@ -534,6 +599,8 @@ export const UPLOAD_CONTENT_TYPES = [
   'image/png',
   'image/webp',
   'application/pdf',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -545,6 +612,7 @@ export const FILE_REJECT_REASONS = [
   'file_image_too_large',
   'file_pdf_active_content',
   'file_mask_failed',
+  'file_upload_abandoned',
 ] as const satisfies readonly FileRejectReason[];
 
 /** What the malware scan said, and what the checks did to the bytes. */
@@ -565,4 +633,5 @@ export const FILE_SANITISING = [
   're_encoded',
   'pdf_checked',
   'masked',
+  'sheet_checked',
 ] as const satisfies readonly FileSanitising[];

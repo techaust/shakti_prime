@@ -5,12 +5,37 @@ import { z } from 'zod';
  * Values are the database check lists.
  */
 
-/** What a job imports. Only `leads` is implemented; the rest arrive with their modules. */
-export const ImportKindSchema = z.enum(['leads', 'accounts', 'items', 'tally_masters']);
+/**
+ * What a job imports: leads, customers (`accounts`) and the PIN code master (`pin_codes`, from the
+ * public India Post directory); items and Tally masters arrive with their modules.
+ */
+export const ImportKindSchema = z.enum([
+  'leads',
+  'accounts',
+  'pin_codes',
+  'items',
+  'tally_masters',
+]);
 export type ImportKind = z.infer<typeof ImportKindSchema>;
 
 /** The kinds a job may be created for today. */
-export const IMPLEMENTED_IMPORT_KINDS = ['leads'] as const satisfies readonly ImportKind[];
+export const IMPLEMENTED_IMPORT_KINDS = [
+  'leads',
+  'accounts',
+  'pin_codes',
+] as const satisfies readonly ImportKind[];
+export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
+
+/**
+ * The kinds whose rows are shared by every company (the PIN code master): only a request acting
+ * for every active company imports them, as an Executive (docs/design/phase1.md §6.3).
+ */
+export const GROUP_IMPORT_KINDS = ['pin_codes'] as const satisfies readonly ImportKind[];
+
+/** True for a kind whose job runs in a request for every company (`GROUP_IMPORT_KINDS`). */
+export function isGroupImportKind(kind: ImportKind): boolean {
+  return (GROUP_IMPORT_KINDS as readonly ImportKind[]).includes(kind);
+}
 
 export const ImportJobStateSchema = z.enum([
   'uploaded',
@@ -33,8 +58,19 @@ export const ImportRowStateSchema = z.enum([
 ]);
 export type ImportRowState = z.infer<typeof ImportRowStateSchema>;
 
-/** `import_rows.created_type`: what a committed row made. Only leads are imported today. */
-export const ImportCreatedTypeSchema = z.enum(['opportunity']);
+/**
+ * `import_rows.created_type`: what a committed row made: a lead, a customer, or an office of the
+ * PIN code master (only an office the row added; an office it corrected records nothing). A
+ * customers row whose mobile number belongs to a customer the importer can see links to that
+ * customer instead (`account_link`, the customer's id): its companies are added to it, and a
+ * rollback leaves that customer as it is.
+ */
+export const ImportCreatedTypeSchema = z.enum([
+  'opportunity',
+  'account',
+  'account_link',
+  'pin_code',
+]);
 export type ImportCreatedType = z.infer<typeof ImportCreatedTypeSchema>;
 
 /**
@@ -82,6 +118,17 @@ export const IMPORT_LIMITS = {
    * which only a crafted file reaches.
    */
   maxZipRatio: 100,
+  /**
+   * The most each of a workbook's own small parts (the workbook, its styles, its relationships and
+   * the content types) may hold once unpacked; each is a few kilobytes in any real workbook.
+   */
+  maxPartBytes: 5 * 1024 * 1024,
+  /**
+   * The most a workbook's shared strings (every distinct text of the sheet, kept in memory while
+   * the sheet is read) may hold once unpacked: a 50,000-row list of ten columns, most of its texts
+   * distinct, holds about 3 MB (measured with ExcelJS 4.4).
+   */
+  maxSharedStringsBytes: 32 * 1024 * 1024,
   maxRows: 50_000,
   maxColumns: 50,
   maxCellLength: 500,
@@ -108,6 +155,48 @@ export const LeadImportFieldSchema = z.enum([
 export type LeadImportField = z.infer<typeof LeadImportFieldSchema>;
 
 /**
+ * The fields of a customer a file column can fill. `company` names a company the customer deals
+ * with, by its code or its name; a blank cell means the job's own company.
+ */
+export const AccountImportFieldSchema = z.enum([
+  'contactName',
+  'phone',
+  'accountName',
+  'accountType',
+  'preferredLanguage',
+  'village',
+  'siteType',
+  'pin',
+  'company',
+]);
+export type AccountImportField = z.infer<typeof AccountImportFieldSchema>;
+
+/**
+ * The fields of a post office of the PIN code master, as the India Post directory lists them: the
+ * PIN, the office's name, its taluk (the screens say tehsil), its district and its state (a name
+ * or the two-digit GST state code).
+ */
+export const PinCodeImportFieldSchema = z.enum(['pin', 'officeName', 'taluk', 'district', 'state']);
+export type PinCodeImportField = z.infer<typeof PinCodeImportFieldSchema>;
+
+/** Every field a file column can fill, whatever the kind. */
+export const ImportFieldSchema = z.enum([
+  ...LeadImportFieldSchema.options,
+  'company',
+  'officeName',
+  'taluk',
+  'district',
+  'state',
+]);
+export type ImportField = z.infer<typeof ImportFieldSchema>;
+
+/** The fields each kind offers, in the order the matching form lists them. */
+export const IMPORT_FIELDS = {
+  leads: LeadImportFieldSchema.options,
+  accounts: AccountImportFieldSchema.options,
+  pin_codes: PinCodeImportFieldSchema.options,
+} as const satisfies Record<ImplementedImportKind, readonly ImportField[]>;
+/**
  * Why one row cannot be imported, keyed to `imports.rowErrors` in the message catalogue. These
  * are row findings shown in the preview, not errors of the call.
  */
@@ -120,5 +209,7 @@ export const ImportRowErrorCodeSchema = z.enum([
   'source_unknown',
   'commit_failed',
   'customer_held_by_colleague',
+  'company_unknown',
+  'state_unknown',
 ]);
 export type ImportRowErrorCode = z.infer<typeof ImportRowErrorCodeSchema>;

@@ -372,6 +372,9 @@ function Sites({
                   .filter((part) => part !== null && part !== '')
                   .join(', ') || t('notRecorded')}
               </span>
+              {s.pinNeedsReview ? (
+                <span className="text-warning text-sm">{t('sites.pinNeedsReview')}</span>
+              ) : null}
               {s.lat === null || s.lng === null ? null : (
                 <span className="text-text-subtle text-xs tabular-nums">
                   {t('sites.location', { lat: s.lat.toFixed(5), lng: s.lng.toFixed(5) })}

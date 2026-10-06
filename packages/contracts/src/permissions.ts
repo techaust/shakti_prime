@@ -72,6 +72,9 @@ export const PERMISSION_KEYS = [
   // The file checks before an upload is usable (malware scan, re-encoding, masking): held only by
   // the platform's worker principal, never by a person's role.
   'files.process',
+  // The import worker stopping a job whose last try failed: held only by the platform's worker
+  // principal, never by a person's role.
+  'imports.process',
   // The nightly rescoring of open leads (CRM-06): held only by the platform's worker principal,
   // which reads a lead's scoring facts and writes its score through two definers, nothing more.
   'crm.score.refresh',
@@ -134,6 +137,7 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
  */
 export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'files.process',
+  'imports.process',
   'crm.score.refresh',
   'sales.quote.expire',
 ];
@@ -262,8 +266,9 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'admin.integrations.write': ['all'],
   'admin.flags.write': ['all'],
   'integrations.dlq.replay': ['all'],
-  // Held only by the platform's workers, for every company; the role editor never offers it.
+  // Held only by the platform's workers, for every company; the role editor never offers them.
   'files.process': ['all'],
+  'imports.process': ['all'],
   'crm.score.refresh': ['all'],
   'sales.quote.expire': ['all'],
 };

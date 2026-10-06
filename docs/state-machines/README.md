@@ -19,10 +19,12 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Customer loan | no | 4 | 4 | 1 | [customer-loan.md](customer-loan.md) |
 | Warranty claim | no | 6 | 6 | 7 | [warranty-claim.md](warranty-claim.md) |
 | WhatsApp document filing | no | 5 | 5 | 1 | [document-filing.md](document-filing.md) |
-| File upload | **yes** | 6 | 6 | 0 | [file-upload.md](file-upload.md) |
+| File upload | **yes** | 6 | 7 | 0 | [file-upload.md](file-upload.md) |
 | Expense claim | no | 6 | 6 | 7 | [expense-claim.md](expense-claim.md) |
 | Playbook directive | no | 3 | 4 | 1 | [playbook-directive.md](playbook-directive.md) |
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
+| Agent action | **yes** | 5 | 5 | 0 | [agent-action.md](agent-action.md) |
+| Inbox item | **yes** | 2 | 2 | 0 | [inbox-item.md](inbox-item.md) |
 
 ## Workshop defaults
 

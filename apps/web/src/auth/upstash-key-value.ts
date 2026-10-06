@@ -58,6 +58,15 @@ export function upstashKeyValue(config: UpstashConfig): KeyValue {
         .exec<[unknown, number]>();
       return count;
     },
+    // As `incr`: the key exists with its time to live before the amount is added.
+    incrBy: async (key, amount, ttlSeconds) => {
+      const [, total] = await redis
+        .multi()
+        .set(key, 0, { ex: ttlSeconds, nx: true })
+        .incrby(key, amount)
+        .exec<[unknown, number]>();
+      return total;
+    },
     setIfAbsent: async (key, value, ttlSeconds) => {
       const answer = await redis.set(key, value, { ex: ttlSeconds, nx: true });
       return answer !== null;

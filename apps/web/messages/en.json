@@ -95,7 +95,7 @@
     "quote_kit_tax_missing": "This kit can only be quoted as supply and installation for rooftop or project work. Quote its items one by one instead.",
     "quote_missing": "We couldn't find this quote. It may belong to another company or a colleague's lead.",
     "quote_pdf_mismatch": "This quote already has its document. Refresh the page to see it.",
-    "price_tier_missing": "This price tier is no longer in use. Choose another tier.",
+    "price_tier_missing": "This price tier is not in use. Choose Retail, Dealer or Commercial.",
     "order_needs_accepted_quote": "An order needs a quote the customer has accepted. Only dealers can order without a quote.",
     "credit_limit_missing": "This dealer has no credit limit yet. Ask Accounts to set one, or ask an Executive to release the order.",
     "credit_limit_exceeded": "This order takes the dealer over their credit limit. Collect a payment first, or ask an Executive to release the order.",
@@ -146,7 +146,7 @@
     "expense_claim_transition_not_allowed": "This expense claim can't do that in its current status. Refresh the page to see where it stands.",
     "playbook_directive_transition_not_allowed": "This rule can't do that in its current status. Refresh the page to see where it stands.",
     "tally_voucher_transition_not_allowed": "This Tally entry can't do that in its current status. Refresh the page to see where it stands.",
-    "import_file_empty": "This file is empty. Choose the spreadsheet with your leads and try again.",
+    "import_file_empty": "This file is empty. Choose the spreadsheet you want to add and try again.",
     "import_file_too_large": "This file is too big. Keep it under 10 MB, or split it into smaller files.",
     "import_workbook_too_large": "This Excel file holds more than we can read at once. Split it into smaller files and add them one at a time.",
     "import_file_type": "We can read CSV files and Excel files saved as .xlsx. Save the file as one of these and try again.",
@@ -162,9 +162,8 @@
     "import_template_missing": "This saved column layout is not available. Choose another one, or match the columns again.",
     "import_template_name_taken": "A saved column layout already has this name. Choose a different name.",
     "import_nothing_to_commit": "None of the rows can be added. Correct the file and add it again.",
-    "import_rollback_blocked": "Some leads from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
+    "import_rollback_blocked": "Some records from this import are no longer yours to change, so nothing was undone. Ask an Executive to undo it.",
     "import_store_failed": "We couldn't save this file. Nothing was added. Please try again in a minute.",
-    "import_store_unavailable": "Adding leads from a file is not available yet. Please add the leads one at a time for now.",
     "saved_view_name_taken": "You already have a view with this name on this screen. Choose a different name.",
     "saved_view_limit": "You have saved as many views as this screen can hold. Delete one you no longer use, then save again.",
     "saved_view_gone": "This view is no longer saved. It may have been deleted on another device.",
@@ -225,7 +224,6 @@
     "item_in_kit": "This item is part of a kit that is still sold. Take it out of the kit first, or stop selling the kit.",
     "kit_item_archived": "One of the items is no longer in the catalogue. Remove it from the kit and try again.",
     "pump_curve_not_pump": "Only a pump has a pump curve. Change the item's category to Pump first.",
-    "price_tier_missing": "This price tier is not in use. Choose Retail, Dealer or Commercial.",
     "price_list_start_past": "The start date has passed. Choose today or a later date.",
     "price_list_approved": "This price list is already approved.",
     "price_list_overlap": "Another approved price list for this tier and company starts on the same date. Choose a different start date.",
@@ -244,7 +242,29 @@
     "document_type_unknown": "This kind of document cannot be printed yet.",
     "sizing_item_missing": "This pump is no longer on sale, so its curve cannot be checked. Choose another pump or none.",
     "sizing_pump_type_mismatch": "This pump is not the type chosen for the sizing. Choose a pump of the same type, or change the pump type.",
-    "people_only": "Only a member of the team can do this, not an automated assistant."
+    "people_only": "Only a member of the team can do this, not an automated assistant.",
+    "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
+    "agent_action_unknown": "Agents cannot take this kind of action.",
+    "agent_action_not_open": "This agent cannot take this kind of action.",
+    "agent_proposal_invalid": "The agent’s suggestion was incomplete or did not match the lead it was for, so it was not filed.",
+    "agent_field_not_editable": "That part of the suggestion cannot be changed. Reject it if it is wrong.",
+    "agent_switched_off": "This agent is stopped, so its suggestions cannot be approved now. Reject it, or ask an Executive or General Manager to let the agent run again.",
+    "autonomy_not_earned": "Automatic needs at least 200 decisions of this kind in one company in the last 90 days, with 95 in 100 approved without changes.",
+    "autonomy_automatic_unavailable": "Agents cannot act on their own yet. Choose Suggest or Needs approval.",
+    "agent_suggestion_only": "This suggestion is for you to act on yourself. Open the customer to act on it, or dismiss it.",
+    "agent_needs_decision": "This suggestion needs a decision. Approve it, change it or reject it.",
+    "nothing_to_change": "Choose a setting to change.",
+    "agents_need_all_companies": "Choose All companies at the top to change a setting for the whole group.",
+    "inbox_item_missing": "This suggestion is no longer in your inbox. Someone else may have decided on it.",
+    "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
+    "agent_action_transition_not_allowed": "This suggestion has already been decided.",
+    "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action.",
+    "import_mapping_incomplete": "Some details this kind of file needs are not matched to a column. Match them and try again.",
+    "import_file_not_ready": "The file is still being checked. Wait a moment and choose Read the file again.",
+    "import_file_missing": "We couldn't find this file. Upload it again.",
+    "import_needs_all_companies": "Only an Executive working in all companies can add the PIN code list. Switch to All companies and try again.",
+    "import_companies_out_of_reach": "This file adds customers to companies you are not working in now. Switch to All companies, or to the companies the file names, and try again.",
+    "file_upload_abandoned": "This upload did not finish, so it was cleared. Upload the file again."
   },
   "auth": {
     "signIn": {
@@ -331,7 +351,9 @@
     "quotes": "Quotes",
     "catalogue": "Catalogue",
     "settingsTax": "Tax rates",
-    "adminRoles": "Roles"
+    "adminRoles": "Roles",
+    "inbox": "Agent Inbox",
+    "adminAgents": "Agents"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -366,7 +388,11 @@
     "profileMenu": "Your account",
     "profile": "Your profile",
     "changePassword": "Change password",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "inbox": "Agent Inbox",
+    "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
+    "inboxMore": "99+",
+    "inboxMoreLabel": "Agent Inbox, 100 or more waiting"
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -389,7 +415,9 @@
       "quotes": "See the quotes of your leads, open their documents and send them.",
       "catalogue": "See every item and kit the group sells, with their specifications.",
       "settingsTax": "Keep the GST rates and composite supply splits up to date.",
-      "adminRoles": "Choose what each role can see and do."
+      "adminRoles": "Choose what each role can see and do.",
+      "inbox": "Approve, change or reject what the agents suggest.",
+      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents."
     }
   },
   "profile": {
@@ -1337,7 +1365,16 @@
       "quoteRequote": "Quote made again at today's prices",
       "quoteWithdraw": "Quote withdrawn",
       "quoteExpire": "Quotes past their validity marked as expired",
-      "quotePdfAttach": "Quote document attached"
+      "quotePdfAttach": "Quote document attached",
+      "agentRunRecord": "Agent run recorded",
+      "inboxApprove": "Suggestion approved",
+      "inboxEdit": "Suggestion changed and approved",
+      "inboxReject": "Suggestion rejected",
+      "inboxDismiss": "Suggestion dismissed",
+      "agentConfigSet": "Agent settings changed",
+      "agentKillSwitchSet": "Agent stopped or let run",
+      "importFail": "Import stopped after its last try",
+      "uploadsSweep": "Unfinished uploads cleared"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1543,7 +1580,17 @@
       "lineCount": "Items on the quote",
       "grandTotal": "Total",
       "validUntil": "Valid until",
-      "withdrawnReason": "Why it was withdrawn"
+      "withdrawnReason": "Why it was withdrawn",
+      "agent": "Agent",
+      "actionType": "Kind of action",
+      "autonomy": "Autonomy",
+      "outcome": "How it ended",
+      "edited": "Changed before approving",
+      "dailySpendCap": "Daily spending limit",
+      "enabled": "May run",
+      "linked": "Rows added to a customer already listed",
+      "companies": "Companies the rows name",
+      "kept": "Customers kept because they are in use"
     },
     "values": {
       "percent": "{value}%",
@@ -1748,16 +1795,16 @@
   },
   "imports": {
     "title": "Imports",
-    "intro": "Add many leads at once from a spreadsheet, and see the files added before.",
+    "intro": "Add many leads or customers at once from a spreadsheet, and see the files added before.",
     "add": "New import",
     "caption": "Imports",
-    "empty": "No imports yet. Add a spreadsheet of leads to start.",
+    "empty": "No imports yet. Add a spreadsheet of leads or customers to start.",
     "columns": {
       "file": "File",
       "status": "Status",
       "total": "Rows in file",
       "valid": "Ready to add",
-      "committed": "Leads added",
+      "committed": "Rows added",
       "company": "Company",
       "startedBy": "Started by",
       "started": "Started"
@@ -1781,7 +1828,7 @@
       "upload": "Choose the file",
       "map": "Match the columns",
       "check": "Check the rows",
-      "add": "Add the leads",
+      "add": "Add the rows",
       "status": {
         "done": "(done)",
         "current": "(current step)",
@@ -1790,22 +1837,30 @@
     },
     "upload": {
       "title": "New import",
-      "intro": "Choose a spreadsheet of leads. You match its columns and check every row before anything is added.",
+      "intro": "Choose a spreadsheet of leads or customers. You match its columns and check every row before anything is added.",
       "noCompany": "You can't add imports in the companies you are viewing. Switch company or ask your manager.",
       "company": "Company",
-      "companyHelper": "The leads are added to this company.",
+      "companyHelper": "The rows are added to this company.",
       "choose": "Choose one",
       "kind": "What the file holds",
       "kinds": {
-        "leads": "Leads"
+        "leads": "Leads",
+        "accounts": "Customers",
+        "pin_codes": "PIN code list"
       },
       "file": "Spreadsheet file",
       "fileHelper": "A CSV file or an Excel file saved as .xlsx, up to {megabytes} MB and {rows} rows. Put the column headings in the top row.",
-      "noFile": "Choose the spreadsheet file to add.",
-      "chosen": "{name}, {size}",
       "submit": "Read the file",
       "cancel": "Cancel",
-      "done": "{count, plural, one {We read {shown} row from {file}.} other {We read {shown} rows from {file}.}}"
+      "done": "{count, plural, one {We read {shown} row from {file}.} other {We read {shown} rows from {file}.}}",
+      "kindHelpers": {
+        "leads": "Each row becomes a new lead with its customer.",
+        "accounts": "Each row becomes a customer of this company, or of the company a Company column names. Rows with the same mobile number become one customer.",
+        "pin_codes": "The India Post list of post offices and their PIN codes. It fills in the tehsil and district of every site, for all four companies."
+      },
+      "chooseCompanyFirst": "Choose the company first, then the file.",
+      "checkingLong": "Uploaded. The check is taking a while. Choose Read the file in a moment.",
+      "ready": "Uploaded and checked. Reading the file."
     },
     "job": {
       "title": "Import of {file}",
@@ -1814,7 +1869,7 @@
     },
     "map": {
       "title": "Match the columns",
-      "intro": "Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.",
+      "intro": "{kind, select, leads {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file.} accounts {Tell us which column of your file holds each detail. The customer name and mobile number must come from the file. A Company column, if your file has one, names each customer's company.} other {Tell us which column of your file holds each detail. The PIN code, post office and district must come from the file.}}",
       "template": "Saved column layout",
       "templateNone": "Match the columns myself",
       "templateHelper": "Use a layout you saved from an earlier file.",
@@ -1837,7 +1892,7 @@
     },
     "check": {
       "title": "Check the rows",
-      "intro": "Every row was checked the way a new lead is checked. Only the rows that are ready are added.",
+      "intro": "Every row was checked before anything is added. Only the rows that are ready are added.",
       "mappedIntro": "The columns are matched. Check the rows to see which ones can be added.",
       "check": "Check the rows",
       "counts": {
@@ -1862,7 +1917,9 @@
         "name": "Customer name",
         "phone": "Mobile number",
         "status": "Status",
-        "findings": "What we found"
+        "findings": "What we found",
+        "office": "Post office",
+        "pin": "PIN code"
       },
       "rowState": {
         "pending": "Not checked yet",
@@ -1874,45 +1931,47 @@
       },
       "finding": {
         "field": "{field}: {sentence}",
-        "sameAsRow": "Same mobile number as row {row}. Only the first of them is added.",
+        "sameAsRow": "{kind, select, accounts {{site, select, added {Same mobile number as row {row}. Its company and its site are added to that customer.} same {Same mobile number as row {row}. Its company is added to that customer, who already has this site.} too_many {Same mobile number as row {row}. Its company is added to that customer, but not its site: one customer takes at most {most} sites from a file.} kept {Same mobile number as row {row}. Its company is added to that customer. The customer's sites stay as they are.} other {Same mobile number as row {row}. Its company is added to that customer.}}} pin_codes {Same post office as row {row}. Only the first of them is added.} other {Same mobile number as row {row}. Only the first of them is added.}}",
         "customerByPhone": "Same mobile number as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "customerByNameVillage": "Same name and village as a customer: {name}. Check this before adding, so nobody is entered twice.",
         "customerHiddenByPhone": "Same mobile number as a customer you can't see. Ask your manager before adding.",
-        "customerHiddenByNameVillage": "Same name and village as a customer you can't see. Ask your manager before adding."
+        "customerHiddenByNameVillage": "Same name and village as a customer you can't see. Ask your manager before adding.",
+        "linked": "{site, select, kept {Same mobile number as {name}, already in your customer list. This row adds its company to that customer instead of making a new one. The customer's sites stay as they are.} other {Same mobile number as {name}, already in your customer list. This row adds its company to that customer instead of making a new one.}}",
+        "linkedUnnamed": "{site, select, kept {Same mobile number as a customer already in your list. This row adds its company to that customer instead of making a new one. The customer's sites stay as they are.} other {Same mobile number as a customer already in your list. This row adds its company to that customer instead of making a new one.}}"
       },
       "empty": "No rows to show here.",
       "notRecorded": "Not in the file",
       "remap": "Change the columns",
-      "commit": "{count, plural, one {Add {shown} lead} other {Add {shown} leads}}",
+      "commit": "{kind, select, leads {{count, plural, one {Add {shown} lead} other {Add {shown} leads}}} accounts {{count, plural, one {Add {shown} customer} other {Add {shown} customers}}} other {{count, plural, one {Add {shown} office} other {Add {shown} offices}}}}",
       "commitHelper": "{count, plural, one {{shown} row that needs correcting or is repeated is left out.} other {{shown} rows that need correcting or are repeated are left out.}}"
     },
     "progress": {
-      "title": "Adding the leads",
-      "count": "{done} of {total} leads added",
-      "label": "Leads added so far",
+      "title": "Adding the rows",
+      "count": "{done} of {total} rows added",
+      "label": "Rows added so far",
       "intro": "You can leave this page. Adding carries on, and the list of imports shows where it stands.",
       "stalled": "Adding has not moved for a while. Carry on from where it stopped.",
       "resume": "Carry on adding"
     },
     "failed": {
       "title": "Adding stopped",
-      "intro": "{done} of {total} leads were added. A row among ready rows {from} to {to} could not be added, so those rows were taken back.",
+      "intro": "{done} of {total} rows were added. A row among ready rows {from} to {to} could not be added, so those rows were taken back.",
       "next": "Undo the import, correct the marked row in your file and add the file again."
     },
     "done": {
-      "title": "Leads added",
-      "intro": "{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}",
+      "title": "{kind, select, leads {Leads added} accounts {Customers added} other {PIN codes added}}",
+      "intro": "{kind, select, leads {{count, plural, one {{shown} lead was added from this file.} other {{shown} leads were added from this file.}}} accounts {{count, plural, one {{shown} customer was added from this file, or matched to a customer already in your list.} other {{shown} customers were added from this file, or matched to customers already in your list.}}} other {{count, plural, one {{shown} post office was added or corrected from this file.} other {{shown} post offices were added or corrected from this file.}}}}",
       "rolledBackTitle": "Import undone",
-      "rolledBackIntro": "The leads from this file were taken back. The customers stay in your customer list.",
-      "viewLeads": "See the leads",
+      "rolledBackIntro": "{kind, select, leads {The leads from this file were taken back. The customers stay in your customer list.} accounts {The customers from this file were taken back, except any who now have a lead, a recorded consent or another company. Customers it matched to ones already in your list keep the companies it added.} other {The post offices this file added were taken out of the PIN code list. The corrections it made stay.}}",
       "another": "Start another import",
-      "rollback": "Undo this import"
+      "rollback": "Undo this import",
+      "viewAdded": "{kind, select, accounts {See the customers} other {See the leads}}"
     },
     "rollbackDialog": {
       "title": "Undo this import?",
-      "intro": "{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.",
+      "intro": "{kind, select, leads {{count, plural, one {This takes back the {shown} lead this file added.} other {This takes back the {shown} leads this file added.}} The customers stay in your customer list, because other leads may belong to them. You can't reverse this.} accounts {{count, plural, one {This takes back the {shown} customer this file added.} other {This takes back the {shown} customers this file added.}} A customer who now has a lead, a recorded consent or another company stays, and customers it matched to ones already in your list keep the companies it added. You can't reverse this.} other {This takes the post offices this file added out of the PIN code list. The corrections it made to offices already listed stay. You can't reverse this.}}",
       "submit": "Undo import",
-      "done": "The leads from {file} were taken back."
+      "done": "{kind, select, leads {The leads from {file} were taken back.} accounts {The customers from {file} were taken back.} other {The post offices from {file} were taken out.}}"
     },
     "fields": {
       "contactName": "Customer name",
@@ -1925,7 +1984,12 @@
       "pin": "PIN code",
       "sourceCode": "Lead source",
       "pipelineKey": "Pipeline",
-      "row": "Whole row"
+      "row": "Whole row",
+      "company": "Company",
+      "officeName": "Post office",
+      "taluk": "Tehsil",
+      "district": "District",
+      "state": "State"
     },
     "rowErrors": {
       "required": "This is missing. Fill it in, or choose a value for every row.",
@@ -1935,7 +1999,9 @@
       "pipeline_unknown": "This pipeline is not set up for this company. Use one from the list.",
       "source_unknown": "This lead source is not in the list. Use one from the list or leave it blank.",
       "commit_failed": "This row could not be added, so the rows added with it were taken back. Undo the import, correct the row in your file and add it again.",
-      "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them."
+      "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
+      "company_unknown": "We don't recognise this company. Use the company's short code or name, or leave it blank for this company.",
+      "state_unknown": "We don't recognise this state. Use the state's name or its two-digit GST code."
     }
   },
   "integrations": {
@@ -2393,7 +2459,8 @@
       "add": "Add site",
       "edit": "Edit site",
       "empty": "No sites recorded yet.",
-      "location": "Map point {lat}, {lng}"
+      "location": "Map point {lat}, {lng}",
+      "pinNeedsReview": "This PIN is not in the PIN code list. Check it, and correct it if it is wrong."
     },
     "leads": {
       "sectionTitle": "Leads",
@@ -2552,13 +2619,17 @@
       "jpeg": "JPEG picture",
       "png": "PNG picture",
       "webp": "WebP picture",
-      "pdf": "PDF document"
+      "pdf": "PDF document",
+      "csv": "CSV file",
+      "xlsx": "Excel workbook"
     },
     "shortTypes": {
       "jpeg": "JPEG",
       "png": "PNG",
       "webp": "WebP",
-      "pdf": "PDF"
+      "pdf": "PDF",
+      "csv": "CSV",
+      "xlsx": "XLSX"
     },
     "size": {
       "kb": "{value} KB",
@@ -2571,7 +2642,8 @@
     "sanitising": {
       "re_encoded": "Picture saved again without hidden details",
       "pdf_checked": "PDF checked for scripts and attached files",
-      "masked": "Numbers on the photo covered"
+      "masked": "Numbers on the photo covered",
+      "sheet_checked": "Spreadsheet checked before reading"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -3026,7 +3098,8 @@
       "integrations_dlq_replay": "Send failed messages to other systems again",
       "files_process": "Check uploaded files before they are used",
       "crm_score_refresh": "Bring lead scores up to date each night",
-      "sales_quote_expire": "Mark quotes past their validity as expired each day"
+      "sales_quote_expire": "Mark quotes past their validity as expired each day",
+      "imports_process": "Stop an import that could not finish"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3156,5 +3229,145 @@
     "advisory": {
       "pipe_velocity_high": "The water runs fast in this pipe. A wider pipe would need less height and wear less, though this size still works."
     }
+  },
+  "agents": {
+    "names": {
+      "triage": "Intake and Triage",
+      "concierge": "WhatsApp Concierge",
+      "copilot": "Caller Co-pilot",
+      "sizing": "Sizing and Quote",
+      "orchestrator": "Project Orchestrator",
+      "chief": "Chief of Staff"
+    },
+    "actionTypes": {
+      "taskCreate": "Add a follow-up task"
+    },
+    "fields": {
+      "dueAt": "Due",
+      "title": "Note on the task"
+    },
+    "autonomy": {
+      "suggest": "Suggest",
+      "needs_approval": "Needs approval",
+      "automatic": "Automatic"
+    },
+    "outcome": {
+      "proposed": "Suggested",
+      "acted": "Acted on its own",
+      "nothing_to_do": "Nothing to do",
+      "switched_off": "Stopped by a switch",
+      "cap_reached": "Daily spending limit reached",
+      "unavailable": "AI service not available",
+      "failed": "Did not finish"
+    },
+    "actionState": {
+      "proposed": "Waiting for a decision",
+      "executed": "Done by the agent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "dismissed": "Dismissed"
+    },
+    "inbox": {
+      "title": "Agent Inbox",
+      "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
+      "caption": "Suggestions waiting for a decision",
+      "empty": "Nothing is waiting for you.",
+      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself.",
+      "actYourself": "For you to act on yourself. Nothing is carried out from here.",
+      "summary": {
+        "assigneeId": "Task for",
+        "kind": "Kind of task"
+      },
+      "someone": "Someone you cannot see",
+      "dismiss": "Dismiss",
+      "dismissed": "Dismissed. Nothing was changed.",
+      "suggests": "{agent} suggests",
+      "forCustomer": "For {customer}",
+      "forUnknown": "For a lead you cannot open",
+      "received": "Suggested",
+      "companyLine": "In {company}",
+      "openCustomer": "Open customer",
+      "approve": "Approve",
+      "edit": "Edit",
+      "reject": "Reject",
+      "approved": "Approved. The suggestion has been carried out.",
+      "rejected": "Rejected. Nothing was changed.",
+      "loadMore": "Show more",
+      "editTitle": "Change before approving",
+      "editIntro": "Change what you need. Approving carries it out with your changes.",
+      "submit": "Approve with changes",
+      "noValue": "Not set",
+      "dueHelper": "Date and time in India.",
+      "titleHelper": "Up to {max} characters. Leave it empty for no note."
+    },
+    "admin": {
+      "title": "Agents",
+      "intro": "Choose how far each agent may go on its own and how much it may spend a day, and stop any agent at once.",
+      "levelGroup": "These settings apply to every company. Choose a company at the top to set one company apart.",
+      "levelCompany": "These settings apply to {company} only. Choose All companies at the top to change them for the whole group.",
+      "notConnected": "The AI service is not connected yet, so agents make no calls. These settings apply once it is.",
+      "allHeading": "All agents",
+      "allRunning": "All agents may run.",
+      "allStopped": "All agents are stopped.",
+      "stopAll": "Stop all agents",
+      "runAll": "Let all agents run",
+      "caption": "Agents and their settings",
+      "columns": {
+        "agent": "Agent",
+        "status": "Status",
+        "autonomy": "Autonomy",
+        "cap": "Daily spending limit",
+        "spent": "Spent today",
+        "runs": "Runs today",
+        "actions": "Actions"
+      },
+      "running": "Running",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "run": "Let it run",
+      "stopLabel": "Stop {agent}",
+      "runLabel": "Let {agent} run",
+      "autonomyLabel": "Autonomy of {agent}",
+      "inherit": {
+        "action_company": "As set for this action here: {autonomy}",
+        "action_group": "As set for this action for the group: {autonomy}",
+        "agent_company": "As set for the agent here: {autonomy}",
+        "agent_group": "As set for the agent for the group: {autonomy}",
+        "default": "No setting: {autonomy}"
+      },
+      "appliesNow": "Applies now: {autonomy}, {source}.",
+      "source": {
+        "action_company": "set for this action in this company",
+        "action_group": "set for this action for the group",
+        "agent_company": "the agent’s setting in this company",
+        "agent_group": "the agent’s setting for the group",
+        "default": "as no setting is made"
+      },
+      "groupCapToo": "The group’s limit of {amount} a day applies as well.",
+      "groupCapOnly": "No limit for this company. The group’s limit of {amount} a day applies.",
+      "capLabel": "Daily spending limit of {agent}, in rupees",
+      "capNone": "No limit set, so the agent makes no calls.",
+      "capInvalid": "Enter the amount in rupees, with at most two digits after the point.",
+      "saveCap": "Save limit",
+      "capSaved": "The spending limit of {agent} is saved.",
+      "autonomySaved": "The autonomy of {agent} is saved.",
+      "agentStopped": "{agent} is stopped.",
+      "agentRunning": "{agent} may run again.",
+      "allStoppedToast": "All agents are stopped.",
+      "allRunningToast": "All agents may run again.",
+      "actionTypesHeading": "What {agent} may do",
+      "actionTypeLabel": "Autonomy of {agent} for {action}",
+      "decisions": "In the last 90 days, {approved} of {decided} decisions approved without changes",
+      "automaticUnavailable": "Automatic is not available yet: agents suggest, or wait for approval, until a later phase.",
+      "automaticHeld": "Automatic is set here, and works as Needs approval until Automatic is available.",
+      "noActionTypes": "This agent has nothing to do yet.",
+      "readOnly": "Only an Executive changes autonomy and spending limits."
+    }
+  },
+  "pinLookup": {
+    "tehsilAndDistrict": "Tehsil {tehsil}, district {district}.",
+    "district": "District {district}.",
+    "known": "This PIN is in the PIN code list.",
+    "unknown": "This PIN is not in the PIN code list. The site is saved and marked for someone to check."
   }
 }

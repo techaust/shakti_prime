@@ -19,7 +19,14 @@ import {
   type UploadResult,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react';
 import {
   addNote,
   archiveTag,
@@ -49,6 +56,7 @@ import type { UploadLimitView } from '../companies/branding-dialog';
 import { sendFile } from '../files/send-file';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
+import { LocalityOptions, PinHint, usePinLookup } from '../leads/pin-lookup';
 import { useCommand, useQuery } from '../screens/use-command';
 
 /** Which dialog Account 360 shows, with what it is about. */
@@ -396,6 +404,7 @@ function SiteForm({ view, onDone, onCancel, siteId }: FormProps & { siteId?: str
   const fields = ['type', 'address', 'village', 'tehsil', 'district', 'pin', 'stateCode'];
   const { fieldError, formFailure } = useFieldFailure(failure, [...fields, 'location']);
   const site = siteId === undefined ? undefined : view.sites.find((s) => s.id === siteId);
+  const { setPin, found } = usePinLookup(site?.pin ?? '');
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -422,8 +431,18 @@ function SiteForm({ view, onDone, onCancel, siteId }: FormProps & { siteId?: str
     );
   }
 
-  const text = (name: string, value: string | null | undefined, extra: object = {}) => (
-    <Field id={`site-${name}`} label={t(name as 'village')} error={fieldError(name)}>
+  const text = (
+    name: string,
+    value: string | null | undefined,
+    extra: object = {},
+    helper?: ReactNode,
+  ) => (
+    <Field
+      id={`site-${name}`}
+      label={t(name as 'village')}
+      helper={helper}
+      error={fieldError(name)}
+    >
       <Input name={name} defaultValue={value ?? ''} maxLength={120} {...extra} />
     </Field>
   );
@@ -444,10 +463,22 @@ function SiteForm({ view, onDone, onCancel, siteId }: FormProps & { siteId?: str
         <Textarea name="address" defaultValue={site?.address ?? ''} maxLength={300} rows={2} />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {text('village', site?.village)}
+        {text('village', site?.village, { list: 'site-village-offices' })}
         {text('tehsil', site?.tehsil)}
         {text('district', site?.district)}
-        {text('pin', site?.pin, { inputMode: 'numeric', maxLength: 6 })}
+        {text(
+          'pin',
+          site?.pin,
+          {
+            inputMode: 'numeric',
+            maxLength: 6,
+            onChange: (e: ChangeEvent<HTMLInputElement>) => {
+              setPin(e.currentTarget.value);
+            },
+          },
+          found === undefined ? undefined : <PinHint found={found} />,
+        )}
+        <LocalityOptions id="site-village-offices" found={found} />
         {text('stateCode', site?.stateCode, { inputMode: 'numeric', maxLength: 2 })}
       </div>
       <fieldset className="flex flex-col gap-2">

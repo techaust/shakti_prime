@@ -551,6 +551,7 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       tehsil: s.tehsil,
       district: s.district,
       pin: s.pin,
+      pinNeedsReview: s.pinNeedsReview,
       stateCode: s.stateCode,
       lat: s.lat === null ? null : Number(s.lat),
       lng: s.lng === null ? null : Number(s.lng),

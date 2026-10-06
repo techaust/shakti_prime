@@ -76,6 +76,19 @@ function grantsOf(role: AgentRoleKey | SystemRoleKey): readonly PermissionGrant[
 const INPUTS: Record<string, unknown> = {
   // A customer's price tier decides every price they are quoted (PRICE-1).
   'crm.account.tier.set': { entityId: 1, accountId: newId(), tierId: null },
+  // The human controls of the agents (SECURITY §3.3): no agent decides on its own suggestions,
+  // changes its autonomy or stops agents.
+  'agents.config.set': {
+    agent: 'agent:copilot',
+    actionType: 'crm.task.create',
+    entityId: 1,
+    autonomy: 'needs_approval',
+  },
+  'agents.inbox.approve': { entityId: 1, itemId: newId() },
+  'agents.inbox.edit': { entityId: 1, itemId: newId(), changes: { title: 'Refused edit' } },
+  'agents.inbox.reject': { entityId: 1, itemId: newId() },
+  'agents.inbox.dismiss': { entityId: 1, itemId: newId() },
+  'agents.killswitch.set': { agent: null, entityId: 1, enabled: true },
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',
     grants: [{ permission: 'crm.lead.read', scope: 'all' }],
@@ -198,6 +211,17 @@ const PEOPLE_ONLY: AnyCommand[] = Object.values(commands as Record<string, AnyCo
 
 /** A valid input for each command for people only, so the refusal comes from the guard. */
 const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
+  // The Agent Inbox and agent settings: a person decides, never an agent (SECURITY §3.3).
+  ...Object.fromEntries(
+    [
+      'agents.config.set',
+      'agents.inbox.approve',
+      'agents.inbox.dismiss',
+      'agents.inbox.edit',
+      'agents.inbox.reject',
+      'agents.killswitch.set',
+    ].map((name) => [name, INPUTS[name]]),
+  ),
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
   'crm.tag.create': { entityId: 1, name: 'Refused tag' },
   'crm.tag.archive': { tagId: newId() },

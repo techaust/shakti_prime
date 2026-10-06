@@ -151,6 +151,7 @@ describe('publishOutbox and the outbox alerts (docs/design/phase1.md §5.2)', ()
       set: () => Promise.reject(new Error('down')),
       del: () => Promise.reject(new Error('down')),
       incr: () => Promise.reject(new Error('down')),
+      incrBy: () => Promise.reject(new Error('down')),
       setIfAbsent: () => Promise.reject(new Error('down')),
       raiseTo: () => Promise.reject(new Error('down')),
     };

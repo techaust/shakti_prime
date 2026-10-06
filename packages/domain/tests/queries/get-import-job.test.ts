@@ -1,8 +1,12 @@
 import { newId, type ImportJobDto, type Principal } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { asPrincipal, closeDb, createTestPrincipal } from '@shakti/db/testing';
+import {
+  asPrincipal,
+  closeDb,
+  createReadyImportFile,
+  createTestPrincipal,
+} from '@shakti/db/testing';
 import { eq } from 'drizzle-orm';
-import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
@@ -23,6 +27,10 @@ function phone(): string {
 async function uploadedJob(principal: Principal, entityId: number): Promise<ImportJobDto> {
   const bytes = new TextEncoder().encode(`Name,Mobile\nGomti,${phone()}\n`);
   const parsed = await parseImportFile(bytes);
+  const fileId = await createReadyImportFile(entityId, principal.id, {
+    name: `get-job-${newId()}.csv`,
+    size: bytes.length,
+  });
   return asPrincipal(principal, (context) =>
     runCommand(
       createImportJob,
@@ -30,14 +38,7 @@ async function uploadedJob(principal: Principal, entityId: number): Promise<Impo
       {
         entityId,
         kind: 'leads',
-        file: {
-          name: `get-job-${newId()}.csv`,
-          contentType: 'text/csv',
-          size: bytes.length,
-          sha256: createHash('sha256').update(bytes).digest('hex'),
-          bucket: 'memory',
-          key: `imports/${String(entityId)}/${newId()}`,
-        },
+        fileId,
         format: parsed.format,
         columns: parsed.columns,
         rows: parsed.rows,

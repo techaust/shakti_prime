@@ -1,0 +1,101 @@
+{
+  "ranAt": "2026-10-04T16:08:08.986Z",
+  "database": "local Docker Postgres 17 on Windows (127.0.0.1:54341), in process, one connection",
+  "node": "v24.19.0",
+  "roundTripMs": 4.68,
+  "batchSize": 500,
+  "budgetSeconds": 1500,
+  "rows": 50000,
+  "format": "xlsx",
+  "make": {
+    "seconds": 7.38
+  },
+  "parse": {
+    "seconds": 8.02,
+    "rows": 50000,
+    "fileMB": 1.2,
+    "rssBeforeMB": 122,
+    "rssPeakMB": 235.6,
+    "rssGrowthMB": 113.6,
+    "heapBeforeMB": 31.9,
+    "heapPeakMB": 95.6,
+    "heapGrowthMB": 63.7,
+    "rowsTextMB": 3.3,
+    "collectedBeforeRead": true
+  },
+  "create": {
+    "seconds": 62.1,
+    "rowsPerSecond": 805
+  },
+  "map": {
+    "seconds": 0.9
+  },
+  "preview": {
+    "seconds": 53.88,
+    "rowsPerSecond": 928,
+    "validRows": 50000,
+    "invalidRows": 0,
+    "skippedRows": 0
+  },
+  "jobId": "01a107ac-7579-7319-b291-286b7e7b929a",
+  "commit": {
+    "seconds": 1264.89,
+    "committedRows": 50000,
+    "state": "committed",
+    "batches": 118,
+    "rowsPerSecond": 39.5,
+    "msPerRow": 25,
+    "batchSecondsMedian": 8.07,
+    "batchSecondsMax": 47.69,
+    "projectedSecondsFor50k": 1265,
+    "rollback": {
+      "seconds": 50.9,
+      "rowsPerSecond": 982,
+      "state": "rolled_back"
+    }
+  },
+  "dedupe": {
+    "liveSitesInCompany": 59854,
+    "secondFile": {
+      "rows": 5000,
+      "format": "xlsx",
+      "make": {
+        "seconds": 0.85
+      },
+      "parse": {
+        "seconds": 1.07,
+        "rows": 5000,
+        "fileMB": 0.1,
+        "rssBeforeMB": 205.2,
+        "rssPeakMB": 212.6,
+        "rssGrowthMB": 7.4,
+        "heapBeforeMB": 41.3,
+        "heapPeakMB": 96.4,
+        "heapGrowthMB": 55.1,
+        "rowsTextMB": 0.3,
+        "collectedBeforeRead": true
+      },
+      "create": {
+        "seconds": 5.48,
+        "rowsPerSecond": 912
+      },
+      "map": {
+        "seconds": 0.18
+      },
+      "preview": {
+        "seconds": 22.41,
+        "rowsPerSecond": 223,
+        "validRows": 5000,
+        "invalidRows": 0,
+        "skippedRows": 0
+      }
+    },
+    "rowsSuggestedByNameAndVillage": 5000,
+    "explainedPairs": 1000,
+    "planExecutionMs": 2568.901,
+    "planUsesIndexes": {
+      "village": true,
+      "name": false
+    }
+  }
+}

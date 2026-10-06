@@ -4,13 +4,16 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ## Contents
 
-- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
+- [Phase 1](#phase-1): [status documents](#phase-1-status-documents) · [wave 3](#phase-1-wave-3) · [wave 2](#phase-1-wave-2) · [wave 1](#phase-1-wave-1) · [set-up](#phase-1-set-up)
 - [Phase 0](#phase-0): [hosted environments and the close](#phase-0-hosted-environments-and-the-close) · [gap-closing waves](#phase-0-gap-closing-waves) · [completeness pass and tooling](#phase-0-completeness-pass-and-tooling) · [weeks 4 to 8](#phase-0-weeks-4-to-8) · [weeks 1 to 3](#phase-0-weeks-1-to-3) · [production-readiness audit](#phase-0-production-readiness-audit) · [before pull requests](#phase-0-before-pull-requests)
 
 ## Phase 1
 
 ### Phase 1 status documents
 
+- **#110** (05-10-2026) No Docker on the PC: every database, suite, integration run and screenshot run in cloud sessions, a failed cloud step run again in a new cloud session; `CLAUDE.md`, hybrid, the start-session skill and DECISIONS.
+- **#106** (05-10-2026) Going hybrid recorded: the cloud environment's set-up in hybrid, P2b and AI0's progress, STATUS through 0106, CHANGELOG lines for #104 and #105.
+- **#104** (05-10-2026) Phase 1 status after P4, C4 and C3: the workers principal's platform-only rule in `CLAUDE.md`, the session's owner decisions, the integration lessons of the 8 GB PC, D1's run file.
 - **#96** (04-10-2026) The second, strict documentation audit fixed, and work split between Claude Code cloud sessions and the PC: `docs/runbooks/hybrid.md`, the cloud setup script and session hook, run notes in `docs/runs/phase1/`, the hosted password rotation through the migrate workflow, generators that take their facts from the code (state machines, ERD, events with meaning and emitters), PRD criteria for the non-functional requirements, the client packs with needed-by dates, a sign-off record and a progress page for the client.
 - **#95** (04-10-2026) The project's know-how in the repository: the integration scripts in `tools/integration/` (Git Bash and Linux), the slice-integration and accounts runbooks, the skills `start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command` and `add-table`, the agents `slice-builder` and `slice-reviewer`, the pull-request template; the audit kept as `docs/reviews/2026-09-audit.md`.
 - **#94** (04-10-2026) CHANGELOG lines for #91 to #93 and the status after them.
@@ -21,8 +24,37 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 - **#86** (03-10-2026) Phase 1 status at 03-10-2026.
 - **#83** (03-10-2026) Phase 1 progress recorded in `CLAUDE.md`.
 
+### Phase 1 wave 3
+
+- **#113** (06-10-2026) The journeys' server stops with the runner on Linux: the Playwright server and `e2e:snap` start `next start` from the script's PATH, and `e2e:snap` stops the server's whole process group.
+- **#112** (05-10-2026) `tools/integration/lib.sh` puts Node 24 ahead of the cloud image's Node 22 in a cloud session.
+- **#111** (05-10-2026) Cloud sessions: Node 24 first on PATH through `CLAUDE_ENV_FILE`, pnpm 12 installed with npm (corepack cannot run pnpm 12's `.mjs` launcher), the versions printed by the session hook.
+- **#109** (05-10-2026) The cloud environment's fixes from its first sessions: `tools/integration/cloud-setup-env.sh` for the environment's set-up box, the default package-manager list, the journeys' Chromium installed by the session hook, and builders invoking the skills their brief names before writing code.
+- **#108** (05-10-2026) AI0 agent runtime and the Agent Inbox. Migrations 0107 and 0108; dev and staging migrated through 0108.
+  - The provider wrapper: each call names its agent and purpose, masked text, a timeout, bounded retries, a circuit breaker and a per-agent daily spend cap in paise; Claude and Voyage, and `integration_unavailable` without their keys.
+  - `agent_configs`, `agent_runs`, `agent_actions`, `agent_evals` and `inbox_items` with forced, fail-closed RLS; the Inbox commands for people only, `agents.config.set` (no Automatic in Phase 1), `agents.killswitch.set` and `agents.run.record`.
+  - The Agent Inbox at `/inbox` with its top-bar count, and Admin › Agents with each agent's switch, autonomy, daily limit and today's spend.
+- **#107** (05-10-2026) Cloud-first: taking `main`, the integration run and the Linux baselines move to cloud sessions; `integrate.sh` runs in parts through `INTEGRATE_STEPS`; the local database counts as ready only after five queries in a row succeed.
+
 ### Phase 1 wave 2
 
+- **#105** (05-10-2026) P2b imports upgrade. Migrations 0101 to 0106; dev and staging migrated through 0106.
+  - Import files on the pre-signed upload (CSV or `.xlsx`, 10 MB) read by a streaming workbook reader behind a zip guard; one deadline per batch for the set-based try, then a row-by-row slice; `imports.job.fail` on the last retry through the worker's `imports.process`.
+  - The customers kind (one customer per mobile number; a number the importer sees links to that customer, owner 05-10-2026) and the PIN code list kind (an Executive in every company), each with preview, commit and rollback; a rollback keeps customers now in use (`app.import_accounts_in_use()`).
+  - `pin_codes` with the site trigger that fills tehsil and district and flags an unknown PIN; the PIN lookup on the lead form and the site dialog; the hourly sweep of abandoned uploads (`files.upload.sweep`); stored name and village keys for the dedupe.
+- **#103** (05-10-2026) C3 pipelines, scoring and referrals. Migrations 0096 to 0100; dev and staging migrated through 0100.
+  - The permission `crm.config.write` and Settings › Pipelines: pipelines and stages with exit rules, call outcomes per group or company and business line, lead score rules.
+  - The pure `scoreLead()`, the Score column, `crm.lead.rescore`, `crm.score_rule.set`, and the nightly rescore as `system:workers` through the platform-only `crm.score.refresh` and the definers `app.lead_score_facts()` and `app.write_lead_scores()`; score changes leave a lead's last change alone.
+  - Referral partners and commission rules, referral codes on the lead and walk-in forms, the walk-in form `/leads/walk-in`; lead creation and imports apply attribution and scoring; `FOR SHARE` on first and target stages (`app.share_lock_stage()`).
+- **#102** (05-10-2026) Dependabot: the development dependency group, 7 updates.
+- **#101** (05-10-2026) Dependabot: the production dependency group, 13 updates.
+- **#100** (05-10-2026) C4 sizing. Migrations 0092 to 0095; dev and staging migrated through 0095.
+  - Pure calculators in `packages/domain/src/sizing/` (head, pump power, solar array, rooftop, duty point, DCR and sanctioned-load rules) with the engineering defaults for the engineering head to confirm.
+  - `sizings` and `crm.sizing.record` (people only, ADR 0021), `latestSizing`, `quoteSizingFacts()` for S1; the sizing panel in Account 360; the `sizing_recorded` timeline row; an out-of-bounds sizing opens one `review` task for the lead's team lead, never its recorder (`app.open_sizing_review()`).
+- **#99** (05-10-2026) P4 print and letterhead. Migrations 0090 and 0091; dev and staging migrated through 0091.
+  - A company's bank account sealed in `entities.bank_json`, read in clear only through `app.entity_bank_envelope()`; the audit keeps the last four digits.
+  - The render worker `/api/v1/workers/pdf/render` (`print.document.requested` sent as a `PdfRenderJob`), the document-type registry, `files.document.record`, and the first document: a company's proof page from Settings › Companies.
+  - Static Inter 4.1 (Regular, Medium, SemiBold) for print; Chromium traced at its real path in pnpm's store for Vercel.
 - **#89** (04-10-2026) C2 customer timeline. Migrations 0075 to 0089; dev and staging migrated through 0089.
   - `activities` partitioned by month in the closed schema `crm_partitions`, with the pg_cron job `activities-partitions` and `ctx.activity()`.
   - Tasks (the `task` state machine; `crm.task.create`, `.complete`, `.reschedule`, `.cancel`), tags (`crm.tag.create`, `.archive`, `crm.lead.tag`, `.untag`), `crm.note.add`, customer, contact and site edits (`crm.account.update`, `crm.contact.update`, `crm.site.upsert`), consents with proof through the uploads (`crm.consent.record`, `.withdraw`).

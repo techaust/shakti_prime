@@ -11,7 +11,7 @@ import {
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
-// `quotes`, `quote_lines` and `quote_versions` (docs/DATABASE.md §6.4, migration 0102): children of
+// `quotes`, `quote_lines` and `quote_versions` (docs/DATABASE.md §6.4, migration 0110): children of
 // the lead, read with it; made with sales.quote.create over the lead's owner and team, as the
 // caller; lines written only in the transaction that made their quote; then only the state and
 // the withdrawal reason change; lines and versions are append-only. The expiry and the printer
@@ -326,7 +326,7 @@ describe('the expiry and the printer reach quotes only through their definers', 
   });
 });
 
-describe('a quote’s document (0103)', () => {
+describe('a quote’s document (0111)', () => {
   it('is read with its quote: its maker, the team lead and the GM, and nobody who cannot read the quote', async () => {
     const quoteId = await quoteOf('a', a);
     const fileId = newId();
@@ -370,7 +370,7 @@ describe('a quote’s document (0103)', () => {
   });
 });
 
-describe('the ⌘K candidates (0103)', () => {
+describe('the ⌘K candidates (0111)', () => {
   const ids = async (who: Principal, text: string) => {
     const rows = await asPrincipal(who, ({ tx }) =>
       tx.execute(sql`select app.quote_search_ids(${text}, 200) as id`),
