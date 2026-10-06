@@ -173,12 +173,30 @@ grant select on knowledge_chunks to app_user, app_reader;
 -- 5. A vault upload of a company of the request is read with a vault file the caller reads (by
 --    its sensitivity), or by its uploader while they hold knowledge.vault.write, so they can finish
 --    their upload and add it. Policies of one command are joined with OR, so files_read is
---    unchanged for every other file.
+--    unchanged for every other file. The vault file is looked up by a definer that applies
+--    knowledge_files_read itself: a policy on files that read knowledge_files under its own policy,
+--    whose insert check reads files, would recurse.
+create or replace function app.vault_upload_readable(p_file_id uuid) returns boolean
+  language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.knowledge_files kf
+     where kf.file_id = p_file_id
+       and (kf.entity_id = any (app.entity_ids())
+         or (kf.entity_id is null and pg_catalog.cardinality(app.entity_ids()) > 0))
+       and ((kf.sensitivity = 'staff_ai_ok' and app.has_perm('knowledge.vault.read.staff:all'))
+         or (kf.sensitivity = 'management' and app.has_perm('knowledge.vault.read.management:all'))
+         or (kf.sensitivity = 'exec_only' and app.has_perm('knowledge.vault.read.exec:all'))))
+$$;
+--> statement-breakpoint
+revoke execute on function app.vault_upload_readable(uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.vault_upload_readable(uuid) to app_user, app_reader;
+--> statement-breakpoint
 create policy files_knowledge_read on files for select to app_user, app_reader using (
   purpose = 'knowledge'
   and entity_id = any ((select app.entity_ids())::int[])
   and ((created_by = (select app.user_id()) and (select app.has_perm('knowledge.vault.write:all')))
-    or exists (select 1 from knowledge_files kf where kf.file_id = files.id)));
+    or app.vault_upload_readable(id)));
 --> statement-breakpoint
 
 -- 6. The index job's definers. Each needs knowledge.index (system:workers alone, SECURITY §3.3) and

@@ -435,6 +435,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
       'app.user_is_active(uuid)',
+      // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0118).
+      'app.vault_upload_readable(uuid)',
     ]);
   });
 

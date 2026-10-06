@@ -105,8 +105,26 @@ describe('files.upload.begin', () => {
 
   it('never opens a purpose no request may upload', async () => {
     await expect(
-      begin(executive, { purpose: 'knowledge', contentType: 'application/pdf' }),
+      begin(executive, { purpose: 'job_photo', contentType: 'image/jpeg' }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('opens a vault upload to knowledge.vault.write, as a PDF, a photo, a Word file or a workbook', async () => {
+    const word = await begin(executive, {
+      purpose: 'knowledge',
+      name: 'Pump care.docx',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    expect(word.key).toMatch(/^1\/knowledge\/[0-9a-f-]+\.docx$/);
+    await expect(
+      begin(principalFor('tele_caller_cc', [1]), {
+        purpose: 'knowledge',
+        contentType: 'application/pdf',
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      begin(executive, { purpose: 'knowledge', contentType: 'text/csv' }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
   });
 
   it('takes an import file only as a spreadsheet, and a spreadsheet only as an import file', async () => {

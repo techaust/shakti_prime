@@ -65,8 +65,13 @@ let worker: Principal;
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'shakti-upload-'));
   executive = await createTestPrincipal('executive', [1, 2]);
+  // The worker principal's grants for the file checks: a vault upload's checks also look for the
+  // vault files waiting on it (knowledge.index, docs/design/phase1.md §8.4).
   worker = await createTestPrincipal('executive', ALL_ENTITY_IDS, {
-    permissions: [{ key: 'files.process', scope: 'all' }],
+    permissions: [
+      { key: 'files.process', scope: 'all' },
+      { key: 'knowledge.index', scope: 'all' },
+    ],
   });
 });
 
@@ -404,7 +409,7 @@ describe('the file checks', () => {
   });
 
   describe('for a vault photo', () => {
-    /** A vault file the worker recorded (no person may upload one until K1). */
+    /** A vault photo the worker recorded, as a vault upload's checks find it. */
     async function vaultPhoto(store: FileStore): Promise<string> {
       const bytes = await png();
       const id = newId();
