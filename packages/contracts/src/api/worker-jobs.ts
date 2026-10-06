@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { DeliveredEvent, EventTypeSchema } from '../events/catalogue';
 import { PdfDocumentTypeSchema } from './print-documents';
 import { EntityIdSchema, IdSchema } from '../ids';
+import { KnowledgeSensitivitySchema } from '../knowledge';
 import { SCRIPT_LANGUAGES } from '../templates/index';
 import { MessageRequested, MessagingRefusalSchema } from './messaging';
 
@@ -237,19 +238,18 @@ export type SttTranscribeResult = z.infer<typeof SttTranscribeResult>;
 
 // --- /workers/embeddings/index ---------------------------------------------------------------
 
-/** Who may retrieve a vault file's chunks (docs/DATABASE.md §6.9). */
-export const KnowledgeSensitivitySchema = z.enum(['exec_only', 'management', 'staff_ai_ok']);
-export type KnowledgeSensitivity = z.infer<typeof KnowledgeSensitivitySchema>;
-
 /**
- * `POST /workers/embeddings/index`: chunk and embed one vault file. The chunks take the file's
- * entity (null for the whole group) and sensitivity, which the retrieval policies filter on.
+ * `POST /workers/embeddings/index`: read, chunk and embed one vault file. The chunks take the vault
+ * file's company (`entityId`, null for the whole group) and sensitivity, which the retrieval
+ * policies filter on; `fileEntityId` is the company the uploaded file is stored in, where the job
+ * acts as `system:workers`.
  */
 export const EmbeddingsIndexJob = z
   .object({
     eventId: IdSchema,
     knowledgeFileId: IdSchema,
     entityId: EntityIdSchema.nullable(),
+    fileEntityId: EntityIdSchema,
     sensitivity: KnowledgeSensitivitySchema,
   })
   .strict();

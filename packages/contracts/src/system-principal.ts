@@ -31,5 +31,8 @@ export const SYSTEM_MATRIX: Record<SystemRoleKey, readonly PermissionGrant[]> = 
     // The daily quote expiry (`sales.quote.expire`): it reads the company's lapsed quotes and
     // marks them expired through two definers, nothing more.
     { key: 'sales.quote.expire', scope: 'all' },
+    // The Knowledge Vault's index job (`knowledge.file.record_index`): it reads a vault file's
+    // facts and records its chunks through definers, and never reads a vault file by sensitivity.
+    { key: 'knowledge.index', scope: 'all' },
   ],
 };

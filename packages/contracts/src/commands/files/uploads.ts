@@ -66,6 +66,8 @@ export const FileSanitisingSchema = z.enum([
   'pdf_checked',
   'masked',
   'sheet_checked',
+  // A vault Word document opened and its text read.
+  'document_checked',
 ]);
 export type FileSanitising = z.infer<typeof FileSanitisingSchema>;
 

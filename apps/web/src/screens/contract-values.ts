@@ -629,6 +629,7 @@ export const UPLOAD_CONTENT_TYPES = [
   'application/pdf',
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -662,4 +663,5 @@ export const FILE_SANITISING = [
   'pdf_checked',
   'masked',
   'sheet_checked',
+  'document_checked',
 ] as const satisfies readonly FileSanitising[];

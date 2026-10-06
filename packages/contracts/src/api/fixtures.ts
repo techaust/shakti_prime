@@ -737,6 +737,7 @@ export const API_FIXTURES: Record<
       eventId: IDS.eventB,
       knowledgeFileId: IDS.knowledgeFile,
       entityId: null,
+      fileEntityId: 1,
       sensitivity: 'staff_ai_ok',
     },
     response: { eventId: IDS.eventB, outcome: 'duplicate' },

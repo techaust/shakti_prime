@@ -54,6 +54,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'knowledge.vault.read.staff': 'Search staff knowledge',
   'knowledge.vault.read.management': 'Search management knowledge',
   'knowledge.vault.read.exec': 'Search executive knowledge',
+  'knowledge.vault.write': 'Add and archive Knowledge Vault files',
   'knowledge.playbook.approve': 'Approve Playbook directives',
   'agents.inbox.act': 'Act on Agent Inbox items',
   'agents.autonomy.write': 'Change agent autonomy',
@@ -74,6 +75,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.score.refresh': 'Bring lead scores up to date each night',
   'crm.duplicates.scan': 'Look for duplicate customers and leads each night',
   'sales.quote.expire': 'Mark quotes past their validity as expired each day',
+  'knowledge.index': 'Read Knowledge Vault files so they can be searched',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

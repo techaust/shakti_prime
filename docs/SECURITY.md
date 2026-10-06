@@ -156,6 +156,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `knowledge.vault.read.staff` | all | all | all | all | all | all | all | all | all | all | all |
 | `knowledge.vault.read.management` | all | all | – | – | – | – | – | – | – | all | – |
 | `knowledge.vault.read.exec` | all | – | – | – | – | – | – | – | – | – | – |
+| `knowledge.vault.write` | all | all | – | – | – | – | – | – | – | – | – |
 | `knowledge.playbook.approve` | all | – | – | – | – | – | – | – | – | – | – |
 | `agents.inbox.act` | all | entity | team | own | own | own | entity | entity | – | entity | – |
 | `agents.autonomy.write` | all | – | – | – | – | – | – | – | – | – | – |
@@ -172,6 +173,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.score.refresh` | – | – | – | – | – | – | – | – | – | – | – |
 | `crm.duplicates.scan` | – | – | – | – | – | – | – | – | – | – | – |
 | `sales.quote.expire` | – | – | – | – | – | – | – | – | – | – | – |
+| `knowledge.index` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
