@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Branch | `feat/s2-orders` on GitHub, from `main` at f74caff0 (#121) |
-| PC worktree | none: the PC runs no Docker (owner, 05-10-2026) |
-| Runs on | Cloud: build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | brief |
-| Next step | a cloud builder builds the slice from this brief |
+| PC worktree | `s2-orders`, slot 17: Postgres 54347, app 3047 (`bash tools/integration/setup-worktree.sh s2-orders feat/s2-orders 54347 3047`) |
+| Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
+| State | building |
+| Next step | the builder agent on the PC builds the slice from this brief |
 
 ## Brief
 Read first:
