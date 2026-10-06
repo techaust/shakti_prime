@@ -34,9 +34,9 @@ interface NoticeRow extends Record<string, unknown> {
 
 /**
  * One page of the caller's notices as SQL, `limit` rows after the keyset `after`, exported so the
- * notifications spike explains the very statement the centre runs. The page is cut first, off
- * `notifications_user_created_idx`, and only its rows look up their customer and quote, each by
- * its key under the policies, so a reader of many customers never pays for all of them.
+ * notifications spike explains the very statement the centre runs. The page is cut first from
+ * the person's own notices, and only its rows look up their customer and quote, each by its key
+ * under the policies, so a reader of many customers never pays for all of them.
  */
 export function noticeListSql(ctx: Ctx, limit: number, after?: z.output<typeof NoticeCursor>): SQL {
   const keyset =
@@ -66,9 +66,9 @@ const toIso = (v: Date | string): string => (v instanceof Date ? v : new Date(v)
 
 /**
  * The caller's notices in the request's companies that show in the centre, newest first, keyset
- * on `(created_at, id)` off `notifications_user_created_idx` (docs/design/phase1.md §8.1). The
- * customer's name and the quote's number join only where the caller may read them (RLS), so a
- * notice about a record the caller no longer reads still shows, without them.
+ * on `(created_at, id)` (docs/design/phase1.md §8.1). The customer's name and the quote's number
+ * are read only where the caller may read them (RLS), so a notice about a record the caller no
+ * longer reads still shows, without them.
  */
 export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePageDto> {
   const input = parseQueryInput(ListNoticesInput, rawInput, 'notifications.list');
