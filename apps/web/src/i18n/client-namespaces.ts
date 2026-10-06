@@ -33,4 +33,5 @@ export const CLIENT_NAMESPACES = [
   'duplicates',
   'quotes',
   'agents',
+  'knowledge',
 ] as const;

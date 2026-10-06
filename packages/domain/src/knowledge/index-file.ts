@@ -93,9 +93,14 @@ export async function indexKnowledgeFile(
   }
   const unchanged = { knowledgeFileId: facts.knowledgeFileId, chunks: facts.chunks, replaced: 0 };
   if (facts.state !== 'waiting') return unchanged;
-  const file = await executeQuery(deps.principal, scope, (ctx) => getStoredFile(ctx, facts.fileId), {
-    name: 'knowledge.index.file',
-  });
+  const file = await executeQuery(
+    deps.principal,
+    scope,
+    (ctx) => getStoredFile(ctx, facts.fileId),
+    {
+      name: 'knowledge.index.file',
+    },
+  );
   // The upload's checks have not finished: they send the file again when they pass.
   if (file?.status !== 'ready') return unchanged;
 

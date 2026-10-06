@@ -95,7 +95,12 @@ describe('chunkText', () => {
 
   it('never cuts inside a character written with two code units', () => {
     const chunks = chunkText('\u{1F31E}'.repeat(7), { maxChars: 4, overlapChars: 0 });
-    expect(chunks).toEqual(['\u{1F31E}\u{1F31E}', '\u{1F31E}\u{1F31E}', '\u{1F31E}\u{1F31E}', '\u{1F31E}']);
+    expect(chunks).toEqual([
+      '\u{1F31E}\u{1F31E}',
+      '\u{1F31E}\u{1F31E}',
+      '\u{1F31E}\u{1F31E}',
+      '\u{1F31E}',
+    ]);
   });
 
   it('refuses an overlap as long as a passage', () => {

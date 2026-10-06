@@ -90,7 +90,7 @@ export type KnowledgeFileRefInput = z.input<typeof KnowledgeFileRefInput>;
 export const KnowledgeChunkInput = z
   .object({
     text: z.string().min(1).max(4000),
-    embedding: z.array(z.number().finite()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS),
+    embedding: z.array(z.number()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS),
   })
   .strict();
 export type KnowledgeChunkInput = z.infer<typeof KnowledgeChunkInput>;
@@ -170,9 +170,7 @@ export const ListKnowledgeFilesInput = z
 export type ListKnowledgeFilesInput = z.input<typeof ListKnowledgeFilesInput>;
 
 /** The staff search: a question in the reader's own words. */
-export const SearchKnowledgeInput = z
-  .object({ query: z.string().trim().min(2).max(500) })
-  .strict();
+export const SearchKnowledgeInput = z.object({ query: z.string().trim().min(2).max(500) }).strict();
 export type SearchKnowledgeInput = z.infer<typeof SearchKnowledgeInput>;
 
 /** The most passages one search answers. */

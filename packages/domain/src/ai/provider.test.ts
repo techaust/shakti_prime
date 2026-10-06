@@ -201,7 +201,11 @@ describe('createAiProvider', () => {
     expect(await keyValue.get(spendKey('knowledge:index', 1, day))).toBeNull();
     await expect(
       provider.complete(
-        call({ agent: 'knowledge:index', entityId: null, caps: [{ paise: 1_060, entityId: null }] }),
+        call({
+          agent: 'knowledge:index',
+          entityId: null,
+          caps: [{ paise: 1_060, entityId: null }],
+        }),
       ),
     ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
   });

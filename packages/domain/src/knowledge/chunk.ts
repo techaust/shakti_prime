@@ -21,7 +21,7 @@ export function normaliseText(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => line.replace(/[\t\f\v  ]+/g, ' ').trim())
+    .map((line) => line.replace(/[\t\f\v \u00a0]+/g, ' ').trim())
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -36,7 +36,7 @@ function splitBy(text: string, level: number, limit: number): string[] {
       return text.split('\n');
     case 2:
       // After the end of a sentence, in English or with the Devanagari full stop.
-      return text.split(/(?<=[.!?।])\s+/);
+      return text.split(/(?<=[.!?\u0964])\s+/);
     case 3:
       return text.split(' ');
     default: {

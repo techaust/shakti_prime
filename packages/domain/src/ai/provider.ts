@@ -1,5 +1,5 @@
 import { DomainError, type AgentRoleKey } from '@shakti/contracts';
-import { AGENT_DEFAULTS } from './agent-defaults';
+import type { AGENT_DEFAULTS } from './agent-defaults';
 import { labelUntrusted, maskForModel } from '../privacy/model-text';
 import type { KeyValue } from '../ports/key-value';
 import type { Logger } from '../ports/logger';
@@ -96,6 +96,11 @@ export interface CompleteCall extends CallBase {
    */
   documents?: readonly ModelDocument[];
   maxTokens?: number;
+  /**
+   * Milliseconds per attempt, for a call that writes a long answer (copying out a vault file's
+   * text); `AI_CALL_TIMEOUT_MS` when left out.
+   */
+  timeoutMs?: number;
 }
 
 export interface CompleteResult {
@@ -240,11 +245,15 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   }
 
   /** One vendor call with its timeout and retries; the breaker counts what still fails. */
-  async function attempt<T>(vendor: Vendor, send: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  async function attempt<T>(
+    vendor: Vendor,
+    send: (signal: AbortSignal) => Promise<T>,
+    perAttemptMs: number = timeoutMs,
+  ): Promise<T> {
     let last: ModelCallError | undefined;
     for (let i = 0; i <= retries; i += 1) {
       try {
-        const answer = await send(AbortSignal.timeout(timeoutMs));
+        const answer = await send(AbortSignal.timeout(perAttemptMs));
         await keyValue.del(breakerFailuresKey(vendor)).catch(() => undefined);
         return answer;
       } catch (error) {
@@ -300,11 +309,14 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       const started = now().getTime();
       let reply: ModelReply;
       try {
-        reply = await attempt('anthropic', (signal) =>
-          claude.complete(
-            { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
-            signal,
-          ),
+        reply = await attempt(
+          'anthropic',
+          (signal) =>
+            claude.complete(
+              { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
+              signal,
+            ),
+          call.timeoutMs ?? timeoutMs,
         );
       } catch (error) {
         await settle(call, held, 0);

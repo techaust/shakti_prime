@@ -48,7 +48,7 @@ describe('anthropicTransport', () => {
     let sent: unknown;
     const transport = anthropicTransport('test phrase', {
       fetch: (_url, init) => {
-        sent = JSON.parse(String(init?.body));
+        sent = JSON.parse(typeof init?.body === 'string' ? init.body : '');
         return Promise.resolve(
           new Response(JSON.stringify(MESSAGE), {
             status: 200,
@@ -72,7 +72,10 @@ describe('anthropicTransport', () => {
         {
           role: 'user',
           content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'AQI=' } },
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: 'AQI=' },
+            },
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'Aw==' } },
             { type: 'text', text: 'u' },
           ],

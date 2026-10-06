@@ -28,6 +28,9 @@ import type {
   FilePurpose,
   FileRejectReason,
   FileSanitising,
+  KnowledgeFileState,
+  KnowledgeSensitivity,
+  KnowledgeSourceType,
   FileScanVerdictInput,
   FileStatus,
   PdfDocumentType,
@@ -217,6 +220,30 @@ export const AGENT_RUN_OUTCOME_VALUES = [
   'unavailable',
   'failed',
 ] as const satisfies readonly AgentRunOutcome[];
+
+/** A Knowledge Vault file's status, each named under `knowledge.state`. */
+export const KNOWLEDGE_FILE_STATE_VALUES = [
+  'waiting',
+  'indexed',
+  'failed',
+  'unavailable',
+  'archived',
+] as const satisfies readonly KnowledgeFileState[];
+
+/** Who may find a vault file, each named under `knowledge.sensitivity`. */
+export const KNOWLEDGE_SENSITIVITY_VALUES = [
+  'staff_ai_ok',
+  'management',
+  'exec_only',
+] as const satisfies readonly KnowledgeSensitivity[];
+
+/** What a vault file is, each named under `knowledge.source`. */
+export const KNOWLEDGE_SOURCE_VALUES = [
+  'pdf',
+  'photo',
+  'word',
+  'excel',
+] as const satisfies readonly KnowledgeSourceType[];
 
 /** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
 export function agentNameKey(agent: (typeof AGENT_ROLES)[number]): AgentNameKey {

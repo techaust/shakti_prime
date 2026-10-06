@@ -76,7 +76,7 @@ export async function getKnowledgeFile(ctx: Ctx, knowledgeFileId: string) {
   return row === undefined ? undefined : knowledgeFileDto(row);
 }
 
-const QueryVector = z.array(z.number().finite()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS);
+const QueryVector = z.array(z.number()).length(KNOWLEDGE_EMBEDDING_DIMENSIONS);
 
 /**
  * The staff search (docs/design/phase1.md §8.4, ADR 0011): the passages nearest the question's
@@ -121,7 +121,7 @@ export async function searchKnowledge(
       position: r.position,
       text: r.chunk_text,
       // Cosine distance runs from 0 to 2; rounding can step a hair past either end.
-      distance: Math.min(2, Math.max(0, Number(r.distance))),
+      distance: Math.min(2, Math.max(0, r.distance)),
     }),
   );
 }

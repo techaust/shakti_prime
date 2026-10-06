@@ -426,7 +426,7 @@ export type {
   EmbedResult,
   SpendCap,
 } from './ai/provider';
-export { fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
+export { fakeEmbedding, fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
 export type {
   EmbeddingTransport,
   FakeModelTransport,

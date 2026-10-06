@@ -30,10 +30,17 @@ export function needsModel(source: KnowledgeSourceType): boolean {
 }
 
 /**
- * The most the model may write when it copies a file's text out: about 12,000 words, some 25
- * pages of dense text. A longer file is refused as too long rather than indexed in part.
+ * The most the model may write when it copies a file's text out: about 6,000 words, some 12 pages
+ * of dense text. A longer file is refused as too long rather than indexed in part.
  */
-export const KNOWLEDGE_EXTRACT_MAX_TOKENS = 16_000;
+export const KNOWLEDGE_EXTRACT_MAX_TOKENS = 8_000;
+
+/**
+ * How long one attempt to copy a file's text out may take: writing 8,000 tokens takes the model
+ * about a minute. With the wrapper's two retries the reading stays within the index route's
+ * five minutes.
+ */
+export const KNOWLEDGE_EXTRACT_TIMEOUT_MS = 90_000;
 
 /** Our own instructions to the model that copies a vault file's text out; stable, so cached. */
 export const KNOWLEDGE_EXTRACT_SYSTEM = [
@@ -61,7 +68,7 @@ export class KnowledgeExtractError extends Error {
 
 /** The model as the index job uses it: its spender, purpose, company and caps already set. */
 export type ExtractModel = (
-  call: Pick<CompleteCall, 'system' | 'question' | 'documents' | 'maxTokens'>,
+  call: Pick<CompleteCall, 'system' | 'question' | 'documents' | 'maxTokens' | 'timeoutMs'>,
 ) => Promise<CompleteResult>;
 
 /**
@@ -77,6 +84,7 @@ export async function extractWithModel(
     question: EXTRACT_QUESTION,
     documents: [document],
     maxTokens: KNOWLEDGE_EXTRACT_MAX_TOKENS,
+    timeoutMs: KNOWLEDGE_EXTRACT_TIMEOUT_MS,
   });
   if (reply.stopped === 'refused') {
     throw new KnowledgeExtractError('knowledge_unreadable', 'the model would not read the file');

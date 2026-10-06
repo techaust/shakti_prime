@@ -134,6 +134,10 @@ const ACTIONS = {
   'agents.inbox.dismiss': 'inboxDismiss',
   'agents.config.set': 'agentConfigSet',
   'agents.killswitch.set': 'agentKillSwitchSet',
+  'knowledge.file.add': 'knowledgeFileAdd',
+  'knowledge.file.reindex': 'knowledgeFileReindex',
+  'knowledge.file.archive': 'knowledgeFileArchive',
+  'knowledge.file.record_index': 'knowledgeFileIndexed',
   'crm.pipeline.update': 'pipelineUpdate',
   'crm.stage.create': 'stageCreate',
   'crm.stage.update': 'stageUpdate',
@@ -217,6 +221,7 @@ const EVENT_NAMES = {
   'sales.quote.superseded': 'quoteSuperseded',
   'sales.quote.withdrawn': 'quoteWithdrawn',
   'sales.quote.expired': 'quoteExpired',
+  'knowledge.file.index_requested': 'knowledgeIndexRequested',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -321,6 +326,9 @@ const CODE_GROUPS = [
   'agentAction',
   'autonomy',
   'runOutcome',
+  'knowledgeState',
+  'knowledgeSensitivity',
+  'knowledgeSource',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -534,6 +542,14 @@ const FIELD_KINDS = [
   ['edited', 'yesNo'],
   ['dailySpendCap', 'money'],
   ['enabled', 'yesNo'],
+  // The Knowledge Vault
+  ['sensitivity', 'knowledgeSensitivity'],
+  ['sourceType', 'knowledgeSource'],
+  ['wholeGroup', 'yesNo'],
+  ['knowledgeState', 'knowledgeState'],
+  ['chunks', 'number'],
+  ['replaced', 'number'],
+  ['errorReason', 'errorCode'],
 ] as const;
 
 export type FieldKey = (typeof FIELD_KINDS)[number][0];

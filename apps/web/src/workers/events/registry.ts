@@ -1,8 +1,9 @@
 import type { DeliveredEvent, EventType, Principal } from '@shakti/contracts';
-import type { KeyValue } from '@shakti/domain';
+import { indexKnowledgeFile, type KeyValue } from '@shakti/domain';
 import { hostedRuntime } from '../../auth/deps';
 import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
+import { indexJobOf } from '../knowledge/job';
 import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
 
@@ -70,6 +71,17 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       const { renderPdfJob } = await import('../pdf/render-job');
       const { renderDeps } = await import('../pdf/deps');
       await renderPdfJob(renderJobOf(event), renderDeps(ctx.principal, ctx.requestId));
+    },
+  },
+  // A vault file to read and index (docs/design/phase1.md §8.4). Hosted, the publisher sends this
+  // type to the index route as an `EmbeddingsIndexJob` (`EVENT_JOB_ROUTES`); without a queue it is
+  // indexed here. A file no longer waiting is answered as it stands, so a repeat is harmless.
+  'knowledge.file.index_requested': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      // Loaded on first use, so the Word reader stays out of every other worker's start.
+      const { indexDeps } = await import('../knowledge/index-deps');
+      await indexKnowledgeFile(indexJobOf(event), indexDeps(ctx.principal, ctx.requestId));
     },
   },
 };

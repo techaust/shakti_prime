@@ -34,6 +34,9 @@ import {
   AGENT_ROLES,
   AGENT_RUN_OUTCOME_VALUES,
   agentNameKey,
+  KNOWLEDGE_FILE_STATE_VALUES,
+  KNOWLEDGE_SENSITIVITY_VALUES,
+  KNOWLEDGE_SOURCE_VALUES,
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
   CONSENT_SOURCES,
@@ -385,6 +388,7 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
   const duplicates = useTranslations('duplicates');
   const quotes = useTranslations('quotes');
   const agents = useTranslations('agents');
+  const knowledge = useTranslations('knowledge');
   return (group, value) => {
     switch (group) {
       case 'state': {
@@ -493,6 +497,18 @@ function useCodeText(): (group: CodeGroup, value: string) => string {
         return oneOf(AGENT_AUTONOMY_LEVELS, value) ? agents(`autonomy.${value}`) : wordsOf(value);
       case 'runOutcome':
         return oneOf(AGENT_RUN_OUTCOME_VALUES, value) ? agents(`outcome.${value}`) : wordsOf(value);
+      case 'knowledgeState':
+        return oneOf(KNOWLEDGE_FILE_STATE_VALUES, value)
+          ? knowledge(`state.${value}`)
+          : wordsOf(value);
+      case 'knowledgeSensitivity':
+        return oneOf(KNOWLEDGE_SENSITIVITY_VALUES, value)
+          ? knowledge(`sensitivity.${value}`)
+          : wordsOf(value);
+      case 'knowledgeSource':
+        return oneOf(KNOWLEDGE_SOURCE_VALUES, value)
+          ? knowledge(`source.${value}`)
+          : wordsOf(value);
     }
   };
 }

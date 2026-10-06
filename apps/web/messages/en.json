@@ -6,6 +6,21 @@
     "reference": "Reference: {reference}"
   },
   "errors": {
+    "knowledge_file_transition_not_allowed": "This file can't do that in its current status. Refresh the page to see where it stands.",
+    "knowledge_needs_all_companies": "Choose All companies at the top to change a file for every company.",
+    "knowledge_sensitivity_not_held": "You can only let people find a file if you can find it yourself. Choose who can find it again.",
+    "knowledge_upload_rejected": "This file did not pass its checks, so it cannot be added. Upload another copy.",
+    "knowledge_upload_unfinished": "This file has not finished uploading. Wait for it to finish, then add it.",
+    "knowledge_upload_not_ready": "This file is still being checked. Try again in a minute.",
+    "knowledge_file_missing": "We could not find this file in the Knowledge Vault. It may have been archived. Refresh the page.",
+    "knowledge_file_taken": "This file is already in the Knowledge Vault.",
+    "knowledge_search_cap_reached": "Search has reached its limit for today. It works again tomorrow.",
+    "knowledge_file_rejected": "This file did not pass its checks, so it cannot be read. Upload another copy.",
+    "knowledge_unreadable": "We could not read the text in this file. Check that it opens on your computer, then upload it again.",
+    "knowledge_empty": "We found no text in this file to search.",
+    "knowledge_too_long": "This file is too long to read in one go. Split it into smaller files and add each one.",
+    "knowledge_spend_cap_reached": "Reading files has reached its limit for today. Read this file again tomorrow.",
+    "knowledge_service_missing": "Reading files for search is not switched on yet. Read this file again once it is.",
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
     "unauthorized": "Please sign in to continue.",
     "forbidden": "You don't have access to this. Ask your manager if you need it.",
@@ -378,7 +393,8 @@
     "duplicates": "Duplicates",
     "quotes": "Quotes",
     "inbox": "Agent Inbox",
-    "adminAgents": "Agents"
+    "adminAgents": "Agents",
+    "knowledge": "Knowledge"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -444,7 +460,8 @@
       "duplicates": "Merge customers and leads that were entered twice, or set them aside.",
       "quotes": "See the quotes of your leads, open their documents and send them.",
       "inbox": "Approve, change or reject what the agents suggest.",
-      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents."
+      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
+      "knowledge": "Search what the business knows, from the files in the Knowledge Vault."
     }
   },
   "profile": {
@@ -1411,7 +1428,11 @@
       "inboxReject": "Suggestion rejected",
       "inboxDismiss": "Suggestion dismissed",
       "agentConfigSet": "Agent settings changed",
-      "agentKillSwitchSet": "Agent stopped or let run"
+      "agentKillSwitchSet": "Agent stopped or let run",
+      "knowledgeFileAdd": "Knowledge Vault file added",
+      "knowledgeFileReindex": "Knowledge Vault file read again",
+      "knowledgeFileArchive": "Knowledge Vault file archived",
+      "knowledgeFileIndexed": "Knowledge Vault file read for search"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1453,7 +1474,8 @@
       "quoteSent": "Quote marked as sent",
       "quoteSuperseded": "Quote replaced by a new one",
       "quoteWithdrawn": "Quote withdrawn",
-      "quoteExpired": "Quote expired"
+      "quoteExpired": "Quote expired",
+      "knowledgeIndexRequested": "Knowledge Vault file sent to be read"
     },
     "sheet": {
       "title": "{action}",
@@ -1644,7 +1666,14 @@
       "autonomy": "Autonomy",
       "edited": "Changed before approving",
       "dailySpendCap": "Daily spending limit",
-      "enabled": "May run"
+      "enabled": "May run",
+      "sensitivity": "Who can find it",
+      "sourceType": "Kind of file",
+      "wholeGroup": "For every company",
+      "knowledgeState": "Knowledge Vault status",
+      "chunks": "Passages",
+      "replaced": "Passages replaced",
+      "errorReason": "Why it could not be read"
     },
     "values": {
       "percent": "{value}%",
@@ -3612,5 +3641,73 @@
       "noActionTypes": "This agent has nothing to do yet.",
       "readOnly": "Only an Executive changes autonomy and spending limits."
     }
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "intro": "Search what the business knows, and see the files it learns from.",
+    "search": {
+      "heading": "Search",
+      "label": "What do you want to know?",
+      "hint": "Type a question or a few words, such as a pump size or a scheme name.",
+      "search": "Search",
+      "notSwitchedOn": "Search is not switched on yet. It will work once it is set up.",
+      "none": "Nothing in the files you can read matches this. Try other words.",
+      "found": "{count, plural, one {# passage found} other {# passages found}}",
+      "from": "From {title}"
+    },
+    "files": {
+      "heading": "Files",
+      "empty": "No files yet. Files added to the Knowledge Vault appear here.",
+      "for": "For",
+      "everyCompany": "Every company",
+      "findBy": "Who can find it",
+      "kind": "Kind",
+      "added": "Added {date}",
+      "passages": "{count, plural, one {# passage} other {# passages}}",
+      "actions": "Actions for {title}"
+    },
+    "sensitivity": {
+      "staff_ai_ok": "All staff",
+      "management": "Management and Accounts",
+      "exec_only": "Executives only"
+    },
+    "sensitivityHelp": {
+      "staff_ai_ok": "Everyone on the team can find it, and so can the assistants that help callers.",
+      "management": "Executives, General Managers and Accounts can find it.",
+      "exec_only": "Only Executives can find it."
+    },
+    "source": {
+      "pdf": "PDF",
+      "photo": "Photo",
+      "word": "Word document",
+      "excel": "Excel workbook"
+    },
+    "state": {
+      "waiting": "Being read",
+      "indexed": "Ready to search",
+      "failed": "Could not be read",
+      "unavailable": "Waiting for search",
+      "archived": "Archived"
+    },
+    "add": "Add a file",
+    "addTitle": "Add a file to the Knowledge Vault",
+    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document or an Excel workbook. Numbers on photos are covered before they are read.",
+    "titleLabel": "Title",
+    "titleHint": "A name people will recognise in search results.",
+    "titleMissing": "Give the file a title.",
+    "forLabel": "For",
+    "forHint": "A file for every company can be added only while All companies is chosen at the top.",
+    "findByLabel": "Who can find it",
+    "fileLabel": "File",
+    "uploaded": "Uploaded and checked. Add it to the vault.",
+    "uploadFirst": "Upload the file before you add it.",
+    "addToVault": "Add to the vault",
+    "addedNotice": "Added. The file is being read for search.",
+    "readAgain": "Read again",
+    "readAgainNotice": "The file is being read again.",
+    "archive": "Archive",
+    "archiveTitle": "Archive this file?",
+    "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
+    "archivedNotice": "Archived. The file no longer appears in search."
   }
 }

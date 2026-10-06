@@ -67,7 +67,7 @@ export const AGENT_DEFAULTS = {
    * the index job reads vault files (PDFs and photos by Claude) and embeds their passages, and the
    * staff search embeds each question. Each is counted under its own name in the spend totals and
    * held against its own daily cap for the whole group, in paise: ₹500 a day for reading and
-   * embedding files (a long PDF reserves about ₹30 before it is read, and costs a few rupees), and
+   * embedding files (reading a PDF or a photo reserves about ₹25 before it is sent, and costs a few rupees), and
    * ₹100 a day for search questions (each costs a paisa). Both caps are flagged for the owner to
    * confirm; a change moves only how much the vault may read or answer in a day.
    */

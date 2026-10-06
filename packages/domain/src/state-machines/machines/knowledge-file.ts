@@ -45,9 +45,9 @@ export const knowledgeFileMachine = defineMachine<
     waiting:
       'Waiting for its upload to pass its checks and for the index job to read it; earlier passages stay in search until new ones replace them.',
     indexed: 'Its passages are in search for whoever may read its sensitivity.',
-    failed: 'The index job could not read it; the reason is kept and an Executive may index it again.',
-    unavailable:
-      'No key for the reading or search service is set yet; indexed again once one is.',
+    failed:
+      'The index job could not read it; the reason is kept and an Executive may index it again.',
+    unavailable: 'No key for the reading or search service is set yet; indexed again once one is.',
     archived: 'Out of search: its passages are removed.',
   },
   transitions: [

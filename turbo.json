@@ -73,7 +73,8 @@
         "FIELD_ENCRYPTION_KEY",
         "SES_FROM",
         "ANTHROPIC_API_KEY",
-        "VOYAGE_API_KEY"
+        "VOYAGE_API_KEY",
+        "AI_TRANSPORT"
       ]
     },
     "test:e2e": {
@@ -106,7 +107,8 @@
         "E2E_BASE_URL",
         "E2E_EXTERNAL_APP",
         "ANTHROPIC_API_KEY",
-        "VOYAGE_API_KEY"
+        "VOYAGE_API_KEY",
+        "AI_TRANSPORT"
       ]
     },
     "db:generate": {
