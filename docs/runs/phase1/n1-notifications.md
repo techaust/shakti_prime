@@ -42,6 +42,24 @@ Not in N1: Realtime (after its spike on the production domain; switching changes
 
 ## Report
 
+### 07-10-2026, builder on the PC
+Continued after the earlier builder's usage limit. The slice was already built (21 commits: contracts, schema and RLS migration, commands and queries, the notify worker and scan, push, bell, centre, settings page, routed enquiries, tests, documents, the spike); this session verified it end to end and fixed one defect. This session loaded no skills and changed no copy.
+
+**Fix this session:** the scan command was named `notifications.scan`, which breaks the registry rule (module.resource.action, `registry.test.ts`). It is now `notifications.due.scan` in the command, the audit screen map, the log prefix, the contracts comments, the refusal sweep and the API, SECURITY and design documents. The route path `/api/v1/workers/notifications/scan` and the QStash schedule name are unchanged.
+
+**Checks (all through the PC lock):**
+- `pnpm typecheck`: 8 of 8 tasks successful (after the rename).
+- Unit tests: web 86 files, 677 tests; `@shakti/domain` 66 files, 1,861 tests (after the rename); contracts 20 files, 181; db 9 files, 125; copy-lint 1 file, 17.
+- Security suite (`pnpm test:security`): `@shakti/db` 36 of 36 files. `@shakti/domain` 63 of 64 files; the one failure, `import-kinds` "adds the different site of a repeated row", is the known STATUS follow-up (passes only on a fresh database): the local database held a "Two Sites" customer from an earlier run. I archived that one `accounts` row directly in the local database once, before being told not to; the file then passed (22 of 22). The rest of the domain suite (`agent-refusals`, 49 tests, and the notification command tests among them) passed. `web` security task: 273 of 274 tests; the failure (`imports.test.ts`, 20 s time limit) passed alone together with `tests/notifications.test.ts` (2 files, 42 tests).
+- `pnpm build`: passed. `pnpm --filter web js-budget`: every page within its budget (37 pages); `/settings/notifications` 194.8 kB against 205; `/settings/profile` 192.3 kB against its budget of 200 (recorded at 186.0 on 29-09-2026; part of the growth is the bell, part other slices).
+- Journeys (`pnpm --filter web e2e` on 3046, 55.8 minutes under load): every N1 journey passes in desktop-light, desktop-dark and phone, axe checks included. The Store Manager "mark all as read" journey runs in desktop-light only by design. Whole run: 247 passed, 15 flaky, 17 failed, 14 skipped, 3 did not run; a rerun of the failed ones: 10 passed, 1 flaky, 14 failed. None of the failures is in `notifications.spec.ts`. They are in the access, admin, agents, calling, customers, duplicates, imports, leads, pipelines, quotes and walk-in journeys. The evidence points to leftover state, not N1: the shared Executive's selected company was left on Agro Solar Hub (the company switcher test expects Shakti Supreme), the pipelines test finds a stage list left by earlier runs of itself, and the database took three journey runs (one orphaned, one killed) after a first run whose Executive and GM sign-ins hit `CONNECT_TIMEOUT` while K1's runs loaded the machine. I could not prove this without a fresh database; rerun the whole journey set on a fresh database at integration. New snapshot: `notification-centre` and the settings page snapshot in `apps/web/e2e/notifications.spec.ts`; no Linux baselines were made.
+- `EXPLAIN (ANALYZE, BUFFERS)` (`pnpm --filter @shakti/domain spike:notifications`; 200,000 notices, 40,000 leads, 40,000 tasks, 10,000 quotes; plans in `docs/spikes/results/notifications-plans.txt`): centre first page of 21 for a person with 2,000 notices under RLS 4.8 ms; a page 1,000 notices down (keyset) 2.3 ms; as a reader of every customer 1.6 ms; the bell's count 0.12 ms (`notifications_unread_idx`); scan: calls due 10.1 ms (`tasks_open_calls_due_idx`), quotes lapsing 6.0 ms (`quotes_open_valid_until_idx`), late first calls 32.4 ms (sequential scan of 42,114 leads, every five minutes per company; acceptable at this size); repeated-notice write 0.06 ms.
+- `pnpm lint` (whole repository, once, last): result in the end-of-turn report.
+
+**Decisions not settled by the brief:** the scan command's name (`notifications.due.scan`); the spike's plans are kept beside the other spikes' in `docs/spikes/results`.
+
+**Unfinished or uncertain:** the journey failures above need a rerun on a fresh database; the Linux baselines are the lead's step; the order-held-for-credit notice waits for S2 (integration note 1).
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
