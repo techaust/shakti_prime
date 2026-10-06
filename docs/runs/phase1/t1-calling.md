@@ -90,11 +90,11 @@ The slice is built and every check of AGENTS §10 that runs in the cloud passes.
   - Run a second time on a database the suites, the spike and the journeys had already used, `import-kinds.test.ts` failed once. Its fixed row "Two Sites, Sikar" matched the customer its first run had saved. That test cannot run twice on one database; it is not T1's.
 - After the query change: `call-queue.test.ts`, `calls.test.ts` and `reader-parity.test.ts`, 39 passed.
 - `e2e/calling.spec.ts`, against the final build:
-  - Inside calling hours (03:51 and 03:53 UTC on 06-10-2026), desktop-light, desktop-dark and phone, twice: 17 passed with no retry, setup included. The keyboard path passed on each project: the unanswered call and its retry task, the callback, the qualified lead and `N`; and the team lead's view.
+  - Inside calling hours (03:51, 03:53 and 04:06 UTC on 06-10-2026, the last on a fresh build of `26b21eb`), desktop-light, desktop-dark and phone, three times: 17 passed with no retry each time, setup included. The keyboard path passed on each project: the unanswered call and its retry task, the callback, the qualified lead and `N`; and the team lead's view.
   - Outside calling hours (19:58 UTC on 05-10-2026): 17 passed, with the refusals checked.
   - "Calling in the snapshot company" fails on all three projects only for want of its `calling.png` baselines. They are made on the PC (hybrid §2); the files written here were deleted, and its axe check passed before the screenshot.
 - `pnpm build` passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.7 kB of 206.
-- `pnpm lint`: clean. `pnpm typecheck`: clean.
+- `pnpm lint`: clean, last run at 04:08 UTC on 06-10-2026. `pnpm typecheck` (`turbo run typecheck --force`): 8 tasks successful.
 - Unit tests (`turbo run typecheck test --force`, 15 tasks): tokens 134, copy-lint 17, ui 105, contracts 177, db 122, domain 1,600 and web 638, all passed.
 - `pnpm copy-lint`, `pnpm format:check` and `check-doc-links.py` (`bad 0`): clean. `db:docs` and `machines:docs`: no change.
 - Not run here: the secret scan (the gitleaks image is not on the VM) and the screenshot baselines; both run on the PC at integration.
