@@ -312,6 +312,7 @@ Re-review the fixes `78b3343...3d62262` against the findings and the fix brief, 
 In progress. Done so far, on the branch at `81b40a8`:
 - `e2e/calling.spec.ts --ignore-snapshots` after `e2e:seed`, against `next start -p 3000`, at 12:13 IST (inside calling hours): 20 passed on desktop light, desktop dark and phone.
 - Focus 1, reproduced with a scratch test the review does not commit: `agent:triage` assigns an open lead with a callback at 16:00, and the assignment succeeds. The callback moves: a new task for the new owner at 16:00 and the old one cancelled, both audited (`actor_kind` `agent`) and on the timeline under the agent.
-- Still to come: focus 2 to 4, the findings one by one, and the checks.
+- Focus 4, the spike run four times on one database, alternating the fix's `call-queue.ts` with `986c4e8`'s: the team view's counts read 89,029 and 90,696 buffers with the fix and 91,235 and 91,236 without, and its p95 for the team lead is 124.9 and 131.3 ms with the fix and 116.0 and 106.0 ms without. The fix's SQL costs the same; the builder's 178 to 187 ms came from the database.
+- Still to come: focus 2 and 3, the findings one by one, and the checks.
 
 ## Integration notes
