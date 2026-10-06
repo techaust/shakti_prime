@@ -23,7 +23,12 @@ export const agentActionMachine = defineMachine<
   title: 'Agent action',
   summary:
     '`agent_actions.state`. What an agent proposed or did with one action type, the command it runs and its input; append-only except the decision, which the inbox commands record once.',
-  sources: ['docs/03-roadmap-appendix/phase1.md §7.1', 'BLUEPRINT §9.3', 'PRD AI-04', 'DATABASE §6.9'],
+  sources: [
+    'docs/03-roadmap-appendix/phase1.md §7.1',
+    'BLUEPRINT §9.3',
+    'PRD AI-04',
+    'DATABASE §6.9',
+  ],
   states: AGENT_ACTION_STATES,
   initial: 'proposed',
   terminal: ['executed', 'approved', 'rejected', 'dismissed'],

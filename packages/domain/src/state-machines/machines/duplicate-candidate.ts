@@ -25,7 +25,11 @@ export const duplicateCandidateMachine = defineMachine<
   title: 'Duplicate candidate',
   summary:
     '`duplicate_candidates.state`. Two customers, or two leads of one company, that look like one, with the reason and how sure the match is. Found open by `crm.lead.create`, the nightly `crm.duplicate.scan` and `crm.duplicate.suggest`; decided by a person holding `crm.lead.merge`.',
-  sources: ['docs/03-roadmap-appendix/phase1.md §7.4', 'PRD CRM-03', 'DATABASE §6.2 `duplicate_candidates`'],
+  sources: [
+    'docs/03-roadmap-appendix/phase1.md §7.4',
+    'PRD CRM-03',
+    'DATABASE §6.2 `duplicate_candidates`',
+  ],
   states: DUPLICATE_CANDIDATE_STATES,
   initial: 'open',
   terminal: ['dismissed'],
