@@ -993,7 +993,8 @@
       "done": "Lead saved for {name}.",
       "referral": "Referral code",
       "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
-      "attached": "{name} already has an open lead for this. The enquiry was added to it."
+      "attached": "{name} already has an open lead for this. The enquiry was added to it.",
+      "routed": "{colleague} already looks after this customer, so we passed the enquiry to them. It is in their Agent Inbox."
     },
     "accountType": {
       "household": "Household",
@@ -1160,7 +1161,8 @@
       "walkInSubmit": "Save walk-in",
       "done": "Walk-in saved for {name}. The form is ready for the next customer.",
       "language": "Language for calls",
-      "attached": "{name} already has an open lead for this. The enquiry was added to it."
+      "attached": "{name} already has an open lead for this. The enquiry was added to it.",
+      "routed": "{colleague} already looks after this customer, so we passed the enquiry to them. The form is ready for the next customer."
     }
   },
   "users": {
@@ -3537,7 +3539,7 @@
       "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
       "caption": "Suggestions waiting for a decision",
       "empty": "Nothing is waiting for you.",
-      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself.",
+      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself or marks an enquiry passed to you as done.",
       "actYourself": "For you to act on yourself. Nothing is carried out from here.",
       "summary": {
         "assigneeId": "Task for",
@@ -3563,7 +3565,15 @@
       "submit": "Approve with changes",
       "noValue": "Not set",
       "dueHelper": "Date and time in India.",
-      "titleHelper": "Up to {max} characters. Leave it empty for no note."
+      "titleHelper": "Up to {max} characters. Leave it empty for no note.",
+      "routedFrom": "Enquiry passed to you",
+      "routedFor": "{customer} asked again",
+      "routedUnknown": "A customer you look after asked again",
+      "routedInterest": "Interested in",
+      "routedNote": "Note",
+      "routedReceived": "Passed on",
+      "routedComplete": "Done",
+      "routedDone": "Marked done."
     },
     "admin": {
       "title": "Agents",

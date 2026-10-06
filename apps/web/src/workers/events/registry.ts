@@ -3,6 +3,7 @@ import type { KeyValue } from '@shakti/domain';
 import { hostedRuntime } from '../../auth/deps';
 import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
+import { handleNoticeEvent } from '../notify/notify-event';
 import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
 
@@ -72,7 +73,18 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await renderPdfJob(renderJobOf(event), renderDeps(ctx.principal, ctx.requestId));
     },
   },
+  // The notices people act on (docs/design/phase1.md §8.1). Hosted, the publisher sends these
+  // types to the notify route as a `NotifyJob` (`EVENT_JOB_ROUTES`); without a queue they are
+  // handled here. Each notice is one per person and reason, so a repeat writes nothing new.
+  'crm.opportunity.assigned': { ordering: 'every', handle: notify },
+  'crm.duplicate.found': { ordering: 'every', handle: notify },
+  'crm.enquiry.routed': { ordering: 'every', handle: notify },
 };
+
+/** Every notifying event is handled the same way: its notices, then their pushes. */
+async function notify(event: DeliveredEvent, ctx: EventHandlerContext): Promise<void> {
+  await handleNoticeEvent(event, ctx);
+}
 
 /** The worker of a type, or undefined for a type no worker handles. */
 export function workerFor(type: string): EventWorker | undefined {

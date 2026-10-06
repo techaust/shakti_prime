@@ -743,11 +743,19 @@ export const API_FIXTURES: Record<
   },
   'workers.notify': {
     request: {
-      eventId: IDS.eventB,
+      id: IDS.eventB,
+      sequence: '42',
+      type: 'crm.opportunity.assigned',
       entityId: 1,
-      type: 'lead.assigned',
-      recipientIds: [IDS.user],
-      subject: { type: 'opportunity', id: IDS.lead },
+      aggregateType: 'opportunity',
+      aggregateId: IDS.lead,
+      payload: {
+        ownerId: IDS.user,
+        teamId: null,
+        lockHours: 48,
+        assignedById: IDS.event,
+        v: 1,
+      },
     },
     response: { eventId: IDS.eventB, outcome: 'done', created: 1, pushed: 1, heldForQuietHours: 0 },
   },

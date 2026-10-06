@@ -35,9 +35,12 @@ describe('the worker contracts (docs/API.md §3.6)', () => {
     const notify = API_FIXTURES['workers.notify'].request as Record<string, unknown>;
     expect(NotifyJob.safeParse(notify).success).toBe(true);
     expect(NotifyJob.safeParse({ ...notify, title: 'Lead from Bikaner' }).success).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, aggregateId: 'Ramesh' }).success).toBe(false);
+    const payload = notify.payload as Record<string, unknown>;
     expect(
-      NotifyJob.safeParse({ ...notify, subject: { type: 'opportunity', id: 'Ramesh' } }).success,
+      NotifyJob.safeParse({ ...notify, payload: { ...payload, name: 'Ramesh' } }).success,
     ).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, type: 'crm.lead.created' }).success).toBe(false);
   });
 
   it('renders a document version or a sheet of 1 to 500 labels', () => {

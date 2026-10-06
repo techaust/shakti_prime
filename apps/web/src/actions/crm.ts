@@ -9,6 +9,8 @@ import {
   CreateLeadInput,
   CreateTagInput,
   CreateTaskInput,
+  DomainError,
+  type RoutedEnquiryDto,
   LeadTagInput,
   ListCustomersInput,
   ListMyTasksInput,
@@ -68,6 +70,7 @@ import {
   withdrawConsent as withdrawConsentCommand,
   assignOpportunity as assignOpportunityCommand,
   createLead as createLeadCommand,
+  routeEnquiry as routeEnquiryCommand,
   executeCommand,
   executeQuery,
   listBoardLeads as listBoardLeadsQuery,
@@ -91,23 +94,55 @@ import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from '
  * Thin wrapper (docs/API.md §4): parse → request context → command → DTO. The request is
  * narrowed to the company the lead is for, so a person viewing All companies acts with their
  * team in that company (AUDIT M24, `withRequestContext`).
+ *
+ * A lead refused because a colleague looks after the customer in the company
+ * (`customer_held_by_colleague`) is passed to that colleague (PRD RPT-04 criterion 2): the refusal
+ * rolled its transaction back, so `crm.enquiry.route` runs in a fresh one and the form says, by
+ * name, who the enquiry went to (`outcome: 'routed'`).
  */
 export async function createLead(
   rawInput: unknown,
   idempotencyKey?: unknown,
-): Promise<ActionResult<CreateLeadResultDto>> {
+): Promise<ActionResult<CreateLeadResultDto | RoutedEnquiryDto>> {
   return toResult('createLead', async () => {
     const principal = await signedIn();
     const input = parseInput(CreateLeadInput, rawInput);
     const meta = await requestMeta();
-    return executeCommand(
-      principal,
-      { entityIds: [input.entityId], requestId: meta.requestId },
-      createLeadCommand,
-      input,
-      commandOptions(meta, idempotencyKey),
-    );
+    const scope = { entityIds: [input.entityId], requestId: meta.requestId };
+    try {
+      return await executeCommand(
+        principal,
+        scope,
+        createLeadCommand,
+        input,
+        commandOptions(meta, idempotencyKey),
+      );
+    } catch (error) {
+      if (!heldByColleague(error)) throw error;
+      return executeCommand(
+        principal,
+        scope,
+        routeEnquiryCommand,
+        input.existingAccountId === undefined
+          ? { entityId: input.entityId, pipelineKey: input.pipelineKey, phone: input.contact?.phone }
+          : {
+              entityId: input.entityId,
+              pipelineKey: input.pipelineKey,
+              existingAccountId: input.existingAccountId,
+            },
+        commandOptions(meta, idempotencyKey),
+      );
+    }
   });
+}
+
+/** The refusal of a lead for a customer a colleague looks after in the company. */
+function heldByColleague(error: unknown): boolean {
+  return (
+    error instanceof DomainError &&
+    error.code === 'conflict' &&
+    error.details?.reason === 'customer_held_by_colleague'
+  );
 }
 
 /** Leads the caller can see, newest change first or in `sort`; the next page after `cursor`. */

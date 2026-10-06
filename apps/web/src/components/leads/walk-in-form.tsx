@@ -90,11 +90,14 @@ export function WalkInForm({
         consent: consent !== undefined && data.get('consent') === 'yes' ? consent : undefined,
       }),
       (lead) => {
-        // A repeat enquiry was added to the customer's open lead (CRM-03).
+        // A repeat enquiry was added to the customer's open lead (CRM-03); an enquiry for a
+        // colleague's customer went to that colleague (RPT-04).
         toast.success(
-          lead.outcome === 'attached'
-            ? t('attached', { name: lead.account.name })
-            : t('done', { name }),
+          lead.outcome === 'routed'
+            ? t('routed', { colleague: lead.colleagueName })
+            : lead.outcome === 'attached'
+              ? t('attached', { name: lead.account.name })
+              : t('done', { name }),
         );
         form.reset();
         setPipelineKey('');
