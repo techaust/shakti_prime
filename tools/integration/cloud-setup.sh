@@ -6,8 +6,10 @@
 #   1. Node of .node-version (the image ships older ones) and the pnpm of package.json, from npm.
 #   2. In parallel: the packages, then the Playwright Chromium the journeys use on the host
 #      (apps/web/playwright.config.ts: Desktop Chrome and Pixel 7, both Chromium); and the Docker
-#      images: Postgres (compose.yaml), gitleaks (CI's version) and the Linux Playwright image of
-#      the screenshot baselines (apps/web/e2e/setup/snap-in-linux.ts).
+#      images: Postgres (compose.yaml), gitleaks (CI's version; from Docker Hub when ghcr.io is
+#      refused) and the Linux Playwright image of the screenshot baselines
+#      (apps/web/e2e/setup/snap-in-linux.ts).
+#   3. The Chromium builds of @playwright/test in $PLAYWRIGHT_BROWSERS_PATH, copied from that image.
 # A step that fails prints a warning and the others go on; the script always ends with 0 so the
 # session starts, and the session-start hook (.claude/hooks/cloud-session.sh) says what is missing.
 set -uo pipefail
@@ -59,10 +61,11 @@ packages() {
 images() {
   ensure_docker || { echo "Docker did not start; no image pulled"; return 1; }
   local rc=0 image
-  for image in "$(pg_image)" "$GITLEAKS_IMAGE" "$(playwright_image)"; do
+  for image in "$(pg_image)" "$(playwright_image)"; do
     docker image inspect "$image" >/dev/null 2>&1 && continue
     docker pull -q "$image" >/dev/null 2>&1 || { echo "docker pull $image failed"; rc=1; }
   done
+  ensure_gitleaks_image || { echo "the gitleaks image came from neither ghcr.io nor Docker Hub"; rc=1; }
   return $rc
 }
 
@@ -72,6 +75,10 @@ images >/tmp/cloud-setup-images.out 2>&1 &
 p2=$!
 wait $p1 && say "packages and the Playwright Chromium are in place" || warn "$(cat /tmp/cloud-setup-packages.out)"
 wait $p2 && say "the Postgres, gitleaks and Playwright images are in place" || warn "$(cat /tmp/cloud-setup-images.out)"
+# The image may point PLAYWRIGHT_BROWSERS_PATH at an older Chromium; the builds @playwright/test
+# runs are copied from the Playwright image (both steps above are done by now).
+ensure_playwright_browsers && say "the journeys' Chromium builds are in place" ||
+  warn "the journeys' Chromium builds ($(playwright_chromium_dirs)) are missing"
 
 say "done with $warnings warning(s)"
 exit 0

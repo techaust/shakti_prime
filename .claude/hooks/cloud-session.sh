@@ -39,18 +39,22 @@ if [ ! -d node_modules ]; then
     say "pnpm install failed (/tmp/cloud-session-install.log); run it before any check"
 fi
 
-# The journeys' Chromium (apps/web/playwright.config.ts), installed in the background when missing,
-# since the setup script's fallback leaves it to the session.
-if ! ls "${HOME}/.cache/ms-playwright"/chromium-* >/dev/null 2>&1 && [ -d node_modules ]; then
-  (pnpm --filter web exec playwright install --with-deps chromium >/tmp/cloud-session-browser.log 2>&1 ||
-    pnpm --filter web exec playwright install chromium >>/tmp/cloud-session-browser.log 2>&1) &
-  say "installing the journeys' Chromium in the background (/tmp/cloud-session-browser.log)"
-fi
-
 if ! ensure_docker 2>/dev/null; then
   say "Docker did not start, so the local Postgres is down (/tmp/dockerd.log); the unit tests still run"
   exit 0
 fi
+
+# The Chromium builds @playwright/test runs (the journeys on the host and the app's print renderer).
+# The image may point PLAYWRIGHT_BROWSERS_PATH at an older build, so a missing one is copied from the
+# Playwright image (or installed) in the background; and the gitleaks image, which ghcr.io may refuse.
+if [ -d node_modules ]; then
+  (ensure_playwright_browsers >/tmp/cloud-session-browser.log 2>&1 &&
+    echo "browsers ready: $(playwright_chromium_dirs)" >>/tmp/cloud-session-browser.log ||
+    echo "browsers missing: $(playwright_chromium_dirs)" >>/tmp/cloud-session-browser.log) &
+  say "checking the journeys' Chromium builds in the background (/tmp/cloud-session-browser.log)"
+fi
+(ensure_gitleaks_image >/dev/null 2>&1 || echo "the gitleaks image is missing" >/tmp/cloud-session-gitleaks.log) &
+
 if docker compose up -d --wait >/tmp/cloud-session-db.log 2>&1; then
   say "Postgres is up on 127.0.0.1:54322; the suites migrate and seed it themselves"
 else
