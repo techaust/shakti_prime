@@ -12,7 +12,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Task | **yes** | 3 | 4 | 0 | [task.md](task.md) |
 | Duplicate candidate | **yes** | 3 | 3 | 0 | [duplicate-candidate.md](duplicate-candidate.md) |
 | Quote | **yes** | 6 | 6 | 0 | [quote.md](quote.md) |
-| Sales order | no | 7 | 8 | 1 | [sales-order.md](sales-order.md) |
+| Sales order | **yes** | 7 | 9 | 1 | [sales-order.md](sales-order.md) |
 | Dispatch | no | 5 | 6 | 4 | [dispatch.md](dispatch.md) |
 | Project, standard install flow | no | 4 | 6 | 9 | [project-standard.md](project-standard.md) |
 | Project, PM Surya Ghar flow | no | 12 | 13 | 3 | [project-surya-ghar.md](project-surya-ghar.md) |

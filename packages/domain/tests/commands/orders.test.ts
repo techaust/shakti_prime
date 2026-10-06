@@ -236,7 +236,9 @@ async function readyFile(purpose: 'quote_pdf' | 'signed_quote', status = 'ready'
   const by = purpose === 'quote_pdf' ? SYSTEM_WORKERS_PRINCIPAL_ID : lc.id;
   const type = purpose === 'quote_pdf' ? 'application/pdf' : 'image/jpeg';
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
              values (${id}, ${E}, ${purpose}, 'local', ${`${String(E)}/${purpose}/${id}`}, 'file',
                      ${type}, 10, ${'c'.repeat(64)}, ${status}, ${by})`,
   );
@@ -728,9 +730,7 @@ describe('the referral commission (CRM-09)', () => {
     // The person confirming cannot read the commission; the Executive and Accounts can.
     const seen = async (who: Principal) =>
       asPrincipal(who, async ({ tx }) => {
-        const rows = (await tx.execute(
-          sqlCount(order.id),
-        )) as unknown as { n: number }[];
+        const rows = (await tx.execute(sqlCount(order.id))) as unknown as { n: number }[];
         return rows[0]?.n;
       });
     expect(await seen(lc)).toBe(0);
@@ -779,12 +779,11 @@ describe('the referral commission (CRM-09)', () => {
     });
     expect(await accrualOf(order.id)).toMatchObject({ state: 'cancelled' });
     const [lead] = await asMigrator(
-      (m) => m<{ state: string }[]>`select state from opportunities where id = ${order.opportunityId}`,
+      (m) =>
+        m<{ state: string }[]>`select state from opportunities where id = ${order.opportunityId}`,
     );
     expect(lead?.state).toBe('won');
-    expect(
-      (await eventsOf(order.id)).at(-1),
-    ).toEqual({
+    expect((await eventsOf(order.id)).at(-1)).toEqual({
       type: 'sales.order.cancelled',
       payload: {
         v: 1,
