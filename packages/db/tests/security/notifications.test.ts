@@ -75,7 +75,9 @@ beforeAll(async () => {
     const id = newId();
     notices[name] = id;
     await asMigrator(
-      (m) => m`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key)
+      (
+        m,
+      ) => m`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key)
         values (${id}, ${user}, ${entity}, 'call_due', 'task', ${newId()}, ${`test:${id}`})`,
     );
   }
@@ -114,7 +116,11 @@ describe('a person’s notices are their own (docs/design/phase1.md §8.1)', () 
         ),
       ),
     ).toMatch(/permission denied/);
-    const [grants] = await withoutContext<{ reporter: boolean; update: boolean; type: boolean }>(sql`
+    const [grants] = await withoutContext<{
+      reporter: boolean;
+      update: boolean;
+      type: boolean;
+    }>(sql`
       select has_any_column_privilege('readonly_reporter', 'notifications', 'SELECT') as reporter,
              has_column_privilege('app_user', 'notifications', 'read_at', 'UPDATE') as update,
              has_column_privilege('app_user', 'notifications', 'type', 'UPDATE') as type`);
@@ -128,7 +134,10 @@ describe('a person’s notices are their own (docs/design/phase1.md §8.1)', () 
     expect(await mark(caller, notices.caller1)).toHaveLength(1);
     expect(
       await failure(
-        rows(caller, sql`update notifications set type = 'lead_assigned' where id = ${notices.caller1}`),
+        rows(
+          caller,
+          sql`update notifications set type = 'lead_assigned' where id = ${notices.caller1}`,
+        ),
       ),
     ).toMatch(/permission denied/);
   });
@@ -215,10 +224,16 @@ describe('notification settings and browsers are a person’s own', () => {
     expect(await seen(caller)).toHaveLength(0);
     expect(await seen(other)).toHaveLength(1);
     expect(
-      await rows(caller, sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`),
+      await rows(
+        caller,
+        sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`,
+      ),
     ).toHaveLength(0);
     expect(
-      await rows(other, sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`),
+      await rows(
+        other,
+        sql`delete from push_subscriptions where endpoint = ${endpoint} returning id`,
+      ),
     ).toHaveLength(1);
     const agent = principalFor('agent:copilot', [1], { id: caller.id });
     expect(await failure(claim(agent))).toMatch(/a person with profile.write is required/);
@@ -241,9 +256,7 @@ describe('the notify worker’s definers', () => {
   it('refuses a caller without notifications.send, and a company outside the request', async () => {
     for (const statement of definers(1)) {
       expect(
-        await failure(
-          rows(workers([1], [{ key: 'files.process', scope: 'all' }]), statement),
-        ),
+        await failure(rows(workers([1], [{ key: 'files.process', scope: 'all' }]), statement)),
       ).toMatch(/notifications.send is required/);
       expect(await failure(rows(caller, statement))).toMatch(/notifications.send is required/);
     }
@@ -293,7 +306,12 @@ describe('routed work (PRD RPT-04 criterion 2)', () => {
     });
   });
 
-  const file = (principal: Principal, assignee: string, teamId: string | null, kind = 'routed_work') =>
+  const file = (
+    principal: Principal,
+    assignee: string,
+    teamId: string | null,
+    kind = 'routed_work',
+  ) =>
     rows(
       principal,
       sql`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, segment, created_by)
@@ -307,7 +325,10 @@ describe('routed work (PRD RPT-04 criterion 2)', () => {
     );
     expect(holder).toEqual([{ owner_id: colleague.id, owner_name: 'Notice Colleague' }]);
     expect(
-      await rows(colleague, sql`select * from app.enquiry_holder(1::smallint, ${account}::uuid, null)`),
+      await rows(
+        colleague,
+        sql`select * from app.enquiry_holder(1::smallint, ${account}::uuid, null)`,
+      ),
     ).toHaveLength(0);
   });
 
