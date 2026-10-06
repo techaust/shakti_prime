@@ -431,12 +431,12 @@ grant execute on function app.record_commission_accrual(uuid, uuid, uuid, numeri
 --> statement-breakpoint
 
 -- Cancels the commission of a cancelled order of a lead (sales.order.cancel over the lead's owner
--- and team: the General Manager and the Executive), stamping the caller. Answers whether one was
--- cancelled.
-create or replace function app.cancel_commission_accrual(p_order uuid) returns boolean
+-- and team: the General Manager and the Executive), stamping the caller. Answers the accrual it
+-- cancelled, or null when the order had none.
+create or replace function app.cancel_commission_accrual(p_order uuid) returns uuid
   language plpgsql volatile security definer set search_path = '' as $$
 declare
-  v_count integer;
+  v_id uuid;
 begin
   if app.user_id() is null or not exists (
        select 1
@@ -450,9 +450,9 @@ begin
   end if;
   update public.commission_accruals a
      set state = 'cancelled', cancelled_at = now(), cancelled_by = app.user_id()
-   where a.sales_order_id = p_order and a.state = 'accrued';
-  get diagnostics v_count = row_count;
-  return v_count > 0;
+   where a.sales_order_id = p_order and a.state = 'accrued'
+  returning a.id into v_id;
+  return v_id;
 end
 $$;
 --> statement-breakpoint

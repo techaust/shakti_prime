@@ -416,6 +416,88 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },
+  'sales.quote.accepted': {
+    meaning:
+      'A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`.',
+    emittedBy: ['sales.quote.accept'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        orderId: IdSchema,
+        acceptedVia: z.enum(['whatsapp_reply', 'whatsapp_otp', 'signed_upload']),
+      })
+      .strict(),
+  },
+  'sales.order.created': {
+    meaning:
+      'A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one.',
+    emittedBy: ['sales.quote.accept', 'sales.order.create'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        quoteId: IdSchema.nullable(),
+        opportunityId: IdSchema.nullable(),
+        lineCount: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'sales.order.confirmed': {
+    meaning:
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it.',
+    emittedBy: ['sales.order.confirm'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, opportunityId: IdSchema.nullable(), released: z.boolean() })
+      .strict(),
+  },
+  /**
+   * The dealer credit check held a confirmation (SAL-07): the order stays a draft until the
+   * Executive releases it. The notice to the Executive and the order's maker is N1's to send.
+   */
+  'sales.order.credit_held': {
+    meaning:
+      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it.',
+    emittedBy: ['sales.order.confirm'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        createdBy: IdSchema,
+        reason: z.enum(['credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing']),
+      })
+      .strict(),
+  },
+  'sales.order.credit_released': {
+    meaning:
+      'The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once.',
+    emittedBy: ['sales.credit.release'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'sales.order.cancelled': {
+    meaning:
+      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it.",
+    emittedBy: ['sales.order.cancel'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        opportunityId: IdSchema.nullable(),
+        fromState: z.enum(['draft', 'confirmed']),
+      })
+      .strict(),
+  },
+  'sales.commission.accrued': {
+    meaning:
+      "A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day.",
+    emittedBy: ['sales.order.confirm'],
+    subscribed: false,
+    payload: z
+      .object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema })
+      .strict(),
+  },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;

@@ -15,6 +15,7 @@ export const SALES_ORDER_STATES = [
 export type SalesOrderMachineState = (typeof SALES_ORDER_STATES)[number];
 export type SalesOrderEvent =
   | 'create'
+  | 'credit.hold'
   | 'credit.release'
   | 'confirm'
   | 'dispatch.partial'
@@ -29,6 +30,8 @@ export interface SalesOrderRecord {
   /** The order comes from a quote in state `accepted`. */
   fromAcceptedQuote: boolean;
   credit: CreditFacts;
+  /** `credit_held_at` is set: the credit check held a confirmation and no release has cleared it. */
+  creditHeld: boolean;
   /** `credit_release_by` and its reason, set by the `credit.release` event. */
   creditRelease: CreditRelease | null;
   /** A dispatch of this order exists that is not cancelled. */
@@ -62,6 +65,21 @@ const creditClear: G = {
   },
 };
 
+const creditBlocked: G = {
+  description:
+    'the dealer credit check blocks the confirmation and no release lets it through (the hold keeps the rule and its facts)',
+  check: (record) =>
+    creditCheck(record.credit, record.creditRelease).blocked
+      ? undefined
+      : { code: 'conflict', reason: 'order_credit_clear' },
+};
+
+const creditHeld: G = {
+  description: 'the order is held for credit (`credit_held_at` is set)',
+  check: (record) =>
+    record.creditHeld ? undefined : { code: 'conflict', reason: 'order_not_held' },
+};
+
 const voucherLinked: G = {
   description: 'a Tally sales voucher is linked',
   check: (record) =>
@@ -82,7 +100,12 @@ const nothingDispatched: G = {
     record.hasActiveDispatch ? { code: 'conflict', reason: 'order_already_dispatched' } : undefined,
 };
 
-/** Sales order (design §7.4). Exposure is per entity; `dealer_outstanding` is keyed by account and entity. */
+/**
+ * Sales order (design §7.4, docs/design/phase1.md §8.3). Exposure is per entity; `dealer_terms`
+ * and `dealer_outstanding` are keyed by account and entity. Phase 1 builds create, the credit
+ * hold and release, confirm and cancel; the dispatch moves wait for the stock ledger (Phase 3),
+ * invoice and close for the Tally link (Phase 5).
+ */
 export const salesOrderMachine = defineMachine<
   SalesOrderMachineState,
   SalesOrderEvent,
@@ -93,10 +116,16 @@ export const salesOrderMachine = defineMachine<
   title: 'Sales order',
   summary:
     '`sales_orders.state`. The backbone of fulfilment: reservations, dispatches, proforma, payment milestones and projects hang off it.',
-  sources: ['docs/design/backend-weeks-3-5.md §7.4', 'BLUEPRINT §8.3', 'PRD SAL-06, SAL-07'],
+  sources: [
+    'docs/design/backend-weeks-3-5.md §7.4',
+    'docs/design/phase1.md §8.3',
+    'BLUEPRINT §8.3',
+    'PRD SAL-06, SAL-07',
+  ],
   states: SALES_ORDER_STATES,
   initial: 'draft',
   terminal: ['closed', 'cancelled'],
+  stored: { table: 'sales_orders', stateColumn: 'state', changedAtColumn: 'state_changed_at' },
   stateNotes: {
     partially_dispatched: 'Some lines delivered; backorders stay open.',
     invoiced: 'Linked to the Tally sales voucher (Phase 5 sync).',
@@ -109,25 +138,49 @@ export const salesOrderMachine = defineMachine<
       permission: 'sales.order.create',
       system: true,
       guard: quoteOrDealer,
+      emits: 'sales.order.created',
       effects: [
-        { key: 'copy_lines', description: 'lines copied with their tax snapshot' },
+        {
+          key: 'copy_lines',
+          description:
+            "from a quote, its lines copied with their prices and tax snapshot; a dealer's order priced from the live list of the dealer's tier and taxed by the engine",
+        },
         { key: 'number', description: '`so_no` from the series' },
       ],
-      note: 'The platform creates the draft when a quote is accepted; a dealer order is created by a person.',
+      note: '`sales.quote.accept` makes the draft as the person who records the signed copy (the platform will, for a WhatsApp acceptance in Phase 2); `sales.order.create` makes a dealer order without a quote.',
+    },
+    {
+      from: ['draft'],
+      event: 'credit.hold',
+      to: 'draft',
+      permission: 'sales.order.confirm',
+      guard: creditBlocked,
+      emits: 'sales.order.credit_held',
+      effects: [
+        {
+          key: 'set_credit_hold',
+          description:
+            'keep `credit_held_at`, the rule and the facts its sentence names (the limit and the exposure, or the overdue invoice); the order stays a draft',
+        },
+      ],
+      note: 'Fired by `sales.order.confirm` in place of `confirm` when the credit check blocks: a hold is kept, not refused.',
+      proposed: true,
     },
     {
       from: ['draft'],
       event: 'credit.release',
       to: 'draft',
       permission: 'sales.credit.release',
-      guard: reasonGiven(),
+      scope: 'all',
+      guard: allOf(reasonGiven(), creditHeld),
+      emits: 'sales.order.credit_released',
       effects: [
         {
           key: 'set_credit_release',
-          description: 'set `credit_release_by` to the Executive and keep the reason (audited)',
+          description:
+            'set `credit_release_by` to the Executive and keep the reason (audited); clear the hold, so the next confirmation passes the check once',
         },
       ],
-      proposed: true,
     },
     {
       from: ['draft'],
@@ -135,9 +188,18 @@ export const salesOrderMachine = defineMachine<
       to: 'confirmed',
       permission: 'sales.order.confirm',
       guard: creditClear,
+      emits: 'sales.order.confirmed',
       effects: [
+        {
+          key: 'win_lead',
+          description: "an order of a lead wins the lead (`crm.opportunity.win`), and ends its open callbacks and nurture calls",
+        },
+        {
+          key: 'accrue_commission',
+          description:
+            "the lead's referral partner earns commission by the partner's rule in force that day (`commission_accruals`)",
+        },
         { key: 'request_reservations', description: 'reservations requested (Phase 3)' },
-        { key: 'emit', description: 'event for the order-confirmed WhatsApp message' },
       ],
     },
     {
@@ -177,8 +239,16 @@ export const salesOrderMachine = defineMachine<
       event: 'cancel',
       to: 'cancelled',
       permission: 'sales.order.cancel',
+      scope: 'entity',
       guard: allOf(reasonGiven(), nothingDispatched),
-      effects: [{ key: 'release_reservations', description: 'release reservations' }],
+      emits: 'sales.order.cancelled',
+      effects: [
+        {
+          key: 'cancel_commission',
+          description: "a confirmed order's commission is cancelled; the lead stays won",
+        },
+        { key: 'release_reservations', description: 'release reservations (Phase 3)' },
+      ],
     },
   ],
 });

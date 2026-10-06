@@ -115,6 +115,7 @@ describe('confirming a sales order', () => {
     accountType: 'dealer',
     fromAcceptedQuote: false,
     credit: { ...dealer, oldestOverdueDays: 45 },
+    creditHeld: true,
     creditRelease: null,
     hasActiveDispatch: false,
     voucherLinked: false,

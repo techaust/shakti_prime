@@ -1,5 +1,6 @@
 import { OpportunityDto, WinOpportunityInput } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
+import { cancelCallTasks } from './call-tasks';
 import {
   auditOpportunity,
   fire,
@@ -13,9 +14,10 @@ import {
 } from './opportunity-shared';
 
 /**
- * `crm.opportunity.win` (design §7.2): an open lead is won when an accepted quote or a confirmed
- * sales order references it. Quotes and orders arrive in Phase 1, so until then the machine's
- * guard refuses every win with `win_needs_order`; the write below is the path it will take.
+ * `crm.opportunity.win` (design §7.2, docs/design/phase1.md §8.3): an open lead is won when an
+ * accepted quote or a confirmed sales order references it (the machine's guard refuses it with
+ * `win_needs_order` otherwise); `sales.order.confirm` wins the lead of the order it confirms. The
+ * lead's open callbacks and nurture calls end, as they do when it is lost (`cancelCallTasks`).
  */
 export const winOpportunity = defineCommand({
   name: 'crm.opportunity.win',
@@ -36,6 +38,7 @@ export const winOpportunity = defineCommand({
       stateChangedAt: ctx.now,
       stageId,
     });
+    await cancelCallTasks(ctx, row, ['callback', 'nurture']);
     auditOpportunity(ctx, row, { state: row.state, stageId: row.stageId }, { state: to, stageId });
     ctx.emit({
       type: 'crm.opportunity.won',
