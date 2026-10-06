@@ -138,5 +138,90 @@ The slice is built and every check of AGENTS §10 that runs in the cloud passes.
 - The selected row's secondary text is now as dark as the customer's name; the reviewer may prefer a token change so that `--text-muted` holds AA on `--accent-soft`, which is a design-system decision outside this slice.
 
 ## Review
+### Review of cbec38fc..986c4e8, 06-10-2026, slice-reviewer in the cloud
+One high and two medium findings, all in the calling rules' tasks and stage moves; the rest is low. The security model, the command's guards, the queue's SQL, the copy and the journeys hold. The findings marked confirmed were reproduced on the cloud VM's Postgres, with a scratch test the review did not commit. Each failing case is described under the finding, so the builder can turn it into a real test.
+
+| # | Severity | Finding | State |
+|---|---|---|---|
+| 1 | High | Nurture calls outlive nurture: a lead reopened from the board drops out of its owner's queue, and lost or re-nurtured leads keep or double their nurture calls | Open |
+| 2 | Medium | The unanswered-attempt count runs on across nurture: a reopened lead goes back to nurture on its first unanswered call | Open |
+| 3 | Medium | A qualified outcome moves a lead back from a later stage and asks for the handover again | Open |
+| 4 | Low | A reassigned lead's callback stays with its old owner, and the new owner's queue shows the lead as ready to call | Open |
+| 5 | Low | After a lost answer, the workspace's one idempotency key blocks every later call until the page reloads | Open |
+| 6 | Low | `D`'s calling-hours and consent gate is one click from Account 360's full number and `tel:` link | Open |
+| 7 | Low | PRD §8 still traces TEL-01 to "—" | Open |
+
+**1. Nurture calls outlive nurture (high, confirmed).**
+- **Where:** `packages/domain/src/commands/crm/nurture-opportunity.ts:36` sets three `nurture` tasks every time a lead enters nurture. `reopen-opportunity.ts` and `lose-opportunity.ts` never cancel them. Only `calls.call.log` does, through `settleCallTasks` when the call itself takes the lead out of nurture. The queue (`packages/domain/src/queries/calls/call-queue.ts:93`, `rankedQueue`) leaves out any lead whose owner holds a later open `callback` or `nurture` task, whatever the lead's state.
+- **Reproduced:**
+  - A: a lead nurtured on the board at 10:00 and reopened on the board at 11:00 keeps its 3 open nurture tasks. At 12:00 `listCallQueue` for its owner is empty, where the lead should be "Not called yet" or "Ready to call". It stays hidden until day 7, then shows as "Call back due". The day-7 call does not end it: the lead is open, so `settleCallTasks` keeps the day-30 and day-90 nurture tasks (it cancels later ones only when the call itself takes the lead out of nurture). Unless that call's outcome sets an earlier call, the lead hides again until day 30.
+  - B: a nurtured lead lost on the board keeps 3 open nurture tasks, on its owner's task list for 90 days.
+  - C: nurture, reopen and nurture again on the board leaves 6 open nurture tasks.
+- **Why it matters:** reopening a parked lead is an ordinary board action (the customer rings back). The queue is the slice's main deliverable, and it silently loses that lead. A lead reopened and then won keeps them as well, since `win` (only from open) cancels nothing either (by reading the code).
+- **Fix:**
+  - Cancel the lead's open `nurture` tasks whenever it leaves nurture (reopen and lose), in the commands or in one shared helper, so the board and `calls.log` behave the same.
+  - Make `scheduleNurtureCalls` leave no second set: cancel or skip the open ones first.
+  - In `rankedQueue`, let a `nurture` task hold back only a lead in state `nurture` (`t.kind = 'callback' or o.state = 'nurture'`).
+  - Test each of A, B and C in `calls.test.ts` or `opportunity.test.ts`, plus the queue case in `call-queue.test.ts`.
+
+**2. The attempt count runs on across nurture (medium, confirmed).**
+- **Where:** `log-call.ts:209` sets `attemptNo` to the last call's `attempt_no + 1` whenever that call's outcome was a retry, with no regard to what happened to the lead in between. `loadCallLead` (`call-queue.ts`, `attempts`) and the queue's `attempts` read the same number.
+- **Reproduced (D):**
+  - Three unanswered calls on day 1, 2 and 3 park the lead (`not_reachable`).
+  - On day 15 the lead is reopened on the board.
+  - Its next unanswered call is saved as attempt 4. `afterUnanswered(4, …)` answers nurture, so the lead goes straight back to nurture (`attemptsUsedUp: true`) after a single try, and gets another set of nurture calls (finding 1).
+- **Also:** each unanswered nurture call counts up too (4, 5, 6). The workspace then reads "Tries without an answer: 4 of 3", and the queue "4 tries without an answer".
+- **Fix:** start a new run when the lead's state changed after the last call. For example, count only calls made after `opportunities.state_changed_at`, or start at 1 when the last call was made in another state. Give the display the same rule, and test the reopened lead and the nurture-call count.
+
+**3. A qualified outcome can move a lead backwards (medium, confirmed).**
+- **Where:** `log-call.ts:298-303` moves the lead to the Qualified stage whenever it is not already there.
+- **Reproduced (F):**
+  - A residential-rooftop lead was moved New → Contacted → Qualified → Quoted.
+  - A call on it saved with the Qualified outcome moved it back to Qualified. Such a lead is found with `/` and is still its tele-caller's until T2's handover reassigns it.
+  - `moveOpportunityStage` sets `handover: true` on any move to `qualified` (`move-opportunity-stage.ts:60`), so the event asks for the handover a second time. Once T2's worker runs, that request reassigns the lead (by reading the code).
+- **Fix:** move only when the lead's stage is positioned before Qualified; otherwise save the call and leave the stage. Test a lead at Quoted.
+
+**4. A reassigned lead's callback stays with its old owner (low, confirmed by reading).**
+- **Where:** `crm.opportunity.assign` moves no tasks. The queue reads only the owner's tasks (`t.assignee_id = o.owner_id`), and `settleCallTasks` and `loadCallLead` read only the caller's and the owner's.
+- **What happens:** an open lead with a callback at 4 PM is reassigned at noon. The new owner's queue shows it at once as "Ready to call", so the time the customer asked for is lost. The old owner keeps a callback task on a lead they no longer own.
+- **Fix:** have assign move the lead's open `callback` and `nurture` tasks to the new owner (or cancel and recreate them), or have the queue read the lead's open call tasks whoever holds them. If the fix waits for T2's `crm.lead.reassign_all`, say so in design §8.2.
+
+**5. One idempotency key for the whole workspace (low, plausible).**
+- **Where:** `calling-screen.tsx:430` uses one `useCommand(logCall)` for every lead and dialog. The key changes only after a success (`use-command.ts`).
+- **What happens:** if a save commits but its answer is lost, the key stays. The caller moves on (`N`) and presses an outcome on the next lead. The same key arrives with other input, `runCommand` answers `idempotency_mismatch`, and every later save fails with "This form was already sent with different details" until the page reloads. The lost call is never shown as saved.
+- **Fix:** give each lead (or each pick) its own key. For example, key the hook to the open lead so `open()` starts a new form, or let `useCommand` take a reset.
+
+**6. The number gate is one click away (low, confirmed by reading).**
+- **What happens:** the workspace's "Open customer" link goes to Account 360. Account 360 shows every phone in full with a `tel:` link at any hour, and for a customer who withdrew consent (`account-screen.tsx:282-288`, C2's). `D`'s refusal outside calling hours, and its absence for a withdrawn consent, therefore only steer the caller; they do not stop the number being dialled. Calls are dialled by hand, so the real control is `calls.call.log` refusing the log.
+- **Fix:** say this in SECURITY §7 (the number gate guides the caller, and the log is refused). Alternatively, mark the withdrawn consent beside the number on Account 360 and drop its `tel:` link there; that can be a follow-up outside T1.
+
+**7. PRD §8 trace (low, confirmed).** `docs/PRD.md` §8 still has TEL-01 "Tested in —". Name `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts` and `apps/web/e2e/calling.spec.ts`.
+
+**Checked and sound:**
+- **Data isolation:**
+  - `calls` is in `ENTITY_TABLES` with a fixture row per company (byte 0x30), a matrix rule (read with the lead) and `NARROWER` (insert only).
+  - RLS is forced. The read policy names `app_user` and `app_reader` and fails closed on a null company setting.
+  - The insert policy holds the caller to themselves, to a `user` principal, to `calls.log` scope over the lead's owner and team, and to a live outcome of the group or the lead's company. The composite key ties the call to its lead's company.
+  - The append-only trigger is tested against the table owner as well. `readonly_reporter` gets select with no policy, as `sizings` does.
+- **Command:**
+  - `peopleOnly`; `calls.call.log` is in the agent refusal sweep's `INPUTS`.
+  - Tests cover the denied, wrong-company and happy paths. One audit row for the call; every next step runs through its own command in the same transaction, so each is audited and on the timeline. No new event, as the brief asks.
+  - The lead is locked (`for update`) before the attempt count is read, so two saves on one lead are serialised.
+  - Cost permissions, prices and tax are untouched.
+- **Web layer:**
+  - Every read goes through `executeQuery()` with a name, the write through `executeCommand()`, and the page through `screenAccess(navRequires('calling'))`.
+  - Browser code imports only types from `@shakti/contracts`, and nothing opens a connection at import time (`pnpm build` passed with no change).
+- **Copy:** every string is in `en.json`, plain and final. The script card shows no sample script, and the refusal sentences say what to do next.
+- **Accessibility and look:** the three screenshots written here (desktop light, desktop dark and phone) were looked at before they were deleted. The selected row reads in both themes, and the phone layout stacks the queue above the lead.
+- **Defaults:** the two defaults are in `WORKSHOP_DEFAULTS.calling`, DECISIONS, design §11, the workshop pack's CALL-3 and CALL-5 "Today" lines and exit-gate action 16.
+- **Spike:** the queue and team-view SQL is the statement the spike explains (`callQueuePageSql`, `teamQueueCountsSql`). The keyset carries `asOf`, so the pages add up to the whole queue (tested).
+
+**Run by the review** (cloud VM, Postgres on 54322, branch at `986c4e8`):
+- **`pnpm test:security`:** db 32 files and 984 tests, domain 58 files, web 15 files, all passed.
+- **`pnpm build`:** passed.
+- **`pnpm --filter web js-budget`:** every page within budget; `/calling` is 196.7 kB of 206.
+- **`e2e/calling.spec.ts`** at 11:23 IST, inside calling hours, against `next start -p 3000`: 17 passed, including the keyboard path on desktop light, desktop dark and phone. The 3 "snapshot company" cases failed only for want of their `calling.png` baselines; those files were deleted and are made on the PC. The browsers are `chromium-1243` and `chromium_headless_shell-1243`, copied from the Playwright image.
+
+**Not checked:** the secret scan (no gitleaks image here) and the screenshot baselines, both made on the PC at integration; the spike's timings were not re-measured.
 
 ## Integration notes
