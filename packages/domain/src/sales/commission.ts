@@ -1,8 +1,5 @@
-import type { Money } from '@shakti/contracts';
+import type { CommissionBasis, Money } from '@shakti/contracts';
 import { divideHalfUp, moneyFromPaise, toPaise, toScaled } from '../money/paise';
-
-/** How a referral partner's commission is worked out (`commission_rules.basis`, workshop CRM-5). */
-export type CommissionBasis = 'fixed' | 'percent' | 'per_kw' | 'per_hp';
 
 export interface CommissionFacts {
   basis: CommissionBasis;

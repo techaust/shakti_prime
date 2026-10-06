@@ -138,8 +138,8 @@ CREATE TABLE "sales_orders" (
             or ("sales_orders"."confirmed_at" is not null and "sales_orders"."confirmed_by" is not null))),
 	CONSTRAINT "sales_orders_credit_hold_check" CHECK (("sales_orders"."credit_held_at" is null) = ("sales_orders"."credit_hold_reason" is null)
        and ("sales_orders"."credit_held_at" is null) = ("sales_orders"."credit_hold_json" is null)
-       and ("sales_orders"."credit_hold_reason" is null or "sales_orders"."credit_hold_reason" in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))
-       and ("sales_orders"."credit_hold_json" is null or jsonb_typeof("sales_orders"."credit_hold_json") = 'object')),
+       and ("sales_orders"."credit_hold_reason" is null or "sales_orders"."credit_hold_reason" in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))),
+	CONSTRAINT "sales_orders_credit_hold_json_check" CHECK ("sales_orders"."credit_hold_json" is null or jsonb_typeof("sales_orders"."credit_hold_json") = 'object'),
 	CONSTRAINT "sales_orders_credit_release_check" CHECK (("sales_orders"."credit_release_by" is null) = ("sales_orders"."credit_release_reason" is null)
        and ("sales_orders"."credit_release_by" is null) = ("sales_orders"."credit_released_at" is null)
        and ("sales_orders"."credit_release_reason" is null or length(btrim("sales_orders"."credit_release_reason")) between 1 and 300)),

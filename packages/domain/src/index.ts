@@ -324,7 +324,7 @@ export type {
 } from './sizing';
 export { creditCheck } from './sales/credit-check';
 export { commissionAmount } from './sales/commission';
-export type { Commission, CommissionBasis, CommissionFacts } from './sales/commission';
+export type { Commission, CommissionFacts } from './sales/commission';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
 export {
   allOf,

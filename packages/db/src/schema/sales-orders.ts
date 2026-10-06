@@ -145,8 +145,11 @@ export const salesOrders = pgTable(
       'sales_orders_credit_hold_check',
       sql`(${t.creditHeldAt} is null) = (${t.creditHoldReason} is null)
        and (${t.creditHeldAt} is null) = (${t.creditHoldJson} is null)
-       and (${t.creditHoldReason} is null or ${t.creditHoldReason} in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))
-       and (${t.creditHoldJson} is null or jsonb_typeof(${t.creditHoldJson}) = 'object')`,
+       and (${t.creditHoldReason} is null or ${t.creditHoldReason} in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))`,
+    ),
+    check(
+      'sales_orders_credit_hold_json_check',
+      sql`${t.creditHoldJson} is null or jsonb_typeof(${t.creditHoldJson}) = 'object'`,
     ),
     check(
       'sales_orders_credit_release_check',

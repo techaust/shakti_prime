@@ -1,5 +1,5 @@
 {
-  "id": "23d6aa6b-047f-4988-9c36-5beecbe1b539",
+  "id": "7c9afb7f-ae05-4ade-9bfb-30c21fb4d4bf",
   "prevId": "6dd339d2-a7a4-4c9c-88db-920afed3ed7f",
   "version": "7",
   "dialect": "postgresql",
@@ -11921,7 +11921,11 @@
         },
         "sales_orders_credit_hold_check": {
           "name": "sales_orders_credit_hold_check",
-          "value": "(\"sales_orders\".\"credit_held_at\" is null) = (\"sales_orders\".\"credit_hold_reason\" is null)\n       and (\"sales_orders\".\"credit_held_at\" is null) = (\"sales_orders\".\"credit_hold_json\" is null)\n       and (\"sales_orders\".\"credit_hold_reason\" is null or \"sales_orders\".\"credit_hold_reason\" in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))\n       and (\"sales_orders\".\"credit_hold_json\" is null or jsonb_typeof(\"sales_orders\".\"credit_hold_json\") = 'object')"
+          "value": "(\"sales_orders\".\"credit_held_at\" is null) = (\"sales_orders\".\"credit_hold_reason\" is null)\n       and (\"sales_orders\".\"credit_held_at\" is null) = (\"sales_orders\".\"credit_hold_json\" is null)\n       and (\"sales_orders\".\"credit_hold_reason\" is null or \"sales_orders\".\"credit_hold_reason\" in ('credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing'))"
+        },
+        "sales_orders_credit_hold_json_check": {
+          "name": "sales_orders_credit_hold_json_check",
+          "value": "\"sales_orders\".\"credit_hold_json\" is null or jsonb_typeof(\"sales_orders\".\"credit_hold_json\") = 'object'"
         },
         "sales_orders_credit_release_check": {
           "name": "sales_orders_credit_release_check",

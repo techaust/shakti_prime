@@ -5,6 +5,7 @@ import {
   newId,
   SalesOrderRefInput,
   type AccountType,
+  type CommissionBasis,
   type Money,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
@@ -13,7 +14,7 @@ import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import { latestSizing } from '../../queries/crm/latest-sizing';
 import { readSalesOrder, salesOrderRecordOf } from '../../queries/sales/order-dto';
-import { commissionAmount, type CommissionBasis } from '../../sales/commission';
+import { commissionAmount } from '../../sales/commission';
 import { creditCheck, type CreditFacts } from '../../sales/credit-check';
 import { ORDER_AUDIT_FIELDS } from '../../sales/save-order';
 import { transition } from '../../state-machines/define-machine';

@@ -116,6 +116,14 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     quotes: { i: true, u: false },
     quote_lines: { i: true, u: false },
     quote_versions: { i: true, u: false },
+    // An order changes only its state, credit hold, release and cancel reason (column grants,
+    // 0117); its lines and the dealer credit entries are append-only; a commission is written
+    // only by its definers (DATABASE §4.1).
+    sales_orders: { i: true, u: false },
+    sales_order_lines: { i: true, u: false },
+    dealer_terms: { i: true, u: false },
+    dealer_outstanding: { i: true, u: false },
+    commission_accruals: { i: false, u: false },
     // An agent setting changes its autonomy, cap and switch only; a run is written once; an
     // action changes only its decision, an inbox item only its state (agents.test.ts).
     agent_configs: { i: true, u: false },
@@ -417,6 +425,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
     `);
     expect(rows.map((r) => r.fn)).toEqual([
       'app.customer_search_ids(text,text,integer)',
+      // The dealer credit screen's figures, the one place the exposure is worked out (0117).
+      'app.dealer_credit_position(smallint,uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',

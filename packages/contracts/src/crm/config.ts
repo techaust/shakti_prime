@@ -34,6 +34,10 @@ export type CommissionBasis = z.infer<typeof CommissionBasisSchema>;
 export const CommissionTriggerSchema = z.enum(['order_confirmed']);
 export type CommissionTrigger = z.infer<typeof CommissionTriggerSchema>;
 
+/** Where a commission on an order stands; release on payment arrives with the Tally receipts. */
+export const CommissionAccrualStateSchema = z.enum(['accrued', 'cancelled']);
+export type CommissionAccrualState = z.infer<typeof CommissionAccrualStateSchema>;
+
 /** The unit a system-size score rule reads the lead's size in. */
 export const SystemSizeUnitSchema = z.enum(['kw', 'hp']);
 export type SystemSizeUnit = z.infer<typeof SystemSizeUnitSchema>;

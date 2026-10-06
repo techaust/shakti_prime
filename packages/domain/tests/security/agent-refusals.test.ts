@@ -202,6 +202,23 @@ const INPUTS: Record<string, unknown> = {
     effectiveFrom: '2031-04-01',
   },
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
+  // Dealer credit decides which orders are held (SAL-07): Accounts enter it, the Executive
+  // releases a hold; no agent does either.
+  'sales.credit.release': { entityId: 1, orderId: newId(), reason: 'Refused release' },
+  'sales.dealer_terms.set': {
+    entityId: 1,
+    accountId: newId(),
+    creditLimit: '100000.00',
+    creditDays: 30,
+  },
+  'sales.dealer_outstanding.record': {
+    entityId: 1,
+    accountId: newId(),
+    outstanding: '1000.00',
+    oldestOverdueDays: null,
+    oldestOverdueInvoiceNo: null,
+    asOf: '2026-04-01',
+  },
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -240,6 +257,20 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  // Orders, acceptance and dealer credit (docs/design/phase1.md §8.3): a person's decisions.
+  'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
+  'sales.order.create': {
+    entityId: 1,
+    accountId: newId(),
+    lines: [{ itemId: newId(), qty: '1' }],
+  },
+  'sales.order.confirm': { entityId: 1, orderId: newId() },
+  'sales.order.cancel': { entityId: 1, orderId: newId(), reason: 'Refused cancel' },
+  ...Object.fromEntries(
+    ['sales.credit.release', 'sales.dealer_terms.set', 'sales.dealer_outstanding.record'].map(
+      (name) => [name, INPUTS[name]],
+    ),
+  ),
 };
 
 describe('commands for people only', () => {
