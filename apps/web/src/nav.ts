@@ -12,6 +12,7 @@ import {
   IndianRupee,
   ListTodo,
   Package,
+  PhoneCall,
   Palette,
   Percent,
   ScrollText,
@@ -70,6 +71,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: 'work',
     // listLeads narrows an own-scope reader to their own leads.
     requires: [{ key: 'crm.lead.read', scope: 'own' }],
+  },
+  {
+    id: 'calling',
+    href: '/calling',
+    label: 'calling',
+    icon: PhoneCall,
+    group: 'work',
+    // The Cold Caller workspace: the caller's queue and calls.log, at the caller's own scope.
+    requires: [{ key: 'calls.log', scope: 'own' }],
   },
   {
     id: 'customers',

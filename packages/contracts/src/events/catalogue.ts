@@ -102,7 +102,7 @@ const eventCatalogue = {
   'crm.opportunity.stage_moved': {
     meaning:
       'An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`.',
-    emittedBy: ['crm.opportunity.stage.move'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.stage.move'],
     subscribed: false,
     payload: z
       .object({
@@ -128,14 +128,19 @@ const eventCatalogue = {
   },
   'crm.opportunity.nurtured': {
     meaning: 'An open lead was parked in nurture with a reason code.',
-    emittedBy: ['crm.opportunity.nurture'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.nurture'],
     subscribed: false,
     payload: z.object({ reasonCode: OpportunityNurtureReasonSchema }).strict(),
   },
   'crm.opportunity.reopened': {
     meaning:
-      "A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead.",
-    emittedBy: ['crm.lead.create', 'crm.opportunity.reopen', 'imports.job.commit_batch'],
+      "A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead.",
+    emittedBy: [
+      'calls.call.log',
+      'crm.lead.create',
+      'crm.opportunity.reopen',
+      'imports.job.commit_batch',
+    ],
     subscribed: false,
     payload: z.object({ fromState: z.enum(['nurture', 'lost']), stageId: IdSchema }).strict(),
   },
@@ -147,7 +152,7 @@ const eventCatalogue = {
   },
   'crm.opportunity.lost': {
     meaning: 'An open or nurtured lead was closed as lost with a reason code.',
-    emittedBy: ['crm.opportunity.lose'],
+    emittedBy: ['calls.call.log', 'crm.opportunity.lose'],
     subscribed: false,
     payload: z
       .object({ fromState: z.enum(['open', 'nurture']), reasonCode: OpportunityLostReasonSchema })

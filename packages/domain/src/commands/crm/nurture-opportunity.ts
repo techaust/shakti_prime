@@ -1,5 +1,6 @@
 import { NurtureOpportunityInput, OpportunityDto } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
+import { scheduleNurtureCalls } from './call-tasks';
 import {
   auditOpportunity,
   fire,
@@ -12,9 +13,10 @@ import {
 } from './opportunity-shared';
 
 /**
- * `crm.opportunity.nurture` (design §7.2): an open lead is parked with a reason code. The event
- * asks for the nurture cadence; its schedule is a workshop input (design §11 q2) and runs as
- * follow-up tasks once the cadence is agreed (owner decision of 29-09-2026: no workflow engine in Phase 1).
+ * `crm.opportunity.nurture` (design §7.2): an open lead is parked with a reason code, and its
+ * nurture calls are set as tasks for the lead's owner (`scheduleNurtureCalls`): day 7, 30 and 90,
+ * the owner's default of 05-10-2026 for workshop CALL-5 (`WORKSHOP_DEFAULTS.calling`). Tasks, not
+ * a workflow engine (owner decision of 29-09-2026), so they are visible and reassignable.
  */
 export const nurtureOpportunity = defineCommand({
   name: 'crm.opportunity.nurture',
@@ -31,6 +33,7 @@ export const nurtureOpportunity = defineCommand({
     });
     await recordLeadActivity(ctx, row, 'nurtured', { reasonCode: input.reasonCode });
     const updated = await writeOpportunity(ctx, row, { state: to, stateChangedAt: ctx.now });
+    await scheduleNurtureCalls(ctx, row);
     auditOpportunity(
       ctx,
       row,

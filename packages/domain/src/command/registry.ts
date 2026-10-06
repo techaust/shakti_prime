@@ -14,6 +14,7 @@ import { setRolePermissions } from '../commands/admin/set-role-permissions';
 import { setUserRoles } from '../commands/admin/set-user-roles';
 import { resetTwoFactor } from '../commands/admin/two-factor-reset';
 import { reactivateUser, suspendUser } from '../commands/admin/user-status';
+import { logCall } from '../commands/calls/log-call';
 import { assignOpportunity } from '../commands/crm/assign-opportunity';
 import { createLead } from '../commands/crm/create-lead';
 import { loseOpportunity } from '../commands/crm/lose-opportunity';
@@ -120,6 +121,7 @@ export const commands = {
   [addNote.name]: addNote,
   [recordConsent.name]: recordConsent,
   [withdrawConsent.name]: withdrawConsent,
+  [logCall.name]: logCall,
   [setPrice.name]: setPrice,
   [createPriceList.name]: createPriceList,
   [approvePriceList.name]: approvePriceList,

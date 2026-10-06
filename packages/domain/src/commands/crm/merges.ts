@@ -13,6 +13,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
+import { cancelCallTasks } from './call-tasks';
 import { heldByColleague } from './create-lead';
 import { decideCandidate, lockCandidate } from './duplicates';
 import { requireEntity } from './opportunity-shared';
@@ -324,8 +325,10 @@ export const unmergeCustomers = defineCommand({
  * Refused for leads of two customers (`merge_customers_first`: the customers are merged first), of
  * two segments (`merge_leads_other_segment`) or of two referral partners
  * (`merge_leads_two_partners`: a person closes the one that should not count). Of an open lead and
- * a lead in nurture, the open one is kept (`merge_leads_keep_open` otherwise). Made from a card, the
- * card is closed as merged.
+ * a lead in nurture, the open one is kept (`merge_leads_keep_open` otherwise). The merged lead's open
+ * nurture calls are cancelled first (`cancelCallTasks`, T1), so the kept lead never gets a second
+ * set, or nurture calls while it is open; its callbacks move with its other tasks, and its calls
+ * stay with it. Made from a card, the card is closed as merged.
  */
 export const mergeLeads = defineCommand({
   name: 'crm.lead.merge',
@@ -343,6 +346,11 @@ export const mergeLeads = defineCommand({
       input.mergedOpportunityId,
     ]);
     if (candidate !== undefined) await decideCandidate(ctx, candidate, 'merge');
+    // Before the definer moves the merged lead's open tasks, while its nurture calls are still its
+    // own; a refused merge rolls these back with the rest.
+    await cancelCallTasks(ctx, { id: input.mergedOpportunityId, entityId: input.entityId }, [
+      'nurture',
+    ]);
     const [answer] = (await ctx.tx.execute(sql`
       select app.merge_leads(${input.keptOpportunityId}::uuid, ${input.mergedOpportunityId}::uuid,
         ${input.entityId}::smallint) as result`)) as unknown as {

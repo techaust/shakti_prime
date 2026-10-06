@@ -3,7 +3,6 @@
 import type {
   Account360Dto,
   AccountDuplicatesDto,
-  ActivityDto,
   CustomerLeadDto,
   CustomerTaskDto,
   TimelinePageDto,
@@ -27,7 +26,6 @@ import {
   CONSENT_CHANNELS,
   CONSENT_PURPOSES,
   OPPORTUNITY_STATES,
-  SIZING_KINDS,
   TASK_KINDS,
 } from '../../screens/contract-values';
 import { customerHref, isOneOf as oneOf } from '../../screens/customers';
@@ -38,6 +36,7 @@ import type { UploadLimitView } from '../companies/branding-dialog';
 import { FailureMessage } from '../screens/failure';
 import { settle } from '../screens/settle';
 import { useCommand, useQuery, type CommandFailure } from '../screens/use-command';
+import { TimelineRow } from './timeline-row';
 import type { CustomerDialogKind } from './customer-dialogs';
 
 // The dialogs and the sizing panel load on first use, so the page ships only what it shows.
@@ -769,43 +768,6 @@ function Tasks({
         </ul>
       )}
     </Section>
-  );
-}
-
-/** A timeline row in words: what happened, a detail when it has one, who and when. */
-function TimelineRow({ item }: { item: ActivityDto }) {
-  const t = useTranslations('customers');
-  const sizingT = useTranslations('sizing');
-  const tagName = item.payload.tagName;
-  const kind = item.payload.kind;
-  const detail =
-    item.type === 'note'
-      ? item.body
-      : typeof tagName === 'string'
-        ? t('timeline.tagDetail', { name: tagName })
-        : item.type === 'sizing_recorded' && typeof kind === 'string' && oneOf(SIZING_KINDS, kind)
-          ? t(
-              item.payload.inBounds === true
-                ? 'timeline.sizingInBounds'
-                : 'timeline.sizingOutOfBounds',
-              {
-                kind: sizingT(`kind.${kind}`),
-              },
-            )
-          : typeof kind === 'string' && oneOf(TASK_KINDS, kind)
-            ? t(`tasks.kind.${kind}`)
-            : null;
-  return (
-    <li className="border-border flex min-w-0 flex-col gap-0.5 border-l-2 pl-3">
-      <span className="font-medium">{t(`timeline.type.${item.type}`)}</span>
-      {detail === null ? null : <span className="break-words whitespace-pre-line">{detail}</span>}
-      <span className="text-text-muted text-xs">
-        {t('timeline.by', {
-          name: item.actorName ?? t('timeline.someone'),
-          when: formatDateTime(item.createdAt),
-        })}
-      </span>
-    </li>
   );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useRef, useState, useTransition } from 'react';
 import type { ActionResult } from '../../actions/result';
 import { settle } from './settle';
 
@@ -13,42 +13,70 @@ export interface CommandFailure {
   attempt: number;
 }
 
+/** The idempotency key a form sends (docs/API.md §1), and the form it was made for. */
+export interface FormKey {
+  form: string | undefined;
+  key: string;
+}
+
+/**
+ * The key for the next send of `form`: the last key while the form is the same and not yet saved,
+ * so a double press or a retry after a lost answer acts once; a new key for another form (another
+ * lead in one workspace) or after a save (`last` is then undefined).
+ */
+export function formKeyFor(
+  last: FormKey | undefined,
+  form: string | undefined,
+  fresh: () => string,
+): FormKey {
+  return last !== undefined && last.form === form ? last : { form, key: fresh() };
+}
+
 /**
  * Runs a command action from a form or a confirmation (docs/API.md §1): one idempotency key per
  * rendered form, sent as the action's second argument, so a double press or a retry after a lost
  * answer acts once. A form is rendered afresh (a dialog opens again, a page loads) for the next
  * change, which gives it a new key; after a failure the key stays, because nothing was stored. A
- * call whose answer never arrives is shown as the `internal` sentence, not the error boundary.
+ * screen that shows one form after another without rendering it afresh (the calling workspace's
+ * leads) names the form it shows in `form`: another form gets a new key and none of the last
+ * one's failure. A call whose answer never arrives is shown as the `internal` sentence, not the
+ * error boundary.
  */
 export function useCommand<T, I = unknown>(
   action: (input: I, idempotencyKey?: unknown) => Promise<ActionResult<T>>,
+  form?: string,
 ) {
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  const sent = useRef<FormKey | undefined>(undefined);
   const [pending, startTransition] = useTransition();
-  const [failure, setFailure] = useState<CommandFailure | undefined>();
+  const [failed, setFailed] = useState<{ form: string | undefined; failure: CommandFailure }>();
 
   const run = useCallback(
     (input: I, onDone: (data: T) => void) => {
+      const current = formKeyFor(sent.current, form, () => crypto.randomUUID());
+      sent.current = current;
       startTransition(async () => {
-        const result = await settle(() => action(input, key));
+        const result = await settle(() => action(input, current.key));
         if (result.ok) {
-          setFailure(undefined);
-          setKey(crypto.randomUUID());
+          setFailed(undefined);
+          if (sent.current === current) sent.current = undefined;
           onDone(result.data);
           return;
         }
-        setFailure((previous) => ({
-          error: result.error,
-          reference: result.reference,
-          field: result.field,
-          attempt: (previous?.attempt ?? 0) + 1,
+        setFailed((previous) => ({
+          form,
+          failure: {
+            error: result.error,
+            reference: result.reference,
+            field: result.field,
+            attempt: (previous?.failure.attempt ?? 0) + 1,
+          },
         }));
       });
     },
-    [action, key],
+    [action, form],
   );
 
-  return { run, pending, failure };
+  return { run, pending, failure: failed?.form === form ? failed?.failure : undefined };
 }
 
 /**

@@ -30,7 +30,8 @@ type G = Guard<OpportunityRecord, OpportunityParams>;
 
 const DAY_MS = 86_400_000;
 
-function filled(value: unknown): boolean {
+/** Whether a lead detail an exit rule names is filled in (the workspace's checklist shows each). */
+export function exitFieldFilled(value: unknown): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -50,7 +51,9 @@ const stageInPipeline: G = {
 const exitRulesMet: G = {
   description: 'the exit rules of the current stage are met (its required fields are filled)',
   check: (record) => {
-    const missing = record.exitRequiredFields.filter((field) => !filled(record.fields[field]));
+    const missing = record.exitRequiredFields.filter(
+      (field) => !exitFieldFilled(record.fields[field]),
+    );
     return missing.length === 0
       ? undefined
       : { code: 'validation_failed', reason: 'stage_fields_missing', details: { missing } };
@@ -158,6 +161,11 @@ export const opportunityMachine = defineMachine<
           key: 'lock_owner',
           description: `set \`locked_until\` = now + the pipeline's \`lock_hours\` (${String(WORKSHOP_DEFAULTS.opportunity.handoverLockHours)} h, the workshop default, when the pipeline has none)`,
         },
+        {
+          key: 'move_call_tasks',
+          description:
+            "the open lead's callbacks go to the new owner; a nurtured lead's owner and nurture calls are T2's to settle",
+        },
       ],
     },
     {
@@ -169,8 +177,7 @@ export const opportunityMachine = defineMachine<
       effects: [
         {
           key: 'schedule_nurture',
-          description:
-            'follow-up tasks on the nurture cadence (Phase 1; the cadence is a workshop input); a workflow engine is a later choice',
+          description: `nurture call tasks for the lead's owner on day ${WORKSHOP_DEFAULTS.calling.nurtureCallDays.join(', ')} after the lead enters nurture, at the start of calling hours (the owner's default for workshop CALL-5), after any still open are cancelled; a workflow engine is a later choice`,
         },
       ],
       emits: 'crm.opportunity.nurtured',
@@ -181,7 +188,10 @@ export const opportunityMachine = defineMachine<
       to: 'open',
       permission: 'crm.lead.write',
       guard: reopenWindow,
-      effects: [{ key: 'first_open_stage', description: 'stage = the first open stage' }],
+      effects: [
+        { key: 'first_open_stage', description: 'stage = the first open stage' },
+        { key: 'end_nurture_calls', description: "cancel the lead's open nurture calls" },
+      ],
       emits: 'crm.opportunity.reopened',
     },
     {
@@ -198,6 +208,12 @@ export const opportunityMachine = defineMachine<
       to: 'lost',
       permission: 'crm.lead.write',
       guard: reasonGiven('a lost-reason code is given'),
+      effects: [
+        {
+          key: 'end_call_tasks',
+          description: "cancel the lead's open callbacks and nurture calls",
+        },
+      ],
       emits: 'crm.opportunity.lost',
     },
   ],

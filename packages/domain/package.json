@@ -17,6 +17,7 @@
     "spike:import": "tsx tests/spike/import-scale.ts",
     "spike:lists": "tsx tests/spike/lists.ts",
     "spike:account360": "tsx tests/spike/account360.ts",
+    "spike:calling": "tsx tests/spike/calling.ts",
     "spike:catalogue": "tsx tests/spike/catalogue-explain.ts",
     "spike:quotes": "tsx tests/spike/quotes-explain.ts"
   },

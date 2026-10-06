@@ -105,6 +105,8 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     pin_codes: { i: true, u: false, d: true },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // A call is append-only: an outcome is never changed, a new call is a new row.
+    calls: { i: true, u: false },
     // A candidate changes only its state and who decided it; a merge is written only by its
     // definers (DATABASE §4.1).
     duplicate_candidates: { i: true, u: false },

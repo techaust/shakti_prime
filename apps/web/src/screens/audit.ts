@@ -151,6 +151,7 @@ const ACTIONS = {
   'crm.lead.merge': 'leadMerge',
   'crm.referral_partner.set': 'referralPartnerSet',
   'crm.commission_rule.set': 'commissionRuleSet',
+  'calls.call.log': 'callLog',
   'auth.sign_in': 'signIn',
   'auth.two_factor.verify': 'twoFactorVerify',
   'auth.sign_out': 'signOut',
@@ -491,6 +492,10 @@ const FIELD_KINDS = [
   ['codeActive', 'yesNo'],
   ['basis', 'commissionBasis'],
   ['amount', 'text'],
+  // Calls
+  ['callOutcome', 'text'],
+  ['attemptNo', 'number'],
+  ['durationSeconds', 'number'],
   // Uploaded files and their checks
   ['fileStatus', 'fileStatus'],
   ['purpose', 'filePurpose'],

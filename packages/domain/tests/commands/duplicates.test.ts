@@ -24,6 +24,7 @@ import {
   suggestDuplicate,
 } from '../../src/commands/crm/duplicates';
 import { mergeCustomers, mergeLeads, unmergeCustomers } from '../../src/commands/crm/merges';
+import { nurtureOpportunity } from '../../src/commands/crm/nurture-opportunity';
 import { createTask } from '../../src/commands/crm/tasks';
 import { databaseOutboxSink as outbox, memoryOutboxSink } from '../../src/outbox/sink';
 import { matchText } from '../../src/crm/duplicate-confidence';
@@ -69,6 +70,20 @@ function run<T = unknown>(
       input,
     ),
   ) as Promise<T>;
+}
+
+// A call on the lead, made by its caller with an outcome of the group's own list (T1's `calls`).
+async function callOn(lead: string, caller: Principal): Promise<string> {
+  const call = newId();
+  await asMigrator(
+    (m) => m`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series,
+               disposition_id, attempt_no, started_at)
+      select ${call}, 1, ${lead}, ${caller.id}, 'outbound', 'manual', d.id, 1, now()
+        from call_dispositions d
+       where d.entity_id is null and d.segment is null and d.archived_at is null
+       order by d.position limit 1`,
+  );
+  return call;
 }
 
 function refusal(work: Promise<unknown>): Promise<unknown> {
@@ -545,6 +560,29 @@ describe('crm.customer.merge and crm.customer.unmerge', () => {
     expect(await quoteAccount()).toBe(merged.account.id);
   });
 
+  it("keeps a lead's calls with the lead, on the kept customer and back on undo (calls_opportunity_entity_fk)", async () => {
+    const { kept, merged } = await pair();
+    const call = await callOn(merged.id, callerA);
+    // Read as the lead's caller, under the calls policy: the call is read with its lead.
+    const callNow = async () => {
+      const rows = await asPrincipal(callerA, ({ tx }) =>
+        tx.execute(sql`
+          select c.opportunity_id::text as lead, o.account_id::text as account
+            from calls c join opportunities o on o.id = c.opportunity_id
+           where c.id = ${call}`),
+      );
+      return rows[0];
+    };
+    const done = await run<{ id: string }>(leadA, mergeCustomers, {
+      entityId: 1,
+      keptAccountId: kept.account.id,
+      mergedAccountId: merged.account.id,
+    });
+    expect(await callNow()).toEqual({ lead: merged.id, account: kept.account.id });
+    await run(leadA, unmergeCustomers, { entityId: 1, mergeId: done.id });
+    expect(await callNow()).toEqual({ lead: merged.id, account: merged.account.id });
+  });
+
   it('counts only what came back when a row changed since the merge', async () => {
     const { kept, merged } = await pair();
     const elsewhere = await importedCustomer({
@@ -706,6 +744,32 @@ describe('crm.lead.merge', () => {
     );
     expect(row).toEqual({ archived: true, tasks: 1, merged: 1 });
     expect((await candidatesOf(kept))[0]?.state).toBe('merged');
+  });
+
+  it("ends the merged lead's nurture calls, so the kept lead gets none, and leaves its calls with it", async () => {
+    const { kept, merged, candidate } = await twoLeads();
+    await run(callerA, nurtureOpportunity, {
+      entityId: 1,
+      opportunityId: merged,
+      reasonCode: 'waiting_for_funds',
+    });
+    const call = await callOn(merged, callerA);
+    const done = await run<{ moved: { tasks: number } }>(leadA, mergeLeads, {
+      entityId: 1,
+      keptOpportunityId: kept,
+      mergedOpportunityId: merged,
+      candidateId: candidate.id,
+    });
+    expect(done.moved.tasks).toBe(0);
+    const [row] = await asMigrator(
+      (m) => m<{ keptNurture: number; cancelled: number; callLead: string }[]>`
+        select (select count(*)::int from tasks
+                 where opportunity_id = ${kept} and kind = 'nurture' and state = 'open') as "keptNurture",
+               (select count(*)::int from tasks
+                 where opportunity_id = ${merged} and kind = 'nurture' and state = 'cancelled') as cancelled,
+               (select opportunity_id::text from calls where id = ${call}) as "callLead"`,
+    );
+    expect(row).toEqual({ keptNurture: 0, cancelled: 3, callLead: merged });
   });
 
   it('gives the kept lead the merged lead’s referral partner, and refuses two partners', async () => {

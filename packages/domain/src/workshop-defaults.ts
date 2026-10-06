@@ -52,7 +52,19 @@ export interface WorkshopDefaults {
     readonly scoreRules: readonly [];
     readonly firstContactSlaMinutes: number | null;
   };
+  readonly calling: CallingDefaults;
   readonly sizing: SizingDefaults;
+}
+
+/** The cold calling rules (docs/design/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
+export interface CallingDefaults {
+  /**
+   * Unanswered attempts in all before a lead moves to nurture, and the day of each, counted from
+   * the day of the first attempt (0 is that day). One entry per attempt.
+   */
+  readonly attemptDays: readonly number[];
+  /** The days after a lead enters nurture on which a nurture call falls due. */
+  readonly nurtureCallDays: readonly number[];
 }
 
 /** The engineering constants the sizing calculators use (docs/design/phase1.md §6.7, §11). */
@@ -159,6 +171,17 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     scoreRules: [],
     /** Design §6.6: no first-contact time limit on any pipeline until the sales head sets one. */
     firstContactSlaMinutes: null,
+  },
+  /**
+   * The owner's defaults of 05-10-2026 for the sales head to confirm (docs/DECISIONS.md, workshop
+   * CALL-3 and CALL-5). Every retry and nurture call falls due at the start of that day's calling
+   * hours (`nextCallingWindowStart`).
+   */
+  calling: {
+    /** CALL-3: three attempts in all, on the day of the first call, the next day and day 3. */
+    attemptDays: [0, 1, 2],
+    /** CALL-5: nurture calls on day 7, 30 and 90 after the lead enters nurture, then none. */
+    nurtureCallDays: [7, 30, 90],
   },
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is

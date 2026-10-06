@@ -43,6 +43,8 @@ describe('workshop defaults', () => {
         scoreRules: [],
         firstContactSlaMinutes: null,
       },
+      // The owner's defaults of 05-10-2026 for CALL-3 and CALL-5, for the sales head to confirm.
+      calling: { attemptDays: [0, 1, 2], nurtureCallDays: [7, 30, 90] },
       sizing: {
         hazenWilliamsC: { hdpe: 140, gi: 120 },
         fittingsLossFraction: 0.1,

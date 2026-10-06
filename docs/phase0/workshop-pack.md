@@ -132,7 +132,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CALL-3 · Retry rule for unanswered leads** — Sales head
 - *Context:* an unanswered lead is dialled again automatically, then moved to nurture (a slower follow-up).
 - *Options:* how many attempts (for example 3 or 5), the gap between them (same day, next day), and what happens after the last attempt.
-- *Today:* not set.
+- *Today:* the owner's default of 05-10-2026, for the sales head to confirm: three attempts in all, on the day of the first call, the next day and day 3, each at the start of calling hours (9 AM); after the third unanswered attempt the lead moves to nurture.
 
 **CALL-4 · Handover from cold caller to lead converter** — Sales head
 - *Context:* when a cold caller marks a lead "Qualified", it goes to a lead converter by turn, weighted by who is present, their current load, their languages and segments. The lead then stays with that converter for a fixed time before it can be moved.
@@ -142,7 +142,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CALL-5 · Nurture follow-up** — Sales head
 - *Context:* a lead that is not ready to buy moves to nurture and is followed up on a schedule.
 - *Options:* for example day 7, day 30 and day 90, by call or WhatsApp message.
-- *Today:* not set.
+- *Today:* the owner's default of 05-10-2026, for the sales head to confirm: a call on day 7, day 30 and day 90 after the lead enters nurture, each at the start of calling hours (9 AM), then none; WhatsApp follow-up comes with Phase 2.
 
 **CALL-6 · Targets and leaderboards** — Sales head, Owner
 - *Context:* each caller and team sees live progress against daily, weekly and monthly targets. The same targets later drive incentives.

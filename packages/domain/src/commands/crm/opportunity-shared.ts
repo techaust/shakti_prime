@@ -61,7 +61,7 @@ const ExitRules = z.object({ requiredFields: z.array(z.string()).max(20).optiona
 
 /** The facts the opportunity machine's guards read, loaded under the caller's own policies. */
 export async function opportunityRecord(
-  ctx: CommandContext,
+  ctx: Pick<CommandContext, 'tx'>,
   row: OpportunityRow,
 ): Promise<OpportunityRecord> {
   const [stage] = await ctx.tx

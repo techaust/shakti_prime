@@ -124,6 +124,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.account.read` / `.write` | all | entity | team | own | own | own | entity (read) | entity | own (read) | entity (read) | – |
 | `crm.config.write` | all | – | – | – | – | – | – | – | – | – | – |
 | `calls.dial` | all | entity | team | own | own | own | – | – | – | – | – |
+| `calls.log` | all | entity | team | own | own | own | – | – | – | – | – |
 | `calls.recording.listen` | all | entity | team | – | – | – | – | – | – | – | – |
 | `sales.quote.create` / `.send` | all | entity | team | – | own | own | – | – | – | – | – |
 | `sales.order.create` / `.confirm` | all | entity | team | – | own | own | – | – | – | – | – |
@@ -213,6 +214,8 @@ What no agent principal holds or does:
 - The Triage and Co-pilot agents work on opportunity data without customer names or phone numbers.
 - No agent reads or adds a customer note, makes or archives a tag, or reads the customers screens' queries: the command guard refuses an agent, a voice session and the system principal for a command marked for people (`peopleOnly`), before it checks any permission and whatever it holds (`people_only`), while the Co-pilot still adds follow-up tasks and the Triage agent tags leads. No agent holds `crm.account.write`; of the agents, only the Concierge (`crm.account.read:own`) and the Chief of Staff (`crm.account.read:entity`) read customers, and the customer rule of §4 never lets an agent read a customer through a lead (0057).
 - Only people record the sizing a quote relies on (ADR 0021): `crm.sizing.record` is for people only, so its guard refuses a principal of kind `agent`, `system` or `voice_session` and any role key `agent:%` or `system:%`; the `sizings` insert policy holds the recorder to a principal of kind `user`, the definer `app.open_sizing_review()` that opens the team lead's review task refuses the same principals, `latestSizing` answers only a sizing a person recorded, and the agent refusal sweep (`packages/domain/tests/security/agent-refusals.test.ts`) asserts the refusal for every agent and the system principal over every command for people only. `agent:sizing` drafts quotes from a person's sizing; it never records one.
+- Only people log calls: `calls.call.log` is for people only (`peopleOnly`), no agent role holds `calls.log`, and the `calls` insert policy holds the caller to a principal of kind `user`; the calling queries refuse an agent.
+- The Triage agent's reassignment moves the lead's open callbacks to the new owner through `crm.task.create` and `crm.task.cancel`, audited under the agent.
 - An agent's lead handover never moves the customer relationship: `app.hand_over_customer()` answers `unchanged` for an agent request and touches nothing (0059).
 - Ask the Business and voice Ask run as the user.
 
@@ -278,6 +281,8 @@ A `voice_session` principal (`principals.kind`) stands for one "Talk to Shakti" 
 - Each entity registered on DLT as a Principal Entity; headers and consent templates registered.
 - 140-series numbers for promotional outbound; 160-series for service calls to leads with recorded consent; inbound IVR on standard virtual numbers.
 - TRAI hours (9 AM–9 PM) and DND scrubbing enforced in the dial command; recording notice on every call.
+- Phase 1 calls are dialled by hand on a phone outside the system (`calls.number_series` `manual`): the Cold Caller workspace shows a lead's full number (`dialNumber`) only inside TRAI hours and for a customer none of whose contacts has withdrawn consent to calls, and `calls.call.log` refuses a call saved outside those hours (`outside_calling_hours`) or for such a customer (`call_consent_withdrawn`); the queue marks such a customer.
+- The workspace's number button only guides the caller, since Account 360 shows every phone in full; the control is `calls.call.log`, which refuses a call saved outside calling hours or for a customer who withdrew consent.
 - WhatsApp: opt-in and opt-out, 24-hour window, approved templates per number, quality-rating monitoring, portfolio messaging-limit budget with service messages first.
 
 ## 8. Application security

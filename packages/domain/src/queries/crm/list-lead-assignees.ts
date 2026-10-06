@@ -10,7 +10,10 @@ type AssigneeContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 const MAX_ASSIGNEES = 500;
 
 /** The caller's team in the company: the one listed for it, or the narrowed request's team. */
-function teamIn(ctx: AssigneeContext, entityId: number): string | undefined {
+export function teamIn(
+  ctx: Pick<RequestContext, 'principal' | 'entityIds'>,
+  entityId: number,
+): string | undefined {
   return (
     ctx.principal.entityTeams?.find((t) => t.entityId === entityId)?.teamId ??
     (ctx.entityIds.length === 1 ? ctx.principal.teamId : undefined)

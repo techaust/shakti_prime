@@ -1,5 +1,6 @@
 import { DomainError, OpportunityDto, ReopenOpportunityInput } from '@shakti/contracts';
 import { defineCommand } from '../../command/define-command';
+import { cancelCallTasks } from './call-tasks';
 import {
   auditOpportunity,
   fire,
@@ -15,7 +16,8 @@ import {
 /**
  * `crm.opportunity.reopen` (design §7.2): a nurtured lead, or one lost within the reopen window
  * (`WORKSHOP_DEFAULTS.opportunity.reopenWindowDays`), is open again at the first open stage of
- * its pipeline.
+ * its pipeline. The lead's open nurture calls are cancelled (`cancelCallTasks`): it is worked
+ * from the queue again, from its first attempt.
  */
 export const reopenOpportunity = defineCommand({
   name: 'crm.opportunity.reopen',
@@ -44,6 +46,7 @@ export const reopenOpportunity = defineCommand({
       stateChangedAt: ctx.now,
       stageId: stage.id,
     });
+    await cancelCallTasks(ctx, row, ['nurture']);
     auditOpportunity(
       ctx,
       row,

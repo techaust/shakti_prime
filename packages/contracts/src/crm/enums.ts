@@ -46,6 +46,7 @@ export const OpportunityNurtureReasonSchema = z.enum([
   'waiting_for_funds',
   'waiting_for_subsidy',
   'waiting_for_season',
+  'not_reachable',
   'other',
 ]);
 export type OpportunityNurtureReason = z.infer<typeof OpportunityNurtureReasonSchema>;
@@ -157,6 +158,7 @@ export const ActivityTypeSchema = z.enum([
   'customers_merged',
   'customer_unmerged',
   'leads_merged',
+  'call_logged',
 ]);
 export type ActivityType = z.infer<typeof ActivityTypeSchema>;
 
