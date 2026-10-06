@@ -114,6 +114,10 @@ function refusal(status: string): DomainError {
       return new DomainError('conflict', 'each lead came through its own referral partner', {
         reason: 'merge_leads_two_partners',
       });
+    case 'keep_open':
+      return new DomainError('validation_failed', 'the open lead is kept over one in nurture', {
+        reason: 'merge_leads_keep_open',
+      });
     default:
       return new DomainError('internal', `the merge answered ${status}`);
   }
@@ -319,8 +323,9 @@ export const unmergeCustomers = defineCommand({
  * merged lead goes to a kept lead with none, so the partner keeps the credit for a win (CRM-09).
  * Refused for leads of two customers (`merge_customers_first`: the customers are merged first), of
  * two segments (`merge_leads_other_segment`) or of two referral partners
- * (`merge_leads_two_partners`: a person closes the one that should not count). Made from a card,
- * the card is closed as merged.
+ * (`merge_leads_two_partners`: a person closes the one that should not count). Of an open lead and
+ * a lead in nurture, the open one is kept (`merge_leads_keep_open` otherwise). Made from a card, the
+ * card is closed as merged.
  */
 export const mergeLeads = defineCommand({
   name: 'crm.lead.merge',

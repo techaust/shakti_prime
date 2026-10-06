@@ -41,6 +41,18 @@ const COUNT_KEYS = [
   'activities',
 ] as const satisfies readonly (keyof CustomerMergeMovedDto)[];
 
+/**
+ * The lead a pair of an open lead and a lead in nurture must keep: the open one, being worked on
+ * (`merge_leads_keep_open`). Any other pair is the caller's choice.
+ */
+function openLeadOf(row: DuplicateRowDto): 'first' | 'second' | undefined {
+  if (row.kind !== 'lead') return undefined;
+  const { first, second } = row;
+  if (first.opportunityState === 'open' && second.opportunityState === 'nurture') return 'first';
+  if (first.opportunityState === 'nurture' && second.opportunityState === 'open') return 'second';
+  return undefined;
+}
+
 function sideLabel(side: DuplicateSideDto): string {
   return side.opportunityId === null
     ? side.accountName
@@ -50,7 +62,8 @@ function sideLabel(side: DuplicateSideDto): string {
 /**
  * The merge dialog (CRM-03): which of the two to keep, and, for customers, what will move to the
  * kept one, counted before anyone confirms. A customer merge can be undone from the kept
- * customer's page (`crm.customer.unmerge`); a lead merge closes the other lead.
+ * customer's page (`crm.customer.unmerge`); a lead merge closes the other lead. Of an open lead
+ * and a lead in nurture, the open one is kept, with no choice offered.
  */
 export function MergeDialog({
   row,
@@ -63,7 +76,9 @@ export function MergeDialog({
 }) {
   const t = useTranslations('duplicates.dialog');
   const common = useTranslations('common');
-  const [keep, setKeep] = useState<'first' | 'second'>('first');
+  const openLead = openLeadOf(row);
+  const [chosen, setKeep] = useState<'first' | 'second'>('first');
+  const keep = openLead ?? chosen;
   // The counts of one choice, named by it, so a choice changed meanwhile shows none until its own.
   const [preview, setPreview] = useState<{ key: string; moved: CustomerMergeMovedDto }>();
   const counting = useQuery<CustomerMergeMovedDto>();
@@ -140,30 +155,38 @@ export function MergeDialog({
           <DialogHeader>
             <DialogTitle>{isCustomers ? t('customerTitle') : t('leadTitle')}</DialogTitle>
             <DialogDescription>
-              {isCustomers ? t('customerIntro') : t('leadIntro')}
+              {isCustomers
+                ? t('customerIntro')
+                : openLead === undefined
+                  ? t('leadIntro')
+                  : t('leadIntroKeepOpen')}
             </DialogDescription>
           </DialogHeader>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="text-text-muted mb-1 text-sm font-medium">{t('keepLegend')}</legend>
-            {(['first', 'second'] as const).map((which) => {
-              const side = which === 'first' ? row.first : row.second;
-              return (
-                <label key={which} className="inline-flex min-h-8 items-center gap-2">
-                  <input
-                    type="radio"
-                    name="keep"
-                    value={which}
-                    checked={keep === which}
-                    onChange={() => {
-                      setKeep(which);
-                    }}
-                    className="accent-accent size-4"
-                  />
-                  <span className="break-words">{sideLabel(side)}</span>
-                </label>
-              );
-            })}
-          </fieldset>
+          {openLead === undefined ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="text-text-muted mb-1 text-sm font-medium">
+                {t('keepLegend')}
+              </legend>
+              {(['first', 'second'] as const).map((which) => {
+                const side = which === 'first' ? row.first : row.second;
+                return (
+                  <label key={which} className="inline-flex min-h-8 items-center gap-2">
+                    <input
+                      type="radio"
+                      name="keep"
+                      value={which}
+                      checked={keep === which}
+                      onChange={() => {
+                        setKeep(which);
+                      }}
+                      className="accent-accent size-4"
+                    />
+                    <span className="break-words">{sideLabel(side)}</span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          ) : null}
           {isCustomers ? (
             <section aria-labelledby="merge-moves" className="flex flex-col gap-2">
               <h3 id="merge-moves" className="text-sm font-medium">

@@ -246,7 +246,8 @@
     "merge_other_company": "One of these customers is also with a company of the group you aren't working in now. Switch to all companies, or ask someone who works for both.",
     "merge_undo_later_first": "Someone has since merged this customer into another one. Undo that later merge first.",
     "merge_leads_other_segment": "These leads are for different kinds of work, so you can't merge them.",
-    "merge_leads_two_partners": "Each lead came from a different referral partner, so you can't merge them. Close the lead that shouldn't count instead."
+    "merge_leads_two_partners": "Each lead came from a different referral partner, so you can't merge them. Close the lead that shouldn't count instead.",
+    "merge_leads_keep_open": "Keep the open lead, and merge the lead set to follow up later into it."
   },
   "auth": {
     "signIn": {
@@ -2973,6 +2974,7 @@
       "leadTitle": "Merge leads",
       "customerIntro": "Choose the customer to keep. Everything recorded for the other customer moves to it, and the other customer is closed. You can undo this from the kept customer's page.",
       "leadIntro": "Choose the lead to keep. The other lead's open tasks and tags move to it, and the other lead is closed. Its history stays with the customer. If only the other lead came from a referral partner, the partner moves to the kept lead.",
+      "leadIntroKeepOpen": "You keep the open lead, because it's the one being worked on. The lead set to follow up later is closed, and its open tasks and tags move to the open lead. Its history stays with the customer. If only the closed lead came from a referral partner, the partner moves to the open lead.",
       "keepLegend": "Which one to keep",
       "moves": "What moves to the kept customer",
       "counts": {

@@ -131,8 +131,8 @@ create trigger activities_append_only before update or delete on activities
 --    customer in the caller's write scope), or for the next p_limit customers related to one
 --    company in id order after p_after (the nightly search: crm.duplicates.scan, held by
 --    system:workers alone), the other live customers anywhere in the group that share a phone
---    number with it, or its name and a village, and the pairs of its open leads of one segment in
---    that company. Every subject comes back at least once, with no pair, so the search knows where
+--    number with it, or its name and a village, and the pairs of its leads of one segment in that
+--    company, open or in nurture, at least one of them open. Every subject comes back at least once, with no pair, so the search knows where
 --    its batch ended. Ids and yes-or-no facts only: never a name, number or village.
 create or replace function app.duplicate_facts(
   p_entity smallint, p_after uuid, p_limit integer, p_account uuid
@@ -245,11 +245,12 @@ begin
     from subjects s
     join public.opportunities l1
       on l1.account_id = s.id and l1.entity_id = p_entity
-     and l1.state = 'open' and l1.archived_at is null
+     and l1.state in ('open', 'nurture') and l1.archived_at is null
     join public.pipelines p1 on p1.id = l1.pipeline_id
     join public.opportunities l2
       on l2.account_id = s.id and l2.entity_id = p_entity
-     and l2.state = 'open' and l2.archived_at is null and l2.id > l1.id
+     and l2.state in ('open', 'nurture') and l2.archived_at is null and l2.id > l1.id
+     and 'open' in (l1.state, l2.state)
     join public.pipelines p2 on p2.id = l2.pipeline_id and p2.segment = p1.segment
   union all
   select s.id, null::text, null::uuid, null::uuid, false, false, false, false
@@ -266,8 +267,8 @@ grant execute on function app.duplicate_facts(smallint, uuid, integer, uuid) to 
 --    [{ kind, firstId, secondId, reason, confidence, signals }], the confidence worked out by
 --    duplicateConfidence() from app.duplicate_facts(). Each pair is checked again before it is
 --    written: two live customers, one of them related to the company, that still share a number
---    (reason phone) or a name and a village (reason name_village); or two open leads of one
---    customer and segment in the company. The nightly search (crm.duplicates.scan) records any
+--    (reason phone) or a name and a village (reason name_village); or two leads of one customer
+--    and segment in the company, open or in nurture, at least one of them open. The nightly search (crm.duplicates.scan) records any
 --    such pair; a person (crm.lead.write, lead creation) only a pair with a customer or lead in
 --    their own write scope. A pair already recorded in the company, whatever its state, is left
 --    as it is, so a pair a person said is not the same is never put forward again. Answers the
@@ -361,10 +362,11 @@ begin
               join public.pipelines p1 on p1.id = l1.pipeline_id
               join public.opportunities l2
                 on l2.account_id = l1.account_id and l2.entity_id = l1.entity_id
-               and l2.state = 'open' and l2.archived_at is null
+               and l2.state in ('open', 'nurture') and l2.archived_at is null
               join public.pipelines p2 on p2.id = l2.pipeline_id and p2.segment = p1.segment
              where l1.id = r."firstId" and l2.id = r."secondId"
-               and l1.entity_id = p_entity and l1.state = 'open' and l1.archived_at is null
+               and l1.entity_id = p_entity and l1.state in ('open', 'nurture')
+               and l1.archived_at is null and 'open' in (l1.state, l2.state)
                and (v_platform
                     or app.scope_ok('crm.lead.write', l1.owner_id, l1.team_id)
                     or app.scope_ok('crm.lead.write', l2.owner_id, l2.team_id)));
@@ -737,9 +739,11 @@ grant execute on function app.unmerge_customers(uuid) to app_user;
 --    open tasks and its tags move to the kept lead and the merged lead is archived; its timeline
 --    stays with the customer. A referral partner of the merged lead goes to a kept lead with none,
 --    so the partner keeps the credit (CRM-09); two leads of two different partners are refused
---    (two_partners), and a person decides which to close. Answers { status, accountId, tasks,
---    tags, referralPartnerId } (the partner carried over, or null): merged, missing,
---    held_by_other, not_open, different_customers, other_segment or two_partners.
+--    (two_partners), and a person decides which to close. Of an open lead and a lead in nurture,
+--    the open one is kept (keep_open otherwise): it is the one being worked. Answers { status,
+--    accountId, tasks, tags, referralPartnerId } (the partner carried over, or null): merged,
+--    missing, held_by_other, not_open, keep_open, different_customers, other_segment or
+--    two_partners.
 create or replace function app.merge_leads(p_kept uuid, p_merged uuid, p_entity smallint)
   returns jsonb
   language plpgsql volatile security definer set search_path = '' as $$
@@ -775,6 +779,9 @@ begin
   end if;
   if v_kept.state not in ('open', 'nurture') or v_merged.state not in ('open', 'nurture') then
     return jsonb_build_object('status', 'not_open');
+  end if;
+  if v_kept.state = 'nurture' and v_merged.state = 'open' then
+    return jsonb_build_object('status', 'keep_open');
   end if;
   if v_kept.account_id <> v_merged.account_id then
     return jsonb_build_object('status', 'different_customers');

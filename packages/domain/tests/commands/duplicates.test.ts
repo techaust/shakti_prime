@@ -744,6 +744,104 @@ describe('crm.lead.merge', () => {
     ).toMatchObject(reason('merge_leads_other_segment'));
   });
 
+  it('pairs an open lead with a lead in nurture the caller cannot work, and keeps the open one', async () => {
+    const owner = await importedCustomer({
+      name: `Meera ${RUN}`,
+      phone: phone(),
+      owner: callerA,
+      team: teamA,
+    });
+    // The customer is caller A's; its lead in nurture was handed to team B.
+    const nurtured = newId();
+    await asMigrator(
+      (m) => m`insert into opportunities
+          (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, state, created_by)
+        select ${nurtured}, 1, ${owner.accountId}, p.id, ${stageId(1, 1)}, ${leadB.id}, ${teamB},
+               'nurture', ${leadB.id}
+          from pipelines p where p.key = 'farmer_pumps' and p.entity_id is null`,
+    );
+    const enquiry = await run<Lead>(callerA, createLead, {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      existingAccountId: owner.accountId,
+    });
+    expect(enquiry.outcome).toBe('created');
+    expect(enquiry.id).not.toBe(nurtured);
+    const [low, high] = [nurtured, enquiry.id].sort();
+    const [candidate] = await candidatesOf(enquiry.id);
+    expect(candidate).toMatchObject({
+      kind: 'lead',
+      opportunity_id: low,
+      other_opportunity_id: high,
+      state: 'open',
+      signals_json: ['same_customer', 'same_phone'],
+    });
+
+    const gm1 = await createTestPrincipal('general_manager', [1]);
+    expect(
+      await refusal(
+        run(gm1, mergeLeads, {
+          entityId: 1,
+          keptOpportunityId: nurtured,
+          mergedOpportunityId: enquiry.id,
+          candidateId: candidate?.id,
+        }),
+      ),
+    ).toMatchObject({ code: 'validation_failed', ...reason('merge_leads_keep_open') });
+    expect((await candidatesOf(enquiry.id))[0]?.state).toBe('open');
+    await run(gm1, mergeLeads, {
+      entityId: 1,
+      keptOpportunityId: enquiry.id,
+      mergedOpportunityId: nurtured,
+      candidateId: candidate?.id,
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ archived: boolean; state: string }[]>`
+        select (select archived_at is not null from opportunities where id = ${nurtured}) as archived,
+               (select state from opportunities where id = ${enquiry.id}) as state`,
+    );
+    expect(row).toEqual({ archived: true, state: 'open' });
+    expect((await candidatesOf(enquiry.id))[0]?.state).toBe('merged');
+  });
+
+  it('never pairs two leads in nurture', async () => {
+    const owner = await importedCustomer({
+      name: `Nanda ${RUN}`,
+      phone: phone(),
+      owner: callerA,
+      team: teamA,
+      lead: {},
+    });
+    const second = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`update opportunities set state = 'nurture' where id = ${owner.leadId ?? ''}`;
+        await tx`insert into opportunities
+            (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, state, created_by)
+          select ${second}, 1, ${owner.accountId}, p.id, ${stageId(1, 1)}, ${callerA.id}, ${teamA},
+                 'nurture', ${callerA.id}
+            from pipelines p where p.key = 'farmer_pumps' and p.entity_id is null`;
+      }),
+    );
+    // Caller A works both leads, so only the pair's states can refuse it.
+    const [low, high] = [owner.leadId ?? '', second].sort();
+    const written = await asPrincipal(callerA, ({ tx }) =>
+      tx.execute(sql`
+        select * from app.record_duplicates(1::smallint, ${JSON.stringify([
+          {
+            kind: 'lead',
+            firstId: low,
+            secondId: high,
+            reason: 'phone',
+            confidence: 95,
+            signals: [],
+          },
+        ])}::jsonb)`),
+    );
+    expect(written.length).toBe(0);
+    expect(await candidatesOf(second)).toEqual([]);
+  });
+
   it('asks for the customers to be merged first when the leads are of two customers', async () => {
     const a = await newLead(callerA, { name: `Arjun ${RUN}`, phone: phone() });
     const b = await newLead(callerA, { name: `Bhim ${RUN}`, phone: phone() });

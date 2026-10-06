@@ -100,7 +100,8 @@ export async function decideCandidate(
 /**
  * `crm.duplicate.scan` (CRM-03): the next `DUPLICATE_SCAN_BATCH` customers of a company, in id
  * order after `afterId`, each looked around for other customers that share a number or a name and
- * village, and for two open leads of one segment; what is worth a card is recorded. It catches what
+ * village, and for two leads of one segment, one of them open and the other open or in nurture;
+ * what is worth a card is recorded. It catches what
  * lead creation does not: two customers made at the same moment by an import and a form (imports
  * take no number lock, DECISIONS 28-09-2026), and rows an import committed in a batch. The nightly
  * worker runs it batch by batch as `system:workers`; it needs the platform-only

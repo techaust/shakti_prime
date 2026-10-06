@@ -10,7 +10,8 @@ import type { DuplicateKind, DuplicateReason, DuplicateSignal } from '@shakti/co
  * - A phone number is strong but not proof, since families share numbers (one number, two
  *   contacts); with the same name as well it is near certain.
  * - The same name in the same village is a fair sign on its own, weaker than a number.
- * - Two open leads of one customer and segment are the same enquiry told twice.
+ * - Two leads of one customer and segment, open or in nurture with at least one open, are the
+ *   same enquiry told twice.
  */
 export interface DuplicateFacts {
   kind: DuplicateKind;
