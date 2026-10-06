@@ -14,11 +14,21 @@ Run it with `pnpm spike:calling` (`packages/domain/tests/spike/calling.ts`; opti
 - **Clean-up:** the spike removes its leads, customers, calls and tasks at the end unless `--keep` is given; their timeline rows stay, since the timeline is append-only. The made-up callers stay, so the General Manager's team view lists the callers of earlier runs too (117 rows on the recorded run).
 
 ## Runs
-Two runs are recorded, both on 06-10-2026 (IST) in a Claude Code cloud session (4 cores, 16 GB, nothing else running, load average about 1), through the `app_reader` pool as the app reads (`DATABASE_URL_READER` set).
+Three runs are recorded, all on 06-10-2026 (IST) in a Claude Code cloud session (4 cores, 16 GB, nothing else running, load average about 1), through the `app_reader` pool as the app reads (`DATABASE_URL_READER` set).
 - **00:09 IST, before the change below:** the queue and the lead met the target; the team view did not.
-- **00:14 IST, after it** (the one in `results/calling.json`): every case under 300 ms at the 95th percentile.
+- **00:14 IST, after it:** every case under 300 ms at the 95th percentile.
+- **12:01 IST, after the review's fixes** (the one in `results/calling.json`): every case under 300 ms at the 95th percentile.
 
-The first run's raw result was not kept; its numbers are recorded here only.
+The raw results of the first two runs were not kept; their numbers are recorded here only.
+
+### Run of 06-10-2026, 12:01 IST (after the review's fixes)
+The queue's next call reads a nurture task only for a lead in nurture, and the page returns the last call's attempt and outcome for `unansweredAttempts()`. Same VM, on a database the suites and the journeys had used (company 1 has 20,423 leads). The plans keep their shape: the queue page took 37.0 ms for the tele-caller and 28.9 ms for the team lead; the team view's counts took 188.2 ms with 88,914 buffers.
+
+| Caller | Queue p50 / p95 ms | Queue page 2 p50 / p95 ms | Lead p50 / p95 ms | Team view p50 / p95 ms |
+|---|---|---|---|---|
+| Tele-caller, own queue | 54.9 / 67.0 | 56.2 / 69.1 | 41.6 / 55.6 | |
+| Team lead, the caller's queue | 53.6 / 72.1 | 55.3 / 66.4 | 40.6 / 54.9 | 134.9 / 177.9 (11 callers) |
+| General Manager, 1 company | 55.4 / 72.1 | 60.2 / 82.1 | 43.5 / 57.5 | 137.7 / 186.5 (98 callers) |
 
 ### Run of 06-10-2026, 00:14 IST (after the change)
 | Caller | Queue p50 / p95 ms | Queue page 2 p50 / p95 ms | Lead p50 / p95 ms | Team view p50 / p95 ms |
