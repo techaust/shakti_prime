@@ -74,6 +74,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'crm.score.refresh': 'Bring lead scores up to date each night',
   'crm.duplicates.scan': 'Look for duplicate customers and leads each night',
   'sales.quote.expire': 'Mark quotes past their validity as expired each day',
+  'notifications.send': 'Send notices to the people who act on them',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({

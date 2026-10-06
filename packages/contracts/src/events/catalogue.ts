@@ -90,7 +90,8 @@ const eventCatalogue = {
       'crm.duplicate.suggest',
       'imports.job.commit_batch',
     ],
-    subscribed: false,
+    // The notify worker tells the owners of the leads (docs/design/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         kind: DuplicateKindSchema,
@@ -115,16 +116,26 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.assigned': {
-    meaning: 'A lead was given to an owner and team, locked to them for `lockHours`.',
+    meaning:
+      'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
     emittedBy: ['crm.opportunity.assign'],
-    subscribed: false,
+    // The notify worker tells the new owner (docs/design/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         ownerId: IdSchema,
         teamId: IdSchema.nullable(),
         lockHours: z.number().int().min(1).max(720),
+        assignedById: IdSchema,
       })
       .strict(),
+  },
+  'crm.enquiry.routed': {
+    meaning:
+      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
+    emittedBy: ['crm.enquiry.route'],
+    subscribed: true,
+    payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
   'crm.opportunity.nurtured': {
     meaning: 'An open lead was parked in nurture with a reason code.',

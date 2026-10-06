@@ -2875,7 +2875,8 @@
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
-      "sales_quote_expire": "Mark quotes past their validity as expired each day"
+      "sales_quote_expire": "Mark quotes past their validity as expired each day",
+      "notifications_send": "Send notices to the people who act on them"
     },
     "empty": "There are no roles to show.",
     "locked": {

@@ -86,6 +86,10 @@ export const PERMISSION_KEYS = [
   // platform's worker principal, which reads the lapsed quotes and marks them expired through two
   // definers, nothing more.
   'sales.quote.expire',
+  // The notices of the notify worker and its five-minute scan (docs/design/phase1.md §8.1): held
+  // only by the platform's worker principal, which finds who a notice is for and writes it through
+  // narrow definers, nothing more.
+  'notifications.send',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -145,6 +149,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.score.refresh',
   'crm.duplicates.scan',
   'sales.quote.expire',
+  'notifications.send',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -278,6 +283,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.score.refresh': ['all'],
   'crm.duplicates.scan': ['all'],
   'sales.quote.expire': ['all'],
+  'notifications.send': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

@@ -192,6 +192,10 @@ export const inboxItems = pgTable(
     subjectId: uuid('subject_id').notNull(),
     state: text('state').notNull().default('open'),
     agentActionId: uuid('agent_action_id'),
+    // Routed work only (docs/design/phase1.md §8.1): the enquiry's interest and the note it came
+    // with, for the colleague the enquiry was passed to.
+    segment: text('segment'),
+    note: text('note'),
     doneBy: uuid('done_by').references(() => principals.id),
     doneAt: timestamp('done_at', { withTimezone: true }),
     ...timestamps,
@@ -206,6 +210,15 @@ export const inboxItems = pgTable(
     unique('inbox_items_action_unique').on(t.agentActionId),
     check('inbox_items_kind_check', sql`${t.kind} in ('agent_suggestion', 'routed_work')`),
     check('inbox_items_state_check', sql`${t.state} in ('open', 'done')`),
+    check(
+      'inbox_items_segment_check',
+      sql`${t.segment} in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale')`,
+    ),
+    check('inbox_items_note_check', sql`char_length(${t.note}) between 1 and 500`),
+    check(
+      'inbox_items_routed_check',
+      sql`${t.kind} = 'routed_work' or (${t.segment} is null and ${t.note} is null)`,
+    ),
     check('inbox_items_subject_type_check', sql`${t.subjectType} in ('opportunity', 'account')`),
     check(
       'inbox_items_suggestion_check',
