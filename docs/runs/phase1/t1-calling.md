@@ -313,8 +313,8 @@ The seven findings are fixed, and each fix's test fails on the code before it. T
 
 | # | Severity | Finding | State |
 |---|---|---|---|
-| R1 | Low | Design §8.2 says a leaving caller's nurture calls go with their leads through `crm.opportunity.assign`, but a nurtured lead cannot be assigned | Open |
-| R2 | Low | SECURITY §3.3 limits the triage agent's lead writes to "score, pipeline, entity fields only"; its reassignment now creates and cancels people's tasks | Open |
+| R1 | Low | Design §8.2 says a leaving caller's nurture calls go with their leads through `crm.opportunity.assign`, but a nurtured lead cannot be assigned | Fixed in `4a88d3f`: design §7.2 and §8.2 and the machine's `move_call_tasks` text name an open lead's callbacks and leave a nurtured lead to T2; `machines:docs` regenerated |
+| R2 | Low | SECURITY §3.3 limits the triage agent's lead writes to "score, pipeline, entity fields only"; its reassignment now creates and cancels people's tasks | Fixed in `4a88d3f`: one line in SECURITY §3.3 |
 
 **R1. A nurtured lead cannot be assigned (low, confirmed).**
 - **Where:** the opportunity machine allows `assign` only from `open` (`open` → `open`). Design §8.2 now says "`crm.lead.reassign_all` moves a leaving caller's leads through `crm.opportunity.assign`, so their callbacks and nurture calls go with them". The machine's `move_call_tasks` effect and design §7.2 "Built (T1)" also say assign moves the nurture calls.
