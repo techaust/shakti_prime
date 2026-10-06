@@ -229,7 +229,7 @@ describe('calls.log: what every call records', () => {
         select after_json from audit_logs where aggregate_id = ${result.call.id} and command = 'calls.call.log'`,
     );
     expect(row?.after_json).toMatchObject({
-      outcome: 'suite_retry',
+      callOutcome: 'suite_retry',
       nextAction: 'retry',
       attemptNo: 1,
       durationSeconds: 42,
