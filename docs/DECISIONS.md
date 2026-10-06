@@ -4,6 +4,7 @@ Every decision the owner took (and the few the lead took pending the owner), new
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 06-10-2026 | Cloud sessions are paused: Phase 1 continues on the PC only, with Docker Desktop back for the slice's databases and the Playwright image, one slice and one heavy command at a time, no parallel builders; this replaces the 05-10-2026 rows "No Docker on the PC" and "Cloud-first" while it lasts | Owner | `CLAUDE.md`, [hybrid](runbooks/hybrid.md), [slice-integration §1](runbooks/slice-integration.md#1-machines-and-ports), [STATUS](STATUS.md#phase-1) |
 | 06-10-2026 | The GitHub repository is public for now, so CI runs after this month's 2,000 free Actions minutes were used up; before it goes private again, the owner sets an Actions budget (Linux minutes at $0.006) or waits for the monthly reset | Owner | the repository's settings, [STATUS](STATUS.md#waiting-on-the-owner) |
 | 06-10-2026 | Reassigning an open lead (`crm.opportunity.assign`) moves its open callbacks to the new owner, as a new task with the same time and the old one cancelled; a nurtured lead's owner and nurture calls are T2's to settle | Lead | [design §7.2](design/phase1.md#72-t1-cold-caller-workspace), `packages/domain/src/commands/crm/call-tasks.ts` |
 | 06-10-2026 | An open lead and a lead in nurture of one customer, company and kind of work are paired as duplicates; in a merge of such a pair the open lead is always kept | Lead | [design §7.4](design/phase1.md#74-d1-duplicates), `app.merge_leads()` |

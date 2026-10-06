@@ -2,6 +2,8 @@
 
 How Shakti Prime BOS work is split between Claude Code cloud sessions and the owner's Windows PC, and how a piece of work moves between them. This page is the one owner of that split.
 
+**Paused (owner, 06-10-2026):** Phase 1 continues on the PC only, one slice at a time with Docker Desktop ([DECISIONS](../DECISIONS.md)); this page holds the cloud procedure for when cloud sessions resume.
+
 It follows the owner's decisions of 05-10-2026 ([DECISIONS](../DECISIONS.md)): slices are built, reviewed, merged with `main`, integrated and given their Linux baselines in cloud sessions (the trial of [§10](#10-the-trial) passed on 06-10-2026); the pull request and every hosted step stay on the PC, which runs no Docker; a step that fails in the cloud runs again in a new cloud session.
 
 The slice procedure itself (brief, build, review, merge with `main`, integration, baselines, pull request) is [slice-integration](slice-integration.md); the hosted migration is [DEPLOY §2](DEPLOY.md#2-every-deploy).
