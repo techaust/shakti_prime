@@ -11,6 +11,7 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 status documents
 
+- **#114** (06-10-2026) Phase 1 status at 06-10-2026, early morning, and CHANGELOG lines for #106 to #113.
 - **#110** (05-10-2026) No Docker on the PC: every database, suite, integration run and screenshot run in cloud sessions, a failed cloud step run again in a new cloud session; `CLAUDE.md`, hybrid, the start-session skill and DECISIONS.
 - **#106** (05-10-2026) Going hybrid recorded: the cloud environment's set-up in hybrid, P2b and AI0's progress, STATUS through 0106, CHANGELOG lines for #104 and #105.
 - **#104** (05-10-2026) Phase 1 status after P4, C4 and C3: the workers principal's platform-only rule in `CLAUDE.md`, the session's owner decisions, the integration lessons of the 8 GB PC, D1's run file.
@@ -26,6 +27,11 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 wave 3
 
+- **#119** (06-10-2026) T1 cold caller workspace: `/calling` worked by keyboard (`N`, `1` to `9`, `D` inside calling hours, `/`), the call queue (due callbacks, SLA breach, score, age; under 300 ms at the 95th percentile at 2,000 leads a caller), `calls.call.log` with its next step (callback, three retries then nurture, nurture calls on day 7, 30 and 90, Qualified forwards only, lost), a refusal outside calling hours or without consent, a team lead's view of the team's queues; call tasks follow the lead through reopen, loss, reassignment and lead merges. Migrations 0114 and 0115; dev and staging migrated through 0115.
+- **#118** (06-10-2026) D1 duplicates: duplicate cards from lead creation and a nightly search (a shared number, a name and village, two leads of one customer and segment), `/duplicates` and Account 360's cards, customer merges with undo, lead merges (the open lead kept over one in nurture, a referral partner carried), repeat enquiries joining the open or nurtured lead, writes holding the customer against a merge; a lead's quote follows it in a customer merge. Migrations 0112 and 0113; dev and staging migrated through 0113.
+- **#117** (06-10-2026) `source-map-js` 1.2.2 for GHSA-68fv-2mgg-jv7q; `sprintf-js`'s GHSA-hp3w-g68c-fv3c recorded as unreachable (only mammoth's command-line help).
+- **#116** (06-10-2026) Cloud sessions copy the Chromium builds `@playwright/test` runs from the Playwright image (`ensure_playwright_browsers`) and take the gitleaks image from Docker Hub when ghcr.io is refused (`ensure_gitleaks_image`).
+- **#115** (06-10-2026) S1 quotes: prices only from the customer's Price Master tier, tax only from the engine (rate versions, the solar 70:30 composite supply, place of supply, rupee rounding), gapless numbers per company and financial year, send, withdraw and re-quote, the quote PDF through the print module, the nightly expiry, the tier on Account 360, `/quotes`, the builder and the quote page, quote numbers in ⌘K. Migrations 0109 to 0111; dev and staging migrated through 0111. The first slice taken onto `main` and integrated in a cloud session.
 - **#113** (06-10-2026) The journeys' server stops with the runner on Linux: the Playwright server and `e2e:snap` start `next start` from the script's PATH, and `e2e:snap` stops the server's whole process group.
 - **#112** (05-10-2026) `tools/integration/lib.sh` puts Node 24 ahead of the cloud image's Node 22 in a cloud session.
 - **#111** (05-10-2026) Cloud sessions: Node 24 first on PATH through `CLAUDE_ENV_FILE`, pnpm 12 installed with npm (corepack cannot run pnpm 12's `.mjs` launcher), the versions printed by the session hook.
