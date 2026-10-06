@@ -45,8 +45,12 @@ export function noticeListSql(ctx: Ctx, limit: number, after?: z.output<typeof N
       : sql`(n.created_at, n.id) < (${after.t}::text::timestamptz, ${after.id}::uuid)`;
   return sql`
     select p.id, p.entity_id, p.type, p.subject_type, p.subject_id, p.payload_json, p.created_at,
-           p.created_at::text as created_text, p.read_at, c.name as customer_name,
-           q.quote_no
+           p.created_at::text as created_text, p.read_at,
+           (select a.name from accounts a
+             where a.id = (p.payload_json ->> 'accountId')::uuid) as customer_name,
+           (select qt.quote_no from quotes qt
+             where qt.id = (p.payload_json ->> 'quoteId')::uuid
+               and qt.entity_id = p.entity_id) as quote_no
       from (select n.* from notifications n
              where n.user_id = ${ctx.principal.id}::uuid
                and n.entity_id = any(${`{${ctx.entityIds.join(',')}}`}::int[])
@@ -55,11 +59,6 @@ export function noticeListSql(ctx: Ctx, limit: number, after?: z.output<typeof N
                and ${keyset}
              order by n.created_at desc, n.id desc
              limit ${limit}) p
-      left join lateral (
-        select a.name from accounts a where a.id = (p.payload_json ->> 'accountId')::uuid) c on true
-      left join lateral (
-        select qt.quote_no from quotes qt
-         where qt.id = (p.payload_json ->> 'quoteId')::uuid and qt.entity_id = p.entity_id) q on true
      order by p.created_at desc, p.id desc`;
 }
 

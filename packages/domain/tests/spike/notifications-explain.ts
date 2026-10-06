@@ -1,6 +1,6 @@
 // Notification plans (docs/design/phase1.md §8.1, brief N1): `pnpm --filter @shakti/domain
 // spike:notifications`. Fills the local database, in company 2, with made-up people (`EXPLN …`),
-// 4,000 leads with their customers, 40,000 open callback tasks due over a week, 10,000 quotes
+// 40,000 leads with their customers, 40,000 open callback tasks due over a week, 10,000 quotes
 // lapsing over a month, a pipeline with a 30-minute first-contact limit holding 2,000 never-called
 // leads made over three days, and 200,000 notices (2,000 for the person whose centre is read), then
 // prints `EXPLAIN (ANALYZE, BUFFERS)` for the centre's first and second page and the bell's count
@@ -22,7 +22,7 @@ import { noticeCountQuery, noticeListSql } from '../../src/queries/notifications
 
 const ENTITY = 2;
 const PEOPLE = 100;
-const LEADS = 4_000;
+const LEADS = 40_000;
 const TASKS = 40_000;
 const QUOTES = 10_000;
 const LATE_LEADS = 2_000;
@@ -196,15 +196,33 @@ async function main(): Promise<void> {
       await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id,
                  payload_json, dedupe_key, created_at, read_at, channel_sent_json)
                with p as (select id, row_number() over (order by id) as rn from principals
-                           where display_name like 'EXPLN person %' and id <> ${me})
+                           where display_name like 'EXPLN person %' and id <> ${me}),
+                    a as (select id, row_number() over (order by id) as rn from accounts
+                           where name like 'EXPLN customer %'),
+                    qt as (select id, account_id, row_number() over (order by id) as rn from quotes
+                            where quote_no like 'EXPLN/%')
                select app.uuid_v7(), case when g <= ${MINE} then ${me}::uuid else p.id end, ${ENTITY},
-                      'call_due', 'task', app.uuid_v7(), '{}'::jsonb, 'expln:' || g,
+                      case when g % 10 = 0 then 'quote_expiring' else 'lead_assigned' end,
+                      case when g % 10 = 0 then 'quote' else 'opportunity' end, app.uuid_v7(),
+                      case when g % 10 = 0
+                           then jsonb_build_object('accountId', qt.account_id, 'quoteId', qt.id)
+                           else jsonb_build_object('accountId', a.id) end,
+                      'expln:' || g,
                       now() - (g * interval '25 seconds'),
                       case when g % 5 = 0 then null else now() end,
                       '{"inApp": true, "push": "none"}'::jsonb
                  from generate_series(1, ${NOTICES}::int) g
-                 join p on p.rn = 1 + (g % ${PEOPLE - 1})`;
-      for (const table of ['notifications', 'tasks', 'quotes', 'opportunities', 'calls']) {
+                 join p on p.rn = 1 + (g % ${PEOPLE - 1})
+                 join a on a.rn = 1 + (g % ${LEADS})
+                 join qt on qt.rn = 1 + (g % ${QUOTES})`;
+      for (const table of [
+        'notifications',
+        'tasks',
+        'quotes',
+        'opportunities',
+        'calls',
+        'accounts',
+      ]) {
         await tx.unsafe(`analyze ${table}`);
       }
     }),
