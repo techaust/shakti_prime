@@ -5,8 +5,8 @@
 | Branch | `feat/t1-calling` on GitHub, from `main` at cbec38fc (#105) |
 | PC worktree | `t1-calling`, slot 15: Postgres 54345, app 3045 (`bash tools/integration/setup-worktree.sh t1-calling feat/t1-calling 54345 3045`) |
 | Runs on | Cloud from 05-10-2026 (the owner's decision to go hybrid): the builder continues from the pushed branch per its handover section; review in the cloud; merge with `main`, integration and baselines on the PC |
-| State | building |
-| Next step | the cloud builder runs the journey inside calling hours (from 03:35 UTC on 06-10-2026) and writes the final report, then the review |
+| State | built |
+| Next step | the review (slice-reviewer, in the cloud), then the merge with `main`, integration and baselines on the PC |
 
 ## Brief
 Read first:
@@ -37,10 +37,10 @@ Read first:
 Done when: the checks of AGENTS §10 pass on the branch, and a journey has a tele-caller work the queue by keyboard, log an unanswered call (its retry task appears), a callback, and a qualified lead (it moves stage), and a team lead see the team's queues.
 
 ## Report
-### 05-10-2026, builder on the PC (handover to the cloud)
-The slice is built end to end and its suites pass where they were run. Still to do: the spike's numbers and its document, one in-hours journey run, the whole-suite checks and this report's final form. Everything is committed on `feat/t1-calling`; nothing is pushed from the PC.
+### 06-10-2026, builder on the PC and in the cloud (final)
+The slice is built and every check of AGENTS §10 that runs in the cloud passes. The calling journey passes inside calling hours on desktop-light, desktop-dark and phone, except its three screenshots, whose baselines are the PC's to make. The PC builder built the slice up to 05-10-2026 and handed over; a cloud builder ran the spike, the whole-suite checks and the in-hours journey, and fixed what they found.
 
-**Done (files):**
+**Built (files):**
 - Contracts: `calls.log` in `PERMISSION_KEYS` and `PERMISSION_SCOPES`; `call_logged` in `ActivityTypeSchema`; `not_reachable` in `OpportunityNurtureReasonSchema` (the reason the retry rule parks a lead with); `packages/contracts/src/commands/crm/calls.ts` (`CallDirectionSchema`, `CallNumberSeriesSchema`, `LogCallInput`, `CallDto`, `LogCallResultDto`, the queue, lead, dial-number, search and team-view DTOs); the four lead events name `calls.call.log` in `emittedBy`.
 - Database: `packages/db/src/schema/calls.ts`; migrations `0107_calls.sql` (table, indexes, the `activities` type check with `call_logged`, hand-edited to name the column alone as 0094 does) and `0108_calls_rls.sql` (append-only trigger; RLS forced; read with the lead for `app_user` and `app_reader`; insert by a user principal whose `calls.log` scope covers the lead, with a live outcome of the group or the lead's company); `calls` in `ENTITY_TABLES`, the matrix fixture (id byte 0x30) and its rule, `NARROWER` and `enum-sync`; the CRM fixture cleans calls; seeds for `calls.log` (Executive all, GM entity, team lead team, both callers and the Store Manager own) and its SECURITY §3.2 row; `packages/db/tests/security/calls.test.ts`.
 - Domain:
@@ -48,42 +48,69 @@ The slice is built end to end and its suites pass where they were run. Still to 
   - `src/telecom/call-schedule.ts` (`istDayStart`, `callingStartOnDay`, `afterUnanswered`, `nurtureCallTimes`) with unit tests.
   - The command `calls.call.log` (permission `calls.log`, people only) in `src/commands/calls/log-call.ts`, registered.
   - `src/commands/crm/call-tasks.ts` (`createCallTask`, `scheduleNurtureCalls`). `crm.opportunity.nurture` now sets the day 7, 30 and 90 nurture tasks: the machine's effect text is updated, `machines:docs` regenerated, and `opportunity.test.ts` and `timeline.test.ts` updated for the three task rows.
-  - `src/queries/calls/consent.ts` and `src/queries/calls/call-queue.ts` (`listCallQueue`, `callQueuePageSql`, `loadCallLead`, `dialNumber`, `listTeamQueues`).
+  - `src/queries/calls/consent.ts` and `src/queries/calls/call-queue.ts` (`listCallQueue`, `callQueuePageSql`, `loadCallLead`, `dialNumber`, `listTeamQueues`, `teamQueueCountsSql`). In `rankedQueue`, which the queue and the team view share, each lead's next call is a lateral aggregate and the Qualified stage a join; the spike showed why.
   - `listTimeline` names a call's outcome (`outcomeName`); `opportunityRecord` takes any context with `tx`; the machine exports `exitFieldFilled`; `teamIn` is exported.
   - Tests: `tests/commands/calls.test.ts` (20), `tests/queries/call-queue.test.ts` (11), the agent refusal input, and reader parity for the four queries.
-- Web: `src/actions/calling.ts`; the Calling menu item (`calls.log` own) and its home hint; `/calling` in `BOS_PREFIXES` and `calling` in `CLIENT_NAMESPACES`; `app/(bos)/calling/page.tsx` and `loading.tsx`; `components/calling/calling-screen.tsx`, `outcome-dialog.tsx` and `team-queues.tsx`; `components/customers/timeline-row.tsx` (moved out of Account 360, with the call detail); `src/screens/calling.ts` with `calling.test.ts`; the `calling` catalogue, the error sentences, the audit labels (`callLog`, `outcome`, `attemptNo`, `durationSeconds`) and the copy-lint button keys; the named budget for `/calling` (206 kB, measured 196.6 kB); `e2e/calling.spec.ts`; the journey seed puts the tele-caller and the team lead in one team of company 1.
-- Documents: DATABASE (`calls`, `call_logged`), SECURITY (the §3.2 row and lines in §3.3 and §7), design §7.2 "Built (T1)" and §11, DECISIONS (two rows), workshop pack CALL-3 and CALL-5 "Today", exit-gate action 16; `pnpm db:docs` and `machines:docs` regenerated.
+  - The spike `tests/spike/calling.ts` (`pnpm spike:calling`), with the plans of the queue page and the team view's counts.
+- Web: `src/actions/calling.ts`; the Calling menu item (`calls.log` own) and its home hint; `/calling` in `BOS_PREFIXES` and `calling` in `CLIENT_NAMESPACES`; `app/(bos)/calling/page.tsx` and `loading.tsx`; `components/calling/calling-screen.tsx`, `outcome-dialog.tsx` and `team-queues.tsx`; `components/customers/timeline-row.tsx` (moved out of Account 360, with the call detail); `src/screens/calling.ts` with `calling.test.ts`; the `calling` catalogue, the error sentences, the audit labels (`callLog`, `outcome`, `attemptNo`, `durationSeconds`) and the copy-lint button keys; the named budget for `/calling` (206 kB); `e2e/calling.spec.ts`; the journey seed puts the tele-caller and the team lead in one team of company 1.
+- Documents: DATABASE (`calls`, `call_logged`), SECURITY (the §3.2 row and lines in §3.3 and §7), design §7.2 "Built (T1)" and §11, DECISIONS (two rows), workshop pack CALL-3 and CALL-5 "Today", exit-gate action 16; `docs/spikes/calling.md`, `docs/spikes/results/calling.json` and its line in `docs/spikes/README.md`; `pnpm db:docs` and `machines:docs` regenerated.
 
-**Half done:**
-- The spike `packages/domain/tests/spike/calling.ts` (`pnpm spike:calling`) is written and typechecks but has not run, because the database was stopped. Missing: its run, `docs/spikes/results/calling.json`, and `docs/spikes/calling.md` with the numbers and the `EXPLAIN (ANALYZE)` plans. The design's "Built (T1)" already links `docs/spikes/calling.md`, so the document link check reports it missing until it exists.
-- The journey's in-hours path has not passed yet: the journey ran only outside calling hours (16:04 UTC), where it checks the refusals instead. A local run with the hours forced open, never committed, found a bug: opening a lead sent the whole queue row to the strict input. A later commit fixes it, and no journey has run since.
+**Found and fixed in the cloud:**
+- The spike found the team view over 300 ms at the 95th percentile: 315.8 ms for the team lead and 324.9 ms for the General Manager.
+  - The planner copied each lead's next-call subquery into every place the bucket and the counts read it, about six `tasks` probes a lead. It looked up the Qualified stage once per lead.
+  - The next call is now a lateral aggregate, run once per lead. The Qualified stage is a join, one per pipeline by `pipeline_stages_pipeline_key_unique`. The rule and its results are unchanged.
+- The desktop-dark journey failed axe on the selected queue row: `--text-muted` on `--accent-soft` is 4.19:1 in the dark theme. The row's score, village and tries take `text-text`, which the tokens hold at AA on `--accent-soft`.
+- The in-hours journey found three faults:
+  - `N` on the queue's last lead did nothing. After a qualified call, `N` stayed on the lead while the queue still held it as its last row. `N` now goes back to the first lead (`nextLead`, its unit test changed).
+  - `/` kept the last search in the field, so a second search added to it. `/` now selects it.
+  - The journey pressed `/` before the page had hydrated on its second visit. `findLead` presses it again until the search takes the keyboard.
+- Prettier on 13 of the slice's files: CI's `pnpm format:check` would have failed.
 
-**Checks last run (all on the PC, Postgres 54345):**
-- `db` security suite: `calls.test.ts`, `enum-sync`, `grants` and `role-entity-matrix`: 4 files, 231 passed.
-- `domain` security suite:
-  - `tests/commands/calls.test.ts`: 20 passed.
-  - `tests/queries/call-queue.test.ts`: 11 passed.
-  - `agent-refusals`, `opportunity`, `lead-flows`, `tasks` and `timeline`: 94 passed, then 27 for the last two files after their update.
-- Unit tests:
-  - `@shakti/contracts`: 177 passed.
-  - `@shakti/db`: 122 passed.
-  - `@shakti/domain`: 1,600 passed.
-  - Web `audit`, `calling` and `contract-values`: 29 passed. The whole web unit suite was 635 passed before the last three fixes, which were then run alone.
-- `pnpm --filter web typecheck` and `pnpm --filter @shakti/domain typecheck` are clean; eslint over every touched file is clean; `pnpm copy-lint` is clean.
-- `pnpm build` passed; `pnpm --filter web js-budget`: every page within budget, `/calling` 196.6 kB.
-- `e2e/calling.spec.ts`, desktop-light, outside calling hours: 12 passed, setup included.
-- Not run:
-  - the whole security suite (`pnpm test:security`, which also runs `reader-parity.test.ts` with the new queries);
-  - a full `pnpm lint` and `pnpm typecheck`;
-  - the phone and dark journeys;
-  - the spike.
+**The spike** (`pnpm spike:calling` at its defaults, through `app_reader`, run of 06-10-2026 00:14 IST on the cloud VM, 4 cores and 16 GB, nothing else running; [docs/spikes/calling.md](../../spikes/calling.md)):
+- **Seed:** 10 callers with 2,000 leads each; the first caller has 866 calls and 966 tasks; company 1 has 20,353 leads.
+- **Times, p50 / p95 ms**; every case is under 300 ms at the 95th percentile:
 
-**Next steps, in order:**
-1. `pnpm install`, then `pnpm test:security` (it migrates and seeds). Fix anything it finds, starting with `reader-parity.test.ts`.
-2. `pnpm spike:calling` (defaults: 10 callers with 2,000 leads each). Write `docs/spikes/calling.md` from `docs/spikes/results/calling.json` as `docs/spikes/account360.md` is written, with both plans. `python3 tools/integration/check-doc-links.py` must then report nothing missing.
-3. `pnpm build`, `pnpm --filter web e2e:seed`, then `pnpm --filter web exec playwright test e2e/calling.spec.ts` on desktop-light, desktop-dark and phone. Run it inside calling hours (03:35 to 15:20 UTC) so the keyboard path runs: the unanswered call and its retry task, the callback, the qualified lead and `N`.
-4. `pnpm --filter web js-budget`, a full `pnpm lint`, `pnpm typecheck`, the unit tests and `pnpm copy-lint`. If a turbo run writes an "agent rules" block into AGENTS.md, restore AGENTS.md from `main`.
-5. Replace this section with the final report (the EXPLAIN evidence from step 2, the test counts, the decisions below). Set State to built and Next step to the review, commit and push the branch.
+| Caller | Queue | Queue page 2 | Lead | Team view |
+|---|---|---|---|---|
+| Tele-caller | 48.7 / 56.5 | 51.8 / 62.9 | 38.5 / 48.2 | |
+| Team lead | 52.9 / 64.8 | 49.6 / 57.4 | 37.4 / 44.5 | 117.1 / 127.2 (10 callers) |
+| General Manager | 45.5 / 51.7 | 46.8 / 53.6 | 35.9 / 39.7 | 124.3 / 136.4 (117 callers) |
+
+- **`EXPLAIN (ANALYZE, BUFFERS)` under RLS:**
+  - The queue page (`callQueuePageSql`):
+    - Tele-caller: planning 5.0 ms, execution 25.5 ms.
+    - Team lead reading the caller's queue: 2.5 ms and 23.9 ms.
+    - The 2,000 leads come off `opportunities_entity_owner_idx` in 1.3 ms. The Qualified stage and the pipeline are memoised per pipeline. Each lead probes `tasks_account_state_due_idx` and `calls_opportunity_started_idx` under the policies.
+  - The team view's counts (`teamQueueCountsSql`), team lead over 20,000 leads: planning 2.3 ms, execution 163 ms, 88,142 buffers (355,800 before the change).
+  - The full plans are in `results/calling.json`.
+- The second page costs the same as the first, because the keyset narrows the rows after ranking. The team view grows with the leads of every caller it lists; 200,000 leads at once is not measured.
+
+**Checks** (the cloud VM, Postgres on 54322):
+- `pnpm test:security` on a fresh database with the final query code: db 32 files and 984 tests, domain 58 and 663 (`reader-parity.test.ts` 8), web 15 and 242, all passed.
+  - Run a second time on a database the suites, the spike and the journeys had already used, `import-kinds.test.ts` failed once. Its fixed row "Two Sites, Sikar" matched the customer its first run had saved. That test cannot run twice on one database; it is not T1's.
+- After the query change: `call-queue.test.ts`, `calls.test.ts` and `reader-parity.test.ts`, 39 passed.
+- `e2e/calling.spec.ts`, against the final build:
+  - Inside calling hours (03:51 and 03:53 UTC on 06-10-2026), desktop-light, desktop-dark and phone, twice: 17 passed with no retry, setup included. The keyboard path passed on each project: the unanswered call and its retry task, the callback, the qualified lead and `N`; and the team lead's view.
+  - Outside calling hours (19:58 UTC on 05-10-2026): 17 passed, with the refusals checked.
+  - "Calling in the snapshot company" fails on all three projects only for want of its `calling.png` baselines. They are made on the PC (hybrid §2); the files written here were deleted, and its axe check passed before the screenshot.
+- `pnpm build` passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.7 kB of 206.
+- `pnpm lint`: clean. `pnpm typecheck`: clean.
+- Unit tests (`turbo run typecheck test --force`, 15 tasks): tokens 134, copy-lint 17, ui 105, contracts 177, db 122, domain 1,600 and web 638, all passed.
+- `pnpm copy-lint`, `pnpm format:check` and `check-doc-links.py` (`bad 0`): clean. `db:docs` and `machines:docs`: no change.
+- Not run here: the secret scan (the gitleaks image is not on the VM) and the screenshot baselines; both run on the PC at integration.
+
+**The cloud environment** (for the trial, `docs/runbooks/hybrid.md` §10):
+- The hook printed `pnpm install failed`. Two causes:
+  - The image's corepack records `bin/pnpm.cjs` for pnpm 12.6.0, which ships `bin/pnpm.mjs`.
+  - The Node 24 that `cloud-setup.sh` installs in `/usr/local` is hidden behind `/opt/node22/bin`, which comes first in `PATH`; `node` stayed 22.22.0.
+- The fix stays in this session's scratchpad and changes nothing in the repository:
+  - Node 24.21.0 installed in `/usr/local` as `cloud-setup.sh` installs it (the SHA-256 checked against nodejs.org's list).
+  - `/usr/local/bin` and a `pnpm` shim (`node …/pnpm/12.6.0/bin/pnpm.mjs`) put first in `PATH`.
+  - `pnpm install --frozen-lockfile` from the lockfile, which it left unchanged.
+- The journeys' Chromium (revision 1243) was missing; it was installed with `pnpm --filter web exec playwright install --with-deps chromium`, as the brief allowed.
+- When Playwright starts `next start` itself, the run never ends after its last test. A catalogue journey test does the same, so it is not T1's. The journeys here ran against `next start -p 3000`, started beforehand from the build, which Playwright reuses.
+- On a Linux host outside the Playwright image, `snap()` compares screenshots and fails against the PC's baselines (a catalogue test did); only the image's run counts.
+- These are worth a separate fix to `cloud-setup.sh` and the hook. Raising it as a suggested task failed, because the tool timed out.
 
 **Decisions the brief did not settle:**
 - The command is `calls.call.log` under the permission `calls.log`, because the registry requires `module.resource.action` names.
@@ -103,58 +130,12 @@ The slice is built end to end and its suites pass where they were run. Still to 
 - An outcome key saves the call at once when the outcome needs nothing more. A callback, a lost lead or a parked lead first asks in a dialog.
 - The number to dial is a read (`dialNumber`) gated by `calls.log`, not `calls.dial` (click-to-dial, Phase 2), and it writes no audit row.
 - Outside calling hours the journey checks the refusals instead of the keyboard path, because the server's clock decides.
+- `N` on the queue's last lead goes back to the first lead, and does nothing only when the open lead is the queue's only one.
+- `/` selects the last search, so typing replaces it.
 
-### 05-10-2026, builder in the cloud (before calling hours)
-Steps 1, 2 and 4 of the handover are done, and step 3 outside calling hours. The in-hours journey waits for 03:35 UTC; this section and the handover above then become one final report.
-
-**Environment (for the cloud trial, `docs/runbooks/hybrid.md` §10):**
-- The hook printed `pnpm install failed`. Two causes:
-  - The image's corepack records `bin/pnpm.cjs` for pnpm 12.6.0, which ships `bin/pnpm.mjs`.
-  - The Node 24 that `cloud-setup.sh` installs in `/usr/local` is hidden behind `/opt/node22/bin`, which comes first in `PATH`; `node` stayed 22.22.0.
-- The fix stays in this session's scratchpad and changes nothing in the repository:
-  - Node 24.21.0 installed in `/usr/local` as `cloud-setup.sh` installs it (the SHA-256 checked against nodejs.org's list).
-  - `/usr/local/bin` and a `pnpm` shim (`node …/pnpm/12.6.0/bin/pnpm.mjs`) put first in `PATH`.
-  - `pnpm install --frozen-lockfile` from the lockfile, which it left unchanged.
-- The journeys' Chromium (revision 1243) was missing; it was installed with `pnpm --filter web exec playwright install --with-deps chromium`, as the brief allowed.
-- When Playwright starts `next start` itself, the run never ends after its last test (a catalogue journey test does the same, so it is not T1's). The journeys here ran against `next start -p 3000`, started beforehand from the build, which Playwright reuses.
-- The gitleaks image is not on the VM; the secret scan is left to the integration run on the PC.
-
-**Changes in this session:**
-- `packages/domain/src/queries/calls/call-queue.ts`: two changes to `rankedQueue`, which the queue and the team view share; the rule and its results are unchanged. The spike found the team view over 300 ms at the 95th percentile.
-  - Each lead's next call is a lateral aggregate. As a column, the planner copied it into each place the bucket and the counts read it: about six `tasks` probes a lead.
-  - The Qualified stage is a join, one row per pipeline by `pipeline_stages_pipeline_key_unique`. It was a subquery run once per lead.
-  - The team view's statement is now `teamQueueCountsSql`, exported as `callQueuePageSql` is, so the spike explains it.
-- `packages/domain/tests/spike/calling.ts`: also prints the team view's plan for the team lead and writes it to the results as `teamCountsPlanTeamLead`.
-- `apps/web/src/components/calling/calling-screen.tsx`: the selected queue row's score, village and tries take `text-text`. axe found 4.19:1 for `--text-muted` on `--accent-soft` in the dark theme, on every desktop-dark test; the tokens hold `--text` at AA on `--accent-soft`.
-- Prettier on 13 of the slice's files: CI's `pnpm format:check` would have failed.
-- `docs/spikes/calling.md` (new), `docs/spikes/results/calling.json` and the line in `docs/spikes/README.md`.
-
-**The spike** (`pnpm spike:calling` at its defaults, through `app_reader`, 4 cores, 16 GB, nothing else running; [docs/spikes/calling.md](../../spikes/calling.md)):
-- **Seed:** 10 callers with 2,000 leads each; the first caller has 866 calls and 966 tasks.
-- **After the change**, every case is under 300 ms at the 95th percentile:
-  - The queue: 51.7 to 64.8 ms.
-  - Its second page: 53.6 to 62.9 ms.
-  - The lead: 39.7 to 48.2 ms.
-  - The team view: 127.2 ms for the team lead (10 callers) and 136.4 ms for the General Manager (117 callers).
-- **Before it:** the team view was at 315.8 ms and 324.9 ms, and the queue at 72.9 to 93.7 ms.
-- **`EXPLAIN (ANALYZE, BUFFERS)` under RLS:**
-  - The queue page: planning 5.0 ms and execution 25.5 ms for the tele-caller; 2.5 ms and 23.9 ms for the team lead. 2,000 leads come off `opportunities_entity_owner_idx`, each probing `tasks_account_state_due_idx` and `calls_opportunity_started_idx` under the policies.
-  - The team view's counts: planning 2.3 ms and execution 163 ms over 20,000 leads (88,142 buffers, down from 355,800).
-
-**Checks:**
-- `pnpm test:security`:
-  - The first run, before the changes: db 32 files and 984 tests, domain 58 and 663 (`reader-parity.test.ts` 8), web 15 and 242, all passed.
-  - Run again on the same database after the spike and the journeys: `import-kinds.test.ts` failed once. Its fixed row "Two Sites, Sikar" matched the customer the first run had committed (created 18:33 UTC).
-  - On a fresh database (`docker compose down -v`, then up) with the final code: db 984, domain 663, web 242, all passed.
-- After the query change, `call-queue.test.ts`, `calls.test.ts` and `reader-parity.test.ts`: 39 passed.
-- `pnpm build` passed. `pnpm --filter web js-budget`: every page within budget (30 pages); `/calling` is 196.7 kB of 206.
-- `e2e/calling.spec.ts` outside calling hours (19:58 UTC), desktop-light, desktop-dark and phone: 17 passed, setup included.
-  - "calling in the snapshot company" fails on all three: its `calling.png` baselines do not exist yet. They are made on the PC (hybrid §2); the files written here were deleted, and its axe check passed before the screenshot.
-- `pnpm lint`: clean. `pnpm typecheck`: 8 tasks successful.
-- Unit tests (`turbo run test --force`): tokens 134, copy-lint 17, ui 105, contracts 177, db 122, domain 1,600 and web 638, all passed.
-- `pnpm copy-lint`: clean. `pnpm format:check`: clean. `check-doc-links.py`: `bad 0`. `db:docs` and `machines:docs`: no change.
-
-**Still to do:** `e2e/calling.spec.ts` inside calling hours on the three projects (the keyboard path: the unanswered call and its retry task, the callback, the qualified lead and `N`), then the final report, State built and Next step the review.
+**Uncertain:**
+- The spike's numbers come from a quiet cloud VM with 20,000 made-up leads. The lead engineer measures again at integration and on the hosted stack.
+- The selected row's secondary text is now as dark as the customer's name; the reviewer may prefer a token change so that `--text-muted` holds AA on `--accent-soft`, which is a design-system decision outside this slice.
 
 ## Review
 
