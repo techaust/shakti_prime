@@ -1,6 +1,6 @@
 # Claude Code tooling: connections and sign-in
 
-How each plugin and MCP server that `.claude/tooling.json` requires is connected on the owner's PC, and how to bring one back when it drops. The rules (never install without the go-ahead, credentials never in the repository, the check at session start) are in [CLAUDE.md](../../CLAUDE.md#claude-code-tooling). Checked with a live call on 28-09-2026, with the later re-authorisations noted against each tool.
+How each plugin and MCP server that `.claude/tooling.json` requires is connected on the owner's PC, and how to bring one back when it drops. The rules (never install without the go-ahead, credentials never in the repository, the check at session start) are in [CLAUDE.md](../../CLAUDE.md#claude-code-tooling). Last reviewed 07-10-2026; a sign-in that has lapsed shows as a failed connection at the start of a session.
 
 ## On the PC only
 Every plugin and MCP server below is signed in on the owner's PC (the claude.ai account's directory plugins, `.mcp.json`, user-scope servers and the PC's credentials). A Claude Code cloud session has none of them, and nothing is installed there; its session-start hook says so ([hybrid §2](hybrid.md#2-what-a-cloud-session-has-and-lacks)).
@@ -32,8 +32,14 @@ The ten directory plugins are enabled on the owner's claude.ai account. The Sess
 - **AWS:** runs through `uvx` with the credentials `aws configure` saved in `%USERPROFILE%\.aws` for `claude-shakti` (region `ap-south-1`, read-only). For the file storage bucket, add a permission for that one bucket rather than widening the user; the files stack does this ([files-setup](files-setup.md)).
 - **Supabase, Upstash and Vercel** hold the dev and staging environments (29-09-2026). The Vercel server was authorised again for the `shakti-prime` team on 29-09-2026 and reads its projects, variables and deployments.
 - **Context7** was signed in again on 03-10-2026; a session started before a sign-in cannot see it until it is reopened.
-- **shadcn** and the second AWS entry can time out at start and come back on the next start.
+- **shadcn**, **playwright** and the second AWS entry can time out at start and come back on the next start.
 - A server that shows "Connection closed" is missing its stdio command: check the plugin's `.mcp.json` under `~/.claude/plugins/synced/`.
 
 ## Signing a server in again
-The desktop chat cannot run an OAuth sign-in. The owner authorises a server from the CLI (`claude`, then `/mcp`, then Authenticate) or on claude.ai, and the session is reopened afterwards.
+The desktop chat cannot run an OAuth sign-in. The owner authorises a server from the desktop app's menu, then reopens the session (the labels below follow the app at the time of writing; if a screen names a step differently, the setting is the same):
+1. Open the Claude desktop app and click the settings icon (the gear).
+2. Open *Connectors* (or *Developer*, for a server from `.mcp.json`) and click the server's name.
+3. Click *Connect* (or *Authenticate*) and finish the sign-in in the browser window that opens.
+4. Close the session and start a new one; a session that was open during the sign-in cannot see the server.
+
+From a terminal the same is `claude`, then `/mcp`, then *Authenticate*; a plugin's server can also be authorised on claude.ai.

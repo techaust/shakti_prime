@@ -4,7 +4,7 @@
 |---|---|
 | Branch | `feat/c3-pipelines-r2` on GitHub (3856caf, from `main` at #82) |
 | PC worktree | `c3-pipelines`, slot 7: Postgres 54337, app 3037; its local branch `feat/c3-pipelines-scoring` is at the same commit and pushes to `feat/c3-pipelines-r2` (`git push origin HEAD:feat/c3-pipelines-r2`) |
-| Runs on | PC for now ([DECISIONS](../../11-decisions.md) 04-10-2026); later the integration list may run in the cloud |
+| Runs on | PC (built, reviewed, integrated and merged there) |
 | State | merged (#103, 05-10-2026) |
 | Next step | none; the add-partner form and referral codes in imports are follow-ups in STATUS |
 

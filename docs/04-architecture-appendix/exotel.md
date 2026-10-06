@@ -12,7 +12,7 @@
 | Fixture tests (dial form, auth, error codes, no retry on dial, retry on read, refusals, signed address, JSON and form callbacks) | `apps/web/src/integrations/exotel/exotel.test.ts`, `packages/domain/src/telecom/dial-policy.test.ts` |
 | Spike script | `apps/web/scripts/spike/exotel-dial.ts`, run with `pnpm --filter web spike:exotel` (`-- --dry-run` checks the rules only) |
 
-Not built, by design: the webhook route, `webhook_inbox`, `calls` and the dial command (Phase 2). DND scrubbing itself (the NCPR lookup) is an input to `checkDial`; the scrub provider is chosen with the DLT registration.
+Not built, by design: the webhook route, `webhook_inbox` and the dial command (Phase 2). The `calls` table exists since slice T1, which logs calls dialled by hand; the dialler's provider call id, recording and transcript columns join it in Phase 2. DND scrubbing itself (the NCPR lookup) is an input to `checkDial`; the scrub provider is chosen with the DLT registration.
 
 ## 2. What the user supplies
 1. An Exotel account on the Mumbai cluster with KYC done, and its **Account SID, API key and API token** (Settings › API).

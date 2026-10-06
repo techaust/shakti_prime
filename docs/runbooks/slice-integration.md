@@ -8,7 +8,7 @@ How one slice of a phase goes from a brief to `main` and the hosted environments
 - Bash is required: Git Bash on Windows, bash on Linux. Docker runs every database; Python 3 runs the merge helpers and the link check. Every command starts with `cd "<checkout>" && . tools/integration/lib.sh &&`, which puts pnpm on `PATH` on the PC and maps `python3` to `python` where Git Bash has only that.
 - On the PC, each slice has its own worktree under `$WT_ROOT` (default: a `shakti-wt` folder beside the main checkout; on the owner's PC `WT_ROOT=/d/shakti-wt`), its own Postgres container `shakti-pg-<slug>` and its own app port. A cloud session has one checkout, with Postgres on 54322 and the app on 3000 ([hybrid §8](hybrid.md#8-what-stays-on-the-pc-and-why)).
 - Ports on the PC: the main checkout uses Postgres 54322 and app 3000; the integration database is always 54340. A slice takes a free slot *n* from 1 to 19 except 10, and uses Postgres 54330 + *n* and app 3030 + *n*: slot 7 is 54337 and 3037, slot 11 is 54341 and 3041. Slot 10 is never used (54340 is the integration database). The slot is written in the slice's run file and freed when the slice merges.
-- On the owner's 8 GB PC (owner, 06-10-2026 and 07-10-2026): at most two building agents at once, and one heavy command (whole-repository lint, typecheck, build, the security suite, journeys) at a time through `bash tools/integration/heavy.sh <command>`, a lock shared by every worktree. Elsewhere, at most three building agents and one reviewer at a time on a machine with 8 GB of memory, and never more than the Claude plan allows across the PC and the cloud ([hybrid §5](hybrid.md#5-how-many-at-once)).
+- On the owner's 8 GB PC: at most two building agents at once, and one heavy command (whole-repository lint, typecheck, build, the security suite, journeys, `integrate.sh`, `e2e:snap`) at a time through `bash tools/integration/heavy.sh <command>`, a lock shared by every worktree; the rule, its dates and the model rules are in [CLAUDE.md](../../CLAUDE.md) and [DECISIONS](../11-decisions.md). Not on the owner's PC: three builders and one reviewer at a time on a machine with 8 GB of memory, and never more than the Claude plan allows across the PC and the cloud ([hybrid §5](hybrid.md#5-how-many-at-once)).
 
 ## 2. Set up a slice
 - `bash tools/integration/setup-worktree.sh <slug> <branch> <db-port> <app-port>` from any checkout on the PC.
@@ -41,14 +41,14 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 5. Commit the merge (`chore: merge main (<what>) into <slice>; its migrations move to NNNN to MMMM`).
 
 ## 6. Integrate
-- Start `bash tools/integration/integrate.sh <worktree> <log>` in the background (30 to 60 minutes).
+- Start `bash tools/integration/heavy.sh bash tools/integration/integrate.sh <worktree> <log>` in the background (30 to 60 minutes; the lock keeps every other heavy command waiting meanwhile, and clears itself after 90 minutes, so a longer run is split with `INTEGRATE_STEPS`).
 - It runs install, lint, format, copy lint, the generated-files check, typecheck, unit tests, the security suite, `db:verify`, the audit, the build with `.env` aside, the JavaScript budget, the secret scan over the branch's own commits and the end-to-end journeys, all on a fresh Postgres on 54340. It does not run Lighthouse or compare screenshots; CI runs Lighthouse on the pull request, and the screenshots are §7.
 - The last line of `<log>` is `INTEGRATION PASSED` or `INTEGRATION FAILED`; a failed step's output is in `<log>.<step>`.
 
 ## 7. Linux screenshot baselines
-- Only on a fresh database: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>` (in a cloud session, `docker compose down -v && docker compose up -d --wait`), then `pnpm db:migrate && pnpm db:seed`, then `pnpm build`.
-- `pnpm --filter web e2e:snap -- --update-snapshots=missing` writes the baselines of new screens. A screen the slice changes on purpose (a new menu item) needs its old baseline deleted first, and the new one looked at before it is committed.
-- Run `pnpm --filter web e2e:snap` once more without updating: every screenshot must match. Text that changes between runs is masked in the spec (`snap(page, name, { mask })`), never accepted as a flaky difference.
+- Only on a fresh database: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>` (in a cloud session, `docker compose down -v && docker compose up -d --wait`), then `pnpm db:migrate && pnpm db:seed`, then `bash tools/integration/heavy.sh pnpm build`.
+- `bash tools/integration/heavy.sh pnpm --filter web e2e:snap -- --update-snapshots=missing` writes the baselines of new screens. A screen the slice changes on purpose (a new menu item) needs its old baseline deleted first, and the new one looked at before it is committed.
+- Run `bash tools/integration/heavy.sh pnpm --filter web e2e:snap` once more without updating: every screenshot must match. Text that changes between runs is masked in the spec (`snap(page, name, { mask })`), never accepted as a flaky difference.
 
 ## 8. Pull request and merge
 - Push the branch and open the pull request from the [template](../../.github/pull_request_template.md): what it builds, its migrations, the definition-of-done list, its checks and anything left for the owner. End the body with the Claude Code line.
@@ -59,18 +59,26 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](DEPLOY.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../11-decisions.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](INCIDENTS.md) says what to do.
 
 ## 10. Lessons
+Each is a rule that a past slice earned.
+
+**Databases and baselines**
 - Make baselines only on a fresh database; a database the security suite used shows leftover rows.
+- Wait until several queries in a row succeed before migrating a fresh database: `pg_isready` answers while the Supabase image is still starting.
 - A worktree's `.env` needs `E2E_BASE_URL` on its own port and the reader pair (`DATABASE_URL_READER`, `APP_READER_PASSWORD`).
-- gitleaks scans every branch pushed to GitHub, so a key-like literal in a test fails CI even on a backup branch.
-- Never force-push or delete a remote branch: the free plan does not enforce it, so it is a rule. Rewritten work goes up under a fresh branch name (`feat/c3-pipelines-r2`); the merge workflow deletes merged branches.
-- The Claude usage limit stops every agent at once, on the PC and in the cloud; work committed every 20 minutes (and pushed, in the cloud) survives, and a fresh agent continues from the branch.
-- Agents sometimes stop working for about 30 minutes without a tool call; stop them and start a fresh one from the last commit.
-- Renumbering before `pnpm install` lets the script's `drizzle-kit` run against stale packages: it writes nothing, the last moved snapshot is a copy of the one before, and `pnpm db:generate` then writes a migration. Fold that generated snapshot into the last moved migration's (keeping its `id` and `prevId`) and delete the generated SQL, snapshot and journal entry.
-- On the 8 GB PC, three agents each linting the whole repository at once used all the memory and stopped Docker. Agents lint one package at a time until one full lint at the end and never run two heavy commands together, and at most two builders run while an integration run goes.
-- Under that load a test hits vitest's 20-second limit or a journey its 60 seconds; rerun that file alone, and the suite with nothing else running, before treating it as a defect.
-- A new menu item changes every baseline that shows the menu, in screens the slice never touched. Run the full `pnpm --filter web e2e:snap` verification before the pull request and remake the baselines it finds changed; Playwright counts each baseline it writes as a failure, so only the run without updating is the check.
+- A new menu item changes every baseline that shows the menu, in screens the slice never touched. Delete and remake every desktop staff baseline that shows the menu, compare each with the old one, and run the full `e2e:snap` verification before the pull request. Playwright counts each baseline it writes as a failure, so only the run without updating is the check, and a baseline that passes under its 1 % allowance can still lack the menu item.
+- Only the Linux image's run (`e2e:snap`, as CI) counts; screenshots compared on a cloud VM's host can differ in font hinting.
 - `pnpm --filter web e2e -- <spec>` runs every spec; `e2e:snap` takes spec paths.
-- Each of S1, D1 and T1 found a clash when it took `main` that no conflict marker showed: a moved migration redefining `app.platform_only_permissions()` or the `activities` type check without what `main` had added, a foreign key on a lead's `account_id` with no update action that broke a customer merge, an audit field name with two kinds, and the matrix fixture's id offsets. After the merge, diff every function, check and key the slice's migrations redefine against `main`'s latest definition, and grep the lists for a key used twice.
-- In a cloud session, screenshots compared on the VM's host can differ from the Linux image's in font hinting; only the image's run (`e2e:snap`, as CI) counts.
-- A baseline the comparison passes under its 1 % allowance can still lack a menu item; when a slice adds a menu item, delete and remake every desktop staff baseline that shows the menu, and compare each with the old one pixel by pixel.
-- On the 8 GB PC a full `e2e:snap` run with builders beside it ran out of memory and its Playwright container died; pause every other agent and stop their databases for it. `pg_isready` answers while the Supabase image is still starting, so wait until several queries in a row succeed before migrating a fresh database.
+
+**Merging with main**
+- Renumber migrations after `pnpm install`: run before it, the script's `drizzle-kit` runs against stale packages and writes nothing, the last moved snapshot is a copy of the one before, and `pnpm db:generate` then writes a migration. Fold that generated snapshot into the last moved migration's (keeping its `id` and `prevId`) and delete the generated SQL, snapshot and journal entry.
+- After the merge, diff every function, check and key the slice's migrations redefine against `main`'s latest definition, and grep the lists for a key used twice. S1, D1 and T1 each had a clash no conflict marker showed: a moved migration that redefined `app.platform_only_permissions()` or the `activities` type check without what `main` had added, a foreign key on a lead's `account_id` with no update action that broke a customer merge, an audit field name with two kinds, and the matrix fixture's id offsets.
+
+**Branches and secrets**
+- Never force-push or delete a remote branch, and never leave a key-like literal in a test: the rules and their reasons are in [CLAUDE.md](../../CLAUDE.md#secret-scan-and-dependencies). Rewritten work goes up under a fresh branch name (`feat/c3-pipelines-r2`).
+
+**Memory, stalls and limits**
+- Never run two heavy commands together (see [§1](#1-machines-and-ports)): three agents each linting the whole repository used all of the 8 GB and stopped Docker. Lint one folder at a time until the final whole-repository lint, and run at most two builders while an integration run goes.
+- Rerun a test that hits vitest's 20-second limit, or a journey its 60 seconds, alone, and the suite with nothing else running, before treating it as a defect.
+- Before a full `e2e:snap` run, pause every other agent and stop their databases: with builders beside it the Playwright container ran out of memory and died.
+- Stop an agent that has made no tool call for about 20 minutes and start a fresh one from the last commit with a precise list; the watchdog of [§3](#3-build) reports the stall.
+- The Claude usage limit stops every agent at once, on the PC and in the cloud. Work committed every 20 minutes (and pushed, in the cloud) survives, and a fresh agent continues from the branch.

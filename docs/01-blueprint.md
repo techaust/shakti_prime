@@ -165,6 +165,7 @@ Deduplication:
 - Merges and unmerges are audited.
 
 ### 6.3 Core schema outline
+This outline groups the tables by area; [DATABASE §6](05-database.md#6-table-catalogue) is the full catalogue with each table's status.
 - **Org:** `entities` (GSTIN, state code, letterhead, bank/UPI, numbering series), `entity_channels` (WhatsApp number, 140/160-series calling numbers, caller IDs per entity), `org_locations`, `users`, `roles`, `permissions`, `role_permissions`, `user_entity_roles`, `sessions`, `teams`, `business_calendar`.
 - **CRM:** `contacts`, `contact_phones`, `accounts`, `account_contacts`, `customer_sites`, `opportunities`, `pipelines`, `pipeline_stages`, `activities` (partitioned), `tasks`, `calls`, `call_dispositions`, `whatsapp_threads`, `whatsapp_messages` (partitioned), `lead_sources`, `consents` (channel, purpose, source, timestamp), `tags`, `customer_loans`, `identity_documents` (type, last four digits, masked file reference).
 - **Catalogue & pricing:** `items` (SKU, specs, DCR/ALMM, HSN, unit, serial-tracked), `item_costs` (restricted), `pump_curves`, `kits`, `kit_components`, `price_tiers`, `price_lists` (per tier, optionally per entity; versioned and effective-dated), `price_list_items`, `price_change_log`, `tax_rates` (per HSN or item, effective-dated), `composite_supply_rules` (goods/services split per segment, effective-dated).
@@ -212,8 +213,8 @@ Roles are permission templates that Executives can edit:
 1. Permission guards on every domain command.
 2. RLS for entity scope and record ownership.
 3. Sensitive-table isolation with two separate permissions, each enforced by RLS on the tables themselves and by DTO whitelists:
-   - `procurement.rate.read` covers `vendor_quotes`, purchase-order values and `tally_purchase_vouchers`. Held by Executive, Inventory Manager and Accounts.
-   - `finance.cost.read` covers `item_costs`, `job_cost_entries` and every margin figure. Held by Executive and Accounts.
+   - `procurement.rate.read` covers `vendor_quotes`, purchase-order values (`po_lines.unit_rate`, `po_lines.amount`), `goods_receipt_lines.unit_rate` and `tally_purchase_vouchers`. Held by Executive, Inventory Manager and Accounts.
+   - `finance.cost.read` covers `item_costs`, `stock_movement_costs` (the cost side of the stock ledger), `job_cost_entries` and every margin figure. Held by Executive and Accounts.
    The General Manager, all other roles and every agent principal hold neither.
 
 Response DTOs are whitelisted, so restricted fields are never fetched for roles that can't see them.
@@ -319,7 +320,7 @@ Retention runs as scheduled, logged jobs. Final periods are confirmed with the C
   - versioned with effective dates and scheduled changes;
   - HSN per item; GST rates and composite-supply rules live in effective-dated tax tables maintained by Accounts; full change log.
 - **Quotes:**
-  - The tier comes from the account type.
+  - The tier is the customer's own, set by an Executive on the customer's page; a map from customer type to tier is added only when the discovery workshop gives one (PRICE-1).
   - Prices come from the Price Master and can't be edited; a snapshot is frozen at creation; 15-day validity; one-click re-quote at current prices.
   - Tax is computed by the tax engine (§6.3) and snapshotted per line with the rate version used, so a rate change never alters an issued quote.
   - Validations: sizing complete (TDH and kW calculators); pump-curve bounds; sanctioned-load and DCR rules; stock availability shown once the stock ledger is live.
@@ -617,8 +618,8 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | **6 — AI brain & autonomy** | Sizing & Quote, Project Orchestrator and Chief of Staff agents, voice Command mode, autonomy promotions | 7–9 wk | Eval thresholds met per action type |
 | **7 — Hardening & rollout** | Load testing (5× volume), security review/pentest, DR drill, DPDP readiness review, documentation, role-wise training, in-app help | 4–5 wk | Go-live sign-off |
 
-- **Phase 0 closed on 29-09-2026 by the owner's decision:** Phase 1 started, and the exit-gate items that wait on people are deferred, not met, and run alongside it, tracked in [STATUS](10-status.md).
-- **Full scope: about 65–79 weeks (≈ 15–18 months).** The MVP is live after about 5–6 months (Phases 0–1). A second developer on the Android app in Phase 4 shortens the timeline by 2–3 months.
+- **Phase 0 is closed (owner's decision of 29-09-2026):** Phase 1 is under way, and the exit-gate items that wait on people are deferred, not met, and run alongside it, tracked in [STATUS](10-status.md).
+- **Full scope: about 65–79 weeks (≈ 15–18 months).** The MVP is live after about 4–5 months (Phases 0–1, 18–22 weeks). A second developer on the Android app in Phase 4 shortens the timeline by 2–3 months.
 - **Parallel workstreams starting immediately:**
   - DLT registration of all four entities and 140/160-series number provisioning with Exotel;
   - Meta Business verification, WABA, one WhatsApp number per entity and templates;
@@ -708,7 +709,7 @@ Assumes a single full-time developer working with Claude; every phase has a qual
 | 15 | Realtime authorization gap between Better Auth and Supabase | Low / High | BOS signing key trusted as a standby key, proven in the Realtime spike on the production site; polling fallback for notifications |
 
 ## 19. Phase 0 deliverables
-Planned to be completed and signed off before feature development begins. The owner closed Phase 0 on 29-09-2026 with the items that wait on people deferred, not met, and tracked in [STATUS](10-status.md) (§14).
+The deliverables of Phase 0, which the owner closed on 29-09-2026; the items that wait on people are deferred, not met, and tracked in [STATUS](10-status.md) (§14).
 1. **ERD and data dictionary** for all tables in §6.3.
 2. **State-machine specifications** (states, transitions, guards, side effects, permitted actors) for: opportunity per pipeline, quote, sales order, dispatch (with the e-way bill gate), standard project flow, PM Surya Ghar flow and subsidy gates, loan, warranty claim, WhatsApp document filing, expense claim, Playbook directive, Tally voucher (including tombstones).
 3. **Permission matrix:** role × permission × scope (own / team / entity / all), including `procurement.rate.read`, `finance.cost.read`, agent and voice principals.
@@ -734,6 +735,8 @@ Planned to be completed and signed off before feature development begins. The ow
 ## 20. Claude Code tooling
 
 ### 20.1 Tooling by phase
+[`.claude/tooling.json`](../.claude/tooling.json) holds this table as data and is the source of truth for each tool's install step and sign-in; the table summarises it.
+
 | Tool | Type | Install from | Needed from | Sign-in / key |
 |---|---|---|---|---|
 | supabase | Plugin (skills + MCP) | Anthropic plugin directory | Phase 0 | Supabase sign-in or personal access token |
@@ -744,7 +747,7 @@ Planned to be completed and signed off before feature development begins. The ow
 | Vercel MCP | MCP (project scope) | `claude mcp add --transport http vercel https://mcp.vercel.com --scope project` | Phase 0 | Vercel sign-in (OAuth) |
 | Vercel agent skills | Skills | `npx skills add vercel-labs/agent-skills -a claude-code` | Phase 0 | — |
 | shadcn MCP | MCP (project scope) | `npx shadcn@latest mcp init --client claude` | Phase 0 | — |
-| github | Plugin (MCP) | Anthropic plugin directory | Phase 0 | GitHub sign-in |
+| github | Plugin (MCP) | Anthropic plugin directory | Phase 0 | Personal access token, set as an environment variable |
 | playwright | Plugin (MCP) | Anthropic plugin directory | Phase 1 | — |
 | sentry | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | Sentry sign-in |
 | aws-core | Plugin (skills + MCP) | Anthropic plugin directory | Phase 1 | AWS credentials (least-privilege IAM user) |

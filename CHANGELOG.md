@@ -1,6 +1,6 @@
 # Changelog — Shakti Prime BOS
 
-One line per pull request merged into `main`, newest first, grouped by Phase 1 wave and Phase 0 week. At the end of a working session, add one line per pull request merged in it; the current state is in [docs/10-status.md](docs/10-status.md) and the owner's decisions in [docs/11-decisions.md](docs/11-decisions.md). Migration numbers are those on `main` after the merge.
+One entry per pull request merged into `main` (a line, or a line with a few bullets under it), newest first, grouped by Phase 1 wave and Phase 0 week. At the end of a working session, add one entry per pull request merged in it; the current state is in [docs/10-status.md](docs/10-status.md) and the owner's decisions in [docs/11-decisions.md](docs/11-decisions.md). Migration numbers are those on `main` after the merge.
 
 ## Contents
 
@@ -11,10 +11,18 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 status documents
 
+- **#RESTRUCTURE** (07-10-2026) The documents restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`) with appendix folders for the designs, the spikes, the client packs and the reviews, `docs/00-start-here.md` as the guide, and the documentation audit's defects fixed in all of them.
+- **#124** (07-10-2026) "Start the day" and "end the day" open and close a lead session: the `start-session` and `end-session` skills and `CLAUDE.md`.
+- **#123** (07-10-2026) Models and usage rules (builders on Sonnet, the reviewer on Opus at high effort, the lead on Opus at medium effort) and two builders at once on the PC with the heavy-command lock `tools/integration/heavy.sh`.
+- **#122** (06-10-2026) Phase 1 continues on the PC only, one slice at a time, with Docker Desktop; cloud sessions paused; DECISIONS, `CLAUDE.md`, STATUS and the runbooks.
+- **#121** (06-10-2026) `CLAUDE.md`, the runbooks, the `integrate-slice` skill and the run files after wave 3 and the cloud trial.
+- **#120** (06-10-2026) Phase 1 status at 06-10-2026, afternoon; CHANGELOG lines for #114 to #119; the cloud trial's result.
 - **#114** (06-10-2026) Phase 1 status at 06-10-2026, early morning, and CHANGELOG lines for #106 to #113.
 - **#110** (05-10-2026) No Docker on the PC: every database, suite, integration run and screenshot run in cloud sessions, a failed cloud step run again in a new cloud session; `CLAUDE.md`, hybrid, the start-session skill and DECISIONS.
 - **#106** (05-10-2026) Going hybrid recorded: the cloud environment's set-up in hybrid, P2b and AI0's progress, STATUS through 0106, CHANGELOG lines for #104 and #105.
 - **#104** (05-10-2026) Phase 1 status after P4, C4 and C3: the workers principal's platform-only rule in `CLAUDE.md`, the session's owner decisions, the integration lessons of the 8 GB PC, D1's run file.
+- **#98** (04-10-2026) Work on the PC for now, until the cloud environment exists.
+- **#97** (04-10-2026) STATUS after #96: the screen mock-up published privately.
 - **#96** (04-10-2026) The second, strict documentation audit fixed, and work split between Claude Code cloud sessions and the PC: `docs/runbooks/hybrid.md`, the cloud setup script and session hook, run notes in `docs/runs/phase1/`, the hosted password rotation through the migrate workflow, generators that take their facts from the code (state machines, ERD, events with meaning and emitters), PRD criteria for the non-functional requirements, the client packs with needed-by dates, a sign-off record and a progress page for the client.
 - **#95** (04-10-2026) The project's know-how in the repository: the integration scripts in `tools/integration/` (Git Bash and Linux), the slice-integration and accounts runbooks, the skills `start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command` and `add-table`, the agents `slice-builder` and `slice-reviewer`, the pull-request template; the audit kept as `docs/14-reviews/2026-09-audit.md`.
 - **#94** (04-10-2026) CHANGELOG lines for #91 to #93 and the status after them.

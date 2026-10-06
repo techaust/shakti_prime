@@ -18,7 +18,7 @@ Blueprint reference: §17 (verification strategy) and §19 item 9. This document
 | Unit tests | Beside the code in every workspace (below) | `pnpm test` (Vitest, no database) | Calculators, tax engine, state machines, redaction, the command runner with memory sinks, token generation, copy rules, contract schemas, the JavaScript budget's measuring rules, the import fences (below) |
 | AWS clients and the storage stack | `apps/web/src/files/s3-store.test.ts`, `src/mail/ses-mailer.test.ts`, `src/crypto/kms-cipher.test.ts`, `src/files/infra-template.test.ts` | `pnpm test` | The S3, KMS and SES calls with no network, and the storage template's rules (below) |
 | Property tests | Beside the code as `*.property.test.ts` (`fast-check`) | `pnpm test` | Invariants over generated input, such as phone normalisation to E.164 |
-| Contract fixture tests | `packages/contracts/src/api/*.test.ts` with `fixtures.ts` | `pnpm test` | Every route in `API_ENDPOINTS` parses its recorded request and response; the catalogue equals the routes in API §3; every error code and reason API §3 names exists in the contracts; provider webhooks keep unknown keys and require the fields the workers use |
+| Contract fixture tests | `packages/contracts/src/api/*.test.ts` with `fixtures.ts` | `pnpm test` | Every route in `API_ENDPOINTS` parses its recorded request and response; the catalogue equals the routes API §3.1 to §3.5 and §3.7 list, and §3.6 names every worker route of the catalogue; every error code and reason API §3 names for a route exists in the contracts and is one the route lists; provider webhooks keep unknown keys and require the fields the workers use |
 | Security suite | `packages/db/tests/security`, `packages/domain/tests`, `apps/web/tests`, each with `vitest.security.config.ts` and a global setup that migrates and seeds | `pnpm test:security` against Docker Postgres | SECURITY §11: fail-closed RLS for every table, role × entity visibility, cost and rate gates, grants, append-only tables, audit and outbox rules, idempotency replay, commands (denied, wrong entity, happy path), queries and their scope, auth flows and routes |
 | Generated-file tests | See §4 | `pnpm test`, plus a CI step | Committed documents and generated code match their sources |
 | Spike scripts | `apps/web/scripts/spike/*.ts`, `apps/web/scripts/realtime-spike.ts` and `packages/domain/tests/spike/*.ts` (the commands are below) | By hand, outside CI | Integration and performance questions with measured numbers, recorded in `docs/04-architecture-appendix/` |
@@ -29,12 +29,12 @@ Notes on the layers:
 - **The import fences** of `eslint.config.mjs` are proven by `apps/web/src/lint-fences.test.ts`, which lints source text under paths that do not exist; `web#test` lists `eslint.config.mjs` among its Turbo inputs, so it runs again when the config changes.
 - **AWS clients:** the S3, KMS and SES calls run through `aws-sdk-client-mock` with fixed test credentials and no network; a signed upload's bound headers are read from its address.
 - **The storage template:** `infra/aws/files.yaml`, parsed as JSON, keeps its bucket private, versioned, encrypted and TLS-only, its CORS headers equal to the ones the store signs, the malware plan tagging, and each IAM statement to its bucket, key and sender.
-- **Spike commands:** `pnpm spike:print` and `pnpm spike:ocr` (`apps/web/scripts/spike`); `pnpm spike:import` (`import-scale.ts`), `pnpm spike:lists` (`lists.ts`), `pnpm spike:account360` (`account360.ts`) `pnpm --filter @shakti/domain spike:catalogue` (`catalogue-explain.ts`, the catalogue grid's and the price change log's query plans at 5,000 items) and `pnpm --filter @shakti/domain spike:quotes` (`quotes-explain.ts`, the quote list's, its search's, Account 360's and the board cards' query plans at 20,000 quotes), all in `packages/domain/tests/spike` on the local database; and through `pnpm --filter web`: `spike:exotel`, `spike:whatsapp`, `spike:voice`, `spike:tally` and `realtime-spike`.
+- **Spike commands:** `pnpm spike:print` and `pnpm spike:ocr` (`apps/web/scripts/spike`); `pnpm spike:import` (`import-scale.ts`), `pnpm spike:lists` (`lists.ts`), `pnpm spike:account360` (`account360.ts`), `pnpm spike:calling` (`calling.ts`, the Cold Caller queue's latency and query plans) and `pnpm --filter @shakti/domain spike:catalogue` (`catalogue-explain.ts`, the catalogue grid's and the price change log's query plans at 5,000 items) and `pnpm --filter @shakti/domain spike:quotes` (`quotes-explain.ts`, the quote list's, its search's, Account 360's and the board cards' query plans at 20,000 quotes), all in `packages/domain/tests/spike` on the local database; and through `pnpm --filter web`: `spike:exotel`, `spike:whatsapp`, `spike:voice`, `spike:tally` and `realtime-spike`.
 
 ## 3. The security suite
 The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every table and command.
 
-- **Database** (`packages/db/tests/security`), one file per rule. A table outside the generic loops has its own file: principal-scoped (`PRINCIPAL_TABLES`), insert-only (`OUTBOX_TABLES`), auth-owned (`AUTH_TABLES`) or written only by a database job (`PLATFORM_TABLES`).
+- **Database** (`packages/db/tests/security`), one file per rule. A table outside the generic loops has its own file: principal-scoped (`PRINCIPAL_TABLES`), insert-only (`OUTBOX_TABLES`), auth-owned (`AUTH_TABLES`), written only by a database job (`PLATFORM_TABLES`) or CRM set-up that starts empty until the workshop answers (`CONFIG_TABLES`).
 
   | File | What it proves |
   |---|---|
@@ -59,6 +59,13 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
   | `retention` | The outbox purge (30 days, logged in `retention_runs`, run nightly by pg_cron, refusing any other delete) and the monthly detach of audit partitions past eight years into `audit_archive`, with a synthetic old partition |
   | `idempotency-keys` | Keys belong to their caller; expired keys are removed by pg_cron only |
   | `saved-views` | Saved views belong to the person who saved them |
+  | `agents` | The agent runtime's tables: an agent writes its own runs, actions and inbox items and reads none back; people read the inbox at their `agents.inbox.act` scope and decide once; the agent controls read the runs and set autonomy, caps and switches |
+  | `crm-config` | The tables that start empty until the workshop answers (`CONFIG_TABLES`) and the write rules of pipelines, stages, call outcomes, score rules and referral partners, checked under RLS without the commands |
+  | `pin-codes` | The PIN code master: shared by every company, read by every request, written only by an Executive acting for every company; a site's PIN filled from it; an import file that must arrive by the pre-signed upload |
+  | `sizings` | A sizing is a child of the lead, read with it, recorded with the lead's write scope as the caller and never changed |
+  | `calls` | A call is a child of the lead, read with it, logged by a person whose `calls.log` scope covers the lead with an outcome in use of the group or the company, and never changed |
+  | `quotes` | Quotes, their lines and their versions are children of the lead, read with it; made with `sales.quote.create` over the lead's owner and team; lines written only in the transaction that made their quote, then only the state and the withdrawal reason change; lines and versions append-only; the expiry and the printer reach quotes only through their definers |
+  | `duplicates` | A candidate is read only by someone who sees both its customers or both its leads; a request inserts only a lead pair and only with `crm.lead.merge`; merges are written by their definers alone, for people; the timeline stays append-only outside a merge; the facts definer answers a person only about a customer they may change |
   | `imports` | Imports seen and written only with `imports.write` in their company, as the caller; a job keeps its rows and file in its company; an import file changed only by the file checks; the batch count of jobs committed before 0058 |
   | `files` | Who creates and reads a file of each purpose, by role and company; a person's upload starts pending and only its status changes; the worker's checks; the column grants |
   | `enum-sync` | Every list-valued check constraint equals its contract enum |
@@ -68,7 +75,7 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
   - `commands/import-lead-parity.test.ts` makes the same leads through the set-based import batch and through `crm.lead.create` and compares every row they write.
   - `numbering/`: the numbering function.
   - `queries/`: each query's scope; `reader-parity.test.ts` runs every exported query on the `app_reader` pool and on `app_user` for staff, agent and system callers and requires the same answer or the same refusal; `read-only.test.ts` proves `executeQuery()` refuses every write (SQLSTATE 25006) and a write after a commit the query issues itself, and leaves no pooled connection read-only.
-  - `security/agent-refusals.test.ts` reads the command registry, refuses every agent principal and `system:workers` on every admin, cost, audit, integrations, tax, price and catalogue command, and checks that no seeded agent role holds any of those permissions.
+  - `security/agent-refusals.test.ts` reads the command registry and refuses every agent principal and `system:workers` on every admin, cost, audit, integrations, tax, price, catalogue and CRM set-up command and on every command for people only (`peopleOnly`); refuses the agent principals on the customer-master writes, on an upload of any purpose and on the platform's own work (the file checks, the nightly rescoring and the quote expiry); and checks that no seeded agent or system role holds a restricted permission, and no agent a platform-only one.
 - **Web** (`apps/web/tests`). The files run one at a time (`fileParallelism: false`): with no queue configured, every command a server action runs nudges the outbox publisher in process, which would deliver another file's pending events.
 
   | File | What it proves |
@@ -80,6 +87,10 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
   | `outbox-route.test.ts` | The outbox publisher route |
   | `outbox-event-route.test.ts` | The event worker route, its failure callback and the publisher's delivery in process without a queue: the signature, the 4 KiB body, a duplicate id, a delivery while another holds the id, every event run once for an `every` worker and an older one skipped for a `latest-only` worker, a type no worker handles, each worker error code and which are retried, and the failure callback holding the event back once |
   | `integration-health.test.ts` | Integration Health's routes and actions |
+  | `pdf-render.test.ts` | The render worker route with the real loader, commands and database and a stand-in for Chromium |
+  | `files-sweep.test.ts` | The sweep of abandoned uploads, with a stand-in file store and the real upload command, query and database |
+  | `lead-rescore.test.ts`, `duplicate-scan.test.ts`, `quote-expiry.test.ts` | The nightly rescoring, the nightly duplicate search and the daily quote expiry routes, with the real signature check, commands and database (and a stand-in queue client for the two that hand work on) |
+  | `duplicate-actions.test.ts` | The duplicate actions, each run for every company the caller works for |
   | `files.test.ts` | The upload actions on the development store end to end, the file checks with a store that answers GuardDuty's tag, a PDF with a script, a masked vault photo, and the upload routes |
 - **Hosted build:** CI builds without `SENTRY_AUTH_TOKEN`, so the build Sentry wraps is budget-checked once by hand on dev ([DEPLOY §1](runbooks/DEPLOY.md#1-before-the-first-deploy-once-per-environment) step 11).
 - **Still to come**, each with its feature:
@@ -101,7 +112,7 @@ The suite is the skeleton BLUEPRINT §19 item 9 asks for and grows with every ta
 | `apps/web/src/app/icon.svg` | `packages/tokens/src/icon.ts` | `icon.test.ts`, and the CI step below | `pnpm --filter @shakti/tokens build` |
 | `packages/db/migrations` | `packages/db/src/schema` | The CI step below; `journal.test.ts` checks the journal order | `pnpm db:generate` |
 | Seeded permission matrix | `packages/db/seeds` | `permission-matrix.test.ts` against SECURITY §3.2 | Edit the seed and SECURITY §3.2 together |
-| API catalogue | `packages/contracts/src/api/endpoints.ts` | `endpoints.test.ts` against API §3 | Edit the catalogue and API §3 together |
+| API catalogue | `packages/contracts/src/api/endpoints.ts` | `endpoints.test.ts` against API §3 (the routes outside §3.6 match exactly; §3.6 names each worker route) | Edit the catalogue and API §3 together |
 | Message catalogue | `apps/web/messages/en.json` | `errors-catalogue.test.ts` (every error reason in the source has a sentence), `pnpm copy-lint` | Edit the catalogue |
 
 CI also rebuilds the token CSS and runs `pnpm db:generate`, then fails when either changed a committed file.
@@ -156,9 +167,13 @@ The end-to-end job's steps, each with its own time limit and output as it happen
 
 The app's log, the report and the screenshot differences are kept when a job fails.
 
-Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page not named there gets the 250 kB aim (`docs/08-design-system.md` §10). The framework is about 158 kB of every page and the shared app shell about 20 kB of every staff page.
+Each page's budget in [`apps/web/js-budget.json`](../apps/web/js-budget.json) is its measured size plus 5 %, rounded up, with its reason and the date it was measured written beside it; a page not named there gets the file's `defaultKb`, the aim of `docs/08-design-system.md` §10. What the framework and the shared app shell add to a page is in each route's reason.
 
-`.github/workflows/audit.yml` repeats the dependency audit weekly. Spike scripts and coverage (`pnpm coverage`, report only) do not run in CI.
+`.github/workflows/audit.yml` repeats the dependency audit weekly.
+
+`.github/workflows/automerge.yml` (*Merge on green*) starts when CI succeeds on a pull request: it merges the owner's pull requests and Dependabot's minor and patch bumps, deletes the branch and runs CI again on `main`; a pull request labelled `hold` is skipped (ADR 0017, [AGENTS §8](../AGENTS.md#8-git-and-pull-requests)). `.github/workflows/migrate.yml` (*Migrate a hosted database*) is started by hand for dev or staging: it migrates from a commit on `main`, seeds when asked and checks that every migration is applied as it is on disk ([DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy)).
+
+Spike scripts and coverage (`pnpm coverage`, report only) do not run in CI.
 
 ## 7. Running tests locally
 - Everything without a database: `pnpm test`. Turbo caches results; a task that prints "cache hit, replaying logs" did not run, so force it with `pnpm exec turbo run test --force` (`pnpm test -- --force` hands the flag to vitest, which rejects it). Current test counts are in [STATUS](10-status.md).

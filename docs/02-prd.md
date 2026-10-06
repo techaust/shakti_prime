@@ -2,7 +2,7 @@
 
 Blueprint reference: §0–§2, §8, §9, §15, §16. This document turns the blueprint's scope into requirements with acceptance criteria. Requirement IDs are stable; §8 traces each one to the slice that delivers it and the tests that check it. `docs/01-blueprint.md` governs on any conflict.
 
-**Status:** approved with the blueprint on 26-09-2026 · last updated 04-10-2026. Whether a requirement is built is in [STATUS](10-status.md).
+**Status:** approved with the blueprint on 26-09-2026 · last updated 07-10-2026. Whether a requirement is built is in [STATUS](10-status.md).
 
 **Two ID families.** Requirements here have two digits (PRD CRM-05). The discovery workshop's questions in `docs/13-client-packs/workshop-pack.md` use one digit (workshop CRM-5); where both could be confused, documents name the family. Client values that the workshop has not given are written as "the workshop value" with the question's ID; this document never sets them. Terms are explained in the [glossary](12-glossary.md).
 
@@ -11,7 +11,7 @@ Blueprint reference: §0–§2, §8, §9, §15, §16. This document turns the bl
 ## 1. Vision and goals
 Shakti Prime is the single business operating system for the four Shakti group entities. It runs lead → sale → fulfilment → installation → cash, with AI agents doing the routine lead work and leadership teaching the system through uploads and voice.
 
-**Goals (measured in the Executive dashboard).** The business goals are stated in words; their targets are the client's to set, and none is set until the client gives them.
+**Goals (measured in the Executive dashboard).** The business goals are stated in words; their targets are the client's to set, and none is set until the client gives them. The two time limits in the table, first reply and lead routing, are operating limits from BLUEPRINT §6.4 (NFR-01), not client targets.
 
 | Goal | Measure |
 |---|---|
@@ -294,7 +294,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 Each requirement states what holds across the product, then its acceptance criteria, as in §4. §8 traces each one.
 
 - **NFR-01 Performance.** p95 interaction < 300 ms; ingestion → assignment < 10 s; WhatsApp first response < 60 s; 50k-row import < 5 min; low-end Android over 3G/4G within the JavaScript budget per route (BLUEPRINT §6.4).
-  - *AC:* every list and search a slice adds answers within 300 ms p95 at its spike volume, with the plan recorded (`docs/04-architecture-appendix/`).
+  - *AC:* every list and search a slice adds answers within 300 ms p95 at its spike volume, with the plan recorded: in the spike notes of `docs/04-architecture-appendix/`, or for a slice with no note of its own in its run file (the plans of the quote list and search, from `pnpm --filter @shakti/domain spike:quotes`, are in [s1-quotes.md](runs/phase1/s1-quotes.md); the catalogue grid's are printed by `spike:catalogue`).
   - *AC:* each staff page's first-load JavaScript stays within its budget in `apps/web/js-budget.json`, checked in CI.
   - *AC:* the delivery check on Integration health shows the time from a change to its worker, the measure the 10-second handover rests on.
 - **NFR-02 Scale.** 100+ users; 2,000+ leads/day (BLUEPRINT §1).
@@ -363,15 +363,15 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/03-r
 
 | ID | Phase | Slice | Tested in |
 |---|---|---|---|
-| CRM-01 | 0, 1, 2 | C3 (walk-in form and referral codes; manual entry and lead imports built in Phase 0) | `packages/domain/tests/commands/create-lead.test.ts`, `packages/domain/tests/commands/imports.test.ts`, `apps/web/e2e/leads.spec.ts`, `apps/web/e2e/imports.spec.ts`; ingest contract `packages/contracts/src/api/ingest.test.ts` |
+| CRM-01 | 0, 1, 2 | C3 (walk-in form and referral codes; manual entry and lead imports built in Phase 0) | `packages/domain/tests/commands/create-lead.test.ts`, `packages/domain/tests/commands/imports.test.ts`, `packages/domain/tests/commands/crm-scoring-referrals.test.ts` (a lead made with a referral code), `apps/web/src/screens/walk-in.test.ts`, `apps/web/e2e/leads.spec.ts`, `apps/web/e2e/walk-in.spec.ts`, `apps/web/e2e/imports.spec.ts`; ingest contract `packages/contracts/src/api/ingest.test.ts` |
 | CRM-02 | 1 | P2b | `packages/contracts/src/crm/phone.test.ts`, `packages/contracts/src/crm/phone.property.test.ts`; the PIN code master and the site's PIN: `packages/db/tests/security/pin-codes.test.ts`, `packages/domain/tests/commands/import-kinds.test.ts`, `apps/web/e2e/imports.spec.ts` |
-| CRM-03 | 1 | D1 | The colleague's-customer guard: `packages/domain/tests/commands/lead-guard.test.ts`, `packages/db/tests/security/lead-guard.test.ts` |
+| CRM-03 | 1 | D1 | The cards, repeat enquiries and merges: `packages/domain/tests/commands/duplicates.test.ts`, `packages/domain/src/crm/duplicate-confidence.test.ts`, `packages/db/tests/security/duplicates.test.ts`, `apps/web/tests/duplicate-actions.test.ts`, `apps/web/tests/duplicate-scan.test.ts`, `apps/web/e2e/duplicates.spec.ts`; the colleague's-customer guard: `packages/domain/tests/commands/lead-guard.test.ts`, `packages/db/tests/security/lead-guard.test.ts` |
 | CRM-04 | 1 | C2 | `packages/db/tests/security/crm-scope.test.ts`, `packages/db/tests/security/customer-read-through-leads.test.ts`, `packages/domain/tests/commands/customer-edits.test.ts`, `packages/domain/tests/queries/customers.test.ts` |
-| CRM-05 | 1 | C3 | Stage moves: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/tests/queries/lead-board.test.ts` |
-| CRM-06 | 1 | C3 | — |
+| CRM-05 | 1 | C3 | Pipelines, stages and exit rules: `packages/domain/tests/commands/crm-pipelines.test.ts`, `packages/db/tests/security/crm-config.test.ts`, `apps/web/src/screens/pipeline-settings.test.ts`, `apps/web/e2e/pipelines.spec.ts`; stage moves: `packages/domain/tests/commands/opportunity.test.ts`, `packages/domain/tests/queries/lead-board.test.ts` |
+| CRM-06 | 1 | C3 | `packages/domain/src/crm/score.test.ts`, `packages/domain/tests/commands/crm-scoring-referrals.test.ts`, `packages/db/tests/security/crm-config.test.ts`; the nightly rescoring `apps/web/tests/lead-rescore.test.ts` |
 | CRM-07 | 1 | C2 | `packages/domain/tests/queries/customers.test.ts`, `packages/domain/tests/commands/timeline.test.ts`, `apps/web/e2e/customers.spec.ts`; timing `pnpm --filter @shakti/domain spike:account360` (`docs/04-architecture-appendix/account360.md`) |
 | CRM-08 | 4 | — | State machine: `packages/domain/src/state-machines/machines.test.ts` |
-| CRM-09 | 1, 5 | C3, S2 | — |
+| CRM-09 | 1, 5 | C3, S2 | Codes, attribution and commission rules (accrual is S2's): `packages/domain/tests/commands/crm-scoring-referrals.test.ts`, `packages/db/tests/security/crm-config.test.ts`, `apps/web/e2e/pipelines.spec.ts`, `apps/web/e2e/walk-in.spec.ts` |
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
 | TEL-01 | 1 | T1 | `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts`, `apps/web/e2e/calling.spec.ts` |
 | TEL-02 | 1 | T2 | The handover request and the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`; the `assign` lock cases: `packages/domain/src/state-machines/machines.test.ts` |

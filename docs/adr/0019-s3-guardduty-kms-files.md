@@ -17,7 +17,7 @@ Uploaded bytes are untrusted: they may carry malware, scripts in a PDF or person
 - Locally, `localDiskFileStore` stands in for S3 behind the same `FileStore` port, and a file no scanner saw is accepted only where nothing is hosted (`not_scanned`).
 
 ## Consequences
-- An upload's bytes go from the browser to S3 without passing through a Vercel function, and the 15-minute URLs bind exactly the bytes declared, so a different file cannot be swapped in. Import workbooks still reach their server action directly and join this flow with the imports upgrade (P2b).
+- An upload's bytes go from the browser to S3 without passing through a Vercel function, and the 15-minute URLs bind exactly the bytes declared, so a different file cannot be swapped in.
 - The scan is asynchronous: an upload is usable a short time after it lands, and the uploader says so in words. A file that waits too long is listed on Integration Health and can be sent back to its checks.
 - A sealed value copied to another column, row or company opens neither there nor in KMS, because the encryption context differs.
 - Each environment's stack is a manual step for the owner with AWS access, and the app's keys go into the environment's Vercel project; until then a hosted runtime answers uploads with `files_unavailable`.

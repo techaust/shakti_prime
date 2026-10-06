@@ -3,9 +3,11 @@
 **Status:** Accepted (owner, 03-10-2026) · **Date:** 03-10-2026 · **Deciders:** Owner · **Blueprint:** §5, §12, §17 · **Architecture:** §12 · **Testing:** `docs/09-testing.md` · **Audit:** the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45 · **ADR:** 0001
 
 ## Context
-The repository is a private personal repository on GitHub's free plan. That plan offers no branch protection or rulesets for it, so nothing can require a pull request or a green CI run before `main` changes (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45), and it has no deployment environments, so hosted secrets are repository secrets with a suffix per environment.
+The repository is a personal repository on GitHub's free plan. While it is private, that plan offers no branch protection or rulesets for it, so nothing can require a pull request or a green CI run before `main` changes (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45), and it has no deployment environments, so hosted secrets are repository secrets with a suffix per environment.
 
 It also includes a limited number of Actions minutes a month, which the full CI (the security suite on a fresh database, three end-to-end shards, Lighthouse) used up during Phase 1. The alternatives were a paid plan, or moving the repository to the client's organisation on a plan with rulesets (ROADMAP §10).
+
+The repository has been public since 06-10-2026 (owner), so its Actions minutes are free; an Actions budget is set before it goes private again ([DECISIONS](../11-decisions.md)).
 
 ## Decision
 **Stay on the free plan, spend Actions minutes only where a change can break something, and merge only through a workflow that waits for green.**

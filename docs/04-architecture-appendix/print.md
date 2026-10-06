@@ -2,7 +2,7 @@
 
 **Week 6, ROADMAP §2.** Result: **the rendering checks passed on the development laptop (27-09-2026).** A scan of printed labels with a phone and the client's handheld scanner is still to do.
 
-**Status (04-10-2026):** rendering passed; the phone and scanner check waits for the client's printer and label stock (owner: the developer, with the printer supplier). The deployment question below was settled by ADR 0009, accepted by the owner on 29-09-2026: documents render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, measured on the dev deployment before quotes depend on it. Built in P4: in the app on the development laptop (no queue, so the render runs in the process that asked), a company's proof page renders in 1.5 seconds with the browser's launch and 0.8 seconds warm, 78 KB; the render on the dev deployment is still to measure.
+**Status (07-10-2026):** rendering passed; the pixel snapshots of the quotation, the proof page and both labels are built (`apps/web/e2e/print.spec.ts`, light only, in the Linux image); the phone and scanner check waits for the client's printer and label stock (owner: the developer, with the printer supplier). The deployment question below was settled by ADR 0009, accepted by the owner on 29-09-2026: documents render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, measured on the dev deployment before quotes depend on it. Built in P4: in the app on the development laptop (no queue, so the render runs in the process that asked), a company's proof page renders in 1.5 seconds with the browser's launch and 0.8 seconds warm, 78 KB; the render on the dev deployment is still to measure.
 
 Run it with `pnpm spike:print` (once per machine first: `pnpm --filter web exec playwright-core install chromium-headless-shell`). The raw numbers are in [results/print.json](results/print.json); the PDFs and PNGs go to `apps/web/.spike-output/print/` (ignored by git).
 
@@ -59,8 +59,8 @@ Where the time goes, for the 1-page quotation: loading the page with the inlined
 | Light theme, entity letterhead, A4 with 15 mm margins, Inter embedded, QR block bottom-right (DESIGN §6) | Met; bottom margin is 18 mm to make room for the page footer |
 | ₹ with lakh and crore grouping, DD-MM-YYYY (DESIGN §9, §11.1) | Met |
 | Every printed word from the catalogue (DESIGN §11.4) | Met: `print.*` keys, checked by the copy lint |
-| The same templates drive print views and labels (BLUEPRINT §5) | Partly: the templates are plain HTML strings, so a print view can serve them, but no screen uses them yet |
-| Snapshot tests of quotes and labels (BLUEPRINT §17) | Structure tests in the default run (`templates.test.ts`); page counts, fonts and QR checks in the spike. Pixel snapshots are not set up |
+| The same templates drive print views and labels (BLUEPRINT §5) | Partly: the templates are plain HTML strings, which the render worker prints as the quotation and the company proof page; no screen shows them as HTML |
+| Snapshot tests of quotes and labels (BLUEPRINT §17) | Structure tests in the default run (`templates.test.ts`); page counts, fonts and QR checks in the spike. Pixel snapshots of the quotation, the proof page and both labels in `apps/web/e2e/print.spec.ts` (light only, in the Linux image) |
 | A spike result with latency numbers (ROADMAP §2 exit gate) | Met, above |
 
 ## What deployment needs (settled by ADR 0009 on 29-09-2026: option 1)
@@ -78,5 +78,5 @@ Also to decide:
 - Rendering on Linux or in a Vercel function; everything above ran on Windows.
 - The look of pages 2 to 5: the header row is set to repeat and rows are set not to split across pages (`thead` as a table header group, `break-inside: avoid`), but no page image of the PDF was inspected.
 - Printing on paper and on a thermal printer; scanning the codes with a phone.
-- Pixel snapshot tests in CI.
+- Pixel snapshots of a quotation with several pages.
 - Documents of other entities (letterheads with logos: no logo files exist yet).

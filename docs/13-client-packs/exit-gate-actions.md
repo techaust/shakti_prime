@@ -1,6 +1,6 @@
 # Phase 0 exit gate: who does what next
 
-Prepared 28-09-2026 · last updated 04-10-2026. For: the owner and the development team.
+Prepared 28-09-2026 · last updated 07-10-2026. For: the owner and the development team.
 
 Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has started. The exit-gate items that are not met are deferred and run alongside Phase 1. This page is the owner's and the developer's checklist: each gate item, then every action by who acts next, with the document that says exactly what is needed. What the client's people do is written for them, in business words, in [client-actions.md](client-actions.md). The state of the hosted environments is in [STATUS](../10-status.md).
 
@@ -21,7 +21,7 @@ Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has starte
 
 | # | Action | Who | State | Needed by |
 |---|---|---|---|---|
-| 1 | Create the files stack for dev, then staging, with `infra/aws/files.yaml` as `docs/runbooks/files-setup.md` describes (the bucket, the KMS key, the GuardDuty malware scan and the app user), and put the access key and the bucket settings in Vercel. Until then uploads on the hosted sites are refused and imports keep their in-function path | Owner | Not done | P2b on the hosted sites |
+| 1 | Create the files stack for dev, then staging, with `infra/aws/files.yaml` as `docs/runbooks/files-setup.md` describes (the bucket, the KMS key, the GuardDuty malware scan and the app user), and put the access key and the bucket settings in Vercel | Owner | Done 06-10-2026: both stacks are created and their values are in Vercel. Still the owner's: one logo upload on each site (Settings › Companies) to prove the stack end to end, after which the proof page's render is measured on dev | P2b and P4 on the hosted sites |
 | 2 | In Sentry, on the `shakti-prime-web` project's Security and Privacy settings, turn on the Data Scrubber and Use Default Scrubbers and turn on Prevent Storing of IP Addresses (the app already removes personal data before it sends an event; these settings are the second line) | Owner | Not done | Before real data reaches a hosted site |
 | 3 | Prepare each vendor quote letter (`docs/13-client-packs/vendor-quotes.md`); the owner approves the pack and sends each letter from the group's account with that vendor; record each answer in the pack's cost sheet and tracking table | Developer prepares; owner sends | Not started | Production readiness (G1); the telecom, WhatsApp and voice quotes before Phase 2 |
 | 4 | Open the vendor sandboxes each spike needs (Exotel with DLT numbers, Meta WhatsApp, LiveKit, Sarvam and Anthropic, `docs/04-architecture-appendix/*.md`), then run the Exotel, WhatsApp, voice and Tally spikes and record their numbers | Developer, in the group's accounts | Waiting on the accounts (client-actions 13, 17, 18) | Phase 2; the Tally spike before Phase 5 |
@@ -36,13 +36,13 @@ Phase 0 was closed on 29-09-2026 by the owner's decision, and Phase 1 has starte
 | 13 | Confirm the place-of-supply rule, the rounding and the tax golden set (ADR 0007) | The group's CA | Not started | Quotes (S1) |
 | 14 | Return quotes against the volumes in the quote pack | Vendors | Not started | As action 3 |
 | 15 | Name the thermal label printer model and label stock for the QR label check | The printer supplier | Not started | Phase 3 |
-| 16 | Confirm the workshop defaults quotes use until the answers come (`packages/domain/src/workshop-defaults.ts`, design §11): the document number format `<company code>/Q/<year>/0001` (SALE-1, the pack's first example; each document's code and the serial's digits change in one place), no map from customer type to price tier, so an Executive gives each customer its tier on the customer's page (PRICE-1), and kits sold at their own fixed price (PRICE-3) | Accounts (SALE-1), owner and sales head (PRICE-1, PRICE-3) | Not started | Quotes in daily use (S1) |
+| 16 | Confirm the workshop defaults quotes use until the answers come (`packages/domain/src/workshop-defaults.ts`, design §11): the document number format `<company code>/Q/<financial year>/<number>`, for example `ASH/Q/2026-27/0001` (SALE-1, the pack's first example; each document's code and the serial's digits change in one place), no map from customer type to price tier, so an Executive gives each customer its tier on the customer's page (PRICE-1), and kits sold at their own fixed price (PRICE-3) | Accounts (SALE-1), owner and sales head (PRICE-1, PRICE-3) | Not started | Quotes in daily use (S1) |
 | 17 | Confirm or change the owner's calling defaults of 05-10-2026, which the Cold Caller workspace uses: three attempts for an unanswered lead on the day of the first call, the next day and day 3 (CALL-3), and nurture calls on day 7, 30 and 90 (CALL-5); a change is one edit of `WORKSHOP_DEFAULTS.calling` | Sales head, at the workshop | Not started | The Cold Caller workspace in daily use (T1) |
 
 Every other client task (the workshop answers, the design sign-off, the screen review, the letterheads and data files, the vendor accounts in the client's name, DLT registration and Meta verification, the voice samples, real document photos and the Tally visit) is in [client-actions.md](client-actions.md), with who does it and which slice waits for it.
 
 ## 3. Standing rule
-Once staging holds data worth keeping, every migration is applied to a copy of staging before it reaches production (AGENTS §10).
+Once staging holds data worth keeping, every migration is applied to a copy of staging before it reaches production ([DATABASE §8](../05-database.md#8-migrations) step 5 holds the rule). Nothing waits on it until staging holds such data.
 
 ## 4. Technical reviews with the client's engineering contact
 Each is a decision the person who looks after technology for the group reviews with the developer, who records the outcome:

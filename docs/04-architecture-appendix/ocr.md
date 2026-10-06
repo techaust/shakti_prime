@@ -1,6 +1,6 @@
 # Spike: OCR masking of Aadhaar and bank account numbers
 
-**Week 6, ROADMAP §2.** Result: **passed on generated images; real document photos from the client still to run.** No real Aadhaar number, bank account or document was used.
+**Week 6, ROADMAP §2.** **Status (07-10-2026):** the masking is wired into the upload flow for vault photos (see *Wiring* below); real document photos remain to run. Result: **passed on generated images; real document photos from the client still to run.** No real Aadhaar number, bank account or document was used.
 
 Run it with `pnpm spike:ocr`. The first run fetches the English OCR model (2.9 MB, `eng.traineddata.gz` from the tesseract.js default source) once into `%LOCALAPPDATA%\shakti-prime\tesseract` (or `~/.cache/shakti-prime/tesseract`), outside the repository; the masking code itself only reads it from a local folder. The numbers are in [results/ocr.json](results/ocr.json) (ids, flags, counts and times only, no digits); the masked images, and only those, go to `apps/web/.spike-output/ocr/` (ignored by git). `--mode unknown_slot` or `--mode known_slot` runs one half and keeps the other half's numbers; `--only qr` (the photos with a QR code) and `--limit N` write to `results/ocr-subset.json` instead.
 
@@ -70,7 +70,7 @@ Reading every photo four ways costs time. An earlier version on the same set (on
 - **The QR code on Aadhaar cards.** Resolved on generated images; real document photos from the client still to run. Older cards and e-Aadhaar letters carry a QR code that can hold the full number, so every QR code on a photo is covered whatever it holds, and an Aadhaar photo with a finder mark outside every cover box is held for review. Limits: a code with modules under about 1.3 px on a photo longer than 1300 px, and a code too blurred for its finder marks to be seen, are not found (the hard card whose code no reading could decode was held for its number; had its number been read, it would have been returned with that unreadable code uncovered). jsQR is the only decoder tried.
 - **Hard photos.** Three of six hard photos are held for review with the slot known (two with no number found, one whose QR code could not be covered), which is safe but means a person asks the customer for a better photo. The rate on real photos decides whether that is acceptable.
 - **Where it runs.** tesseract.js core is about 44 MB with its WebAssembly builds, plus the 2.9 MB model, which must be bundled with the worker (the worker must never download it while handling a document). CPU time of 3 to 10 s per photo (the QR scan adds 0.5 to 5 s) suits a background worker (the same one as PDF rendering, ADR 0009) better than a Vercel function.
-- **Wiring.** The upload flow (ARCHITECTURE §9: scan and mask before `ready`), the `needs_review` path and the message a person sees, and the command that stores the last four digits.
+- **Wiring.** Built: the upload worker (`apps/web/src/workers/files/handle-file-uploaded.ts`) masks a vault photo before it is `ready` (ARCHITECTURE §9), and a photo held for review is rejected as `file_mask_failed`, which the message catalogue turns into a sentence asking for a clearer photo. Still to build: the command that stores the last four digits, with the identity-document uploads of Phase 4.
 
 ## Not verified
 - Any real document photo.

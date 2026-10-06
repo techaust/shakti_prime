@@ -1,6 +1,6 @@
 # ADR 0011 — Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector
 
-**Status:** Proposed (27-09-2026); the Phase 1 shadow-mode cost and quality measurements confirm the model choices · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §1, §5, §7.8, §9, §13, §18 (risks 5, 6) · **Architecture:** §7, §11 · **Database:** §2, §6.9 · **Security:** vendors, AI threat model · **ADR:** 0005, 0010
+**Status:** Accepted (27-09-2026) for the provider wrapper, Haiku 4.5 and the Voyage embeddings, built in AI0 (#108); open: the routing to Sonnet 5, which the shadow-mode cost and quality measurements of A1 confirm · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §1, §5, §7.8, §9, §13, §18 (risks 5, 6) · **Architecture:** §7, §11 · **Database:** §2, §6.9 · **Security:** vendors, AI threat model · **ADR:** 0005, 0010
 
 ## Context
 Six agents, the Executive Knowledge Brain, Ask the Business, call summaries and live voice all call a language model, and the Knowledge Vault needs semantic search over documents that carry entity and sensitivity restrictions. AI is the largest variable cost (blueprint §13: roughly $1,800–5,100 a month with LC-only transcription), customer messages are untrusted input, and no model may see unmasked personal data or any cost figure. Calling the SDK directly from each feature would scatter budgets, retries, masking and model choice across the codebase.

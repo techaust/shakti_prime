@@ -1,12 +1,12 @@
 # Vendor quote requests — Shakti Prime BOS
 
-Prepared 27-09-2026 · last updated 04-10-2026. Status: drafts for the group's review; nothing has been sent to any vendor.
+Prepared 27-09-2026 · last updated 07-10-2026. Status: drafts for the group's review; nothing has been sent to any vendor.
 
 **Who sends:** the developer prepares each letter from the template in §2a; the owner approves this pack and sends each letter from the group's own account with that vendor (every account is registered to the group, with the development team as members); the developer records each answer in §4 and §5.
 
-Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Confirming those figures with vendor quotes was an item of the Phase 0 exit gate (ROADMAP §2); the owner closed Phase 0 on 29-09-2026 with it deferred. The quotes are needed before production readiness (slice G1), when the production plans are bought, and each telecom, WhatsApp and voice quote before Phase 2. This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
+Purpose: the approved blueprint (§13) estimates the monthly running cost at full volume. Confirming those figures with vendor quotes was an item of the Phase 0 exit gate (ROADMAP §2); the owner closed Phase 0 on 29-09-2026 with it deferred. The quotes are needed before the system goes live, when the production plans are bought, and each telecom, WhatsApp and voice quote before Phase 2. This pack holds one request per vendor, the volumes to quote against, the questions each vendor must answer, the blueprint's estimate, and an empty column for the quoted figure. The cost sheet at the end totals the quotes against the blueprint range.
 
-Currency: the blueprint quotes most services in US dollars and telecom in rupees. Rupee figures for dollar items use ₹84 to the US dollar, the rate implied by the blueprint's own conversions. Quoted figures are recorded in the currency the vendor quotes, before GST, with GST noted separately.
+Currency: the blueprint quotes most services in US dollars and telecom in rupees. Rupee figures for dollar items in the tables below use ₹84 to the US dollar, the rate implied by the blueprint's own conversions. The system's own spending limits count ₹104 to the US dollar (about ₹88 plus 18% GST on services bought from abroad); that rate is a default awaiting the owner's confirmation from the card statement, and the tables are worked again at it once it is confirmed. Quoted figures are recorded in the currency the vendor quotes, before GST, with GST noted separately.
 
 ## 1. Volumes to quote against
 These are the blueprint's full-volume assumptions (§1, §6.4, §13). Every request quotes the monthly cost at these volumes, and at half of them for the first months after go-live.
@@ -127,10 +127,10 @@ These are listed in the account-ownership plan (ROADMAP §10) or needed for the 
 | Account | Used for | What to ask or check | Indicative figure |
 |---|---|---|---|
 | Google Play developer account | Publishing the Android field app | Registration as an organisation in the group's name (needs the group's D-U-N-S number); staged roll-outs | US$25, once |
-| Domain `shaktiprime.com` | The website and web app, email sending records | Registrar in the group's name, auto-renewal, DNS access for the development team | Yearly renewal at the registrar's price |
+| The group's domain (the name is for the group to confirm) | The website and web app, email sending records | Registrar in the group's name, auto-renewal, DNS access for the development team | Yearly renewal at the registrar's price |
 | GitHub plan | The code repository | A group organisation on a plan that enforces review and checks before changes reach the live system | Team plan, about US$4 a user a month |
 | Firebase Cloud Messaging | Notifications on the Android app | A Firebase project owned by the group | No charge |
-| Cloudflare Turnstile | The bot check on sign-in and website forms | Site keys for `shaktiprime.com` and the four company websites | No charge on the free plan |
+| Cloudflare Turnstile | The bot check on sign-in and website forms | Site keys for the group's domain and the four company websites | No charge on the free plan |
 | Expo Application Services (EAS) | Building and updating the Android app | Build and update limits on each plan against about 20 field devices and weekly updates | Plan price to be quoted |
 
 ## 4. Cost sheet
@@ -160,7 +160,7 @@ Fill the "Quoted" columns as quotes arrive. Figures are monthly at full volume, 
 | | **Total with transcription of all calls** | **≈ ₹4.6 lakh** | **≈ ₹10.6 lakh** | | | |
 
 **Reading the result:**
-- The totals above are the sums of the lines at ₹84 to the US dollar. The blueprint rounds them to about ₹4–8 lakh a month with lead-converter transcription and ₹4.5–11 lakh with all calls (BLUEPRINT §13).
+- The totals above are the sums of the lines at ₹84 to the US dollar (the rate of the blueprint's own conversions). The blueprint rounds them to about ₹4–8 lakh a month with lead-converter transcription and ₹4.5–11 lakh with all calls (BLUEPRINT §13).
 - The figures are confirmed when the quoted total with lead-converter transcription falls within the summed band, ₹4–8.3 lakh a month, or when the group accepts a figure outside it in writing.
 - A line quoted above its blueprint high is flagged to the owner with the reason and the choices (another vendor, lower coverage, a spending cap).
 - AI usage, transcription coverage and call minutes are the three figures that move the total most. Each has a cap or a coverage setting in the system, and the real cost per lead is measured in the first weeks before any AI assistant works on its own.

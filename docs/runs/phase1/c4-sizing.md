@@ -4,7 +4,7 @@
 |---|---|
 | Branch | `feat/c4-sizing-r2` on GitHub (c670631, from `main` at #82) |
 | PC worktree | `c4-sizing`, slot 8: Postgres 54338, app 3038; its local branch `feat/c4-sizing` is at the same commit and pushes to `feat/c4-sizing-r2` (`git push origin HEAD:feat/c4-sizing-r2`) |
-| Runs on | PC for now ([DECISIONS](../../11-decisions.md) 04-10-2026); later the integration list may run in the cloud |
+| Runs on | PC (built, reviewed, integrated and merged there) |
 | State | merged (#100, 05-10-2026) |
 | Next step | none |
 
