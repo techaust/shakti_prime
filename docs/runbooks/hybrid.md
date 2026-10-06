@@ -50,7 +50,7 @@ What this repository adds:
 - `.claude/hooks/cloud-session.sh` (a session-start hook that does nothing on the PC): `.env` from `.env.example` with `E2E_BASE_URL` on `BETTER_AUTH_URL`'s port, the packages when the checkout has none, the Docker daemon and the local Postgres on `127.0.0.1:54322`. The security suites and the journeys migrate and seed that database themselves (`prepareDatabase()` in `packages/db/src/testing`); the dev server needs `pnpm db:migrate && pnpm db:seed` first.
 - `.claude/hooks/tooling-check.mjs` prints a short cloud note instead of the PC's tool list.
 
-Not yet tried in a cloud session (the first session of [the trial](#10-the-trial) confirms each): the Node download from nodejs.org, starting the Docker daemon with `service docker start`, the image pulls from Docker Hub, `ghcr.io` and `mcr.microsoft.com` under the Trusted network level, and whether the setup script finishes within the snapshot's time.
+What the sessions of 05-10-2026 and 06-10-2026 showed: the Node download from nodejs.org, the Docker daemon and the Postgres and Playwright image pulls work; the image's `PLAYWRIGHT_BROWSERS_PATH` holds an older Chromium than `@playwright/test` runs, so `ensure_playwright_browsers` copies the builds from the Playwright image; the proxy refuses `ghcr.io`'s blob host and Docker Hub sometimes answers 429, so `ensure_gitleaks_image` takes the same gitleaks release from Docker Hub and is retried after a minute when it fails; a branch older than #111 still needs `/usr/local/bin` first in `PATH` and pnpm installed with npm.
 
 ## 3. The cloud environment, once
 The owner does these steps once, in the browser. The labels follow Anthropic's documentation; if a screen names a step differently, the setting is the same.
@@ -133,3 +133,5 @@ The PC keeps every task of [§1](#1-what-runs-where) marked PC until a trial sho
 3. The merge with `main`, `integrate.sh` and `e2e:snap` in a cloud session on a slice ready to integrate, compared with the same run on the PC.
 
 The result goes into `docs/STATUS.md`; the owner then decides whether to go fully cloud, and the decision becomes a row in [DECISIONS](../DECISIONS.md).
+
+The result (06-10-2026): step 3 ran in the cloud for S1, D1 and T1 (#115, #118, #119). Each took `main` by a merge commit, renumbered its migrations, ran `integrate.sh` in five parts (the longest about 14 minutes, none near the 30-minute limit) and made its baselines in the Linux image; each merge with `main` found a clash the plain merge did not show and fixed it. The environment problems above were the only failures.
