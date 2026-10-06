@@ -1024,6 +1024,16 @@ erDiagram
 
 ```mermaid
 erDiagram
+  caller_profiles {
+    uuid id PK
+    uuid user_id FK
+    smallint entity_id FK
+    boolean is_converter
+    untyped presence
+    untyped max_open
+    untyped languages
+    untyped segments
+  }
   whatsapp_threads {
     uuid id PK
     smallint entity_id FK
@@ -1066,6 +1076,8 @@ erDiagram
     untyped amount
     timestamptz released_at
   }
+  caller_profiles }o--|| users : "user_id"
+  caller_profiles }o--|| entities : "entity_id"
   whatsapp_threads }o--|| entities : "entity_id"
   whatsapp_threads }o--|| accounts : "account_id"
   whatsapp_threads }o--|| contact_phones : "contact_phone_id"
@@ -1104,7 +1116,7 @@ erDiagram
   dealer_terms {
     uuid id PK
     uuid account_id FK
-    uuid tier_id FK
+    smallint entity_id FK
     untyped credit_limit
     untyped credit_days
   }
@@ -1112,6 +1124,7 @@ erDiagram
     uuid id PK
     smallint entity_id FK
     untyped scope
+    untyped subject_id
     untyped metric
     untyped period
     untyped value
@@ -1122,7 +1135,7 @@ erDiagram
   sales_order_lines }o--|| sales_orders : "so_id"
   sales_order_lines }o--|| items : "item_id"
   dealer_terms }o--|| accounts : "account_id"
-  dealer_terms }o--|| price_tiers : "tier_id"
+  dealer_terms }o--|| entities : "entity_id"
   targets }o--|| entities : "entity_id"
 ```
 
@@ -1755,9 +1768,18 @@ erDiagram
     uuid id PK
     uuid user_id FK
     untyped type
+    untyped subject
     jsonb payload_json
     timestamptz read_at
-    jsonb channel_sent_json
+  }
+  notification_preferences {
+    uuid id PK
+    uuid user_id FK
+    untyped type
+  }
+  push_subscriptions {
+    uuid id PK
+    uuid user_id FK
   }
   feature_flags {
     uuid id PK
@@ -1775,4 +1797,6 @@ erDiagram
     jsonb runbook_log_json
   }
   notifications }o--|| users : "user_id"
+  notification_preferences }o--|| users : "user_id"
+  push_subscriptions }o--|| users : "user_id"
 ```

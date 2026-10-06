@@ -11,7 +11,7 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
-- **#RESTRUCTURE** (07-10-2026) The documents restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`) with appendix folders for the designs, the spikes, the client packs and the reviews, `docs/00-start-here.md` as the guide, and the documentation audit's defects fixed in all of them.
+- **#125** (07-10-2026) The documents restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`) with appendix folders for the designs, the spikes, the client packs and the reviews, `docs/00-start-here.md` as the guide, and the documentation audit's defects fixed in all of them.
 - **#124** (07-10-2026) "Start the day" and "end the day" open and close a lead session: the `start-session` and `end-session` skills and `CLAUDE.md`.
 - **#123** (07-10-2026) Models and usage rules (builders on Sonnet, the reviewer on Opus at high effort, the lead on Opus at medium effort) and two builders at once on the PC with the heavy-command lock `tools/integration/heavy.sh`.
 - **#122** (06-10-2026) Phase 1 continues on the PC only, one slice at a time, with Docker Desktop; cloud sessions paused; DECISIONS, `CLAUDE.md`, STATUS and the runbooks.

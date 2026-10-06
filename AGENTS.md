@@ -231,7 +231,7 @@ A task is done when every line that applies to it holds. This is the one definit
 - [ ] Every new table: RLS enabled, forced and failing closed; in its `*_TABLES` list with a fixture row per company and a rule in the role × company matrix; `app_reader` on its select policy and its select grant; `NARROWER` and `enum-sync` where they apply (§6).
 - [ ] Every new command: denied, wrong-company and happy-path tests on real Postgres; every `auditFields` key labelled in `apps/web/src/screens/audit.ts`; a restricted command's input in the agent refusal sweep (§5).
 - [ ] The tests of §7 pass locally and in CI, the security suite included, run on the local Postgres.
-- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging (`docs/13-client-packs/exit-gate-actions.md`).
+- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging ([DATABASE §8](docs/05-database.md#8-migrations) step 5).
 - [ ] Every user-facing word is final plain language in `apps/web/messages/en.json` (English on screen, Hinglish only in the spoken channels), and `pnpm copy-lint` passes.
 - [ ] New or changed screens: an end-to-end journey with axe; Linux screenshot baselines made on a fresh database; the JavaScript budget per page holds.
 - [ ] New lists and searches: `EXPLAIN (ANALYZE)` evidence under RLS.
