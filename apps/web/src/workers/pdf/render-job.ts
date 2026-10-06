@@ -52,7 +52,8 @@ async function recorded(
 /**
  * Renders one document (ADR 0009, docs/design/phase1.md §6.4), as the worker principal of the
  * job's company: its registered type loads it, its template is printed by Chromium, the PDF is
- * stored under its purpose and file id and recorded `ready` with `files.document.record`. A job
+ * stored under its purpose and file id and recorded `ready` with `files.document.record`, then
+ * attached to its record where the type has one (a quote's PDF, `sales.quote.pdf.attach`). A job
  * whose file is recorded already answers that file, so a repeated delivery renders nothing. A type
  * no loader prints, or a label sheet, is refused for good (`not_found`); every other failure is
  * retried by the queue and ends as the event's dead letter.
@@ -82,8 +83,18 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
   }
   const scope = { entityIds: [job.entityId], requestId: deps.requestId };
   const fileId = registered.fileId(job, target);
+  const attachTo = {
+    principal: deps.principal,
+    entityId: job.entityId,
+    requestId: deps.requestId,
+    hosted: deps.hosted,
+  };
   const done = await recorded(deps, scope, fileId);
-  if (done !== undefined) return done;
+  if (done !== undefined) {
+    // A delivery that ran again: the file stands; attaching it again changes nothing.
+    await registered.attach?.(target, fileId, attachTo);
+    return done;
+  }
 
   const now = (deps.now ?? (() => new Date()))();
   const { document, fileName } = await registered.print(target, {
@@ -117,6 +128,7 @@ export async function renderPdfJob(job: PdfRenderJob, deps: RenderDeps): Promise
     },
     { hosted: deps.hosted },
   );
+  await registered.attach?.(target, fileId, attachTo);
   const outcome = { fileId, pages: pageCount(stored), bytes: stored.length };
   log.log('info', 'print.rendered', {
     requestId: deps.requestId,

@@ -4,6 +4,7 @@ import {
   Building2,
   Cable,
   Contact,
+  FileText,
   FileUp,
   House,
   Inbox,
@@ -78,6 +79,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Every staff role that reads leads also reads customers at own scope or wider; listCustomers
     // shows the customers they look after and those of their leads (0057).
     requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
+    id: 'quotes',
+    href: '/quotes',
+    label: 'quotes',
+    icon: FileText,
+    group: 'work',
+    // Quotes are read with their leads (listQuotes), so whoever reads leads opens the list and the
+    // quote page; sending, re-quoting and withdrawing follow their own permissions.
+    requires: [{ key: 'crm.lead.read', scope: 'own' }],
   },
   {
     id: 'leads-new',

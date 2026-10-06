@@ -61,6 +61,13 @@ const ACTIONS = {
   'crm.opportunity.win': 'opportunityWin',
   'crm.opportunity.lose': 'opportunityLose',
   'crm.sizing.record': 'sizingRecord',
+  'crm.account.tier.set': 'accountTierSet',
+  'sales.quote.create': 'quoteCreate',
+  'sales.quote.send': 'quoteSend',
+  'sales.quote.requote': 'quoteRequote',
+  'sales.quote.withdraw': 'quoteWithdraw',
+  'sales.quote.expire': 'quoteExpire',
+  'sales.quote.pdf.attach': 'quotePdfAttach',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -196,6 +203,11 @@ const EVENT_NAMES = {
   'platform.probe.requested': 'deliveryCheckRequested',
   'files.file.uploaded': 'fileUploaded',
   'print.document.requested': 'documentRequested',
+  'sales.quote.created': 'quoteCreated',
+  'sales.quote.sent': 'quoteSent',
+  'sales.quote.superseded': 'quoteSuperseded',
+  'sales.quote.withdrawn': 'quoteWithdrawn',
+  'sales.quote.expired': 'quoteExpired',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -481,6 +493,12 @@ const FIELD_KINDS = [
   ['scanStatus', 'scanStatus'],
   // Printed documents
   ['documentType', 'documentType'],
+  // Quotes
+  ['quoteNo', 'text'],
+  ['lineCount', 'number'],
+  ['grandTotal', 'money'],
+  ['validUntil', 'time'],
+  ['withdrawnReason', 'text'],
   // Agents and the Agent Inbox
   ['agent', 'agent'],
   ['actionType', 'agentAction'],

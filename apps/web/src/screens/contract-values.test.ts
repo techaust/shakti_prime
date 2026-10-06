@@ -54,11 +54,14 @@ import {
   RooftopSizingInputs,
   PRICE_SORT_COLUMNS as CONTRACT_PRICE_SORT_COLUMNS,
   SavedViewScreenSchema,
+  QUOTE_MAX_QTY as CONTRACT_QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS as CONTRACT_SEARCH_MIN_CHARS,
   SegmentSchema,
   SessionRevokeReasonSchema,
   SizingAdvisorySchema,
   SizingKindSchema,
+  QuoteStateSchema,
+  SubsidySchemeSchema,
   SizingReasonSchema,
   SiteTypeSchema,
   TaskKindSchema,
@@ -123,12 +126,15 @@ import {
   PUMP_TYPES,
   SAVED_VIEW_SCREENS,
   SCOPE_VALUES,
+  QUOTE_MAX_QTY,
   SEARCH_MIN_CHARS,
   SEGMENTS,
   SESSION_REVOKE_REASONS,
   SIZING_ADVISORIES,
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
+  QUOTE_STATES,
+  SUBSIDY_SCHEMES,
   SIZING_REASONS,
   SITE_TYPES,
   TASK_KINDS,
@@ -161,6 +167,8 @@ describe('the contract values copied for the browser', () => {
     expect(SYSTEM_SIZE_UNITS).toEqual(SystemSizeUnitSchema.options);
     expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
+    expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
+    expect(SUBSIDY_SCHEMES).toEqual(SubsidySchemeSchema.options);
     expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
     expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);
     // The panel offers a submersible first, the catalogue lists a surface pump first.
@@ -215,6 +223,7 @@ describe('the contract values copied for the browser', () => {
     );
     expect(PASSWORD_MIN_LENGTH).toBe(CONTRACT_PASSWORD_MIN_LENGTH);
     expect(SEARCH_MIN_CHARS).toBe(CONTRACT_SEARCH_MIN_CHARS);
+    expect(QUOTE_MAX_QTY).toBe(CONTRACT_QUOTE_MAX_QTY);
     expect(CUSTOMER_SEARCH_MIN_CHARS).toBe(CONTRACT_CUSTOMER_SEARCH_MIN_CHARS);
     expect(SCOPE_VALUES).toEqual(SCOPES);
     expect(COST_PERMISSION_KEYS).toEqual(COST_PERMISSIONS);

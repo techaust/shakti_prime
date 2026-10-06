@@ -66,6 +66,7 @@ const FIXTURES: Fixture[] = [
     machine: quoteMachine,
     record: {
       segment: 'farmer_pumps',
+      tierId: newId(),
       priceListId: newId(),
       sizingComplete: true,
       pumpCurveInBounds: true,
@@ -422,9 +423,17 @@ const GUARDS: GuardCase[] = [
     fixture: 'quote',
     from: null,
     event: 'create',
+    record: { tierId: null },
+    code: 'validation_failed',
+    reason: 'quote_tier_missing',
+  },
+  {
+    fixture: 'quote',
+    from: null,
+    event: 'create',
     record: { priceListId: null },
     code: 'validation_failed',
-    reason: 'price_list_missing',
+    reason: 'quote_price_list_missing',
   },
   {
     fixture: 'quote',
@@ -457,6 +466,14 @@ const GUARDS: GuardCase[] = [
     record: { pdfFileId: null },
     code: 'conflict',
     reason: 'quote_pdf_missing',
+  },
+  {
+    fixture: 'quote',
+    from: 'draft',
+    event: 'send',
+    record: { validUntil: new Date(NOW.getTime() - 1) },
+    code: 'conflict',
+    reason: 'quote_expired',
   },
   {
     fixture: 'quote',

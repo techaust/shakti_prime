@@ -168,7 +168,8 @@ export function cardActions(
 }
 
 /**
- * The board after a command changed one lead: the card takes its new stage, status and owner and
+ * The board after a command changed one lead: the card takes its new stage (and its time in the
+ * stage starts again), status and owner and
  * goes first (it is now the newest change); the counts follow it. A lead whose new status the
  * filter does not show leaves the board.
  */
@@ -187,6 +188,8 @@ export function applyChange(
     ownerId: changed.ownerId,
     ownerName: changed.ownerId === before.ownerId ? before.ownerName : (ownerName ?? null),
     stateChangedAt: changed.stateChangedAt,
+    // A move to another stage starts its time in the stage at the change.
+    stageSince: changed.stageId === before.stageId ? before.stageSince : changed.updatedAt,
     updatedAt: changed.updatedAt,
   };
   const stays = states.includes(after.state);

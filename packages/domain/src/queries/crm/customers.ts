@@ -32,6 +32,7 @@ import {
   type SortKeys,
 } from '../keyset-sort';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
+import { accountQuotes } from '../sales/list-quotes';
 import { containsPattern, phoneDigits } from '../search-text';
 
 type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -381,10 +382,14 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
         type: a.type,
         gstin: a.gstin,
         billingStateCode: a.billingStateCode,
+        tierId: a.tierId,
       },
+      // The tier's name for a caller who reads the price tiers; null otherwise (`pricing.read`).
+      tierName: schema.priceTiers.name,
     })
     .from(ae)
     .innerJoin(a, eq(a.id, ae.accountId))
+    .leftJoin(schema.priceTiers, eq(schema.priceTiers.id, a.tierId))
     .where(
       and(
         eq(ae.accountId, input.accountId),
@@ -504,8 +509,17 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
       here.teamId === ctx.principal.teamId) ||
     (hasGrant(perms, key, 'own') && here.ownerId === ctx.principal.id);
 
+  // The customer's quotes in this company, read with their leads (docs/design/phase1.md §7.3).
+  const quotes = hasGrant(perms, 'crm.lead.read', 'own')
+    ? await accountQuotes(ctx, accountId, entityId)
+    : [];
+
   return Account360Dto.parse({
-    account: here.account,
+    // The tiers' own policy lets any signed-in caller read them, so the name is kept here.
+    account: {
+      ...here.account,
+      tierName: hasGrant(perms, 'pricing.read', 'own') ? here.tierName : null,
+    },
     entityId,
     otherEntityIds: relationships.map((r) => r.entityId).filter((e) => e !== entityId),
     ownerId: here.ownerId,
@@ -513,6 +527,10 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     canEdit: covers('crm.account.write'),
     canWorkLeads: hasGrant(perms, 'crm.lead.write', 'own'),
     canManageTags: hasGrant(perms, 'crm.lead.assign', 'own'),
+    // A tier decides every price the customer is quoted: an Executive's (`crm.account.tier.set`).
+    canSetTier: hasGrant(perms, 'pricing.write', 'all') && covers('crm.account.write'),
+    canQuote: hasGrant(perms, 'sales.quote.create', 'own'),
+    quotes,
     contacts: contacts.map((x) => ({
       ...x,
       phones: phones

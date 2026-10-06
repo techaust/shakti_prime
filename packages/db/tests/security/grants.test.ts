@@ -105,6 +105,11 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     pin_codes: { i: true, u: false, d: true },
     // A sizing is append-only: a new sizing is a new row.
     sizings: { i: true, u: false },
+    // A quote changes only its state and withdrawal reason (column grants, 0110); its lines and
+    // versions are append-only.
+    quotes: { i: true, u: false },
+    quote_lines: { i: true, u: false },
+    quote_versions: { i: true, u: false },
     // An agent setting changes its autonomy, cap and switch only; a run is written once; an
     // action changes only its decision, an inbox item only its state (agents.test.ts).
     agent_configs: { i: true, u: false },
@@ -410,6 +415,10 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
       'app.outbox_health(timestamp with time zone,uuid,integer)',
+      // The quote print loader of the render worker (0110).
+      'app.quote_for_print(uuid)',
+      // The ⌘K search's candidate quotes (0110).
+      'app.quote_search_ids(text,integer)',
       // The catalogue and GST rates screens ask it before they offer a change (0072).
       'app.request_covers_group()',
       // The sweep of abandoned uploads asks which companies to visit, as the worker

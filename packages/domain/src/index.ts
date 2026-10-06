@@ -35,6 +35,13 @@ export {
   updateStage,
 } from './commands/crm/pipeline-settings';
 export { setDispositions } from './commands/crm/set-dispositions';
+export { setAccountTier } from './commands/crm/set-account-tier';
+export { createQuote } from './commands/sales/create-quote';
+export { sendQuote } from './commands/sales/send-quote';
+export { requoteQuote } from './commands/sales/requote';
+export { withdrawQuote } from './commands/sales/withdraw-quote';
+export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
+export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { setCommissionRule, setReferralPartner } from './commands/crm/referrals';
 export { applyLeadAttribution, scoreLeads } from './commands/crm/lead-attribution';
@@ -168,6 +175,13 @@ export { listLeadAssignees } from './queries/crm/list-lead-assignees';
 export { latestSizing } from './queries/crm/latest-sizing';
 export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
+export { accountQuotes, getQuote, listQuotes, searchQuotes } from './queries/sales/list-quotes';
+export { loadQuoteBuilder, previewQuote } from './queries/sales/quote-builder';
+export { listPriceTierOptions } from './queries/pricing/price-tiers';
+export { loadQuoteForPrint } from './queries/sales/quote-print';
+export type { QuoteForPrint } from './queries/sales/quote-print';
+export { shownQuoteState } from './queries/sales/quote-dto';
+export { priceQuote } from './sales/quote-pricing';
 export { listCustomers, listTimeline, loadAccount360, listMyTasks } from './queries/crm/customers';
 export { searchPeople } from './queries/admin/search-people';
 export { toLeadDto } from './queries/crm/lead-dto';

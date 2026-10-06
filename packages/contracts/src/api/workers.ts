@@ -71,3 +71,18 @@ export const LeadRescoreWorkerResponse = z
   .object({ batches: Count, rescored: Count, done: z.boolean() })
   .strict();
 export type LeadRescoreWorkerResponse = z.infer<typeof LeadRescoreWorkerResponse>;
+
+/**
+ * The daily quote expiry (`sales.quote.expire`, docs/design/phase1.md §7.3), called by the QStash
+ * schedule `quote-expire-<environment>` with an empty body: every company in turn, each batch in
+ * its own transaction as `system:workers`. A quote a run leaves for want of time is expired the
+ * next day, and every read already shows it as expired.
+ */
+export const QuoteExpireWorkerBody = z.object({}).strict();
+export type QuoteExpireWorkerBody = z.infer<typeof QuoteExpireWorkerBody>;
+
+/** What one expiry run did: the batches it ran, the quotes it expired, and whether it finished. */
+export const QuoteExpireWorkerResponse = z
+  .object({ batches: Count, expired: Count, done: z.boolean() })
+  .strict();
+export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;

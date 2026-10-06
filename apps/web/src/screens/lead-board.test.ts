@@ -47,6 +47,8 @@ function card(n: number, stage: number, state: BoardLeadDto['state'] = 'open'): 
     ownerName: 'Priya',
     stateChangedAt: '2026-09-20T04:30:00.000Z',
     sla: null,
+    stageSince: '2026-09-20T04:30:00.000Z',
+    size: null,
     updatedAt: `2026-09-2${String(n)}T04:30:00.000Z`,
   };
 }
@@ -175,6 +177,14 @@ describe('applyChange', () => {
     ]);
     const columns = boardColumns(STAGES, after, ['open']);
     expect(columns.map((c) => c.count)).toEqual([1, 1, 0]);
+  });
+
+  it('starts the time in the stage again on a move, and keeps it on any other change', () => {
+    expect(applyChange(board, moved, ['open']).items[0]?.stageSince).toBe(moved.updatedAt);
+    expect(
+      applyChange(board, { ...moved, stageId: id(1), ownerId: id(901) }, ['open']).items[0]
+        ?.stageSince,
+    ).toBe(a.stageSince);
   });
 
   it('takes the new owner’s name, and keeps the name when the owner stays', () => {

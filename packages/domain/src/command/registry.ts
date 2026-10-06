@@ -28,6 +28,7 @@ import {
 } from '../commands/crm/pipeline-settings';
 import { setCommissionRule, setReferralPartner } from '../commands/crm/referrals';
 import { refreshLeadScores, rescoreLead, setScoreRules } from '../commands/crm/score-rules';
+import { setAccountTier } from '../commands/crm/set-account-tier';
 import { setDispositions } from '../commands/crm/set-dispositions';
 import { recordSizing } from '../commands/crm/record-sizing';
 import { reopenOpportunity } from '../commands/crm/reopen-opportunity';
@@ -61,6 +62,12 @@ import {
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
+import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
+import { createQuote } from '../commands/sales/create-quote';
+import { expireQuotes } from '../commands/sales/expire-quotes';
+import { requoteQuote } from '../commands/sales/requote';
+import { sendQuote } from '../commands/sales/send-quote';
+import { withdrawQuote } from '../commands/sales/withdraw-quote';
 import { deleteView, saveView } from '../commands/profile/saved-views';
 import { setTheme } from '../commands/profile/set-theme';
 import { issueRealtimeToken } from '../commands/realtime/issue-token';
@@ -149,6 +156,13 @@ export const commands = {
   [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
+  [setAccountTier.name]: setAccountTier,
+  [createQuote.name]: createQuote,
+  [sendQuote.name]: sendQuote,
+  [requoteQuote.name]: requoteQuote,
+  [withdrawQuote.name]: withdrawQuote,
+  [expireQuotes.name]: expireQuotes,
+  [attachQuotePdf.name]: attachQuotePdf,
   [recordAgentRun.name]: recordAgentRun,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,

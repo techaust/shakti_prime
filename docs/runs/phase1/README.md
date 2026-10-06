@@ -42,7 +42,7 @@ Each slice on the PC takes a slot, and the slot gives its Postgres and app ports
 ## Slices in flight
 - [AI0 agent runtime and Inbox](ai0-agent-runtime.md)
 - [D1 duplicates](d1-duplicates.md)
-- S1 quotes: its run file is on its branch (`feat/s1-quotes`) until it merges.
+- [S1 quotes](s1-quotes.md)
 
 ## Merged
 - [P4 print and letterhead](p4-print.md) (#99)

@@ -35,3 +35,4 @@ export {
   userTwoFactor,
   userEntityRoles,
 } from './identity';
+export { quotes, quoteLines, quoteVersions } from './quotes';

@@ -7,12 +7,14 @@ import type {
   PaletteSearchDto,
   PermissionGrant,
   PersonSearchHitDto,
+  QuoteSearchHitDto,
 } from '@shakti/contracts';
 import type { Route } from 'next';
 import type en from '../../messages/en.json';
 import type { NavItem } from '../nav';
 import { SEARCH_MIN_CHARS } from './contract-values';
 import { boardHref } from './lead-board';
+import { quoteHref } from './quotes';
 
 /** How long typing must pause before the palette searches, so each key press is not a read. */
 export const PALETTE_DEBOUNCE_MS = 250;
@@ -70,6 +72,7 @@ export function leadHref(hit: Pick<LeadSearchHitDto, 'entityId' | 'pipelineKey' 
 export type PaletteEntry =
   | { kind: 'page'; id: string; href: Route; item: NavItem }
   | { kind: 'lead'; id: string; href: Route; hit: LeadSearchHitDto }
+  | { kind: 'quote'; id: string; href: Route; hit: QuoteSearchHitDto }
   | { kind: 'person'; id: string; href: Route; hit: PersonSearchHitDto }
   | { kind: 'action'; id: string; href: Route; action: PaletteAction };
 
@@ -111,6 +114,12 @@ export function paletteSections(input: {
           href: leadHref(hit),
           hit,
         })),
+        ...input.found.quotes.map((hit): PaletteEntry => ({
+          kind: 'quote',
+          id: `quote-${hit.id}`,
+          href: quoteHref(hit.entityId, hit.id),
+          hit,
+        })),
         ...input.found.people.map((hit): PaletteEntry => ({
           kind: 'person',
           id: `person-${hit.id}`,
@@ -135,5 +144,5 @@ export function paletteSections(input: {
 
 /** How many records the search found, for the sentence read out to screen readers. */
 export function foundCount(found: PaletteSearchDto): number {
-  return found.leads.length + found.people.length;
+  return found.leads.length + found.quotes.length + found.people.length;
 }

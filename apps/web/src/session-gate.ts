@@ -22,6 +22,7 @@ export const BOS_PREFIXES = [
   '/home',
   '/leads',
   '/customers',
+  '/quotes',
   '/inbox',
   '/imports',
   '/price-master',

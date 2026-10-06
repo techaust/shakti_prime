@@ -49,6 +49,8 @@ import type {
   Scope,
   SizingAdvisory,
   SizingKind,
+  QuoteState,
+  SubsidyScheme,
   SizingReason,
   SiteType,
   TaskKind,
@@ -250,6 +252,23 @@ export const SEGMENTS = [
 
 /** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
 export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
+
+/** Where a quote stands, as the quote screens show it (docs/design/phase1.md §7.3). */
+export const QUOTE_STATES = [
+  'draft',
+  'sent',
+  'accepted',
+  'expired',
+  'superseded',
+  'withdrawn',
+] as const satisfies readonly QuoteState[];
+
+/** The subsidy schemes a quote may be sold under, as the builder offers them. */
+export const SUBSIDY_SCHEMES = [
+  'none',
+  'pm_surya_ghar',
+  'pm_kusum',
+] as const satisfies readonly SubsidyScheme[];
 
 /** Where the pump sits, what drives it and what the pipe is made of, as the panel offers them. */
 export const PUMP_TYPES = ['submersible', 'surface'] as const satisfies readonly PumpType[];
@@ -471,6 +490,9 @@ export type NumericSpecKey = (typeof NUMERIC_SPEC_KEYS)[number];
 
 /** The fewest characters the palette searches for. */
 export const SEARCH_MIN_CHARS = 2;
+
+/** The largest quantity one quote line takes (`QUOTE_MAX_QTY`). */
+export const QUOTE_MAX_QTY = 100_000;
 
 /** What the queue does after a call outcome, in the order the settings page offers them. */
 export const DISPOSITION_NEXT_ACTIONS = [

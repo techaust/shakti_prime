@@ -167,6 +167,8 @@ export interface BoardCardProps {
   menu?: ReactNode;
   /** A status badge under the subtitle, when the board shows more than one status. */
   badge?: ReactNode;
+  /** A line of facts under the subtitle, such as the sized kW or HP and the time in the stage. */
+  detail?: ReactNode;
   /** How long the lead has been in its status, such as "Open for 3 days". */
   age: ReactNode;
   /** Who works on the lead. */
@@ -182,15 +184,16 @@ export interface BoardCardProps {
 }
 
 /**
- * A kanban card (DESIGN.md §6): name, village, age, owner with their avatar, and the SLA dot. It
- * is dragged only when the screen passes `dragId`; the menu and badge come from the screen. The
- * size in kW or HP joins the card when leads carry a product line (Phase 1, with quotes).
+ * A kanban card (DESIGN.md §6): name, village, the size in kW or HP and the time in the stage,
+ * age, owner with their avatar, and the SLA dot. It is dragged only when the screen passes
+ * `dragId`; the menu, badge and facts come from the screen.
  */
 export function BoardCard({
   title,
   subtitle,
   menu,
   badge,
+  detail,
   age,
   owner,
   ownerName,
@@ -220,6 +223,9 @@ export function BoardCard({
         {menu}
       </div>
       <p className="text-text-muted text-sm break-words">{subtitle}</p>
+      {detail === undefined ? null : (
+        <p className="text-text-muted text-xs break-words tabular-nums">{detail}</p>
+      )}
       {badge}
       <div className="text-text-subtle flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
         <span className="tabular-nums">{age}</span>

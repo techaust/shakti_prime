@@ -58,6 +58,9 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   customer_sites: 'x.id::text',
   opportunities: 'x.id::text',
   sizings: 'x.id::text',
+  quotes: 'x.id::text',
+  quote_lines: 'x.id::text',
+  quote_versions: 'x.id::text',
   consents: 'x.id::text',
   item_costs: 'x.id::text',
   document_sequences: 'x.id::text',
@@ -128,6 +131,15 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
+      // Quotes first: they name the company's price list, a lead and the item's rate.
+      await tx`alter table quote_lines disable trigger quote_lines_append_only`;
+      await tx`alter table quote_versions disable trigger quote_versions_append_only`;
+      await tx`delete from quote_versions where id::text like ${like}`;
+      await tx`delete from quote_lines where id::text like ${like}`;
+      await tx`delete from quotes where id::text like ${like}`;
+      await tx`alter table quote_lines enable trigger quote_lines_append_only`;
+      await tx`alter table quote_versions enable trigger quote_versions_append_only`;
+      await tx`delete from tax_rates where id::text like ${like}`;
       // Agent runs and actions are append-only and keep new ids each run, as audit rows do; the
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
@@ -184,6 +196,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
   const groupPriceList = id(0x0006);
   const groupOutcome = id(0x000a);
   const groupScoreRule = id(0x000b);
+  // An item's own rate, so a fixture quote line has the rate row every line names.
+  const itemRate = id(0x0009);
   const groupTag = id(0x0008);
   // The customer shared by companies 1 and 2 (ADR 0008).
   const shared = {
@@ -218,6 +232,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     customer_sites: [{ key: shared.site, entities: [1, 2], leadIn: [2] }],
     opportunities: [{ key: shared.opportunity, entities: [2] }],
     sizings: [],
+    quotes: [],
+    quote_lines: [],
+    quote_versions: [],
     consents: [{ key: shared.consent, entities: [1, 2], leadIn: [2] }],
     item_costs: [],
     document_sequences: [],
@@ -271,6 +288,8 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         values (${groupAgentConfig}, ${MATRIX_AGENT}, null, null, ${ownerId})`;
       await tx`insert into items (id, sku, name, category, hsn, unit)
         values (${item}, 'FX-MATRIX', 'matrix item', 'pump', '8413', 'nos')`;
+      await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref)
+        values (${itemRate}, ${item}, 0.00, '2090-01-01', 'matrix')`;
       await tx`insert into pipelines (id, entity_id, key, name, segment)
         values (${groupPipeline}, null, 'matrix-group', 'matrix group pipeline', 'farmer_pumps')`;
       await tx`insert into pipeline_stages (id, pipeline_id, entity_id, key, name, position)
@@ -324,6 +343,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           ['print_proof', per(e, 0x19), 'application/pdf'],
         ] as const;
         const sizing = per(e, 0x1b);
+        const quote = per(e, 0x1c);
+        const quoteLine = per(e, 0x1d);
+        const quoteVersion = per(e, 0x1e);
         const audit = newId();
         const customerRow = newId();
         const leadRow = newId();
@@ -391,6 +413,19 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         // Matches no lead: a lead would need to be a hundred years old.
         await tx`insert into lead_score_rules (id, entity_id, factor, match_json, points, position, created_by)
           values (${scoreRule}, ${e}, 'age_days', '{"minDays": 36500}'::jsonb, 1, 50, ${ownerId})`;
+        // After the company's price list, which the quote names.
+        await tx`insert into quotes (id, entity_id, quote_no, fy, opportunity_id, account_id, site_id, tier_id,
+                   price_list_id, scheme, place_of_supply_state, supply_kind, valid_until, subtotal, cgst,
+                   sgst, igst, tax_total, round_off, grand_total, created_by)
+          values (${quote}, ${e}, ${`MX${e.toString()}/Q/2098-99/0001`}, '2098-99', ${opportunity}, ${account},
+                  ${site}, ${tierId('dealer')}, ${priceList}, 'none', '08', 'intra', now() + interval '15 days',
+                  0, 0, 0, 0, 0, 0, 0, ${ownerId})`;
+        await tx`insert into quote_lines (id, entity_id, quote_id, position, item_id, sku, description, unit, qty,
+                   unit_price, hsn, tax_rate_id, tax_rate_pct, taxable_value, cgst, sgst, igst, line_total)
+          values (${quoteLine}, ${e}, ${quote}, 1, ${item}, 'FX-MATRIX', 'matrix item', 'nos', 1, 0, '8413',
+                  ${itemRate}, 0.00, 0, 0, 0, 0, 0)`;
+        await tx`insert into quote_versions (id, entity_id, quote_id, version, snapshot_json, created_by)
+          values (${quoteVersion}, ${e}, ${quote}, 1, '{}'::jsonb, ${ownerId})`;
         await tx`insert into referral_partners (account_id, code, created_by)
           values (${account}, ${`MX${e.toString()}PARTNER`}, ${ownerId})`;
         await tx`insert into user_entity_roles (id, user_id, entity_id, role_id, team_id, created_by) values
@@ -407,6 +442,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.customer_sites.push({ key: site, entities: only, leadIn: only });
         rows.opportunities.push({ key: opportunity, entities: only });
         rows.sizings.push({ key: sizing, entities: only });
+        rows.quotes.push({ key: quote, entities: only });
+        rows.quote_lines.push({ key: quoteLine, entities: only });
+        rows.quote_versions.push({ key: quoteVersion, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
