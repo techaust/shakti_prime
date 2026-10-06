@@ -42,7 +42,9 @@ const sarvam = sarvamConfig();
 if (mode === 'pronunciation') {
   const outDir = process.env.VOICE_SPIKE_OUT_DIR ?? '';
   if (sarvam === undefined || outDir === '') {
-    console.error('set SARVAM_API_KEY and VOICE_SPIKE_OUT_DIR first (docs/04-architecture-appendix/voice.md)');
+    console.error(
+      'set SARVAM_API_KEY and VOICE_SPIKE_OUT_DIR first (docs/04-architecture-appendix/voice.md)',
+    );
     process.exit(1);
   }
   mkdirSync(outDir, { recursive: true });

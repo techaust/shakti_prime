@@ -51,7 +51,16 @@ import { matchKey } from '../../src/imports/leads';
 import { parseImportFile } from '../../src/imports/parse';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const results = resolve(here, '..', '..', '..', '..', 'docs', '04-architecture-appendix', 'results');
+const results = resolve(
+  here,
+  '..',
+  '..',
+  '..',
+  '..',
+  'docs',
+  '04-architecture-appendix',
+  'results',
+);
 
 function numberArg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);

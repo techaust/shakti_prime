@@ -14,7 +14,11 @@ const sources = readdirSync(here)
  * one needs a token in packages/tokens or an entry here with its reason.
  */
 const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
-  { name: 'board.tsx', value: 'h-[3px]', why: 'the stage colour bar is 3 px (docs/08-design-system.md §6)' },
+  {
+    name: 'board.tsx',
+    value: 'h-[3px]',
+    why: 'the stage colour bar is 3 px (docs/08-design-system.md §6)',
+  },
   {
     name: 'command-palette.tsx',
     value: 'top-[12vh]',
