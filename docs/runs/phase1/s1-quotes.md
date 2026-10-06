@@ -5,8 +5,8 @@
 | Branch | `feat/s1-quotes` on GitHub, from `main` at #103 |
 | PC worktree | `s1-quotes`, slot 13: Postgres 54343, app 3043 (`bash tools/integration/setup-worktree.sh s1-quotes feat/s1-quotes 54343 3043`) |
 | Runs on | Built and reviewed on the PC; the integration in a cloud session (owner, 05-10-2026), the trial of [hybrid §10](../../runbooks/hybrid.md#10-the-trial); the pull request and the hosted steps from the PC |
-| State | integrated; ready for the pull request |
-| Next step | the pull request from the PC (Integration notes, item 3) |
+| State | merged (#115) |
+| Next step | none: dev and staging migrated through 0111 on the day it merged |
 
 ## Brief
 Read first:

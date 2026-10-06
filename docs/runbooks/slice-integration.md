@@ -46,7 +46,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 - The last line of `<log>` is `INTEGRATION PASSED` or `INTEGRATION FAILED`; a failed step's output is in `<log>.<step>`.
 
 ## 7. Linux screenshot baselines
-- Only on a fresh database: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>`, then `pnpm db:migrate && pnpm db:seed`, then `pnpm build`.
+- Only on a fresh database: `bash tools/integration/fresh-db.sh shakti-pg-<slug> <db-port>` (in a cloud session, `docker compose down -v && docker compose up -d --wait`), then `pnpm db:migrate && pnpm db:seed`, then `pnpm build`.
 - `pnpm --filter web e2e:snap -- --update-snapshots=missing` writes the baselines of new screens. A screen the slice changes on purpose (a new menu item) needs its old baseline deleted first, and the new one looked at before it is committed.
 - Run `pnpm --filter web e2e:snap` once more without updating: every screenshot must match. Text that changes between runs is masked in the spec (`snap(page, name, { mask })`), never accepted as a flaky difference.
 
@@ -70,4 +70,7 @@ After a pull request with migrations merges and CI on `main` is green: migrate d
 - Under that load a test hits vitest's 20-second limit or a journey its 60 seconds; rerun that file alone, and the suite with nothing else running, before treating it as a defect.
 - A new menu item changes every baseline that shows the menu, in screens the slice never touched. Run the full `pnpm --filter web e2e:snap` verification before the pull request and remake the baselines it finds changed; Playwright counts each baseline it writes as a failure, so only the run without updating is the check.
 - `pnpm --filter web e2e -- <spec>` runs every spec; `e2e:snap` takes spec paths.
+- Each of S1, D1 and T1 found a clash when it took `main` that no conflict marker showed: a moved migration redefining `app.platform_only_permissions()` or the `activities` type check without what `main` had added, a foreign key on a lead's `account_id` with no update action that broke a customer merge, an audit field name with two kinds, and the matrix fixture's id offsets. After the merge, diff every function, check and key the slice's migrations redefine against `main`'s latest definition, and grep the lists for a key used twice.
+- In a cloud session, screenshots compared on the VM's host can differ from the Linux image's in font hinting; only the image's run (`e2e:snap`, as CI) counts.
+- A baseline the comparison passes under its 1 % allowance can still lack a menu item; when a slice adds a menu item, delete and remake every desktop staff baseline that shows the menu, and compare each with the old one pixel by pixel.
 - On the 8 GB PC a full `e2e:snap` run with builders beside it ran out of memory and its Playwright container died; pause every other agent and stop their databases for it. `pg_isready` answers while the Supabase image is still starting, so wait until several queries in a row succeed before migrating a fresh database.

@@ -5,8 +5,8 @@
 | Branch | `feat/d1-duplicates` on GitHub, from `main` when the slice starts |
 | PC worktree | `d1-duplicates`, slot 14: Postgres 54344, app 3044 (`bash tools/integration/setup-worktree.sh d1-duplicates feat/d1-duplicates 54344 3044`) |
 | Runs on | Cloud (owner, 05-10-2026): build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | integrated; ready for the pull request |
-| Next step | the lead opens the pull request from the PC; after it merges, `migrate-hosted` (0112 and 0113) and the schedule notes below |
+| State | merged (#118) |
+| Next step | none: dev and staging migrated through 0113 on the day it merged |
 
 ## Brief
 Read first:
