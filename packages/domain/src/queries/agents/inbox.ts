@@ -132,6 +132,8 @@ export async function listInbox(ctx: Ctx, rawInput: unknown): Promise<InboxPageD
         summary: type === undefined ? [] : summaryFields(type, proposed, names),
         // Shown on every card; only a Needs approval card offers to change them.
         fields: type === undefined ? [] : editableFields(type, proposed),
+        segment: r.item.segment,
+        note: r.item.note,
         createdAt: r.item.createdAt.toISOString(),
       });
     }),

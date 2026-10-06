@@ -3,6 +3,7 @@ import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
 import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
 import {
   approveInboxItem,
+  completeInboxItem,
   dismissInboxItem,
   editInboxItem,
   rejectInboxItem,
@@ -40,6 +41,15 @@ import { addNote, updateAccount, updateContact, upsertSite } from '../commands/c
 import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
+import { routeEnquiry } from '../commands/crm/route-enquiry';
+import { notifyEvent, recordPush, scanNotices } from '../commands/notifications/notify';
+import {
+  markAllNoticesRead,
+  markNoticesRead,
+  setNotificationSettings,
+  subscribePush,
+  unsubscribePush,
+} from '../commands/notifications/own';
 import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
@@ -180,6 +190,16 @@ export const commands = {
   [dismissInboxItem.name]: dismissInboxItem,
   [setAgentConfig.name]: setAgentConfig,
   [setKillSwitch.name]: setKillSwitch,
+  [completeInboxItem.name]: completeInboxItem,
+  [routeEnquiry.name]: routeEnquiry,
+  [notifyEvent.name]: notifyEvent,
+  [scanNotices.name]: scanNotices,
+  [recordPush.name]: recordPush,
+  [markNoticesRead.name]: markNoticesRead,
+  [markAllNoticesRead.name]: markAllNoticesRead,
+  [setNotificationSettings.name]: setNotificationSettings,
+  [subscribePush.name]: subscribePush,
+  [unsubscribePush.name]: unsubscribePush,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

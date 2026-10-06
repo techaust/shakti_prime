@@ -1411,13 +1411,24 @@
       "inboxReject": "Suggestion rejected",
       "inboxDismiss": "Suggestion dismissed",
       "agentConfigSet": "Agent settings changed",
-      "agentKillSwitchSet": "Agent stopped or let run"
+      "agentKillSwitchSet": "Agent stopped or let run",
+      "inboxComplete": "Passed-on enquiry marked done",
+      "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
+      "noticesSend": "Notices sent",
+      "noticesScan": "Due calls, quotes about to lapse and late first calls looked for",
+      "pushRecord": "Phone and computer alerts recorded",
+      "noticesRead": "Notices marked as read",
+      "noticesReadAll": "All notices marked as read",
+      "noticeSettingsSet": "Notification settings changed",
+      "pushSubscribe": "Alerts turned on for a browser",
+      "pushUnsubscribe": "Alerts turned off for a browser"
     },
     "events": {
       "entityUpdated": "Company details changed",
       "leadCreated": "Lead added",
       "opportunityStageMoved": "Lead moved to another stage",
       "opportunityAssigned": "Lead handed to someone",
+      "enquiryRouted": "Enquiry passed to a colleague",
       "opportunityNurtured": "Lead set to follow up later",
       "opportunityReopened": "Lead reopened",
       "opportunityWon": "Lead won",
@@ -1644,7 +1655,16 @@
       "autonomy": "Autonomy",
       "edited": "Changed before approving",
       "dailySpendCap": "Daily spending limit",
-      "enabled": "May run"
+      "enabled": "May run",
+      "note": "Note",
+      "notices": "Notices",
+      "recorded": "Alerts recorded",
+      "removed": "Browsers removed",
+      "read": "Notices read",
+      "centreOff": "Kinds of notice hidden",
+      "pushOff": "Kinds of notice not sent as alerts",
+      "quietFrom": "Quiet from",
+      "quietTo": "Quiet until"
     },
     "values": {
       "percent": "{value}%",

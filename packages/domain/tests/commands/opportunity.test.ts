@@ -279,7 +279,13 @@ describe('the opportunity commands (design §7.2)', () => {
       expect(emitted.records).toEqual([
         expect.objectContaining({
           type: 'crm.opportunity.assigned',
-          payload: { ownerId: converterOtherTeam, teamId: otherTeamId, lockHours: 48, v: 1 },
+          payload: {
+            ownerId: converterOtherTeam,
+            teamId: otherTeamId,
+            lockHours: 48,
+            assignedById: gm.id,
+            v: 1,
+          },
         }),
       ]);
     });

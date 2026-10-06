@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from './ids';
+import { SegmentSchema } from './crm/enums';
 import { AgentRoleKeySchema } from './roles';
 
 // The agent runtime and the Agent Inbox (docs/design/phase1.md §7.1, BLUEPRINT §9.3, SECURITY §6).
@@ -114,6 +115,10 @@ export const EditInboxItemInput = z
   })
   .strict();
 export type EditInboxItemInput = z.infer<typeof EditInboxItemInput>;
+
+/** `agents.inbox.complete`: routed work its person has dealt with leaves the inbox. */
+export const InboxItemDoneDto = z.object({ itemId: IdSchema, state: z.literal('done') }).strict();
+export type InboxItemDoneDto = z.infer<typeof InboxItemDoneDto>;
 
 /** What a decision on an inbox item answers. */
 export const InboxDecisionDto = z
@@ -280,6 +285,9 @@ export const InboxItemDto = z
     summary: z.array(InboxSummaryDto),
     /** What a person may change before approving; shown read-only under Suggest. */
     fields: z.array(InboxFieldDto),
+    /** Routed work only: the enquiry's interest and the note it came with. */
+    segment: SegmentSchema.nullable(),
+    note: z.string().nullable(),
     createdAt: z.iso.datetime(),
   })
   .strict();
