@@ -47,17 +47,22 @@ const IDS = {
   snapshotPrices: [id(0x00a), id(0x00b)],
 };
 
+/** The lists' first day (IST), the time the catalogue rows and prices are stamped with. */
+const SEEDED_AT = '2026-04-01T00:00:00+05:30';
+
 /** The tier, items, rates and lists, made once and kept as they are. */
 async function ensureCatalogue(executiveId: string): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
       await tx`insert into price_tiers (id, code, name) values (${IDS.tier}, 'journeys', ${QUOTE_TIER})
                on conflict (id) do nothing`;
-      await tx`insert into items (id, sku, name, category, hsn, unit, is_dcr, specs_json) values
+      // Dated on the lists' first day, so the catalogue and the price lists show the same
+      // "Last changed" in their screenshots whatever day the journeys run.
+      await tx`insert into items (id, sku, name, category, hsn, unit, is_dcr, specs_json, created_at, updated_at) values
                (${IDS.module}, 'JRN-MOD-540', 'Solar module 540 Wp', 'solar_module', '8541', 'nos',
-                true, ${tx.json({ wp: 540 })}),
+                true, ${tx.json({ wp: 540 })}, ${SEEDED_AT}, ${SEEDED_AT}),
                (${IDS.cable}, 'JRN-CBL-4', 'Solar cable 4 sq mm', 'cable', '8544', 'metre', false,
-                '{}'::jsonb)
+                '{}'::jsonb, ${SEEDED_AT}, ${SEEDED_AT})
                on conflict (id) do nothing`;
       await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref) values
                (${IDS.moduleRate}, ${IDS.module}, 12.00, '2026-04-01', 'journeys'),
@@ -74,9 +79,9 @@ async function ensureCatalogue(executiveId: string): Promise<void> {
         await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
                  values (${list}, ${IDS.tier}, ${entityId}, 1, '2026-04-01', ${executiveId}, now())`;
         await tx`alter table price_list_items disable trigger price_list_items_log_change`;
-        await tx`insert into price_list_items (id, price_list_id, item_id, price) values
-                 (${modulePrice}, ${list}, ${IDS.module}, 12000.00),
-                 (${cablePrice}, ${list}, ${IDS.cable}, 85.50)`;
+        await tx`insert into price_list_items (id, price_list_id, item_id, price, created_at, updated_at) values
+                 (${modulePrice}, ${list}, ${IDS.module}, 12000.00, ${SEEDED_AT}, ${SEEDED_AT}),
+                 (${cablePrice}, ${list}, ${IDS.cable}, 85.50, ${SEEDED_AT}, ${SEEDED_AT})`;
         await tx`alter table price_list_items enable trigger price_list_items_log_change`;
       }
     }),
