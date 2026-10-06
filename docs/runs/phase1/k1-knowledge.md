@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Branch | `feat/k1-knowledge` on GitHub, from `main` at f74caff0 (#121) |
-| PC worktree | none: the PC runs no Docker (owner, 05-10-2026) |
-| Runs on | Cloud: build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | brief |
-| Next step | a cloud builder builds the slice from this brief, after S2 or N1 frees a place (two cloud sessions at once) |
+| PC worktree | `k1-knowledge`, slot 18: Postgres 54348, app 3048 (`bash tools/integration/setup-worktree.sh k1-knowledge feat/k1-knowledge 54348 3048`) |
+| Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
+| State | building |
+| Next step | the builder agent on the PC builds the slice from this brief |
 
 ## Brief
 Read first:
