@@ -8,7 +8,7 @@ export interface ClientMeta {
   device?: string | null;
 }
 
-/** One audit row, already redacted (docs/design/backend-weeks-3-5.md §3.1). */
+/** One audit row, already redacted (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.1). */
 export interface AuditRecord {
   command: string;
   outcome: AuditOutcome;

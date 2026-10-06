@@ -2,7 +2,7 @@ import { FILE_PURPOSES, type FilePurpose, type PermissionKey, type Scope } from 
 import type { PermissionByInput, Requirement } from '../command/define-command';
 
 /**
- * Who may upload and read a file of each purpose (docs/SECURITY.md §8). The database holds the
+ * Who may upload and read a file of each purpose (docs/07-security.md §8). The database holds the
  * same mapping in `app.file_purpose_grant()`, which the `files` policies read; a test on real
  * Postgres compares the two, so they cannot drift apart.
  *

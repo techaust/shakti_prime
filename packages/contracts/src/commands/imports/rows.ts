@@ -22,7 +22,7 @@ export const AccountImportSiteInput = z
 export type AccountImportSiteInput = z.infer<typeof AccountImportSiteInput>;
 
 /**
- * What one checked row of a customers file becomes (docs/design/phase1.md §6.3), as the preview
+ * What one checked row of a customers file becomes (docs/03-roadmap-appendix/phase1.md §6.3), as the preview
  * stores it and the commit reads it: the customer as `crm.lead.create` would make it, without a
  * lead, and every company it deals with. Rows of one customer (the same mobile number) fold into
  * the first of them, which then names the companies of them all and carries their other sites

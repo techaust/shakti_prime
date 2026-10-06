@@ -23,7 +23,7 @@ import { safeReturnPath } from '../session-gate';
 
 /**
  * State of a form action: a catalogue key under `errors`, or nothing when it succeeded. An
- * unexpected failure also carries the reference the person reads to support (DESIGN.md §11).
+ * unexpected failure also carries the reference the person reads to support (docs/08-design-system.md §11).
  */
 export interface FormState {
   error?: string;

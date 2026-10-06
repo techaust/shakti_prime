@@ -14,7 +14,7 @@ const batch = API_FIXTURES['connector.batches'].request as {
   vouchers: Record<string, unknown>[];
 } & Record<string, unknown>;
 
-describe('connector signing (docs/API.md §2)', () => {
+describe('connector signing (docs/06-api.md §2)', () => {
   const body = JSON.stringify(batch);
   const timestamp = '1790500000';
 

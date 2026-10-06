@@ -13,7 +13,7 @@ export const RoleGrantInput = z
 export type RoleGrantInput = z.infer<typeof RoleGrantInput>;
 
 /**
- * `admin.role.permissions.set`: replaces a staff role's grants as a set (docs/SECURITY.md §3.1).
+ * `admin.role.permissions.set`: replaces a staff role's grants as a set (docs/07-security.md §3.1).
  * The role key is any text here, so an agent or system role reaches the command and is refused
  * there with its own reason. `keepSessionId` is filled by the server action from the caller's own
  * sign-in, never by the browser: that one session stays signed in when the caller holds the role.

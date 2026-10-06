@@ -1,4 +1,4 @@
-// Copy lint CLI (DESIGN.md §11.4). Exit code 1 on any issue so CI fails.
+// Copy lint CLI (docs/08-design-system.md §11.4). Exit code 1 on any issue so CI fails.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

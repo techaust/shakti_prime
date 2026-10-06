@@ -4,10 +4,10 @@ import type { ErrorKey } from '../i18n/types';
 import { reportUnexpected } from '../log';
 
 /**
- * What a command or query action answers (review 3, `docs/reviews/2026-09-review3-audit.md`):
+ * What a command or query action answers (review 3, `docs/14-reviews/2026-09-review3-audit.md`):
  * Next.js masks an error thrown from a server action in production, so an action never throws to
  * a screen. A failure names a sentence under `errors.*`, the field it is about when there is one,
- * and, for an unexpected failure, the reference the person reads to support (DESIGN.md §11).
+ * and, for an unexpected failure, the reference the person reads to support (docs/08-design-system.md §11).
  */
 export type ActionResult<T> =
   { ok: true; data: T } | { ok: false; error: ErrorKey; reference?: string; field?: string };

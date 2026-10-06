@@ -11,7 +11,7 @@ import {
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
-// `quotes`, `quote_lines` and `quote_versions` (docs/DATABASE.md §6.4, migration 0110): children of
+// `quotes`, `quote_lines` and `quote_versions` (docs/05-database.md §6.4, migration 0110): children of
 // the lead, read with it; made with sales.quote.create over the lead's owner and team, as the
 // caller; lines written only in the transaction that made their quote; then only the state and
 // the withdrawal reason change; lines and versions are append-only. The expiry and the printer

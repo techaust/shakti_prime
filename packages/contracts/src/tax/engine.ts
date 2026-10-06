@@ -4,7 +4,7 @@ import { SegmentSchema } from '../crm/enums';
 import { IdSchema } from '../ids';
 
 /**
- * Shapes that cross the tax engine's boundary (ADR 0007, docs/design/backend-weeks-3-5.md §6).
+ * Shapes that cross the tax engine's boundary (ADR 0007, docs/03-roadmap-appendix/backend-weeks-3-5.md §6).
  * The engine works in integer paise inside; everything here is a decimal string, as the database
  * `numeric` columns and the API carry it.
  */

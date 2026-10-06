@@ -21,7 +21,7 @@ import { fieldCipher } from '../crypto/kms-cipher';
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
-/** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. No business logic here. */
+/** Thin wrapper (docs/06-api.md §4): parse → request context → command → DTO. No business logic here. */
 export async function updateEntity(
   rawInput: unknown,
   idempotencyKey?: unknown,
@@ -55,7 +55,7 @@ export async function listEntities(): Promise<ActionResult<EntityDto[]>> {
 
 /**
  * Settings › Companies, Bank account: the company's account in clear, for the Executive changing
- * it (docs/SECURITY.md §5). Anyone else is refused, by the query and by the database.
+ * it (docs/07-security.md §5). Anyone else is refused, by the query and by the database.
  */
 export async function readCompanyBankDetails(
   rawInput: unknown,

@@ -25,7 +25,7 @@ const LEVELS: [Theme, Contrast][] = [
   ['dark', 'high'],
 ];
 
-describe('the high-contrast variant (DESIGN.md §2.1)', () => {
+describe('the high-contrast variant (docs/08-design-system.md §2.1)', () => {
   it('asks 7:1 for text and 4.5:1 for outlines and icons, and the standard themes AA', () => {
     expect(contrastMinimums(30)).toEqual({ text: 4.5, ui: 3 });
     expect(contrastMinimums(highContrastInputs.light.contrast)).toEqual({ text: 7, ui: 4.5 });
@@ -47,7 +47,7 @@ describe('the high-contrast variant (DESIGN.md §2.1)', () => {
   );
 });
 
-describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, contrast) => {
+describe.each(LEVELS)('%s theme at %s contrast meets docs/08-design-system.md §2.5', (theme, contrast) => {
   const t = resolve(theme, contrast);
   const min = contrastMinimums(
     (contrast === 'high' ? highContrastInputs : themeInputs)[theme].contrast,
@@ -61,7 +61,7 @@ describe.each(LEVELS)('%s theme at %s contrast meets DESIGN.md §2.5', (theme, c
     ['text', 'surface-2'],
     ['text-muted', 'surface'],
     ['text-muted', 'surface-2'],
-    // Placeholders, helpers and metadata (DESIGN.md §2.2).
+    // Placeholders, helpers and metadata (docs/08-design-system.md §2.2).
     ['text-subtle', 'surface'],
     ['text-subtle', 'surface-2'],
     ['accent-text', 'surface'],

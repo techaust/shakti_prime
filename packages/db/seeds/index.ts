@@ -1,4 +1,4 @@
-// Seed of org and reference data as the table owner (docs/DATABASE.md §9). Safe to re-run after
+// Seed of org and reference data as the table owner (docs/05-database.md §9). Safe to re-run after
 // any Admin edit (AUDIT M21): it writes only code-owned columns (keys, codes, kinds, segments,
 // channels, permission descriptions), adds missing rows, restores the grants of system roles no
 // Executive has customised, and gives a customised role only the permissions created since.

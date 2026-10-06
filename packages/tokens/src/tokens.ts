@@ -1,4 +1,4 @@
-// Single source of the design tokens in DESIGN.md §2–§4 and §8.
+// Single source of the design tokens in docs/08-design-system.md §2–§4 and §8.
 // `tokens.css` and `tailwind.css` are generated from this file by `pnpm --filter @shakti/tokens build`.
 // The Android app and chart code import this object directly.
 import { contrastRatio } from './contrast';
@@ -17,10 +17,10 @@ export { contrastMinimums } from './generate';
 
 export type Theme = 'light' | 'dark';
 
-/** Standard, or the high-contrast variant for field phones in daylight (DESIGN.md §2.1). */
+/** Standard, or the high-contrast variant for field phones in daylight (docs/08-design-system.md §2.1). */
 export type Contrast = 'standard' | 'high';
 
-/** The three inputs each theme is generated from (DESIGN.md §2.1). Linear's default indigo. */
+/** The three inputs each theme is generated from (docs/08-design-system.md §2.1). Linear's default indigo. */
 export const themeInputs: Record<Theme, ThemeInputs> = {
   light: { base: '#FFFFFF', accent: '#5E6AD2', contrast: 30 },
   dark: { base: '#08090A', accent: '#5E6AD2', contrast: 30 },
@@ -32,7 +32,7 @@ export const highContrastInputs: Record<Theme, ThemeInputs> = {
   dark: { ...themeInputs.dark, contrast: 70 },
 };
 
-/** Fixed hues, not generated, checked by the same contrast test (DESIGN.md §2.3, §2.4). */
+/** Fixed hues, not generated, checked by the same contrast test (docs/08-design-system.md §2.3, §2.4). */
 const fixed = {
   success: { light: '#15803D', dark: '#4ADE80' },
   'success-soft': { light: '#DCFCE7', dark: '#0F2E1A' },
@@ -48,7 +48,7 @@ const fixed = {
 type FixedToken = keyof typeof fixed;
 export type ColorToken = GeneratedToken | FixedToken;
 
-/** Each status colour's soft tint, which its text sits on (DESIGN.md §2.5). */
+/** Each status colour's soft tint, which its text sits on (docs/08-design-system.md §2.5). */
 const SOFT: Partial<Record<FixedToken, FixedToken>> = {
   success: 'success-soft',
   warning: 'warning-soft',
@@ -60,7 +60,7 @@ const SOFT: Partial<Record<FixedToken, FixedToken>> = {
  * A fixed hue at a theme's minimums: the same hue and chroma, moved away from what it sits on
  * until it meets them. Status text must reach the text minimum on its soft tint (and so on the
  * surface, which lies further away); the other hues, the UI minimum on the surface; the tints
- * stay as they are. A hue that already passes is kept, so the standard themes keep DESIGN.md
+ * stay as they are. A hue that already passes is kept, so the standard themes keep docs/08-design-system.md
  * §2.3 exactly and only the high-contrast variant moves.
  */
 function strengthen(
@@ -94,12 +94,12 @@ function buildColors(
   return out;
 }
 
-/** Colour tokens with a concrete value per theme (DESIGN.md §2.2, §2.3). */
+/** Colour tokens with a concrete value per theme (docs/08-design-system.md §2.2, §2.3). */
 export const colors: Readonly<Record<ColorToken, Readonly<Record<Theme, string>>>> =
   buildColors(themeInputs);
 
 /**
- * The high-contrast variant of every colour token, for field phones in daylight (DESIGN.md
+ * The high-contrast variant of every colour token, for field phones in daylight (docs/08-design-system.md
  * §2.1): generated from `highContrastInputs`, with the fixed hues moved to the variant's
  * minimums (`contrastMinimums`: 7:1 for text, 4.5:1 for outlines and icons).
  */
@@ -114,7 +114,7 @@ export function colorsFor(
 }
 
 /**
- * Tokens that point at another token (DESIGN.md §2.4). Emitted as `var(--x)` in CSS and
+ * Tokens that point at another token (docs/08-design-system.md §2.4). Emitted as `var(--x)` in CSS and
  * resolved to the concrete value in `resolve()` for Android and charts.
  */
 export const aliases = {
@@ -148,7 +148,7 @@ export const aliases = {
 
 export type AliasToken = keyof typeof aliases;
 
-/** Shadows are the one non-colour token that differs by theme (DESIGN.md §4). */
+/** Shadows are the one non-colour token that differs by theme (docs/08-design-system.md §4). */
 export const shadows = {
   'shadow-1': {
     light: '0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.08)',
@@ -161,14 +161,14 @@ export const shadows = {
 } as const;
 
 /**
- * The three weights of the variable Inter cut (DESIGN.md §3): regular text, the 510 Linear uses
+ * The three weights of the variable Inter cut (docs/08-design-system.md §3): regular text, the 510 Linear uses
  * for labels and numbers, and the 590 of headings. The type roles below take theirs from here,
  * and `font-normal`, `font-medium` and `font-semibold` are the only weight utilities.
  */
 const fontWeight = { normal: 400, medium: 510, semibold: 590 } as const;
 
 /**
- * Theme-independent tokens (DESIGN.md §3, §4, §5). Numeric values are pixels at the browser's
+ * Theme-independent tokens (docs/08-design-system.md §3, §4, §5). Numeric values are pixels at the browser's
  * default text size; the CSS emits them in rem so a user's own text-size setting scales them.
  */
 export const scale = {
@@ -193,9 +193,9 @@ export const scale = {
   row: { comfortable: 40, compact: 32 },
   control: { desktop: 36, phone: 44 },
   focusRing: { width: 2, offset: 2 },
-  /** The app shell (DESIGN.md §5): sidebar open and collapsed to icons, and the top bar. */
+  /** The app shell (docs/08-design-system.md §5): sidebar open and collapsed to icons, and the top bar. */
   shell: { sidebar: 240, sidebarCollapsed: 56, topbar: 48 },
-  /** Content widths (DESIGN.md §5): forms and detail pages; grids and boards use the full width. */
+  /** Content widths (docs/08-design-system.md §5): forms and detail pages; grids and boards use the full width. */
   content: { form: 720, detail: 1200 },
 } as const;
 

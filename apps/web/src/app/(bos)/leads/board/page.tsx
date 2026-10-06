@@ -23,7 +23,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
 /**
- * Leads › Board (DESIGN.md §6): the leads of one company and one line of business by stage. The
+ * Leads › Board (docs/08-design-system.md §6): the leads of one company and one line of business by stage. The
  * address carries the company, pipeline and status filter, so a board can be bookmarked.
  */
 export default async function LeadsBoardPage({ searchParams }: { searchParams: SearchParams }) {

@@ -368,7 +368,7 @@ function specNumber(specs: unknown, key: string): number | null {
 }
 
 /**
- * The sizing facts of the lines (docs/design/phase1.md §6.7): the one pump they carry (none when
+ * The sizing facts of the lines (docs/03-roadmap-appendix/phase1.md §6.7): the one pump they carry (none when
  * they carry two different pumps, which no sizing checked), every module with its DCR mark and
  * count, and the modules' size in kWp from each module's `wp`.
  */
@@ -414,7 +414,7 @@ export interface BuiltQuote {
 }
 
 /**
- * Works out a quote as `sales.quote.create` makes it (docs/design/phase1.md §7.3), without saving
+ * Works out a quote as `sales.quote.create` makes it (docs/03-roadmap-appendix/phase1.md §7.3), without saving
  * anything: the customer's tier, the live list for the tier and company, the lead's newest sizing
  * and the quote machine's `create` guards (the tier and list first, then the sizing, the pump
  * curve and the DCR rule, SAL-04), then the prices from the list and the tax from the engine with

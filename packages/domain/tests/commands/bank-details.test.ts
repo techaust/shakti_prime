@@ -72,7 +72,7 @@ async function auditRow(requestId: string) {
   return row;
 }
 
-describe('org.entity.update: the bank account (docs/SECURITY.md §5)', () => {
+describe('org.entity.update: the bank account (docs/07-security.md §5)', () => {
   it('is refused to a General Manager, an agent and the worker principal', async () => {
     for (const role of ['general_manager', 'agent:triage', 'system:workers'] as const) {
       await expect(setBank(principalFor(role, [ENTITY]), ACCOUNT)).rejects.toMatchObject({
@@ -193,7 +193,7 @@ describe('org.entity.update: the bank account (docs/SECURITY.md §5)', () => {
   });
 });
 
-describe('reading a bank account back (docs/SECURITY.md §5)', () => {
+describe('reading a bank account back (docs/07-security.md §5)', () => {
   beforeAll(async () => {
     await setBank(executive, ACCOUNT);
   });

@@ -15,7 +15,7 @@ export function initials(name: string): string {
 }
 
 /**
- * A person's avatar (DESIGN.md §6, Kanban board cards): a small circle with their initials,
+ * A person's avatar (docs/08-design-system.md §6, Kanban board cards): a small circle with their initials,
  * whose accessible name is the full name. Nothing is drawn for a name with no letters.
  */
 export function Avatar({ name, className }: { name: string; className?: string }) {

@@ -31,7 +31,7 @@ async function currentFile(
 }
 
 /**
- * The selling company of a printed document (docs/design/phase1.md §6.4): its details, its current
+ * The selling company of a printed document (docs/03-roadmap-appendix/phase1.md §6.4): its details, its current
  * logo and letterhead (each on `files_entity_purpose_created_idx`) and its sealed bank account, all
  * of the one company named, never another. A company outside the request is `not_found`.
  */

@@ -65,7 +65,7 @@ const STATE_TONE: Record<BoardLeadDto['state'], StatusTone> = {
 };
 
 /**
- * The leads board (DESIGN.md §6): one column per stage in stage order with its colour bar and
+ * The leads board (docs/08-design-system.md §6): one column per stage in stage order with its colour bar and
  * count, cards with the customer, village, age, owner and SLA dot. A card moves by dragging it to
  * another column or through its menu, which also parks, reopens, closes and assigns the lead. Every
  * change goes through the opportunity actions; a refusal shows the sentence the command answers.
@@ -109,7 +109,7 @@ export function LeadBoardScreen({
   const [phoneStage, setPhoneStage] = useState(() => columns[0]?.stage.id);
   const stageNames = new Map(stages.map((s) => [s.id, s.name]));
   // Where focus goes when a card's dialog closes: the card's Actions button where it now shows,
-  // else the heading of the column it was opened from, else the board (DESIGN.md §6, Dialog).
+  // else the heading of the column it was opened from, else the board (docs/08-design-system.md §6, Dialog).
   const actionButtons = useFocusTargets<string>();
   const columnSections = useFocusTargets<string>();
   const boardRegion = useFocusTargets<'board'>();

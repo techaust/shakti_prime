@@ -1,5 +1,5 @@
 // Finding every QR code on a customer's document photo so it can be covered (BLUEPRINT §7.5,
-// SECURITY.md §5, docs/spikes/ocr.md). Older Aadhaar cards and e-Aadhaar letters carry a QR
+// 07-security.md §5, docs/04-architecture-appendix/ocr.md). Older Aadhaar cards and e-Aadhaar letters carry a QR
 // code that can hold the full number, so every code is covered whatever it holds: its payload
 // is wiped as soon as the code is located and is never kept, compared or logged.
 //

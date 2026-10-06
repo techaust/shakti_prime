@@ -29,7 +29,7 @@ const SIZED_KIND: Partial<Record<string, SizingKind>> = {
 };
 
 /**
- * The quote builder of one lead (docs/design/phase1.md §7.3): the customer, the tier and the live
+ * The quote builder of one lead (docs/03-roadmap-appendix/phase1.md §7.3): the customer, the tier and the live
  * list a quote would be priced from today (null when there is none, so the builder can say why
  * before anyone types a line), the lead's newest sizing in words, and the items and kits priced on
  * that list with their prices. The prices are shown as the list holds them; every amount of the

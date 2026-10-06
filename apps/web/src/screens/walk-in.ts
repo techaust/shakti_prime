@@ -6,7 +6,7 @@ import type {
   SiteType,
 } from '@shakti/contracts';
 
-// The walk-in quick form (docs/design/phase1.md §6.6, CRM-01): what the Store Manager types at
+// The walk-in quick form (docs/03-roadmap-appendix/phase1.md §6.6, CRM-01): what the Store Manager types at
 // the counter, turned into the `crm.lead.create` input. Pure, so the form and its tests share it.
 
 /**

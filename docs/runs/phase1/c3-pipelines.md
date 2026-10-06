@@ -4,12 +4,12 @@
 |---|---|
 | Branch | `feat/c3-pipelines-r2` on GitHub (3856caf, from `main` at #82) |
 | PC worktree | `c3-pipelines`, slot 7: Postgres 54337, app 3037; its local branch `feat/c3-pipelines-scoring` is at the same commit and pushes to `feat/c3-pipelines-r2` (`git push origin HEAD:feat/c3-pipelines-r2`) |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
+| Runs on | PC for now ([DECISIONS](../../11-decisions.md) 04-10-2026); later the integration list may run in the cloud |
 | State | merged (#103, 05-10-2026) |
 | Next step | none; the add-partner form and referral codes in imports are follow-ups in STATUS |
 
 ## Brief
-Design: [`docs/design/phase1.md` §6.6](../../design/phase1.md#66-c3-pipelines-scoring-and-referrals), §4 (the permission `crm.config.write`) and §11 (workshop defaults); BLUEPRINT §8.1 and §8.2; PRD CRM-01, CRM-05, CRM-06, CRM-09, TEL-01; DESIGN.md §6 and §11; workshop pack CRM-1, CRM-2, CRM-3, CRM-5, CALL-1, CALL-3, CALL-4; SECURITY §3.2. Skills: `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
+Design: [`docs/03-roadmap-appendix/phase1.md` §6.6](../../03-roadmap-appendix/phase1.md#66-c3-pipelines-scoring-and-referrals), §4 (the permission `crm.config.write`) and §11 (workshop defaults); BLUEPRINT §8.1 and §8.2; PRD CRM-01, CRM-05, CRM-06, CRM-09, TEL-01; docs/08-design-system.md §6 and §11; workshop pack CRM-1, CRM-2, CRM-3, CRM-5, CALL-1, CALL-3, CALL-4; SECURITY §3.2. Skills: `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
 
 Lead creation belonged to C2 in wave 2: C3 put what lead creation must do for it (the referral code's partner, the score and its reasons) in `packages/domain/src/commands/crm/lead-attribution.ts` as `applyLeadAttribution(ctx, { opportunityId, entityId, input })`, tested on its own, and extended `CreateLeadInput` only with the optional `referralCode`.
 

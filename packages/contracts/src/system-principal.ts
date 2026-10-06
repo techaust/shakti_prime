@@ -5,7 +5,7 @@ import type { SystemRoleKey } from './roles';
 export const SYSTEM_WORKERS_PRINCIPAL_ID = '01990000-0000-7000-8000-000000000501';
 
 /**
- * What each system role holds (docs/SECURITY.md §3.3): only what its jobs need, and never a cost,
+ * What each system role holds (docs/07-security.md §3.3): only what its jobs need, and never a cost,
  * admin, audit, integrations or sensitive-document permission (the agent refusal sweep checks it).
  * The seed writes these rows and the workers build their principal from the same list, so the two
  * cannot differ. The delivery check's handler writes nothing to the database; the file checks

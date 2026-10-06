@@ -69,14 +69,14 @@ import type {
 // (BLUEPRINT §11.4). Only types come from the contracts; `contract-values.test.ts` keeps each
 // value equal to the contract's own, in the same order. The server keeps using the contracts.
 
-/** Theme preference (DESIGN.md §7), in the order the profile menu offers it. */
+/** Theme preference (docs/08-design-system.md §7), in the order the profile menu offers it. */
 export const THEMES = ['system', 'light', 'dark'] as const satisfies readonly Theme[];
 
 export function isTheme(value: string): value is Theme {
   return (THEMES as readonly string[]).includes(value);
 }
 
-/** Contrast preference (DESIGN.md §2.1). */
+/** Contrast preference (docs/08-design-system.md §2.1). */
 export const CONTRASTS = ['standard', 'high'] as const satisfies readonly ContrastPreference[];
 
 /** Lifecycle of a staff user. */
@@ -98,7 +98,7 @@ export const SESSION_REVOKE_REASONS = [
   'absolute_expiry',
 ] as const satisfies readonly SessionRevokeReason[];
 
-/** The shortest password the policy accepts (docs/SECURITY.md §2). */
+/** The shortest password the policy accepts (docs/07-security.md §2). */
 export const PASSWORD_MIN_LENGTH = 12;
 
 export const OPPORTUNITY_STATES = [
@@ -172,7 +172,7 @@ export const TASK_KINDS = [
 
 export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
 
-/** The agents (docs/SECURITY.md §3.3), in the order the agents screen lists them. */
+/** The agents (docs/07-security.md §3.3), in the order the agents screen lists them. */
 export const AGENT_ROLES = [
   'agent:triage',
   'agent:concierge',
@@ -278,10 +278,10 @@ export const SEGMENTS = [
   'dealer_wholesale',
 ] as const satisfies readonly Segment[];
 
-/** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
+/** What a sizing is for (docs/03-roadmap-appendix/phase1.md §6.7), in the order the sizing panel's tabs show. */
 export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
 
-/** Where a quote stands, as the quote screens show it (docs/design/phase1.md §7.3). */
+/** Where a quote stands, as the quote screens show it (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_STATES = [
   'draft',
   'sent',
@@ -454,7 +454,7 @@ export const PRICE_LIST_STATES = [
   'ended',
 ] as const satisfies readonly PriceListState[];
 
-/** The price tiers the group sells at (docs/BLUEPRINT.md §8.3), in the order lists are offered. */
+/** The price tiers the group sells at (docs/01-blueprint.md §8.3), in the order lists are offered. */
 export const PRICE_TIER_CODES = ['retail', 'dealer', 'commercial'] as const;
 
 const HP: SpecField = { key: 'hp', kind: 'number', min: 0.1, max: 1000, decimals: 2 };

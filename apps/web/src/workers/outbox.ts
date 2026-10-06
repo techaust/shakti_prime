@@ -20,7 +20,7 @@ import { nudgeViaQStash, qstashConfig, qstashEventPublisher } from './qstash';
 /** A due event waiting longer than this means no publisher is running. */
 const OUTBOX_MAX_DUE_SECONDS = 300;
 
-/** Runs in a row that deliver nothing before the owner is told (docs/design/phase1.md §5.2). */
+/** Runs in a row that deliver nothing before the owner is told (docs/03-roadmap-appendix/phase1.md §5.2). */
 export const FAILING_RUNS_ALERT = 3;
 /** Ids an alert names at most; the count gives the rest. */
 export const ALERT_IDS = 20;

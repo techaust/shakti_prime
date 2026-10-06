@@ -27,7 +27,7 @@ export function isImageType(type: string): type is ImageType {
 }
 
 /**
- * Re-encodes an upload (docs/SECURITY.md §8): decoded and written again in its own format, the
+ * Re-encodes an upload (docs/07-security.md §8): decoded and written again in its own format, the
  * camera's orientation applied to the pixels, and everything else the file carried (location,
  * camera details, comments, embedded thumbnails, anything appended) dropped, which sharp does
  * unless told to keep metadata. The bytes must be the declared format.

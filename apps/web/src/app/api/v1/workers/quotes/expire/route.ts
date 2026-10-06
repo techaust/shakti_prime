@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The daily quote expiry worker (docs/design/phase1.md §7.3, docs/API.md §3.6). Only QStash calls
+ * The daily quote expiry worker (docs/03-roadmap-appendix/phase1.md §7.3, docs/06-api.md §3.6). Only QStash calls
  * it, on the schedule `quote-expire-<environment>` each night. Every call must carry a
  * valid signature for this route and body. A 500 makes QStash retry; a body that does not parse
  * answers 400 and QStash is told not to retry. A lock wait that ran out or a statement cut off

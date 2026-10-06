@@ -1,6 +1,6 @@
 // The stylesheet every print template shares: Inter embedded from files in this folder (no
 // font service is reached while rendering) and the light theme's tokens only, because printed
-// and shared documents are always light (DESIGN.md §1 rule 6, §6 Print templates).
+// and shared documents are always light (docs/08-design-system.md §1 rule 6, §6 Print templates).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { colors, resolve, scale, type ColorToken } from '@shakti/tokens';
@@ -8,7 +8,7 @@ import { colors, resolve, scale, type ColorToken } from '@shakti/tokens';
 // Inter 4.1 (rsms/inter), SIL Open Font License 1.1: the static Regular, Medium and SemiBold
 // files of the release, which Chromium embeds in a PDF as TrueType (the variable font is drawn as
 // Type 3). Each covers a band of weights, so the type scale's 510 and 590 land on Medium and
-// SemiBold rather than on the next heavier file (docs/spikes/print.md).
+// SemiBold rather than on the next heavier file (docs/04-architecture-appendix/print.md).
 const FONT_FILES = [
   { file: 'Inter-Regular.woff2', weight: '1 449' },
   { file: 'Inter-Medium.woff2', weight: '450 549' },

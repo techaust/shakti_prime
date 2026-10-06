@@ -1,4 +1,4 @@
-// The LiveKit and speech spike (ROADMAP §2 week 6, docs/spikes/voice.md).
+// The LiveKit and speech spike (ROADMAP §2 week 6, docs/04-architecture-appendix/voice.md).
 //   latency        the round trip to LiveKit's room service, then for each recording in
 //                  VOICE_SPIKE_AUDIO_DIR one spoken turn: speech to text (Sarvam), the reply
 //                  (Claude, streamed) and the first sentence's speech (Sarvam); p50 and p95 of each
@@ -42,7 +42,7 @@ const sarvam = sarvamConfig();
 if (mode === 'pronunciation') {
   const outDir = process.env.VOICE_SPIKE_OUT_DIR ?? '';
   if (sarvam === undefined || outDir === '') {
-    console.error('set SARVAM_API_KEY and VOICE_SPIKE_OUT_DIR first (docs/spikes/voice.md)');
+    console.error('set SARVAM_API_KEY and VOICE_SPIKE_OUT_DIR first (docs/04-architecture-appendix/voice.md)');
     process.exit(1);
   }
   mkdirSync(outDir, { recursive: true });
@@ -76,7 +76,7 @@ if (mode === 'pronunciation') {
   const audioDir = process.env.VOICE_SPIKE_AUDIO_DIR ?? '';
   if (sarvam === undefined || claude === undefined || livekit === undefined || audioDir === '') {
     console.error(
-      'set SARVAM_API_KEY, ANTHROPIC_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET and VOICE_SPIKE_AUDIO_DIR first (docs/spikes/voice.md)',
+      'set SARVAM_API_KEY, ANTHROPIC_API_KEY, LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET and VOICE_SPIKE_AUDIO_DIR first (docs/04-architecture-appendix/voice.md)',
     );
     process.exit(1);
   }

@@ -1,4 +1,4 @@
-// Addresses and display rules of the quote screens (docs/design/phase1.md §7.3). Browser code:
+// Addresses and display rules of the quote screens (docs/03-roadmap-appendix/phase1.md §7.3). Browser code:
 // types only from the contracts.
 import type { QuoteState } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';

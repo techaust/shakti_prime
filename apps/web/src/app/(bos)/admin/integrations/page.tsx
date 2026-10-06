@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Admin › Integration health (`admin.integrations.write`, docs/design/phase1.md §5.2): the
+ * Admin › Integration health (`admin.integrations.write`, docs/03-roadmap-appendix/phase1.md §5.2): the
  * updates waiting to go out by kind, the held-back updates with Send again, the last sending
  * round and the delivery check; and the files still waiting for their checks, with Check files
  * again. The database answers the outbox part through

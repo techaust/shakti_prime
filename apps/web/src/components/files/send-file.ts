@@ -87,7 +87,7 @@ const pause = (ms: number, signal: AbortSignal) =>
   });
 
 /**
- * One upload from a screen (docs/ARCHITECTURE.md §9): the file's SHA-256 is worked out here, the
+ * One upload from a screen (docs/04-architecture.md §9): the file's SHA-256 is worked out here, the
  * server records the file and signs an address for exactly these bytes, the browser sends them
  * there with progress, the server checks what landed, and the screen waits a while for the checks
  * to pass. Each attempt carries its own idempotency keys. `onRecorded` hears the file's id as soon

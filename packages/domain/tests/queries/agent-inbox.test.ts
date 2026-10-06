@@ -19,7 +19,7 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
 
-// The Agent Inbox and the agents screen's reads (docs/design/phase1.md §7.1), on company 2. Each
+// The Agent Inbox and the agents screen's reads (docs/03-roadmap-appendix/phase1.md §7.1), on company 2. Each
 // test writes its own settings, replacing any row a run left with the same key, and removes them.
 
 const ENTITY = 2;

@@ -27,13 +27,13 @@ const dueAhead: G = {
       : { code: 'validation_failed', reason: 'task_due_in_past' },
 };
 
-/** A callback, follow-up, nurture or review task on a lead (docs/design/phase1.md §6.5). */
+/** A callback, follow-up, nurture or review task on a lead (docs/03-roadmap-appendix/phase1.md §6.5). */
 export const taskMachine = defineMachine<TaskMachineState, TaskEvent, TaskRecord, TaskParams>({
   name: 'task',
   title: 'Task',
   summary:
     '`tasks.state`. A callback, follow-up, nurture or review due at a time, on a lead, for one person. Scope follows the person the task is for: own, team or company on `crm.lead.write`.',
-  sources: ['docs/design/phase1.md §6.5', 'PRD CRM-07', 'DATABASE §6.2 `tasks`'],
+  sources: ['docs/03-roadmap-appendix/phase1.md §6.5', 'PRD CRM-07', 'DATABASE §6.2 `tasks`'],
   states: TASK_STATES,
   initial: 'open',
   terminal: ['done', 'cancelled'],

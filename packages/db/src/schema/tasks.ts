@@ -17,7 +17,7 @@ import { teams } from './teams';
 
 /**
  * A callback, follow-up, nurture or review on a lead, due at a time, for one person
- * (docs/DATABASE.md §6.2). A scope root on `crm.lead.*` with the assignee as its owner; the lead
+ * (docs/05-database.md §6.2). A scope root on `crm.lead.*` with the assignee as its owner; the lead
  * must be readable too. `state` and `done_at` are written only by the task commands through the
  * task machine. `account_id` is the lead's own customer (the composite key), so Account 360 reads
  * a customer's tasks without a join.

@@ -5,7 +5,7 @@ import { defineCommand } from '../../command/define-command';
 import { requireEntity } from './opportunity-shared';
 
 /**
- * `crm.account.tier.set` (docs/design/phase1.md §7.3, workshop PRICE-1): the price tier every
+ * `crm.account.tier.set` (docs/03-roadmap-appendix/phase1.md §7.3, workshop PRICE-1): the price tier every
  * quote of the customer is priced from, or none. The workshop pack proposes no map from customer
  * type to tier, so an Executive gives each customer its tier on Account 360 (the owner's decision
  * of 05-10-2026). A tier decides every price the customer is quoted, so it takes `pricing.write`

@@ -20,7 +20,7 @@ import {
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
-/** Thin wrapper (docs/API.md §4): parse → request context → command → DTO. */
+/** Thin wrapper (docs/06-api.md §4): parse → request context → command → DTO. */
 export async function setTaxRate(
   rawInput: unknown,
   idempotencyKey?: unknown,

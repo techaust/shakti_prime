@@ -3,7 +3,7 @@
 // of unknown kind, as from WhatsApp, and as an upload to a slot that says which number it
 // carries), then reads each masked image again to check the hidden digits cannot be read
 // back, and looks for any QR code that can still be decoded on the masked image. Writes the
-// numbers to docs/spikes/results/ocr.json and the masked images (only) to
+// numbers to docs/04-architecture-appendix/results/ocr.json and the masked images (only) to
 // apps/web/.spike-output/ocr/. The unmasked photos and what their QR codes hold never leave
 // memory and are never printed.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -25,7 +25,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(here, '..', '..');
 const repoRoot = resolve(webRoot, '..', '..');
 const outDir = join(webRoot, '.spike-output', 'ocr');
-const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'ocr.json');
+const resultFile = join(repoRoot, 'docs', '04-architecture-appendix', 'results', 'ocr.json');
 
 // The language data lives outside the repository, like the Chromium build. It is fetched once
 // from the tesseract.js default source; the masking worker itself never fetches it.

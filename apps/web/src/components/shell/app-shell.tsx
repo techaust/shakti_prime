@@ -87,7 +87,7 @@ function InboxLink({ count }: { count: number | null }) {
 }
 
 /**
- * The BOS app shell (DESIGN.md §5): a 240 px sidebar that collapses to 56 px icons and remembers
+ * The BOS app shell (docs/08-design-system.md §5): a 240 px sidebar that collapses to 56 px icons and remembers
  * the choice on this device, a 48 px top bar with the company switcher, the ⌘K palette and the
  * profile menu, and the page below. Under `md` the sidebar opens as a sheet from the top bar.
  * Everything shown is decided on the server: the screens come from the principal's grants.

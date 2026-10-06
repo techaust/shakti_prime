@@ -56,7 +56,7 @@ function failedSaveEvent() {
   };
 }
 
-describe('scrubEvent (docs/design/phase1.md §5.2)', () => {
+describe('scrubEvent (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   const scrubbed = scrubEvent(failedSaveEvent());
   const text = JSON.stringify(scrubbed);
 

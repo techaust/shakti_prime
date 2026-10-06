@@ -3,7 +3,7 @@ import { executeCommand, issueRealtimeToken, type ClientMeta } from '@shakti/dom
 
 /**
  * Settles a Realtime token's claims through `realtime.token.issue`, which writes the audit row
- * (docs/design/backend-weeks-3-5.md §2.6). The companies are the ones the session narrowed the
+ * (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.6). The companies are the ones the session narrowed the
  * caller to, so the token opens no channel outside them.
  */
 export function issueGrantThroughCommand(

@@ -1,6 +1,6 @@
 # ADR 0019 — Files in S3 under SSE-KMS, scanned by GuardDuty, and fields sealed with KMS data keys
 
-**Status:** Accepted: approved by the owner within the Phase 1 design, 29-09-2026 (`docs/design/phase1.md` §5.3); built in #85 (migrations 0065 and 0066) · **Date:** 29-09-2026 · **Deciders:** Owner, within the Phase 1 design · **Blueprint:** §5, §7.5, §7.10 · **Architecture:** §9 · **Security:** §5, §8 · **Database:** §6.10 · **ADR:** 0005, 0009
+**Status:** Accepted: approved by the owner within the Phase 1 design, 29-09-2026 (`docs/03-roadmap-appendix/phase1.md` §5.3); built in #85 (migrations 0065 and 0066) · **Date:** 29-09-2026 · **Deciders:** Owner, within the Phase 1 design · **Blueprint:** §5, §7.5, §7.10 · **Architecture:** §9 · **Security:** §5, §8 · **Database:** §6.10 · **ADR:** 0005, 0009
 
 ## Context
 Phase 1 stores files people upload (company logos and letterheads, signed quotes, consent proof, import workbooks) and files the BOS makes (quote PDFs), and later phases add site photos, receipts, recordings and identity documents. Blueprint §5 places object storage in AWS `ap-south-1`.
@@ -21,4 +21,4 @@ Uploaded bytes are untrusted: they may carry malware, scripts in a PDF or person
 - The scan is asynchronous: an upload is usable a short time after it lands, and the uploader says so in words. A file that waits too long is listed on Integration Health and can be sent back to its checks.
 - A sealed value copied to another column, row or company opens neither there nor in KMS, because the encryption context differs.
 - Each environment's stack is a manual step for the owner with AWS access, and the app's keys go into the environment's Vercel project; until then a hosted runtime answers uploads with `files_unavailable`.
-- GuardDuty charges per object scanned and KMS per request; both sit in the AWS line of the vendor quotes (`docs/phase0/vendor-quotes.md` §3.4).
+- GuardDuty charges per object scanned and KMS per request; both sit in the AWS line of the vendor quotes (`docs/13-client-packs/vendor-quotes.md` §3.4).

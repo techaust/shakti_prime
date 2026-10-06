@@ -25,7 +25,7 @@ import {
 } from '../../src/queries/calls/call-queue';
 
 // The caller's queue, the workspace's lead, the number to dial and the team lead's view
-// (docs/design/phase1.md §7.2, PRD TEL-01), read as of fixed moments. The suite works in company 4
+// (docs/03-roadmap-appendix/phase1.md §7.2, PRD TEL-01), read as of fixed moments. The suite works in company 4
 // with people of its own, so the queues hold only its leads, and an outcome list of its own.
 
 const ENTITY = 4;

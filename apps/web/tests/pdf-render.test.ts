@@ -421,7 +421,7 @@ function quoteJob(quoteId: string): PdfRenderJob {
   };
 }
 
-describe('printing a quote (docs/design/phase1.md §7.3)', () => {
+describe('printing a quote (docs/03-roadmap-appendix/phase1.md §7.3)', () => {
   it('prints the quote from its loader, records the PDF and attaches it to the quote, once', async () => {
     const { quoteId, quoteNo, phone } = await quoteFixture();
     const job = quoteJob(quoteId);
@@ -465,7 +465,7 @@ describe('printing a quote (docs/design/phase1.md §7.3)', () => {
   });
 });
 
-describe('the render path’s log lines (docs/SECURITY.md §7)', () => {
+describe('the render path’s log lines (docs/07-security.md §7)', () => {
   it('carry no part of the bank account, when a print succeeds or fails after opening it', async () => {
     const { logger } = await import('../src/log');
     const lines: string[] = [];
@@ -492,7 +492,7 @@ describe('the render path’s log lines (docs/SECURITY.md §7)', () => {
   });
 });
 
-describe('renderPdfJob: who may print (docs/SECURITY.md §8)', () => {
+describe('renderPdfJob: who may print (docs/07-security.md §8)', () => {
   it('stores nothing for a principal without files.process, even an Executive', async () => {
     const job = proofJob();
     if (job.target.kind !== 'document') throw new Error('a document job');

@@ -6,7 +6,7 @@ import { API_CONTENT_SECURITY_POLICY } from './src/csp';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /**
- * Response headers for every route (docs/SECURITY.md §2). A page's Content-Security-Policy carries
+ * Response headers for every route (docs/07-security.md §2). A page's Content-Security-Policy carries
  * a per-request nonce and is set by `src/proxy.ts`; the JSON routes, which load nothing, get a
  * fixed one here.
  */
@@ -42,7 +42,7 @@ const config: NextConfig = {
     ],
   },
   // No body limit is raised: every file, an import file included, goes straight to the file store
-  // on a pre-signed address (docs/API.md §3.2), so server actions keep Next.js's default.
+  // on a pre-signed address (docs/06-api.md §3.2), so server actions keep Next.js's default.
   poweredByHeader: false,
   headers() {
     return Promise.resolve([

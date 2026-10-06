@@ -2,11 +2,11 @@ name: Migrate a hosted database
 
 # Applies the migrations to the dev or staging database from a reviewed commit on main, then
 # checks every migration is applied as it is on disk (docs/runbooks/DEPLOY.md §2;
-# docs/reviews/2026-09-audit.md L24). A private repository on GitHub's free plan has no
+# docs/14-reviews/2026-09-audit.md L24). A private repository on GitHub's free plan has no
 # environments, so each database's credentials and CA certificate are repository secrets named
 # with its suffix (`_DEV`, `_STAGING`). Production is added with a GitHub environment and a
 # required reviewer when the repository moves to a plan that offers them
-# (docs/reviews/2026-09-audit.md M45); until then no workflow can migrate it.
+# (docs/14-reviews/2026-09-audit.md M45); until then no workflow can migrate it.
 on:
   workflow_dispatch:
     inputs:

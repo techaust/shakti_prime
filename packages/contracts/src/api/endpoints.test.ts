@@ -11,7 +11,7 @@ import { MOBILE_AUTH_REASONS } from './mobile-auth';
 const here = dirname(fileURLToPath(import.meta.url));
 const apiDoc = readFileSync(join(here, '../../../../docs/API.md'), 'utf8');
 
-/** `METHOD /path` for every route row in docs/API.md §3.1 to §3.5 and §3.7. */
+/** `METHOD /path` for every route row in docs/06-api.md §3.1 to §3.5 and §3.7. */
 function documentedRoutes(): string[] {
   const routes: string[] = [];
   let section = '';
@@ -33,7 +33,7 @@ const entries = Object.entries(API_ENDPOINTS) as [
 ][];
 
 describe('the /api/v1 endpoint catalogue', () => {
-  it('lists exactly the routes docs/API.md documents', () => {
+  it('lists exactly the routes docs/06-api.md documents', () => {
     const catalogued = entries
       .filter(([, e]) => !e.path.startsWith('/workers/'))
       .map(([, e]) => `${e.method} ${e.path}`)
@@ -71,7 +71,7 @@ describe('the /api/v1 endpoint catalogue', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('lists every error code docs/API.md §3 names for a route', () => {
+  it('lists every error code docs/06-api.md §3 names for a route', () => {
     const errorCodes = new Set<string>(ERROR_CODES);
     const byRoute = new Map(entries.map(([id, e]) => [`${e.method} ${e.path}`, id]));
     const missing: string[] = [];

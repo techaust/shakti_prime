@@ -14,8 +14,8 @@
 // its first thousand rows is shown with `EXPLAIN (ANALYZE, BUFFERS)` under the policies, as the
 // preview runs it. Then imports.job.rollback archives the leads again (a job still committing is
 // left as it is, and the next run fails and undoes it first).
-// Writes docs/spikes/results/import-scale-xlsx.json (or import-scale-csv.json) and the plan to
-// docs/spikes/results/import-dedupe-plan.txt. Not part of CI. It lives under tests/ because it
+// Writes docs/04-architecture-appendix/results/import-scale-xlsx.json (or import-scale-csv.json) and the plan to
+// docs/04-architecture-appendix/results/import-dedupe-plan.txt. Not part of CI. It lives under tests/ because it
 // creates its caller with the testing helpers, which scripts outside the tests may not import.
 import {
   IMPORT_LIMITS,
@@ -51,7 +51,7 @@ import { matchKey } from '../../src/imports/leads';
 import { parseImportFile } from '../../src/imports/parse';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const results = resolve(here, '..', '..', '..', '..', 'docs', 'spikes', 'results');
+const results = resolve(here, '..', '..', '..', '..', 'docs', '04-architecture-appendix', 'results');
 
 function numberArg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);

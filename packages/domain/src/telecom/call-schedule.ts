@@ -2,7 +2,7 @@ import { WORKSHOP_DEFAULTS } from '../workshop-defaults';
 import { nextCallingWindowStart } from './dial-policy';
 
 /**
- * When the next call to a lead falls due (docs/design/phase1.md §7.2): a retry after an unanswered
+ * When the next call to a lead falls due (docs/03-roadmap-appendix/phase1.md §7.2): a retry after an unanswered
  * attempt (CALL-3) and the nurture calls (CALL-5), each at the start of a day's calling hours in
  * IST. Pure functions over the clock; `calls.log` and `crm.opportunity.nurture` call them.
  */

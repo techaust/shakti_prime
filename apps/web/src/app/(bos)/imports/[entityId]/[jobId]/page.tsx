@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const notNeeded = <T,>(data: T): Promise<ActionResult<T>> => Promise.resolve({ ok: true, data });
 
 /**
- * One import, at the step it waits at (docs/design/backend-weeks-3-5.md §8): matching the
+ * One import, at the step it waits at (docs/03-roadmap-appendix/backend-weeks-3-5.md §8): matching the
  * columns, checking the rows, adding them and, once added, undoing them. The page reads what the
  * step needs; after each change the screen asks for the page again.
  */
@@ -53,7 +53,7 @@ export default async function ImportJobPage({ params }: { params: Promise<Params
 
   const found = await getImportJob({ entityId, jobId });
   if (!found.ok) {
-    // Another company's job, or one that never existed, reads the same (docs/SECURITY.md §3).
+    // Another company's job, or one that never existed, reads the same (docs/07-security.md §3).
     const missing = ['not_found', 'forbidden', 'validation_failed'].includes(found.error);
     return (
       <Page title={t('title')} actions={back} width="detail">

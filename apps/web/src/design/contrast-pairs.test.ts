@@ -8,7 +8,7 @@ describe('contrastRows', () => {
     ['light', 'high'],
     ['dark', 'high'],
   ] as const)(
-    'measures every DESIGN.md §2.5 pair in %s at %s contrast, all passing',
+    'measures every docs/08-design-system.md §2.5 pair in %s at %s contrast, all passing',
     (theme, contrast) => {
       const rows = contrastRows(theme, contrast);
       expect(rows).toHaveLength(CONTRAST_PAIRS.length);

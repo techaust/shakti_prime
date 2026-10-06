@@ -40,7 +40,7 @@ const ACTION_PERMISSIONS: PermissionKey[] = [
 type Plan = 'record_only' | 'propose' | 'act';
 
 /**
- * `agents.run.record` (docs/design/phase1.md §7.1): an agent records one run for one action type
+ * `agents.run.record` (docs/03-roadmap-appendix/phase1.md §7.1): an agent records one run for one action type
  * as its own principal: which model, the tokens, the cost in paise, how long it took and how it
  * ended, never the prompt or the answer. When the model work completed with an action, the
  * settings in this transaction, held still by the settings lock, decide: a kill switch that is off

@@ -10,10 +10,10 @@
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §7.2](../../design/phase1.md#72-t1-cold-caller-workspace), §3 (T1 needs P1, C2 and C3; D1 owns `crm.lead.create`, `crm.opportunity.stage.move` and the board in wave 3), §4 (`calls.log`), §11 (workshop defaults) and §12
+- Design: [`docs/03-roadmap-appendix/phase1.md` §7.2](../../03-roadmap-appendix/phase1.md#72-t1-cold-caller-workspace), §3 (T1 needs P1, C2 and C3; D1 owns `crm.lead.create`, `crm.opportunity.stage.move` and the board in wave 3), §4 (`calls.log`), §11 (workshop defaults) and §12
 - PRD TEL-01 (Phase 1: manual call logging and the number shown to dial; click-to-dial is Phase 2), CRM-06 (the score), CRM-10 (consent)
 - BLUEPRINT §8.1 and §8.2; SECURITY §3.2 (`calls.log`, `calls.dial`), the telecom section (TRAI hours 9 AM to 9 PM, DND, consent) and §11; ADR 0014 (Hinglish only in caller scripts)
-- DESIGN.md §6 and §11; workshop pack CALL-1 to CALL-5
+- docs/08-design-system.md §6 and §11; workshop pack CALL-1 to CALL-5
 - C2's Account 360, tasks and consent; C3's call outcomes (`call_dispositions` with `next_action`), pipelines and stages with exit rules, scores and the first-contact SLA; `packages/domain/src/telecom/dial-policy.ts` (`withinCallingHours`, `nextCallingWindowStart`, `checkDial`)
 - Skills: `add-command`, `add-table`, `supabase-postgres-best-practices`, `vercel-react-best-practices`, `frontend-design:frontend-design`, `web-design-guidelines`.
 
@@ -53,7 +53,7 @@ The slice is built and every check of AGENTS §10 that runs in the cloud passes.
   - Tests: `tests/commands/calls.test.ts` (20), `tests/queries/call-queue.test.ts` (11), the agent refusal input, and reader parity for the four queries.
   - The spike `tests/spike/calling.ts` (`pnpm spike:calling`), with the plans of the queue page and the team view's counts.
 - Web: `src/actions/calling.ts`; the Calling menu item (`calls.log` own) and its home hint; `/calling` in `BOS_PREFIXES` and `calling` in `CLIENT_NAMESPACES`; `app/(bos)/calling/page.tsx` and `loading.tsx`; `components/calling/calling-screen.tsx`, `outcome-dialog.tsx` and `team-queues.tsx`; `components/customers/timeline-row.tsx` (moved out of Account 360, with the call detail); `src/screens/calling.ts` with `calling.test.ts`; the `calling` catalogue, the error sentences, the audit labels (`callLog`, `outcome`, `attemptNo`, `durationSeconds`) and the copy-lint button keys; the named budget for `/calling` (206 kB); `e2e/calling.spec.ts`; the journey seed puts the tele-caller and the team lead in one team of company 1.
-- Documents: DATABASE (`calls`, `call_logged`), SECURITY (the §3.2 row and lines in §3.3 and §7), design §7.2 "Built (T1)" and §11, DECISIONS (two rows), workshop pack CALL-3 and CALL-5 "Today", exit-gate action 16; `docs/spikes/calling.md`, `docs/spikes/results/calling.json` and its line in `docs/spikes/README.md`; `pnpm db:docs` and `machines:docs` regenerated.
+- Documents: DATABASE (`calls`, `call_logged`), SECURITY (the §3.2 row and lines in §3.3 and §7), design §7.2 "Built (T1)" and §11, DECISIONS (two rows), workshop pack CALL-3 and CALL-5 "Today", exit-gate action 16; `docs/04-architecture-appendix/calling.md`, `docs/04-architecture-appendix/results/calling.json` and its line in `docs/04-architecture-appendix/README.md`; `pnpm db:docs` and `machines:docs` regenerated.
 
 **Found and fixed in the cloud:**
 - The spike found the team view over 300 ms at the 95th percentile: 315.8 ms for the team lead and 324.9 ms for the General Manager.
@@ -66,7 +66,7 @@ The slice is built and every check of AGENTS §10 that runs in the cloud passes.
   - The journey pressed `/` before the page had hydrated on its second visit. `findLead` presses it again until the search takes the keyboard.
 - Prettier on 13 of the slice's files: CI's `pnpm format:check` would have failed.
 
-**The spike** (`pnpm spike:calling` at its defaults, through `app_reader`, run of 06-10-2026 00:14 IST on the cloud VM, 4 cores and 16 GB, nothing else running; [docs/spikes/calling.md](../../spikes/calling.md)):
+**The spike** (`pnpm spike:calling` at its defaults, through `app_reader`, run of 06-10-2026 00:14 IST on the cloud VM, 4 cores and 16 GB, nothing else running; [docs/04-architecture-appendix/calling.md](../../04-architecture-appendix/calling.md)):
 - **Seed:** 10 callers with 2,000 leads each; the first caller has 866 calls and 966 tasks; company 1 has 20,353 leads.
 - **Times, p50 / p95 ms**; every case is under 300 ms at the 95th percentile:
 
@@ -156,7 +156,7 @@ The seven findings are fixed on `feat/t1-calling` without `main`, and every chec
 - `unansweredAttempts` (`src/telecom/call-schedule.ts`) counts a run's unanswered attempts, from calls made after `opportunities.state_changed_at` only. `log-call.ts`, `loadCallLead` and the queue all call it.
 - The queue (`rankedQueue`): a nurture task holds a lead back only while the lead is in nurture. `loadCallLead` shows a nurture call as the next call by the same rule.
 - Web: `useCommand(action, form)` and `formKeyFor` (`src/components/screens/use-command.ts`); the workspace keys its log form to the open lead.
-- Documents: SECURITY §7 (one line), PRD §8 (TEL-01), DATABASE (`calls.attempt_no`) and the schema comment, design §7.2 "Built (T1)" and §8.2, `docs/spikes/calling.md` and `results/calling.json`; `pnpm db:docs` and `machines:docs` regenerated.
+- Documents: SECURITY §7 (one line), PRD §8 (TEL-01), DATABASE (`calls.attempt_no`) and the schema comment, design §7.2 "Built (T1)" and §8.2, `docs/04-architecture-appendix/calling.md` and `results/calling.json`; `pnpm db:docs` and `machines:docs` regenerated.
 
 **Tests added (17):**
 - `packages/domain/tests/commands/calls.test.ts`, 6:
@@ -261,7 +261,7 @@ One high and two medium findings, all in the calling rules' tasks and stage move
 - **What happens:** the workspace's "Open customer" link goes to Account 360. Account 360 shows every phone in full with a `tel:` link at any hour, and for a customer who withdrew consent (`account-screen.tsx:282-288`, C2's). `D`'s refusal outside calling hours, and its absence for a withdrawn consent, therefore only steer the caller; they do not stop the number being dialled. Calls are dialled by hand, so the real control is `calls.call.log` refusing the log.
 - **Fix:** say this in SECURITY §7 (the number gate guides the caller, and the log is refused). Alternatively, mark the withdrawn consent beside the number on Account 360 and drop its `tel:` link there; that can be a follow-up outside T1.
 
-**7. PRD §8 trace (low, confirmed).** `docs/PRD.md` §8 still has TEL-01 "Tested in —". Name `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts` and `apps/web/e2e/calling.spec.ts`.
+**7. PRD §8 trace (low, confirmed).** `docs/02-prd.md` §8 still has TEL-01 "Tested in —". Name `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts` and `apps/web/e2e/calling.spec.ts`.
 
 **Checked and sound:**
 - **Data isolation:**
@@ -334,7 +334,7 @@ The seven findings are fixed, and each fix's test fails on the code before it. T
 3. **A qualified outcome moves a lead backwards: fixed.** The move runs only when the stage's position is before Qualified's. The check reads the stage after a reopen (`now.stageId`), so a nurtured lead that answers still moves forward. Case F passes.
 4. **A reassigned lead's callback: fixed.** The review reproduced it for a team lead and the GM. The new owner has the callback at 16:00 and the old owner none. The lead is absent from the new owner's queue at 12:30 and shows as `call_due` at 16:30. A tele-caller may not assign (`forbidden`).
 5. **One idempotency key: fixed.** The workspace keys `useCommand(logCall, lead?.opportunityId)`, and the dialog shares that form. Another lead gets a new key. The same lead keeps its key after a lost answer, so a second press acts once. A different outcome on that lead is answered `idempotency_mismatch`, which is right, because the first one was saved. A refusal stores nothing, so the caller can correct a refused outcome and send it again. `formKeyFor`'s unit test covers the rule.
-6. **The number gate: fixed** by the SECURITY §7 line. The Account 360 follow-up (mark a withdrawn consent beside the number and drop its `tel:` link) is not yet in STATUS.md's follow-ups; the lead records it.
+6. **The number gate: fixed** by the SECURITY §7 line. The Account 360 follow-up (mark a withdrawn consent beside the number and drop its `tel:` link) is not yet in 10-status.md's follow-ups; the lead records it.
 7. **PRD §8: fixed.** TEL-01 names the four test files.
 
 **The lead's focus:**
@@ -371,7 +371,7 @@ The seven findings are fixed, and each fix's test fails on the code before it. T
 2. **R2:** one line in SECURITY §3.3: the triage agent's reassignment moves the lead's open callbacks to the new owner through the task commands, audited under the agent.
 3. Mark R1 and R2 `fixed in <commit>`; commit and push.
 4. **Take `main`** as `docs/runbooks/slice-integration.md` §5 says: `git rev-parse HEAD > ../t1-premerge.sha`, `git fetch`, `git merge --no-commit origin/main`; lists with `merge-union.py` (read every hunk), `en.json` with `merge-json.py` before `git add`, `copy-lint.config.json` with `merge-copylint.py`; the rest by hand. `AGENTS.md` and `turbo.json` take `main`'s. Watch for what `main`'s slices change under T1: `app.platform_only_permissions()` must keep all five keys if 0115 redefines it; S1's quotes and D1's merges touch leads, tasks and the timeline (a customer merge moves a lead's calls? `calls` keys on the lead: check its foreign keys follow a merge as tasks and quotes do, and add the test); the matrix fixture's offsets (T1 uses 0x30; S1 and D1 use 0x1c to 0x27); the menu, `nav.ts` and the session gate; the timeline's activity types.
-5. `pnpm install --frozen-lockfile`, then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../t1-premerge.sha)`. `pnpm db:generate` must report no changes; `pnpm db:docs`; correct the numbers DATABASE.md and this file cite. Commit `chore: merge main (S1 quotes, D1 duplicates, cloud fixes) into T1; its migrations move to 0114 and 0115` and push.
+5. `pnpm install --frozen-lockfile`, then `node tools/integration/renumber-migrations.mjs origin/main $(cat ../t1-premerge.sha)`. `pnpm db:generate` must report no changes; `pnpm db:docs`; correct the numbers 05-database.md and this file cite. Commit `chore: merge main (S1 quotes, D1 duplicates, cloud fixes) into T1; its migrations move to 0114 and 0115` and push.
 6. `. tools/integration/lib.sh && ensure_playwright_browsers && ensure_gitleaks_image && echo ready` (if gitleaks fails, retry the Docker Hub pull after a minute: it answered 429 once in D1's session).
 7. `integrate.sh` in parts, each under 30 minutes: `INTEGRATE_STEPS="install lint format copylint generated typecheck"`, `"unit"`, `"security dbverify"`, `"audit build jsbudget gitleaks"`, `"e2e"` (inside calling hours, 09:00 to 21:00 IST, for the calling journey), each as `INTEGRATE_STEPS="…" bash tools/integration/integrate.sh . ../int-<n>.log`; each verdict `INTEGRATION PARTIAL` with every `rc=0`.
 8. Baselines on a fresh database (`docker compose down -v && docker compose up -d --wait`, several queries in a row, `pnpm db:migrate && pnpm db:seed && pnpm build`): T1 adds the Calling menu item, so delete every desktop staff baseline that shows the menu, run `pnpm --filter web e2e:snap -- --update-snapshots=missing` (inside calling hours), look at `calling` in each project and at each menu image (compare old and new; only the menu should change), then `pnpm --filter web e2e:snap` without updating must match. Commit and push.

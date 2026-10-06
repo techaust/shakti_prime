@@ -1,4 +1,4 @@
-// The Cold Caller workspace (`/calling`, docs/design/phase1.md §7.2): pure helpers the screen and
+// The Cold Caller workspace (`/calling`, docs/03-roadmap-appendix/phase1.md §7.2): pure helpers the screen and
 // its tests share. Browser code, so only types come from the contracts.
 
 import type {
@@ -38,7 +38,7 @@ export type Shortcut =
   { kind: 'next' } | { kind: 'dial' } | { kind: 'search' } | { kind: 'outcome'; key: number };
 
 /**
- * The workspace's keys (DESIGN.md §6, Caller workspace; PRD TEL-01): `N` the next lead, `D` the
+ * The workspace's keys (docs/08-design-system.md §6, Caller workspace; PRD TEL-01): `N` the next lead, `D` the
  * number to dial, `/` search and `1` to `9` the outcomes. A key with Ctrl, Alt or the command key
  * held is the browser's or the palette's, never the workspace's.
  */

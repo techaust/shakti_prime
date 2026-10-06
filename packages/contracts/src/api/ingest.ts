@@ -4,7 +4,7 @@ import { PhoneInputSchema } from '../crm/phone';
 import { IdSchema } from '../ids';
 
 /**
- * Website and partner ingest (docs/API.md §3.3). Each entity's site holds its own ingest key,
+ * Website and partner ingest (docs/06-api.md §3.3). Each entity's site holds its own ingest key,
  * sent in `X-Ingest-Key`, and every form carries a Turnstile answer. A lead goes through the same
  * normalisation and dedupe as every other source.
  */

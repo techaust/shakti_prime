@@ -14,7 +14,7 @@ const sources = readdirSync(here)
  * one needs a token in packages/tokens or an entry here with its reason.
  */
 const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
-  { name: 'board.tsx', value: 'h-[3px]', why: 'the stage colour bar is 3 px (DESIGN.md §6)' },
+  { name: 'board.tsx', value: 'h-[3px]', why: 'the stage colour bar is 3 px (docs/08-design-system.md §6)' },
   {
     name: 'command-palette.tsx',
     value: 'top-[12vh]',
@@ -23,7 +23,7 @@ const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
   {
     name: 'command-palette.tsx',
     value: 'w-[calc(100%-2rem)]',
-    why: 'the 16 px phone gutter each side (DESIGN.md §5)',
+    why: 'the 16 px phone gutter each side (docs/08-design-system.md §5)',
   },
   {
     name: 'command-palette.tsx',
@@ -38,12 +38,12 @@ const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
   {
     name: 'dialog.tsx',
     value: 'backdrop-blur-[2px]',
-    why: 'the overlay softens the page behind a dialog; DESIGN.md has no blur token',
+    why: 'the overlay softens the page behind a dialog; docs/08-design-system.md has no blur token',
   },
   {
     name: 'dialog.tsx',
     value: 'w-[calc(100%-2rem)]',
-    why: 'the 16 px phone gutter each side (DESIGN.md §5)',
+    why: 'the 16 px phone gutter each side (docs/08-design-system.md §5)',
   },
   {
     name: 'dialog.tsx',
@@ -66,7 +66,7 @@ describe('component source rules', () => {
     }
   });
 
-  it('holds no raw colour: every colour is a token (DESIGN.md §2)', () => {
+  it('holds no raw colour: every colour is a token (docs/08-design-system.md §2)', () => {
     for (const { name, text } of sources) {
       expect({ name, found: text.match(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/gi) }).toEqual({
         name,
@@ -75,7 +75,7 @@ describe('component source rules', () => {
     }
   });
 
-  it('takes every colour, type size, weight, radius and space from the tokens (DESIGN.md §2–§4)', () => {
+  it('takes every colour, type size, weight, radius and space from the tokens (docs/08-design-system.md §2–§4)', () => {
     for (const { name, text } of sources) {
       const found = tokenBypasses(text).filter(
         (value) => !EXCEPTIONS.some((e) => e.name === name && e.value === value),

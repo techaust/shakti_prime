@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { StaffRoleKey } from './roles';
 
-/** Permission catalogue (docs/SECURITY.md §3.2). `module.resource.action`, granted with a scope. */
+/** Permission catalogue (docs/07-security.md §3.2). `module.resource.action`, granted with a scope. */
 export const PERMISSION_KEYS = [
   'crm.lead.read',
   'crm.lead.write',
@@ -82,7 +82,7 @@ export const PERMISSION_KEYS = [
   // The nightly search for duplicate customers and leads (CRM-03): held only by the platform's
   // worker principal, which reads matching facts and records candidates through two definers.
   'crm.duplicates.scan',
-  // The daily expiry of quotes past their validity (docs/design/phase1.md §7.3): held only by the
+  // The daily expiry of quotes past their validity (docs/03-roadmap-appendix/phase1.md §7.3): held only by the
   // platform's worker principal, which reads the lapsed quotes and marks them expired through two
   // definers, nothing more.
   'sales.quote.expire',

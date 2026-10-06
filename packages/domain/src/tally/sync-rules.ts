@@ -1,5 +1,5 @@
 /**
- * The BOS side of the Tally connector (BLUEPRINT §8.8, docs/API.md §3.5): which vouchers of a batch
+ * The BOS side of the Tally connector (BLUEPRINT §8.8, docs/06-api.md §3.5): which vouchers of a batch
  * move the cursor, which stored vouchers the daily GUID snapshot turns into tombstones, and when a
  * silent connector raises an alert. Pure functions; the Phase 5 tables that hold vouchers,
  * tombstones and heartbeats do not exist yet, so nothing here reads or writes the database.

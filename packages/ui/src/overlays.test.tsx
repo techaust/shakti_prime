@@ -172,7 +172,7 @@ describe('DropdownMenu', () => {
     expect(menu).toContain('>Columns</div>');
   });
 
-  it('gives items the phone target size (DESIGN.md §1)', () => {
+  it('gives items the phone target size (docs/08-design-system.md §1)', () => {
     expect(menu).toContain('max-md:h-control-phone');
   });
 });

@@ -23,7 +23,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
   const sources = readSources(repoRoot);
   const docs = renderDataDocs(sources);
 
-  it('match the latest snapshot, the migrations and DATABASE.md; run pnpm db:docs when not', () => {
+  it('match the latest snapshot, the migrations and 05-database.md; run pnpm db:docs when not', () => {
     expect(lf(read('ERD.md'))).toBe(docs.erd);
     expect(lf(read('DATA-DICTIONARY.md'))).toBe(docs.dictionary);
   });
@@ -35,7 +35,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
     }
   });
 
-  it('place every built table in a module, never under Other (give it a DATABASE.md §6 entry)', () => {
+  it('place every built table in a module, never under Other (give it a 05-database.md §6 entry)', () => {
     const catalogue = parseCatalogue(sources.databaseDoc);
     const modules = groupModules(
       Object.values(sources.snapshot.tables).map((t) => t.name),
@@ -57,7 +57,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
     ]);
   });
 
-  it('list the tables DATABASE.md plans and no migration has built', () => {
+  it('list the tables 05-database.md plans and no migration has built', () => {
     expect(docs.dictionary).toContain('| `sales_orders` |');
     expect(docs.dictionary).toContain('| `employees` |');
     expect(docs.dictionary).not.toMatch(/^\| `quotes` \|/m);
@@ -284,7 +284,7 @@ describe('the ERD note on created_by and updated_by', () => {
   });
 });
 
-describe('the status column of DATABASE.md §6', () => {
+describe('the status column of 05-database.md §6', () => {
   const sources = readSources(repoRoot);
   const built = new Set(Object.values(sources.snapshot.tables).map((t) => t.name));
   const catalogue = parseCatalogue(sources.databaseDoc);

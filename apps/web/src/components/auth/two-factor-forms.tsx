@@ -194,7 +194,7 @@ export function EnrolForm() {
           alt={t('scanTitle')}
           width={220}
           height={220}
-          // A QR code scans only on a light background, whatever the theme (DESIGN.md §7).
+          // A QR code scans only on a light background, whatever the theme (docs/08-design-system.md §7).
           style={{ backgroundColor: colors.surface.light }}
           className="self-start rounded-md p-2"
         />

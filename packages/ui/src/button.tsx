@@ -7,7 +7,7 @@ import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
 /**
- * Buttons (DESIGN.md §6): primary is the accent fill, secondary a surface with a border, ghost
+ * Buttons (docs/08-design-system.md §6): primary is the accent fill, secondary a surface with a border, ghost
  * and danger for quiet and destructive actions, link for text-style actions. 36 px on desktop,
  * 44 px on phones; icon buttons are square.
  */

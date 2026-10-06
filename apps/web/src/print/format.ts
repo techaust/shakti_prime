@@ -1,4 +1,4 @@
-// Display formats for printed documents (DESIGN.md §9, §11.1 rule 5). These only format
+// Display formats for printed documents (docs/08-design-system.md §9, §11.1 rule 5). These only format
 // amounts and dates that were already computed by the domain; they never do money arithmetic.
 
 const MONEY = /^(-)?(\d+)(?:\.(\d{1,2}))?$/;

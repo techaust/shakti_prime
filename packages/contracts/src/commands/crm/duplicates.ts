@@ -9,7 +9,7 @@ import { AccountTypeSchema, OpportunityStateSchema } from '../../crm/enums';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * The duplicate commands and reads (PRD CRM-03, docs/design/phase1.md §7.4). Each names the
+ * The duplicate commands and reads (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4). Each names the
  * company the request is narrowed to: the one whose screen the person acts from.
  */
 
@@ -108,7 +108,7 @@ export type DismissDuplicateInput = z.infer<typeof DismissDuplicateInput>;
 
 /**
  * `crm.duplicate.suggest`: two open leads of one customer and segment in one company put forward
- * as one. The one duplicate step an agent may take (docs/SECURITY.md §3.3): it suggests, a person
+ * as one. The one duplicate step an agent may take (docs/07-security.md §3.3): it suggests, a person
  * decides.
  */
 export const SuggestDuplicateInput = z

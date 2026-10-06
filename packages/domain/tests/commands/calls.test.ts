@@ -20,7 +20,7 @@ import { reopenOpportunity } from '../../src/commands/crm/reopen-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { loadCallLead } from '../../src/queries/calls/call-queue';
 
-// calls.log (docs/design/phase1.md §7.2, PRD TEL-01): a person logs a call they made by hand, and
+// calls.log (docs/03-roadmap-appendix/phase1.md §7.2, PRD TEL-01): a person logs a call they made by hand, and
 // the outcome's next step runs: a callback, the retry rule (three attempts on day 1, 2 and 3, the
 // owner's default for CALL-3), nurture with its calls on day 7, 30 and 90 (CALL-5), the move to
 // Qualified, or the lead lost. The suite works in company 4 with an outcome list of its own for

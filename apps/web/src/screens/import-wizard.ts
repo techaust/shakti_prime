@@ -16,7 +16,7 @@ import type {
 } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
-// The import screen's own logic (docs/design/backend-weeks-3-5.md §8): which step a job is at,
+// The import screen's own logic (docs/03-roadmap-appendix/backend-weeks-3-5.md §8): which step a job is at,
 // the column matching form, the rows' findings and the progress line. Only types come from the
 // contracts, so no schema reaches the browser; `import-wizard.test.ts` keeps the lists equal.
 

@@ -1,4 +1,4 @@
-// The Realtime JWT spike (docs/design/backend-weeks-3-5.md §2.5, docs/spikes/realtime.md). Against
+// The Realtime JWT spike (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.5, docs/04-architecture-appendix/realtime.md). Against
 // the hosted Supabase dev project, with tokens signed by the same key the deployed BOS publishes:
 //   1. the deployed BOS publishes its discovery document and a key list naming the signing key;
 //   2. user A joins user:{A}, entity:{e}:queue and entity:{e}:board for an entity in scope;
@@ -39,7 +39,7 @@ if (process.env.CI !== undefined && process.env.CI !== '') {
 }
 const missing = REQUIRED.filter((name) => (process.env[name] ?? '') === '');
 if (missing.length > 0) {
-  console.error(`set ${missing.join(', ')} first (docs/spikes/realtime.md)`);
+  console.error(`set ${missing.join(', ')} first (docs/04-architecture-appendix/realtime.md)`);
   process.exit(1);
 }
 

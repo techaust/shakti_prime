@@ -1,6 +1,6 @@
 # Building and merging a slice
 
-How one slice of a phase goes from a brief to `main` and the hosted environments. The scripts are in `tools/integration/`; the skills in `.claude/skills/` run these steps (`integrate-slice`, `migrate-hosted`, `end-session`), and the agents in `.claude/agents/` build and review. Which steps run in a cloud session and which on the PC is [hybrid](hybrid.md). Status after each merge goes to [docs/STATUS.md](../STATUS.md); history to [CHANGELOG.md](../../CHANGELOG.md).
+How one slice of a phase goes from a brief to `main` and the hosted environments. The scripts are in `tools/integration/`; the skills in `.claude/skills/` run these steps (`integrate-slice`, `migrate-hosted`, `end-session`), and the agents in `.claude/agents/` build and review. Which steps run in a cloud session and which on the PC is [hybrid](hybrid.md). Status after each merge goes to [docs/10-status.md](../10-status.md); history to [CHANGELOG.md](../../CHANGELOG.md).
 
 **Contents:** [1. Machines and ports](#1-machines-and-ports) · [2. Set up a slice](#2-set-up-a-slice) · [3. Build](#3-build) · [4. Review](#4-review) · [5. Take main into the slice](#5-take-main-into-the-slice) · [6. Integrate](#6-integrate) · [7. Linux screenshot baselines](#7-linux-screenshot-baselines) · [8. Pull request and merge](#8-pull-request-and-merge) · [9. Hosted environments](#9-hosted-environments) · [10. Lessons](#10-lessons)
 
@@ -56,7 +56,7 @@ A slice built while others merged takes `main` by a merge commit, never a rebase
 - The `hold` label stops a merge; after removing it, re-run the CI run (`gh run rerun <id>`), since the workflow acts only when a run finishes.
 
 ## 9. Hosted environments
-After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](DEPLOY.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../DECISIONS.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](INCIDENTS.md) says what to do.
+After a pull request with migrations merges and CI on `main` is green: migrate dev, then staging, and check both, as [DEPLOY §2](DEPLOY.md#2-every-deploy) says; the `migrate-hosted` skill runs it from the PC under the owner's standing go-ahead ([DECISIONS](../11-decisions.md)). Anything else on a hosted service asks the owner first. If a step fails, [INCIDENTS](INCIDENTS.md) says what to do.
 
 ## 10. Lessons
 - Make baselines only on a fresh database; a database the security suite used shows leftover rows.

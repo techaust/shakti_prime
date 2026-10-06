@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 /**
- * The idempotency key of one import row, `import:{job}:{row}` (docs/design/backend-weeks-3-5.md
+ * The idempotency key of one import row, `import:{job}:{row}` (docs/03-roadmap-appendix/backend-weeks-3-5.md
  * §8). Keys are UUIDs, so the name is hashed into a name-based UUID (version 5 layout, SHA-256
  * rather than SHA-1): the same row of the same job always gets the same key.
  */

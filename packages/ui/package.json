@@ -2,7 +2,7 @@
   "name": "@shakti/ui",
   "version": "0.0.0",
   "private": true,
-  "description": "Web components on the DESIGN.md patterns (shadcn/ui based): every colour from @shakti/tokens, every word from the caller",
+  "description": "Web components on the docs/08-design-system.md patterns (shadcn/ui based): every colour from @shakti/tokens, every word from the caller",
   "type": "module",
   "sideEffects": [
     "*.css"

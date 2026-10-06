@@ -17,7 +17,7 @@ import {
 } from '../../privacy/field-cipher';
 
 /**
- * A company's bank account (docs/SECURITY.md §5, BLUEPRINT §7): sealed by the field cipher into
+ * A company's bank account (docs/07-security.md §5, BLUEPRINT §7): sealed by the field cipher into
  * `entities.bank_json` under the company's own context, so a sealed value copied to another
  * company, column or table does not open. No request role selects the column; the sealed value
  * comes back only through `app.entity_bank_envelope()`, which admits an Executive

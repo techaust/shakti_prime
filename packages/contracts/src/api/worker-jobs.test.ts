@@ -11,7 +11,7 @@ import {
   PdfRenderResult,
 } from './worker-jobs';
 
-describe('the worker contracts (docs/API.md §3.6)', () => {
+describe('the worker contracts (docs/06-api.md §3.6)', () => {
   it('names the agents as their principals do, without the prefix', () => {
     expect(AGENT_NAMES.map((name) => `agent:${name}`)).toEqual([...AGENT_ROLE_KEYS]);
   });
@@ -67,7 +67,7 @@ describe('the worker contracts (docs/API.md §3.6)', () => {
   });
 });
 
-describe('message.requested (docs/API.md §6)', () => {
+describe('message.requested (docs/06-api.md §6)', () => {
   it('sends a template by its approved name with its parameters', () => {
     const parsed = MessageRequested.parse({
       threadId: IDS.thread,

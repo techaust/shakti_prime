@@ -8,7 +8,7 @@ export interface AgentActionRecord {
 }
 
 /**
- * An action an agent proposed or took (docs/design/phase1.md §7.1, BLUEPRINT §9.3). Suggest and
+ * An action an agent proposed or took (docs/03-roadmap-appendix/phase1.md §7.1, BLUEPRINT §9.3). Suggest and
  * Needs approval file it as proposed, with an inbox item: a person approves (as it is, or edited)
  * or rejects a Needs approval one once, and dismisses a Suggest one, which they act on themselves.
  * Automatic files it and runs the command as the agent at once; it is not available in Phase 1.
@@ -23,7 +23,7 @@ export const agentActionMachine = defineMachine<
   title: 'Agent action',
   summary:
     '`agent_actions.state`. What an agent proposed or did with one action type, the command it runs and its input; append-only except the decision, which the inbox commands record once.',
-  sources: ['docs/design/phase1.md §7.1', 'BLUEPRINT §9.3', 'PRD AI-04', 'DATABASE §6.9'],
+  sources: ['docs/03-roadmap-appendix/phase1.md §7.1', 'BLUEPRINT §9.3', 'PRD AI-04', 'DATABASE §6.9'],
   states: AGENT_ACTION_STATES,
   initial: 'proposed',
   terminal: ['executed', 'approved', 'rejected', 'dismissed'],

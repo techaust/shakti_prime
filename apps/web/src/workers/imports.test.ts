@@ -21,7 +21,7 @@ describe('the import worker keeps to its route’s time', () => {
     expect(importBatchSettings.sliceMs).toBe(ROW_BY_ROW_SLICE_MS);
     expect(ROW_BY_ROW_SLICE_MS + SET_BASED_MIN_MS).toBeLessThan(IMPORT_BATCH_BUDGET_MS);
     // The set-based try keeps most of the budget: well over the median batch of 1.3 seconds
-    // (docs/spikes/import-scale.md).
+    // (docs/04-architecture-appendix/import-scale.md).
     expect(IMPORT_BATCH_BUDGET_MS - ROW_BY_ROW_SLICE_MS).toBeGreaterThanOrEqual(15_000);
   });
 });

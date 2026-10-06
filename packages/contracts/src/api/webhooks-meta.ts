@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Meta webhooks (docs/API.md §3.4): WhatsApp Cloud API and Lead Ads. Shapes follow Meta's public
+ * Meta webhooks (docs/06-api.md §3.4): WhatsApp Cloud API and Lead Ads. Shapes follow Meta's public
  * webhook reference. Meta adds fields without notice, so every provider object is loose (unknown
  * keys kept) and only the fields the workers act on are required. The route verifies
  * `X-Hub-Signature-256` over the raw body before anything is parsed, stores the raw payload in

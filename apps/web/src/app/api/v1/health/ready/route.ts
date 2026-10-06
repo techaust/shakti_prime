@@ -21,7 +21,7 @@ function failure(
 }
 
 /**
- * Readiness (docs/API.md §3.7). The route is public, so the answer carries the overall status
+ * Readiness (docs/06-api.md §3.7). The route is public, so the answer carries the overall status
  * only; which dependency is down goes to the log with the request id, for the operators.
  */
 export async function GET(request: Request): Promise<Response> {

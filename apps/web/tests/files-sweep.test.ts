@@ -4,7 +4,7 @@ import { memoryFileStore, sha256Hex, type FileStore } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The sweep of abandoned uploads (docs/design/phase1.md §6.3) outside a Next.js request: the file
+// The sweep of abandoned uploads (docs/03-roadmap-appendix/phase1.md §6.3) outside a Next.js request: the file
 // store is a stand-in; the upload command, the sweep, its query and the database are real.
 const state = vi.hoisted((): { store: FileStore | undefined } => ({ store: undefined }));
 vi.mock('../src/files/store', () => ({ fileStore: () => state.store }));

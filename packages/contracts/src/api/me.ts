@@ -7,7 +7,7 @@ import { RoleKeySchema } from '../roles';
 import { SemverSchema } from './common';
 
 /**
- * `GET /me` (docs/API.md §3.1): who the caller is, what they hold in each company, the feature
+ * `GET /me` (docs/06-api.md §3.1): who the caller is, what they hold in each company, the feature
  * flags that apply to them and the oldest field app version the server still accepts. The app
  * calls it after sign-in and on every start; below `minimumAppVersion` it shows the update gate.
  */
@@ -33,7 +33,7 @@ export const MeResponse = z
       })
       .strict(),
     roles: z.array(MeRole).min(1),
-    /** The effective grants for the whole session, narrowest role wins (docs/SECURITY.md §3). */
+    /** The effective grants for the whole session, narrowest role wins (docs/07-security.md §3). */
     permissions: z.array(PermissionGrantSchema),
     /** Flags resolved for this user from `feature_flags` and its per-entity and per-role overrides. */
     featureFlags: z.record(z.string().regex(/^[a-z][a-z0-9_.]{1,63}$/), z.boolean()),

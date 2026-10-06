@@ -1,6 +1,6 @@
 import type { PriceTierCode } from '@shakti/contracts';
 
-/** The three price tiers of docs/BLUEPRINT.md §8.3. Executives add more from Admin. */
+/** The three price tiers of docs/01-blueprint.md §8.3. Executives add more from Admin. */
 export const PRICE_TIER_SEED: readonly {
   id: string;
   code: PriceTierCode;

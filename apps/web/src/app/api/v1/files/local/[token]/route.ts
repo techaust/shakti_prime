@@ -9,7 +9,7 @@ interface Params {
 }
 
 /**
- * The development file store's upload and download addresses (docs/API.md §3.2). Only a
+ * The development file store's upload and download addresses (docs/06-api.md §3.2). Only a
  * developer's machine answers; every hosted deployment answers 404.
  */
 export async function PUT(request: Request, { params }: Params): Promise<Response> {

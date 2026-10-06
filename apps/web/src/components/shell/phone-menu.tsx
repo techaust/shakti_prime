@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTitle } from '@shakti/ui';
 import type { ReactNode } from 'react';
 
 /**
- * The phone menu's sheet (DESIGN.md §5), loaded by the shell when the menu is first opened, so
+ * The phone menu's sheet (docs/08-design-system.md §5), loaded by the shell when the menu is first opened, so
  * the dialog code is not part of a screen's first load. The shell draws the button and the menu.
  */
 export function PhoneMenu({

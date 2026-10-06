@@ -18,7 +18,7 @@ import { jsonLogger, type Logger } from '../ports/logger';
 import { loadAgentConfig } from './config';
 import type { AiProvider, CompleteCall, CompleteResult } from './provider';
 
-// The agent runtime's own path (docs/design/phase1.md §7.1, ARCHITECTURE §11): what an agent's
+// The agent runtime's own path (docs/03-roadmap-appendix/phase1.md §7.1, ARCHITECTURE §11): what an agent's
 // worker calls for one step of work. It reads the agent's settings as the agent, lets the agent's
 // code ask the model through the provider wrapper bound to this run, and records the run with what
 // it proposes; `agents.run.record` then files the suggestion. The agent's own code decides only

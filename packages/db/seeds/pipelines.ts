@@ -1,8 +1,8 @@
 import type { Segment, StageKind } from '@shakti/contracts';
 
 /**
- * The four pipelines (docs/BLUEPRINT.md §8.1) with the six stage names that are already product
- * vocabulary (DESIGN.md §2.3). Executives reshape stages from Admin; ids are fixed for idempotent seeds.
+ * The four pipelines (docs/01-blueprint.md §8.1) with the six stage names that are already product
+ * vocabulary (docs/08-design-system.md §2.3). Executives reshape stages from Admin; ids are fixed for idempotent seeds.
  */
 export const PIPELINE_SEED: readonly {
   id: string;

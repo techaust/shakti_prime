@@ -7,7 +7,7 @@
 // four companies, a General Manager of one company and a tele-caller of that company, who sees
 // only their own leads. Each case runs `--warmup` times untimed, then `--runs` times; the time is
 // the `durationMs` of the `query.completed` line executeQuery logs (transaction, context settings
-// and query, in process). Writes docs/spikes/results/lists.json; with `--score-only` it times only
+// and query, in process). Writes docs/04-architecture-appendix/results/lists.json; with `--score-only` it times only
 // the leads list sorted by score, for the Executive and the tele-caller, into lists-score.json.
 // The seeded leads are deleted at the end unless `--keep` is given. Local database only (prepareDatabase refuses any other host).
 // Not part of CI. It lives under tests/ because it makes its callers with the testing helpers.

@@ -12,7 +12,7 @@ import {
   stageId,
 } from '../../src/testing/index';
 
-// Duplicates (docs/DATABASE.md §6.2, §4.1; SECURITY §3.3): a candidate is read only by someone
+// Duplicates (docs/05-database.md §6.2, §4.1; SECURITY §3.3): a candidate is read only by someone
 // who sees both of its customers or both of its leads; a request inserts only a lead pair and only
 // with crm.lead.merge; merges are written by their definers alone, for people; the timeline stays
 // append-only outside a merge; the facts definer answers a person only about a customer they may

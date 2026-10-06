@@ -31,7 +31,7 @@ const money = (name: string) => numeric(name, { precision: 14, scale: 2 });
 const percent = (name: string) => numeric(name, { precision: 5, scale: 2 });
 
 /**
- * A quote of a lead (docs/design/phase1.md §7.3, docs/DATABASE.md §6.4), a child of
+ * A quote of a lead (docs/03-roadmap-appendix/phase1.md §7.3, docs/05-database.md §6.4), a child of
  * `opportunities`: read with the lead, made with `sales.quote.create` over the lead's owner and
  * team. Its lines, totals, tier, list and place of supply are frozen when it is made; afterwards
  * only its state (through the quote machine), the reason it was withdrawn and the PDF the render

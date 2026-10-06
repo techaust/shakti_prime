@@ -1,6 +1,6 @@
 # ADR 0009 — Chromium-rendered HTML for PDFs and print
 
-**Status:** Accepted (owner, 29-09-2026); proposed 27-09-2026; built in Phase 1 (P4, `docs/design/phase1.md` §6.4). The spike's outcome and the checks still open are in `docs/spikes/print.md` · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
+**Status:** Accepted (owner, 29-09-2026); proposed 27-09-2026; built in Phase 1 (P4, `docs/03-roadmap-appendix/phase1.md` §6.4). The spike's outcome and the checks still open are in `docs/04-architecture-appendix/print.md` · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `docs/08-design-system.md` §7, §11 · **ADR:** 0014
 
 ## Context
 The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp.
@@ -26,4 +26,4 @@ A separate PDF library (drawing primitives or a React PDF renderer) would mean a
 - A document once issued is immutable: a correction issues a new version and a new PDF, never an overwrite.
 
 ## Outcome
-Outcome: see [`docs/spikes/print.md`](../spikes/print.md) for the week 6 spike's measures, the hosting the owner chose on 29-09-2026 ([design §2](../design/phase1.md#2-decisions-taken-with-the-owner-on-29-09-2026)) and the checks still open.
+Outcome: see [`docs/04-architecture-appendix/print.md`](../04-architecture-appendix/print.md) for the week 6 spike's measures, the hosting the owner chose on 29-09-2026 ([design §2](../03-roadmap-appendix/phase1.md#2-decisions-taken-with-the-owner-on-29-09-2026)) and the checks still open.

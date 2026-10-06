@@ -1,7 +1,7 @@
 import type { BetterAuthOptions } from 'better-auth';
 import { getIP } from 'better-auth/api';
 
-/** Where the caller's address comes from: the first hop Vercel records (docs/SECURITY.md §2). */
+/** Where the caller's address comes from: the first hop Vercel records (docs/07-security.md §2). */
 export const ADDRESS_OPTIONS = {
   advanced: { ipAddress: { ipAddressHeaders: ['x-forwarded-for'], ipv6Subnet: 64 } },
 } satisfies Pick<BetterAuthOptions, 'advanced'>;

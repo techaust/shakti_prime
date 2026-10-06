@@ -27,7 +27,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /*
- * Uploads from the screens (docs/ARCHITECTURE.md §9): thin wrappers over the same flow as
+ * Uploads from the screens (docs/04-architecture.md §9): thin wrappers over the same flow as
  * `POST /api/v1/files/presign` and `/files/:id/complete`. The browser sends the bytes straight to
  * the signed address; these only record the file and check what landed.
  */

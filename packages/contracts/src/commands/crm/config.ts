@@ -12,7 +12,7 @@ import { SegmentSchema, StageExitFieldSchema, StageKindSchema } from '../../crm/
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * The CRM set-up an Executive changes without code (docs/design/phase1.md §6.6): pipelines and
+ * The CRM set-up an Executive changes without code (docs/03-roadmap-appendix/phase1.md §6.6): pipelines and
  * their stages, the call outcomes, the lead score rules, referral partners and their commission
  * rules. Every command here but `crm.lead.rescore` and `crm.referral_partner.set` needs
  * `crm.config.write:all`.

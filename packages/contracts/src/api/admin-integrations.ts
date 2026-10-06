@@ -6,8 +6,8 @@ import { TallyCompanySchema } from './connector';
 import { AgentNameSchema } from './worker-jobs';
 
 /**
- * The Integration Health page (docs/API.md §3.7; docs/BLUEPRINT.md §8.8, §10;
- * docs/design/backend-weeks-3-5.md §4.4, docs/design/phase1.md §5.2). Both routes need a session
+ * The Integration Health page (docs/06-api.md §3.7; docs/01-blueprint.md §8.8, §10;
+ * docs/03-roadmap-appendix/backend-weeks-3-5.md §4.4, docs/03-roadmap-appendix/phase1.md §5.2). Both routes need a session
  * holding `admin.integrations.write`. The page shows counts, times, ids and error codes; it never
  * shows a provider payload, a message body or an error that is not a code.
  */
@@ -15,7 +15,7 @@ import { AgentNameSchema } from './worker-jobs';
 const Count = z.number().int().min(0);
 const Instant = z.iso.datetime();
 
-/** Providers whose webhooks land in `webhook_inbox` (docs/API.md §3.4). */
+/** Providers whose webhooks land in `webhook_inbox` (docs/06-api.md §3.4). */
 export const WEBHOOK_PROVIDERS = [
   'meta_whatsapp',
   'meta_leadgen',

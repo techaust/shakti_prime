@@ -27,7 +27,7 @@ import {
   loadAccount360,
 } from '../../src/queries/crm/customers';
 
-// The customers list, Account 360, the timeline and the caller's tasks (docs/design/phase1.md
+// The customers list, Account 360, the timeline and the caller's tasks (docs/03-roadmap-appendix/phase1.md
 // §6.5), each read under the caller's own policies.
 
 afterAll(closeDb);
@@ -124,7 +124,7 @@ describe('listCustomers', () => {
     expect(mine.items.map((r) => r.accountId)).toEqual([k.accountId]);
     const seed = AGENT_PRINCIPAL_SEED.find((a) => a.roleKey === 'agent:triage');
     const triage = principalFor('agent:triage', [1], { id: seed?.id ?? '' });
-    // Agents work without customers' names or phones (docs/SECURITY.md §3.3).
+    // Agents work without customers' names or phones (docs/07-security.md §3.3).
     await expect(read(triage, listCustomers, { q: `${TAG} Through` })).rejects.toMatchObject({
       code: 'forbidden',
     });

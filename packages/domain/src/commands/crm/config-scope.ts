@@ -7,7 +7,7 @@ import type { CommandContext } from '../../command/context';
  * null: a shared pipeline, the group's call outcomes or score rules) shapes the work of every
  * company, so only a request acting for every active company may change it, the rule shared price
  * lists and tax rows follow (AUDIT H2, 0048); a company's own row needs that company in the
- * request. The database policies hold the same rule (docs/DATABASE.md §6.2).
+ * request. The database policies hold the same rule (docs/05-database.md §6.2).
  */
 export async function assertConfigScope(
   ctx: CommandContext,

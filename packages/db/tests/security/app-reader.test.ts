@@ -58,7 +58,7 @@ async function counts(principal: Principal, reader: boolean): Promise<Record<str
   );
 }
 
-describe('app_reader, the queries’ own pool (docs/DATABASE.md §3)', () => {
+describe('app_reader, the queries’ own pool (docs/05-database.md §3)', () => {
   it('is configured for the suite, as CI sets it', () => {
     expect(readerConfigured()).toBe(true);
   });

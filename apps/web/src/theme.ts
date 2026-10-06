@@ -1,6 +1,6 @@
 import type { Theme } from '@shakti/contracts';
 
-/** Mirror of the profile's theme for server rendering (DESIGN.md §7). */
+/** Mirror of the profile's theme for server rendering (docs/08-design-system.md §7). */
 export const THEME_COOKIE = 'theme';
 
 /** next-themes keeps the active choice in localStorage under this key. */
@@ -9,7 +9,7 @@ export const THEME_STORAGE_KEY = 'theme';
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 
 /**
- * Mirror of the profile's higher-contrast choice (DESIGN.md §2.1, the variant for field phones in
+ * Mirror of the profile's higher-contrast choice (docs/08-design-system.md §2.1, the variant for field phones in
  * daylight) for server rendering, as `THEME_COOKIE` mirrors the theme: a cookie, not browser
  * storage, so the server draws the first paint in it. The profile (`users.contrast`) is the record.
  */

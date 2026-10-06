@@ -1,7 +1,7 @@
 // Prints a new ES256 signing key for BOS tokens (ADR 0003) as one line of JWK JSON on stdout, the
 // value of BOS_JWT_CURRENT_KEY or BOS_JWT_NEXT_KEY. Nothing is written to disk: pipe it straight
 // into the hosting provider's secret store and never commit it. The rotation steps are in
-// docs/runbooks/DEPLOY.md and docs/spikes/realtime.md.
+// docs/runbooks/DEPLOY.md and docs/04-architecture-appendix/realtime.md.
 // Usage: pnpm --silent --filter web realtime-keys
 import { calculateJwkThumbprint, exportJWK, generateKeyPair } from 'jose';
 

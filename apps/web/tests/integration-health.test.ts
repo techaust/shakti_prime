@@ -74,7 +74,7 @@ function route(principal: Principal | undefined) {
   return { principal: () => Promise.resolve(principal), keyValue: memoryKeyValue() };
 }
 
-describe('GET /api/v1/admin/integrations (docs/API.md §3.7)', () => {
+describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
   it('answers the contract for an Executive, with the dead letters by code and never a payload', async () => {
     const id = await deadLetter();
     const response = await getIntegrationHealth(
@@ -136,7 +136,7 @@ describe('GET /api/v1/admin/integrations (docs/API.md §3.7)', () => {
   });
 });
 
-describe('POST /api/v1/admin/integrations/replay (docs/API.md §3.7)', () => {
+describe('POST /api/v1/admin/integrations/replay (docs/06-api.md §3.7)', () => {
   function replay(principal: Principal | undefined, body: string, type = 'application/json') {
     return postIntegrationReplay(
       new Request('http://localhost:3000/api/v1/admin/integrations/replay', {

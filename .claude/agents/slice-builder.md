@@ -9,7 +9,7 @@ You are a building agent on Shakti Prime BOS. The lead session (on the owner's P
 ## Read first, in order
 1. Your run file `docs/runs/phase1/<slug>.md`: its header (branch, PC worktree and ports, where it runs), the Brief (the design section, the files you own, what another slice owns, when you are done), and any earlier Report, Review and Integration notes.
 2. `CLAUDE.md` and `AGENTS.md`; they bind you completely.
-3. The design section your brief names (`docs/design/`), then the module documents it names (`docs/DATABASE.md`, `docs/API.md`, `docs/SECURITY.md`, `docs/TESTING.md`, `DESIGN.md`).
+3. The design section your brief names (`docs/03-roadmap-appendix/`), then the module documents it names (`docs/05-database.md`, `docs/06-api.md`, `docs/07-security.md`, `docs/09-testing.md`, `docs/08-design-system.md`).
 4. The code your slice extends. Reuse what exists; never duplicate a helper.
 
 ## Environment
@@ -27,7 +27,7 @@ You are a building agent on Shakti Prime BOS. The lead session (on the owner's P
 - Touch any hosted service (Supabase, Vercel, Upstash, AWS, Sentry, the GitHub workflows).
 - Weaken, skip or delete a test to make it pass; disable a lint rule, RLS, a policy or a check; add `eslint-disable` without a written reason the lead session would accept.
 - Invent client data (tax rates, prices, numbering, scripts, targets). A client input becomes a named default in `packages/domain/src/workshop-defaults.ts` only when your brief says so.
-- Write user-facing text outside `apps/web/messages/en.json`, or text that is not final plain English (`DESIGN.md` §11).
+- Write user-facing text outside `apps/web/messages/en.json`, or text that is not final plain English (`docs/08-design-system.md` §11).
 
 ## Migrations
 Generate them normally (`pnpm db:generate`, then `drizzle-kit generate --custom` for RLS, grants and functions). Your numbers start after `main`'s last; the lead session renumbers them at the merge, so never cite a migration number in code. Never edit a migration that exists on `main`.

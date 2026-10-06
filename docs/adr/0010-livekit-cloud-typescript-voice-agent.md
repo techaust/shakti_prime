@@ -1,6 +1,6 @@
 # ADR 0010 — LiveKit Cloud with a TypeScript agent worker for live voice
 
-**Status:** Proposed (27-09-2026); the LiveKit and speech-vendor spike (`docs/spikes/voice.md`) confirms it once the vendor sandboxes and 20–30 voice samples exist · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §5, §9.2, §12, §13, §16, §17, §18 (risk 4) · **Architecture:** §2, §7 · **API:** §2, §3.1 (`/voice/session`) · **Security:** LiveKit tokens · **ADR:** 0003, 0011, 0014
+**Status:** Proposed (27-09-2026); the LiveKit and speech-vendor spike (`docs/04-architecture-appendix/voice.md`) confirms it once the vendor sandboxes and 20–30 voice samples exist · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §5, §9.2, §12, §13, §16, §17, §18 (risk 4) · **Architecture:** §2, §7 · **API:** §2, §3.1 (`/voice/session`) · **Security:** LiveKit tokens · **ADR:** 0003, 0011, 0014
 
 ## Context
 "Talk to Shakti" lets Executives and GMs teach the Business Playbook, ask business questions and give commands by voice (blueprint §9.2). It needs WebRTC transport that works on Indian mobile networks, streaming speech-to-text for Hindi, Hinglish and Rajasthani-accented speech, Claude Sonnet 5 with tools, and streaming speech that pronounces Roman-script Hinglish naturally (ADR 0014), with barge-in and a median response under 1.5 s. The BOS runs on Vercel functions, which cannot hold a long-lived media session. The group has one developer and a TypeScript codebase.

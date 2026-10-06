@@ -30,7 +30,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Duplicates (CRM-03, docs/design/phase1.md §7.4): thin wrappers (docs/API.md §4). Each read and
+ * Duplicates (CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): thin wrappers (docs/06-api.md §4). Each read and
  * command runs with every company the caller works for, and names the card's company in its
  * input (`entityId`): a customer is shared between the companies (ADR 0008), and a merge, its undo
  * and a dismissal must see each relationship of both customers, which a request narrowed to one

@@ -4,7 +4,7 @@ import { DateOnlySchema, SemverSchema } from './common';
 import { EntityCodeSchema } from './ingest';
 
 /**
- * The Tally connector (docs/API.md §2, §3.5; docs/BLUEPRINT.md §8.8; ADR 0013). A Windows service
+ * The Tally connector (docs/06-api.md §2, §3.5; docs/01-blueprint.md §8.8; ADR 0013). A Windows service
  * beside Tally reads vouchers and ledgers by AlterID and pushes them to the BOS; the BOS never
  * writes to Tally. Every call is signed; every batch carries an `Idempotency-Key`.
  */

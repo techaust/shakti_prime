@@ -3,7 +3,7 @@ import { PERMISSION_KEYS, STAFF_ROLE_KEYS, type Scope, type StaffRoleKey } from 
 import { describe, expect, it } from 'vitest';
 import { STAFF_MATRIX } from '../seeds/role-permissions';
 
-// The approved permission table in docs/SECURITY.md §3.2 is where grants are decided. The seed
+// The approved permission table in docs/07-security.md §3.2 is where grants are decided. The seed
 // transcribes it into STAFF_MATRIX, which the security suite then uses as its oracle, so a wrong
 // cell would pass every test unless the transcription itself is checked against the document
 // (AUDIT M42).
@@ -89,7 +89,7 @@ function parseMatrix(markdown: string): Map<string, Partial<Record<StaffRoleKey,
 const document = readFileSync(new URL('../../../docs/SECURITY.md', import.meta.url), 'utf8');
 const fromDocument = parseMatrix(document);
 
-describe('the seeded permission matrix equals docs/SECURITY.md §3.2', () => {
+describe('the seeded permission matrix equals docs/07-security.md §3.2', () => {
   it('names exactly the permission keys of the catalogue', () => {
     expect([...fromDocument.keys()].sort()).toEqual([...PERMISSION_KEYS].sort());
   });

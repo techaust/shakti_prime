@@ -1,4 +1,4 @@
-// The Exotel spike (ROADMAP §2 week 6, docs/spikes/exotel.md): one click-to-dial call from the
+// The Exotel spike (ROADMAP §2 week 6, docs/04-architecture-appendix/exotel.md): one click-to-dial call from the
 // entity's DLT number between two phones the user holds, through the same wrapper and calling
 // rules the dial command will use, then the call's final state read back from Exotel.
 // It rings real phones and costs call minutes, so it runs only when every variable is set, and
@@ -32,7 +32,7 @@ if (process.env.CI !== undefined && process.env.CI !== '') {
 const missing = REQUIRED.filter((name) => (process.env[name] ?? '') === '');
 const config = exotelConfig();
 if (missing.length > 0 || config === undefined) {
-  console.error(`set ${missing.join(', ')} first (docs/spikes/exotel.md)`);
+  console.error(`set ${missing.join(', ')} first (docs/04-architecture-appendix/exotel.md)`);
   process.exit(1);
 }
 

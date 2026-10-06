@@ -7,7 +7,7 @@ import { assertEntityInScope } from '../imports/shared';
 import { toFileDto } from './shared';
 
 /**
- * `files.document.record` (ADR 0009, docs/design/phase1.md §6.4): the render worker records a PDF
+ * `files.document.record` (ADR 0009, docs/03-roadmap-appendix/phase1.md §6.4): the render worker records a PDF
  * it rendered and stored, as `ready`, with the key its purpose and id name
  * (`<company>/<purpose>/<file id>.pdf`). It is not an upload: the worker made it from the BOS's own
  * template, so it skips the upload machine and its checks, as an import file stored by the import

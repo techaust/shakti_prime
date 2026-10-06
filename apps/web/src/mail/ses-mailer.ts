@@ -10,7 +10,7 @@ export interface SesMailerConfig {
 }
 
 /**
- * Mail through Amazon SES in Mumbai (ADR 0003, docs/ARCHITECTURE.md §7): plain-text messages from
+ * Mail through Amazon SES in Mumbai (ADR 0003, docs/04-architecture.md §7): plain-text messages from
  * the one verified sender. The wording comes from the message catalogue; nothing here adds to it.
  */
 export function sesMailer(config: SesMailerConfig): Mailer {

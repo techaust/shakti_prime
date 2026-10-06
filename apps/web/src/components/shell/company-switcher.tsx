@@ -19,7 +19,7 @@ import { CompanyTriggerButton, Dot, focusFirstMenuItem, type CompanyOption } fro
 const ALL = 'all';
 
 /**
- * The company switcher in the top bar (DESIGN.md §5): All companies or one company the person
+ * The company switcher in the top bar (docs/08-design-system.md §5): All companies or one company the person
  * holds a role in. The choice is a cookie set by `switchEntity`, which brings the person back to
  * the screen they were on, now narrowed to that company.
  */

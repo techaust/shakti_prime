@@ -1,6 +1,6 @@
 'use server';
 
-// The Agent Inbox and Admin › Agents (docs/design/phase1.md §7.1).
+// The Agent Inbox and Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1).
 
 import {
   EditInboxItemInput,
