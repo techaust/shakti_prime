@@ -1,4 +1,4 @@
-Account 360 spike (docs/spikes/account360.md): a timeline page for the team lead, the quiet run (its date is not recorded).
+Account 360 spike (docs/04-architecture-appendix/account360.md): a timeline page for the team lead, the quiet run (its date is not recorded).
 EXPLAIN (ANALYZE) excerpt; the full plans of the run of 04-10-2026 are in account360.json (timelinePlan).
 
 Limit (actual time=0.091..0.181 rows=26 loops=1)
