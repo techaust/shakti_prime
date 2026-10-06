@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Branch | `feat/p2b-imports`, made from `main` when the slice starts |
+| Branch | `feat/p2b-imports` on GitHub |
 | PC worktree | `p2b-imports`, slot 11: Postgres 54341, app 3041 (`bash tools/integration/setup-worktree.sh p2b-imports feat/p2b-imports 54341 3041`) |
-| Runs on | PC for now ([DECISIONS](../../11-decisions.md) 04-10-2026): worktree slot 11 (Postgres 54341, app 3041); build and review move to the cloud once the environment exists |
-| State | integrated; pull request open |
-| Next step | the merge, then dev and staging migrated, the `files-sweep` schedule, and the import measured on dev |
+| Runs on | PC (built, reviewed, integrated and merged there) |
+| State | merged (#105) |
+| Next step | none: dev and staging migrated through 0106 on the day it merged |
 
 ## Brief
 Read first:

@@ -1,4 +1,4 @@
-# docs/08-design-system.md — Shakti Prime design system
+# Design system — Shakti Prime BOS
 
 Blueprint reference: §11. Foundation: Linear's default app design (precision, density, restraint, one indigo accent), with light and dark themes generated the way Linear generates its own, for a business system used on desktops, phones and in the field.
 
@@ -108,7 +108,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 - **Focus:** always visible: 2 px `--focus` ring with 2 px offset.
 
 ## 5. Layout
-- **App shell:** 240 px sidebar (collapsible to 56 px icons), 48 px top bar with entity switcher, ⌘K search, notifications, Agent Inbox, Talk to Shakti mic, profile. The top-bar notifications arrive in Phase 1 with the notification centre, the Agent Inbox in Phase 1 with the Triage agent, and the Talk to Shakti mic in Phase 2 with live voice.
+- **App shell:** 240 px sidebar (collapsible to 56 px icons), 48 px top bar with entity switcher, ⌘K search, notifications, Agent Inbox, Talk to Shakti mic, profile. The Agent Inbox is in the top bar (built with the agent runtime, slice AI0); the notifications arrive in Phase 1 with the notification centre (slice N1) and the Talk to Shakti mic in Phase 2 with live voice.
 - **Content widths:** forms max 720 px; detail pages max 1200 px; grids and boards full width.
 - **Breakpoints:** `sm` 640, `md` 768, `lg` 1024, `xl` 1280. Below `md` the sidebar becomes a sheet and tables become card lists.
 - **Density modes:** `comfortable` (default) and `compact` (queues, grids). Row heights 40 / 32 px.
@@ -120,10 +120,10 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Button | Five variants: primary (accent fill), secondary (surface + border), ghost, danger, link (text style). Sizes default, sm and icon. Height 36 px desktop, 44 px phone. Icon buttons are square. Loading state keeps width. |
 | Input / select / date | 36 px, `--border-strong`, label above, helper or error below. Errors in `--danger` with icon. DD-MM-YYYY date picker. |
 | Data grid | Sticky header, tabular numerals, right-aligned amounts, keyset "Load more", column chooser, row selection, saved views. Sortable columns show a single chevron. |
-| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. The kW or HP arrives with the product lines of quotes (Phase 1). |
+| Kanban board | Columns per stage using stage tokens on a 3 px top bar; cards show name, village, kW or HP, age, owner avatar, SLA dot. Each stage shows its newest 100 cards with the stage's total, and "Load more" at the foot of a column adds the next 100. |
 | Status badge | Soft tint background + base status text, 12 px, radius-sm. |
-| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Document numbers join the search with quotes and orders (Phase 1), serials with inventory (Phase 3). |
-| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it; for a dialog opened from a menu item, that is the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. A place that is hidden, disabled, inside an `inert` part of the page or not focusable is passed over (an `aria-disabled` control still counts); when no place takes focus, Radix returns it as it would anyway. |
+| Command palette (⌘K) | Groups: Go to, Search, Actions. Searches phone, name, village, document numbers, serials; tolerant of spelling variants of Indian names. Quote numbers are searched (Phase 1, built); order numbers join with sales orders (slice S2) and serials with inventory (Phase 3). |
+| Dialog / sheet | Dialogs for confirmations and short forms; side sheets for records opened from grids. On closing, focus returns to what opened it ([returning focus](#returning-focus-from-a-dialog)). |
 | Uploader | `Uploader` in `packages/ui/src/uploader.tsx`, one file at a time: a labelled "Choose a file" button (the hidden file input is not in the tab order) inside a dashed drop area that takes the accent tint while a file is dragged over it, the purpose's limits as a hint under it, and a progress bar while the bytes go. A file of the wrong type, empty or too large is refused before any byte is sent. The outcome is said in words in a polite live region: started, halfway, waiting for its checks, done (`--success`), refused or failed (`--danger`); Cancel while sending, Retry after a failure the caller marks retryable. Every word comes from the caller's catalogue. |
 | Avatar | `Avatar` in `packages/ui/src/avatar.tsx`: a 24 px circle in `--accent-soft` with `--accent-text` initials (the first letters of the first and last words; "R. K. Sharma" is RS), whose accessible name and tooltip are the full name; nothing is drawn for a name with no letters. Used for the owner on board cards. |
 | Account 360 timeline | The customer's history in one company, newest first, as a list with a left rule: each row says what happened, a detail when it has one (a note's text, a tag's name, a task's kind), and who and when in muted text. 25 rows a page with "Load more"; "Add note" in the section's header for people who work the customer's leads. |
@@ -131,10 +131,13 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 | Toast | Bottom-right desktop, top on phone; 4 s; actions allowed ("Undo", "Open"). |
 | Empty state | One sentence, one primary action. |
 | Skeletons | On every list and detail while loading; never spinners for content. |
-| Caller workspace | Keyboard-first: number keys for dispositions, `N` next lead, `D` dial, `/` search. Built in Phase 1. |
-| Scheduling board | Day/week columns per engineer; conflicts outlined in `--danger`; unassigned queue on the right; map toggle. Built in Phase 4. |
+| Caller workspace | Keyboard-first: number keys for dispositions, `N` next lead, `D` dial, `/` search. Phase 1 (built). |
+| Scheduling board | Day/week columns per engineer; conflicts outlined in `--danger`; unassigned queue on the right; map toggle. Phase 4 (planned). |
 | Print templates | Light theme only, entity letterhead, A4 with 15 mm margins, Inter embedded, QR block bottom-right. |
 | Public landing page | The root of the domain: product name, one line on what it does, and a "Staff sign in" button to `/sign-in`, which forwards a signed-in user to `/home`. The page reads no session and follows the visitor's system theme. |
+
+### Returning focus from a dialog
+For a dialog opened from a menu item, focus returns to the menu's button (a card's or a row's Actions button). Such a dialog names its places through `returnFocusTo` on `DialogContent` or `SheetContent` with `useFocusTargets` (`packages/ui/src/return-focus.ts`), with a fallback such as the column heading when the button has moved out of sight, so focus never falls to the page. A place that is hidden, disabled, inside an `inert` part of the page or not focusable is passed over (an `aria-disabled` control still counts); when no place takes focus, Radix returns it as it would anyway.
 
 ## 7. Theme behaviour
 - Default **System**; override **Light / Dark** from the profile menu, stored on the user profile and mirrored in a cookie for server rendering.
@@ -180,7 +183,7 @@ Charts use `--chart-1` … `--chart-6`, ordered for distinguishability in both t
 
 ## 10. Quality checks
 - Contrast check over both themes in CI.
-- Playwright journeys for every screen (`apps/web/e2e`) with axe over WCAG 2.1 A and AA and screenshots in desktop light, desktop dark and a 400 px phone, made and compared only in the Linux Playwright image (`pnpm --filter web e2e:snap`, and CI), with only times, the bot-check widget and generated codes masked (the lists are shown for a snapshot company only the seed writes, so their rows are real and the same every run); the caller workspace, quote builder, scheduling board and print templates join as they are built.
+- Playwright journeys for every screen (`apps/web/e2e`) with axe over WCAG 2.1 A and AA and screenshots in desktop light, desktop dark and a 400 px phone, made and compared only in the Linux Playwright image (`pnpm --filter web e2e:snap`, and CI), with only times, the bot-check widget and generated codes masked (the lists are shown for a snapshot company only the seed writes, so their rows are real and the same every run); the caller workspace, quote builder and print templates have theirs (`calling.spec.ts`, `quotes.spec.ts`, `print.spec.ts`), and the scheduling board's joins when it is built.
 - A preview page at `/design` in the BOS renders every token, type size and component in light and dark side by side, with the contrast ratio of each generated colour.
 - Source-rule tests over `apps/web/src` (`style-rules.test.ts`) and `packages/ui/src` (`source-rules.test.ts`) fail on a class that steps around the tokens (a bracketed colour, type size, weight, line height, radius, blur or space, or a weight outside the three of §3); each file keeps a short list of exceptions, each with its reason.
 - A BOS screen that fails shows the error screen inside the app shell (`app/(bos)/error.tsx`), so the menu, company switcher and search stay.
@@ -202,7 +205,7 @@ The people who use Shakti Prime are tele-callers, store staff, engineers in the 
 7. **One language per surface.** Everything shown on a screen, sent as a message or email, or printed is English. Hinglish appears only in the spoken channels of §11.5. A catalogue, template or print file containing a Devanagari character fails the build.
 
 ### 11.2 Banned words on screen
-`error code`, `exception`, `stack trace`, `null`, `undefined`, `NaN`, `payload`, `request`, `response`, `API`, `webhook`, `token`, `session expired` (say "Please sign in again"), `sync failed` (say "Some changes haven't reached the office yet"), `cache`, `timeout`, `server`, `database`, `RLS`, `entity_id`, `DTO`, `JSON`, `UUID`, `invalid`, `unauthorized`, `forbidden`, `403`, `404`, `500`, `Supabase`, `Vercel`, `Meta`, `Exotel`, `LiveKit`, `Claude`, `Lorem ipsum`, `TODO`, `TBD`, `placeholder`, `sample`, `dummy`, `foo`, `bar`, `test`, `coming soon`.
+`error code`, `exception`, `stack trace`, `null`, `undefined`, `NaN`, `payload`, `request`, `response`, `API`, `webhook`, `token`, `session expired` (say "Please sign in again"), `sync failed` (say "Some changes haven't reached the office yet"), `cache`, `timeout`, `server`, `database`, `RLS`, `entity_id`, `DTO`, `JSON`, `UUID`, `invalid`, `unauthorized`, `forbidden`, `403`, `404`, `500`, `Supabase`, `Vercel`, `Meta`, `Exotel`, `LiveKit`, `Claude`, `Lorem ipsum`, `TODO`, `TBD`, `placeholder`, `sample`, `dummy`, `foo`, `bar`, `test`, `coming soon`, `example`, `insert text here`.
 
 ### 11.3 Examples
 | Situation | Copy |

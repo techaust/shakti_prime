@@ -2,7 +2,7 @@
 
 How the BOS reaches dev, staging and production: the outside services, the database and its secrets, every deploy, the first sign-in and secret rotation. Each step names who does it.
 - Which environments exist and their addresses: [STATUS](../10-status.md#hosted-environments). Plans, regions and bills of every service: [accounts](accounts.md).
-- What to do when something breaks: [INCIDENTS](INCIDENTS.md). File storage and mail on AWS: [files-setup](files-setup.md).
+- What to do when something breaks: [INCIDENTS](incidents.md). File storage and mail on AWS: [files-setup](files-setup.md).
 - Production waits for the items in the *Before production* column of [accounts](accounts.md#in-use), among them a GitHub plan with environments; no workflow migrates it until then.
 
 ## Contents
@@ -57,23 +57,29 @@ The owner does these steps, once for `dev`, once for `staging`, and once for `pr
 This is the one procedure for bringing a hosted database and site up to `main`; the `migrate-hosted` skill and [slice-integration](slice-integration.md) follow it. The lead session runs it from the owner's PC under the owner's standing go-ahead for dev and staging ([DECISIONS](../11-decisions.md)), or the owner runs it. Always dev first, then staging.
 
 1. **Merge.** A pull request reaches `main` only through the merge-on-green workflow (`.github/workflows/automerge.yml`), after CI passes on its latest commit; CI runs again on `main`. Vercel deploys the merge commit to every project within minutes, so run the migration straight after: until it has run, a screen that needs a table the merge adds fails.
-2. **Migrate dev.** GitHub › **Actions** › *Migrate a hosted database* › **Run workflow**: branch `main`, environment `dev`, *Seed the reference data* ticked, *Set the login roles' passwords again* unticked. From a terminal signed in to `gh`, the same run and its watch:
+2. **Migrate dev.** GitHub › **Actions** › *Migrate a hosted database* › **Run workflow**: branch `main`, environment `dev`, *Seed the reference data* ticked, *Set the login roles' passwords again* unticked. From a terminal signed in to `gh`, the same run and its watch, one command at a time:
 
    ```
    gh workflow run migrate.yml --ref main -f environment=dev -f seed=true
+   ```
+
+   ```
    gh run list --workflow=migrate.yml --limit 1 --json databaseId -q '.[0].databaseId'
+   ```
+
+   ```
    gh run watch <run id> --exit-status
    ```
 
    - The run checks the secrets, applies the migrations under an advisory lock, then runs `pnpm db:verify`, which fails when a migration on disk is not applied exactly as written, then `pnpm db:seed`.
    - Seeding is safe on every run and keeps every Admin edit (DATABASE §9); it is needed on a project's first migration and whenever the permission catalogue, roles, pipelines, tiers or lead sources change. Untick it only for a run that changes nothing in them.
-   - A red run: [INCIDENTS §3](INCIDENTS.md#3-a-migration-failed). Never go on to staging after a red dev run.
-3. **Check dev.** In the Vercel project, the deployment of the merge commit is **Ready** and serves the production address. Open `<site>/api/v1/health` and `<site>/api/v1/health/ready`: both answer 200 with `status: ok`. On a 503, the `health.not_ready` log line with the same request id names the check that is down ([INCIDENTS §1](INCIDENTS.md#1-the-site-is-down)).
+   - A red run: [INCIDENTS §3](incidents.md#3-a-migration-failed). Never go on to staging after a red dev run.
+3. **Check dev.** In the Vercel project, the deployment of the merge commit is **Ready** and serves the production address. Open `<site>/api/v1/health` and `<site>/api/v1/health/ready`: both answer 200 with `status: ok`. On a 503, the `health.not_ready` log line with the same request id names the check that is down ([INCIDENTS §1](incidents.md#1-the-site-is-down)).
 4. **Migrate and check staging:** steps 2 and 3 with `staging`.
 5. **Scheduled jobs** (after a project's first migration, and after any migration that changes a job): `select jobname from cron.job` in the project's SQL editor lists the five jobs `audit-logs-partitions`, `audit-logs-detach`, `activities-partitions`, `idempotency-keys-purge` and `outbox-events-purge` (DATABASE §7). After the next run of `outbox-events-purge` (02:45 UTC), its latest row in `cron.job_run_details` has `status = 'succeeded'` for the command `call app.purge_outbox_events()`, and the latest `retention_runs` row has a `finished_at` and no `error`.
-6. **Outbox schedule** (first deploy of an environment, whenever `BETTER_AUTH_URL` changes, and when a slice adds a schedule): with the environment's `QSTASH_TOKEN`, signing keys, `QSTASH_URL` when set, `BOS_ENVIRONMENT` and `BETTER_AUTH_URL` exported, run `pnpm --filter web qstash-schedule`; it refuses to run without `BOS_ENVIRONMENT`. It creates or updates, each named for the environment, the schedule `outbox-publish-<environment>`, which calls `<BETTER_AUTH_URL>/api/v1/workers/outbox/publish` every minute, `files-sweep-<environment>`, which calls `<BETTER_AUTH_URL>/api/v1/workers/files/sweep` at 17 minutes past every hour to clear uploads that never finished, `lead-rescore-<environment>`, which calls `<BETTER_AUTH_URL>/api/v1/workers/crm/rescore` at 21:30 UTC (03:00 IST) each night, `duplicate-scan-<environment>`, which calls `<BETTER_AUTH_URL>/api/v1/workers/crm/duplicates` at 22:00 UTC (03:30 IST) each night, and `quote-expire-<environment>`, which calls `<BETTER_AUTH_URL>/api/v1/workers/quotes/expire` at 18:35 UTC (00:05 IST) each day.
+6. **Outbox schedule** (first deploy of an environment, whenever `BETTER_AUTH_URL` changes, and when a slice adds a schedule): the owner creates each schedule in the Upstash console (Upstash console › QStash › Schedules › Create), with the schedule id, destination URL and cron that the lead session gives from `apps/web/scripts/qstash-schedule.ts`, because the lead's Upstash connection is read-only ([DECISIONS](../11-decisions.md), 05-10-2026). The developer's alternative: with the environment's `QSTASH_TOKEN`, signing keys, `QSTASH_URL` when set, `BOS_ENVIRONMENT` and `BETTER_AUTH_URL` exported, run `pnpm --filter web qstash-schedule`; it refuses to run without `BOS_ENVIRONMENT`. The script creates or updates one schedule for each worker route that runs on a timer, each named `<id>-<environment>`: the outbox publisher every minute, and the file sweep, lead rescoring, duplicate scan and quote expiry on their own times. The ids, routes and times are in `apps/web/scripts/qstash-schedule.ts`; the schedules each environment has are listed in [STATUS](../10-status.md#hosted-environments).
    - A schedule calling that address under any other id (one made by hand in the Upstash console › QStash › Schedules) is deleted there first, or two schedules call the publisher each minute.
-   - One QStash account serves dev and staging, so every schedule id carries its environment (`<id>-${BOS_ENVIRONMENT}`) and one environment's run never overwrites the other's. The schedules made by hand in the console before the script named its ids (`outbox-publish-dev`, `lead-rescore-dev`, `lead-rescore-staging`) already carry these ids, so the script updates them in place; a schedule still named without its environment (`outbox-publish`, `files-sweep`, `lead-rescore`) is deleted in the console after the run, or it keeps calling its worker beside the new one.
+   - One QStash account serves dev and staging, so every schedule id carries its environment (`<id>-${BOS_ENVIRONMENT}`) and one environment's run never overwrites the other's. A schedule made by hand with exactly such an id is updated in place; one named without its environment (for example `outbox-publish`) is deleted in the console after the run, or it keeps calling its worker beside the new one.
 7. **Event workers:** nothing to do by hand.
    - The app makes each subscribed type's QStash URL group itself: before the first event of a type a process publishes, it adds the endpoint `<BETTER_AUTH_URL>/api/v1/workers/outbox/<type>` to the group `evt-<type>` (creating the group, or leaving it as it is), once per process. A failed attempt is logged as `outbox.url_group_failed` and tried again on the next run, while the events wait under the usual backoff. So `BETTER_AUTH_URL` must be the environment's public address before the first event goes out.
    - Every event is published with the failure callback `<BETTER_AUTH_URL>/api/v1/workers/outbox/failed`, which needs no setting in the console either: an event its worker refuses for good, or that still fails after QStash's retries, comes back there and is held back with `worker_refused` or `worker_failed`.
@@ -84,25 +90,43 @@ This is the one procedure for bringing a hosted database and site up to `main`; 
 `create index concurrently` cannot run inside the migrator's transaction. Write the migration with a plain `create index if not exists`, and before running the workflow, build the same index by hand on the hosted database with `create index concurrently if not exists …` under the same name. The migration then finds it and does nothing, without locking the table.
 
 ## 4. The first Executive
-Once per environment, after its first migration, from the owner's PC in Git Bash at the repository root. The script writes with the migrator connection, so it runs only on a machine the owner controls, never in CI or a cloud session.
+Who: the lead session runs these commands; the owner types any secret value into a hidden prompt, and the lead never sees it. Once per environment, after its first migration, from the owner's PC in Git Bash at the repository root. The script writes with the migrator connection, so it runs only on a machine the owner controls, never in CI or a cloud session.
 
 1. Gather the five values; none can be read back from GitHub, so they come from the services:
    - `DATABASE_URL_MIGRATOR`: Supabase dashboard › **Connect** › Session pooler, with the database password of §1 step 1;
    - `DATABASE_URL_AUTH`: the same page's Transaction pooler address with the user `auth_service.<project ref>` and its password, the value of Vercel's `DATABASE_URL_AUTH`;
    - `BETTER_AUTH_URL` and `BETTER_AUTH_SECRET`: the environment's values in Vercel (a value marked Sensitive cannot be shown again, so take it from where the owner stored it);
    - `DATABASE_CA_CERT`: the certificate file downloaded in §1 step 3.
-2. Export them in the same terminal. Single quotes keep a `$` or `!` in a password as it is, and `$(cat …)` keeps the certificate's line breaks:
+2. Export them in the same terminal, one command at a time. Single quotes keep a `$` or `!` in a password as it is, and `$(cat …)` keeps the certificate's line breaks:
 
    ```
    export DATABASE_URL_MIGRATOR='<session pooler address>'
+   ```
+
+   ```
    export DATABASE_URL_AUTH='<transaction pooler address for auth_service>'
+   ```
+
+   ```
    export BETTER_AUTH_URL='https://shakti-prime-<env>.vercel.app'
+   ```
+
+   ```
    export BETTER_AUTH_SECRET='<the environment's secret>'
+   ```
+
+   ```
    export DATABASE_CA_CERT="$(cat ~/Downloads/<certificate file>)"
    ```
 
    An exported value wins over the same name in the local `.env`, which the scripts also load (`packages/db/src/env.ts`; dotenv never replaces a variable already set).
-3. Run `pnpm --filter web invite-executive -- --email <address> --name "<name>"`. It refuses when an Executive exists already (`--force` adds another, with access to every company). It prints the set-password link to this terminal; the link lasts 24 hours.
+3. Run this command:
+
+   ```
+   pnpm --filter web invite-executive -- --email <address> --name "<name>"
+   ```
+
+   It refuses when an Executive exists already (`--force` adds another, with access to every company). It prints the set-password link to this terminal; the link lasts 24 hours.
 4. Close the terminal, so the values leave the machine's memory. The Executive opens the link, sets a password, then enrols an authenticator app at first sign-in.
 
 ## 5. Rotating a secret

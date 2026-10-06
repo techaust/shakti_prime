@@ -22,7 +22,7 @@ import { bosIssuer, openIdConfiguration, signRealtimeGrant } from './token';
 
 /**
  * How long a relying party may keep the key list. A rotation waits longer than this between
- * publishing the next key and signing with it (docs/runbooks/DEPLOY.md).
+ * publishing the next key and signing with it (docs/runbooks/deploy.md).
  */
 export const JWKS_MAX_AGE_SECONDS = 300;
 const DISCOVERY_MAX_AGE_SECONDS = 3600;

@@ -26,7 +26,7 @@ Blueprint reference: §3–§6, §9.3, §10, §12. This document describes how t
 | Latency | p95 interaction < 300 ms; ingestion → assignment < 10 s | Vercel `bom1` + Supabase Mumbai, keyset pagination, materialised dashboards |
 | Availability | 99.5% in business hours; RPO ≤ 5 min; RTO ≤ 4 h | Managed services, PITR, nightly dumps, runbooks |
 | Operability for one developer | Minimal vendor set, one language | TypeScript monorepo, managed services, strong CI |
-| AI safety | No unsafe customer message; no cost leak to agents | Narrow tools, output filters, autonomy levels, agent principals |
+| AI safety | No unsafe customer message; no cost leak to agents | Narrow tools, autonomy levels, agent principals; output filters on outbound messages (planned, A1 / Phase 2) |
 
 ## 2. System landscape
 ```mermaid
@@ -46,7 +46,7 @@ flowchart LR
   Q[Upstash QStash]
   K[(Upstash Redis)]
   S[("S3 ap-south-1, SSE-KMS")]
-  X[SES; later Claude, Voyage, speech vendor, Meta, Exotel]
+  X[SES, Claude, Voyage; later speech vendor, Meta, Exotel]
   B --> P & A
   F -.->|"HTTPS, offline sync (Phase 4)"| R
   T -.->|"signed, outbound only (Phase 5)"| R
@@ -72,7 +72,7 @@ Dotted edges are planned. The domain defines the `KeyValue` port (`packages/doma
 | apps/voice-agent (planned, Phase 2) | LiveKit Agents worker (Node) | LiveKit Cloud Agents hosting, India region |
 | apps/tally-connector (planned, Phase 5) | Node Windows service | Client PC beside Tally |
 | Database | Postgres 17 with RLS, pg_trgm, pg_cron, partitions (pgvector with the Knowledge Vault) | Supabase (ADR 0002) |
-| Queue | QStash (a workflow engine is a later choice, [DECISIONS](11-decisions.md) 29-09-2026) | Upstash |
+| Queue | QStash; Upstash Workflow joins when a flow needs it ([ADR 0005](adr/0005-transactional-outbox-qstash-workflow.md)) | Upstash |
 | Cache, locks, counters | Redis | Upstash |
 | Object storage | S3 with KMS, lifecycle rules, backup bucket | AWS (ADR 0019) |
 
@@ -149,12 +149,13 @@ sequenceDiagram
   - `peopleOnly` makes the guard refuse an agent principal whatever it holds (SECURITY §3.3).
   - `auditInput` names what the audit row records of an input too large to record whole (an import file's rows); `auditFields` lists the keys the command's audit rows may carry, each with an Activity log label (outside production the runner refuses an undeclared key).
   - The registry is the single list of things the system can do; UI, `/api/v1`, agents, voice and imports call commands by name.
-- **Context:** `{ principal, entityIds, activeEntityId, tx, emit, audit, activity, now, requestId, hosted, inImportBatch, run, savepoint }` (`packages/domain/src/command/context.ts`). `principal` is a user, an agent service principal, a voice session acting as a user, or the system principal of the workers.
+- **Context:** `{ principal, entityIds, activeEntityId, tx, emit, audit, activity, now, requestId, hosted, fieldCipher?, inImportBatch?, run, savepoint }` (`packages/domain/src/command/context.ts`). `principal` is a user, an agent service principal, a voice session acting as a user, or the system principal of the workers.
   - `audit` records one changed aggregate.
   - `activity` writes one row of the customer timeline (`activities`: its type, customer, lead when it has one, company, and a payload of ids, codes, counts and short labels, or a note's text) as the caller in the command's transaction, under the insert policy, so a command that hands a lead to someone else records it first. The set-based import batch writes the same `lead_created` rows as `crm.lead.create`.
   - `run` calls another command as the same caller inside this transaction, with its own guard, DTO and idempotency key.
   - `savepoint` runs work in a savepoint whose rollback drops the audit changes and events recorded inside it.
   - `hosted` says whether the runtime is hosted (a file no scanner saw is refused there).
+  - `fieldCipher` is the runtime's `FieldCipher` (§9), for a command that seals a field.
   - `inImportBatch` is set only when an import batch runs the command for one of its rows through `run`; the command then leaves out what only a person's own save needs, such as holding a new number.
 - **The runner** (`runCommand` in `packages/domain/src/command/run-command.ts`, inside the transaction `executeCommand()` opens):
 
@@ -175,13 +176,13 @@ flowchart TD
 ```
 
 - **Permission guard:** checks `permission` against `app.permissions` with the scope rule (own / team / entity / all). Denied calls return `DomainError('forbidden')` and are audited as `outcome = denied`.
-- **State machines:** `packages/domain/src/state-machines/*` define states, transitions, guards, side effects and permitted actors; commands call `transition(machine, record, event, ctx)`. Every machine, and which ones commands drive, is in the generated [state-machine index](state-machines/README.md).
+- **State machines:** `packages/domain/src/state-machines/*` define states, transitions, guards, side effects and permitted actors; commands call `transition(machine, record, event, ctx)`. Every machine, and which ones commands drive, is in the generated [state-machine index](state-machines/readme.md).
 - **Calculators:** TDH, kW sizing, kit availability, credit check, job-cost roll-up, incentive rules and the tax engine are pure functions with fixture-based tests. The sizing engine (`packages/domain/src/sizing`) works in SI units: `totalDynamicHead` (static head, drawdown, friction by Hazen-Williams, fittings, and the pipe velocity as advice), `pumpPower` (hydraulic, shaft and motor kW, the motor margin and the next standard HP), `suctionLift` (a surface pump's lift against its limit), `solarArrayForPump`, `rooftopSize` (the need, the roof and the sanctioned load at its ratio, and which one binds), `pumpDutyPoint` (the flow at the head on a pump's curve, or why it is off the curve), `pumpMatch` (the chosen pump's duty flow against the needed flow and its rating against the sized one), `dcrRule` and `sanctionedLoadRule`; every result carries `inBounds` and reason codes, with advice kept apart in `advisories`, `sizePump` and `sizeRooftop` combine them with the engineering constants of `WORKSHOP_DEFAULTS.sizing`, `crm.sizing.record` stores the inputs, the result and `SIZING_ENGINE_VERSION`, puts the sizing on the customer timeline and opens a `review` task for the lead's team lead when it is out of bounds, and `quoteSizingFacts` turns the newest sizing and a quote's lines into the quote guards' facts, so the quote guard reads a result the server computed.
 - **DTOs:** each command declares an output schema. Cost fields exist only in DTOs of commands whose permission is `finance.cost.read` or `procurement.rate.read`.
 - **Audit:** the command runner writes `audit_logs` in the command's own transaction (command, actor, entity, aggregate, redacted input, before/after, IP, device, request ID), one row per changed aggregate; `executeCommand` records denied and failed calls in a short transaction after the rollback; the auth module records sign-in and account events (docs/03-roadmap-appendix/backend-weeks-3-5.md §3).
 
 ## 6. Events and workers
-This section owns how an event is delivered: the lease, the backoff, dead letters and the failure callback. The event types and their payloads are generated into [EVENTS.md](data/EVENTS.md); the columns of `outbox_events` are in [DATABASE §6.10](05-database.md#610-platform) and who may change them in [§4.4](05-database.md#outbox_events).
+This section owns how an event is delivered: the lease, the backoff, dead letters and the failure callback. The event types and their payloads are generated into [events.md](data/events.md); the columns of `outbox_events` are in [DATABASE §6.10](05-database.md#610-platform) and who may change them in [§4.4](05-database.md#outbox_events).
 
 ```mermaid
 sequenceDiagram
@@ -218,20 +219,30 @@ sequenceDiagram
 - **Readiness:** `outbox` is down only when a due event has waited more than five minutes since it became due, which means the publisher is not running; events waiting out their backoff and dead letters are logged as `outbox.backlog`.
 - **Without QStash** (locally and in CI) the publisher hands subscribed events to the same `deliverEvent()` in process.
 - **The import commit worker** answers `403 forbidden` with QStash's no-retry header when the person who asked is suspended or has lost the import permission in that company.
-- **Long flows:** nurture cadences are follow-up tasks created when a lead moves to nurture (Phase 1); document chasing and subsidy-gate follow-ups come with Phase 4. No workflow engine runs in Phase 1; one is a later choice ([DECISIONS](11-decisions.md), 29-09-2026).
-- **Scheduled jobs:** pg_cron for materialised-view refresh, retention and reminders that are pure SQL (DATABASE §7); QStash schedules for jobs that call external services.
+- **Long flows:** nurture cadences are follow-up tasks created when a lead moves to nurture (Phase 1); document chasing and subsidy-gate follow-ups come with Phase 4. No workflow engine runs in Phase 1; Upstash Workflow joins when a flow needs it (ADR 0005, [DECISIONS](11-decisions.md), 29-09-2026).
+- **Scheduled jobs:** pg_cron for materialised-view refresh, retention and reminders that are pure SQL (DATABASE §7). QStash schedules call this application's own worker routes, signed like a delivery (API §3.6), and are made per environment by `pnpm --filter web qstash-schedule` (`apps/web/scripts/qstash-schedule.ts`):
+
+  | Schedule (`-<environment>`) | When | Route |
+  |---|---|---|
+  | `outbox-publish` | every minute | `/workers/outbox/publish` |
+  | `files-sweep` | hourly, at 17 minutes past | `/workers/files/sweep` |
+  | `lead-rescore` | 21:30 UTC | `/workers/crm/rescore` |
+  | `duplicate-scan` | 22:00 UTC | `/workers/crm/duplicates` |
+  | `quote-expire` | 18:35 UTC (00:05 IST) | `/workers/quotes/expire` |
+
+  The nightly workers take one company at a time; what each does when its time runs out is in API §3.6.
 
 ## 7. Integration patterns
-None of these is built; the vendor harnesses in `apps/web/src/integrations` (with the pure rules in `packages/domain/src/telecom` and `packages/domain/src/tally`) wait for the vendor sandboxes ([STATUS](10-status.md)).
+Built: the AI provider wrapper (Claude and Voyage, §11) and Amazon SES mail (`apps/web/src/mail`). The others are not: the vendor harnesses in `apps/web/src/integrations` (with the pure rules in `packages/domain/src/telecom` and `packages/domain/src/tally`) wait for the vendor sandboxes ([STATUS](10-status.md)).
 
 | Integration | Phase | Pattern |
 |---|---|---|
 | Inbound webhooks (Meta WhatsApp, Lead Ads, Exotel) | 2 | Verify signature → insert raw payload in `webhook_inbox` → return 200 → QStash worker processes idempotently by provider event ID → commands. |
 | Website forms | 2 | Signed ingest API per entity with Turnstile; same normalisation and dedupe as other sources (PRD CRM-01). |
 | Tally connector | 5 | Reads by AlterID, pushes signed batches to `/api/v1/connector/tally/*` with `Idempotency-Key`; daily GUID snapshot for tombstones; heartbeat every 5 minutes; self-updates from signed releases. |
-| Outbound WhatsApp | 2 | Commands emit `message.requested`; the messaging worker checks window, opt-out, template approval, tier budget and the deterministic output filter, then sends and records status webhooks. |
+| Outbound WhatsApp | 2 | Commands emit `message.requested`; the messaging worker checks window, opt-out, template approval, tier budget and the deterministic output filter (all planned, Phase 2), then sends and records status webhooks. |
 | Exotel | 2 | Click-to-dial from the caller workspace calls the Exotel API with the entity's 140/160-series caller ID; status and recording webhooks update `calls`; recordings copied to S3 and transcribed by a worker. |
-| Claude, Voyage, speech vendor | 1 (Triage in shadow mode, Knowledge Vault embeddings), 2 (speech) | Provider wrappers with timeouts, retries, prompt caching, budgets, PII masking and structured outputs. |
+| Claude, Voyage, speech vendor | Wrapper built; 1 (Triage in shadow mode, Knowledge Vault embeddings), 2 (speech) | Provider wrappers with timeouts, retries, prompt caching, budgets, PII masking and structured outputs. |
 | LiveKit | 2 | The voice worker joins the room, streams STT → Claude → TTS, and calls `/api/v1` with a short-lived token minted for the speaking user. |
 
 ## 8. Realtime
@@ -303,26 +314,26 @@ Built (AI0): the runtime, the provider wrapper and the Agent Inbox; no agent shi
 - **Provider wrapper** (`packages/domain/src/ai/provider.ts`, ADR 0011): masking, labelled outside data, timeouts, bounded retries, a circuit breaker and the daily spend caps in Redis (the `KeyValue` port), Claude through `@anthropic-ai/sdk` (Haiku 4.5 by default) and Voyage embeddings over `fetch` (`vendor-transports.ts`), a fake transport for every test, and `integration_unavailable` without a key (SECURITY §6). The web runtime builds it on first use (`apps/web/src/integrations/ai.ts`).
 - **Runtime path** (`runAgentStep()` in `packages/domain/src/ai/runtime.ts`): the agent's worker reads the agent's settings as the agent (`resolveAgentConfig()`), lets the agent's code ask the model through the wrapper bound to the run, and records the run with what it proposes through `agents.run.record`, which in its own transaction files the suggestion with an inbox item (Automatic, which would run the command as the agent, is not available in Phase 1). A step is keyed by its event, agent and action type, so a redelivered event is answered from the run it recorded. A refused action is recorded as a failed run; a switch that is off or a reached cap stops the run before any call.
 - **Agent Inbox** (`/inbox`, with its count in the top bar) and **Admin › Agents** (`/admin/agents`): `agents.inbox.approve`, `.edit` and `.reject` decide on a Needs approval suggestion, approving runs the command as the person who decides, and `agents.inbox.dismiss` closes a Suggest one, which the person acts on themselves; `agents.config.set` and `agents.killswitch.set` set autonomy, caps and switches (SECURITY §3.3).
-- **Trigger:** outbox events (lead created, message received, call ended, gate due) start an agent run; the Triage agent runs as one QStash step, and a workflow engine for longer runs is a later choice ([DECISIONS](11-decisions.md), 29-09-2026).
+- **Trigger:** outbox events (lead created, message received, call ended, gate due) start an agent run; the Triage agent runs as one QStash step, and longer runs join Upstash Workflow when one needs it (ADR 0005, [DECISIONS](11-decisions.md), 29-09-2026).
 - **Run:** the run builds the context (masked), calls Claude through the wrapper with typed tools that wrap commands, and records each run in `agent_runs` and each action in `agent_actions`.
 - **Principal:** each agent runs as its own service principal (`agent:<name>`) inside `withRequestContext()`, so RLS and permissions apply. No agent principal holds a cost permission.
 - **Autonomy:** the action's autonomy level (Suggest / Needs approval / Automatic) is read from `agent_configs` per agent × action type. Suggest and Needs approval create Agent Inbox items; Automatic executes and notifies, from Phase 6 (refused in Phase 1, design §7.1).
-- **Guardrails in code:** tier prices only; out-of-bounds engineering results go to review; only people record a sizing (ADR 0021); WhatsApp window and opt-out; TRAI hours and number series; consent; output filters on every outbound message; per-agent daily spend caps; kill switches (global, per agent, per entity).
+- **Guardrails in code:** tier prices only; out-of-bounds engineering results go to review; only people record a sizing (ADR 0021); per-agent daily spend caps; kill switches (global, per agent, per entity). Planned with the messaging worker and the dialler (Phase 2, A1): the WhatsApp window and opt-out, TRAI hours and number series, consent, and output filters on every outbound message.
 - **Ask service:** Ask the Business and voice Ask run as the user through the same retrieval and tool set, so the answer respects the user's permissions.
-- **Evals:** `agent_evals` store prompt versions, eval sets and scores; a prompt or model change cannot ship without a passing eval run.
+- **Evals:** `agent_evals` stores prompt versions, eval sets and scores; the gate that stops a prompt or model change without a passing eval run is planned (A1 / Phase 2).
 
 ## 12. Cross-cutting
 - **Configuration:** environment variables in Vercel (EAS from Phase 4, the connector's encrypted local config from Phase 5). A hosted runtime refuses to start while `productionConfigProblems()` in `apps/web/src/auth/deps.ts` (run from `instrumentation.ts`) reports a missing variable, a published or short secret, a Turnstile test key, a non-https address or a mail setting the environment does not allow.
-- **Feature flags (planned, no phase set):** a `feature_flags` table with per-entity and per-role overrides, read through one helper (DATABASE §6.10; ROADMAP §11 uses them for rollout). The permission `admin.flags.write` exists; the table does not.
+- **Feature flags (planned, Phase 4):** a `feature_flags` table with per-entity and per-role overrides, read through one helper (DATABASE §6.10; ROADMAP §11 uses them for rollout). The permission `admin.flags.write` exists; the table comes with the field app, whose `/me` returns the flags (API §3.1).
 - **Error reporting:** Sentry (`@sentry/nextjs`) in the web app, in the group's US-region organisation, with personal data removed before an event is sent (ADR 0015).
   - On the server and the edge it starts in `instrumentation.ts`, which also reports every unhandled request error with its request id; in the browser a small loader fetches the SDK when the page is first idle, so no page's first load carries it.
   - `sendDefaultPii` is off; every event, transaction and breadcrumb passes `apps/web/src/observability/sentry-scrub.ts`, which applies the logger's redaction (`@shakti/domain/redaction`), keeps no cookie, header, query string or body, names the person by principal id only and keeps the principal and request ids as the only tags.
   - `release` is the commit and `environment` is `BOS_ENVIRONMENT`; without a DSN nothing is started or loaded, and source maps are uploaded at build time only with `SENTRY_AUTH_TOKEN`. The field app, the connector and the voice worker join with their phases.
 - **Logs:** structured JSON with request ID and no PII. Every command and query writes one line, `command.completed` or `query.completed`, with `name`, `outcome`, `errorCode` when it failed, `durationMs` and `requestId`, at `warn` when it took more than 300 ms; every `executeQuery()` in `apps/web` passes `{ name }`, the action's name, which `apps/web/src/query-names.test.ts` checks.
 - **Metrics and uptime:** built: Integration Health (`/admin/integrations`) shows the events waiting to go out, the last publisher run, delivery speed, dead letters and files waiting for their checks; readiness reports a stalled publisher, and Sentry alerts on dead letters (§6). Planned: the connector heartbeat (Phase 5), WhatsApp quality (Phase 2), AI spend (with the agents, from Phase 1), and uptime checks on the public site, the BOS and the ingest API before go-live.
-- **Environments:** `dev`, `staging` and `production`, each its own Supabase project and its own Vercel project, with no database branching; staging holds synthetic data only. `BOS_ENVIRONMENT` names the environment (`docs/runbooks/DEPLOY.md`); the projects, plans and regions are in [accounts](runbooks/accounts.md).
-- **CI:** GitHub Actions run lint, format, copy lint, typecheck, unit tests (with the contract tests in `packages/contracts/src/api`), the production build with the JavaScript budget per page, a secret scan and dependency audit, and the security suite; a merge-on-green workflow merges a PR once that run passes and runs CI again on `main` (ADR 0017, [09-testing.md](09-testing.md)).
-- **Deployments:** Vercel builds a preview per PR and deploys each environment's project from `main`. A release migrates the hosted database and checks the deployment by [DEPLOY §2](runbooks/DEPLOY.md#2-every-deploy), the one procedure for it; migrations follow expand/contract (DATABASE §8). The field app ships through EAS with staged rollouts (Phase 4).
+- **Environments:** `dev`, `staging` and `production`, each its own Supabase project and its own Vercel project, with no database branching; staging holds synthetic data only. `BOS_ENVIRONMENT` names the environment (`docs/runbooks/deploy.md`); the projects, plans and regions are in [accounts](runbooks/accounts.md).
+- **CI:** the jobs, their steps and the merge-on-green and migrate workflows are in [09-testing §6](09-testing.md#6-what-ci-runs); the free plan's trimmed CI is ADR 0017.
+- **Deployments:** Vercel builds a preview per PR and deploys each environment's project from `main`. A release migrates the hosted database and checks the deployment by [DEPLOY §2](runbooks/deploy.md#2-every-deploy), the one procedure for it; migrations follow expand/contract (DATABASE §8). The field app ships through EAS with staged rollouts (Phase 4).
 
 ## 13. Architecture decision records
 ADRs live in `docs/adr/` as `NNNN-title.md`: a header line with the status, date (DD-MM-YYYY), deciders and the sections it touches, then context, decision and consequences. An ADR records a decision when it was taken; its text is not rewritten afterwards except to correct a fact or record its status.
@@ -335,11 +346,11 @@ ADRs live in `docs/adr/` as `NNNN-title.md`: a header line with the status, date
 | [0004](adr/0004-domain-command-layer.md) | Domain command layer as the single mutation path | Accepted |
 | [0005](adr/0005-transactional-outbox-qstash-workflow.md) | Transactional outbox with Upstash QStash and Workflow | Accepted; the Workflow part waits (no workflow engine in Phase 1) |
 | [0006](adr/0006-uuidv7-primary-keys.md) | UUIDv7 primary keys generated by clients and server | Accepted |
-| [0007](adr/0007-deterministic-tax-engine.md) | Deterministic tax engine with effective-dated rates and composite-supply valuation | Proposed (the CA's golden set) |
+| [0007](adr/0007-deterministic-tax-engine.md) | Deterministic tax engine with effective-dated rates and composite-supply valuation | Accepted (the CA's golden set is still open) |
 | [0008](adr/0008-shared-customer-master.md) | One customer record for the group with a relationship per selling entity | Accepted |
 | [0009](adr/0009-chromium-html-pdf-and-print.md) | Chromium-rendered HTML for PDFs and print, in a Vercel function | Accepted |
 | [0010](adr/0010-livekit-cloud-typescript-voice-agent.md) | LiveKit Cloud with a TypeScript agent worker for live voice | Proposed (the voice spike) |
-| [0011](adr/0011-claude-provider-wrapper-voyage-pgvector.md) | Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector | Proposed (shadow-mode measurements) |
+| [0011](adr/0011-claude-provider-wrapper-voyage-pgvector.md) | Claude Haiku 4.5 and Sonnet 5 behind a provider wrapper; Voyage embeddings in pgvector | Accepted for the wrapper (the Sonnet routing is open) |
 | [0012](adr/0012-expo-watermelondb-offline-field-app.md) | Expo with WatermelonDB for the offline field app | Proposed (the Phase 4 build) |
 | [0013](adr/0013-read-only-tally-connector.md) | Read-only Tally connector with AlterID reads and deletion tombstones | Proposed (the Tally spike) |
 | [0014](adr/0014-english-interface-hinglish-speech.md) | English interface, with Roman-script Hinglish only for caller scripts, voice speech and training | Accepted |
@@ -351,4 +362,4 @@ ADRs live in `docs/adr/` as `NNNN-title.md`: a header line with the status, date
 | [0020](adr/0020-system-workers-treated-as-agent.md) | `system:workers` follows an agent's customer rules | Proposed (the owner, at T2) |
 | [0021](adr/0021-people-record-sizing.md) | Only people record the sizing a quote relies on; agents only suggest | Accepted |
 
-The review of the Proposed ADRs 0007 and 0010 to 0013 is a deferred Phase 0 gate item (ROADMAP §2); the owner's decisions are listed in [11-decisions.md](11-decisions.md).
+The review of the Proposed ADRs 0010, 0012 and 0013, and of what stays open in 0007 and 0011, is a deferred Phase 0 gate item ([ROADMAP §2](03-roadmap.md)); the owner's decisions are listed in [11-decisions.md](11-decisions.md).

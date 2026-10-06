@@ -3,9 +3,11 @@
 **Status:** Accepted (owner, 03-10-2026) · **Date:** 03-10-2026 · **Deciders:** Owner · **Blueprint:** §5, §12, §17 · **Architecture:** §12 · **Testing:** `docs/09-testing.md` · **Audit:** the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45 · **ADR:** 0001
 
 ## Context
-The repository is a private personal repository on GitHub's free plan. That plan offers no branch protection or rulesets for it, so nothing can require a pull request or a green CI run before `main` changes (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45), and it has no deployment environments, so hosted secrets are repository secrets with a suffix per environment.
+The repository is a personal repository on GitHub's free plan. While it is private, that plan offers no branch protection or rulesets for it, so nothing can require a pull request or a green CI run before `main` changes (the audit ([2026-09-audit](../14-reviews/2026-09-audit.md)) M45), and it has no deployment environments, so hosted secrets are repository secrets with a suffix per environment.
 
 It also includes a limited number of Actions minutes a month, which the full CI (the security suite on a fresh database, three end-to-end shards, Lighthouse) used up during Phase 1. The alternatives were a paid plan, or moving the repository to the client's organisation on a plan with rulesets (ROADMAP §10).
+
+The repository has been public since 06-10-2026 (owner), so its Actions minutes are free; an Actions budget is set before it goes private again ([DECISIONS](../11-decisions.md)).
 
 ## Decision
 **Stay on the free plan, spend Actions minutes only where a change can break something, and merge only through a workflow that waits for green.**
@@ -20,4 +22,4 @@ It also includes a limited number of Actions minutes a month, which the full CI 
 - CI cannot block a direct push to `main`; the rule against it is a working rule (`AGENTS.md`), not an enforced one. Vercel deploys what reaches `main`, so a red commit there would deploy.
 - A documents-only pull request skips the build and the security suite, so a document that a code test reads (06-api.md §3, SECURITY §3.2, DATABASE §6) is still checked, by the unit tests.
 - A failure that only the end-to-end journeys would catch after a merge is caught on the pull request instead; `main` is not re-run through them.
-- Hosted migrations run from the manual *Migrate a hosted database* workflow with suffixed repository secrets, since the plan has no environments (`docs/runbooks/DEPLOY.md`).
+- Hosted migrations run from the manual *Migrate a hosted database* workflow with suffixed repository secrets, since the plan has no environments (`docs/runbooks/deploy.md`).

@@ -1,23 +1,23 @@
 # Discovery workshop pack — Shakti Prime BOS
 
-Prepared 27-09-2026 · last updated 04-10-2026. For: the Shakti group owners, the sales head, Accounts, the group's CA and its engineering head. Prepared by the development team.
+Prepared 27-09-2026 · last updated 07-10-2026. For: the Shakti group owners, the sales head, Accounts, the group's CA and its engineering head. Prepared by the development team.
 
-> **Blocking work now.** These answers hold up the next pieces of Phase 1. Until each arrives, the system uses the setting written under "Today" for that question, or leaves the data empty where there is none. The letters and number in brackets name the piece of work (the [glossary](../12-glossary.md#slice-codes) explains them).
+> **Blocking work now.** The system already runs on the setting written under "Today" for each question below, chosen by the development team or the owner. Your answer replaces that setting, and a few answers hold up work still to be built. Until each arrives, the system keeps its "Today" setting, or leaves the data empty where there is none.
 >
-> | Question | What it holds up |
+> | Question | What your answer replaces or holds up |
 > |---|---|
-> | PRICE-4 · HSN code and GST rate per item, with PRICE-5 and the CA's worked examples | Quotes (S1): no line can be priced without a rate |
-> | SALE-1 · Document number format | Quotes (S1), then sales orders (S2): every document is numbered in it |
-> | PRICE-1, PRICE-2, PRICE-3 · Tiers, price lists and kit prices | Quotes (S1): every price comes from the list for the customer's tier |
-> | CRM-1, CRM-2 · Stages and required details per segment | The pipeline settings (C3) and the calling screen's checklist (T1) |
-> | CRM-3 · Lead priority rules | Lead scoring (C3) and the calling queue's order (T1) |
-> | CALL-1 · Call outcomes | The call outcome list (C3) and the calling screen (T1) |
-> | CALL-2, CALL-3, CALL-5 · Scripts, retries and nurture follow-up | The calling screen (T1) |
-> | CALL-4 · Lock period after handover | The handover to lead converters (T2) |
-> | CRM-5 · Referral partner commissions | Commission rules (C3) and commission recorded on a confirmed order (S2) |
-> | SALE-4 · Dealer credit limits and days | Sales orders with the credit check (S2) |
-> | CRM-4 · The current CRM's export | Imports of customers (P2b) and the data migration (M1) |
-> | ENG-1 · Engineering values for sizing | Pump and rooftop sizing (C4), which every quote relies on: it uses common values until they are confirmed |
+> | PRICE-4 · HSN code and GST rate per item, with PRICE-5 and the CA's worked examples | Quotes: no line can be priced without a rate |
+> | SALE-1 · Document number format | Quotes, and next sales orders: every document is numbered in today's format until Accounts confirm or change it |
+> | PRICE-1, PRICE-2, PRICE-3 · Tiers, price lists and kit prices | Quotes: every price comes from the list for the customer's tier |
+> | CRM-1, CRM-2 · Stages and required details per segment | The pipeline settings and the calling screen's checklist: today every pipeline has the same six stages and no stage needs a detail |
+> | CRM-3 · Lead priority rules | The order of the calling queue: today every lead starts level |
+> | CALL-1 · Call outcomes | The call outcomes on the calling screen: today the pack's example list is in use |
+> | CALL-2, CALL-3, CALL-5 · Scripts, retries and nurture follow-up | The calling screen: the scripts are still to be written; retries and nurture calls follow today's days |
+> | CALL-4 · Lock period after handover | The handover to lead converters, built next: 48 hours today |
+> | CRM-5 · Referral partner commissions | Commission rules, and commission recorded on a confirmed order |
+> | SALE-4 · Dealer credit limits and days | Sales orders with the credit check, being built now |
+> | CRM-4 · The current CRM's export | The customer import, which is built and waits for the real file, and the move of the group's data |
+> | ENG-1 · Engineering values for sizing | Pump and rooftop sizing, which every quote relies on: it uses common values until they are confirmed |
 
 This pack lists every question the system needs the group to answer before or during Phase 1, and the later questions for Phases 3 to 5, in one place. Each question says why it matters, the choices, what the system does today until you decide, and who should answer. Part A lists what is already decided, so everyone sees the full picture. Part B is the open questions, grouped by area of the business. Part C is a record sheet for the answers.
 
@@ -43,7 +43,7 @@ These are settled. They are listed so the group can see them; each can still be 
 - A2.3: the fixed set of roles, the screen where an Executive changes what a role may do, and the updates that keep an edited role's changes;
 - in A3: the mandatory authenticator app, the price lists and tiers, and the masking of card photos (the document store that keeps them arrives with projects in Phase 4).
 
-Settled and arriving later: the quote validity and re-quote, the credit release and a repeat enquiry joining the open lead come with quotes, orders and duplicate checks in Phase 1; Tally is read by the connector in Phase 5.
+Also built: the quote validity and re-quote, and a repeat enquiry joining the open lead. Settled and arriving later: the credit release comes with sales orders in Phase 1; Tally is read by the connector in Phase 5.
 
 ### A1. Taken by the group on 27-09-2026
 | # | Decision | What it means day to day |
@@ -85,7 +85,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CRM-1 · Pipeline stages per segment** — Sales head, Owner
 - *Context:* each segment (Farmer Pumps, Residential Rooftop, Commercial EPC, Dealer and Wholesale) has its own pipeline. Stages drive the board, reports and targets.
 - *Options:* keep the same six stages for all four; or give each segment its own stages (for example "Site survey booked" for rooftop, "Sample order" for dealers).
-- *Today:* all four pipelines have New, Contacted, Qualified, Quoted, Won and Lost. Executives can change stages later from Admin.
+- *Today:* all four pipelines have New, Contacted, Qualified, Quoted, Won and Lost. Executives can change stages in Settings › Pipelines.
 - *Bring:* the stages each team uses today, in order.
 
 **CRM-2 · Required details before a lead can move stage** — Sales head
@@ -97,7 +97,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CRM-3 · Lead priority rules** — Sales head
 - *Context:* the calling queue is ordered by a lead score, callbacks due and response time. The score starts from simple rules.
 - *Options:* weight by source (for example walk-in and missed call first), by segment, by district, by pump size or system size, by age of the lead.
-- *Today:* not set.
+- *Today:* no priority rules are set, so every lead starts at the same score and the queue orders by callbacks due, then the score and the lead's age. Executives add rules in Settings › Pipelines.
 
 **CRM-4 · The current CRM and sheets** — Sales head
 - *Context:* the move from the current CRM and sheets needs to know what they hold and in what format.
@@ -122,7 +122,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CALL-1 · Call outcomes (dispositions) per segment** — Sales head
 - *Context:* the caller presses one number key to record how a call went. The list must be short (nine at most) and the same for every caller in a segment.
 - *Options:* a common list, for example Interested, Call back later, Not reachable, Switched off, Wrong number, Not interested, Already bought, Qualified; or a list per segment.
-- *Today:* none set.
+- *Today:* the example list above is in use for the whole group, with the next step each outcome sets; an Executive changes it in Settings › Pipelines.
 - *Bring:* the outcomes callers write in the sheets today.
 
 **CALL-2 · Call scripts** — Sales head
@@ -194,7 +194,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 - *Bring:* a sample of each document as issued today.
 
 **SALE-2 · Letterheads, logos and bank details** — Accounts
-- *Needed:* for each company: the letterhead, logo (with a version for dark backgrounds), GSTIN, registered address, bank account for payments and the UPI ID. These are entered in Admin by an Executive and never stored in the code.
+- *Needed:* for each company: the letterhead, logo (with a version for dark backgrounds), GSTIN, registered address, bank account for payments and the UPI ID. An Executive enters these in Settings › Companies; they are never stored in the code.
 
 **SALE-3 · How a customer accepts a quote** — Owner
 - *Options:* a WhatsApp reply ("YES"); a WhatsApp reply confirmed with a one-time code; a signed copy uploaded by staff. Any combination can be allowed.

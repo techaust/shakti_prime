@@ -33,7 +33,7 @@ The words the documents, the code and the group use, each in one or two plain se
 | Kit | A bundle of items sold as one line, for example a solar pump set (`kits`, `kit_components`). Whether its price is fixed or the sum of its parts is a workshop answer (workshop PRICE-3). |
 | Lakh, crore | Indian number units: one lakh is 1,00,000 and one crore is 1,00,00,000. Amounts are shown this way. |
 | Nurture | The slower follow-up for a lead that is not ready to buy, made of scheduled follow-up tasks. The schedule is a workshop answer (workshop CALL-5). |
-| PIN | The six-digit postal code. The PIN master, built with the imports upgrade (slice P2b), will resolve a PIN to its post-office localities, tehsil and district. |
+| PIN | The six-digit postal code. The PIN master (`pin_codes`, built with the imports upgrade, slice P2b) resolves a PIN to its post-office localities, tehsil and district. |
 | Place of supply | The state a sale is taxed in: the site's state, else the state in the customer's GSTIN, else the company's own state, until the CA confirms it (workshop PRICE-5). |
 | PM Surya Ghar | The central government's rooftop solar subsidy scheme. Its projects follow a gated flow from survey to subsidy payment (BLUEPRINT §8.5). |
 | Price Master tiers | The fixed price lists a quote takes its prices from: Retail, Dealer and Commercial, extensible. There are no discounts anywhere. A tier is one of these lists' kinds; which customer type gets which tier is a workshop answer (workshop PRICE-1). |
@@ -45,7 +45,7 @@ The words the documents, the code and the group use, each in one or two plain se
 | Tally voucher, GUID, AlterID | Tally records each transaction as a voucher. Its GUID never changes, so the connector applies a voucher once; its AlterID rises with every change, so the connector reads only what changed. A voucher deleted in Tally becomes a tombstone in the BOS. |
 | TDH | Total Dynamic Head: the total height a pump must lift water, from the static head, the drawdown, pipe friction and fitting losses. The sizing functions compute it. |
 | SLA | Service level agreement: here, the time within which a new lead must get its first call, set per pipeline; a breach is escalated to the General Manager. |
-| Tehsil, taluk | The sub-district a village belongs to. The PIN master (P2b) will store it as `taluk`; screens say tehsil. |
+| Tehsil, taluk | The sub-district a village belongs to. The PIN master (`pin_codes`, P2b) stores it as `taluk`; screens say tehsil. |
 | TRAI hours | Calls to customers are allowed only from 9 AM to 9 PM IST. |
 | UPI | India's instant payment system; payment reminders carry a UPI link or QR code. |
 | WhatsApp 24-hour window | A business may send a free-form message only within 24 hours of the customer's last message; outside it, only approved templates. |
@@ -53,7 +53,7 @@ The words the documents, the code and the group use, each in one or two plain se
 ## Product terms
 | Term | Meaning |
 |---|---|
-| Account 360 | The customer page (`/customers/<customer>`): contacts, sites, leads, timeline, tasks, tags and consents on one page, with quotes, orders, projects and payments joining in their phases. |
+| Account 360 | The customer page (`/customers/<customer>`): contacts, sites, leads, timeline, tasks, tags and consents on one page, with its quotes; orders, projects and payments join in their phases. |
 | Activity log | The screen of the audit trail: who changed what and when (`/admin/activity`). |
 | Agent | An AI assistant that acts as its own principal with narrow permissions, only through commands. There are six: Intake & Triage, WhatsApp Concierge, Caller Co-pilot, Sizing & Quote, Project Orchestrator and Chief of Staff. |
 | Agent Inbox | Where an agent's suggestions and routed work wait for a person to approve, edit or reject (slice AI0). |
@@ -65,6 +65,7 @@ The words the documents, the code and the group use, each in one or two plain se
 | Cost permissions | `finance.cost.read` (item costs, job costs, margins) and `procurement.rate.read` (supplier rates, PO values, purchase vouchers). No agent holds either. |
 | Customer, account | One record per customer for the whole group (`accounts`), with one relationship and owner in each company that deals with them (`account_entities`, ADR 0008). |
 | Integration health | The Executive's screen of messages waiting or held back between parts of the system, with Send again and the delivery check (`/admin/integrations`). |
+| Kill switch | A setting that stops an agent: one for all agents, one per agent and one per company, the most specific applying first (`agents.killswitch.set`, Admin › Agents). |
 | Knowledge Vault, Playbook | The Vault holds the files leadership uploads, tagged by sensitivity and searchable; the Playbook holds the directives drawn from them, which take effect only after an Executive approves them. |
 | Lead, opportunity | A customer's enquiry in one segment, moving through its pipeline's stages. Screens say lead; the code says opportunity (`opportunities`). "Lead" also names the Sales Team Lead role and the lead engineer ([People](#people)). |
 | MVP | Minimum viable product: the first version the group runs its daily work on, made of Phases 0 and 1. |
@@ -80,14 +81,21 @@ The words the documents, the code and the group use, each in one or two plain se
 ## How the work is run
 | Term | Meaning |
 |---|---|
+| Baseline (screenshot) | The stored image a journey's screenshot is compared with. It is made only in the pinned Linux Playwright image, on a fresh database, so the check gives the same answer in CI (`pnpm --filter web e2e:snap`, `docs/09-testing.md` §5). |
 | Brief | The written instructions for one session that builds or reviews a slice, kept with its report and review in `docs/runs/phase1/<slice>.md`. |
+| Builder, reviewer | The two agents a slice goes through: the builder (`slice-builder`, on Sonnet) builds it from its run file; the reviewer (`slice-reviewer`, on Opus at high effort) reads the branch with fresh context and reports ranked findings. Neither opens a pull request or touches a hosted service (`.claude/agents/`). |
 | Dead letter | An event that could not be delivered after its attempts. It waits on Integration health until someone sends it again (`integrations.dlq.replay`). |
 | Definer | A database function that runs with its owner's rights (`security definer`) to answer one narrow question the caller's own rights cannot, checking a permission itself (`docs/05-database.md`). |
 | Gate item | One line of a phase's exit-gate checklist in `docs/03-roadmap.md`. A phase closes when every item is met or the owner defers it. |
+| Start the day, end the day | The owner's two phrases: "start the day" opens a new lead conversation with the `start-session` skill (status, checks, the next item); "end the day" closes it with the `end-session` skill (STATUS, CHANGELOG, DECISIONS, the documents pull request). |
+| Heavy-command lock | The lock `bash tools/integration/heavy.sh <command>` takes, so only one heavy command (whole-repository lint, typecheck, build, the security suite, journeys) runs at a time on the PC; a lock older than 90 minutes is cleared. |
+| Idempotency key | A unique value a form or client sends with a command so that a repeat of the same call (a double click, a retry) returns the first answer instead of doing the work twice. |
 | Outbox | The table (`outbox_events`) where a change records the events it causes, in the same transaction; the publisher then sends them through QStash to the workers. |
 | Reader pool | The read-only database connections (role `app_reader`) that run reads under the same row rules as everything else (ADR 0018). |
+| Run file | The file `docs/runs/phase1/<slice>.md` that holds one slice's brief, builder reports, review findings and integration notes, and is where its state and next step are recorded (`docs/runs/phase1/readme.md`). |
 | Slice | A vertical piece of a phase, from contract and schema to screen and tests, built on its own branch and merged by one pull request (`docs/03-roadmap-appendix/phase1.md` §3). |
 | Spike | A short, measured experiment that answers one technical question before the build relies on it; each has its note in `docs/04-architecture-appendix/`. |
+| Standing go-ahead | The owner's standing permission for the hosted steps after a green merge: migrate dev then staging, redeploy, check health and readiness, and the few settings listed in `docs/11-decisions.md`. Anything else on a hosted service asks the owner first. |
 | Wave | A tier of slices that depend only on earlier waves, so the slices of one wave can be built side by side. |
 | Worktree | A second working copy of the repository (`git worktree`), where one slice is built on its own branch beside the others. |
 

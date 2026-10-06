@@ -70,7 +70,7 @@ function persistenceText(machine: AnyMachine): string {
       : ` and the time to ${code(`${stored.table}.${stored.changedAtColumn}`)}`;
   const anyEvent = machine.transitions.some((t) => t.emits !== undefined);
   const events = anyEvent
-    ? ', and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md))'
+    ? ', and emits the event in the *Emits* column ([event catalogue](../data/events.md))'
     : '; it emits no event';
   return `The command writes the new state to ${column}${changedAt} when the state changes, applies the effects and calls \`ctx.audit()\`${events}.`;
 }
@@ -238,7 +238,7 @@ export function renderIndex(
 
 /** Every generated file by its name in `docs/state-machines/`. */
 export function renderAll(machines: readonly AnyMachine[] = MACHINES): Map<string, string> {
-  const files = new Map<string, string>([['README.md', renderIndex(machines)]]);
+  const files = new Map<string, string>([['readme.md', renderIndex(machines)]]);
   for (const machine of machines) files.set(fileName(machine), renderMachine(machine));
   return files;
 }

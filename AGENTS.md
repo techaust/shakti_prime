@@ -33,7 +33,7 @@ packages/tokens       design tokens (CSS variables + JS export) for web and Andr
 tools/copy-lint       the product-copy lint run in CI
 tools/integration     slice integration scripts, the cloud setup script and the document link check
 infra/aws             the AWS file storage stack (CloudFormation)
-docs/                 blueprint, module docs, ADRs, runbooks, the Phase 1 run files
+docs/                 the numbered documents (docs/00-start-here.md is the guide), ADRs, runbooks, the Phase 1 run files
 .claude/              the project's skills, agents, session-start hooks and tooling list
 .github/              CI, merge-on-green, migrate and audit workflows; the pull-request template
 ```
@@ -77,9 +77,9 @@ Dependency direction: `apps/*` → `packages/*`. `packages/domain` depends on `p
 Everything a user can read or hear is product copy: labels, buttons, table headers, empty states, validation and error messages, success toasts, notifications, WhatsApp and email templates, PDFs and labels, help text, onboarding, caller scripts, voice replies. The rule, in full in `docs/08-design-system.md` §11:
 - **Plain language.** Written for tele-callers, engineers, store staff, accountants and farmers, not developers. Short sentences, everyday words, one idea per message.
 - **English on every surface.** Screens, messages, emails and documents are English. Roman-script Hinglish is used only for caller scripts, voice agent speech and training (`docs/08-design-system.md` §11.5); no Devanagari in any catalogue, template or print file.
-- **No technical words.** Never show: error codes, HTTP statuses, stack traces, table or column names, "null", "undefined", "payload", "sync", "cache", "token", "webhook", "API", "RLS", "entity_id", "DTO", "invalid input", "exception", "timeout" or vendor names. Say what happened and what to do next: "We couldn't save this quote. Check your connection and try again."
+- **No technical words.** Never show error codes, HTTP statuses, stack traces, table or column names, internal names or vendor names; the banned words are listed in [`docs/08-design-system.md` §11.2](docs/08-design-system.md#112-banned-words-on-screen), and `tools/copy-lint/src/rules.ts` is the check. Say what happened and what to do next: "We couldn't save this quote. Check your connection and try again."
 - **Final, not dummy.** No "Lorem ipsum", "TODO", "TBD", "Sample", "Test", "Placeholder", "Coming soon", "Foo", "Example text" or invented names, phones or amounts in any string, template, seed shown to users, screenshot or PDF. Every string is the wording the product ships with.
-- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogue (`apps/web/messages/en.json`) and the field app catalogue; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email will live in `packages/contracts/src/templates` in English, and caller scripts and voice prompts beside them in `hinglish` and `en` variants; today the folder holds only `SCRIPT_LANGUAGES`, and the first templates arrive in Phase 2.
+- **Where copy lives.** All user-facing strings go in the `next-intl` message catalogue (`apps/web/messages/en.json`) and the field app catalogue; never inline in components. Domain error codes map to plain sentences in the catalogue. Templates for WhatsApp and email will live in `packages/contracts/src/templates` in English, and caller scripts and voice prompts beside them in `hinglish` and `en` variants.
 - **Checked in CI.** A copy lint fails the build when the catalogue, a template, a caller script, a voice prompt or a print file contains a banned technical word, placeholder text or a Devanagari character.
 
 ## 5. Domain commands
@@ -178,7 +178,7 @@ export const createTag = defineCommand({
 
 **Adding a table, step by step.**
 1. The Drizzle schema in `packages/db/src/schema`, then `pnpm db:generate`, then a sibling custom migration (`drizzle-kit generate --custom`) with the RLS, triggers and grants.
-2. Add the table to the right list in `packages/db/src/testing/index.ts` so the security suite covers it: `SHARED_TABLES` or `ENTITY_TABLES` for the generic fail-closed loop; `OUTBOX_TABLES` for an insert-only platform table, `PRINCIPAL_TABLES` for a table scoped to the calling principal, `PLATFORM_TABLES` for a table only a database job writes and only a scope-`all` permission reads, each with its own test file (the generic loops read with select and by company). `AUTH_TABLES` lists the identity tables outside the loops.
+2. Add the table to the right list in `packages/db/src/testing/index.ts` so the security suite covers it: `SHARED_TABLES` or `ENTITY_TABLES` for the generic fail-closed loop; `OUTBOX_TABLES` for an insert-only platform table, `PRINCIPAL_TABLES` for a table scoped to the calling principal, `PLATFORM_TABLES` for a table only a database job writes and only a scope-`all` permission reads, `CONFIG_TABLES` for a set-up table that starts empty until the workshop answers (the score and commission rules), each with its own test file (the generic loops read with select and by company). `AUTH_TABLES` lists the identity tables outside the loops.
 3. A table in `ENTITY_TABLES` also gets a fixture row per company in `packages/db/src/testing/entity-matrix-fixture.ts` and a read rule in `packages/db/tests/security/role-entity-matrix.test.ts`, then scope tests.
 4. Grants: a new select (or every-command) policy that names `app_user` names `app_reader` too, and the table's select grant and any definer a read calls are granted to `app_reader` (`grants.test.ts` checks both). A table whose app grants differ from select, insert and update goes in the `NARROWER` map of `grants.test.ts`. Every list-valued check constraint is paired with its contract enum in `enum-sync.test.ts`.
 5. Index every foreign key that is joined or filtered on.
@@ -195,7 +195,7 @@ export const createTag = defineCommand({
 
 **A partitioned table.** drizzle-kit cannot emit `PARTITION BY`, so add it by hand to the generated `create table` before the migration is ever applied (the snapshot does not record it, so `db:generate` shows no drift). The primary key includes the partition column, and the partitions live in a schema no request role may use (`audit_partitions` is the pattern), with a default partition and a pg_cron job that makes the next months.
 
-**A new login role** (as `auth_service`, `outbox_publisher` and `app_reader` are): create it in `ensureRoles()` in `packages/db/src/migrate.ts`; add its password and connection variables to `requireEnv()` in `packages/db/src/env.ts`, to the `test:security` list in `turbo.json`, to `ci.yml`, `migrate.yml`, `.env.example` and `docs/runbooks/DEPLOY.md`; `prepareDatabase()` checks its URL is local.
+**A new login role** (as `auth_service`, `outbox_publisher` and `app_reader` are): create it in `ensureRoles()` in `packages/db/src/migrate.ts`; add its password and connection variables to `requireEnv()` in `packages/db/src/env.ts`, to the `test:security` list in `turbo.json`, to `ci.yml`, `migrate.yml`, `.env.example` and `docs/runbooks/deploy.md`; `prepareDatabase()` checks its URL is local.
 
 ## 7. Testing
 | Change type | Required tests |
@@ -207,7 +207,7 @@ export const createTag = defineCommand({
 | UI flow | Playwright E2E for the role that uses it; visual snapshot for print templates |
 | Prompt or agent change | Eval set run; shadow report where applicable |
 
-Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except the end-to-end journeys (`apps/web/e2e`) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). What CI runs, and when, is in [TESTING §6](docs/09-testing.md#6-what-ci-runs): the end-to-end journeys and Lighthouse run on pull requests only (`ci.yml`: `github.event_name == 'pull_request'`). The suite layout, the generated-file checks and how to run one test are in `docs/09-testing.md`.
+Tests live next to the code (`*.test.ts`, `*.test.tsx` for components) except the end-to-end journeys (`apps/web/e2e`) and the suites on real Postgres (`packages/db/tests`, `packages/domain/tests`, `apps/web/tests`). What CI runs, and when, is in [TESTING §6](docs/09-testing.md#6-what-ci-runs): the end-to-end journeys and Lighthouse run on pull requests only (`ci.yml`: `github.event_name == 'pull_request'`). The suite layout, the generated-file checks and how to run one test are in `docs/09-testing.md`. On the owner's PC, heavy commands (whole-repository lint, typecheck, build, the security suite, journeys) run one at a time through `bash tools/integration/heavy.sh <command>`, and at most two builders run at once ([slice-integration §1](docs/runbooks/slice-integration.md#1-machines-and-ports)).
 
 ## 8. Git and pull requests
 - Branches: `feat/<area>-<short-name>`, `fix/<area>-<short-name>`, `docs/<name>`, `spike/<name>`, `chore/<name>`, `phase-<n>/<name>`.
@@ -231,7 +231,7 @@ A task is done when every line that applies to it holds. This is the one definit
 - [ ] Every new table: RLS enabled, forced and failing closed; in its `*_TABLES` list with a fixture row per company and a rule in the role × company matrix; `app_reader` on its select policy and its select grant; `NARROWER` and `enum-sync` where they apply (§6).
 - [ ] Every new command: denied, wrong-company and happy-path tests on real Postgres; every `auditFields` key labelled in `apps/web/src/screens/audit.ts`; a restricted command's input in the agent refusal sweep (§5).
 - [ ] The tests of §7 pass locally and in CI, the security suite included, run on the local Postgres.
-- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging (`docs/13-client-packs/exit-gate-actions.md`).
+- [ ] Migrations apply cleanly on a fresh database, and, once staging holds data worth keeping, on a copy of staging ([DATABASE §8](docs/05-database.md#8-migrations) step 5).
 - [ ] Every user-facing word is final plain language in `apps/web/messages/en.json` (English on screen, Hinglish only in the spoken channels), and `pnpm copy-lint` passes.
 - [ ] New or changed screens: an end-to-end journey with axe; Linux screenshot baselines made on a fresh database; the JavaScript budget per page holds.
 - [ ] New lists and searches: `EXPLAIN (ANALYZE)` evidence under RLS.

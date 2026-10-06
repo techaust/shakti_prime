@@ -1,8 +1,8 @@
 # Design sign-off — Shakti Prime BOS
 
-Prepared 27-09-2026 · last updated 04-10-2026. For: an Executive of the Shakti group, with one tele-caller and one field or store person at the review.
+Prepared 27-09-2026 · last updated 07-10-2026. For: an Executive of the Shakti group, with one tele-caller and one field or store person at the review.
 
-This sign-off was an item of the Phase 0 exit gate (ROADMAP §2). The owner closed Phase 0 on 29-09-2026 with it deferred: it is needed before the calling screen (T1) and quotes (S1) are built, so that any change lands while few screens exist, and a change agreed later is applied to every built screen before the Phase 1 user acceptance tests (M1).
+This sign-off is an item of the Phase 0 exit gate (ROADMAP §2). The owner closed Phase 0 on 29-09-2026 with it deferred. It is wanted soon: the calling screen, quotes and many other screens are already built to the design guide, and a change agreed later is applied to every built screen before the user acceptance tests at the end of the first phase.
 
 The design system is written down in the design guide and shown live on the system's Design preview page, which displays every colour, text size and component in the light and dark themes side by side. This checklist walks through what to look at and records the decision.
 
@@ -85,7 +85,7 @@ Tick each line in both themes. Write any concern in the notes column; a concern 
 | 34 | On desktop, the side menu (240 wide) can shrink to icons to give more room | | | |
 
 ### 3.7 Words on screen
-The writing rules are in the design guide (its section 11). Check the words on the Design preview page and on these screens, each opened from the menu: the sign-in and forgotten-password pages, Home, Leads (the list, the board and New lead), Your profile, Team members, Activity log, Companies, Price lists, Catalogue (items and kits), Customers (the list and a customer's page), Imports, Tax rates, Roles and Integration health.
+The writing rules are in the design guide (its section 11). Check the words on the Design preview page and on these screens, each opened from the menu: the sign-in and forgotten-password pages, Home, Leads (the list, the board, New lead and Walk-in customer), Calling, Quotes (the list, the builder and a quote), Duplicates, the Agent Inbox and Agents, Your profile, Team members, Activity log, Companies, Price lists, Catalogue (items and kits), Customers (the list and a customer's page), Imports, Tax rates, Pipelines, Roles and Integration health.
 
 | # | Check | Yes | Notes |
 |---|---|---|---|

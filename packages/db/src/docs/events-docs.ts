@@ -1,7 +1,7 @@
 import { describeEventCatalogue, type EventCatalogueEntry } from '@shakti/contracts';
 
 /**
- * Builds the event catalogue document (`docs/data/EVENTS.md`) from the event catalogue in
+ * Builds the event catalogue document (`docs/data/events.md`) from the event catalogue in
  * `packages/contracts/src/events/catalogue.ts`: every event type, whether a worker listens to it,
  * and its payload fields. Pure rendering: `pnpm db:docs` writes it, and a unit test fails when the
  * file is stale.
@@ -123,7 +123,7 @@ export function groupByModule(events: readonly EventCatalogueEntry[]): [string, 
   return [...groups.entries()];
 }
 
-/** The whole of `docs/data/EVENTS.md`. */
+/** The whole of `docs/data/events.md`. */
 export function renderEventsDoc(): string {
   const { version, envelope, events } = describeEventCatalogue();
   const subscribed = events.filter((e) => e.subscribed).length;

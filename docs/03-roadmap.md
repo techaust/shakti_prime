@@ -5,19 +5,7 @@ Blueprint reference: §14, §15, §19, §20. A single full-time developer workin
 **Contents:** [1. Phase summary](#1-phase-summary) ([1.1 Milestones](#11-milestones)) · [2. Phase 0](#2-phase-0--discovery--foundations-68-weeks) · [3. Phase 1](#3-phase-1--mvp-1214-weeks) · [4. Phase 2](#4-phase-2--communications--live-voice-911-weeks) · [5. Phase 3](#5-phase-3--inventory--procurement-78-weeks) · [6. Phase 4](#6-phase-4--projects--field-1113-weeks) · [7. Phase 5](#7-phase-5--finance-costing--hr-911-weeks) · [8. Phase 6](#8-phase-6--ai-brain--autonomy-79-weeks) · [9. Phase 7](#9-phase-7--hardening--rollout-45-weeks) · [10. Parallel workstreams](#10-parallel-workstreams-started-in-phase-0) · [11. Rollout](#11-rollout-and-change-management)
 
 ## 1. Phase summary
-| Phase | Weeks | Outcome |
-|---|---|---|
-| 0 — Discovery & foundations | 6–8 | Secure, tested platform skeleton and signed-off design system |
-| 1 — MVP | 12–14 | CRM, tele-calling, quotes and sales orders live for all entities |
-| 2 — Communications & live voice | 9–11 | WhatsApp, Lead Ads, Exotel, Concierge and Co-pilot in approval mode, voice Teach/Ask |
-| 3 — Inventory & procurement | 7–8 | Stock authority in the BOS with dispatch and e-way gate |
-| 4 — Projects & field | 11–13 | Project flows, subsidy gates, scheduling, Android app in the field |
-| 5 — Finance, costing & HR | 9–11 | Tally reconciliation, job costing, expenses, HR |
-| 6 — AI brain & autonomy | 7–9 | Remaining agents, voice Command, autonomy promotions |
-| 7 — Hardening & rollout | 4–5 | Load, security, DR, training, go-live |
-| **Total** | **65–79 (≈ 15–18 months)** | MVP after Phases 0–1 (≈ 5–6 months) |
-
-A second developer on the Android app in Phase 4 shortens the total by 2–3 months.
+The phases, their scope, effort and exit gates are in [BLUEPRINT §14](01-blueprint.md#14-roadmap--effort); §2 to §9 below hold each phase's scope and exit-gate checklist. The full scope is 65–79 weeks (about 15–18 months) and the MVP (Phases 0 and 1, 18–22 weeks) is live after about 4–5 months; a second developer on the Android app in Phase 4 shortens the total by 2–3 months.
 
 ### 1.1 Milestones
 Reached (dates from the merges on `main`; the full list is in [CHANGELOG.md](../CHANGELOG.md)):
@@ -31,15 +19,16 @@ Reached (dates from the merges on `main`; the full list is in [CHANGELOG.md](../
 | 30-09-2026 | Wave 1: quality harness P3 (#81), observability and workers P1 (#82) |
 | 03-10-2026 | Files and storage P2 (#85); catalogue and tax C1 (#87) |
 | 04-10-2026 | Role editor X1 (#88); customer timeline and Account 360 C2 (#89) |
+| 05-10-2026 | Print and letterhead P4 (#99), sizing C4 (#100), pipelines and scoring C3 (#103), imports P2b (#105): wave 2 complete; agent runtime and Agent Inbox AI0 (#108) |
+| 06-10-2026 | Quotes S1 (#115), duplicates D1 (#118), cold caller workspace T1 (#119): wave 3 complete; the AWS files stack created on dev and staging |
 
 Ahead (no date is set until what it depends on is in hand):
 
 | Milestone | Depends on |
 |---|---|
-| Wave 2 complete (P4, C3, C4, P2b) | Static Inter font files for P4; the AWS files stack on dev and staging for imports through pre-signed uploads (`docs/runbooks/files-setup.md`) |
-| Quotes with real prices and numbers (S1) | Workshop SALE-1 (number format), PRICE-1 (tier per customer type), PRICE-4 (HSN and GST rates) with the CA's golden set, and the price lists |
-| Cold Caller workspace in daily use (T1) | Workshop CALL-1 (dispositions), CALL-2 (scripts), CALL-3 (retries) |
-| Agent Inbox, Knowledge Vault and Triage in shadow (AI0, K1, A1) | Anthropic and Voyage keys for each environment |
+| Wave 4 complete (N1, T2, S2, K1) | The builds, reviews and merges of each slice ([STATUS](10-status.md)) |
+| Quotes and calling with the client's own values (S1, T1 are merged with the built-in defaults) | Workshop SALE-1 (number format), PRICE-1 (tier per customer type), PRICE-4 (HSN and GST rates) with the CA's golden set, the price lists, CALL-1 (dispositions), CALL-2 (scripts), CALL-3 (retries) |
+| Agents and the Knowledge Vault running (AI0 is merged; K1, A1) | Anthropic and Voyage keys for each environment |
 | Data migration and UAT (M1) | The client's export of the current CRM and sheets (workshop CRM-4) |
 | Production readiness (G1) | A paid production Supabase project, Vercel Pro, the client's domain with Amazon SES production access, a GitHub plan with environments |
 | Phase 1 exit gate | The two-week parallel run, reconciled migration counts and UAT sign-off per role |
@@ -48,7 +37,7 @@ Ahead (no date is set until what it depends on is in hand):
 ## 2. Phase 0 — Discovery & foundations (6–8 weeks)
 **Deliverables (blueprint §19):** ERD and data dictionary; state-machine specifications; permission matrix; API contracts; clickable wireframes; `docs/08-design-system.md` and preview page; ADRs; integration spikes; test strategy and security-suite skeleton; vendor quotes; Claude Code tooling.
 
-**Week plan** (the original plan of 26-09-2026; Phase 0 was built in four days and closed on 29-09-2026, and what was built is in [CHANGELOG.md](../CHANGELOG.md)):
+**Week plan** (the plan of 26-09-2026; Phase 0 took four days, 26 to 29-09-2026, and what it built is in [CHANGELOG.md](../CHANGELOG.md)):
 | Week | Work |
 |---|---|
 | 1 | Discovery workshop (inputs in `docs/02-prd.md` §7); ADRs 1–6; repo scaffold (pnpm, Turborepo, TypeScript, ESLint, Prettier, Vitest, GitHub Actions); Supabase dev/staging projects; Vercel project pinned to `bom1` |
@@ -70,11 +59,11 @@ Ahead (no date is set until what it depends on is in hand):
 **Closed on 29-09-2026 by the owner's decision**, with the hosted dev and staging environments in place (their state is in [STATUS](10-status.md)). The unticked items above are deferred, not met, and run alongside Phase 1:
 - the client's sign-off of `docs/08-design-system.md` and `/design`, and the screen review;
 - the Tally, Exotel, WhatsApp and voice spikes once their sandboxes exist; the Realtime spike on the production site with the client's domain; OCR on real document photos; the phone and scanner check of printed labels;
-- the review of the ERD, data dictionary, state machines, permission matrix and contracts, with ADRs 0007 and 0010 to 0013 (ADR 0009 was accepted on 29-09-2026);
+- the review of the ERD, data dictionary, state machines, permission matrix and contracts, with ADRs 0007 and 0010 to 0013 (ADR 0009 is accepted);
 - the vendor quotes;
 - the workshop answers and the CA's tax golden set.
 
-Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-client-packs/exit-gate-actions.md); what the client's people do is in [`docs/13-client-packs/client-actions.md`](13-client-packs/client-actions.md). The client packs are indexed in [docs/13-client-packs/README.md](13-client-packs/README.md), the spikes in [docs/04-architecture-appendix/README.md](04-architecture-appendix/README.md) and the reviews in [docs/14-reviews/README.md](14-reviews/README.md).
+Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-client-packs/exit-gate-actions.md); what the client's people do is in [`docs/13-client-packs/client-actions.md`](13-client-packs/client-actions.md). The client packs are indexed in [docs/13-client-packs/readme.md](13-client-packs/readme.md), the spikes in [docs/04-architecture-appendix/readme.md](04-architecture-appendix/readme.md) and the reviews in [docs/14-reviews/readme.md](14-reviews/readme.md).
 
 ## 3. Phase 1 — MVP (12–14 weeks)
 **Scope:** non-integration ingestion (walk-in, import, manual, referral codes); dedupe; four pipelines with stage-exit rules; CC and LC workspaces with manual call logging; round-robin handover; targets and leaderboards; Price Master tiers with the minimal catalogue (items, HSN, tax rates, kits as saleable bundles, pump curves); sizing calculators; quotes with PDF; sales orders; dealer credit with manual outstanding; notifications; Knowledge Vault uploads with embeddings; data migration; Triage agent in shadow mode.
@@ -129,7 +118,7 @@ Each keeps its next step in [`docs/13-client-packs/exit-gate-actions.md`](13-cli
 | Tally discovery visit (companies, version, Buyer Order No., stock, e-way practice) | Developer + Accounts | The Tally spike, deferred from Phase 0; before Phase 5 |
 | 20–30 executive voice samples for the speech benchmark | Client | The voice spike, deferred from Phase 0; before Phase 2 |
 | Privacy notice, consent texts, recording notice | Client + developer | Phase 1 go-live |
-| Vendor accounts registered to the client (domain, Vercel, Supabase, AWS, Meta, Exotel, Anthropic, Google Play, GitHub, LiveKit, Upstash, Sentry) | Client | Production readiness (G1) |
+| Vendor accounts registered to the client ([accounts](runbooks/accounts.md)) | Client | Production readiness (G1) |
 
 ## 11. Rollout and change management
 Pilots, training, UAT and feedback are as in [BLUEPRINT §15](01-blueprint.md#15-rollout--change-management); releases follow the change management of [BLUEPRINT §12](01-blueprint.md#12-reliability--operations) (expand/contract migrations, feature flags, Sunday-night maintenance windows). Each phase's exit sets `currentPhase` in `.claude/tooling.json`, and the tooling check runs before the next phase begins.

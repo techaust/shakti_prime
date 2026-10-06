@@ -1,6 +1,6 @@
 # Phase 1 run files
 
-One file per slice in flight, `docs/runs/phase1/<slug>.md`, so a cloud session or an agent on the PC finds everything it needs in the repository. The file reaches the slice's branch with `main` (or by a commit of the lead session's), is updated on that branch while the slice runs, and returns to `main` with the slice's merge. Where each slice stands in one line is in [STATUS](../../10-status.md) (In progress); how work moves between the cloud and the PC is in [hybrid](../../runbooks/hybrid.md); the steps from a brief to `main` are in [slice-integration](../../runbooks/slice-integration.md).
+One file per slice in flight, `docs/runs/phase1/<slug>.md`, so an agent on the PC (or a cloud session) finds everything it needs in the repository. The file reaches the slice's branch with `main` (or by a commit of the lead session's), is updated on that branch while the slice runs, and returns to `main` with the slice's merge. Where each slice stands in one line is in [STATUS](../../10-status.md) (In progress); how work is split between the PC and the cloud is in [hybrid](../../runbooks/hybrid.md); the steps from a brief to `main` are in [slice-integration](../../runbooks/slice-integration.md).
 
 ## What a run file holds
 - **Brief:** what the slice builds, the design section, what it may and may not touch, and when it is done. The lead session writes it; the rules every builder follows are in [`.claude/agents/slice-builder.md`](../../../.claude/agents/slice-builder.md) and the definition of done in [AGENTS §10](../../../AGENTS.md#10-definition-of-done), so a brief never repeats them.
@@ -16,9 +16,9 @@ When the slice merges, its file stays on `main` as the record of the run, with t
 
 | | |
 |---|---|
-| Branch | `feat/<...>` on GitHub (the branch a cloud session starts on) |
+| Branch | `feat/<...>` on GitHub |
 | PC worktree | `<slug>`, slot <n>: Postgres <port>, app <port> |
-| Runs on | cloud or PC |
+| Runs on | PC (cloud sessions are paused), or cloud |
 | State | brief / building / built / reviewed / fixed / integrating / merged (#N) |
 | Next step | one line |
 
@@ -37,12 +37,17 @@ Done when: the slice-specific checks beyond AGENTS §10.
 ```
 
 ## Ports on the PC
-Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. A cloud session uses the defaults of its own VM (Postgres 54322, app 3000).
+Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. A cloud session, when they resume, uses the defaults of its own VM (Postgres 54322, app 3000).
 
 ## Slices in flight
-None; wave 4's run files are written next.
+Wave 4, built on the PC beside each other (their run files are on their branches until they merge):
+- N1 notifications, branch `feat/n1-notifications`, slot 16
+- S2 orders, acceptance and credit, branch `feat/s2-orders`, slot 17
+- K1 knowledge vault, branch `feat/k1-knowledge`, slot 18
 
-## Merged
+T2 starts after N1 merges.
+
+## Merged (slices built with a run file; wave 1, C1, X1 and C2 predate run files)
 - [P4 print and letterhead](p4-print.md) (#99)
 - [C4 sizing](c4-sizing.md) (#100)
 - [C3 pipelines, scoring and referrals](c3-pipelines.md) (#103)

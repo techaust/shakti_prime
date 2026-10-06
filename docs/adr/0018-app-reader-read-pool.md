@@ -16,5 +16,5 @@ Every page read runs through `executeQuery()` in `withRequestContext()`, as `app
 ## Consequences
 - A query cannot write even if its code tries: the role lacks the privilege, the role's default makes every transaction read-only, and the policies still apply.
 - Reads and commands do not compete for one pool's connections.
-- Every new table, select policy and read definer carries one more grant; forgetting it fails `grants.test.ts`, and a screen that reads through a definer the reader lacks fails its parity test or its journey (0072 fixed such a case for the catalogue and GST screens).
-- Each hosted environment needs `APP_READER_PASSWORD` for the migrator and `DATABASE_URL_READER` for the app (`docs/runbooks/DEPLOY.md`); without them the app runs on `app_user` alone, safely but without the second guard.
+- Every new table, select policy and read definer carries one more grant; forgetting it fails `grants.test.ts`, and a screen that reads through a definer the reader lacks fails its parity test or its journey.
+- Each hosted environment needs `APP_READER_PASSWORD` for the migrator and `DATABASE_URL_READER` for the app (`docs/runbooks/deploy.md`); without them the app runs on `app_user` alone, safely but without the second guard.

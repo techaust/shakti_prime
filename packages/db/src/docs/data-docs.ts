@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Builds the ERD (`docs/data/ERD.md`) and the data dictionary (`docs/data/DATA-DICTIONARY.md`)
+ * Builds the ERD (`docs/data/erd.md`) and the data dictionary (`docs/data/data-dictionary.md`)
  * from the latest Drizzle snapshot, the hand-written SQL in the migrations (policies, triggers,
  * exclusion constraints, partitioning) and the table catalogue in docs/05-database.md §6. Pure
  * rendering: `pnpm db:docs` writes the result, and a unit test fails when the files are stale.
@@ -760,7 +760,7 @@ function renderErd(
   out.push(
     `Most tables also carry \`created_by\` and \`updated_by\`, which reference \`principals\`; those links are left out of the diagrams. ${exceptions.join(' ')}`.trimEnd(),
     '',
-    'A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](DATA-DICTIONARY.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their 05-database.md §6 entries.',
+    'A type with a precision is drawn without it, and the precision is in the comment (`numeric "(14,2)"`), as is "null" for a column that may be empty. Column types, constraints and row-level security are in the [data dictionary](data-dictionary.md); tables still to be built are drawn under [Planned tables](#planned-tables) from their 05-database.md §6 entries.',
     '',
   );
   for (const module of modules) {
@@ -873,7 +873,7 @@ function renderDictionary(
 
   out.push('## Planned tables', '');
   out.push(
-    'Tables 05-database.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](ERD.md#planned-tables) draws them. Each gains a full entry above when its migration lands.',
+    'Tables 05-database.md §6 documents that no migration has created yet, with the columns documented for them and the tables their `*_id` columns name, as the [ERD](erd.md#planned-tables) draws them. Each gains a full entry above when its migration lands.',
     '',
   );
   for (const [section, entries] of plannedSections(planned)) {
