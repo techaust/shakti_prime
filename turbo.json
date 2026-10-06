@@ -73,7 +73,10 @@
         "FIELD_ENCRYPTION_KEY",
         "SES_FROM",
         "ANTHROPIC_API_KEY",
-        "VOYAGE_API_KEY"
+        "VOYAGE_API_KEY",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT"
       ]
     },
     "test:e2e": {
@@ -106,7 +109,10 @@
         "E2E_BASE_URL",
         "E2E_EXTERNAL_APP",
         "ANTHROPIC_API_KEY",
-        "VOYAGE_API_KEY"
+        "VOYAGE_API_KEY",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT"
       ]
     },
     "db:generate": {

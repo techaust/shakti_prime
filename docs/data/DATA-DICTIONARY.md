@@ -8,9 +8,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - **Identity:** [`auth_accounts`](#auth_accounts), [`auth_verifications`](#auth_verifications), [`sessions`](#sessions), [`user_entity_roles`](#user_entity_roles), [`user_two_factor`](#user_two_factor), [`users`](#users)
 - **CRM:** [`account_contacts`](#account_contacts), [`account_entities`](#account_entities), [`accounts`](#accounts), [`activities`](#activities), [`call_dispositions`](#call_dispositions), [`calls`](#calls), [`commission_rules`](#commission_rules), [`consents`](#consents), [`contact_phones`](#contact_phones), [`contacts`](#contacts), [`customer_merges`](#customer_merges), [`customer_sites`](#customer_sites), [`duplicate_candidates`](#duplicate_candidates), [`lead_score_rules`](#lead_score_rules), [`lead_sources`](#lead_sources), [`opportunities`](#opportunities), [`opportunity_tags`](#opportunity_tags), [`pin_codes`](#pin_codes), [`pipeline_stages`](#pipeline_stages), [`pipelines`](#pipelines), [`referral_partners`](#referral_partners), [`sizings`](#sizings), [`tags`](#tags), [`tasks`](#tasks)
 - **Catalogue, pricing and tax:** [`composite_supply_rules`](#composite_supply_rules), [`item_costs`](#item_costs), [`items`](#items), [`kit_components`](#kit_components), [`kits`](#kits), [`price_change_log`](#price_change_log), [`price_list_items`](#price_list_items), [`price_lists`](#price_lists), [`price_tiers`](#price_tiers), [`pump_curves`](#pump_curves), [`tax_rates`](#tax_rates)
-- **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views)
+- **Platform:** [`audit_logs`](#audit_logs), [`files`](#files), [`idempotency_keys`](#idempotency_keys), [`import_jobs`](#import_jobs), [`import_mapping_templates`](#import_mapping_templates), [`import_rows`](#import_rows), [`notification_preferences`](#notification_preferences), [`notifications`](#notifications), [`outbox_events`](#outbox_events), [`push_subscriptions`](#push_subscriptions), [`retention_runs`](#retention_runs), [`saved_views`](#saved_views)
 - **AI and voice:** [`agent_actions`](#agent_actions), [`agent_configs`](#agent_configs), [`agent_evals`](#agent_evals), [`agent_runs`](#agent_runs), [`inbox_items`](#inbox_items)
-- **Other:** [`notification_preferences`](#notification_preferences), [`push_subscriptions`](#push_subscriptions)
 - **Sales:** [`quote_lines`](#quote_lines), [`quote_versions`](#quote_versions), [`quotes`](#quotes)
 - [Planned tables](#planned-tables)
 
@@ -424,7 +423,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### user_entity_roles
 
-**Catalogue entry** (DATABASE.md §6.1; created in 0013): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the seven tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2)
+**Catalogue entry** (DATABASE.md §6.1; created in 0013): `user_id`, `entity_id`, `role_id`, `team_id`; unique `(user_id, entity_id)`; read in the request's companies or as the caller's own rows (by `app_user`, and by `readonly_reporter` under the same rule, 0059), and written with `admin.users.write:all` only for the request's companies (0049); replaced as a set by `admin.user.role.set`; one of the eight tables with a delete grant for `app_user`, with `role_permissions` (above), `saved_views` and `push_subscriptions` (§6.10), where each person deletes only their own rows, `kit_components` and `pump_curves` (§6.3), and `contact_phones` and `opportunity_tags` (§6.2)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2639,9 +2638,52 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `import_rows_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 - `import_rows_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and (select app.has_perm('imports.write:entity')) and exists (select 1 from import_jobs j where j.id = import_rows.job_id)`
 
+### notification_preferences
+
+**Catalogue entry** (DATABASE.md §6.10; created in 0116): `user_id`, `type` (a kind of notice, or null for the row of quiet hours), `in_app`, `push` (both on when a person has no row), `quiet_from` and `quiet_to` (IST, on the row of no kind only, both or neither, never equal; across midnight when `quiet_to` is earlier); unique `(user_id, type)` with nulls not distinct; a person's own rows, written by `notifications.preferences.set` (§4.4)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `user_id` | uuid | no |  | → `principals.id` |
+| `type` | text | yes |  |  |
+| `in_app` | boolean | no | `true` |  |
+| `push` | boolean | no | `true` |  |
+| `quiet_from` | time | yes |  |  |
+| `quiet_to` | time | yes |  |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `updated_at` | timestamp with time zone | no | `now()` |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `notification_preferences_user_type_unique`: (`user_id`, `type`)
+
+**Foreign keys**
+
+- `notification_preferences_user_id_principals_id_fk`: (`user_id`) → `principals` (`id`)
+
+**Check constraints**
+
+- `notification_preferences_quiet_check`: `("notification_preferences"."quiet_from" is null) = ("notification_preferences"."quiet_to" is null) and ("notification_preferences"."quiet_from" is null or "notification_preferences"."quiet_from" <> "notification_preferences"."quiet_to") and ("notification_preferences"."type" is null or "notification_preferences"."quiet_from" is null)`
+- `notification_preferences_type_check`: `"notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')`
+
+**Triggers**
+
+- `set_updated_at`: before update, runs `app.set_updated_at()`
+
+**Row-level security:** enabled and forced; 3 policies.
+
+- `notification_preferences_insert` (insert, to app_user): with check `user_id = (select app.user_id()) and (select coalesce(current_setting('app.role', true), '') not like 'agent:%' and coalesce(current_setting('app.role', true), '') not like 'system:%')`
+- `notification_preferences_read` (select, to app_user, app_reader): using `user_id = (select app.user_id())`
+- `notification_preferences_update` (update, to app_user): using `user_id = (select app.user_id())`; with check `user_id = (select app.user_id())`
+
 ### notifications
 
-**Catalogue entry** (DATABASE.md §6.10): `user_id`, `type`, `payload_json`, `read_at`, `channel_sent_json`
+**Catalogue entry** (DATABASE.md §6.10; created in 0116): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2743,6 +2785,48 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `outbox_events_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[])`
 - `outbox_events_publisher_read` (select, to outbox_publisher): using `true`
 - `outbox_events_publisher_update` (update, to outbox_publisher): using `true`; with check `true`
+
+### push_subscriptions
+
+**Catalogue entry** (DATABASE.md §6.10; created in 0116): `user_id`, `endpoint` (unique, https, on a push service `isPushServiceEndpoint()` names), `p256dh`, `auth`, `user_agent`, `created_at`, `last_ok_at`; a person's own browsers, added by `notifications.push.subscribe` through `app.claim_push_subscription()`, removed by `notifications.push.unsubscribe` or by the worker when the push service answers 404 or 410 (§4.4)
+
+| Column | Type | Null | Default | Key |
+|---|---|---|---|---|
+| `id` | uuid | no |  | PK |
+| `user_id` | uuid | no |  | → `principals.id` |
+| `endpoint` | text | no |  |  |
+| `p256dh` | text | no |  |  |
+| `auth` | text | no |  |  |
+| `user_agent` | text | yes |  |  |
+| `created_at` | timestamp with time zone | no | `now()` |  |
+| `last_ok_at` | timestamp with time zone | yes |  |  |
+
+**Primary key**
+
+- (`id`)
+
+**Unique constraints**
+
+- `push_subscriptions_endpoint_unique`: (`endpoint`)
+
+**Foreign keys**
+
+- `push_subscriptions_user_id_principals_id_fk`: (`user_id`) → `principals` (`id`)
+
+**Check constraints**
+
+- `push_subscriptions_endpoint_check`: `"push_subscriptions"."endpoint" like 'https://%' and char_length("push_subscriptions"."endpoint") <= 1000`
+- `push_subscriptions_keys_check`: `char_length("push_subscriptions"."p256dh") between 80 and 100 and char_length("push_subscriptions"."auth") between 16 and 32`
+- `push_subscriptions_user_agent_check`: `char_length("push_subscriptions"."user_agent") <= 300`
+
+**Indexes**
+
+- `push_subscriptions_user_idx` (btree): `user_id`
+
+**Row-level security:** enabled and forced; 2 policies.
+
+- `push_subscriptions_delete` (delete, to app_user): using `user_id = (select app.user_id())`
+- `push_subscriptions_read` (select, to app_user, app_reader): using `user_id = (select app.user_id())`
 
 ### retention_runs
 
@@ -3032,7 +3116,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### inbox_items
 
-**Catalogue entry** (DATABASE.md §6.9; created in 0107): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the `inbox_item` machine), `agent_action_id` (composite key with `entity_id`, one item per action), `done_by`, `done_at`
+**Catalogue entry** (DATABASE.md §6.9; created in 0107): `entity_id`, `kind` (`agent_suggestion`, `routed_work`), `assignee_id`, `team_id`, `subject_type` (`opportunity`, `account`), `subject_id`, `state` (`open`, `done`, the `inbox_item` machine), `agent_action_id` (composite key with `entity_id`, one item per action), `segment` and `note` (routed work only: the enquiry's interest and the note it came with, up to 500 characters; 0116), `done_by`, `done_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3098,93 +3182,6 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `inbox_items_insert` (insert, to app_user): with check `entity_id = any ((select app.entity_ids())::int[]) and created_by = (select app.user_id()) and state = 'open' and ((kind = 'agent_suggestion' and (select coalesce(current_setting('app.role', true), '')) like 'agent:%') or (kind = 'routed_work' and subject_type = 'account' and agent_action_id is null and (select coalesce(current_setting('app.role', true), '') not like 'agent:%' and coalesce(current_setting('app.role', true), '') not like 'system:%') and (select app.has_perm('crm.lead.write:own')) and (select app.has_perm('crm.account.write:own')) and assignee_id is not null and app.customer_held_by(subject_id, entity_id, assignee_id, team_id)))`
 - `inbox_items_read` (select, to app_user, app_reader): using `entity_id = any ((select app.entity_ids())::int[]) and ((select app.has_perm('agents.inbox.act:entity')) or ((select app.has_perm('agents.inbox.act:team')) and team_id = (select app.team_id())) or ((select app.has_perm('agents.inbox.act:own')) and assignee_id = (select app.user_id())))`
 - `inbox_items_update` (update, to app_user): using `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('agents.inbox.act', assignee_id, team_id)`; with check `entity_id = any ((select app.entity_ids())::int[]) and app.scope_ok('agents.inbox.act', assignee_id, team_id) and done_by = (select app.user_id())`
-
-## Other
-
-### notification_preferences
-
-**Catalogue entry:** none in DATABASE.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `user_id` | uuid | no |  | → `principals.id` |
-| `type` | text | yes |  |  |
-| `in_app` | boolean | no | `true` |  |
-| `push` | boolean | no | `true` |  |
-| `quiet_from` | time | yes |  |  |
-| `quiet_to` | time | yes |  |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `updated_at` | timestamp with time zone | no | `now()` |  |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `notification_preferences_user_type_unique`: (`user_id`, `type`)
-
-**Foreign keys**
-
-- `notification_preferences_user_id_principals_id_fk`: (`user_id`) → `principals` (`id`)
-
-**Check constraints**
-
-- `notification_preferences_quiet_check`: `("notification_preferences"."quiet_from" is null) = ("notification_preferences"."quiet_to" is null) and ("notification_preferences"."quiet_from" is null or "notification_preferences"."quiet_from" <> "notification_preferences"."quiet_to") and ("notification_preferences"."type" is null or "notification_preferences"."quiet_from" is null)`
-- `notification_preferences_type_check`: `"notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')`
-
-**Triggers**
-
-- `set_updated_at`: before update, runs `app.set_updated_at()`
-
-**Row-level security:** enabled and forced; 3 policies.
-
-- `notification_preferences_insert` (insert, to app_user): with check `user_id = (select app.user_id()) and (select coalesce(current_setting('app.role', true), '') not like 'agent:%' and coalesce(current_setting('app.role', true), '') not like 'system:%')`
-- `notification_preferences_read` (select, to app_user, app_reader): using `user_id = (select app.user_id())`
-- `notification_preferences_update` (update, to app_user): using `user_id = (select app.user_id())`; with check `user_id = (select app.user_id())`
-
-### push_subscriptions
-
-**Catalogue entry:** none in DATABASE.md §6.
-
-| Column | Type | Null | Default | Key |
-|---|---|---|---|---|
-| `id` | uuid | no |  | PK |
-| `user_id` | uuid | no |  | → `principals.id` |
-| `endpoint` | text | no |  |  |
-| `p256dh` | text | no |  |  |
-| `auth` | text | no |  |  |
-| `user_agent` | text | yes |  |  |
-| `created_at` | timestamp with time zone | no | `now()` |  |
-| `last_ok_at` | timestamp with time zone | yes |  |  |
-
-**Primary key**
-
-- (`id`)
-
-**Unique constraints**
-
-- `push_subscriptions_endpoint_unique`: (`endpoint`)
-
-**Foreign keys**
-
-- `push_subscriptions_user_id_principals_id_fk`: (`user_id`) → `principals` (`id`)
-
-**Check constraints**
-
-- `push_subscriptions_endpoint_check`: `"push_subscriptions"."endpoint" like 'https://%' and char_length("push_subscriptions"."endpoint") <= 1000`
-- `push_subscriptions_keys_check`: `char_length("push_subscriptions"."p256dh") between 80 and 100 and char_length("push_subscriptions"."auth") between 16 and 32`
-- `push_subscriptions_user_agent_check`: `char_length("push_subscriptions"."user_agent") <= 300`
-
-**Indexes**
-
-- `push_subscriptions_user_idx` (btree): `user_id`
-
-**Row-level security:** enabled and forced; 2 policies.
-
-- `push_subscriptions_delete` (delete, to app_user): using `user_id = (select app.user_id())`
-- `push_subscriptions_read` (select, to app_user, app_reader): using `user_id = (select app.user_id())`
 
 ## Sales
 

@@ -752,6 +752,17 @@ erDiagram
     timestamptz created_at
     timestamptz updated_at
   }
+  notification_preferences {
+    uuid id PK
+    uuid user_id FK
+    text type "null"
+    boolean in_app
+    boolean push
+    time quiet_from "null"
+    time quiet_to "null"
+    timestamptz created_at
+    timestamptz updated_at
+  }
   notifications {
     uuid id PK
     uuid user_id FK
@@ -781,6 +792,16 @@ erDiagram
     timestamptz next_attempt_at "null"
     timestamptz claimed_until "null"
   }
+  push_subscriptions {
+    uuid id PK
+    uuid user_id FK
+    text endpoint UK
+    text p256dh
+    text auth
+    text user_agent "null"
+    timestamptz created_at
+    timestamptz last_ok_at "null"
+  }
   retention_runs {
     uuid id PK
     text job
@@ -809,9 +830,11 @@ erDiagram
   import_mapping_templates }o--|| entities : "entity_id"
   import_rows }o--|| entities : "entity_id"
   import_rows }o--|| import_jobs : "job_id, entity_id"
+  notification_preferences }o--|| principals : "user_id"
   notifications }o--|| entities : "entity_id"
   notifications }o--|| principals : "user_id"
   outbox_events }o--|| entities : "entity_id"
+  push_subscriptions }o--|| principals : "user_id"
   saved_views }o--|| principals : "principal_id"
 ```
 
@@ -902,35 +925,6 @@ erDiagram
   inbox_items }o--o| principals : "done_by"
   inbox_items }o--|| entities : "entity_id"
   inbox_items }o--o| teams : "team_id"
-```
-
-## Other
-
-```mermaid
-erDiagram
-  notification_preferences {
-    uuid id PK
-    uuid user_id FK
-    text type "null"
-    boolean in_app
-    boolean push
-    time quiet_from "null"
-    time quiet_to "null"
-    timestamptz created_at
-    timestamptz updated_at
-  }
-  push_subscriptions {
-    uuid id PK
-    uuid user_id FK
-    text endpoint UK
-    text p256dh
-    text auth
-    text user_agent "null"
-    timestamptz created_at
-    timestamptz last_ok_at "null"
-  }
-  notification_preferences }o--|| principals : "user_id"
-  push_subscriptions }o--|| principals : "user_id"
 ```
 
 ## Sales
