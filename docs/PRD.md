@@ -371,7 +371,7 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | CRM-06 | 1 | C3 | — |
 | CRM-07 | 1 | C2 | `packages/domain/tests/queries/customers.test.ts`, `packages/domain/tests/commands/timeline.test.ts`, `apps/web/e2e/customers.spec.ts`; timing `pnpm --filter @shakti/domain spike:account360` (`docs/spikes/account360.md`) |
 | CRM-08 | 4 | — | State machine: `packages/domain/src/state-machines/machines.test.ts` |
-| CRM-09 | 1, 5 | C3, S2 | — |
+| CRM-09 | 1, 5 | C3, S2 | The accrual by its rule, its rule bases and its cancel: `packages/domain/src/sales/commission.test.ts`, `packages/domain/tests/commands/orders.test.ts` |
 | CRM-10 | 1, 2 | C2 | `packages/domain/tests/commands/consent.test.ts`, `apps/web/e2e/customers.spec.ts` |
 | TEL-01 | 1 | T1 | `packages/domain/tests/commands/calls.test.ts`, `packages/domain/tests/queries/call-queue.test.ts`, `packages/db/tests/security/calls.test.ts`, `apps/web/e2e/calling.spec.ts` |
 | TEL-02 | 1 | T2 | The handover request and the lock cases of `crm.opportunity.assign`: `packages/domain/tests/commands/opportunity.test.ts`; the `assign` lock cases: `packages/domain/src/state-machines/machines.test.ts` |
@@ -383,9 +383,9 @@ Each requirement, the phase and slice that deliver it (slice codes in `docs/desi
 | SAL-02 | 1 | C1 | `packages/domain/src/tax/tax.test.ts`, `packages/domain/src/tax/golden.test.ts`, `packages/domain/tests/commands/tax.test.ts`, `apps/web/e2e/catalogue.spec.ts` |
 | SAL-03 | 1 | S1 | Quote machine: `packages/domain/src/state-machines/machines/quote.test.ts`; numbering `packages/domain/tests/numbering/next-document-no.test.ts`; prices from the list and a price in the input refused: `packages/domain/tests/commands/quotes.test.ts`, `packages/domain/src/sales/quote-pricing.test.ts`; policies `packages/db/tests/security/quotes.test.ts`; journey `apps/web/e2e/quotes.spec.ts` |
 | SAL-04 | 1, 3 | C4, S1 | Sizing facts `packages/domain/src/sizing/quote-facts.test.ts`; a quote refused for missing or out-of-bounds sizing, the pump curve or the DCR and sanctioned-load rules: `packages/domain/tests/commands/quotes.test.ts` |
-| SAL-05 | 1, 2 | P4, S1, S2 | Print templates: `apps/web/src/print/templates.test.ts`; a quote printed, recorded and attached: `apps/web/tests/pdf-render.test.ts`; sent only with its PDF: `packages/domain/tests/commands/quotes.test.ts`; the quotation of a real quote and a quote sent with its PDF: `apps/web/e2e/print.spec.ts`, `apps/web/e2e/quotes.spec.ts` |
-| SAL-06 | 1, 3, 5 | S2 | State machine: `packages/domain/src/state-machines/machines.test.ts` |
-| SAL-07 | 1, 5 | S2 | `packages/domain/src/sales/credit-check.test.ts` |
+| SAL-05 | 1, 2 | P4, S1, S2 | Print templates: `apps/web/src/print/templates.test.ts`; a quote printed, recorded and attached: `apps/web/tests/pdf-render.test.ts`; sent only with its PDF: `packages/domain/tests/commands/quotes.test.ts`; the quotation of a real quote and a quote sent with its PDF: `apps/web/e2e/print.spec.ts`, `apps/web/e2e/quotes.spec.ts`; acceptance by a signed copy: `packages/domain/tests/commands/orders.test.ts`, `apps/web/e2e/orders.spec.ts` |
+| SAL-06 | 1, 3, 5 | S2 | State machine: `packages/domain/src/state-machines/machines.test.ts`; orders from a quote and for dealers, confirm, cancel: `packages/domain/tests/commands/orders.test.ts`, `packages/db/tests/security/sales-orders.test.ts`; journeys: `apps/web/e2e/orders.spec.ts` |
+| SAL-07 | 1, 5 | S2 | `packages/domain/src/sales/credit-check.test.ts`; the hold, the release and the exposure: `packages/domain/tests/commands/orders.test.ts`; journeys: `apps/web/e2e/orders.spec.ts` |
 | INV-01 | 1, 3 | C1 | `packages/domain/tests/commands/catalogue.test.ts`, `packages/domain/tests/queries/catalogue-queries.test.ts`, `packages/domain/tests/queries/list-items.test.ts`, `apps/web/e2e/catalogue.spec.ts` |
 | INV-02, INV-03, INV-04, INV-06 | 3 | — | Cost and rate gates: `packages/db/tests/security/cost-permissions.test.ts` |
 | INV-05 | 3 | — | Dispatch machine: `packages/domain/src/state-machines/machines.test.ts` |

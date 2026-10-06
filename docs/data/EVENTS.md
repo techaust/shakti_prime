@@ -45,7 +45,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-40 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+47 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -141,6 +141,13 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.quote.superseded`](#salesquotesuperseded) | A quote was replaced by a re-quote at current prices (`supersededById`). | `sales.quote.requote` | none |
 | [`sales.quote.withdrawn`](#salesquotewithdrawn) | A draft or sent quote was withdrawn, with a reason a person gave. | `sales.quote.withdraw` | none |
 | [`sales.quote.expired`](#salesquoteexpired) | The daily job marked a quote whose validity had passed as expired. | `sales.quote.expire` | none |
+| [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`. | `sales.quote.accept` | none |
+| [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.order.create` | none |
+| [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. | `sales.order.confirm` | none |
+| [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. | `sales.order.confirm` | none |
+| [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
+| [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
+| [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
 
 ## Payloads
 
@@ -421,3 +428,58 @@ No fields apart from `v`.
 | Field | Type |
 |---|---|
 | `opportunityId` | id |
+
+### sales.quote.accepted
+
+| Field | Type |
+|---|---|
+| `opportunityId` | id |
+| `orderId` | id |
+| `acceptedVia` | one of `whatsapp_reply`, `whatsapp_otp`, `signed_upload` |
+
+### sales.order.created
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `quoteId` | id or null |
+| `opportunityId` | id or null |
+| `lineCount` | whole number from 1 |
+
+### sales.order.confirmed
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `opportunityId` | id or null |
+| `released` | true or false |
+
+### sales.order.credit_held
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `createdBy` | id |
+| `reason` | one of `credit_limit_exceeded`, `credit_overdue`, `credit_limit_missing` |
+
+### sales.order.credit_released
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+
+### sales.order.cancelled
+
+| Field | Type |
+|---|---|
+| `accountId` | id |
+| `opportunityId` | id or null |
+| `fromState` | one of `draft`, `confirmed` |
+
+### sales.commission.accrued
+
+| Field | Type |
+|---|---|
+| `orderId` | id |
+| `partnerId` | id |
+| `ruleId` | id |

@@ -106,7 +106,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CRM-5 · Referral partner commissions** — Owner
 - *Context:* referral partners get a code; leads with the code are credited to them, and commission is recorded once the sale is confirmed.
 - *Options:* a fixed amount per sale, a percentage of order value, or a rate per kW or per HP; paid on order, on payment received, or on installation.
-- *Today:* partners can be recorded as a customer type; no commission rule exists.
+- *Today:* partners have codes, and an Executive can enter commission rules on Settings › Pipelines (none is entered); when an order of a credited lead is confirmed, the commission is recorded by the partner's rule in force that day, and nothing is recorded while there is no rule.
 
 **CRM-6 · Loan partners and banks** — Owner, Accounts
 - *Context:* customer loans (bank or scheme loans, including the PM Surya Ghar loan route) are tracked from applied to sanctioned to disbursed, and can hold a payment step or a dispatch until the money arrives.
@@ -203,14 +203,16 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **SALE-4 · Dealer credit limits and days** — Accounts, Owner
 - *Context:* a new dealer order is held when the dealer's outstanding plus the new order is above their limit, or when any invoice is overdue beyond their credit days.
 - *Needed:* each dealer's credit limit and credit days, per company.
+- *Today:* Accounts enter them on the Dealer credit screen; a dealer with no limit has every order held until an Executive releases it.
 
 **SALE-5 · Do confirmed but undelivered orders count against the credit limit?** — Accounts
 - *Options:* yes, count them (safer); or count only invoiced amounts.
-- *Today:* yes, they count.
+- *Today:* yes, they count: the orders confirmed after the date of Accounts' newest outstanding figure are added to it.
 
 **SALE-6 · Dealer outstanding before the Tally link** — Accounts
 - *Context:* until the Tally link is live (Phase 5), dealer outstanding is entered by hand.
 - *Needed:* who enters it and how often (daily or weekly).
+- *Today:* Accounts enter it on the Dealer credit screen with the date it stands at and the oldest overdue invoice; how often is not set.
 
 ### B5. Stock and dispatch (STOCK) — needed before Phase 3
 
