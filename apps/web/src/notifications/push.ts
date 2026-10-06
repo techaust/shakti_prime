@@ -68,7 +68,7 @@ export function webPushSender(config: VapidConfig): PushSender {
       } catch (error) {
         const status =
           typeof error === 'object' && error !== null && 'statusCode' in error
-            ? (error as { statusCode: unknown }).statusCode
+            ? error.statusCode
             : undefined;
         return status === 404 || status === 410 ? 'gone' : 'failed';
       }

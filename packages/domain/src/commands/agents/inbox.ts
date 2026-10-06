@@ -243,9 +243,7 @@ export const completeInboxItem = defineCommand({
     const [item] = await ctx.tx
       .select()
       .from(i)
-      .where(
-        and(eq(i.id, input.itemId), eq(i.entityId, input.entityId), eq(i.kind, 'routed_work')),
-      )
+      .where(and(eq(i.id, input.itemId), eq(i.entityId, input.entityId), eq(i.kind, 'routed_work')))
       .limit(1)
       .for('update');
     if (item === undefined) {
@@ -260,7 +258,12 @@ export const completeInboxItem = defineCommand({
     });
     await ctx.tx
       .update(i)
-      .set({ state: 'done', doneBy: ctx.principal.id, doneAt: ctx.now, updatedBy: ctx.principal.id })
+      .set({
+        state: 'done',
+        doneBy: ctx.principal.id,
+        doneAt: ctx.now,
+        updatedBy: ctx.principal.id,
+      })
       .where(eq(i.id, item.id));
     ctx.audit({
       aggregateType: 'inbox_item',

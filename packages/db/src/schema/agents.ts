@@ -217,7 +217,7 @@ export const inboxItems = pgTable(
     check('inbox_items_note_check', sql`char_length(${t.note}) between 1 and 500`),
     check(
       'inbox_items_routed_check',
-      sql`${t.kind} = 'routed_work' or (${t.segment} is null and ${t.note} is null)`,
+      sql`${t.kind} <> 'agent_suggestion' or (${t.segment} is null and ${t.note} is null)`,
     ),
     check('inbox_items_subject_type_check', sql`${t.subjectType} in ('opportunity', 'account')`),
     check(

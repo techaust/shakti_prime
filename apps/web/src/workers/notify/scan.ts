@@ -1,7 +1,4 @@
-import {
-  NotificationScanWorkerResponse,
-  type NotificationScanWorkerBody,
-} from '@shakti/contracts';
+import { NotificationScanWorkerResponse, type NotificationScanWorkerBody } from '@shakti/contracts';
 import { executeCommand, scanNotices } from '@shakti/domain';
 import type { PushSender } from '../../notifications/push';
 import {

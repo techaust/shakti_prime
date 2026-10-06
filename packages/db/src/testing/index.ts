@@ -300,6 +300,8 @@ export const ENTITY_TABLES = [
   'agent_runs',
   'agent_actions',
   'inbox_items',
+  // a person's own notices in the request's companies (docs/design/phase1.md §8.1)
+  'notifications',
 ] as const;
 
 /**
@@ -324,9 +326,14 @@ export const OUTBOX_TABLES = ['outbox_events'] as const;
 /**
  * Tables scoped to the calling principal rather than an entity: each caller reads and writes its
  * own rows only, so a context with an empty entity scope still sees its own. Asserted in
- * idempotency-keys.test.ts and saved-views.test.ts.
+ * idempotency-keys.test.ts, saved-views.test.ts and notifications.test.ts.
  */
-export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
+export const PRINCIPAL_TABLES = [
+  'idempotency_keys',
+  'saved_views',
+  'notification_preferences',
+  'push_subscriptions',
+] as const;
 
 /**
  * Platform tables of no company that only a database job writes and only a permission at scope

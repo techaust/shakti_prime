@@ -104,9 +104,7 @@ export const NoticeCountDto = z.object({ unread: Count }).strict();
 export type NoticeCountDto = z.infer<typeof NoticeCountDto>;
 
 /** `notifications.notice.read`: the caller's notices, by id, marked read. */
-export const MarkNoticesReadInput = z
-  .object({ ids: z.array(IdSchema).min(1).max(50) })
-  .strict();
+export const MarkNoticesReadInput = z.object({ ids: z.array(IdSchema).min(1).max(50) }).strict();
 export type MarkNoticesReadInput = z.infer<typeof MarkNoticesReadInput>;
 
 /** `notifications.notice.read_all`: every unread notice of the caller in the request's companies. */
@@ -222,9 +220,7 @@ export type PushSubscribeInput = z.infer<typeof PushSubscribeInput>;
 export const PushUnsubscribeInput = z.object({ endpoint: PushEndpointSchema }).strict();
 export type PushUnsubscribeInput = z.infer<typeof PushUnsubscribeInput>;
 
-export const PushSubscriptionDto = z
-  .object({ subscribed: z.boolean() })
-  .strict();
+export const PushSubscriptionDto = z.object({ subscribed: z.boolean() }).strict();
 export type PushSubscriptionDto = z.infer<typeof PushSubscriptionDto>;
 
 // --- The notify worker's commands (system:workers) --------------------------------------------
@@ -324,9 +320,7 @@ export type NoticeBatchDto = z.infer<typeof NoticeBatchDto>;
 export const RecordPushInput = z
   .object({
     entityId: EntityIdSchema,
-    outcomes: z
-      .array(z.object({ noticeId: IdSchema, push: PushOutcomeSchema }).strict())
-      .max(500),
+    outcomes: z.array(z.object({ noticeId: IdSchema, push: PushOutcomeSchema }).strict()).max(500),
     gone: z.array(z.string().max(1000)).max(500),
     delivered: z.array(z.string().max(1000)).max(500),
   })

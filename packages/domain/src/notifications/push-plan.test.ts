@@ -41,7 +41,14 @@ describe('a person’s choice and the push plan', () => {
   const rows = [
     { userId: 'a', type: 'call_due', inApp: true, push: false, quietFrom: null, quietTo: null },
     { userId: 'a', type: null, inApp: true, push: true, quietFrom: '22:00', quietTo: '07:00' },
-    { userId: 'b', type: 'lead_assigned', inApp: false, push: true, quietFrom: null, quietTo: null },
+    {
+      userId: 'b',
+      type: 'lead_assigned',
+      inApp: false,
+      push: true,
+      quietFrom: null,
+      quietTo: null,
+    },
   ];
 
   it('turns everything on, with no quiet hours, for a person who set nothing', () => {

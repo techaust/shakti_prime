@@ -93,7 +93,10 @@ export const notificationPreferences = pgTable(
   (t) => [
     // Also the index for the person's foreign key; the quiet hours row has no kind.
     unique('notification_preferences_user_type_unique').on(t.userId, t.type).nullsNotDistinct(),
-    check('notification_preferences_type_check', sql`${t.type} is null or ${t.type} in ${NOTICE_TYPES}`),
+    check(
+      'notification_preferences_type_check',
+      sql`${t.type} is null or ${t.type} in ${NOTICE_TYPES}`,
+    ),
     check(
       'notification_preferences_quiet_check',
       sql`(${t.quietFrom} is null) = (${t.quietTo} is null)

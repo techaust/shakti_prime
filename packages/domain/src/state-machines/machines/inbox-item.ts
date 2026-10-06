@@ -23,7 +23,13 @@ export const inboxItemMachine = defineMachine<
   title: 'Inbox item',
   summary:
     '`inbox_items.state`. An agent’s suggestion, or work routed to someone, in the Agent Inbox of the person, team or company it is for; scope follows `agents.inbox.act` with the assignee as the owner.',
-  sources: ['docs/design/phase1.md §7.1', 'docs/design/phase1.md §8.1', 'PRD AI-04', 'PRD RPT-04', 'DATABASE §6.9'],
+  sources: [
+    'docs/design/phase1.md §7.1',
+    'docs/design/phase1.md §8.1',
+    'PRD AI-04',
+    'PRD RPT-04',
+    'DATABASE §6.9',
+  ],
   states: INBOX_ITEM_STATES,
   initial: 'open',
   terminal: ['done'],

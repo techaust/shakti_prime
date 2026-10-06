@@ -280,7 +280,7 @@ export const NotifyJob = DeliveredEvent.superRefine((event, ctx) => {
   if (!IdSchema.safeParse(event.aggregateId).success) {
     ctx.addIssue({ code: 'custom', message: 'not a record id', path: ['aggregateId'] });
   }
-  const { v: _version, ...payload } = event.payload;
+  const payload = Object.fromEntries(Object.entries(event.payload).filter(([key]) => key !== 'v'));
   if (!parseEventPayload(event.type, payload).ok) {
     ctx.addIssue({ code: 'custom', message: 'not the payload of its type', path: ['payload'] });
   }

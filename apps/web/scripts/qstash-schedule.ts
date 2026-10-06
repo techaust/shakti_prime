@@ -138,6 +138,4 @@ await client.schedules.create({
   retries: 0,
   timeout: 60,
 });
-console.log(
-  `schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} every five minutes`,
-);
+console.log(`schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} every five minutes`);

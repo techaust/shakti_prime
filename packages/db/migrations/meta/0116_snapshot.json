@@ -5840,7 +5840,7 @@
         },
         "inbox_items_routed_check": {
           "name": "inbox_items_routed_check",
-          "value": "\"inbox_items\".\"kind\" = 'routed_work' or (\"inbox_items\".\"segment\" is null and \"inbox_items\".\"note\" is null)"
+          "value": "\"inbox_items\".\"kind\" <> 'agent_suggestion' or (\"inbox_items\".\"segment\" is null and \"inbox_items\".\"note\" is null)"
         },
         "inbox_items_subject_type_check": {
           "name": "inbox_items_subject_type_check",

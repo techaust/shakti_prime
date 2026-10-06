@@ -64,4 +64,4 @@ CREATE INDEX "opportunities_open_created_idx" ON "opportunities" USING btree ("e
 CREATE INDEX "tasks_open_calls_due_idx" ON "tasks" USING btree ("entity_id","due_at") WHERE "tasks"."state" = 'open' and "tasks"."kind" in ('callback', 'nurture');--> statement-breakpoint
 ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_segment_check" CHECK ("inbox_items"."segment" in ('farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale'));--> statement-breakpoint
 ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_note_check" CHECK (char_length("inbox_items"."note") between 1 and 500);--> statement-breakpoint
-ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_routed_check" CHECK ("inbox_items"."kind" = 'routed_work' or ("inbox_items"."segment" is null and "inbox_items"."note" is null));
+ALTER TABLE "inbox_items" ADD CONSTRAINT "inbox_items_routed_check" CHECK ("inbox_items"."kind" <> 'agent_suggestion' or ("inbox_items"."segment" is null and "inbox_items"."note" is null));

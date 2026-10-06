@@ -144,7 +144,11 @@ export async function takeEnquiry(
         scope,
         routeEnquiryCommand,
         input.existingAccountId === undefined
-          ? { entityId: input.entityId, pipelineKey: input.pipelineKey, phone: input.contact?.phone }
+          ? {
+              entityId: input.entityId,
+              pipelineKey: input.pipelineKey,
+              phone: input.contact?.phone,
+            }
           : {
               entityId: input.entityId,
               pipelineKey: input.pipelineKey,

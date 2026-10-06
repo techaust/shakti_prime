@@ -199,6 +199,12 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: otherCompany,
   },
   inbox_items: { read: INBOX, leak: otherCompany },
+  // A person's own notices in the company they act in, whatever their role; never another's.
+  notifications: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    leak: otherCompany,
+  },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {
