@@ -301,4 +301,11 @@ Fix on `feat/t1-calling` without taking `main`. Invoke the `add-command` and `wr
 7. **Finding 7 (low):** PRD §8 traces TEL-01 to the four test files the finding names.
 8. Then run `pnpm test:security`, `pnpm lint`, `pnpm exec turbo run typecheck --force`, `pnpm exec turbo run test --force`, `pnpm copy-lint`, `pnpm db:generate` (no changes), `python3 tools/integration/check-doc-links.py` (bad 0), `pnpm build`, `pnpm --filter web js-budget`, and `e2e/calling.spec.ts` with `--ignore-snapshots` on all three projects after `e2e:seed`, inside calling hours (09:00 to 21:00 IST). Write a dated Report section, set State to "fixes done; awaiting re-review", commit and push. Delete turbo's `turborepo-agent-rules` block from `AGENTS.md` before every commit if a run writes it.
 
+### 06-10-2026, the lead's focus for the re-review
+Re-review the fixes `78b3343...3d62262` against the findings and the fix brief, without taking `main`. Besides each finding, check:
+1. **An agent's reassignment:** `agent:triage` holds `crm.lead.assign:entity` and `crm.lead.write:entity` (SECURITY §3.3). `crm.opportunity.assign` now creates and cancels tasks (`moveCallTasks`). Reproduce an agent assigning a lead that has an open callback: the assignment must still succeed (not refused by the task commands or the task policies), and say whether the callback moved or was left, and whether either is audited under the agent.
+2. **Whoever cannot change a task:** `openCallTasks` skips tasks outside the caller's `crm.lead.write` scope. Check that a reopen, a loss or a reassignment by a team lead, a GM and a tele-caller each leave no open nurture call that hides the lead from its owner's queue.
+3. **The builder's three decisions** in its report (a move is a new task plus a cancelled one; tasks outside scope are left; a win cancels nothing). Say for each whether it is sound.
+4. The calling spike's slower team view (178 to 187 ms against 127 to 136 ms): is it the fix's SQL or the database the suites had filled?
+
 ## Integration notes
