@@ -14,7 +14,7 @@ import { noticeHref } from '../../screens/notices';
 /** The push of one notice: its kind's sentence and the screen it opens, never a name or number. */
 export function pushMessageOf(notice: WrittenNoticeDto): PushMessage {
   // The one catalogue is English (ADR 0014); a worker has no person's locale to resolve.
-  const words = en.notifications.push[notice.type];
+  const words = en.pushAlerts[notice.type];
   return {
     title: words.title,
     body: words.body,

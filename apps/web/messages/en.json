@@ -452,32 +452,6 @@
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you"
     },
-    "push": {
-      "lead_assigned": {
-        "title": "A lead was given to you",
-        "body": "Tap to open the customer."
-      },
-      "duplicate_found": {
-        "title": "A possible duplicate",
-        "body": "A customer or lead of yours may be the same as another one. Tap to check."
-      },
-      "call_due": {
-        "title": "A call is due",
-        "body": "Tap to open your calling queue."
-      },
-      "quote_expiring": {
-        "title": "A quote lapses soon",
-        "body": "A quote on your lead lapses within a day. Tap to open it."
-      },
-      "first_call_late": {
-        "title": "A new lead was not called in time",
-        "body": "Tap to open the customer and see who has the lead."
-      },
-      "enquiry_routed": {
-        "title": "An enquiry was passed to you",
-        "body": "A customer you look after asked again. Tap to open your Agent Inbox."
-      }
-    },
     "settings": {
       "title": "Notification settings",
       "intro": "Choose which notices you see and which ones also come as alerts on this computer or phone. Everything is on until you change it.",
@@ -506,6 +480,32 @@
       "turnOffPush": "Turn off alerts",
       "pushOnDone": "Alerts are on for this browser.",
       "pushOffDone": "Alerts are off for this browser."
+    }
+  },
+  "pushAlerts": {
+    "lead_assigned": {
+      "title": "A lead was given to you",
+      "body": "Tap to open the customer."
+    },
+    "duplicate_found": {
+      "title": "A possible duplicate",
+      "body": "A customer or lead of yours may be the same as another one. Tap to check."
+    },
+    "call_due": {
+      "title": "A call is due",
+      "body": "Tap to open your calling queue."
+    },
+    "quote_expiring": {
+      "title": "A quote lapses soon",
+      "body": "A quote on your lead lapses within a day. Tap to open it."
+    },
+    "first_call_late": {
+      "title": "A new lead was not called in time",
+      "body": "Tap to open the customer and see who has the lead."
+    },
+    "enquiry_routed": {
+      "title": "An enquiry was passed to you",
+      "body": "A customer you look after asked again. Tap to open your Agent Inbox."
     }
   },
   "home": {
@@ -2912,7 +2912,8 @@
       "profile": "Their own settings",
       "admin": "Running the system",
       "integrations": "Other systems",
-      "files": "Uploaded files"
+      "files": "Uploaded files",
+      "notifications": "Notices"
     },
     "permissions": {
       "crm_lead_read": "See leads",
