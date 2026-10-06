@@ -4,7 +4,7 @@
 
 `opportunities.state`. One per enquiry per entity; the pipeline stage (`stage_id`) moves only while the opportunity is open.
 
-Sources: docs/design/backend-weeks-3-5.md §7.2; BLUEPRINT §8.1, §8.2; PRD CRM-03, CRM-05, TEL-02.
+Sources: docs/03-roadmap-appendix/backend-weeks-3-5.md §7.2; BLUEPRINT §8.1, §8.2; PRD CRM-03, CRM-05, TEL-02.
 
 Items marked *proposed* are not named in the governing documents; they were chosen for this specification and need review.
 
