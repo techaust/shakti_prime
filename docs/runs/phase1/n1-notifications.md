@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Branch | `feat/n1-notifications` on GitHub, from `main` at f74caff0 (#121) |
-| PC worktree | none: the PC runs no Docker (owner, 05-10-2026) |
-| Runs on | Cloud: build, review, fixes, the merge with `main`, integration and baselines; the pull request and the hosted steps from the PC |
-| State | brief |
-| Next step | a cloud builder builds the slice from this brief |
+| PC worktree | `n1-notifications`, slot 16: Postgres 54346, app 3046 (`bash tools/integration/setup-worktree.sh n1-notifications feat/n1-notifications 54346 3046`) |
+| Runs on | PC only, one slice at a time (owner, 06-10-2026): build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
+| State | building |
+| Next step | the builder agent on the PC builds the slice from this brief |
 
 ## Brief
 Read first:
