@@ -19,7 +19,8 @@
     "spike:account360": "tsx tests/spike/account360.ts",
     "spike:calling": "tsx tests/spike/calling.ts",
     "spike:catalogue": "tsx tests/spike/catalogue-explain.ts",
-    "spike:quotes": "tsx tests/spike/quotes-explain.ts"
+    "spike:quotes": "tsx tests/spike/quotes-explain.ts",
+    "spike:notifications": "tsx tests/spike/notifications-explain.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

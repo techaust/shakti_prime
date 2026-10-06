@@ -19,21 +19,18 @@ const NoticeCursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
 const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
 /**
- * The caller's notices in the request's companies that show in the centre, newest first, keyset
- * on `(created_at, id)` off `notifications_user_created_idx` (docs/design/phase1.md §8.1). The
- * customer's name and the quote's number join only where the caller may read them (RLS), so a
- * notice about a record the caller no longer reads still shows, without them.
+ * One page of the caller's notices as a query, `limit` rows after the keyset `after`; exported
+ * so the notifications spike explains the very statement the centre runs.
  */
-export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePageDto> {
-  const input = parseQueryInput(ListNoticesInput, rawInput, 'notifications.list');
-  const after = input.cursor === undefined ? undefined : decodeCursor(NoticeCursor, input.cursor);
-  if (after !== undefined && !PG_TIME.test(after.t)) {
-    throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });
-  }
+export function noticeListQuery(
+  ctx: Ctx,
+  limit: number,
+  after?: z.output<typeof NoticeCursor>,
+) {
   const n = schema.notifications;
   const a = schema.accounts;
   const q = schema.quotes;
-  const rows = await ctx.tx
+  return ctx.tx
     .select({
       notice: n,
       customerName: a.name,
@@ -58,7 +55,22 @@ export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePa
       ),
     )
     .orderBy(desc(n.createdAt), desc(n.id))
-    .limit(input.limit + 1);
+    .limit(limit);
+}
+
+/**
+ * The caller's notices in the request's companies that show in the centre, newest first, keyset
+ * on `(created_at, id)` off `notifications_user_created_idx` (docs/design/phase1.md §8.1). The
+ * customer's name and the quote's number join only where the caller may read them (RLS), so a
+ * notice about a record the caller no longer reads still shows, without them.
+ */
+export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePageDto> {
+  const input = parseQueryInput(ListNoticesInput, rawInput, 'notifications.list');
+  const after = input.cursor === undefined ? undefined : decodeCursor(NoticeCursor, input.cursor);
+  if (after !== undefined && !PG_TIME.test(after.t)) {
+    throw new DomainError('validation_failed', 'cursor is not valid', { cursor: input.cursor });
+  }
+  const rows = await noticeListQuery(ctx, input.limit + 1, after);
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return {
@@ -86,8 +98,8 @@ export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePa
   };
 }
 
-/** How many unread notices the caller has in the request's companies, up to the bell's limit. */
-export async function countNotices(ctx: Ctx): Promise<NoticeCountDto> {
+/** The bell's count as a query (`countNotices`), for the notifications spike. */
+export function noticeCountQuery(ctx: Ctx) {
   const n = schema.notifications;
   const unread = ctx.tx
     .select({ one: sql`1` })
@@ -101,6 +113,11 @@ export async function countNotices(ctx: Ctx): Promise<NoticeCountDto> {
     )
     .limit(NOTICE_COUNT_LIMIT)
     .as('unread_notices');
-  const [row] = await ctx.tx.select({ unread: sql<number>`count(*)::int` }).from(unread);
+  return ctx.tx.select({ unread: sql<number>`count(*)::int` }).from(unread);
+}
+
+/** How many unread notices the caller has in the request's companies, up to the bell's limit. */
+export async function countNotices(ctx: Ctx): Promise<NoticeCountDto> {
+  const [row] = await noticeCountQuery(ctx);
   return { unread: row?.unread ?? 0 };
 }
