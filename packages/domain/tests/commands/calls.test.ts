@@ -14,8 +14,11 @@ import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { logCall } from '../../src/commands/calls/log-call';
 import { createLead } from '../../src/commands/crm/create-lead';
+import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { nurtureOpportunity } from '../../src/commands/crm/nurture-opportunity';
+import { reopenOpportunity } from '../../src/commands/crm/reopen-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
+import { loadCallLead } from '../../src/queries/calls/call-queue';
 
 // calls.log (docs/design/phase1.md §7.2, PRD TEL-01): a person logs a call they made by hand, and
 // the outcome's next step runs: a callback, the retry rule (three attempts on day 1, 2 and 3, the
@@ -464,5 +467,113 @@ describe('calls.log: qualified and lost', () => {
          where aggregate_id = ${lead} and command = 'crm.opportunity.lose'`,
     );
     expect(lost?.after_json).toMatchObject({ lostReason: 'not_reachable' });
+  });
+});
+
+describe('calls.log and the board: a lead that leaves nurture (review of 06-10-2026)', () => {
+  const board = (command: AnyCommand, opportunityId: string, now: Date, extra: object = {}) =>
+    run(caller, command, { entityId: ENTITY, opportunityId, ...extra }, now);
+  const nurture = (opportunityId: string, now: Date) =>
+    board(nurtureOpportunity, opportunityId, now, { reasonCode: 'waiting_for_funds' });
+  const openOf = async (opportunityId: string, kind: string) =>
+    (await tasksOf(opportunityId)).filter((t) => t.kind === kind && t.state === 'open');
+
+  it('A: a lead reopened on the board keeps no nurture calls', async () => {
+    const lead = await leadOf(caller);
+    await nurture(lead, ist('2030-03-04T10:00:00'));
+    expect(await openOf(lead, 'nurture')).toHaveLength(3);
+    await board(reopenOpportunity, lead, ist('2030-03-04T11:00:00'));
+    expect(await openOf(lead, 'nurture')).toEqual([]);
+    const [cancelled] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from audit_logs a join tasks t on t.id = a.aggregate_id
+         where t.opportunity_id = ${lead} and a.command = 'crm.task.cancel'`,
+    );
+    expect(cancelled?.n).toBe(3);
+  });
+
+  it('B: a nurtured lead lost on the board keeps no nurture calls, and a lost lead no callback', async () => {
+    const nurtured = await leadOf(caller);
+    await nurture(nurtured, ist('2030-03-04T10:00:00'));
+    await board(loseOpportunity, nurtured, ist('2030-03-04T11:00:00'), {
+      reasonCode: 'not_interested',
+    });
+    expect(await openOf(nurtured, 'nurture')).toEqual([]);
+
+    const called = await leadOf(caller);
+    await log(caller, called, 'callback', {
+      callbackAt: ist('2030-03-05T16:00:00').toISOString(),
+    });
+    await board(loseOpportunity, called, ist('2030-03-04T12:00:00'), {
+      reasonCode: 'not_interested',
+    });
+    expect(await openOf(called, 'callback')).toEqual([]);
+  });
+
+  it('C: nurtured, reopened and nurtured again, a lead has one set of nurture calls', async () => {
+    const lead = await leadOf(caller);
+    await nurture(lead, ist('2030-03-04T10:00:00'));
+    await board(reopenOpportunity, lead, ist('2030-03-04T11:00:00'));
+    await nurture(lead, ist('2030-03-04T12:00:00'));
+    const open = await openOf(lead, 'nurture');
+    expect(open.map((t) => t.due_at.toISOString())).toEqual([
+      ist('2030-03-11T09:00:00').toISOString(),
+      ist('2030-04-03T09:00:00').toISOString(),
+      ist('2030-06-02T09:00:00').toISOString(),
+    ]);
+  });
+
+  it('D: a lead reopened after its three tries starts again at the first attempt', async () => {
+    const lead = await leadOf(caller);
+    await log(caller, lead, 'retry');
+    await log(caller, lead, 'retry', {}, ist('2030-03-05T10:00:00'));
+    const third = await log(caller, lead, 'retry', {}, ist('2030-03-06T10:00:00'));
+    expect(third).toMatchObject({ leadState: 'nurture', attemptsUsedUp: true });
+    // The customer rings back on day 15 and the lead is reopened on the board.
+    await board(reopenOpportunity, lead, ist('2030-03-18T10:00:00'));
+    const shown = await asPrincipal(caller, (context) =>
+      loadCallLead(context, { entityId: ENTITY, opportunityId: lead }),
+    );
+    expect(shown.attempts).toBe(0);
+    const again = await log(caller, lead, 'retry', {}, ist('2030-03-18T11:00:00'));
+    expect(again).toMatchObject({
+      call: { attemptNo: 1 },
+      leadState: 'open',
+      attemptsUsedUp: false,
+      nextCall: { kind: 'callback', dueAt: ist('2030-03-19T09:00:00').toISOString() },
+    });
+  });
+
+  it('D: an unanswered nurture call counts from the start of nurture, not on from the three tries', async () => {
+    const lead = await leadOf(caller);
+    await log(caller, lead, 'retry');
+    await log(caller, lead, 'retry', {}, ist('2030-03-05T10:00:00'));
+    await log(caller, lead, 'retry', {}, ist('2030-03-06T10:00:00'));
+    // Day 7's nurture call, not answered.
+    const nurtureCall = await log(caller, lead, 'retry', {}, ist('2030-03-13T10:00:00'));
+    expect(nurtureCall).toMatchObject({ call: { attemptNo: 1 }, leadState: 'nurture' });
+    const shown = await asPrincipal(caller, (context) =>
+      loadCallLead(context, { entityId: ENTITY, opportunityId: lead }),
+    );
+    expect(shown).toMatchObject({ attempts: 1, maxAttempts: 3 });
+  });
+});
+
+describe('calls.log: a qualified outcome on a lead past Qualified (review of 06-10-2026)', () => {
+  it('F: a lead at Quoted stays there, with no second handover', async () => {
+    const lead = await leadOf(caller);
+    await asMigrator(
+      (m) => m`update opportunities o set stage_id = ps.id
+                 from pipeline_stages ps
+                where ps.pipeline_id = o.pipeline_id and ps.key = 'quoted' and o.id = ${lead}`,
+    );
+    const result = await log(caller, lead, 'qualified');
+    expect(result.leadState).toBe('open');
+    expect((await leadState(lead)).stage).toBe('quoted');
+    const moves = await asMigrator(
+      (m) => m`select 1 from audit_logs
+                where aggregate_id = ${lead} and command = 'crm.opportunity.stage.move'`,
+    );
+    expect(moves).toHaveLength(0);
   });
 });

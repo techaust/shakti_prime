@@ -12,8 +12,10 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { logCall } from '../../src/commands/calls/log-call';
+import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { nurtureOpportunity } from '../../src/commands/crm/nurture-opportunity';
+import { reopenOpportunity } from '../../src/commands/crm/reopen-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import {
   dialNumber,
@@ -37,6 +39,7 @@ const OUTCOMES = { callback: newId(), retry: newId(), qualified: newId() } as co
 let caller: Principal;
 let colleague: Principal;
 let teamLead: Principal;
+let teamId: string;
 let slaBefore: number | null = null;
 const leads: Record<string, string> = {};
 
@@ -97,7 +100,7 @@ beforeAll(async () => {
     slaBefore = pipeline?.sla ?? null;
     await m`update pipelines set first_contact_sla_minutes = 60 where key = ${SLA_PIPELINE}`;
   });
-  const teamId = await createTestTeam(ENTITY, 'queue team');
+  teamId = await createTestTeam(ENTITY, 'queue team');
   const make = async (roleKey: 'tele_caller_cc' | 'sales_team_lead', name: string) => {
     const user = await createTestUser([{ entityId: ENTITY, roleKey, teamId }], { name });
     return createTestPrincipal(roleKey, [ENTITY], { id: user.id, teamId });
@@ -228,6 +231,114 @@ describe('listCallQueue', () => {
   it('is refused to a role that does not log calls', async () => {
     const accounts = await createTestPrincipal('accounts', [ENTITY]);
     await expect(queue(accounts)).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('listCallQueue after the board and a reassignment (review of 06-10-2026)', () => {
+  let owner: Principal;
+  let newOwner: Principal;
+
+  beforeAll(async () => {
+    const make = async (name: string) => {
+      const user = await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc', teamId }], {
+        name,
+      });
+      return createTestPrincipal('tele_caller_cc', [ENTITY], { id: user.id, teamId });
+    };
+    owner = await make('Board caller');
+    newOwner = await make('New owner');
+  });
+
+  const openTasks = (opportunityId: string, assigneeId: string) =>
+    asMigrator(
+      (m) => m<{ kind: string; due_at: Date }[]>`
+        select kind, due_at from tasks
+         where opportunity_id = ${opportunityId} and assignee_id = ${assigneeId}
+           and state = 'open'`,
+    );
+
+  it('A: a lead nurtured and reopened on the board is back in its owner’s queue', async () => {
+    const lead = await leadOf(owner, 'residential_rooftop', 'Reopened lead');
+    const ref = { entityId: ENTITY, opportunityId: lead };
+    await run(
+      owner,
+      nurtureOpportunity,
+      { ...ref, reasonCode: 'waiting_for_funds' },
+      ist('2030-03-05T10:00:00'),
+    );
+    await run(owner, reopenOpportunity, ref, ist('2030-03-05T11:00:00'));
+    const page = await queue(owner, {}, ist('2030-03-05T12:00:00'));
+    expect(page.items.find((i) => i.opportunityId === lead)).toMatchObject({
+      reason: 'not_called',
+      state: 'open',
+    });
+  });
+
+  it('a nurture call holds back only a lead still in nurture', async () => {
+    const lead = await leadOf(owner, 'residential_rooftop', 'Open lead with a nurture call');
+    await asMigrator(
+      (m) => m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id,
+                                  kind, due_at, created_by)
+               select ${newId()}, o.entity_id, o.id, o.account_id, o.owner_id, o.team_id,
+                      'nurture', ${ist('2030-03-12T09:00:00')}, o.owner_id
+                 from opportunities o where o.id = ${lead}`,
+    );
+    const page = await queue(owner, {}, ist('2030-03-05T12:00:00'));
+    expect(page.items.find((i) => i.opportunityId === lead)?.reason).toBe('not_called');
+  });
+
+  it('D: counts a nurture call’s unanswered tries from the start of nurture', async () => {
+    const lead = await leadOf(owner, 'farmer_pumps', 'Not reachable lead');
+    const call = (at: string) =>
+      run(
+        owner,
+        logCall,
+        { entityId: ENTITY, opportunityId: lead, dispositionId: OUTCOMES.retry },
+        ist(at),
+      );
+    await call('2030-03-05T10:00:00');
+    await call('2030-03-06T10:00:00');
+    await call('2030-03-07T10:00:00');
+    // Day 7's nurture call, not answered; day 30's falls due on 6 April.
+    await call('2030-03-14T10:00:00');
+    const page = await queue(owner, {}, ist('2030-04-06T10:00:00'));
+    expect(page.items.find((i) => i.opportunityId === lead)).toMatchObject({
+      reason: 'nurture_due',
+      attempts: 1,
+    });
+  });
+
+  it('a callback travels with a reassigned lead to its new owner', async () => {
+    const lead = await leadOf(owner, 'farmer_pumps', 'Reassigned lead');
+    const callbackAt = ist('2030-03-05T16:00:00');
+    await run(
+      owner,
+      logCall,
+      {
+        entityId: ENTITY,
+        opportunityId: lead,
+        dispositionId: OUTCOMES.callback,
+        callbackAt: callbackAt.toISOString(),
+      },
+      ist('2030-03-05T10:00:00'),
+    );
+    await run(
+      teamLead,
+      assignOpportunity,
+      { entityId: ENTITY, opportunityId: lead, ownerId: newOwner.id },
+      ist('2030-03-05T12:00:00'),
+    );
+    expect(await openTasks(lead, owner.id)).toEqual([]);
+    expect(await openTasks(lead, newOwner.id)).toEqual([
+      { kind: 'callback', due_at: callbackAt },
+    ]);
+    const atNoon = await queue(newOwner, {}, ist('2030-03-05T12:30:00'));
+    expect(atNoon.items.find((i) => i.opportunityId === lead)).toBeUndefined();
+    const at4 = await queue(newOwner, {}, ist('2030-03-05T16:30:00'));
+    expect(at4.items.find((i) => i.opportunityId === lead)).toMatchObject({
+      reason: 'call_due',
+      dueAt: callbackAt.toISOString(),
+    });
   });
 });
 
