@@ -228,13 +228,11 @@ describe('retrieval respects sensitivity per role (SECURITY §11 item 6)', () =>
   it('reads a vault upload only with a vault file the reader may read, or as its uploader', async () => {
     const seen = async (who: Principal, name: string) =>
       (
-        (await asPrincipal(
+        await asPrincipal<unknown[]>(
           who,
           async ({ tx }) =>
-            (await tx.execute(
-              sql`select 1 from files where id = ${uploads[name] ?? ''}`,
-            )) as unknown as unknown[],
-        )) as unknown[]
+            await tx.execute(sql`select 1 from files where id = ${uploads[name] ?? ''}`),
+        )
       ).length;
     const caller = principalFor('tele_caller_cc', [1]);
     expect(await seen(caller, 'staff@1')).toBe(1);
@@ -263,10 +261,7 @@ describe('who writes the vault', () => {
         values (${id}, ${row.entity}, ${fileId}, 'vault write', ${row.sensitivity}, ${row.source}, ${row.state}, ${who.id})`),
     ).then(
       () => true,
-      (e: unknown) => {
-        if (process.env.K1_DEBUG === '1') console.log(String((e as Error).cause ?? e));
-        return false;
-      },
+      () => false,
     );
   };
 
