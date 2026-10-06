@@ -40,11 +40,11 @@
     },
     "/customers/[accountId]": {
       "maxKb": 205,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips, task buttons and quotes; its edit, task, note, consent and tag dialogs, with the proof uploader, the sizing panel and the duplicate cards with the merge dialog load when one is first opened or shown. Measured 195.7 kB on 05-10-2026 with the quotes and the price tier, plus 5 %."
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and Account 360's sections, tag chips, task buttons and quotes; its edit, task, note, consent and tag dialogs, with the proof uploader, the sizing panel and the duplicate cards with the merge dialog load when one is first opened or shown. Measured 195.7 kB on 05-10-2026 with the quotes and the price tier, plus 5 %; 196.8 kB on 06-10-2026 with the duplicate cards as well."
     },
     "/duplicates": {
       "maxKb": 203,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the duplicate cards with their filter and buttons; the merge dialog loads when first opened. Measured 192.8 kB on 05-10-2026, plus 5 %."
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the duplicate cards with their filter and buttons; the merge dialog loads when first opened. Measured 192.8 kB on 05-10-2026, plus 5 %; 193.7 kB on 06-10-2026 after taking main."
     },
     "/catalogue": {
       "maxKb": 245,
