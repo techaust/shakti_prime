@@ -328,7 +328,9 @@ async function ensureSnapshotVault(executiveId: string): Promise<void> {
   const key = `${String(SNAPSHOT_COMPANY.entityId)}/knowledge/${fileId}.docx`;
   await store.put(key, bytes, type);
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
       values (${fileId}, ${SNAPSHOT_COMPANY.entityId}, 'knowledge', ${store.bucket}, ${key}, 'Solar pump care.docx',
               ${type}, ${bytes.length}, ${createHash('sha256').update(bytes).digest('hex')}, 'ready', ${executiveId})`,
   );

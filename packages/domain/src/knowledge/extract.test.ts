@@ -24,7 +24,9 @@ describe('knowledgeSourceType', () => {
     expect(knowledgeSourceType('application/pdf')).toBe('pdf');
     expect(knowledgeSourceType('image/webp')).toBe('photo');
     expect(
-      knowledgeSourceType('application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+      knowledgeSourceType(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ),
     ).toBe('word');
     expect(
       knowledgeSourceType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
@@ -40,14 +42,19 @@ describe('knowledgeSourceType', () => {
 describe('extractWorkbook', () => {
   it('reads every sheet in turn, each row on a line with its cells joined', async () => {
     const book = new ExcelJS.Workbook();
-    book.addWorksheet('Pumps').addRows([
-      ['Model', 'Head', 'Power'],
-      ['Submersible', '120 m', '5 HP'],
-      [],
-      ['Surface', null, '2 HP'],
-    ]);
+    book
+      .addWorksheet('Pumps')
+      .addRows([
+        ['Model', 'Head', 'Power'],
+        ['Submersible', '120 m', '5 HP'],
+        [],
+        ['Surface', null, '2 HP'],
+      ]);
     book.addWorksheet('Empty');
-    book.addWorksheet('Panels').addRows([['Module', 'Watts'], ['Mono perc', 540]]);
+    book.addWorksheet('Panels').addRows([
+      ['Module', 'Watts'],
+      ['Mono perc', 540],
+    ]);
     const text = await extractWorkbook(new Uint8Array(await book.xlsx.writeBuffer()));
     // The guarded reader is not given the workbook's relationships, so a sheet is named by its
     // place in the file (Sheet1, Sheet3), never by its tab's name.

@@ -20,6 +20,8 @@ import { createAiProvider, type AiProvider } from '../../src/ai/provider';
 import { fakeEmbedding, fakeModelTransport, fakeReply } from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { executeQuery } from '../../src/command/execute';
+import type { output, ZodType } from 'zod';
+import type { Command } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
 import { markFileReady, rejectFile } from '../../src/commands/files/check-file';
 import {
@@ -66,7 +68,11 @@ beforeAll(async () => {
   caller = await createTestPrincipal('tele_caller_cc', [1]);
 });
 
-const run = (principal: Principal, command: Parameters<typeof runCommand>[0], input: unknown) =>
+const run = <I extends ZodType, O extends ZodType>(
+  principal: Principal,
+  command: Command<I, O>,
+  input: unknown,
+): Promise<output<O>> =>
   asPrincipal(principal, (context) => runCommand(command, { context, audit, outbox }, input));
 
 /** A vault upload of `uploader`, stored with its bytes, in the given status. */
@@ -81,7 +87,9 @@ async function upload(
   const key = `${String(entityId)}/knowledge/${id}.bin`;
   await store.put(key, bytes, contentType);
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
       values (${id}, ${entityId}, 'knowledge', ${store.bucket}, ${key}, 'vault file', ${contentType},
               ${bytes.length}, ${sha256Hex(bytes)}, ${options.status ?? 'ready'}, ${uploader.id})`,
   );
@@ -129,7 +137,11 @@ function provider(options: { claude?: boolean; voyage?: boolean; reply?: string 
   };
 }
 
-function job(knowledgeFileId: string, fileEntityId = 1, entityId: number | null = 1): EmbeddingsIndexJob {
+function job(
+  knowledgeFileId: string,
+  fileEntityId = 1,
+  entityId: number | null = 1,
+): EmbeddingsIndexJob {
   return { eventId: newId(), knowledgeFileId, entityId, fileEntityId, sensitivity: 'staff_ai_ok' };
 }
 
@@ -230,7 +242,12 @@ describe('the upload’s checks and the vault', () => {
       entityId: 1,
       fileId: passing,
       sanitising: 'pdf_checked',
-      stored: { key: `1/knowledge/${passing}.bin`, contentType: 'application/pdf', size: 19, sha256: 'b'.repeat(64) },
+      stored: {
+        key: `1/knowledge/${passing}.bin`,
+        contentType: 'application/pdf',
+        size: 19,
+        sha256: 'b'.repeat(64),
+      },
     });
     expect((await indexEvents(waiting.id)).map((e) => e.type)).toEqual([
       'knowledge.file.index_requested',
@@ -254,7 +271,10 @@ describe('the index job', () => {
       ['Model', 'Head'],
       [`Borewell submersible ${RUN}`, '120 m'],
     ]);
-    book.addWorksheet('Panels').addRows([['Module', 'Watts'], ['Mono perc panel', '540']]);
+    book.addWorksheet('Panels').addRows([
+      ['Module', 'Watts'],
+      ['Mono perc panel', '540'],
+    ]);
     const bytes = new Uint8Array(await book.xlsx.writeBuffer());
     const vault = await add(gm, await upload(gm, { bytes, contentType: WORKBOOK }));
     expect(vault.sourceType).toBe('excel');
@@ -303,13 +323,17 @@ describe('the index job', () => {
 
     const again = await run(gm, reindexKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id });
     expect(again.state).toBe('waiting');
-    const second = provider({ reply: 'Warranty covers the motor.\n\nPanels are covered for ten years.' });
+    const second = provider({
+      reply: 'Warranty covers the motor.\n\nPanels are covered for ten years.',
+    });
     expect(await index(vault.id, second.provider)).toMatchObject({ chunks: 1, replaced: 1 });
   });
 
   it('records a file unavailable without a key, failed with no text, and waits for its checks', async () => {
     const noKey = await add(gm, await upload(gm));
-    expect(await index(noKey.id, provider({ claude: false }).provider)).toMatchObject({ chunks: 0 });
+    expect(await index(noKey.id, provider({ claude: false }).provider)).toMatchObject({
+      chunks: 0,
+    });
     expect(await stateOf(noKey.id)).toEqual({
       state: 'unavailable',
       chunks: 0,
@@ -327,7 +351,10 @@ describe('the index job', () => {
     });
 
     const unchecked = await add(gm, await upload(gm, { status: 'scanning' }));
-    expect(await index(unchecked.id, provider().provider)).toMatchObject({ chunks: 0, replaced: 0 });
+    expect(await index(unchecked.id, provider().provider)).toMatchObject({
+      chunks: 0,
+      replaced: 0,
+    });
     expect(await stateOf(unchecked.id)).toMatchObject({ state: 'waiting' });
   });
 
@@ -359,7 +386,9 @@ describe('the index job', () => {
     await expect(run(executive, recordKnowledgeIndex, input)).rejects.toMatchObject({
       code: 'forbidden',
     });
-    await expect(run(workers(2), recordKnowledgeIndex, { ...input, entityId: 2 })).rejects.toMatchObject({
+    await expect(
+      run(workers(2), recordKnowledgeIndex, { ...input, entityId: 2 }),
+    ).rejects.toMatchObject({
       code: 'not_found',
     });
     expect(await run(workers(1), recordKnowledgeIndex, input)).toMatchObject({
@@ -389,7 +418,10 @@ describe('knowledge.file.reindex and knowledge.file.archive', () => {
   it('archives a file, which leaves search and the list', async () => {
     const vault = await add(gm, await upload(gm, { contentType: WORD }));
     await index(vault.id, provider().provider, () => Promise.resolve('Drip irrigation kit notes'));
-    const archived = await run(gm, archiveKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id });
+    const archived = await run(gm, archiveKnowledgeFile, {
+      entityId: 1,
+      knowledgeFileId: vault.id,
+    });
     expect(archived).toMatchObject({ state: 'archived', chunks: 0 });
     const left = await asMigrator(
       (m) => m<{ n: number }[]>`

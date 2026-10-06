@@ -85,7 +85,9 @@ async function seed(owner: string): Promise<void> {
   const perFile = Math.ceil(CHUNKS / FILES);
   for (const file of files) {
     await asMigrator(
-      (m) => m`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
+      (
+        m,
+      ) => m`insert into knowledge_chunks (id, knowledge_file_id, entity_id, sensitivity, position, chunk_text, embedding)
         select gen_random_uuid(), ${file.id}, ${file.entity}, ${file.sensitivity}, p,
                'made-up passage for the vault spike', ${randomVector()}::vector
           from generate_series(0, ${perFile - 1}) p`,
@@ -127,8 +129,11 @@ async function time(who: Principal, label: string): Promise<void> {
     if (i >= 5) durations.push(performance.now() - started);
   }
   durations.sort((a, b) => a - b);
-  const at = (p: number) => durations[Math.min(durations.length - 1, Math.floor(p * durations.length))] ?? 0;
-  print(`${label}: p50 ${at(0.5).toFixed(1)} ms, p95 ${at(0.95).toFixed(1)} ms over ${String(RUNS)} runs\n`);
+  const at = (p: number) =>
+    durations[Math.min(durations.length - 1, Math.floor(p * durations.length))] ?? 0;
+  print(
+    `${label}: p50 ${at(0.5).toFixed(1)} ms, p95 ${at(0.95).toFixed(1)} ms over ${String(RUNS)} runs\n`,
+  );
 }
 
 async function main(): Promise<void> {
@@ -144,7 +149,9 @@ async function main(): Promise<void> {
 
   print('\nPassages found for one question (of 8 asked):\n');
   print(`tele-caller, company 1, iterative scan on: ${String(await found(caller, query, true))}\n`);
-  print(`tele-caller, company 1, iterative scan off: ${String(await found(caller, query, false))}\n`);
+  print(
+    `tele-caller, company 1, iterative scan off: ${String(await found(caller, query, false))}\n`,
+  );
 
   await explain('search, tele-caller, company 1', caller, knowledgeSearchSql(query, 8));
   await explain(
@@ -160,7 +167,10 @@ async function main(): Promise<void> {
     let text = built.sql;
     for (let i = built.params.length; i >= 1; i -= 1) {
       const value = built.params[i - 1];
-      text = text.replaceAll(`$${String(i)}`, typeof value === 'number' ? String(value) : `'${String(value)}'`);
+      text = text.replaceAll(
+        `$${String(i)}`,
+        typeof value === 'number' ? String(value) : `'${String(value)}'`,
+      );
     }
     return Promise.resolve(text);
   });

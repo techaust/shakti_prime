@@ -50,7 +50,9 @@ let owner: Principal;
 async function upload(entityId: number, createdBy: string, contentType = 'application/pdf') {
   const id = newId();
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
       values (${id}, ${entityId}, 'knowledge', 'test', ${`${String(entityId)}/knowledge/${id}.pdf`}, 'vault.pdf', ${contentType}, 10, ${SHA}, 'ready', ${createdBy})`,
   );
   made.files.push(id);
@@ -108,10 +110,12 @@ const uploads: Record<string, string> = {};
 
 function names(ids: readonly string[]): string[] {
   const byId = new Map(Object.entries(passages).map(([name, id]) => [id, name]));
-  return ids.flatMap((id) => {
-    const name = byId.get(id);
-    return name === undefined ? [] : [name];
-  }).sort();
+  return ids
+    .flatMap((id) => {
+      const name = byId.get(id);
+      return name === undefined ? [] : [name];
+    })
+    .sort();
 }
 
 beforeAll(async () => {
@@ -341,7 +345,10 @@ describe('the index job reaches the vault only through its definers (ADR 0020)',
     principalFor('system:workers', entityIds, { id: SYSTEM_WORKERS_PRINCIPAL_ID });
 
   it('holds knowledge.index, which no person and no agent holds', () => {
-    expect(SYSTEM_MATRIX['system:workers']).toContainEqual({ key: 'knowledge.index', scope: 'all' });
+    expect(SYSTEM_MATRIX['system:workers']).toContainEqual({
+      key: 'knowledge.index',
+      scope: 'all',
+    });
   });
 
   it('refuses a person, and a file stored outside the request’s company', async () => {

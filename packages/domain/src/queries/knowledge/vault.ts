@@ -26,10 +26,7 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
  * The vault list's statement: one page and one row more, after the cursor's row. The spike
  * `pnpm spike:knowledge` explains this same statement.
  */
-export function knowledgeListQuery(
-  ctx: Ctx,
-  after: { t: string; id: string } | undefined,
-) {
+export function knowledgeListQuery(ctx: Ctx, after: { t: string; id: string } | undefined) {
   const k = schema.knowledgeFiles;
   return ctx.tx
     .select({ file: k, createdText: sql<string>`${k.createdAt}::text` })

@@ -143,7 +143,9 @@ async function wordUpload(bytes: Buffer): Promise<string> {
   const key = `1/knowledge/${id}.docx`;
   await state.store?.put(key, bytes, WORD);
   await asMigrator(
-    (m) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
       values (${id}, 1, 'knowledge', 'memory', ${key}, 'Pump care.docx', ${WORD}, ${bytes.length},
               ${sha256Hex(bytes)}, 'scanning', ${executive.id})`,
   );

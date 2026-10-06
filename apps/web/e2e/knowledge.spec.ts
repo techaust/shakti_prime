@@ -64,7 +64,9 @@ test.describe('as an Executive', () => {
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     const hit = page.getByRole('listitem').filter({ hasText: `From ${title}` });
     await expect(hit).toBeVisible();
-    await expect(hit.getByText(`Run the ${word} line for twenty minutes at sunrise.`)).toBeVisible();
+    await expect(
+      hit.getByText(`Run the ${word} line for twenty minutes at sunrise.`),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });
