@@ -137,7 +137,7 @@ beforeAll(async () => {
         on conflict (id) do nothing`;
       await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
         values (${ids.list}, ${ids.tier}, ${E}, 1, '2026-04-01', ${exec.id}, now())
-        on conflict (id) do update set archived_at = null, approved_by = ${exec.id}, approved_at = now()`;
+        on conflict (id) do update set entity_id = ${E}, archived_at = null, approved_by = ${exec.id}, approved_at = now()`;
       await tx`alter table price_list_items disable trigger price_list_items_log_change`;
       await tx`delete from price_list_items where price_list_id = ${ids.list}`;
       await tx`insert into price_list_items (id, price_list_id, item_id, price) values

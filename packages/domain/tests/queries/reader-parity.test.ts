@@ -70,12 +70,22 @@ import {
   listQuotes,
   searchQuotes,
 } from '../../src/queries/sales/list-quotes';
+import { dealerCreditHistory, listDealerCredit } from '../../src/queries/sales/dealer-credit';
+import {
+  accountSalesOrders,
+  getSalesOrder,
+  listSalesOrders,
+} from '../../src/queries/sales/list-orders';
+import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
 import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-builder';
 import { loadQuoteForPrint } from '../../src/queries/sales/quote-print';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
 import { readTaxSettings } from '../../src/queries/tax/tax-settings';
 
 afterAll(closeDb);
+
+/** A dealer no row names. */
+const NO_DEALER = newId();
 
 /**
  * docs/design/phase1.md §5.2: every query the app runs reads the same through the `app_reader`
@@ -163,6 +173,11 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
     loadQuoteBuilder(ctx, { entityId: 1, opportunityId: newId() }, QUOTES_AT),
   loadQuoteForPrint: (ctx) => loadQuoteForPrint(ctx, newId()),
   listPriceTierOptions: (ctx) => listPriceTierOptions(ctx),
+  listSalesOrders: (ctx) => listSalesOrders(ctx, { limit: 20 }),
+  getSalesOrder: (ctx) => getSalesOrder(ctx, { entityId: 1, orderId: newId() }, QUOTES_AT),
+  loadSalesOrderBuilder: (ctx) =>
+    loadSalesOrderBuilder(ctx, { entityId: 1, accountId: newId() }, QUOTES_AT),
+  listDealerCredit: (ctx) => listDealerCredit(ctx, { entityId: 1, limit: 20 }),
 };
 
 /**
@@ -174,6 +189,15 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
   accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
+  accountSalesOrders: (ctx) => accountSalesOrders(ctx, newId(), 1),
+  // The answer names the dealer asked for, so both pools are asked for the same one.
+  dealerCreditHistory: (ctx) => dealerCreditHistory(ctx, { entityId: 1, accountId: NO_DEALER }),
+  previewSalesOrder: (ctx) =>
+    previewSalesOrder(
+      ctx,
+      { entityId: 1, accountId: newId(), lines: [{ itemId: newId(), qty: '1' }] },
+      QUOTES_AT,
+    ),
   previewQuote: (ctx) =>
     previewQuote(
       ctx,
