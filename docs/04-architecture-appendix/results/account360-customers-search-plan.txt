@@ -1,4 +1,4 @@
-Account 360 spike (docs/spikes/account360.md): the customers search for the General Manager, loaded run of 30-09-2026.
+Account 360 spike (docs/04-architecture-appendix/account360.md): the customers search for the General Manager, loaded run of 30-09-2026.
 EXPLAIN (ANALYZE) excerpt; the full plans of the run of 04-10-2026 are in account360.json (customersSearchPlan).
 
 Limit (actual time=139.118..139.165 rows=51 loops=1)

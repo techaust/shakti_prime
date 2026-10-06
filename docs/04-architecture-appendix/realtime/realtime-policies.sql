@@ -1,7 +1,7 @@
--- Realtime authorization for BOS-signed tokens (ADR 0003, docs/ARCHITECTURE.md §8).
+-- Realtime authorization for BOS-signed tokens (ADR 0003, docs/04-architecture.md §8).
 --
 -- NOT a migration of this repository. Apply it by hand to the hosted Supabase dev project for the
--- Realtime spike (docs/spikes/realtime.md), after the BOS is registered as a third-party auth
+-- Realtime spike (docs/04-architecture-appendix/realtime.md), after the BOS is registered as a third-party auth
 -- provider. It becomes a migration only once the spike passes and the Realtime schema is part of
 -- the migrated database.
 --
