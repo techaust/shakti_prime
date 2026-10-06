@@ -26,8 +26,16 @@ auditConfig:
     # micromatch, which expands the repository's own lint globs; it is never shipped nor fed
     # outside input. Remove this entry when a patched braces is released.
     - GHSA-vfj7-8cjw-p6xm
+    # sprintf-js (GHSA-hp3w-g68c-fv3c, unbounded precision specifiers, no patched release) reaches
+    # us only through mammoth > argparse, which formats mammoth's own command-line help with fixed
+    # format strings; the app never runs that command nor passes outside input to sprintf. Remove
+    # this entry when a patched sprintf-js is released.
+    - GHSA-hp3w-g68c-fv3c
 
 overrides:
   # exceljs pins uuid 8, below the fix for GHSA-w5hq-g745-h8pq; 11.x keeps the CommonJS build
   # exceljs requires, and exceljs calls only v4.
   'exceljs>uuid': ^11.1.1
+  # source-map-js before 1.2.2 (GHSA-68fv-2mgg-jv7q) reaches us through postcss, vite and
+  # magicast; 1.2.2 is the patch release of the same API.
+  source-map-js: ^1.2.2
