@@ -12,12 +12,10 @@ describe('where a notice takes its person (docs/design/phase1.md §8.1)', () => 
     expect(
       noticeHref({ type: 'quote_expiring', entityId: 2, accountId: account, quoteId: quote }),
     ).toBe(`/quotes/2/${quote}`);
-    const toCustomer = [
-      'lead_assigned',
-      'duplicate_found',
-      'first_call_late',
-      'enquiry_routed',
-    ] as const;
+    expect(
+      noticeHref({ type: 'enquiry_routed', entityId: 2, accountId: account, quoteId: null }),
+    ).toBe('/inbox');
+    const toCustomer = ['lead_assigned', 'duplicate_found', 'first_call_late'] as const;
     for (const type of toCustomer) {
       expect(noticeHref({ type, entityId: 3, accountId: account, quoteId: null })).toBe(
         `/customers/${account}?company=3`,

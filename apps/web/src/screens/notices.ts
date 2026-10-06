@@ -16,14 +16,16 @@ export interface NoticeLinkFacts {
 
 /**
  * The screen the person acts on: their calling queue for a call that fell due (due calls come
- * first there), the quote for one about to lapse, and the customer's Account 360, in the notice's
- * company, for a lead given to them, a possible duplicate, a late first call or an enquiry passed
- * to them.
+ * first there), the quote for one about to lapse, their Agent Inbox for an enquiry passed to them
+ * (where its interest and note are, and Done), and the customer's Account 360, in the notice's
+ * company, for a lead given to them, a possible duplicate or a late first call.
  */
 export function noticeHref(notice: NoticeLinkFacts): Route {
   switch (notice.type) {
     case 'call_due':
       return '/calling';
+    case 'enquiry_routed':
+      return '/inbox';
     case 'quote_expiring':
       return notice.quoteId === null ? '/quotes' : quoteHref(notice.entityId, notice.quoteId);
     default:

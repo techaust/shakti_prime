@@ -475,7 +475,7 @@
       },
       "enquiry_routed": {
         "title": "An enquiry was passed to you",
-        "body": "A customer you look after asked again. Tap to open the customer."
+        "body": "A customer you look after asked again. Tap to open your Agent Inbox."
       }
     },
     "settings": {
