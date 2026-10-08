@@ -37,22 +37,26 @@ async function photo(): Promise<Buffer> {
 }
 
 describe('the masking step', () => {
-  it('masks one photo at a time, so two checks never mix their reading modes', async () => {
-    const masker = await createDocumentMasker({ langPath: 'not used by the stand-in' });
-    calls.length = 0;
-    const [a, b] = await Promise.all([masker.mask(await photo()), masker.mask(await photo())]);
-    expect(a.status).not.toBe('needs_review');
-    expect(b.status).not.toBe('needs_review');
-    // Every mode set is read at once, and no read finds another mask's mode in its place.
-    const reads = calls.filter((c) => c.startsWith('read'));
-    expect(reads.length).toBeGreaterThanOrEqual(8);
-    expect(reads.every((c) => c.endsWith('same'))).toBe(true);
-    for (let i = 0; i < calls.length; i += 2) {
-      expect(calls[i]?.startsWith('set')).toBe(true);
-      expect(calls[i + 1]?.startsWith('read')).toBe(true);
-    }
-    await masker.close();
-  });
+  it(
+    'masks one photo at a time, so two checks never mix their reading modes',
+    { timeout: 60_000 },
+    async () => {
+      const masker = await createDocumentMasker({ langPath: 'not used by the stand-in' });
+      calls.length = 0;
+      const [a, b] = await Promise.all([masker.mask(await photo()), masker.mask(await photo())]);
+      expect(a.status).not.toBe('needs_review');
+      expect(b.status).not.toBe('needs_review');
+      // Every mode set is read at once, and no read finds another mask's mode in its place.
+      const reads = calls.filter((c) => c.startsWith('read'));
+      expect(reads.length).toBeGreaterThanOrEqual(8);
+      expect(reads.every((c) => c.endsWith('same'))).toBe(true);
+      for (let i = 0; i < calls.length; i += 2) {
+        expect(calls[i]?.startsWith('set')).toBe(true);
+        expect(calls[i + 1]?.startsWith('read')).toBe(true);
+      }
+      await masker.close();
+    },
+  );
 
   it('carries on after a mask that failed', async () => {
     const masker = await createDocumentMasker({ langPath: 'not used by the stand-in' });

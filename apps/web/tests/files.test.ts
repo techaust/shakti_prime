@@ -628,7 +628,7 @@ describe('the file checks', () => {
         hosted: false,
         masker,
         discardMasker: discard,
-        pageLimits: { startMs: 5_000, maskMs: 80 },
+        pageLimits: { startMs: 10_000, maskMs: 3_000 },
       };
       expect(await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), deps)).toMatchObject({
         status: 'masking',

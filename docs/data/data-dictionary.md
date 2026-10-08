@@ -3332,7 +3332,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `knowledge_files_chunks_check`: `"knowledge_files"."chunks" >= 0`
-- `knowledge_files_error_reason_check`: `"knowledge_files"."error_reason" in ('knowledge_file_rejected', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')`
+- `knowledge_files_error_reason_check`: `"knowledge_files"."error_reason" in ('knowledge_file_rejected', 'knowledge_pdf_page_too_dense', 'knowledge_masking_unavailable', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')`
 - `knowledge_files_sensitivity_check`: `"knowledge_files"."sensitivity" in ('staff_ai_ok', 'management', 'exec_only')`
 - `knowledge_files_source_type_check`: `"knowledge_files"."source_type" in ('pdf', 'photo', 'word', 'excel')`
 - `knowledge_files_state_check`: `"knowledge_files"."state" in ('waiting', 'indexed', 'failed', 'unavailable', 'archived')`

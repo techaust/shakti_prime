@@ -508,7 +508,7 @@ describe('files.file.continue_check', () => {
     expect(rows.at(-1)).toMatchObject({
       command: 'files.file.continue_check',
       outcome: 'ok',
-      after: { fileStatus: 'scanned', maskedPages: 2 },
+      after: { fileStatus: 'scanned' },
     });
   });
 

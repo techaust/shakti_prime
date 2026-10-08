@@ -126,7 +126,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ### print
 
@@ -402,6 +402,7 @@ No fields apart from `v`.
 | Field | Type |
 |---|---|
 | `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence` |
+| `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
 

@@ -164,7 +164,7 @@ export const continueFileCheck = defineCommand({
   minScope: 'entity',
   input: ContinueFileCheckInput,
   output: FileDto,
-  auditFields: ['fileStatus', 'maskedPages'],
+  auditFields: ['fileStatus'],
   async handler(ctx, input) {
     const row = await lockInCompany(ctx, input);
     if (row.purpose !== 'knowledge' || (row.status !== 'scanned' && row.status !== 'not_scanned')) {
@@ -181,7 +181,7 @@ export const continueFileCheck = defineCommand({
       aggregateType: 'file',
       aggregateId: row.id,
       entityId: row.entityId,
-      after: { fileStatus: row.status, maskedPages: input.maskedPages },
+      after: { fileStatus: row.status },
     });
     return toFileDto(row);
   },
