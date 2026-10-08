@@ -27,9 +27,10 @@ function section(page: Page, name: string) {
   return page.getByRole('region', { name });
 }
 
-/** Today in India as DD-MM-YYYY, as the date fields take it. */
-function todayDmy(): string {
-  const [y, m, d] = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10).split('-');
+/** A day in India, `daysAgo` days before today, as DD-MM-YYYY, as the date fields take it. */
+function dmy(daysAgo = 0): string {
+  const at = new Date(Date.now() + 330 * 60_000 - daysAgo * 86_400_000);
+  const [y, m, d] = at.toISOString().slice(0, 10).split('-');
   return `${d ?? ''}-${m ?? ''}-${y ?? ''}`;
 }
 
@@ -184,12 +185,16 @@ test.describe('as Accounts, dealer credit', () => {
       dialog.getByRole('heading', { name: `Outstanding of ${dealer.name}` }),
     ).toBeVisible();
     await dialog.getByLabel('Outstanding in rupees').fill('12,500');
-    await dialog.getByLabel('As of').fill(todayDmy());
+    await dialog.getByLabel('As of').fill(dmy());
+    await dialog.getByLabel('Oldest unpaid invoice').fill('RCREF/SI/JOURNEY/0001');
+    await dialog.getByLabel('Date of that invoice').fill(dmy(40));
     await dialog.getByRole('button', { name: 'Save the outstanding' }).click();
     await expect(page.getByText('Outstanding saved.')).toBeVisible();
     await expect(dialog).toBeHidden();
     const grid = dataGrid(page, 'Dealers');
     await expect(grid.getByText('₹12,500.00').first()).toBeVisible();
+    // The invoice is 40 days old today, and the row says so.
+    await expect(grid.getByText('RCREF/SI/JOURNEY/0001, 40 days old')).toBeVisible();
 
     await page.getByRole('button', { name: `Earlier entries of ${dealer.name}` }).click();
     await expect(
@@ -197,6 +202,9 @@ test.describe('as Accounts, dealer credit', () => {
     ).toBeVisible();
     await expect(dialog.getByText(/^Limit ₹50,000\.00, 30 days$/).first()).toBeVisible();
     await expect(dialog.getByText(/^₹12,500\.00 as of /).first()).toBeVisible();
+    await expect(
+      dialog.getByText(/^Oldest unpaid invoice RCREF\/SI\/JOURNEY\/0001, dated /).first(),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
   });
 });
