@@ -5,9 +5,9 @@
 | Branch | `feat/s2-orders` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `s2-orders`, slot 17: Postgres 54347, app 3047 (`bash tools/integration/setup-worktree.sh s2-orders feat/s2-orders 54347 3047`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| State | review findings fixed, checks pass |
-| Next step | lead's review of the fixes, then the merge with `main` |
-| Usage | finishing run (Sonnet, medium, 08-10-2026): 67 % of the week at its start, 68 % at its end; review (Opus, high): 68 % at its start; review (Opus, high): 68 % at its end; fixes (Sonnet, medium): 68 % at its start |
+| State | integrated 08-10-2026: every check passes; pull request open |
+| Next step | the merge workflow merges it; then `migrate-hosted` for 0116 and 0117 |
+| Usage | finishing run (Sonnet, medium, 08-10-2026): 67 % of the week at its start, 68 % at its end; review (Opus, high): 68 % to 68 %; fixes (Sonnet, medium): 68 % to 68 %; re-check of the fix diff (Opus, medium): 68 % to 68 %; the lead's integration: 68 % to 69 % |
 
 ## Brief
 Read first:
@@ -136,3 +136,5 @@ Migration 0117's comment edited in the merge: no effect beyond a database that r
 
 ## Integration notes
 1. If N1 merged first: subscribe N1's notify worker to `sales.order.credit_held` (the Executive of the order's company and the order's maker), with its notice type, preference and journey line.
+2. Integration (the lead, 08-10-2026): `main` was already merged (1321df83), with no migration of `main` after 0115, so 0116 and 0117 kept their numbers. The first `integrate.sh` run failed on Prettier (six files) and on the Account 360 sizing journey on desktop: the pointer rested on Work out size, which the slice's price tier line had moved beneath the toast, and a toast waits while hovered; the journey now moves the pointer away. The Linux baselines showed `/dealer-credit`'s three row buttons running past the table's edge at 1280 px; they became the Team members row menu, with focus returned to the row's Actions button. Re-check findings 12 and 13 were fixed by the lead.
+3. Baselines: the four order screens are new; Account 360 (two) and the tele-caller's home changed with the slice. `--update-snapshots=changed` kept the old `/dealer-credit` images, because the new layout differed by less than the 1 % allowance, so they were written with `all` for that journey alone; the verification run on a fresh database passed without updating (284 passed, 12 skipped).
