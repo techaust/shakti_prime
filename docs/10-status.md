@@ -2,22 +2,22 @@
 
 Replace this page, never append to it, at the end of each working session. History is in [CHANGELOG.md](../CHANGELOG.md); the owner's decisions are in [11-decisions.md](11-decisions.md); open follow-ups have their single home here.
 
-**07-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; in wave 4, N1 and K1 are built and wait for review, S2 waits for a builder place, and T2 follows N1. Migrations on `main`: 0000 to 0115. Tests: security suite 2,098 (database 1,060, domain 774, web 264) and unit tests 3,070, from T1's integration run on 06-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
+**08-10-2026.** Phase 1 (`currentPhase` 1 in `.claude/tooling.json`). Phase 0 closed on 29-09-2026 by the owner's decision; the gate items that wait on people are deferred, not met ([ROADMAP §2](03-roadmap.md#2-phase-0--discovery--foundations-68-weeks)). Waves 1 to 3 are merged; in wave 4, N1 and K1 are built and wait for review, S2 waits to finish its checks, and T2 follows N1. On 08-10-2026 the owner approved the models-and-usage plan ([models-and-usage](runbooks/models-and-usage.md), #131); no slice work ran that day. Migrations on `main`: 0000 to 0115. Tests: security suite 2,098 (database 1,060, domain 774, web 264) and unit tests 3,070, from T1's integration run on 06-10-2026. The GitHub repository is public for now, since the free Actions minutes of that month were used up ([DECISIONS](11-decisions.md#standing-rules-in-force)).
 
 ## Phase 1
 - **Design:** [docs/03-roadmap-appendix/phase1.md](03-roadmap-appendix/phase1.md), 23 slices in six waves, approved 29-09-2026; the order is its [§3](03-roadmap-appendix/phase1.md#3-slices).
-- **Merged (14 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; tooling #107, #109, #111, #112, #113, #116, #117; dependency bumps #101, #102, #127, #128; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #126, #129 ([CHANGELOG](../CHANGELOG.md)).
-- **Next:** review N1 and K1 (the reviewer on Opus), S2's builder finishes its journeys, then each slice is integrated and merged in turn; T2 after N1; then then waves 5 and 6 (L1, R1, A1; M1, G1).
-- **Work split:** the PC only, at most two builders at once, heavy commands one at a time through the lock; the rule is in [CLAUDE.md](../CLAUDE.md#session-routine). Cloud sessions are paused; S1, D1 and T1 showed the cloud procedure works ([hybrid §10](runbooks/hybrid.md#10-the-trial)).
+- **Merged (14 of the 23 slices):** set-up #79, #80; wave 1: #81 P3, #82 P1, #84 CI economy, #85 P2; wave 2: #87 C1, #88 X1, #89 C2, #99 P4, #100 C4, #103 C3, #105 P2b; wave 3: #108 AI0, #115 S1, #118 D1, #119 T1; tooling #107, #109, #111, #112, #113, #116, #117; dependency bumps #101, #102, #127, #128; documents #83, #86, #90 to #98, #104, #106, #110, #114, #120 to #126, #129 to #131 ([CHANGELOG](../CHANGELOG.md)).
+- **Next:** under the budget gate and one agent at a time this week, so each run's usage is measured: S2's builder finishes its checks (Sonnet, medium), then the reviews of N1 and K1 (Opus, high); each slice is integrated and merged in turn; T2 after N1; then waves 5 and 6 (L1, R1, A1; M1, G1). After S2, N1 and K1, the lead brings the owner each tier's measured cost ([models-and-usage §7](runbooks/models-and-usage.md#7-measuring)).
+- **Work split:** the PC only, heavy commands one at a time through the lock ([CLAUDE.md](../CLAUDE.md#session-routine)); how many agents run at once, and on which model and effort, follows [models-and-usage](runbooks/models-and-usage.md). Cloud sessions are paused; S1, D1 and T1 showed the cloud procedure works ([hybrid §10](runbooks/hybrid.md#10-the-trial)).
 
 ### In progress
 Wave 4 started from `main` at #121. Each slice's run file is `docs/runs/phase1/<slug>.md` on its branch and reaches `main` with the slice.
 
 | Slice | Branch | Run file | Where | State | Next step |
 |---|---|---|---|---|---|
-| N1 Notifications | `feat/n1-notifications` | `n1-notifications.md` | PC worktree `n1-notifications`, slot 16 (Postgres 54346, app 3046; stopped) | Built 07-10-2026: its own journeys pass; typecheck, unit tests, build and budgets pass | Review; the whole journey set on a fresh database at integration |
-| K1 Knowledge Vault | `feat/k1-knowledge` | `k1-knowledge.md` | PC worktree `k1-knowledge`, slot 18 (Postgres 54348, app 3048; stopped) | Built 07-10-2026: security suite, unit tests, build, budgets and the whole-repository lint pass; its journeys pass | Review; the whole journey set on a fresh database at integration |
-| S2 Orders, acceptance and credit | `feat/s2-orders` | `s2-orders.md` | PC worktree `s2-orders`, slot 17 (Postgres 54347, app 3047; stopped) | Built up to its final checks; its builder stopped at the usage limit | A builder (Sonnet) finishes its checks and report, then review |
+| N1 Notifications | `feat/n1-notifications` | `n1-notifications.md` | PC worktree `n1-notifications`, slot 16 (Postgres 54346, app 3046; stopped) | Built 07-10-2026: its own journeys pass; typecheck, unit tests, build and budgets pass | Tier B: review (Opus, high); the whole journey set on a fresh database at integration |
+| K1 Knowledge Vault | `feat/k1-knowledge` | `k1-knowledge.md` | PC worktree `k1-knowledge`, slot 18 (Postgres 54348, app 3048; stopped) | Built 07-10-2026: security suite, unit tests, build, budgets and the whole-repository lint pass; its journeys pass | Tier B: review (Opus, high); the whole journey set on a fresh database at integration |
+| S2 Orders, acceptance and credit | `feat/s2-orders` | `s2-orders.md` | PC worktree `s2-orders`, slot 17 (Postgres 54347, app 3047; stopped) | Built up to its final checks; its builder stopped at the usage limit | Tier A: a builder (Sonnet, medium) finishes its checks and report, then review (Opus, high) |
 | T2 Handover | not started | not written | | Starts after N1 merges | The lead writes the brief |
 
 ## Hosted environments
@@ -37,6 +37,8 @@ The outbox, lead-rescore and files-sweep schedules of both environments last ran
 Two of the six exit-gate items are met (the security suite and the tooling); the rest are deferred, not met, and run alongside Phase 1. Each item, its state and who acts next: [exit-gate-actions](13-client-packs/exit-gate-actions.md). What Shakti's people must do, in business words: [client-actions](13-client-packs/client-actions.md). Nothing from the client has arrived yet: no workshop answers, no CA golden set, no design sign-off, no vendor quotes.
 
 ## Waiting on the owner
+- **Start Docker Desktop** before the next builder runs (it did not answer on 08-10-2026).
+- **Switch the lead to Opus at high** only when the lead asks for one task, and back to medium after it ([models-and-usage §3](runbooks/models-and-usage.md#3-who-runs-what)).
 Every item below, with step-by-step guides and shared ticks, is on the private checklist page https://claude.ai/artifact/336awY1Qoox3338gyU1Xgu (5 of 29 ticked on 06-10-2026); share it from its Share menu, as Contributor for anyone who should tick items.
 - **Before the repository goes private again:** set a GitHub Actions budget (Settings › Billing and plans; Linux minutes at $0.006, about $5 on a busy day) or wait for the 1 November reset; private with neither, no check runs and nothing merges. Confirm with Shakti that the code being public for now is acceptable under the agreement.
 - **After cloud sessions resume ([hybrid §10](runbooks/hybrid.md#10-the-trial)):** decide whether to keep everything but the briefs, pull requests and hosted steps in the cloud (fully cloud), as S1, D1 and T1 ran.
@@ -54,6 +56,8 @@ Every item below, with step-by-step guides and shared ticks, is on the private c
 ## Open follow-ups
 | Follow-up | Phase / slice |
 |---|---|
+| The builder's new tool list proven on its first run (S2's checks), and `test-runner` on its first suite; a missing tool makes the builder stop and report, and the list is fixed | 1 / S2 |
+| Each tier's measured usage brought to the owner, with at most two adjustments to [models-and-usage](runbooks/models-and-usage.md) | 1 / after S2, N1 and K1 |
 | A nurtured lead's owner and nurture calls on reassignment (`crm.opportunity.assign` runs only from open), and the handover tested with a callback open: as `system:workers`, which holds no `crm.lead.write`, `moveCallTasks` moves nothing | 1 / T2 |
 | Winning a lead ends its open callbacks, as losing does | 1 / S2 (the first slice that lets a lead be won) |
 | The journeys are not repeatable on a used database: a run leaves the shared Executive's selected company on another company and the pipelines journey's stages behind, so a second run fails in other journeys (N1 and K1, 07-10-2026); reset that state in the journeys' set-up | 1 / any slice |

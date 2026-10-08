@@ -29,6 +29,7 @@ The ten directory plugins are enabled on the owner's claude.ai account. The Sess
 ## Connection notes
 - **GitHub:** the plugin has no browser sign-in. It sends a fine-grained personal access token, limited to this repository, from the Windows user variable `GITHUB_PERSONAL_ACCESS_TOKEN`; an unset variable shows as HTTP 400. When the repository moves to the client's organisation, a new token is needed. `gh` is signed in as `techaust` on the PC; in a cloud session it reaches GitHub through the cloud's proxy as the owner.
 - **Sentry and Expo** are signed in.
+- **One copy of each server:** Upstash and Supabase run from the user-scope servers, Sentry and Expo from their plugins; their claude.ai connectors are switched off (08-10-2026), since a second copy adds its whole tool list to every turn of every session ([models-and-usage §6](models-and-usage.md#6-habits-that-save-usage-on-any-model)).
 - **AWS:** runs through `uvx` with the credentials `aws configure` saved in `%USERPROFILE%\.aws` for `claude-shakti` (region `ap-south-1`, read-only). For the file storage bucket, add a permission for that one bucket rather than widening the user; the files stack does this ([files-setup](files-setup.md)).
 - **Supabase, Upstash and Vercel** hold the dev and staging environments (29-09-2026). The Vercel server was authorised again for the `shakti-prime` team on 29-09-2026 and reads its projects, variables and deployments.
 - **Context7** was signed in again on 03-10-2026; a session started before a sign-in cannot see it until it is reopened.

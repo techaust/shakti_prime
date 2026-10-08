@@ -11,6 +11,8 @@ One entry per pull request merged into `main` (a line, or a line with a few bull
 
 ### Phase 1 status documents
 
+- **#131** (08-10-2026) Models and usage per task: the runbook `docs/runbooks/models-and-usage.md` with three slice tiers, each task's model and effort, and the budget gate on the weekly pace and the 5-hour window; the `slice-builder` tool list, Sonnet at medium by default and an early stop for Tier A slices; the `slice-reviewer` re-check mode for fix diffs, blocking only on critical and high findings; the Haiku agents `code-finder`, `test-runner` and `doc-clerk`; `start-session` applying the gate and `end-session` handing drafts to `doc-clerk`; and the DECISIONS row.
+- **#130** (07-10-2026) The Phase 1 status at 07-10-2026 (N1 and K1 built, S2 waiting for a builder), CHANGELOG lines for #126 to #129, and DECISIONS rows.
 - **#129** (07-10-2026) The last old document names in comments: `.env.example`, the stylesheets, the realtime spike SQL and plans, and the prototype; applied migrations keep theirs, since `db:verify` compares them as written.
 - **#126** (07-10-2026) The documentation audit's fixes from two passes against the code: `docs/00-start-here.md`, every file under `docs/` in lowercase with the generators and tests following, stale state, contradictions and superseded decisions corrected, a case-exact link check, and the builder's rule to start long heavy commands in the background.
 - **#125** (07-10-2026) The documents restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`) with appendix folders for the designs, the spikes, the client packs and the reviews, `docs/00-start-here.md` as the guide, and the documentation audit's defects fixed in all of them.
