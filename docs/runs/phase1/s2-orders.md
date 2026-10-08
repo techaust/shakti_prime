@@ -7,7 +7,7 @@
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
 | State | built, checks pass |
 | Next step | review (Opus, high) |
-| Usage | 67 % of the week at the start of this run (the finishing run; the end figure is the lead's) |
+| Usage | finishing run (Sonnet, medium, 08-10-2026): 67 % of the week at its start, 68 % at its end; review (Opus, high): 68 % at its start |
 
 ## Brief
 Read first:
