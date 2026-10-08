@@ -466,10 +466,30 @@ export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export {
   approveInboxItem,
+  completeInboxItem,
   dismissInboxItem,
   editInboxItem,
   rejectInboxItem,
 } from './commands/agents/inbox';
+export { routeEnquiry } from './commands/crm/route-enquiry';
+export { notifyEvent, recordPush, scanNotices } from './commands/notifications/notify';
+export {
+  markAllNoticesRead,
+  markNoticesRead,
+  setNotificationSettings,
+  subscribePush,
+  unsubscribePush,
+} from './commands/notifications/own';
+export { countNotices, listNotices } from './queries/notifications/notices';
+export { loadNotificationSettings } from './queries/notifications/settings';
+export {
+  choiceFor,
+  inQuietHours,
+  NOTICE_LOOKBACK_MS,
+  NOTICE_SCAN_LIMIT,
+  pushPlan,
+  QUOTE_EXPIRY_NOTICE_MS,
+} from './notifications/push-plan';
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';

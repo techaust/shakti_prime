@@ -117,7 +117,12 @@ export const assignOpportunity = defineCommand({
       entityId: row.entityId,
       aggregateType: 'opportunity',
       aggregateId: row.id,
-      payload: { ownerId: input.ownerId, teamId: assignee.teamId, lockHours },
+      payload: {
+        ownerId: input.ownerId,
+        teamId: assignee.teamId,
+        lockHours,
+        assignedById: ctx.principal.id,
+      },
     });
     return toOpportunityDto(updated);
   },

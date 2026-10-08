@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash } from 'node:crypto';
 import {
   AddNoteInput,
   ArchiveTagInput,
@@ -9,6 +10,8 @@ import {
   CreateLeadInput,
   CreateTagInput,
   CreateTaskInput,
+  DomainError,
+  type RoutedEnquiryDto,
   LeadTagInput,
   ListCustomersInput,
   ListMyTasksInput,
@@ -68,6 +71,7 @@ import {
   withdrawConsent as withdrawConsentCommand,
   assignOpportunity as assignOpportunityCommand,
   createLead as createLeadCommand,
+  routeEnquiry as routeEnquiryCommand,
   executeCommand,
   executeQuery,
   listBoardLeads as listBoardLeadsQuery,
@@ -108,6 +112,74 @@ export async function createLead(
       commandOptions(meta, idempotencyKey),
     );
   });
+}
+
+/**
+ * The lead and walk-in forms' save: `createLead`, except that a lead refused because a colleague
+ * looks after the customer in the company (`customer_held_by_colleague`) is passed to that
+ * colleague (PRD RPT-04 criterion 2). The refusal rolled its transaction back, so
+ * `crm.enquiry.route` runs in a fresh one, and the form says, by name, who the enquiry went to
+ * (`outcome: 'routed'`). An import row is still refused, as it was.
+ */
+export async function takeEnquiry(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<CreateLeadResultDto | RoutedEnquiryDto>> {
+  return toResult('takeEnquiry', async () => {
+    const principal = await signedIn();
+    const input = parseInput(CreateLeadInput, rawInput);
+    const meta = await requestMeta();
+    const scope = { entityIds: [input.entityId], requestId: meta.requestId };
+    try {
+      return await executeCommand(
+        principal,
+        scope,
+        createLeadCommand,
+        input,
+        commandOptions(meta, idempotencyKey),
+      );
+    } catch (error) {
+      if (!heldByColleague(error)) throw error;
+      return executeCommand(
+        principal,
+        scope,
+        routeEnquiryCommand,
+        input.existingAccountId === undefined
+          ? {
+              entityId: input.entityId,
+              pipelineKey: input.pipelineKey,
+              phone: input.contact?.phone,
+            }
+          : {
+              entityId: input.entityId,
+              pipelineKey: input.pipelineKey,
+              existingAccountId: input.existingAccountId,
+            },
+        commandOptions(meta, routeKey(idempotencyKey)),
+      );
+    }
+  });
+}
+
+/**
+ * The fallback's own key, derived from the form's (a version 8 UUID of the hash of the key and
+ * "route"), so a retried save replays each command's own stored result instead of one command
+ * finding the key stored for the other.
+ */
+function routeKey(key: unknown): unknown {
+  if (typeof key !== 'string') return key;
+  const h = createHash('sha256').update(`${key}:route`).digest('hex');
+  const variant = ((parseInt(h.slice(16, 17), 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/** The refusal of a lead for a customer a colleague looks after in the company. */
+function heldByColleague(error: unknown): boolean {
+  return (
+    error instanceof DomainError &&
+    error.code === 'conflict' &&
+    error.details?.reason === 'customer_held_by_colleague'
+  );
 }
 
 /** Leads the caller can see, newest change first or in `sort`; the next page after `cursor`. */

@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0",
+    "lint": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js . --max-warnings 0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:security": "turbo run test:security --concurrency=1",

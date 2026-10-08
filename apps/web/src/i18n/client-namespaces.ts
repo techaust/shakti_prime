@@ -35,4 +35,5 @@ export const CLIENT_NAMESPACES = [
   'orders',
   'dealerCredit',
   'agents',
+  'notifications',
 ] as const;

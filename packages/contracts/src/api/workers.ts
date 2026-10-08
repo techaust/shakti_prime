@@ -111,3 +111,32 @@ export const QuoteExpireWorkerResponse = z
   .object({ batches: Count, expired: Count, done: z.boolean() })
   .strict();
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
+
+/**
+ * The notification scan (`notifications.due.scan`, docs/03-roadmap-appendix/phase1.md §8.1), called by the QStash
+ * schedule `notification-scan-<environment>` every five minutes with an empty body: every company
+ * in turn, each batch in its own transaction as `system:workers`. A run out of time hands the rest
+ * to the next call with the company it reached, `afterId` `more` when that company still had
+ * work, and the run's minute (`runDate`), which names the run in the hand-over's deduplication id.
+ */
+export const NotificationScanWorkerBody = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    afterId: z.literal('more').optional(),
+    runDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+      .optional(),
+  })
+  .strict()
+  .refine((b) => b.afterId === undefined || b.entityId !== undefined, {
+    message: 'work left over belongs to a company',
+    path: ['afterId'],
+  });
+export type NotificationScanWorkerBody = z.infer<typeof NotificationScanWorkerBody>;
+
+/** What one scan run did: the batches it ran, the notices it wrote, and whether it is done. */
+export const NotificationScanWorkerResponse = z
+  .object({ batches: Count, created: Count, done: z.boolean() })
+  .strict();
+export type NotificationScanWorkerResponse = z.infer<typeof NotificationScanWorkerResponse>;

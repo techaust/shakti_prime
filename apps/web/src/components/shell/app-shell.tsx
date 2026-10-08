@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NAV_ITEMS } from '../../nav';
+import { NotificationBell } from '../notifications/notification-bell';
 import { DeferredCompanySwitcher, DeferredProfileMenu } from './deferred-menus';
 import type { CompanyOption } from './menu-triggers';
 import { rememberSidebar } from './sidebar-state';
@@ -88,8 +89,8 @@ function InboxLink({ count }: { count: number | null }) {
 
 /**
  * The BOS app shell (docs/08-design-system.md §5): a 240 px sidebar that collapses to 56 px icons and remembers
- * the choice on this device, a 48 px top bar with the company switcher, the ⌘K palette and the
- * profile menu, and the page below. Under `md` the sidebar opens as a sheet from the top bar.
+ * the choice on this device, a 48 px top bar with the company switcher, the ⌘K palette, the
+ * notification bell, the Agent Inbox and the profile menu, and the page below. Under `md` the sidebar opens as a sheet from the top bar.
  * Everything shown is decided on the server: the screens come from the principal's grants.
  */
 export function AppShell({
@@ -102,6 +103,8 @@ export function AppShell({
   theme,
   sidebarCollapsed,
   inboxCount,
+  noticeCount,
+  pushKey,
   children,
 }: {
   user: { name: string; role: string };
@@ -120,6 +123,10 @@ export function AppShell({
    * undefined for someone with no inbox (no `agents.inbox.act`).
    */
   inboxCount?: number | null | undefined;
+  /** The caller's unread notices, up to 100; null when the count could not be read. */
+  noticeCount: number | null;
+  /** The app's public key for alerts (`VAPID_PUBLIC_KEY`); null when alerts are not set up. */
+  pushKey: string | null;
   children: ReactNode;
 }) {
   const t = useTranslations('shell');
@@ -243,6 +250,7 @@ export function AppShell({
             </Button>
           </div>
 
+          <NotificationBell initial={noticeCount} pushKey={pushKey} />
           {inboxCount === undefined ? null : <InboxLink count={inboxCount} />}
           <DeferredProfileMenu name={user.name} role={user.role} theme={theme} />
         </header>

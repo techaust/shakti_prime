@@ -60,6 +60,11 @@
     "database_rejected": "Some details don't fit together. Please check them and try again.",
     "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute.",
     "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
+    "enquiry_holder_missing": "We couldn't find who looks after this customer now. Ask your team lead to pass the enquiry on.",
+    "quiet_hours_incomplete": "Enter both quiet hours times, or leave both empty for no quiet hours.",
+    "quiet_hours_empty": "The quiet hours start and end at the same time. Choose two different times.",
+    "push_service_unknown": "This browser can't receive alerts from Shakti Prime. Try another browser.",
+    "push_failed": "We couldn't change alerts for this browser. Please try again.",
     "invite_mail_failed": "The invitation is saved, but the email didn't go out. Send the invitation again in a few minutes.",
     "tax_rate_missing": "The tax rate for this item is not set for this date. Ask Accounts to add it.",
     "composite_rule_missing": "The goods and services split for this kind of job is not set for this date. Ask Accounts to add it.",
@@ -299,7 +304,7 @@
     "agent_needs_decision": "This suggestion needs a decision. Approve it, change it or reject it.",
     "nothing_to_change": "Choose a setting to change.",
     "agents_need_all_companies": "Choose All companies at the top to change a setting for the whole group.",
-    "inbox_item_missing": "This suggestion is no longer in your inbox. Someone else may have decided on it.",
+    "inbox_item_missing": "This is no longer in your inbox. Someone else may have dealt with it.",
     "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
     "agent_action_transition_not_allowed": "This suggestion has already been decided.",
     "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action."
@@ -434,7 +439,97 @@
     "inbox": "Agent Inbox",
     "inboxWaiting": "{count, plural, one {Agent Inbox, # waiting} other {Agent Inbox, # waiting}}",
     "inboxMore": "99+",
-    "inboxMoreLabel": "Agent Inbox, 100 or more waiting"
+    "inboxMoreLabel": "Agent Inbox, 100 or more waiting",
+    "notificationSettings": "Notification settings"
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "bellUnread": "{count, plural, one {Notifications, # unread} other {Notifications, # unread}}",
+    "bellMore": "99+",
+    "bellMoreLabel": "Notifications, 100 or more unread",
+    "panelTitle": "Notifications",
+    "panelIntro": "What needs you, newest first.",
+    "loading": "Getting your notices",
+    "empty": "Nothing here yet. When a lead is given to you, a call falls due or a quote is about to lapse, it shows here.",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "markReadLabel": "Mark as read: {notice}",
+    "allRead": "All notices are marked as read.",
+    "unread": "Not read yet",
+    "loadMore": "Show more",
+    "openSettings": "Settings",
+    "close": "Close",
+    "quoteLine": "Quote {quoteNo}",
+    "orderLine": "Order {orderNo}",
+    "companyLine": "In {company}",
+    "types": {
+      "lead_assigned": "A lead was given to you",
+      "duplicate_found": "A customer or lead of yours may be a duplicate",
+      "call_due": "A call of yours is due",
+      "quote_expiring": "A quote on your lead lapses within a day",
+      "first_call_late": "A new lead was not called in time",
+      "enquiry_routed": "An enquiry from your customer was passed to you",
+      "order_credit_held": "A dealer order is held for credit"
+    },
+    "settings": {
+      "title": "Notification settings",
+      "intro": "Choose which notices you see and which ones also come as alerts on this computer or phone. Everything is on until you change it.",
+      "kindsHeading": "Kinds of notice",
+      "kindsCaption": "Kinds of notice and where they reach you",
+      "kind": "Notice",
+      "inApp": "Show in Notifications",
+      "pushColumn": "Send as an alert",
+      "inAppLabel": "Show “{kind}” in Notifications",
+      "pushLabel": "Send “{kind}” as an alert",
+      "quietHeading": "Quiet hours",
+      "quietIntro": "No alerts are sent in your quiet hours. The notices still wait for you in Notifications. Leave both times empty for no quiet hours.",
+      "quietFrom": "Quiet from",
+      "quietTo": "Quiet until",
+      "quietHelper": "A time in India on the 24-hour clock, such as 21:30.",
+      "save": "Save settings",
+      "saved": "Your notification settings are saved.",
+      "browserHeading": "Alerts on this browser",
+      "browserIntro": "Alerts pop up on this computer or phone even when Shakti Prime is not open. Turn them on in each browser you use.",
+      "browserOn": "Alerts are on for this browser.",
+      "browserOff": "Alerts are off for this browser.",
+      "browserBlocked": "This browser has blocked alerts from Shakti Prime. Allow them in the browser's site settings, then turn them on here.",
+      "browserUnsupported": "This browser cannot show alerts. Notices still reach you in Notifications.",
+      "pushUnavailable": "Alerts are not set up yet. Notices still reach you in Notifications.",
+      "turnOnPush": "Turn on alerts",
+      "turnOffPush": "Turn off alerts",
+      "pushOnDone": "Alerts are on for this browser.",
+      "pushOffDone": "Alerts are off for this browser."
+    }
+  },
+  "pushAlerts": {
+    "lead_assigned": {
+      "title": "A lead was given to you",
+      "body": "Tap to open the customer."
+    },
+    "duplicate_found": {
+      "title": "A possible duplicate",
+      "body": "A customer or lead of yours may be the same as another one. Tap to check."
+    },
+    "call_due": {
+      "title": "A call is due",
+      "body": "Tap to open your calling queue."
+    },
+    "quote_expiring": {
+      "title": "A quote lapses soon",
+      "body": "A quote on your lead lapses within a day. Tap to open it."
+    },
+    "first_call_late": {
+      "title": "A new lead was not called in time",
+      "body": "Tap to open the customer and see who has the lead."
+    },
+    "enquiry_routed": {
+      "title": "An enquiry was passed to you",
+      "body": "A customer you look after asked again. Tap to open your Agent Inbox."
+    },
+    "order_credit_held": {
+      "title": "A dealer order is held for credit",
+      "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
+    }
   },
   "home": {
     "greeting": "Welcome, {name}",
@@ -1012,7 +1107,8 @@
       "done": "Lead saved for {name}.",
       "referral": "Referral code",
       "referralHelper": "If a referral partner sent the customer, enter the code from their card.",
-      "attached": "{name} already has an open lead for this. The enquiry was added to it."
+      "attached": "{name} already has an open lead for this. The enquiry was added to it.",
+      "routed": "{colleague} already looks after this customer, so we passed the enquiry to them. It is in their Agent Inbox."
     },
     "accountType": {
       "household": "Household",
@@ -1179,7 +1275,8 @@
       "walkInSubmit": "Save walk-in",
       "done": "Walk-in saved for {name}. The form is ready for the next customer.",
       "language": "Language for calls",
-      "attached": "{name} already has an open lead for this. The enquiry was added to it."
+      "attached": "{name} already has an open lead for this. The enquiry was added to it.",
+      "routed": "{colleague} already looks after this customer, so we passed the enquiry to them. The form is ready for the next customer."
     }
   },
   "users": {
@@ -1437,13 +1534,24 @@
       "inboxReject": "Suggestion rejected",
       "inboxDismiss": "Suggestion dismissed",
       "agentConfigSet": "Agent settings changed",
-      "agentKillSwitchSet": "Agent stopped or let run"
+      "agentKillSwitchSet": "Agent stopped or let run",
+      "inboxComplete": "Passed-on enquiry marked done",
+      "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
+      "noticesSend": "Notices sent",
+      "noticesScan": "Due calls, quotes about to lapse and late first calls looked for",
+      "pushRecord": "Phone and computer alerts recorded",
+      "noticesRead": "Notices marked as read",
+      "noticesReadAll": "All notices marked as read",
+      "noticeSettingsSet": "Notification settings changed",
+      "pushSubscribe": "Alerts turned on for a browser",
+      "pushUnsubscribe": "Alerts turned off for a browser"
     },
     "events": {
       "entityUpdated": "Company details changed",
       "leadCreated": "Lead added",
       "opportunityStageMoved": "Lead moved to another stage",
       "opportunityAssigned": "Lead handed to someone",
+      "enquiryRouted": "Enquiry passed to a colleague",
       "opportunityNurtured": "Lead set to follow up later",
       "opportunityReopened": "Lead reopened",
       "opportunityWon": "Lead won",
@@ -1693,7 +1801,16 @@
       "autonomy": "Autonomy",
       "edited": "Changed before approving",
       "dailySpendCap": "Daily spending limit",
-      "enabled": "May run"
+      "enabled": "May run",
+      "note": "Note",
+      "notices": "Notices",
+      "recorded": "Alerts recorded",
+      "removed": "Browsers removed",
+      "read": "Notices read",
+      "centreOff": "Kinds of notice hidden",
+      "pushOff": "Kinds of notice not sent as alerts",
+      "quietFrom": "Quiet from",
+      "quietTo": "Quiet until"
     },
     "values": {
       "percent": "{value}%",
@@ -2856,7 +2973,8 @@
       "profile": "Their own settings",
       "admin": "Running the system",
       "integrations": "Other systems",
-      "files": "Uploaded files"
+      "files": "Uploaded files",
+      "notifications": "Notices"
     },
     "permissions": {
       "crm_lead_read": "See leads",
@@ -2931,7 +3049,8 @@
       "crm_config_write": "Set up pipelines, call outcomes, lead scores and referral codes",
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
-      "sales_quote_expire": "Mark quotes past their validity as expired each day"
+      "sales_quote_expire": "Mark quotes past their validity as expired each day",
+      "notifications_send": "Send notices to the people who act on them"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3569,10 +3688,10 @@
     },
     "inbox": {
       "title": "Agent Inbox",
-      "intro": "Suggestions from the agents, waiting for your decision. Nothing changes until you approve one.",
+      "intro": "Suggestions from the agents and enquiries passed to you, waiting for you. Nothing changes until you act on one.",
       "caption": "Suggestions waiting for a decision",
       "empty": "Nothing is waiting for you.",
-      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself.",
+      "keys": "Keys: J and K move between suggestions. A approves, E opens Edit and R rejects a suggestion that needs approval. O opens the customer and D dismisses a suggestion for you to act on yourself or marks an enquiry passed to you as done.",
       "actYourself": "For you to act on yourself. Nothing is carried out from here.",
       "summary": {
         "assigneeId": "Task for",
@@ -3598,7 +3717,15 @@
       "submit": "Approve with changes",
       "noValue": "Not set",
       "dueHelper": "Date and time in India.",
-      "titleHelper": "Up to {max} characters. Leave it empty for no note."
+      "titleHelper": "Up to {max} characters. Leave it empty for no note.",
+      "routedFrom": "Enquiry passed to you",
+      "routedFor": "{customer} asked again",
+      "routedUnknown": "A customer you look after asked again",
+      "routedInterest": "Interested in",
+      "routedNote": "Note",
+      "routedReceived": "Passed on",
+      "routedComplete": "Done",
+      "routedDone": "Marked done."
     },
     "admin": {
       "title": "Agents",

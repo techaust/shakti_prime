@@ -289,6 +289,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'crm.duplicates.scan': {},
   // The platform's daily expiry of lapsed quotes; no person's role holds it (SECURITY §3.3).
   'sales.quote.expire': {},
+  // The platform's notices and their scan; no person's role holds it (SECURITY §3.3).
+  'notifications.send': {},
 };
 
 /** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */

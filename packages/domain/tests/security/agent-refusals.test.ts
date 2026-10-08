@@ -88,6 +88,7 @@ const INPUTS: Record<string, unknown> = {
   'agents.inbox.edit': { entityId: 1, itemId: newId(), changes: { title: 'Refused edit' } },
   'agents.inbox.reject': { entityId: 1, itemId: newId() },
   'agents.inbox.dismiss': { entityId: 1, itemId: newId() },
+  'agents.inbox.complete': { entityId: 1, itemId: newId() },
   'agents.killswitch.set': { agent: null, entityId: 1, enabled: true },
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',
@@ -233,6 +234,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     [
       'agents.config.set',
       'agents.inbox.approve',
+      'agents.inbox.complete',
       'agents.inbox.dismiss',
       'agents.inbox.edit',
       'agents.inbox.reject',
@@ -240,6 +242,16 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     ].map((name) => [name, INPUTS[name]]),
   ),
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
+  // Routed work and a person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1).
+  'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', phone: '9800000000' },
+  'notifications.notice.read': { ids: [newId()] },
+  'notifications.notice.read_all': {},
+  'notifications.preferences.set': { types: [], quietFrom: null, quietTo: null },
+  'notifications.push.subscribe': {
+    endpoint: 'https://fcm.googleapis.com/fcm/send/refused',
+    keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) },
+  },
+  'notifications.push.unsubscribe': { endpoint: 'https://fcm.googleapis.com/fcm/send/refused' },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -425,6 +437,8 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
     account: { type: 'farm' },
   },
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // Routed work for a colleague's customer (docs/03-roadmap-appendix/phase1.md §8.1).
+  'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
   // A merge moves one customer's records to another (D1).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -637,6 +651,14 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
+    'notifications.event.notify': {
+      event: 'crm.duplicate.found',
+      entityId: 1,
+      eventId: newId(),
+      candidateId: newId(),
+    },
+    'notifications.due.scan': { entityId: 1 },
+    'notifications.push.record': { entityId: 1, outcomes: [], gone: [], delivered: [] },
     'sales.quote.pdf.attach': { entityId: 1, quoteId: newId(), fileId: newId() },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {

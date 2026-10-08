@@ -1,6 +1,7 @@
 // Creates or updates the QStash schedules (docs/runbooks/deploy.md): the outbox publisher every
 // minute, the safety net behind the nudge each command sends, the sweep of abandoned uploads every
-// hour, the lead rescoring and the duplicate search each night and the quote expiry each day.
+// hour, the lead rescoring and the duplicate search each night, the quote expiry each day and the
+// notification scan every five minutes.
 // Run once per environment, with that environment's QSTASH_TOKEN, signing keys, BOS_ENVIRONMENT and
 // BETTER_AUTH_URL set.
 // Usage: pnpm --filter web qstash-schedule
@@ -9,6 +10,7 @@ import {
   DUPLICATE_SCAN_PATH,
   FILES_SWEEP_PATH,
   LEAD_RESCORE_PATH,
+  NOTIFICATION_SCAN_PATH,
   QUOTE_EXPIRE_PATH,
   qstashConfig,
   workerUrl,
@@ -121,3 +123,19 @@ await client.schedules.create({
 console.log(
   `schedule ${QUOTE_EXPIRE_SCHEDULE_ID} calls ${expireUrl} at ${QUOTE_EXPIRE_CRON} (UTC)`,
 );
+
+// The notification scan (docs/03-roadmap-appendix/phase1.md §8.1) every five minutes: calls falling due,
+// quotes about to lapse and first calls running late. A missed run is covered by the next one.
+const NOTIFICATION_SCAN_SCHEDULE_ID = `notification-scan-${environment}`;
+const NOTIFICATION_SCAN_CRON = '*/5 * * * *';
+const noticeScanUrl = workerUrl(config, NOTIFICATION_SCAN_PATH);
+await client.schedules.create({
+  scheduleId: NOTIFICATION_SCAN_SCHEDULE_ID,
+  destination: noticeScanUrl,
+  cron: NOTIFICATION_SCAN_CRON,
+  body: '{}',
+  headers: { 'content-type': 'application/json' },
+  retries: 0,
+  timeout: 60,
+});
+console.log(`schedule ${NOTIFICATION_SCAN_SCHEDULE_ID} calls ${noticeScanUrl} every five minutes`);

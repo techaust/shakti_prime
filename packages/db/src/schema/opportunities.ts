@@ -108,5 +108,9 @@ export const opportunities = pgTable(
     // A request for every company pages the score order off this, as it pages the last change off
     // opportunities_keyset_idx (docs/04-architecture-appendix/lists.md, the score cases).
     index('opportunities_score_keyset_idx').on(t.score, t.id),
+    // The notification scan: a company's open leads by age, for the first-contact limit.
+    index('opportunities_open_created_idx')
+      .on(t.entityId, t.createdAt)
+      .where(sql`${t.state} = 'open' and ${t.archivedAt} is null`),
   ],
 );

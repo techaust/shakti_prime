@@ -27,6 +27,12 @@ export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 
+/** Where QStash calls the notify worker with a `NotifyJob` (docs/03-roadmap-appendix/phase1.md §8.1). */
+export const NOTIFY_PATH = '/api/v1/workers/notify';
+
+/** Where the five-minute schedule calls the notification scan, and a run hands on the rest. */
+export const NOTIFICATION_SCAN_PATH = '/api/v1/workers/notifications/scan';
+
 /**
  * Event types whose worker has a route and a body of its own (docs/06-api.md §3.6) instead of the
  * event worker route: the publisher sends each such event to its route as the job it stands for,
@@ -42,6 +48,11 @@ export const EVENT_JOB_ROUTES: Readonly<
     path: PDF_RENDER_PATH,
     body: renderJobOf,
   },
+  // A notifying event goes to the notify route as itself (`NotifyJob`).
+  'crm.opportunity.assigned': { path: NOTIFY_PATH, body: (event) => event },
+  'crm.duplicate.found': { path: NOTIFY_PATH, body: (event) => event },
+  'crm.enquiry.routed': { path: NOTIFY_PATH, body: (event) => event },
+  'sales.order.credit_held': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

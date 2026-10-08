@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type SyntheticEvent } from 'react';
-import { createLead } from '../../actions/crm';
+import { takeEnquiry } from '../../actions/crm';
 import {
   ACCOUNT_TYPES,
   buildLeadInput,
@@ -51,7 +51,7 @@ export function NewLeadForm({
   const t = useTranslations('leads.new');
   const leads = useTranslations('leads');
   const router = useRouter();
-  const { run, pending, failure } = useCommand(createLead);
+  const { run, pending, failure } = useCommand(takeEnquiry);
   const { fieldError, formFailure } = useFieldFailure(failure, FIELDS);
   const [entityId, setEntityId] = useState(companies.length === 1 ? companies[0]?.id : undefined);
   const offered = entityId === undefined ? [] : pipelinesFor(pipelines, entityId);
@@ -79,11 +79,14 @@ export function NewLeadForm({
         referralCode: text('referralCode'),
       }),
       (lead) => {
-        // A repeat enquiry was added to the customer's open lead (CRM-03).
+        // A repeat enquiry was added to the customer's open lead (CRM-03); an enquiry for a
+        // colleague's customer went to that colleague (RPT-04).
         toast.success(
-          lead.outcome === 'attached'
-            ? t('attached', { name: lead.account.name })
-            : t('done', { name }),
+          lead.outcome === 'routed'
+            ? t('routed', { colleague: lead.colleagueName })
+            : lead.outcome === 'attached'
+              ? t('attached', { name: lead.account.name })
+              : t('done', { name }),
         );
         router.push('/leads');
       },

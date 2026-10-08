@@ -3,6 +3,7 @@ import {
   DomainError,
   EditInboxItemInput,
   InboxDecisionDto,
+  InboxItemDoneDto,
   InboxItemRefInput,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
@@ -220,5 +221,57 @@ export const dismissInboxItem = defineCommand({
     const { item, action } = await lockSuggestion(ctx, input);
     decide(ctx, item, action, 'dismiss');
     return record(ctx, item, action, { state: 'dismissed', edited: false });
+  },
+});
+
+/**
+ * `agents.inbox.complete`: routed work (an enquiry passed on because the person looks after the
+ * customer, docs/03-roadmap-appendix/phase1.md §8.1) leaves the inbox once its person, or whoever acts on their
+ * inbox, has dealt with it. A suggestion is decided with the commands above instead.
+ */
+export const completeInboxItem = defineCommand({
+  name: 'agents.inbox.complete',
+  permission: 'agents.inbox.act',
+  minScope: 'own',
+  peopleOnly: true,
+  input: InboxItemRefInput,
+  output: InboxItemDoneDto,
+  auditFields: ['state'],
+  async handler(ctx, input) {
+    requireEntity(ctx, input.entityId);
+    const i = schema.inboxItems;
+    const [item] = await ctx.tx
+      .select()
+      .from(i)
+      .where(and(eq(i.id, input.itemId), eq(i.entityId, input.entityId), eq(i.kind, 'routed_work')))
+      .limit(1)
+      .for('update');
+    if (item === undefined) {
+      throw new DomainError('not_found', `inbox item ${input.itemId} is not visible`, {
+        reason: 'inbox_item_missing',
+      });
+    }
+    transition(inboxItemMachine, { state: item.state as 'open' | 'done' }, 'complete', {
+      actor: { kind: 'principal', principal: ctx.principal },
+      now: ctx.now,
+      params: {},
+    });
+    await ctx.tx
+      .update(i)
+      .set({
+        state: 'done',
+        doneBy: ctx.principal.id,
+        doneAt: ctx.now,
+        updatedBy: ctx.principal.id,
+      })
+      .where(eq(i.id, item.id));
+    ctx.audit({
+      aggregateType: 'inbox_item',
+      aggregateId: item.id,
+      entityId: item.entityId,
+      before: { state: item.state },
+      after: { state: 'done' },
+    });
+    return { itemId: item.id, state: 'done' as const };
   },
 });

@@ -58,5 +58,9 @@ export const tasks = pgTable(
     index('tasks_opportunity_idx').on(t.opportunityId, t.entityId, t.accountId),
     index('tasks_account_state_due_idx').on(t.accountId, t.state, t.dueAt),
     index('tasks_team_idx').on(t.teamId),
+    // The notification scan: a company's open calls by the time they fall due.
+    index('tasks_open_calls_due_idx')
+      .on(t.entityId, t.dueAt)
+      .where(sql`${t.state} = 'open' and ${t.kind} in ('callback', 'nurture')`),
   ],
 );

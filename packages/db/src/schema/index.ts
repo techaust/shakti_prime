@@ -38,6 +38,7 @@ export {
   userEntityRoles,
 } from './identity';
 export { quotes, quoteLines, quoteVersions } from './quotes';
+export { notifications, notificationPreferences, pushSubscriptions } from './notifications';
 export {
   salesOrders,
   salesOrderLines,

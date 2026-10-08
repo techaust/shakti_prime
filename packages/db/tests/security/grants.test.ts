@@ -130,6 +130,9 @@ describe('app_user role (docs/05-database.md §3)', () => {
     agent_runs: { i: true, u: false },
     agent_actions: { i: true, u: false },
     inbox_items: { i: true, u: false },
+    // A notice is written only by the notify worker's definer; a person changes its read time
+    // alone (notifications.test.ts).
+    notifications: { i: false, u: false },
   };
 
   /**

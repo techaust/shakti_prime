@@ -90,7 +90,8 @@ const eventCatalogue = {
       'crm.duplicate.suggest',
       'imports.job.commit_batch',
     ],
-    subscribed: false,
+    // The notify worker tells the owners of the leads (docs/03-roadmap-appendix/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         kind: DuplicateKindSchema,
@@ -115,16 +116,26 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.assigned': {
-    meaning: 'A lead was given to an owner and team, locked to them for `lockHours`.',
+    meaning:
+      'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
     emittedBy: ['crm.opportunity.assign'],
-    subscribed: false,
+    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         ownerId: IdSchema,
         teamId: IdSchema.nullable(),
         lockHours: z.number().int().min(1).max(720),
+        assignedById: IdSchema,
       })
       .strict(),
+  },
+  'crm.enquiry.routed': {
+    meaning:
+      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
+    emittedBy: ['crm.enquiry.route'],
+    subscribed: true,
+    payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
   'crm.opportunity.nurtured': {
     meaning: 'An open lead was parked in nurture with a reason code.',
@@ -454,13 +465,14 @@ const eventCatalogue = {
   },
   /**
    * The dealer credit check held a confirmation (SAL-07): the order stays a draft until the
-   * Executive releases it. The notice to the Executive and the order's maker is N1's to send.
+   * Executive releases it. The notify worker tells the Executives who may release it and the
+   * order's maker.
    */
   'sales.order.credit_held': {
     meaning:
-      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it.',
+      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order.',
     emittedBy: ['sales.order.confirm'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,

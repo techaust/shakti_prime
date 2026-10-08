@@ -25,7 +25,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Playbook directive | no | 3 | 4 | 1 | [playbook-directive.md](playbook-directive.md) |
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
 | Agent action | **yes** | 5 | 5 | 0 | [agent-action.md](agent-action.md) |
-| Inbox item | **yes** | 2 | 2 | 0 | [inbox-item.md](inbox-item.md) |
+| Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
 
 ## Workshop defaults
 

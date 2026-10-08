@@ -35,8 +35,21 @@ describe('the worker contracts (docs/06-api.md §3.6)', () => {
     const notify = API_FIXTURES['workers.notify'].request as Record<string, unknown>;
     expect(NotifyJob.safeParse(notify).success).toBe(true);
     expect(NotifyJob.safeParse({ ...notify, title: 'Lead from Bikaner' }).success).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, aggregateId: 'Ramesh' }).success).toBe(false);
+    const payload = notify.payload as Record<string, unknown>;
     expect(
-      NotifyJob.safeParse({ ...notify, subject: { type: 'opportunity', id: 'Ramesh' } }).success,
+      NotifyJob.safeParse({ ...notify, payload: { ...payload, name: 'Ramesh' } }).success,
+    ).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, type: 'crm.lead.created' }).success).toBe(false);
+    // A held dealer order notifies too (SAL-07), with the ids and the rule's code only.
+    const held = {
+      ...notify,
+      type: 'sales.order.credit_held',
+      payload: { accountId: IDS.event, createdBy: IDS.event, reason: 'credit_overdue', v: 1 },
+    };
+    expect(NotifyJob.safeParse(held).success).toBe(true);
+    expect(
+      NotifyJob.safeParse({ ...held, payload: { ...held.payload, reason: 'Ramesh owes' } }).success,
     ).toBe(false);
   });
 

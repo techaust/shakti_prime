@@ -51,6 +51,15 @@ const config: NextConfig = {
         source: '/api/(.*)',
         headers: [{ key: 'Content-Security-Policy', value: API_CONTENT_SECURITY_POLICY }],
       },
+      // The push service worker: always checked for a newer copy, and allowed to load only from
+      // this site (it shows alerts and opens this site's screens).
+      {
+        source: '/push-sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache' },
+          { key: 'Content-Security-Policy', value: "default-src 'self'; frame-ancestors 'none'" },
+        ],
+      },
       // The reset token travels in the query string: never leak it through a referrer.
       { source: '/set-password', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },
     ]);

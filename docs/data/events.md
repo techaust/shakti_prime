@@ -45,7 +45,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-47 types, 3 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+48 types, 7 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -59,9 +59,10 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 |---|---|---|---|
 | [`crm.lead.created`](#crmleadcreated) | A lead was recorded: an opportunity at the first open stage of its pipeline, for a new or an existing customer. | `crm.lead.create`, `imports.job.commit_batch` | none |
 | [`crm.lead.attached`](#crmleadattached) | A repeat enquiry for the same segment was added to the customer's open lead, which had activity in the last 30 days, or to its lead in nurture, instead of a new lead (CRM-03). Never for a row of an import batch: the batch is listed because it runs `crm.lead.create` for its rows, which then neither attaches nor looks for duplicates. | `crm.lead.create`, `imports.job.commit_batch` | none |
-| [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | none |
+| [`crm.duplicate.found`](#crmduplicatefound) | Two customers, or two leads of one company, were put forward as possibly the same, with the reason and how sure the match is (CRM-03). Never for a row of an import batch, which the nightly search covers: the batch is listed because it runs `crm.lead.create` for its rows, which then looks for no duplicates. | `crm.lead.create`, `crm.duplicate.scan`, `crm.duplicate.suggest`, `imports.job.commit_batch` | `POST /api/v1/workers/outbox/crm.duplicate.found` (QStash URL group `evt-crm.duplicate.found`) |
 | [`crm.opportunity.stage_moved`](#crmopportunitystage_moved) | An open lead moved to another stage of its pipeline; `handover` is true when the stage is `qualified`. | `calls.call.log`, `crm.opportunity.stage.move` | none |
-| [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`. | `crm.opportunity.assign` | none |
+| [`crm.opportunity.assigned`](#crmopportunityassigned) | A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves. | `crm.opportunity.assign` | `POST /api/v1/workers/outbox/crm.opportunity.assigned` (QStash URL group `evt-crm.opportunity.assigned`) |
+| [`crm.enquiry.routed`](#crmenquiryrouted) | An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them. | `crm.enquiry.route` | `POST /api/v1/workers/outbox/crm.enquiry.routed` (QStash URL group `evt-crm.enquiry.routed`) |
 | [`crm.opportunity.nurtured`](#crmopportunitynurtured) | An open lead was parked in nurture with a reason code. | `calls.call.log`, `crm.opportunity.nurture` | none |
 | [`crm.opportunity.reopened`](#crmopportunityreopened) | A nurtured or lost lead was opened again at its pipeline's first open stage: by a person, by a call on a nurtured lead that ends in a callback or a qualified outcome (`calls.call.log` runs `crm.opportunity.reopen`), or because a repeat enquiry joined a lead in nurture (CRM-03), which `crm.lead.create` does by running `crm.opportunity.reopen`. An import batch is listed because it runs `crm.lead.create` for its rows, but a row never joins a lead. | `calls.call.log`, `crm.lead.create`, `crm.opportunity.reopen`, `imports.job.commit_batch` | none |
 | [`crm.opportunity.won`](#crmopportunitywon) | An open lead was closed as won. | `crm.opportunity.win` | none |
@@ -144,7 +145,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | [`sales.quote.accepted`](#salesquoteaccepted) | A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`. | `sales.quote.accept` | none |
 | [`sales.order.created`](#salesordercreated) | A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one. | `sales.quote.accept`, `sales.order.create` | none |
 | [`sales.order.confirmed`](#salesorderconfirmed) | A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it. | `sales.order.confirm` | none |
-| [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. | `sales.order.confirm` | none |
+| [`sales.order.credit_held`](#salesordercredit_held) | Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order. | `sales.order.confirm` | `POST /api/v1/workers/outbox/sales.order.credit_held` (QStash URL group `evt-sales.order.credit_held`) |
 | [`sales.order.credit_released`](#salesordercredit_released) | The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once. | `sales.credit.release` | none |
 | [`sales.order.cancelled`](#salesordercancelled) | A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it. | `sales.order.cancel` | none |
 | [`sales.commission.accrued`](#salescommissionaccrued) | A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day. | `sales.order.confirm` | none |
@@ -196,6 +197,14 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `ownerId` | id |
 | `teamId` | id or null |
 | `lockHours` | whole number from 1 to 720 |
+| `assignedById` | id |
+
+### crm.enquiry.routed
+
+| Field | Type |
+|---|---|
+| `assigneeId` | id |
+| `accountId` | id |
 
 ### crm.opportunity.nurtured
 

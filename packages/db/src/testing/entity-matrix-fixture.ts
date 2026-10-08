@@ -84,6 +84,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   agent_runs: 'x.id::text',
   agent_actions: 'x.id::text',
   inbox_items: 'x.id::text',
+  notifications: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -116,6 +117,8 @@ export interface MatrixRow {
   onLead?: true;
   /** For a `files` row, its purpose, which names who reads it (`app.file_purpose_grant()`). */
   purpose?: string;
+  /** A row of another person's own (a notice), which nobody acting as the owner reads. */
+  othersOwn?: true;
   /**
    * A dealer's order without a lead, or its line: read with the customer in its company rather
    * than with a lead (the table's `readRow`).
@@ -171,6 +174,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       // Agent runs and actions are append-only and keep new ids each run, as audit rows do; the
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
+      await tx`delete from notifications where id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -291,6 +295,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     agent_runs: [],
     agent_actions: [],
     inbox_items: [],
+    notifications: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -371,6 +376,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const scoreRule = per(e, 0x1a);
         const agentConfig = per(e, 0x1c);
         const inboxItem = per(e, 0x1d);
+        // The owner's notice and another person's, about the company's lead.
+        const ownNotice = per(e, 0x40);
+        const othersNotice = per(e, 0x41);
         const agentRun = newId();
         const agentAction = newId();
         // One file of each purpose besides the import file, each read by its own rule.
@@ -458,6 +466,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${agentAction}, ${e}, ${agentRun}, ${MATRIX_AGENT}, 'crm.task.create', '{}'::jsonb, 'suggest', 'proposed', ${agentId})`;
         await tx`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, agent_action_id, created_by)
           values (${inboxItem}, ${e}, 'agent_suggestion', ${ownerId}, ${team}, 'opportunity', ${opportunity}, ${agentAction}, ${agentId})`;
+        await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key) values
+          (${ownNotice}, ${ownerId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${ownNotice}`}),
+          (${othersNotice}, ${otherUserId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${othersNotice}`})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         for (const [purpose, fileId, type] of purposeFiles) {
@@ -598,6 +609,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.agent_runs.push({ key: agentRun, entities: only });
         rows.agent_actions.push({ key: agentAction, entities: only });
         rows.inbox_items.push({ key: inboxItem, entities: only });
+        rows.notifications.push(
+          { key: ownNotice, entities: only },
+          { key: othersNotice, entities: only, othersOwn: true },
+        );
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   toast,
 } from '@shakti/ui';
-import { KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
+import { BellRing, KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useTransition } from 'react';
@@ -109,6 +109,12 @@ export function ProfileMenu({
           <Link href="/settings/profile#change-password">
             <KeyRound aria-hidden />
             {t('changePassword')}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/notifications">
+            <BellRing aria-hidden />
+            {t('notificationSettings')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

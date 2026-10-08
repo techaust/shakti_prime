@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import {
   approveSuggestion,
+  completeRoutedWork,
   dismissSuggestion,
   listInbox,
   rejectSuggestion,
@@ -26,7 +27,7 @@ import {
   agentSummaryName,
   inboxKeyAction,
 } from '../../screens/agents';
-import { AGENT_ROLES, agentNameKey, TASK_KINDS } from '../../screens/contract-values';
+import { AGENT_ROLES, agentNameKey, SEGMENTS, TASK_KINDS } from '../../screens/contract-values';
 import { customerHref, isOneOf } from '../../screens/customers';
 import { DateTime } from '../date-time';
 import { FailureMessage } from '../screens/failure';
@@ -50,8 +51,12 @@ function typing(target: EventTarget): boolean {
   );
 }
 
-/** Whether the person acts on the suggestion themselves (Suggest) rather than deciding on it. */
-const actYourself = (item: InboxItemDto): boolean => item.autonomy === 'suggest';
+/**
+ * Whether the person acts on the item themselves rather than deciding on it: a Suggest suggestion,
+ * or routed work (an enquiry passed to them), which D marks done.
+ */
+const actYourself = (item: InboxItemDto): boolean =>
+  item.kind === 'routed_work' || item.autonomy === 'suggest';
 
 /** Whether a key's decision applies to the item: approve and reject, or dismiss, by autonomy. */
 const fits = (item: InboxItemDto, decision: Decision): boolean =>
@@ -92,12 +97,12 @@ export function InboxScreen({
     cards.get(item.id)[0]?.focus();
   }
 
-  /** The decided suggestion leaves the list; focus stays where the person was working. */
-  function decided(item: InboxItemDto, decision: InboxDecisionDto) {
+  /** The decided item leaves the list; focus stays where the person was working. */
+  function decided(item: InboxItemDto, message: string) {
     const index = items.findIndex((i) => i.id === item.id);
     const rest = items.filter((i) => i.id !== item.id);
     setItems(rest);
-    toast.success(t(`inbox.${decision.state}`));
+    toast.success(message);
     router.refresh();
     const next = rest[Math.min(index, rest.length - 1)];
     setActive(Math.max(0, Math.min(index, rest.length - 1)));
@@ -132,27 +137,44 @@ export function InboxScreen({
         <EmptyState message={t('inbox.empty')} />
       ) : (
         <ul aria-label={t('inbox.caption')} className="flex flex-col gap-3" onKeyDown={onKeyDown}>
-          {items.map((item, index) => (
-            <InboxCard
-              key={item.id}
-              item={item}
-              focusable={index === active}
-              company={severalCompanies ? companies[item.entityId] : undefined}
-              cards={cards}
-              editButtons={editButtons}
-              decisions={decisions}
-              onFocus={() => {
-                setActive(index);
-              }}
-              onEdit={() => {
-                setActive(index);
-                setEditing(item);
-              }}
-              onDecided={(decision) => {
-                decided(item, decision);
-              }}
-            />
-          ))}
+          {items.map((item, index) =>
+            item.kind === 'routed_work' ? (
+              <RoutedCard
+                key={item.id}
+                item={item}
+                focusable={index === active}
+                company={severalCompanies ? companies[item.entityId] : undefined}
+                cards={cards}
+                decisions={decisions}
+                onFocus={() => {
+                  setActive(index);
+                }}
+                onDone={() => {
+                  decided(item, t('inbox.routedDone'));
+                }}
+              />
+            ) : (
+              <InboxCard
+                key={item.id}
+                item={item}
+                focusable={index === active}
+                company={severalCompanies ? companies[item.entityId] : undefined}
+                cards={cards}
+                editButtons={editButtons}
+                decisions={decisions}
+                onFocus={() => {
+                  setActive(index);
+                }}
+                onEdit={() => {
+                  setActive(index);
+                  setEditing(item);
+                }}
+                onDecided={(decision) => {
+                  decided(item, t(`inbox.${decision.state}`));
+                }}
+              />
+            ),
+          )}
         </ul>
       )}
       {cursor === null ? null : (
@@ -189,7 +211,7 @@ export function InboxScreen({
           onDecided={(decision) => {
             const item = editing;
             setEditing(undefined);
-            decided(item, decision);
+            decided(item, t(`inbox.${decision.state}`));
           }}
           onClose={() => {
             setEditing(undefined);
@@ -390,6 +412,112 @@ function InboxCard({
             </Button>
           </>
         )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Routed work (docs/03-roadmap-appendix/phase1.md §8.1): an enquiry a colleague took for a customer the person
+ * looks after, with its interest and note, to act on from the customer's page; Done (D) takes it
+ * out of the inbox.
+ */
+function RoutedCard({
+  item,
+  focusable,
+  company,
+  cards,
+  decisions,
+  onFocus,
+  onDone,
+}: {
+  item: InboxItemDto;
+  focusable: boolean;
+  /** The company's name, when the inbox lists several companies. */
+  company: string | undefined;
+  cards: FocusTargets<string>;
+  decisions: RefObject<Map<string, (decision: Decision) => void>>;
+  onFocus: () => void;
+  onDone: () => void;
+}) {
+  const t = useTranslations('agents');
+  const segments = useTranslations('activity.values.segment');
+  const complete = useCommand(completeRoutedWork);
+  const titleId = `inbox-item-${item.id}`;
+
+  function run(decision: Decision) {
+    if (complete.pending || decision !== 'dismiss') return;
+    complete.run({ entityId: item.entityId, itemId: item.id }, onDone);
+  }
+
+  // The list's keyboard reaches this card's Done through the shared map, kept current.
+  useEffect(() => {
+    const map = decisions.current;
+    map.set(item.id, run);
+    return () => {
+      map.delete(item.id);
+    };
+  });
+
+  const segment = SEGMENTS.find((s) => s === item.segment);
+  return (
+    <li
+      ref={cards.ref(item.id)}
+      tabIndex={focusable ? 0 : -1}
+      aria-labelledby={titleId}
+      onFocus={onFocus}
+      className="border-border bg-surface focus-visible:outline-focus flex flex-col gap-3 rounded-lg border p-4 focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
+      <div className="flex flex-col gap-1">
+        <p className="text-text-muted text-sm">{t('inbox.routedFrom')}</p>
+        <h3 id={titleId} className="text-h3">
+          {item.subjectName === null
+            ? t('inbox.routedUnknown')
+            : t('inbox.routedFor', { customer: item.subjectName })}
+        </h3>
+      </div>
+      {segment === undefined && item.note === null ? null : (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          {segment === undefined ? null : (
+            <div className="contents">
+              <dt className="text-text-muted">{t('inbox.routedInterest')}</dt>
+              <dd>{segments(segment)}</dd>
+            </div>
+          )}
+          {item.note === null ? null : (
+            <div className="contents">
+              <dt className="text-text-muted">{t('inbox.routedNote')}</dt>
+              <dd>{item.note}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+      <p className="text-text-muted text-sm">
+        {t('inbox.routedReceived')} <DateTime value={item.createdAt} />
+        {company === undefined ? null : ` · ${t('inbox.companyLine', { company })}`}
+      </p>
+      <FailureMessage failure={complete.failure} />
+      <div className="flex flex-wrap items-center gap-3">
+        {item.accountId === null ? null : (
+          <Link
+            href={customerHref(item.accountId, item.entityId)}
+            aria-keyshortcuts="O"
+            className="text-accent-text underline-offset-4 hover:underline"
+          >
+            {t('inbox.openCustomer')}
+          </Link>
+        )}
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-keyshortcuts="D"
+          pending={complete.pending}
+          onClick={() => {
+            run('dismiss');
+          }}
+        >
+          {t('inbox.routedComplete')}
+        </Button>
       </div>
     </li>
   );

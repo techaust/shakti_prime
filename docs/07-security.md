@@ -103,7 +103,7 @@ Roles are permission templates that Executives can edit; the set of roles is fix
 - **Who may hold a permission** is fixed, whoever writes (BLUEPRINT §7.1 to §7.3; `roleMayHold()` in `@shakti/contracts` and `app.role_may_hold()`, which a security test compares for every role and permission):
   - every `admin.*` permission and `integrations.dlq.replay`: the Executive role only (`EXECUTIVE_ONLY_PERMISSIONS`);
   - `finance.cost.read`: Executive and Accounts only; `procurement.rate.read`: Executive, Inventory Manager and Accounts only (`COST_PERMISSION_HOLDERS`);
-  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`): a system role only.
+  - platform-only permissions (`PLATFORM_ONLY_PERMISSIONS`: `files.process`, `imports.process`, `crm.score.refresh`, `crm.duplicates.scan`, `sales.quote.expire`, `notifications.send`): a system role only.
 - The command refuses any other holder (`permission_not_for_role`, `permission_platform_only`), the trigger `role_permissions_holder_guard` refuses it in the database, the seed included, and the editor shows such a permission locked with its reason.
 - Each permission is offered only at the scopes it honours (`PERMISSION_SCOPES`, the scopes the matrix in §3.2 uses for it: `admin.*` all companies, the cost permissions a company or all; `scope_not_offered`).
 - The Executive role always keeps `admin.roles.write:all` and `admin.users.write:all` (`EXECUTIVE_KEPT_GRANTS`, `executive_keeps_admin`), which a deferred constraint trigger also checks at the end of every transaction, so the group cannot lock itself out.
@@ -172,6 +172,7 @@ Columns are the staff roles of `STAFF_ROLE_KEYS` (`packages/contracts/src/roles.
 | `crm.score.refresh` | – | – | – | – | – | – | – | – | – | – | – |
 | `crm.duplicates.scan` | – | – | – | – | – | – | – | – | – | – | – |
 | `sales.quote.expire` | – | – | – | – | – | – | – | – | – | – | – |
+| `notifications.send` | – | – | – | – | – | – | – | – | – | – | – |
 
 "–" means not granted. The matrix is data in `role_permissions`; this table is its seed and its test oracle (`packages/db/src/permission-matrix.test.ts`). The seed keeps to the holder rules and scopes of §3.1 (a security test): only the Executive role holds `admin.*` and `integrations.dlq.replay`, and the cost permissions only the roles named for them.
 
@@ -208,6 +209,11 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 - A merge never reaches past the caller: every relationship of both customers, and every lead it moves, must be in the request's companies (the duplicate actions request every company the caller works for, since a customer is shared, ADR 0008; otherwise `merge_other_company`) and in the caller's customer or lead write scope (otherwise `customer_held_by_colleague`, §4), or nothing moves. A referral partner is never merged away; a lead merge gives the kept lead the merged lead's partner when it has none and refuses two leads of two partners.
 - A customer merge records every id it moved (`customer_merges`) and is undone by `crm.customer.unmerge`, which is refused while the kept customer has since been merged away; each merge, undo and decision is audited. A write about a known customer holds its row (`app.hold_customer()`), so it never lands on a customer a merge is archiving (the definers are in [DATABASE §4.1](05-database.md#41-settings-per-transaction)).
 
+**Notifications** (docs/03-roadmap-appendix/phase1.md §8.1, PRD RPT-04) add the platform-only `notifications.send` (§3.3) and no permission a person holds:
+- A notice is a person's own: they read their own notices in the request's companies with no permission at all, and nobody else, an Executive included, reads them (`notifications_read`). Marking read, the notification settings and a browser for alerts are the person's own profile (`profile.write`, which every staff role holds at own scope), for people only.
+- No request writes a notice. The notify worker and its five-minute scan run as `system:workers` with `notifications.send` and reach leads, tasks, quotes, duplicate cards, settings and browsers only through definers that check that permission and answer ids and codes (DATABASE §4.1); a notice goes only to an active person with a role in its company, its payload holds ids only, and its words come from the message catalogue. A push carries the kind's sentence and the screen to open, never a customer's name or number, and goes only to a push service the app knows (`isPushServiceEndpoint()`), so a stored address can never make the server call anywhere else.
+- An enquiry refused because a colleague looks after the customer (`customer_held_by_colleague`) is passed to that colleague as routed work (`crm.enquiry.route`, `crm.lead.write` and `crm.account.write` in the company, people only); the caller learns only the colleague's name, and the routed item is read only through the colleague's own inbox scope.
+
 ### 3.3 Agent principals
 | Principal | Permissions |
 |---|---|
@@ -220,7 +226,7 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `system:workers` | The system principal the event workers act as (`apps/web/src/workers/events`): one seeded principal of kind `system`, scoped to the company of the event it handles; its grants are listed under [the worker principal](#the-worker-principals-grants). It holds no `crm.*` permission a person may hold, so no lead, customer or note reaches it through the policies, and it follows an agent's customer rules (ADR 0020, Proposed until the owner decides at T2): a request is a service's when its role key is `agent:%` or `system:%` or its principal row is of kind `agent` or `system` (0064) |
 
 #### The worker principal's grants
-`SYSTEM_MATRIX` (`packages/contracts/src/system-principal.ts`) holds five grants, all at scope `all`, which the seed writes and the workers build their principal from. Each worker reads and writes through definers that check the permission ([DATABASE §4.1](05-database.md#41-settings-per-transaction)). Each later worker adds only the grant its command needs, and never a cost, admin, audit, integrations or sensitive-document permission.
+`SYSTEM_MATRIX` (`packages/contracts/src/system-principal.ts`) holds six grants, all at scope `all`, which the seed writes and the workers build their principal from. Each worker reads and writes through definers that check the permission ([DATABASE §4.1](05-database.md#41-settings-per-transaction)). Each later worker adds only the grant its command needs, and never a cost, admin, audit, integrations or sensitive-document permission.
 
 | Grant | What it is for |
 |---|---|
@@ -229,6 +235,7 @@ The duplicates and merges ([phase 1 design §7.4](03-roadmap-appendix/phase1.md#
 | `crm.score.refresh` | The nightly rescoring (`crm.lead.score_refresh`): it reads the scoring facts of one company's open leads through `app.lead_score_facts()` and writes only their score columns through `app.write_lead_scores()` |
 | `crm.duplicates.scan` | The nightly duplicate search (`crm.duplicate.scan`): it reads only ids and yes-or-no matching facts of one company's customers through `app.duplicate_facts()` and records candidates through `app.record_duplicates()`, which checks each pair again |
 | `sales.quote.expire` | The daily quote expiry (`sales.quote.expire`): it reads one company's lapsed draft and sent quotes through `app.lapsed_quotes()` and marks them expired through `app.expire_quotes()` |
+| `notifications.send` | The notify worker and its scan (`notifications.event.notify`, `notifications.due.scan`, `notifications.push.record`): they find who a notice is for, write it and record its push only through the notification definers (`app.notice_*()`, `app.write_notices()`, `app.record_notice_push()`) |
 
 The delivery check's worker writes no row.
 
