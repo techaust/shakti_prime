@@ -5,9 +5,9 @@
 | Branch | `feat/n1-notifications` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `n1-notifications`, slot 16: Postgres 54346, app 3046 (`bash tools/integration/setup-worktree.sh n1-notifications feat/n1-notifications 54346 3046`) |
 | Runs on | PC only (owner, 06-10-2026), at most two builders, heavy commands through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| Usage | merge and wiring (Sonnet, medium, 08-10-2026): 69 % of the week at its start; review (Opus, medium): 69 % to its end figure as the lead records; fixes (Sonnet, medium): 69 % at its start; L5 fix (Sonnet, medium): 70 % of the week at its start |
-| State | review fixes done (M1-M3, L1, L3), checks pass; L2 and L4 follow-ups |
-| Next step | lead checks the fixes, then integration |
+| Usage | merge and wiring (Sonnet, medium, 08-10-2026): 69 % of the week at its start; review (Opus, medium): 69 % to its end figure as the lead records; fixes (Sonnet, medium): 69 % at its start; L5 fix (Sonnet, medium): 70 % of the week at its start |; L5 fix: 70 % at its end; the lead's integration: 70 % to 71 % |
+| State | integrated 08-10-2026: every check passes; pull request open |
+| Next step | the merge workflow merges it; then `migrate-hosted` for 0118 to 0120; K1 takes `main` after it |
 
 ## Brief
 Read first:
@@ -104,3 +104,9 @@ Re-check of the fix diff (Opus, medium), `b7b390e4..48234451`: M1, M2, M3, L1 an
 ## Integration notes
 1. Done in the merge (08-10-2026): the notify worker is subscribed to `sales.order.credit_held` (the Executive of the order's company and the order's maker), with its notice type, preference and a journey line.
 2. The owner creates the QStash schedule `notification-scan-<environment>` on dev and staging from the values the lead gives, and the VAPID keys go on Vercel through a script the lead writes (a secret, so the owner runs it).
+
+### Integration (the lead, 08-10-2026)
+- `integrate.sh` on a fresh database: every step passed but the journeys, where `calling.spec.ts` failed once in desktop-dark because its run crossed 21:00 IST (the journey picks its calling-hours branch at the start); the journeys run again passed (297 passed, 14 skipped).
+- Baselines: the three `notification-settings` images are new, taken from the top of the page (a reload keeps the scroll position, which drew the fixed menu over the full-page picture); the centre's picture is dropped, since the centre lists what other journeys leave; the phone Agent Inbox is remade (the bell and the passed-on enquiries). The other screens gain the bell by less than the 1 % allowance and keep `main`'s images. The verification run on a fresh database passed without updating (297 passed).
+- The held-order notice's title is "A dealer order is held for credit", like the other kinds; the alert's text keeps the explanation.
+- The whole-repository lint's heap is 6 GB (`package.json`), since N1 took it past 4 GB.
