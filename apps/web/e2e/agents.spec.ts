@@ -150,11 +150,13 @@ test.describe('as an Executive', () => {
     await showCompany(page, SNAPSHOT_COMPANY.name);
     const grid = dataGrid(page, AGENTS);
     await expect(grid.getByText('Caller Co-pilot', { exact: true })).toBeVisible();
+    // The journeys' server runs the stand-in AI service (`AI_TRANSPORT=fake`), so the screen does
+    // not say the service is missing.
     await expect(
       page.getByText('The AI service is not connected yet, so agents make no calls.', {
         exact: false,
       }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'What Caller Co-pilot may do' })).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'admin-agents');
