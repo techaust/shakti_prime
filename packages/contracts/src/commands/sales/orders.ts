@@ -81,7 +81,7 @@ export type SetDealerTermsInput = z.input<typeof SetDealerTermsInput>;
 
 /**
  * `sales.dealer_outstanding.record` (SALE-6): what a dealer owes in one company on a date, and
- * the oldest overdue invoice with its days, as Accounts read them from Tally until the sync
+ * the oldest unpaid invoice with its date, as Accounts read them from Tally until the sync
  * brings them (Phase 5).
  */
 export const RecordDealerOutstandingInput = z
@@ -89,13 +89,17 @@ export const RecordDealerOutstandingInput = z
     entityId: EntityIdSchema,
     accountId: IdSchema,
     outstanding: MoneySchema,
-    oldestOverdueDays: z.number().int().min(0).max(3650).nullable(),
-    oldestOverdueInvoiceNo: z.string().trim().min(1).max(60).nullable(),
+    oldestUnpaidInvoiceDate: CalendarDateSchema.nullable(),
+    oldestUnpaidInvoiceNo: z.string().trim().min(1).max(60).nullable(),
     asOf: CalendarDateSchema,
   })
   .strict()
-  .refine((v) => (v.oldestOverdueDays === null) === (v.oldestOverdueInvoiceNo === null), {
-    message: 'an overdue invoice comes with its days',
-    path: ['oldestOverdueInvoiceNo'],
+  .refine((v) => (v.oldestUnpaidInvoiceDate === null) === (v.oldestUnpaidInvoiceNo === null), {
+    message: 'an unpaid invoice comes with its date',
+    path: ['oldestUnpaidInvoiceNo'],
+  })
+  .refine((v) => v.oldestUnpaidInvoiceDate === null || v.oldestUnpaidInvoiceDate <= v.asOf, {
+    message: 'an invoice is not dated after the figure it is part of',
+    path: ['oldestUnpaidInvoiceDate'],
   });
 export type RecordDealerOutstandingInput = z.input<typeof RecordDealerOutstandingInput>;

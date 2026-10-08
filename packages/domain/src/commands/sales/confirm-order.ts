@@ -36,23 +36,29 @@ async function creditFactsOf(
     outstanding: '0.00',
     confirmedUnpaid: '0.00',
     orderValue: row.grandTotal,
-    oldestOverdueDays: null,
-    oldestOverdueInvoiceNo: null,
+    oldestUnpaidInvoiceDate: null,
+    oldestUnpaidInvoiceNo: null,
   };
   if (accountType !== 'dealer') return facts;
+  // Two confirmations of one dealer's orders in one company queue here, so the second reads the
+  // first's order as confirmed: the lock is held to the end of the transaction.
+  await ctx.tx.execute(
+    sql`select pg_advisory_xact_lock(
+          pg_catalog.hashtextextended('dealer-credit:' || ${row.entityId}::text || ':' || ${row.accountId}::text, 0))`,
+  );
   const [position] = (await ctx.tx.execute(
     sql`select credit_limit::numeric(14, 2)::text as "creditLimit", credit_days as "creditDays",
                outstanding::numeric(14, 2)::text as "outstanding",
-               oldest_overdue_days as "oldestOverdueDays",
-               oldest_overdue_invoice_no as "oldestOverdueInvoiceNo",
+               oldest_unpaid_invoice_date::text as "oldestUnpaidInvoiceDate",
+               oldest_unpaid_invoice_no as "oldestUnpaidInvoiceNo",
                confirmed_unpaid::numeric(14, 2)::text as "confirmedUnpaid"
           from app.dealer_credit_position(${row.entityId}::smallint, ${row.accountId}::uuid, ${row.id}::uuid)`,
   )) as unknown as {
     creditLimit: string | null;
     creditDays: number | null;
     outstanding: string;
-    oldestOverdueDays: number | null;
-    oldestOverdueInvoiceNo: string | null;
+    oldestUnpaidInvoiceDate: string | null;
+    oldestUnpaidInvoiceNo: string | null;
     confirmedUnpaid: string;
   }[];
   if (!position) throw new DomainError('internal', 'the dealer credit position answered nothing');
@@ -62,8 +68,8 @@ async function creditFactsOf(
     creditDays: position.creditDays,
     outstanding: numericMoney(position.outstanding) ?? '0.00',
     confirmedUnpaid: numericMoney(position.confirmedUnpaid) ?? '0.00',
-    oldestOverdueDays: position.oldestOverdueDays,
-    oldestOverdueInvoiceNo: position.oldestOverdueInvoiceNo,
+    oldestUnpaidInvoiceDate: position.oldestUnpaidInvoiceDate,
+    oldestUnpaidInvoiceNo: position.oldestUnpaidInvoiceNo,
   };
 }
 
@@ -88,8 +94,8 @@ async function winLead(ctx: CommandContext, row: SalesOrderRow): Promise<void> {
 /**
  * `sales.order.confirm` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06, SAL-07): confirms a draft order
  * after the dealer credit check (`creditCheck()`, SALE-5: the dealer's outstanding, the confirmed
- * orders not yet in it and this order against the limit, and the oldest overdue invoice against
- * the credit days). A block is not a refusal: the order stays a draft, held for credit with the
+ * orders not yet in it and this order against the limit, and the age of the oldest unpaid invoice
+ * against the credit days). A block is not a refusal: the order stays a draft, held for credit with the
  * rule and the facts its sentence names (committed), the command answers `held`, and
  * `sales.order.credit_held` lets the Executive and the person who made the order know. An
  * Executive's release lets the next confirmation pass the block once. A customer who is not a
@@ -109,7 +115,7 @@ export const confirmSalesOrder = defineCommand({
     const credit = await creditFactsOf(ctx, row, accountType);
     const record = { ...salesOrderRecordOf(row, accountType), credit };
     const actor = { kind: 'principal' as const, principal: ctx.principal };
-    const check = creditCheck(credit, record.creditRelease);
+    const check = creditCheck(credit, record.creditRelease, ctx.now);
 
     if (check.blocked) {
       transition(salesOrderMachine, record, 'credit.hold', { actor, now: ctx.now, params: {} });
@@ -126,13 +132,16 @@ export const confirmSalesOrder = defineCommand({
         before: { orderState: row.state, creditHoldReason: row.creditHoldReason },
         after: { orderState: row.state, creditHoldReason: reason },
       });
-      ctx.emit({
-        type: 'sales.order.credit_held',
-        entityId: row.entityId,
-        aggregateType: 'sales_order',
-        aggregateId: row.id,
-        payload: { accountId: row.accountId, createdBy: row.createdBy, reason },
-      });
+      // Told once: pressing Confirm again on an order already held for the same rule sends nothing.
+      if (row.creditHeldAt === null || row.creditHoldReason !== reason) {
+        ctx.emit({
+          type: 'sales.order.credit_held',
+          entityId: row.entityId,
+          aggregateType: 'sales_order',
+          aggregateId: row.id,
+          payload: { accountId: row.accountId, createdBy: row.createdBy, reason },
+        });
+      }
       return { outcome: 'held' as const, order: await readSalesOrder(ctx, row.entityId, row.id) };
     }
 

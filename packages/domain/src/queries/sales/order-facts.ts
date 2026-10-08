@@ -139,8 +139,8 @@ export async function buildDealerOrder(
         outstanding: '0.00',
         confirmedUnpaid: '0.00',
         orderValue: '0.00',
-        oldestOverdueDays: null,
-        oldestOverdueInvoiceNo: null,
+        oldestUnpaidInvoiceDate: null,
+        oldestUnpaidInvoiceNo: null,
       },
       creditHeld: false,
       creditRelease: null,
@@ -170,11 +170,7 @@ export async function buildDealerOrder(
     accountGstin: dealer.gstin,
     entityStateCode: dealer.entityStateCode,
   });
-  const { rates, rules } = await loadQuoteTaxRows(
-    ctx,
-    sources.byKey.values(),
-    'dealer_wholesale',
-  );
+  const { rates, rules } = await loadQuoteTaxRows(ctx, sources.byKey.values(), 'dealer_wholesale');
   const priced = await inOrderWords(() =>
     priceQuote({
       segment: 'dealer_wholesale',

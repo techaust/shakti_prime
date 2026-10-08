@@ -136,8 +136,8 @@ export async function ensureOrderJourneys(executiveId: string): Promise<OrderJou
       entityId: SNAPSHOT_COMPANY.entityId,
       accountId: snapshot.accountId,
       outstanding: '45000.00',
-      oldestOverdueDays: null,
-      oldestOverdueInvoiceNo: null,
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
       asOf: '2026-09-30',
     });
   }

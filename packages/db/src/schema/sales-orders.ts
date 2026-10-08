@@ -114,10 +114,7 @@ export const salesOrders = pgTable(
       .on(t.quoteId)
       .where(sql`${t.quoteId} is not null`),
     // An order of a quote has its lead; a dealer's order without a quote has neither.
-    check(
-      'sales_orders_source_check',
-      sql`(${t.quoteId} is null) = (${t.opportunityId} is null)`,
-    ),
+    check('sales_orders_source_check', sql`(${t.quoteId} is null) = (${t.opportunityId} is null)`),
     check(
       'sales_orders_state_check',
       sql`${t.state} in ('draft', 'confirmed', 'partially_dispatched', 'dispatched', 'invoiced', 'closed', 'cancelled')`,
@@ -296,7 +293,7 @@ export const dealerTerms = pgTable(
 
 /**
  * A dealer's outstanding in one company as Accounts entered it by hand (SALE-6), until the Tally
- * sync brings it (Phase 5): the amount, the oldest overdue invoice with its days, and the date it
+ * sync brings it (Phase 5): the amount, the oldest unpaid invoice with its date, and the date it
  * stands at. Append-only; the entry with the newest `as_of` counts (the later entry of one day).
  */
 export const dealerOutstanding = pgTable(
@@ -310,8 +307,8 @@ export const dealerOutstanding = pgTable(
       .notNull()
       .references(() => accounts.id),
     outstanding: money('outstanding').notNull(),
-    oldestOverdueDays: integer('oldest_overdue_days'),
-    oldestOverdueInvoiceNo: text('oldest_overdue_invoice_no'),
+    oldestUnpaidInvoiceDate: date('oldest_unpaid_invoice_date'),
+    oldestUnpaidInvoiceNo: text('oldest_unpaid_invoice_no'),
     asOf: date('as_of').notNull(),
     enteredBy: uuid('entered_by')
       .notNull()
@@ -320,12 +317,13 @@ export const dealerOutstanding = pgTable(
   },
   (t) => [
     check('dealer_outstanding_amount_check', sql`${t.outstanding} >= 0`),
-    // The block names the invoice (SAL-07): an overdue figure comes with its invoice.
+    // The hold names the invoice (SAL-07): the date of the oldest unpaid invoice comes with its
+    // number, and an invoice is not dated after the figure it is part of.
     check(
-      'dealer_outstanding_overdue_check',
-      sql`(${t.oldestOverdueDays} is null) = (${t.oldestOverdueInvoiceNo} is null)
-       and (${t.oldestOverdueDays} is null or ${t.oldestOverdueDays} between 0 and 3650)
-       and (${t.oldestOverdueInvoiceNo} is null or length(btrim(${t.oldestOverdueInvoiceNo})) between 1 and 60)`,
+      'dealer_outstanding_unpaid_check',
+      sql`(${t.oldestUnpaidInvoiceDate} is null) = (${t.oldestUnpaidInvoiceNo} is null)
+       and (${t.oldestUnpaidInvoiceDate} is null or ${t.oldestUnpaidInvoiceDate} <= ${t.asOf})
+       and (${t.oldestUnpaidInvoiceNo} is null or length(btrim(${t.oldestUnpaidInvoiceNo})) between 1 and 60)`,
     ),
     // A dealer's newest entry in a company, and its history newest first.
     index('dealer_outstanding_account_idx').on(t.accountId, t.entityId, t.asOf, t.createdAt),

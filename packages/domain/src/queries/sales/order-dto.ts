@@ -74,7 +74,7 @@ const HoldFacts = z
     limit: z.string().nullable().optional(),
     exposure: z.string().nullable().optional(),
     invoiceNo: z.string().nullable().optional(),
-    overdueDays: z.number().int().nullable().optional(),
+    invoiceAgeDays: z.number().int().nullable().optional(),
     creditDays: z.number().int().nullable().optional(),
   })
   .loose();
@@ -93,7 +93,7 @@ export function creditHoldOf(row: {
     limit: facts.limit ?? null,
     exposure: facts.exposure ?? null,
     invoiceNo: facts.invoiceNo ?? null,
-    overdueDays: facts.overdueDays ?? null,
+    invoiceAgeDays: facts.invoiceAgeDays ?? null,
     creditDays: facts.creditDays ?? null,
   };
 }
@@ -120,8 +120,8 @@ export function salesOrderRecordOf(
       outstanding: '0.00',
       confirmedUnpaid: '0.00',
       orderValue: row.grandTotal,
-      oldestOverdueDays: null,
-      oldestOverdueInvoiceNo: null,
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
     },
     creditHeld: row.creditHeldAt !== null,
     creditRelease:

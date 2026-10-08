@@ -28,15 +28,15 @@ CREATE TABLE "dealer_outstanding" (
 	"entity_id" smallint NOT NULL,
 	"account_id" uuid NOT NULL,
 	"outstanding" numeric(14, 2) NOT NULL,
-	"oldest_overdue_days" integer,
-	"oldest_overdue_invoice_no" text,
+	"oldest_unpaid_invoice_date" date,
+	"oldest_unpaid_invoice_no" text,
 	"as_of" date NOT NULL,
 	"entered_by" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "dealer_outstanding_amount_check" CHECK ("dealer_outstanding"."outstanding" >= 0),
-	CONSTRAINT "dealer_outstanding_overdue_check" CHECK (("dealer_outstanding"."oldest_overdue_days" is null) = ("dealer_outstanding"."oldest_overdue_invoice_no" is null)
-       and ("dealer_outstanding"."oldest_overdue_days" is null or "dealer_outstanding"."oldest_overdue_days" between 0 and 3650)
-       and ("dealer_outstanding"."oldest_overdue_invoice_no" is null or length(btrim("dealer_outstanding"."oldest_overdue_invoice_no")) between 1 and 60))
+	CONSTRAINT "dealer_outstanding_unpaid_check" CHECK (("dealer_outstanding"."oldest_unpaid_invoice_date" is null) = ("dealer_outstanding"."oldest_unpaid_invoice_no" is null)
+       and ("dealer_outstanding"."oldest_unpaid_invoice_date" is null or "dealer_outstanding"."oldest_unpaid_invoice_date" <= "dealer_outstanding"."as_of")
+       and ("dealer_outstanding"."oldest_unpaid_invoice_no" is null or length(btrim("dealer_outstanding"."oldest_unpaid_invoice_no")) between 1 and 60))
 );
 --> statement-breakpoint
 CREATE TABLE "dealer_terms" (
@@ -199,7 +199,7 @@ CREATE INDEX "sales_orders_tier_idx" ON "sales_orders" USING btree ("tier_id");-
 CREATE INDEX "sales_orders_price_list_idx" ON "sales_orders" USING btree ("price_list_id");--> statement-breakpoint
 ALTER TABLE "quotes" ADD CONSTRAINT "quotes_signed_file_id_files_id_fk" FOREIGN KEY ("signed_file_id") REFERENCES "public"."files"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "accounts_dealer_name_idx" ON "accounts" USING btree ("name","id") WHERE "accounts"."type" = 'dealer' and "accounts"."archived_at" is null;--> statement-breakpoint
-CREATE INDEX "quotes_signed_file_idx" ON "quotes" USING btree ("signed_file_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "quotes_signed_file_unique" ON "quotes" USING btree ("signed_file_id") WHERE "quotes"."signed_file_id" is not null;--> statement-breakpoint
 ALTER TABLE "quotes" ADD CONSTRAINT "quotes_accepted_via_check" CHECK ("quotes"."accepted_via" is null or "quotes"."accepted_via" in ('whatsapp_reply', 'whatsapp_otp', 'signed_upload'));--> statement-breakpoint
 ALTER TABLE "quotes" ADD CONSTRAINT "quotes_acceptance_check" CHECK (("quotes"."state" = 'accepted') = ("quotes"."accepted_via" is not null)
        and ("quotes"."signed_file_id" is not null) = ("quotes"."accepted_via" is not distinct from 'signed_upload'));

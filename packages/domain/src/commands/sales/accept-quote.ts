@@ -13,7 +13,8 @@ import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
  * The customer's signed copy: a `signed_quote` file of the quote's company that the caller may
- * read (the `files` policies) and that has passed its checks.
+ * read (the `files` policies) and that has passed its checks. A signed copy accepts one quote
+ * only (`quotes_signed_file_unique`, which refuses a copy another quote already names).
  */
 async function signedCopy(ctx: CommandContext, entityId: number, fileId: string): Promise<string> {
   const f = schema.files;
@@ -61,6 +62,7 @@ export const acceptQuote = defineCommand({
   output: QuoteDto,
   auditFields: ['state', 'acceptedVia', ...ORDER_AUDIT_FIELDS],
   constraintReasons: {
+    quotes_signed_file_unique: 'signed_copy_used',
     sales_orders_quote_unique: 'concurrent_change',
     sales_orders_entity_so_no_unique: 'concurrent_change',
   },
@@ -84,7 +86,8 @@ export const acceptQuote = defineCommand({
       .from(schema.entities)
       .where(eq(schema.entities.id, quote.entityId))
       .limit(1);
-    if (!account || !entity) throw new DomainError('internal', 'the quote has no readable customer');
+    if (!account || !entity)
+      throw new DomainError('internal', 'the quote has no readable customer');
 
     await ctx.tx
       .update(schema.quotes)
@@ -117,8 +120,8 @@ export const acceptQuote = defineCommand({
           outstanding: '0.00',
           confirmedUnpaid: '0.00',
           orderValue: quote.grandTotal,
-          oldestOverdueDays: null,
-          oldestOverdueInvoiceNo: null,
+          oldestUnpaidInvoiceDate: null,
+          oldestUnpaidInvoiceNo: null,
         },
         creditHeld: false,
         creditRelease: null,
@@ -164,7 +167,11 @@ export const acceptQuote = defineCommand({
       entityId: quote.entityId,
       aggregateType: 'quote',
       aggregateId: quote.id,
-      payload: { opportunityId: quote.opportunityId, orderId: order.id, acceptedVia: 'signed_upload' },
+      payload: {
+        opportunityId: quote.opportunityId,
+        orderId: order.id,
+        acceptedVia: 'signed_upload',
+      },
     });
     return readQuote(ctx, quote.entityId, quote.id);
   },

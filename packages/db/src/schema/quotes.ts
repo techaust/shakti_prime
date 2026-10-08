@@ -153,7 +153,10 @@ export const quotes = pgTable(
       .on(t.entityId, t.validUntil)
       .where(sql`${t.state} in ('draft', 'sent')`),
     index('quotes_pdf_file_idx').on(t.pdfFileId),
-    index('quotes_signed_file_idx').on(t.signedFileId),
+    // A signed copy accepts one quote only.
+    uniqueIndex('quotes_signed_file_unique')
+      .on(t.signedFileId)
+      .where(sql`${t.signedFileId} is not null`),
   ],
 );
 

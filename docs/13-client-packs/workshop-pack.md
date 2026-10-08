@@ -207,12 +207,12 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 
 **SALE-5 · Do confirmed but undelivered orders count against the credit limit?** — Accounts
 - *Options:* yes, count them (safer); or count only invoiced amounts.
-- *Today:* yes, they count: the orders confirmed after the date of Accounts' newest outstanding figure are added to it.
+- *Today:* yes, they count: the orders confirmed after Accounts entered their newest outstanding figure, or on a day after its date, are added to it.
 
 **SALE-6 · Dealer outstanding before the Tally link** — Accounts
 - *Context:* until the Tally link is live (Phase 5), dealer outstanding is entered by hand.
 - *Needed:* who enters it and how often (daily or weekly).
-- *Today:* Accounts enter it on the Dealer credit screen with the date it stands at and the oldest overdue invoice; how often is not set.
+- *Today:* Accounts enter it on the Dealer credit screen with the date it stands at and the number and date of the oldest unpaid invoice; how often is not set.
 
 ### B5. Stock and dispatch (STOCK) — needed before Phase 3
 

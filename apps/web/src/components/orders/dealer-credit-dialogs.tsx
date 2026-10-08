@@ -36,7 +36,7 @@ const DAYS = /^\d{1,4}$/;
 
 /**
  * The dialogs of `/dealer-credit`, loaded on first use: Accounts enter a dealer's credit limit and
- * days, or its outstanding as of a date with the oldest overdue invoice; or read the dealer's
+ * days, or its outstanding as of a date with the oldest unpaid invoice; or read the dealer's
  * entries, newest first. Every entry is kept: a new one replaces nothing.
  */
 export function DealerCreditDialog({
@@ -175,11 +175,13 @@ function OutstandingForm({ entityId, dealer, onClose, onSaved }: FormProps) {
   const { run, pending, failure } = useCommand(recordDealerOutstanding);
   const { fieldError, formFailure } = useFieldFailure(failure, [
     'outstanding',
-    'oldestOverdueDays',
-    'oldestOverdueInvoiceNo',
+    'oldestUnpaidInvoiceDate',
+    'oldestUnpaidInvoiceNo',
     'asOf',
   ]);
-  const [problem, setProblem] = useState<'amount' | 'date' | 'days' | 'invoice' | undefined>();
+  const [problem, setProblem] = useState<
+    'amount' | 'date' | 'invoiceDate' | 'invoice' | undefined
+  >();
 
   function submit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -187,17 +189,17 @@ function OutstandingForm({ entityId, dealer, onClose, onSaved }: FormProps) {
     const data = new FormData(e.currentTarget);
     const outstanding = moneyFromTyped(formText(data, 'outstanding'));
     const asOf = formText(data, 'asOf');
-    const daysText = formText(data, 'oldestOverdueDays');
-    const invoice = formText(data, 'oldestOverdueInvoiceNo');
+    const invoiceDate = formText(data, 'oldestUnpaidInvoiceDate');
+    const invoice = formText(data, 'oldestUnpaidInvoiceNo');
     const wrong =
       outstanding === undefined
         ? 'amount'
         : asOf === ''
           ? 'date'
-          : daysText !== '' && !DAYS.test(daysText)
-            ? 'days'
-            : (daysText === '') !== (invoice === '')
-              ? 'invoice'
+          : (invoiceDate === '') !== (invoice === '')
+            ? 'invoice'
+            : invoiceDate !== '' && invoiceDate > asOf
+              ? 'invoiceDate'
               : undefined;
     setProblem(wrong);
     if (wrong !== undefined || outstanding === undefined) return;
@@ -207,8 +209,8 @@ function OutstandingForm({ entityId, dealer, onClose, onSaved }: FormProps) {
         accountId: dealer.accountId,
         outstanding,
         asOf,
-        oldestOverdueDays: daysText === '' ? null : Number(daysText),
-        oldestOverdueInvoiceNo: invoice === '' ? null : invoice,
+        oldestUnpaidInvoiceDate: invoiceDate === '' ? null : invoiceDate,
+        oldestUnpaidInvoiceNo: invoice === '' ? null : invoice,
       },
       () => {
         toast.success(t('saved'));
@@ -242,16 +244,21 @@ function OutstandingForm({ entityId, dealer, onClose, onSaved }: FormProps) {
         id="dealer-outstanding-invoice"
         label={t('invoice')}
         helper={t('invoiceHelper')}
-        error={problem === 'invoice' ? t('invoiceMissing') : fieldError('oldestOverdueInvoiceNo')}
+        error={problem === 'invoice' ? t('invoiceMissing') : fieldError('oldestUnpaidInvoiceNo')}
       >
-        <Input name="oldestOverdueInvoiceNo" autoComplete="off" maxLength={60} />
+        <Input name="oldestUnpaidInvoiceNo" autoComplete="off" maxLength={60} />
       </Field>
       <Field
-        id="dealer-outstanding-days"
-        label={t('days')}
-        error={problem === 'days' ? t('daysInvalid') : fieldError('oldestOverdueDays')}
+        id="dealer-outstanding-invoice-date"
+        label={t('invoiceDate')}
+        helper={t('invoiceDateHelper')}
+        error={
+          problem === 'invoiceDate'
+            ? t('invoiceDateInvalid')
+            : fieldError('oldestUnpaidInvoiceDate')
+        }
       >
-        <Input name="oldestOverdueDays" inputMode="numeric" autoComplete="off" maxLength={4} />
+        <DateInput name="oldestUnpaidInvoiceDate" />
       </Field>
       <FailureMessage failure={formFailure} />
       <DialogFooter>
@@ -361,11 +368,11 @@ function History({
                         date: formatDate(row.asOf),
                       })}
                     </span>
-                    {row.oldestOverdueInvoiceNo === null ? null : (
+                    {row.oldestUnpaidInvoiceNo === null ? null : (
                       <span className="text-sm">
-                        {credit('overdue', {
-                          invoice: row.oldestOverdueInvoiceNo,
-                          days: formatCount(row.oldestOverdueDays ?? 0),
+                        {credit('unpaidDated', {
+                          invoice: row.oldestUnpaidInvoiceNo,
+                          date: formatDate(row.oldestUnpaidInvoiceDate ?? row.asOf),
                         })}
                       </span>
                     )}

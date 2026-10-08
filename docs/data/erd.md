@@ -919,8 +919,8 @@ erDiagram
     smallint entity_id FK
     uuid account_id FK
     numeric outstanding "(14,2)"
-    integer oldest_overdue_days "null"
-    text oldest_overdue_invoice_no "null"
+    date oldest_unpaid_invoice_date "null"
+    text oldest_unpaid_invoice_no "null"
     date as_of
     uuid entered_by FK
     timestamptz created_at

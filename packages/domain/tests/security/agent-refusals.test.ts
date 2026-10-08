@@ -215,8 +215,8 @@ const INPUTS: Record<string, unknown> = {
     entityId: 1,
     accountId: newId(),
     outstanding: '1000.00',
-    oldestOverdueDays: null,
-    oldestOverdueInvoiceNo: null,
+    oldestUnpaidInvoiceDate: null,
+    oldestUnpaidInvoiceNo: null,
     asOf: '2026-04-01',
   },
 };

@@ -10,7 +10,14 @@ import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
 import { fromPaise, toPaise } from '../../money/paise';
-import { afterCursor, keysetOrder, nextCursor, orderTerms, sortText, type SortKeys } from '../keyset-sort';
+import {
+  afterCursor,
+  keysetOrder,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
 
 type CreditContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
@@ -43,8 +50,9 @@ interface DealerCreditRow {
   creditDays: number | null;
   termsAt: Date | string | null;
   outstanding: string | null;
-  oldestOverdueDays: number | null;
-  oldestOverdueInvoiceNo: string | null;
+  oldestUnpaidInvoiceDate: string | null;
+  oldestUnpaidAgeDays: number | null;
+  oldestUnpaidInvoiceNo: string | null;
   asOf: string | null;
   confirmedUnpaid: string;
 }
@@ -71,8 +79,10 @@ export function dealerCreditQuery(
            p.terms_at as "termsAt",
            case when p.as_of is null then null else p.outstanding::numeric(14, 2)::text end
              as "outstanding",
-           p.oldest_overdue_days as "oldestOverdueDays",
-           p.oldest_overdue_invoice_no as "oldestOverdueInvoiceNo",
+           p.oldest_unpaid_invoice_date::text as "oldestUnpaidInvoiceDate",
+           ((now() at time zone 'Asia/Kolkata')::date - p.oldest_unpaid_invoice_date)
+             as "oldestUnpaidAgeDays",
+           p.oldest_unpaid_invoice_no as "oldestUnpaidInvoiceNo",
            p.as_of::text as "asOf",
            p.confirmed_unpaid::numeric(14, 2)::text as "confirmedUnpaid"
       from ${a}
@@ -96,25 +106,26 @@ export async function listDealerCredit(
 ): Promise<DealerCreditPageDto> {
   const input = parseQueryInput(ListDealerCreditInput, rawInput, 'sales.dealer_credit.list');
   const order = dealerOrder();
-  const rows = (await ctx.tx.execute(dealerCreditQuery(ctx, input))) as unknown as DealerCreditRow[];
+  const rows = (await ctx.tx.execute(
+    dealerCreditQuery(ctx, input),
+  )) as unknown as DealerCreditRow[];
   const page = rows.slice(0, input.limit);
   const last = page.at(-1);
   return DealerCreditPageDto.parse({
-    items: page.map(
-      (row): DealerCreditRowDto => ({
-        accountId: row.accountId,
-        name: row.name,
-        creditLimit: row.creditLimit,
-        creditDays: row.creditDays,
-        termsAt: row.termsAt === null ? null : new Date(row.termsAt).toISOString(),
-        outstanding: row.outstanding,
-        oldestOverdueDays: row.oldestOverdueDays,
-        oldestOverdueInvoiceNo: row.oldestOverdueInvoiceNo,
-        asOf: row.asOf,
-        confirmedUnpaid: row.confirmedUnpaid,
-        exposure: fromPaise(toPaise(row.outstanding ?? '0.00') + toPaise(row.confirmedUnpaid)),
-      }),
-    ),
+    items: page.map((row): DealerCreditRowDto => ({
+      accountId: row.accountId,
+      name: row.name,
+      creditLimit: row.creditLimit,
+      creditDays: row.creditDays,
+      termsAt: row.termsAt === null ? null : new Date(row.termsAt).toISOString(),
+      outstanding: row.outstanding,
+      oldestUnpaidInvoiceDate: row.oldestUnpaidInvoiceDate,
+      oldestUnpaidAgeDays: row.oldestUnpaidAgeDays,
+      oldestUnpaidInvoiceNo: row.oldestUnpaidInvoiceNo,
+      asOf: row.asOf,
+      confirmedUnpaid: row.confirmedUnpaid,
+      exposure: fromPaise(toPaise(row.outstanding ?? '0.00') + toPaise(row.confirmedUnpaid)),
+    })),
     nextCursor: nextCursor(
       order,
       rows.length > input.limit,
@@ -154,8 +165,8 @@ export async function dealerCreditHistory(
       accountId: d.accountId,
       entityId: d.entityId,
       outstanding: d.outstanding,
-      oldestOverdueDays: d.oldestOverdueDays,
-      oldestOverdueInvoiceNo: d.oldestOverdueInvoiceNo,
+      oldestUnpaidInvoiceDate: d.oldestUnpaidInvoiceDate,
+      oldestUnpaidInvoiceNo: d.oldestUnpaidInvoiceNo,
       asOf: d.asOf,
       enteredAt: d.createdAt,
       enteredByName: p.displayName,

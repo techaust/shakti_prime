@@ -94,7 +94,7 @@ export const setDealerTerms = defineCommand({
 
 /**
  * `sales.dealer_outstanding.record` (docs/03-roadmap-appendix/phase1.md §8.3, workshop SALE-6): Accounts enter
- * what a dealer owes in one company as of a date, with the oldest overdue invoice and its days,
+ * what a dealer owes in one company as of a date, with the oldest unpaid invoice and its date,
  * until the Tally sync brings it (Phase 5). Append-only; the entry with the newest date counts. A
  * date after today is refused. People only.
  */
@@ -105,7 +105,7 @@ export const recordDealerOutstanding = defineCommand({
   peopleOnly: true,
   input: RecordDealerOutstandingInput,
   output: DealerOutstandingDto,
-  auditFields: ['outstanding', 'oldestOverdueDays', 'oldestOverdueInvoiceNo', 'asOf'],
+  auditFields: ['outstanding', 'oldestUnpaidInvoiceDate', 'oldestUnpaidInvoiceNo', 'asOf'],
   async handler(ctx: CommandContext, input) {
     await requireDealer(ctx, input.entityId, input.accountId);
     if (input.asOf > istCalendarDate(ctx.now)) {
@@ -119,8 +119,8 @@ export const recordDealerOutstanding = defineCommand({
       entityId: input.entityId,
       accountId: input.accountId,
       outstanding: input.outstanding,
-      oldestOverdueDays: input.oldestOverdueDays,
-      oldestOverdueInvoiceNo: input.oldestOverdueInvoiceNo,
+      oldestUnpaidInvoiceDate: input.oldestUnpaidInvoiceDate,
+      oldestUnpaidInvoiceNo: input.oldestUnpaidInvoiceNo,
       asOf: input.asOf,
       enteredBy: ctx.principal.id,
     });
@@ -131,8 +131,8 @@ export const recordDealerOutstanding = defineCommand({
       after: {
         accountId: input.accountId,
         outstanding: input.outstanding,
-        oldestOverdueDays: input.oldestOverdueDays,
-        oldestOverdueInvoiceNo: input.oldestOverdueInvoiceNo,
+        oldestUnpaidInvoiceDate: input.oldestUnpaidInvoiceDate,
+        oldestUnpaidInvoiceNo: input.oldestUnpaidInvoiceNo,
         asOf: input.asOf,
       },
     });
@@ -141,8 +141,8 @@ export const recordDealerOutstanding = defineCommand({
       accountId: input.accountId,
       entityId: input.entityId,
       outstanding: input.outstanding,
-      oldestOverdueDays: input.oldestOverdueDays,
-      oldestOverdueInvoiceNo: input.oldestOverdueInvoiceNo,
+      oldestUnpaidInvoiceDate: input.oldestUnpaidInvoiceDate,
+      oldestUnpaidInvoiceNo: input.oldestUnpaidInvoiceNo,
       asOf: input.asOf,
       enteredAt: ctx.now.toISOString(),
       enteredByName: null,

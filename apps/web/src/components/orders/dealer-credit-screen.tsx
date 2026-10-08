@@ -109,11 +109,11 @@ export function DealerCreditScreen({
       id: 'overdue',
       header: t('columns.overdue'),
       cell: (r) =>
-        r.oldestOverdueInvoiceNo === null
+        r.oldestUnpaidInvoiceNo === null
           ? t('noneOverdue')
           : t('overdue', {
-              invoice: r.oldestOverdueInvoiceNo,
-              days: formatCount(r.oldestOverdueDays ?? 0),
+              invoice: r.oldestUnpaidInvoiceNo,
+              days: formatCount(r.oldestUnpaidAgeDays ?? 0),
             }),
     },
     {

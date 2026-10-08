@@ -4152,14 +4152,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "oldest_overdue_days": {
-          "name": "oldest_overdue_days",
-          "type": "integer",
+        "oldest_unpaid_invoice_date": {
+          "name": "oldest_unpaid_invoice_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "oldest_overdue_invoice_no": {
-          "name": "oldest_overdue_invoice_no",
+        "oldest_unpaid_invoice_no": {
+          "name": "oldest_unpaid_invoice_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -4283,9 +4283,9 @@
           "name": "dealer_outstanding_amount_check",
           "value": "\"dealer_outstanding\".\"outstanding\" >= 0"
         },
-        "dealer_outstanding_overdue_check": {
-          "name": "dealer_outstanding_overdue_check",
-          "value": "(\"dealer_outstanding\".\"oldest_overdue_days\" is null) = (\"dealer_outstanding\".\"oldest_overdue_invoice_no\" is null)\n       and (\"dealer_outstanding\".\"oldest_overdue_days\" is null or \"dealer_outstanding\".\"oldest_overdue_days\" between 0 and 3650)\n       and (\"dealer_outstanding\".\"oldest_overdue_invoice_no\" is null or length(btrim(\"dealer_outstanding\".\"oldest_overdue_invoice_no\")) between 1 and 60)"
+        "dealer_outstanding_unpaid_check": {
+          "name": "dealer_outstanding_unpaid_check",
+          "value": "(\"dealer_outstanding\".\"oldest_unpaid_invoice_date\" is null) = (\"dealer_outstanding\".\"oldest_unpaid_invoice_no\" is null)\n       and (\"dealer_outstanding\".\"oldest_unpaid_invoice_date\" is null or \"dealer_outstanding\".\"oldest_unpaid_invoice_date\" <= \"dealer_outstanding\".\"as_of\")\n       and (\"dealer_outstanding\".\"oldest_unpaid_invoice_no\" is null or length(btrim(\"dealer_outstanding\".\"oldest_unpaid_invoice_no\")) between 1 and 60)"
         }
       },
       "isRLSEnabled": false
@@ -10341,8 +10341,8 @@
           "method": "btree",
           "with": {}
         },
-        "quotes_signed_file_idx": {
-          "name": "quotes_signed_file_idx",
+        "quotes_signed_file_unique": {
+          "name": "quotes_signed_file_unique",
           "columns": [
             {
               "expression": "signed_file_id",
@@ -10351,10 +10351,11 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
-          "with": {}
+          "with": {},
+          "where": "\"quotes\".\"signed_file_id\" is not null"
         }
       },
       "foreignKeys": {

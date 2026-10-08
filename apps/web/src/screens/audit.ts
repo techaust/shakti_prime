@@ -557,8 +557,8 @@ const FIELD_KINDS = [
   ['creditLimit', 'money'],
   ['creditDays', 'number'],
   ['outstanding', 'money'],
-  ['oldestOverdueDays', 'number'],
-  ['oldestOverdueInvoiceNo', 'text'],
+  ['oldestUnpaidInvoiceDate', 'date'],
+  ['oldestUnpaidInvoiceNo', 'text'],
   ['asOf', 'date'],
   // Agents and the Agent Inbox
   ['agent', 'agent'],

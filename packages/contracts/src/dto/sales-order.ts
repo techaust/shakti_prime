@@ -31,8 +31,8 @@ export type CreditHoldReason = z.infer<typeof CreditHoldReasonSchema>;
 
 /**
  * A credit hold as the order keeps it: the rule and the facts its sentence names, the limit and
- * the exposure (outstanding, the confirmed unpaid orders and this order), or the overdue invoice
- * with its days and the dealer's credit days.
+ * the exposure (outstanding, the confirmed unpaid orders and this order), or the unpaid invoice
+ * with its age in days and the dealer's credit days.
  */
 export const CreditHoldDto = z
   .object({
@@ -41,7 +41,7 @@ export const CreditHoldDto = z
     limit: MoneySchema.nullable(),
     exposure: MoneySchema.nullable(),
     invoiceNo: z.string().nullable(),
-    overdueDays: z.number().int().nullable(),
+    invoiceAgeDays: z.number().int().nullable(),
     creditDays: z.number().int().nullable(),
   })
   .strict();
@@ -188,8 +188,8 @@ export const DealerOutstandingDto = z
     accountId: IdSchema,
     entityId: EntityIdSchema,
     outstanding: MoneySchema,
-    oldestOverdueDays: z.number().int().nullable(),
-    oldestOverdueInvoiceNo: z.string().nullable(),
+    oldestUnpaidInvoiceDate: CalendarDateSchema.nullable(),
+    oldestUnpaidInvoiceNo: z.string().nullable(),
     asOf: CalendarDateSchema,
     enteredAt: z.iso.datetime(),
     enteredByName: z.string().nullable(),
@@ -210,8 +210,10 @@ export const DealerCreditRowDto = z
     creditDays: z.number().int().nullable(),
     termsAt: z.iso.datetime().nullable(),
     outstanding: MoneySchema.nullable(),
-    oldestOverdueDays: z.number().int().nullable(),
-    oldestOverdueInvoiceNo: z.string().nullable(),
+    oldestUnpaidInvoiceDate: CalendarDateSchema.nullable(),
+    /** How many days old the oldest unpaid invoice is today (IST), against the credit days. */
+    oldestUnpaidAgeDays: z.number().int().nullable(),
+    oldestUnpaidInvoiceNo: z.string().nullable(),
     asOf: CalendarDateSchema.nullable(),
     confirmedUnpaid: MoneySchema,
     exposure: MoneySchema,

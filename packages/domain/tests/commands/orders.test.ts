@@ -63,8 +63,13 @@ const ids = {
   partnerPercent: fixed(0x0020),
   partnerPerKw: fixed(0x0021),
   partnerNone: fixed(0x0022),
+  partnerFuture: fixed(0x0023),
+  partnerEnded: fixed(0x0024),
   rulePercent: fixed(0x0030),
   rulePerKw: fixed(0x0031),
+  ruleFuture: fixed(0x0032),
+  ruleEnded: fixed(0x0033),
+  ruleDefault: fixed(0x0034),
 };
 
 let teamId: string;
@@ -89,7 +94,8 @@ async function removeOrderRows(): Promise<void> {
       await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
       await tx`delete from commission_accruals where sales_order_id in (${orders})`;
       await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
-      await tx`delete from commission_rules where id in (${ids.rulePercent}, ${ids.rulePerKw})`;
+      await tx`delete from commission_rules where id in (${ids.rulePercent}, ${ids.rulePerKw},
+        ${ids.ruleFuture}, ${ids.ruleEnded}, ${ids.ruleDefault})`;
       await tx`alter table sales_order_lines disable trigger sales_order_lines_append_only`;
       await tx`delete from sales_order_lines where sales_order_id in (${orders})`;
       await tx`alter table sales_order_lines enable trigger sales_order_lines_append_only`;
@@ -153,6 +159,8 @@ beforeAll(async () => {
         [ids.partnerPercent, 'OTPCT1'],
         [ids.partnerPerKw, 'OTKW1'],
         [ids.partnerNone, 'OTNONE1'],
+        [ids.partnerFuture, 'OTFUT1'],
+        [ids.partnerEnded, 'OTEND1'],
       ] as const) {
         await tx`insert into accounts (id, type, name, created_by)
           values (${partner}, 'referral_partner', 'Order test partner', ${exec.id})
@@ -166,6 +174,11 @@ beforeAll(async () => {
       await tx`insert into commission_rules (id, partner_id, basis, amount, effective_from, created_by) values
         (${ids.rulePercent}, ${ids.partnerPercent}, 'percent', 2.50, '2026-01-01', ${exec.id}),
         (${ids.rulePerKw}, ${ids.partnerPerKw}, 'per_kw', 1000.00, '2026-01-01', ${exec.id})`;
+      // A rule that starts tomorrow and one that ended today (its last day is the day before):
+      // neither is in force on the day orders are confirmed here.
+      await tx`insert into commission_rules (id, partner_id, basis, amount, effective_from, effective_to, created_by) values
+        (${ids.ruleFuture}, ${ids.partnerFuture}, 'fixed', 900.00, ${tomorrow()}, null, ${exec.id}),
+        (${ids.ruleEnded}, ${ids.partnerEnded}, 'fixed', 800.00, '2026-01-01', ${today()}, ${exec.id})`;
     }),
   );
 });
@@ -303,8 +316,15 @@ function dealerOrder(accountId: string, modules: number): Promise<SalesOrderDto>
   });
 }
 
+/** A person confirms the order (the line manager of the dealer's relationship). */
+function confirm(orderId: string): Promise<ConfirmSalesOrderDto> {
+  return run<ConfirmSalesOrderDto>(lc, confirmSalesOrder, { entityId: E, orderId });
+}
+
 const today = () => istCalendarDate(new Date());
 const yesterday = () => istCalendarDate(new Date(Date.now() - 86_400_000));
+const tomorrow = () => istCalendarDate(new Date(Date.now() + 86_400_000));
+const daysAgo = (days: number) => istCalendarDate(new Date(Date.now() - days * 86_400_000));
 
 describe('sales.quote.accept (SAL-05, SAL-06)', () => {
   it('accepts a sent quote by its signed copy and makes the order draft with the quote’s lines', async () => {
@@ -399,6 +419,23 @@ describe('sales.quote.accept (SAL-05, SAL-06)', () => {
     expect(
       await failure(lc, acceptQuote, input(await readyFile('signed_quote', 'rejected'))),
     ).toMatchObject({ code: 'validation_failed', reason: 'signed_copy_refused' });
+  });
+
+  it('takes a signed copy for one quote only', async () => {
+    const first = await sentQuote();
+    const second = await sentQuote();
+    const signed = await readyFile('signed_quote');
+    await run(lc, acceptQuote, { entityId: E, quoteId: first.id, signedFileId: signed });
+    expect(
+      await failure(lc, acceptQuote, { entityId: E, quoteId: second.id, signedFileId: signed }),
+    ).toMatchObject({ code: 'conflict', reason: 'signed_copy_used' });
+    // The refused acceptance left the second quote sent, with no order.
+    const [row] = await asMigrator(
+      (m) => m<{ state: string; orders: number }[]>`
+        select q.state, (select count(*)::int from sales_orders o where o.quote_id = q.id) as orders
+          from quotes q where q.id = ${second.id}`,
+    );
+    expect(row).toEqual({ state: 'sent', orders: 0 });
   });
 
   it('is denied without the permission, to a colleague and to another company', async () => {
@@ -541,8 +578,8 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
       entityId: E,
       accountId: dealer,
       outstanding: '30000.00',
-      oldestOverdueDays: null,
-      oldestOverdueInvoiceNo: null,
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
       asOf: yesterday(),
     });
     const order = await dealerOrder(dealer, 1); // 13,440.00
@@ -572,14 +609,14 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
       type: 'sales.order.credit_held',
       payload: { v: 1, accountId: dealer, createdBy: lc.id, reason: 'credit_limit_exceeded' },
     });
-    // Accounts' figure of today includes the first order: confirmed orders count only after the
-    // entry's date, so 36,000 + 13,440 = 49,440 now passes.
+    // Accounts' figure of today includes the first order: it was confirmed before the figure was
+    // entered, so it is not counted twice and 36,000 + 13,440 = 49,440 now passes.
     await run(accounts, recordDealerOutstanding, {
       entityId: E,
       accountId: dealer,
       outstanding: '36000.00',
-      oldestOverdueDays: null,
-      oldestOverdueInvoiceNo: null,
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
       asOf: today(),
     });
     const passed = await run<ConfirmSalesOrderDto>(lc, confirmSalesOrder, {
@@ -607,8 +644,8 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
       entityId: E,
       accountId: late,
       outstanding: '1000.00',
-      oldestOverdueDays: 45,
-      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0001',
+      oldestUnpaidInvoiceDate: daysAgo(45),
+      oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0001',
       asOf: today(),
     });
     const overdue = await dealerOrder(late, 1);
@@ -620,11 +657,146 @@ describe('sales.order.confirm (SAL-06, SAL-07)', () => {
         creditHold: {
           reason: 'credit_overdue',
           invoiceNo: 'RCREF/SI/TEST/0001',
-          overdueDays: 45,
+          invoiceAgeDays: 45,
           creditDays: 30,
         },
       },
     });
+  });
+
+  it('counts an order confirmed today after Accounts entered today’s figure, so the second is held', async () => {
+    const dealer = await newDealer();
+    await run(accounts, setDealerTerms, {
+      entityId: E,
+      accountId: dealer,
+      creditLimit: '50000.00',
+      creditDays: 30,
+    });
+    await run(accounts, recordDealerOutstanding, {
+      entityId: E,
+      accountId: dealer,
+      outstanding: '36000.00',
+      oldestUnpaidInvoiceDate: null,
+      oldestUnpaidInvoiceNo: null,
+      asOf: today(),
+    });
+    const first = await dealerOrder(dealer, 1); // 13,440.00
+    const second = await dealerOrder(dealer, 1);
+    // 36,000 + 13,440 = 49,440 passes.
+    expect(await confirm(first.id)).toMatchObject({ outcome: 'confirmed' });
+    // 36,000 + 13,440 confirmed after the figure was entered + 13,440 = 62,880 over 50,000.
+    expect(await confirm(second.id)).toMatchObject({
+      outcome: 'held',
+      order: { creditHold: { reason: 'credit_limit_exceeded', exposure: '62880.00' } },
+    });
+  });
+
+  it('lets only one of two orders confirmed at the same moment pass when both exceed the limit', async () => {
+    const dealer = await newDealer();
+    await run(accounts, setDealerTerms, {
+      entityId: E,
+      accountId: dealer,
+      creditLimit: '20000.00',
+      creditDays: 30,
+    });
+    const first = await dealerOrder(dealer, 1); // 13,440.00 each: 26,880 together
+    const second = await dealerOrder(dealer, 1);
+    const outcomes = await Promise.all([confirm(first.id), confirm(second.id)]);
+    expect(outcomes.map((o) => o.outcome).sort()).toEqual(['confirmed', 'held']);
+  });
+
+  it('holds on the age of the oldest unpaid invoice today, not on its age on the day it was entered', async () => {
+    const dealer = await newDealer();
+    await run(accounts, setDealerTerms, {
+      entityId: E,
+      accountId: dealer,
+      creditLimit: '1000000.00',
+      creditDays: 30,
+    });
+    // The figure was entered for 40 days ago, naming an invoice 29 days old on that day: it is 69
+    // days old today, past the 30 credit days.
+    await run(accounts, recordDealerOutstanding, {
+      entityId: E,
+      accountId: dealer,
+      outstanding: '1000.00',
+      oldestUnpaidInvoiceDate: daysAgo(69),
+      oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0003',
+      asOf: daysAgo(40),
+    });
+    const order = await dealerOrder(dealer, 1);
+    expect(await confirm(order.id)).toMatchObject({
+      outcome: 'held',
+      order: {
+        creditHold: {
+          reason: 'credit_overdue',
+          invoiceNo: 'RCREF/SI/TEST/0003',
+          invoiceAgeDays: 69,
+          creditDays: 30,
+        },
+      },
+    });
+    // An invoice dated after its figure is refused.
+    expect(
+      await failure(accounts, recordDealerOutstanding, {
+        entityId: E,
+        accountId: dealer,
+        outstanding: '1000.00',
+        oldestUnpaidInvoiceDate: today(),
+        oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0004',
+        asOf: yesterday(),
+      }),
+    ).toMatchObject({ code: 'validation_failed' });
+  });
+
+  it('tells of a credit hold once, however often Confirm is pressed on the held order', async () => {
+    const dealer = await newDealer();
+    await run(accounts, setDealerTerms, {
+      entityId: E,
+      accountId: dealer,
+      creditLimit: '10000.00',
+      creditDays: 30,
+    });
+    const order = await dealerOrder(dealer, 1); // 13,440.00 over the limit
+    for (let press = 0; press < 3; press += 1) {
+      expect((await confirm(order.id)).outcome).toBe('held');
+    }
+    expect((await eventsOf(order.id)).map((e) => e.type)).toEqual([
+      'sales.order.created',
+      'sales.order.credit_held',
+    ]);
+    // A different rule is news again: the limit is lifted, and an old unpaid invoice now holds it.
+    await run(accounts, setDealerTerms, {
+      entityId: E,
+      accountId: dealer,
+      creditLimit: '1000000.00',
+      creditDays: 30,
+    });
+    await run(accounts, recordDealerOutstanding, {
+      entityId: E,
+      accountId: dealer,
+      outstanding: '100.00',
+      oldestUnpaidInvoiceDate: daysAgo(50),
+      oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0005',
+      asOf: today(),
+    });
+    expect((await confirm(order.id)).outcome).toBe('held');
+    expect((await eventsOf(order.id)).map((e) => e.type)).toEqual([
+      'sales.order.created',
+      'sales.order.credit_held',
+      'sales.order.credit_held',
+    ]);
+  });
+
+  it('refuses a release of an order of another company', async () => {
+    const dealer = await newDealer();
+    const order = await dealerOrder(dealer, 1);
+    await confirm(order.id); // no limit set: held
+    expect(
+      await failure(exec, releaseCredit, { entityId: 1, orderId: order.id, reason: 'Paid today' }),
+    ).toMatchObject({ code: 'not_found', reason: 'order_missing' });
+    expect(
+      await failure(exec, releaseCredit, { entityId: E, orderId: newId(), reason: 'Paid today' }),
+    ).toMatchObject({ code: 'not_found', reason: 'order_missing' });
   });
 
   it('is released once by the Executive with a reason, and then confirmed', async () => {
@@ -760,6 +932,58 @@ describe('the referral commission (CRM-09)', () => {
     expect(await accrualOf(none.id)).toBeUndefined();
   });
 
+  it('uses no rule that is not in force on the confirmation date', async () => {
+    for (const partner of [ids.partnerFuture, ids.partnerEnded]) {
+      const order = await acceptedOrder(partner);
+      await run(lc, confirmSalesOrder, { entityId: E, orderId: order.id });
+      expect(await accrualOf(order.id)).toBeUndefined();
+    }
+    // An archived rule is not in force either.
+    await asMigrator(
+      (m) => m`update commission_rules set archived_at = now() where id = ${ids.rulePercent}`,
+    );
+    try {
+      const order = await acceptedOrder(ids.partnerPercent);
+      await run(lc, confirmSalesOrder, { entityId: E, orderId: order.id });
+      expect(await accrualOf(order.id)).toBeUndefined();
+    } finally {
+      await asMigrator(
+        (m) => m`update commission_rules set archived_at = null where id = ${ids.rulePercent}`,
+      );
+    }
+  });
+
+  it('uses a partner’s own rule over the group’s default, and the default for a partner with none', async () => {
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into commission_rules (id, partner_id, basis, amount, effective_from, created_by)
+               values (${ids.ruleDefault}, null, 'fixed', 777.00, '2026-01-01', ${exec.id})`,
+    );
+    try {
+      const own = await acceptedOrder(ids.partnerPercent);
+      await run(lc, confirmSalesOrder, { entityId: E, orderId: own.id });
+      expect(await accrualOf(own.id)).toMatchObject({
+        commission_rule_id: ids.rulePercent,
+        basis: 'percent',
+        amount: '1521.38',
+      });
+      const none = await acceptedOrder(ids.partnerNone);
+      await run(lc, confirmSalesOrder, { entityId: E, orderId: none.id });
+      expect(await accrualOf(none.id)).toMatchObject({
+        partner_id: ids.partnerNone,
+        commission_rule_id: ids.ruleDefault,
+        basis: 'fixed',
+        amount: '777.00',
+      });
+    } finally {
+      // Archived, so no later test finds it; the file's cleanup deletes it with the accruals.
+      await asMigrator(
+        (m) => m`update commission_rules set archived_at = now() where id = ${ids.ruleDefault}`,
+      );
+    }
+  });
+
   it('is cancelled with its order by the General Manager; the lead stays won', async () => {
     const order = await acceptedOrder(ids.partnerPercent);
     await run(lc, confirmSalesOrder, { entityId: E, orderId: order.id });
@@ -815,8 +1039,8 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
       entityId: E,
       accountId: dealer,
       outstanding: '5000.00',
-      oldestOverdueDays: 10,
-      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0002',
+      oldestUnpaidInvoiceDate: daysAgo(10),
+      oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0002',
       asOf: yesterday(),
     });
     const order = await dealerOrder(dealer, 1);
@@ -844,7 +1068,7 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
       creditLimit: '40000.00',
       creditDays: 30,
       outstanding: '5000.00',
-      oldestOverdueInvoiceNo: 'RCREF/SI/TEST/0002',
+      oldestUnpaidInvoiceNo: 'RCREF/SI/TEST/0002',
       asOf: yesterday(),
       confirmedUnpaid: '13440.00',
       exposure: '18440.00',
@@ -863,8 +1087,8 @@ describe('dealer terms and outstanding (SALE-4, SALE-6)', () => {
         entityId: E,
         accountId: dealer,
         outstanding: '1.00',
-        oldestOverdueDays: null,
-        oldestOverdueInvoiceNo: null,
+        oldestUnpaidInvoiceDate: null,
+        oldestUnpaidInvoiceNo: null,
         asOf: istCalendarDate(new Date(Date.now() + 3 * 86_400_000)),
       }),
     ).toMatchObject({ code: 'validation_failed', reason: 'outstanding_date_future' });

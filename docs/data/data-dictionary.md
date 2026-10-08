@@ -3111,7 +3111,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### dealer_outstanding
 
-**Catalogue entry** (05-database.md §6.7; created in 0116; append-only): `entity_id`, `account_id`, `outstanding`, `oldest_overdue_days` and `oldest_overdue_invoice_no` (together; the block names the invoice), `as_of` (not after today), `entered_by`; entered by hand with `sales.credit.write` until the Tally sync (Phase 5, SALE-6); the entry with the newest `as_of` counts; read and written as `dealer_terms`
+**Catalogue entry** (05-database.md §6.7; created in 0116; append-only): `entity_id`, `account_id`, `outstanding`, `oldest_unpaid_invoice_date` and `oldest_unpaid_invoice_no` (together; the invoice is not dated after `as_of`, and the block names it), `as_of` (not after today), `entered_by`; entered by hand with `sales.credit.write` until the Tally sync (Phase 5, SALE-6); the entry with the newest `as_of` counts; read and written as `dealer_terms`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3119,8 +3119,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 | `entity_id` | smallint | no |  | → `entities.id` |
 | `account_id` | uuid | no |  | → `accounts.id` |
 | `outstanding` | numeric(14, 2) | no |  |  |
-| `oldest_overdue_days` | integer | yes |  |  |
-| `oldest_overdue_invoice_no` | text | yes |  |  |
+| `oldest_unpaid_invoice_date` | date | yes |  |  |
+| `oldest_unpaid_invoice_no` | text | yes |  |  |
 | `as_of` | date | no |  |  |
 | `entered_by` | uuid | no |  | → `principals.id` |
 | `created_at` | timestamp with time zone | no | `now()` |  |
@@ -3138,7 +3138,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `dealer_outstanding_amount_check`: `"dealer_outstanding"."outstanding" >= 0`
-- `dealer_outstanding_overdue_check`: `("dealer_outstanding"."oldest_overdue_days" is null) = ("dealer_outstanding"."oldest_overdue_invoice_no" is null) and ("dealer_outstanding"."oldest_overdue_days" is null or "dealer_outstanding"."oldest_overdue_days" between 0 and 3650) and ("dealer_outstanding"."oldest_overdue_invoice_no" is null or length(btrim("dealer_outstanding"."oldest_overdue_invoice_no")) between 1 and 60)`
+- `dealer_outstanding_unpaid_check`: `("dealer_outstanding"."oldest_unpaid_invoice_date" is null) = ("dealer_outstanding"."oldest_unpaid_invoice_no" is null) and ("dealer_outstanding"."oldest_unpaid_invoice_date" is null or "dealer_outstanding"."oldest_unpaid_invoice_date" <= "dealer_outstanding"."as_of") and ("dealer_outstanding"."oldest_unpaid_invoice_no" is null or length(btrim("dealer_outstanding"."oldest_unpaid_invoice_no")) between 1 and 60)`
 
 **Indexes**
 
@@ -3147,7 +3147,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
-- `dealer_outstanding_append_only`: before update or delete, runs `app.raise_append_only()`
+- `dealer_outstanding_append_only`: before update or delete, runs `app.dealer_credit_append_only()`
 
 **Row-level security:** enabled and forced; 2 policies.
 
@@ -3192,7 +3192,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 **Triggers**
 
-- `dealer_terms_append_only`: before update or delete, runs `app.raise_append_only()`
+- `dealer_terms_append_only`: before update or delete, runs `app.dealer_credit_append_only()`
 
 **Row-level security:** enabled and forced; 2 policies.
 
@@ -3312,7 +3312,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### quotes
 
-**Catalogue entry** (05-database.md §6.4; created in 0109): `entity_id`, `quote_no` (unique per company, from the company's gapless series for the financial year, `app.next_document_no()`, in the SALE-1 workshop default format), `fy`, `opportunity_id`, `account_id` (composite foreign key to the lead's `(id, entity_id, account_id)`, `ON UPDATE CASCADE`, 0112, so a quote follows its lead when a customer merge moves it and back on undo), `site_id`, `sizing_id` (the lead's newest sizing the guards read), `tier_id`, `price_list_id`, `scheme` (`none`, `pm_surya_ghar`, `pm_kusum`), `place_of_supply_state`, `supply_kind` (`intra`, `inter`), `valid_until` (end of the fifteenth day in IST), `state` (`draft`, `sent`, `accepted`, `expired`, `superseded`, `withdrawn`, written only by the quote commands through the quote machine), `state_changed_at`, `subtotal`, `cgst`, `sgst`, `igst`, `tax_total`, `round_off`, `grand_total` (checked to add up), `pdf_file_id` (set only by the render worker through `app.attach_quote_pdf()`), `supersedes_id` (the quote a re-quote replaced, once: a unique index), `withdrawn_reason` (exactly on a withdrawn quote), `accepted_via` (`whatsapp_reply`, `whatsapp_otp`, `signed_upload`; exactly on an accepted quote, 0116) and `signed_file_id` (the `signed_quote` file, exactly for a signed upload; `sales.quote.accept`); a child of the lead: read with it by `app_user` and `app_reader`, made as a draft with no PDF by a caller holding `sales.quote.create` over the lead's owner and team; afterwards a person may change only `state`, `state_changed_at`, `withdrawn_reason`, `accepted_via` and `signed_file_id` (column grants), with `sales.quote.send` or `sales.quote.create` over the lead; the PDF it names is read with it through the second select policy of `files`, `files_quote_pdf_read` (0111), so own and team scope open their own quotes' documents
+**Catalogue entry** (05-database.md §6.4; created in 0109): `entity_id`, `quote_no` (unique per company, from the company's gapless series for the financial year, `app.next_document_no()`, in the SALE-1 workshop default format), `fy`, `opportunity_id`, `account_id` (composite foreign key to the lead's `(id, entity_id, account_id)`, `ON UPDATE CASCADE`, 0112, so a quote follows its lead when a customer merge moves it and back on undo), `site_id`, `sizing_id` (the lead's newest sizing the guards read), `tier_id`, `price_list_id`, `scheme` (`none`, `pm_surya_ghar`, `pm_kusum`), `place_of_supply_state`, `supply_kind` (`intra`, `inter`), `valid_until` (end of the fifteenth day in IST), `state` (`draft`, `sent`, `accepted`, `expired`, `superseded`, `withdrawn`, written only by the quote commands through the quote machine), `state_changed_at`, `subtotal`, `cgst`, `sgst`, `igst`, `tax_total`, `round_off`, `grand_total` (checked to add up), `pdf_file_id` (set only by the render worker through `app.attach_quote_pdf()`), `supersedes_id` (the quote a re-quote replaced, once: a unique index), `withdrawn_reason` (exactly on a withdrawn quote), `accepted_via` (`whatsapp_reply`, `whatsapp_otp`, `signed_upload`; exactly on an accepted quote, 0116) and `signed_file_id` (the `signed_quote` file, exactly for a signed upload, and unique: a signed copy accepts one quote only; `sales.quote.accept`); a child of the lead: read with it by `app_user` and `app_reader`, made as a draft with no PDF by a caller holding `sales.quote.create` over the lead's owner and team; afterwards a person may change only `state`, `state_changed_at`, `withdrawn_reason`, `accepted_via` and `signed_file_id` (column grants), with `sales.quote.send` or `sales.quote.create` over the lead; the PDF it names is read with it through the second select policy of `files`, `files_quote_pdf_read` (0111), so own and team scope open their own quotes' documents
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3394,7 +3394,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `quotes_opportunity_idx` (btree): `opportunity_id`
 - `quotes_pdf_file_idx` (btree): `pdf_file_id`
 - `quotes_quote_no_trgm_idx` (gin): `quote_no gin_trgm_ops`
-- `quotes_signed_file_idx` (btree): `signed_file_id`
+- `quotes_signed_file_unique` (btree, unique): `signed_file_id` where `"quotes"."signed_file_id" is not null`
 - `quotes_supersedes_unique` (btree, unique): `supersedes_id` where `"quotes"."supersedes_id" is not null`
 
 **Triggers**
@@ -3483,7 +3483,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### sales_orders
 
-**Catalogue entry** (05-database.md §6.4; created in 0116): `entity_id`, `so_no` (unique per company, from the company's gapless series, `app.next_document_no()` with `sales.order.create`), `fy`, `quote_id` and `opportunity_id` (an order of an accepted quote, one per quote; both null for a dealer's order without a quote; composite foreign keys to the quote's `(id, entity_id)` and the lead's `(id, entity_id, account_id)`, `ON UPDATE CASCADE` as the quote's), `account_id`, `site_id`, `tier_id`, `price_list_id`, `place_of_supply_state`, `supply_kind`, `state` (the sales order machine's; Phase 1 reaches `draft`, `confirmed` and `cancelled`), `state_changed_at`, the totals as `quotes` (checked to add up), `confirmed_at`, `confirmed_by` (exactly past draft), `credit_held_at`, `credit_hold_reason` (`credit_limit_exceeded`, `credit_overdue`, `credit_limit_missing`), `credit_hold_json` (the limit and the exposure, or the overdue invoice and its days), `credit_release_by`, `credit_release_reason`, `credit_released_at` (together), `cancel_reason` (exactly on a cancelled order). An order of a quote is a child of its lead, read with it; a dealer's order is read by whoever reads the dealer in that company (`account_entities_read`); by `app_user` and `app_reader`. Made as a plain draft with `sales.order.create` over the lead (its quote accepted in the same transaction) or over a dealer's relationship; afterwards a person changes only the state, confirmation, hold, release and cancel columns (column grants), with `sales.order.confirm` or `.cancel` over the lead or dealer, or `sales.credit.release:all`, and the trigger `app.guard_sales_order_release()` lets only the Executive set the release, in their own name. `/orders` pages on `(entity_id, created_at, id)` and `(created_at, id)` read backwards, Account 360 on `(account_id, entity_id, created_at)`, the exposure on the partial `(entity_id, account_id, confirmed_at)` of confirmed unpaid orders
+**Catalogue entry** (05-database.md §6.4; created in 0116): `entity_id`, `so_no` (unique per company, from the company's gapless series, `app.next_document_no()` with `sales.order.create`), `fy`, `quote_id` and `opportunity_id` (an order of an accepted quote, one per quote; both null for a dealer's order without a quote; composite foreign keys to the quote's `(id, entity_id)` and the lead's `(id, entity_id, account_id)`, `ON UPDATE CASCADE` as the quote's), `account_id`, `site_id`, `tier_id`, `price_list_id`, `place_of_supply_state`, `supply_kind`, `state` (the sales order machine's; Phase 1 reaches `draft`, `confirmed` and `cancelled`), `state_changed_at`, the totals as `quotes` (checked to add up), `confirmed_at`, `confirmed_by` (exactly past draft), `credit_held_at`, `credit_hold_reason` (`credit_limit_exceeded`, `credit_overdue`, `credit_limit_missing`), `credit_hold_json` (the limit and the exposure, or the unpaid invoice and its age in days), `credit_release_by`, `credit_release_reason`, `credit_released_at` (together), `cancel_reason` (exactly on a cancelled order). An order of a quote is a child of its lead, read with it; a dealer's order is read by whoever reads the dealer in that company (`account_entities_read`); by `app_user` and `app_reader`. Made as a plain draft with `sales.order.create` over the lead (its quote accepted in the same transaction) or over a dealer's relationship; afterwards a person changes only the state, confirmation, hold, release and cancel columns (column grants), with `sales.order.confirm` or `.cancel` over the lead or dealer, or `sales.credit.release:all`, and the trigger `app.guard_sales_order_release()` lets only the Executive set the release, in their own name. `/orders` pages on `(entity_id, created_at, id)` and `(created_at, id)` read backwards, Account 360 on `(account_id, entity_id, created_at)`, the exposure on the partial `(entity_id, account_id, confirmed_at)` of confirmed unpaid orders
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

@@ -58,9 +58,9 @@ const quoteOrDealer: G = {
 
 const creditClear: G = {
   description:
-    'dealer credit check: block when outstanding + confirmed-unpaid orders + this order > `credit_limit`, or `oldest_overdue_days` > `credit_days`, or no limit is set; the block names the limit or the invoice; passes when an Executive set `credit_release_by` with a reason',
-  check: (record) => {
-    const outcome = creditCheck(record.credit, record.creditRelease);
+    'dealer credit check: block when outstanding + confirmed-unpaid orders + this order > `credit_limit`, or the oldest unpaid invoice is older than `credit_days`, or no limit is set; the block names the limit or the invoice; passes when an Executive set `credit_release_by` with a reason',
+  check: (record, ctx) => {
+    const outcome = creditCheck(record.credit, record.creditRelease, ctx.now);
     return outcome.blocked ? outcome.failure : undefined;
   },
 };
@@ -68,8 +68,8 @@ const creditClear: G = {
 const creditBlocked: G = {
   description:
     'the dealer credit check blocks the confirmation and no release lets it through (the hold keeps the rule and its facts)',
-  check: (record) =>
-    creditCheck(record.credit, record.creditRelease).blocked
+  check: (record, ctx) =>
+    creditCheck(record.credit, record.creditRelease, ctx.now).blocked
       ? undefined
       : { code: 'conflict', reason: 'order_credit_clear' },
 };
@@ -192,7 +192,8 @@ export const salesOrderMachine = defineMachine<
       effects: [
         {
           key: 'win_lead',
-          description: "an order of a lead wins the lead (`crm.opportunity.win`), and ends its open callbacks and nurture calls",
+          description:
+            'an order of a lead wins the lead (`crm.opportunity.win`), and ends its open callbacks and nurture calls',
         },
         {
           key: 'accrue_commission',

@@ -50,7 +50,7 @@ function HoldNote({ hold }: { hold: CreditHoldDto }) {
       : hold.reason === 'credit_overdue'
         ? t('overdue', {
             invoice: hold.invoiceNo ?? '',
-            days: formatCount(hold.overdueDays ?? 0),
+            days: formatCount(hold.invoiceAgeDays ?? 0),
             creditDays: formatCount(hold.creditDays ?? 0),
           })
         : t('noLimit');
