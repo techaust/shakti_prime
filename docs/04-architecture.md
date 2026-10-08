@@ -182,7 +182,7 @@ flowchart TD
 - **Audit:** the command runner writes `audit_logs` in the command's own transaction (command, actor, entity, aggregate, redacted input, before/after, IP, device, request ID), one row per changed aggregate; `executeCommand` records denied and failed calls in a short transaction after the rollback; the auth module records sign-in and account events (docs/03-roadmap-appendix/backend-weeks-3-5.md §3).
 
 ## 6. Events and workers
-This section owns how an event is delivered: the lease, the backoff, dead letters and the failure callback. The event types and their payloads are generated into [events.md](EVENTS.md); the columns of `outbox_events` are in [DATABASE §6.10](05-database.md#610-platform) and who may change them in [§4.4](05-database.md#outbox_events).
+This section owns how an event is delivered: the lease, the backoff, dead letters and the failure callback. The event types and their payloads are generated into [events.md](data/events.md); the columns of `outbox_events` are in [DATABASE §6.10](05-database.md#610-platform) and who may change them in [§4.4](05-database.md#outbox_events).
 
 ```mermaid
 sequenceDiagram
