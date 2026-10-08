@@ -22,31 +22,40 @@ import {
   databaseAuditSink,
   databaseOutboxSink,
   fakeModelTransport,
+  fakeReply,
   memoryFileStore,
   memoryKeyValue,
   memoryLogger,
   runCommand,
   sha256Hex,
+  type FakeModelTransport,
   type FileStore,
 } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { wordDocument } from '../e2e/support/docx';
+import type { DocumentMasker } from '../src/workers/ocr/mask-document';
+import { AADHAAR, AADHAAR_SPACED, coveringMasker, scanOf } from './support/pdf-fixtures';
 
 // The Knowledge Vault's index worker outside a Next.js request: the route, the file checks, the
 // Word reader, the commands and the database are real; the AI vendors are the fake transport and
 // the file store is in memory. Every text is synthetic.
 interface IndexState {
   store: FileStore | undefined;
+  /** What the model copies out of a file, and the transport the last index job used. */
+  reply: string;
+  transport: FakeModelTransport | undefined;
 }
-const state = vi.hoisted((): IndexState => ({ store: undefined }));
+const state = vi.hoisted((): IndexState => ({ store: undefined, reply: '', transport: undefined }));
 
 vi.mock('../src/workers/knowledge/index-deps', async () => {
   const { readWordText } = await import('../src/workers/knowledge/read-word');
+  const { renderMaskedPages } = await import('../src/workers/files/pdf-pages');
   return {
     indexDeps: (principal: Principal, requestId: string) => {
       if (state.store === undefined) throw new Error('no store');
-      const fake = fakeModelTransport();
+      const fake = fakeModelTransport([fakeReply(state.reply)]);
+      state.transport = fake;
       return {
         principal,
         store: state.store,
@@ -57,6 +66,7 @@ vi.mock('../src/workers/knowledge/index-deps', async () => {
           logger: memoryLogger(),
         }),
         readWord: readWordText,
+        pdfPages: renderMaskedPages,
         requestId,
         hosted: false,
         logger: memoryLogger(),
@@ -67,6 +77,7 @@ vi.mock('../src/workers/knowledge/index-deps', async () => {
 
 const { POST } = await import('../src/app/api/v1/workers/embeddings/index/route');
 const { handleFileUploaded } = await import('../src/workers/files/handle-file-uploaded');
+const { vaultMasker } = await import('../src/workers/ocr/vault-masker');
 const { indexJobOf } = await import('../src/workers/knowledge/job');
 const { EVENT_JOB_ROUTES, EMBEDDINGS_INDEX_PATH } = await import('../src/workers/qstash');
 
@@ -152,8 +163,23 @@ async function wordUpload(bytes: Buffer): Promise<string> {
   return id;
 }
 
+/** A scanned PDF upload the executive began and finished, waiting for its checks. */
+async function pdfUpload(bytes: Uint8Array): Promise<{ id: string; key: string }> {
+  const id = newId();
+  const key = `1/knowledge/${id}.pdf`;
+  await state.store?.put(key, bytes, 'application/pdf');
+  await asMigrator(
+    (
+      m,
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+      values (${id}, 1, 'knowledge', 'memory', ${key}, 'KYC sheet.pdf', 'application/pdf', ${bytes.length},
+              ${sha256Hex(bytes)}, 'scanning', ${executive.id})`,
+  );
+  return { id, key };
+}
+
 /** The file checks of an upload, as the event worker runs them. */
-function checks(fileId: string) {
+function checks(fileId: string, masker?: () => Promise<DocumentMasker>) {
   const event: DeliveredEvent = {
     id: newId(),
     sequence: '1',
@@ -164,7 +190,12 @@ function checks(fileId: string) {
     payload: { purpose: 'knowledge', v: 1 },
   };
   if (state.store === undefined) throw new Error('no store');
-  return handleFileUploaded(event, { store: state.store, principal: workers, hosted: false });
+  return handleFileUploaded(event, {
+    store: state.store,
+    principal: workers,
+    hosted: false,
+    ...(masker === undefined ? {} : { masker }),
+  });
 }
 
 /** The index event the vault sent for a vault file, as the outbox would deliver it. */
@@ -260,6 +291,82 @@ describe('POST /api/v1/workers/embeddings/index', () => {
     expect(EmbeddingsIndexResult.parse(await again.json())).toMatchObject({
       outcome: 'duplicate',
     });
+  });
+
+  // The real masking step needs the English OCR model (`OCR_LANG_PATH`); without the folder the
+  // stand-in step covers a corner, which proves the plumbing but not the OCR itself.
+  const realOcr = (process.env.OCR_LANG_PATH ?? '') !== '';
+
+  it('masks a scanned PDF page by page before it is kept, and shows the model only the masked pages', async () => {
+    const original = await scanOf(`Aadhaar No ${AADHAAR_SPACED}`);
+    const { id: fileId, key } = await pdfUpload(original);
+    const masker = realOcr ? vaultMasker : () => Promise.resolve(coveringMasker());
+    expect(await checks(fileId, masker)).toEqual({ status: 'ready' });
+
+    // The original PDF is gone from the store; what is kept is the masked rendition.
+    const [kept] = await asMigrator(
+      (m) => m<{ key: string; sanitising: string; regions: number }[]>`
+        select key, scan_result->>'sanitising' as sanitising,
+               (scan_result->>'regionsMasked')::int as regions from files where id = ${fileId}`,
+    );
+    expect(kept?.sanitising).toBe('masked');
+    expect(kept?.regions).toBeGreaterThan(0);
+    expect(kept?.key).not.toBe(key);
+    expect(state.store?.objects.has(key)).toBe(false);
+    const stored = state.store?.objects.get(kept?.key ?? '');
+    expect(Buffer.from(stored?.bytes ?? []).subarray(0, 5).toString()).toBe('%PDF-');
+
+    const vault = await asPrincipal(executive, (context) =>
+      runCommand(
+        addKnowledgeFile,
+        { context, audit: databaseAuditSink, outbox: databaseOutboxSink },
+        { entityId: 1, fileId, title: 'KYC sheet', sensitivity: 'staff_ai_ok' },
+      ),
+    );
+    state.reply = `Pump warranty is five years. Call 9876543210 for service. Aadhaar ${AADHAAR_SPACED}.`;
+    const response = await call(JSON.stringify(indexJobOf(await indexEvent(vault.id))));
+    expect(response.status).toBe(200);
+
+    // Everything the model was sent: pictures of the masked pages only, no PDF, no number.
+    const sent = state.transport?.requests ?? [];
+    expect(sent).toHaveLength(1);
+    const documents = sent[0]?.documents ?? [];
+    expect(documents.length).toBeGreaterThan(0);
+    for (const document of documents) {
+      expect(document.mediaType).toBe('image/jpeg');
+      expect(Buffer.from(document.bytes).subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
+    }
+    const payload = JSON.stringify(sent[0]);
+    expect(payload).not.toContain('%PDF');
+    expect(payload).not.toContain(AADHAAR);
+    expect(payload).not.toContain(AADHAAR_SPACED);
+
+    // What the model wrote back is masked again before it is stored or embedded.
+    const chunks = await asMigrator(
+      (m) => m<{ chunk_text: string }[]>`
+        select chunk_text from knowledge_chunks where knowledge_file_id = ${vault.id}`,
+    );
+    const text = chunks.map((c) => c.chunk_text).join('\n');
+    expect(text).toContain('Pump warranty is five years');
+    expect(text).not.toContain('9876543210');
+    expect(text).not.toContain(AADHAAR_SPACED);
+    expect(state.transport?.embeddings.flatMap((e) => e.texts).join(' ')).not.toContain('6789');
+    state.reply = '';
+  }, 120_000);
+
+  it('refuses a vault PDF of too many pages with a plain reason, and keeps nothing', async () => {
+    const { pdfOf } = await import('./support/pdf-fixtures');
+    const many = await pdfOf(Array.from({ length: 13 }, (_, i) => `Page ${String(i)}`));
+    const { id: fileId, key } = await pdfUpload(many);
+    expect(await checks(fileId, () => Promise.resolve(coveringMasker()))).toEqual({
+      status: 'rejected',
+    });
+    const [row] = await asMigrator(
+      (m) => m<{ reason: string }[]>`
+        select scan_result->>'rejectReason' as reason from files where id = ${fileId}`,
+    );
+    expect(row?.reason).toBe('file_pdf_too_many_pages');
+    expect(state.store?.objects.has(key)).toBe(false);
   });
 
   it('refuses a Word upload that is not one, and a job for a vault file that is not there', async () => {

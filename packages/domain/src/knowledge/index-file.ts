@@ -46,6 +46,8 @@ export interface IndexKnowledgeDeps {
   requestId: string;
   hosted: boolean;
   logger?: Logger;
+  /** The times one reading may take; the route's own limits when left out (tests shorten them). */
+  deadlinesMs?: { extract: number; job: number };
 }
 
 export interface IndexKnowledgeOutcome {
@@ -120,6 +122,10 @@ export async function indexKnowledgeFile(
 ): Promise<IndexKnowledgeOutcome> {
   const log = deps.logger ?? jsonLogger();
   const started = Date.now();
+  const deadlines = deps.deadlinesMs ?? {
+    extract: KNOWLEDGE_EXTRACT_DEADLINE_MS,
+    job: KNOWLEDGE_INDEX_DEADLINE_MS,
+  };
   if (!hasGrant(deps.principal.permissions, 'knowledge.index', 'entity')) {
     throw new DomainError('forbidden', 'indexing a vault file needs knowledge.index');
   }
@@ -198,7 +204,7 @@ export async function indexKnowledgeFile(
       text = await extractWithModel(
         (call) => deps.provider.complete({ ...spend, purpose: 'knowledge_extract', ...call }),
         documents,
-        Math.min(KNOWLEDGE_EXTRACT_DEADLINE_MS, KNOWLEDGE_INDEX_DEADLINE_MS - (Date.now() - started)),
+        Math.min(deadlines.extract, deadlines.job - (Date.now() - started)),
       );
     }
     // Masked whole, cut, and masked again passage by passage (SECURITY §5, §6).
@@ -208,7 +214,7 @@ export async function indexKnowledgeFile(
     const vectors: number[][] = [];
     for (let i = 0; i < passages.length; i += EMBED_BATCH) {
       const batch = passages.slice(i, i + EMBED_BATCH);
-      const left = KNOWLEDGE_INDEX_DEADLINE_MS - (Date.now() - started);
+      const left = deadlines.job - (Date.now() - started);
       if (left < MIN_EMBED_MS) return await fail('knowledge_timed_out');
       const embedded = await deps.provider.embed({
         ...spend,

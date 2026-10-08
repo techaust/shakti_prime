@@ -16,8 +16,13 @@ import {
 } from '@shakti/db/testing';
 import ExcelJS from 'exceljs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createAiProvider, type AiProvider } from '../../src/ai/provider';
-import { fakeEmbedding, fakeModelTransport, fakeReply } from '../../src/ai/transport';
+import { createAiProvider, istDay, spendKey, type AiProvider } from '../../src/ai/provider';
+import {
+  fakeEmbedding,
+  fakeModelTransport,
+  fakeReply,
+  type FakeStep,
+} from '../../src/ai/transport';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { executeQuery } from '../../src/command/execute';
 import type { output, ZodType } from 'zod';
@@ -30,10 +35,11 @@ import {
   reindexKnowledgeFile,
 } from '../../src/commands/knowledge/files';
 import { recordKnowledgeIndex } from '../../src/commands/knowledge/record-index';
-import { indexKnowledgeFile } from '../../src/knowledge/index-file';
+import { indexKnowledgeFile, type IndexKnowledgeDeps } from '../../src/knowledge/index-file';
+import { knowledgeQueryVector } from '../../src/knowledge/search';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryFileStore, sha256Hex } from '../../src/ports/file-store';
-import { memoryKeyValue } from '../../src/ports/key-value';
+import { memoryKeyValue, type KeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 
@@ -78,20 +84,30 @@ const run = <I extends ZodType, O extends ZodType>(
 /** A vault upload of `uploader`, stored with its bytes, in the given status. */
 async function upload(
   uploader: Principal,
-  options: { entityId?: number; status?: string; bytes?: Uint8Array; contentType?: string } = {},
+  options: {
+    entityId?: number;
+    status?: string;
+    bytes?: Uint8Array;
+    contentType?: string;
+    /** What the checks did to the bytes; a PDF is masked unless this says otherwise. */
+    sanitising?: string;
+  } = {},
 ): Promise<string> {
   const id = newId();
   const entityId = options.entityId ?? 1;
   const bytes = options.bytes ?? new TextEncoder().encode('%PDF-1.7 vault test');
   const contentType = options.contentType ?? 'application/pdf';
   const key = `${String(entityId)}/knowledge/${id}.bin`;
+  const sanitising =
+    options.sanitising ?? (contentType === 'application/pdf' ? 'masked' : 'document_checked');
   await store.put(key, bytes, contentType);
   await asMigrator(
     (
       m,
-    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+    ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by, scan_result)
       values (${id}, ${entityId}, 'knowledge', ${store.bucket}, ${key}, 'vault file', ${contentType},
-              ${bytes.length}, ${sha256Hex(bytes)}, ${options.status ?? 'ready'}, ${uploader.id})`,
+              ${bytes.length}, ${sha256Hex(bytes)}, ${options.status ?? 'ready'}, ${uploader.id},
+              ${JSON.stringify({ sanitising })}::jsonb)`,
   );
   return id;
 }
@@ -124,18 +140,29 @@ async function stateOf(id: string) {
   return row;
 }
 
-function provider(options: { claude?: boolean; voyage?: boolean; reply?: string } = {}) {
-  const transport = fakeModelTransport([fakeReply(options.reply ?? '')]);
+function provider(
+  options: {
+    claude?: boolean;
+    voyage?: boolean;
+    reply?: string;
+    script?: readonly FakeStep[];
+    keyValue?: KeyValue;
+  } = {},
+) {
+  const transport = fakeModelTransport(options.script ?? [fakeReply(options.reply ?? '')]);
   return {
     transport,
     provider: createAiProvider({
       claude: options.claude === false ? undefined : transport,
       voyage: options.voyage === false ? undefined : transport,
-      keyValue: memoryKeyValue(),
+      keyValue: options.keyValue ?? memoryKeyValue(),
       logger: memoryLogger(),
     }),
   };
 }
+
+/** One page of a masked PDF as the page drawing hands it over (the first bytes of a JPEG). */
+const PAGE = new Uint8Array([0xff, 0xd8, 0xff, 0xdb]);
 
 function job(
   knowledgeFileId: string,
@@ -150,15 +177,18 @@ const index = (
   ai: AiProvider,
   readWord: (bytes: Uint8Array) => Promise<string> = () => Promise.resolve(''),
   fileEntityId = 1,
+  over: Partial<IndexKnowledgeDeps> = {},
 ) =>
   indexKnowledgeFile(job(knowledgeFileId, fileEntityId), {
     principal: workers(fileEntityId),
     store,
     provider: ai,
     readWord,
+    pdfPages: () => Promise.resolve([PAGE]),
     requestId: newId(),
     hosted: false,
     logger: memoryLogger(),
+    ...over,
   });
 
 describe('knowledge.file.add', () => {
@@ -316,7 +346,10 @@ describe('the index job', () => {
     const vault = await add(gm, await upload(gm));
     const first = provider({ reply: 'Warranty covers the motor for five years.' });
     expect(await index(vault.id, first.provider)).toMatchObject({ chunks: 1, replaced: 0 });
-    expect(first.transport.requests[0]?.documents?.[0]?.mediaType).toBe('application/pdf');
+    // The model is shown the masked pages as pictures, never the PDF's own bytes.
+    expect(first.transport.requests[0]?.documents).toEqual([
+      { mediaType: 'image/jpeg', bytes: PAGE },
+    ]);
     // A repeated delivery finds the file indexed and changes nothing.
     expect(await index(vault.id, first.provider)).toMatchObject({ chunks: 1, replaced: 0 });
     expect(first.transport.requests).toHaveLength(1);
@@ -327,6 +360,86 @@ describe('the index job', () => {
       reply: 'Warranty covers the motor.\n\nPanels are covered for ten years.',
     });
     expect(await index(vault.id, second.provider)).toMatchObject({ chunks: 1, replaced: 1 });
+  });
+
+  it('never shows the model a PDF that was not masked, nor one of too many pages', async () => {
+    const raw = await add(gm, await upload(gm, { sanitising: 'pdf_checked' }));
+    const unmasked = provider({ reply: 'text' });
+    await index(raw.id, unmasked.provider);
+    expect(unmasked.transport.requests).toHaveLength(0);
+    expect(await stateOf(raw.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_file_rejected',
+    });
+
+    const long = await add(gm, await upload(gm));
+    const many = provider({ reply: 'text' });
+    await index(long.id, many.provider, undefined, 1, {
+      pdfPages: () => Promise.resolve(Array.from({ length: 13 }, () => PAGE)),
+    });
+    expect(many.transport.requests).toHaveLength(0);
+    expect(await stateOf(long.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_too_long',
+    });
+
+    const broken = await add(gm, await upload(gm));
+    await index(broken.id, provider().provider, undefined, 1, {
+      pdfPages: () => Promise.reject(new Error('the PDF would not draw')),
+    });
+    expect(await stateOf(broken.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_unreadable',
+    });
+  });
+
+  it('records a file that outruns its deadline as timed out, with the spend given back', async () => {
+    const keyValue = memoryKeyValue();
+    const slow = provider({ script: ['hang'], keyValue });
+    const vault = await add(gm, await upload(gm));
+    const started = Date.now();
+    await index(vault.id, slow.provider, undefined, 1, {
+      deadlinesMs: { extract: 150, job: 5_000 },
+    });
+    expect(Date.now() - started).toBeLessThan(3_000);
+    expect(slow.transport.requests).toHaveLength(1);
+    expect(await stateOf(vault.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_timed_out',
+    });
+    const spent = await keyValue.get(spendKey('knowledge:index', 1, istDay(new Date())));
+    expect(Number(spent ?? 0)).toBe(0);
+    // It is then read again like any failed file.
+    expect(
+      (await run(gm, reindexKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id })).state,
+    ).toBe('waiting');
+  });
+
+  it('records a file failed when the reading’s daily limit is reached', async () => {
+    const keyValue = memoryKeyValue();
+    await keyValue.incrBy(spendKey('knowledge:index', null, istDay(new Date())), 50_000, 3_600);
+    const capped = provider({ reply: 'text', keyValue });
+    const vault = await add(gm, await upload(gm));
+    await index(vault.id, capped.provider);
+    expect(capped.transport.requests).toHaveLength(0);
+    expect(await stateOf(vault.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_spend_cap_reached',
+    });
+  });
+
+  it('records a file timed out when the job has no time left to embed', async () => {
+    const vault = await add(gm, await upload(gm, { contentType: WORD }));
+    const { provider: ai, transport } = provider();
+    await index(vault.id, ai, () => Promise.resolve('Some pump notes'), 1, {
+      deadlinesMs: { extract: 100, job: 1_000 },
+    });
+    // One second is less than the five the job keeps for embedding.
+    expect(transport.embeddings).toHaveLength(0);
+    expect(await stateOf(vault.id)).toMatchObject({
+      state: 'failed',
+      error_reason: 'knowledge_timed_out',
+    });
   });
 
   it('records a file unavailable without a key, failed with no text, and waits for its checks', async () => {
@@ -366,6 +479,7 @@ describe('the index job', () => {
         store,
         provider: provider().provider,
         readWord: () => Promise.resolve(''),
+        pdfPages: () => Promise.resolve([PAGE]),
         requestId: newId(),
         hosted: false,
       }),
@@ -409,10 +523,31 @@ describe('knowledge.file.reindex and knowledge.file.archive', () => {
     await expect(
       run(gmOfTwo, archiveKnowledgeFile, { entityId: 2, knowledgeFileId: vault.id }),
     ).rejects.toMatchObject({ code: 'not_found' });
-    // A waiting file is not read again before it is read.
+    // A waiting file is not read again while the index job may still be reading it.
     await expect(
       run(gm, reindexKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id }),
-    ).rejects.toMatchObject({ details: { reason: 'knowledge_file_transition_not_allowed' } });
+    ).rejects.toMatchObject({ details: { reason: 'knowledge_still_reading' } });
+  });
+
+  it('reads a file again that has waited longer than the index job can run', async () => {
+    const vault = await add(gm, await upload(gm));
+    // Back-dated past the limit without the trigger that keeps the time current.
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update knowledge_files set updated_at = now() - interval '7 minutes' where id = ${vault.id}`;
+      }),
+    );
+    const again = await run(gm, reindexKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id });
+    expect(again.state).toBe('waiting');
+    expect((await indexEvents(vault.id)).map((e) => e.type)).toEqual([
+      'knowledge.file.index_requested',
+      'knowledge.file.index_requested',
+    ]);
+    // The clock starts again: now it is refused until the job has had its time.
+    await expect(
+      run(gm, reindexKnowledgeFile, { entityId: 1, knowledgeFileId: vault.id }),
+    ).rejects.toMatchObject({ details: { reason: 'knowledge_still_reading' } });
   });
 
   it('archives a file, which leaves search and the list', async () => {
@@ -476,5 +611,32 @@ describe('the vault list and the search', () => {
     );
     const times = page.files.map((f) => f.createdAt);
     expect([...times].sort().reverse()).toEqual(times);
+  });
+});
+
+describe('the staff search’s limits', () => {
+  it('refuses a question once the day’s search limit is reached, before the vendor is called', async () => {
+    const keyValue = memoryKeyValue();
+    await keyValue.incrBy(spendKey('knowledge:search', null, istDay(new Date())), 10_000, 3_600);
+    const { provider: ai, transport } = provider({ keyValue });
+    await expect(knowledgeQueryVector(ai, 'solar pump care', caller.id)).rejects.toMatchObject({
+      code: 'rate_limited',
+      details: { reason: 'knowledge_search_cap_reached' },
+    });
+    expect(transport.embeddings).toHaveLength(0);
+  });
+
+  it('refuses a person who has used their own share, while others still search', async () => {
+    const keyValue = memoryKeyValue();
+    const day = istDay(new Date());
+    await keyValue.incrBy(`ai:spend:knowledge:search:person:${caller.id}:${day}`, 2_000, 3_600);
+    const { provider: ai, transport } = provider({ keyValue });
+    await expect(knowledgeQueryVector(ai, 'solar pump care', caller.id)).rejects.toMatchObject({
+      code: 'rate_limited',
+      details: { reason: 'knowledge_person_search_cap_reached' },
+    });
+    expect(transport.embeddings).toHaveLength(0);
+    expect(await knowledgeQueryVector(ai, 'solar pump care', gm.id)).toHaveLength(1024);
+    expect(transport.embeddings).toHaveLength(1);
   });
 });

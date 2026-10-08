@@ -105,6 +105,20 @@ describe('createAiProvider', () => {
     expect(sleeps).toEqual([500, 1000]);
   });
 
+  it('stops at a total deadline however many attempts are left, and settles the reservation', async () => {
+    const { provider, transport, keyValue } = setup(['hang']);
+    await expect(
+      provider.complete(call({ timeoutMs: 5_000, totalTimeoutMs: 60 })),
+    ).rejects.toMatchObject({
+      code: 'integration_unavailable',
+      details: { reason: 'ai_deadline_exceeded' },
+    });
+    // The first attempt was cut short by the deadline, not by its own five seconds; no more followed.
+    expect(transport.requests).toHaveLength(1);
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+  });
+
   it('does not retry a refused request', async () => {
     const { provider, transport } = setup([new ModelCallError('http', { status: 400 })]);
     await expect(provider.complete(call())).rejects.toBeInstanceOf(DomainError);
@@ -182,6 +196,29 @@ describe('createAiProvider', () => {
     await expect(provider.complete(call({ caps: [] }))).rejects.toMatchObject({
       details: { reason: 'agent_spend_cap_reached' },
     });
+  });
+
+  it('holds one person to their own daily share beside the caps', async () => {
+    const { provider, transport, keyValue } = setup([fakeReply('ok', { outputTokens: 2_000 })]);
+    const text = call({ maxTokens: 10 });
+    const most = maxCostInPaise(DEFAULT_CLAUDE_MODEL, 100, 10);
+    // A share too small for even one call: refused as the person's, nothing sent, nothing held.
+    await expect(
+      provider.complete({ ...text, person: { id: 'person-a', capPaise: 0 } }),
+    ).rejects.toMatchObject({
+      code: 'rate_limited',
+      details: { reason: 'agent_spend_cap_reached', scope: 'person' },
+    });
+    expect(transport.requests).toHaveLength(0);
+    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+    // A share that fits one call: the person's second call is refused, another person's is not.
+    const share = { capPaise: most + 1 };
+    await provider.complete({ ...text, person: { id: 'person-a', ...share } });
+    await expect(
+      provider.complete({ ...text, person: { id: 'person-a', ...share } }),
+    ).rejects.toMatchObject({ details: { scope: 'person' } });
+    await provider.complete({ ...text, person: { id: 'person-b', ...share } });
+    expect(transport.requests).toHaveLength(2);
   });
 
   it('counts work of the whole group in the group only, against the group cap', async () => {

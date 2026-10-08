@@ -1,3 +1,4 @@
+import { DomainError } from '@shakti/contracts';
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 import type { CompleteResult } from '../ai/provider';
@@ -96,6 +97,17 @@ describe('extractWithModel', () => {
         maxTokens: KNOWLEDGE_EXTRACT_MAX_TOKENS,
       }),
     ]);
+  });
+
+  it('calls a reading past its deadline timed out, and passes other failures on', async () => {
+    const late = new DomainError('integration_unavailable', 'late', {
+      reason: 'ai_deadline_exceeded',
+    });
+    await expect(extractWithModel(() => Promise.reject(late), [pdf])).rejects.toMatchObject({
+      reason: 'knowledge_timed_out',
+    });
+    const down = new DomainError('integration_unavailable', 'down');
+    await expect(extractWithModel(() => Promise.reject(down), [pdf])).rejects.toBe(down);
   });
 
   it('calls a refusal unreadable, and an answer cut short too long', async () => {

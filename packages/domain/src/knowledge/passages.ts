@@ -18,6 +18,7 @@ function insideNumber(line: string, index: number): boolean {
 
 /** A line of more than `BLOCK_CHARS` characters in pieces cut at spaces that are not inside a number. */
 function cutLine(line: string): string[] {
+  if (line.length <= BLOCK_CHARS) return [line];
   const out: string[] = [];
   let rest = line;
   while (rest.length > BLOCK_CHARS) {
