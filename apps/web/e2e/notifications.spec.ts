@@ -126,8 +126,9 @@ test.describe('notices as a tele-caller', () => {
       })
       .click();
     await expect(notice.getByText('Not read yet')).toHaveCount(0);
+    // No screenshot here: the centre lists whatever the other journeys left, so its height and its
+    // Mark all as read button change from run to run.
     await expectNoAxeViolations(page, { include: '[role="dialog"]' });
-    await snap(page, 'notification-centre', { mask: [centre.getByRole('list')] });
   });
 
   test('she chooses which notices reach her, and her quiet hours', async ({ page }) => {
@@ -148,7 +149,7 @@ test.describe('notices as a tele-caller', () => {
     // A dealer order held for credit is a kind of notice of its own, on until she changes it.
     await expect(
       page.getByRole('checkbox', {
-        name: 'Show “A dealer order is held for credit. It waits until its credit is cleared or someone who can release it does so” in Notifications',
+        name: 'Show “A dealer order is held for credit” in Notifications',
       }),
     ).toBeChecked();
     await pushCall.uncheck();
@@ -163,6 +164,10 @@ test.describe('notices as a tele-caller', () => {
     await expect(page.getByLabel('Quiet from')).toHaveValue('22:00');
     await expect(page.getByLabel('Quiet until')).toHaveValue('07:00');
     await expectNoAxeViolations(page);
+    // A reload keeps the scroll position, which draws the fixed menu over a full-page picture.
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+    });
     await snap(page, 'notification-settings');
 
     // Quiet hours of one time only are refused in plain words.
