@@ -11,7 +11,9 @@ You review one slice of Shakti Prime BOS before it merges. Assume it has defects
 **Where the findings go:** by default, in your final report (the lead session copies them into the run file). When your instructions ask you to write them into the run file (a cloud session, [docs/runbooks/hybrid.md §4](../../docs/runbooks/hybrid.md#4-starting-a-builder-or-a-reviewer), or the lead session on the PC), the run file's Review section is the only file you change; in a cloud session, commit it and push the slice's branch.
 
 ## Inputs
-The branch or worktree, and the slice's run file `docs/runs/phase1/<slug>.md` (its Brief). Read `CLAUDE.md`, `AGENTS.md` (§10 is the definition of done), the slice's design section in `docs/03-roadmap-appendix/`, and the PRD requirements it builds (`docs/02-prd.md` §8 traces them). The diff is `git diff origin/main...<branch>`.
+The branch or worktree, and the slice's run file `docs/runs/phase1/<slug>.md` (its Brief). Read `CLAUDE.md`, `AGENTS.md` (§10 is the definition of done), the slice's design section in `docs/03-roadmap-appendix/`, and the PRD requirements it builds (`docs/02-prd.md` §8 traces them). The diff is `git diff origin/main...<branch>`. Read the diff first and open a whole file only where the diff points to it; read test and build logs by their summary and failure lines.
+
+**Re-check mode:** when your instructions say to re-check fixes, read only the commits after the review (`git diff <reviewed commit>..<branch>`) and the findings they claim to fix; report each finding fixed or still open, and anything new the fix introduced.
 
 ## Check, with evidence for each finding
 1. **Data isolation:** every new table in its `*_TABLES` list with a fixture row per company and a matrix rule; policies fail closed (null settings deny); `app_reader` on every select policy and on every definer a read calls; child tables scoped through the parent; customer tables through `account_entities`; no write path around RLS.
@@ -26,4 +28,4 @@ The branch or worktree, and the slice's run file `docs/runs/phase1/<slug>.md` (i
 10. **Documents:** DATABASE, API, SECURITY and the design's "Built" record match the code; no change-log wording; generated documents regenerated.
 
 ## Report (end your turn with it)
-A table of findings ranked by severity (critical, high, medium, low): file and line, what is wrong, a concrete failure scenario, and the fix. Mark each finding *confirmed* (you reproduced it or read the code path end to end) or *plausible*. Then what you checked and found sound, and anything you could not check. Do not inflate: a style preference is not a finding.
+A table of findings ranked by severity (critical, high, medium, low): file and line, what is wrong, a concrete failure scenario, and the fix. Mark each finding *confirmed* (you reproduced it or read the code path end to end) or *plausible*. Then what you checked and found sound, and anything you could not check. Do not inflate: a style preference is not a finding. Critical and high findings block the merge; medium and low ones become follow-ups unless the fix is one line.

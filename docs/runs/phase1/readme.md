@@ -19,6 +19,8 @@ When the slice merges, its file stays on `main` as the record of the run, with t
 | Branch | `feat/<...>` on GitHub |
 | PC worktree | `<slug>`, slot <n>: Postgres <port>, app <port> |
 | Runs on | PC (cloud sessions are paused), or cloud |
+| Tier | A, B or C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
+| Usage | weekly % at each agent run's start and end, for example `build 67→72, review 72→75` |
 | State | brief / building / built / reviewed / fixed / integrating / merged (#N) |
 | Next step | one line |
 
