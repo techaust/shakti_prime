@@ -1,7 +1,5 @@
-import { KNOWLEDGE_PDF_MAX_PAGES, type FileRejectReason } from '@shakti/contracts';
 import type { PDFiumDocument, PDFiumLibrary } from '@hyzyla/pdfium';
 import sharp from 'sharp';
-import type { DocumentMasker } from '../ocr/mask-document';
 
 // A vault PDF is read as pictures, never as a PDF (docs/03-roadmap-appendix/phase1.md §8.4, docs/07-security.md
 // §5): each page is drawn to an image, the image goes through the same masking step as a vault
@@ -13,6 +11,11 @@ import type { DocumentMasker } from '../ocr/mask-document';
 export const PDF_RENDER_DPI = 150;
 /** A page larger than this many pixels is drawn smaller (a poster-sized page must not fill memory). */
 const MAX_PAGE_PIXELS = 16_000_000;
+/**
+ * A page's longest side in pixels: Claude refuses a picture of more than 8,000 on a side, so a
+ * banner-shaped page is drawn at a lower resolution instead of at 150 pixels an inch.
+ */
+export const MAX_PAGE_EDGE_PX = 7_000;
 const JPEG_QUALITY = 85;
 const POINTS_PER_INCH = 72;
 
@@ -49,24 +52,31 @@ export async function countPdfPages(bytes: Uint8Array): Promise<number> {
   }
 }
 
+/** How many pixels a point is drawn as: 150 pixels an inch, less when the page would be too big. */
+export function renderScale(widthPt: number, heightPt: number): number {
+  const wanted = PDF_RENDER_DPI / POINTS_PER_INCH;
+  const byArea = Math.sqrt(MAX_PAGE_PIXELS / Math.max(1, widthPt * heightPt));
+  const byEdge = MAX_PAGE_EDGE_PX / Math.max(1, widthPt, heightPt);
+  return Math.min(wanted, byArea, byEdge);
+}
+
 /**
  * Draws the pages one at a time (only one page's pixels are in memory at once) as PNG, or as
- * JPEG when asked, in reading order.
+ * JPEG when asked, in reading order; `only` draws just the page at that position (from 0).
  */
 export async function* renderPdfPages(
   bytes: Uint8Array,
   format: 'png' | 'jpeg',
+  only?: number,
 ): AsyncGenerator<RenderedPage> {
   const { library, doc } = await openPdf(bytes);
   try {
     const count = doc.getPageCount();
-    for (let i = 0; i < count; i += 1) {
+    for (let i = only ?? 0; i < (only === undefined ? count : Math.min(count, only + 1)); i += 1) {
       const page = doc.getPage(i);
       const { originalWidth: widthPt, originalHeight: heightPt } = page.getOriginalSize();
-      const wanted = PDF_RENDER_DPI / POINTS_PER_INCH;
-      const limit = Math.sqrt(MAX_PAGE_PIXELS / Math.max(1, widthPt * heightPt));
       const drawn = await page.render({
-        scale: Math.min(wanted, limit),
+        scale: renderScale(widthPt, heightPt),
         colorSpace: 'BGRA',
         transparent: false,
         render: 'bitmap',
@@ -166,60 +176,4 @@ export async function jpegsToPdf(
   }
   write(`trailer\n<< /Size ${String(size)} /Root 1 0 R >>\nstartxref\n${String(xref)}\n%%EOF\n`);
   return new Uint8Array(Buffer.concat(chunks));
-}
-
-export type MaskedPdf =
-  | { ok: true; bytes: Uint8Array; pages: number; regionsMasked: number }
-  | { ok: false; reason: FileRejectReason };
-
-/**
- * A vault PDF with every page masked: more than `KNOWLEDGE_PDF_MAX_PAGES` pages is refused
- * (`file_pdf_too_many_pages`), a PDF PDFium cannot open `file_unreadable`, and a page whose
- * numbers the masking step cannot find `file_mask_failed`, so nothing is kept. Pages are drawn
- * and masked one at a time; the result is a PDF of pictures only, with no text layer, no
- * annotation and nothing of the original file in it.
- */
-export async function maskPdf(bytes: Uint8Array, masker: DocumentMasker): Promise<MaskedPdf> {
-  let count: number;
-  try {
-    count = await countPdfPages(bytes);
-  } catch {
-    return { ok: false, reason: 'file_unreadable' };
-  }
-  if (count === 0) return { ok: false, reason: 'file_unreadable' };
-  if (count > KNOWLEDGE_PDF_MAX_PAGES) return { ok: false, reason: 'file_pdf_too_many_pages' };
-  const masked: { jpeg: Uint8Array; widthPt: number; heightPt: number }[] = [];
-  let regionsMasked = 0;
-  const pages = renderPdfPages(bytes, 'png');
-  try {
-    for (;;) {
-      let next: IteratorResult<RenderedPage>;
-      try {
-        next = await pages.next();
-      } catch {
-        // A PDF that will not draw is the file's fault; the masking step failing below is not.
-        return { ok: false, reason: 'file_unreadable' };
-      }
-      if (next.done === true) break;
-      const page = next.value;
-      // The masker wipes the buffer it is given and answers a JPEG without metadata.
-      const outcome = await masker.mask(Buffer.from(page.image), { expect: [] });
-      page.image.fill(0);
-      if (outcome.status === 'needs_review') return { ok: false, reason: 'file_mask_failed' };
-      regionsMasked += outcome.rects;
-      masked.push({
-        jpeg: new Uint8Array(outcome.image),
-        widthPt: page.widthPt,
-        heightPt: page.heightPt,
-      });
-    }
-  } finally {
-    await pages.return(undefined);
-  }
-  return {
-    ok: true,
-    bytes: await jpegsToPdf(masked),
-    pages: masked.length,
-    regionsMasked,
-  };
 }

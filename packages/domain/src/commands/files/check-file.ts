@@ -1,6 +1,9 @@
 import {
+  ContinueFileCheckInput,
   DomainError,
   FileDto,
+  type FileRejectReason,
+  type KnowledgeErrorReason,
   KnowledgeSensitivitySchema,
   MarkFileReadyInput,
   MarkFileScannedInput,
@@ -149,6 +152,47 @@ export const markFileReady = defineCommand({
   },
 });
 
+/**
+ * `files.file.continue_check`: a vault PDF is masked one page per delivery (a page takes about half
+ * a minute, and a delivery lives for a minute), so after each page the worker sends the file's
+ * checks on with this command, which emits `files.file.uploaded` again carrying the pages kept so
+ * far. A file no longer part way through its checks sends nothing.
+ */
+export const continueFileCheck = defineCommand({
+  name: 'files.file.continue_check',
+  permission: 'files.process',
+  minScope: 'entity',
+  input: ContinueFileCheckInput,
+  output: FileDto,
+  auditFields: ['fileStatus', 'maskedPages'],
+  async handler(ctx, input) {
+    const row = await lockInCompany(ctx, input);
+    if (row.purpose !== 'knowledge' || (row.status !== 'scanned' && row.status !== 'not_scanned')) {
+      return toFileDto(row);
+    }
+    ctx.emit({
+      type: 'files.file.uploaded',
+      entityId: row.entityId,
+      aggregateType: 'file',
+      aggregateId: row.id,
+      payload: { purpose: 'knowledge', maskedPages: input.maskedPages },
+    });
+    ctx.audit({
+      aggregateType: 'file',
+      aggregateId: row.id,
+      entityId: row.entityId,
+      after: { fileStatus: row.status, maskedPages: input.maskedPages },
+    });
+    return toFileDto(row);
+  },
+});
+
+/** The vault's own sentence for the refusals that have one; any other refusal says the general one. */
+const VAULT_REASON: Partial<Record<FileRejectReason, KnowledgeErrorReason>> = {
+  file_pdf_page_too_dense: 'knowledge_pdf_page_too_dense',
+  file_masking_unavailable: 'knowledge_masking_unavailable',
+};
+
 /** `files.file.reject`: a check refused the file; the uploader sees why. */
 export const rejectFile = defineCommand({
   name: 'files.file.reject',
@@ -173,16 +217,17 @@ export const rejectFile = defineCommand({
     // A refused vault upload's vault files can never be read: they fail with that reason.
     for (const vault of await vaultFilesWaitingOn(ctx, row)) {
       const failed = fireKnowledgeFileAsJob(ctx, 'waiting', 'fail');
+      const errorReason = VAULT_REASON[input.reason] ?? 'knowledge_file_rejected';
       await ctx.tx.execute(
         sql`select app.record_knowledge_index(${vault.knowledge_file_id}::uuid, ${failed},
-                                              'knowledge_file_rejected', null)`,
+                                              ${errorReason}, null)`,
       );
       ctx.audit({
         aggregateType: 'knowledge_file',
         aggregateId: vault.knowledge_file_id,
         entityId: vault.entity_id,
         before: { knowledgeState: 'waiting' },
-        after: { knowledgeState: failed, errorReason: 'knowledge_file_rejected' },
+        after: { knowledgeState: failed, errorReason },
       });
     }
     ctx.audit({

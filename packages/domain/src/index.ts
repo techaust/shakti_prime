@@ -403,7 +403,12 @@ export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
 export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
-export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export {
+  continueFileCheck,
+  markFileReady,
+  markFileScanned,
+  rejectFile,
+} from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
 export {
   getFile,

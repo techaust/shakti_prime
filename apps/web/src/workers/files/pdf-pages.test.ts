@@ -1,19 +1,16 @@
-import { KNOWLEDGE_PDF_MAX_PAGES } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
+import { pdfOf } from '../../../tests/support/pdf-fixtures';
 import {
-  AADHAAR,
-  AADHAAR_SPACED as SPACED,
-  coveringMasker,
-  pdfOf,
-  scanOf,
-} from '../../../tests/support/pdf-fixtures';
-import type { DocumentMasker, MaskOutcome } from '../ocr/mask-document';
-import { vaultMasker } from '../ocr/vault-masker';
-import { checkPdf } from './pdf-check';
-import { countPdfPages, maskPdf, renderMaskedPages, renderPdfPages } from './pdf-pages';
+  countPdfPages,
+  jpegsToPdf,
+  MAX_PAGE_EDGE_PX,
+  renderMaskedPages,
+  renderPdfPages,
+  renderScale,
+} from './pdf-pages';
 
-// The vault's PDF masking (docs/03-roadmap-appendix/phase1.md §8.4): pages drawn by PDFium, each through the
-// masking step, only the masked pages kept. Every number here is made up.
+// Drawing a vault PDF's pages with PDFium (docs/03-roadmap-appendix/phase1.md §8.4). Every number here is made up.
 
 describe('drawing a PDF as pictures', () => {
   it('counts the pages and draws each one, in order, as a PNG or a JPEG', async () => {
@@ -36,93 +33,45 @@ describe('drawing a PDF as pictures', () => {
   });
 });
 
-describe('masking a vault PDF', () => {
-  it('keeps a PDF of the masked pages only, one picture per page, with none of the original', async () => {
-    const original = await pdfOf([`Aadhaar ${SPACED}`, 'Second page']);
-    const seen: Buffer[] = [];
-    const masked = await maskPdf(original, coveringMasker(seen));
-    if (!masked.ok) throw new Error('expected a masked PDF');
-    expect(masked).toMatchObject({ pages: 2, regionsMasked: 2 });
-    // The masking step saw each page as a picture, never the PDF.
-    expect(seen).toHaveLength(2);
-    expect(seen.every((page) => page.subarray(1, 4).toString() === 'PNG')).toBe(true);
-    // What is kept is a valid PDF of two pages that holds none of the original's text.
-    expect(checkPdf(masked.bytes)).toEqual({ ok: true });
-    expect(await countPdfPages(masked.bytes)).toBe(2);
-    expect(Buffer.from(masked.bytes).includes(Buffer.from(SPACED))).toBe(false);
-    expect(Buffer.from(masked.bytes).includes(Buffer.from('Second page'))).toBe(false);
-    expect(await renderMaskedPages(masked.bytes)).toHaveLength(2);
+describe('the size a page is drawn at', () => {
+  it('draws one page only when asked, by its position', async () => {
+    const bytes = await pdfOf(['First page', 'Second page', 'Third page']);
+    const drawn: number[] = [];
+    for await (const page of renderPdfPages(bytes, 'png', 1)) drawn.push(page.image.length);
+    expect(drawn).toHaveLength(1);
+    const beyond: number[] = [];
+    for await (const page of renderPdfPages(bytes, 'png', 3)) beyond.push(page.image.length);
+    expect(beyond).toEqual([]);
   });
 
-  it('refuses a PDF of more pages than the vault reads, before any page is masked', async () => {
-    const seen: Buffer[] = [];
-    const many = await pdfOf(
-      Array.from({ length: KNOWLEDGE_PDF_MAX_PAGES + 1 }, (_, i) => `Page ${String(i)}`),
-    );
-    expect(await maskPdf(many, coveringMasker(seen))).toEqual({
-      ok: false,
-      reason: 'file_pdf_too_many_pages',
-    });
-    expect(seen).toHaveLength(0);
-    const exactly = await pdfOf(
-      Array.from({ length: KNOWLEDGE_PDF_MAX_PAGES }, (_, i) => `Page ${String(i)}`),
-    );
-    expect(await maskPdf(exactly, coveringMasker())).toMatchObject({
-      ok: true,
-      pages: KNOWLEDGE_PDF_MAX_PAGES,
-    });
+  it('keeps a letter page at 150 pixels an inch and shrinks a poster by its area', () => {
+    expect(renderScale(612, 792)).toBeCloseTo(150 / 72, 5);
+    const poster = renderScale(3000, 3000);
+    expect(poster).toBeLessThan(150 / 72);
+    expect(3000 * poster * 3000 * poster).toBeLessThanOrEqual(16_000_000 + 1);
   });
 
-  it('keeps nothing when a page’s numbers cannot be found, and calls a broken PDF unreadable', async () => {
-    const refusing: DocumentMasker = {
-      mask: () => Promise.resolve({ status: 'needs_review' } as unknown as MaskOutcome),
-      close: () => Promise.resolve(),
-    };
-    expect(await maskPdf(await pdfOf(['One']), refusing)).toEqual({
-      ok: false,
-      reason: 'file_mask_failed',
-    });
-    expect(await maskPdf(new TextEncoder().encode('%PDF-1.7 broken'), coveringMasker())).toEqual({
-      ok: false,
-      reason: 'file_unreadable',
-    });
-  });
-
-  it('does not blame the file when the masking step itself fails', async () => {
-    const failing: DocumentMasker = {
-      mask: () => Promise.reject(new Error('the OCR engine stopped')),
-      close: () => Promise.resolve(),
-    };
-    await expect(maskPdf(await pdfOf(['One']), failing)).rejects.toThrow('the OCR engine stopped');
+  it('keeps the longest side of a banner-shaped page under what the model accepts', async () => {
+    // A 200 by 5 inch page would be about 30,000 pixels long at 150 pixels an inch.
+    const [widthPt, heightPt] = [14_400, 360];
+    expect(renderScale(widthPt, heightPt)).toBeLessThan(150 / 72);
+    const picture = await sharp({
+      create: { width: 200, height: 20, channels: 3, background: '#ffffff' },
+    })
+      .jpeg()
+      .toBuffer();
+    const banner = await jpegsToPdf([{ jpeg: new Uint8Array(picture), widthPt, heightPt }]);
+    let sides: [number, number] | undefined;
+    for await (const page of renderPdfPages(banner, 'png')) {
+      const meta = await sharp(Buffer.from(page.image)).metadata();
+      sides = [meta.width, meta.height];
+    }
+    expect(sides).toBeDefined();
+    expect(Math.max(...(sides ?? [0, 0]))).toBeLessThanOrEqual(MAX_PAGE_EDGE_PX);
+    expect(Math.max(...(sides ?? [0, 0]))).toBeGreaterThan(MAX_PAGE_EDGE_PX - 10);
+    // The model's copy of a masked page is drawn the same way.
+    const [copy] = await renderMaskedPages(banner);
+    const copyMeta = await sharp(Buffer.from(copy ?? [])).metadata();
+    expect(Math.max(copyMeta.width, copyMeta.height)).toBeLessThanOrEqual(MAX_PAGE_EDGE_PX);
   });
 });
-
-// The real masking step needs the English OCR model on this machine (`OCR_LANG_PATH`, fetched once
-// by `pnpm --filter web spike:ocr`); a machine without the folder cannot run this one case.
-describe.skipIf(process.env.OCR_LANG_PATH === undefined || process.env.OCR_LANG_PATH === '')(
-  'masking a scanned vault PDF with the real masking step',
-  () => {
-    it('hides the Aadhaar number of an image-only PDF', async () => {
-      const masker = await vaultMasker();
-      const masked = await maskPdf(await scanOf(`Aadhaar No ${SPACED}`), masker);
-      if (!masked.ok) throw new Error(`expected a masked PDF, got ${masked.reason}`);
-      expect(masked.regionsMasked).toBeGreaterThan(0);
-      // Reading the masked page again finds none of the number's first eight digits.
-      const [page] = await renderMaskedPages(masked.bytes);
-      const { createWorker } = await import('tesseract.js');
-      const reader = await createWorker('eng', 1, {
-        langPath: process.env.OCR_LANG_PATH ?? '',
-        cacheMethod: 'none',
-        gzip: true,
-      });
-      try {
-        const { data } = await reader.recognize(Buffer.from(page ?? []));
-        const digits = data.text.replace(/\D/g, '');
-        expect(digits).not.toContain(AADHAAR.slice(0, 8));
-        expect(digits).not.toContain(AADHAAR.slice(4, 12));
-      } finally {
-        await reader.terminate();
-      }
-    }, 120_000);
-  },
-);

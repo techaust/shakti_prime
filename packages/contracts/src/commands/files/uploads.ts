@@ -8,6 +8,7 @@ import {
 } from '../../api/files';
 import { FileRejectReasonSchema } from '../../dto/file';
 import { EntityIdSchema, IdSchema } from '../../ids';
+import { KNOWLEDGE_PDF_MAX_PAGES } from '../../knowledge';
 
 /**
  * `files.upload.begin`: the fields of `POST /files/presign`, checked by its purpose's limits, and
@@ -93,6 +94,20 @@ export const MarkFileReadyInput = z
   })
   .strict();
 export type MarkFileReadyInput = z.infer<typeof MarkFileReadyInput>;
+
+/**
+ * `files.file.continue_check` (the worker): a vault PDF is masked one page per delivery, so after
+ * a page is kept the worker sends the file's checks on to the next one. `maskedPages` is how many
+ * pages are kept so far; it rides on the event so a delivery for a page already done is left alone.
+ */
+export const ContinueFileCheckInput = z
+  .object({
+    entityId: EntityIdSchema,
+    fileId: IdSchema,
+    maskedPages: z.number().int().min(1).max(KNOWLEDGE_PDF_MAX_PAGES),
+  })
+  .strict();
+export type ContinueFileCheckInput = z.infer<typeof ContinueFileCheckInput>;
 
 /**
  * `files.file.reject` (the worker). `scanStatus` is the scanner's own code, kept for the record

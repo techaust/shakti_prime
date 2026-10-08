@@ -4,7 +4,7 @@ import { hostedRuntime } from '../../auth/deps';
 import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
-import { vaultMasker } from '../ocr/vault-masker';
+import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
@@ -59,7 +59,9 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
         store: requireFileStore(),
         principal: ctx.principal,
         hosted: hostedRuntime(),
-        masker: vaultMasker,
+        // Without the OCR model a vault photo or PDF is refused at once, not delivered again.
+        ...(maskingConfigured() ? { masker: vaultMasker, discardMasker: discardVaultMasker } : {}),
+        keyValue: ctx.keyValue,
         requestId: ctx.requestId,
       });
     },

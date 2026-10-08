@@ -43,6 +43,10 @@ export type KnowledgeFileState = z.infer<typeof KnowledgeFileStateSchema>;
 export const KNOWLEDGE_ERROR_REASONS = [
   // The file did not pass its checks (a threat, a scan that failed, a photo that could not be masked).
   'knowledge_file_rejected',
+  // A page of the file took too long to check, so it was not kept.
+  'knowledge_pdf_page_too_dense',
+  // The step that covers numbers on photos and scanned pages is not set up yet.
+  'knowledge_masking_unavailable',
   // The text could not be read from the file.
   'knowledge_unreadable',
   // The file holds no text to search.

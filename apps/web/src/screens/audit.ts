@@ -115,6 +115,7 @@ const ACTIONS = {
   'files.file.mark_scanned': 'fileScanned',
   'files.file.mark_ready': 'fileReady',
   'files.file.reject': 'fileRejected',
+  'files.file.continue_check': 'fileCheckContinued',
   'files.file.recheck': 'filesRecheck',
   'files.upload.sweep': 'uploadsSweep',
   'files.document.record': 'fileRendered',

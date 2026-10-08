@@ -32,7 +32,7 @@ CREATE TABLE "knowledge_files" (
 	CONSTRAINT "knowledge_files_sensitivity_check" CHECK ("knowledge_files"."sensitivity" in ('staff_ai_ok', 'management', 'exec_only')),
 	CONSTRAINT "knowledge_files_source_type_check" CHECK ("knowledge_files"."source_type" in ('pdf', 'photo', 'word', 'excel')),
 	CONSTRAINT "knowledge_files_state_check" CHECK ("knowledge_files"."state" in ('waiting', 'indexed', 'failed', 'unavailable', 'archived')),
-	CONSTRAINT "knowledge_files_error_reason_check" CHECK ("knowledge_files"."error_reason" in ('knowledge_file_rejected', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')),
+	CONSTRAINT "knowledge_files_error_reason_check" CHECK ("knowledge_files"."error_reason" in ('knowledge_file_rejected', 'knowledge_pdf_page_too_dense', 'knowledge_masking_unavailable', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')),
 	CONSTRAINT "knowledge_files_title_check" CHECK (char_length("knowledge_files"."title") between 1 and 200),
 	CONSTRAINT "knowledge_files_chunks_check" CHECK ("knowledge_files"."chunks" >= 0)
 );

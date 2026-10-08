@@ -373,6 +373,31 @@ describe('POST /api/v1/workers/embeddings/index', () => {
     expect(state.store?.objects.has(key)).toBe(false);
   });
 
+  it('refuses a vault PDF at once when no masking step is set up, and the vault file says so', async () => {
+    const { pdfOf } = await import('./support/pdf-fixtures');
+    const { id: fileId, key } = await pdfUpload(await pdfOf(['One page']));
+    const vault = await asPrincipal(executive, (context) =>
+      runCommand(
+        addKnowledgeFile,
+        { context, audit: databaseAuditSink, outbox: databaseOutboxSink },
+        { entityId: 1, fileId, title: 'Scheme circular', sensitivity: 'staff_ai_ok' },
+      ),
+    );
+    // No masker is given, as on a runtime where `OCR_LANG_PATH` is not set.
+    expect(await checks(fileId)).toEqual({ status: 'rejected' });
+    const [upload] = await asMigrator(
+      (m) => m<{ reason: string }[]>`
+        select scan_result->>'rejectReason' as reason from files where id = ${fileId}`,
+    );
+    expect(upload?.reason).toBe('file_masking_unavailable');
+    expect(state.store?.objects.has(key)).toBe(false);
+    const [file] = await asMigrator(
+      (m) => m<{ state: string; error_reason: string }[]>`
+        select state, error_reason from knowledge_files where id = ${vault.id}`,
+    );
+    expect(file).toEqual({ state: 'failed', error_reason: 'knowledge_masking_unavailable' });
+  });
+
   it('refuses a Word upload that is not one, and a job for a vault file that is not there', async () => {
     const fileId = await wordUpload(Buffer.from('this is plain text, not a Word file'));
     expect(await checks(fileId)).toEqual({ status: 'rejected' });

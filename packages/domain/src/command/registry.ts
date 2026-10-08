@@ -51,7 +51,12 @@ import {
   unsubscribePush,
 } from '../commands/notifications/own';
 import { beginUpload } from '../commands/files/begin-upload';
-import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
+import {
+  continueFileCheck,
+  markFileReady,
+  markFileScanned,
+  rejectFile,
+} from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
 import { sweepUploads } from '../commands/files/sweep-uploads';
@@ -185,6 +190,7 @@ export const commands = {
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [continueFileCheck.name]: continueFileCheck,
   [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,

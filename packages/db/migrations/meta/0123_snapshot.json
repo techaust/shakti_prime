@@ -7408,7 +7408,7 @@
         },
         "knowledge_files_error_reason_check": {
           "name": "knowledge_files_error_reason_check",
-          "value": "\"knowledge_files\".\"error_reason\" in ('knowledge_file_rejected', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')"
+          "value": "\"knowledge_files\".\"error_reason\" in ('knowledge_file_rejected', 'knowledge_pdf_page_too_dense', 'knowledge_masking_unavailable', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')"
         },
         "knowledge_files_title_check": {
           "name": "knowledge_files_title_check",

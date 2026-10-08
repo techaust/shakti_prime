@@ -7,7 +7,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
-import { KnowledgeSensitivitySchema } from '../knowledge';
+import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -370,9 +370,15 @@ const eventCatalogue = {
   'files.file.uploaded': {
     meaning:
       'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
-    emittedBy: ['files.upload.complete', 'files.file.recheck'],
+    emittedBy: ['files.upload.complete', 'files.file.recheck', 'files.file.continue_check'],
     subscribed: true,
-    payload: z.object({ purpose: FilePurposeSchema }).strict(),
+    payload: z
+      .object({
+        purpose: FilePurposeSchema,
+        // Set when a vault PDF's checks carry on: the pages kept so far.
+        maskedPages: z.number().int().min(1).max(KNOWLEDGE_PDF_MAX_PAGES).optional(),
+      })
+      .strict(),
   },
   /**
    * A document to render (ADR 0009): delivered as a `PdfRenderJob` to `/api/v1/workers/pdf/render`,
