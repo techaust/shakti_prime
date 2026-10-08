@@ -1,16 +1,18 @@
 ---
 name: end-session
-description: Close a lead session on Shakti Prime BOS on the PC. Use when the owner says to stop, pause or wrap up, or after the last pull request of a session merges. Replaces docs/STATUS.md, adds CHANGELOG lines, checks the document links and opens the documents pull request.
+description: Close a lead session on Shakti Prime BOS on the PC. Use when the owner says "end the day", "stop for today", or otherwise to stop, pause or wrap up, or after the last pull request of a session merges. Replaces docs/10-status.md, adds CHANGELOG lines, checks the document links and opens the documents pull request.
 ---
 
 # End a session
 
 **PC only:** this skill pushes and opens a pull request, which a cloud session never does. A cloud builder or reviewer ends as [hybrid §6](../../../docs/runbooks/hybrid.md#6-how-a-cloud-session-ends) says: its report or findings in the run file, committed and pushed.
 
-1. **STATUS:** replace the content of `docs/STATUS.md` with the state now. Keep its sections (the dated summary line, Phase N with In progress, hosted environments, deferred gate items, waiting on the owner, open follow-ups). Never append to it, and never write status or history into `CLAUDE.md`.
+0. **Drafts:** hand the mechanical parts of steps 1, 2 and 4 (the status page's tables, the run files' list, the CHANGELOG lines, link fixes) to the `doc-clerk` agent with the facts it needs; check its draft line by line before committing, and write the summary line, Waiting on the owner and the follow-ups yourself.
+1. **STATUS:** replace the content of `docs/10-status.md` with the state now. Keep its sections (the dated summary line, Phase N with In progress, hosted environments, deferred gate items, waiting on the owner, open follow-ups). Never append to it, and never write status or history into `CLAUDE.md`.
    - Counts come from a run in this session (the security suite's three totals, the unit-test total); if none ran, keep the old counts with their date.
    - Migrations on `main` and on each hosted environment: the highest number in `packages/db/migrations` and the last migrate run per environment.
    - In progress: one row per slice in flight (branch, run file, where it runs, state, next step), matching each run file's header.
+   - The run files' list: in `docs/runs/phase1/readme.md`, move each slice merged in the session from *Slices in flight* to *Merged* with its pull request number, and add each slice started in the session to *Slices in flight*; set the merged slice's own header to merged (#N) with next step none.
 2. **CHANGELOG:** one line per pull request merged in the session, newest first, under its phase and wave in `CHANGELOG.md`: `- **#N** (DD-MM-YYYY) what it built, in final words; migrations if any`.
 3. **DECISIONS:** a row for every decision the owner took in the session that is not there yet.
 4. **Links:** `python3 tools/integration/check-doc-links.py` from the repository root (after `. tools/integration/lib.sh`, which maps `python3` to `python` where Git Bash has only that) prints `bad 0`.

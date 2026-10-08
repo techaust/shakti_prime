@@ -1,12 +1,12 @@
 name: Migrate a hosted database
 
 # Applies the migrations to the dev or staging database from a reviewed commit on main, then
-# checks every migration is applied as it is on disk (docs/runbooks/DEPLOY.md §2;
-# docs/reviews/2026-09-audit.md L24). A private repository on GitHub's free plan has no
+# checks every migration is applied as it is on disk (docs/runbooks/deploy.md §2;
+# docs/14-reviews/2026-09-audit.md L24). A private repository on GitHub's free plan has no
 # environments, so each database's credentials and CA certificate are repository secrets named
 # with its suffix (`_DEV`, `_STAGING`). Production is added with a GitHub environment and a
 # required reviewer when the repository moves to a plan that offers them
-# (docs/reviews/2026-09-audit.md M45); until then no workflow can migrate it.
+# (docs/14-reviews/2026-09-audit.md M45); until then no workflow can migrate it.
 on:
   workflow_dispatch:
     inputs:
@@ -43,7 +43,7 @@ jobs:
       AUTH_SERVICE_PASSWORD: ${{ secrets[format('AUTH_SERVICE_PASSWORD_{0}', inputs.environment)] }}
       OUTBOX_PUBLISHER_PASSWORD: ${{ secrets[format('OUTBOX_PUBLISHER_PASSWORD_{0}', inputs.environment)] }}
       # Optional: without it the role app_reader exists with no password, and the app reads on
-      # app_user (docs/runbooks/DEPLOY.md §1).
+      # app_user (docs/runbooks/deploy.md §1).
       APP_READER_PASSWORD: ${{ secrets[format('APP_READER_PASSWORD_{0}', inputs.environment)] }}
       DATABASE_CA_CERT: ${{ secrets[format('DATABASE_CA_CERT_{0}', inputs.environment)] }}
       # The Supabase project each choice must reach; a secret pasted under the wrong suffix stops here.
@@ -81,7 +81,7 @@ jobs:
       - run: pnpm db:migrate
         if: ${{ !inputs.rotate_passwords }}
       # The migrator sets a role's password only when it creates the role, or on this flag
-      # (packages/db/src/migrate.ts); docs/runbooks/DEPLOY.md §5 says when to tick it.
+      # (packages/db/src/migrate.ts); docs/runbooks/deploy.md §5 says when to tick it.
       - run: pnpm db:migrate --rotate-passwords
         if: ${{ inputs.rotate_passwords }}
       - run: pnpm db:verify

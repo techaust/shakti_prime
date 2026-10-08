@@ -21,7 +21,7 @@ import { principals } from './principals';
 import { teams } from './teams';
 
 /**
- * Autonomy, daily spend caps and kill switches of the agents (docs/DATABASE.md §6.9, BLUEPRINT
+ * Autonomy, daily spend caps and kill switches of the agents (docs/05-database.md §6.9, BLUEPRINT
  * §9.3). A row names an agent or every agent (`agent` null), an action type or every one
  * (`action_type` null), and a company or the group (`entity_id` null). A switch that is off at
  * any level stops the agent; autonomy and the cap come from the most specific row that sets them.
@@ -61,7 +61,7 @@ export const agentConfigs = pgTable(
 );
 
 /**
- * One row per agent invocation (docs/DATABASE.md §6.9): which agent ran, for what, on which model,
+ * One row per agent invocation (docs/05-database.md §6.9): which agent ran, for what, on which model,
  * the tokens and cost in whole paise, how it ended and how long it took. Never the prompt or the
  * answer. Written once by the agent's own principal; read with the agent controls.
  */
@@ -105,7 +105,7 @@ export const agentRuns = pgTable(
 );
 
 /**
- * An action an agent proposed or took (docs/DATABASE.md §5, §6.9): the command it runs
+ * An action an agent proposed or took (docs/05-database.md §5, §6.9): the command it runs
  * (`action_type`) and that command's input. Append-only except the decision columns, which only
  * the inbox commands change, once, from `proposed`.
  */
@@ -174,7 +174,7 @@ export const agentActions = pgTable(
 );
 
 /**
- * A person's Agent Inbox (docs/DATABASE.md §6.9): an agent's suggestion to approve, edit or reject,
+ * A person's Agent Inbox (docs/05-database.md §6.9): an agent's suggestion to approve, edit or reject,
  * or work routed to someone. A scope root on `agents.inbox.act` with the assignee as its owner; an
  * item for no one is the company's, read at company scope.
  */
@@ -192,7 +192,7 @@ export const inboxItems = pgTable(
     subjectId: uuid('subject_id').notNull(),
     state: text('state').notNull().default('open'),
     agentActionId: uuid('agent_action_id'),
-    // Routed work only (docs/design/phase1.md §8.1): the enquiry's interest and the note it came
+    // Routed work only (docs/03-roadmap-appendix/phase1.md §8.1): the enquiry's interest and the note it came
     // with, for the colleague the enquiry was passed to.
     segment: text('segment'),
     note: text('note'),
@@ -235,7 +235,7 @@ export const inboxItems = pgTable(
 );
 
 /**
- * A scored run of an eval set for one agent's prompt version (docs/DATABASE.md §6.9, BLUEPRINT
+ * A scored run of an eval set for one agent's prompt version (docs/05-database.md §6.9, BLUEPRINT
  * §9.3): a prompt or model change ships only with a passing run. Of no company; written only by
  * the eval runner as the table owner, read with `agents.autonomy.write` for every company.
  */

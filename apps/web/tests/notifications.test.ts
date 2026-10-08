@@ -26,7 +26,7 @@ import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The notify worker, its scan and the forms' routed enquiries outside a Next.js request
-// (docs/design/phase1.md §8.1): the queue client, the request headers and the signed-in caller
+// (docs/03-roadmap-appendix/phase1.md §8.1): the queue client, the request headers and the signed-in caller
 // are stand-ins, and pushes go to a stand-in sender; the signature checks, the commands and the
 // database are real.
 const queue = vi.hoisted(() => ({ published: [] as unknown[] }));
@@ -267,7 +267,7 @@ describe('the notify worker without a queue (in process)', () => {
   });
 });
 
-describe('pushes (docs/design/phase1.md §8.1)', () => {
+describe('pushes (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   const workers = principalFor('system:workers', [1], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
   const keys = { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) };
 

@@ -11,7 +11,7 @@ import type { ToasterProps } from './toast-region';
  * region is listening, so none is lost.
  */
 
-/** Toasts stay four seconds (DESIGN.md §6). */
+/** Toasts stay four seconds (docs/08-design-system.md §6). */
 export const TOAST_DURATION_MS = 4000;
 
 type SonnerToast = typeof sonnerToast;

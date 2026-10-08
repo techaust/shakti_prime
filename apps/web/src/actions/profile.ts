@@ -24,7 +24,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Saves System, Light or Dark on the caller's profile (DESIGN.md §7). The screen has already
+ * Saves System, Light or Dark on the caller's profile (docs/08-design-system.md §7). The screen has already
  * switched; this keeps the choice for every device. It answers an `ActionResult` instead of
  * throwing, because Next.js masks thrown errors in production, and an unexpected failure is
  * logged with the reference the person reads to support.
@@ -50,7 +50,7 @@ export async function saveTheme(
 }
 
 /**
- * Saves Higher contrast on or off on the caller's profile (DESIGN.md §2.1), so it follows them to
+ * Saves Higher contrast on or off on the caller's profile (docs/08-design-system.md §2.1), so it follows them to
  * every device as the theme does. The screen has already switched and the cookie mirrors the
  * choice for the first paint; the cached principal is dropped so the next page reads it back.
  */
@@ -74,7 +74,7 @@ export async function saveContrast(
   });
 }
 
-/** The caller's own saved views of one grid, for the Views menu (DESIGN.md §6). */
+/** The caller's own saved views of one grid, for the Views menu (docs/08-design-system.md §6). */
 export async function listSavedViews(rawInput: unknown): Promise<ActionResult<SavedViewDto[]>> {
   return toResult('listSavedViews', async () => {
     const principal = await signedIn();

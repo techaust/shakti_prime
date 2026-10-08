@@ -268,7 +268,7 @@ describe('admin.role.permissions.set: the change', () => {
         },
       });
 
-      // A re-run of the seed keeps the edit (docs/DATABASE.md §9).
+      // A re-run of the seed keeps the edit (docs/05-database.md §9).
       await runSeeds();
       expect(await grantsOf(EDITED)).toEqual(
         edited()

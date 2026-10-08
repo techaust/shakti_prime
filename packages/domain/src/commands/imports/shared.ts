@@ -153,7 +153,7 @@ export function implementedKind(job: JobRow): ImplementedImportKind {
 
 /**
  * The PIN code master is shared by every company, so only an Executive (`imports.write` at scope
- * all) in a request for every active company imports it (docs/design/phase1.md §6.3), as the
+ * all) in a request for every active company imports it (docs/03-roadmap-appendix/phase1.md §6.3), as the
  * shared catalogue is changed; the write policies of `pin_codes` hold the same rule.
  */
 export async function assertGroupImport(ctx: {

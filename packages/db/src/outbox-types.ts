@@ -1,4 +1,4 @@
-/** One pending `outbox_events` row as the publisher claims it (docs/design/backend-weeks-3-5.md §4.2). */
+/** One pending `outbox_events` row as the publisher claims it (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). */
 export interface OutboxRow {
   id: string;
   /** Text form of the bigint identity: the delivery order. */

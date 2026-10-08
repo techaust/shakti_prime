@@ -27,7 +27,7 @@ interface TurnstileAnswer {
 }
 
 /**
- * Verifies a Cloudflare Turnstile token server-side (docs/SECURITY.md §2, AUDIT M37). The check
+ * Verifies a Cloudflare Turnstile token server-side (docs/07-security.md §2, AUDIT M37). The check
  * never fails open: anything but a clear pass from the expected hostname and widget is refused.
  */
 export async function verifyTurnstile(

@@ -59,7 +59,7 @@ function timingOptions(logger: Logger | undefined, clock: Clock | undefined): Ti
  *
  * A refused or failed call rolls its transaction back, audit row included, so the row that
  * records the refusal is written afterwards in a short transaction of its own
- * (docs/design/backend-weeks-3-5.md §3.2). Input that does not parse is not recorded: nothing ran.
+ * (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.2). Input that does not parse is not recorded: nothing ran.
  *
  * The whole call, refusal row and outbox nudge included, is timed into one log line with the
  * command's name, outcome, duration and request id (`command.completed`).
@@ -186,7 +186,7 @@ function refusedInput<I extends z.ZodType, O extends z.ZodType>(
  * so a write after that is refused by row security instead (SQLSTATE 42501).
  *
  * Where `DATABASE_URL_READER` is set the query runs on the `app_reader` pool instead, whose role
- * holds `select` only under the same policies (docs/DATABASE.md §3), so a write is refused for
+ * holds `select` only under the same policies (docs/05-database.md §3), so a write is refused for
  * want of the privilege too, whatever the function does with its transaction.
  */
 export function executeQuery<T>(

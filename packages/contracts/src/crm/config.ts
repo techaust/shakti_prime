@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * CRM set-up enumerations (docs/design/phase1.md §6.6, docs/DATABASE.md §6.2). Values are the
+ * CRM set-up enumerations (docs/03-roadmap-appendix/phase1.md §6.6, docs/05-database.md §6.2). Values are the
  * database check lists; `enum-sync.test.ts` pairs each with its constraint.
  */
 
@@ -34,6 +34,10 @@ export type CommissionBasis = z.infer<typeof CommissionBasisSchema>;
 export const CommissionTriggerSchema = z.enum(['order_confirmed']);
 export type CommissionTrigger = z.infer<typeof CommissionTriggerSchema>;
 
+/** Where a commission on an order stands; release on payment arrives with the Tally receipts. */
+export const CommissionAccrualStateSchema = z.enum(['accrued', 'cancelled']);
+export type CommissionAccrualState = z.infer<typeof CommissionAccrualStateSchema>;
+
 /** The unit a system-size score rule reads the lead's size in. */
 export const SystemSizeUnitSchema = z.enum(['kw', 'hp']);
 export type SystemSizeUnit = z.infer<typeof SystemSizeUnitSchema>;
@@ -53,7 +57,7 @@ export const DispositionCodeSchema = z
 /**
  * The group's call outcomes until the sales head answers CALL-1: the workshop pack's example list,
  * each with the queue's next step. A workshop default (`WORKSHOP_DEFAULTS.crm.dispositions`,
- * docs/design/phase1.md §11); the seed writes it once, and Executives change it on the pipelines
+ * docs/03-roadmap-appendix/phase1.md §11); the seed writes it once, and Executives change it on the pipelines
  * settings page.
  */
 export const WORKSHOP_DISPOSITIONS: readonly {

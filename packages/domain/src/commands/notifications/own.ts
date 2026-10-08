@@ -16,7 +16,7 @@ import { defineCommand } from '../../command/define-command';
 import { loadNotificationSettings } from '../../queries/notifications/settings';
 
 /*
- * A person's own notices, settings and browsers (docs/design/phase1.md §8.1). Reading one's own
+ * A person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1). Reading one's own
  * notices needs no permission; changing them is the caller's own profile (`profile.write`, which
  * every staff role holds for themselves), for people only. RLS lets a person reach only their own
  * rows, so someone else's notice answers as if it did not exist.

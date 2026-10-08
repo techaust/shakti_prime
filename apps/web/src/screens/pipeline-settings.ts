@@ -10,7 +10,7 @@ import type {
   SystemSizeUnit,
 } from '@shakti/contracts';
 
-// The pipelines settings page's drafts and the command inputs made from them (docs/design/phase1.md
+// The pipelines settings page's drafts and the command inputs made from them (docs/03-roadmap-appendix/phase1.md
 // §6.6). Pure functions, so the screen and its tests share them. Values are sent as typed; the
 // contracts and the commands decide what is wrong and answer with the field it is about.
 

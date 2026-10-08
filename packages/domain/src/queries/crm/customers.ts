@@ -32,6 +32,7 @@ import {
   type SortKeys,
 } from '../keyset-sort';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
+import { accountSalesOrders } from '../sales/list-orders';
 import { accountQuotes } from '../sales/list-quotes';
 import { containsPattern, phoneDigits } from '../search-text';
 
@@ -53,7 +54,7 @@ const CUSTOMER_SORT_KEYS: SortKeys<'name'> = {
 
 /**
  * Either customer read or lead read at own scope or wider opens the customers screens; an agent
- * never does (docs/SECURITY.md §3.3: agents work on leads without customers' names or phones).
+ * never does (docs/07-security.md §3.3: agents work on leads without customers' names or phones).
  */
 function checkCustomerRead(ctx: Ctx): void {
   if (isAgent(ctx.principal)) {
@@ -247,7 +248,7 @@ const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}
 
 /**
  * A page of a customer's timeline in one company, or of one lead's, newest first, keyset on
- * `(created_at, id)` (docs/DATABASE.md §7), which `activities_account_created_idx` and
+ * `(created_at, id)` (docs/05-database.md §7), which `activities_account_created_idx` and
  * `activities_opportunity_created_idx` serve in every monthly partition. RLS decides the rows: a
  * lead's rows with the lead, a customer's own with the customer (never to an agent through a
  * lead, 0057).
@@ -530,17 +531,19 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     ]);
 
   const perms = ctx.principal.permissions;
-  const covers = (key: 'crm.account.write' | 'crm.lead.write') =>
+  const covers = (key: 'crm.account.write' | 'crm.lead.write' | 'sales.order.create') =>
     hasGrant(perms, key, 'entity') ||
     (hasGrant(perms, key, 'team') &&
       here.teamId !== null &&
       here.teamId === ctx.principal.teamId) ||
     (hasGrant(perms, key, 'own') && here.ownerId === ctx.principal.id);
 
-  // The customer's quotes in this company, read with their leads (docs/design/phase1.md §7.3).
+  // The customer's quotes in this company, read with their leads (docs/03-roadmap-appendix/phase1.md §7.3).
   const quotes = hasGrant(perms, 'crm.lead.read', 'own')
     ? await accountQuotes(ctx, accountId, entityId)
     : [];
+  // Its orders in this company, read with their leads or, for a dealer's own order, with it.
+  const orders = await accountSalesOrders(ctx, accountId, entityId);
 
   return Account360Dto.parse({
     // The tiers' own policy lets any signed-in caller read them, so the name is kept here.
@@ -559,6 +562,8 @@ export async function loadAccount360(ctx: Ctx, rawInput: unknown): Promise<Accou
     canSetTier: hasGrant(perms, 'pricing.write', 'all') && covers('crm.account.write'),
     canQuote: hasGrant(perms, 'sales.quote.create', 'own'),
     quotes,
+    canOrder: here.account.type === 'dealer' && covers('sales.order.create'),
+    orders,
     contacts: contacts.map((x) => ({
       ...x,
       phones: phones

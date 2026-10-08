@@ -60,7 +60,7 @@ async function caller(deps: IntegrationRouteDeps): Promise<Principal> {
 }
 
 /**
- * `GET /api/v1/admin/integrations?cursor=&limit=` (docs/API.md §3.7): the Integration Health
+ * `GET /api/v1/admin/integrations?cursor=&limit=` (docs/06-api.md §3.7): the Integration Health
  * data for a session holding `admin.integrations.write:all`.
  */
 export async function getIntegrationHealth(
@@ -81,7 +81,7 @@ export async function getIntegrationHealth(
 }
 
 /**
- * `POST /api/v1/admin/integrations/replay` (docs/API.md §3.7): puts one dead letter back in the
+ * `POST /api/v1/admin/integrations/replay` (docs/06-api.md §3.7): puts one dead letter back in the
  * queue through `integrations.dlq.replay`, audited with the caller. The body must be declared as
  * JSON, so a page on another site cannot send one with the person's cookie unless the browser
  * asks this site first, which it refuses.

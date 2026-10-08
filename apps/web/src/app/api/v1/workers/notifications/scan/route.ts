@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The notification scan (docs/API.md §3.6, docs/design/phase1.md §8.1). Only QStash calls it: the
+ * The notification scan (docs/06-api.md §3.6, docs/03-roadmap-appendix/phase1.md §8.1). Only QStash calls it: the
  * schedule `notification-scan-<environment>` every five minutes, and a run handing on the rest
  * (`nightlyWorkerRoute`).
  */

@@ -1,4 +1,4 @@
-// Notification plans (docs/design/phase1.md §8.1, brief N1): `pnpm --filter @shakti/domain
+// Notification plans (docs/03-roadmap-appendix/phase1.md §8.1, brief N1): `pnpm --filter @shakti/domain
 // spike:notifications`. Fills the local database, in company 2, with made-up people (`EXPLN …`),
 // 40,000 leads with their customers, 40,000 open callback tasks due over a week, 10,000 quotes
 // lapsing over a month, a pipeline with a 30-minute first-contact limit holding 2,000 never-called

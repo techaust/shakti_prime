@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * `POST /webhooks/livekit` (docs/API.md §3.4): room and participant events for voice sessions,
+ * `POST /webhooks/livekit` (docs/06-api.md §3.4): room and participant events for voice sessions,
  * shaped as LiveKit's webhook reference describes them. LiveKit signs each call with a JWT in
  * `Authorization`, made with the project's API secret and carrying the body's SHA-256 in its
  * `sha256` claim; the route checks both before storing the payload. The body is protobuf JSON,

@@ -11,7 +11,7 @@ import { useCommand } from '../screens/use-command';
 const FIELDS = ['quietFrom', 'quietTo'] as const;
 
 /**
- * Settings › Notifications (docs/design/phase1.md §8.1): for each kind of notice, whether it shows
+ * Settings › Notifications (docs/03-roadmap-appendix/phase1.md §8.1): for each kind of notice, whether it shows
  * in Notifications and whether it also comes as an alert, and the quiet hours in which no alert is
  * sent. Saved together, through `notifications.preferences.set`.
  */

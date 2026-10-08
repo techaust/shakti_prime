@@ -1095,7 +1095,7 @@ function authEvents(where: { actor?: string; ip?: string }): Promise<AuthAuditRo
   );
 }
 
-describe('the audit trail of sign-in and account changes (docs/design/backend-weeks-3-5.md §2.6)', () => {
+describe('the audit trail of sign-in and account changes (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.6)', () => {
   it('records password set, wrong and right passwords, sign-out and a password change', async () => {
     const user = await inviteAndSetPassword([{ entityId: 1, roleKey: 'tele_caller_cc' }]);
     await expect(

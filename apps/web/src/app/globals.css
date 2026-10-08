@@ -4,7 +4,7 @@
 @import '@shakti/ui/styles.css';
 
 /* The root keeps the browser's text size, so a user's own setting is respected and every rem
-   (Tailwind spacing, control heights) keeps its designed size (DESIGN.md §3). */
+   (Tailwind spacing, control heights) keeps its designed size (docs/08-design-system.md §3). */
 html {
   font-family: var(--font-family);
 }
@@ -18,7 +18,7 @@ body {
   line-height: var(--font-body-line);
 }
 
-/* Phone layouts: larger body text (DESIGN.md §3). */
+/* Phone layouts: larger body text (docs/08-design-system.md §3). */
 @media (max-width: 767.98px) {
   body {
     font-size: var(--font-body-phone-size);

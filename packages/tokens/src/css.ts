@@ -1,4 +1,4 @@
-// Generates the CSS delivered to the web app (DESIGN.md §8). Pure functions so the
+// Generates the CSS delivered to the web app (docs/08-design-system.md §8). Pure functions so the
 // stale-file test can compare the committed output with a fresh render.
 import { aliases, colors, colorsFor, scale, shadows, type Contrast, type Theme } from './tokens';
 
@@ -56,7 +56,7 @@ function staticBlock(indent: string): string {
   return lines.join('\n');
 }
 
-/** The attribute the app sets on `<html>` for the high-contrast variant (DESIGN.md §2.1). */
+/** The attribute the app sets on `<html>` for the high-contrast variant (docs/08-design-system.md §2.1). */
 export const HIGH_CONTRAST_SELECTOR = '[data-contrast="high"]';
 
 /**
@@ -159,7 +159,7 @@ export function renderTailwindCss(): string {
   lines.push(`  --shadow-2: var(--shadow-2);`);
   lines.push(`  --font-sans: var(--font-family);`);
   // Only the design's weights (`font-medium` is 510, not Tailwind's 500): the default scale is
-  // cleared first, so a weight outside DESIGN.md §3 styles nothing.
+  // cleared first, so a weight outside docs/08-design-system.md §3 styles nothing.
   lines.push('  --font-weight-*: initial;');
   for (const name of Object.keys(scale.fontWeight))
     lines.push(`  --font-weight-${name}: var(--weight-${name});`);

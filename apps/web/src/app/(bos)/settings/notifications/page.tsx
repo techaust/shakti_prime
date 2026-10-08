@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Settings › Notifications (docs/design/phase1.md §8.1), reached from the profile menu and the
+ * Settings › Notifications (docs/03-roadmap-appendix/phase1.md §8.1), reached from the profile menu and the
  * notification centre: the person's own choices per kind of notice, their quiet hours, and alerts
  * on this browser. Everyone who is signed in has notifications, so the page needs no permission.
  */

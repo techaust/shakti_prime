@@ -19,7 +19,7 @@ import { roleGrantsVersion } from './role-grants-version';
 const isStaffRole = (key: string) => (STAFF_ROLE_KEYS as readonly string[]).includes(key);
 
 /**
- * Checks the grant set an Executive asks for before anything is read (docs/SECURITY.md §3.1):
+ * Checks the grant set an Executive asks for before anything is read (docs/07-security.md §3.1):
  * only staff roles are edited here (an agent keeps its fixed set, a system role belongs to the
  * platform); no staff role holds a platform-only permission; an Executive-only or cost permission
  * goes only to the roles allowed to hold it (BLUEPRINT §7.1 to §7.3); each scope is one the
@@ -80,9 +80,9 @@ async function assertGroupScope(ctx: CommandContext): Promise<void> {
 }
 
 /**
- * `admin.role.permissions.set` (docs/design/phase1.md §6.2): replaces a staff role's grants as a
+ * `admin.role.permissions.set` (docs/03-roadmap-appendix/phase1.md §6.2): replaces a staff role's grants as a
  * set and marks the role customised, so a later seed keeps the edit and adds only permissions
- * created after it (docs/DATABASE.md §9). The editor sends the fingerprint of the set it read,
+ * created after it (docs/05-database.md §9). The editor sends the fingerprint of the set it read,
  * and a save over a set someone changed since is refused (`role_changed_meanwhile`). Everyone
  * holding the role, in any company, is signed out (`role_changed`) so their next request resolves
  * the new grants; the caller's own current sign-in stays, named by the server action in

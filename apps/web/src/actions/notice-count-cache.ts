@@ -1,4 +1,4 @@
-// The bell's unread count, kept briefly per person and company scope (docs/design/phase1.md §8.1),
+// The bell's unread count, kept briefly per person and company scope (docs/03-roadmap-appendix/phase1.md §8.1),
 // as the Agent Inbox's count is (`inbox-count-cache.ts`, whose cache this is another instance of):
 // every staff page's layout reads it and each open page asks again every 15 seconds while it is
 // in view. Reading a notice clears the person's own counts at once; a notice written for them

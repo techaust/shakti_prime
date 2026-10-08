@@ -4,7 +4,7 @@ import { BELL_POLL_MS, noticeHref } from './notices';
 const account = '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a10';
 const quote = '0199a0c4-7a10-7c3e-8f21-3b5d6e7f8a11';
 
-describe('where a notice takes its person (docs/design/phase1.md §8.1)', () => {
+describe('where a notice takes its person (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   it('opens the screen each kind of notice is acted on', () => {
     expect(noticeHref({ type: 'call_due', entityId: 2, accountId: account, quoteId: null })).toBe(
       '/calling',

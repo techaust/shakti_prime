@@ -37,7 +37,7 @@ import { listInbox } from '../../src/queries/agents/inbox';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
 import { loadNotificationSettings } from '../../src/queries/notifications/settings';
 
-// Notifications (PRD RPT-04, docs/design/phase1.md §8.1): each kind of notice reaches the person
+// Notifications (PRD RPT-04, docs/03-roadmap-appendix/phase1.md §8.1): each kind of notice reaches the person
 // who acts on it and only them, once however often its event or the scan runs; quiet hours hold a
 // push; a person reads, marks and sets only their own; an enquiry for a colleague's customer
 // becomes routed work in that colleague's inbox. The suites never clean the CRM tables, so every

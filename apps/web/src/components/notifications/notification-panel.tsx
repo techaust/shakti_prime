@@ -25,7 +25,7 @@ import { useCommand, useQuery } from '../screens/use-command';
 const PAGE_SIZE = 20;
 
 /**
- * The notification centre (docs/design/phase1.md §8.1), a panel from the right: the caller's
+ * The notification centre (docs/03-roadmap-appendix/phase1.md §8.1), a panel from the right: the caller's
  * notices in the companies being viewed, newest first, a page at a time. Opening a notice takes
  * the person to the screen they act on and marks it read; each unread notice can be marked read
  * where it is, and all of them at once. Loaded when the bell is first pressed; the list is read

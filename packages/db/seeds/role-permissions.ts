@@ -16,7 +16,7 @@ type StaffRow = Partial<Record<StaffRoleKey, Scope>>;
 const EXEC: StaffRow = { executive: 'all' };
 
 /**
- * docs/SECURITY.md §3.2 transcribed cell by cell. Column order there: Executive, GM, Sales Lead,
+ * docs/07-security.md §3.2 transcribed cell by cell. Column order there: Executive, GM, Sales Lead,
  * CC, LC, Store, Inventory, Project Mgr, Field, Accounts, HR. This object is the seed and the
  * oracle for the security suite.
  */
@@ -110,6 +110,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   },
   'sales.order.cancel': { ...EXEC, general_manager: 'entity' },
   'sales.credit.release': { ...EXEC },
+  'sales.credit.write': { ...EXEC, accounts: 'entity' },
   'pricing.read': {
     ...EXEC,
     general_manager: 'entity',
@@ -292,10 +293,10 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'notifications.send': {},
 };
 
-/** Agent principal permission sets (docs/SECURITY.md §3.3), from the contracts the runtime shares. */
+/** Agent principal permission sets (docs/07-security.md §3.3), from the contracts the runtime shares. */
 export { AGENT_MATRIX };
 
-/** The system principal's grants (docs/SECURITY.md §3.3), from the contracts the workers share. */
+/** The system principal's grants (docs/07-security.md §3.3), from the contracts the workers share. */
 export { SYSTEM_MATRIX };
 
 /** Grants for any role, staff, agent or system, from the matrices above. */

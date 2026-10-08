@@ -31,7 +31,7 @@ const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
 
 /**
- * The notify worker (docs/API.md §3.6, docs/design/phase1.md §8.1). Only QStash calls it, with a
+ * The notify worker (docs/06-api.md §3.6, docs/03-roadmap-appendix/phase1.md §8.1). Only QStash calls it, with a
  * notifying outbox event as its `NotifyJob`: the body is refused over 4 KiB before anything else is
  * read, the signature must be QStash's for this address and body, and the event's id is claimed as
  * an event worker's is (`deliverEvent`), so an event already handled answers `duplicate`. The

@@ -66,7 +66,7 @@ const toIso = (v: Date | string): string => (v instanceof Date ? v : new Date(v)
 
 /**
  * The caller's notices in the request's companies that show in the centre, newest first, keyset
- * on `(created_at, id)` (docs/design/phase1.md §8.1). The customer's name and the quote's number
+ * on `(created_at, id)` (docs/03-roadmap-appendix/phase1.md §8.1). The customer's name and the quote's number
  * are read only where the caller may read them (RLS), so a notice about a record the caller no
  * longer reads still shows, without them.
  */

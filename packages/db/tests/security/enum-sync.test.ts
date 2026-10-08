@@ -10,7 +10,9 @@ import {
   AccountTypeSchema,
   CallDirectionSchema,
   CallNumberSeriesSchema,
+  CommissionAccrualStateSchema,
   CommissionBasisSchema,
+  CreditHoldReasonSchema,
   CommissionTriggerSchema,
   DispositionNextActionSchema,
   ScoreFactorSchema,
@@ -34,7 +36,9 @@ import {
   LeadChannelSchema,
   OpportunityStateSchema,
   PrincipalKindSchema,
+  QuoteAcceptedViaSchema,
   QuoteStateSchema,
+  SalesOrderStateSchema,
   ROLE_KEYS,
   SavedViewScreenSchema,
   SCOPES,
@@ -125,6 +129,20 @@ const PAIRS: Record<string, readonly string[]> = {
   // Only a withdrawn quote carries the reason it was withdrawn.
   quotes_withdrawn_reason_check: QuoteStateSchema.extract(['withdrawn']).options,
   quote_lines_unit_check: ItemUnitSchema.options,
+  quotes_accepted_via_check: QuoteAcceptedViaSchema.options,
+  // An accepted quote says how; the signed copy is named exactly for a signed upload.
+  quotes_acceptance_check: ['accepted', 'signed_upload'],
+  sales_orders_state_check: SalesOrderStateSchema.options,
+  sales_orders_supply_kind_check: SupplyKindSchema.options,
+  // A draft is not confirmed; every state past it but a cancel keeps when it was.
+  sales_orders_confirmed_check: SalesOrderStateSchema.exclude(['cancelled']).options,
+  sales_orders_credit_hold_check: CreditHoldReasonSchema.options,
+  // Only a cancelled order carries the reason it was cancelled.
+  sales_orders_cancel_reason_check: SalesOrderStateSchema.extract(['cancelled']).options,
+  sales_order_lines_unit_check: ItemUnitSchema.options,
+  commission_accruals_basis_check: CommissionBasisSchema.options,
+  commission_accruals_state_check: CommissionAccrualStateSchema.options,
+  commission_accruals_cancel_check: CommissionAccrualStateSchema.extract(['cancelled']).options,
   // Only a pump sizing names a catalogue pump.
   sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
   tasks_kind_check: TaskKindSchema.options,

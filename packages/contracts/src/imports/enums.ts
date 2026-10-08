@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Import framework enumerations (docs/design/backend-weeks-3-5.md §8, docs/DATABASE.md §6.10).
+ * Import framework enumerations (docs/03-roadmap-appendix/backend-weeks-3-5.md §8, docs/05-database.md §6.10).
  * Values are the database check lists.
  */
 
@@ -28,7 +28,7 @@ export type ImplementedImportKind = (typeof IMPLEMENTED_IMPORT_KINDS)[number];
 
 /**
  * The kinds whose rows are shared by every company (the PIN code master): only a request acting
- * for every active company imports them, as an Executive (docs/design/phase1.md §6.3).
+ * for every active company imports them, as an Executive (docs/03-roadmap-appendix/phase1.md §6.3).
  */
 export const GROUP_IMPORT_KINDS = ['pin_codes'] as const satisfies readonly ImportKind[];
 
@@ -81,7 +81,7 @@ export const ImportDedupeMatchSchema = z.enum(['phone', 'name_village']);
 export type ImportDedupeMatch = z.infer<typeof ImportDedupeMatchSchema>;
 
 /**
- * `files.status` (docs/DATABASE.md §6.10): `pending` until the bytes land, `scanning` while the
+ * `files.status` (docs/05-database.md §6.10): `pending` until the bytes land, `scanning` while the
  * malware scan runs, `scanned` (no threat found) or `not_scanned` (no scanner on a developer's
  * machine) while the file is re-encoded or checked, then `ready` or `rejected`. `masked` is the
  * WhatsApp filing step (the `document_filing` machine).

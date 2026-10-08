@@ -8,7 +8,7 @@ export interface InboxItemRecord {
 }
 
 /**
- * An item of a person's Agent Inbox (docs/design/phase1.md §7.1): open until someone it is for
+ * An item of a person's Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1): open until someone it is for
  * decides on it. An agent's suggestion is done when it is approved, edited, rejected or dismissed;
  * routed work (an enquiry passed to the colleague who looks after the customer, §8.1) when its
  * person marks it done.
@@ -24,8 +24,8 @@ export const inboxItemMachine = defineMachine<
   summary:
     '`inbox_items.state`. An agent’s suggestion, or work routed to someone, in the Agent Inbox of the person, team or company it is for; scope follows `agents.inbox.act` with the assignee as the owner.',
   sources: [
-    'docs/design/phase1.md §7.1',
-    'docs/design/phase1.md §8.1',
+    'docs/03-roadmap-appendix/phase1.md §7.1',
+    'docs/03-roadmap-appendix/phase1.md §8.1',
     'PRD AI-04',
     'PRD RPT-04',
     'DATABASE §6.9',

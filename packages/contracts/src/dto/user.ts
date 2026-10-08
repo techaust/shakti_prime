@@ -3,7 +3,7 @@ import { SessionRevokeReasonSchema, ThemeSchema, UserStatusSchema } from '../aut
 import { EntityIdSchema, IdSchema } from '../ids';
 import { StaffRoleKeySchema } from '../roles';
 
-/** One role per entity for a user (docs/DATABASE.md §6.1 `user_entity_roles`). */
+/** One role per entity for a user (docs/05-database.md §6.1 `user_entity_roles`). */
 export const EntityRoleDto = z
   .object({
     entityId: EntityIdSchema,

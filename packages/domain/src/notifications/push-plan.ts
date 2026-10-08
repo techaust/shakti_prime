@@ -1,7 +1,7 @@
 import type { NoticeType, PushPlan } from '@shakti/contracts';
 
 /*
- * Who sees a notice and whether it is pushed (docs/design/phase1.md §8.1): pure, so the notify
+ * Who sees a notice and whether it is pushed (docs/03-roadmap-appendix/phase1.md §8.1): pure, so the notify
  * worker and its tests agree. A person who has set nothing sees and receives every kind of notice
  * at any hour (the lead's default of 06-10-2026; nothing is assumed about the client's hours).
  */

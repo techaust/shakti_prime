@@ -6,7 +6,7 @@ import { issueGrantThroughCommand } from '../../../../../realtime/issue';
 export const dynamic = 'force-dynamic';
 
 /**
- * A short-lived token for Supabase Realtime, for the signed-in person (ADR 0003, docs/API.md
+ * A short-lived token for Supabase Realtime, for the signed-in person (ADR 0003, docs/06-api.md
  * §3.1). The claims come from `realtime.token.issue`, which audits each token, and each person's
  * tokens are capped in the shared store. Bearer tokens from the field app are accepted here once
  * the mobile tokens exist.

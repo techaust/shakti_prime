@@ -25,7 +25,7 @@ const SEGMENTS = sql.raw(
  * scope: the group (`entity_id` null) or one company, for every segment (`segment` null) or one.
  * `crm.disposition.set` replaces a scope's list as a set, archiving the rows it replaces, so the
  * calls that name a row keep its meaning. The group list is a workshop default the seed writes
- * once (docs/design/phase1.md §11).
+ * once (docs/03-roadmap-appendix/phase1.md §11).
  */
 export const callDispositions = pgTable(
   'call_dispositions',

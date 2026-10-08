@@ -1,4 +1,4 @@
-// The push service worker (docs/design/phase1.md §8.1). Registered only when a person turns
+// The push service worker (docs/03-roadmap-appendix/phase1.md §8.1). Registered only when a person turns
 // alerts on for this browser. It shows the alert the notify worker sent, whose words come from the
 // message catalogue on the server, and opens the alert's screen on this site when it is tapped.
 

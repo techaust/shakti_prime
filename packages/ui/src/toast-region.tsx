@@ -16,7 +16,7 @@ export interface ToasterProps {
 }
 
 /**
- * Where toasts appear (DESIGN.md §6): bottom-right on desktop, at the top on phones, where the
+ * Where toasts appear (docs/08-design-system.md §6): bottom-right on desktop, at the top on phones, where the
  * keyboard and the thumb do not cover them. Colours come from the tokens; the region is announced
  * politely by screen readers. `toast.tsx` loads this module after the page (Sonner is not part of
  * any screen's first load).

@@ -28,7 +28,7 @@ function columnsUnique(m: { columns: Partial<Record<string, string>> }): boolean
 }
 
 /**
- * How the columns of a leads file fill a lead (docs/design/backend-weeks-3-5.md §8). `columns`
+ * How the columns of a leads file fill a lead (docs/03-roadmap-appendix/backend-weeks-3-5.md §8). `columns`
  * names the file column for each field; `defaults` fill a field no column gives, or a blank cell.
  * The contact's name and phone must come from the file, and every row needs a pipeline.
  */
@@ -60,7 +60,7 @@ export type LeadImportMapping = z.infer<typeof LeadImportMappingSchema>;
 export type { LeadImportField };
 
 /**
- * How the columns of a customers file fill a customer (docs/design/phase1.md §6.3): the contact's
+ * How the columns of a customers file fill a customer (docs/03-roadmap-appendix/phase1.md §6.3): the contact's
  * name and phone come from the file; a `company` column names each row's company, else the job's.
  */
 export const AccountImportMappingSchema = z

@@ -21,7 +21,7 @@ const NOTICE_TYPES = sql.raw(
 );
 
 /**
- * A notice for one person about one record (PRD RPT-04, docs/design/phase1.md §8.1): written only
+ * A notice for one person about one record (PRD RPT-04, docs/03-roadmap-appendix/phase1.md §8.1): written only
  * by the notify worker and its scan through `app.write_notices()`, one per person and reason
  * (`dedupe_key`), so a repeated delivery or scan makes one notice. A person reads their own notices
  * in the request's companies and marks them read; nobody else reads them. `payload_json` holds the
@@ -70,7 +70,7 @@ export const notifications = pgTable(
 );
 
 /**
- * A person's notification settings (docs/design/phase1.md §8.1): one row per kind of notice they
+ * A person's notification settings (docs/03-roadmap-appendix/phase1.md §8.1): one row per kind of notice they
  * changed (`type`), with its in-app and push switches, and one row with no kind for their quiet
  * hours (IST, `quiet_from` up to `quiet_to`, across midnight when `quiet_to` is earlier). With no
  * row a kind is shown and pushed, and there are no quiet hours. Each person reads and writes only
@@ -107,7 +107,7 @@ export const notificationPreferences = pgTable(
 );
 
 /**
- * A browser a person receives pushes on (docs/design/phase1.md §8.1): its push service address
+ * A browser a person receives pushes on (docs/03-roadmap-appendix/phase1.md §8.1): its push service address
  * (one of the services `isPushServiceEndpoint()` names) and its two keys, as the browser's
  * subscription gives them. Added by the person's tap in the notification centre, removed by them
  * or by the worker when the push service answers that it is gone (404 or 410). `last_ok_at` is the

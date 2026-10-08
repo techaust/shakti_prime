@@ -251,7 +251,7 @@ describe('app.lead_search_ids(): served by the indexes', () => {
   async function scansDuring(lookup: Lookup) {
     return asPrincipal(fx.principals.gm, async ({ tx }) => {
       // The suite's tables are small, where a full read is cheapest; turned off only to show
-      // that the lookup can use the indexes. docs/spikes/lists.md measures it at 50,000 leads.
+      // that the lookup can use the indexes. docs/04-architecture-appendix/lists.md measures it at 50,000 leads.
       // Plain index scans go too: on a nearly empty table the planner would otherwise walk a
       // primary key end to end, a full read in another form. A bitmap scan needs a condition
       // its index can answer, so what remains is the trigram and reversed-phone indexes. Index-only

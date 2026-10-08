@@ -18,8 +18,10 @@ import {
   ScrollText,
   Store,
   ShieldCheck,
+  ShoppingCart,
   UserPlus,
   UsersRound,
+  Wallet,
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
@@ -41,13 +43,13 @@ export interface NavItem {
   group: NavGroup;
   /**
    * Every grant the screen needs, each at the narrowest scope that still lets its main query or
-   * command run (docs/SECURITY.md §3.2). Empty: everyone who is signed in.
+   * command run (docs/07-security.md §3.2). Empty: everyone who is signed in.
    */
   requires: readonly PermissionGrant[];
 }
 
 /**
- * The single list of BOS screens (DESIGN.md §5, BLUEPRINT §11.1): the sidebar, the phone menu,
+ * The single list of BOS screens (docs/08-design-system.md §5, BLUEPRINT §11.1): the sidebar, the phone menu,
  * the command palette's "Go to" group and the home shortcuts all read it. An item is shown when
  * the principal's own grants allow it, never by role name; the screen and the command behind it
  * check again, so hiding an item is a courtesy, not the guard.
@@ -109,6 +111,27 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Quotes are read with their leads (listQuotes), so whoever reads leads opens the list and the
     // quote page; sending, re-quoting and withdrawing follow their own permissions.
     requires: [{ key: 'crm.lead.read', scope: 'own' }],
+  },
+  {
+    id: 'orders',
+    href: '/orders',
+    label: 'orders',
+    icon: ShoppingCart,
+    group: 'work',
+    // An order of a quote is read with its lead, a dealer's own order with the dealer
+    // (listSalesOrders takes either read); confirming, releasing and cancelling follow their own
+    // permissions. Every role that reads leads also reads customers at own scope or wider.
+    requires: [{ key: 'crm.account.read', scope: 'own' }],
+  },
+  {
+    id: 'dealer-credit',
+    href: '/dealer-credit',
+    label: 'dealerCredit',
+    icon: Wallet,
+    group: 'work',
+    // Accounts enter dealer terms and outstanding (sales.dealer_terms.set,
+    // sales.dealer_outstanding.record) and read the exposure (app.dealer_credit_position()).
+    requires: [{ key: 'sales.credit.write', scope: 'entity' }],
   },
   {
     id: 'leads-new',

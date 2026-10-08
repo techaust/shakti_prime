@@ -72,9 +72,9 @@ export async function listPriceLists(
 
 /**
  * The active items with their price on one list, by name unless `sort` asks for another column,
- * a page at a time (keyset on the sort value and id, docs/API.md §1). Items not yet priced on the
+ * a page at a time (keyset on the sort value and id, docs/06-api.md §1). Items not yet priced on the
  * list come back with a null price, so Price Master can set their first price. Never joins
- * `item_costs`: selling prices only (docs/SECURITY.md §4). The list itself must be readable to
+ * `item_costs`: selling prices only (docs/07-security.md §4). The list itself must be readable to
  * the caller.
  */
 export async function listPrices(ctx: PricingContext, rawInput: unknown): Promise<PricePageDto> {

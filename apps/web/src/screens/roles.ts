@@ -1,4 +1,4 @@
-// Admin › Roles (docs/design/phase1.md §6.2): the words for a permission and a scope, and what a
+// Admin › Roles (docs/03-roadmap-appendix/phase1.md §6.2): the words for a permission and a scope, and what a
 // role editor's choices change. Pure functions, so the screen, the Activity log and their tests
 // share them. Browser code: types only from the contracts.
 

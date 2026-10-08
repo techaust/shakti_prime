@@ -1,7 +1,7 @@
 import { isPushServiceEndpoint, type PushTargetDto } from '@shakti/contracts';
 
 /*
- * Browser push (docs/design/phase1.md §8.1): the VAPID keys and the sender behind a small
+ * Browser push (docs/03-roadmap-appendix/phase1.md §8.1): the VAPID keys and the sender behind a small
  * interface, so the notify worker's tests use a stand-in and nothing leaves the machine. Without
  * the three VAPID variables push is off: notices still reach the centre, and nothing is sent.
  */

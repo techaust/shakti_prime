@@ -26,7 +26,7 @@ function encodeCursor(createdAt: string, id: string): string {
 }
 
 /**
- * `audit.query` (docs/design/backend-weeks-3-5.md §3.4): the audit trail newest first, keyset
+ * `audit.query` (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.4): the audit trail newest first, keyset
  * paginated by `(created_at, id)`. RLS decides the rows: `audit.read` at entity scope reads its
  * entities, rows of no entity need `audit.read:all`. The window is required, so the planner
  * touches only the partitions of those months. Reading is not itself audited in this slice.

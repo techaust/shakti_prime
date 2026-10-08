@@ -24,7 +24,7 @@ function failure(
 }
 
 /**
- * The `POST` handler of a nightly worker route (docs/API.md §3.6): the lead rescoring and the
+ * The `POST` handler of a nightly worker route (docs/06-api.md §3.6): the lead rescoring and the
  * duplicate search. Only QStash calls it: the schedule each night, and a run handing on the rest.
  * Every call must carry a valid signature for this route and body. A 500 makes QStash retry; a
  * body that does not parse answers 400 and QStash is told not to retry. A lock wait that ran out

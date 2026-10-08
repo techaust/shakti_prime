@@ -3,7 +3,7 @@ import { actors, archivable, timestamps } from './columns';
 import { entities } from './entities';
 import { principals } from './principals';
 
-/** Caller teams for the team scope (docs/DATABASE.md §6.1). `entity_id` null means shared. */
+/** Caller teams for the team scope (docs/05-database.md §6.1). `entity_id` null means shared. */
 export const teams = pgTable(
   'teams',
   {

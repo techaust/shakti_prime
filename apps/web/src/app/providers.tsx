@@ -8,7 +8,7 @@ import type { SentrySettings } from '../observability/sentry-options';
 import { THEME_STORAGE_KEY } from '../theme';
 
 /**
- * Theme behaviour from DESIGN.md §7: System by default, Light/Dark override, no flash; and browser
+ * Theme behaviour from docs/08-design-system.md §7: System by default, Light/Dark override, no flash; and browser
  * error reporting, started after the page is idle when a DSN is set.
  */
 export function Providers({

@@ -6,7 +6,7 @@ import { API_CONTENT_SECURITY_POLICY } from './src/csp';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /**
- * Response headers for every route (docs/SECURITY.md §2). A page's Content-Security-Policy carries
+ * Response headers for every route (docs/07-security.md §2). A page's Content-Security-Policy carries
  * a per-request nonce and is set by `src/proxy.ts`; the JSON routes, which load nothing, get a
  * fixed one here.
  */
@@ -31,7 +31,7 @@ const config: NextConfig = {
   // time, so they stay plain packages rather than bundled (ADR 0009).
   serverExternalPackages: ['postgres', '@node-rs/argon2', 'playwright-core', '@sparticuz/chromium'],
   // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
-  // the render route, the one function that prints on a hosted runtime (docs/runbooks/DEPLOY.md).
+  // the render route, the one function that prints on a hosted runtime (docs/runbooks/deploy.md).
   // The package finds `bin` beside its own real path in pnpm's store, so that path is the one
   // traced: the link under the app's node_modules would not be followed if the function's files
   // were copied as plain files.
@@ -42,7 +42,7 @@ const config: NextConfig = {
     ],
   },
   // No body limit is raised: every file, an import file included, goes straight to the file store
-  // on a pre-signed address (docs/API.md §3.2), so server actions keep Next.js's default.
+  // on a pre-signed address (docs/06-api.md §3.2), so server actions keep Next.js's default.
   poweredByHeader: false,
   headers() {
     return Promise.resolve([

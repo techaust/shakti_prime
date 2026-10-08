@@ -24,7 +24,7 @@ const message = {
   tag: 't',
 };
 
-describe('browser push (docs/design/phase1.md §8.1)', () => {
+describe('browser push (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   it('is off unless all three VAPID values are set, with a mailto or https subject', () => {
     expect(vapidConfig({})).toBeUndefined();
     expect(

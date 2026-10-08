@@ -19,7 +19,7 @@ import {
 } from '../../state-machines/machines/opportunity';
 
 /**
- * What the six opportunity commands share (docs/design/backend-weeks-3-5.md §7.2): the locked
+ * What the six opportunity commands share (docs/03-roadmap-appendix/backend-weeks-3-5.md §7.2): the locked
  * row, the facts the machine's guards read, the one write and the DTO. Every state change goes
  * through `transition()`; a command never sets `state` without it.
  */
@@ -82,6 +82,16 @@ export async function opportunityRecord(
           .from(cs)
           .where(eq(cs.id, row.siteId))
           .limit(1);
+  // Read with the lead, as the caller reads it: an accepted quote, or an order confirmed and not
+  // cancelled (the states past confirmed come with dispatch and the Tally link).
+  const [sale] = (await ctx.tx.execute(
+    sql`select exists (select 1 from quotes q
+                        where q.opportunity_id = ${row.id} and q.state = 'accepted')
+            or exists (select 1 from sales_orders so
+                        where so.opportunity_id = ${row.id}
+                          and so.state in ('confirmed', 'partially_dispatched', 'dispatched',
+                                           'invoiced', 'closed')) as sold`,
+  )) as unknown as { sold: boolean }[];
   return {
     state: OpportunityStateSchema.parse(row.state),
     pipelineId: row.pipelineId,
@@ -95,8 +105,7 @@ export async function opportunityRecord(
     },
     lockedUntil: row.lockedUntil,
     stateChangedAt: row.stateChangedAt,
-    // Quotes and sales orders arrive in Phase 1; until then no lead can be won.
-    hasAcceptedQuoteOrConfirmedOrder: false,
+    hasAcceptedQuoteOrConfirmedOrder: sale?.sold === true,
   };
 }
 

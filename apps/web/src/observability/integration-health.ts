@@ -21,7 +21,7 @@ import { lastPublisherRun } from '../workers/outbox';
 const NO_SPEND = '0.00';
 
 /**
- * The page's own permission (docs/API.md §3.7). The outbox part is checked again in the database
+ * The page's own permission (docs/06-api.md §3.7). The outbox part is checked again in the database
  * by `app.outbox_health()`; the store's parts (the last run, the delivery check) have no database
  * guard, so they are refused here to anyone else.
  */

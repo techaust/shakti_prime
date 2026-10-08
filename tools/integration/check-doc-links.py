@@ -2,11 +2,11 @@
 # `python`; sourcing tools/integration/lib.sh maps `python3` to it). Checks the Markdown files of the
 # repository (tracked, and new ones not yet committed) outside the vendored skills, the project's
 # skills (.claude/skills/<name>/SKILL.md) and agents (.claude/agents/*.md) included:
-#   MISSING  a relative link whose file does not exist
+#   MISSING  a relative link whose file does not exist, letter case included (Linux CI is exact)
 #   ANCHOR   a link to a #heading the target does not have
 #   PATH     a backtick-quoted repository path (`docs/...`, `tools/...`, `.claude/...`) that does
 #            not exist; placeholders (<slug>, *, {a,b}, ...) are skipped, and so are the records
-#            (CHANGELOG.md, docs/reviews/), which name files as they were; a folder path ending in
+#            (CHANGELOG.md, docs/14-reviews/), which name files as they were; a folder path ending in
 #            `/` needs only its parent (a folder a step creates)
 #   ORPHAN   a Markdown file under docs/ that no checked file links to or names, by its own path
 #            or by a folder that holds it (docs/adr/ names every ADR)
@@ -23,6 +23,24 @@ def ours(f):
     if VENDORED.match(f):
         return False
     return not f.startswith('.claude/skills/') or f.endswith('/SKILL.md')
+
+def exists_exact(path):
+    """os.path.exists with the exact letter case, so a link that works only on Windows fails here too."""
+    path = os.path.normpath(path)
+    if not os.path.exists(path):
+        return False
+    parts = path.split(os.sep)
+    here = '.' if not os.path.isabs(path) else parts.pop(0) + os.sep
+    for part in parts:
+        if part in ('', '.'):
+            continue
+        if part == '..':
+            here = os.path.join(here, part)
+            continue
+        if part not in os.listdir(here):
+            return False
+        here = os.path.join(here, part)
+    return True
 
 files = sorted({f for f in git_md() + git_md('--others', '--exclude-standard') if ours(f)})
 
@@ -54,7 +72,7 @@ def get_anchors(f):
 
 PATH_RE = re.compile(r'`((?:docs|tools|\.claude)/[^`\s]+)`')
 PLACEHOLDER = re.compile(r'[<>*{}…]|\.\.\.')
-RECORDS = re.compile(r'^(CHANGELOG\.md|docs/reviews/)')
+RECORDS = re.compile(r'^(CHANGELOG\.md|docs/14-reviews/)')
 
 bad = 0
 named = {}  # repository path -> the checked files that link to it or name it
@@ -69,7 +87,7 @@ for f in files:
         tgt = os.path.normpath(os.path.join(os.path.dirname(f), path)) if path else f
         if path:
             named.setdefault(tgt.replace(os.sep, '/').rstrip('/'), set()).add(f)
-        if path and not os.path.exists(tgt):
+        if path and not exists_exact(tgt):
             print(f'MISSING {f} -> {t}')
             bad += 1
             continue
@@ -84,9 +102,9 @@ for f in files:
         named.setdefault(p.rstrip('/'), set()).add(f)
         if PLACEHOLDER.search(p) or RECORDS.match(f):
             continue
-        # A folder a step creates (`docs/spikes/exotel/` for a spike's reports) needs only its parent.
+        # A folder a step creates (`docs/04-architecture-appendix/exotel/` for a spike's reports) needs only its parent.
         made = p.endswith('/') and os.path.isdir(os.path.dirname(p.rstrip('/')))
-        if not os.path.exists(p) and not made:
+        if not exists_exact(p) and not made:
             print(f'PATH {f} -> {p}')
             bad += 1
 

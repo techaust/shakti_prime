@@ -1,6 +1,6 @@
 # ADR 0005 — Transactional outbox with Upstash QStash and Workflow
 
-**Status:** Accepted (owner, 26-09-2026, with the blueprint); the Upstash Workflow part waits, since Phase 1 runs no workflow engine (owner, 29-09-2026, [DECISIONS](../DECISIONS.md)) · **Date:** 26-09-2026 · **Deciders:** Owner · **Blueprint:** §3, §5, §9.3, §10 · **Architecture:** §6, §7, §11
+**Status:** Accepted (owner, 26-09-2026, with the blueprint); the Upstash Workflow part waits, since Phase 1 runs no workflow engine (owner, 29-09-2026, [DECISIONS](../11-decisions.md)) · **Date:** 26-09-2026 · **Deciders:** Owner · **Blueprint:** §3, §5, §9.3, §10 · **Architecture:** §6, §7, §11
 
 ## Context
 State changes trigger work that must not run inside the request: WhatsApp messages, PDFs, notifications, embeddings, agent runs, reminders and multi-day cadences. Vercel functions are short-lived and have no resident worker process. Delivering an event before its transaction commits, or losing it after commit, would leave customers unmessaged or messaged about records that do not exist.

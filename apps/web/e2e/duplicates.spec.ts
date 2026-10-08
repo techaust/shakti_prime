@@ -9,7 +9,7 @@ import {
 } from './support/fixtures';
 import { SNAPSHOT_COMPANY } from './support/users';
 
-// Duplicates (CRM-03, docs/design/phase1.md §7.4): a customer typed in twice is found by the lead
+// Duplicates (CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): a customer typed in twice is found by the lead
 // form and shown on /duplicates, merged and the merge undone from the kept customer's page; a
 // repeat enquiry for the same line of business within 30 days goes to the open lead.
 

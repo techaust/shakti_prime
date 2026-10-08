@@ -17,13 +17,13 @@ export interface ContrastPair {
   bg: Token;
   /**
    * Body text, or a UI colour (large text, lines, icons). Standard themes ask 4.5:1 and 3:1
-   * (DESIGN.md §2.5); the high-contrast variant 7:1 and 4.5:1 (`contrastMinimums`).
+   * (docs/08-design-system.md §2.5); the high-contrast variant 7:1 and 4.5:1 (`contrastMinimums`).
    */
   kind: 'text' | 'ui';
 }
 
 /**
- * The pairs DESIGN.md §2.5 relies on, the same ones the token package's contrast test checks:
+ * The pairs docs/08-design-system.md §2.5 relies on, the same ones the token package's contrast test checks:
  * text on every surface, accent text, labels on accent fills, status text on its soft tint, and
  * the colours that carry meaning on their own (outlines, focus, status dots).
  */

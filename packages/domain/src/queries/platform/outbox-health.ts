@@ -11,7 +11,7 @@ import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { decodeCursor, encodeCursor, parseQueryInput } from '../parse-input';
 
-/** The outbox part of Integration Health (docs/API.md §3.7, docs/design/phase1.md §5.2). */
+/** The outbox part of Integration Health (docs/06-api.md §3.7, docs/03-roadmap-appendix/phase1.md §5.2). */
 export interface OutboxHealth {
   byType: TypeHealth[];
   deadLetters: { total: number; items: DeadLetter[]; nextCursor: string | null };

@@ -1,7 +1,7 @@
 import type { ApiEndpointId } from './endpoints';
 
 /**
- * Recorded examples for every `/api/v1` route (docs/API.md §7, AGENTS.md §7), read by the contract
+ * Recorded examples for every `/api/v1` route (docs/06-api.md §7, AGENTS.md §7), read by the contract
  * tests only. People, numbers and ids are made up; tokens and signatures are built from repeated
  * bytes at load time, so no key-like literal sits in the source (the secret scan reads history).
  */

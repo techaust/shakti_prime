@@ -9,7 +9,7 @@ import { QUOTE_AUDIT_FIELDS } from '../../sales/save-quote';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
- * `sales.quote.withdraw` (docs/design/phase1.md §7.3): a draft or sent quote no longer stands, for
+ * `sales.quote.withdraw` (docs/03-roadmap-appendix/phase1.md §7.3): a draft or sent quote no longer stands, for
  * the reason the person gives, which the quote keeps. A withdrawn quote is never sent, accepted or
  * re-quoted; a new quote is made instead.
  */

@@ -8,7 +8,7 @@ import {
 } from '../ports/logger';
 
 /**
- * Redaction for the audit trail (docs/design/backend-weeks-3-5.md §3.3, AUDIT M16). The audit
+ * Redaction for the audit trail (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.3, AUDIT M16). The audit
  * keeps what changed, never a credential or an identity number: secret-named fields and the
  * Aadhaar, PAN, bank account and IFSC fields are removed at any depth, and phone numbers and
  * email addresses keep only their last four characters. The one-time codes of sign-in never
@@ -35,7 +35,7 @@ const DENIED_KEYS = new Set([
   'identifier',
   'bankjson',
   'apikey',
-  // Identity numbers never reach the audit trail (CLAUDE.md, docs/SECURITY.md §5).
+  // Identity numbers never reach the audit trail (CLAUDE.md, docs/07-security.md §5).
   ...IDENTITY_KEYS,
 ]);
 

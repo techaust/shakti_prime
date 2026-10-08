@@ -96,7 +96,7 @@ describe('generated CSS', () => {
     expect(css).not.toMatch(/^\s*--accent:/m);
   });
 
-  it('offers the three weights of DESIGN.md §3 as the only weight utilities', () => {
+  it('offers the three weights of docs/08-design-system.md §3 as the only weight utilities', () => {
     const tokens = renderTokensCss();
     expect(tokens).toContain('--weight-normal: 400;');
     expect(tokens).toContain('--weight-medium: 510;');
@@ -114,7 +114,7 @@ describe('generated CSS', () => {
     expect(tokens).toContain('--font-numeric-weight: 510;');
   });
 
-  it('sizes the app shell and content widths from DESIGN.md §5', () => {
+  it('sizes the app shell and content widths from docs/08-design-system.md §5', () => {
     const tokens = renderTokensCss();
     expect(tokens).toContain('--sidebar-width: 15rem;');
     expect(tokens).toContain('--sidebar-collapsed: 3.5rem;');

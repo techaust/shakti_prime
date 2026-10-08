@@ -60,7 +60,7 @@ function linesOf(draft: readonly DraftLine[]): QuoteLineInput[] | undefined {
 }
 
 /**
- * The quote builder (docs/design/phase1.md §7.3): the person picks items or kits from the
+ * The quote builder (docs/03-roadmap-appendix/phase1.md §7.3): the person picks items or kits from the
  * customer's price list and the quantities; the server works out the quote (`previewQuote`) and
  * makes it (`createQuote`) with the prices of the list and the tax of the engine. No amount is
  * typed or worked out here.

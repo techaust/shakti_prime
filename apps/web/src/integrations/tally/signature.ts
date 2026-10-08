@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { hmacSha256Hex, safeEqual } from '../http';
 
 /**
- * Request signing between the Tally connector and the BOS (docs/API.md §2 and §3.5, SECURITY §2).
+ * Request signing between the Tally connector and the BOS (docs/06-api.md §2 and §3.5, SECURITY §2).
  * Every call carries `X-Connector-Id` (a UUID), `X-Timestamp` (Unix seconds, ten digits) and
  * `X-Signature` (the lowercase hex HMAC-SHA256 under the connector's key) over the string the
  * published connector contract builds with `connectorSigningString()`:

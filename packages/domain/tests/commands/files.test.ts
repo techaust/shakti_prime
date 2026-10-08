@@ -110,7 +110,7 @@ describe('files.upload.begin', () => {
   });
 
   it('takes an import file only as a spreadsheet, and a spreadsheet only as an import file', async () => {
-    // Import files come by this upload too (docs/design/phase1.md §6.3), as a CSV or a workbook.
+    // Import files come by this upload too (docs/03-roadmap-appendix/phase1.md §6.3), as a CSV or a workbook.
     const imported = await begin(executive, {
       purpose: 'import',
       name: 'leads.csv',

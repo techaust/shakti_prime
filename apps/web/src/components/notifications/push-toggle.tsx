@@ -32,7 +32,7 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 }
 
 /**
- * Alerts on this browser (docs/design/phase1.md §8.1): whether this browser receives the person's
+ * Alerts on this browser (docs/03-roadmap-appendix/phase1.md §8.1): whether this browser receives the person's
  * pushes, and the button that turns them on or off. Nothing is asked of the browser until the
  * person taps: the service worker is registered and permission requested only then, never when a
  * page loads. Without the app's VAPID key, alerts are not set up and the section says so.

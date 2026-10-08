@@ -3,7 +3,7 @@ import { check, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle
 
 /**
  * Anyone who can act: a user, an agent service principal, a voice session or the system principal
- * the event workers act as (docs/DATABASE.md §6.1).
+ * the event workers act as (docs/05-database.md §6.1).
  */
 export const principals = pgTable(
   'principals',

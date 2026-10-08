@@ -12,7 +12,7 @@ import { storageStatePath, type ProjectName } from './support/users';
 /** The one project that marks all of the shared tele-caller's notices read. */
 const MARK_ALL_PROJECT: ProjectName = 'desktop-light';
 
-// Notifications (PRD RPT-04, docs/design/phase1.md §8.1): a lead a team lead gives a tele-caller
+// Notifications (PRD RPT-04, docs/03-roadmap-appendix/phase1.md §8.1): a lead a team lead gives a tele-caller
 // reaches her bell and opens from the notification centre; a possible duplicate of her own
 // customer does the same; and she sets her notifications. Without a queue the app delivers each
 // update to the notify worker in its own process right after the change is saved.

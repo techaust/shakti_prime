@@ -24,7 +24,7 @@ export interface EventHandlerContext {
 export type EventHandler = (event: DeliveredEvent, ctx: EventHandlerContext) => Promise<void>;
 
 /**
- * How a worker treats the order of its events (docs/design/phase1.md §5.2). QStash keeps no order
+ * How a worker treats the order of its events (docs/03-roadmap-appendix/phase1.md §5.2). QStash keeps no order
  * between messages:
  * - `every` (the default) handles every event exactly once by its id, whatever arrives first, so
  *   a failed older event's retry still runs after a newer one succeeded;
@@ -47,7 +47,7 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'platform.probe.requested': {
     handle: (event, ctx) => recordProbeArrival(event, ctx.keyValue, ctx.now),
   },
-  // The checks of an upload (docs/ARCHITECTURE.md §9). Every event is handled: a re-drive from
+  // The checks of an upload (docs/04-architecture.md §9). Every event is handled: a re-drive from
   // Integration health is a new event for the same file, and the checks start from its status.
   'files.file.uploaded': {
     ordering: 'every',
@@ -73,7 +73,7 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       await renderPdfJob(renderJobOf(event), renderDeps(ctx.principal, ctx.requestId));
     },
   },
-  // The notices people act on (docs/design/phase1.md §8.1). Hosted, the publisher sends these
+  // The notices people act on (docs/03-roadmap-appendix/phase1.md §8.1). Hosted, the publisher sends these
   // types to the notify route as a `NotifyJob` (`EVENT_JOB_ROUTES`); without a queue they are
   // handled here. Each notice is one per person and reason, so a repeat writes nothing new.
   'crm.opportunity.assigned': { ordering: 'every', handle: notify },

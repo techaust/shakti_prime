@@ -4,7 +4,7 @@ import { SegmentSchema } from './crm/enums';
 import { EntityIdSchema, IdSchema } from './ids';
 
 /*
- * Notifications (PRD RPT-04, BLUEPRINT §8.11, docs/design/phase1.md §8.1): the notices a person
+ * Notifications (PRD RPT-04, BLUEPRINT §8.11, docs/03-roadmap-appendix/phase1.md §8.1): the notices a person
  * reads in the notification centre, their choices per kind of notice and quiet hours, and the
  * browsers they receive pushes on. A notice names its record by ids; its words come from the
  * message catalogue by `type`, never from the database.

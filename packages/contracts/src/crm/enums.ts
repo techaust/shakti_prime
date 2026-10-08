@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** CRM enumerations (docs/DATABASE.md §6.2, docs/BLUEPRINT.md §6.2, §8.1). Values are the DB check lists. */
+/** CRM enumerations (docs/05-database.md §6.2, docs/01-blueprint.md §6.2, §8.1). Values are the DB check lists. */
 export const AccountTypeSchema = z.enum([
   'household',
   'farm',
@@ -55,7 +55,7 @@ export type OpportunityNurtureReason = z.infer<typeof OpportunityNurtureReasonSc
  * The lead details a stage's exit rules may require (`stage_exit_rules_json`:
  * `{ "requiredFields": [...] }`, CRM-05, workshop CRM-2): a site, its village, PIN and GST state
  * code, and the lead's source; and the sizing details, named with their units, that the sizing
- * panel records (docs/design/phase1.md §6.7).
+ * panel records (docs/03-roadmap-appendix/phase1.md §6.7).
  */
 export const StageExitFieldSchema = z.enum([
   'site',

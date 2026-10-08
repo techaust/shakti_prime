@@ -226,7 +226,7 @@ export const dismissInboxItem = defineCommand({
 
 /**
  * `agents.inbox.complete`: routed work (an enquiry passed on because the person looks after the
- * customer, docs/design/phase1.md §8.1) leaves the inbox once its person, or whoever acts on their
+ * customer, docs/03-roadmap-appendix/phase1.md §8.1) leaves the inbox once its person, or whoever acts on their
  * inbox, has dealt with it. A suggestion is decided with the commands above instead.
  */
 export const completeInboxItem = defineCommand({

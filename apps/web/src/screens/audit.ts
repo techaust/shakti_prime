@@ -1,4 +1,4 @@
-// The Activity log's date window and its reading of a change (docs/design/backend-weeks-3-5.md
+// The Activity log's date window and its reading of a change (docs/03-roadmap-appendix/backend-weeks-3-5.md
 // §3.4). Pure functions, so the screen and its tests share them.
 
 import type { EventType } from '@shakti/contracts';
@@ -68,6 +68,13 @@ const ACTIONS = {
   'sales.quote.withdraw': 'quoteWithdraw',
   'sales.quote.expire': 'quoteExpire',
   'sales.quote.pdf.attach': 'quotePdfAttach',
+  'sales.quote.accept': 'quoteAccept',
+  'sales.order.create': 'orderCreate',
+  'sales.order.confirm': 'orderConfirm',
+  'sales.credit.release': 'creditRelease',
+  'sales.order.cancel': 'orderCancel',
+  'sales.dealer_terms.set': 'dealerTermsSet',
+  'sales.dealer_outstanding.record': 'dealerOutstandingRecord',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -228,6 +235,13 @@ const EVENT_NAMES = {
   'sales.quote.superseded': 'quoteSuperseded',
   'sales.quote.withdrawn': 'quoteWithdrawn',
   'sales.quote.expired': 'quoteExpired',
+  'sales.quote.accepted': 'quoteAccepted',
+  'sales.order.created': 'orderCreated',
+  'sales.order.confirmed': 'orderConfirmed',
+  'sales.order.credit_held': 'orderCreditHeld',
+  'sales.order.credit_released': 'orderCreditReleased',
+  'sales.order.cancelled': 'orderCancelled',
+  'sales.commission.accrued': 'commissionAccrued',
 } as const satisfies Record<EventType, string>;
 
 export type EventNameKey = (typeof EVENT_NAMES)[EventType];
@@ -328,6 +342,9 @@ const CODE_GROUPS = [
   'scanStatus',
   'documentType',
   'duplicateReason',
+  'orderState',
+  'acceptedVia',
+  'commissionState',
   'agent',
   'agentAction',
   'autonomy',
@@ -537,6 +554,23 @@ const FIELD_KINDS = [
   ['grandTotal', 'money'],
   ['validUntil', 'time'],
   ['withdrawnReason', 'text'],
+  // Orders, acceptance, dealer credit and commission
+  ['acceptedVia', 'acceptedVia'],
+  ['soNo', 'text'],
+  ['orderState', 'orderState'],
+  ['creditHoldReason', 'errorCode'],
+  ['creditReleaseReason', 'text'],
+  ['cancelReason', 'text'],
+  ['released', 'yesNo'],
+  ['commissionState', 'commissionState'],
+  ['commissionBasis', 'commissionBasis'],
+  ['commissionAmount', 'money'],
+  ['creditLimit', 'money'],
+  ['creditDays', 'number'],
+  ['outstanding', 'money'],
+  ['oldestUnpaidInvoiceDate', 'date'],
+  ['oldestUnpaidInvoiceNo', 'text'],
+  ['asOf', 'date'],
   // Agents and the Agent Inbox
   ['agent', 'agent'],
   ['actionType', 'agentAction'],

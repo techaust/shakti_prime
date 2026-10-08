@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Imports (IMP-01, docs/design/backend-weeks-3-5.md §8): the files added to the companies being
+ * Imports (IMP-01, docs/03-roadmap-appendix/backend-weeks-3-5.md §8): the files added to the companies being
  * viewed, newest first, and the way to add another.
  */
 export default async function ImportsPage() {

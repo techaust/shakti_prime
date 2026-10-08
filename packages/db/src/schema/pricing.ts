@@ -19,7 +19,7 @@ import { items } from './items';
 import { kits } from './kits';
 import { principals } from './principals';
 
-/** Price tiers (docs/BLUEPRINT.md §8.3): retail, dealer, commercial, extensible from Admin. */
+/** Price tiers (docs/01-blueprint.md §8.3): retail, dealer, commercial, extensible from Admin. */
 export const priceTiers = pgTable('price_tiers', {
   id: uuid('id').primaryKey(),
   code: text('code').notNull().unique(),
@@ -85,7 +85,7 @@ export const priceListItems = pgTable(
   ],
 );
 
-/** Append-only price history (docs/DATABASE.md §5). No update columns by design. */
+/** Append-only price history (docs/05-database.md §5). No update columns by design. */
 export const priceChangeLog = pgTable(
   'price_change_log',
   {

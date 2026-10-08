@@ -8,7 +8,7 @@ import { TOAST_DURATION_MS } from './toast';
 import { ToastRegion } from './toast-region';
 
 describe('Input, Select and Textarea', () => {
-  it('share the control look: 36 px, the strong border, 44 px on phones (DESIGN.md §6)', () => {
+  it('share the control look: 36 px, the strong border, 44 px on phones (docs/08-design-system.md §6)', () => {
     for (const html of [
       renderToStaticMarkup(<Input name="village" />),
       renderToStaticMarkup(
@@ -63,7 +63,7 @@ describe('Toaster', () => {
     expect(html).toContain('aria-relevant="additions text"');
   });
 
-  it('keeps a toast four seconds (DESIGN.md §6)', () => {
+  it('keeps a toast four seconds (docs/08-design-system.md §6)', () => {
     expect(TOAST_DURATION_MS).toBe(4000);
   });
 });

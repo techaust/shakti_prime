@@ -11,7 +11,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// Notifications (docs/design/phase1.md §8.1, DATABASE §6.9): a person's own notices, settings and
+// Notifications (docs/03-roadmap-appendix/phase1.md §8.1, DATABASE §6.9): a person's own notices, settings and
 // browsers, the notify worker's definers, and routed work in the Agent Inbox. The suites never
 // clean these tables, so every row here is found by this run's own ids.
 
@@ -89,7 +89,7 @@ const visible = (principal: Principal, ids: string[]) =>
     sql`select id from notifications where id = any(${`{${ids.join(',')}}`}::uuid[]) order by id`,
   ).then((r) => r.map((x) => x.id).sort());
 
-describe('a person’s notices are their own (docs/design/phase1.md §8.1)', () => {
+describe('a person’s notices are their own (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   it('shows nothing without a request context', async () => {
     const [row] = await withoutContext<{ n: number }>(
       sql`select count(*)::int as n from notifications`,

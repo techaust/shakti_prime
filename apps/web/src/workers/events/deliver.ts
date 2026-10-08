@@ -3,7 +3,7 @@ import { greaterNumber, type KeyValue } from '@shakti/domain';
 import { workerFor, type EventWorker } from './registry';
 import { systemWorkersPrincipal } from './system-principal';
 
-/** How long a handled event's id is remembered (docs/design/backend-weeks-3-5.md §4.1). */
+/** How long a handled event's id is remembered (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.1). */
 export const EVENT_ID_TTL_SECONDS = 7 * 24 * 60 * 60;
 /**
  * How long one delivery holds an event's id while its worker runs. Longer than any worker may run
@@ -43,7 +43,7 @@ async function store<T>(message: string, call: () => Promise<T>): Promise<T> {
 
 /**
  * Delivers one outbox event to its worker, the same way whether QStash called the route or the
- * local publisher called it in process (docs/design/phase1.md §5.2):
+ * local publisher called it in process (docs/03-roadmap-appendix/phase1.md §5.2):
  *
  * 1. the delivery claims the event's id (`evt:{id}`, `SET NX`, five minutes) before its worker
  *    runs. An id already handled answers `duplicate`; an id another delivery holds answers

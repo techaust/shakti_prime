@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Walk-in customer (docs/design/phase1.md §6.6, CRM-01): the Store Manager's quick form at the
+ * Walk-in customer (docs/03-roadmap-appendix/phase1.md §6.6, CRM-01): the Store Manager's quick form at the
  * counter. It saves through `crm.lead.create` like New lead, with the walk-in source, and stays
  * open for the next customer.
  */

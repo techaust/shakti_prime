@@ -19,7 +19,7 @@ import { decideCandidate, lockCandidate } from './duplicates';
 import { requireEntity } from './opportunity-shared';
 
 /**
- * Customer and lead merges (PRD CRM-03, docs/design/phase1.md §7.4). Every merge is for people:
+ * Customer and lead merges (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4). Every merge is for people:
  * an agent only suggests a candidate (SECURITY §3.3). A merge runs in a definer that checks the
  * caller may change both customers in every company each is related to, and every lead it moves,
  * before it moves anything (`app.merge_customers()`, `app.unmerge_customers()`,

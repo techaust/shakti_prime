@@ -63,7 +63,7 @@ const fits = (item: InboxItemDto, decision: Decision): boolean =>
   actYourself(item) === (decision === 'dismiss');
 
 /**
- * The Agent Inbox (docs/design/phase1.md §7.1): the caller's open suggestions, newest first.
+ * The Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1): the caller's open suggestions, newest first.
  * Keyboard first: J and K (or the arrow keys) move between suggestions; on one that needs approval
  * A approves, E opens Edit and R rejects; on one for the person to act on themselves (Suggest) O
  * opens the customer and D dismisses it. A decision runs as the caller, then the suggestion leaves
@@ -418,7 +418,7 @@ function InboxCard({
 }
 
 /**
- * Routed work (docs/design/phase1.md §8.1): an enquiry a colleague took for a customer the person
+ * Routed work (docs/03-roadmap-appendix/phase1.md §8.1): an enquiry a colleague took for a customer the person
  * looks after, with its interest and note, to act on from the customer's page; Done (D) takes it
  * out of the inbox.
  */

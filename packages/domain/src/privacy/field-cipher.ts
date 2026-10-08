@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 /**
- * Field encryption (docs/SECURITY.md §5, bank details): each value is sealed with AES-256-GCM
+ * Field encryption (docs/07-security.md §5, bank details): each value is sealed with AES-256-GCM
  * under its own data key, and the data key is kept only wrapped by a master key (KMS in a hosted
  * environment, `FIELD_ENCRYPTION_KEY` on a developer's machine and in CI). The context names the
  * table, column, company and row the value belongs to; it is bound into both seals, so a value

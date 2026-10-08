@@ -61,7 +61,7 @@ type Prepared =
   | { ok: false; response: Response };
 
 /**
- * What both routes check before any work (docs/API.md §3.2): the BOS's own origin (the session
+ * What both routes check before any work (docs/06-api.md §3.2): the BOS's own origin (the session
  * cookie is the credential until the field app's bearer tokens exist), a small body, a signed-in
  * person, the per-person cap, a well-formed `Idempotency-Key` when one is sent, and JSON.
  */

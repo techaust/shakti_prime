@@ -4,7 +4,7 @@ import { timestamps } from './columns';
 import { principals } from './principals';
 
 /**
- * A person's saved views of a grid (DESIGN.md §6): the hidden columns, sort, filters and row
+ * A person's saved views of a grid (docs/08-design-system.md §6): the hidden columns, sort, filters and row
  * height under a name of their own. Each person reads and writes only their own views, whatever
  * company they work in (migration 0045); nobody else, the reporting role included, sees them.
  */

@@ -44,7 +44,7 @@ function spec(sender: PushSender | undefined): CompanyBatchSpec {
 }
 
 /**
- * The notification scan (docs/design/phase1.md §8.1), every five minutes: every company in turn,
+ * The notification scan (docs/03-roadmap-appendix/phase1.md §8.1), every five minutes: every company in turn,
  * each batch one `notifications.due.scan` as `system:workers` scoped to that company, whose notices
  * are then pushed (`runCompanyBatches`). It finds what no event announces: calls falling due,
  * quotes about to lapse and first calls running late.

@@ -1,6 +1,6 @@
 'use server';
 
-// The notification centre, the bell and Settings › Notifications (docs/design/phase1.md §8.1).
+// The notification centre, the bell and Settings › Notifications (docs/03-roadmap-appendix/phase1.md §8.1).
 
 import {
   ListNoticesInput,

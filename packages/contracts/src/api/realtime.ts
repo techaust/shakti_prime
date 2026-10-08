@@ -10,7 +10,7 @@ import {
 } from './common';
 
 /**
- * `POST /realtime/token` (docs/API.md §3.1, ADR 0003, docs/ARCHITECTURE.md §8): an ES256 JWT for
+ * `POST /realtime/token` (docs/06-api.md §3.1, ADR 0003, docs/04-architecture.md §8): an ES256 JWT for
  * Supabase Realtime private channels, signed with the BOS key pair and verified by Supabase
  * through the BOS's OIDC discovery document and JWKS. It grants Realtime only.
  */

@@ -4,13 +4,13 @@
 |---|---|
 | Branch | `feat/c4-sizing-r2` on GitHub (c670631, from `main` at #82) |
 | PC worktree | `c4-sizing`, slot 8: Postgres 54338, app 3038; its local branch `feat/c4-sizing` is at the same commit and pushes to `feat/c4-sizing-r2` (`git push origin HEAD:feat/c4-sizing-r2`) |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); later the integration list may run in the cloud |
+| Runs on | PC (built, reviewed, integrated and merged there) |
 | State | merged (#100, 05-10-2026) |
 | Next step | none |
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §6.7](../../design/phase1.md#67-c4-sizing) and §11 (workshop defaults)
+- Design: [`docs/03-roadmap-appendix/phase1.md` §6.7](../../03-roadmap-appendix/phase1.md#67-c4-sizing) and §11 (workshop defaults)
 - BLUEPRINT §8.3 (quote validations) and §3 ("LLMs never do this math")
 - PRD SAL-04
 - the quote machine's guards `sizingComplete`, `pumpCurveInBounds`, `dcrRuleMet` (`packages/domain/src/state-machines/machines/quote.ts`)

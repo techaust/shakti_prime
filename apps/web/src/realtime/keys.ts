@@ -5,7 +5,7 @@ import { BOS_JWT_ALGORITHM, type PublicSigningJwk } from './claims';
  * Where the BOS signing keys come from: private P-256 keys as JWK JSON strings, one per variable.
  * `pnpm --filter web realtime-keys` prints a new one. The current key signs; the next key is only
  * published, so relying parties already hold it when a rotation promotes it (ADR 0003,
- * docs/runbooks/DEPLOY.md).
+ * docs/runbooks/deploy.md).
  */
 /** Environment variables as the process has them; a plain object in tests. */
 export type Env = Readonly<Record<string, string | undefined>>;

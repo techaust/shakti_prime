@@ -396,7 +396,7 @@ export default tseslint.config(
     },
   },
   {
-    // The auth module is the one caller of the auth_service connection (docs/DATABASE.md §3),
+    // The auth module is the one caller of the auth_service connection (docs/05-database.md §3),
     // and resolves the principal from the user's grants.
     files: ['apps/web/src/auth/**/*.ts'],
     ignores: ['**/*.test.ts'],
@@ -515,7 +515,7 @@ export default tseslint.config(
   },
   {
     // Every word a user reads comes from the message catalogue, where the copy lint checks it
-    // (DESIGN.md §11.4); text written straight into JSX would bypass it (AUDIT L32).
+    // (docs/08-design-system.md §11.4); text written straight into JSX would bypass it (AUDIT L32).
     files: [
       'apps/web/src/app/**/*.tsx',
       'apps/web/src/components/**/*.tsx',
@@ -544,7 +544,7 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
-    // The push service worker (docs/design/phase1.md §8.1): a static file the browser runs.
+    // The push service worker (docs/03-roadmap-appendix/phase1.md §8.1): a static file the browser runs.
     files: ['apps/web/public/**/*.js'],
     languageOptions: { globals: { ...globals.serviceworker } },
   },

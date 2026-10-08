@@ -20,7 +20,7 @@ type Ctx = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 type CandidateRow = typeof schema.duplicateCandidates.$inferSelect;
 
 /**
- * The duplicate screens (PRD CRM-03, docs/design/phase1.md §7.4): `/duplicates` for a team lead
+ * The duplicate screens (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): `/duplicates` for a team lead
  * and above, and the cards on Account 360. Everything is read under the caller's own policies: a
  * candidate shows only to someone who sees both of its customers, or both of its leads. A pair
  * whose customer or lead was merged away (archived) is left out. Phones show their last four

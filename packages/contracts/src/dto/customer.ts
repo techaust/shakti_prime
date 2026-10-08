@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { QuoteRowDto } from './quote';
+import { SalesOrderRowDto } from './sales-order';
 import {
   AccountTypeSchema,
   ActivityTypeSchema,
@@ -206,6 +207,13 @@ export const Account360Dto = z
     canQuote: z.boolean(),
     /** The customer's newest quotes in this company (`sales.quote.*`, read with their leads). */
     quotes: z.array(QuoteRowDto),
+    /**
+     * Whether the caller may make a dealer's order without a quote here: the customer is a dealer
+     * and the caller's `sales.order.create` scope covers the relationship.
+     */
+    canOrder: z.boolean(),
+    /** The customer's newest orders in this company (read with their leads, or with the dealer). */
+    orders: z.array(SalesOrderRowDto),
     contacts: z.array(CustomerContactDto),
     sites: z.array(CustomerSiteDto),
     leads: z.array(CustomerLeadDto),

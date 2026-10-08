@@ -14,7 +14,7 @@ import { entities } from './entities';
 import { principals } from './principals';
 
 /**
- * The customer timeline (docs/DATABASE.md §6.2, CRM-04): one row for each thing a command did to a
+ * The customer timeline (docs/05-database.md §6.2, CRM-04): one row for each thing a command did to a
  * customer or one of their leads. Partitioned by month on `created_at`, so the key includes it;
  * the partitions live in the `crm_partitions` schema, which no request role can use. Append-only.
  * Like `audit_logs`, the log carries no foreign key to the rows it describes; the insert policy

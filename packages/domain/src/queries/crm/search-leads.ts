@@ -22,10 +22,10 @@ function reversed(digits: string): string {
 }
 
 /**
- * The ⌘K search for leads (DESIGN.md §6, Command palette): the leads the caller can see whose
+ * The ⌘K search for leads (docs/08-design-system.md §6, Command palette): the leads the caller can see whose
  * customer name, a contact's name or the site's village holds the typed text or, for three
  * characters or more, resembles it in spelling (pg_trgm word similarity, `NAME_SIMILARITY`), so
- * "Rmesh" finds "Ramesh" (DESIGN.md §9); or, when the text is digits, one of whose contacts'
+ * "Rmesh" finds "Ramesh" (docs/08-design-system.md §9); or, when the text is digits, one of whose contacts'
  * phones ends with them. The same own, team and company narrowing as the leads list
  * (`scopeFilter`, AUDIT M33); RLS still decides every row. Bounded by `limit` (at most 20): a
  * name or village that is the text comes first, then one that starts with it, then the closest
@@ -33,7 +33,7 @@ function reversed(digits: string): string {
  *
  * Under the policies Postgres will not use `ilike` or pg_trgm's operators (not leakproof) as an
  * index condition, so on its own this query would test every lead in the caller's scope (1.3 s
- * for an Executive at 50,000 leads, docs/spikes/lists.md). The candidates therefore come first
+ * for an Executive at 50,000 leads, docs/04-architecture-appendix/lists.md). The candidates therefore come first
  * from `app.lead_search_ids()` (0052), a security-definer lookup that uses the trigram indexes on
  * the customer, contact and village names and the index on the phone written backwards
  * (`contact_phones.e164_reversed`, 0051), keeps to the leads and customers the caller may read

@@ -27,7 +27,7 @@ export interface EntityGrants {
 export interface UserAccess {
   status: string;
   theme: string;
-  /** Standard or high (DESIGN.md §2.1), kept per person like the theme. */
+  /** Standard or high (docs/08-design-system.md §2.1), kept per person like the theme. */
   contrast: string;
   name: string;
   email: string;

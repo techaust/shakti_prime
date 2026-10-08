@@ -4,7 +4,7 @@ import { getIntegrationHealth } from '../../../../../observability/integration-r
 
 export const dynamic = 'force-dynamic';
 
-/** Integration Health for a session holding `admin.integrations.write` (docs/API.md §3.7). */
+/** Integration Health for a session holding `admin.integrations.write` (docs/06-api.md §3.7). */
 export function GET(request: Request): Promise<Response> {
   return getIntegrationHealth(request, {
     principal: currentPrincipal,

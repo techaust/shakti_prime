@@ -4,7 +4,7 @@
 
 `tasks.state`. A callback, follow-up, nurture or review due at a time, on a lead, for one person. Scope follows the person the task is for: own, team or company on `crm.lead.write`.
 
-Sources: docs/design/phase1.md §6.5; PRD CRM-07; DATABASE §6.2 `tasks`.
+Sources: docs/03-roadmap-appendix/phase1.md §6.5; PRD CRM-07; DATABASE §6.2 `tasks`.
 
 Every state and transition comes from the governing documents.
 

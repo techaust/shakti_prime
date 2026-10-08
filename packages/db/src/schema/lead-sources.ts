@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { boolean, check, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { actors, archivable, timestamps } from './columns';
 
-/** Where leads come from (docs/BLUEPRINT.md §2, docs/DATABASE.md §6.2). Shared by all entities. */
+/** Where leads come from (docs/01-blueprint.md §2, docs/05-database.md §6.2). Shared by all entities. */
 export const leadSources = pgTable(
   'lead_sources',
   {

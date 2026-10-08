@@ -51,7 +51,7 @@ async function auditedBefore(ctx: CommandContext, entityId: number): Promise<str
 
 /**
  * `org.entity.update`: an Executive changes the brand name, UPI id, GSTIN, registered address or
- * bank account of an entity in scope (workshop pack SALE-2, docs/design/phase1.md §6.4). The GSTIN
+ * bank account of an entity in scope (workshop pack SALE-2, docs/03-roadmap-appendix/phase1.md §6.4). The GSTIN
  * must start with the company's GST state code, checked against the stored value of whichever of
  * the two this call leaves alone. The bank account is sealed by the runtime's field cipher before
  * it is stored (`integration_unavailable` without one) and is audited as the last four digits of

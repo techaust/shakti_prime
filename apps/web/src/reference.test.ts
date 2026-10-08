@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newReference } from './log';
 import { referenceFromDigest } from './reference';
 
-describe('support references (DESIGN.md §11)', () => {
+describe('support references (docs/08-design-system.md §11)', () => {
   it('are six characters a person can read out without confusion', () => {
     for (const ref of [newReference(), referenceFromDigest('1234567890')]) {
       expect(ref).toMatch(/^[2-9A-HJKMNP-Z]{6}$/);

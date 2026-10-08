@@ -127,7 +127,7 @@ describe('GET /api/v1/health/ready', () => {
   });
 });
 
-describe('the outbox check (docs/design/backend-weeks-3-5.md §4.2)', () => {
+describe('the outbox check (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2)', () => {
   /** A pending event written as the table owner, its moments given as intervals from now. */
   async function pendingEvent(
     createdAgo: string,

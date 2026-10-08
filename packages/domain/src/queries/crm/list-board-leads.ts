@@ -102,7 +102,7 @@ async function boardScope(
 }
 
 /**
- * The leads board of one pipeline (DESIGN.md §6): per stage, how many leads the caller can see
+ * The leads board of one pipeline (docs/08-design-system.md §6): per stage, how many leads the caller can see
  * under the status filter, the newest `limit` of them (`BOARD_PAGE_SIZE` unless asked) with only
  * what a card shows, and for each stage with more, the cursor its "Load more" continues from
  * (`listBoardStageLeads`). The cards are found on `opportunities` alone and their customers,
@@ -308,7 +308,7 @@ async function stageMovesOf(ctx: BoardContext, ids: readonly string[]): Promise<
 }
 
 /**
- * The size of each lead's newest sizing, read with the lead (docs/design/phase1.md §7.3, the
+ * The size of each lead's newest sizing, read with the lead (docs/03-roadmap-appendix/phase1.md §7.3, the
  * board's follow-up): a pump's standard HP or a rooftop system's recommended kWp, from today's
  * engine only (an older engine's result has another shape), recorded by a person (SECURITY §3.3).
  */

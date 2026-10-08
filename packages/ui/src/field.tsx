@@ -26,7 +26,7 @@ export function useFieldControl(): FieldControl | undefined {
 }
 
 /**
- * A labelled control (DESIGN.md §6): the label above, a helper line or an error below. The error
+ * A labelled control (docs/08-design-system.md §6): the label above, a helper line or an error below. The error
  * is in the danger colour with an icon, so it does not rely on colour alone.
  */
 export function Field({

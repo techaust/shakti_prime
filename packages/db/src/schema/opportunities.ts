@@ -22,7 +22,7 @@ import { principals } from './principals';
 import { teams } from './teams';
 
 /**
- * A sale on a pipeline for an account and site (docs/BLUEPRINT.md §6.2). Scope root for
+ * A sale on a pipeline for an account and site (docs/01-blueprint.md §6.2). Scope root for
  * `crm.lead.*`. `state` and `state_changed_at` are written only by the opportunity commands through
  * the opportunity state machine (design §7.2). The trigger
  * `app.ensure_account_entity()` refuses an entity that has no `account_entities` row (ADR 0008).
@@ -75,7 +75,7 @@ export const opportunities = pgTable(
     check('opportunities_score_check', sql`${t.score} between 0 and 100`),
     // The key a child of the lead (`sizings`) points at, so it stays in the lead's company.
     unique('opportunities_id_entity_unique').on(t.id, t.entityId),
-    // The target of the composite keys of a lead's tasks and tags (docs/DATABASE.md §2).
+    // The target of the composite keys of a lead's tasks and tags (docs/05-database.md §2).
     unique('opportunities_id_entity_account_unique').on(t.id, t.entityId, t.accountId),
     index('opportunities_queue_idx').on(t.entityId, t.stageId, t.ownerId, t.updatedAt.desc()),
     index('opportunities_account_idx').on(t.accountId),
@@ -106,7 +106,7 @@ export const opportunities = pgTable(
     // The leads grid sorted by score pages off this in either direction (keyset on score, id).
     index('opportunities_entity_score_idx').on(t.entityId, t.score, t.id),
     // A request for every company pages the score order off this, as it pages the last change off
-    // opportunities_keyset_idx (docs/spikes/lists.md, the score cases).
+    // opportunities_keyset_idx (docs/04-architecture-appendix/lists.md, the score cases).
     index('opportunities_score_keyset_idx').on(t.score, t.id),
     // The notification scan: a company's open leads by age, for the first-contact limit.
     index('opportunities_open_created_idx')

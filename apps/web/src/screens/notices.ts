@@ -1,4 +1,4 @@
-// The notification centre's pure helpers (docs/design/phase1.md §8.1): where a notice takes its
+// The notification centre's pure helpers (docs/03-roadmap-appendix/phase1.md §8.1): where a notice takes its
 // person, shared by the centre, the push the notify worker sends and their tests. Browser code:
 // types only from the contracts.
 import type { NoticeType } from '@shakti/contracts';

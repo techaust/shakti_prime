@@ -1,4 +1,4 @@
-// Applies migrations as the table owner (docs/DATABASE.md §3, §8). Application code never runs this.
+// Applies migrations as the table owner (docs/05-database.md §3, §8). Application code never runs this.
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { readdirSync } from 'node:fs';
@@ -32,7 +32,7 @@ type LoginRole = (typeof LOGIN_ROLES)[number];
  * roles, so they are created here, not in SQL files. `auth_service` is the auth module's
  * connection: it may touch the identity tables only; `outbox_publisher` delivers `outbox_events`
  * and touches nothing else; `app_reader` is the queries' own pool, with `select` only under the
- * same policies as `app_user` (docs/DATABASE.md §3). A password is set when the role is created
+ * same policies as `app_user` (docs/05-database.md §3). A password is set when the role is created
  * and again only on `--rotate-passwords`, so the statement text does not land in the server log on
  * every run. `app_reader` is created whether or not its password is set, so the migrations can
  * grant to it; without `APP_READER_PASSWORD` it has no password and no one can sign in as it, and
@@ -120,7 +120,7 @@ async function assertAllApplied(sql: postgres.Sql): Promise<void> {
  * Applies the migrations once, even when two deploys start together (an advisory lock), and
  * gives up on a table lock held by live traffic after 10 s instead of queueing every request
  * behind it. A migration that builds an index `concurrently` cannot run in the migrator's
- * transaction; it is applied by hand first, as docs/runbooks/DEPLOY.md describes.
+ * transaction; it is applied by hand first, as docs/runbooks/deploy.md describes.
  */
 export async function runMigrations(
   options: { rotatePasswords?: boolean; verifyOnly?: boolean } = {},

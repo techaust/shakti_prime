@@ -23,9 +23,9 @@ describe('the ERD and data dictionary (docs/data)', () => {
   const sources = readSources(repoRoot);
   const docs = renderDataDocs(sources);
 
-  it('match the latest snapshot, the migrations and DATABASE.md; run pnpm db:docs when not', () => {
-    expect(lf(read('ERD.md'))).toBe(docs.erd);
-    expect(lf(read('DATA-DICTIONARY.md'))).toBe(docs.dictionary);
+  it('match the latest snapshot, the migrations and 05-database.md; run pnpm db:docs when not', () => {
+    expect(lf(read('erd.md'))).toBe(docs.erd);
+    expect(lf(read('data-dictionary.md'))).toBe(docs.dictionary);
   });
 
   it('cover every built table and place each in the dictionary once', () => {
@@ -35,7 +35,7 @@ describe('the ERD and data dictionary (docs/data)', () => {
     }
   });
 
-  it('place every built table in a module, never under Other (give it a DATABASE.md §6 entry)', () => {
+  it('place every built table in a module, never under Other (give it a 05-database.md §6 entry)', () => {
     const catalogue = parseCatalogue(sources.databaseDoc);
     const modules = groupModules(
       Object.values(sources.snapshot.tables).map((t) => t.name),
@@ -57,9 +57,10 @@ describe('the ERD and data dictionary (docs/data)', () => {
     ]);
   });
 
-  it('list the tables DATABASE.md plans and no migration has built', () => {
-    expect(docs.dictionary).toContain('| `sales_orders` |');
+  it('list the tables 05-database.md plans and no migration has built', () => {
+    expect(docs.dictionary).toContain('| `targets` |');
     expect(docs.dictionary).toContain('| `employees` |');
+    expect(docs.dictionary).not.toMatch(/^\| `sales_orders` \|/m);
     expect(docs.dictionary).not.toMatch(/^\| `quotes` \|/m);
     expect(docs.dictionary).not.toMatch(/^\| `opportunities` \|/m);
   });
@@ -67,11 +68,12 @@ describe('the ERD and data dictionary (docs/data)', () => {
   it('draw the planned tables per section, related by their documented *_id columns', () => {
     const planned = docs.erd.slice(docs.erd.indexOf('## Planned tables'));
     expect(planned).toContain('### Sales');
-    expect(planned).toContain('  sales_orders {');
-    expect(planned).toContain('  sales_order_lines }o--|| sales_orders : "so_id"');
+    expect(planned).toContain('  targets {');
+    expect(planned).toContain('  po_lines }o--|| purchase_orders : "po_id"');
     // A planned table points at a built one too.
-    expect(planned).toContain('  sales_orders }o--o| quotes : "quote_id"');
-    expect(planned).toContain('  sales_orders }o--|| accounts : "account_id"');
+    expect(planned).toContain('  reservations }o--|| sales_order_lines : "so_line_id"');
+    expect(planned).toContain('  customer_loans }o--|| accounts : "account_id"');
+    expect(planned).not.toContain('  sales_orders {');
     expect(planned).not.toContain('  opportunities {');
     expect(planned).not.toContain('  quotes {');
   });
@@ -284,7 +286,7 @@ describe('the ERD note on created_by and updated_by', () => {
   });
 });
 
-describe('the status column of DATABASE.md §6', () => {
+describe('the status column of 05-database.md §6', () => {
   const sources = readSources(repoRoot);
   const built = new Set(Object.values(sources.snapshot.tables).map((t) => t.name));
   const catalogue = parseCatalogue(sources.databaseDoc);

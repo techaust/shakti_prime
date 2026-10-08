@@ -8,11 +8,11 @@ import { describeSchema, groupByModule, moduleOf, renderEventsDoc } from './even
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const lf = (text: string) => text.replace(/\r\n/g, '\n');
 
-describe('the event catalogue document (docs/data/EVENTS.md)', () => {
+describe('the event catalogue document (docs/data/events.md)', () => {
   const doc = renderEventsDoc();
 
   it('matches the event catalogue; run pnpm db:docs when not', () => {
-    expect(lf(readFileSync(join(repoRoot, 'docs', 'data', 'EVENTS.md'), 'utf8'))).toBe(doc);
+    expect(lf(readFileSync(join(repoRoot, 'docs', 'data', 'events.md'), 'utf8'))).toBe(doc);
   });
 
   it('lists every type once, with its worker route exactly when it is subscribed', () => {

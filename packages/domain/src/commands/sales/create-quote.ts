@@ -5,7 +5,7 @@ import { readQuote } from '../../queries/sales/quote-dto';
 import { QUOTE_AUDIT_FIELDS, saveQuote } from '../../sales/save-quote';
 
 /**
- * `sales.quote.create` (docs/design/phase1.md §7.3, PRD SAL-03, SAL-04): a quote for a lead. The
+ * `sales.quote.create` (docs/03-roadmap-appendix/phase1.md §7.3, PRD SAL-03, SAL-04): a quote for a lead. The
  * tier is the customer's (PRICE-1), every price comes from the live list of that tier for the
  * lead's company or the group, and a line that carries a price is refused by the strict input
  * (SAL-03). Tax comes from the tax engine with each line's rate row, the composite split for a

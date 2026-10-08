@@ -15,7 +15,7 @@ import { SearchTextSchema } from '../../dto/search';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * The Cold Caller workspace (docs/design/phase1.md §7.2, PRD TEL-01): the `calls` log, the
+ * The Cold Caller workspace (docs/03-roadmap-appendix/phase1.md §7.2, PRD TEL-01): the `calls` log, the
  * `calls.log` command, the caller's queue and the team lead's view of the team's queues. Every
  * Phase 1 call is dialled by hand on a phone outside the system; click-to-dial is Phase 2.
  */

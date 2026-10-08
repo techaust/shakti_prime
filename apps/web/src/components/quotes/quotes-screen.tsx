@@ -16,7 +16,7 @@ import { useQuery } from '../screens/use-command';
 const PAGE_SIZE = 50;
 
 /**
- * `/quotes` (docs/design/phase1.md §7.3): the quotes of the caller's leads, newest first, a page at
+ * `/quotes` (docs/03-roadmap-appendix/phase1.md §7.3): the quotes of the caller's leads, newest first, a page at
  * a time, with a choice of status. A quote past its validity shows as expired.
  */
 export function QuotesScreen({

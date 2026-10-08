@@ -18,7 +18,7 @@ export interface DomainEvent {
 }
 
 /**
- * What a command changed, for the audit row (docs/design/backend-weeks-3-5.md §3.2). The runner
+ * What a command changed, for the audit row (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.2). The runner
  * redacts `before` and `after`. `entityId` null marks a change that belongs to no one entity (a
  * user, a shared price); left out, the request's single entity is used.
  */
@@ -30,7 +30,7 @@ export interface AuditChange {
   after?: unknown;
 }
 
-/** What a command handler receives (docs/ARCHITECTURE.md §5). It never opens its own connection. */
+/** What a command handler receives (docs/04-architecture.md §5). It never opens its own connection. */
 export interface CommandContext {
   principal: Principal;
   entityIds: readonly number[];
@@ -41,7 +41,7 @@ export interface CommandContext {
   /** Records one changed aggregate; call once per aggregate the command touches. */
   audit: (change: AuditChange) => void;
   /**
-   * Writes one row of the customer timeline in this transaction (docs/ARCHITECTURE.md §5), as the
+   * Writes one row of the customer timeline in this transaction (docs/04-architecture.md §5), as the
    * caller and under the insert policy, so the caller must read the lead or customer at that
    * moment: a command that hands a lead to someone else records the row first. A savepoint that
    * rolls back takes the row with it.

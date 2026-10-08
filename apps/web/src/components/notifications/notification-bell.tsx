@@ -18,7 +18,7 @@ function preloadPanel(): void {
 }
 
 /**
- * The bell in the top bar (docs/design/phase1.md §8.1) with the unread count, asked for again
+ * The bell in the top bar (docs/03-roadmap-appendix/phase1.md §8.1) with the unread count, asked for again
  * every 15 seconds while the page is in view and at once when it comes back into view (the polling
  * of DECISIONS 29-09-2026, until Realtime). Pressing it opens the notification centre.
  */

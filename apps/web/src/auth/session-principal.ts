@@ -38,7 +38,7 @@ interface Deps {
 
 /**
  * Loads the Better Auth session behind the request and applies the app's own rules: a revoked
- * row, a row past the 7-day absolute limit (docs/SECURITY.md §2) or an unknown session answers
+ * row, a row past the 7-day absolute limit (docs/07-security.md §2) or an unknown session answers
  * undefined. `last_seen_at` is written at most once a minute.
  */
 async function loadSession(headers: Headers, deps: Deps): Promise<SessionInfo | undefined> {
@@ -79,7 +79,7 @@ export async function invalidatePrincipal(keyValue: KeyValue, userId: string): P
 }
 
 /**
- * Resolves the caller of a server action (docs/design/backend-weeks-3-5.md §2.3). Throws
+ * Resolves the caller of a server action (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.3). Throws
  * `unauthorized` with reason `totp_required` when the role demands an authenticator app that is
  * not enrolled yet; answers undefined when there is no usable session.
  */
@@ -158,7 +158,7 @@ export async function revokeOtherSessions(
 
 /**
  * After a first authenticator enrolment: enrolment is a privilege change, so every other sign-in
- * of the user ends (docs/SECURITY.md §2) and their cached principal is dropped. The enrolment
+ * of the user ends (docs/07-security.md §2) and their cached principal is dropped. The enrolment
  * re-issued the session, so the one to keep is named by the cookie it just set (`issued`).
  */
 export async function finishEnrolment(

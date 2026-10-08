@@ -56,7 +56,7 @@ export interface PricedQuote {
 }
 
 /**
- * Prices and taxes a quote's lines (BLUEPRINT §8.3, ADR 0007, docs/design/phase1.md §7.3): each
+ * Prices and taxes a quote's lines (BLUEPRINT §8.3, ADR 0007, docs/03-roadmap-appendix/phase1.md §7.3): each
  * line's price is the Price Master price it carries, its tax comes from the tax engine with the
  * rate row it resolved to on the quote's date (an item's own rate before its HSN rate) or, for a
  * works contract in a composite segment, the segment's goods and services split; the totals are

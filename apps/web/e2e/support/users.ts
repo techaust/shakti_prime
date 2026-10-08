@@ -170,6 +170,40 @@ export interface QuoteJourneySeed {
   journeyLeads: Record<ProjectName, { accountId: string; name: string }>;
 }
 
+/** Per project: the fresh lead of the journeys' company whose quote is accepted and confirmed. */
+export const ORDER_JOURNEY_LEADS: Record<ProjectName, string> = {
+  'desktop-light': 'Bhagwan Sahay Meena',
+  'desktop-dark': 'Kailash Chand Yadav',
+  phone: 'Rameshwar Prasad Gurjar',
+};
+
+/** Per project: a dealer of the journeys' company with a small limit, so its orders are held. */
+export const HELD_DEALERS: Record<ProjectName, string> = {
+  'desktop-light': 'Jaipur Solar Traders',
+  'desktop-dark': 'Dausa Pump House',
+  phone: 'Tonk Krishi Sewa',
+};
+
+/** Per project: a dealer of company 1 whose terms and outstanding Accounts enter. */
+export const CREDIT_DEALERS: Record<ProjectName, string> = {
+  'desktop-light': 'Chomu Agro Agencies',
+  'desktop-dark': 'Sikar Solar Point',
+  phone: 'Ajmer Pump Centre',
+};
+
+/** The dealer the seed keeps in the snapshot company, with one draft order, for the screenshots. */
+export const SNAPSHOT_DEALER = 'Shekhawati Solar Distributors';
+
+/** What the order journeys need of the seed's order fixtures. */
+export interface OrderJourneySeed {
+  acceptLeads: Record<ProjectName, { leadId: string; accountId: string; name: string }>;
+  heldDealers: Record<ProjectName, { accountId: string; name: string }>;
+  creditDealers: Record<ProjectName, { accountId: string; name: string }>;
+  snapshotDealerId: string;
+  snapshotOrderId: string;
+  snapshotOrderNo: string;
+}
+
 export function emailFor(key: string): string {
   return `e2e-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}@shakti.test`;
 }
@@ -193,6 +227,8 @@ export interface SeededUsers {
   secondCompanyLead: string;
   /** The quote journeys' fixtures. */
   quotes: QuoteJourneySeed;
+  /** The order journeys' fixtures. */
+  orders: OrderJourneySeed;
 }
 
 export const AUTH_DIR = join(import.meta.dirname, '..', '.auth');

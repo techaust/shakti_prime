@@ -56,7 +56,7 @@ export interface WorkshopDefaults {
   readonly sizing: SizingDefaults;
 }
 
-/** The cold calling rules (docs/design/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
+/** The cold calling rules (docs/03-roadmap-appendix/phase1.md §7.2, §11; workshop CALL-3 and CALL-5). */
 export interface CallingDefaults {
   /**
    * Unanswered attempts in all before a lead moves to nurture, and the day of each, counted from
@@ -67,7 +67,7 @@ export interface CallingDefaults {
   readonly nurtureCallDays: readonly number[];
 }
 
-/** The engineering constants the sizing calculators use (docs/design/phase1.md §6.7, §11). */
+/** The engineering constants the sizing calculators use (docs/03-roadmap-appendix/phase1.md §6.7, §11). */
 export interface SizingDefaults {
   readonly hazenWilliamsC: Readonly<Record<PipeMaterial, number>>;
   readonly fittingsLossFraction: number;
@@ -91,7 +91,7 @@ export interface SizingDefaults {
 
 /**
  * Every default the tax engine and the state machines use in place of an answer the discovery
- * workshop has not yet given (docs/design/backend-weeks-3-5.md §11, BLUEPRINT §19). The workshop
+ * workshop has not yet given (docs/03-roadmap-appendix/backend-weeks-3-5.md §11, BLUEPRINT §19). The workshop
  * changes a value here and nowhere else; the state-machine documents list these values, so
  * regenerate them (`pnpm --filter @shakti/domain machines:docs`) after a change.
  *
@@ -122,7 +122,7 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
    * Workshop SALE-1 (Accounts, Owner): the format of every document number, per company, document
    * and financial year with no gaps (ADR 0006). This is the pack's first example,
    * `ASH/Q/2026-27/0001`, which numbering has used since Phase 0; Accounts confirm or change it
-   * here, in one place (docs/phase0/exit-gate-actions.md). A series keeps the prefix it started
+   * here, in one place (docs/13-client-packs/exit-gate-actions.md). A series keeps the prefix it started
    * its year with.
    */
   numbering: {
@@ -173,7 +173,7 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
     firstContactSlaMinutes: null,
   },
   /**
-   * The owner's defaults of 05-10-2026 for the sales head to confirm (docs/DECISIONS.md, workshop
+   * The owner's defaults of 05-10-2026 for the sales head to confirm (docs/11-decisions.md, workshop
    * CALL-3 and CALL-5). Every retry and nurture call falls due at the start of that day's calling
    * hours (`nextCallingWindowStart`).
    */
@@ -186,7 +186,7 @@ export const WORKSHOP_DEFAULTS: WorkshopDefaults = {
   /**
    * Engineering constants in place of the engineering head's figures (design §6.7, §11). Each is
    * a common textbook or trade value, not a client fact, until the engineering head confirms it
-   * (docs/phase0/exit-gate-actions.md). A sizing stores the constants it used with its result.
+   * (docs/13-client-packs/exit-gate-actions.md). A sizing stores the constants it used with its result.
    */
   sizing: {
     /** Hazen-Williams C: textbook values for new HDPE (140) and galvanised iron (120) pipe. */

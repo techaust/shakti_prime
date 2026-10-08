@@ -187,7 +187,7 @@ function SizingForm({
 }
 
 /**
- * The sizing panel of a lead (docs/design/phase1.md §6.7): a pump tab and a rooftop tab, each with
+ * The sizing panel of a lead (docs/03-roadmap-appendix/phase1.md §6.7): a pump tab and a rooftop tab, each with
  * the measurements to enter and the newest result, worked out on the server. Keyboard first: the
  * tabs move with the arrow keys, Home and End, and each form submits with Enter. A person who may
  * read the lead but not change it sees the results only.

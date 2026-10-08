@@ -52,7 +52,7 @@ async function auditRows(requestId: string) {
   );
 }
 
-describe('profile.view.save and profile.view.delete (DESIGN.md §6)', () => {
+describe('profile.view.save and profile.view.delete (docs/08-design-system.md §6)', () => {
   it('is denied to an agent principal, which holds no profile.write', async () => {
     const agent = principalFor('agent:triage', [1]);
     await expect(save(agent, { screen: 'leads', name: 'Mine', settings })).rejects.toMatchObject({

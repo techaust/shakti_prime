@@ -18,7 +18,7 @@ import { opportunities } from './opportunities';
 import { principals } from './principals';
 
 /**
- * A pump or rooftop sizing of a lead (docs/design/phase1.md §6.7, docs/DATABASE.md §6.2), a child
+ * A pump or rooftop sizing of a lead (docs/03-roadmap-appendix/phase1.md §6.7, docs/05-database.md §6.2), a child
  * of `opportunities`: read with the lead, written with the lead's write scope. Append-only: a new
  * sizing is a new row and the newest of its kind is the one a quote uses. The server computes
  * `result_json`, `in_bounds` and `reasons_json` from `inputs_json` with the engine named in

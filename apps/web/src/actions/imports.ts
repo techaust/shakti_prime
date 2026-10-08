@@ -42,7 +42,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Thin wrappers for the import screens (docs/API.md §4, docs/design/phase1.md §6.3): session →
+ * Thin wrappers for the import screens (docs/06-api.md §4, docs/03-roadmap-appendix/phase1.md §6.3): session →
  * parse → request context → command or query → the result envelope.
  */
 

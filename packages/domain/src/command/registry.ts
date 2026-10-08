@@ -75,9 +75,15 @@ import {
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
+import { acceptQuote } from '../commands/sales/accept-quote';
 import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
+import { cancelSalesOrder } from '../commands/sales/cancel-order';
+import { confirmSalesOrder } from '../commands/sales/confirm-order';
+import { createSalesOrder } from '../commands/sales/create-order';
+import { recordDealerOutstanding, setDealerTerms } from '../commands/sales/dealer-credit';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
+import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
 import { withdrawQuote } from '../commands/sales/withdraw-quote';
@@ -183,6 +189,13 @@ export const commands = {
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
   [attachQuotePdf.name]: attachQuotePdf,
+  [acceptQuote.name]: acceptQuote,
+  [createSalesOrder.name]: createSalesOrder,
+  [confirmSalesOrder.name]: confirmSalesOrder,
+  [releaseCredit.name]: releaseCredit,
+  [cancelSalesOrder.name]: cancelSalesOrder,
+  [setDealerTerms.name]: setDealerTerms,
+  [recordDealerOutstanding.name]: recordDealerOutstanding,
   [recordAgentRun.name]: recordAgentRun,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,

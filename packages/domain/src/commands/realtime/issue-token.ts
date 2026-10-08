@@ -8,7 +8,7 @@ import {
 import { defineCommand } from '../../command/define-command';
 
 /**
- * `realtime.token.issue` (docs/design/backend-weeks-3-5.md §2.6, ADR 0003): settles the claims of
+ * `realtime.token.issue` (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.6, ADR 0003): settles the claims of
  * a Realtime token for the signed-in person and the companies active for the request, and records
  * one audit row with the token's id, so every token that opens a channel can be traced to who
  * received it and when. The route signs the claims; the token never reaches this command.

@@ -1,4 +1,4 @@
-// The deterministic sizing engine (docs/design/phase1.md §6.7, ARCHITECTURE §5). Pure functions:
+// The deterministic sizing engine (docs/03-roadmap-appendix/phase1.md §6.7, ARCHITECTURE §5). Pure functions:
 // callers load the pump curve and pass it in; no LLM does this math (BLUEPRINT §3).
 export { bounded, KW_PER_HP } from './bounds';
 export type { Bounded } from './bounds';

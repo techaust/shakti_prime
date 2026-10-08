@@ -72,7 +72,7 @@ async function deliverOurs(): Promise<void> {
   );
 }
 
-describe('outbox retention (docs/DATABASE.md §7)', () => {
+describe('outbox retention (docs/05-database.md §7)', () => {
   it('removes events published more than 30 days ago and nothing else, and logs the run', async () => {
     const old = await event({ created: '40 days', published: '31 days' });
     const recent = await event({ created: '40 days', published: '29 days' });
@@ -263,7 +263,7 @@ describe('the purge procedure as written (0060)', () => {
   });
 });
 
-describe('retention_runs (docs/DATABASE.md §7)', () => {
+describe('retention_runs (docs/05-database.md §7)', () => {
   it('is a platform table, forced under RLS and not owned by the application', async () => {
     expect(PLATFORM_TABLES).toContain('retention_runs');
     const [row] = await withoutContext<{ owner: string; forced: boolean }>(sql`
@@ -324,7 +324,7 @@ describe('retention_runs (docs/DATABASE.md §7)', () => {
   });
 });
 
-describe('audit partition detach (docs/DATABASE.md §7, BLUEPRINT §7.9)', () => {
+describe('audit partition detach (docs/05-database.md §7, BLUEPRINT §7.9)', () => {
   /** Two months of the past no other run uses: one far past eight years, one well inside them. */
   const seed = Number.parseInt(newId().replace(/-/g, '').slice(-6), 16);
   const oldYear = 1971 + (seed % 40);

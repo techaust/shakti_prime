@@ -18,7 +18,7 @@ import { requireEntity } from '../crm/opportunity-shared';
 import { writeNotices, type NoticeDraft } from './write-notices';
 
 /*
- * The notify worker's commands (docs/design/phase1.md §8.1, PRD RPT-04), run as `system:workers`,
+ * The notify worker's commands (docs/03-roadmap-appendix/phase1.md §8.1, PRD RPT-04), run as `system:workers`,
  * which holds the platform-only `notifications.send` and no `crm.*` or `sales.*` permission a
  * person may hold (ADR 0020): every read and write goes through the definers of the notifications
  * migration, which check that permission and the company in their body.

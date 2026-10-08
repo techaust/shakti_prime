@@ -8,9 +8,9 @@ Shakti Prime BOS is one product delivered as four runtimes (web app, Android fie
 ## Decision
 One repository managed with **pnpm workspaces** and **Turborepo**.
 
-- Workspaces: `apps/web`, `apps/field`, `apps/tally-connector`, `apps/voice-agent`, `packages/domain`, `packages/db`, `packages/contracts`, `packages/ui`, `packages/tokens`.
+- Workspaces: `apps/web`, `packages/domain`, `packages/db`, `packages/contracts`, `packages/ui`, `packages/tokens` and `tools/copy-lint`. Planned, each created in its phase: `apps/field`, `apps/tally-connector` and `apps/voice-agent`. `tools/integration` holds the shell and Node scripts of the slice workflow and is not a workspace package.
 - Dependency direction is one-way: `apps/*` → `packages/*`. `packages/domain` depends only on `packages/contracts` and the `packages/db` schema and types (never its client) and never imports Next.js, React or Expo. `packages/contracts` depends only on Zod and the UUIDv7 generator.
-- Turborepo pipelines: `build`, `typecheck`, `test`, `test:security`; lint, format and copy lint run at the root; `test:e2e` joins in Phase 1; remote caching once the Vercel project exists.
+- Turborepo pipelines: `build`, `typecheck`, `test`, `test:security` and `test:e2e`; lint, format and copy lint run at the root; no remote cache is configured.
 - One TypeScript strict base config, one ESLint config and one Prettier config at the root, extended by every workspace.
 - A pinned `pnpm-lock.yaml`; `packageManager` field in the root `package.json` so Corepack selects the same pnpm version everywhere.
 

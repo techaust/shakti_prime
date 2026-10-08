@@ -1,4 +1,4 @@
-// Migrate and seed once before the security suite (docs/SECURITY.md §11).
+// Migrate and seed once before the security suite (docs/07-security.md §11).
 import { catalogueFixture, identityFixture, prepareDatabase } from '../src/testing/index';
 
 export default async function setup(): Promise<void> {

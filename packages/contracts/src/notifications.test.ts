@@ -5,7 +5,7 @@ import {
   SetNotificationSettingsInput,
 } from './notifications';
 
-describe('notification contracts (docs/design/phase1.md §8.1)', () => {
+describe('notification contracts (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   it('accepts only https addresses of the push services the app sends to', () => {
     for (const ok of [
       'https://fcm.googleapis.com/fcm/send/abc',

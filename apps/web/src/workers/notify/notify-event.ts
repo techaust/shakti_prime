@@ -49,7 +49,7 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
 }
 
 /**
- * The notify worker for one event (docs/design/phase1.md §8.1): the notices it stands for, written
+ * The notify worker for one event (docs/03-roadmap-appendix/phase1.md §8.1): the notices it stands for, written
  * as `system:workers` of the event's company (`notifications.event.notify`), then pushed under
  * each person's choices and quiet hours. A repeated delivery writes and pushes nothing new.
  */

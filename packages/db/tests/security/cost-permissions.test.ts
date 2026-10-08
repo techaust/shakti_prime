@@ -13,7 +13,7 @@ import { asPrincipal, closeDb, grantsForRole, principalFor, roleId } from '../..
 
 afterAll(closeDb);
 
-/** Who holds each cost permission (docs/SECURITY.md §3.2, §7.2 of the blueprint). */
+/** Who holds each cost permission (docs/07-security.md §3.2, §7.2 of the blueprint). */
 const HOLDERS: Record<(typeof COST_PERMISSIONS)[number], readonly StaffRoleKey[]> = {
   'finance.cost.read': ['executive', 'accounts'],
   'procurement.rate.read': ['executive', 'inventory_manager', 'accounts'],
