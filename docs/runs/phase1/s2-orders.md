@@ -5,8 +5,9 @@
 | Branch | `feat/s2-orders` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `s2-orders`, slot 17: Postgres 54347, app 3047 (`bash tools/integration/setup-worktree.sh s2-orders feat/s2-orders 54347 3047`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| State | building |
-| Next step | the builder agent on the PC builds the slice from this brief |
+| State | built, checks pass |
+| Next step | review (Opus, high) |
+| Usage | 67 % of the week at the start of this run (the finishing run; the end figure is the lead's) |
 
 ## Brief
 Read first:
@@ -49,6 +50,49 @@ Done when: the checks of AGENTS §10 pass on the branch; a journey records a sig
 Not in S2: dispatch, reservations, invoices and payments (Phases 3 and 5); commission release (Phase 5); WhatsApp acceptance (Phase 2); any credit limit, credit days, outstanding figure or commission rule (the client's; the journeys use clearly synthetic fixtures). Files another slice owns: N1 owns notifications (S2 sends `sales.order.credit_held` and builds no notification; whichever of N1 and S2 merges second wires N1's notice to it), K1 the vault.
 
 ## Report
+
+### 08-10-2026, PC (slot 17: Postgres 54347, app 3047): the build finished, `main` taken, the checks run
+
+Skills loaded for the build: `add-command`, `add-table`, `vercel-react-best-practices`, `web-design-guidelines`, `writing-guidelines` (the first builder; this run added no feature).
+
+**Built**
+- Tables (migrations 0116 and 0117, each with RLS, fixture rows, matrix rules, `app_reader`, the testing lists, `NARROWER`, `enum-sync`): `sales_orders`, `sales_order_lines` (append-only, written in the order's own transaction), `dealer_terms`, `dealer_outstanding`, `commission_accruals`; `quotes` gains `accepted_via` and `signed_file_id`.
+- Permission: `sales.credit.write` (Executive all, Accounts entity; no agent), with its security row, seed and oracle case. Acceptance keeps `sales.quote.send`. The existing `sales.order.create`, `.confirm`, `.cancel` and `sales.credit.release` were checked against the security document.
+- Sales order machine now stored, each move's event in the catalogue; `machines:docs` regenerated.
+- Commands (all people only where the brief says): `sales.quote.accept` (signed upload, quote and order in one transaction, a quote past its validity refused), `sales.order.create` (dealer order without a quote), `sales.order.confirm` (dealer credit check; a block holds the order with the limit named; a confirmed order of a lead makes the lead won and accrues the referral commission), `sales.credit.release` (Executive, with a reason), `sales.order.cancel` (General Manager, Executive), `sales.dealer_terms.set`, `sales.dealer_outstanding.record`.
+- Screens: `/orders`, the order page, `/orders/new` (dealer order form), `/dealer-credit` with its dialogs, and the Record acceptance dialog on the quote page.
+- Definers (migration 0117): `app.may_confirm_order()` (internal), `app.dealer_credit_position()`, `app.order_commission_rule()`, `app.record_commission_accrual()`, `app.cancel_commission_accrual()`, and the triggers `app.guard_sales_order_release()` and `app.guard_commission_accrual()`. The person confirming an order reaches the commission rule and writes the accrual only through these.
+
+**Decisions the brief left open**
+- `dealer_terms` history: append-only entries, one per change, the newest counting (not audited updates); `credit_limit` null holds every order (SAL-07).
+- Cancelling an order cancels its commission accrual but the lead stays won: the opportunity machine has no move out of won.
+- The commission accrual lives in its own module (`packages/domain/src/sales/commission.ts`) so the event catalogue traces it to `sales.order.confirm`.
+- The data documents test now names the tables still planned (`targets`, `employees`), not `sales_orders`; the first builder also corrected comments in `packages/db/src/testing/index.ts` (the lists of order tables now carry their S2 notes).
+
+**This run**
+- Took `main` by a merge commit (conflicts in `docs/02-prd.md`, `docs/05-database.md`, `docs/07-security.md`, the two generated data documents, `docs/state-machines/sales-order.md`, `data-docs.test.ts` and `sales-order.ts`; resolved by keeping main's renamed text and S2's additions). `main` has no new migration (last is 0115), so 0116 and 0117 stay; every function S2's migrations redefine is new, and no constraint or foreign key of `main` is redefined, so nothing was dropped.
+- Old document paths: S2's edits sit in `docs/05-database.md`, `docs/07-security.md`, `docs/02-prd.md` and the `docs/03-roadmap-appendix/phase1.md` record; the code comments and this run file's link now name the new paths; the old paths do not reappear (`git grep` finds the old `docs/design/` and database document paths only in main's old migrations 0000 to 0115, which are not S2's). `check-doc-links.py`: bad 0.
+- `pnpm install` ran; no second drizzle-orm instance.
+- Editing the comment of 0117 changed its hash, so the slot's Postgres was recreated (`fresh-db.sh`) before the security suite.
+
+**Checks (all through the heavy-command lock)**
+- `pnpm typecheck`: 8 of 8 tasks pass.
+- `pnpm test` (unit): contracts 177, copy-lint 17, tokens 134, ui 105, db 125, domain 1,873, web 669; all pass.
+- `pnpm test:security` on 54347 (fresh database): db 1,088 (36 files), domain 792 (64 files), web 264 (18 files); all pass.
+- `pnpm db:docs` and `pnpm --filter @shakti/domain machines:docs`: regenerated once after the merge (committed), then run again with no diff left.
+- `pnpm copy-lint`: clean.
+- `pnpm build`: passes.
+- `pnpm --filter web js-budget`: every page within budget (40 pages).
+- S2 journeys (`e2e/orders.spec.ts`, seeded first, 3 projects, with `expectNoAxeViolations`): 23 passed. They cover the signed acceptance to a confirmed order and the lead won; the dealer order over its limit held with the limit named, released by the Executive, then confirmed; Accounts entering terms and an outstanding figure on `/dealer-credit`; a tele-caller reading the list but not dealer credit; the snapshot company's screens.
+- `pnpm lint` (whole repository, last): passes with no warnings.
+- `EXPLAIN (ANALYZE)` (`pnpm --filter @shakti/domain spike:orders`): `/orders` Executive company 2 3.6 ms, every company 2.8 ms, General Manager confirmed 3.8 ms, Lead Converter own scope 3.2 ms; Account 360's orders of a dealer 0.45 ms; `/dealer-credit` Accounts 12.6 ms (51 dealers, the credit position per dealer 0.23 ms); one dealer's credit position 0.22 ms. All on indexes.
+
+**Not run:** the Linux screenshot baselines (`e2e:snap`) for the new screens, and the mobile and Lighthouse runs; both belong to integration.
+
+**Follow-ups**
+- N1 and S2: whichever merges second wires N1's notice to `sales.order.credit_held` (S2 only sends the event).
+- The first builder's commit messages carry `Co-Authored-By: Claude Opus 5.5`; this run's carry Sonnet 5.5.
+- Commission release, dispatch, reservations, invoices and payments stay in Phases 3 and 5.
 
 ## Review
 | # | Severity | Finding | State |
