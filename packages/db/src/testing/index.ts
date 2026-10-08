@@ -272,6 +272,14 @@ export const ENTITY_TABLES = [
   'quotes',
   'quote_lines',
   'quote_versions',
+  // an order of a quote is a child of its lead; a dealer's order is read with the dealer (S2)
+  'sales_orders',
+  'sales_order_lines',
+  // a dealer's credit entries, read by Accounts and with the dealer (S2)
+  'dealer_terms',
+  'dealer_outstanding',
+  // a commission on an order, read as the commission rules are (S2)
+  'commission_accruals',
   'consents',
   'item_costs',
   'document_sequences',
@@ -340,8 +348,9 @@ export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
  * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so
  * the shared loops, which expect rows for any caller, do not apply: lead score rules (read like
  * call outcomes, and in the role × company matrix through GROUP_WIDE_SHARED_TABLES) and
- * commission rules (read only with `crm.config.write:all` or `sales.order.confirm`). Asserted in
- * crm-config.test.ts.
+ * commission rules (read only with `crm.config.write:all` or `finance.payment.write`; the person
+ * confirming an order reaches a rule only through the definers of 0117, which check
+ * `sales.order.confirm` over the order). Asserted in crm-config.test.ts.
  */
 export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
 

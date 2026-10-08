@@ -200,7 +200,7 @@ States: `draft`, `confirmed`, `partially_dispatched`, `dispatched`, `invoiced`, 
 | Event | From → To | Permission | Guard | Effects |
 |---|---|---|---|---|
 | `create` | → draft | `sales.order.create` | from an accepted quote, or a dealer account without a quote | lines copied with their tax snapshot; `so_no` from the series |
-| `confirm` | draft → confirmed | `sales.order.confirm` | credit check for dealer accounts: block when outstanding + confirmed-unpaid orders + this order > `credit_limit`, or `oldest_overdue_days > credit_days`; the block names the limit or the invoice; bypass only with `credit_release_by` set by an Executive with a reason (audited) | reservations requested (Phase 3), event |
+| `confirm` | draft → confirmed | `sales.order.confirm` | credit check for dealer accounts: block when outstanding + confirmed-unpaid orders + this order > `credit_limit`, or the oldest unpaid invoice is older than `credit_days`; the block names the limit or the invoice; bypass only with `credit_release_by` set by an Executive with a reason (audited) | reservations requested (Phase 3), event |
 | `dispatch.partial`, `dispatch.complete` | confirmed → partially_dispatched → dispatched | driven by the dispatch machine (Phase 3) | e-way bill gate | |
 | `invoice` | dispatched → invoiced | Tally sync (Phase 5) | voucher linked | |
 | `close` | invoiced → closed | `sales.order.confirm` | payments settled | |

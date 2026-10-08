@@ -38,3 +38,10 @@ export {
   userEntityRoles,
 } from './identity';
 export { quotes, quoteLines, quoteVersions } from './quotes';
+export {
+  salesOrders,
+  salesOrderLines,
+  dealerTerms,
+  dealerOutstanding,
+  commissionAccruals,
+} from './sales-orders';

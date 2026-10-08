@@ -42,6 +42,12 @@ export { requoteQuote } from './commands/sales/requote';
 export { withdrawQuote } from './commands/sales/withdraw-quote';
 export { expireQuotes, QUOTE_EXPIRY_BATCH } from './commands/sales/expire-quotes';
 export { attachQuotePdf } from './commands/sales/attach-quote-pdf';
+export { acceptQuote } from './commands/sales/accept-quote';
+export { createSalesOrder } from './commands/sales/create-order';
+export { confirmSalesOrder } from './commands/sales/confirm-order';
+export { releaseCredit } from './commands/sales/release-credit';
+export { cancelSalesOrder } from './commands/sales/cancel-order';
+export { recordDealerOutstanding, setDealerTerms } from './commands/sales/dealer-credit';
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { dismissDuplicate, scanDuplicates, suggestDuplicate } from './commands/crm/duplicates';
 export { mergeCustomers, mergeLeads, unmergeCustomers } from './commands/crm/merges';
@@ -192,6 +198,18 @@ export { listSizingPumps } from './queries/catalogue/list-sizing-pumps';
 export { searchLeads } from './queries/crm/search-leads';
 export { accountQuotes, getQuote, listQuotes, searchQuotes } from './queries/sales/list-quotes';
 export { loadQuoteBuilder, previewQuote } from './queries/sales/quote-builder';
+export {
+  accountSalesOrders,
+  getSalesOrder,
+  listSalesOrders,
+  salesOrderListQuery,
+} from './queries/sales/list-orders';
+export { loadSalesOrderBuilder, previewSalesOrder } from './queries/sales/order-facts';
+export {
+  dealerCreditHistory,
+  dealerCreditQuery,
+  listDealerCredit,
+} from './queries/sales/dealer-credit';
 export { listPriceTierOptions } from './queries/pricing/price-tiers';
 export { loadQuoteForPrint } from './queries/sales/quote-print';
 export type { QuoteForPrint } from './queries/sales/quote-print';
@@ -302,6 +320,8 @@ export type {
   SuctionResult,
 } from './sizing';
 export { creditCheck } from './sales/credit-check';
+export { commissionAmount } from './sales/commission';
+export type { Commission, CommissionFacts } from './sales/commission';
 export type { CreditFacts, CreditOutcome, CreditRelease } from './sales/credit-check';
 export {
   allOf,

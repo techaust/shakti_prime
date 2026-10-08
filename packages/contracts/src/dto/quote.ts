@@ -25,6 +25,10 @@ export const QuoteStateSchema = z.enum([
 ]);
 export type QuoteState = z.infer<typeof QuoteStateSchema>;
 
+/** How a customer accepted a quote (SAL-05): the WhatsApp ways arrive in Phase 2. */
+export const QuoteAcceptedViaSchema = z.enum(['whatsapp_reply', 'whatsapp_otp', 'signed_upload']);
+export type QuoteAcceptedVia = z.infer<typeof QuoteAcceptedViaSchema>;
+
 /** One priced line as the quote keeps it: the Price Master price and the engine's tax. */
 export const QuoteLineDto = z
   .object({
@@ -118,6 +122,11 @@ export const QuoteDto = z
     supersededById: IdSchema.nullable(),
     supersededByNo: z.string().nullable(),
     withdrawnReason: z.string().nullable(),
+    /** How an accepted quote was accepted, its signed copy, and the order it became. */
+    acceptedVia: QuoteAcceptedViaSchema.nullable(),
+    signedFileId: IdSchema.nullable(),
+    orderId: IdSchema.nullable(),
+    orderNo: z.string().nullable(),
     createdAt: z.iso.datetime(),
     createdByName: z.string().nullable(),
     stateChangedAt: z.iso.datetime(),
@@ -125,6 +134,7 @@ export const QuoteDto = z
     canSend: z.boolean(),
     canRequote: z.boolean(),
     canWithdraw: z.boolean(),
+    canAccept: z.boolean(),
   })
   .strict();
 export type QuoteDto = z.infer<typeof QuoteDto>;
