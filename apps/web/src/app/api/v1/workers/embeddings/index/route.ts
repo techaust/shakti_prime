@@ -24,8 +24,10 @@ import {
 
 export const dynamic = 'force-dynamic';
 /**
- * Seconds. Copying a PDF's text out may take the model a minute or more, and the provider
- * wrapper allows it three attempts of 90 seconds; a workbook or a Word document takes a few.
+ * Seconds. Copying a PDF's text out may take the model a minute or more; the job gives the model
+ * `KNOWLEDGE_EXTRACT_DEADLINE_MS` (170 seconds) in all and itself `KNOWLEDGE_INDEX_DEADLINE_MS`
+ * (270), then records the file `knowledge_timed_out` rather than run into this limit. A workbook
+ * or a Word document takes a few seconds.
  */
 export const maxDuration = 300;
 

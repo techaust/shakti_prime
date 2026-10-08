@@ -80,14 +80,14 @@ describe('extractWorkbook', () => {
 });
 
 describe('extractWithModel', () => {
-  const pdf = { mediaType: 'application/pdf' as const, bytes: new Uint8Array([37, 80, 68, 70]) };
+  const pdf = { mediaType: 'image/jpeg' as const, bytes: new Uint8Array([255, 216, 255, 217]) };
 
   it('sends the file with the vault’s own instructions and answers the text', async () => {
     const calls: unknown[] = [];
     const text = await extractWithModel((call) => {
       calls.push(call);
       return Promise.resolve(answer('Warranty: five years on the motor.'));
-    }, pdf);
+    }, [pdf]);
     expect(text).toBe('Warranty: five years on the motor.');
     expect(calls).toEqual([
       expect.objectContaining({
@@ -100,10 +100,10 @@ describe('extractWithModel', () => {
 
   it('calls a refusal unreadable, and an answer cut short too long', async () => {
     await expect(
-      extractWithModel(() => Promise.resolve(answer('', 'refused')), pdf),
+      extractWithModel(() => Promise.resolve(answer('', 'refused')), [pdf]),
     ).rejects.toMatchObject({ reason: 'knowledge_unreadable' });
     await expect(
-      extractWithModel(() => Promise.resolve(answer('Page one', 'too_long')), pdf),
+      extractWithModel(() => Promise.resolve(answer('Page one', 'too_long')), [pdf]),
     ).rejects.toMatchObject({ reason: 'knowledge_too_long' });
   });
 });

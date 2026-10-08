@@ -667,6 +667,7 @@ export const FILE_REJECT_REASONS = [
   'file_unreadable',
   'file_image_too_large',
   'file_pdf_active_content',
+  'file_pdf_too_many_pages',
   'file_mask_failed',
   'file_upload_abandoned',
 ] as const satisfies readonly FileRejectReason[];

@@ -212,7 +212,7 @@ describe('createAiProvider', () => {
 
   it('sends a document with the question and reserves the model’s whole context for it', async () => {
     const { provider, transport, keyValue } = setup([fakeReply('read', { outputTokens: 10 })]);
-    const pdf = { mediaType: 'application/pdf' as const, bytes: new Uint8Array([37, 80, 68, 70]) };
+    const pdf = { mediaType: 'image/jpeg' as const, bytes: new Uint8Array([255, 216, 255, 217]) };
     const most = maxCostInPaise(DEFAULT_CLAUDE_MODEL, 200_000, 4_000);
     // One paisa short of the reservation: refused before anything is sent.
     await expect(

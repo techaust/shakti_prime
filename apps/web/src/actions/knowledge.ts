@@ -13,6 +13,7 @@ import {
 import {
   addKnowledgeFile as addKnowledgeFileCommand,
   archiveKnowledgeFile as archiveKnowledgeFileCommand,
+  checkPermission,
   executeCommand,
   executeQuery,
   knowledgeQueryVector,
@@ -66,6 +67,8 @@ export async function searchKnowledge(
   return toResult('searchKnowledge', async () => {
     const principal = await signedIn();
     const input = parseInput(SearchKnowledgeInput, rawInput);
+    // Before the question is counted or sent anywhere: a role without the search spends nothing.
+    checkPermission(principal, 'knowledge.vault.read.staff', 'all');
     const counted = await countRequest(
       defaultAuthDeps().keyValue,
       `knowledge-search:${principal.id}`,
@@ -76,7 +79,7 @@ export async function searchKnowledge(
         retryAfter: counted.retryAfter,
       });
     }
-    const vector = await knowledgeQueryVector(aiProvider(), input.query);
+    const vector = await knowledgeQueryVector(aiProvider(), input.query, principal.id);
     if (vector === undefined) return { available: false, hits: [] };
     const { requestId } = await requestMeta();
     const hits = await executeQuery(

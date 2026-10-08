@@ -5,11 +5,11 @@ import { NO_USAGE, type TokenUsage } from './models';
 // these, and the fake transport stands in for both in every test.
 
 /**
- * A file a chat model reads with the question: a PDF, or a photo the file checks have masked
- * (a Knowledge Vault file, docs/design/phase1.md §8.4).
+ * A picture a chat model reads with the question: a photo, or a PDF's page, that the file checks
+ * have masked (a Knowledge Vault file, docs/design/phase1.md §8.4). A PDF itself is never sent.
  */
 export interface ModelDocument {
-  mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp';
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp';
   bytes: Uint8Array;
 }
 

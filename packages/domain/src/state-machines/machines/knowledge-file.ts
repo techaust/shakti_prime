@@ -85,13 +85,13 @@ export const knowledgeFileMachine = defineMachine<
       note: '`knowledge.file.record_index` when `ANTHROPIC_API_KEY` or `VOYAGE_API_KEY` is not set.',
     },
     {
-      from: ['indexed', 'failed', 'unavailable'],
+      from: ['waiting', 'indexed', 'failed', 'unavailable'],
       event: 'reindex',
       to: 'waiting',
       permission: 'knowledge.vault.write',
       scope: 'all',
       emits: 'knowledge.file.index_requested',
-      note: '`knowledge.file.reindex`, people only; refused while the upload has not passed its checks.',
+      note: '`knowledge.file.reindex`, people only; refused while the upload has not passed its checks, and for a file waiting less than `KNOWLEDGE_WAITING_STALE_SECONDS` (the index job is still within its time).',
     },
     {
       from: ['waiting', 'indexed', 'failed', 'unavailable'],

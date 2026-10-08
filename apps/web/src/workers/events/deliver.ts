@@ -7,10 +7,10 @@ import { systemWorkersPrincipal } from './system-principal';
 export const EVENT_ID_TTL_SECONDS = 7 * 24 * 60 * 60;
 /**
  * How long one delivery holds an event's id while its worker runs. Longer than any worker may run
- * (a route stops after 60 seconds), so a live claim is never taken over; a claim left by a
- * process that died lapses and the event can be delivered again.
+ * (the longest route, the vault's index job, stops after 300 seconds), so a live claim is never
+ * taken over; a claim left by a process that died lapses and the event can be delivered again.
  */
-export const EVENT_CLAIM_SECONDS = 5 * 60;
+export const EVENT_CLAIM_SECONDS = 6 * 60;
 
 const DONE = 'done';
 const CLAIMED = 'claimed';

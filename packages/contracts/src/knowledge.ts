@@ -53,6 +53,8 @@ export const KNOWLEDGE_ERROR_REASONS = [
   'knowledge_spend_cap_reached',
   // No key for the reading or search service is set yet (`unavailable`).
   'knowledge_service_missing',
+  // The reading did not finish within the time one reading is given.
+  'knowledge_timed_out',
 ] as const;
 export const KnowledgeErrorReasonSchema = z.enum(KNOWLEDGE_ERROR_REASONS);
 export type KnowledgeErrorReason = z.infer<typeof KnowledgeErrorReasonSchema>;
@@ -97,6 +99,15 @@ export type KnowledgeChunkInput = z.infer<typeof KnowledgeChunkInput>;
 
 /** The most chunks one vault file may have; a longer file is `knowledge_too_long`. */
 export const KNOWLEDGE_MAX_CHUNKS = 400;
+
+/** The most pages a vault PDF may have: each page is masked and read as a picture. */
+export const KNOWLEDGE_PDF_MAX_PAGES = 12;
+
+/**
+ * How long a vault file may stay `waiting` before a person may send it to be read again: longer
+ * than the index route runs (300 seconds) and the queue's claim on the job (360 seconds).
+ */
+export const KNOWLEDGE_WAITING_STALE_SECONDS = 6 * 60;
 
 /**
  * `knowledge.file.record_index` (the index job, `knowledge.index`): what reading the file came to.
@@ -153,6 +164,8 @@ export const KnowledgeFileDto = z
     indexedAt: z.iso.datetime().nullable(),
     errorReason: KnowledgeErrorReasonSchema.nullable(),
     createdAt: z.iso.datetime(),
+    /** When the file last changed state; a file waiting since long before is read again. */
+    updatedAt: z.iso.datetime(),
   })
   .strict();
 export type KnowledgeFileDto = z.infer<typeof KnowledgeFileDto>;

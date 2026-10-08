@@ -28,8 +28,15 @@ const config: NextConfig = {
     '@shakti/ui',
   ],
   // Chromium's driver and the serverless Chromium build load files beside their own code at run
-  // time, so they stay plain packages rather than bundled (ADR 0009).
-  serverExternalPackages: ['postgres', '@node-rs/argon2', 'playwright-core', '@sparticuz/chromium'],
+  // time, so they stay plain packages rather than bundled (ADR 0009); so does MuPDF, which loads its
+  // WebAssembly beside its code.
+  serverExternalPackages: [
+    'postgres',
+    '@node-rs/argon2',
+    'playwright-core',
+    '@sparticuz/chromium',
+    'mupdf',
+  ],
   // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
   // the render route, the one function that prints on a hosted runtime (docs/runbooks/DEPLOY.md).
   // The package finds `bin` beside its own real path in pnpm's store, so that path is the one

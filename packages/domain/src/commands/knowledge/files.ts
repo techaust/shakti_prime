@@ -3,6 +3,7 @@ import {
   DomainError,
   KnowledgeFileDto,
   KnowledgeFileRefInput,
+  KNOWLEDGE_WAITING_STALE_SECONDS,
   KnowledgeSensitivitySchema,
   newId,
 } from '@shakti/contracts';
@@ -171,6 +172,16 @@ export const reindexKnowledgeFile = defineCommand({
     if (seen !== undefined) await holdVaultUpload(ctx.tx, seen.fileId);
     const row = await lockKnowledgeFile(ctx, input.knowledgeFileId);
     const to = fireKnowledgeFile(ctx, row.state as KnowledgeFileMachineState, 'reindex');
+    // A file still waiting is read again only once the index job has surely stopped (killed at the
+    // route's limit or given up by the queue): sooner, two readings would race.
+    if (
+      row.state === 'waiting' &&
+      ctx.now.getTime() - row.updatedAt.getTime() < KNOWLEDGE_WAITING_STALE_SECONDS * 1000
+    ) {
+      throw new DomainError('conflict', 'the file is still being read', {
+        reason: 'knowledge_still_reading',
+      });
+    }
     const file = await vaultUpload(ctx.tx, row.fileId);
     if (file?.status !== 'ready') {
       throw new DomainError('conflict', 'the upload has not passed its checks', {

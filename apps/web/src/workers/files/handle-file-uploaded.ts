@@ -25,12 +25,13 @@ import { logger as appLogger } from '../../log';
 import type { DocumentMasker } from '../ocr/mask-document';
 import { checkOfficeFile, isOfficeType } from './office-check';
 import { checkPdf } from './pdf-check';
+import { maskPdf } from './pdf-pages';
 import { isImageType, reencodeImage } from './reencode-image';
 
 /** The tag GuardDuty Malware Protection for S3 writes on each object it scans. */
 export const SCAN_TAG = 'GuardDutyMalwareScanStatus';
 
-/** The purposes whose photos may reach a model, so they are masked before they are kept. */
+/** The purposes whose photos and PDF pages may reach a model, so they are masked before they are kept. */
 const MASKED_PURPOSES: ReadonlySet<string> = new Set(['knowledge']);
 
 export interface FileCheckDeps {
@@ -71,7 +72,8 @@ type Checked =
  *    could not run, rejects the file. Where no scanner exists the file is `not_scanned`, which only
  *    an environment that is not hosted accepts.
  * 2. The bytes: an image is re-encoded, a PDF checked, a vault photo masked, an import file read
- *    as the CSV or workbook it says it is, a vault Word document or workbook checked as the ZIP
+ *    as the CSV or workbook it says it is (a vault PDF is drawn page by page, each page masked, and
+ *    kept as a PDF of the masked pictures), a vault Word document or workbook checked as the ZIP
  *    archive of its type. A changed copy is stored under its own key and the
  *    upload's bytes are deleted, every version of them.
  * 3. `ready` with the checked copy's key, type, size and checksum, or `rejected` with the reason
@@ -214,6 +216,23 @@ async function check(file: StoredFile, bytes: Uint8Array, deps: FileCheckDeps): 
   }
   if (file.contentType === 'application/pdf') {
     const pdf = checkPdf(bytes);
+    if (pdf.ok && MASKED_PURPOSES.has(file.purpose)) {
+      // A vault PDF is masked page by page and only the masked pages are kept: the original is
+      // never stored past this check nor sent to a model.
+      if (deps.masker === undefined) {
+        throw new DomainError('integration_unavailable', 'the masking step is not available here');
+      }
+      const masked = await maskPdf(bytes, await deps.masker());
+      return masked.ok
+        ? {
+            ok: true,
+            sanitising: 'masked',
+            bytes: masked.bytes,
+            contentType: 'application/pdf',
+            regionsMasked: masked.regionsMasked,
+          }
+        : masked;
+    }
     return pdf.ok
       ? {
           ok: true,

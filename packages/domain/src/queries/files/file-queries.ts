@@ -23,6 +23,8 @@ export interface StoredFile {
   createdBy: string;
   /** The upload's own bytes, once the checks replaced or refused them (`ScanResult`). */
   originalKey: string | undefined;
+  /** What the checks did to the bytes (`masked` for a vault photo or PDF), once they are done. */
+  sanitising: string | undefined;
 }
 
 function toStoredFile(row: FileRow): StoredFile {
@@ -39,6 +41,7 @@ function toStoredFile(row: FileRow): StoredFile {
     status: row.status,
     createdBy: row.createdBy,
     originalKey: scanResultOf(row).originalKey,
+    sanitising: scanResultOf(row).sanitising,
   };
 }
 

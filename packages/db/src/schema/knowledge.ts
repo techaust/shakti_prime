@@ -54,7 +54,7 @@ export const knowledgeFiles = pgTable(
     ),
     check(
       'knowledge_files_error_reason_check',
-      sql`${t.errorReason} in ('knowledge_file_rejected', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing')`,
+      sql`${t.errorReason} in ('knowledge_file_rejected', 'knowledge_unreadable', 'knowledge_empty', 'knowledge_too_long', 'knowledge_spend_cap_reached', 'knowledge_service_missing', 'knowledge_timed_out')`,
     ),
     check('knowledge_files_title_check', sql`char_length(${t.title}) between 1 and 200`),
     check('knowledge_files_chunks_check', sql`${t.chunks} >= 0`),

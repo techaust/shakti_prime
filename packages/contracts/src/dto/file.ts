@@ -20,6 +20,8 @@ export const FileRejectReasonSchema = z.enum([
   'file_image_too_large',
   // A PDF that carries scripts, launch actions or embedded files.
   'file_pdf_active_content',
+  // A PDF of more pages than the vault reads.
+  'file_pdf_too_many_pages',
   // The masking step could not find the numbers it must cover, so nothing was kept.
   'file_mask_failed',
   // The upload began but never completed; the sweep refused it.

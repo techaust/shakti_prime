@@ -58,12 +58,15 @@ export function KnowledgeScreen({
   initial,
   companies,
   allCompanies,
+  waitingStaleSeconds,
   writer,
 }: {
   initial: KnowledgeFilePageDto;
   companies: readonly KnowledgeCompany[];
   /** All companies is chosen at the top, so a file for every company may be added. */
   allCompanies: boolean;
+  /** How long a file may wait before it can be read again by hand. */
+  waitingStaleSeconds: number;
   writer?: KnowledgeWriter;
 }) {
   const t = useTranslations('knowledge');
@@ -189,7 +192,8 @@ export function KnowledgeScreen({
                     aria-label={t('files.actions', { title: file.title })}
                     className="flex flex-wrap gap-2"
                   >
-                    {file.state === 'waiting' ? null : (
+                    {file.state === 'waiting' &&
+                    Date.now() - Date.parse(file.updatedAt) < waitingStaleSeconds * 1000 ? null : (
                       <Button
                         size="sm"
                         variant="secondary"

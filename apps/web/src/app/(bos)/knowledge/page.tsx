@@ -1,4 +1,8 @@
-import { KNOWLEDGE_READ_PERMISSION, type KnowledgeSensitivity } from '@shakti/contracts';
+import {
+  KNOWLEDGE_READ_PERMISSION,
+  KNOWLEDGE_WAITING_STALE_SECONDS,
+  type KnowledgeSensitivity,
+} from '@shakti/contracts';
 import { UPLOAD_LIMITS } from '@shakti/domain';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
@@ -46,6 +50,7 @@ export default async function KnowledgePage() {
           initial={page.data}
           companies={companies}
           allCompanies={activeEntityId === undefined}
+          waitingStaleSeconds={KNOWLEDGE_WAITING_STALE_SECONDS}
           {...(canWrite ? { writer: { sensitivities, limit: vaultLimit() } } : {})}
         />
       ) : (

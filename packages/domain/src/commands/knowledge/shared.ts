@@ -32,6 +32,7 @@ export function knowledgeFileDto(row: KnowledgeFileRow): KnowledgeFileDto {
     indexedAt: row.indexedAt?.toISOString() ?? null,
     errorReason: row.errorReason,
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   });
 }
 

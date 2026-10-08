@@ -35,12 +35,18 @@ export function needsModel(source: KnowledgeSourceType): boolean {
  */
 export const KNOWLEDGE_EXTRACT_MAX_TOKENS = 8_000;
 
-/**
- * How long one attempt to copy a file's text out may take: writing 8,000 tokens takes the model
- * about a minute. With the wrapper's two retries the reading stays within the index route's
- * five minutes.
- */
+/** How long one attempt to copy a file's text out may take: 8,000 tokens take the model about a minute. */
 export const KNOWLEDGE_EXTRACT_TIMEOUT_MS = 90_000;
+
+/**
+ * How long copying a file's text out may take in all, every attempt and pause included: under the
+ * index route's 300 seconds (`maxDuration`) with room left to download the file, embed the
+ * passages and record the outcome. Past it the file is recorded `knowledge_timed_out`.
+ */
+export const KNOWLEDGE_EXTRACT_DEADLINE_MS = 170_000;
+
+/** How long the whole job may run before it gives up on embedding: 30 seconds under the route's limit. */
+export const KNOWLEDGE_INDEX_DEADLINE_MS = 270_000;
 
 /** Our own instructions to the model that copies a vault file's text out; stable, so cached. */
 export const KNOWLEDGE_EXTRACT_SYSTEM = [
@@ -68,24 +74,41 @@ export class KnowledgeExtractError extends Error {
 
 /** The model as the index job uses it: its spender, purpose, company and caps already set. */
 export type ExtractModel = (
-  call: Pick<CompleteCall, 'system' | 'question' | 'documents' | 'maxTokens' | 'timeoutMs'>,
+  call: Pick<
+    CompleteCall,
+    'system' | 'question' | 'documents' | 'maxTokens' | 'timeoutMs' | 'totalTimeoutMs'
+  >,
 ) => Promise<CompleteResult>;
 
 /**
- * A PDF's or a masked photo's text, copied out by the model. A file the model will not read is
- * `knowledge_unreadable`, one longer than the model may write out `knowledge_too_long`.
+ * A masked photo's, or a PDF's masked pages' (one picture each), text, copied out by the model in
+ * one reading within `deadlineMs`. A file the model will not read is `knowledge_unreadable`, one
+ * longer than the model may write out `knowledge_too_long`, and one the model did not finish
+ * reading in time `knowledge_timed_out`.
  */
 export async function extractWithModel(
   model: ExtractModel,
-  document: ModelDocument,
+  documents: readonly ModelDocument[],
+  deadlineMs: number = KNOWLEDGE_EXTRACT_DEADLINE_MS,
 ): Promise<string> {
-  const reply = await model({
-    system: KNOWLEDGE_EXTRACT_SYSTEM,
-    question: EXTRACT_QUESTION,
-    documents: [document],
-    maxTokens: KNOWLEDGE_EXTRACT_MAX_TOKENS,
-    timeoutMs: KNOWLEDGE_EXTRACT_TIMEOUT_MS,
-  });
+  let reply;
+  try {
+    reply = await model({
+      system: KNOWLEDGE_EXTRACT_SYSTEM,
+      question: EXTRACT_QUESTION,
+      documents,
+      maxTokens: KNOWLEDGE_EXTRACT_MAX_TOKENS,
+      timeoutMs: KNOWLEDGE_EXTRACT_TIMEOUT_MS,
+      totalTimeoutMs: deadlineMs,
+    });
+  } catch (error) {
+    if ((error as { details?: { reason?: unknown } }).details?.reason === 'ai_deadline_exceeded') {
+      throw new KnowledgeExtractError('knowledge_timed_out', 'the reading went past its deadline', {
+        cause: error,
+      });
+    }
+    throw error;
+  }
   if (reply.stopped === 'refused') {
     throw new KnowledgeExtractError('knowledge_unreadable', 'the model would not read the file');
   }

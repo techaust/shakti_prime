@@ -61,7 +61,7 @@ describe('anthropicTransport', () => {
       {
         ...REQUEST,
         documents: [
-          { mediaType: 'application/pdf', bytes: new Uint8Array([1, 2]) },
+          { mediaType: 'image/png', bytes: new Uint8Array([1, 2]) },
           { mediaType: 'image/jpeg', bytes: new Uint8Array([3]) },
         ],
       },
@@ -72,10 +72,7 @@ describe('anthropicTransport', () => {
         {
           role: 'user',
           content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: 'AQI=' },
-            },
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AQI=' } },
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'Aw==' } },
             { type: 'text', text: 'u' },
           ],

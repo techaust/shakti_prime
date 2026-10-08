@@ -76,5 +76,7 @@ export const AGENT_DEFAULTS = {
     searchName: 'knowledge:search',
     indexDailyCapPaise: 50_000,
     searchDailyCapPaise: 10_000,
+    /** One person's daily share of the search cap: a fifth, so one person cannot use it all up. */
+    searchPersonDailyCapPaise: 2_000,
   },
 } as const;

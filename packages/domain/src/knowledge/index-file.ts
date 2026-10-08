@@ -2,6 +2,7 @@ import {
   DomainError,
   hasGrant,
   KNOWLEDGE_MAX_CHUNKS,
+  KNOWLEDGE_PDF_MAX_PAGES,
   type EmbeddingsIndexJob,
   type KnowledgeErrorReason,
   type Principal,
@@ -14,13 +15,21 @@ import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
 import { knowledgeFileForIndex } from '../commands/knowledge/shared';
 import { sha256Hex, type FileStore } from '../ports/file-store';
 import { jsonLogger, type Logger } from '../ports/logger';
-import { maskForModel } from '../privacy/model-text';
 import { getStoredFile } from '../queries/files/file-queries';
-import { chunkText } from './chunk';
-import { extractWithModel, extractWorkbook, KnowledgeExtractError, needsModel } from './extract';
+import {
+  extractWithModel,
+  extractWorkbook,
+  KNOWLEDGE_EXTRACT_DEADLINE_MS,
+  KNOWLEDGE_INDEX_DEADLINE_MS,
+  KnowledgeExtractError,
+  needsModel,
+} from './extract';
+import { knowledgePassages } from './passages';
 
 /** Passages sent to the embedding model in one call (the vendor takes many more). */
 export const EMBED_BATCH = 128;
+/** Less time than this left, no embedding call is started: the file is recorded timed out. */
+const MIN_EMBED_MS = 5_000;
 
 export interface IndexKnowledgeDeps {
   /** `system:workers` for the job's file company (`knowledge.index`), never a person. */
@@ -29,6 +38,11 @@ export interface IndexKnowledgeDeps {
   provider: AiProvider;
   /** Reads a Word document's text (the web app's `mammoth`); throws when it cannot. */
   readWord: (bytes: Uint8Array) => Promise<string>;
+  /**
+   * Draws the pages of a PDF the file checks have masked (a PDF of pictures) as JPEG images, in
+   * order; throws when it cannot (the web app's MuPDF, which only the web app holds).
+   */
+  pdfPages: (bytes: Uint8Array) => Promise<Uint8Array[]>;
   requestId: string;
   hosted: boolean;
   logger?: Logger;
@@ -47,11 +61,40 @@ function indexCaps(): SpendCap[] {
 
 const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-function asDocument(contentType: string, bytes: Uint8Array): ModelDocument {
-  if (contentType === 'application/pdf' || PHOTO_TYPES.has(contentType)) {
-    return { mediaType: contentType as ModelDocument['mediaType'], bytes };
+/**
+ * What the model is shown of a vault file: a masked photo as it is, a masked PDF as its pages drawn
+ * as pictures, one each. A PDF's own bytes are never sent. Only a file the checks masked is shown:
+ * anything else is refused as having failed its checks.
+ */
+async function asDocuments(
+  file: { contentType: string; sanitising: string | undefined },
+  bytes: Uint8Array,
+  deps: Pick<IndexKnowledgeDeps, 'pdfPages'>,
+): Promise<ModelDocument[]> {
+  if (file.sanitising !== 'masked') {
+    throw new KnowledgeExtractError('knowledge_file_rejected', 'the file was not masked');
   }
-  throw new KnowledgeExtractError('knowledge_unreadable', `the model does not read ${contentType}`);
+  if (PHOTO_TYPES.has(file.contentType)) {
+    return [{ mediaType: file.contentType as ModelDocument['mediaType'], bytes }];
+  }
+  if (file.contentType !== 'application/pdf') {
+    throw new KnowledgeExtractError('knowledge_unreadable', `the model does not read ${file.contentType}`);
+  }
+  let pages: Uint8Array[];
+  try {
+    pages = await deps.pdfPages(bytes);
+  } catch (error) {
+    throw new KnowledgeExtractError('knowledge_unreadable', 'the pages could not be drawn', {
+      cause: error,
+    });
+  }
+  if (pages.length === 0) {
+    throw new KnowledgeExtractError('knowledge_unreadable', 'the PDF has no pages');
+  }
+  if (pages.length > KNOWLEDGE_PDF_MAX_PAGES) {
+    throw new KnowledgeExtractError('knowledge_too_long', 'the PDF has too many pages');
+  }
+  return pages.map((page) => ({ mediaType: 'image/jpeg', bytes: page }));
 }
 
 /**
@@ -63,12 +106,13 @@ function asDocument(contentType: string, bytes: Uint8Array): ModelDocument {
  *    its checks waits for them, which send it again;
  * 2. without the keys the file needs (Voyage always, Claude for a PDF or a photo) it is recorded
  *    `unavailable` and nothing calls out;
- * 3. its text by type (a PDF and a masked photo by Claude, a workbook sheet by sheet, a Word
- *    document by `readWord`), cut into passages (`chunkText`), each masked (`maskForModel`) and
- *    embedded as a document through the provider wrapper, the spend counted under the vault's own
+ * 3. its text by type (a PDF's masked pages, drawn as pictures by `pdfPages`, and a masked photo by
+ *    Claude, a workbook sheet by sheet, a Word document by `readWord`), masked whole, cut into
+ *    passages and masked again passage by passage (`knowledgePassages`), then embedded as a document through the provider wrapper, the spend counted under the vault's own
  *    name for its company (or the group only, for a file of the whole group);
  * 4. `knowledge.file.record_index` replaces its passages in one transaction, or records why it
- *    could not be read. A vendor that does not answer is left to the queue's retries.
+ *    could not be read. A vendor that does not answer is left to the queue's retries; a reading
+ *    that runs past its deadline (under the route's limit) is recorded `knowledge_timed_out`.
  */
 export async function indexKnowledgeFile(
   job: EmbeddingsIndexJob,
@@ -150,23 +194,28 @@ export async function indexKnowledgeFile(
         });
       }
     } else {
-      const document = asDocument(file.contentType, bytes);
+      const documents = await asDocuments(file, bytes, deps);
       text = await extractWithModel(
         (call) => deps.provider.complete({ ...spend, purpose: 'knowledge_extract', ...call }),
-        document,
+        documents,
+        Math.min(KNOWLEDGE_EXTRACT_DEADLINE_MS, KNOWLEDGE_INDEX_DEADLINE_MS - (Date.now() - started)),
       );
     }
-    const passages = chunkText(text).map(maskForModel);
+    // Masked whole, cut, and masked again passage by passage (SECURITY §5, §6).
+    const passages = knowledgePassages(text);
     if (passages.length === 0) return await fail('knowledge_empty');
     if (passages.length > KNOWLEDGE_MAX_CHUNKS) return await fail('knowledge_too_long');
     const vectors: number[][] = [];
     for (let i = 0; i < passages.length; i += EMBED_BATCH) {
       const batch = passages.slice(i, i + EMBED_BATCH);
+      const left = KNOWLEDGE_INDEX_DEADLINE_MS - (Date.now() - started);
+      if (left < MIN_EMBED_MS) return await fail('knowledge_timed_out');
       const embedded = await deps.provider.embed({
         ...spend,
         purpose: 'knowledge_embed',
         texts: batch,
         inputType: 'document',
+        totalTimeoutMs: left,
       });
       vectors.push(...embedded.vectors);
     }
@@ -186,6 +235,14 @@ export async function indexKnowledgeFile(
     return outcome;
   } catch (error) {
     if (error instanceof KnowledgeExtractError) return fail(error.reason);
+    // The deadline stopped an embedding call: settled by the wrapper, recorded so it can be read again.
+    if (
+      error instanceof DomainError &&
+      error.code === 'integration_unavailable' &&
+      error.details?.reason === 'ai_deadline_exceeded'
+    ) {
+      return fail('knowledge_timed_out');
+    }
     if (
       error instanceof DomainError &&
       error.code === 'rate_limited' &&
