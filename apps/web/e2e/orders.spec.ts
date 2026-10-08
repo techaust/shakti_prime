@@ -194,7 +194,7 @@ test.describe('as Accounts, dealer credit', () => {
     const grid = dataGrid(page, 'Dealers');
     await expect(grid.getByText('₹12,500.00').first()).toBeVisible();
     // The invoice is 40 days old today, and the row says so.
-    await expect(grid.getByText('RCREF/SI/JOURNEY/0001, 40 days old')).toBeVisible();
+    await expect(grid.getByText('RCREF/SI/JOURNEY/0001, 40 days old').first()).toBeVisible();
 
     await page.getByRole('button', { name: `Earlier entries of ${dealer.name}` }).click();
     await expect(
