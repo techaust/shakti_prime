@@ -168,6 +168,39 @@ revoke execute on function app.notice_duplicate_owners(smallint, uuid) from publ
 grant execute on function app.notice_duplicate_owners(smallint, uuid) to app_user;
 --> statement-breakpoint
 
+-- The people told that a dealer's order is held for credit, while it is held: whoever holds
+-- sales.credit.release in the order's company (the Executive, as the roles stand) and the person who
+-- made the order, once each, with the order's customer for the notice's line.
+create or replace function app.notice_order_people(p_entity smallint, p_order uuid)
+  returns table (user_id uuid, account_id uuid)
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.require_notice_sender(p_entity);
+  return query
+    select distinct on (w.uid) w.uid, o.account_id
+      from public.sales_orders o
+      join lateral (
+        select o.created_by as uid
+        union
+        select uer.user_id
+          from public.user_entity_roles uer
+          join public.role_permissions rp on rp.role_id = uer.role_id
+         where uer.entity_id = o.entity_id
+           and rp.permission_key = 'sales.credit.release') w on true
+     where o.id = p_order
+       and o.entity_id = p_entity
+       and o.state = 'draft'
+       and o.credit_held_at is not null
+       and app.notice_recipient_ok(w.uid, p_entity)
+     order by w.uid;
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.notice_order_people(smallint, uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.notice_order_people(smallint, uuid) to app_user;
+--> statement-breakpoint
+
 -- 7. The scan's finds in one company, each with the reason it would be told for (dedupe_key), and
 --    only those nobody was told about yet for that reason, so a repeated scan finds nothing twice
 --    and every batch moves on. Each looks back no further than p_since, so a first run does not

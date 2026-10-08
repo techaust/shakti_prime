@@ -353,6 +353,102 @@ describe('the scan (call_due, quote_expiring, first_call_late)', () => {
   });
 });
 
+describe('a dealer order held for credit (order_credit_held, SAL-07)', () => {
+  /** A draft order of a new dealer in company 1, held for credit by `maker`'s confirmation. */
+  async function heldOrder(maker: Principal, held = true) {
+    const account = newId();
+    const order = newId();
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`insert into accounts (id, type, name, created_by)
+          values (${account}, 'dealer', ${`Held dealer ${RUN}`}, ${maker.id})`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, created_by)
+          values (${newId()}, ${account}, 1, ${maker.id}, ${maker.id})`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id,
+                    place_of_supply_state, supply_kind, state, subtotal, cgst, sgst, igst, tax_total,
+                    round_off, grand_total, created_by, credit_held_at, credit_hold_reason, credit_hold_json)
+          values (${order}, 1, ${`NTC/${RUN}/${order.slice(-6)}`}, '2098-99', ${account}, ${tierId('dealer')},
+                  '08', 'intra', 'draft', 0, 0, 0, 0, 0, 0, 0, ${maker.id},
+                  ${held ? tx`now()` : null}, ${held ? 'credit_limit_missing' : null},
+                  ${held ? tx.json({}) : null})`;
+      }),
+    );
+    return { account, order };
+  }
+
+  const heldEvent = (orderId: string, entityId = 1) => ({
+    event: 'sales.order.credit_held',
+    entityId,
+    eventId: newId(),
+    orderId,
+  });
+
+  it('tells the Executives who may release it and the person who made it, once each', async () => {
+    const exec = await createTestUser([{ entityId: 1, roleKey: 'executive' }]);
+    const otherCompanyExec = await createTestUser([{ entityId: 2, roleKey: 'executive' }]);
+    const { account, order } = await heldOrder(callerA);
+    try {
+      const input = heldEvent(order);
+      const first = await notify(input);
+      const told = first.notices.map((n) => n.userId);
+      expect(told).toEqual(expect.arrayContaining([exec.id, callerA.id]));
+      expect(told).not.toContain(callerB.id);
+      expect(told).not.toContain(gm.id);
+      expect(told).not.toContain(otherCompanyExec.id);
+      expect(new Set(told).size).toBe(told.length);
+      for (const n of first.notices) {
+        expect(n).toMatchObject({
+          type: 'order_credit_held',
+          entityId: 1,
+          subjectId: order,
+          payload: { accountId: account },
+          push: 'none',
+        });
+      }
+      // The same delivery again writes nothing; a hold for another rule is a new event and tells again.
+      expect((await notify(input)).notices).toEqual([]);
+      expect((await notify(heldEvent(order))).notices.map((n) => n.userId)).toEqual(
+        expect.arrayContaining([exec.id, callerA.id]),
+      );
+      // The Executive finds it in the centre with the order's number and the dealer's name.
+      const execPrincipal = principalFor('executive', [1], { id: exec.id });
+      const page = await asPrincipal(execPrincipal, (context) =>
+        listNotices(context, { limit: 5 }),
+      );
+      expect(page.items.find((n) => n.subjectId === order)).toMatchObject({
+        type: 'order_credit_held',
+        subjectType: 'sales_order',
+        accountId: account,
+        orderNo: expect.stringContaining(`NTC/${RUN}/`) as string,
+        customerName: `Held dealer ${RUN}`,
+      });
+    } finally {
+      await asMigrator(async (m) => {
+        await m`delete from sales_orders where id = ${order}`;
+        await m`delete from account_entities where account_id = ${account}`;
+        await m`delete from accounts where id = ${account}`;
+      });
+    }
+  });
+
+  it('tells nobody of an order that is no longer held, or of one outside the request', async () => {
+    const { account, order } = await heldOrder(callerA, false);
+    try {
+      expect((await notify(heldEvent(order))).notices).toEqual([]);
+      await expect(notify(heldEvent(order), workers([2]))).rejects.toMatchObject({
+        code: 'forbidden',
+      });
+      expect((await notify(heldEvent(newId()))).notices).toEqual([]);
+    } finally {
+      await asMigrator(async (m) => {
+        await m`delete from sales_orders where id = ${order}`;
+        await m`delete from account_entities where account_id = ${account}`;
+        await m`delete from accounts where id = ${account}`;
+      });
+    }
+  });
+});
+
 describe('a person’s choices: quiet hours and the centre', () => {
   const endpoint = `https://fcm.googleapis.com/fcm/send/${newId()}`;
   const keys = { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) };

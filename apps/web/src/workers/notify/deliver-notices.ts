@@ -23,6 +23,7 @@ export function pushMessageOf(notice: WrittenNoticeDto): PushMessage {
       entityId: notice.entityId,
       accountId: notice.payload.accountId ?? null,
       quoteId: notice.payload.quoteId ?? null,
+      subjectId: notice.subjectId,
     }),
     tag: notice.id,
   };

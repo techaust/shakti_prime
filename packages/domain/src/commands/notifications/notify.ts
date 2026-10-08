@@ -81,12 +81,28 @@ async function draftsFor(ctx: CommandContext, input: NotifyEventInput): Promise<
           dedupeKey: `enquiry_routed:${input.itemId}`,
         },
       ];
+    case 'sales.order.credit_held': {
+      // The Executives who may release the hold and the person who made the order, while it is held.
+      const people = (await ctx.tx.execute(
+        sql`select user_id, account_id
+              from app.notice_order_people(${input.entityId}::smallint, ${input.orderId}::uuid)`,
+      )) as unknown as { user_id: string; account_id: string }[];
+      return people.map((p) => ({
+        userId: p.user_id,
+        type: 'order_credit_held',
+        subjectType: 'sales_order',
+        subjectId: input.orderId,
+        payload: { accountId: p.account_id },
+        // One notice per hold: a hold for another rule is a new event and tells again.
+        dedupeKey: `order_credit_held:${input.eventId}`,
+      }));
+    }
   }
 }
 
 /**
  * `notifications.event.notify`: the notices one event stands for (`crm.opportunity.assigned`,
- * `crm.duplicate.found`, `crm.enquiry.routed`), each for the person who acts on it in the event's
+ * `crm.duplicate.found`, `crm.enquiry.routed`, `sales.order.credit_held`), each for the person who acts on it in the event's
  * company and once per person however often the event is delivered.
  */
 export const notifyEvent = defineCommand({

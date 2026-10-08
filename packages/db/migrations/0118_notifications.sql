@@ -9,7 +9,7 @@ CREATE TABLE "notification_preferences" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "notification_preferences_user_type_unique" UNIQUE NULLS NOT DISTINCT("user_id","type"),
-	CONSTRAINT "notification_preferences_type_check" CHECK ("notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')),
+	CONSTRAINT "notification_preferences_type_check" CHECK ("notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')),
 	CONSTRAINT "notification_preferences_quiet_check" CHECK (("notification_preferences"."quiet_from" is null) = ("notification_preferences"."quiet_to" is null)
         and ("notification_preferences"."quiet_from" is null or "notification_preferences"."quiet_from" <> "notification_preferences"."quiet_to")
         and ("notification_preferences"."type" is null or "notification_preferences"."quiet_from" is null))
@@ -28,8 +28,8 @@ CREATE TABLE "notifications" (
 	"read_at" timestamp with time zone,
 	"channel_sent_json" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	CONSTRAINT "notifications_user_dedupe_unique" UNIQUE("user_id","dedupe_key"),
-	CONSTRAINT "notifications_type_check" CHECK ("notifications"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')),
-	CONSTRAINT "notifications_subject_type_check" CHECK ("notifications"."subject_type" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item')),
+	CONSTRAINT "notifications_type_check" CHECK ("notifications"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')),
+	CONSTRAINT "notifications_subject_type_check" CHECK ("notifications"."subject_type" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item', 'sales_order')),
 	CONSTRAINT "notifications_payload_check" CHECK (jsonb_typeof("notifications"."payload_json") = 'object'),
 	CONSTRAINT "notifications_channels_check" CHECK (jsonb_typeof("notifications"."channel_sent_json") = 'object'),
 	CONSTRAINT "notifications_dedupe_key_check" CHECK (char_length("notifications"."dedupe_key") between 1 and 200)

@@ -244,6 +244,7 @@ describe('the notify worker’s definers', () => {
   const definers = (entity: number): SQL[] => [
     sql`select * from app.notice_lead(${entity}::smallint, ${newId()}::uuid)`,
     sql`select * from app.notice_duplicate_owners(${entity}::smallint, ${newId()}::uuid)`,
+    sql`select * from app.notice_order_people(${entity}::smallint, ${newId()}::uuid)`,
     sql`select * from app.notice_due_calls(${entity}::smallint, now(), 10)`,
     sql`select * from app.notice_expiring_quotes(${entity}::smallint, now(), 10)`,
     sql`select * from app.notice_late_first_calls(${entity}::smallint, now(), 10)`,

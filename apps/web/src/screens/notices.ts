@@ -4,6 +4,7 @@
 import type { NoticeType } from '@shakti/contracts';
 import type { Route } from 'next';
 import { customerHref } from './customers';
+import { orderHref } from './orders';
 import { quoteHref } from './quotes';
 
 /** What a notice's link is made from. */
@@ -12,12 +13,15 @@ export interface NoticeLinkFacts {
   entityId: number;
   accountId: string | null;
   quoteId: string | null;
+  /** The record the notice is about; an order's page for a held order. */
+  subjectId: string;
 }
 
 /**
  * The screen the person acts on: their calling queue for a call that fell due (due calls come
  * first there), the quote for one about to lapse, their Agent Inbox for an enquiry passed to them
- * (where its interest and note are, and Done), and the customer's Account 360, in the notice's
+ * (where its interest and note are, and Done), the order for one held for credit (where the
+ * Executive releases it), and the customer's Account 360, in the notice's
  * company, for a lead given to them, a possible duplicate or a late first call.
  */
 export function noticeHref(notice: NoticeLinkFacts): Route {
@@ -26,6 +30,8 @@ export function noticeHref(notice: NoticeLinkFacts): Route {
       return '/calling';
     case 'enquiry_routed':
       return '/inbox';
+    case 'order_credit_held':
+      return orderHref(notice.entityId, notice.subjectId);
     case 'quote_expiring':
       return notice.quoteId === null ? '/quotes' : quoteHref(notice.entityId, notice.quoteId);
     default:

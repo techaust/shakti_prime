@@ -79,6 +79,7 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
   'crm.opportunity.assigned': { ordering: 'every', handle: notify },
   'crm.duplicate.found': { ordering: 'every', handle: notify },
   'crm.enquiry.routed': { ordering: 'every', handle: notify },
+  'sales.order.credit_held': { ordering: 'every', handle: notify },
 };
 
 /** Every notifying event is handled the same way: its notices, then their pushes. */

@@ -7455,7 +7455,7 @@
       "checkConstraints": {
         "notification_preferences_type_check": {
           "name": "notification_preferences_type_check",
-          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')"
+          "value": "\"notification_preferences\".\"type\" is null or \"notification_preferences\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')"
         },
         "notification_preferences_quiet_check": {
           "name": "notification_preferences_quiet_check",
@@ -7653,11 +7653,11 @@
       "checkConstraints": {
         "notifications_type_check": {
           "name": "notifications_type_check",
-          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')"
+          "value": "\"notifications\".\"type\" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')"
         },
         "notifications_subject_type_check": {
           "name": "notifications_subject_type_check",
-          "value": "\"notifications\".\"subject_type\" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item')"
+          "value": "\"notifications\".\"subject_type\" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item', 'sales_order')"
         },
         "notifications_payload_check": {
           "name": "notifications_payload_check",

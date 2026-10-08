@@ -41,6 +41,8 @@ export function notifyInputOf(event: DeliveredEvent): NotifyEventInput {
         assigneeId: String(p.assigneeId),
         accountId: String(p.accountId),
       };
+    case 'sales.order.credit_held':
+      return { ...base, event: 'sales.order.credit_held', orderId: event.aggregateId };
     default:
       throw new DomainError('validation_failed', `${event.type} does not notify`, {
         type: event.type,

@@ -17,7 +17,7 @@ import { entities } from './entities';
 import { principals } from './principals';
 
 const NOTICE_TYPES = sql.raw(
-  "('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')",
+  "('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')",
 );
 
 /**
@@ -53,7 +53,7 @@ export const notifications = pgTable(
     check('notifications_type_check', sql`${t.type} in ${NOTICE_TYPES}`),
     check(
       'notifications_subject_type_check',
-      sql`${t.subjectType} in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item')`,
+      sql`${t.subjectType} in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item', 'sales_order')`,
     ),
     check('notifications_payload_check', sql`jsonb_typeof(${t.payloadJson}) = 'object'`),
     check('notifications_channels_check', sql`jsonb_typeof(${t.channelSentJson}) = 'object'`),

@@ -194,7 +194,11 @@ function NoticeRow({
   const unread = notice.readAt === null;
   const href = noticeHref(notice);
   const detail =
-    notice.quoteNo !== null ? t('quoteLine', { quoteNo: notice.quoteNo }) : notice.customerName;
+    notice.orderNo !== null
+      ? t('orderLine', { orderNo: notice.orderNo })
+      : notice.quoteNo !== null
+        ? t('quoteLine', { quoteNo: notice.quoteNo })
+        : notice.customerName;
 
   function read() {
     if (!unread || mark.pending) return;

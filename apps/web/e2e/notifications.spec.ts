@@ -145,6 +145,12 @@ test.describe('notices as a tele-caller', () => {
       name: 'Show “A call of yours is due” in Notifications',
     });
     await expect(showCall).toBeChecked();
+    // A dealer order held for credit is a kind of notice of its own, on until she changes it.
+    await expect(
+      page.getByRole('checkbox', {
+        name: 'Show “A dealer order is held for credit. Only an Executive can release it” in Notifications',
+      }),
+    ).toBeChecked();
     await pushCall.uncheck();
     await page.getByLabel('Quiet from').fill('22:00');
     await page.getByLabel('Quiet until').fill('07:00');

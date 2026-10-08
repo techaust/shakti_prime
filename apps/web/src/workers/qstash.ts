@@ -52,6 +52,7 @@ export const EVENT_JOB_ROUTES: Readonly<
   'crm.opportunity.assigned': { path: NOTIFY_PATH, body: (event) => event },
   'crm.duplicate.found': { path: NOTIFY_PATH, body: (event) => event },
   'crm.enquiry.routed': { path: NOTIFY_PATH, body: (event) => event },
+  'sales.order.credit_held': { path: NOTIFY_PATH, body: (event) => event },
 };
 
 function jobRoute(type: string) {

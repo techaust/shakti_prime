@@ -20,7 +20,9 @@ const Count = z.number().int().min(0);
  * - `quote_expiring`: a quote on your lead lapses within a day;
  * - `first_call_late`: a new lead of your company was not called within its first-contact limit
  *   (to the company's General Manager, criterion 2);
- * - `enquiry_routed`: an enquiry for a customer you look after was passed to you.
+ * - `enquiry_routed`: an enquiry for a customer you look after was passed to you;
+ * - `order_credit_held`: a dealer's order was held by the credit check, for the Executive who may
+ *   release it and the person who made the order (SAL-07).
  */
 export const NOTICE_TYPES = [
   'lead_assigned',
@@ -29,6 +31,7 @@ export const NOTICE_TYPES = [
   'quote_expiring',
   'first_call_late',
   'enquiry_routed',
+  'order_credit_held',
 ] as const;
 export const NoticeTypeSchema = z.enum(NOTICE_TYPES);
 export type NoticeType = z.infer<typeof NoticeTypeSchema>;
@@ -40,6 +43,7 @@ export const NOTICE_SUBJECT_TYPES = [
   'task',
   'quote',
   'inbox_item',
+  'sales_order',
 ] as const;
 export const NoticeSubjectTypeSchema = z.enum(NOTICE_SUBJECT_TYPES);
 export type NoticeSubjectType = z.infer<typeof NoticeSubjectTypeSchema>;
@@ -77,6 +81,8 @@ export const NoticeDto = z
     accountId: IdSchema.nullable(),
     opportunityId: IdSchema.nullable(),
     quoteId: IdSchema.nullable(),
+    /** The order's number when the reader may read the order; null otherwise. */
+    orderNo: z.string().nullable(),
     /** The customer's name when the reader may read the customer; null otherwise. */
     customerName: z.string().nullable(),
     /** The quote's number when the reader may read the quote; null otherwise. */
@@ -230,6 +236,7 @@ export const NOTICE_EVENT_TYPES = [
   'crm.opportunity.assigned',
   'crm.duplicate.found',
   'crm.enquiry.routed',
+  'sales.order.credit_held',
 ] as const;
 export type NoticeEventType = (typeof NOTICE_EVENT_TYPES)[number];
 
@@ -241,7 +248,8 @@ export function isNoticeEvent(type: string): type is NoticeEventType {
  * `notifications.event.notify`: the notice one event stands for, its people found from the
  * records when the worker runs (the owner may have changed since): the lead's new owner unless
  * they took it themselves, the owners of a duplicate card's leads in its company, or the colleague
- * an enquiry was passed to. `eventId` makes a repeated delivery one notice per person.
+ * an enquiry was passed to, or the Executives who may release a held order and its maker.
+ * `eventId` makes a repeated delivery one notice per person.
  */
 export const NotifyEventInput = z.discriminatedUnion('event', [
   z
@@ -270,6 +278,14 @@ export const NotifyEventInput = z.discriminatedUnion('event', [
       itemId: IdSchema,
       assigneeId: IdSchema,
       accountId: IdSchema,
+    })
+    .strict(),
+  z
+    .object({
+      event: z.literal('sales.order.credit_held'),
+      entityId: EntityIdSchema,
+      eventId: IdSchema,
+      orderId: IdSchema,
     })
     .strict(),
 ]);

@@ -465,13 +465,14 @@ const eventCatalogue = {
   },
   /**
    * The dealer credit check held a confirmation (SAL-07): the order stays a draft until the
-   * Executive releases it. The notice to the Executive and the order's maker is N1's to send.
+   * Executive releases it. The notify worker tells the Executives who may release it and the
+   * order's maker.
    */
   'sales.order.credit_held': {
     meaning:
-      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it.',
+      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order.',
     emittedBy: ['sales.order.confirm'],
-    subscribed: false,
+    subscribed: true,
     payload: z
       .object({
         accountId: IdSchema,

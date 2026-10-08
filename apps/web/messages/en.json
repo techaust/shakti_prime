@@ -460,6 +460,7 @@
     "openSettings": "Settings",
     "close": "Close",
     "quoteLine": "Quote {quoteNo}",
+    "orderLine": "Order {orderNo}",
     "companyLine": "In {company}",
     "types": {
       "lead_assigned": "A lead was given to you",
@@ -467,7 +468,8 @@
       "call_due": "A call of yours is due",
       "quote_expiring": "A quote on your lead lapses within a day",
       "first_call_late": "A new lead was not called in time",
-      "enquiry_routed": "An enquiry from your customer was passed to you"
+      "enquiry_routed": "An enquiry from your customer was passed to you",
+      "order_credit_held": "A dealer order is held for credit. Only an Executive can release it"
     },
     "settings": {
       "title": "Notification settings",
@@ -523,6 +525,10 @@
     "enquiry_routed": {
       "title": "An enquiry was passed to you",
       "body": "A customer you look after asked again. Tap to open your Agent Inbox."
+    },
+    "order_credit_held": {
+      "title": "A dealer order is held for credit",
+      "body": "The order stays a draft until the Executive releases it. Tap to open it."
     }
   },
   "home": {

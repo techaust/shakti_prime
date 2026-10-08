@@ -30,6 +30,7 @@ interface NoticeRow extends Record<string, unknown> {
   read_at: Date | string | null;
   customer_name: string | null;
   quote_no: string | null;
+  order_no: string | null;
 }
 
 /**
@@ -50,7 +51,10 @@ export function noticeListSql(ctx: Ctx, limit: number, after?: z.output<typeof N
              where a.id = (p.payload_json ->> 'accountId')::uuid) as customer_name,
            (select qt.quote_no from quotes qt
              where qt.id = (p.payload_json ->> 'quoteId')::uuid
-               and qt.entity_id = p.entity_id) as quote_no
+               and qt.entity_id = p.entity_id) as quote_no,
+           (select so.so_no from sales_orders so
+             where p.subject_type = 'sales_order' and so.id = p.subject_id
+               and so.entity_id = p.entity_id) as order_no
       from (select n.* from notifications n
              where n.user_id = ${ctx.principal.id}::uuid
                and n.entity_id = any(${`{${ctx.entityIds.join(',')}}`}::int[])
@@ -67,8 +71,8 @@ const toIso = (v: Date | string): string => (v instanceof Date ? v : new Date(v)
 /**
  * The caller's notices in the request's companies that show in the centre, newest first, keyset
  * on `(created_at, id)` (docs/03-roadmap-appendix/phase1.md §8.1). The customer's name and the quote's number
- * are read only where the caller may read them (RLS), so a notice about a record the caller no
- * longer reads still shows, without them.
+ * and the order's number are read only where the caller may read them (RLS), so a notice about a
+ * record the caller no longer reads still shows, without them.
  */
 export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePageDto> {
   const input = parseQueryInput(ListNoticesInput, rawInput, 'notifications.list');
@@ -95,6 +99,7 @@ export async function listNotices(ctx: Ctx, rawInput: unknown): Promise<NoticePa
         quoteId: payload.quoteId ?? null,
         customerName: r.customer_name,
         quoteNo: r.quote_no,
+        orderNo: r.order_no,
         createdAt: toIso(r.created_at),
         readAt: r.read_at === null ? null : toIso(r.read_at),
       });
