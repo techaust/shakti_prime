@@ -15,6 +15,12 @@ export const QUOTE_EXPIRY_NOTICE_MS = 24 * 60 * 60 * 1000;
 /** How many finds of each kind one scan batch of a company takes. */
 export const NOTICE_SCAN_LIMIT = 200;
 
+/**
+ * How long a push may stay pending before the scan sends it again: longer than a run, so a push
+ * the running scan is still sending is left alone.
+ */
+export const NOTICE_PUSH_RETRY_AFTER_SECONDS = 120;
+
 const IST_OFFSET_MINUTES = 330;
 
 /** Minutes since midnight of an `HH:MM` time. */

@@ -27,13 +27,26 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Take hold of the pages already open, so a tab opened before this worker started can be moved.
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = new URL(sitePath(event.notification.data?.url), self.location.origin).href;
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windows) => {
       const open = windows.find((w) => w.url.startsWith(self.location.origin));
-      if (open) return open.navigate(url).then((w) => (w ?? open).focus());
+      if (open) {
+        try {
+          const moved = await open.navigate(url);
+          await (moved ?? open).focus();
+          return undefined;
+        } catch {
+          // A window this worker does not control cannot be moved: open the screen in a new one.
+        }
+      }
       return self.clients.openWindow(url);
     }),
   );

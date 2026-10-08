@@ -252,6 +252,7 @@ describe('the notify worker’s definers', () => {
     sql`select * from app.notice_push_targets(${entity}::smallint, array[]::uuid[])`,
     sql`select * from app.write_notices(${entity}::smallint, '[]'::jsonb)`,
     sql`select * from app.record_notice_push(${entity}::smallint, '[]'::jsonb, array[]::text[], array[]::text[])`,
+    sql`select * from app.notice_pending_pushes(${entity}::smallint, 120, 10)`,
   ];
 
   it('refuses a caller without notifications.send, and a company outside the request', async () => {

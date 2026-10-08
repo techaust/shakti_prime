@@ -12,8 +12,10 @@ import { deliverNoticeBatch } from './deliver-notices';
 
 /**
  * How long one scan keeps starting batches before it hands the rest to a fresh call. A batch reads
- * at most 200 finds of each kind in three statements and pushes the notices it wrote, each push
- * at most five seconds, well inside the route's `maxDuration` of 60 seconds.
+ * at most 200 finds of each kind in three statements and pushes the notices it wrote (eight at a
+ * time, each push at most five seconds) and the pushes an earlier cut-off left pending. No push is
+ * started after the budget; what is left stays pending for the next scan, well inside the route's
+ * `maxDuration` of 60 seconds.
  */
 export const NOTIFICATION_SCAN_RUN_BUDGET_MS = 30_000;
 
@@ -22,7 +24,11 @@ export function scanMinute(at: number): string {
   return new Date(at).toISOString().slice(0, 16);
 }
 
-function spec(sender: PushSender | undefined): CompanyBatchSpec {
+function spec(
+  sender: PushSender | undefined,
+  deadlineAt: number | undefined,
+  now: (() => number) | undefined,
+): CompanyBatchSpec {
   return {
     runName: 'notification-scan',
     logPrefix: 'notifications.due.scan',
@@ -32,6 +38,8 @@ function spec(sender: PushSender | undefined): CompanyBatchSpec {
       const counts = await deliverNoticeBatch(principal, found, {
         requestId: scope.requestId ?? `notification-scan-${String(entityId)}`,
         sender,
+        deadlineAt,
+        now,
       });
       // Every find is new (a told reason never comes back), so a full batch that wrote nothing
       // means its finds cannot be told; the run moves on rather than read them again.
@@ -55,7 +63,11 @@ export async function runNotificationScan(
 ): Promise<NotificationScanWorkerResponse> {
   const started = (options.now ?? Date.now)();
   const result = await runCompanyBatches(
-    spec(options.sender),
+    spec(
+      options.sender,
+      options.budgetMs === undefined ? undefined : started + options.budgetMs,
+      options.now,
+    ),
     { ...body, runDate: body.runDate ?? scanMinute(started) },
     options,
   );

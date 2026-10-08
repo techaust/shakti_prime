@@ -314,6 +314,82 @@ describe('pushes (docs/03-roadmap-appendix/phase1.md §8.1)', () => {
   });
 });
 
+describe('pushes a cut-off run left pending', () => {
+  const workers = principalFor('system:workers', [1], { id: SYSTEM_WORKERS_PRINCIPAL_ID });
+  const keys = { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) };
+
+  it('sends them on the next scan run, once each, and leaves a settled one alone', async () => {
+    const endpoint = `https://fcm.googleapis.com/fcm/send/${newId()}`;
+    await executeCommand(colleague, {}, subscribeCommand, { endpoint, keys });
+    const made = await lead(owner);
+    await asMigrator(
+      (m) => m`update opportunities set owner_id = ${colleague.id} where id = ${made.id}`,
+    );
+    const batch = await executeCommand(workers, { entityIds: [1] }, notifyEvent, {
+      event: 'crm.opportunity.assigned',
+      entityId: 1,
+      eventId: newId(),
+      opportunityId: made.id,
+      ownerId: colleague.id,
+      assignedById: teamLead.id,
+    });
+    expect(batch.notices[0]?.push).toBe('send');
+    // The run's time was already spent: no push is started, so nothing is recorded.
+    const cut = fakePushSender();
+    await deliverNoticeBatch(workers, batch, { requestId: 'cut-off', sender: cut, deadlineAt: 0 });
+    expect(cut.sent).toEqual([]);
+    expect((await noticesAbout(made.id))[0]?.channel_sent_json).toMatchObject({ push: 'pending' });
+    // A newer pending push is a running batch's own and is left alone.
+    const early = fakePushSender();
+    await runNotificationScan({}, { sender: early });
+    expect(early.sent.filter((s) => s.endpoint === endpoint)).toEqual([]);
+    await asMigrator(
+      (m) => m`update notifications set created_at = now() - interval '10 minutes'
+                where subject_id = ${made.id}`,
+    );
+    const next = fakePushSender();
+    await runNotificationScan({}, { sender: next });
+    expect(next.sent.filter((s) => s.endpoint === endpoint)).toHaveLength(1);
+    expect((await noticesAbout(made.id))[0]?.channel_sent_json).toMatchObject({ push: 'sent' });
+    const after = fakePushSender();
+    await runNotificationScan({}, { sender: after });
+    expect(after.sent.filter((s) => s.endpoint === endpoint)).toEqual([]);
+  }, 120_000);
+
+  it('pushes several notices at a time, eight at most', async () => {
+    let running = 0;
+    let peak = 0;
+    const slow = {
+      async send() {
+        running += 1;
+        peak = Math.max(peak, running);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        running -= 1;
+        return 'ok' as const;
+      },
+    };
+    const target = { endpoint: `https://fcm.googleapis.com/fcm/send/${newId()}`, ...keys };
+    const notices = Array.from({ length: 20 }, () => ({
+      id: newId(),
+      userId: colleague.id,
+      type: 'call_due' as const,
+      entityId: 1,
+      payload: {},
+      subjectId: newId(),
+      push: 'send' as const,
+      targets: [target],
+    }));
+    const counts = await deliverNoticeBatch(
+      workers,
+      { entityId: 1, notices, resend: [], more: false },
+      { requestId: 'concurrency', sender: slow },
+    );
+    expect(counts.pushed).toBe(20);
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(8);
+  });
+});
+
 describe('POST /api/v1/workers/notifications/scan', () => {
   const SCAN_URL = `${ORIGIN}/api/v1/workers/notifications/scan`;
 
@@ -395,6 +471,35 @@ describe('the forms’ save, the bell and the settings (server actions)', () => 
         account: { type: 'farm' },
       }),
     ).toMatchObject({ ok: false, error: 'customer_held_by_colleague' });
+  });
+
+  it('replays a retried save of the same form: routed both times, one item and one notice', async () => {
+    const number = phone();
+    await lead(owner, number);
+    request.principal = colleague;
+    const key = newId();
+    const form = {
+      entityId: 1,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Notify customer ${RUN}`, phone: number },
+      account: { type: 'farm' as const },
+    };
+    const first = ok(await takeEnquiry(form, key));
+    const second = ok(await takeEnquiry(form, key));
+    expect(first).toMatchObject({ outcome: 'routed', colleagueName: 'Neha Owner' });
+    expect(second).toEqual(first);
+    if (first.outcome !== 'routed') throw new Error('expected a routed enquiry');
+    let told: { user_id: string; type: string }[] = [];
+    for (let i = 0; i < 40 && told.length === 0; i += 1) {
+      told = await noticesAbout(first.itemId);
+      if (told.length === 0) await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    expect(told.map((n) => [n.user_id, n.type])).toEqual([[owner.id, 'enquiry_routed']]);
+    const items = await asMigrator(
+      (m) => m<{ n: number }[]>`select count(*)::int as n from inbox_items
+                                where assignee_id = ${owner.id} and id = ${first.itemId}`,
+    );
+    expect(items[0]?.n).toBe(1);
   });
 
   it('counts, lists and clears a person’s notices, and saves their settings', async () => {

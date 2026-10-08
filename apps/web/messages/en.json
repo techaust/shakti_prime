@@ -469,7 +469,7 @@
       "quote_expiring": "A quote on your lead lapses within a day",
       "first_call_late": "A new lead was not called in time",
       "enquiry_routed": "An enquiry from your customer was passed to you",
-      "order_credit_held": "A dealer order is held for credit. Only an Executive can release it"
+      "order_credit_held": "A dealer order is held for credit. It waits until its credit is cleared or someone who can release it does so"
     },
     "settings": {
       "title": "Notification settings",
@@ -528,7 +528,7 @@
     },
     "order_credit_held": {
       "title": "A dealer order is held for credit",
-      "body": "The order stays a draft until the Executive releases it. Tap to open it."
+      "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
     }
   },
   "home": {

@@ -1,16 +1,19 @@
 import {
   newId,
   NoticeBatchDto,
+  NoticePayloadSchema,
   NotifyEventInput,
   PushRecordDto,
   RecordPushInput,
   ScanNoticesInput,
+  type WrittenNoticeDto,
 } from '@shakti/contracts';
 import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import {
   NOTICE_LOOKBACK_MS,
+  NOTICE_PUSH_RETRY_AFTER_SECONDS,
   NOTICE_SCAN_LIMIT,
   QUOTE_EXPIRY_NOTICE_MS,
 } from '../../notifications/push-plan';
@@ -115,7 +118,7 @@ export const notifyEvent = defineCommand({
   async handler(ctx, input) {
     requireEntity(ctx, input.entityId);
     const notices = await writeNotices(ctx, input.entityId, await draftsFor(ctx, input));
-    return { entityId: input.entityId, notices, more: false };
+    return { entityId: input.entityId, notices, resend: [], more: false };
   },
 });
 
@@ -140,13 +143,55 @@ interface LateRow {
   dedupe_key: string;
 }
 
+interface PendingRow {
+  id: string;
+  user_id: string;
+  type: WrittenNoticeDto['type'];
+  subject_id: string;
+  payload_json: unknown;
+}
+
+/**
+ * The notices whose push a cut-off run left pending, with their person's browsers as they stand
+ * now (none left means the push is settled as failed by the sender). Newer ones are a running
+ * batch's own and are left alone.
+ */
+async function pendingPushes(
+  ctx: CommandContext,
+  entityId: number,
+  written: ReadonlySet<string>,
+): Promise<WrittenNoticeDto[]> {
+  const rows = (
+    (await ctx.tx.execute(
+      sql`select * from app.notice_pending_pushes(${entityId}::smallint, ${NOTICE_PUSH_RETRY_AFTER_SECONDS}, ${NOTICE_SCAN_LIMIT})`,
+    )) as unknown as PendingRow[]
+  ).filter((r) => !written.has(r.id));
+  if (rows.length === 0) return [];
+  const users = [...new Set(rows.map((r) => r.user_id))];
+  const targets = (await ctx.tx.execute(
+    sql`select * from app.notice_push_targets(${entityId}::smallint, ${`{${users.join(',')}}`}::uuid[])`,
+  )) as unknown as { user_id: string; endpoint: string; p256dh: string; auth: string }[];
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    type: r.type,
+    entityId,
+    payload: NoticePayloadSchema.parse(r.payload_json),
+    subjectId: r.subject_id,
+    push: 'send' as const,
+    targets: targets
+      .filter((t) => t.user_id === r.user_id)
+      .map((t) => ({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth })),
+  }));
+}
+
 /**
  * `notifications.due.scan`: one batch of a company's notices that no event announces, run every five
  * minutes by the scan worker: callbacks and nurture calls that fell due (for their person), quotes
  * that lapse within a day (for their lead's owner), and new leads past the first-contact limit and
  * never called (for the company's General Managers, once per lead). Each find comes with the
  * reason it is told for, and nothing already told for that reason comes back, so a repeated scan
- * writes nothing twice; `more` asks for another batch when a kind filled its batch.
+ * writes nothing twice (and the pushes a cut-off run left pending come back in `resend`); `more` asks for another batch when a kind filled its batch.
  */
 export const scanNotices = defineCommand({
   name: 'notifications.due.scan',
@@ -196,8 +241,9 @@ export const scanNotices = defineCommand({
       })),
     ];
     const notices = await writeNotices(ctx, entity, drafts);
+    const resend = await pendingPushes(ctx, entity, new Set(notices.map((n) => n.id)));
     const more = [calls, quotes, late].some((rows) => rows.length === NOTICE_SCAN_LIMIT);
-    return { entityId: entity, notices, more };
+    return { entityId: entity, notices, resend, more };
   },
 });
 

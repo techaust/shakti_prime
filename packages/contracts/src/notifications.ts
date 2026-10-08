@@ -323,9 +323,17 @@ export const WrittenNoticeDto = z
   .strict();
 export type WrittenNoticeDto = z.infer<typeof WrittenNoticeDto>;
 
-/** What a notify or scan command wrote; `more` when a scan left work for another batch. */
+/**
+ * What a notify or scan command wrote; `more` when a scan left work for another batch; `resend`
+ * the older notices whose push a cut-off run never settled, for the scan to push again.
+ */
 export const NoticeBatchDto = z
-  .object({ entityId: EntityIdSchema, notices: z.array(WrittenNoticeDto), more: z.boolean() })
+  .object({
+    entityId: EntityIdSchema,
+    notices: z.array(WrittenNoticeDto),
+    resend: z.array(WrittenNoticeDto),
+    more: z.boolean(),
+  })
   .strict();
 export type NoticeBatchDto = z.infer<typeof NoticeBatchDto>;
 

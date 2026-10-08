@@ -1,5 +1,6 @@
 'use server';
 
+import { createHash } from 'node:crypto';
 import {
   AddNoteInput,
   ArchiveTagInput,
@@ -154,10 +155,22 @@ export async function takeEnquiry(
               pipelineKey: input.pipelineKey,
               existingAccountId: input.existingAccountId,
             },
-        commandOptions(meta, idempotencyKey),
+        commandOptions(meta, routeKey(idempotencyKey)),
       );
     }
   });
+}
+
+/**
+ * The fallback's own key, derived from the form's (a version 8 UUID of the hash of the key and
+ * "route"), so a retried save replays each command's own stored result instead of one command
+ * finding the key stored for the other.
+ */
+function routeKey(key: unknown): unknown {
+  if (typeof key !== 'string') return key;
+  const h = createHash('sha256').update(`${key}:route`).digest('hex');
+  const variant = ((parseInt(h.slice(16, 17), 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
 /** The refusal of a lead for a customer a colleague looks after in the company. */

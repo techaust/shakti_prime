@@ -351,6 +351,51 @@ describe('the scan (call_due, quote_expiring, first_call_late)', () => {
       ),
     ).toHaveLength(1);
   });
+
+  it('tells every General Manager of a lead even when a batch ended between two of them', async () => {
+    const pipeline = newId();
+    const key = `n1-sla-two-${RUN}`;
+    const other = await createTestUser([{ entityId: 1, roleKey: 'general_manager' }]);
+    await asMigrator(async (m) => {
+      await m`insert into pipelines (id, entity_id, key, name, segment, first_contact_sla_minutes)
+              values (${pipeline}, 1, ${key}, ${`Notice SLA two ${RUN}`}, 'farmer_pumps', 5)`;
+      await m`insert into pipeline_stages (id, pipeline_id, entity_id, key, name, position, kind) values
+        (${newId()}, ${pipeline}, 1, 'new', 'New', 1, 'open'),
+        (${newId()}, ${pipeline}, 1, 'qualified', 'Qualified', 2, 'open')`;
+    });
+    const late = await newLead(callerA, key);
+    await asMigrator(async (m) => {
+      await m`update opportunities set created_at = now() - interval '20 minutes' where id = ${late.id}`;
+      // What a batch that stopped after the first General Manager leaves behind.
+      await m`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, payload_json, dedupe_key)
+              values (${newId()}, ${gm.id}, 1, 'first_call_late', 'opportunity', ${late.id}, '{}', ${`first_call_late:${late.id}`})`;
+    });
+    await scanAll();
+    const told = (await noticesAbout(late.id)).filter((r) => r.type === 'first_call_late');
+    expect(told.filter((r) => r.user_id === gm.id)).toHaveLength(1);
+    expect(told.filter((r) => r.user_id === other.id)).toHaveLength(1);
+  });
+
+  it('tells the new owner of a call that moved to them, and not the old one twice', async () => {
+    const lead = await newLead(callerA);
+    const task = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into tasks (id, entity_id, opportunity_id, account_id, assignee_id, team_id, kind, due_at, created_by)
+        values (${task}, 1, ${lead.id}, ${lead.account.id}, ${callerA.id}, ${team}, 'callback', now() - interval '5 minutes', ${callerA.id})`,
+    );
+    await scanAll();
+    await asMigrator((m) => m`update tasks set assignee_id = ${callerB.id} where id = ${task}`);
+    await scanAll();
+    await scanAll();
+    expect((await noticesAbout(task)).map((n) => [n.user_id, n.type]).sort()).toEqual(
+      [
+        [callerA.id, 'call_due'],
+        [callerB.id, 'call_due'],
+      ].sort(),
+    );
+  });
 });
 
 describe('a dealer order held for credit (order_credit_held, SAL-07)', () => {

@@ -202,8 +202,8 @@ grant execute on function app.notice_order_people(smallint, uuid) to app_user;
 --> statement-breakpoint
 
 -- 7. The scan's finds in one company, each with the reason it would be told for (dedupe_key), and
---    only those nobody was told about yet for that reason, so a repeated scan finds nothing twice
---    and every batch moves on. Each looks back no further than p_since, so a first run does not
+--    only those the person was not yet told about for that reason (a task moved to another person
+--    tells the new one), so a repeated scan finds nothing twice and every batch moves on. Each looks back no further than p_since, so a first run does not
 --    tell people about everything that ever fell due.
 --    Callbacks and nurture calls falling due, for their person.
 create or replace function app.notice_due_calls(p_entity smallint, p_since timestamptz, p_limit integer)
@@ -224,7 +224,7 @@ begin
                and t.due_at > p_since) f
      where app.notice_recipient_ok(f.assignee_id, p_entity)
        and not exists (select 1 from public.notifications n
-                        where n.entity_id = p_entity and n.dedupe_key = f.k)
+                        where n.user_id = f.assignee_id and n.dedupe_key = f.k)
      order by f.due_at, f.id
      limit least(greatest(coalesce(p_limit, 0), 0), 1000);
 end
@@ -255,7 +255,7 @@ begin
                and o.owner_id is not null) f
      where app.notice_recipient_ok(f.owner_id, p_entity)
        and not exists (select 1 from public.notifications n
-                        where n.entity_id = p_entity and n.dedupe_key = f.k)
+                        where n.user_id = f.owner_id and n.dedupe_key = f.k)
      order by f.valid_until, f.id
      limit least(greatest(coalesce(p_limit, 0), 0), 1000);
 end
@@ -301,7 +301,7 @@ begin
                and r.key = 'general_manager'
                and app.notice_recipient_ok(uer.user_id, p_entity)) g on true
      where not exists (select 1 from public.notifications n
-                        where n.entity_id = p_entity and n.dedupe_key = f.k)
+                        where n.user_id = g.user_id and n.dedupe_key = f.k)
      order by f.created_at, f.id, g.user_id
      limit least(greatest(coalesce(p_limit, 0), 0), 1000);
 end
@@ -411,6 +411,31 @@ $$;
 revoke execute on function app.record_notice_push(smallint, jsonb, text[], text[]) from public, readonly_reporter;
 --> statement-breakpoint
 grant execute on function app.record_notice_push(smallint, jsonb, text[], text[]) to app_user;
+--> statement-breakpoint
+
+--     The notices whose push was never settled (a run was cut off before it): still pending after
+--     p_older_than seconds, oldest first, for the scan to push again. Answers the notice, not the
+--     browsers (app.notice_push_targets gives those).
+create or replace function app.notice_pending_pushes(p_entity smallint, p_older_than integer, p_limit integer)
+  returns table (id uuid, user_id uuid, type text, subject_id uuid, payload_json jsonb)
+  language plpgsql stable security definer set search_path = '' as $$
+begin
+  perform app.require_notice_sender(p_entity);
+  return query
+    select n.id, n.user_id, n.type, n.subject_id, n.payload_json
+      from public.notifications n
+     where n.entity_id = p_entity
+       and n.channel_sent_json ->> 'push' = 'pending'
+       and n.created_at < now() - make_interval(secs => greatest(coalesce(p_older_than, 0), 0))
+       and n.created_at > now() - interval '1 day'
+     order by n.created_at, n.id
+     limit least(greatest(coalesce(p_limit, 0), 0), 1000);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.notice_pending_pushes(smallint, integer, integer) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.notice_pending_pushes(smallint, integer, integer) to app_user;
 --> statement-breakpoint
 
 -- 11. A person adds this browser: their own from now on, taken over from whoever had it before (a

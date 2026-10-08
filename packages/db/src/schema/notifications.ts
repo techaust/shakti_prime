@@ -66,6 +66,10 @@ export const notifications = pgTable(
       .where(sql`${t.readAt} is null`),
     // The scan leaves out what it already told someone, by reason, in the company.
     index('notifications_entity_dedupe_idx').on(t.entityId, t.dedupeKey),
+    // The pushes a cut-off scan left pending, for the next scan to send (a small set at any time).
+    index('notifications_push_pending_idx')
+      .on(t.entityId, t.createdAt)
+      .where(sql`${t.channelSentJson} ->> 'push' = 'pending'`),
   ],
 );
 
