@@ -12,7 +12,7 @@ import type { AnyCommand } from '../command/define-command';
 import { createTask } from '../commands/crm/tasks';
 import { AGENT_DEFAULTS } from './agent-defaults';
 
-// The actions an agent may propose or take (docs/design/phase1.md §7.1). An action type is the name
+// The actions an agent may propose or take (docs/03-roadmap-appendix/phase1.md §7.1). An action type is the name
 // of the command the action runs: approving it runs that command as the person who approves, and
 // Automatic (not in Phase 1) runs it as the agent. A command joins this list with the slice whose
 // agent needs it (A1 adds the Triage agent's); each agent named here must hold the command's

@@ -12,7 +12,7 @@ export const SEARCH_MAX_HITS = 20;
 /** What a person types into the ⌘K search: a name, a village or the last digits of a phone. */
 export const SearchTextSchema = z.string().trim().min(SEARCH_MIN_CHARS).max(80);
 
-/** A bounded search of one kind of record (DESIGN.md §6, Command palette). */
+/** A bounded search of one kind of record (docs/08-design-system.md §6, Command palette). */
 export const SearchInput = z
   .object({
     q: SearchTextSchema,

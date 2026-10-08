@@ -15,7 +15,7 @@ import { useQuery } from '../screens/use-command';
 const PAGE_SIZE = 50;
 
 /**
- * `/orders` (docs/design/phase1.md §8.3): the orders the caller reads, newest first, a page at a
+ * `/orders` (docs/03-roadmap-appendix/phase1.md §8.3): the orders the caller reads, newest first, a page at a
  * time, with a choice of status. An order held for credit says so.
  */
 export function OrdersScreen({

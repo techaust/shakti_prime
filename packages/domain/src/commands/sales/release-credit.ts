@@ -7,7 +7,7 @@ import { salesOrderMachine } from '../../state-machines/machines/sales-order';
 import { lockSalesOrder, writeSalesOrder } from './order-shared';
 
 /**
- * `sales.credit.release` (docs/design/phase1.md §8.3, PRD SAL-07): the Executive releases the
+ * `sales.credit.release` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-07): the Executive releases the
  * credit hold of a draft order, with a reason, in their own name (audited; a trigger refuses any
  * other request that sets the release). The hold is cleared and the next confirmation passes the
  * credit check once. Held by no agent (SECURITY §3.3), and people only besides.

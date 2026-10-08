@@ -17,7 +17,7 @@ import {
   seededUsers,
 } from './support/users';
 
-// Orders, acceptance and dealer credit (docs/design/phase1.md §8.3). The seed gives each project a
+// Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3). The seed gives each project a
 // fresh sized lead and two dealers priced from the journeys' own tier (`e2e/setup/orders.ts`);
 // every price, limit and outstanding figure is a test value for the journeys alone. The snapshot
 // company's dealer, its terms and its one draft order, made by the seed, give the screenshots.

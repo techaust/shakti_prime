@@ -4,7 +4,7 @@
 
 `inbox_items.state`. An agent’s suggestion, or work routed to someone, in the Agent Inbox of the person, team or company it is for; scope follows `agents.inbox.act` with the assignee as the owner.
 
-Sources: docs/design/phase1.md §7.1; PRD AI-04; DATABASE §6.9.
+Sources: docs/03-roadmap-appendix/phase1.md §7.1; PRD AI-04; DATABASE §6.9.
 
 Every state and transition comes from the governing documents.
 

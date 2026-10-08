@@ -7,7 +7,7 @@ export const OUTBOX_BACKOFF_JITTER = 0.2;
 
 /**
  * Seconds before a failed event is tried again after its `attempts`-th failure: 1, 2, 4, 8, 16
- * and 32 minutes, then an hour for each later one (docs/design/backend-weeks-3-5.md §4.2). With
+ * and 32 minutes, then an hour for each later one (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). With
  * ten attempts the last one comes about four hours after the first (between three and a quarter
  * and four and a quarter hours with the jitter), so a queue outage of a few hours ends with every
  * event delivered and none dead-lettered. `random` answers in [0, 1); tests pass a fixed one.

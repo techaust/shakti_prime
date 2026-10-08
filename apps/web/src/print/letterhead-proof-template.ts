@@ -1,4 +1,4 @@
-// A company's proof page (docs/design/phase1.md §6.4): one A4 page with the letterhead, logo,
+// A company's proof page (docs/03-roadmap-appendix/phase1.md §6.4): one A4 page with the letterhead, logo,
 // address, GSTIN and bank account exactly as every document prints them, and a list that says
 // which of them is recorded, so an Executive can check the print before any quote carries it.
 // Rendered by the same worker and Chromium as every document, light theme, Inter embedded.

@@ -14,7 +14,7 @@ export const EntityIdSchema = z.number().int().min(1).max(32767);
 export type EntityId = z.infer<typeof EntityIdSchema>;
 
 /**
- * The key a caller sends so a retried call acts once (docs/API.md §1): any UUID, since browsers
+ * The key a caller sends so a retried call acts once (docs/06-api.md §1): any UUID, since browsers
  * and the field app generate version 4 ones with `crypto.randomUUID()`.
  */
 export const IdempotencyKeySchema = z.uuid();

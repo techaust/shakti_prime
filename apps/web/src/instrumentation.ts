@@ -10,7 +10,7 @@ function sentryOn(): boolean {
  * Runs once when a server instance starts. A hosted deployment with an unsafe configuration
  * refuses to start here, before it serves anything (AUDIT M8), instead of on the first sign-in.
  * Sentry starts here on the server and the edge when `SENTRY_DSN` is set
- * (docs/design/phase1.md §5.2); without it the SDK is never loaded.
+ * (docs/03-roadmap-appendix/phase1.md §5.2); without it the SDK is never loaded.
  */
 export async function register(): Promise<void> {
   const runtime = process.env.NEXT_RUNTIME;

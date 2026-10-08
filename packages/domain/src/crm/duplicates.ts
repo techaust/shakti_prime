@@ -10,7 +10,7 @@ import type { CommandContext } from '../command/context';
 import { duplicateConfidence } from './duplicate-confidence';
 
 /**
- * Finding and recording duplicate candidates (PRD CRM-03, docs/design/phase1.md §7.4). The
+ * Finding and recording duplicate candidates (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4). The
  * database finds the facts (`app.duplicate_facts()`), the confidence is worked out here
  * (`duplicateConfidence()`), and the pairs worth a card are recorded through
  * `app.record_duplicates()`, which checks each pair again before it writes it. Both definers

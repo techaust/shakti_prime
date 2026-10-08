@@ -27,7 +27,7 @@ export const maxDuration = 30;
 const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 
 /**
- * QStash's failure callback for the event workers (docs/API.md §3.6): every event is published
+ * QStash's failure callback for the event workers (docs/06-api.md §3.6): every event is published
  * with this address as its failure callback, so when a worker refuses an event for good, or still
  * fails after QStash's last retry, the event comes back here. The body is refused over 64 KiB
  * before it is read, the signature must name this address, and the event is then held back as a

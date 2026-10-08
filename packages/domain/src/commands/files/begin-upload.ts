@@ -7,7 +7,7 @@ import { assertEntityInScope } from '../imports/shared';
 import { fireUpload } from './shared';
 
 /**
- * `files.upload.begin` (docs/ARCHITECTURE.md §9): checks the type and size against the purpose's
+ * `files.upload.begin` (docs/04-architecture.md §9): checks the type and size against the purpose's
  * limits and records the file as `pending` under a key the server makes. The web layer then signs
  * the upload address for that key; the bytes never pass through the app.
  */

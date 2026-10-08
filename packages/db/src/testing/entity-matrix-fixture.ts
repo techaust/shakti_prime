@@ -1,4 +1,4 @@
-// Synthetic rows for the role × company visibility matrix (docs/SECURITY.md §11 item 1), written
+// Synthetic rows for the role × company visibility matrix (docs/07-security.md §11 item 1), written
 // with the migrator connection: for every company one row in each table of ENTITY_TABLES, one
 // customer shared by companies 1 and 2 (ADR 0008), and the group-wide rows (`entity_id null`) of
 // the tables that allow them. Fixed ids so the fixture is re-creatable, except the audit rows,
@@ -29,7 +29,7 @@ export const ENTITY_MATRIX_AUDIT_COMMAND = 'test.entity_matrix';
 export type EntityTable = (typeof ENTITY_TABLES)[number];
 
 /**
- * Shared reference tables that allow `entity_id null` for the whole group (docs/DATABASE.md §1)
+ * Shared reference tables that allow `entity_id null` for the whole group (docs/05-database.md §1)
  * beside rows of one company. `teams` is the fourth, and sits in ENTITY_TABLES.
  */
 export const GROUP_WIDE_SHARED_TABLES = [

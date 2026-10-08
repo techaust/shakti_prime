@@ -399,7 +399,7 @@ function savedMessage(
 }
 
 /**
- * The Cold Caller workspace (PRD TEL-01, DESIGN.md §6 Caller workspace): the queue on one side and
+ * The Cold Caller workspace (PRD TEL-01, docs/08-design-system.md §6 Caller workspace): the queue on one side and
  * the open lead on the other, worked from the keyboard: `N` the next lead, `1` to `9` the outcome
  * on that key, `D` the number to dial (shown only inside calling hours), `/` the search. Each
  * outcome saves the call through `calls.log`, which sets the next call or moves the lead; the

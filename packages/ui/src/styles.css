@@ -1,5 +1,5 @@
 /* Imported by the app's global stylesheet after the tokens: Tailwind scans these components for
-   their classes, and the overlay, dialog and sheet motion uses the token durations (DESIGN.md §4).
+   their classes, and the overlay, dialog and sheet motion uses the token durations (docs/08-design-system.md §4).
    The global reduced-motion rule shortens every animation for people who ask for it. */
 @source './';
 

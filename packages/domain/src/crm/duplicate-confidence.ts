@@ -1,7 +1,7 @@
 import type { DuplicateKind, DuplicateReason, DuplicateSignal } from '@shakti/contracts';
 
 /**
- * How sure a duplicate match is (PRD CRM-03, docs/design/phase1.md §7.4): a pure function of the
+ * How sure a duplicate match is (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4): a pure function of the
  * facts two customers, or two leads, share. The database only finds the facts; the confidence is
  * worked out here, so it is tested once and the nightly search and lead creation agree.
  *

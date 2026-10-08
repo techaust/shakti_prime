@@ -12,7 +12,6 @@ packages/tokens/src/tokens.css
 packages/tokens/src/tailwind.css
 # Approved documents keep their exact wording and layout
 docs/
-DESIGN.md
 CLAUDE.md
 AGENTS.md
 .claude/

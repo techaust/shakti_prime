@@ -4,7 +4,7 @@ import { assertImportJobMove } from '../../imports/job-state';
 import { assertEntityInScope, jobState, loadJob, toImportJobDto, updateJob } from './shared';
 
 /**
- * `imports.job.fail` (docs/design/phase1.md §6.3): the import worker's call for a committing job
+ * `imports.job.fail` (docs/03-roadmap-appendix/phase1.md §6.3): the import worker's call for a committing job
  * it can take no further: the queue's last retry failed, whatever the cause, or the person who
  * asked for the commit may no longer go on with it (suspended, or without the permission or a
  * company the rows name). It runs as the worker principal (`imports.process`, held by no person's

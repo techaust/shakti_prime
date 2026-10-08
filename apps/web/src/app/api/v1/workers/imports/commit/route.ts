@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The import commit worker (docs/design/backend-weeks-3-5.md §8, docs/API.md §3.6). Only QStash
+ * The import commit worker (docs/03-roadmap-appendix/backend-weeks-3-5.md §8, docs/06-api.md §3.6). Only QStash
  * calls it, after `imports.job.commit` and again while a job has rows left: every call must carry
  * a valid signature for this route and body. A 500 makes QStash retry; a job the caller may no
  * longer commit answers 403 and QStash is told not to retry. A run that waited too long for a

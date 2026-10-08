@@ -101,7 +101,7 @@ const nothingDispatched: G = {
 };
 
 /**
- * Sales order (design §7.4, docs/design/phase1.md §8.3). Exposure is per entity; `dealer_terms`
+ * Sales order (design §7.4, docs/03-roadmap-appendix/phase1.md §8.3). Exposure is per entity; `dealer_terms`
  * and `dealer_outstanding` are keyed by account and entity. Phase 1 builds create, the credit
  * hold and release, confirm and cancel; the dispatch moves wait for the stock ledger (Phase 3),
  * invoice and close for the Tally link (Phase 5).
@@ -117,8 +117,8 @@ export const salesOrderMachine = defineMachine<
   summary:
     '`sales_orders.state`. The backbone of fulfilment: reservations, dispatches, proforma, payment milestones and projects hang off it.',
   sources: [
-    'docs/design/backend-weeks-3-5.md §7.4',
-    'docs/design/phase1.md §8.3',
+    'docs/03-roadmap-appendix/backend-weeks-3-5.md §7.4',
+    'docs/03-roadmap-appendix/phase1.md §8.3',
     'BLUEPRINT §8.3',
     'PRD SAL-06, SAL-07',
   ],

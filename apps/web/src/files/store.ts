@@ -34,7 +34,7 @@ function localSigning(env: NodeJS.ProcessEnv): { secret: string; url: (token: st
 let store: FileStore | undefined;
 
 /**
- * Where uploaded files are kept (docs/ARCHITECTURE.md §9): the environment's S3 bucket when
+ * Where uploaded files are kept (docs/04-architecture.md §9): the environment's S3 bucket when
  * `FILES_BUCKET` and `FILES_KMS_KEY_ID` are set; on a developer's machine, `apps/web/.data/files`
  * (ignored by git) with the development upload route; on a hosted deployment without S3, none,
  * so uploads there answer unavailable rather than land on a server's short-lived disk.

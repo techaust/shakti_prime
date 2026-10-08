@@ -39,7 +39,7 @@ const storedAsDeclared: G = {
 const BY_PURPOSE = "the file's purpose (`packages/domain/src/files/purposes.ts`)";
 
 /**
- * An upload from the BOS's own screens or the field app (docs/ARCHITECTURE.md §9, SECURITY §8):
+ * An upload from the BOS's own screens or the field app (docs/04-architecture.md §9, SECURITY §8):
  * the bytes go straight to the file store on a pre-signed address, then the worker scans them,
  * re-encodes an image, checks a PDF and masks a vault photo before anyone can use the file.
  */

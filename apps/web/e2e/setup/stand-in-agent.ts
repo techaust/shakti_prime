@@ -1,5 +1,5 @@
 // A stand-in agent for the Agent Inbox journeys, defined here only: no real agent ships in AI0
-// (docs/design/phase1.md §7.1; the Triage agent is A1's). It runs through the real runtime as the
+// (docs/03-roadmap-appendix/phase1.md §7.1; the Triage agent is A1's). It runs through the real runtime as the
 // seeded Caller Co-pilot principal, asks the model through the provider wrapper, and files a
 // follow-up task as a suggestion. The model is the fake transport, which answers the follow-up the
 // seed asks for; nothing reaches a vendor.

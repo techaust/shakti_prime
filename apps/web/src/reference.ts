@@ -3,7 +3,7 @@ export const REFERENCE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 export const REFERENCE_LENGTH = 6;
 
 /**
- * The reference for an error Next.js reports by digest (DESIGN.md §11), for example `8F3K2Q`.
+ * The reference for an error Next.js reports by digest (docs/08-design-system.md §11), for example `8F3K2Q`.
  * The error screen shows it and `onRequestError` logs it; both derive it from the same digest,
  * in the browser and on the server alike, so support finds the log line from what the screen
  * shows. Plain arithmetic (FNV-1a), no platform crypto, so it runs in both places.

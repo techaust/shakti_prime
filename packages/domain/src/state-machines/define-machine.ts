@@ -11,7 +11,7 @@ import type { Requirement } from '../command/define-command';
 import { checkPermission } from '../command/run-command';
 
 /**
- * State machines as data (docs/design/backend-weeks-3-5.md §7.1). A machine lists its states and
+ * State machines as data (docs/03-roadmap-appendix/backend-weeks-3-5.md §7.1). A machine lists its states and
  * transitions; `transition()` answers where an event takes a record and which effects the command
  * applies. It never writes: the command writes the state to the column `stored` names, applies the
  * effects, calls `ctx.audit()` and emits the event `emits` names, if any. The same data renders the

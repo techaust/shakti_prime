@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Dealer credit (docs/design/phase1.md §8.3, SALE-4, SALE-6): one company's dealers with their
+ * Dealer credit (docs/03-roadmap-appendix/phase1.md §8.3, SALE-4, SALE-6): one company's dealers with their
  * limits, days, outstanding and exposure, where Accounts enter terms and outstanding. The company
  * is the one being viewed, or the one chosen with `?company=` among the request's companies.
  */

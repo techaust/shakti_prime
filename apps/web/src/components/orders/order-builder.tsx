@@ -42,7 +42,7 @@ function linesOf(draft: readonly DraftLine[]): OrderLineInput[] | undefined {
 }
 
 /**
- * A dealer's order without a quote (docs/design/phase1.md §8.3, SAL-06): the person picks items of
+ * A dealer's order without a quote (docs/03-roadmap-appendix/phase1.md §8.3, SAL-06): the person picks items of
  * the dealer's price list and the quantities; the server works out the order (`previewOrder`) and
  * makes it (`createOrder`) with the list's prices and the engine's tax. No amount is typed or
  * worked out here.

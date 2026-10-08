@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Admin › Agents (docs/design/phase1.md §7.1): the kill switches for an Executive or a GM
+ * Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1): the kill switches for an Executive or a GM
  * (`agents.killswitch`), and for an Executive (`agents.autonomy.write`) each agent's autonomy, its
  * daily spending limit and the autonomy of each action type, at the company chosen at the top or
  * for the whole group.

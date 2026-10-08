@@ -1,6 +1,6 @@
 # ADR 0009 — Chromium-rendered HTML for PDFs and print
 
-**Status:** Accepted (owner, 29-09-2026); proposed 27-09-2026; built in Phase 1 (P4, `docs/design/phase1.md` §6.4). The spike's outcome and the checks still open are in `docs/spikes/print.md` · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `DESIGN.md` §7, §11 · **ADR:** 0014
+**Status:** Accepted (owner, 29-09-2026); proposed 27-09-2026; built in Phase 1 (P4, `docs/03-roadmap-appendix/phase1.md` §6.4). The spike's outcome and the checks still open are in `docs/04-architecture-appendix/print.md` · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §5, §8.3, §8.4, §8.8, §11.3, §17 · **Architecture:** §9 · **Design:** `docs/08-design-system.md` §7, §11 · **ADR:** 0014
 
 ## Context
 The BOS issues customer and statutory documents for four companies: quotes, proformas, delivery challans, handover kits and QR serial labels. Each carries the selling entity's letterhead, GSTIN and bank details, GST splits and lakh/crore formatting, and must look the same on screen, on paper and as a PDF sent on WhatsApp.
@@ -15,7 +15,7 @@ A separate PDF library (drawing primitives or a React PDF renderer) would mean a
 - **Always light:** print templates use the light token set whatever the viewer's theme (blueprint §11.3), with CSS print rules for margins, page breaks and repeated table headers.
 - **Inter is embedded** from the app's own static font files (Regular, Medium and SemiBold of Inter 4.1, each covering a band of weights), never fetched at render time; QR codes are generated in the template as SVG.
 - Money, dates and tax figures arrive already computed from the DTO (tax engine, ADR 0007); a template formats and never calculates.
-- Every template has a **snapshot test**: `apps/web/e2e/print.spec.ts` opens each template's page with fixed data (written by the journeys' seed, `e2e/setup/print-pages.ts`) under print media emulation and compares it with its baseline in the pinned Linux Playwright image, so an unintended layout change fails CI (blueprint §17); `templates.test.ts` checks the templates' structure in the default run. The baselines are of the HTML page, not of the PDF Chromium writes, so the PDF's footer (brand, page numbers, printed-on date) and its page breaks are not compared; a rasterised check of a real PDF's first page may follow with S1 quotes.
+- Every template has a **snapshot test**: `apps/web/e2e/print.spec.ts` opens each template's page with fixed data (written by the journeys' seed, `e2e/setup/print-pages.ts`) under print media emulation and compares it with its baseline in the pinned Linux Playwright image, so an unintended layout change fails CI (blueprint §17); `templates.test.ts` checks the templates' structure in the default run. The baselines are of the HTML page, not of the PDF Chromium writes, so the PDF's footer (brand, page numbers, printed-on date) and its page breaks are not compared; a rasterised check of a real PDF's first page is an open follow-up ([STATUS](../10-status.md#open-follow-ups)).
 - The template and its catalogue strings pass the copy lint: final plain English, no placeholder text.
 
 ## Consequences
@@ -26,4 +26,4 @@ A separate PDF library (drawing primitives or a React PDF renderer) would mean a
 - A document once issued is immutable: a correction issues a new version and a new PDF, never an overwrite.
 
 ## Outcome
-Outcome: see [`docs/spikes/print.md`](../spikes/print.md) for the week 6 spike's measures, the hosting the owner chose on 29-09-2026 ([design §2](../design/phase1.md#2-decisions-taken-with-the-owner-on-29-09-2026)) and the checks still open.
+Outcome: see [`docs/04-architecture-appendix/print.md`](../04-architecture-appendix/print.md) for the week 6 spike's measures, the hosting the owner chose on 29-09-2026 ([design §2](../03-roadmap-appendix/phase1.md#2-decisions-taken-with-the-owner-on-29-09-2026)) and the checks still open.

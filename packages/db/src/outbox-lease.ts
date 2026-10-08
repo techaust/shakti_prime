@@ -15,7 +15,7 @@ const MAX_CLAIM = 500;
 const MAX_ATTEMPTS_LIMIT = 100;
 
 /**
- * The publisher's claim in two short transactions (docs/design/backend-weeks-3-5.md §4.2): lease
+ * The publisher's claim in two short transactions (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2): lease
  * the due rows and commit, deliver with no transaction open, then record each outcome. Rows the
  * delivery gave no outcome are released at once; when the delivery fails as a whole or names a
  * row it did not claim, every claimed row is released unchanged and the error is raised. The

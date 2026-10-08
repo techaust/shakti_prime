@@ -1,7 +1,7 @@
 import type { AuditOutcome } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';
 
-/** How each result of a recorded action is coloured (DESIGN.md §2.3). */
+/** How each result of a recorded action is coloured (docs/08-design-system.md §2.3). */
 export const OUTCOME_TONE: Record<AuditOutcome, StatusTone> = {
   ok: 'success',
   denied: 'warning',

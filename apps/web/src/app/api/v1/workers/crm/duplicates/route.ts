@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The nightly duplicate search (CRM-03, docs/API.md §3.6). Only QStash calls it: the schedule
+ * The nightly duplicate search (CRM-03, docs/06-api.md §3.6). Only QStash calls it: the schedule
  * `duplicate-scan-<environment>` each night, and a run handing on the rest (`nightlyWorkerRoute`).
  */
 export const POST = nightlyWorkerRoute({

@@ -5,7 +5,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { LeadSortSchema, PriceSortSchema, UserSortSchema } from './list-sort';
 import { SessionDto, UserDto } from './user';
 
-/** A page of a keyset-paginated list: `nextCursor` is null on the last page (docs/API.md §1). */
+/** A page of a keyset-paginated list: `nextCursor` is null on the last page (docs/06-api.md §1). */
 export const pageOf = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), nextCursor: z.string().nullable() }).strict();
 
@@ -94,7 +94,7 @@ export type PriceListDto = z.infer<typeof PriceListDto>;
 
 /**
  * One active item and its price on one list. Carries no cost field: Price Master shows selling
- * prices only (CLAUDE.md, docs/SECURITY.md §4).
+ * prices only (CLAUDE.md, docs/07-security.md §4).
  */
 export const PriceRowDto = z
   .object({

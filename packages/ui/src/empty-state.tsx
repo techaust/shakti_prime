@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-/** Empty state (DESIGN.md §6): one sentence and at most one primary action. */
+/** Empty state (docs/08-design-system.md §6): one sentence and at most one primary action. */
 export function EmptyState({
   message,
   action,

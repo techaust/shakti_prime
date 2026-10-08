@@ -11,7 +11,7 @@ import {
 } from '../tax/engine';
 
 /**
- * Where a quote stands (docs/design/phase1.md §7.3, the quote machine). `quotes.state` holds the
+ * Where a quote stands (docs/03-roadmap-appendix/phase1.md §7.3, the quote machine). `quotes.state` holds the
  * stored state; a read answers a draft or sent quote whose validity has passed as `expired`
  * before the daily job marks it.
  */

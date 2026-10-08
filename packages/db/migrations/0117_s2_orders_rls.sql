@@ -1,4 +1,4 @@
--- Orders, acceptance and dealer credit (docs/design/phase1.md §8.3, docs/DATABASE.md §6.4).
+-- Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3, docs/05-database.md §6.4).
 --
 -- A sales order made from an accepted quote is a child of its lead: read with it, made by whoever
 -- holds sales.order.create over the lead's owner and team, in the transaction that accepts the

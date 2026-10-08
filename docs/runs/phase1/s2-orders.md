@@ -10,7 +10,7 @@
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §8.3](../../design/phase1.md#83-s2-orders-acceptance-and-credit), §3 (S2 needs S1 and C3), §4 (`sales.credit.write`), §11 (workshop defaults) and §12; §7.2 "Built (T1)" and §7.3 "Built (S1)" for the commands this slice extends
+- Design: [`docs/03-roadmap-appendix/phase1.md` §8.3](../../03-roadmap-appendix/phase1.md#83-s2-orders-acceptance-and-credit), §3 (S2 needs S1 and C3), §4 (`sales.credit.write`), §11 (workshop defaults) and §12; §7.2 "Built (T1)" and §7.3 "Built (S1)" for the commands this slice extends
 - PRD SAL-05 (the signed copy, and acceptance after expiry), SAL-06, SAL-07, CRM-09 (the accrual); the trace rows for SAL-06 and SAL-07 name the tests this slice writes
 - BLUEPRINT §8.3 (orders, dealer credit), §3 (prices only from Price Master tiers; tax only from the engine); SECURITY §3.2 (`sales.order.*`, `sales.credit.release`), §3.3
 - Workshop pack CRM-5, SALE-4, SALE-5, SALE-6 (dealer limits and days are per company and come from the client; confirmed orders count against the limit is today's default)

@@ -11,7 +11,7 @@ export const IMPORT_BATCH_BUDGET_MS = 20_000;
  * The time kept back for the row-by-row slice: the set-based try must end this long before the
  * batch's budget does, and a batch that goes row by row stops after this long (or at the budget),
  * so it soon hands the rest back to the next batch's set-based try. About 60 rows at the measured
- * 21 rows a second (docs/spikes/import-scale.md).
+ * 21 rows a second (docs/04-architecture-appendix/import-scale.md).
  */
 export const ROW_BY_ROW_SLICE_MS = 3_000;
 
@@ -19,7 +19,7 @@ export const ROW_BY_ROW_SLICE_MS = 3_000;
 export const SET_BASED_MIN_MS = 1_000;
 
 /**
- * How a batch keeps to the import worker's time (docs/design/phase1.md §6.3). The set-based try
+ * How a batch keeps to the import worker's time (docs/03-roadmap-appendix/phase1.md §6.3). The set-based try
  * has one deadline across all its statements, `budgetMs - ROW_BY_ROW_SLICE_MS` after the batch
  * began: before each statement the time left until it becomes the statement's timeout, and a
  * statement begun with none left is not run, so the try never runs past it. When the try is not

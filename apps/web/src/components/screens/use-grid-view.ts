@@ -23,7 +23,7 @@ export interface GridView {
 }
 
 /**
- * How one grid looks right now (DESIGN.md §6): hidden columns, sort and row height, which the
+ * How one grid looks right now (docs/08-design-system.md §6): hidden columns, sort and row height, which the
  * Views menu saves and applies. A list screen passes `onSortChange` and reads its first page
  * again in the new order from the server whenever the sort changes, from a header or from an
  * applied view, so the order covers every row and not only those loaded; a grid that holds all

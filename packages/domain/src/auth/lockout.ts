@@ -1,7 +1,7 @@
 import { DomainError } from '@shakti/contracts';
 import type { KeyValue } from '../ports/key-value';
 
-/** Failures allowed before the first wait (docs/SECURITY.md §2). */
+/** Failures allowed before the first wait (docs/07-security.md §2). */
 export const LOCKOUT_FREE_ATTEMPTS = 5;
 export const LOCKOUT_FIRST_WAIT_SECONDS = 60;
 export const LOCKOUT_MAX_WAIT_SECONDS = 60 * 60;
@@ -76,7 +76,7 @@ export const SIGN_IN_NOTICE_EVERY = 10;
 const GENERATION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 /**
- * The sign-in lockout policy (docs/SECURITY.md §2, AUDIT M6). The exponential lock applies to
+ * The sign-in lockout policy (docs/07-security.md §2, AUDIT M6). The exponential lock applies to
  * one account from one address, so a stranger who knows an Executive's email cannot keep them
  * out, and one office address is not locked for everyone behind it by one person's typos. The
  * account-wide count only escalates: every tenth failure tells the owner. Per-address request

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Staff roles (docs/BLUEPRINT.md §7.1, docs/SECURITY.md §3.2). Executives can edit their grants. */
+/** Staff roles (docs/01-blueprint.md §7.1, docs/07-security.md §3.2). Executives can edit their grants. */
 export const STAFF_ROLE_KEYS = [
   'executive',
   'general_manager',
@@ -15,7 +15,7 @@ export const STAFF_ROLE_KEYS = [
   'hr_admin',
 ] as const;
 
-/** One service principal per AI agent, each with a fixed role (docs/SECURITY.md §3.3). */
+/** One service principal per AI agent, each with a fixed role (docs/07-security.md §3.3). */
 export const AGENT_ROLE_KEYS = [
   'agent:triage',
   'agent:concierge',
@@ -26,7 +26,7 @@ export const AGENT_ROLE_KEYS = [
 ] as const;
 
 /**
- * The system principal the event workers act as (docs/SECURITY.md §3.3): fixed grants, only what
+ * The system principal the event workers act as (docs/07-security.md §3.3): fixed grants, only what
  * its jobs need, never a cost, admin, audit, integrations or sensitive-document permission.
  */
 export const SYSTEM_ROLE_KEYS = ['system:workers'] as const;

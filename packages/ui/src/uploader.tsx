@@ -104,7 +104,7 @@ export interface UploaderViewProps {
 }
 
 /**
- * The uploader as it looks in a phase (DESIGN.md §6): a labelled file control with a drop area,
+ * The uploader as it looks in a phase (docs/08-design-system.md §6): a labelled file control with a drop area,
  * the limits under it, a progress bar while sending, and the outcome in words in a live region,
  * so a screen reader hears each change. Cancel while sending, retry after a failure.
  */

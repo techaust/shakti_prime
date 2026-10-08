@@ -1,4 +1,4 @@
-// When a masked photo must go back to a person instead of being kept (docs/spikes/ocr.md). Pure,
+// When a masked photo must go back to a person instead of being kept (docs/04-architecture-appendix/ocr.md). Pure,
 // so the rule is tested without the OCR engine.
 
 export type ExpectedNumber = 'aadhaar' | 'bank_account';

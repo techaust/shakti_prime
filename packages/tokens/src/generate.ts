@@ -1,4 +1,4 @@
-// Theme generation from three inputs, the way Linear generates its themes (DESIGN.md §2.1):
+// Theme generation from three inputs, the way Linear generates its themes (docs/08-design-system.md §2.1):
 // a base colour, an accent and a contrast level, computed in the CIE LCH colour space so that
 // equal lightness steps look equal whatever the hue. Every neutral and accent shade is derived;
 // the contrast test then checks every text and UI pair the design relies on.
@@ -89,7 +89,7 @@ export function lchToHex(colour: Lch): string {
 export const HIGH_CONTRAST_FROM = 60;
 
 /**
- * The contrast minimums a theme is generated to meet (DESIGN.md §2.5): body text and UI colours
+ * The contrast minimums a theme is generated to meet (docs/08-design-system.md §2.5): body text and UI colours
  * (outlines, icons, placeholders). The high-contrast variant for field phones in daylight asks
  * 7:1 for text (WCAG AAA) and 4.5:1 for everything that carries meaning on its own.
  */
@@ -143,7 +143,7 @@ export const GENERATED_TOKENS = [
 
 export type GeneratedToken = (typeof GENERATED_TOKENS)[number];
 
-/** One theme's neutral ladder and accent shades (DESIGN.md §2.1, §2.2). */
+/** One theme's neutral ladder and accent shades (docs/08-design-system.md §2.1, §2.2). */
 export function generateTheme(inputs: ThemeInputs): Record<GeneratedToken, string> {
   const base = hexToLch(inputs.base);
   const accent = hexToLch(inputs.accent);

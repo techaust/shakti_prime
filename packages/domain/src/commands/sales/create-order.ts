@@ -5,7 +5,7 @@ import { buildDealerOrder } from '../../queries/sales/order-facts';
 import { ORDER_AUDIT_FIELDS, saveSalesOrder } from '../../sales/save-order';
 
 /**
- * `sales.order.create` (docs/design/phase1.md §8.3, PRD SAL-06): a dealer's order without a quote,
+ * `sales.order.create` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06): a dealer's order without a quote,
  * in one company, as a draft. Every price comes from the live list of the dealer's tier for the
  * company or the group, never from the input (SAL-03: the strict input refuses a price), and the
  * tax from the engine; a customer who is not a dealer is refused (`order_needs_accepted_quote`).

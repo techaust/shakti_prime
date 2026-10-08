@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { appliedAutonomy, resolveAgentConfig, type AgentConfigRow } from './config';
 
-// How agent settings apply (docs/design/phase1.md §7.1): a switch off at any level stops the agent;
+// How agent settings apply (docs/03-roadmap-appendix/phase1.md §7.1): a switch off at any level stops the agent;
 // autonomy comes from the most specific row that sets it; the company's and the group's caps both
 // apply; with none, Suggest and no cap.
 

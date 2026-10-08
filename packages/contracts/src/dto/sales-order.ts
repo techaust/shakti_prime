@@ -6,7 +6,7 @@ import { CalendarDateSchema, StateCodeSchema, SupplyKindSchema } from '../tax/en
 import { QuoteChoiceDto, QuoteLineDto, QuoteTotalsDto } from './quote';
 
 /**
- * Where a sales order stands (docs/design/phase1.md §8.3, the sales order machine). Phase 1 moves
+ * Where a sales order stands (docs/03-roadmap-appendix/phase1.md §8.3, the sales order machine). Phase 1 moves
  * an order between draft, confirmed and cancelled; the dispatch states come with the stock ledger
  * (Phase 3), invoiced and closed with the Tally link (Phase 5).
  */

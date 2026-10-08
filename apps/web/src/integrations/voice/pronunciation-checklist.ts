@@ -1,5 +1,5 @@
 /**
- * Roman-script Hinglish lines for the pronunciation check (ADR 0014, DESIGN.md §11.5): each is
+ * Roman-script Hinglish lines for the pronunciation check (ADR 0014, docs/08-design-system.md §11.5): each is
  * spoken by the speech vendor and rated by a listener from the Shakti team. They cover what the
  * voice agent and caller scripts say most and what synthesisers get wrong: pump and solar terms,
  * lakh and crore amounts, model codes, English words inside Hindi sentences, dates and times.

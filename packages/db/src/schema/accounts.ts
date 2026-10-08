@@ -22,7 +22,7 @@ import { principals } from './principals';
 import { teams } from './teams';
 
 /**
- * A household, farm, business, dealer or referral partner (docs/BLUEPRINT.md §6.2). One record
+ * A household, farm, business, dealer or referral partner (docs/01-blueprint.md §6.2). One record
  * for the group (ADR 0008): the entities it deals with, and who owns the relationship in each,
  * live in `account_entities`.
  */

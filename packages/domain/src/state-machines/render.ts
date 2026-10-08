@@ -70,7 +70,7 @@ function persistenceText(machine: AnyMachine): string {
       : ` and the time to ${code(`${stored.table}.${stored.changedAtColumn}`)}`;
   const anyEvent = machine.transitions.some((t) => t.emits !== undefined);
   const events = anyEvent
-    ? ', and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md))'
+    ? ', and emits the event in the *Emits* column ([event catalogue](../data/events.md))'
     : '; it emits no event';
   return `The command writes the new state to ${column}${changedAt} when the state changes, applies the effects and calls \`ctx.audit()\`${events}.`;
 }
@@ -202,7 +202,7 @@ export function renderIndex(
     '',
     GENERATED_NOTE,
     '',
-    'The state-machine specifications (BLUEPRINT §19 item 2), with the checks of an upload. Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/design/backend-weeks-3-5.md §7.1).',
+    'The state-machine specifications (BLUEPRINT §19 item 2), with the checks of an upload. Each machine is data in `packages/domain/src/state-machines/machines`; `transition()` in `define-machine.ts` checks the permission, runs the guard and returns the target state and effects, and answers `conflict` with `<machine>_transition_not_allowed` for any other move (docs/03-roadmap-appendix/backend-weeks-3-5.md §7.1).',
     '',
     'A machine marked **yes** under *Driven by commands* has commands that call `transition()` with it (`MACHINES_IN_USE` in `registry.ts`, checked against the commands by `registry.test.ts`). The others are specifications: the commands of their phase follow them when they are built (ROADMAP §3 onwards).',
     '',
@@ -216,7 +216,7 @@ export function renderIndex(
     '',
     '## Workshop defaults',
     '',
-    'Values used until the discovery workshop answers (docs/design/backend-weeks-3-5.md §11); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.',
+    'Values used until the discovery workshop answers (docs/03-roadmap-appendix/backend-weeks-3-5.md §11); they live in `packages/domain/src/workshop-defaults.ts` and nowhere else.',
     '',
     '| Setting | Default |',
     '|---|---|',
@@ -238,7 +238,7 @@ export function renderIndex(
 
 /** Every generated file by its name in `docs/state-machines/`. */
 export function renderAll(machines: readonly AnyMachine[] = MACHINES): Map<string, string> {
-  const files = new Map<string, string>([['README.md', renderIndex(machines)]]);
+  const files = new Map<string, string>([['readme.md', renderIndex(machines)]]);
   for (const machine of machines) files.set(fileName(machine), renderMachine(machine));
   return files;
 }

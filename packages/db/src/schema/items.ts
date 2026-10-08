@@ -15,7 +15,7 @@ import {
 import { actors, archivable, timestamps } from './columns';
 import { entities } from './entities';
 
-/** The item master (INV-01, docs/DATABASE.md §6.3). One catalogue shared by every entity. */
+/** The item master (INV-01, docs/05-database.md §6.3). One catalogue shared by every entity. */
 export const items = pgTable(
   'items',
   {
@@ -71,7 +71,7 @@ export const pumpCurves = pgTable(
 );
 
 /**
- * Cost side of an item per entity (restricted; docs/DATABASE.md §4.3). Read and written only with
+ * Cost side of an item per entity (restricted; docs/05-database.md §4.3). Read and written only with
  * `finance.cost.read`; Phase 3 decides how goods receipts post the moving average.
  */
 export const itemCosts = pgTable(

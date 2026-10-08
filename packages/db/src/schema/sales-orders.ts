@@ -35,7 +35,7 @@ const percent = (name: string) => numeric(name, { precision: 5, scale: 2 });
 const COUNTED = sql.raw(`('confirmed', 'partially_dispatched', 'dispatched', 'invoiced')`);
 
 /**
- * A sales order (docs/design/phase1.md §8.3, docs/DATABASE.md §6.4, PRD SAL-06). An order made
+ * A sales order (docs/03-roadmap-appendix/phase1.md §8.3, docs/05-database.md §6.4, PRD SAL-06). An order made
  * from an accepted quote is a child of its lead (`opportunity_id`, `quote_id`) and read with it;
  * a dealer's order without a quote has neither and is read by whoever reads the dealer in that
  * company. Its lines, totals, tier, list and place of supply are frozen when it is made; afterwards

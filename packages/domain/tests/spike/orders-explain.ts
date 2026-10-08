@@ -1,4 +1,4 @@
-// Order and dealer credit plans (docs/design/phase1.md §8.3, brief S2): `pnpm --filter
+// Order and dealer credit plans (docs/03-roadmap-appendix/phase1.md §8.3, brief S2): `pnpm --filter
 // @shakti/domain spike:orders`. Fills the local database with made-up customers, leads and quotes
 // in company 2 (customers named `EXPLO customer …`, dealers `EXPLO dealer …`, numbers under
 // `EXPLO/`): 2,000 orders of accepted quotes and 18,000 orders of 200 dealers, each dealer with

@@ -14,7 +14,7 @@ import {
 } from './opportunity-shared';
 
 /**
- * `crm.opportunity.win` (design §7.2, docs/design/phase1.md §8.3): an open lead is won when an
+ * `crm.opportunity.win` (design §7.2, docs/03-roadmap-appendix/phase1.md §8.3): an open lead is won when an
  * accepted quote or a confirmed sales order references it (the machine's guard refuses it with
  * `win_needs_order` otherwise); `sales.order.confirm` wins the lead of the order it confirms. The
  * lead's open callbacks and nurture calls end, as they do when it is lost (`cancelCallTasks`).

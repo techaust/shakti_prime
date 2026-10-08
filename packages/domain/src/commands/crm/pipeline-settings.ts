@@ -23,7 +23,7 @@ import { assertConfigScope } from './config-scope';
 
 /**
  * Pipelines and their stages, as an Executive shapes them on the pipelines settings page
- * (docs/design/phase1.md §6.6, CRM-05, workshop CRM-1 and CRM-2). A stage is never deleted: an
+ * (docs/03-roadmap-appendix/phase1.md §6.6, CRM-05, workshop CRM-1 and CRM-2). A stage is never deleted: an
  * archived stage keeps the leads that passed through it readable. Open stages come first in
  * position order, then Won and Lost, then archived stages; a lead enters at the first open stage.
  */

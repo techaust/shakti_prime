@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * One order (docs/design/phase1.md §8.3): its lines and totals, and confirming, releasing or
+ * One order (docs/03-roadmap-appendix/phase1.md §8.3): its lines and totals, and confirming, releasing or
  * cancelling it. An order the caller may not read, or an address that names none, shows the
  * not-found screen.
  */

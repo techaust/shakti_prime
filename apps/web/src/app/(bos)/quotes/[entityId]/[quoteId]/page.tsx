@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * One quote (docs/design/phase1.md §7.3): its lines and totals, its document, and sending,
+ * One quote (docs/03-roadmap-appendix/phase1.md §7.3): its lines and totals, its document, and sending,
  * re-quoting or withdrawing it. A quote the caller may not read, or an address that names none,
  * shows the not-found screen.
  */

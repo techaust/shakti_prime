@@ -15,7 +15,7 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../../src/commands/crm/tasks';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
-// crm.task.create, .complete, .reschedule and .cancel (docs/design/phase1.md §6.5): a task is on a
+// crm.task.create, .complete, .reschedule and .cancel (docs/03-roadmap-appendix/phase1.md §6.5): a task is on a
 // lead the caller may work on, for the caller or, with crm.lead.assign at the scope that covers
 // them, for an active colleague who works on leads in that company.
 

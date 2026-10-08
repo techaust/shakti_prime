@@ -2,7 +2,7 @@ import type { PermissionGrant } from './permissions';
 import type { AgentRoleKey } from './roles';
 
 /**
- * The seeded service principal of each agent (`principals.kind = agent`, docs/SECURITY.md §3.3).
+ * The seeded service principal of each agent (`principals.kind = agent`, docs/07-security.md §3.3).
  * The seed writes these rows and the agent runtime acts as them, so the two cannot differ.
  */
 export const AGENT_PRINCIPAL_IDS: Record<AgentRoleKey, string> = {
@@ -15,7 +15,7 @@ export const AGENT_PRINCIPAL_IDS: Record<AgentRoleKey, string> = {
 };
 
 /**
- * What each agent principal holds (docs/SECURITY.md §3.3), limited to keys in the catalogue. The
+ * What each agent principal holds (docs/07-security.md §3.3), limited to keys in the catalogue. The
  * seed writes these rows and the agent runtime builds its principal from the same list; no agent
  * ever holds a cost, admin or agent-control permission (the agent refusal sweep checks it).
  */

@@ -79,7 +79,7 @@ export async function acceptQuote(
   );
 }
 
-/** What the dealer's order form opens with (docs/design/phase1.md §8.3). */
+/** What the dealer's order form opens with (docs/03-roadmap-appendix/phase1.md §8.3). */
 export async function loadOrderBuilder(
   rawInput: unknown,
 ): Promise<ActionResult<SalesOrderBuilderDto>> {

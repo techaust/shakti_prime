@@ -16,7 +16,7 @@ import { opportunities } from './opportunities';
 import { principals } from './principals';
 
 /**
- * A call to a lead and its outcome (docs/design/phase1.md §7.2, docs/DATABASE.md §6.2, TEL-01), a
+ * A call to a lead and its outcome (docs/03-roadmap-appendix/phase1.md §7.2, docs/05-database.md §6.2, TEL-01), a
  * child of `opportunities`: read with the lead, logged by `calls.log` by a person whose `calls.log`
  * scope covers the lead. Append-only. `attempt_no` counts the unanswered attempts in a row the
  * call belongs to (1 for a call after an answered one, or once the lead's state has changed since

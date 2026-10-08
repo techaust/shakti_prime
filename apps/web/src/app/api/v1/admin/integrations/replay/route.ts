@@ -4,7 +4,7 @@ import { postIntegrationReplay } from '../../../../../../observability/integrati
 
 export const dynamic = 'force-dynamic';
 
-/** Puts one dead letter back in the queue (`integrations.dlq.replay`, docs/API.md §3.7). */
+/** Puts one dead letter back in the queue (`integrations.dlq.replay`, docs/06-api.md §3.7). */
 export function POST(request: Request): Promise<Response> {
   return postIntegrationReplay(request, {
     principal: currentPrincipal,

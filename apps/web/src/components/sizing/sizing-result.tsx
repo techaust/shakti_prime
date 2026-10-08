@@ -180,7 +180,7 @@ function RooftopFacts({ result }: { result: RooftopSizingResult }) {
 }
 
 /**
- * A recorded sizing as the panel shows it (docs/design/phase1.md §6.7): whether it is within its
+ * A recorded sizing as the panel shows it (docs/03-roadmap-appendix/phase1.md §6.7): whether it is within its
  * limits, why not in plain sentences, and each part of the result, the head part by part. The
  * figures are the server's; nothing is worked out here.
  */

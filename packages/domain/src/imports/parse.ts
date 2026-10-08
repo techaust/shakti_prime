@@ -281,7 +281,7 @@ export function uniqueColumns(
 }
 
 /**
- * Reads an uploaded CSV or XLSX file (docs/design/backend-weeks-3-5.md §8): size and type
+ * Reads an uploaded CSV or XLSX file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8): size and type
  * checks, what a workbook unpacks to (`checkZipArchive`), the first sheet of a workbook, header
  * detection, and the row, column and cell limits. A file outside the limits is refused whole with a reason the screen can explain.
  */

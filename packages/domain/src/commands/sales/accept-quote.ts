@@ -41,7 +41,7 @@ async function signedCopy(ctx: CommandContext, entityId: number, fileId: string)
 }
 
 /**
- * `sales.quote.accept` (docs/design/phase1.md §8.3, PRD SAL-05, SAL-06): a sent quote that has not
+ * `sales.quote.accept` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-05, SAL-06): a sent quote that has not
  * expired is accepted by the customer's signed copy, which staff upload as a `signed_quote` file of
  * the quote's company. In one transaction the quote records `accepted_via` `signed_upload` and the
  * file and moves to accepted (the quote machine's `accept`: a quote past its validity is refused

@@ -4,7 +4,7 @@ import { boolean, check, pgTable, primaryKey, text, timestamp, uuid } from 'driz
 import { actors, archivable, timestamps } from './columns';
 
 /**
- * Roles are permission templates that Executives can edit (docs/BLUEPRINT.md §7.1). The set of
+ * Roles are permission templates that Executives can edit (docs/01-blueprint.md §7.1). The set of
  * roles is fixed (AUDIT L17): a key outside the catalogue cannot be stored. `customisedAt` marks a
  * role whose grants an Executive has changed; the seed then leaves them alone and only adds
  * permissions created after it (AUDIT M21).
@@ -30,7 +30,7 @@ export const roles = pgTable(
   ],
 );
 
-/** The permission catalogue as data (docs/SECURITY.md §3.2). */
+/** The permission catalogue as data (docs/07-security.md §3.2). */
 export const permissions = pgTable('permissions', {
   key: text('key').primaryKey(),
   module: text('module').notNull(),
@@ -38,7 +38,7 @@ export const permissions = pgTable('permissions', {
   ...timestamps,
 });
 
-/** A role holds a permission at one scope. The seed is the matrix in docs/SECURITY.md §3.2. */
+/** A role holds a permission at one scope. The seed is the matrix in docs/07-security.md §3.2. */
 export const rolePermissions = pgTable(
   'role_permissions',
   {

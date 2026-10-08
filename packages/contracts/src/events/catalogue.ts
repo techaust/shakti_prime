@@ -9,7 +9,7 @@ import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
 
 /**
- * The event catalogue (docs/design/backend-weeks-3-5.md §4.3). Names are
+ * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
  * `<aggregate>.<verb_past>`; every stored payload carries `v`, the version of its shape.
  *
  * Payloads leave the database for the queue, so they carry ids, codes, counts and times only:
@@ -24,7 +24,7 @@ export const EVENT_VERSION = 1;
 const Code = z.string().trim().min(1).max(40);
 
 /**
- * One type: what it means (one line, for `docs/data/EVENTS.md`), the commands that emit it
+ * One type: what it means (one line, for `docs/data/events.md`), the commands that emit it
  * (checked against the command sources by `event-emitters.test.ts` in `packages/domain`), whether
  * a worker listens, and its payload.
  */
@@ -535,7 +535,7 @@ export function parseEventPayload(type: string, payload: unknown): ParsedEvent {
   return { ok: true, payload: { ...(parsed.data as Record<string, unknown>), v: EVENT_VERSION } };
 }
 
-/** What the publisher sends for one event (docs/design/backend-weeks-3-5.md §4.2). */
+/** What the publisher sends for one event (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). */
 export const DeliveredEvent = z
   .object({
     id: IdSchema,
@@ -549,7 +549,7 @@ export const DeliveredEvent = z
   .strict();
 export type DeliveredEvent = z.infer<typeof DeliveredEvent>;
 
-/** One catalogue entry with its payload as JSON Schema, for `docs/data/EVENTS.md` (`pnpm db:docs`). */
+/** One catalogue entry with its payload as JSON Schema, for `docs/data/events.md` (`pnpm db:docs`). */
 export interface EventCatalogueEntry {
   type: EventType;
   meaning: string;

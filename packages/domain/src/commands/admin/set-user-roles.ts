@@ -14,7 +14,7 @@ import {
 
 /**
  * `admin.user.role.set`: replaces the user's roles in the companies of the request and signs them
- * out everywhere, so the next request resolves the new grants (docs/SECURITY.md §2, rotation on
+ * out everywhere, so the next request resolves the new grants (docs/07-security.md §2, rotation on
  * privilege change). The caller's request scope must cover every entity the user holds today; a
  * caller narrowed to one company is told to switch to all companies first. The check runs after
  * the lock, so a role given in another company meanwhile is seen, and the replacement touches

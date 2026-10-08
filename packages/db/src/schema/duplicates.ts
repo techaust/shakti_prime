@@ -18,7 +18,7 @@ import { opportunities } from './opportunities';
 import { principals } from './principals';
 
 /**
- * Two customers, or two leads of one company, that may be one (PRD CRM-03, docs/design/phase1.md
+ * Two customers, or two leads of one company, that may be one (PRD CRM-03, docs/03-roadmap-appendix/phase1.md
  * §7.4). Found by lead creation and the nightly search through the definers of DATABASE §4.1, or
  * suggested by a person or an agent holding `crm.lead.merge`; a person merges the pair or says it
  * is not the same. `state` is written only by the duplicate commands through the

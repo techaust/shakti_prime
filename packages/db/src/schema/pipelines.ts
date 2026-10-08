@@ -13,7 +13,7 @@ import {
 import { actors, archivable, timestamps } from './columns';
 import { entities } from './entities';
 
-/** Configurable pipelines, one per segment (docs/BLUEPRINT.md §8.1). `entity_id` null means shared. */
+/** Configurable pipelines, one per segment (docs/01-blueprint.md §8.1). `entity_id` null means shared. */
 export const pipelines = pgTable(
   'pipelines',
   {

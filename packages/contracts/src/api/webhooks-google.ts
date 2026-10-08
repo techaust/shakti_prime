@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * `POST /webhooks/google/leadform` (docs/API.md §3.4): the Google Ads lead form webhook, shaped as
+ * `POST /webhooks/google/leadform` (docs/06-api.md §3.4): the Google Ads lead form webhook, shaped as
  * Google's lead form webhook reference describes it. Google signs nothing; the form's key, set
  * per entity in Google Ads, arrives as `google_key` and is compared in constant time before the
  * payload is stored. Unknown keys are kept, since Google adds fields.

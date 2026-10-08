@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * A dealer's order without a quote (docs/design/phase1.md §8.3), opened from the dealer's
+ * A dealer's order without a quote (docs/03-roadmap-appendix/phase1.md §8.3), opened from the dealer's
  * Account 360: `?company=<company>&dealer=<customer>`. A customer the caller may not read, one who
  * is not a dealer, or an address that names none, shows the not-found screen.
  */

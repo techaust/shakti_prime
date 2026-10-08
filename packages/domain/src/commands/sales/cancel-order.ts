@@ -8,7 +8,7 @@ import { salesOrderMachine } from '../../state-machines/machines/sales-order';
 import { lockSalesOrder, writeSalesOrder } from './order-shared';
 
 /**
- * `sales.order.cancel` (docs/design/phase1.md §8.3, PRD SAL-06): the General Manager or the
+ * `sales.order.cancel` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06): the General Manager or the
  * Executive cancels a draft or confirmed order, with a reason. A confirmed order's referral
  * commission is cancelled with it (`app.cancel_commission_accrual()`). The lead stays won: the
  * opportunity machine has no move out of won. People only.

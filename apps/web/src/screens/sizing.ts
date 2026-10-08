@@ -1,4 +1,4 @@
-// The sizing panel's form and display rules (docs/design/phase1.md §6.7). Pure functions, so the
+// The sizing panel's form and display rules (docs/03-roadmap-appendix/phase1.md §6.7). Pure functions, so the
 // panel and its tests share them; the calculators themselves run only on the server.
 
 import type { SizingDto, SizingKind, StaleSizingDto } from '@shakti/contracts';

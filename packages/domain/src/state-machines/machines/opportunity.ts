@@ -105,7 +105,7 @@ export const opportunityMachine = defineMachine<
   summary:
     '`opportunities.state`. One per enquiry per entity; the pipeline stage (`stage_id`) moves only while the opportunity is open.',
   sources: [
-    'docs/design/backend-weeks-3-5.md §7.2',
+    'docs/03-roadmap-appendix/backend-weeks-3-5.md §7.2',
     'BLUEPRINT §8.1, §8.2',
     'PRD CRM-03, CRM-05, TEL-02',
   ],

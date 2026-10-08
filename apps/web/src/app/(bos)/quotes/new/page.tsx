@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The quote builder of one lead (docs/design/phase1.md §7.3), opened from the lead on Account 360:
+ * The quote builder of one lead (docs/03-roadmap-appendix/phase1.md §7.3), opened from the lead on Account 360:
  * `?company=<company>&lead=<lead>`. A lead the caller may not read, or an address that names none,
  * shows the not-found screen.
  */

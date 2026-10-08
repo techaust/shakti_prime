@@ -10,7 +10,7 @@ import {
   createTestTeam,
 } from '../../src/testing/index';
 
-// Orders, dealer credit and commission (docs/DATABASE.md §6.4, migration 0117): a dealer's order
+// Orders, dealer credit and commission (docs/05-database.md §6.4, migration 0117): a dealer's order
 // without a quote is made with sales.order.create over the dealer's relationship, as a draft with
 // no hold, release or confirmation; its lines only in the transaction that made it; afterwards a
 // person changes only the state, hold, release and cancel columns, and the release only as the

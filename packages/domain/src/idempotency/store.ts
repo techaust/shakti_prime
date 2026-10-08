@@ -13,7 +13,7 @@ export interface IdempotencyClaimRequest {
 }
 
 /**
- * Where idempotency keys live (docs/design/backend-weeks-3-5.md §5). Both calls run in the
+ * Where idempotency keys live (docs/03-roadmap-appendix/backend-weeks-3-5.md §5). Both calls run in the
  * command's transaction: the claim holds the key while the command runs, so a concurrent repeat
  * waits and then sees the committed answer, and a rolled-back call leaves no key behind.
  */

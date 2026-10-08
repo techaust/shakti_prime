@@ -24,7 +24,7 @@ import { toStageDto } from '../../commands/crm/pipeline-settings';
 type ReadContext = Pick<RequestContext, 'tx'>;
 
 /**
- * The pipelines settings page (docs/design/phase1.md §6.6): every pipeline the request's
+ * The pipelines settings page (docs/03-roadmap-appendix/phase1.md §6.6): every pipeline the request's
  * companies use, with its live stages in order. Read under RLS like the lead form's list; the
  * page offers changes only to a caller holding `crm.config.write:all`, and the commands and
  * policies decide what each change may reach.

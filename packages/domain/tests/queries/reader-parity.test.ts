@@ -88,7 +88,7 @@ afterAll(closeDb);
 const NO_DEALER = newId();
 
 /**
- * docs/design/phase1.md §5.2: every query the app runs reads the same through the `app_reader`
+ * docs/03-roadmap-appendix/phase1.md §5.2: every query the app runs reads the same through the `app_reader`
  * pool as through `app_user` in a read-only transaction, for each kind of caller. The suite runs
  * with `DATABASE_URL_READER` set, so `executeQuery()` picks the reader by itself; each query runs
  * on both pools and the answers, or the refusals, must be equal.

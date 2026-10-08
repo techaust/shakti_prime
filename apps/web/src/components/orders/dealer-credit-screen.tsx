@@ -23,7 +23,7 @@ const DealerCreditDialog = dynamic(() =>
 const PAGE_SIZE = 50;
 
 /**
- * `/dealer-credit` (docs/design/phase1.md §8.3, `sales.credit.write`): each dealer of one company
+ * `/dealer-credit` (docs/03-roadmap-appendix/phase1.md §8.3, `sales.credit.write`): each dealer of one company
  * with its credit limit and days, its newest outstanding and the date it stands at, the confirmed
  * orders since that date, and the exposure the credit check reads; Accounts enter terms and
  * outstanding here, and each dealer's entries are kept and shown as its history.

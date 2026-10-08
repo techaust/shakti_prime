@@ -1,7 +1,7 @@
 import { timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { principals } from './principals';
 
-/** Standard timestamps (docs/DATABASE.md §2). `updated_at` is maintained by `app.set_updated_at()`. */
+/** Standard timestamps (docs/05-database.md §2). `updated_at` is maintained by `app.set_updated_at()`. */
 export const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -23,7 +23,7 @@ export const actorsRequired = {
   updatedBy: uuid('updated_by').references((): AnyPgColumn => principals.id),
 };
 
-/** Soft removal for masters (docs/DATABASE.md §2). */
+/** Soft removal for masters (docs/05-database.md §2). */
 export const archivable = {
   archivedAt: timestamp('archived_at', { withTimezone: true }),
 };

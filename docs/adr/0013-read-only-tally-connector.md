@@ -1,6 +1,6 @@
 # ADR 0013 — Read-only Tally connector with AlterID reads and deletion tombstones
 
-**Status:** Proposed (27-09-2026); the Tally discovery visit and the connector spike (`docs/spikes/tally.md`) confirm it · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §1, §4, §7.10, §8.8, §10, §12, §16, §17, §18 (risk 2) · **Architecture:** §2, §7 · **API:** §2, §3.5 · **Database:** §4.3, §6.7 · **Security:** §2 (connector signing), §9 (the client PC) · **PRD:** FIN-02
+**Status:** Proposed (27-09-2026); the Tally discovery visit and the connector spike (`docs/04-architecture-appendix/tally.md`) confirm it · **Date:** 27-09-2026 · **Deciders:** Lead developer; the owner accepts after review · **Blueprint:** §1, §4, §7.10, §8.8, §10, §12, §16, §17, §18 (risk 2) · **Architecture:** §2, §7 · **API:** §2, §3.5 · **Database:** §4.3, §6.7 · **Security:** §2 (connector signing), §9 (the client PC) · **PRD:** FIN-02
 
 ## Context
 Tally Prime is the group's statutory ledger, one Tally company per selling entity, running on a PC in the Jaipur office. The BOS needs Tally's sales, receipt and credit-note vouchers to update payment milestones, dealer outstanding and reconciliation, and its purchase vouchers for job costing, without ever changing Tally's books. Tally exposes an XML interface on the local network only, has no push mechanism, slows down under heavy reads, and lets users alter or delete vouchers at any time. The office internet link and the PC can be down for days.
@@ -23,4 +23,4 @@ Tally Prime is the group's statutory ledger, one Tally company per selling entit
 - The connector is a client-site component to install, monitor and update; self-update and the heartbeat keep that to exceptions, and the runbook covers a connector offline.
 - Deletions are handled without trusting Tally to report them; a day's delay before a deleted voucher is reversed is accepted.
 - Reconciliation quality depends on Tally practice (Buyer Order No., GSTIN on parties); unmatched vouchers go to the review queue, and the discovery visit fixes the rules per company.
-- Tally's XML limits and company setup are the main unknowns (blueprint risk 2); the connector spike (`docs/spikes/tally.md`) is to prove AlterID reads, deletion detection and a signed push against the client's real Tally version.
+- Tally's XML limits and company setup are the main unknowns (blueprint risk 2); the connector spike (`docs/04-architecture-appendix/tally.md`) is to prove AlterID reads, deletion detection and a signed push against the client's real Tally version.

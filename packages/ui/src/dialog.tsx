@@ -6,7 +6,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from './cn';
 import { returnFocusHandler, type ReturnFocusTo } from './return-focus';
 
-/** Dialogs for confirmations and short forms (DESIGN.md §6); side sheets for records. */
+/** Dialogs for confirmations and short forms (docs/08-design-system.md §6); side sheets for records. */
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
@@ -97,7 +97,7 @@ export function DialogDescription({
   return <DialogPrimitive.Description {...props} className={cn('text-text-muted', className)} />;
 }
 
-/** A side sheet (DESIGN.md §6); on phones the app's sidebar opens as one from the left. */
+/** A side sheet (docs/08-design-system.md §6); on phones the app's sidebar opens as one from the left. */
 export function SheetContent({
   side = 'right',
   className,

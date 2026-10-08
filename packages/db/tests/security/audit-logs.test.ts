@@ -72,7 +72,7 @@ function insertAs(
   );
 }
 
-describe('reading the audit trail (docs/SECURITY.md §3.2 audit.read)', () => {
+describe('reading the audit trail (docs/07-security.md §3.2 audit.read)', () => {
   it('an Executive over every company reads every row, including rows of no company', async () => {
     expect(await visibleAs(principalFor('executive'))).toEqual([1, 2, null]);
   });
@@ -188,7 +188,7 @@ describe('writing the audit trail as the auth module', () => {
   });
 });
 
-describe('monthly partitions (docs/design/backend-weeks-3-5.md §3.1)', () => {
+describe('monthly partitions (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.1)', () => {
   it('no request role can use the partitions schema', async () => {
     const rows = await asMigrator(
       (m) => m<{ role: string; usable: boolean }[]>`

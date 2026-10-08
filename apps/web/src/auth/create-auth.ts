@@ -32,7 +32,7 @@ import {
 } from './turnstile';
 import { SECURE_SESSION_COOKIE } from '../session-gate';
 
-/** Argon2id parameters from docs/SECURITY.md §2: m = 64 MiB, t = 3, p = 1. */
+/** Argon2id parameters from docs/07-security.md §2: m = 64 MiB, t = 3, p = 1. */
 // algorithm 2 is Argon2id in @node-rs/argon2 (a const enum, not importable under verbatimModuleSyntax).
 const ARGON2 = { memoryCost: 64 * 1024, timeCost: 3, parallelism: 1, algorithm: 2 as const };
 
@@ -53,7 +53,7 @@ const ENABLE_TWO_FACTOR_PATH = '/two-factor/enable';
 const BACKUP_CODES_PATH = '/two-factor/generate-backup-codes';
 
 /**
- * Account events recorded in the audit trail for the signed-in person (docs/design/
+ * Account events recorded in the audit trail for the signed-in person (docs/03-roadmap-appendix/
  * backend-weeks-3-5.md §2.6). The person is looked up before the endpoint runs, because some of
  * them end or replace the session the request arrived with.
  */
@@ -132,7 +132,7 @@ const AUTH_ERROR_CODES = {
 } as const;
 
 /**
- * Per-path request caps per client address (docs/SECURITY.md §2). They bound what one address
+ * Per-path request caps per client address (docs/07-security.md §2). They bound what one address
  * can try across accounts, now that the sign-in lock applies to one account from one address
  * (AUDIT M6), and they bound the password-hashing and mail-sending endpoints. Applied in the
  * before hook, so they hold for the HTTP routes and for in-process calls alike. The set-password
@@ -188,7 +188,7 @@ export interface CreateAuthOptions {
 }
 
 /**
- * The Better Auth instance (docs/design/backend-weeks-3-5.md §2.2): email and password with
+ * The Better Auth instance (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.2): email and password with
  * Argon2id, the breached-password check, Turnstile and the sign-in lockout, sessions with a 12 h
  * idle limit and the 7 d absolute limit, TOTP with backup codes, no trusted devices and no reused
  * codes, and invites through the password-reset flow. No self sign-up. A session the app has
@@ -253,7 +253,7 @@ export function createAuth(deps: AuthDeps, options: CreateAuthOptions = {}) {
     const now = deps.now();
     const tooOld = now.getTime() - row.createdAt.getTime() > SESSION_ABSOLUTE_SECONDS * 1000;
     if (row.revokedAt === null && tooOld) {
-      // Recorded once, so the sessions screen shows why it ended (docs/SECURITY.md §2).
+      // Recorded once, so the sessions screen shows why it ended (docs/07-security.md §2).
       await authDb()
         .update(s)
         .set({ revokedAt: now, revokedReason: 'absolute_expiry' })

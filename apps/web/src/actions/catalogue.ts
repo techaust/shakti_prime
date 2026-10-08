@@ -34,7 +34,7 @@ import {
 import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
-// Thin wrappers (docs/API.md §4): parse → request context → command or query → DTO. The
+// Thin wrappers (docs/06-api.md §4): parse → request context → command or query → DTO. The
 // catalogue is shared by every company; the commands check `catalogue.write`.
 
 export async function createItem(
@@ -167,7 +167,7 @@ export async function archiveKit(
 export async function listItems(rawInput: unknown): Promise<ActionResult<ItemPageDto>> {
   return toResult('listItems', async () => {
     const principal = await signedIn();
-    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/SECURITY.md §3.2).
+    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/07-security.md §3.2).
     checkPermission(principal, 'pricing.read', 'entity');
     const input = parseInput(ListItemsInput, rawInput);
     const { requestId } = await requestMeta();
@@ -181,7 +181,7 @@ export async function listItems(rawInput: unknown): Promise<ActionResult<ItemPag
 export async function listKits(rawInput: unknown): Promise<ActionResult<KitPageDto>> {
   return toResult('listKits', async () => {
     const principal = await signedIn();
-    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/SECURITY.md §3.2).
+    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/07-security.md §3.2).
     checkPermission(principal, 'pricing.read', 'entity');
     const { requestId } = await requestMeta();
     return executeQuery(principal, { requestId }, (context) => listKitsQuery(context, rawInput), {
@@ -194,7 +194,7 @@ export async function listKits(rawInput: unknown): Promise<ActionResult<KitPageD
 export async function getItem(rawInput: unknown): Promise<ActionResult<ItemDetailDto>> {
   return toResult('getItem', async () => {
     const principal = await signedIn();
-    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/SECURITY.md §3.2).
+    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/07-security.md §3.2).
     checkPermission(principal, 'pricing.read', 'entity');
     const { requestId } = await requestMeta();
     return executeQuery(principal, { requestId }, (context) => getItemQuery(context, rawInput), {
@@ -207,7 +207,7 @@ export async function getItem(rawInput: unknown): Promise<ActionResult<ItemDetai
 export async function getKit(rawInput: unknown): Promise<ActionResult<KitDetailDto>> {
   return toResult('getKit', async () => {
     const principal = await signedIn();
-    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/SECURITY.md §3.2).
+    // The catalogue screen opens with pricing.read; its reads ask for the same (docs/07-security.md §3.2).
     checkPermission(principal, 'pricing.read', 'entity');
     const { requestId } = await requestMeta();
     return executeQuery(principal, { requestId }, (context) => getKitQuery(context, rawInput), {

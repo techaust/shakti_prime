@@ -46,7 +46,7 @@ async function requireDealer(
 }
 
 /**
- * `sales.dealer_terms.set` (docs/design/phase1.md §8.3, workshop SALE-4): Accounts enter a
+ * `sales.dealer_terms.set` (docs/03-roadmap-appendix/phase1.md §8.3, workshop SALE-4): Accounts enter a
  * dealer's credit limit and credit days in one company. Each entry is kept (append-only) and the
  * newest counts; a limit left empty means none is set, which holds the dealer's orders (SAL-07).
  * The figures are the client's: nothing is filled in for them. People only.
@@ -93,7 +93,7 @@ export const setDealerTerms = defineCommand({
 });
 
 /**
- * `sales.dealer_outstanding.record` (docs/design/phase1.md §8.3, workshop SALE-6): Accounts enter
+ * `sales.dealer_outstanding.record` (docs/03-roadmap-appendix/phase1.md §8.3, workshop SALE-6): Accounts enter
  * what a dealer owes in one company as of a date, with the oldest overdue invoice and its days,
  * until the Tally sync brings it (Phase 5). Append-only; the entry with the newest date counts. A
  * date after today is refused. People only.

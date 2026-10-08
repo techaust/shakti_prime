@@ -31,6 +31,6 @@ export const ItemCostDto = z
   .strict();
 export type ItemCostDto = z.infer<typeof ItemCostDto>;
 
-/** `WithCost` DTOs exist only for readers that hold the cost permission (docs/API.md §5). */
+/** `WithCost` DTOs exist only for readers that hold the cost permission (docs/06-api.md §5). */
 export const ItemWithCostDto = ItemDto.extend({ cost: ItemCostDto.nullable() }).strict();
 export type ItemWithCostDto = z.infer<typeof ItemWithCostDto>;

@@ -86,7 +86,7 @@ async function winLead(ctx: CommandContext, row: SalesOrderRow): Promise<void> {
 }
 
 /**
- * `sales.order.confirm` (docs/design/phase1.md §8.3, PRD SAL-06, SAL-07): confirms a draft order
+ * `sales.order.confirm` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-06, SAL-07): confirms a draft order
  * after the dealer credit check (`creditCheck()`, SALE-5: the dealer's outstanding, the confirmed
  * orders not yet in it and this order against the limit, and the oldest overdue invoice against
  * the credit days). A block is not a refusal: the order stays a draft, held for credit with the

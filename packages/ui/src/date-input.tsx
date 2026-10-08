@@ -20,7 +20,7 @@ export interface DateInputProps extends Omit<
 }
 
 /**
- * A date typed as DD-MM-YYYY (DESIGN.md §6, §9), with the dashes put in while typing. The form
+ * A date typed as DD-MM-YYYY (docs/08-design-system.md §6, §9), with the dashes put in while typing. The form
  * receives the ISO date under `name` from a hidden input, so a server action never parses the
  * Indian form; an incomplete or impossible date sends an empty value.
  */

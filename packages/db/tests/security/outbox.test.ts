@@ -84,7 +84,7 @@ async function rowAsPublisher(id: string) {
   });
 }
 
-describe('the application role writes events and nothing else (docs/DATABASE.md §5)', () => {
+describe('the application role writes events and nothing else (docs/05-database.md §5)', () => {
   it('inserts an event of an entity in its scope', async () => {
     const id = newId();
     await asPrincipal(principalFor('executive', [1]), ({ tx }) =>
@@ -133,7 +133,7 @@ describe('the application role writes events and nothing else (docs/DATABASE.md 
   });
 });
 
-describe('the outbox publisher role (docs/DATABASE.md §3)', () => {
+describe('the outbox publisher role (docs/05-database.md §3)', () => {
   let pending: string[];
   beforeAll(async () => {
     pending = await seedRows(1);
@@ -201,7 +201,7 @@ describe('an event is never rewritten, even by the table owner', () => {
   });
 });
 
-describe('claimOutbox (docs/design/backend-weeks-3-5.md §4.2)', () => {
+describe('claimOutbox (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2)', () => {
   it('claims pending events in delivery order and applies each outcome', async () => {
     const [published, failed, dead] = await seedRows(3);
     let seen: readonly OutboxRow[] = [];
@@ -386,7 +386,7 @@ describe('the publisher changes the delivery columns only (migration 0054)', () 
   });
 });
 
-describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md §4.2)', () => {
+describe('claimOutbox with backoff and leases (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2)', () => {
   it('leases the rows while they are delivered, and no transaction holds them', async () => {
     const [id = ''] = await seedRows(1);
     let during: Awaited<ReturnType<typeof deliveryState>>;
@@ -639,7 +639,7 @@ describe('claimOutbox with backoff and leases (docs/design/backend-weeks-3-5.md 
   });
 });
 
-describe('outbox readiness (docs/design/backend-weeks-3-5.md §4.2)', () => {
+describe('outbox readiness (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2)', () => {
   /** A pending event written as the owner, its moments given as intervals from now. */
   async function pendingEvent(
     createdAgo: string,

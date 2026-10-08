@@ -15,7 +15,7 @@ import { runMigrations } from '../migrate';
 import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
-/** The seed, so a test can prove a re-run keeps what an Executive changed (docs/DATABASE.md §9). */
+/** The seed, so a test can prove a re-run keeps what an Executive changed (docs/05-database.md §9). */
 export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
 export { AGENT_PRINCIPAL_SEED, SYSTEM_PRINCIPAL_SEED } from '../../seeds/principals';
@@ -268,7 +268,7 @@ export const ENTITY_TABLES = [
   'customer_sites',
   'opportunities',
   'sizings',
-  // children of the lead, read with it (docs/design/phase1.md §7.3)
+  // children of the lead, read with it (docs/03-roadmap-appendix/phase1.md §7.3)
   'quotes',
   'quote_lines',
   'quote_versions',
@@ -297,7 +297,7 @@ export const ENTITY_TABLES = [
   // tags allow entity_id null for the whole group, as teams do
   'tags',
   'opportunity_tags',
-  // a child of the lead, read with it (docs/design/phase1.md §7.2)
+  // a child of the lead, read with it (docs/03-roadmap-appendix/phase1.md §7.2)
   'calls',
   // read when both customers, or both leads of the company, are readable (D1)
   'duplicate_candidates',
@@ -311,7 +311,7 @@ export const ENTITY_TABLES = [
 ] as const;
 
 /**
- * Tables owned by the auth module (docs/DATABASE.md §3): `auth_service` has full access, `app_user`
+ * Tables owned by the auth module (docs/05-database.md §3): `auth_service` has full access, `app_user`
  * has column-level access to `sessions` and none to the rest. They sit outside the generic loops
  * and are asserted in identity-scope.test.ts.
  */
@@ -323,7 +323,7 @@ export const AUTH_TABLES = [
 ] as const;
 
 /**
- * Platform tables the application may only insert into (docs/DATABASE.md §5): `app_user` cannot
+ * Platform tables the application may only insert into (docs/05-database.md §5): `app_user` cannot
  * read them back, so the select-based loops do not apply. The outbox publisher reads and marks
  * deliveries; asserted in outbox.test.ts.
  */
@@ -338,14 +338,14 @@ export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
 
 /**
  * Platform tables of no company that only a database job writes and only a permission at scope
- * `all` reads (docs/DATABASE.md §7): no request role inserts, updates or deletes them, and most
+ * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
  * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
  */
 export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
 
 /**
- * CRM set-up tables that start empty until the workshop answers (docs/design/phase1.md §11), so
+ * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so
  * the shared loops, which expect rows for any caller, do not apply: lead score rules (read like
  * call outcomes, and in the role × company matrix through GROUP_WIDE_SHARED_TABLES) and
  * commission rules (read only with `crm.config.write:all` or `finance.payment.write`; the person

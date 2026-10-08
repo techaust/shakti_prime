@@ -26,7 +26,7 @@ function size(value: number | null): string | null {
 }
 
 /**
- * A commission on a confirmed order by its rule (CRM-09, docs/design/phase1.md §8.3): the rate
+ * A commission on a confirmed order by its rule (CRM-09, docs/03-roadmap-appendix/phase1.md §8.3): the rate
  * itself for a fixed commission, the percentage of the order's taxable value, or the rate per kW
  * or per HP of the lead's sizing; rounded half-up to the paisa (as `round(…, 2)` in the database's
  * check, `app.record_commission_accrual()`). Null when the basis needs a size the lead's sizing

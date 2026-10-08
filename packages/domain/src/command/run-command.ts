@@ -35,14 +35,14 @@ export interface RunOptions {
   /** Where emitted events go (required since slice 3; `executeCommand` passes `outbox_events`). */
   outbox: OutboxSink;
   /**
-   * The caller's key for this call (docs/API.md §1). With one, the command acts once per caller
+   * The caller's key for this call (docs/06-api.md §1). With one, the command acts once per caller
    * and key: a repeat with the same input replays the first answer, with other input it is refused.
    */
   idempotencyKey?: string;
   /** Where keys live; `idempotency_keys` unless a test passes the in-memory store. */
   idempotency?: IdempotencyStore;
   /**
-   * Seals and opens sensitive fields (`FieldCipher`, docs/SECURITY.md §5): KMS on a hosted runtime,
+   * Seals and opens sensitive fields (`FieldCipher`, docs/07-security.md §5): KMS on a hosted runtime,
    * the local key elsewhere. A command that stores such a field answers `integration_unavailable`
    * without it.
    */
@@ -319,7 +319,7 @@ async function runWithin<I extends z.ZodType, O extends z.ZodType>(
   }
 
   // A key is claimed after the guard, so a refused caller learns nothing about an earlier call,
-  // and before the handler, so a repeat never runs it twice (docs/design/backend-weeks-3-5.md §5).
+  // and before the handler, so a repeat never runs it twice (docs/03-roadmap-appendix/backend-weeks-3-5.md §5).
   const key = options.idempotencyKey;
   const store = options.idempotency ?? databaseIdempotencyStore;
   if (key !== undefined) {

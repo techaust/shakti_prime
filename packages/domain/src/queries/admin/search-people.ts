@@ -13,7 +13,7 @@ import { containsPattern, matchesBySimilarity } from '../search-text';
 type SearchContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
 /**
- * The ⌘K search for team members (DESIGN.md §6), for a user administrator only, as Admin › Team
+ * The ⌘K search for team members (docs/08-design-system.md §6), for a user administrator only, as Admin › Team
  * members is: staff who hold a role in a company of the request whose name or work email holds
  * the typed text, or whose name resembles it in spelling (three characters or more, as the lead
  * search), at most `limit` (20) of them. A name or email that is the text comes first, then one

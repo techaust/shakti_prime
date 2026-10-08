@@ -72,7 +72,7 @@ type ReasonAction = (
 ) => Promise<ActionResult<SalesOrderDto>>;
 
 /**
- * The order page (docs/design/phase1.md §8.3): the order as it was made, with its lines and
+ * The order page (docs/03-roadmap-appendix/phase1.md §8.3): the order as it was made, with its lines and
  * totals, and the moves the caller may make: confirm it (the credit check may hold it, and the
  * page then says why in plain words), release a hold (the Executive, with a reason), or cancel it
  * (the General Manager and the Executive, with a reason).

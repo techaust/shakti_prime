@@ -190,7 +190,7 @@ describe('confirming a sales order', () => {
   });
 });
 
-describe('the exposure and the hold (docs/design/phase1.md §8.3, SALE-5)', () => {
+describe('the exposure and the hold (docs/03-roadmap-appendix/phase1.md §8.3, SALE-5)', () => {
   const now = new Date('2026-06-15T10:00:00+05:30');
   const draft: SalesOrderRecord = {
     state: 'draft',

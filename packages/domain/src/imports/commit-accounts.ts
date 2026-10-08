@@ -26,7 +26,7 @@ function heldByColleague(): DomainError {
 }
 
 /**
- * Commits a batch of customer rows (docs/design/phase1.md §6.3) in a handful of statements. A row
+ * Commits a batch of customer rows (docs/03-roadmap-appendix/phase1.md §6.3) in a handful of statements. A row
  * whose number a colleague's customer has in one of its companies is refused before anything is
  * written, as a lead with that number is, and the rest go on.
  *

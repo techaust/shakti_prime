@@ -2,7 +2,7 @@
   "name": "@shakti/tokens",
   "version": "0.0.0",
   "private": true,
-  "description": "Design tokens from DESIGN.md for web (CSS variables, Tailwind) and Android (typed object)",
+  "description": "Design tokens from docs/08-design-system.md for web (CSS variables, Tailwind) and Android (typed object)",
   "type": "module",
   "exports": {
     ".": "./src/tokens.ts",

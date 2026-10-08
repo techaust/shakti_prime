@@ -48,7 +48,7 @@ beforeAll(async () => {
   await asPrincipal(owner, ({ tx }) => tx.execute(insertView(id, owner.id, `Hot leads ${id}`)));
 });
 
-describe('saved views belong to the person who saved them (DESIGN.md §6)', () => {
+describe('saved views belong to the person who saved them (docs/08-design-system.md §6)', () => {
   it('shows nothing and takes nothing without a request context', async () => {
     const [row] = await withoutContext<{ n: number }>(
       sql`select count(*)::int as n from saved_views`,

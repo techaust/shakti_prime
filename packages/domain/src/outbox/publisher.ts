@@ -39,7 +39,7 @@ export interface OutboxPublisherOptions {
 export const DEAD_LETTER_LOG_IDS = 20;
 
 /**
- * One publisher run (docs/design/backend-weeks-3-5.md §4.2): claim the due events in delivery
+ * One publisher run (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2): claim the due events in delivery
  * order (the claim leases them to this run and commits before anything is sent), send the ones a
  * worker listens to in one batch, and hand back the outcome of each for the claim to record. A
  * failed event is due again after its backoff; an event nobody listens to yet is marked delivered

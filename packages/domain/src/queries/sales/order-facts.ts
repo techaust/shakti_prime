@@ -113,7 +113,7 @@ export interface BuiltDealerOrder {
 }
 
 /**
- * Works out a dealer's order as `sales.order.create` makes it (docs/design/phase1.md §8.3, PRD
+ * Works out a dealer's order as `sales.order.create` makes it (docs/03-roadmap-appendix/phase1.md §8.3, PRD
  * SAL-06), without saving anything: the customer must be a dealer of the company (the sales order
  * machine's `create` guard, `order_needs_accepted_quote` otherwise), priced from the live list of
  * the dealer's tier for the company, else the group (SAL-01, SAL-03: no price is taken from the
@@ -199,7 +199,7 @@ type BuilderContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 const MAX_CHOICES = 500;
 
 /**
- * The dealer's order form (docs/design/phase1.md §8.3): the dealer, the tier and the live list an
+ * The dealer's order form (docs/03-roadmap-appendix/phase1.md §8.3): the dealer, the tier and the live list an
  * order would be priced from today (null when there is none, so the form says why before anyone
  * types a line), and the items priced on that list. Kits are left out: a dealer's goods order is
  * taxed line by line, and a kit has no rate of its own (PRICE-4).

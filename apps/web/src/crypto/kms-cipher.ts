@@ -24,7 +24,7 @@ function kmsContext(context: CipherContext): Record<string, string> {
 }
 
 /**
- * Data keys from KMS (docs/SECURITY.md §5): `GenerateDataKey` makes a fresh AES-256 key per value
+ * Data keys from KMS (docs/07-security.md §5): `GenerateDataKey` makes a fresh AES-256 key per value
  * and `Decrypt` opens its wrapped copy, each under the value's table, column, company and row as the encryption
  * context, so KMS itself refuses a key asked for with another context. The master key never
  * leaves KMS.

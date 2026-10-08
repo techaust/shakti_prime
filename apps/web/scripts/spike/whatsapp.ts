@@ -1,4 +1,4 @@
-// The WhatsApp spike (ROADMAP §2 week 6, docs/spikes/whatsapp.md), against Meta's test number:
+// The WhatsApp spike (ROADMAP §2 week 6, docs/04-architecture-appendix/whatsapp.md), against Meta's test number:
 //   send     one template (Meta's `hello_world` unless WHATSAPP_SPIKE_TEMPLATE names another) and,
 //            when WHATSAPP_SPIKE_TEXT is set, one text inside the 24-hour window, timing each;
 //   listen   a local receiver on WHATSAPP_SPIKE_PORT that answers Meta's handshake, checks
@@ -25,7 +25,7 @@ if (mode === 'send') {
   const to = process.env.WHATSAPP_SPIKE_TO ?? '';
   if (config === undefined || to === '') {
     console.error(
-      'set WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN and WHATSAPP_SPIKE_TO first (docs/spikes/whatsapp.md)',
+      'set WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_ACCESS_TOKEN and WHATSAPP_SPIKE_TO first (docs/04-architecture-appendix/whatsapp.md)',
     );
     process.exit(1);
   }
@@ -63,7 +63,7 @@ if (mode === 'send') {
   const port = Number(process.env.WHATSAPP_SPIKE_PORT ?? '8787');
   if (appSecret === '' || verifyToken === '') {
     console.error(
-      'set WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN first (docs/spikes/whatsapp.md)',
+      'set WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN first (docs/04-architecture-appendix/whatsapp.md)',
     );
     process.exit(1);
   }

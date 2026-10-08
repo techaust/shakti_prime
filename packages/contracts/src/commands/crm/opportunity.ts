@@ -3,7 +3,7 @@ import { OpportunityLostReasonSchema, OpportunityNurtureReasonSchema } from '../
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * The opportunity commands (docs/design/backend-weeks-3-5.md §7.2). Each names the lead and the
+ * The opportunity commands (docs/03-roadmap-appendix/backend-weeks-3-5.md §7.2). Each names the lead and the
  * company it belongs to, so the request is narrowed to that company and the caller acts with
  * their team there.
  */

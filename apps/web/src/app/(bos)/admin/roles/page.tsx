@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Admin › Roles (docs/design/phase1.md §6.2): the staff roles, for an Executive who manages roles
+ * Admin › Roles (docs/03-roadmap-appendix/phase1.md §6.2): the staff roles, for an Executive who manages roles
  * for the whole group (`admin.roles.write` at all companies) only; anyone else meets the
  * not-found screen. Each role opens its own page of permissions.
  */

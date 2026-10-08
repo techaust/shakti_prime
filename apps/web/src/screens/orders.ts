@@ -1,4 +1,4 @@
-// Addresses and display rules of the order and dealer credit screens (docs/design/phase1.md §8.3).
+// Addresses and display rules of the order and dealer credit screens (docs/03-roadmap-appendix/phase1.md §8.3).
 // Browser code: types only from the contracts.
 import type { SalesOrderState } from '@shakti/contracts';
 import type { StatusTone } from '@shakti/ui';

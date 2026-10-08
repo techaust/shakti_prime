@@ -18,7 +18,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Records a pump or rooftop sizing of a lead (docs/design/phase1.md §6.7). The server works out
+ * Records a pump or rooftop sizing of a lead (docs/03-roadmap-appendix/phase1.md §6.7). The server works out
  * the result from the measurements; the request is narrowed to the lead's company.
  */
 export async function recordSizing(

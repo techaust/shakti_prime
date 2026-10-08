@@ -11,7 +11,7 @@ import {
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
-// `sizings` (docs/DATABASE.md §6.2): a child of the lead, read with it, recorded with the lead's
+// `sizings` (docs/05-database.md §6.2): a child of the lead, read with it, recorded with the lead's
 // write scope as the caller and with the lead's site, and never changed afterwards.
 
 /** The database's message for a refused statement (drizzle wraps it as the cause). */

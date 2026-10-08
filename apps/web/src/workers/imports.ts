@@ -72,7 +72,7 @@ export interface ImportRunOptions {
 }
 
 /**
- * Commits a job batch by batch (docs/design/backend-weeks-3-5.md §8), each batch one
+ * Commits a job batch by batch (docs/03-roadmap-appendix/backend-weeks-3-5.md §8), each batch one
  * `imports.job.commit_batch` in its own transaction, until the job is committed or failed, or
  * until the time or batch budget runs out; then the rest is handed to a new run.
  */
@@ -121,7 +121,7 @@ export async function runImportCommit(
 }
 
 /**
- * When a worker call can take a job no further (docs/design/phase1.md §6.3): the queue's last
+ * When a worker call can take a job no further (docs/03-roadmap-appendix/phase1.md §6.3): the queue's last
  * retry failed, whatever the cause, or the person who asked for the commit may no longer go on
  * with it. The job stops as `failed` through `imports.job.fail`, as the worker principal in the
  * job's company alone (whatever became of that person, a suspended one included), instead of

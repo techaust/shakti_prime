@@ -19,7 +19,7 @@ import {
 } from '../../state-machines/machines/opportunity';
 
 /**
- * What the six opportunity commands share (docs/design/backend-weeks-3-5.md §7.2): the locked
+ * What the six opportunity commands share (docs/03-roadmap-appendix/backend-weeks-3-5.md §7.2): the locked
  * row, the facts the machine's guards read, the one write and the DTO. Every state change goes
  * through `transition()`; a command never sets `state` without it.
  */

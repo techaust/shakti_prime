@@ -1,4 +1,4 @@
-// Display formats for the BOS screens (DESIGN.md §9, §11.1 rule 5). They only format values a
+// Display formats for the BOS screens (docs/08-design-system.md §9, §11.1 rule 5). They only format values a
 // DTO already carries; no screen computes a price, a tax or a total.
 
 import { formatDate, formatRupees } from '../print/format';
@@ -81,7 +81,7 @@ export function describeDevice(userAgent: string | null): DeviceDescription {
   return { browser, system };
 }
 
-/** A count as the screens write it, grouped the Indian way (1,00,000; DESIGN.md §9). */
+/** A count as the screens write it, grouped the Indian way (1,00,000; docs/08-design-system.md §9). */
 export function formatCount(value: number): string {
   return new Intl.NumberFormat('en-IN').format(value);
 }

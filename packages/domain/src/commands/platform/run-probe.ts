@@ -2,7 +2,7 @@ import { DeliveryProbeDto, DomainError, newId, RunDeliveryProbeInput } from '@sh
 import { defineCommand } from '../../command/define-command';
 
 /**
- * `platform.probe.run` (docs/design/phase1.md §5.2): the delivery check on Integration Health.
+ * `platform.probe.run` (docs/03-roadmap-appendix/phase1.md §5.2): the delivery check on Integration Health.
  * An Executive asks; the command emits `platform.probe.requested`, whose worker records when it
  * arrived, and the page shows the time from here to the worker, the measure the handover's
  * ten-second target rests on. The probe belongs to no company and changes no row, so its event is

@@ -53,7 +53,7 @@ function rowsOf(requestId: string): Promise<Row[]> {
 
 const client = { ip: '203.0.113.7', device: 'Mozilla/5.0 (Linux; Android 14)' };
 
-describe('the audit row of a command that commits (docs/design/backend-weeks-3-5.md §3.2)', () => {
+describe('the audit row of a command that commits (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.2)', () => {
   it('records caller, company, before and after, address, device and request', async () => {
     const exec = await createTestPrincipal('executive');
     const [before] = await asMigrator(

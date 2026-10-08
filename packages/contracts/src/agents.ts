@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from './ids';
 import { AgentRoleKeySchema } from './roles';
 
-// The agent runtime and the Agent Inbox (docs/design/phase1.md §7.1, BLUEPRINT §9.3, SECURITY §6).
+// The agent runtime and the Agent Inbox (docs/03-roadmap-appendix/phase1.md §7.1, BLUEPRINT §9.3, SECURITY §6).
 
 /** How far an agent may go with one action type (BLUEPRINT §9.3). */
 export const AGENT_AUTONOMY = ['suggest', 'needs_approval', 'automatic'] as const;

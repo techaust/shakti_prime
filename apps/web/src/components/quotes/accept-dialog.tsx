@@ -23,7 +23,7 @@ import { FailureMessage } from '../screens/failure';
 import { useCommand } from '../screens/use-command';
 
 /**
- * Record acceptance (docs/design/phase1.md §8.3, SAL-05), loaded on first use by the quote page:
+ * Record acceptance (docs/03-roadmap-appendix/phase1.md §8.3, SAL-05), loaded on first use by the quote page:
  * the person uploads the customer's signed copy, as a `signed_quote` file of the quote's company,
  * and once it has passed its checks records the acceptance, which accepts the quote and makes its
  * order (`sales.quote.accept`).

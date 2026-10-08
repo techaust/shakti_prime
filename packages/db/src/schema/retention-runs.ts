@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
- * One row per run of a retention job (docs/DATABASE.md §7). Written only by the jobs themselves,
+ * One row per run of a retention job (docs/05-database.md §7). Written only by the jobs themselves,
  * which pg_cron runs as the table owner; read with `audit.read:all` (migration 0054). It belongs
  * to no company: a job works across the whole group.
  */

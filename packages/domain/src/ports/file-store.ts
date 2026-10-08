@@ -3,7 +3,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 /**
- * Where uploaded bytes live (docs/DATABASE.md §6.10 `files`, docs/ARCHITECTURE.md §9). A `files`
+ * Where uploaded bytes live (docs/05-database.md §6.10 `files`, docs/04-architecture.md §9). A `files`
  * row records `bucket` and `key`; the store holds the bytes. Hosted environments keep them in S3
  * in Mumbai (`s3FileStore` in apps/web), encrypted with the environment's KMS key and scanned by
  * GuardDuty; a developer's machine keeps them on local disk, and tests in memory. A browser
@@ -70,7 +70,7 @@ export interface StoredObject {
   sha256: string | undefined;
 }
 
-/** How long a signed upload or download address works (docs/API.md §3.2). */
+/** How long a signed upload or download address works (docs/06-api.md §3.2). */
 export const PRESIGN_SECONDS = 15 * 60;
 
 /** Keys are made by the app: segments of letters, digits, dots, dashes and underscores. */

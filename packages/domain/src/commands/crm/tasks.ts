@@ -102,7 +102,7 @@ async function colleague(
 }
 
 /**
- * `crm.task.create` (docs/design/phase1.md §6.5): a callback, follow-up, nurture or review on a lead
+ * `crm.task.create` (docs/03-roadmap-appendix/phase1.md §6.5): a callback, follow-up, nurture or review on a lead
  * the caller may work on, due now or later, for the caller or for a colleague who works on leads
  * in that company (`colleague`). The row's write policy asks the caller's lead write scope to
  * cover the lead and the person the task is for.

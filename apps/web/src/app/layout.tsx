@@ -13,7 +13,7 @@ import { CONTRAST_COOKIE, HIGH_CONTRAST, isHighContrast, THEME_COOKIE } from '..
 import './globals.css';
 import { Providers } from './providers';
 
-// Self-hosted at build time, so no request goes to a font service at run time (DESIGN.md §3).
+// Self-hosted at build time, so no request goes to a font service at run time (docs/08-design-system.md §3).
 // The variable font carries the optical-size axis: headings get Inter's display cut.
 const inter = Inter({
   subsets: ['latin'],

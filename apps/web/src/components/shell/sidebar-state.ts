@@ -1,5 +1,5 @@
 /**
- * The sidebar's open or collapsed state, remembered per device (DESIGN.md §5). A cookie, not
+ * The sidebar's open or collapsed state, remembered per device (docs/08-design-system.md §5). A cookie, not
  * browser storage, so the server draws the sidebar at the right width on the first paint. It
  * holds only this preference, so the page may write it.
  */
@@ -30,7 +30,7 @@ export function rememberSidebar(collapsed: boolean): void {
   }
 }
 
-/** The small company dot (DESIGN.md §2.4: `entity-1` … `entity-4`, never a surface). */
+/** The small company dot (docs/08-design-system.md §2.4: `entity-1` … `entity-4`, never a surface). */
 const ENTITY_DOTS = ['bg-entity-1', 'bg-entity-2', 'bg-entity-3', 'bg-entity-4'] as const;
 
 export function entityDotClass(entityId: number): string {

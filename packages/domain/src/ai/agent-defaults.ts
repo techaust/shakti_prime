@@ -1,4 +1,4 @@
-// The agents' named defaults (docs/design/phase1.md §7.1 "Built (AI0)", the owner's decisions of
+// The agents' named defaults (docs/03-roadmap-appendix/phase1.md §7.1 "Built (AI0)", the owner's decisions of
 // 05-10-2026). Each one is flagged for the owner to confirm; a change is made here and nowhere
 // else. Prices are kept in US dollars per million tokens, as the vendors publish them.
 

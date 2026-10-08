@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Duplicate customers and leads (PRD CRM-03, docs/design/phase1.md §7.4). A candidate pairs two
+ * Duplicate customers and leads (PRD CRM-03, docs/03-roadmap-appendix/phase1.md §7.4). A candidate pairs two
  * customers, or two leads of one company, that look like the same one; a person merges them or
  * says they are not the same.
  */

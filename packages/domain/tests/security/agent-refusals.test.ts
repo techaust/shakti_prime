@@ -257,7 +257,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
-  // Orders, acceptance and dealer credit (docs/design/phase1.md §8.3): a person's decisions.
+  // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
   'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
   'sales.order.create': {
     entityId: 1,
@@ -396,7 +396,7 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
 /**
  * SECURITY §3.3: agents never write the customer master; no agent holds `crm.account.write`.
  * Every command that needs it, read from the registry, refuses every agent at the guard: the
- * lead form, imports, the customer edits and the consents of Account 360 (docs/design/phase1.md
+ * lead form, imports, the customer edits and the consents of Account 360 (docs/03-roadmap-appendix/phase1.md
  * §6.5), and the upload of a consent's proof (the `consent_evidence` purpose names it).
  */
 const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
@@ -486,7 +486,7 @@ describe('agent principals never write the customer master (SECURITY §3.3)', ()
 });
 
 /**
- * Every command of the customer timeline slice (docs/design/phase1.md §6.5), for every agent: a
+ * Every command of the customer timeline slice (docs/03-roadmap-appendix/phase1.md §6.5), for every agent: a
  * command the agent lacks a permission for, or one for people only (`peopleOnly`: notes and making
  * or archiving tags, SECURITY §3.3), is refused at the guard; any other passes the guard and then
  * finds nothing to change (the inputs name no real row). The Co-pilot's follow-up tasks and the

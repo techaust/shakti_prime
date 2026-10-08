@@ -38,7 +38,7 @@ export interface OrderToSave {
 }
 
 /**
- * Numbers and saves a draft order (docs/design/phase1.md §8.3): the number from the company's
+ * Numbers and saves a draft order (docs/03-roadmap-appendix/phase1.md §8.3): the number from the company's
  * gapless series for the financial year (SALE-1), the order with its frozen tier, list, place of
  * supply and totals, and its lines with their tax snapshot. The row takes its `created_at` from
  * the transaction, which is what lets the insert policy of its lines hold them to this

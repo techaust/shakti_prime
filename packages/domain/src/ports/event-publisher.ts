@@ -4,7 +4,7 @@ import type { DeliveredEvent } from '@shakti/contracts';
 export type PublishResult = { id: string; ok: true } | { id: string; ok: false; error: string };
 
 /**
- * Hands events to the queue (docs/design/backend-weeks-3-5.md §4.2). QStash implements it in
+ * Hands events to the queue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). QStash implements it in
  * apps/web; tests use the in-memory publisher. It answers per event and throws only when the
  * whole call failed, which the publisher counts as a failure of every event in it.
  */

@@ -46,7 +46,7 @@ function checkOrderRead(ctx: OrderListContext): void {
 }
 
 /**
- * `/orders` (docs/design/phase1.md §8.3): the orders the caller can read, newest first, of one
+ * `/orders` (docs/03-roadmap-appendix/phase1.md §8.3): the orders the caller can read, newest first, of one
  * company or every company of the request, optionally of one state. Keyset paging on
  * `sales_orders_entity_created_idx` (one company) or `sales_orders_created_idx` (several), read
  * backwards; the customer's name from the customer row, readable through the lead or the

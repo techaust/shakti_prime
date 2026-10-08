@@ -6,8 +6,8 @@ import { SCRIPT_LANGUAGES } from '../templates/index';
 import { MessageRequested, MessagingRefusalSchema } from './messaging';
 
 /**
- * Bodies and answers of the QStash workers under `/api/v1/workers/*` (docs/API.md §3.6,
- * docs/design/backend-weeks-3-5.md §4.4). Every call carries `Upstash-Signature`, checked with the
+ * Bodies and answers of the QStash workers under `/api/v1/workers/*` (docs/06-api.md §3.6,
+ * docs/03-roadmap-appendix/backend-weeks-3-5.md §4.4). Every call carries `Upstash-Signature`, checked with the
  * current and next signing keys before the body is read. The worker then checks `eventId` in Redis
  * (`evt:{id}`, kept 7 days): an id it has already handled answers `duplicate` and runs nothing;
  * otherwise it runs the command as its principal (a named agent principal or `system:workers`,
@@ -91,7 +91,7 @@ export type OutboxFailureResult = z.infer<typeof OutboxFailureResult>;
 
 // --- /workers/messaging/send -----------------------------------------------------------------
 
-/** `POST /workers/messaging/send`: one `message.requested` (docs/API.md §6) to check and send. */
+/** `POST /workers/messaging/send`: one `message.requested` (docs/06-api.md §6) to check and send. */
 export const MessagingSendJob = z
   .object({
     eventId: IdSchema,
@@ -127,7 +127,7 @@ export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 
 export { PDF_DOCUMENT_TYPES, PdfDocumentTypeSchema, type PdfDocumentType } from './print-documents';
 
-/** Label stock sizes in millimetres, one label per page (docs/spikes/print.md). */
+/** Label stock sizes in millimetres, one label per page (docs/04-architecture-appendix/print.md). */
 export const LabelSizeSchema = z.enum(['50x25', '100x50']);
 export const LabelKindSchema = z.enum(['serial', 'bin', 'package']);
 
@@ -174,7 +174,7 @@ export type PdfRenderResult = z.infer<typeof PdfRenderResult>;
 // --- /workers/agents/:agent ------------------------------------------------------------------
 
 /**
- * The six agents (docs/BLUEPRINT.md §9.3), named as their principals' roles without `agent:`;
+ * The six agents (docs/01-blueprint.md §9.3), named as their principals' roles without `agent:`;
  * `worker-jobs.test.ts` holds the two lists together.
  */
 export const AGENT_NAMES = [
@@ -237,7 +237,7 @@ export type SttTranscribeResult = z.infer<typeof SttTranscribeResult>;
 
 // --- /workers/embeddings/index ---------------------------------------------------------------
 
-/** Who may retrieve a vault file's chunks (docs/DATABASE.md §6.9). */
+/** Who may retrieve a vault file's chunks (docs/05-database.md §6.9). */
 export const KnowledgeSensitivitySchema = z.enum(['exec_only', 'management', 'staff_ai_ok']);
 export type KnowledgeSensitivity = z.infer<typeof KnowledgeSensitivitySchema>;
 

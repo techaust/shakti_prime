@@ -50,7 +50,7 @@ async function recorded(
 }
 
 /**
- * Renders one document (ADR 0009, docs/design/phase1.md §6.4), as the worker principal of the
+ * Renders one document (ADR 0009, docs/03-roadmap-appendix/phase1.md §6.4), as the worker principal of the
  * job's company: its registered type loads it, its template is printed by Chromium, the PDF is
  * stored under its purpose and file id and recorded `ready` with `files.document.record`, then
  * attached to its record where the type has one (a quote's PDF, `sales.quote.pdf.attach`). A job

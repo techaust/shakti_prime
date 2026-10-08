@@ -5,7 +5,7 @@ import { CalendarDateSchema, QuantitySchema } from '../../tax/engine';
 import { QUOTE_MAX_LINES, QUOTE_MAX_QTY } from './quotes';
 
 /**
- * `sales.quote.accept` (docs/design/phase1.md §8.3, PRD SAL-05): a sent quote accepted by the
+ * `sales.quote.accept` (docs/03-roadmap-appendix/phase1.md §8.3, PRD SAL-05): a sent quote accepted by the
  * customer's signed copy, uploaded by staff as a `signed_quote` file of the quote's company.
  */
 export const AcceptQuoteInput = z

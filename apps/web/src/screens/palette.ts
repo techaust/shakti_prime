@@ -1,4 +1,4 @@
-// The ⌘K palette's groups (DESIGN.md §6, Command palette): Go to, Search and Actions. What each
+// The ⌘K palette's groups (docs/08-design-system.md §6, Command palette): Go to, Search and Actions. What each
 // group holds is decided here from the caller's grants and the search's answer; the shell only
 // adds the words and the icons.
 
@@ -84,7 +84,7 @@ export interface PaletteSection {
 }
 
 /**
- * The palette's sections in DESIGN.md order. Go to lists the screens the caller may open, less
+ * The palette's sections in docs/08-design-system.md order. Go to lists the screens the caller may open, less
  * any screen an action already opens (New lead is an action, not a second page entry). Search
  * holds the leads and then the team members found, and is left out when nothing was searched.
  */

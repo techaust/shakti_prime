@@ -1,4 +1,4 @@
-// The Tally spike, BOS side (ROADMAP §2 week 6, docs/spikes/tally.md). Run on the accounts machine
+// The Tally spike, BOS side (ROADMAP §2 week 6, docs/04-architecture-appendix/tally.md). Run on the accounts machine
 // (or one that reaches its Tally XML server) against a copy of a company, never the live books:
 //   1. reads the vouchers altered after TALLY_SPIKE_SINCE through Tally's XML server, timed;
 //   2. shapes them into connector batches of 500 and runs the BOS batch rules (AlterID cursor);
@@ -36,7 +36,7 @@ if (process.env.CI !== undefined && process.env.CI !== '') {
 }
 const missing = REQUIRED.filter((name) => (process.env[name] ?? '') === '');
 if (missing.length > 0) {
-  console.error(`set ${missing.join(', ')} first (docs/spikes/tally.md)`);
+  console.error(`set ${missing.join(', ')} first (docs/04-architecture-appendix/tally.md)`);
   process.exit(1);
 }
 const env = (name: (typeof REQUIRED)[number]) => process.env[name] ?? '';

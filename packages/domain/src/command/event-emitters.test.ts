@@ -7,7 +7,7 @@ import { commands } from './registry';
 
 /**
  * `emittedBy` in the event catalogue (`packages/contracts/src/events/catalogue.ts`) names the
- * commands that emit each type; `docs/data/EVENTS.md` prints it. The catalogue holds it because
+ * commands that emit each type; `docs/data/events.md` prints it. The catalogue holds it because
  * the documents' generator lives in `packages/db`, which may not import the commands; this test
  * reads the command sources and fails when the two differ.
  *

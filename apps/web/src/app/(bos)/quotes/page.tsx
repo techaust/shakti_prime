@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('quotes'), (await getTranslations('quotes'))('title'));
 }
 
-/** Quotes (docs/design/phase1.md §7.3): the quotes of the caller's leads, newest first. */
+/** Quotes (docs/03-roadmap-appendix/phase1.md §7.3): the quotes of the caller's leads, newest first. */
 export default async function QuotesPage() {
   const { principal, access } = await screenAccess(navRequires('quotes'));
   const t = await getTranslations('quotes');

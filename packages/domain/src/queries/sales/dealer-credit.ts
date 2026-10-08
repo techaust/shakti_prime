@@ -85,7 +85,7 @@ export function dealerCreditQuery(
 }
 
 /**
- * `/dealer-credit` (docs/design/phase1.md §8.3, `sales.credit.write`): each dealer of the company
+ * `/dealer-credit` (docs/03-roadmap-appendix/phase1.md §8.3, `sales.credit.write`): each dealer of the company
  * with its newest limit and days, its newest outstanding and the date it stands at, the confirmed
  * orders not yet in that figure, and the exposure the credit check reads (outstanding plus those
  * orders). Keyset paging by name.

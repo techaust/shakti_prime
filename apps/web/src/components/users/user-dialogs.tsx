@@ -283,7 +283,7 @@ export function ReactivateForm(props: {
 }
 
 /**
- * Reset authenticator app (docs/SECURITY.md §2): the Executive is told to confirm who is asking,
+ * Reset authenticator app (docs/07-security.md §2): the Executive is told to confirm who is asking,
  * by phone or in person, before pressing the button.
  */
 export function ResetAuthenticatorForm(props: {

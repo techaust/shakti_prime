@@ -14,7 +14,7 @@ import {
 import { entities } from './entities';
 
 /**
- * The transactional outbox (ADR 0005, docs/design/backend-weeks-3-5.md §4.1). A command's events
+ * The transactional outbox (ADR 0005, docs/03-roadmap-appendix/backend-weeks-3-5.md §4.1). A command's events
  * are inserted in its own transaction, so an event exists exactly when its change committed.
  * `app_user` may only insert; the `outbox_publisher` role reads the rows and updates the six
  * delivery columns, and a trigger refuses any other change or a delete (migrations 0035, 0054),

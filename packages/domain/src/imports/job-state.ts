@@ -1,7 +1,7 @@
 import { DomainError, type ImportJobState } from '@shakti/contracts';
 
 /**
- * The import job's states (docs/design/backend-weeks-3-5.md §8). A job may be mapped again and
+ * The import job's states (docs/03-roadmap-appendix/backend-weeks-3-5.md §8). A job may be mapped again and
  * previewed again until it commits; committing continues batch by batch until every valid row is
  * in (`committed`) or a batch fails (`failed`); either end may be rolled back, once.
  */

@@ -83,7 +83,7 @@ function pageViewStore(): ViewStore {
 }
 
 /**
- * The data grid with everything switched on (DESIGN.md §6): sortable headers, the column chooser
+ * The data grid with everything switched on (docs/08-design-system.md §6): sortable headers, the column chooser
  * with the row height, row selection with its count, and the Views menu.
  */
 export function GridViewsPreview({ copy, stages }: { copy: Copy; stages: StageCopy }) {

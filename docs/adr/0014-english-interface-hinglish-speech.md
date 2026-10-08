@@ -1,6 +1,6 @@
 # ADR 0014 — English interface, with Roman-script Hinglish only where people speak to customers
 
-**Status:** Accepted (owner, 27-09-2026) · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §2, §5, §8.2, §8.6, §9.3, §11, §15 to §19 · **Design:** `DESIGN.md` §1, §9, §11 · **Database:** §2, §6.1, §6.2, §7 · **PRD:** TEL-01, WA-01, RPT-03, §5
+**Status:** Accepted (owner, 27-09-2026) · **Date:** 27-09-2026 · **Deciders:** Owner · **Blueprint:** §2, §5, §8.2, §8.6, §9.3, §11, §15 to §19 · **Design:** `docs/08-design-system.md` §1, §9, §11 · **Database:** §2, §6.1, §6.2, §7 · **PRD:** TEL-01, WA-01, RPT-03, §5
 
 ## Context
 Shakti Prime is used by tele-callers, store staff, field engineers, accountants and managers, and it talks to farmers and businesses on calls and WhatsApp. A second on-screen script doubles the copy to write, review and keep in step, and puts a translation step in front of every release. The group chose one interface language, English, and Hinglish for the channels where people speak to customers, because that is how callers and customers talk.
@@ -18,4 +18,4 @@ Shakti Prime is used by tele-callers, store staff, field engineers, accountants 
 - Fonts: Inter only. PDFs and labels need no Devanagari shaping, so the week 6 print spike covers A4 PDF and QR label rendering.
 - The speech benchmark gains a pass/fail criterion: natural pronunciation of Roman-script Hinglish, alongside Hindi, Hinglish and Rajasthani-accented recognition.
 - Name search relies on trigram matching of spelling variants; no romanised shadow column is needed.
-- Caller scripts and voice prompts are written in two variants, `hinglish` and `en`, with the spelling rules of `DESIGN.md` §11.5.
+- Caller scripts and voice prompts are written in two variants, `hinglish` and `en`, with the spelling rules of `docs/08-design-system.md` §11.5.

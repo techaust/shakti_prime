@@ -1,4 +1,4 @@
-// The document types the render worker prints (ADR 0009, docs/design/phase1.md §6.4). Each type
+// The document types the render worker prints (ADR 0009, docs/03-roadmap-appendix/phase1.md §6.4). Each type
 // names the purpose its PDF is stored under, the file id a job of it records (so a repeated
 // delivery records one file), the loader that reads the document as the worker principal, the
 // template that prints it, and, once the document has a record of its own (a quote, with S1), the
@@ -173,7 +173,7 @@ function lineRate(line: QuoteForPrint['lines'][number], t: PrintCopy): string {
 const plainQty = (qty: string) => (qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty);
 
 /**
- * A quote as the quotation template prints it (docs/design/phase1.md §7.3): the amounts exactly as
+ * A quote as the quotation template prints it (docs/03-roadmap-appendix/phase1.md §7.3): the amounts exactly as
  * the quote holds them, priced by the Price Master and taxed by the engine when it was made; this
  * only places and words them. The place of supply is the state's name and code; the terms say
  * until when the prices hold. No phone number is printed, and no QR code until customers have a

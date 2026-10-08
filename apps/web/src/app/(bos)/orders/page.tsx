@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return screenTitle(navRequires('orders'), (await getTranslations('orders'))('title'));
 }
 
-/** Orders (docs/design/phase1.md §8.3): the orders the caller reads, newest first. */
+/** Orders (docs/03-roadmap-appendix/phase1.md §8.3): the orders the caller reads, newest first. */
 export default async function OrdersPage() {
   const { principal, access } = await screenAccess(navRequires('orders'));
   const t = await getTranslations('orders');

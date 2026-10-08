@@ -19,7 +19,7 @@ import { toLineDto } from './line-dto';
 import type { QuoteReadContext } from './quote-facts';
 
 /**
- * The state a person sees (docs/design/phase1.md §7.3): a draft or sent quote whose validity has
+ * The state a person sees (docs/03-roadmap-appendix/phase1.md §7.3): a draft or sent quote whose validity has
  * passed reads as expired before the daily job marks it so.
  */
 export function shownQuoteState(stored: string, validUntil: Date, now: Date): QuoteState {
