@@ -21,6 +21,7 @@
     "knowledge_too_long": "This file is too long to read in one go. Split it into smaller files and add each one.",
     "knowledge_spend_cap_reached": "Reading files has reached its limit for today. Read this file again tomorrow.",
     "knowledge_service_missing": "Reading files for search is not switched on yet. Read this file again once it is.",
+    "ai_deadline_exceeded": "The service took too long to answer. Try again in a few minutes.",
     "knowledge_timed_out": "Reading this file took too long. Read it again in a few minutes.",
     "knowledge_still_reading": "This file is still being read. Try again in a few minutes.",
     "knowledge_person_search_cap_reached": "You have used your share of today's searches. It works again tomorrow.",
