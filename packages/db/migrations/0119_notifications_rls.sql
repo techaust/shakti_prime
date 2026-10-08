@@ -414,15 +414,17 @@ grant execute on function app.record_notice_push(smallint, jsonb, text[], text[]
 --> statement-breakpoint
 
 --     The notices whose push was never settled (a run was cut off before it): still pending after
---     p_older_than seconds, oldest first, for the scan to push again. Answers the notice, not the
+--     p_older_than seconds, oldest first, for the scan to push again. Answers the notice, with
+--     whether its person may still receive notices in the company (recipient_ok), not the
 --     browsers (app.notice_push_targets gives those).
 create or replace function app.notice_pending_pushes(p_entity smallint, p_older_than integer, p_limit integer)
-  returns table (id uuid, user_id uuid, type text, subject_id uuid, payload_json jsonb)
+  returns table (id uuid, user_id uuid, type text, subject_id uuid, payload_json jsonb, recipient_ok boolean)
   language plpgsql stable security definer set search_path = '' as $$
 begin
   perform app.require_notice_sender(p_entity);
   return query
-    select n.id, n.user_id, n.type, n.subject_id, n.payload_json
+    select n.id, n.user_id, n.type, n.subject_id, n.payload_json,
+           app.notice_recipient_ok(n.user_id, p_entity)
       from public.notifications n
      where n.entity_id = p_entity
        and n.channel_sent_json ->> 'push' = 'pending'

@@ -12,10 +12,13 @@ import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import {
+  choiceFor,
   NOTICE_LOOKBACK_MS,
   NOTICE_PUSH_RETRY_AFTER_SECONDS,
   NOTICE_SCAN_LIMIT,
+  pushPlan,
   QUOTE_EXPIRY_NOTICE_MS,
+  type NoticeSettingRow,
 } from '../../notifications/push-plan';
 import { requireEntity } from '../crm/opportunity-shared';
 import { writeNotices, type NoticeDraft } from './write-notices';
@@ -149,12 +152,16 @@ interface PendingRow {
   type: WrittenNoticeDto['type'];
   subject_id: string;
   payload_json: unknown;
+  recipient_ok: boolean;
 }
 
 /**
- * The notices whose push a cut-off run left pending, with their person's browsers as they stand
- * now (none left means the push is settled as failed by the sender). Newer ones are a running
- * batch's own and are left alone.
+ * The notices whose push a cut-off run left pending, planned again now like a new notice: a push
+ * the person switched off since is recorded `off`, one that falls in their quiet hours `held`
+ * (never sent later), one for a person who may no longer receive notices or has no browser left
+ * `none`; each is recorded here so no later scan picks it up again. The rest come back to send,
+ * with their person's browsers as they stand now. Newer pending ones are a running batch's own
+ * and are left alone.
  */
 async function pendingPushes(
   ctx: CommandContext,
@@ -168,21 +175,61 @@ async function pendingPushes(
   ).filter((r) => !written.has(r.id));
   if (rows.length === 0) return [];
   const users = [...new Set(rows.map((r) => r.user_id))];
-  const targets = (await ctx.tx.execute(
-    sql`select * from app.notice_push_targets(${entityId}::smallint, ${`{${users.join(',')}}`}::uuid[])`,
-  )) as unknown as { user_id: string; endpoint: string; p256dh: string; auth: string }[];
-  return rows.map((r) => ({
-    id: r.id,
-    userId: r.user_id,
-    type: r.type,
-    entityId,
-    payload: NoticePayloadSchema.parse(r.payload_json),
-    subjectId: r.subject_id,
-    push: 'send' as const,
-    targets: targets
-      .filter((t) => t.user_id === r.user_id)
-      .map((t) => ({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth })),
+  const userList = `{${users.join(',')}}`;
+  const [settings, targets] = await Promise.all([
+    ctx.tx.execute(
+      sql`select * from app.notice_settings(${entityId}::smallint, ${userList}::uuid[])`,
+    ) as unknown as Promise<
+      {
+        user_id: string;
+        type: string | null;
+        in_app: boolean;
+        push: boolean;
+        quiet_from: string | null;
+        quiet_to: string | null;
+      }[]
+    >,
+    ctx.tx.execute(
+      sql`select * from app.notice_push_targets(${entityId}::smallint, ${userList}::uuid[])`,
+    ) as unknown as Promise<{ user_id: string; endpoint: string; p256dh: string; auth: string }[]>,
+  ]);
+  const choices: NoticeSettingRow[] = settings.map((s) => ({
+    userId: s.user_id,
+    type: s.type,
+    inApp: s.in_app,
+    push: s.push,
+    quietFrom: s.quiet_from,
+    quietTo: s.quiet_to,
   }));
+  const settled: { noticeId: string; push: 'held' | 'off' | 'none' }[] = [];
+  const resend: WrittenNoticeDto[] = [];
+  for (const r of rows) {
+    const browsers = targets.filter((t) => t.user_id === r.user_id);
+    const plan = r.recipient_ok
+      ? pushPlan(choiceFor(choices, r.user_id, r.type), browsers.length, ctx.now)
+      : 'none';
+    if (plan !== 'send') {
+      settled.push({ noticeId: r.id, push: plan });
+      continue;
+    }
+    resend.push({
+      id: r.id,
+      userId: r.user_id,
+      type: r.type,
+      entityId,
+      payload: NoticePayloadSchema.parse(r.payload_json),
+      subjectId: r.subject_id,
+      push: 'send' as const,
+      targets: browsers.map((t) => ({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth })),
+    });
+  }
+  if (settled.length > 0) {
+    await ctx.tx.execute(
+      sql`select * from app.record_notice_push(
+            ${entityId}::smallint, ${JSON.stringify(settled)}::jsonb, '{}'::text[], '{}'::text[])`,
+    );
+  }
+  return resend;
 }
 
 /**

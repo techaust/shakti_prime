@@ -19,7 +19,9 @@ import {
 import {
   executeCommand,
   memoryKeyValue,
+  istMinuteOfDay,
   notifyEvent,
+  setNotificationSettings,
   subscribePush as subscribeCommand,
 } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
@@ -354,6 +356,75 @@ describe('pushes a cut-off run left pending', () => {
     const after = fakePushSender();
     await runNotificationScan({}, { sender: after });
     expect(after.sent.filter((s) => s.endpoint === endpoint)).toEqual([]);
+  }, 120_000);
+
+  /** A pending push, a few minutes old, for a new person of company 1 with one browser. */
+  async function pendingFor(settings?: { quietNow?: boolean; pushOff?: boolean }) {
+    const t = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc' }]);
+    const person = principalFor('tele_caller_lc', [1], { id: t.id });
+    const endpoint = `https://fcm.googleapis.com/fcm/send/${newId()}`;
+    await executeCommand(person, {}, subscribeCommand, { endpoint, keys });
+    const made = await lead(owner);
+    await asMigrator((m) => m`update opportunities set owner_id = ${t.id} where id = ${made.id}`);
+    const batch = await executeCommand(workers, { entityIds: [1] }, notifyEvent, {
+      event: 'crm.opportunity.assigned',
+      entityId: 1,
+      eventId: newId(),
+      opportunityId: made.id,
+      ownerId: t.id,
+      assignedById: teamLead.id,
+    });
+    expect(batch.notices[0]?.push).toBe('send');
+    await deliverNoticeBatch(workers, batch, {
+      requestId: 'cut-off',
+      sender: fakePushSender(),
+      deadlineAt: 0,
+    });
+    if (settings !== undefined) {
+      const minute = istMinuteOfDay(new Date());
+      const at = (m: number) => {
+        const v = (m + 1440) % 1440;
+        return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`;
+      };
+      await executeCommand(person, {}, setNotificationSettings, {
+        types: settings.pushOff ? [{ type: 'lead_assigned', inApp: true, push: false }] : [],
+        quietFrom: settings.quietNow ? at(minute - 60) : null,
+        quietTo: settings.quietNow ? at(minute + 60) : null,
+      });
+    }
+    await asMigrator(
+      (m) => m`update notifications set created_at = now() - interval '10 minutes'
+                where subject_id = ${made.id}`,
+    );
+    return { id: made.id, userId: t.id, endpoint };
+  }
+
+  it('records a pending push held, not sent, when the person is in quiet hours at the resend', async () => {
+    const pending = await pendingFor({ quietNow: true });
+    const sender = fakePushSender();
+    await runNotificationScan({}, { sender });
+    expect(sender.sent.filter((s) => s.endpoint === pending.endpoint)).toEqual([]);
+    expect((await noticesAbout(pending.id))[0]?.channel_sent_json).toMatchObject({ push: 'held' });
+    const again = fakePushSender();
+    await runNotificationScan({}, { sender: again });
+    expect(again.sent.filter((s) => s.endpoint === pending.endpoint)).toEqual([]);
+  }, 120_000);
+
+  it('records a pending push off when the person has switched pushes off since', async () => {
+    const pending = await pendingFor({ pushOff: true });
+    const sender = fakePushSender();
+    await runNotificationScan({}, { sender });
+    expect(sender.sent.filter((s) => s.endpoint === pending.endpoint)).toEqual([]);
+    expect((await noticesAbout(pending.id))[0]?.channel_sent_json).toMatchObject({ push: 'off' });
+  }, 120_000);
+
+  it('does not send a pending push to a person who was deactivated, and settles it', async () => {
+    const pending = await pendingFor();
+    await asMigrator((m) => m`update users set status = 'suspended' where id = ${pending.userId}`);
+    const sender = fakePushSender();
+    await runNotificationScan({}, { sender });
+    expect(sender.sent.filter((s) => s.endpoint === pending.endpoint)).toEqual([]);
+    expect((await noticesAbout(pending.id))[0]?.channel_sent_json).toMatchObject({ push: 'none' });
   }, 120_000);
 
   it('pushes several notices at a time, eight at most', async () => {
