@@ -210,7 +210,8 @@ async function main(): Promise<void> {
                       'expln:' || g,
                       now() - (g * interval '25 seconds'),
                       case when g % 5 = 0 then null else now() end,
-                      '{"inApp": true, "push": "none"}'::jsonb
+                      case when g % 20_000 = 0 then '{"inApp": true, "push": "pending"}'::jsonb
+                           else '{"inApp": true, "push": "none"}'::jsonb end
                  from generate_series(1, ${NOTICES}::int) g
                  join p on p.rn = 1 + (g % ${PEOPLE - 1})
                  join a on a.rn = 1 + (g % ${LEADS})
@@ -261,7 +262,7 @@ async function main(): Promise<void> {
                 and t.due_at <= now() and t.due_at > ${since}) f
       where app.notice_recipient_ok(f.assignee_id, ${ENTITY}::smallint)
         and not exists (select 1 from public.notifications n
-                         where n.entity_id = ${ENTITY} and n.dedupe_key = f.k)
+                         where n.user_id = f.assignee_id and n.dedupe_key = f.k)
       order by f.due_at, f.id limit 200`,
   );
   await explainOwner(
@@ -276,7 +277,7 @@ async function main(): Promise<void> {
                 and o.owner_id is not null) f
       where app.notice_recipient_ok(f.owner_id, ${ENTITY}::smallint)
         and not exists (select 1 from public.notifications n
-                         where n.entity_id = ${ENTITY} and n.dedupe_key = f.k)
+                         where n.user_id = f.owner_id and n.dedupe_key = f.k)
       order by f.valid_until, f.id limit 200`,
   );
   await explainOwner(
@@ -300,8 +301,17 @@ async function main(): Promise<void> {
               where uer.entity_id = ${ENTITY} and r.key = 'general_manager'
                 and app.notice_recipient_ok(uer.user_id, ${ENTITY}::smallint)) g on true
       where not exists (select 1 from public.notifications n
-                         where n.entity_id = ${ENTITY} and n.dedupe_key = f.k)
+                         where n.user_id = g.user_id and n.dedupe_key = f.k)
       order by f.created_at, f.id, g.user_id limit 200`,
+  );
+  await explainOwner(
+    'scan: pushes a cut-off run left pending (app.notice_pending_pushes body), company 2',
+    `select n.id, n.user_id, n.type, n.subject_id, n.payload_json
+       from public.notifications n
+      where n.entity_id = ${ENTITY} and n.channel_sent_json ->> 'push' = 'pending'
+        and n.created_at < now() - make_interval(secs => 120)
+        and n.created_at > now() - interval '1 day'
+      order by n.created_at, n.id limit 200`,
   );
   await explainOwner(
     'write: a repeated notice (the unique key on person and reason)',

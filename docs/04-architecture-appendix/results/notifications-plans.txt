@@ -1,41 +1,41 @@
 === centre, first page (21 rows), the person with 2,000 notices ===
-Subquery Scan on p (actual time=3.662..4.326 rows=21 loops=1)
-  Buffers: shared hit=310 read=50 dirtied=26 written=49
-  ->  Limit (actual time=1.514..1.523 rows=21 loops=1)
-        Buffers: shared hit=90
-        InitPlan 66
+Subquery Scan on p (actual time=1.945..2.343 rows=21 loops=1)
+  Buffers: shared hit=268 read=38 dirtied=25 written=38
+  ->  Limit (actual time=1.451..1.457 rows=21 loops=1)
+        Buffers: shared hit=89 dirtied=2
+        InitPlan 130
           ->  Result (actual time=0.006..0.006 rows=1 loops=1)
-        InitPlan 67
-          ->  Result (actual time=0.006..0.007 rows=1 loops=1)
-        ->  Sort (actual time=1.513..1.517 rows=21 loops=1)
+        InitPlan 131
+          ->  Result (actual time=0.006..0.006 rows=1 loops=1)
+        ->  Sort (actual time=1.450..1.453 rows=21 loops=1)
               Sort Key: n.created_at DESC, n.id DESC
-              Sort Method: top-N heapsort  Memory: 31kB
-              Buffers: shared hit=90
-              ->  Result (actual time=0.198..1.070 rows=2000 loops=1)
-                    One-Time Filter: ((InitPlan 66).col1 = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                    Buffers: shared hit=84
-                    ->  Bitmap Heap Scan on notifications n (actual time=0.190..0.893 rows=2000 loops=1)
-                          Recheck Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (entity_id = ANY ((InitPlan 67).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
-                          Heap Blocks: exact=62
-                          Buffers: shared hit=84
-                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.118..0.118 rows=2000 loops=1)
-                                Index Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
+              Sort Method: top-N heapsort  Memory: 30kB
+              Buffers: shared hit=89 dirtied=2
+              ->  Result (actual time=0.211..1.009 rows=2000 loops=1)
+                    One-Time Filter: ((InitPlan 130).col1 = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                    Buffers: shared hit=83 dirtied=2
+                    ->  Bitmap Heap Scan on notifications n (actual time=0.203..0.838 rows=2000 loops=1)
+                          Recheck Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (entity_id = ANY ((InitPlan 131).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
+                          Heap Blocks: exact=61
+                          Buffers: shared hit=83 dirtied=2
+                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.172..0.172 rows=2000 loops=1)
+                                Index Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
                                 Buffers: shared hit=22
   SubPlan 49
-    ->  Index Scan using accounts_pkey on accounts a (actual time=0.123..0.123 rows=0 loops=21)
+    ->  Index Scan using accounts_pkey on accounts a (actual time=0.032..0.032 rows=0 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'accountId'::text))::uuid)
           Filter: EXISTS(SubPlan 24)
           Rows Removed by Filter: 1
-          Buffers: shared hit=210 read=46 dirtied=26 written=45
+          Buffers: shared hit=170 read=35 dirtied=23 written=35
           SubPlan 24
-            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.111..0.111 rows=0 loops=21)
+            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.028..0.028 rows=0 loops=21)
                   Index Cond: ((account_id = a.id) AND (entity_id = ANY ((InitPlan 1).col1)))
                   Filter: ((InitPlan 2).col1 OR ((InitPlan 3).col1 AND (team_id = (InitPlan 4).col1)) OR ((InitPlan 5).col1 AND (owner_id = (InitPlan 6).col1)) OR ((InitPlan 9).col1 AND EXISTS(SubPlan 16)))
                   Rows Removed by Filter: 1
-                  Buffers: shared hit=130 read=42 dirtied=24 written=42
+                  Buffers: shared hit=110 read=32 dirtied=22 written=32
                   InitPlan 1
-                    ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+                    ->  Result (actual time=0.003..0.003 rows=1 loops=1)
                   InitPlan 2
                     ->  Result (actual time=0.003..0.003 rows=1 loops=1)
                   InitPlan 3
@@ -47,105 +47,168 @@ Subquery Scan on p (actual time=3.662..4.326 rows=21 loops=1)
                   InitPlan 6
                     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                   InitPlan 9
-                    ->  Result (actual time=1.776..1.777 rows=1 loops=1)
-                          Buffers: shared hit=2 read=17 dirtied=2 written=17
+                    ->  Result (actual time=0.240..0.241 rows=1 loops=1)
+                          Buffers: shared hit=2 read=8 dirtied=2 written=8
                           InitPlan 8
-                            ->  Seq Scan on principals p_1 (actual time=1.769..1.769 rows=0 loops=1)
+                            ->  Seq Scan on principals p_1 (actual time=0.214..0.214 rows=0 loops=1)
                                   Filter: (((InitPlan 7).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
-                                  Rows Removed by Filter: 1670
-                                  Buffers: shared hit=2 read=17 dirtied=2 written=17
+                                  Rows Removed by Filter: 877
+                                  Buffers: shared hit=2 read=8 dirtied=2 written=8
                                   InitPlan 7
                                     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                   SubPlan 16
-                    ->  Index Scan using opportunities_account_idx on opportunities o (actual time=0.008..0.008 rows=0 loops=21)
+                    ->  Index Scan using opportunities_account_idx on opportunities o (actual time=0.004..0.004 rows=0 loops=21)
                           Index Cond: (account_id = ae.account_id)
                           Filter: ((archived_at IS NULL) AND (entity_id = ae.entity_id) AND ((InitPlan 11).col1 OR ((InitPlan 12).col1 AND (team_id = (InitPlan 13).col1)) OR ((InitPlan 14).col1 AND (owner_id = (InitPlan 15).col1))) AND (entity_id = ANY ((InitPlan 10).col1)))
                           Rows Removed by Filter: 1
-                          Buffers: shared hit=81 read=3 dirtied=2 written=3
+                          Buffers: shared hit=60 read=3 dirtied=1 written=3
                           InitPlan 10
                             ->  Result (never executed)
                           InitPlan 11
-                            ->  Result (actual time=0.017..0.017 rows=1 loops=1)
+                            ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                           InitPlan 12
-                            ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+                            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                           InitPlan 13
                             ->  Result (never executed)
                           InitPlan 14
-                            ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+                            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                           InitPlan 15
-                            ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+                            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
   SubPlan 65
-    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.007..0.007 rows=0 loops=21)
+    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.006..0.006 rows=0 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'quoteId'::text))::uuid)
           Filter: ((entity_id = p.entity_id) AND (entity_id = ANY ((InitPlan 50).col1)) AND EXISTS(SubPlan 57))
           Rows Removed by Filter: 0
-          Buffers: shared hit=10 read=4 written=4
+          Buffers: shared hit=9 read=3 written=3
           InitPlan 50
-            ->  Result (actual time=0.008..0.009 rows=1 loops=1)
+            ->  Result (actual time=0.002..0.002 rows=1 loops=1)
           SubPlan 57
-            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.029..0.030 rows=0 loops=2)
+            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.031..0.032 rows=0 loops=2)
                   Index Cond: (id = qt.opportunity_id)
                   Filter: (((InitPlan 52).col1 OR ((InitPlan 53).col1 AND (team_id = (InitPlan 54).col1)) OR ((InitPlan 55).col1 AND (owner_id = (InitPlan 56).col1))) AND (entity_id = ANY ((InitPlan 51).col1)))
                   Rows Removed by Filter: 1
-                  Buffers: shared hit=5 read=3 written=3
+                  Buffers: shared hit=4 read=2 written=2
                   InitPlan 51
                     ->  Result (never executed)
                   InitPlan 52
-                    ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+                    ->  Result (actual time=0.005..0.005 rows=1 loops=1)
                   InitPlan 53
-                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+                    ->  Result (actual time=0.018..0.018 rows=1 loops=1)
                   InitPlan 54
                     ->  Result (never executed)
                   InitPlan 55
-                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+                    ->  Result (actual time=0.004..0.004 rows=1 loops=1)
                   InitPlan 56
                     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+  SubPlan 129
+    ->  Result (actual time=0.000..0.000 rows=0 loops=21)
+          One-Time Filter: (p.subject_type = 'sales_order'::text)
+          InitPlan 66
+            ->  Result (never executed)
+          ->  Index Scan using sales_orders_entity_created_idx on sales_orders so (never executed)
+                Index Cond: ((entity_id = ANY ((InitPlan 66).col1)) AND (entity_id = p.entity_id) AND (id = p.subject_id))
+                Filter: (((opportunity_id IS NOT NULL) AND EXISTS(SubPlan 73)) OR ((opportunity_id IS NULL) AND EXISTS(SubPlan 104)))
+                SubPlan 73
+                  ->  Index Scan using opportunities_pkey on opportunities o_2 (never executed)
+                        Index Cond: (id = so.opportunity_id)
+                        Filter: (((InitPlan 68).col1 OR ((InitPlan 69).col1 AND (team_id = (InitPlan 70).col1)) OR ((InitPlan 71).col1 AND (owner_id = (InitPlan 72).col1))) AND (entity_id = ANY ((InitPlan 67).col1)))
+                        InitPlan 67
+                          ->  Result (never executed)
+                        InitPlan 68
+                          ->  Result (never executed)
+                        InitPlan 69
+                          ->  Result (never executed)
+                        InitPlan 70
+                          ->  Result (never executed)
+                        InitPlan 71
+                          ->  Result (never executed)
+                        InitPlan 72
+                          ->  Result (never executed)
+                SubPlan 104
+                  ->  Index Scan using account_entities_account_entity_key on account_entities ae_1 (never executed)
+                        Index Cond: ((account_id = so.account_id) AND (entity_id = ANY ((InitPlan 81).col1)) AND (entity_id = so.entity_id))
+                        Filter: ((InitPlan 82).col1 OR ((InitPlan 83).col1 AND (team_id = (InitPlan 84).col1)) OR ((InitPlan 85).col1 AND (owner_id = (InitPlan 86).col1)) OR ((InitPlan 89).col1 AND EXISTS(SubPlan 96)))
+                        InitPlan 81
+                          ->  Result (never executed)
+                        InitPlan 82
+                          ->  Result (never executed)
+                        InitPlan 83
+                          ->  Result (never executed)
+                        InitPlan 84
+                          ->  Result (never executed)
+                        InitPlan 85
+                          ->  Result (never executed)
+                        InitPlan 86
+                          ->  Result (never executed)
+                        InitPlan 89
+                          ->  Result (never executed)
+                                InitPlan 88
+                                  ->  Seq Scan on principals p_2 (never executed)
+                                        Filter: (((InitPlan 87).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                        InitPlan 87
+                                          ->  Result (never executed)
+                        SubPlan 96
+                          ->  Index Scan using opportunities_account_idx on opportunities o_3 (never executed)
+                                Index Cond: (account_id = ae_1.account_id)
+                                Filter: ((archived_at IS NULL) AND (entity_id = ae_1.entity_id) AND ((InitPlan 91).col1 OR ((InitPlan 92).col1 AND (team_id = (InitPlan 93).col1)) OR ((InitPlan 94).col1 AND (owner_id = (InitPlan 95).col1))) AND (entity_id = ANY ((InitPlan 90).col1)))
+                                InitPlan 90
+                                  ->  Result (never executed)
+                                InitPlan 91
+                                  ->  Result (never executed)
+                                InitPlan 92
+                                  ->  Result (never executed)
+                                InitPlan 93
+                                  ->  Result (never executed)
+                                InitPlan 94
+                                  ->  Result (never executed)
+                                InitPlan 95
+                                  ->  Result (never executed)
 Planning:
-  Buffers: shared hit=1022 read=83 written=32
-Planning Time: 13.770 ms
-Execution Time: 4.804 ms
+  Buffers: shared hit=1295 read=93 written=29
+Planning Time: 10.638 ms
+Execution Time: 3.389 ms
 
 === centre, a page 1,000 notices down (keyset) ===
-Subquery Scan on p (actual time=1.826..2.074 rows=21 loops=1)
-  Buffers: shared hit=334 read=14 dirtied=12 written=14
-  ->  Limit (actual time=1.561..1.565 rows=21 loops=1)
-        Buffers: shared hit=84
-        InitPlan 66
+Subquery Scan on p (actual time=1.908..2.312 rows=21 loops=1)
+  Buffers: shared hit=273 read=18 dirtied=14 written=18
+  ->  Limit (actual time=1.632..1.638 rows=21 loops=1)
+        Buffers: shared hit=83
+        InitPlan 130
+          ->  Result (actual time=0.003..0.003 rows=1 loops=1)
+        InitPlan 131
           ->  Result (actual time=0.004..0.004 rows=1 loops=1)
-        InitPlan 67
-          ->  Result (actual time=0.004..0.004 rows=1 loops=1)
-        ->  Sort (actual time=1.560..1.562 rows=21 loops=1)
+        ->  Sort (actual time=1.630..1.633 rows=21 loops=1)
               Sort Key: n.created_at DESC, n.id DESC
               Sort Method: top-N heapsort  Memory: 30kB
-              Buffers: shared hit=84
-              ->  Result (actual time=0.554..1.326 rows=999 loops=1)
-                    One-Time Filter: ((InitPlan 66).col1 = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                    Buffers: shared hit=84
-                    ->  Bitmap Heap Scan on notifications n (actual time=0.548..1.240 rows=999 loops=1)
-                          Recheck Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (ROW(created_at, id) < ROW(('2026-10-06 15:46:49.790198+00'::cstring)::timestamp with time zone, '01a11363-8db4-7d98-9469-bc9aec22c7c7'::uuid)) AND (entity_id = ANY ((InitPlan 67).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
+              Buffers: shared hit=83
+              ->  Result (actual time=0.611..1.397 rows=999 loops=1)
+                    One-Time Filter: ((InitPlan 130).col1 = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                    Buffers: shared hit=83
+                    ->  Bitmap Heap Scan on notifications n (actual time=0.605..1.262 rows=999 loops=1)
+                          Recheck Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (ROW(created_at, id) < ROW(('2026-10-08 07:19:23.906498+00'::cstring)::timestamp with time zone, '01a11bdf-9774-7741-866a-6925d54eebcf'::uuid)) AND (entity_id = ANY ((InitPlan 131).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
                           Rows Removed by Filter: 1001
-                          Heap Blocks: exact=62
-                          Buffers: shared hit=84
-                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.070..0.070 rows=2000 loops=1)
-                                Index Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
+                          Heap Blocks: exact=61
+                          Buffers: shared hit=83
+                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.081..0.081 rows=2000 loops=1)
+                                Index Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
                                 Buffers: shared hit=22
   SubPlan 49
-    ->  Index Scan using accounts_pkey on accounts a (actual time=0.020..0.020 rows=0 loops=21)
+    ->  Index Scan using accounts_pkey on accounts a (actual time=0.024..0.024 rows=0 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'accountId'::text))::uuid)
           Filter: EXISTS(SubPlan 24)
           Rows Removed by Filter: 1
-          Buffers: shared hit=237 read=13 dirtied=12 written=13
+          Buffers: shared hit=179 read=17 dirtied=14 written=17
           SubPlan 24
-            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.016..0.016 rows=0 loops=21)
+            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.019..0.019 rows=0 loops=21)
                   Index Cond: ((account_id = a.id) AND (entity_id = ANY ((InitPlan 1).col1)))
                   Filter: ((InitPlan 2).col1 OR ((InitPlan 3).col1 AND (team_id = (InitPlan 4).col1)) OR ((InitPlan 5).col1 AND (owner_id = (InitPlan 6).col1)) OR ((InitPlan 9).col1 AND EXISTS(SubPlan 16)))
                   Rows Removed by Filter: 1
-                  Buffers: shared hit=154 read=12 dirtied=11 written=12
+                  Buffers: shared hit=119 read=14 dirtied=12 written=14
                   InitPlan 1
-                    ->  Result (actual time=0.003..0.003 rows=1 loops=1)
-                  InitPlan 2
                     ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+                  InitPlan 2
+                    ->  Result (actual time=0.003..0.003 rows=1 loops=1)
                   InitPlan 3
                     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                   InitPlan 4
@@ -153,27 +216,27 @@ Subquery Scan on p (actual time=1.826..2.074 rows=21 loops=1)
                   InitPlan 5
                     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                   InitPlan 6
-                    ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                    ->  Result (actual time=0.001..0.002 rows=1 loops=1)
                   InitPlan 9
-                    ->  Result (actual time=0.129..0.129 rows=1 loops=1)
-                          Buffers: shared hit=19
+                    ->  Result (actual time=0.105..0.105 rows=1 loops=1)
+                          Buffers: shared hit=10
                           InitPlan 8
-                            ->  Seq Scan on principals p_1 (actual time=0.126..0.127 rows=0 loops=1)
+                            ->  Seq Scan on principals p_1 (actual time=0.102..0.102 rows=0 loops=1)
                                   Filter: (((InitPlan 7).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
-                                  Rows Removed by Filter: 1670
-                                  Buffers: shared hit=19
+                                  Rows Removed by Filter: 877
+                                  Buffers: shared hit=10
                                   InitPlan 7
                                     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                   SubPlan 16
-                    ->  Index Scan using opportunities_account_idx on opportunities o (actual time=0.003..0.003 rows=0 loops=21)
+                    ->  Index Scan using opportunities_account_idx on opportunities o (actual time=0.006..0.006 rows=0 loops=20)
                           Index Cond: (account_id = ae.account_id)
                           Filter: ((archived_at IS NULL) AND (entity_id = ae.entity_id) AND ((InitPlan 11).col1 OR ((InitPlan 12).col1 AND (team_id = (InitPlan 13).col1)) OR ((InitPlan 14).col1 AND (owner_id = (InitPlan 15).col1))) AND (entity_id = ANY ((InitPlan 10).col1)))
                           Rows Removed by Filter: 1
-                          Buffers: shared hit=83 read=1 dirtied=1 written=1
+                          Buffers: shared hit=57 read=3 dirtied=2 written=3
                           InitPlan 10
                             ->  Result (never executed)
                           InitPlan 11
-                            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                            ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                           InitPlan 12
                             ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                           InitPlan 13
@@ -181,76 +244,139 @@ Subquery Scan on p (actual time=1.826..2.074 rows=21 loops=1)
                           InitPlan 14
                             ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                           InitPlan 15
-                            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                            ->  Result (actual time=0.002..0.002 rows=1 loops=1)
   SubPlan 65
-    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.003..0.003 rows=0 loops=21)
+    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.005..0.005 rows=0 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'quoteId'::text))::uuid)
           Filter: ((entity_id = p.entity_id) AND (entity_id = ANY ((InitPlan 50).col1)) AND EXISTS(SubPlan 57))
           Rows Removed by Filter: 0
-          Buffers: shared hit=13 read=1 written=1
+          Buffers: shared hit=11 read=1 written=1
           InitPlan 50
-            ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+            ->  Result (actual time=0.002..0.003 rows=1 loops=1)
           SubPlan 57
-            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.012..0.012 rows=0 loops=2)
+            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.015..0.016 rows=0 loops=2)
                   Index Cond: (id = qt.opportunity_id)
                   Filter: (((InitPlan 52).col1 OR ((InitPlan 53).col1 AND (team_id = (InitPlan 54).col1)) OR ((InitPlan 55).col1 AND (owner_id = (InitPlan 56).col1))) AND (entity_id = ANY ((InitPlan 51).col1)))
                   Rows Removed by Filter: 1
-                  Buffers: shared hit=7 read=1 written=1
+                  Buffers: shared hit=5 read=1 written=1
                   InitPlan 51
                     ->  Result (never executed)
                   InitPlan 52
-                    ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                   InitPlan 53
-                    ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                   InitPlan 54
                     ->  Result (never executed)
                   InitPlan 55
-                    ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
                   InitPlan 56
-                    ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+  SubPlan 129
+    ->  Result (actual time=0.000..0.000 rows=0 loops=21)
+          One-Time Filter: (p.subject_type = 'sales_order'::text)
+          InitPlan 66
+            ->  Result (never executed)
+          ->  Index Scan using sales_orders_entity_created_idx on sales_orders so (never executed)
+                Index Cond: ((entity_id = ANY ((InitPlan 66).col1)) AND (entity_id = p.entity_id) AND (id = p.subject_id))
+                Filter: (((opportunity_id IS NOT NULL) AND EXISTS(SubPlan 73)) OR ((opportunity_id IS NULL) AND EXISTS(SubPlan 104)))
+                SubPlan 73
+                  ->  Index Scan using opportunities_pkey on opportunities o_2 (never executed)
+                        Index Cond: (id = so.opportunity_id)
+                        Filter: (((InitPlan 68).col1 OR ((InitPlan 69).col1 AND (team_id = (InitPlan 70).col1)) OR ((InitPlan 71).col1 AND (owner_id = (InitPlan 72).col1))) AND (entity_id = ANY ((InitPlan 67).col1)))
+                        InitPlan 67
+                          ->  Result (never executed)
+                        InitPlan 68
+                          ->  Result (never executed)
+                        InitPlan 69
+                          ->  Result (never executed)
+                        InitPlan 70
+                          ->  Result (never executed)
+                        InitPlan 71
+                          ->  Result (never executed)
+                        InitPlan 72
+                          ->  Result (never executed)
+                SubPlan 104
+                  ->  Index Scan using account_entities_account_entity_key on account_entities ae_1 (never executed)
+                        Index Cond: ((account_id = so.account_id) AND (entity_id = ANY ((InitPlan 81).col1)) AND (entity_id = so.entity_id))
+                        Filter: ((InitPlan 82).col1 OR ((InitPlan 83).col1 AND (team_id = (InitPlan 84).col1)) OR ((InitPlan 85).col1 AND (owner_id = (InitPlan 86).col1)) OR ((InitPlan 89).col1 AND EXISTS(SubPlan 96)))
+                        InitPlan 81
+                          ->  Result (never executed)
+                        InitPlan 82
+                          ->  Result (never executed)
+                        InitPlan 83
+                          ->  Result (never executed)
+                        InitPlan 84
+                          ->  Result (never executed)
+                        InitPlan 85
+                          ->  Result (never executed)
+                        InitPlan 86
+                          ->  Result (never executed)
+                        InitPlan 89
+                          ->  Result (never executed)
+                                InitPlan 88
+                                  ->  Seq Scan on principals p_2 (never executed)
+                                        Filter: (((InitPlan 87).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                        InitPlan 87
+                                          ->  Result (never executed)
+                        SubPlan 96
+                          ->  Index Scan using opportunities_account_idx on opportunities o_3 (never executed)
+                                Index Cond: (account_id = ae_1.account_id)
+                                Filter: ((archived_at IS NULL) AND (entity_id = ae_1.entity_id) AND ((InitPlan 91).col1 OR ((InitPlan 92).col1 AND (team_id = (InitPlan 93).col1)) OR ((InitPlan 94).col1 AND (owner_id = (InitPlan 95).col1))) AND (entity_id = ANY ((InitPlan 90).col1)))
+                                InitPlan 90
+                                  ->  Result (never executed)
+                                InitPlan 91
+                                  ->  Result (never executed)
+                                InitPlan 92
+                                  ->  Result (never executed)
+                                InitPlan 93
+                                  ->  Result (never executed)
+                                InitPlan 94
+                                  ->  Result (never executed)
+                                InitPlan 95
+                                  ->  Result (never executed)
 Planning:
   Buffers: shared hit=4 read=2 written=2
-Planning Time: 1.945 ms
-Execution Time: 2.301 ms
+Planning Time: 3.441 ms
+Execution Time: 2.679 ms
 
 === centre, first page, as a reader of every customer of the company ===
-Subquery Scan on p (actual time=1.303..1.428 rows=21 loops=1)
-  Buffers: shared hit=245
-  ->  Limit (actual time=1.255..1.260 rows=21 loops=1)
-        Buffers: shared hit=84
-        InitPlan 66
+Subquery Scan on p (actual time=1.422..1.569 rows=21 loops=1)
+  Buffers: shared hit=221
+  ->  Limit (actual time=1.366..1.371 rows=21 loops=1)
+        Buffers: shared hit=83
+        InitPlan 130
           ->  Result (actual time=0.003..0.004 rows=1 loops=1)
-        InitPlan 67
-          ->  Result (actual time=0.003..0.003 rows=1 loops=1)
-        ->  Sort (actual time=1.254..1.256 rows=21 loops=1)
+        InitPlan 131
+          ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+        ->  Sort (actual time=1.365..1.367 rows=21 loops=1)
               Sort Key: n.created_at DESC, n.id DESC
-              Sort Method: top-N heapsort  Memory: 31kB
-              Buffers: shared hit=84
-              ->  Result (actual time=0.095..0.852 rows=2000 loops=1)
-                    One-Time Filter: ((InitPlan 66).col1 = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                    Buffers: shared hit=84
-                    ->  Bitmap Heap Scan on notifications n (actual time=0.090..0.690 rows=2000 loops=1)
-                          Recheck Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (entity_id = ANY ((InitPlan 67).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
-                          Heap Blocks: exact=62
-                          Buffers: shared hit=84
-                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.073..0.073 rows=2000 loops=1)
-                                Index Cond: (user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
+              Sort Method: top-N heapsort  Memory: 30kB
+              Buffers: shared hit=83
+              ->  Result (actual time=0.108..0.892 rows=2000 loops=1)
+                    One-Time Filter: ((InitPlan 130).col1 = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                    Buffers: shared hit=83
+                    ->  Bitmap Heap Scan on notifications n (actual time=0.103..0.720 rows=2000 loops=1)
+                          Recheck Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+                          Filter: ((entity_id = ANY ('{2}'::integer[])) AND (entity_id = ANY ((InitPlan 131).col1)) AND (COALESCE((channel_sent_json ->> 'inApp'::text), 'true'::text) <> 'false'::text))
+                          Heap Blocks: exact=61
+                          Buffers: shared hit=83
+                          ->  Bitmap Index Scan on notifications_user_dedupe_unique (actual time=0.085..0.086 rows=2000 loops=1)
+                                Index Cond: (user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
                                 Buffers: shared hit=22
   SubPlan 49
     ->  Index Scan using accounts_pkey on accounts a (actual time=0.005..0.005 rows=1 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'accountId'::text))::uuid)
           Filter: EXISTS(SubPlan 24)
-          Buffers: shared hit=147
+          Buffers: shared hit=126
           SubPlan 24
-            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.002..0.002 rows=1 loops=21)
+            ->  Index Scan using account_entities_account_entity_key on account_entities ae (actual time=0.003..0.003 rows=1 loops=21)
                   Index Cond: ((account_id = a.id) AND (entity_id = ANY ((InitPlan 1).col1)))
                   Filter: ((InitPlan 2).col1 OR ((InitPlan 3).col1 AND (team_id = (InitPlan 4).col1)) OR ((InitPlan 5).col1 AND (owner_id = (InitPlan 6).col1)) OR ((InitPlan 9).col1 AND EXISTS(SubPlan 16)))
                   Buffers: shared hit=63
                   InitPlan 1
-                    ->  Result (actual time=0.002..0.002 rows=1 loops=1)
+                    ->  Result (actual time=0.003..0.004 rows=1 loops=1)
                   InitPlan 2
-                    ->  Result (actual time=0.006..0.006 rows=1 loops=1)
+                    ->  Result (actual time=0.011..0.012 rows=1 loops=1)
                   InitPlan 3
                     ->  Result (never executed)
                   InitPlan 4
@@ -283,21 +409,21 @@ Subquery Scan on p (actual time=1.303..1.428 rows=21 loops=1)
                           InitPlan 15
                             ->  Result (never executed)
   SubPlan 65
-    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.001..0.001 rows=0 loops=21)
+    ->  Index Scan using quotes_pkey on quotes qt (actual time=0.002..0.002 rows=0 loops=21)
           Index Cond: (id = ((p.payload_json ->> 'quoteId'::text))::uuid)
           Filter: ((entity_id = p.entity_id) AND (entity_id = ANY ((InitPlan 50).col1)) AND EXISTS(SubPlan 57))
-          Buffers: shared hit=14
+          Buffers: shared hit=12
           InitPlan 50
-            ->  Result (actual time=0.001..0.001 rows=1 loops=1)
+            ->  Result (actual time=0.001..0.002 rows=1 loops=1)
           SubPlan 57
-            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.008..0.008 rows=1 loops=2)
+            ->  Index Scan using opportunities_pkey on opportunities o_1 (actual time=0.014..0.014 rows=1 loops=2)
                   Index Cond: (id = qt.opportunity_id)
                   Filter: (((InitPlan 52).col1 OR ((InitPlan 53).col1 AND (team_id = (InitPlan 54).col1)) OR ((InitPlan 55).col1 AND (owner_id = (InitPlan 56).col1))) AND (entity_id = ANY ((InitPlan 51).col1)))
-                  Buffers: shared hit=8
+                  Buffers: shared hit=6
                   InitPlan 51
                     ->  Result (actual time=0.001..0.001 rows=1 loops=1)
                   InitPlan 52
-                    ->  Result (actual time=0.004..0.004 rows=1 loops=1)
+                    ->  Result (actual time=0.015..0.016 rows=1 loops=1)
                   InitPlan 53
                     ->  Result (never executed)
                   InitPlan 54
@@ -306,179 +432,256 @@ Subquery Scan on p (actual time=1.303..1.428 rows=21 loops=1)
                     ->  Result (never executed)
                   InitPlan 56
                     ->  Result (never executed)
-Planning Time: 1.792 ms
-Execution Time: 1.592 ms
+  SubPlan 129
+    ->  Result (actual time=0.000..0.000 rows=0 loops=21)
+          One-Time Filter: (p.subject_type = 'sales_order'::text)
+          InitPlan 66
+            ->  Result (never executed)
+          ->  Index Scan using sales_orders_entity_created_idx on sales_orders so (never executed)
+                Index Cond: ((entity_id = ANY ((InitPlan 66).col1)) AND (entity_id = p.entity_id) AND (id = p.subject_id))
+                Filter: (((opportunity_id IS NOT NULL) AND EXISTS(SubPlan 73)) OR ((opportunity_id IS NULL) AND EXISTS(SubPlan 104)))
+                SubPlan 73
+                  ->  Index Scan using opportunities_pkey on opportunities o_2 (never executed)
+                        Index Cond: (id = so.opportunity_id)
+                        Filter: (((InitPlan 68).col1 OR ((InitPlan 69).col1 AND (team_id = (InitPlan 70).col1)) OR ((InitPlan 71).col1 AND (owner_id = (InitPlan 72).col1))) AND (entity_id = ANY ((InitPlan 67).col1)))
+                        InitPlan 67
+                          ->  Result (never executed)
+                        InitPlan 68
+                          ->  Result (never executed)
+                        InitPlan 69
+                          ->  Result (never executed)
+                        InitPlan 70
+                          ->  Result (never executed)
+                        InitPlan 71
+                          ->  Result (never executed)
+                        InitPlan 72
+                          ->  Result (never executed)
+                SubPlan 104
+                  ->  Index Scan using account_entities_account_entity_key on account_entities ae_1 (never executed)
+                        Index Cond: ((account_id = so.account_id) AND (entity_id = ANY ((InitPlan 81).col1)) AND (entity_id = so.entity_id))
+                        Filter: ((InitPlan 82).col1 OR ((InitPlan 83).col1 AND (team_id = (InitPlan 84).col1)) OR ((InitPlan 85).col1 AND (owner_id = (InitPlan 86).col1)) OR ((InitPlan 89).col1 AND EXISTS(SubPlan 96)))
+                        InitPlan 81
+                          ->  Result (never executed)
+                        InitPlan 82
+                          ->  Result (never executed)
+                        InitPlan 83
+                          ->  Result (never executed)
+                        InitPlan 84
+                          ->  Result (never executed)
+                        InitPlan 85
+                          ->  Result (never executed)
+                        InitPlan 86
+                          ->  Result (never executed)
+                        InitPlan 89
+                          ->  Result (never executed)
+                                InitPlan 88
+                                  ->  Seq Scan on principals p_2 (never executed)
+                                        Filter: (((InitPlan 87).col1 IS NOT NULL) AND (kind = ANY ('{agent,system}'::text[])) AND (id = CASE WHEN (COALESCE(current_setting('app.user_id'::text, true), ''::text) = ''::text) THEN NULL::uuid ELSE (current_setting('app.user_id'::text, true))::uuid END))
+                                        InitPlan 87
+                                          ->  Result (never executed)
+                        SubPlan 96
+                          ->  Index Scan using opportunities_account_idx on opportunities o_3 (never executed)
+                                Index Cond: (account_id = ae_1.account_id)
+                                Filter: ((archived_at IS NULL) AND (entity_id = ae_1.entity_id) AND ((InitPlan 91).col1 OR ((InitPlan 92).col1 AND (team_id = (InitPlan 93).col1)) OR ((InitPlan 94).col1 AND (owner_id = (InitPlan 95).col1))) AND (entity_id = ANY ((InitPlan 90).col1)))
+                                InitPlan 90
+                                  ->  Result (never executed)
+                                InitPlan 91
+                                  ->  Result (never executed)
+                                InitPlan 92
+                                  ->  Result (never executed)
+                                InitPlan 93
+                                  ->  Result (never executed)
+                                InitPlan 94
+                                  ->  Result (never executed)
+                                InitPlan 95
+                                  ->  Result (never executed)
+Planning Time: 2.907 ms
+Execution Time: 1.879 ms
 
 === bell count (up to 100 unread) ===
-Aggregate (actual time=0.083..0.084 rows=1 loops=1)
-  Buffers: shared hit=19
-  ->  Limit (actual time=0.041..0.078 rows=100 loops=1)
-        Buffers: shared hit=19
+Aggregate (actual time=0.085..0.086 rows=1 loops=1)
+  Buffers: shared hit=18
+  ->  Limit (actual time=0.044..0.079 rows=100 loops=1)
+        Buffers: shared hit=18
         InitPlan 1
-          ->  Result (actual time=0.005..0.005 rows=1 loops=1)
+          ->  Result (actual time=0.004..0.005 rows=1 loops=1)
         InitPlan 2
           ->  Result (actual time=0.003..0.003 rows=1 loops=1)
-        ->  Result (actual time=0.040..0.071 rows=100 loops=1)
-              One-Time Filter: ((InitPlan 1).col1 = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid)
-              Buffers: shared hit=19
-              ->  Bitmap Heap Scan on notifications (actual time=0.033..0.057 rows=100 loops=1)
-                    Recheck Cond: ((user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid) AND (entity_id = ANY ((InitPlan 2).col1)) AND (entity_id = 2) AND (read_at IS NULL))
-                    Heap Blocks: exact=17
-                    Buffers: shared hit=19
-                    ->  Bitmap Index Scan on notifications_unread_idx (actual time=0.024..0.025 rows=400 loops=1)
-                          Index Cond: ((user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid) AND (entity_id = ANY ((InitPlan 2).col1)) AND (entity_id = 2))
+        ->  Result (actual time=0.043..0.073 rows=100 loops=1)
+              One-Time Filter: ((InitPlan 1).col1 = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid)
+              Buffers: shared hit=18
+              ->  Bitmap Heap Scan on notifications (actual time=0.037..0.060 rows=100 loops=1)
+                    Recheck Cond: ((user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid) AND (entity_id = ANY ((InitPlan 2).col1)) AND (entity_id = 2) AND (read_at IS NULL))
+                    Heap Blocks: exact=16
+                    Buffers: shared hit=18
+                    ->  Bitmap Index Scan on notifications_unread_idx (actual time=0.028..0.028 rows=400 loops=1)
+                          Index Cond: ((user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid) AND (entity_id = ANY ((InitPlan 2).col1)) AND (entity_id = 2))
                           Buffers: shared hit=2
 Planning:
-  Buffers: shared hit=2 read=1
-Planning Time: 0.219 ms
-Execution Time: 0.124 ms
+  Buffers: shared hit=2 read=1 written=1
+Planning Time: 0.185 ms
+Execution Time: 0.155 ms
 
 === scan: calls falling due (app.notice_due_calls body), company 2 ===
-Limit (actual time=7.548..10.005 rows=200 loops=1)
-  Buffers: shared hit=2211 read=39 dirtied=11
-  ->  Incremental Sort (actual time=7.543..9.986 rows=200 loops=1)
+Limit (actual time=2.483..5.387 rows=200 loops=1)
+  Buffers: shared hit=2001 read=39 dirtied=6 written=39
+  ->  Incremental Sort (actual time=2.481..5.374 rows=200 loops=1)
         Sort Key: t.due_at, t.id
         Presorted Key: t.due_at
         Full-sort Groups: 7  Sort Method: quicksort  Average Memory: 33kB  Peak Memory: 33kB
-        Buffers: shared hit=2211 read=39 dirtied=11
-        ->  Nested Loop Anti Join (actual time=6.748..9.857 rows=201 loops=1)
-              Buffers: shared hit=2202 read=39 dirtied=11
-              ->  Index Scan using tasks_open_calls_due_idx on tasks t (actual time=6.471..8.994 rows=201 loops=1)
+        Buffers: shared hit=2001 read=39 dirtied=6 written=39
+        ->  Nested Loop Anti Join (actual time=1.712..5.264 rows=201 loops=1)
+              Buffers: shared hit=1992 read=39 dirtied=6 written=39
+              ->  Index Scan using tasks_open_calls_due_idx on tasks t (actual time=1.520..3.725 rows=201 loops=1)
                     Index Cond: ((entity_id = 2) AND (due_at <= now()) AND (due_at > (now() - '24:00:00'::interval)))
                     Filter: app.notice_recipient_ok(assignee_id, '2'::smallint)
-                    Buffers: shared hit=1599 read=39 dirtied=11
-              ->  Index Only Scan using notifications_entity_dedupe_idx on notifications n (actual time=0.002..0.002 rows=0 loops=201)
-                    Index Cond: ((entity_id = 2) AND (dedupe_key = ((('call_due:'::text || (t.id)::text) || ':'::text) || ((floor(EXTRACT(epoch FROM t.due_at)))::bigint)::text)))
+                    Buffers: shared hit=1389 read=39 dirtied=6 written=39
+              ->  Index Only Scan using notifications_user_dedupe_unique on notifications n (actual time=0.005..0.005 rows=0 loops=201)
+                    Index Cond: ((user_id = t.assignee_id) AND (dedupe_key = ((('call_due:'::text || (t.id)::text) || ':'::text) || ((floor(EXTRACT(epoch FROM t.due_at)))::bigint)::text)))
                     Heap Fetches: 0
                     Buffers: shared hit=603
 Planning:
-  Buffers: shared hit=444 read=6
-Planning Time: 2.976 ms
-Execution Time: 10.063 ms
+  Buffers: shared hit=491 read=9 written=9
+Planning Time: 1.478 ms
+Execution Time: 5.441 ms
 
 === scan: quotes lapsing within a day (app.notice_expiring_quotes body), company 2 ===
-Limit (actual time=5.896..5.913 rows=200 loops=1)
-  Buffers: shared hit=5263 read=5 dirtied=7
-  ->  Sort (actual time=5.895..5.902 rows=200 loops=1)
+Limit (actual time=7.077..7.094 rows=200 loops=1)
+  Buffers: shared hit=4536 read=10 dirtied=9 written=10
+  ->  Sort (actual time=7.076..7.083 rows=200 loops=1)
         Sort Key: q.valid_until, q.id
         Sort Method: quicksort  Memory: 117kB
-        Buffers: shared hit=5263 read=5 dirtied=7
-        ->  Nested Loop Anti Join (actual time=0.952..5.765 rows=360 loops=1)
-              Buffers: shared hit=5257 read=5 dirtied=7
-              ->  Nested Loop (actual time=0.881..4.633 rows=360 loops=1)
-                    Buffers: shared hit=4177 read=5 dirtied=7
-                    ->  Bitmap Heap Scan on quotes q (actual time=0.058..0.122 rows=360 loops=1)
+        Buffers: shared hit=4536 read=10 dirtied=9 written=10
+        ->  Nested Loop Anti Join (actual time=0.962..6.869 rows=360 loops=1)
+              Buffers: shared hit=4530 read=10 dirtied=9 written=10
+              ->  Nested Loop (actual time=0.862..4.948 rows=360 loops=1)
+                    Buffers: shared hit=3450 read=10 dirtied=9 written=10
+                    ->  Bitmap Heap Scan on quotes q (actual time=0.077..0.143 rows=360 loops=1)
                           Recheck Cond: ((entity_id = 2) AND (valid_until > now()) AND (valid_until <= (now() + '1 day'::interval)) AND (state = ANY ('{draft,sent}'::text[])))
-                          Heap Blocks: exact=13
-                          Buffers: shared hit=17 read=3
-                          ->  Bitmap Index Scan on quotes_open_valid_until_idx (actual time=0.050..0.050 rows=360 loops=1)
+                          Heap Blocks: exact=12
+                          Buffers: shared hit=17 read=1 dirtied=1 written=1
+                          ->  Bitmap Index Scan on quotes_open_valid_until_idx (actual time=0.066..0.066 rows=360 loops=1)
                                 Index Cond: ((entity_id = 2) AND (valid_until > now()) AND (valid_until <= (now() + '1 day'::interval)))
-                                Buffers: shared hit=4 read=3
-                    ->  Index Scan using opportunities_pkey on opportunities o (actual time=0.012..0.012 rows=1 loops=360)
+                                Buffers: shared hit=5 read=1 written=1
+                    ->  Index Scan using opportunities_pkey on opportunities o (actual time=0.013..0.013 rows=1 loops=360)
                           Index Cond: (id = q.opportunity_id)
                           Filter: ((owner_id IS NOT NULL) AND (entity_id = 2) AND app.notice_recipient_ok(owner_id, '2'::smallint))
-                          Buffers: shared hit=4160 read=2 dirtied=7
-              ->  Index Only Scan using notifications_entity_dedupe_idx on notifications n (actual time=0.002..0.002 rows=0 loops=360)
-                    Index Cond: ((entity_id = 2) AND (dedupe_key = ((('quote_expiring:'::text || (q.id)::text) || ':'::text) || ((floor(EXTRACT(epoch FROM q.valid_until)))::bigint)::text)))
+                          Buffers: shared hit=3433 read=9 dirtied=8 written=9
+              ->  Index Only Scan using notifications_user_dedupe_unique on notifications n (actual time=0.004..0.004 rows=0 loops=360)
+                    Index Cond: ((user_id = o.owner_id) AND (dedupe_key = ((('quote_expiring:'::text || (q.id)::text) || ':'::text) || ((floor(EXTRACT(epoch FROM q.valid_until)))::bigint)::text)))
                     Heap Fetches: 0
                     Buffers: shared hit=1080
 Planning:
-  Buffers: shared hit=850 read=3
-Planning Time: 4.295 ms
-Execution Time: 6.005 ms
+  Buffers: shared hit=894 read=4 written=4
+Planning Time: 2.349 ms
+Execution Time: 7.207 ms
 
 === scan: late first calls (app.notice_late_first_calls body), company 2 ===
-Limit (actual time=31.747..31.783 rows=200 loops=1)
-  Buffers: shared hit=2815 read=550 dirtied=966 written=61
-  ->  Sort (actual time=31.734..31.755 rows=200 loops=1)
+Limit (actual time=79.414..79.437 rows=200 loops=1)
+  Buffers: shared hit=27698 read=628 dirtied=970 written=574
+  ->  Sort (actual time=79.412..79.426 rows=200 loops=1)
         Sort Key: o.created_at, o.id, uer.user_id
         Sort Method: top-N heapsort  Memory: 78kB
-        Buffers: shared hit=2815 read=550 dirtied=966 written=61
-        ->  Nested Loop (actual time=23.066..29.391 rows=6480 loops=1)
-              Buffers: shared hit=2809 read=550 dirtied=966 written=61
-              ->  Hash Anti Join (actual time=21.613..25.137 rows=720 loops=1)
-                    Hash Cond: (o.id = c.opportunity_id)
-                    Buffers: shared hit=2660 read=532 dirtied=966 written=61
-                    ->  Nested Loop Anti Join (actual time=21.554..24.964 rows=720 loops=1)
-                          Buffers: shared hit=2658 read=532 dirtied=966 written=61
-                          ->  Hash Left Join (actual time=21.474..23.334 rows=720 loops=1)
-                                Hash Cond: (o.pipeline_id = q.pipeline_id)
-                                Filter: (ps."position" < COALESCE(q."position", 2147483647))
-                                Buffers: shared hit=495 read=532 dirtied=966 written=61
-                                ->  Hash Join (actual time=21.380..23.067 rows=720 loops=1)
-                                      Hash Cond: (o.stage_id = ps.id)
-                                      Buffers: shared hit=492 read=532 dirtied=966 written=61
-                                      ->  Hash Join (actual time=21.293..22.844 rows=720 loops=1)
-                                            Hash Cond: (o.pipeline_id = pl.id)
-                                            Join Filter: (((o.created_at + make_interval(0, 0, 0, 0, 0, pl.first_contact_sla_minutes, '0'::double precision)) <= now()) AND ((o.created_at + make_interval(0, 0, 0, 0, 0, pl.first_contact_sla_minutes, '0'::double precision)) > (now() - '24:00:00'::interval)))
-                                            Rows Removed by Join Filter: 1280
-                                            Buffers: shared hit=491 read=530 dirtied=966 written=61
-                                            ->  Seq Scan on opportunities o (actual time=0.498..19.632 rows=42114 loops=1)
-                                                  Filter: ((archived_at IS NULL) AND (entity_id = 2) AND (state = 'open'::text) AND (created_at > ((now() - '24:00:00'::interval) - '7 days'::interval)))
-                                                  Rows Removed by Filter: 1370
-                                                  Buffers: shared hit=490 read=530 dirtied=966 written=61
-                                            ->  Hash (actual time=0.053..0.054 rows=9 loops=1)
-                                                  Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                                                  Buffers: shared hit=1
-                                                  ->  Seq Scan on pipelines pl (actual time=0.043..0.046 rows=9 loops=1)
-                                                        Filter: (first_contact_sla_minutes IS NOT NULL)
-                                                        Rows Removed by Filter: 10
-                                                        Buffers: shared hit=1
-                                      ->  Hash (actual time=0.048..0.048 rows=57 loops=1)
-                                            Buckets: 1024  Batches: 1  Memory Usage: 11kB
-                                            Buffers: shared hit=1 read=2
-                                            ->  Seq Scan on pipeline_stages ps (actual time=0.014..0.035 rows=57 loops=1)
-                                                  Filter: (kind = 'open'::text)
-                                                  Rows Removed by Filter: 8
-                                                  Buffers: shared hit=1 read=2
-                                ->  Hash (actual time=0.018..0.018 rows=13 loops=1)
-                                      Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                                      Buffers: shared hit=3
-                                      ->  Seq Scan on pipeline_stages q (actual time=0.005..0.013 rows=13 loops=1)
-                                            Filter: ((archived_at IS NULL) AND (key = 'qualified'::text))
-                                            Rows Removed by Filter: 52
-                                            Buffers: shared hit=3
-                          ->  Index Only Scan using notifications_entity_dedupe_idx on notifications n (actual time=0.002..0.002 rows=0 loops=720)
-                                Index Cond: ((entity_id = 2) AND (dedupe_key = ('first_call_late:'::text || (o.id)::text)))
-                                Heap Fetches: 0
-                                Buffers: shared hit=2163
-                    ->  Hash (actual time=0.026..0.027 rows=94 loops=1)
-                          Buckets: 1024  Batches: 1  Memory Usage: 13kB
-                          Buffers: shared hit=2
-                          ->  Seq Scan on calls c (actual time=0.005..0.013 rows=94 loops=1)
-                                Buffers: shared hit=2
-              ->  Materialize (actual time=0.002..0.004 rows=9 loops=720)
-                    Buffers: shared hit=149 read=18
-                    ->  Nested Loop (actual time=1.442..2.684 rows=9 loops=1)
-                          Buffers: shared hit=149 read=18
-                          ->  Seq Scan on roles r (actual time=0.021..0.029 rows=1 loops=1)
-                                Filter: (key = 'general_manager'::text)
-                                Rows Removed by Filter: 17
-                                Buffers: shared read=2
-                          ->  Bitmap Heap Scan on user_entity_roles uer (actual time=1.418..2.650 rows=9 loops=1)
-                                Recheck Cond: ((role_id = r.id) AND (entity_id = 2))
-                                Filter: app.notice_recipient_ok(user_id, '2'::smallint)
-                                Heap Blocks: exact=5
-                                Buffers: shared hit=149 read=16
-                                ->  BitmapAnd (actual time=0.038..0.040 rows=0 loops=1)
-                                      Buffers: shared read=2
-                                      ->  Bitmap Index Scan on user_entity_roles_role_idx (actual time=0.019..0.019 rows=55 loops=1)
-                                            Index Cond: (role_id = r.id)
-                                            Buffers: shared read=1
-                                      ->  Bitmap Index Scan on user_entity_roles_entity_idx (actual time=0.017..0.017 rows=204 loops=1)
+        Buffers: shared hit=27698 read=628 dirtied=970 written=574
+        ->  Hash Anti Join (actual time=56.973..79.031 rows=2160 loops=1)
+              Hash Cond: (o.id = c.opportunity_id)
+              Buffers: shared hit=27695 read=628 dirtied=970 written=574
+              ->  Merge Right Anti Join (actual time=56.925..78.554 rows=2160 loops=1)
+                    Merge Cond: ((n.user_id = uer.user_id) AND (n.dedupe_key = (('first_call_late:'::text || (o.id)::text))))
+                    Buffers: shared hit=27694 read=628 dirtied=970 written=574
+                    ->  Index Only Scan using notifications_user_dedupe_unique on notifications n (actual time=0.042..19.980 rows=24177 loops=1)
+                          Heap Fetches: 24219
+                          Buffers: shared hit=24344 read=2 dirtied=2 written=1
+                    ->  Sort (actual time=56.866..56.960 rows=2160 loops=1)
+                          Sort Key: uer.user_id, (('first_call_late:'::text || (o.id)::text))
+                          Sort Method: quicksort  Memory: 367kB
+                          Buffers: shared hit=3350 read=626 dirtied=968 written=573
+                          ->  Nested Loop (actual time=19.740..54.567 rows=2160 loops=1)
+                                Buffers: shared hit=3345 read=625 dirtied=968 written=573
+                                ->  Nested Loop (actual time=0.605..2.995 rows=3 loops=1)
+                                      Join Filter: (uer.role_id = r.id)
+                                      Rows Removed by Join Filter: 141
+                                      Buffers: shared hit=970 read=8 dirtied=1 written=5
+                                      ->  Index Scan using user_entity_roles_entity_idx on user_entity_roles uer (actual time=0.594..2.910 rows=144 loops=1)
                                             Index Cond: (entity_id = 2)
-                                            Buffers: shared read=1
+                                            Filter: app.notice_recipient_ok(user_id, '2'::smallint)
+                                            Rows Removed by Filter: 2
+                                            Buffers: shared hit=969 read=7 dirtied=1 written=5
+                                      ->  Materialize (actual time=0.000..0.000 rows=1 loops=144)
+                                            Buffers: shared hit=1 read=1
+                                            ->  Seq Scan on roles r (actual time=0.007..0.027 rows=1 loops=1)
+                                                  Filter: (key = 'general_manager'::text)
+                                                  Rows Removed by Filter: 17
+                                                  Buffers: shared hit=1 read=1
+                                ->  Hash Left Join (actual time=15.428..17.055 rows=720 loops=3)
+                                      Hash Cond: (o.pipeline_id = q.pipeline_id)
+                                      Filter: (ps."position" < COALESCE(q."position", 2147483647))
+                                      Buffers: shared hit=2375 read=617 dirtied=967 written=568
+                                      ->  Hash Join (actual time=15.421..16.936 rows=720 loops=3)
+                                            Hash Cond: (o.stage_id = ps.id)
+                                            Buffers: shared hit=2372 read=617 dirtied=967 written=568
+                                            ->  Hash Join (actual time=15.396..16.794 rows=720 loops=3)
+                                                  Hash Cond: (o.pipeline_id = pl.id)
+                                                  Join Filter: (((o.created_at + make_interval(0, 0, 0, 0, 0, pl.first_contact_sla_minutes, '0'::double precision)) <= now()) AND ((o.created_at + make_interval(0, 0, 0, 0, 0, pl.first_contact_sla_minutes, '0'::double precision)) > (now() - '24:00:00'::interval)))
+                                                  Rows Removed by Join Filter: 1280
+                                                  Buffers: shared hit=2371 read=615 dirtied=967 written=566
+                                                  ->  Seq Scan on opportunities o (actual time=0.015..14.069 rows=42047 loops=3)
+                                                        Filter: ((archived_at IS NULL) AND (entity_id = 2) AND (state = 'open'::text) AND (created_at > ((now() - '24:00:00'::interval) - '7 days'::interval)))
+                                                        Rows Removed by Filter: 558
+                                                        Buffers: shared hit=2370 read=615 dirtied=967 written=566
+                                                  ->  Hash (actual time=0.010..0.011 rows=5 loops=1)
+                                                        Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                                        Buffers: shared hit=1
+                                                        ->  Seq Scan on pipelines pl (actual time=0.006..0.007 rows=5 loops=1)
+                                                              Filter: (first_contact_sla_minutes IS NOT NULL)
+                                                              Rows Removed by Filter: 7
+                                                              Buffers: shared hit=1
+                                            ->  Hash (actual time=0.053..0.054 rows=29 loops=1)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                                  Buffers: shared hit=1 read=2 written=2
+                                                  ->  Seq Scan on pipeline_stages ps (actual time=0.025..0.038 rows=29 loops=1)
+                                                        Filter: (kind = 'open'::text)
+                                                        Rows Removed by Filter: 8
+                                                        Buffers: shared hit=1 read=2 written=2
+                                      ->  Hash (actual time=0.010..0.011 rows=9 loops=1)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                            Buffers: shared hit=3
+                                            ->  Seq Scan on pipeline_stages q (actual time=0.004..0.008 rows=9 loops=1)
+                                                  Filter: ((archived_at IS NULL) AND (key = 'qualified'::text))
+                                                  Rows Removed by Filter: 28
+                                                  Buffers: shared hit=3
+              ->  Hash (actual time=0.035..0.036 rows=41 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on calls c (actual time=0.020..0.023 rows=41 loops=1)
+                          Buffers: shared hit=1
 Planning:
-  Buffers: shared hit=1062 read=28 dirtied=5
-Planning Time: 14.852 ms
-Execution Time: 32.437 ms
+  Buffers: shared hit=1075 read=31 dirtied=5
+Planning Time: 10.284 ms
+Execution Time: 79.642 ms
+
+=== scan: pushes a cut-off run left pending (app.notice_pending_pushes body), company 2 ===
+Limit (actual time=0.059..0.059 rows=0 loops=1)
+  Buffers: shared hit=13
+  ->  Incremental Sort (actual time=0.058..0.058 rows=0 loops=1)
+        Sort Key: created_at, id
+        Presorted Key: created_at
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 25kB  Peak Memory: 25kB
+        Buffers: shared hit=13
+        ->  Index Scan using notifications_push_pending_idx on notifications n (actual time=0.034..0.034 rows=0 loops=1)
+              Index Cond: ((entity_id = 2) AND (created_at < (now() - '00:02:00'::interval)) AND (created_at > (now() - '1 day'::interval)))
+              Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=227
+Planning Time: 0.481 ms
+Execution Time: 0.083 ms
 
 === write: a repeated notice (the unique key on person and reason) ===
-Index Only Scan using notifications_user_dedupe_unique on notifications (actual time=0.043..0.043 rows=1 loops=1)
-  Index Cond: ((user_id = '01a11363-432e-70d2-82eb-f6ac1db95849'::uuid) AND (dedupe_key = 'expln:10'::text))
+Index Only Scan using notifications_user_dedupe_unique on notifications (actual time=0.047..0.048 rows=1 loops=1)
+  Index Cond: ((user_id = '01a11bdf-69ee-7cb6-b62a-331306ee8b35'::uuid) AND (dedupe_key = 'expln:10'::text))
   Heap Fetches: 1
   Buffers: shared hit=5
 Planning:
-  Buffers: shared hit=157
-Planning Time: 0.358 ms
-Execution Time: 0.063 ms
+  Buffers: shared hit=178
+Planning Time: 0.363 ms
+Execution Time: 0.070 ms
