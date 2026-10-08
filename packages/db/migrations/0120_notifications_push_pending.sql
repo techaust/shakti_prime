@@ -1,0 +1,1 @@
+CREATE INDEX "notifications_push_pending_idx" ON "notifications" USING btree ("entity_id","created_at") WHERE "notifications"."channel_sent_json" ->> 'push' = 'pending';

@@ -50,7 +50,7 @@ export interface KnowledgeCompany {
 }
 
 /**
- * `/knowledge` (docs/design/phase1.md §8.4): the staff search over the passages the reader may
+ * `/knowledge` (docs/03-roadmap-appendix/phase1.md §8.4): the staff search over the passages the reader may
  * find, and the vault's files the reader may see with where each stands; an Executive or GM adds,
  * reads again and archives files. The list is read again while a file is being read.
  */

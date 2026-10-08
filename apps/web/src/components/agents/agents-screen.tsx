@@ -38,7 +38,7 @@ import { useCommand } from '../screens/use-command';
 const AGENT_LEVELS = AGENT_AUTONOMY_LEVELS.filter((a) => a !== 'automatic');
 
 /**
- * Admin › Agents (docs/design/phase1.md §7.1): every agent at the level being viewed, the company
+ * Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1): every agent at the level being viewed, the company
  * chosen at the top or the whole group, with its kill switch, and for an Executive its autonomy,
  * its daily spending limit and the autonomy of each action type. Each autonomy shows what applies
  * now and where it comes from, and its empty choice names what it would inherit; at a company the

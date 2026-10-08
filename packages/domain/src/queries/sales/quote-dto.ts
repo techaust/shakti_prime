@@ -1,6 +1,7 @@
 import {
   DomainError,
   hasGrant,
+  QuoteAcceptedViaSchema,
   QuoteDto,
   QuoteRowDto,
   QuoteStateSchema,
@@ -8,17 +9,17 @@ import {
   SubsidySchemeSchema,
   SupplyKindSchema,
   type Principal,
-  type QuoteLineDto,
   type QuoteState,
 } from '@shakti/contracts';
 import { schema } from '@shakti/db';
 import { and, asc, eq, getTableColumns } from 'drizzle-orm';
 import { transition } from '../../state-machines/define-machine';
 import { quoteMachine, type QuoteEvent } from '../../state-machines/machines/quote';
+import { toLineDto } from './line-dto';
 import type { QuoteReadContext } from './quote-facts';
 
 /**
- * The state a person sees (docs/design/phase1.md §7.3): a draft or sent quote whose validity has
+ * The state a person sees (docs/03-roadmap-appendix/phase1.md §7.3): a draft or sent quote whose validity has
  * passed reads as expired before the daily job marks it so.
  */
 export function shownQuoteState(stored: string, validUntil: Date, now: Date): QuoteState {
@@ -97,7 +98,11 @@ function allows(
         validUntil: record.validUntil,
       },
       event,
-      { actor: { kind: 'principal', principal }, now, params: { reason: GIVEN } },
+      {
+        actor: { kind: 'principal', principal },
+        now,
+        params: { reason: GIVEN, acceptedVia: 'signed_upload' },
+      },
     );
     return true;
   } catch {
@@ -159,6 +164,13 @@ export async function readQuote(
     .from(q)
     .where(eq(q.supersedesId, row.id))
     .limit(1);
+  // The order an accepted quote became, by its unique key (read with the lead, as the quote is).
+  const so = schema.salesOrders;
+  const [order] = await ctx.tx
+    .select({ id: so.id, soNo: so.soNo })
+    .from(so)
+    .where(eq(so.quoteId, row.id))
+    .limit(1);
   const l = schema.quoteLines;
   const lines = await ctx.tx
     .select()
@@ -190,30 +202,7 @@ export async function readQuote(
     supplyKind: SupplyKindSchema.parse(quote.supplyKind),
     validUntil: quote.validUntil.toISOString(),
     state: shownQuoteState(quote.state, quote.validUntil, ctx.now),
-    lines: lines.map((line): QuoteLineDto => ({
-      position: line.position,
-      itemId: line.itemId,
-      kitId: line.kitId,
-      description: line.description,
-      sku: line.sku,
-      unit: line.unit as QuoteLineDto['unit'],
-      qty: line.qty,
-      unitPrice: line.unitPrice,
-      hsn: line.hsn,
-      worksContract: line.worksContract,
-      taxRateId: line.taxRateId,
-      taxRatePct: line.taxRatePct,
-      compositeRuleId: line.compositeRuleId,
-      goodsRatePct: line.goodsRatePct,
-      servicesRatePct: line.servicesRatePct,
-      taxableValue: line.taxableValue,
-      goodsTaxable: line.goodsTaxable,
-      servicesTaxable: line.servicesTaxable,
-      cgst: line.cgst,
-      sgst: line.sgst,
-      igst: line.igst,
-      lineTotal: line.lineTotal,
-    })),
+    lines: lines.map(toLineDto),
     totals: {
       subtotal: quote.subtotal,
       cgst: quote.cgst,
@@ -229,11 +218,20 @@ export async function readQuote(
     supersededById: after?.id ?? null,
     supersededByNo: after?.quoteNo ?? null,
     withdrawnReason: quote.withdrawnReason,
+    acceptedVia:
+      quote.acceptedVia === null ? null : QuoteAcceptedViaSchema.parse(quote.acceptedVia),
+    signedFileId: quote.signedFileId,
+    orderId: order?.id ?? null,
+    orderNo: order?.soNo ?? null,
     createdAt: quote.createdAt.toISOString(),
     createdByName: row.createdByName,
     stateChangedAt: quote.stateChangedAt.toISOString(),
     canSend: may('send', 'sales.quote.send'),
     canRequote: may('requote', 'sales.quote.create'),
     canWithdraw: may('withdraw', 'sales.quote.send'),
+    // Recording a signed copy makes the order too, so it asks for both permissions.
+    canAccept:
+      may('accept', 'sales.quote.send') &&
+      hasGrant(ctx.principal.permissions, 'sales.order.create', 'own'),
   });
 }

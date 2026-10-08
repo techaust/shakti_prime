@@ -12,7 +12,7 @@ The stack makes, for the environment named `<env>` (`dev` or `staging`):
 ## 1. Create the stack
 1. Sign in to the AWS console with the account's administrator login and pick **Asia Pacific (Mumbai) ap-south-1** in the region menu at the top right.
 2. Open **CloudFormation** (type it in the search bar) › **Create stack** › **With new resources (standard)**.
-3. Under *Specify template* choose **Upload a template file**, click **Choose file** and pick `infra/aws/files.yaml` from the repository. Click **Next**.
+3. Under *Specify template* choose **Upload a template file**, click **Choose file** and pick `infra/aws/files.yaml` from the repository (on the owner's PC, `D:\BUSINESS\4. CLIENT PROJECTS\SHAKTI PRIME\SOFTWARE\shakti_prime\infra\aws\files.yaml`). Click **Next**.
 4. **Stack name:** `shakti-prime-<env>-files`, for example `shakti-prime-dev-files`.
 5. **Parameters:**
    - `EnvironmentName`: `dev` or `staging`;

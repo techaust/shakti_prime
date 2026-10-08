@@ -39,3 +39,11 @@ export {
 } from './identity';
 export { quotes, quoteLines, quoteVersions } from './quotes';
 export { knowledgeFiles, knowledgeChunks } from './knowledge';
+export { notifications, notificationPreferences, pushSubscriptions } from './notifications';
+export {
+  salesOrders,
+  salesOrderLines,
+  dealerTerms,
+  dealerOutstanding,
+  commissionAccruals,
+} from './sales-orders';

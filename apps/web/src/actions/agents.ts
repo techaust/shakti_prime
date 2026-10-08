@@ -1,6 +1,6 @@
 'use server';
 
-// The Agent Inbox and Admin › Agents (docs/design/phase1.md §7.1).
+// The Agent Inbox and Admin › Agents (docs/03-roadmap-appendix/phase1.md §7.1).
 
 import {
   EditInboxItemInput,
@@ -12,10 +12,12 @@ import {
   type AgentSettingsDto,
   type InboxCountDto,
   type InboxDecisionDto,
+  type InboxItemDoneDto,
   type InboxPageDto,
 } from '@shakti/contracts';
 import {
   approveInboxItem as approveCommand,
+  completeInboxItem as completeCommand,
   countInbox as countInboxQuery,
   dismissInboxItem as dismissCommand,
   editInboxItem as editCommand,
@@ -187,4 +189,25 @@ export async function setKillSwitch(
     rawInput,
     idempotencyKey,
   );
+}
+
+/** Routed work the person has dealt with leaves their inbox. */
+export async function completeRoutedWork(
+  rawInput: unknown,
+  idempotencyKey?: unknown,
+): Promise<ActionResult<InboxItemDoneDto>> {
+  return toResult('completeRoutedWork', async () => {
+    const principal = await signedIn();
+    const input = parseInput(InboxItemRefInput, rawInput);
+    const meta = await requestMeta();
+    const done = await executeCommand(
+      principal,
+      { entityIds: [input.entityId], requestId: meta.requestId },
+      completeCommand,
+      input,
+      commandOptions(meta, idempotencyKey),
+    );
+    inboxCounts.forget(principal.id);
+    return done;
+  });
 }

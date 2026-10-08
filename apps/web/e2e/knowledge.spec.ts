@@ -9,7 +9,7 @@ import {
 } from './support/fixtures';
 import { SNAPSHOT_VAULT } from './support/users';
 
-// The Knowledge Vault (docs/design/phase1.md §8.4, PRD AI-01). The journeys' app runs with the
+// The Knowledge Vault (docs/03-roadmap-appendix/phase1.md §8.4, PRD AI-01). The journeys' app runs with the
 // fake AI transport (`AI_TRANSPORT=fake`, playwright.config.ts): a Word file is read by the app's
 // own Word reader, its passages are embedded by the stand-in, which puts texts that share words
 // close together, and the search finds them. Every text is synthetic.

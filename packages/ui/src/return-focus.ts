@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 /**
- * Where keyboard focus goes when a dialog or sheet closes (WCAG 2.4.3, DESIGN.md §9).
+ * Where keyboard focus goes when a dialog or sheet closes (WCAG 2.4.3, docs/08-design-system.md §9).
  *
  * Radix returns focus to whatever held it when the dialog mounted. A dialog opened from a menu
  * item mounts after the item has left the page, so that is `<body>` and a keyboard user loses

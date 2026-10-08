@@ -36,7 +36,7 @@ export class RowByRowNeeded extends Error {
 /**
  * Commits a batch of lead rows as `crm.lead.create` would, one row at a time, with the same
  * guard, input, idempotency key and event, but in a handful of statements for the whole batch
- * (docs/spikes/import-scale.md): each row still gets its own account, contact, phone, company
+ * (docs/04-architecture-appendix/import-scale.md): each row still gets its own account, contact, phone, company
  * relationship, site, opportunity and timeline row, every insert passes the same policies as `app_user`, and
  * each row claims its key `import:{job}:{row}` with the input hash and the lead answer the command
  * would store. The events are the command's, one `crm.lead.created` a row; the caller writes the

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Stored form of every phone number (docs/DATABASE.md §2). */
+/** Stored form of every phone number (docs/05-database.md §2). */
 export const E164_REGEX = /^\+[1-9]\d{6,14}$/;
 export const E164Schema = z.string().regex(E164_REGEX);
 export type E164 = z.infer<typeof E164Schema>;

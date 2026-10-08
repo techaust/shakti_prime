@@ -204,6 +204,8 @@ test.describe('customers as a tele-caller', () => {
     await expect(history.getByText('Rooftop solar sizing, within limits')).toBeVisible();
     // The opened panel with its result, once the saved message has gone; the customer's name and
     // number and the dates change from run to run.
+    // A toast waits while the pointer is over it, and the button just pressed can sit beneath it.
+    await page.mouse.move(0, 0);
     await expect(page.getByText('Sizing saved.')).toBeHidden({ timeout: 15_000 });
     await snap(page, 'customer-sizing', {
       mask: [page.getByText(name), page.getByText(/\d{5}/), page.getByText(/\b20\d\d\b/)],

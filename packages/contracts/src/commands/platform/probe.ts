@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { IdSchema } from '../../ids';
 
 /**
- * `platform.probe.run` (docs/design/phase1.md §5.2): the delivery check on Integration Health. It
+ * `platform.probe.run` (docs/03-roadmap-appendix/phase1.md §5.2): the delivery check on Integration Health. It
  * emits `platform.probe.requested`, whose worker records when it arrived, so the page can show the
  * time from the command to the worker. It takes nothing.
  */

@@ -16,7 +16,7 @@ export function isOfficeType(contentType: string): boolean {
 }
 
 /**
- * A Knowledge Vault Word document or workbook before it is `ready` (docs/design/phase1.md §8.4):
+ * A Knowledge Vault Word document or workbook before it is `ready` (docs/03-roadmap-appendix/phase1.md §8.4):
  * a ZIP archive whose structure and unpacked size pass the same guard as an import workbook
  * (`checkZipArchive`, held to the import's limits, so a small file that unpacks into gigabytes is
  * refused) and that holds the main part of the type it declares. A file with macros cannot be

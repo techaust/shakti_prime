@@ -43,7 +43,7 @@ import { memoryKeyValue, type KeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 
-// The Knowledge Vault's commands, index job and search on real Postgres (docs/design/phase1.md
+// The Knowledge Vault's commands, index job and search on real Postgres (docs/03-roadmap-appendix/phase1.md
 // §8.4). Every model call goes to the fake transport; every text is synthetic.
 
 afterAll(closeDb);

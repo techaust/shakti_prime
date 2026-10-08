@@ -44,7 +44,7 @@ async function asAuthService<T>(fn: (s: postgres.Sql) => Promise<T>): Promise<T>
   }
 }
 
-describe('the auth module role (docs/DATABASE.md §3)', () => {
+describe('the auth module role (docs/05-database.md §3)', () => {
   it('cannot bypass RLS and every identity table forces it', async () => {
     const [role] = await withoutContext<{ rolsuper: boolean; rolbypassrls: boolean }>(
       sql`select rolsuper, rolbypassrls from pg_roles where rolname = 'auth_service'`,

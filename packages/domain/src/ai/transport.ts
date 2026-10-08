@@ -6,7 +6,7 @@ import { NO_USAGE, type TokenUsage } from './models';
 
 /**
  * A picture a chat model reads with the question: a photo, or a PDF's page, that the file checks
- * have masked (a Knowledge Vault file, docs/design/phase1.md §8.4). A PDF itself is never sent.
+ * have masked (a Knowledge Vault file, docs/03-roadmap-appendix/phase1.md §8.4). A PDF itself is never sent.
  */
 export interface ModelDocument {
   mediaType: 'image/jpeg' | 'image/png' | 'image/webp';

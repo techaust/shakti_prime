@@ -1,5 +1,5 @@
 /**
- * How a vault file's text is cut into passages for search (docs/design/phase1.md §8.4, ADR 0011).
+ * How a vault file's text is cut into passages for search (docs/03-roadmap-appendix/phase1.md §8.4, ADR 0011).
  * A passage holds at most `maxChars` characters, about 375 tokens of English, which suits the
  * embedding model and gives the reader a passage worth reading; each passage after the first
  * starts with up to `overlapChars` characters from the end of the one before, so a sentence that

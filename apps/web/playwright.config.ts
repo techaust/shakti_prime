@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * End-to-end journeys (docs/TESTING.md §5). The database is seeded on the host first
+ * End-to-end journeys (docs/09-testing.md §5). The database is seeded on the host first
  * (`pnpm --filter web e2e:seed`); `auth.setup.ts` then signs each role in once and every spec
  * reuses its session. Screenshots are compared only in the Linux container (`e2e:snap`), where the
  * baselines are made.
@@ -20,7 +20,7 @@ const external = process.env.E2E_EXTERNAL_APP === '1';
 
 /**
  * Each run signs in from its own address, so the per-address caps on sign-in and password links
- * (docs/SECURITY.md §2) count one run's attempts, not the sum of every earlier run against the
+ * (docs/07-security.md §2) count one run's attempts, not the sum of every earlier run against the
  * same server.
  */
 const runAddress = `10.${String(Math.floor(Math.random() * 250))}.${String(Math.floor(Math.random() * 250))}.${String(1 + Math.floor(Math.random() * 250))}`;

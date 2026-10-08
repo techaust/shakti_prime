@@ -1,4 +1,4 @@
-// The Agent Inbox's and the agents screen's reading of agents (docs/design/phase1.md §7.1). Pure
+// The Agent Inbox's and the agents screen's reading of agents (docs/03-roadmap-appendix/phase1.md §7.1). Pure
 // functions, so the screens and their tests share them; browser code, so no contracts values.
 
 import type en from '../../messages/en.json';

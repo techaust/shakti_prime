@@ -7,7 +7,7 @@ export const logger: Logger = jsonLogger();
 
 /**
  * A fresh reference a person reads to support after an unexpected failure that the screen
- * handles itself (DESIGN.md §11), for example `8F3K2Q`. Logged with the failure.
+ * handles itself (docs/08-design-system.md §11), for example `8F3K2Q`. Logged with the failure.
  */
 export function newReference(): string {
   let out = '';

@@ -1,4 +1,4 @@
-// Quote list plans (docs/design/phase1.md §7.3, brief S1): `pnpm --filter @shakti/domain
+// Quote list plans (docs/03-roadmap-appendix/phase1.md §7.3, brief S1): `pnpm --filter @shakti/domain
 // spike:quotes`. Fills the local database with made-up leads and 20,000 made-up quotes in company
 // 2 (customers named `EXPLQ customer …`, quote numbers under `EXPLQ/`), the leads spread over a
 // Lead Converter, the rest of a team and the company, then prints `EXPLAIN (ANALYZE, BUFFERS)` for

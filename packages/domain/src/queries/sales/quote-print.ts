@@ -70,7 +70,7 @@ const QuoteForPrintSchema = z
 export type QuoteForPrint = z.infer<typeof QuoteForPrintSchema>;
 
 /**
- * One quote as the render worker prints it (ADR 0009, docs/design/phase1.md §7.3): read through
+ * One quote as the render worker prints it (ADR 0009, docs/03-roadmap-appendix/phase1.md §7.3): read through
  * `app.quote_for_print()`, which only the worker principal (`files.process`) may call and which
  * answers the quote, its lines, the customer's name and GSTIN, the site's address and who made
  * it, never a phone number. A quote outside the request is `not_found`.

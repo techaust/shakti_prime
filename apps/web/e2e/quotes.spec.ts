@@ -17,7 +17,7 @@ import {
   seededUsers,
 } from './support/users';
 
-// Quotes (docs/design/phase1.md §7.3). The seed makes a price tier of its own with two items and
+// Quotes (docs/03-roadmap-appendix/phase1.md §7.3). The seed makes a price tier of its own with two items and
 // a price list of it in the journeys' company and the snapshot company, test values for the
 // journeys alone (`e2e/setup/quotes.ts`): a sized lead per project goes to a sent quote with its
 // document here, and the snapshot company's one quote, made by the seed, gives the screenshots.

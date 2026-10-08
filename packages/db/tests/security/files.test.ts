@@ -42,7 +42,7 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
 };
 /**
  * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
- * knowledge.vault.write (files_knowledge_read, 0118; knowledge.test.ts): these files have no
+ * knowledge.vault.write (files_knowledge_read, 0123; knowledge.test.ts): these files have no
  * vault file, and the readers below are not their uploader, so none reads them.
  */
 const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {

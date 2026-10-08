@@ -4,7 +4,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { DateOnlySchema } from './common';
 
 /**
- * `POST /expenses` (docs/API.md §3.2, docs/BLUEPRINT.md §8.8): an expense claim with receipt
+ * `POST /expenses` (docs/06-api.md §3.2, docs/01-blueprint.md §8.8): an expense claim with receipt
  * photos, allocated to a project or to overhead. Approval runs manager → Accounts on the web.
  */
 export const EXPENSE_CATEGORIES = ['travel', 'fuel', 'food', 'site_purchase'] as const;

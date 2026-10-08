@@ -1,5 +1,5 @@
 // The auth module's connection: the non-superuser `auth_service`, which may touch the identity
-// tables only (docs/DATABASE.md §3). Better Auth's Drizzle adapter and the session bookkeeping in
+// tables only (docs/05-database.md §3). Better Auth's Drizzle adapter and the session bookkeeping in
 // apps/web/src/auth are its only callers; importing it anywhere else is a lint error.
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';

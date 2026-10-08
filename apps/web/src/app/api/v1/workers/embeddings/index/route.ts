@@ -38,7 +38,7 @@ const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
 
 /**
- * The Knowledge Vault's index worker (docs/design/phase1.md §8.4, docs/API.md §3.6). Only QStash
+ * The Knowledge Vault's index worker (docs/03-roadmap-appendix/phase1.md §8.4, docs/06-api.md §3.6). Only QStash
  * calls it, with the `EmbeddingsIndexJob` a `knowledge.file.index_requested` event is sent as: the
  * body is refused over 4 KiB before anything else is read, the signature must be QStash's for this
  * address and body, and the job's event id is claimed as an event worker's is (`deliverEvent`), so

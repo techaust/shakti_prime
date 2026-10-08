@@ -24,7 +24,7 @@
     },
     "@shakti/db#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/DATABASE.md", "$TURBO_ROOT$/docs/data/**"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/05-database.md", "$TURBO_ROOT$/docs/data/**"]
     },
     "@shakti/tokens#test": {
       "dependsOn": ["^build"],
@@ -32,7 +32,7 @@
     },
     "@shakti/contracts#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/API.md"]
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/docs/06-api.md"]
     },
     "web#test": {
       "dependsOn": ["^build"],
@@ -75,7 +75,10 @@
         "ANTHROPIC_API_KEY",
         "VOYAGE_API_KEY",
         "AI_TRANSPORT",
-        "OCR_LANG_PATH"
+        "OCR_LANG_PATH",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT"
       ]
     },
     "test:e2e": {
@@ -110,7 +113,10 @@
         "ANTHROPIC_API_KEY",
         "VOYAGE_API_KEY",
         "AI_TRANSPORT",
-        "OCR_LANG_PATH"
+        "OCR_LANG_PATH",
+        "VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT"
       ]
     },
     "db:generate": {

@@ -1,7 +1,7 @@
 import { EmbeddingsIndexJob, EVENT_VERSION, type DeliveredEvent } from '@shakti/contracts';
 
 /*
- * An index job and the outbox event it comes from (docs/design/phase1.md §8.4, docs/API.md §3.6),
+ * An index job and the outbox event it comes from (docs/03-roadmap-appendix/phase1.md §8.4, docs/06-api.md §3.6),
  * each made from the other, as the render job's are (../pdf/job.ts).
  */
 

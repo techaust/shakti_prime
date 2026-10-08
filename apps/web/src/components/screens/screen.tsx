@@ -1,7 +1,7 @@
 import { Skeleton } from '@shakti/ui';
 
 /**
- * The skeleton of a screen while its first page is on its way (DESIGN.md §6: never a spinner):
+ * The skeleton of a screen while its first page is on its way (docs/08-design-system.md §6: never a spinner):
  * the heading and a list, inside the shell's content area, which gives the gutters.
  */
 export function ScreenSkeleton({ rows = 6 }: { rows?: number }) {

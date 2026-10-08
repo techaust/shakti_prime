@@ -1,4 +1,4 @@
-// The leads board's arithmetic (DESIGN.md §6, Kanban board): which columns show, which cards sit
+// The leads board's arithmetic (docs/08-design-system.md §6, Kanban board): which columns show, which cards sit
 // in each, what a drop means and how a finished change moves a card. No command runs here; the
 // screen calls the opportunity actions and the database decides.
 
@@ -84,7 +84,7 @@ const STAGE_TONES: readonly BoardStageTone[] = [
 ];
 
 /**
- * The colour of a stage's bar (DESIGN.md §2.4): the six stage tokens by the stage's key; a stage
+ * The colour of a stage's bar (docs/08-design-system.md §2.4): the six stage tokens by the stage's key; a stage
  * an Executive added later takes the colour of its kind (an open stage the colour of New).
  */
 export function stageTone(stage: Pick<PipelineStageDto, 'key' | 'kind'>): BoardStageTone {

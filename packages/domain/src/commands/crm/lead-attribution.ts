@@ -6,7 +6,7 @@ import { loadScoreFacts, loadScoreRules, rescore, writeScores } from '../../crm/
 import { partnerForCode } from './referrals';
 
 /**
- * What lead creation does for pipelines set-up (docs/design/phase1.md §6.6): a referral code
+ * What lead creation does for pipelines set-up (docs/03-roadmap-appendix/phase1.md §6.6): a referral code
  * credits the lead to its partner, or refuses the lead (CRM-09), and the lead is scored with the
  * rules that apply to it (CRM-06). `crm.lead.create` calls it once, after the opportunity is
  * written and in the same transaction, so a refused code rolls the whole lead back. It writes no

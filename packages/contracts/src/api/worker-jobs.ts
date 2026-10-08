@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { DeliveredEvent, EventTypeSchema } from '../events/catalogue';
+import { DeliveredEvent, EventTypeSchema, parseEventPayload } from '../events/catalogue';
+import { isNoticeEvent } from '../notifications';
 import { PdfDocumentTypeSchema } from './print-documents';
 import { EntityIdSchema, IdSchema } from '../ids';
 import { KnowledgeSensitivitySchema } from '../knowledge';
@@ -7,8 +8,8 @@ import { SCRIPT_LANGUAGES } from '../templates/index';
 import { MessageRequested, MessagingRefusalSchema } from './messaging';
 
 /**
- * Bodies and answers of the QStash workers under `/api/v1/workers/*` (docs/API.md §3.6,
- * docs/design/backend-weeks-3-5.md §4.4). Every call carries `Upstash-Signature`, checked with the
+ * Bodies and answers of the QStash workers under `/api/v1/workers/*` (docs/06-api.md §3.6,
+ * docs/03-roadmap-appendix/backend-weeks-3-5.md §4.4). Every call carries `Upstash-Signature`, checked with the
  * current and next signing keys before the body is read. The worker then checks `eventId` in Redis
  * (`evt:{id}`, kept 7 days): an id it has already handled answers `duplicate` and runs nothing;
  * otherwise it runs the command as its principal (a named agent principal or `system:workers`,
@@ -21,9 +22,6 @@ import { MessageRequested, MessagingRefusalSchema } from './messaging';
  */
 
 const Count = z.number().int().min(0);
-
-/** A code such as a notification type or a document kind: lowercase words joined by `_` or `.`. */
-const CodeSchema = z.string().regex(/^[a-z][a-z0-9_.]{0,63}$/);
 
 /** `done`: the worker acted. `duplicate`: the event id was already recorded and nothing ran. */
 export const WorkerOutcomeSchema = z.enum(['done', 'duplicate']);
@@ -92,7 +90,7 @@ export type OutboxFailureResult = z.infer<typeof OutboxFailureResult>;
 
 // --- /workers/messaging/send -----------------------------------------------------------------
 
-/** `POST /workers/messaging/send`: one `message.requested` (docs/API.md §6) to check and send. */
+/** `POST /workers/messaging/send`: one `message.requested` (docs/06-api.md §6) to check and send. */
 export const MessagingSendJob = z
   .object({
     eventId: IdSchema,
@@ -128,7 +126,7 @@ export type MessagingSendResult = z.infer<typeof MessagingSendResult>;
 
 export { PDF_DOCUMENT_TYPES, PdfDocumentTypeSchema, type PdfDocumentType } from './print-documents';
 
-/** Label stock sizes in millimetres, one label per page (docs/spikes/print.md). */
+/** Label stock sizes in millimetres, one label per page (docs/04-architecture-appendix/print.md). */
 export const LabelSizeSchema = z.enum(['50x25', '100x50']);
 export const LabelKindSchema = z.enum(['serial', 'bin', 'package']);
 
@@ -175,7 +173,7 @@ export type PdfRenderResult = z.infer<typeof PdfRenderResult>;
 // --- /workers/agents/:agent ------------------------------------------------------------------
 
 /**
- * The six agents (docs/BLUEPRINT.md §9.3), named as their principals' roles without `agent:`;
+ * The six agents (docs/01-blueprint.md §9.3), named as their principals' roles without `agent:`;
  * `worker-jobs.test.ts` holds the two lists together.
  */
 export const AGENT_NAMES = [
@@ -266,22 +264,33 @@ export type EmbeddingsIndexResult = z.infer<typeof EmbeddingsIndexResult>;
 // --- /workers/notify -------------------------------------------------------------------------
 
 /**
- * `POST /workers/notify`: one notification for up to 500 people, written to `notifications` and
- * pushed by browser push and FCM under each person's preferences and quiet hours (BLUEPRINT
- * §8.11). The words come from the catalogue by `type`; the body names the record, never its text.
+ * `POST /workers/notify`: one outbox event that notifies (`NOTICE_EVENT_TYPES`), as the publisher
+ * sends it (`EVENT_JOB_ROUTES`). The worker finds the people it is for from the records when it
+ * runs (the owner may have changed since), writes their notices to `notifications` and pushes them
+ * by browser push under each person's choices and quiet hours (BLUEPRINT §8.11); FCM joins with
+ * the field app (Phase 4). The event's id makes a repeated delivery one notice per person. The
+ * body carries ids and codes only, its payload as strict as the event catalogue's; the words come
+ * from the message catalogue by the notice's kind.
  */
-export const NotifyJob = z
-  .object({
-    eventId: IdSchema,
-    entityId: EntityIdSchema,
-    type: CodeSchema,
-    recipientIds: z.array(IdSchema).min(1).max(500),
-    subject: z.object({ type: CodeSchema, id: IdSchema }).strict(),
-  })
-  .strict();
+export const NotifyJob = DeliveredEvent.superRefine((event, ctx) => {
+  if (!isNoticeEvent(event.type)) {
+    ctx.addIssue({ code: 'custom', message: 'not an event that notifies', path: ['type'] });
+    return;
+  }
+  if (!IdSchema.safeParse(event.aggregateId).success) {
+    ctx.addIssue({ code: 'custom', message: 'not a record id', path: ['aggregateId'] });
+  }
+  const payload = Object.fromEntries(Object.entries(event.payload).filter(([key]) => key !== 'v'));
+  if (!parseEventPayload(event.type, payload).ok) {
+    ctx.addIssue({ code: 'custom', message: 'not the payload of its type', path: ['payload'] });
+  }
+});
 export type NotifyJob = z.infer<typeof NotifyJob>;
 
-/** `heldForQuietHours` counts pushes kept until the person's quiet hours end. */
+/**
+ * `heldForQuietHours` counts pushes not sent because they fell in the person's quiet hours; they
+ * are not sent later, and the notice waits in the centre.
+ */
 export const NotifyResult = workerResult({
   created: Count,
   pushed: Count,

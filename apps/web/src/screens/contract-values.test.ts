@@ -68,6 +68,9 @@ import {
   SizingAdvisorySchema,
   SizingKindSchema,
   QuoteStateSchema,
+  QuoteAcceptedViaSchema,
+  SalesOrderStateSchema,
+  CommissionAccrualStateSchema,
   SubsidySchemeSchema,
   SizingReasonSchema,
   SiteTypeSchema,
@@ -141,6 +144,9 @@ import {
   SIZING_INPUT_LIMITS,
   SIZING_KINDS,
   QUOTE_STATES,
+  SALES_ORDER_STATES,
+  QUOTE_ACCEPTED_VIA,
+  COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
   SIZING_REASONS,
   SITE_TYPES,
@@ -182,6 +188,9 @@ describe('the contract values copied for the browser', () => {
     expect(COMMISSION_BASES).toEqual(CommissionBasisSchema.options);
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
     expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
+    expect(SALES_ORDER_STATES).toEqual(SalesOrderStateSchema.options);
+    expect(QUOTE_ACCEPTED_VIA).toEqual(QuoteAcceptedViaSchema.options);
+    expect(COMMISSION_ACCRUAL_STATES).toEqual(CommissionAccrualStateSchema.options);
     expect(SUBSIDY_SCHEMES).toEqual(SubsidySchemeSchema.options);
     expect(SIZING_REASONS).toEqual(SizingReasonSchema.options);
     expect(SIZING_ADVISORIES).toEqual(SizingAdvisorySchema.options);

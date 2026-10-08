@@ -4,7 +4,7 @@
 
 `quotes.state`. Lines snapshot Price Master prices and the tax-rate version at creation.
 
-Sources: docs/design/backend-weeks-3-5.md §7.3; docs/design/phase1.md §7.3; BLUEPRINT §8.3; PRD SAL-03, SAL-04, SAL-05.
+Sources: docs/03-roadmap-appendix/backend-weeks-3-5.md §7.3; docs/03-roadmap-appendix/phase1.md §7.3; BLUEPRINT §8.3; PRD SAL-03, SAL-04, SAL-05.
 
 Every state and transition comes from the governing documents.
 
@@ -30,7 +30,7 @@ Every state and transition comes from the governing documents.
 | `requote` | `draft`, `sent`, `expired` → `superseded` | `sales.quote.create` | – | `new_quote`: a new quote at current prices and current tax rates; `snapshot_version`: `quote_versions` snapshot of the old quote | `sales.quote.superseded` |
 | `withdraw` | `draft`, `sent` → `withdrawn` | `sales.quote.send` | a reason is given | – | `sales.quote.withdrawn` |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `quote_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `quotes.state` and the time to `quotes.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `quote_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `quotes.state` and the time to `quotes.state_changed_at` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 

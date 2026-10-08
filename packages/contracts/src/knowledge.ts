@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from './ids';
 
-// The Knowledge Vault (docs/design/phase1.md §8.4, BLUEPRINT §9.1, PRD AI-01): a vault file, the
+// The Knowledge Vault (docs/03-roadmap-appendix/phase1.md §8.4, BLUEPRINT §9.1, PRD AI-01): a vault file, the
 // chunks its text is cut into with their embeddings, and the staff search over them. Every vault
 // file is tagged with who may retrieve it; the read policies filter by it (SECURITY §11 item 6).
 

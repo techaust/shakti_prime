@@ -10,7 +10,7 @@ type CallTaskKind = Extract<TaskKind, 'callback' | 'nurture'>;
 type LeadRef = Pick<OpportunityRow, 'id' | 'entityId'>;
 
 /**
- * The call tasks the calling rules set on a lead (docs/design/phase1.md §7.2): a callback, a retry
+ * The call tasks the calling rules set on a lead (docs/03-roadmap-appendix/phase1.md §7.2): a callback, a retry
  * and the nurture calls. Each is for the lead's owner, who works its calls, made through
  * `crm.task.create` as the caller, so it is audited and on the timeline like any task. When the
  * caller may not set a task for the owner (no `crm.lead.assign` over them, or the owner no longer

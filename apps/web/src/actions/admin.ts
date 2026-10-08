@@ -2,7 +2,7 @@
 
 // The Team members, sessions and Activity log screens call these actions, except
 // `replayDeadLetter`: its screen, the Integration Health page, comes in Phase 1
-// (docs/design/backend-weeks-3-5.md §4.4).
+// (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.4).
 
 import {
   ClearSignInLockInput,
@@ -55,7 +55,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /**
- * Thin wrappers (docs/API.md §4): session → parse → request context → command → DTO. Each
+ * Thin wrappers (docs/06-api.md §4): session → parse → request context → command → DTO. Each
  * answers an `ActionResult` instead of throwing, because Next.js masks thrown errors in production.
  */
 
@@ -194,7 +194,7 @@ export async function reactivateUser(
  * Sends a failed message to other systems again (Executive only, design §4.4): the dead-lettered
  * event goes back in the queue with its attempts cleared, and the publisher's next run, at most a
  * minute away, sends it. No screen calls it yet: the Integration Health page and its replay
- * route come in Phase 1 (docs/design/backend-weeks-3-5.md §4.4).
+ * route come in Phase 1 (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.4).
  */
 export async function replayDeadLetter(
   rawInput: unknown,
@@ -264,7 +264,7 @@ async function firstNotice(
  * Removes a lost authenticator app (Executive only). The user is told by email when an app was
  * actually removed, which the command decides in its own transaction; a failed email is logged
  * and leaves the reset in place, because the user is already signed out and the Executive has
- * spoken to them before resetting (docs/SECURITY.md §2). A form sent twice with one key replays
+ * spoken to them before resetting (docs/07-security.md §2). A form sent twice with one key replays
  * the first answer, so the email goes out once per key.
  */
 export async function resetTwoFactor(
@@ -377,7 +377,7 @@ export async function listUserSessions(rawInput: unknown): Promise<ActionResult<
 }
 
 /**
- * The audit trail for Admin › Activity log (docs/design/backend-weeks-3-5.md §3.4): `audit.read`
+ * The audit trail for Admin › Activity log (docs/03-roadmap-appendix/backend-weeks-3-5.md §3.4): `audit.read`
  * at entity scope or wider; the query checks the permission and the database decides the rows.
  */
 export async function listAuditLog(rawInput: unknown): Promise<ActionResult<AuditPageDto>> {

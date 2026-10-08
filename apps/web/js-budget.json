@@ -114,6 +114,10 @@
       "maxKb": 205,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the pipeline cards with their stage lists; the call outcome and score rule editors and the stage dialogs load after the page. Measured 192.3 kB on 30-09-2026, plus 5 %."
     },
+    "/settings/notifications": {
+      "maxKb": 205,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar with the notification bell, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts, the search palette and the notification centre, load after the page), and the switches per kind of notice, quiet hours and alerts on this browser. Measured 194.8 kB on 06-10-2026, plus 5 %."
+    },
     "/settings/profile": {
       "maxKb": 200,
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the theme and contrast choices. Measured 186.0 kB on 29-09-2026, plus 5 %."

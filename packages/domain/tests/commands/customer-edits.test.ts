@@ -21,7 +21,7 @@ import { defineCommand } from '../../src/command/define-command';
 import { CreateLeadInput } from '@shakti/contracts';
 import { z } from 'zod';
 
-// crm.account.update, crm.contact.update, crm.site.upsert and crm.note.add (docs/design/phase1.md
+// crm.account.update, crm.contact.update, crm.site.upsert and crm.note.add (docs/03-roadmap-appendix/phase1.md
 // §6.5): the write rules of the shared customer (ADR 0008), an audit row of what changed and a
 // timeline row in the page's company.
 

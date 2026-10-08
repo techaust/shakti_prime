@@ -22,7 +22,7 @@ export interface RequestOptions {
   /**
    * A read: the transaction is read-only from its first statement. The setting is local to the
    * transaction, as every setting here is: through Supavisor in transaction mode a server
-   * connection passes to another client when the transaction ends (docs/DATABASE.md §1).
+   * connection passes to another client when the transaction ends (docs/05-database.md §1).
    */
   readOnly?: boolean;
   /**
@@ -45,7 +45,7 @@ export function entityIdsLiteral(entityIds: readonly number[]): string {
 }
 
 /**
- * The single entry point for database access (docs/ARCHITECTURE.md §4, docs/DATABASE.md §4.1).
+ * The single entry point for database access (docs/04-architecture.md §4, docs/05-database.md §4.1).
  * Opens a transaction and sets the transaction-local settings every RLS policy reads. A request
  * that narrows to entities the principal does not hold is refused before any query runs.
  *

@@ -1,7 +1,7 @@
 import { cn } from '@shakti/ui';
 import type { ReactNode } from 'react';
 
-/** Content widths (DESIGN.md §5): forms 720 px, detail pages 1200 px, grids and boards full. */
+/** Content widths (docs/08-design-system.md §5): forms 720 px, detail pages 1200 px, grids and boards full. */
 const WIDTHS = {
   form: 'max-w-form',
   detail: 'max-w-detail',

@@ -20,7 +20,7 @@ export interface QuoteExpiryOptions {
 }
 
 /**
- * The daily quote expiry (docs/design/phase1.md §7.3): every company in turn, each batch one
+ * The daily quote expiry (docs/03-roadmap-appendix/phase1.md §7.3): every company in turn, each batch one
  * `sales.quote.expire` in its own transaction as `system:workers` scoped to that company, which
  * holds the platform-only `sales.quote.expire` and nothing a person's role holds.
  */

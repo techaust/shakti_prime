@@ -3,7 +3,7 @@ import { EntityIdSchema, IdSchema } from '../../ids';
 import { StaffRoleKeySchema } from '../../roles';
 
 /**
- * `realtime.token.issue` (docs/design/backend-weeks-3-5.md §2.6): the caller sends nothing; who
+ * `realtime.token.issue` (docs/03-roadmap-appendix/backend-weeks-3-5.md §2.6): the caller sends nothing; who
  * they are and the companies active for the request decide the claims, as the route's empty body
  * (`RealtimeTokenRequest`) does.
  */

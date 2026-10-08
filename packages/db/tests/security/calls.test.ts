@@ -11,7 +11,7 @@ import {
 } from '../../src/testing/index';
 import { crmFixture, type CrmFixture } from '../fixtures/crm';
 
-// `calls` (docs/DATABASE.md §6.2, docs/design/phase1.md §7.2): a child of the lead, read with it,
+// `calls` (docs/05-database.md §6.2, docs/03-roadmap-appendix/phase1.md §7.2): a child of the lead, read with it,
 // logged by a person whose `calls.log` scope covers the lead, with an outcome in use of the group
 // or the lead's company, and never changed afterwards.
 

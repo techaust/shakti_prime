@@ -7,7 +7,7 @@ import type { RoleChoices } from '../../screens/user-roles';
 
 /**
  * A role per company for the invite and roles forms: one select per company being viewed, with
- * No access first. The choices are the fixed staff roles (docs/SECURITY.md §3.1).
+ * No access first. The choices are the fixed staff roles (docs/07-security.md §3.1).
  */
 export function RolesField({
   idPrefix,

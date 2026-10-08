@@ -9,7 +9,7 @@ const LABEL = { width: 378, height: 189 };
  * One printed document shown at a reduced size: the template's own HTML in a sandboxed frame
  * (no script runs, nothing it names is fetched), drawn at full size and scaled down, so the page
  * breaks and measures are the printed ones. A frame is its own document, so the page's theme and
- * contrast never reach it: printed documents are always light (DESIGN.md §1 rule 6).
+ * contrast never reach it: printed documents are always light (docs/08-design-system.md §1 rule 6).
  */
 function PrintFrame({
   title,
@@ -44,7 +44,7 @@ function PrintFrame({
 }
 
 /**
- * The print preview of the design review (DESIGN.md §6 Print templates, §10): the quotation and
+ * The print preview of the design review (docs/08-design-system.md §6 Print templates, §10): the quotation and
  * the large QR label as the templates render them, filled in with the print spike's made-up
  * details. On screen the viewer's own font stands in for the embedded Inter of the printed file.
  */

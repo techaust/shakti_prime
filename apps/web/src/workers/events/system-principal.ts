@@ -1,7 +1,7 @@
 import { SYSTEM_MATRIX, SYSTEM_WORKERS_PRINCIPAL_ID, type Principal } from '@shakti/contracts';
 
 /**
- * The principal an event worker acts as (docs/SECURITY.md §3.3): the seeded `system:workers`
+ * The principal an event worker acts as (docs/07-security.md §3.3): the seeded `system:workers`
  * row, holding only the grants `SYSTEM_MATRIX` lists (the seed writes the same list), and scoped
  * to the one company the event belongs to, so a worker never acts across companies. With no
  * company at all it may only ask which companies hold work for it (the sweep of abandoned

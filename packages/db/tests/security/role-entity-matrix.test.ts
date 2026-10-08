@@ -34,7 +34,7 @@ import {
  * to another company. The customer master has no company of its own and is scoped through
  * `account_entities` (ADR 0008), whose rows a person, never an agent, also reads through a lead of
  * that customer they can read in the same company (0057); group-wide rows (`entity_id null`) are visible or not as their
- * table's policy says (docs/DATABASE.md §1, §4).
+ * table's policy says (docs/05-database.md §1, §4).
  */
 
 type Rule =
@@ -78,14 +78,14 @@ const AGENT_CONTROLS: Rule = {
 };
 const INBOX = grant('agents.inbox.act', 'own');
 
-/** A vault file and its chunks of staff knowledge, which every fixture row is (0118). */
+/** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
 const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
 
 /**
  * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
  * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
  * every principal of the company; a vault upload with its vault file, here staff knowledge, or by
- * its uploader while they hold `knowledge.vault.write` (0118).
+ * its uploader while they hold `knowledge.vault.write` (0123).
  */
 const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   import: IMPORTS,
@@ -156,6 +156,39 @@ const RULES: Record<MatrixTable, TableRule> = {
   quotes: { read: LEAD_READ, leak: otherCompany },
   quote_lines: { read: LEAD_READ, leak: otherCompany },
   quote_versions: { read: LEAD_READ, leak: otherCompany },
+  // An order of a quote, and its line, are read with the lead; a dealer's order without one,
+  // and its line, with the customer in its company (S2).
+  sales_orders: {
+    read: LEAD_READ,
+    readRow: (row) => (row.withCustomer === true ? ACCOUNT_READ : LEAD_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  sales_order_lines: {
+    read: LEAD_READ,
+    readRow: (row) => (row.withCustomer === true ? ACCOUNT_READ : LEAD_READ),
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // A dealer's credit entries: by Accounts (sales.credit.write) and with the customer.
+  dealer_terms: {
+    read: { kind: 'any', rules: [ACCOUNT_READ, grant('sales.credit.write', 'entity')] },
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  dealer_outstanding: {
+    read: { kind: 'any', rules: [ACCOUNT_READ, grant('sales.credit.write', 'entity')] },
+    throughLead: LEAD_READ,
+    leak: otherCompany,
+  },
+  // A commission is read as the commission rules are: the Executive and Accounts.
+  commission_accruals: {
+    read: {
+      kind: 'any',
+      rules: [grant('crm.config.write', 'all'), grant('finance.payment.write', 'own')],
+    },
+    leak: otherCompany,
+  },
   consents: { read: ACCOUNT_READ, throughLead: LEAD_READ, leak: contactOutside('x.contact_id') },
   item_costs: { read: grant('finance.cost.read', 'entity'), leak: otherCompany },
   document_sequences: { read: CONTEXT, leak: otherCompany },
@@ -205,6 +238,12 @@ const RULES: Record<MatrixTable, TableRule> = {
   inbox_items: { read: INBOX, leak: otherCompany },
   knowledge_files: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
   knowledge_chunks: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  // A person's own notices in the company they act in, whatever their role; never another's.
+  notifications: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
+    leak: otherCompany,
+  },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   pipeline_stages: { read: CONTEXT, group: CONTEXT, leak: otherCompany },
   price_lists: {

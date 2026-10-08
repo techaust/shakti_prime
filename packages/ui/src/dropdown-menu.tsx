@@ -5,7 +5,7 @@ import { Check } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
-/** Menus such as the profile menu: a popover with the `shadow-1` elevation (DESIGN.md §4). */
+/** Menus such as the profile menu: a popover with the `shadow-1` elevation (docs/08-design-system.md §4). */
 export const DropdownMenu = Menu.Root;
 export const DropdownMenuTrigger = Menu.Trigger;
 export const DropdownMenuGroup = Menu.Group;

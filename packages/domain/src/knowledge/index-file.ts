@@ -103,7 +103,7 @@ async function asDocuments(
 }
 
 /**
- * Reads, cuts and embeds one vault file (docs/design/phase1.md §8.4, `/api/v1/workers/embeddings/
+ * Reads, cuts and embeds one vault file (docs/03-roadmap-appendix/phase1.md §8.4, `/api/v1/workers/embeddings/
  * index`), as `system:workers` of the company the upload is stored in:
  *
  * 1. the vault file's facts through `app.knowledge_file_for_index()`; one no longer waiting (a

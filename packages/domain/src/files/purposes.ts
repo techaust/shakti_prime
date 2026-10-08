@@ -2,7 +2,7 @@ import { FILE_PURPOSES, type FilePurpose, type PermissionKey, type Scope } from 
 import type { PermissionByInput, Requirement } from '../command/define-command';
 
 /**
- * Who may upload and read a file of each purpose (docs/SECURITY.md §8). The database holds the
+ * Who may upload and read a file of each purpose (docs/07-security.md §8). The database holds the
  * same mapping in `app.file_purpose_grant()`, which the `files` policies read; a test on real
  * Postgres compares the two, so they cannot drift apart.
  *
@@ -40,7 +40,7 @@ export const FILE_PURPOSE_RULES: Readonly<Record<FilePurpose, FilePurposeRule>> 
   letterhead: { write: needs('admin.entities.write', 'all'), read: 'company' },
   // A company's proof page prints its bank account: rendered by the worker, read by an Executive.
   print_proof: { write: needs('files.process', 'entity'), read: 'admin.entities.write' },
-  // A vault file is added by an Executive or GM and read by its sensitivity (docs/design/phase1.md §8.4).
+  // A vault file is added by an Executive or GM and read by its sensitivity (docs/03-roadmap-appendix/phase1.md §8.4).
   knowledge: { write: needs('knowledge.vault.write', 'all'), read: 'vault' },
   consent_evidence: { write: needs('crm.account.write', 'own'), read: 'crm.account.write' },
 };

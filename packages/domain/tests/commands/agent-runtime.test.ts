@@ -23,7 +23,7 @@ import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryKeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
 
-// The runtime's own path (docs/design/phase1.md §7.1) with a stand-in agent defined here only: it
+// The runtime's own path (docs/03-roadmap-appendix/phase1.md §7.1) with a stand-in agent defined here only: it
 // asks the model, through the fake transport, how many days until a follow-up, and proposes a
 // follow-up task on the lead for its owner. No real agent ships in AI0 and nothing reaches a
 // vendor. The tests use company 4; each writes its own settings, replacing any row a run left with

@@ -1,5 +1,5 @@
 /**
- * Outbound calling rules (docs/SECURITY.md §7, BLUEPRINT §9.3 hard guardrails): TRAI calling hours,
+ * Outbound calling rules (docs/07-security.md §7, BLUEPRINT §9.3 hard guardrails): TRAI calling hours,
  * the DLT number series and recorded consent. Pure functions: the dial command calls them with the
  * clock, the caller id it is about to use, the call's purpose and the lead's consent and DND state.
  */

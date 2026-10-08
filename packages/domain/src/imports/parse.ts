@@ -190,7 +190,7 @@ export interface WorkbookSheet {
 /**
  * Every sheet of a workbook with its rows, in their order, read by the same guarded streaming
  * reader as an import file and held to the same limits, the rows counted over all the sheets
- * together: the text of a Knowledge Vault workbook (docs/design/phase1.md §8.4). Empty rows and
+ * together: the text of a Knowledge Vault workbook (docs/03-roadmap-appendix/phase1.md §8.4). Empty rows and
  * sheets are left out. Refuses as `readXlsx` does.
  */
 export async function readWorkbookSheets(
@@ -343,7 +343,7 @@ export function uniqueColumns(
 }
 
 /**
- * Reads an uploaded CSV or XLSX file (docs/design/backend-weeks-3-5.md §8): size and type
+ * Reads an uploaded CSV or XLSX file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8): size and type
  * checks, what a workbook unpacks to (`checkZipArchive`), the first sheet of a workbook, header
  * detection, and the row, column and cell limits. A file outside the limits is refused whole with a reason the screen can explain.
  */

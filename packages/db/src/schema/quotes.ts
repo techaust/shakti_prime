@@ -31,7 +31,7 @@ const money = (name: string) => numeric(name, { precision: 14, scale: 2 });
 const percent = (name: string) => numeric(name, { precision: 5, scale: 2 });
 
 /**
- * A quote of a lead (docs/design/phase1.md §7.3, docs/DATABASE.md §6.4), a child of
+ * A quote of a lead (docs/03-roadmap-appendix/phase1.md §7.3, docs/05-database.md §6.4), a child of
  * `opportunities`: read with the lead, made with `sales.quote.create` over the lead's owner and
  * team. Its lines, totals, tier, list and place of supply are frozen when it is made; afterwards
  * only its state (through the quote machine), the reason it was withdrawn and the PDF the render
@@ -77,6 +77,12 @@ export const quotes = pgTable(
     /** The quote this one replaced at current prices (`sales.quote.requote`). */
     supersedesId: uuid('supersedes_id'),
     withdrawnReason: text('withdrawn_reason'),
+    /**
+     * How the customer accepted it (`whatsapp_reply`, `whatsapp_otp` or `signed_upload`), and for
+     * a signed copy uploaded by staff, the file (`signed_quote`, `sales.quote.accept`, SAL-05).
+     */
+    acceptedVia: text('accepted_via'),
+    signedFileId: uuid('signed_file_id').references(() => files.id),
     ...timestamps,
     ...actorsRequired,
   },
@@ -122,6 +128,16 @@ export const quotes = pgTable(
       'quotes_withdrawn_reason_check',
       sql`(${t.state} = 'withdrawn') = (${t.withdrawnReason} is not null)`,
     ),
+    check(
+      'quotes_accepted_via_check',
+      sql`${t.acceptedVia} is null or ${t.acceptedVia} in ('whatsapp_reply', 'whatsapp_otp', 'signed_upload')`,
+    ),
+    // An accepted quote says how; a signed copy is named exactly when it was the way.
+    check(
+      'quotes_acceptance_check',
+      sql`(${t.state} = 'accepted') = (${t.acceptedVia} is not null)
+       and (${t.signedFileId} is not null) = (${t.acceptedVia} is not distinct from 'signed_upload')`,
+    ),
     // `/quotes` pages newest first, for one company or every company of the request: read
     // backwards, these serve the list's plain `order by created_at desc, id desc`.
     index('quotes_entity_created_idx').on(t.entityId, t.createdAt, t.id),
@@ -137,6 +153,10 @@ export const quotes = pgTable(
       .on(t.entityId, t.validUntil)
       .where(sql`${t.state} in ('draft', 'sent')`),
     index('quotes_pdf_file_idx').on(t.pdfFileId),
+    // A signed copy accepts one quote only.
+    uniqueIndex('quotes_signed_file_unique')
+      .on(t.signedFileId)
+      .where(sql`${t.signedFileId} is not null`),
   ],
 );
 

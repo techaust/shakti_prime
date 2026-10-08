@@ -36,7 +36,7 @@ export interface DataGridColumn<T> extends GridColumnShape<T> {
   id: string;
   header: ReactNode;
   cell: (row: T) => ReactNode;
-  /** Amounts and counts are right-aligned (DESIGN.md §6). */
+  /** Amounts and counts are right-aligned (docs/08-design-system.md §6). */
   align?: 'start' | 'end';
   /** Tabular numerals, so digits line up down the column. */
   numeric?: boolean;
@@ -64,7 +64,7 @@ export interface ColumnChooser {
   onHiddenChange: (hidden: string[]) => void;
 }
 
-/** Row height in the column chooser's menu (DESIGN.md §5: 40 or 32 px rows). */
+/** Row height in the column chooser's menu (docs/08-design-system.md §5: 40 or 32 px rows). */
 export interface DensityChoice {
   label: string;
   comfortable: string;
@@ -245,7 +245,7 @@ function ChooserMenu<T>({
 }
 
 /**
- * Data grid (DESIGN.md §5, §6): a table with a sticky header on wider screens and a list of cards
+ * Data grid (docs/08-design-system.md §5, §6): a table with a sticky header on wider screens and a list of cards
  * below `md`, so no page scrolls sideways on a phone. Paging is by "Load more", never numbered
  * pages, because the lists are keyset-paginated. Optional parts, each keyboard operable: sortable
  * headers, a column chooser with the row height, row selection, and a toolbar slot for saved views.

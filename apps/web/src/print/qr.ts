@@ -1,5 +1,5 @@
 // QR codes for print, drawn as SVG so they stay sharp at any printer resolution. Dark modules
-// use the light theme's text colour on its background colour (DESIGN.md §2): near-black on
+// use the light theme's text colour on its background colour (docs/08-design-system.md §2): near-black on
 // white, which every scanner reads.
 import QRCode from 'qrcode';
 import { lightColor } from './styles';

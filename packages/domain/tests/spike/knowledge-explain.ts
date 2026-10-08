@@ -1,4 +1,4 @@
-// Knowledge Vault search and list plans (docs/design/phase1.md §8.4, brief K1): `pnpm
+// Knowledge Vault search and list plans (docs/03-roadmap-appendix/phase1.md §8.4, brief K1): `pnpm
 // spike:knowledge`. Fills the local database with made-up vault files (titles `EXPLK file …`) and
 // 20,000 made-up passages with random unit embeddings, spread over the four companies and the
 // group and over the three sensitivities (70% staff, 20% management, 10% Executive), then prints

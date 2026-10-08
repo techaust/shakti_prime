@@ -9,7 +9,7 @@ import { parseInput, requestMeta, signedIn } from './support';
 const HITS_PER_KIND = 8;
 
 /**
- * The ⌘K palette's search (DESIGN.md §6): the leads, the quotes by number and, for a user
+ * The ⌘K palette's search (docs/08-design-system.md §6): the leads, the quotes by number and, for a user
  * administrator, the team members that match the typed text, in one read. A kind the caller may not read is skipped,
  * not refused, so a person who cannot see team members still finds their leads.
  */

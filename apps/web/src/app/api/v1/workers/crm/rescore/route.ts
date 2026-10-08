@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 /**
- * The nightly lead rescoring worker (CRM-06, docs/API.md §3.6). Only QStash calls it: the
+ * The nightly lead rescoring worker (CRM-06, docs/06-api.md §3.6). Only QStash calls it: the
  * schedule `lead-rescore-<environment>` each night, and a run handing on the rest
  * (`nightlyWorkerRoute`).
  */

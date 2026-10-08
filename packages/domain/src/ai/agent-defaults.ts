@@ -1,4 +1,4 @@
-// The agents' named defaults (docs/design/phase1.md §7.1 "Built (AI0)", the owner's decisions of
+// The agents' named defaults (docs/03-roadmap-appendix/phase1.md §7.1 "Built (AI0)", the owner's decisions of
 // 05-10-2026). Each one is flagged for the owner to confirm; a change is made here and nowhere
 // else. Prices are kept in US dollars per million tokens, as the vendors publish them.
 
@@ -63,7 +63,7 @@ export const AGENT_DEFAULTS = {
   } satisfies PromotionRule,
 
   /**
-   * The Knowledge Vault's model work (docs/design/phase1.md §8.4), which no agent principal does:
+   * The Knowledge Vault's model work (docs/03-roadmap-appendix/phase1.md §8.4), which no agent principal does:
    * the index job reads vault files (PDFs and photos by Claude) and embeds their passages, and the
    * staff search embeds each question. Each is counted under its own name in the spend totals and
    * held against its own daily cap for the whole group, in paise: ₹500 a day for reading and

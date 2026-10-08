@@ -26,7 +26,7 @@ import { createLead } from '../../src/commands/crm/create-lead';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 
 // agents.run.record, agents.inbox.approve, .edit, .reject and .dismiss, agents.config.set and
-// agents.killswitch.set (docs/design/phase1.md §7.1): an agent records its runs and files
+// agents.killswitch.set (docs/03-roadmap-appendix/phase1.md §7.1): an agent records its runs and files
 // suggestions as itself; a person approves a Needs approval one, and the command runs as that
 // person, or dismisses a Suggest one, which they act on themselves; the agent controls set
 // autonomy, caps and kill switches. Each test writes its own company's settings, replacing any row

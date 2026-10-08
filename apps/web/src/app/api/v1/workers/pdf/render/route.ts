@@ -25,7 +25,7 @@ import {
 export const dynamic = 'force-dynamic';
 /**
  * Seconds. A cold start unpacks the serverless Chromium (a few seconds) before the first document
- * (about a second a page, docs/spikes/print.md); a warm instance renders in one or two.
+ * (about a second a page, docs/04-architecture-appendix/print.md); a warm instance renders in one or two.
  */
 export const maxDuration = 60;
 
@@ -36,7 +36,7 @@ const NO_RETRY = { 'upstash-nonretryable-error': 'true' };
 const FINAL: ReadonlySet<ErrorCode> = new Set(['validation_failed', 'forbidden', 'not_found']);
 
 /**
- * The render worker (ADR 0009, docs/API.md §3.6). Only QStash calls it, with the `PdfRenderJob` a
+ * The render worker (ADR 0009, docs/06-api.md §3.6). Only QStash calls it, with the `PdfRenderJob` a
  * `print.document.requested` event is sent as: the body is refused over 24 KiB (a sheet of 500 labels) before anything else
  * is read, the signature must be QStash's for this address and body, and the job's event id is
  * claimed as an event worker's is (`deliverEvent`), so a job already rendered answers `duplicate`.

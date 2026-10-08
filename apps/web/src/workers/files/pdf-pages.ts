@@ -3,7 +3,7 @@ import type { PDFiumDocument, PDFiumLibrary } from '@hyzyla/pdfium';
 import sharp from 'sharp';
 import type { DocumentMasker } from '../ocr/mask-document';
 
-// A vault PDF is read as pictures, never as a PDF (docs/design/phase1.md §8.4, docs/SECURITY.md
+// A vault PDF is read as pictures, never as a PDF (docs/03-roadmap-appendix/phase1.md §8.4, docs/07-security.md
 // §5): each page is drawn to an image, the image goes through the same masking step as a vault
 // photo, and only the masked pages are kept (assembled into a PDF of pictures) and sent to a
 // model. PDFium (WebAssembly) draws the pages; it is loaded on first use, never at import, so the

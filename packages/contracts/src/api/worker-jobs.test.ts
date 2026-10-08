@@ -11,7 +11,7 @@ import {
   PdfRenderResult,
 } from './worker-jobs';
 
-describe('the worker contracts (docs/API.md §3.6)', () => {
+describe('the worker contracts (docs/06-api.md §3.6)', () => {
   it('names the agents as their principals do, without the prefix', () => {
     expect(AGENT_NAMES.map((name) => `agent:${name}`)).toEqual([...AGENT_ROLE_KEYS]);
   });
@@ -35,8 +35,21 @@ describe('the worker contracts (docs/API.md §3.6)', () => {
     const notify = API_FIXTURES['workers.notify'].request as Record<string, unknown>;
     expect(NotifyJob.safeParse(notify).success).toBe(true);
     expect(NotifyJob.safeParse({ ...notify, title: 'Lead from Bikaner' }).success).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, aggregateId: 'Ramesh' }).success).toBe(false);
+    const payload = notify.payload as Record<string, unknown>;
     expect(
-      NotifyJob.safeParse({ ...notify, subject: { type: 'opportunity', id: 'Ramesh' } }).success,
+      NotifyJob.safeParse({ ...notify, payload: { ...payload, name: 'Ramesh' } }).success,
+    ).toBe(false);
+    expect(NotifyJob.safeParse({ ...notify, type: 'crm.lead.created' }).success).toBe(false);
+    // A held dealer order notifies too (SAL-07), with the ids and the rule's code only.
+    const held = {
+      ...notify,
+      type: 'sales.order.credit_held',
+      payload: { accountId: IDS.event, createdBy: IDS.event, reason: 'credit_overdue', v: 1 },
+    };
+    expect(NotifyJob.safeParse(held).success).toBe(true);
+    expect(
+      NotifyJob.safeParse({ ...held, payload: { ...held.payload, reason: 'Ramesh owes' } }).success,
     ).toBe(false);
   });
 
@@ -67,7 +80,7 @@ describe('the worker contracts (docs/API.md §3.6)', () => {
   });
 });
 
-describe('message.requested (docs/API.md §6)', () => {
+describe('message.requested (docs/06-api.md §6)', () => {
   it('sends a template by its approved name with its parameters', () => {
     const parsed = MessageRequested.parse({
       threadId: IDS.thread,

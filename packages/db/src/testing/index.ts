@@ -15,7 +15,7 @@ import { runMigrations } from '../migrate';
 import { assertLocalDatabase } from './local-database';
 
 export { closeDb } from '../client';
-/** The seed, so a test can prove a re-run keeps what an Executive changed (docs/DATABASE.md §9). */
+/** The seed, so a test can prove a re-run keeps what an Executive changed (docs/05-database.md §9). */
 export { runSeeds };
 export { ALL_ENTITY_IDS } from '../../seeds/entities';
 export { AGENT_PRINCIPAL_SEED, SYSTEM_PRINCIPAL_SEED } from '../../seeds/principals';
@@ -268,10 +268,18 @@ export const ENTITY_TABLES = [
   'customer_sites',
   'opportunities',
   'sizings',
-  // children of the lead, read with it (docs/design/phase1.md §7.3)
+  // children of the lead, read with it (docs/03-roadmap-appendix/phase1.md §7.3)
   'quotes',
   'quote_lines',
   'quote_versions',
+  // an order of a quote is a child of its lead; a dealer's order is read with the dealer (S2)
+  'sales_orders',
+  'sales_order_lines',
+  // a dealer's credit entries, read by Accounts and with the dealer (S2)
+  'dealer_terms',
+  'dealer_outstanding',
+  // a commission on an order, read as the commission rules are (S2)
+  'commission_accruals',
   'consents',
   'item_costs',
   'document_sequences',
@@ -289,7 +297,7 @@ export const ENTITY_TABLES = [
   // tags allow entity_id null for the whole group, as teams do
   'tags',
   'opportunity_tags',
-  // a child of the lead, read with it (docs/design/phase1.md §7.2)
+  // a child of the lead, read with it (docs/03-roadmap-appendix/phase1.md §7.2)
   'calls',
   // read when both customers, or both leads of the company, are readable (D1)
   'duplicate_candidates',
@@ -301,13 +309,15 @@ export const ENTITY_TABLES = [
   'agent_actions',
   'inbox_items',
   // vault files and their chunks allow entity_id null for the whole group, and are read by
-  // sensitivity as well (docs/design/phase1.md §8.4)
+  // sensitivity as well (docs/03-roadmap-appendix/phase1.md §8.4)
   'knowledge_files',
   'knowledge_chunks',
+  // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
+  'notifications',
 ] as const;
 
 /**
- * Tables owned by the auth module (docs/DATABASE.md §3): `auth_service` has full access, `app_user`
+ * Tables owned by the auth module (docs/05-database.md §3): `auth_service` has full access, `app_user`
  * has column-level access to `sessions` and none to the rest. They sit outside the generic loops
  * and are asserted in identity-scope.test.ts.
  */
@@ -319,7 +329,7 @@ export const AUTH_TABLES = [
 ] as const;
 
 /**
- * Platform tables the application may only insert into (docs/DATABASE.md §5): `app_user` cannot
+ * Platform tables the application may only insert into (docs/05-database.md §5): `app_user` cannot
  * read them back, so the select-based loops do not apply. The outbox publisher reads and marks
  * deliveries; asserted in outbox.test.ts.
  */
@@ -328,24 +338,30 @@ export const OUTBOX_TABLES = ['outbox_events'] as const;
 /**
  * Tables scoped to the calling principal rather than an entity: each caller reads and writes its
  * own rows only, so a context with an empty entity scope still sees its own. Asserted in
- * idempotency-keys.test.ts and saved-views.test.ts.
+ * idempotency-keys.test.ts, saved-views.test.ts and notifications.test.ts.
  */
-export const PRINCIPAL_TABLES = ['idempotency_keys', 'saved_views'] as const;
+export const PRINCIPAL_TABLES = [
+  'idempotency_keys',
+  'saved_views',
+  'notification_preferences',
+  'push_subscriptions',
+] as const;
 
 /**
  * Platform tables of no company that only a database job writes and only a permission at scope
- * `all` reads (docs/DATABASE.md §7): no request role inserts, updates or deletes them, and most
+ * `all` reads (docs/05-database.md §7): no request role inserts, updates or deletes them, and most
  * callers with a context read nothing, so neither the shared loops (readable by any caller) nor
  * the entity loops (scoped by company) apply. Asserted in retention.test.ts and agents.test.ts.
  */
 export const PLATFORM_TABLES = ['retention_runs', 'agent_evals'] as const;
 
 /**
- * CRM set-up tables that start empty until the workshop answers (docs/design/phase1.md §11), so
+ * CRM set-up tables that start empty until the workshop answers (docs/03-roadmap-appendix/phase1.md §11), so
  * the shared loops, which expect rows for any caller, do not apply: lead score rules (read like
  * call outcomes, and in the role × company matrix through GROUP_WIDE_SHARED_TABLES) and
- * commission rules (read only with `crm.config.write:all` or `sales.order.confirm`). Asserted in
- * crm-config.test.ts.
+ * commission rules (read only with `crm.config.write:all` or `finance.payment.write`; the person
+ * confirming an order reaches a rule only through the definers of 0117, which check
+ * `sales.order.confirm` over the order). Asserted in crm-config.test.ts.
  */
 export const CONFIG_TABLES = ['lead_score_rules', 'commission_rules'] as const;
 

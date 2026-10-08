@@ -24,7 +24,7 @@ import { useCommand, useQuery } from '../screens/use-command';
 /**
  * Settings › Companies: the dialog where an Executive records a company's bank account, loaded on
  * demand by the companies screen. The account is read in clear only here, for the Executive
- * changing it, and is stored sealed (docs/SECURITY.md §5).
+ * changing it, and is stored sealed (docs/07-security.md §5).
  */
 export function BankDialog({
   company,

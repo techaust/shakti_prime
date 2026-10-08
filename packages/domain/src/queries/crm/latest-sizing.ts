@@ -8,7 +8,7 @@ import { parseQueryInput } from '../parse-input';
 type SizingContext = Pick<RequestContext, 'tx' | 'principal' | 'entityIds'>;
 
 /**
- * The newest sizing of a lead, of one kind or of either (docs/design/phase1.md §6.7): the one a
+ * The newest sizing of a lead, of one kind or of either (docs/03-roadmap-appendix/phase1.md §6.7): the one a
  * quote uses and the sizing panel opens with. Only sizings a person recorded count (SECURITY
  * §3.3). Null when the lead has none, or when the caller cannot read the lead, since a sizing is
  * read with its lead (RLS). A sizing from an engine version other than today's is answered as

@@ -1,8 +1,8 @@
 /**
- * The Tailwind classes that step around the design tokens (DESIGN.md §2 to §4, AGENTS.md §11):
+ * The Tailwind classes that step around the design tokens (docs/08-design-system.md §2 to §4, AGENTS.md §11):
  * an arbitrary value in brackets for a colour, a font weight or size, a line height, a radius, a
  * blur or a space (padding, margin, gap, width, height, position), and a weight outside the three
- * of DESIGN.md §3. The source-rule tests of this package and of the web app run it over their
+ * of docs/08-design-system.md §3. The source-rule tests of this package and of the web app run it over their
  * own files, each with its short list of named exceptions.
  */
 
@@ -63,7 +63,7 @@ const FAMILIES = [
  */
 const ARBITRARY = new RegExp(`(?<=^|[\\s"'\`:])-?(?:${FAMILIES.join('|')})-\\[[^\\]\\s]+\\]`, 'g');
 
-/** Tailwind's weights that DESIGN.md §3 does not use; the tokens clear them from the theme. */
+/** Tailwind's weights that docs/08-design-system.md §3 does not use; the tokens clear them from the theme. */
 const OFF_SCALE_WEIGHT = /(?<=^|[\s"'`:])font-(?:thin|extralight|light|bold|extrabold|black)\b/g;
 
 /** Every class in `source` that bypasses the tokens, in the order they appear. */

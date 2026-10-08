@@ -1,4 +1,4 @@
-// Dates on screen are DD-MM-YYYY (DESIGN.md §9); forms send the ISO calendar date YYYY-MM-DD.
+// Dates on screen are DD-MM-YYYY (docs/08-design-system.md §9); forms send the ISO calendar date YYYY-MM-DD.
 
 const DMY = /^(\d{2})-(\d{2})-(\d{4})$/;
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;

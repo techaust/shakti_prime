@@ -4,14 +4,14 @@ import { IdempotencyKeySchema, IdSchema } from '../ids';
 import { CursorSchema } from './common';
 
 /**
- * Field app sync (docs/API.md §3.2, docs/ARCHITECTURE.md §10, docs/BLUEPRINT.md §8.7). Pull brings
+ * Field app sync (docs/06-api.md §3.2, docs/04-architecture.md §10, docs/01-blueprint.md §8.7). Pull brings
  * the engineer's working set changed since a server cursor; push sends the commands recorded
  * offline, applied in order through the command layer, each with its own idempotency key.
  */
 
 /**
  * What the app keeps offline. Each record's shape is the DTO of its module, contracted with that
- * module in its own phase (inventory in Phase 3, projects and field in Phase 4, docs/ROADMAP.md);
+ * module in its own phase (inventory in Phase 3, projects and field in Phase 4, docs/03-roadmap.md);
  * the sync envelope carries it as an object the app's local store validates.
  */
 export const SYNC_COLLECTIONS = [

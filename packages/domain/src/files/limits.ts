@@ -24,7 +24,7 @@ const VAULT: readonly UploadContentType[] = [...IMAGES_AND_PDF, WORD, WORKBOOK];
 const MB = 1024 * 1024;
 
 /**
- * Limits per purpose (docs/SECURITY.md §8), checked by `files.upload.begin` and by the uploader
+ * Limits per purpose (docs/07-security.md §8), checked by `files.upload.begin` and by the uploader
  * before any byte is sent. A logo and a letterhead are images, because documents print them as
  * pictures; a quote's PDF is a PDF; a signed quote, consent evidence or vault file may be a photo
  * or a scan, and a vault file a Word document or an Excel workbook as well; an import file is a

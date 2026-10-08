@@ -274,7 +274,7 @@ describe('runOutboxPublisher backoff', () => {
   });
 });
 
-describe('runOutboxPublisher and its dead letters (docs/design/phase1.md §5.2)', () => {
+describe('runOutboxPublisher and its dead letters (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('names every event it dead-lettered, spent by the claim or failed here', async () => {
     const tired = row({ attempts: OUTBOX_MAX_ATTEMPTS - 1 });
     const stray = row({ type: 'crm.lead.vanished' });

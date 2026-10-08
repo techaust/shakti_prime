@@ -16,7 +16,7 @@ export interface KnowledgeFileRecord {
 }
 
 /**
- * A Knowledge Vault file (docs/design/phase1.md §8.4, PRD AI-01, BLUEPRINT §9.1): added waiting to
+ * A Knowledge Vault file (docs/03-roadmap-appendix/phase1.md §8.4, PRD AI-01, BLUEPRINT §9.1): added waiting to
  * be read; the index job reads it, cuts its text into passages and embeds them, or records why it
  * could not; an Executive or GM indexes it again or archives it, which takes its passages out of
  * search.
@@ -32,7 +32,7 @@ export const knowledgeFileMachine = defineMachine<
   summary:
     '`knowledge_files.state`. A vault upload with its title and sensitivity, for one company or the whole group. Added and archived by a person holding `knowledge.vault.write`; read and indexed by the index job (`system:workers`, `knowledge.index`) through `/api/v1/workers/embeddings/index`.',
   sources: [
-    'docs/design/phase1.md §8.4',
+    'docs/03-roadmap-appendix/phase1.md §8.4',
     'PRD AI-01',
     'BLUEPRINT §9.1',
     'DATABASE §6.9 `knowledge_files`',

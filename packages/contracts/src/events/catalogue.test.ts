@@ -52,10 +52,14 @@ describe('the event catalogue', () => {
   it('subscribes only the types a worker handles (apps/web/src/workers/events/registry.ts)', () => {
     expect(EVENT_TYPES.filter(isSubscribed).sort()).toEqual(
       [
+        'crm.duplicate.found',
+        'crm.enquiry.routed',
+        'crm.opportunity.assigned',
         'files.file.uploaded',
         'knowledge.file.index_requested',
         'platform.probe.requested',
         'print.document.requested',
+        'sales.order.credit_held',
       ].sort(),
     );
     expect(isSubscribed('crm.lead.vanished')).toBe(false);

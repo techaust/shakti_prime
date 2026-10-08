@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 
-/** WCAG 2.1 levels A and AA, the bar DESIGN.md §9 sets for every screen. */
+/** WCAG 2.1 levels A and AA, the bar docs/08-design-system.md §9 sets for every screen. */
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 /**

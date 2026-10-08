@@ -5,7 +5,7 @@ import { ImportJobStateSchema } from '../imports/enums';
 const Count = z.number().int().min(0);
 
 /**
- * `POST /api/v1/workers/outbox/publish`: what one publisher run did (docs/design/backend-weeks-3-5.md
+ * `POST /api/v1/workers/outbox/publish`: what one publisher run did (docs/03-roadmap-appendix/backend-weeks-3-5.md
  * §4.2). `skipped` counts events no worker listens to yet, marked delivered without sending.
  */
 export const OutboxPublishResponse = z
@@ -98,7 +98,7 @@ export const DuplicateScanWorkerResponse = z
 export type DuplicateScanWorkerResponse = z.infer<typeof DuplicateScanWorkerResponse>;
 
 /**
- * The daily quote expiry (`sales.quote.expire`, docs/design/phase1.md §7.3), called by the QStash
+ * The daily quote expiry (`sales.quote.expire`, docs/03-roadmap-appendix/phase1.md §7.3), called by the QStash
  * schedule `quote-expire-<environment>` with an empty body: every company in turn, each batch in
  * its own transaction as `system:workers`. A quote a run leaves for want of time is expired the
  * next day, and every read already shows it as expired.
@@ -111,3 +111,32 @@ export const QuoteExpireWorkerResponse = z
   .object({ batches: Count, expired: Count, done: z.boolean() })
   .strict();
 export type QuoteExpireWorkerResponse = z.infer<typeof QuoteExpireWorkerResponse>;
+
+/**
+ * The notification scan (`notifications.due.scan`, docs/03-roadmap-appendix/phase1.md §8.1), called by the QStash
+ * schedule `notification-scan-<environment>` every five minutes with an empty body: every company
+ * in turn, each batch in its own transaction as `system:workers`. A run out of time hands the rest
+ * to the next call with the company it reached, `afterId` `more` when that company still had
+ * work, and the run's minute (`runDate`), which names the run in the hand-over's deduplication id.
+ */
+export const NotificationScanWorkerBody = z
+  .object({
+    entityId: EntityIdSchema.optional(),
+    afterId: z.literal('more').optional(),
+    runDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+      .optional(),
+  })
+  .strict()
+  .refine((b) => b.afterId === undefined || b.entityId !== undefined, {
+    message: 'work left over belongs to a company',
+    path: ['afterId'],
+  });
+export type NotificationScanWorkerBody = z.infer<typeof NotificationScanWorkerBody>;
+
+/** What one scan run did: the batches it ran, the notices it wrote, and whether it is done. */
+export const NotificationScanWorkerResponse = z
+  .object({ batches: Count, created: Count, done: z.boolean() })
+  .strict();
+export type NotificationScanWorkerResponse = z.infer<typeof NotificationScanWorkerResponse>;

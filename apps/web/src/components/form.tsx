@@ -14,7 +14,7 @@ import {
 import type { ErrorKey } from '../i18n/types';
 
 /**
- * Form primitives on the DESIGN.md §6 rules for the public sign-in screens, the error screen and
+ * Form primitives on the docs/08-design-system.md §6 rules for the public sign-in screens, the error screen and
  * the set-password and two-factor flows, written before the component library `@shakti/ui`; the
  * signed-in screens use `@shakti/ui`.
  */
@@ -104,7 +104,7 @@ export function Button({
   onClick,
   ...props
 }: ComponentProps<'button'> & { variant?: 'primary' | 'secondary' | 'link'; pending?: boolean }) {
-  // Controls are 36 px on desktop and 44 px on phones (DESIGN.md §6); a text-style button keeps
+  // Controls are 36 px on desktop and 44 px on phones (docs/08-design-system.md §6); a text-style button keeps
   // the same touch target.
   const look = {
     primary: 'bg-accent text-accent-fg hover:bg-accent-hover h-9 px-4 max-md:h-11',
@@ -143,7 +143,7 @@ export function blockWhilePending(pending: boolean) {
 
 /**
  * A catalogue error under `errors.*`, or nothing. An unexpected failure also shows the reference
- * the person reads to support (DESIGN.md §11). `attempt` remounts the alert, so a screen reader
+ * the person reads to support (docs/08-design-system.md §11). `attempt` remounts the alert, so a screen reader
  * announces the same sentence again after another failed try (AUDIT M50).
  */
 export function FormError({

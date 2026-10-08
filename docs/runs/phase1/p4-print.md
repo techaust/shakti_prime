@@ -4,17 +4,17 @@
 |---|---|
 | Branch | `feat/p4-print-letterhead` on GitHub (6511293, from `main` at #88) |
 | PC worktree | `p4-print`, slot 9: Postgres 54339, app 3039 |
-| Runs on | PC for now ([DECISIONS](../../DECISIONS.md) 04-10-2026); the review becomes the first step of the cloud [trial](../../runbooks/hybrid.md#10-the-trial) once the environment exists |
+| Runs on | PC (built, reviewed, integrated and merged there) |
 | State | merged (#99, 05-10-2026) |
-| Next step | none; the proof's render is measured on dev once the AWS files stack exists |
+| Next step | none; the proof's render is measured on dev after the owner's logo upload check ([STATUS](../../10-status.md)) |
 
 ## Brief
 Read first:
-- Design: [`docs/design/phase1.md` §6.4](../../design/phase1.md#64-p4-print-and-letterhead)
+- Design: [`docs/03-roadmap-appendix/phase1.md` §6.4](../../03-roadmap-appendix/phase1.md#64-p4-print-and-letterhead)
 - ADR 0009 (PDFs render in a Vercel function in `bom1` with `playwright-core` and `@sparticuz/chromium`, both installed)
 - BLUEPRINT §11 (print always renders light) and §7 (bank details are sensitive)
-- DESIGN.md print tokens
-- the print module `apps/web/src/print` and `docs/spikes/print.md`
+- docs/08-design-system.md print tokens
+- the print module `apps/web/src/print` and `docs/04-architecture-appendix/print.md`
 - P2's files (`packages/domain/src/files`, `apps/web/src/files`, `apps/web/src/workers/files`)
 - `FieldCipher` (`packages/domain/src/privacy/field-cipher.ts`)
 - the event workers (`apps/web/src/workers/events`, `system:workers` with `files.process`)
@@ -75,4 +75,4 @@ The reviewer ran the slice's db and domain security files on its database (290 p
 2. **Take `main`** (done: 0090 and 0091; C2 is on it): the branch's 0075 and 0076 move after `main`'s last migration ([slice-integration §5](../../runbooks/slice-integration.md#5-take-main-into-the-slice)); fix the numbers its documents cite.
 3. **Integrate** on the PC, then the Linux baselines on a fresh database: `print-quote`, `print-proof`, `print-label-50x25`, `print-label-100x50`, `proof-dialog`, `companies`.
 4. CI has no `FIELD_ENCRYPTION_KEY`, so no journey enters bank details.
-5. **After the merge:** migrate dev and staging; measure the proof's render on dev and record it in `docs/spikes/print.md`.
+5. **After the merge:** migrate dev and staging; measure the proof's render on dev and record it in `docs/04-architecture-appendix/print.md`.

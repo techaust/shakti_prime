@@ -14,7 +14,7 @@ export const QUOTE_AUDIT_FIELDS = [
 ] as const;
 
 /**
- * Numbers and saves a quote `buildQuote()` worked out (docs/design/phase1.md §7.3): the number
+ * Numbers and saves a quote `buildQuote()` worked out (docs/03-roadmap-appendix/phase1.md §7.3): the number
  * from the company's gapless series for the financial year (SALE-1, ADR 0006), the quote with its
  * frozen tier, list, place of supply, validity and totals, its lines with their tax snapshot, and
  * its first version. The row takes its `created_at` from the transaction, which is what lets the

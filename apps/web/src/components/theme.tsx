@@ -86,7 +86,7 @@ export function useThemeChoice(
   return { chosen, choose, error, reference };
 }
 
-/** System, Light or Dark (DESIGN.md §7). The screen switches at once; the profile keeps it. */
+/** System, Light or Dark (docs/08-design-system.md §7). The screen switches at once; the profile keeps it. */
 export function ThemeSwitch({ saved }: { saved: Theme }) {
   const t = useTranslations('theme');
   const errors = useTranslations('errors');
@@ -167,7 +167,7 @@ export function ContrastSync({ saved }: { saved: boolean }) {
 }
 
 /**
- * Higher contrast (DESIGN.md §2.1): darker text and stronger outlines for phones used outdoors.
+ * Higher contrast (docs/08-design-system.md §2.1): darker text and stronger outlines for phones used outdoors.
  * It switches at once and is saved on the person's profile, so it follows them to every device;
  * a refused save puts the previous setting back and says why, with the reference when there is one.
  */

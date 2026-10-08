@@ -1,6 +1,6 @@
 import type { LeadChannel } from '@shakti/contracts';
 
-/** Lead sources from docs/BLUEPRINT.md §2, named the way callers describe them. */
+/** Lead sources from docs/01-blueprint.md §2, named the way callers describe them. */
 export const LEAD_SOURCE_SEED: readonly {
   id: string;
   code: string;

@@ -3,7 +3,7 @@ import { check, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { actorsRequired, timestamps } from './columns';
 
 /**
- * The PIN code master (PRD CRM-02, docs/design/phase1.md §6.3): one row per post office of the
+ * The PIN code master (PRD CRM-02, docs/03-roadmap-appendix/phase1.md §6.3): one row per post office of the
  * public India Post directory, shared by every company. Requests read it; only the `pin_codes`
  * import writes it, as an Executive in a request for every company. A site's PIN fills its tehsil,
  * district and state from here (`customer_sites_pin_fill`), and its offices are offered as the

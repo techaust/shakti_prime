@@ -26,7 +26,7 @@ const SCAN: CompanyBatchSpec = {
 };
 
 /**
- * The nightly search for duplicate customers and leads (CRM-03, docs/design/phase1.md §7.4):
+ * The nightly search for duplicate customers and leads (CRM-03, docs/03-roadmap-appendix/phase1.md §7.4):
  * every company in turn, each batch one `crm.duplicate.scan` as `system:workers` scoped to that
  * company, which catches what lead creation cannot: two customers an import and a form made at
  * the same moment, and the rows of an import (`runCompanyBatches`).

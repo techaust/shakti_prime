@@ -15,13 +15,16 @@ import {
   toast,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { getQuote, requoteQuote, sendQuote, withdrawQuote } from '../../actions/quotes';
 import { customerHref } from '../../screens/customers';
 import { formatDate, formatDateTime } from '../../screens/format';
+import { orderHref } from '../../screens/orders';
 import { QUOTE_STATE_TONE, quoteHref } from '../../screens/quotes';
+import type { UploadLimitView } from '../companies/branding-dialog';
 import { useOpenFile } from '../files/use-open-file';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
@@ -29,6 +32,9 @@ import { settle } from '../screens/settle';
 import { useCommand } from '../screens/use-command';
 import { Page } from '../shell/page';
 import { QuoteLinesTable, QuoteTotals } from './quote-tables';
+
+// The signed copy's uploader is loaded only when someone records an acceptance.
+const AcceptDialog = dynamic(() => import('./accept-dialog').then((m) => m.AcceptDialog));
 
 /** How often the page asks whether the document is ready, and how many times before it says so. */
 const PDF_POLL_MS = 3_000;
@@ -44,7 +50,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * The quote page (docs/design/phase1.md §7.3): the quote as it was made, its document once the
+ * The quote page (docs/03-roadmap-appendix/phase1.md §7.3): the quote as it was made, its document once the
  * render worker has printed it (the page asks again every few seconds until then), and the moves
  * the caller may make: mark it as sent, re-quote it at today's prices, or withdraw it.
  */
@@ -52,17 +58,23 @@ export function QuoteScreen({
   initial,
   company,
   placeOfSupply,
+  acceptLimit,
 }: {
   initial: QuoteDto;
   company: string;
   /** The state of supply in words, as the quotation prints it. */
   placeOfSupply: string;
+  /** The limits of a signed copy, for a caller who may record an acceptance. */
+  acceptLimit?: UploadLimitView;
 }) {
   const t = useTranslations('quotes');
   const router = useRouter();
   const [quote, setQuote] = useState(initial);
   const [tries, setTries] = useState(0);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const orders = useTranslations('orders');
+  const common = useTranslations('common');
   const send = useCommand(sendQuote);
   const requote = useCommand(requoteQuote);
   const pdf = useOpenFile();
@@ -134,6 +146,15 @@ export function QuoteScreen({
               {t('page.requote')}
             </Button>
           ) : null}
+          {quote.canAccept && acceptLimit !== undefined ? (
+            <Button
+              onClick={() => {
+                setAccepting(true);
+              }}
+            >
+              {orders('accept.open')}
+            </Button>
+          ) : null}
           {quote.canSend ? (
             <Button
               pending={send.pending}
@@ -191,7 +212,20 @@ export function QuoteScreen({
         {quote.withdrawnReason === null ? null : (
           <Detail label={t('page.withdrawnBecause')}>{quote.withdrawnReason}</Detail>
         )}
+        {quote.orderId === null ? null : (
+          <Detail label={orders('accept.order')}>
+            <Link
+              href={orderHref(quote.entityId, quote.orderId)}
+              className="text-accent-text tabular-nums hover:underline"
+            >
+              {quote.orderNo ?? ''}
+            </Link>
+          </Detail>
+        )}
       </dl>
+      {quote.canAccept && acceptLimit !== undefined ? (
+        <p className="text-text-muted text-sm">{orders('accept.pageIntro')}</p>
+      ) : null}
 
       <section aria-labelledby="quote-document" className="flex flex-col gap-2">
         <h2 id="quote-document" className="text-h3">
@@ -224,6 +258,21 @@ export function QuoteScreen({
       <QuoteLinesTable lines={quote.lines} caption={t('page.linesCaption')} />
       <QuoteTotals totals={quote.totals} supplyKind={quote.supplyKind} />
 
+      {accepting && acceptLimit !== undefined ? (
+        <AcceptDialog
+          quote={quote}
+          limit={acceptLimit}
+          closeLabel={common('close')}
+          onCancel={() => {
+            setAccepting(false);
+          }}
+          onDone={(accepted) => {
+            setAccepting(false);
+            setQuote(accepted);
+            toast.success(orders('accept.done', { number: accepted.orderNo ?? '' }));
+          }}
+        />
+      ) : null}
       {withdrawing ? (
         <WithdrawDialog
           quote={quote}

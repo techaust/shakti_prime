@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { EntityIdSchema, IdSchema } from '../ids';
 
 /**
- * Uploads (docs/API.md §3.2, docs/ARCHITECTURE.md §9). File bytes never pass through the API: the
+ * Uploads (docs/06-api.md §3.2, docs/04-architecture.md §9). File bytes never pass through the API: the
  * caller asks for a 15-minute pre-signed PUT, uploads to the file store, then marks the file
  * complete, which starts the checks (malware scan, re-encoding, PDF check and, for vault photos,
  * the OCR masking) that must pass before the file is `ready`.
@@ -16,7 +16,7 @@ export const FILE_PURPOSES = [
   'signature',
   'selfie',
   'customer_document',
-  // An import file (docs/design/backend-weeks-3-5.md §8); stored by the import screen's upload.
+  // An import file (docs/03-roadmap-appendix/backend-weeks-3-5.md §8); stored by the import screen's upload.
   'import',
   // A quote's rendered PDF, and the copy the customer signed (Phase 1 accepts a quote by it).
   'quote_pdf',

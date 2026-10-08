@@ -5,7 +5,7 @@ import { defineCommand } from '../../command/define-command';
 import { assertEntityInScope } from '../imports/shared';
 
 /**
- * `print.proof.request` (docs/design/phase1.md §6.4): an Executive asks for a one-page proof of
+ * `print.proof.request` (docs/03-roadmap-appendix/phase1.md §6.4): an Executive asks for a one-page proof of
  * a company's letterhead, logo, address, GSTIN and bank account. The command emits
  * `print.document.requested` for a `company_letterhead_proof`; the render worker prints it with the
  * same loader and Chromium as every document and records the PDF as a `print_proof` file whose id

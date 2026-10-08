@@ -281,7 +281,7 @@ export const commitImportBatch = defineCommand({
         rowByRow = { level: 'info', reason: TOO_LITTLE_TIME };
       } else {
         try {
-          // The whole batch in a few statements (docs/spikes/import-scale.md), none of them
+          // The whole batch in a few statements (docs/04-architecture-appendix/import-scale.md), none of them
           // allowed past the deadline; the savepoint's end puts the timeout back.
           await ctx.savepoint(async (sp) => {
             const [prior] = (await sp.execute(

@@ -46,7 +46,7 @@ interface Landed {
 }
 
 /**
- * Add a file to the Knowledge Vault (docs/design/phase1.md §8.4), loaded when it is opened: a
+ * Add a file to the Knowledge Vault (docs/03-roadmap-appendix/phase1.md §8.4), loaded when it is opened: a
  * title, who it is for and who may find it, then the upload, then Add to the vault, which records
  * it (`knowledge.file.add`). A file for every company is stored with the first company viewed and
  * offered only while All companies is chosen. Once the file is uploaded, who it is for stays as

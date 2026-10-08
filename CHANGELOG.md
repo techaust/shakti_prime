@@ -1,6 +1,6 @@
 # Changelog — Shakti Prime BOS
 
-One line per pull request merged into `main`, newest first, grouped by Phase 1 wave and Phase 0 week. At the end of a working session, add one line per pull request merged in it; the current state is in [docs/STATUS.md](docs/STATUS.md) and the owner's decisions in [docs/DECISIONS.md](docs/DECISIONS.md). Migration numbers are those on `main` after the merge.
+One entry per pull request merged into `main` (a line, or a line with a few bullets under it), newest first, grouped by Phase 1 wave and Phase 0 week. At the end of a working session, add one entry per pull request merged in it; the current state is in [docs/10-status.md](docs/10-status.md) and the owner's decisions in [docs/11-decisions.md](docs/11-decisions.md). Migration numbers are those on `main` after the merge.
 
 ## Contents
 
@@ -11,16 +11,28 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 ### Phase 1 status documents
 
+- **#131** (08-10-2026) Models and usage per task: the runbook `docs/runbooks/models-and-usage.md` with three slice tiers, each task's model and effort, and the budget gate on the weekly pace and the 5-hour window; the `slice-builder` tool list, Sonnet at medium by default and an early stop for Tier A slices; the `slice-reviewer` re-check mode for fix diffs, blocking only on critical and high findings; the Haiku agents `code-finder`, `test-runner` and `doc-clerk`; `start-session` applying the gate and `end-session` handing drafts to `doc-clerk`; and the DECISIONS row.
+- **#130** (07-10-2026) The Phase 1 status at 07-10-2026 (N1 and K1 built, S2 waiting for a builder), CHANGELOG lines for #126 to #129, and DECISIONS rows.
+- **#129** (07-10-2026) The last old document names in comments: `.env.example`, the stylesheets, the realtime spike SQL and plans, and the prototype; applied migrations keep theirs, since `db:verify` compares them as written.
+- **#126** (07-10-2026) The documentation audit's fixes from two passes against the code: `docs/00-start-here.md`, every file under `docs/` in lowercase with the generators and tests following, stale state, contradictions and superseded decisions corrected, a case-exact link check, and the builder's rule to start long heavy commands in the background.
+- **#125** (07-10-2026) The documents restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`) with appendix folders for the designs, the spikes, the client packs and the reviews, `docs/00-start-here.md` as the guide, and the documentation audit's defects fixed in all of them.
+- **#124** (07-10-2026) "Start the day" and "end the day" open and close a lead session: the `start-session` and `end-session` skills and `CLAUDE.md`.
+- **#123** (07-10-2026) Models and usage rules (builders on Sonnet, the reviewer on Opus at high effort, the lead on Opus at medium effort) and two builders at once on the PC with the heavy-command lock `tools/integration/heavy.sh`.
+- **#122** (06-10-2026) Phase 1 continues on the PC only, one slice at a time, with Docker Desktop; cloud sessions paused; DECISIONS, `CLAUDE.md`, STATUS and the runbooks.
+- **#121** (06-10-2026) `CLAUDE.md`, the runbooks, the `integrate-slice` skill and the run files after wave 3 and the cloud trial.
+- **#120** (06-10-2026) Phase 1 status at 06-10-2026, afternoon; CHANGELOG lines for #114 to #119; the cloud trial's result.
 - **#114** (06-10-2026) Phase 1 status at 06-10-2026, early morning, and CHANGELOG lines for #106 to #113.
 - **#110** (05-10-2026) No Docker on the PC: every database, suite, integration run and screenshot run in cloud sessions, a failed cloud step run again in a new cloud session; `CLAUDE.md`, hybrid, the start-session skill and DECISIONS.
 - **#106** (05-10-2026) Going hybrid recorded: the cloud environment's set-up in hybrid, P2b and AI0's progress, STATUS through 0106, CHANGELOG lines for #104 and #105.
 - **#104** (05-10-2026) Phase 1 status after P4, C4 and C3: the workers principal's platform-only rule in `CLAUDE.md`, the session's owner decisions, the integration lessons of the 8 GB PC, D1's run file.
+- **#98** (04-10-2026) Work on the PC for now, until the cloud environment exists.
+- **#97** (04-10-2026) STATUS after #96: the screen mock-up published privately.
 - **#96** (04-10-2026) The second, strict documentation audit fixed, and work split between Claude Code cloud sessions and the PC: `docs/runbooks/hybrid.md`, the cloud setup script and session hook, run notes in `docs/runs/phase1/`, the hosted password rotation through the migrate workflow, generators that take their facts from the code (state machines, ERD, events with meaning and emitters), PRD criteria for the non-functional requirements, the client packs with needed-by dates, a sign-off record and a progress page for the client.
-- **#95** (04-10-2026) The project's know-how in the repository: the integration scripts in `tools/integration/` (Git Bash and Linux), the slice-integration and accounts runbooks, the skills `start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command` and `add-table`, the agents `slice-builder` and `slice-reviewer`, the pull-request template; the audit kept as `docs/reviews/2026-09-audit.md`.
+- **#95** (04-10-2026) The project's know-how in the repository: the integration scripts in `tools/integration/` (Git Bash and Linux), the slice-integration and accounts runbooks, the skills `start-session`, `end-session`, `integrate-slice`, `migrate-hosted`, `add-command` and `add-table`, the agents `slice-builder` and `slice-reviewer`, the pull-request template; the audit kept as `docs/14-reviews/2026-09-audit.md`.
 - **#94** (04-10-2026) CHANGELOG lines for #91 to #93 and the status after them.
-- **#93** (04-10-2026) The technical reference with Mermaid diagrams and contents (ARCHITECTURE, DATABASE, API, SECURITY, DESIGN), one owner per rule, ADRs 0015 to 0021, the data dictionary naming `app_reader` on its read policies, `docs/data/EVENTS.md` generated by `pnpm db:docs`, and the state-machine index saying which machines the commands drive.
+- **#93** (04-10-2026) The technical reference with Mermaid diagrams and contents (ARCHITECTURE, DATABASE, API, SECURITY, DESIGN), one owner per rule, ADRs 0015 to 0021, the data dictionary naming `app_reader` on its read policies, `docs/data/events.md` generated by `pnpm db:docs`, and the state-machine index saying which machines the commands drive.
 - **#92** (04-10-2026) PRD acceptance criteria for every requirement with the Phase 1 parts and traceability to slices and tests, the client action list, the glossary, BLUEPRINT recording the Phase 0 close, AUDIT's resolution banner, ROADMAP milestones.
-- **#91** (04-10-2026) `CLAUDE.md` reduced to its rules; `docs/STATUS.md`, `CHANGELOG.md`, `docs/DECISIONS.md` and the incident and tooling runbooks; one recipe per task in AGENTS, TESTING and README.
+- **#91** (04-10-2026) `CLAUDE.md` reduced to its rules; `docs/10-status.md`, `CHANGELOG.md`, `docs/11-decisions.md` and the incident and tooling runbooks; one recipe per task in AGENTS, TESTING and README.
 - **#90** (04-10-2026) Phase 1 status at 04-10-2026: counts 1,605 and 2,452, C1, X1 and C2 merged, migrations 0000 to 0089, the merge-and-renumber rule for slice branches.
 - **#86** (03-10-2026) Phase 1 status at 03-10-2026.
 - **#83** (03-10-2026) Phase 1 progress recorded in `CLAUDE.md`.
@@ -52,6 +64,8 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
   - The permission `crm.config.write` and Settings › Pipelines: pipelines and stages with exit rules, call outcomes per group or company and business line, lead score rules.
   - The pure `scoreLead()`, the Score column, `crm.lead.rescore`, `crm.score_rule.set`, and the nightly rescore as `system:workers` through the platform-only `crm.score.refresh` and the definers `app.lead_score_facts()` and `app.write_lead_scores()`; score changes leave a lead's last change alone.
   - Referral partners and commission rules, referral codes on the lead and walk-in forms, the walk-in form `/leads/walk-in`; lead creation and imports apply attribution and scoring; `FOR SHARE` on first and target stages (`app.share_lock_stage()`).
+- **#128** (07-10-2026) Dependabot: `turbo` 2.11.6 to 2.11.7 in the development group.
+- **#127** (07-10-2026) Dependabot: the production dependency group, 7 updates.
 - **#102** (05-10-2026) Dependabot: the development dependency group, 7 updates.
 - **#101** (05-10-2026) Dependabot: the production dependency group, 13 updates.
 - **#100** (05-10-2026) C4 sizing. Migrations 0092 to 0095; dev and staging migrated through 0095.
@@ -85,12 +99,12 @@ One line per pull request merged into `main`, newest first, grouped by Phase 1 w
 
 Before wave 1 of the design's six waves.
 
-- **#80** (29-09-2026) The Phase 1 design, `docs/design/phase1.md`: 23 slices in six waves.
+- **#80** (29-09-2026) The Phase 1 design, `docs/03-roadmap-appendix/phase1.md`: 23 slices in six waves.
 - **#79** (29-09-2026) The Phase 1 packages.
 
 ## Phase 0
 
-Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the hosted pull requests: migrations 0000 to 0060, security suite 1,216 (766 database, 308 domain, 142 web), unit tests about 2,116. Of the six exit-gate items the security suite and the tooling were met; the rest were deferred ([STATUS](docs/STATUS.md#deferred-phase-0-gate-items)).
+Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the hosted pull requests: migrations 0000 to 0060, security suite 1,216 (766 database, 308 domain, 142 web), unit tests about 2,116. Of the six exit-gate items the security suite and the tooling were met; the rest were deferred ([STATUS](docs/10-status.md#deferred-phase-0-gate-items)).
 
 ### Phase 0 hosted environments and the close
 
@@ -98,7 +112,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#77** (29-09-2026) Phase 0 closed by the owner's decision; `currentPhase` 1.
 - **#76** (29-09-2026) Each hosted environment named by `BOS_ENVIRONMENT`.
 - **#75** (29-09-2026) The migrate workflow seeds after migrating; the Supabase advisor notices recorded.
-- **#74** (29-09-2026) Dev and staging migrated from suffixed repository secrets (GitHub's free plan has no environments). Supabase dev and staging in Mumbai, Vercel `shakti-prime-dev` and `shakti-prime-staging` in `bom1` on Hobby, Upstash Redis per environment in Mumbai, QStash in the EU region with the minute schedule on staging, Turnstile for both hostnames and the first Executive on staging followed with #74 to #76.
+- **#74** (29-09-2026) Dev and staging migrated from suffixed repository secrets (GitHub's free plan has no environments). Supabase dev and staging in Mumbai, Vercel `shakti-prime-dev` and `shakti-prime-staging` in `bom1` on Hobby, Upstash Redis per environment in Mumbai, QStash in the EU region with the minute schedule on staging, Turnstile for both hostnames; the first Executive was made on staging, and #75 and #76 followed.
 
 ### Phase 0 gap-closing waves
 
@@ -114,7 +128,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#68** (28-09-2026) Every document matched to the code after the gap-closing waves.
 - **#67** (28-09-2026) Outbox backoff and lease (`claimed_until`, `next_attempt_at`), publishing outside the transaction, readiness for a stalled publisher, a 30-day retention (`retention_runs`, pg_cron job `outbox-events-purge`). Migrations 0053 and 0054.
 - **#66** (28-09-2026) Focus back to the opener after a dialog (`returnFocusTo`, `useFocusTargets` in `packages/ui/src/return-focus.ts`); every query timing line named (`query-names.test.ts`).
-- **#65** (28-09-2026) Lead search through the trigram indexes under RLS (`app.lead_search_ids()`, 0052): within 300 ms at the 95th percentile at 50,000 leads for the texts the lists spike types, apart from short bursts on a busy machine, while three letters of a very common surname take about 0.6 seconds for an Executive (`docs/spikes/lists.md`).
+- **#65** (28-09-2026) Lead search through the trigram indexes under RLS (`app.lead_search_ids()`, 0052): within 300 ms at the 95th percentile at 50,000 leads for the texts the lists spike types, apart from short bursts on a busy machine, while three letters of a very common surname take about 0.6 seconds for an Executive (`docs/04-architecture-appendix/lists.md`).
 - **#64** (28-09-2026) Browser code without Zod (lint rule `shakti/browser-contract-types`, values in `apps/web/src/screens/contract-values.ts`); the grant checks `visibleNav`, `visibleActions` and `canSearch` on the server in `screens/menu-access.ts`; the ⌘K palette, phone menu, company edit dialog, board dialogs, Activity detail sheet and `/design` palette preview loaded on first use through `next/dynamic`; `packages/ui` marked `"sideEffects": ["*.css"]`; staff pages at 243 to 261 kB.
 - **#63** (28-09-2026) The JavaScript budget per page in CI (`pnpm --filter web js-budget` against `apps/web/js-budget.json`), the `command.completed` and `query.completed` timing lines, and the list and search latency spike (`pnpm spike:lists`).
 - **#62** (28-09-2026) `tax_rates` and `composite_supply_rules` written only by a request for every company (0048); `user_entity_roles` scoped by company in `ENTITY_TABLES` with the definers `app.user_roles_outside_request()` and `app.active_executive_count()` (0049); `app.account_in_scope()` and `app.contact_in_scope()` for `app_user` only (0050); `contact_phones.e164_reversed` with its index (0051).
@@ -127,7 +141,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 
 - **#57** (28-09-2026) Phase 0 state; Amazon SES named as the mail service throughout.
 - **#56** (28-09-2026) Every Phase 0 tool installed and passing a live call; the exit gate's tooling item met apart from `currentPhase`.
-- **#55** (28-09-2026) The documents brought in line with #48 to #54, every later item given its phase, each person's next step in `docs/phase0/exit-gate-actions.md`.
+- **#55** (28-09-2026) The documents brought in line with #48 to #54, every later item given its phase, each person's next step in `docs/13-client-packs/exit-gate-actions.md`.
 - **#54** (28-09-2026) The definer guards of 0047, the audited sign-in lock clear (`admin.user.lock.clear`), a label for every audited field, the company GSTIN and registered address in `org.entity.update`.
 - **#53** (28-09-2026) Search that finds spelling variants (pg_trgm in ⌘K and people search, `packages/domain/src/queries/name-match.ts`); the four list grids sorted on the server with keyset cursors (`keyset-sort.ts`); the owner `Avatar` on board cards.
 - **#52** (28-09-2026) ⌘K search and actions (`searchLeads`, `searchPeople`); the high-contrast variant (`theme-light-high`, `theme-dark-high`) saved per person (`users.contrast`, `app.set_own_contrast()`, `profile.contrast.set`); the `/design` board, print and toast previews; `BoardColumn` and `BoardCard` in `packages/ui`.
@@ -146,7 +160,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#42** (27-09-2026) Week 4: the app shell (`apps/web/src/nav.ts` filtered by grants, company switcher, ⌘K, profile menu, the proxy's session-cookie check) and the Team members, Activity log, Leads, Companies, Price lists, profile and `/design` screens under `apps/web/src/app/(bos)`, one idempotency key per form; checked in the browser.
 - **#41** (27-09-2026) Week 5: the import framework (`files`, `import_mapping_templates`, `import_jobs`, `import_rows`, the `imports.job.*` commands, batches of 500 with one audit row per batch, the QStash-signed `/api/v1/workers/imports/commit`, a local `FileStore` until S3).
 - **#40** (27-09-2026) Week 6: the Realtime ES256 token, key list and discovery routes (`apps/web/src/realtime`, `jose`); the Exotel, WhatsApp, voice and Tally harnesses (`apps/web/src/integrations`, pure rules in `packages/domain/src/telecom` and `src/tally`), ready to run once the vendor sandboxes exist; atomic lockout counts.
-- **#39** (27-09-2026) Weeks 7 and 8: the test strategy `docs/TESTING.md`, DATABASE §6 fixes, worker and admin contracts, ADR and path corrections.
+- **#39** (27-09-2026) Weeks 7 and 8: the test strategy `docs/09-testing.md`, DATABASE §6 fixes, worker and admin contracts, ADR and path corrections.
 - **#38** (27-09-2026) Week 4: the UI kit `packages/ui` (shadcn on Radix, tokens only), the read queries and the `ActionResult` envelope for every action (`apps/web/src/actions/result.ts`).
 - **#37** (27-09-2026) Week 6: the Chromium print and QR-label spike passed its rendering checks with numbers (`apps/web/src/print`, Inter under the SIL OFL); the OCR masking spike ran on generated photos (`apps/web/src/workers/ocr`, `packages/domain/src/privacy`).
 - **#36** (27-09-2026) Week 5: the tax engine (`packages/domain/src/tax`, bigint paise, `workshop-defaults.ts`; golden set awaiting the CA), the state-machine runtime and 13 machines with generated specifications (`docs/state-machines/`), the credit check.
@@ -166,7 +180,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 
 ### Phase 0 production-readiness audit
 
-`docs/reviews/2026-09-audit.md`, 108 findings, worked through in batches; §8 of it records where each landed.
+`docs/14-reviews/2026-09-audit.md`, 108 findings, worked through in batches; §8 of it records where each landed.
 
 - **#25** (27-09-2026) Batch 15: untested paths and the remaining integrity findings; `pnpm coverage`.
 - **#24** (27-09-2026) Batch 14: the documents aligned with the code.
@@ -174,7 +188,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#22** (27-09-2026) Dependabot: `pnpm/action-setup` from 4.3.0 to 6.1.0.
 - **#21** (27-09-2026) Dependabot: `actions/setup-node` from 5.0.0 to 7.0.0.
 - **#20** (27-09-2026) Batch 13: sign-in screen polish and the nonce CSP in `src/proxy.ts`.
-- **#19** (27-09-2026) Batch 12: pre-hosting DevOps: `pnpm db:verify`, the migrate and weekly audit workflows, the deployment runbook `docs/runbooks/DEPLOY.md`.
+- **#19** (27-09-2026) Batch 12: pre-hosting DevOps: `pnpm db:verify`, the migrate and weekly audit workflows, the deployment runbook `docs/runbooks/deploy.md`.
 - **#18** (27-09-2026) Batch 11: architecture guardrails.
 - **#17** (27-09-2026) Batch 10: customer and lead reads that scale.
 - **#16** (27-09-2026) Batch 9: onboarding and lead flows.
@@ -186,7 +200,7 @@ Phase 0 closed on 29-09-2026 by the owner's decision at main `f0543b1` plus the 
 - **#10** (27-09-2026) Security suite completeness, write policies of the access tables, the permission matrix checked against SECURITY §3.2.
 - **#8** (27-09-2026) A stale session cookie no longer blocks sign-in; admin and shared prices stay in scope.
 - **#7** (27-09-2026) The Upstash key-value store returns the stored strings; cache failures are misses.
-- **#6** (27-09-2026) The production-readiness audit `docs/reviews/2026-09-audit.md`, the English interface with Hinglish speech (ADR 0014), the Linear design profile.
+- **#6** (27-09-2026) The production-readiness audit `docs/14-reviews/2026-09-audit.md`, the English interface with Hinglish speech (ADR 0014), the Linear design profile.
 - **#5** (27-09-2026) Session rows aged on the suite clock; one CI run per push to `main`.
 
 Pull requests #1 to #4 and #9 have no merge on `main`.
@@ -205,4 +219,4 @@ Committed straight to `main` on 26-09 and 27-09-2026, before the merge-on-green 
   - principal resolution with narrowest-role-wins through `app.user_grants()`; the `KeyValue` and `Mailer` ports; the seven `admin.*` commands; `currentPrincipal()`; the Better Auth route;
   - the public landing, sign-in, forgotten-password, set-password, two-factor and home screens.
 - One customer record for the group with a relationship per company (ADR 0008): `account_entities`, `account_contacts`, `customer_sites`, `app.attach_account_entity()`, `app.account_in_scope()`, `app.contact_in_scope()`, the trigger `app.ensure_account_entity()`.
-- Three reviews (`docs/reviews/`) and their fixes: child write scope, exact keyset cursor, database error mapping, numbering privileges, the testing-import fence, entity-consistent child keys, foreign-key indexes, customer-link scope, session revocation, admin guards, the security headers, the auth instance made on first use so `next build` needs no environment.
+- Three reviews (`docs/14-reviews/`) and their fixes: child write scope, exact keyset cursor, database error mapping, numbering privileges, the testing-import fence, entity-consistent child keys, foreign-key indexes, customer-link scope, session revocation, admin guards, the security headers, the auth instance made on first use so `next build` needs no environment.

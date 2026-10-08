@@ -54,7 +54,7 @@ const savedViewStore: ViewStore = { list: listSavedViews, save: saveView, remove
 type Open = 'save' | 'update' | 'rename' | 'delete';
 
 /**
- * The Views menu beside a grid (DESIGN.md §6): apply one of the person's saved views, go back to
+ * The Views menu beside a grid (docs/08-design-system.md §6): apply one of the person's saved views, go back to
  * the standard view, save what the grid shows now as a new view, or update, rename or delete the
  * view in use. The views are read the first time the menu opens.
  */
@@ -80,7 +80,7 @@ export function ViewsMenu({
   const { load, pending, failure } = useQuery<SavedViewDto[]>();
   const active = views?.find((v) => v.id === activeId);
   // The dialogs open from menu items that have gone when they close: focus goes back to the
-  // Views button (DESIGN.md §6, Dialog).
+  // Views button (docs/08-design-system.md §6, Dialog).
   const trigger = useFocusTargets<'views'>();
   const returnFocusTo = () => [trigger.get('views')];
 

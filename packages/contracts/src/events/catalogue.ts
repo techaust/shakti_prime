@@ -10,7 +10,7 @@ import { ImportKindSchema } from '../imports/enums';
 import { KnowledgeSensitivitySchema } from '../knowledge';
 
 /**
- * The event catalogue (docs/design/backend-weeks-3-5.md §4.3). Names are
+ * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
  * `<aggregate>.<verb_past>`; every stored payload carries `v`, the version of its shape.
  *
  * Payloads leave the database for the queue, so they carry ids, codes, counts and times only:
@@ -25,7 +25,7 @@ export const EVENT_VERSION = 1;
 const Code = z.string().trim().min(1).max(40);
 
 /**
- * One type: what it means (one line, for `docs/data/EVENTS.md`), the commands that emit it
+ * One type: what it means (one line, for `docs/data/events.md`), the commands that emit it
  * (checked against the command sources by `event-emitters.test.ts` in `packages/domain`), whether
  * a worker listens, and its payload.
  */
@@ -91,7 +91,8 @@ const eventCatalogue = {
       'crm.duplicate.suggest',
       'imports.job.commit_batch',
     ],
-    subscribed: false,
+    // The notify worker tells the owners of the leads (docs/03-roadmap-appendix/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         kind: DuplicateKindSchema,
@@ -116,16 +117,26 @@ const eventCatalogue = {
       .strict(),
   },
   'crm.opportunity.assigned': {
-    meaning: 'A lead was given to an owner and team, locked to them for `lockHours`.',
+    meaning:
+      'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
     emittedBy: ['crm.opportunity.assign'],
-    subscribed: false,
+    // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
+    subscribed: true,
     payload: z
       .object({
         ownerId: IdSchema,
         teamId: IdSchema.nullable(),
         lockHours: z.number().int().min(1).max(720),
+        assignedById: IdSchema,
       })
       .strict(),
+  },
+  'crm.enquiry.routed': {
+    meaning:
+      'An enquiry for a customer a colleague looks after in the company was passed to that colleague as routed work in their Agent Inbox (PRD RPT-04); the notify worker tells them.',
+    emittedBy: ['crm.enquiry.route'],
+    subscribed: true,
+    payload: z.object({ assigneeId: IdSchema, accountId: IdSchema }).strict(),
   },
   'crm.opportunity.nurtured': {
     meaning: 'An open lead was parked in nurture with a reason code.',
@@ -381,7 +392,7 @@ const eventCatalogue = {
       .strict(),
   },
   /**
-   * A vault file to read and index (docs/design/phase1.md §8.4): delivered as an
+   * A vault file to read and index (docs/03-roadmap-appendix/phase1.md §8.4): delivered as an
    * `EmbeddingsIndexJob` to `/api/v1/workers/embeddings/index`. The event's company is the one the
    * uploaded file is stored in; `knowledgeEntityId` is the vault file's (null for the whole group).
    */
@@ -434,6 +445,87 @@ const eventCatalogue = {
     subscribed: false,
     payload: z.object({ opportunityId: IdSchema }).strict(),
   },
+  'sales.quote.accepted': {
+    meaning:
+      'A sent quote was accepted (by a signed copy staff uploaded, in Phase 1) and became the order `orderId`.',
+    emittedBy: ['sales.quote.accept'],
+    subscribed: false,
+    payload: z
+      .object({
+        opportunityId: IdSchema,
+        orderId: IdSchema,
+        acceptedVia: z.enum(['whatsapp_reply', 'whatsapp_otp', 'signed_upload']),
+      })
+      .strict(),
+  },
+  'sales.order.created': {
+    meaning:
+      'A sales order was made as a draft: from an accepted quote (`quoteId`), or a dealer order without one.',
+    emittedBy: ['sales.quote.accept', 'sales.order.create'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        quoteId: IdSchema.nullable(),
+        opportunityId: IdSchema.nullable(),
+        lineCount: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  'sales.order.confirmed': {
+    meaning:
+      'A sales order was confirmed after the dealer credit check; `released` says an Executive released a hold on it.',
+    emittedBy: ['sales.order.confirm'],
+    subscribed: false,
+    payload: z
+      .object({ accountId: IdSchema, opportunityId: IdSchema.nullable(), released: z.boolean() })
+      .strict(),
+  },
+  /**
+   * The dealer credit check held a confirmation (SAL-07): the order stays a draft until the
+   * Executive releases it. The notify worker tells the Executives who may release it and the
+   * order's maker.
+   */
+  'sales.order.credit_held': {
+    meaning:
+      'Confirming a dealer order was held by the credit check (over the limit, an invoice overdue, or no limit set); the Executive may release it. The notify worker tells the Executives who may release it and the person who made the order.',
+    emittedBy: ['sales.order.confirm'],
+    subscribed: true,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        createdBy: IdSchema,
+        reason: z.enum(['credit_limit_exceeded', 'credit_overdue', 'credit_limit_missing']),
+      })
+      .strict(),
+  },
+  'sales.order.credit_released': {
+    meaning:
+      'The Executive released the credit hold of a draft order, with a reason, so its next confirmation passes the check once.',
+    emittedBy: ['sales.credit.release'],
+    subscribed: false,
+    payload: z.object({ accountId: IdSchema }).strict(),
+  },
+  'sales.order.cancelled': {
+    meaning:
+      "A draft or confirmed sales order was cancelled with a reason; a confirmed order's commission is cancelled with it.",
+    emittedBy: ['sales.order.cancel'],
+    subscribed: false,
+    payload: z
+      .object({
+        accountId: IdSchema,
+        opportunityId: IdSchema.nullable(),
+        fromState: z.enum(['draft', 'confirmed']),
+      })
+      .strict(),
+  },
+  'sales.commission.accrued': {
+    meaning:
+      "A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day.",
+    emittedBy: ['sales.order.confirm'],
+    subscribed: false,
+    payload: z.object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema }).strict(),
+  },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 
 export type EventType = keyof typeof eventCatalogue;
@@ -471,7 +563,7 @@ export function parseEventPayload(type: string, payload: unknown): ParsedEvent {
   return { ok: true, payload: { ...(parsed.data as Record<string, unknown>), v: EVENT_VERSION } };
 }
 
-/** What the publisher sends for one event (docs/design/backend-weeks-3-5.md §4.2). */
+/** What the publisher sends for one event (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.2). */
 export const DeliveredEvent = z
   .object({
     id: IdSchema,
@@ -485,7 +577,7 @@ export const DeliveredEvent = z
   .strict();
 export type DeliveredEvent = z.infer<typeof DeliveredEvent>;
 
-/** One catalogue entry with its payload as JSON Schema, for `docs/data/EVENTS.md` (`pnpm db:docs`). */
+/** One catalogue entry with its payload as JSON Schema, for `docs/data/events.md` (`pnpm db:docs`). */
 export interface EventCatalogueEntry {
   type: EventType;
   meaning: string;

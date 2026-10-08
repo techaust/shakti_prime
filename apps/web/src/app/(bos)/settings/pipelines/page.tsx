@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Settings › Pipelines (docs/design/phase1.md §6.6): an Executive shapes each pipeline and its
+ * Settings › Pipelines (docs/03-roadmap-appendix/phase1.md §6.6): an Executive shapes each pipeline and its
  * stages, the call outcomes, the lead score rules, the referral partners' codes and the
  * commission rules. A change to anything shared by all companies is made while viewing All
  * companies; the commands refuse it otherwise.

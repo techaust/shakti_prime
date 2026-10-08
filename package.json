@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . --max-warnings 0",
+    "lint": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js . --max-warnings 0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:security": "turbo run test:security --concurrency=1",
@@ -41,7 +41,7 @@
     "globals": "^17.13.0",
     "prettier": "^3.9.9",
     "tsx": "^4.23.15",
-    "turbo": "^2.11.6",
+    "turbo": "^2.11.7",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"

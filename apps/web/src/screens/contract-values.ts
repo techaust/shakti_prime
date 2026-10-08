@@ -1,30 +1,24 @@
 import type {
+  AccountType,
+  ActivityType,
   AgentActionState,
   AgentAutonomy,
   AgentRoleKey,
   AgentRunOutcome,
   AgentSettingSource,
+  CommissionAccrualState,
   CommissionBasis,
-  ContrastPreference,
-  DispositionNextAction,
-  AccountType,
-  ActivityType,
   ConsentChannel,
   ConsentPurpose,
   ConsentSource,
+  ContrastPreference,
   CustomerLanguage,
   CustomerSort,
+  DispositionNextAction,
   DuplicateKind,
   DuplicateReason,
   DuplicateSignal,
   DuplicateState,
-  ItemCategory,
-  ItemSort,
-  ItemUnit,
-  KitPriceSort,
-  KitSort,
-  PriceListState,
-  SpecField,
   FilePurpose,
   FileRejectReason,
   FileSanitising,
@@ -33,36 +27,45 @@ import type {
   KnowledgeSourceType,
   FileScanVerdictInput,
   FileStatus,
-  PdfDocumentType,
-  UploadContentType,
   ImportJobSort,
   ImportJobState,
   ImportKind,
+  ItemCategory,
+  ItemSort,
+  ItemUnit,
+  KitPriceSort,
+  KitSort,
   LeadSort,
   OpportunityLostReason,
   OpportunityNurtureReason,
   OpportunityState,
+  PdfDocumentType,
   PermissionKey,
-  PriceSort,
-  SavedViewScreen,
-  ScoreFactor,
-  Segment,
   PipeMaterial,
+  PriceListState,
+  PriceSort,
   PumpDrive,
   PumpType,
-  SessionRevokeReason,
-  StageExitField,
-  SystemSizeUnit,
+  QuoteAcceptedVia,
+  QuoteState,
+  SalesOrderState,
+  SavedViewScreen,
   Scope,
+  ScoreFactor,
+  Segment,
+  SessionRevokeReason,
+  SiteType,
   SizingAdvisory,
   SizingKind,
-  QuoteState,
-  SubsidyScheme,
   SizingReason,
-  SiteType,
+  SpecField,
+  StageExitField,
+  SubsidyScheme,
+  SystemSizeUnit,
   TaskKind,
   TaskState,
   Theme,
+  UploadContentType,
   UserSort,
   UserStatus,
 } from '@shakti/contracts';
@@ -72,14 +75,14 @@ import type {
 // (BLUEPRINT §11.4). Only types come from the contracts; `contract-values.test.ts` keeps each
 // value equal to the contract's own, in the same order. The server keeps using the contracts.
 
-/** Theme preference (DESIGN.md §7), in the order the profile menu offers it. */
+/** Theme preference (docs/08-design-system.md §7), in the order the profile menu offers it. */
 export const THEMES = ['system', 'light', 'dark'] as const satisfies readonly Theme[];
 
 export function isTheme(value: string): value is Theme {
   return (THEMES as readonly string[]).includes(value);
 }
 
-/** Contrast preference (DESIGN.md §2.1). */
+/** Contrast preference (docs/08-design-system.md §2.1). */
 export const CONTRASTS = ['standard', 'high'] as const satisfies readonly ContrastPreference[];
 
 /** Lifecycle of a staff user. */
@@ -101,7 +104,7 @@ export const SESSION_REVOKE_REASONS = [
   'absolute_expiry',
 ] as const satisfies readonly SessionRevokeReason[];
 
-/** The shortest password the policy accepts (docs/SECURITY.md §2). */
+/** The shortest password the policy accepts (docs/07-security.md §2). */
 export const PASSWORD_MIN_LENGTH = 12;
 
 export const OPPORTUNITY_STATES = [
@@ -175,7 +178,7 @@ export const TASK_KINDS = [
 
 export const TASK_STATES = ['open', 'done', 'cancelled'] as const satisfies readonly TaskState[];
 
-/** The agents (docs/SECURITY.md §3.3), in the order the agents screen lists them. */
+/** The agents (docs/07-security.md §3.3), in the order the agents screen lists them. */
 export const AGENT_ROLES = [
   'agent:triage',
   'agent:concierge',
@@ -305,10 +308,10 @@ export const SEGMENTS = [
   'dealer_wholesale',
 ] as const satisfies readonly Segment[];
 
-/** What a sizing is for (docs/design/phase1.md §6.7), in the order the sizing panel's tabs show. */
+/** What a sizing is for (docs/03-roadmap-appendix/phase1.md §6.7), in the order the sizing panel's tabs show. */
 export const SIZING_KINDS = ['pump', 'rooftop'] as const satisfies readonly SizingKind[];
 
-/** Where a quote stands, as the quote screens show it (docs/design/phase1.md §7.3). */
+/** Where a quote stands, as the quote screens show it (docs/03-roadmap-appendix/phase1.md §7.3). */
 export const QUOTE_STATES = [
   'draft',
   'sent',
@@ -317,6 +320,30 @@ export const QUOTE_STATES = [
   'superseded',
   'withdrawn',
 ] as const satisfies readonly QuoteState[];
+
+/** Where a sales order stands (docs/03-roadmap-appendix/phase1.md §8.3). */
+export const SALES_ORDER_STATES = [
+  'draft',
+  'confirmed',
+  'partially_dispatched',
+  'dispatched',
+  'invoiced',
+  'closed',
+  'cancelled',
+] as const satisfies readonly SalesOrderState[];
+
+/** How a customer accepted a quote (SAL-05). */
+export const QUOTE_ACCEPTED_VIA = [
+  'whatsapp_reply',
+  'whatsapp_otp',
+  'signed_upload',
+] as const satisfies readonly QuoteAcceptedVia[];
+
+/** Where a referral partner's commission on an order stands (CRM-09). */
+export const COMMISSION_ACCRUAL_STATES = [
+  'accrued',
+  'cancelled',
+] as const satisfies readonly CommissionAccrualState[];
 
 /** The subsidy schemes a quote may be sold under, as the builder offers them. */
 export const SUBSIDY_SCHEMES = [
@@ -481,7 +508,7 @@ export const PRICE_LIST_STATES = [
   'ended',
 ] as const satisfies readonly PriceListState[];
 
-/** The price tiers the group sells at (docs/BLUEPRINT.md §8.3), in the order lists are offered. */
+/** The price tiers the group sells at (docs/01-blueprint.md §8.3), in the order lists are offered. */
 export const PRICE_TIER_CODES = ['retail', 'dealer', 'commercial'] as const;
 
 const HP: SpecField = { key: 'hp', kind: 'number', min: 0.1, max: 1000, decimals: 2 };

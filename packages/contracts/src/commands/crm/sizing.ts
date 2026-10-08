@@ -4,7 +4,7 @@ import { PipeMaterialSchema, PumpDriveSchema, SizingKindSchema } from '../../crm
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * `crm.sizing.record` (docs/design/phase1.md §6.7): the measurements field staff take, in the
+ * `crm.sizing.record` (docs/03-roadmap-appendix/phase1.md §6.7): the measurements field staff take, in the
  * units they use. The server runs the calculators on them and never takes a result from the
  * caller; the engineering constants come from the workshop defaults. The limits here only catch
  * typing slips (a depth of 3,000 m); the calculators judge the engineering.

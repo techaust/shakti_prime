@@ -71,7 +71,7 @@ import {
   OutboxPublishResponse,
 } from './workers';
 
-/** How a caller proves who it is (docs/API.md §2). */
+/** How a caller proves who it is (docs/06-api.md §2). */
 export type ApiAuth =
   | 'none'
   | 'credentials'
@@ -113,7 +113,7 @@ const WORKER_ERRORS: readonly ErrorCode[] = [
 ];
 
 /**
- * Every `/api/v1` route with its contract (docs/API.md §3). A route handler parses with these
+ * Every `/api/v1` route with its contract (docs/06-api.md §3). A route handler parses with these
  * schemas and nothing else; the contract tests hold a recorded example for each entry.
  */
 export const API_ENDPOINTS = {

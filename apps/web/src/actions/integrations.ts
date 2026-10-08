@@ -1,6 +1,6 @@
 'use server';
 
-// Admin › Integration Health (docs/design/phase1.md §5.2, docs/API.md §3.7). The dead-letter
+// Admin › Integration Health (docs/03-roadmap-appendix/phase1.md §5.2, docs/06-api.md §3.7). The dead-letter
 // replay is `replayDeadLetter` in ./admin.
 
 import {

@@ -7,7 +7,7 @@ import {
 } from '@shakti/contracts';
 
 /**
- * The bodies the Tally connector pushes (docs/API.md §3.5), read as untrusted input through the
+ * The bodies the Tally connector pushes (docs/06-api.md §3.5), read as untrusted input through the
  * published connector contracts (`packages/contracts/src/api/connector.ts`). The routes and the
  * Phase 5 tables (`tally_vouchers`, `tally_purchase_vouchers`, tombstones, heartbeats) do not exist
  * yet, so nothing here is stored.

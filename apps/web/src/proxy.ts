@@ -32,8 +32,9 @@ export function proxy(request: NextRequest): NextResponse {
 export const config = {
   matcher: [
     {
-      // Pages only: JSON routes, static files and prefetches take the fixed headers.
-      source: '/((?!api|_next/static|_next/image|icon.svg).*)',
+      // Pages only: JSON routes, static files (the push service worker among them) and
+      // prefetches take the fixed headers.
+      source: '/((?!api|_next/static|_next/image|icon.svg|push-sw.js).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

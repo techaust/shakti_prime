@@ -51,7 +51,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn, type Schema } from './support';
 
 /**
- * The pipelines settings page (docs/design/phase1.md §6.6). Thin wrappers (docs/API.md §4):
+ * The pipelines settings page (docs/03-roadmap-appendix/phase1.md §6.6). Thin wrappers (docs/06-api.md §4):
  * parse → request context → command or query → DTO. A group-wide change is made in the request
  * the person is viewing; the command refuses it unless that request acts for every company.
  */

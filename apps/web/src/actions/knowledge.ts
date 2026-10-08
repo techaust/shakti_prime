@@ -28,7 +28,7 @@ import { toResult, type ActionResult } from './result';
 import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 
 /*
- * The Knowledge Vault (docs/design/phase1.md §8.4): thin wrappers (docs/API.md §4). Each runs with
+ * The Knowledge Vault (docs/03-roadmap-appendix/phase1.md §8.4): thin wrappers (docs/06-api.md §4). Each runs with
  * the companies the caller is viewing; a vault file of the whole group is added, indexed again or
  * archived only while they view All companies.
  */

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ErrorCodeSchema } from '../errors';
 
-/** The one error envelope for `/api/v1` (docs/API.md §1). `message` is plain language from the catalogue. */
+/** The one error envelope for `/api/v1` (docs/06-api.md §1). `message` is plain language from the catalogue. */
 export const ErrorEnvelope = z.object({
   error: z.object({
     code: ErrorCodeSchema,

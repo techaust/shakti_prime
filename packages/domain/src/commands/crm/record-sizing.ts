@@ -87,7 +87,7 @@ async function chosenPump(
 }
 
 /**
- * `crm.sizing.record` (docs/design/phase1.md §6.7, PRD SAL-04): runs the sizing calculators on
+ * `crm.sizing.record` (docs/03-roadmap-appendix/phase1.md §6.7, PRD SAL-04): runs the sizing calculators on
  * the field measurements and stores the inputs, the result, its bounds and the engine version as
  * a new row of the lead's history (the newest is the one a quote uses). The result is always
  * computed here from the inputs and the workshop defaults; a caller never supplies it. Any person
@@ -230,7 +230,7 @@ interface ReviewRow {
 }
 
 /**
- * An out-of-bounds sizing asks the lead's team lead to review it (docs/design/phase1.md §6.7): a
+ * An out-of-bounds sizing asks the lead's team lead to review it (docs/03-roadmap-appendix/phase1.md §6.7): a
  * `review` task on the lead, due now, for the active person with the Sales Team Lead role on the
  * lead's team, never the recorder. The recorder may not write a task for someone else, so the
  * definer `app.open_sizing_review()` writes this one task after checking the sizing is the

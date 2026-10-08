@@ -12,7 +12,7 @@ import {
 } from './common';
 
 /**
- * Field app sign-in (docs/API.md §2, §3.1; docs/design/backend-weeks-3-5.md §2.4). The access
+ * Field app sign-in (docs/06-api.md §2, §3.1; docs/03-roadmap-appendix/backend-weeks-3-5.md §2.4). The access
  * token is a 15-minute ES256 JWT; the refresh token is an opaque 256-bit value stored hashed,
  * bound to one device and rotated on every refresh.
  */

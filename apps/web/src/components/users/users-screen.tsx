@@ -116,7 +116,7 @@ export function UsersScreen({
   };
   // A row's dialogs and sheet open from its menu, whose item has gone when they close: focus
   // goes back to the row's Actions button, and for the invite dialog (or a row that has gone) to
-  // the Invite button (DESIGN.md §6, Dialog).
+  // the Invite button (docs/08-design-system.md §6, Dialog).
   const places = useFocusTargets<string>();
   const returnFocusTo = () => [
     open === undefined || open.kind === 'invite' ? [] : places.get(open.user.id),

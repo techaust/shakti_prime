@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { StaffRoleKey } from './roles';
 
-/** Permission catalogue (docs/SECURITY.md §3.2). `module.resource.action`, granted with a scope. */
+/** Permission catalogue (docs/07-security.md §3.2). `module.resource.action`, granted with a scope. */
 export const PERMISSION_KEYS = [
   'crm.lead.read',
   'crm.lead.write',
@@ -19,6 +19,7 @@ export const PERMISSION_KEYS = [
   'sales.order.confirm',
   'sales.order.cancel',
   'sales.credit.release',
+  'sales.credit.write',
   'pricing.read',
   'pricing.write',
   'catalogue.write',
@@ -83,13 +84,17 @@ export const PERMISSION_KEYS = [
   // The nightly search for duplicate customers and leads (CRM-03): held only by the platform's
   // worker principal, which reads matching facts and records candidates through two definers.
   'crm.duplicates.scan',
-  // The daily expiry of quotes past their validity (docs/design/phase1.md §7.3): held only by the
+  // The daily expiry of quotes past their validity (docs/03-roadmap-appendix/phase1.md §7.3): held only by the
   // platform's worker principal, which reads the lapsed quotes and marks them expired through two
   // definers, nothing more.
   'sales.quote.expire',
-  // Reading, chunking and embedding Knowledge Vault files (docs/design/phase1.md §8.4): held only
+  // Reading, chunking and embedding Knowledge Vault files (docs/03-roadmap-appendix/phase1.md §8.4): held only
   // by the platform's worker principal, which reaches the vault tables through definers only.
   'knowledge.index',
+  // The notices of the notify worker and its five-minute scan (docs/03-roadmap-appendix/phase1.md §8.1): held
+  // only by the platform's worker principal, which finds who a notice is for and writes it through
+  // narrow definers, nothing more.
+  'notifications.send',
 ] as const;
 
 export const PermissionKeySchema = z.enum(PERMISSION_KEYS);
@@ -129,6 +134,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'agents.killswitch',
   'knowledge.playbook.approve',
   'sales.credit.release',
+  // Dealer credit limits, credit days and outstanding decide which orders are held (SAL-07).
+  'sales.credit.write',
   // The second approval of an expense claim is a person's check (FIN-07), and replaying a dead
   // letter re-sends a message outside the agent's own work.
   'finance.expense.verify',
@@ -150,6 +157,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.duplicates.scan',
   'sales.quote.expire',
   'knowledge.index',
+  'notifications.send',
 ];
 
 export function isPlatformOnlyPermission(key: string): boolean {
@@ -226,6 +234,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'sales.order.confirm': ['own', 'team', 'entity', 'all'],
   'sales.order.cancel': ['entity', 'all'],
   'sales.credit.release': ['all'],
+  'sales.credit.write': ['entity', 'all'],
   'pricing.read': ['entity', 'all'],
   'pricing.write': ['all'],
   'catalogue.write': ['entity', 'all'],
@@ -285,6 +294,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.duplicates.scan': ['all'],
   'sales.quote.expire': ['all'],
   'knowledge.index': ['all'],
+  'notifications.send': ['all'],
 };
 
 export function permissionModule(key: PermissionKey): string {

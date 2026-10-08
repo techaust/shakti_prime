@@ -31,7 +31,7 @@ import { commandOptions, parseInput, requestMeta, signedIn } from './support';
 const SEARCH_HITS = 8;
 
 /**
- * The Cold Caller workspace (`/calling`, docs/design/phase1.md §7.2): thin wrappers (docs/API.md
+ * The Cold Caller workspace (`/calling`, docs/03-roadmap-appendix/phase1.md §7.2): thin wrappers (docs/06-api.md
  * §4) over the calling queries and `calls.log`. A read or a call of one lead is narrowed to the
  * lead's company, so the caller acts with their team there (AUDIT M24).
  */

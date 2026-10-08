@@ -25,7 +25,7 @@ export interface AuthDeps {
   turnstileHostname?: string | undefined;
 }
 
-/** Variables a hosted deployment cannot run without (docs/SECURITY.md §2). */
+/** Variables a hosted deployment cannot run without (docs/07-security.md §2). */
 const PRODUCTION_ENV = [
   'BOS_ENVIRONMENT',
   'BETTER_AUTH_SECRET',

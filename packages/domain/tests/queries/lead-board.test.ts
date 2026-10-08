@@ -81,7 +81,7 @@ beforeAll(async () => {
   });
 });
 
-describe('listBoardLeads (DESIGN.md §6, Kanban board)', () => {
+describe('listBoardLeads (docs/08-design-system.md §6, Kanban board)', () => {
   it('is refused without crm.lead.read', async () => {
     const hr = await createTestPrincipal('hr_admin', [ENTITY]);
     await expect(board(hr)).rejects.toMatchObject({ code: 'forbidden' });

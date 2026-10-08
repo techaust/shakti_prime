@@ -18,7 +18,7 @@ export function sentryIngestOrigin(dsn: string | undefined): string | undefined 
 }
 
 /**
- * The Content-Security-Policy of a page (docs/SECURITY.md §2, AUDIT L43). Scripts run only with
+ * The Content-Security-Policy of a page (docs/07-security.md §2, AUDIT L43). Scripts run only with
  * this request's nonce (`'strict-dynamic'` lets those scripts load what they need, which is how
  * the Turnstile widget brings its own); no inline script without the nonce runs. Development
  * adds `'unsafe-eval'`, which React needs there to rebuild server error stacks. Inline styles stay
@@ -43,6 +43,8 @@ export function contentSecurityPolicy(
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
+    // The push service worker (`/push-sw.js`), registered from this site only.
+    "worker-src 'self'",
     `connect-src 'self' ${connect}`,
     `frame-src ${TURNSTILE}`,
     "frame-ancestors 'none'",
@@ -57,7 +59,7 @@ export function contentSecurityPolicy(
 export const API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'";
 
 /**
- * The origin a browser uploads files to when the S3 store is configured (docs/ARCHITECTURE.md
+ * The origin a browser uploads files to when the S3 store is configured (docs/04-architecture.md
  * §9): the bucket's own address in its region, which signed addresses name. None locally, where
  * uploads go to the app itself.
  */

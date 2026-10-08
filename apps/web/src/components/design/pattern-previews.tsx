@@ -23,7 +23,7 @@ function weekday(iso: string): string {
 }
 
 /**
- * The date field's whole behaviour (DESIGN.md §6, §9): the dashes go in while typing, a real
+ * The date field's whole behaviour (docs/08-design-system.md §6, §9): the dashes go in while typing, a real
  * date is read back with its weekday, and a complete date that does not exist is marked wrong
  * with a sentence, not only a red outline.
  */
@@ -53,7 +53,7 @@ export function DateInputPreview({ id, copy }: { id: string; copy: DesignCopy })
 }
 
 /**
- * A toast with an action (DESIGN.md §6): four seconds, "Undo" puts the change back and says so.
+ * A toast with an action (docs/08-design-system.md §6): four seconds, "Undo" puts the change back and says so.
  * On a screen the action runs the command that reverses the change.
  */
 export function UndoToastButton({ copy }: { copy: DesignCopy }) {
@@ -84,7 +84,7 @@ export interface BoardPreviewCard {
 }
 
 /**
- * The kanban column and card of the leads board (DESIGN.md §6), as the board draws them: a stage
+ * The kanban column and card of the leads board (docs/08-design-system.md §6), as the board draws them: a stage
  * with a card, with its colour bar, count, age, owner and SLA dot, and an empty stage.
  */
 export function BoardPreview({ copy, card }: { copy: DesignCopy; card: BoardPreviewCard }) {

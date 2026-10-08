@@ -13,7 +13,7 @@ import {
 
 afterAll(closeDb);
 
-describe('app_user role (docs/DATABASE.md §3)', () => {
+describe('app_user role (docs/05-database.md §3)', () => {
   it('is not a superuser and cannot bypass RLS', async () => {
     const [row] = await withoutContext<{ rolsuper: boolean; rolbypassrls: boolean }>(
       sql`select rolsuper, rolbypassrls from pg_roles where rolname = current_user`,
@@ -66,7 +66,7 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
    * audit_logs is append-only and written by the runner (insert, never update);
    * consents take a withdrawal only (column grant); series counters are written only by app.next_document_no();
    * user_entity_roles, a kit's components and a pump's curve are replaced as a set
-   * (docs/DATABASE.md §6.1, §6.3).
+   * (docs/05-database.md §6.1, §6.3).
    */
   const NARROWER: Partial<
     Record<(typeof RLS_TABLES)[number], { i: boolean; u: boolean; d?: boolean }>
@@ -116,16 +116,27 @@ describe('app_user role (docs/DATABASE.md §3)', () => {
     quotes: { i: true, u: false },
     quote_lines: { i: true, u: false },
     quote_versions: { i: true, u: false },
+    // An order changes only its state, credit hold, release and cancel reason (column grants,
+    // 0117); its lines and the dealer credit entries are append-only; a commission is written
+    // only by its definers (DATABASE §4.1).
+    sales_orders: { i: true, u: false },
+    sales_order_lines: { i: true, u: false },
+    dealer_terms: { i: true, u: false },
+    dealer_outstanding: { i: true, u: false },
+    commission_accruals: { i: false, u: false },
     // An agent setting changes its autonomy, cap and switch only; a run is written once; an
     // action changes only its decision, an inbox item only its state (agents.test.ts).
     agent_configs: { i: true, u: false },
     agent_runs: { i: true, u: false },
     agent_actions: { i: true, u: false },
     inbox_items: { i: true, u: false },
-    // A vault file changes only its state (indexed again or archived, a column grant, 0118); its
+    // A vault file changes only its state (indexed again or archived, a column grant, 0123); its
     // chunks are written only by the index job's definer (knowledge.test.ts).
     knowledge_files: { i: true, u: false },
     knowledge_chunks: { i: false, u: false },
+    // A notice is written only by the notify worker's definer; a person changes its read time
+    // alone (notifications.test.ts).
+    notifications: { i: false, u: false },
   };
 
   /**
@@ -301,7 +312,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
       `);
       expect(row, fn).toEqual({ app: true, reporter: false, pub: false });
     }
-    // no read policy calls them: reads use a plain exists (docs/DATABASE.md §4.2)
+    // no read policy calls them: reads use a plain exists (docs/05-database.md §4.2)
     const readers = await withoutContext<{ policy: string }>(sql`
       select tablename || '.' || policyname as policy from pg_policies
        where cmd in ('SELECT', 'ALL')
@@ -338,7 +349,7 @@ describe('database functions and hosted API roles (AUDIT H3, M1, M2)', () => {
   });
 });
 
-describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', () => {
+describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('logs in, cannot bypass RLS, is no superuser and reads only, as its own setting', async () => {
     const [row] = await withoutContext(sql`
       select r.rolcanlogin as login, r.rolsuper as super, r.rolbypassrls as bypass,
@@ -421,6 +432,8 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
     `);
     expect(rows.map((r) => r.fn)).toEqual([
       'app.customer_search_ids(text,text,integer)',
+      // The dealer credit screen's figures, the one place the exposure is worked out (0117).
+      'app.dealer_credit_position(smallint,uuid,uuid)',
       // An Executive's bank account form and the print loader.
       'app.entity_bank_envelope(smallint)',
       'app.lead_search_ids(text,boolean,text,integer)',
@@ -435,7 +448,7 @@ describe('app_reader role (docs/DATABASE.md §3, docs/design/phase1.md §5.2)', 
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
       'app.user_is_active(uuid)',
-      // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0118).
+      // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
       'app.vault_upload_readable(uuid)',
     ]);
   });

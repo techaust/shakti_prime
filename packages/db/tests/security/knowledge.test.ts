@@ -18,7 +18,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The Knowledge Vault under row-level security (docs/design/phase1.md §8.4, SECURITY §3.2, §3.3
+// The Knowledge Vault under row-level security (docs/03-roadmap-appendix/phase1.md §8.4, SECURITY §3.2, §3.3
 // and §11 item 6): retrieval respects sensitivity per role. A vault file and its passages are read
 // in the companies of the request (or for the whole group), only with the read permission of
 // their sensitivity; passages are written only by the index job's definer; a file is added,

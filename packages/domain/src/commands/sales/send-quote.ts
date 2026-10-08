@@ -9,7 +9,7 @@ import { QUOTE_AUDIT_FIELDS } from '../../sales/save-quote';
 import { lockQuote, quoteRecordOf } from './quote-shared';
 
 /**
- * `sales.quote.send` (docs/design/phase1.md §7.3, PRD SAL-05): marks a draft quote as sent to the
+ * `sales.quote.send` (docs/03-roadmap-appendix/phase1.md §7.3, PRD SAL-05): marks a draft quote as sent to the
  * customer. It needs its PDF, which the render worker attaches after the quote is made, and a
  * validity that has not passed (the quote machine's `send` guards). Phase 1 hands the PDF over by
  * hand; `sales.quote.sent` is the event the WhatsApp dispatch of Phase 2 will listen to.

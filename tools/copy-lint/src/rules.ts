@@ -1,6 +1,6 @@
-// Copy rules from DESIGN.md §11. Pure functions; the CLI in index.ts applies them to files.
+// Copy rules from docs/08-design-system.md §11. Pure functions; the CLI in index.ts applies them to files.
 
-/** Words that never appear on screen (DESIGN.md §11.2). Matched whole-word, case-insensitive. */
+/** Words that never appear on screen (docs/08-design-system.md §11.2). Matched whole-word, case-insensitive. */
 export const BANNED_PHRASES = [
   'error code',
   'exception',
@@ -63,7 +63,7 @@ const DEVANAGARI = /\p{Script=Devanagari}/u;
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 
-/** Visible characters, so a letter with combining marks counts once (DESIGN.md §11.4). */
+/** Visible characters, so a letter with combining marks counts once (docs/08-design-system.md §11.4). */
 export function graphemeCount(value: string): number {
   return Array.from(segmenter.segment(value)).length;
 }

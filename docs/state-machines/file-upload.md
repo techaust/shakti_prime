@@ -31,7 +31,7 @@ Every state and transition comes from the governing documents.
 | `reject` | `scanning`, `scanned`, `not_scanned` → `rejected` | `files.process` at entity scope or wider or the platform | a reason is given (a threat, an unreadable file, active content) | – | – |
 | `abandon` | `pending` → `rejected` | `files.process` at entity scope or wider or the platform | – | `delete`: delete whatever bytes landed under the key | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `file_upload_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `files.status` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `file_upload_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `files.status` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 

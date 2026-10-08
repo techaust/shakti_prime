@@ -13,7 +13,7 @@ export interface CommandFailure {
   attempt: number;
 }
 
-/** The idempotency key a form sends (docs/API.md §1), and the form it was made for. */
+/** The idempotency key a form sends (docs/06-api.md §1), and the form it was made for. */
 export interface FormKey {
   form: string | undefined;
   key: string;
@@ -33,7 +33,7 @@ export function formKeyFor(
 }
 
 /**
- * Runs a command action from a form or a confirmation (docs/API.md §1): one idempotency key per
+ * Runs a command action from a form or a confirmation (docs/06-api.md §1): one idempotency key per
  * rendered form, sent as the action's second argument, so a double press or a retry after a lost
  * answer acts once. A form is rendered afresh (a dialog opens again, a page loads) for the next
  * change, which gives it a new key; after a failure the key stays, because nothing was stored. A

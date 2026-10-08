@@ -6,7 +6,7 @@ import { API_CONTENT_SECURITY_POLICY } from './src/csp';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /**
- * Response headers for every route (docs/SECURITY.md §2). A page's Content-Security-Policy carries
+ * Response headers for every route (docs/07-security.md §2). A page's Content-Security-Policy carries
  * a per-request nonce and is set by `src/proxy.ts`; the JSON routes, which load nothing, get a
  * fixed one here.
  */
@@ -38,7 +38,7 @@ const config: NextConfig = {
     '@hyzyla/pdfium',
   ],
   // The serverless Chromium (`bin/*.br`, unpacked on a cold start) and the print fonts go only with
-  // the render route, the one function that prints on a hosted runtime (docs/runbooks/DEPLOY.md).
+  // the render route, the one function that prints on a hosted runtime (docs/runbooks/deploy.md).
   // The package finds `bin` beside its own real path in pnpm's store, so that path is the one
   // traced: the link under the app's node_modules would not be followed if the function's files
   // were copied as plain files.
@@ -49,7 +49,7 @@ const config: NextConfig = {
     ],
   },
   // No body limit is raised: every file, an import file included, goes straight to the file store
-  // on a pre-signed address (docs/API.md §3.2), so server actions keep Next.js's default.
+  // on a pre-signed address (docs/06-api.md §3.2), so server actions keep Next.js's default.
   poweredByHeader: false,
   headers() {
     return Promise.resolve([
@@ -57,6 +57,15 @@ const config: NextConfig = {
       {
         source: '/api/(.*)',
         headers: [{ key: 'Content-Security-Policy', value: API_CONTENT_SECURITY_POLICY }],
+      },
+      // The push service worker: always checked for a newer copy, and allowed to load only from
+      // this site (it shows alerts and opens this site's screens).
+      {
+        source: '/push-sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache' },
+          { key: 'Content-Security-Policy', value: "default-src 'self'; frame-ancestors 'none'" },
+        ],
       },
       // The reset token travels in the query string: never leak it through a referrer.
       { source: '/set-password', headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }] },

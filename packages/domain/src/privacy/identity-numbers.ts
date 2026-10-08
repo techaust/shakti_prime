@@ -1,4 +1,4 @@
-// Finds and masks Aadhaar and bank account numbers in text (BLUEPRINT §7.5, SECURITY.md §5).
+// Finds and masks Aadhaar and bank account numbers in text (BLUEPRINT §7.5, 07-security.md §5).
 // The OCR masking worker runs this over the text it reads from a document photo and uses the
 // spans to decide which parts of the image to cover. Only the last four digits survive.
 import { verhoeffValid } from './verhoeff';

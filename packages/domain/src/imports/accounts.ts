@@ -62,7 +62,7 @@ function valueAt(candidate: Record<string, unknown>, path: readonly PropertyKey[
 }
 
 /**
- * Checks one row of a customers file (docs/design/phase1.md §6.3) and answers the customer it
+ * Checks one row of a customers file (docs/03-roadmap-appendix/phase1.md §6.3) and answers the customer it
  * becomes, or its findings, one per field. A blank company cell means the job's own company; a
  * company the request does not act for is refused. A site is added when the row gives a village.
  */

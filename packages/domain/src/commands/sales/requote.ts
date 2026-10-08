@@ -13,7 +13,7 @@ import { lockQuote, quoteRecordOf } from './quote-shared';
 const plainQty = (qty: string) => (qty.includes('.') ? qty.replace(/\.?0+$/, '') : qty);
 
 /**
- * `sales.quote.requote` (docs/design/phase1.md §7.3, BLUEPRINT §8.3): one click makes a new quote
+ * `sales.quote.requote` (docs/03-roadmap-appendix/phase1.md §7.3, BLUEPRINT §8.3): one click makes a new quote
  * of the same items and quantities at today's prices and tax rates, checked against the lead's
  * sizing again, with a new number and a fresh validity; the old quote is kept as superseded, with
  * a version of it as it stood. Allowed on a draft, a sent or an expired quote (the quote machine);

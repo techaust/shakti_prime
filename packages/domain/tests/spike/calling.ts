@@ -1,4 +1,4 @@
-// Cold Caller queue latency spike (docs/design/phase1.md §7.2, PRD TEL-01; under 300 ms p95):
+// Cold Caller queue latency spike (docs/03-roadmap-appendix/phase1.md §7.2, PRD TEL-01; under 300 ms p95):
 // `pnpm spike:calling`, options `-- --callers 10 --leads 2000 --runs 100 --warmup 10`.
 // Seeds, as app_user under RLS through the set-based lead path the import commit uses
 // (`commitLeadBatch`), `--leads` made-up leads of company 1 for each of `--callers` made-up
@@ -11,7 +11,7 @@
 // caller's queue through `callerId`). The time is the `durationMs` of executeQuery's
 // `query.completed` line. Prints the plan of the queue's own statement (`callQueuePageSql`) under
 // RLS for the tele-caller and the team lead, and of the team view's counts (`teamQueueCountsSql`)
-// for the team lead, and writes docs/spikes/results/calling.json. The
+// for the team lead, and writes docs/04-architecture-appendix/results/calling.json. The
 // seeded rows are removed at the end unless `--keep` is given; their timeline rows stay, since the
 // timeline is append-only. Local database only (prepareDatabase refuses any other host). Not CI.
 import { newId, type Principal } from '@shakti/contracts';
@@ -48,7 +48,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
-const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'calling.json');
+const resultFile = join(repoRoot, 'docs', '04-architecture-appendix', 'results', 'calling.json');
 
 function numberArg(name: string, fallback: number): number {
   const index = process.argv.indexOf(`--${name}`);

@@ -12,7 +12,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// The agent runtime's tables under RLS (docs/DATABASE.md §4.4 and §6.9): an agent writes its own runs,
+// The agent runtime's tables under RLS (docs/05-database.md §4.4 and §6.9): an agent writes its own runs,
 // actions and inbox items and reads none of them back; people read the inbox at their
 // agents.inbox.act scope and decide once; the agent controls read the runs and change the settings,
 // autonomy and caps with agents.autonomy.write and switches with agents.killswitch.

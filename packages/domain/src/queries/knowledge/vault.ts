@@ -45,7 +45,7 @@ export function knowledgeListQuery(ctx: Ctx, after: { t: string; id: string } | 
 }
 
 /**
- * The vault files the caller may read (docs/design/phase1.md §8.4): of the request's companies and
+ * The vault files the caller may read (docs/03-roadmap-appendix/phase1.md §8.4): of the request's companies and
  * the whole group's, of a sensitivity the caller holds (`knowledge_files_read`), archived ones left
  * out, newest first, keyset on `(created_at, id)`. Every staff role holds
  * `knowledge.vault.read.staff`, the screen's own permission.
@@ -102,7 +102,7 @@ export function knowledgeSearchSql(query: string, most: number): SQL {
 }
 
 /**
- * The staff search (docs/design/phase1.md §8.4, ADR 0011): the passages nearest the question's
+ * The staff search (docs/03-roadmap-appendix/phase1.md §8.4, ADR 0011): the passages nearest the question's
  * embedding by cosine distance, run as the caller, so row security keeps to the companies of the
  * request and the group's and to the sensitivities the caller holds before anything is ranked.
  * The HNSW index is read with iterative scan (`relaxed_order`), so passages the policies filter

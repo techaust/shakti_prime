@@ -18,7 +18,7 @@ export interface PaletteItem {
 }
 
 export interface PaletteGroup {
-  /** `goto`, `search` or `actions` (DESIGN.md §6), or any other stable id. */
+  /** `goto`, `search` or `actions` (docs/08-design-system.md §6), or any other stable id. */
   id: string;
   heading: string;
   items: readonly PaletteItem[];
@@ -30,7 +30,7 @@ export interface PaletteGroup {
 }
 
 /**
- * The ⌘K command palette (DESIGN.md §6): groups Go to, Search and Actions, keyboard first. Every
+ * The ⌘K command palette (docs/08-design-system.md §6): groups Go to, Search and Actions, keyboard first. Every
  * word comes from the caller's catalogue.
  */
 export function CommandPalette({

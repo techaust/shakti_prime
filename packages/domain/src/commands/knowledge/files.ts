@@ -23,7 +23,7 @@ import {
 } from './shared';
 
 /*
- * The Knowledge Vault's commands for people (docs/design/phase1.md §8.4, PRD AI-01): an Executive
+ * The Knowledge Vault's commands for people (docs/03-roadmap-appendix/phase1.md §8.4, PRD AI-01): an Executive
  * or GM (`knowledge.vault.write`, every company) adds a vault upload with its title and who may
  * retrieve it, indexes a file again and archives one. No agent runs them.
  */

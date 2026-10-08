@@ -17,7 +17,7 @@ const EVENT_OF: Readonly<Record<'indexed' | 'failed' | 'unavailable', KnowledgeF
 };
 
 /**
- * `knowledge.file.record_index` (docs/design/phase1.md §8.4): what reading a waiting vault file
+ * `knowledge.file.record_index` (docs/03-roadmap-appendix/phase1.md §8.4): what reading a waiting vault file
  * came to, recorded by the index job as `system:workers`, which holds the platform-only
  * `knowledge.index` and no vault read permission: it reaches the vault only through
  * `app.knowledge_file_for_index()` and `app.record_knowledge_index()`, which keep to uploads stored

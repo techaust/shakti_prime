@@ -17,7 +17,7 @@ import { teams } from './teams';
 
 /**
  * A callback, follow-up, nurture or review on a lead, due at a time, for one person
- * (docs/DATABASE.md §6.2). A scope root on `crm.lead.*` with the assignee as its owner; the lead
+ * (docs/05-database.md §6.2). A scope root on `crm.lead.*` with the assignee as its owner; the lead
  * must be readable too. `state` and `done_at` are written only by the task commands through the
  * task machine. `account_id` is the lead's own customer (the composite key), so Account 360 reads
  * a customer's tasks without a join.
@@ -58,5 +58,9 @@ export const tasks = pgTable(
     index('tasks_opportunity_idx').on(t.opportunityId, t.entityId, t.accountId),
     index('tasks_account_state_due_idx').on(t.accountId, t.state, t.dueAt),
     index('tasks_team_idx').on(t.teamId),
+    // The notification scan: a company's open calls by the time they fall due.
+    index('tasks_open_calls_due_idx')
+      .on(t.entityId, t.dueAt)
+      .where(sql`${t.state} = 'open' and ${t.kind} in ('callback', 'nurture')`),
   ],
 );

@@ -88,6 +88,7 @@ const INPUTS: Record<string, unknown> = {
   'agents.inbox.edit': { entityId: 1, itemId: newId(), changes: { title: 'Refused edit' } },
   'agents.inbox.reject': { entityId: 1, itemId: newId() },
   'agents.inbox.dismiss': { entityId: 1, itemId: newId() },
+  'agents.inbox.complete': { entityId: 1, itemId: newId() },
   'agents.killswitch.set': { agent: null, entityId: 1, enabled: true },
   'admin.role.permissions.set': {
     roleKey: 'tele_caller_cc',
@@ -202,6 +203,23 @@ const INPUTS: Record<string, unknown> = {
     effectiveFrom: '2031-04-01',
   },
   'tax.rate.set': { hsn: '8413', ratePct: '18.00', effectiveFrom: '2031-04-01' },
+  // Dealer credit decides which orders are held (SAL-07): Accounts enter it, the Executive
+  // releases a hold; no agent does either.
+  'sales.credit.release': { entityId: 1, orderId: newId(), reason: 'Refused release' },
+  'sales.dealer_terms.set': {
+    entityId: 1,
+    accountId: newId(),
+    creditLimit: '100000.00',
+    creditDays: 30,
+  },
+  'sales.dealer_outstanding.record': {
+    entityId: 1,
+    accountId: newId(),
+    outstanding: '1000.00',
+    oldestUnpaidInvoiceDate: null,
+    oldestUnpaidInvoiceNo: null,
+    asOf: '2026-04-01',
+  },
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -216,6 +234,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     [
       'agents.config.set',
       'agents.inbox.approve',
+      'agents.inbox.complete',
       'agents.inbox.dismiss',
       'agents.inbox.edit',
       'agents.inbox.reject',
@@ -223,6 +242,16 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     ].map((name) => [name, INPUTS[name]]),
   ),
   'crm.note.add': { entityId: 1, accountId: newId(), body: 'Refused note' },
+  // Routed work and a person's own notices, settings and browsers (docs/03-roadmap-appendix/phase1.md §8.1).
+  'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', phone: '9800000000' },
+  'notifications.notice.read': { ids: [newId()] },
+  'notifications.notice.read_all': {},
+  'notifications.preferences.set': { types: [], quietFrom: null, quietTo: null },
+  'notifications.push.subscribe': {
+    endpoint: 'https://fcm.googleapis.com/fcm/send/refused',
+    keys: { p256dh: 'B'.repeat(87), auth: 'A'.repeat(22) },
+  },
+  'notifications.push.unsubscribe': { endpoint: 'https://fcm.googleapis.com/fcm/send/refused' },
   // Merges and decisions on duplicates (SECURITY §3.3: an agent only suggests a candidate).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -240,7 +269,7 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
-  // The Knowledge Vault's files are added, read again and archived by people (docs/design/phase1.md §8.4).
+  // The Knowledge Vault's files are added, read again and archived by people (docs/03-roadmap-appendix/phase1.md §8.4).
   'knowledge.file.add': {
     entityId: 1,
     fileId: newId(),
@@ -249,6 +278,20 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   },
   'knowledge.file.reindex': { entityId: 1, knowledgeFileId: newId() },
   'knowledge.file.archive': { entityId: 1, knowledgeFileId: newId() },
+  // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
+  'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
+  'sales.order.create': {
+    entityId: 1,
+    accountId: newId(),
+    lines: [{ itemId: newId(), qty: '1' }],
+  },
+  'sales.order.confirm': { entityId: 1, orderId: newId() },
+  'sales.order.cancel': { entityId: 1, orderId: newId(), reason: 'Refused cancel' },
+  ...Object.fromEntries(
+    ['sales.credit.release', 'sales.dealer_terms.set', 'sales.dealer_outstanding.record'].map(
+      (name) => [name, INPUTS[name]],
+    ),
+  ),
 };
 
 describe('commands for people only', () => {
@@ -374,7 +417,7 @@ describe('agent and system principals cannot call admin, cost, audit, integratio
 /**
  * SECURITY §3.3: agents never write the customer master; no agent holds `crm.account.write`.
  * Every command that needs it, read from the registry, refuses every agent at the guard: the
- * lead form, imports, the customer edits and the consents of Account 360 (docs/design/phase1.md
+ * lead form, imports, the customer edits and the consents of Account 360 (docs/03-roadmap-appendix/phase1.md
  * §6.5), and the upload of a consent's proof (the `consent_evidence` purpose names it).
  */
 const CUSTOMER_WRITES: AnyCommand[] = Object.values(commands as Record<string, AnyCommand>)
@@ -403,6 +446,8 @@ const CUSTOMER_INPUTS: Record<string, unknown> = {
     account: { type: 'farm' },
   },
   'crm.site.upsert': { ...CUSTOMER, type: 'borewell', village: 'Refused village' },
+  // Routed work for a colleague's customer (docs/03-roadmap-appendix/phase1.md §8.1).
+  'crm.enquiry.route': { entityId: 1, pipelineKey: 'farmer_pumps', existingAccountId: newId() },
   // A merge moves one customer's records to another (D1).
   'crm.customer.merge': { entityId: 1, keptAccountId: newId(), mergedAccountId: newId() },
   'crm.customer.unmerge': { entityId: 1, mergeId: newId() },
@@ -464,7 +509,7 @@ describe('agent principals never write the customer master (SECURITY §3.3)', ()
 });
 
 /**
- * Every command of the customer timeline slice (docs/design/phase1.md §6.5), for every agent: a
+ * Every command of the customer timeline slice (docs/03-roadmap-appendix/phase1.md §6.5), for every agent: a
  * command the agent lacks a permission for, or one for people only (`peopleOnly`: notes and making
  * or archiving tags, SECURITY §3.3), is refused at the guard; any other passes the guard and then
  * finds nothing to change (the inputs name no real row). The Co-pilot's follow-up tasks and the
@@ -615,6 +660,14 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     'crm.lead.score_refresh': { entityId: 1, afterId: null },
     'crm.duplicate.scan': { entityId: 1, afterId: null },
     'sales.quote.expire': { entityId: 1, afterId: null },
+    'notifications.event.notify': {
+      event: 'crm.duplicate.found',
+      entityId: 1,
+      eventId: newId(),
+      candidateId: newId(),
+    },
+    'notifications.due.scan': { entityId: 1 },
+    'notifications.push.record': { entityId: 1, outcomes: [], gone: [], delivered: [] },
     'sales.quote.pdf.attach': { entityId: 1, quoteId: newId(), fileId: newId() },
     'files.file.mark_scanned': { entityId: 1, fileId: newId(), verdict: 'no_threats_found' },
     'files.file.mark_ready': {

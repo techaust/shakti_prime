@@ -56,6 +56,7 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'file_upload',
   'duplicate_candidate',
   'quote',
+  'sales_order',
   'agent_action',
   'inbox_item',
   'knowledge_file',

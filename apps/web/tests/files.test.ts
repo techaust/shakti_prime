@@ -66,7 +66,7 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'shakti-upload-'));
   executive = await createTestPrincipal('executive', [1, 2]);
   // The worker principal's grants for the file checks: a vault upload's checks also look for the
-  // vault files waiting on it (knowledge.index, docs/design/phase1.md §8.4).
+  // vault files waiting on it (knowledge.index, docs/03-roadmap-appendix/phase1.md §8.4).
   worker = await createTestPrincipal('executive', ALL_ENTITY_IDS, {
     permissions: [
       { key: 'files.process', scope: 'all' },

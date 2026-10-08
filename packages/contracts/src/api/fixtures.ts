@@ -1,7 +1,7 @@
 import type { ApiEndpointId } from './endpoints';
 
 /**
- * Recorded examples for every `/api/v1` route (docs/API.md §7, AGENTS.md §7), read by the contract
+ * Recorded examples for every `/api/v1` route (docs/06-api.md §7, AGENTS.md §7), read by the contract
  * tests only. People, numbers and ids are made up; tokens and signatures are built from repeated
  * bytes at load time, so no key-like literal sits in the source (the secret scan reads history).
  */
@@ -744,11 +744,19 @@ export const API_FIXTURES: Record<
   },
   'workers.notify': {
     request: {
-      eventId: IDS.eventB,
+      id: IDS.eventB,
+      sequence: '42',
+      type: 'crm.opportunity.assigned',
       entityId: 1,
-      type: 'lead.assigned',
-      recipientIds: [IDS.user],
-      subject: { type: 'opportunity', id: IDS.lead },
+      aggregateType: 'opportunity',
+      aggregateId: IDS.lead,
+      payload: {
+        ownerId: IDS.user,
+        teamId: null,
+        lockHours: 48,
+        assignedById: IDS.event,
+        v: 1,
+      },
     },
     response: { eventId: IDS.eventB, outcome: 'done', created: 1, pushed: 1, heldForQuietHours: 0 },
   },

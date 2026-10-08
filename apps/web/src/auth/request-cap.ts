@@ -8,7 +8,7 @@ export interface CapRule {
 
 /**
  * The key a request is counted under when no address can be read for it. Those requests share
- * one count per path, so a missing or unreadable address never lifts a cap (docs/SECURITY.md §2).
+ * one count per path, so a missing or unreadable address never lifts a cap (docs/07-security.md §2).
  */
 export const NO_ADDRESS = 'no-address';
 

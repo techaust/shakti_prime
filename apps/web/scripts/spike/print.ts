@@ -2,7 +2,7 @@
 // Renders a 1-page and a 5-page A4 quotation and 100 QR labels in two sizes with headless
 // Chromium, checks the output (page counts, Inter embedded, rupee sign drawn in Inter, text
 // present, the QR code's printed modules match its payload) and measures cold start and
-// per-page and per-label times. Writes docs/spikes/results/print.json and the PDFs and PNGs
+// per-page and per-label times. Writes docs/04-architecture-appendix/results/print.json and the PDFs and PNGs
 // to apps/web/.spike-output/print/. Needs `pnpm --filter web exec playwright-core install
 // chromium-headless-shell` once.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(here, '..', '..');
 const repoRoot = resolve(webRoot, '..', '..');
 const outDir = join(webRoot, '.spike-output', 'print');
-const resultFile = join(repoRoot, 'docs', 'spikes', 'results', 'print.json');
+const resultFile = join(repoRoot, 'docs', '04-architecture-appendix', 'results', 'print.json');
 
 const WARM_RUNS = 5;
 const LABELS = 100;

@@ -16,7 +16,7 @@ import { entities } from './entities';
 import { files } from './files';
 
 /**
- * A Knowledge Vault file (docs/DATABASE.md §6.9, docs/design/phase1.md §8.4): an upload of the
+ * A Knowledge Vault file (docs/05-database.md §6.9, docs/03-roadmap-appendix/phase1.md §8.4): an upload of the
  * `knowledge` purpose with its title and who may retrieve it (`sensitivity`), for its company or,
  * with `entity_id` null, for the whole group. `state` is the `knowledge_file` machine; the index
  * job records `chunks`, `indexed_at` and `error_reason` through a definer, never a request.

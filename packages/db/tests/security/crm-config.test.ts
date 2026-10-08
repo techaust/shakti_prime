@@ -12,7 +12,7 @@ import {
   withoutContext,
 } from '../../src/testing/index';
 
-// CRM set-up (docs/design/phase1.md §6.6): the tables that start empty until the workshop
+// CRM set-up (docs/03-roadmap-appendix/phase1.md §6.6): the tables that start empty until the workshop
 // answers (CONFIG_TABLES), and the write rules of pipelines, stages, call outcomes, score rules
 // and referral partners, checked under RLS without the commands.
 

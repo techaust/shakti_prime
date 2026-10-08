@@ -29,7 +29,7 @@ const ACTION_ICONS: Record<PaletteAction['id'], typeof UserPlus> = {
 type Answer = { q: string; found: PaletteSearchDto } | { q: string; failed: true };
 
 /**
- * The shell's ⌘K palette (DESIGN.md §6): Go to the screens the caller may open, Search their
+ * The shell's ⌘K palette (docs/08-design-system.md §6): Go to the screens the caller may open, Search their
  * leads and quotes by number (and team members, for a user administrator) once two characters are typed and typing
  * pauses, and the Actions their grants allow. How many matches were found is read out in words.
  */

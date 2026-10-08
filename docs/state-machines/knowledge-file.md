@@ -4,7 +4,7 @@
 
 `knowledge_files.state`. A vault upload with its title and sensitivity, for one company or the whole group. Added and archived by a person holding `knowledge.vault.write`; read and indexed by the index job (`system:workers`, `knowledge.index`) through `/api/v1/workers/embeddings/index`.
 
-Sources: docs/design/phase1.md §8.4; PRD AI-01; BLUEPRINT §9.1; DATABASE §6.9 `knowledge_files`.
+Sources: docs/03-roadmap-appendix/phase1.md §8.4; PRD AI-01; BLUEPRINT §9.1; DATABASE §6.9 `knowledge_files`.
 
 Every state and transition comes from the governing documents.
 
@@ -29,7 +29,7 @@ Every state and transition comes from the governing documents.
 | `reindex` | `waiting`, `indexed`, `failed`, `unavailable` → `waiting` | `knowledge.vault.write` at all scope or wider | – | – | `knowledge.file.index_requested` |
 | `archive` | `waiting`, `indexed`, `failed`, `unavailable` → `archived` | `knowledge.vault.write` at all scope or wider | – | `unsearchable`: remove the file’s passages from search | – |
 
-Any other event, or an event from a state not listed for it, answers `conflict` with reason `knowledge_file_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `knowledge_files.state` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/EVENTS.md)).
+Any other event, or an event from a state not listed for it, answers `conflict` with reason `knowledge_file_transition_not_allowed`. A guard that refuses answers its own reason; the permission check answers `forbidden`. The command writes the new state to `knowledge_files.state` when the state changes, applies the effects and calls `ctx.audit()`, and emits the event in the *Emits* column ([event catalogue](../data/events.md)).
 
 ## Notes
 

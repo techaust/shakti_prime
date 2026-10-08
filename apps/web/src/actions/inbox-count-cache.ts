@@ -1,4 +1,4 @@
-// The Agent Inbox's count in the top bar, kept briefly per person and company scope (docs/design/
+// The Agent Inbox's count in the top bar, kept briefly per person and company scope (docs/03-roadmap-appendix/
 // phase1.md §7.1): every staff page's layout reads it, and one read is a transaction of its own of
 // about 7 ms (the AI0 review's measure), so a page opened within a few seconds of the last reuses
 // it. A decision clears the person's own counts at once; a suggestion filed or decided by someone

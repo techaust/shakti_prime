@@ -60,7 +60,7 @@ function companies(ctx: QuoteListContext, entityId: number | undefined): number[
 }
 
 /**
- * `/quotes` (docs/design/phase1.md §7.3): the quotes the caller can read, newest first, of one
+ * `/quotes` (docs/03-roadmap-appendix/phase1.md §7.3): the quotes the caller can read, newest first, of one
  * company or every company of the request, optionally of one state as a person sees it. A quote
  * is read with its lead (RLS), so the list takes `crm.lead.read`; the customer's name comes from
  * the customer row, readable through the lead (0057). Keyset paging on

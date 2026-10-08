@@ -29,7 +29,7 @@ function vaultLimit() {
 }
 
 /**
- * Knowledge (docs/design/phase1.md §8.4, PRD AI-01): the staff search and the vault files the
+ * Knowledge (docs/03-roadmap-appendix/phase1.md §8.4, PRD AI-01): the staff search and the vault files the
  * caller may read; an Executive or GM adds, reads again and archives files.
  */
 export default async function KnowledgePage() {

@@ -22,7 +22,7 @@ import { principals } from './principals';
 import { teams } from './teams';
 
 /**
- * A household, farm, business, dealer or referral partner (docs/BLUEPRINT.md §6.2). One record
+ * A household, farm, business, dealer or referral partner (docs/01-blueprint.md §6.2). One record
  * for the group (ADR 0008): the entities it deals with, and who owns the relationship in each,
  * live in `account_entities`.
  */
@@ -63,6 +63,10 @@ export const accounts = pgTable(
     index('accounts_referral_partner_name_idx')
       .on(t.name, t.id)
       .where(sql`${t.type} = 'referral_partner' and ${t.archivedAt} is null`),
+    // The dealers of `/dealer-credit` page by name (`listDealerCredit`).
+    index('accounts_dealer_name_idx')
+      .on(t.name, t.id)
+      .where(sql`${t.type} = 'dealer' and ${t.archivedAt} is null`),
   ],
 );
 

@@ -2,7 +2,7 @@ import { ERROR_HTTP_STATUS, ErrorEnvelope, type ErrorCode } from '@shakti/contra
 import en from '../messages/en.json';
 
 /**
- * The error envelope of an `/api/v1` route (docs/API.md §1): the code, the catalogue's sentence
+ * The error envelope of an `/api/v1` route (docs/06-api.md §1): the code, the catalogue's sentence
  * for its reason (or for the code), the request id, and the HTTP status the code maps to. The one
  * catalogue is English (ADR 0014), and a route handler has no request locale to resolve.
  */

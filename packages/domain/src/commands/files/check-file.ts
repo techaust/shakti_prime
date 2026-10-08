@@ -15,7 +15,7 @@ import { fireKnowledgeFileAsJob, holdVaultUpload } from '../knowledge/shared';
 import { fireUpload, lockFile, scanResultOf, toFileDto, writeFile, type FileRow } from './shared';
 
 /*
- * The checks before a file is usable (docs/ARCHITECTURE.md §9), run by the worker principal
+ * The checks before a file is usable (docs/04-architecture.md §9), run by the worker principal
  * (`files.process`, never a person's role) from `handleFileUploaded` in apps/web. Each records
  * codes and counts only.
  */
@@ -41,7 +41,7 @@ const record = (row: FileRow) => ({
 });
 
 /**
- * The vault files waiting on a vault upload whose checks just ended (docs/design/phase1.md §8.4),
+ * The vault files waiting on a vault upload whose checks just ended (docs/03-roadmap-appendix/phase1.md §8.4),
  * read through `app.knowledge_files_waiting_on()` (`knowledge.index`, which the worker principal
  * holds) after holding the upload, so a vault file added at the same moment is either seen here
  * or sees the upload's new status itself (`knowledge.file.add`).

@@ -3,6 +3,7 @@ import { clearSignInLock } from '../commands/admin/clear-sign-in-lock';
 import { setAgentConfig, setKillSwitch } from '../commands/agents/config';
 import {
   approveInboxItem,
+  completeInboxItem,
   dismissInboxItem,
   editInboxItem,
   rejectInboxItem,
@@ -40,6 +41,15 @@ import { addNote, updateAccount, updateContact, upsertSite } from '../commands/c
 import { archiveTag, createTag, tagLead, untagLead } from '../commands/crm/tags';
 import { cancelTask, completeTask, createTask, rescheduleTask } from '../commands/crm/tasks';
 import { winOpportunity } from '../commands/crm/win-opportunity';
+import { routeEnquiry } from '../commands/crm/route-enquiry';
+import { notifyEvent, recordPush, scanNotices } from '../commands/notifications/notify';
+import {
+  markAllNoticesRead,
+  markNoticesRead,
+  setNotificationSettings,
+  subscribePush,
+  unsubscribePush,
+} from '../commands/notifications/own';
 import { beginUpload } from '../commands/files/begin-upload';
 import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
@@ -71,9 +81,15 @@ import {
 import { runDeliveryProbe } from '../commands/platform/run-probe';
 import { requestPrintProof } from '../commands/print/request-proof';
 import { setPrice } from '../commands/pricing/set-price';
+import { acceptQuote } from '../commands/sales/accept-quote';
 import { attachQuotePdf } from '../commands/sales/attach-quote-pdf';
+import { cancelSalesOrder } from '../commands/sales/cancel-order';
+import { confirmSalesOrder } from '../commands/sales/confirm-order';
+import { createSalesOrder } from '../commands/sales/create-order';
+import { recordDealerOutstanding, setDealerTerms } from '../commands/sales/dealer-credit';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
+import { releaseCredit } from '../commands/sales/release-credit';
 import { requoteQuote } from '../commands/sales/requote';
 import { sendQuote } from '../commands/sales/send-quote';
 import { withdrawQuote } from '../commands/sales/withdraw-quote';
@@ -179,6 +195,13 @@ export const commands = {
   [withdrawQuote.name]: withdrawQuote,
   [expireQuotes.name]: expireQuotes,
   [attachQuotePdf.name]: attachQuotePdf,
+  [acceptQuote.name]: acceptQuote,
+  [createSalesOrder.name]: createSalesOrder,
+  [confirmSalesOrder.name]: confirmSalesOrder,
+  [releaseCredit.name]: releaseCredit,
+  [cancelSalesOrder.name]: cancelSalesOrder,
+  [setDealerTerms.name]: setDealerTerms,
+  [recordDealerOutstanding.name]: recordDealerOutstanding,
   [recordAgentRun.name]: recordAgentRun,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,
@@ -190,6 +213,16 @@ export const commands = {
   [reindexKnowledgeFile.name]: reindexKnowledgeFile,
   [archiveKnowledgeFile.name]: archiveKnowledgeFile,
   [recordKnowledgeIndex.name]: recordKnowledgeIndex,
+  [completeInboxItem.name]: completeInboxItem,
+  [routeEnquiry.name]: routeEnquiry,
+  [notifyEvent.name]: notifyEvent,
+  [scanNotices.name]: scanNotices,
+  [recordPush.name]: recordPush,
+  [markNoticesRead.name]: markNoticesRead,
+  [markAllNoticesRead.name]: markAllNoticesRead,
+  [setNotificationSettings.name]: setNotificationSettings,
+  [subscribePush.name]: subscribePush,
+  [unsubscribePush.name]: unsubscribePush,
 } as const satisfies Record<string, AnyCommand>;
 
 export function getCommand(name: string): AnyCommand {

@@ -1,4 +1,4 @@
-// Synthetic rows for the role × company visibility matrix (docs/SECURITY.md §11 item 1), written
+// Synthetic rows for the role × company visibility matrix (docs/07-security.md §11 item 1), written
 // with the migrator connection: for every company one row in each table of ENTITY_TABLES, one
 // customer shared by companies 1 and 2 (ADR 0008), and the group-wide rows (`entity_id null`) of
 // the tables that allow them. Fixed ids so the fixture is re-creatable, except the audit rows,
@@ -29,7 +29,7 @@ export const ENTITY_MATRIX_AUDIT_COMMAND = 'test.entity_matrix';
 export type EntityTable = (typeof ENTITY_TABLES)[number];
 
 /**
- * Shared reference tables that allow `entity_id null` for the whole group (docs/DATABASE.md §1)
+ * Shared reference tables that allow `entity_id null` for the whole group (docs/05-database.md §1)
  * beside rows of one company. `teams` is the fourth, and sits in ENTITY_TABLES.
  */
 export const GROUP_WIDE_SHARED_TABLES = [
@@ -62,6 +62,11 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   quotes: 'x.id::text',
   quote_lines: 'x.id::text',
   quote_versions: 'x.id::text',
+  sales_orders: 'x.id::text',
+  sales_order_lines: 'x.id::text',
+  dealer_terms: 'x.id::text',
+  dealer_outstanding: 'x.id::text',
+  commission_accruals: 'x.id::text',
   consents: 'x.id::text',
   item_costs: 'x.id::text',
   document_sequences: 'x.id::text',
@@ -81,6 +86,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   inbox_items: 'x.id::text',
   knowledge_files: 'x.id::text',
   knowledge_chunks: 'x.id::text',
+  notifications: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -113,6 +119,13 @@ export interface MatrixRow {
   onLead?: true;
   /** For a `files` row, its purpose, which names who reads it (`app.file_purpose_grant()`). */
   purpose?: string;
+  /** A row of another person's own (a notice), which nobody acting as the owner reads. */
+  othersOwn?: true;
+  /**
+   * A dealer's order without a lead, or its line: read with the customer in its company rather
+   * than with a lead (the table's `readRow`).
+   */
+  withCustomer?: true;
 }
 
 export interface EntityMatrixFixture {
@@ -136,7 +149,22 @@ export async function removeEntityMatrixFixture(): Promise<void> {
   const like = `${P}%`;
   await asMigrator((m) =>
     m.begin(async (tx) => {
-      // Quotes first: they name the company's price list, a lead and the item's rate.
+      // Orders and their commission first: they name a quote, a lead and a commission rule.
+      await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
+      await tx`delete from commission_accruals where id::text like ${like}`;
+      await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
+      await tx`delete from commission_rules where id::text like ${like}`;
+      await tx`alter table dealer_terms disable trigger dealer_terms_append_only`;
+      await tx`alter table dealer_outstanding disable trigger dealer_outstanding_append_only`;
+      await tx`alter table sales_order_lines disable trigger sales_order_lines_append_only`;
+      await tx`delete from dealer_terms where id::text like ${like}`;
+      await tx`delete from dealer_outstanding where id::text like ${like}`;
+      await tx`delete from sales_order_lines where id::text like ${like}`;
+      await tx`delete from sales_orders where id::text like ${like}`;
+      await tx`alter table dealer_terms enable trigger dealer_terms_append_only`;
+      await tx`alter table dealer_outstanding enable trigger dealer_outstanding_append_only`;
+      await tx`alter table sales_order_lines enable trigger sales_order_lines_append_only`;
+      // Quotes next: they name the company's price list, a lead and the item's rate.
       await tx`alter table quote_lines disable trigger quote_lines_append_only`;
       await tx`alter table quote_versions disable trigger quote_versions_append_only`;
       await tx`delete from quote_versions where id::text like ${like}`;
@@ -148,6 +176,7 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       // Agent runs and actions are append-only and keep new ids each run, as audit rows do; the
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
+      await tx`delete from notifications where id::text like ${like}`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -248,6 +277,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     quotes: [],
     quote_lines: [],
     quote_versions: [],
+    sales_orders: [],
+    sales_order_lines: [],
+    dealer_terms: [],
+    dealer_outstanding: [],
+    commission_accruals: [],
     consents: [{ key: shared.consent, entities: [1, 2], leadIn: [2] }],
     item_costs: [],
     document_sequences: [],
@@ -267,6 +301,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     inbox_items: [],
     knowledge_files: [],
     knowledge_chunks: [],
+    notifications: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -361,6 +396,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const scoreRule = per(e, 0x1a);
         const agentConfig = per(e, 0x1c);
         const inboxItem = per(e, 0x1d);
+        // The owner's notice and another person's, about the company's lead.
+        const ownNotice = per(e, 0x40);
+        const othersNotice = per(e, 0x41);
         const agentRun = newId();
         const agentAction = newId();
         // One file of each purpose besides the import file, each read by its own rule.
@@ -381,6 +419,16 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const quote = per(e, 0x1c);
         const quoteLine = per(e, 0x1d);
         const quoteVersion = per(e, 0x1e);
+        // An order of the quote (read with the lead) and a dealer's order without one (read with
+        // the customer), a line of each, the customer's credit entries and a commission.
+        const leadOrder = per(e, 0x31);
+        const dealerOrder = per(e, 0x32);
+        const leadOrderLine = per(e, 0x33);
+        const dealerOrderLine = per(e, 0x34);
+        const terms = per(e, 0x35);
+        const outstanding = per(e, 0x36);
+        const commissionRule = per(e, 0x37);
+        const commission = per(e, 0x38);
         // A second customer of the company with the first one's name, put forward as its
         // duplicate and merged into it: the candidate needs both customers, the merge the first.
         const twin = per(e, 0x22);
@@ -441,6 +489,9 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${agentAction}, ${e}, ${agentRun}, ${MATRIX_AGENT}, 'crm.task.create', '{}'::jsonb, 'suggest', 'proposed', ${agentId})`;
         await tx`insert into inbox_items (id, entity_id, kind, assignee_id, team_id, subject_type, subject_id, agent_action_id, created_by)
           values (${inboxItem}, ${e}, 'agent_suggestion', ${ownerId}, ${team}, 'opportunity', ${opportunity}, ${agentAction}, ${agentId})`;
+        await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key) values
+          (${ownNotice}, ${ownerId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${ownNotice}`}),
+          (${othersNotice}, ${otherUserId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${othersNotice}`})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         for (const [purpose, fileId, type] of purposeFiles) {
@@ -483,6 +534,32 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
           values (${quoteVersion}, ${e}, ${quote}, 1, '{}'::jsonb, ${ownerId})`;
         await tx`insert into referral_partners (account_id, code, created_by)
           values (${account}, ${`MX${e.toString()}PARTNER`}, ${ownerId})`;
+        await tx`insert into sales_orders (id, entity_id, so_no, fy, quote_id, opportunity_id, account_id, site_id,
+                   tier_id, price_list_id, place_of_supply_state, supply_kind, subtotal, cgst, sgst, igst,
+                   tax_total, round_off, grand_total, created_by)
+          values (${leadOrder}, ${e}, ${`MX${e.toString()}/SO/2098-99/0001`}, '2098-99', ${quote}, ${opportunity},
+                  ${account}, ${site}, ${tierId('dealer')}, ${priceList}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0,
+                  ${ownerId}),
+                 (${dealerOrder}, ${e}, ${`MX${e.toString()}/SO/2098-99/0002`}, '2098-99', null, null,
+                  ${account}, null, ${tierId('dealer')}, ${priceList}, '08', 'intra', 0, 0, 0, 0, 0, 0, 0,
+                  ${ownerId})`;
+        await tx`insert into sales_order_lines (id, entity_id, sales_order_id, position, item_id, sku, description,
+                   unit, qty, unit_price, hsn, tax_rate_id, tax_rate_pct, taxable_value, cgst, sgst, igst, line_total)
+          values (${leadOrderLine}, ${e}, ${leadOrder}, 1, ${item}, 'FX-MATRIX', 'matrix item', 'nos', 1, 0,
+                  '8413', ${itemRate}, 0.00, 0, 0, 0, 0, 0),
+                 (${dealerOrderLine}, ${e}, ${dealerOrder}, 1, ${item}, 'FX-MATRIX', 'matrix item', 'nos', 1, 0,
+                  '8413', ${itemRate}, 0.00, 0, 0, 0, 0, 0)`;
+        await tx`insert into dealer_terms (id, entity_id, account_id, credit_limit, credit_days, created_by)
+          values (${terms}, ${e}, ${account}, 1.00, 1, ${ownerId})`;
+        await tx`insert into dealer_outstanding (id, entity_id, account_id, outstanding, as_of, entered_by)
+          values (${outstanding}, ${e}, ${account}, 0, '2098-04-01', ${ownerId})`;
+        // A rule of the company's partner far in the future, so it never prices a real order.
+        await tx`insert into commission_rules (id, partner_id, basis, amount, effective_from, created_by)
+          values (${commissionRule}, ${account}, 'fixed', 1.00, '2098-04-01', ${ownerId})`;
+        await tx`insert into commission_accruals (id, entity_id, partner_id, opportunity_id, sales_order_id,
+                   commission_rule_id, basis, rate, measure, amount, created_by)
+          values (${commission}, ${e}, ${account}, ${opportunity}, ${leadOrder}, ${commissionRule}, 'fixed',
+                  1.00, 1, 1.00, ${ownerId})`;
         await tx`insert into accounts (id, type, name, created_by) values (${twin}, 'farm', ${`matrix account ${e}`}, ${ownerId})`;
         await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
           values (${twinLink}, ${twin}, ${e}, ${ownerId}, ${team}, ${ownerId})`;
@@ -524,6 +601,17 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.quotes.push({ key: quote, entities: only });
         rows.quote_lines.push({ key: quoteLine, entities: only });
         rows.quote_versions.push({ key: quoteVersion, entities: only });
+        rows.sales_orders.push(
+          { key: leadOrder, entities: only },
+          { key: dealerOrder, entities: only, leadIn: only, withCustomer: true },
+        );
+        rows.sales_order_lines.push(
+          { key: leadOrderLine, entities: only },
+          { key: dealerOrderLine, entities: only, leadIn: only, withCustomer: true },
+        );
+        rows.dealer_terms.push({ key: terms, entities: only, leadIn: only });
+        rows.dealer_outstanding.push({ key: outstanding, entities: only, leadIn: only });
+        rows.commission_accruals.push({ key: commission, entities: only });
         rows.consents.push({ key: consent, entities: only, leadIn: only });
         rows.item_costs.push({ key: cost, entities: only });
         rows.document_sequences.push({ key: sequence, entities: only });
@@ -550,6 +638,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.inbox_items.push({ key: inboxItem, entities: only });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
+        rows.notifications.push(
+          { key: ownNotice, entities: only },
+          { key: othersNotice, entities: only, othersOwn: true },
+        );
         rows.activities.push(
           { key: customerRow, entities: only, leadIn: only },
           { key: leadRow, entities: only, onLead: true },

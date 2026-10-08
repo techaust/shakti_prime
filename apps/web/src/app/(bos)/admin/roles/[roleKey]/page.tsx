@@ -32,9 +32,9 @@ export async function generateMetadata({
 }
 
 /**
- * One staff role's permissions (docs/design/phase1.md §6.2): the catalogue grouped by module, a
+ * One staff role's permissions (docs/03-roadmap-appendix/phase1.md §6.2): the catalogue grouped by module, a
  * scope for each, and the save that signs the role's holders out. An agent role or any other key
- * meets the not-found screen: agents keep their fixed sets (docs/SECURITY.md §3.3).
+ * meets the not-found screen: agents keep their fixed sets (docs/07-security.md §3.3).
  */
 export default async function RolePage({ params }: { params: Promise<{ roleKey: string }> }) {
   const { access } = await screenAccess(navRequires('admin-roles'));

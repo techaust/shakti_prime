@@ -36,7 +36,7 @@ async function keyStored(principalId: string, key: string): Promise<boolean> {
   return row?.n === 1;
 }
 
-describe('a command sent twice with one key acts once (docs/design/backend-weeks-3-5.md §5)', () => {
+describe('a command sent twice with one key acts once (docs/03-roadmap-appendix/backend-weeks-3-5.md §5)', () => {
   it('creates one lead and answers the repeat with the first answer', async () => {
     const caller = await createTestPrincipal('tele_caller_cc', [1]);
     const input = newLead();

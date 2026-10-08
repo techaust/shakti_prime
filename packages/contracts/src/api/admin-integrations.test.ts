@@ -8,7 +8,7 @@ import {
 } from './admin-integrations';
 import { API_FIXTURES, IDS } from './fixtures';
 
-describe('the Integration Health contracts (docs/API.md §3.7)', () => {
+describe('the Integration Health contracts (docs/06-api.md §3.7)', () => {
   const health = API_FIXTURES['admin.integrations'].response as {
     deadLetters: { items: Record<string, unknown>[] };
   };

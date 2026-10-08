@@ -17,7 +17,7 @@ import { heldByColleague, lockNewNumber } from './create-lead';
 import { requireEntity } from './opportunity-shared';
 
 /**
- * The customer edits of Account 360 (docs/design/phase1.md §6.5). The customer is one record for
+ * The customer edits of Account 360 (docs/03-roadmap-appendix/phase1.md §6.5). The customer is one record for
  * the group (ADR 0008): the caller must read it in the page's company, and the write policies
  * (`app.account_in_scope()`, `app.contact_in_scope()`) ask the caller's `crm.account.write` scope
  * over a relationship of the customer in a company of the request. Reading a customer through a
@@ -469,7 +469,7 @@ export const addNote = defineCommand({
   name: 'crm.note.add',
   permission: 'crm.lead.write',
   minScope: 'own',
-  // Agents work without customers' notes (docs/SECURITY.md §3.3).
+  // Agents work without customers' notes (docs/07-security.md §3.3).
   peopleOnly: true,
   input: AddNoteInput,
   output: NoteDto,

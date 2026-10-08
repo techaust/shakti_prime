@@ -3,7 +3,7 @@ import { readWorkbookSheets } from '../imports/parse';
 import type { CompleteCall, CompleteResult } from '../ai/provider';
 import type { ModelDocument } from '../ai/transport';
 
-// Reading a Knowledge Vault file's text, by what the file is (BLUEPRINT §9.1, docs/design/phase1.md
+// Reading a Knowledge Vault file's text, by what the file is (BLUEPRINT §9.1, docs/03-roadmap-appendix/phase1.md
 // §8.4): a PDF and a masked photo by Claude through the provider wrapper, an Excel workbook sheet by
 // sheet here, a Word document by the web app's reader (`mammoth`, which only the web app holds).
 

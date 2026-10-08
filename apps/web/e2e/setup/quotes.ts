@@ -35,7 +35,8 @@ import {
 } from '../support/users';
 
 const id = (n: number) => `0199e2e0-0000-7000-8000-00000000f${n.toString(16).padStart(3, '0')}`;
-const IDS = {
+/** The journeys' tier, its items and its price lists, which the order fixtures price from too. */
+export const QUOTE_JOURNEY_IDS = {
   tier: id(0x001),
   module: id(0x002),
   cable: id(0x003),
@@ -54,34 +55,42 @@ const SEEDED_AT = '2026-04-01T00:00:00+05:30';
 async function ensureCatalogue(executiveId: string): Promise<void> {
   await asMigrator((m) =>
     m.begin(async (tx) => {
-      await tx`insert into price_tiers (id, code, name) values (${IDS.tier}, 'journeys', ${QUOTE_TIER})
+      await tx`insert into price_tiers (id, code, name) values (${QUOTE_JOURNEY_IDS.tier}, 'journeys', ${QUOTE_TIER})
                on conflict (id) do nothing`;
       // Dated on the lists' first day, so the catalogue and the price lists show the same
       // "Last changed" in their screenshots whatever day the journeys run.
       await tx`insert into items (id, sku, name, category, hsn, unit, is_dcr, specs_json, created_at, updated_at) values
-               (${IDS.module}, 'JRN-MOD-540', 'Solar module 540 Wp', 'solar_module', '8541', 'nos',
+               (${QUOTE_JOURNEY_IDS.module}, 'JRN-MOD-540', 'Solar module 540 Wp', 'solar_module', '8541', 'nos',
                 true, ${tx.json({ wp: 540 })}, ${SEEDED_AT}, ${SEEDED_AT}),
-               (${IDS.cable}, 'JRN-CBL-4', 'Solar cable 4 sq mm', 'cable', '8544', 'metre', false,
+               (${QUOTE_JOURNEY_IDS.cable}, 'JRN-CBL-4', 'Solar cable 4 sq mm', 'cable', '8544', 'metre', false,
                 '{}'::jsonb, ${SEEDED_AT}, ${SEEDED_AT})
                on conflict (id) do nothing`;
       await tx`insert into tax_rates (id, item_id, rate_pct, effective_from, source_ref) values
-               (${IDS.moduleRate}, ${IDS.module}, 12.00, '2026-04-01', 'journeys'),
-               (${IDS.cableRate}, ${IDS.cable}, 18.00, '2026-04-01', 'journeys')
+               (${QUOTE_JOURNEY_IDS.moduleRate}, ${QUOTE_JOURNEY_IDS.module}, 12.00, '2026-04-01', 'journeys'),
+               (${QUOTE_JOURNEY_IDS.cableRate}, ${QUOTE_JOURNEY_IDS.cable}, 18.00, '2026-04-01', 'journeys')
                on conflict (id) do nothing`;
       for (const [list, entityId, [modulePrice = '', cablePrice = '']] of [
-        [IDS.journeyList, QUOTE_JOURNEY_COMPANY.entityId, IDS.journeyPrices],
-        [IDS.snapshotList, SNAPSHOT_COMPANY.entityId, IDS.snapshotPrices],
+        [
+          QUOTE_JOURNEY_IDS.journeyList,
+          QUOTE_JOURNEY_COMPANY.entityId,
+          QUOTE_JOURNEY_IDS.journeyPrices,
+        ],
+        [
+          QUOTE_JOURNEY_IDS.snapshotList,
+          SNAPSHOT_COMPANY.entityId,
+          QUOTE_JOURNEY_IDS.snapshotPrices,
+        ],
       ] as const) {
         const [found] = await tx<
           { n: number }[]
         >`select count(*)::int as n from price_lists where id = ${list}`;
         if ((found?.n ?? 0) > 0) continue;
         await tx`insert into price_lists (id, tier_id, entity_id, version, effective_from, approved_by, approved_at)
-                 values (${list}, ${IDS.tier}, ${entityId}, 1, '2026-04-01', ${executiveId}, now())`;
+                 values (${list}, ${QUOTE_JOURNEY_IDS.tier}, ${entityId}, 1, '2026-04-01', ${executiveId}, now())`;
         await tx`alter table price_list_items disable trigger price_list_items_log_change`;
         await tx`insert into price_list_items (id, price_list_id, item_id, price, created_at, updated_at) values
-                 (${modulePrice}, ${list}, ${IDS.module}, 12000.00, ${SEEDED_AT}, ${SEEDED_AT}),
-                 (${cablePrice}, ${list}, ${IDS.cable}, 85.50, ${SEEDED_AT}, ${SEEDED_AT})`;
+                 (${modulePrice}, ${list}, ${QUOTE_JOURNEY_IDS.module}, 12000.00, ${SEEDED_AT}, ${SEEDED_AT}),
+                 (${cablePrice}, ${list}, ${QUOTE_JOURNEY_IDS.cable}, 85.50, ${SEEDED_AT}, ${SEEDED_AT})`;
         await tx`alter table price_list_items enable trigger price_list_items_log_change`;
       }
     }),
@@ -133,7 +142,7 @@ async function ensureSizedLead(
   await executeCommand(owner, {}, setAccountTier, {
     entityId,
     accountId,
-    tierId: tier ? IDS.tier : null,
+    tierId: tier ? QUOTE_JOURNEY_IDS.tier : null,
   });
   return { leadId, accountId };
 }
@@ -191,8 +200,8 @@ export async function ensureQuoteJourneys(executiveId: string): Promise<QuoteJou
         entityId: SNAPSHOT_COMPANY.entityId,
         opportunityId: snapshot.leadId,
         lines: [
-          { itemId: IDS.module, qty: '5' },
-          { itemId: IDS.cable, qty: '20' },
+          { itemId: QUOTE_JOURNEY_IDS.module, qty: '5' },
+          { itemId: QUOTE_JOURNEY_IDS.cable, qty: '20' },
         ],
       },
     );

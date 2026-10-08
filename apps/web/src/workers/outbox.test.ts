@@ -52,7 +52,7 @@ beforeEach(() => {
   outbox.spent = [];
 });
 
-describe('publishOutbox and the outbox alerts (docs/design/phase1.md §5.2)', () => {
+describe('publishOutbox and the outbox alerts (docs/03-roadmap-appendix/phase1.md §5.2)', () => {
   it('reports every event a run dead-lettered, with counts and ids only', async () => {
     const tired = Array.from({ length: 25 }, () => row({ attempts: 9 }));
     outbox.rows = tired;

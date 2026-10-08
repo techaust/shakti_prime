@@ -12,7 +12,7 @@ import { PhoneInputSchema } from '../../crm/phone';
 import { EntityIdSchema, IdSchema } from '../../ids';
 
 /**
- * The customer edits of Account 360 (docs/design/phase1.md §6.5, ADR 0008). Each names the
+ * The customer edits of Account 360 (docs/03-roadmap-appendix/phase1.md §6.5, ADR 0008). Each names the
  * customer and the company whose page it is made from, which the request is narrowed to and the
  * timeline row is written in; the change is to the one customer record the group shares.
  */

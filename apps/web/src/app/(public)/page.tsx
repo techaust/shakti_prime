@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 
-/** The public root: what the product is, and the way in for staff (DESIGN.md §6). No session is read. */
+/** The public root: what the product is, and the way in for staff (docs/08-design-system.md §6). No session is read. */
 export default async function HomePage() {
   const t = await getTranslations('app');
   return (

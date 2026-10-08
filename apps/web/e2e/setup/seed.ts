@@ -34,6 +34,7 @@ import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
+import { ensureOrderJourneys } from './orders';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { totpCode } from '../support/totp';
@@ -480,6 +481,9 @@ await ensureSnapshotVault(ids.executive ?? '');
 progress('the quotes');
 const quotes = await ensureQuoteJourneys(ids.executive ?? '');
 
+progress('the orders and dealers');
+const orders = await ensureOrderJourneys(ids.executive ?? '');
+
 progress('the held-back updates');
 // Integration health: one fixed update held back in the snapshot company, and one per project
 // for the Send again journey, which sends one back each run.
@@ -579,6 +583,7 @@ const seeded: SeededUsers = {
   profileUsers,
   secondCompanyLead,
   quotes,
+  orders,
 };
 writeFileSync(join(AUTH_DIR, 'users.json'), JSON.stringify(seeded, null, 2));
 await writePrintPages();

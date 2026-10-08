@@ -1,7 +1,7 @@
 import { logger } from '../log';
 
 /**
- * The alerts the owner is notified of through Sentry (docs/runbooks/DEPLOY.md §1 step 8): the
+ * The alerts the owner is notified of through Sentry (docs/runbooks/deploy.md §1 step 8): the
  * rule in Sentry matches the message, which is the alert's name.
  */
 export type AlertName = 'outbox.dead_lettered' | 'outbox.publisher_failing';

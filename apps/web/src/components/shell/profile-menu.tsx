@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   toast,
 } from '@shakti/ui';
-import { KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
+import { BellRing, KeyRound, LogOut, Monitor, Moon, Sun, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useTransition } from 'react';
@@ -25,7 +25,7 @@ import { useForgetThemeOnThisDevice, useThemeChoice } from '../theme';
 const THEME_ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
 
 /**
- * The profile menu at the right of the top bar (DESIGN.md §5, §7): who is signed in and in which
+ * The profile menu at the right of the top bar (docs/08-design-system.md §5, §7): who is signed in and in which
  * role, the System / Light / Dark switch saved on the profile, the profile screen with the
  * password change, and sign out.
  */
@@ -109,6 +109,12 @@ export function ProfileMenu({
           <Link href="/settings/profile#change-password">
             <KeyRound aria-hidden />
             {t('changePassword')}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/notifications">
+            <BellRing aria-hidden />
+            {t('notificationSettings')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

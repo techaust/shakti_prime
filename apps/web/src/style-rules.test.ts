@@ -37,7 +37,7 @@ const EXCEPTIONS: readonly { name: string; value: string; why: string }[] = [
 ];
 
 describe('web source rules', () => {
-  it('takes every colour, type size, weight, radius and space from the tokens (DESIGN.md §2–§4)', () => {
+  it('takes every colour, type size, weight, radius and space from the tokens (docs/08-design-system.md §2–§4)', () => {
     for (const { name, text } of sources) {
       const found = tokenBypasses(text).filter(
         (value) => !EXCEPTIONS.some((e) => e.name === name && e.value === value),

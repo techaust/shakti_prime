@@ -13,7 +13,7 @@ import {
 import { actorsRequired, archivable, timestamps } from './columns';
 
 /**
- * A person (docs/BLUEPRINT.md §6.2, ADR 0008). Shared across the four entities: a contact
+ * A person (docs/01-blueprint.md §6.2, ADR 0008). Shared across the four entities: a contact
  * carries no entity and no owner; it is visible through the accounts it is linked to, whose
  * per-entity memberships carry the ownership.
  */
@@ -27,7 +27,7 @@ export const contacts = pgTable(
     /**
      * The name as the import's dedupe compares it (`matchKey` in packages/domain/src/imports/leads.ts):
      * lower case, letters and digits only. Stored, so an equality on it is an index condition under
-     * the policies (docs/DATABASE.md §4.2).
+     * the policies (docs/05-database.md §4.2).
      */
     nameKey: text('name_key').generatedAlwaysAs(
       sql`regexp_replace(lower(name), '[^a-z0-9]+', '', 'g')`,
