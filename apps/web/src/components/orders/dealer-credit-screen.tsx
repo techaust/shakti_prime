@@ -1,7 +1,20 @@
 'use client';
 
 import type { DealerCreditPageDto, DealerCreditRowDto } from '@shakti/contracts';
-import { Button, DataGrid, EmptyState, Field, Select, type DataGridColumn } from '@shakti/ui';
+import {
+  Button,
+  DataGrid,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  Field,
+  Select,
+  useFocusTargets,
+  type DataGridColumn,
+} from '@shakti/ui';
+import { Ellipsis } from 'lucide-react';
 import type { Route } from 'next';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
@@ -57,6 +70,11 @@ export function DealerCreditScreen({
       },
     );
   }
+
+  // A dialog opens from a row's menu, whose item has gone when it closes: focus goes back to the
+  // row's Actions button (docs/08-design-system.md §6, Dialog).
+  const places = useFocusTargets<string>();
+  const returnFocusTo = () => [open === undefined ? [] : places.get(open.dealer.accountId)];
 
   const ask = (kind: DealerCreditDialogKind, dealer: DealerCreditRowDto) => {
     setOpen({ kind, dealer });
@@ -130,40 +148,40 @@ export function DealerCreditScreen({
     },
     {
       id: 'actions',
-      header: t('columns.actions'),
+      header: <span className="sr-only">{t('columns.actions')}</span>,
+      align: 'end',
       cell: (r) => (
-        <span className="flex flex-wrap gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={t('setTermsFor', { name: r.name })}
-            onClick={() => {
-              ask('terms', r);
-            }}
-          >
-            {t('setTerms')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={t('enterOutstandingFor', { name: r.name })}
-            onClick={() => {
-              ask('outstanding', r);
-            }}
-          >
-            {t('enterOutstanding')}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={t('historyFor', { name: r.name })}
-            onClick={() => {
-              ask('history', r);
-            }}
-          >
-            {t('history')}
-          </Button>
-        </span>
+        // Not modal, so the dialog it opens takes focus cleanly when the menu closes.
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild ref={places.ref(r.accountId)}>
+            <Button variant="ghost" size="icon" aria-label={common('rowActions', { name: r.name })}>
+              <Ellipsis aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => {
+                ask('terms', r);
+              }}
+            >
+              {t('setTerms')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                ask('outstanding', r);
+              }}
+            >
+              {t('enterOutstanding')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                ask('history', r);
+              }}
+            >
+              {t('history')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -220,6 +238,7 @@ export function DealerCreditScreen({
           kind={open.kind}
           entityId={entityId}
           dealer={open.dealer}
+          returnFocusTo={returnFocusTo}
           onClose={() => {
             setOpen(undefined);
           }}

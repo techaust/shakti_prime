@@ -3802,14 +3802,11 @@
       "overdue": "Oldest unpaid invoice",
       "confirmed": "Orders confirmed since",
       "exposure": "Total owed with orders",
-      "actions": "Enter"
+      "actions": "Actions"
     },
-    "setTerms": "Limit and days",
-    "setTermsFor": "Enter the credit limit and days of {name}",
-    "enterOutstanding": "Outstanding",
-    "enterOutstandingFor": "Enter the outstanding of {name}",
-    "history": "History",
-    "historyFor": "Earlier entries of {name}",
+    "setTerms": "Enter limit and days",
+    "enterOutstanding": "Enter outstanding",
+    "history": "Earlier entries",
     "terms": {
       "title": "Credit limit and days of {name}",
       "intro": "Enter the figures for this company. The earlier entry is kept in the history.",

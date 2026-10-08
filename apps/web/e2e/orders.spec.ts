@@ -166,9 +166,11 @@ test.describe('as Accounts, dealer credit', () => {
     await expect(page.getByRole('heading', { name: 'Dealer credit', level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
 
-    await page
-      .getByRole('button', { name: `Enter the credit limit and days of ${dealer.name}` })
-      .click();
+    const rowMenu = async (item: string) => {
+      await page.getByRole('button', { name: `Actions for ${dealer.name}` }).click();
+      await page.getByRole('menuitem', { name: item }).click();
+    };
+    await rowMenu('Enter limit and days');
     const dialog = page.getByRole('dialog');
     await expect(
       dialog.getByRole('heading', { name: `Credit limit and days of ${dealer.name}` }),
@@ -180,7 +182,7 @@ test.describe('as Accounts, dealer credit', () => {
     await expect(page.getByText('Credit limit and days saved.')).toBeVisible();
     await expect(dialog).toBeHidden();
 
-    await page.getByRole('button', { name: `Enter the outstanding of ${dealer.name}` }).click();
+    await rowMenu('Enter outstanding');
     await expect(
       dialog.getByRole('heading', { name: `Outstanding of ${dealer.name}` }),
     ).toBeVisible();
@@ -196,7 +198,7 @@ test.describe('as Accounts, dealer credit', () => {
     // The invoice is 40 days old today, and the row says so.
     await expect(grid.getByText('RCREF/SI/JOURNEY/0001, 40 days old').first()).toBeVisible();
 
-    await page.getByRole('button', { name: `Earlier entries of ${dealer.name}` }).click();
+    await rowMenu('Earlier entries');
     await expect(
       dialog.getByRole('heading', { name: `Earlier entries of ${dealer.name}` }),
     ).toBeVisible();

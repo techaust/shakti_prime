@@ -13,6 +13,7 @@ import {
   Field,
   Input,
   toast,
+  type ReturnFocusTo,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, type SyntheticEvent } from 'react';
@@ -43,12 +44,15 @@ export function DealerCreditDialog({
   kind,
   entityId,
   dealer,
+  returnFocusTo,
   onClose,
   onSaved,
 }: {
   kind: DealerCreditDialogKind;
   entityId: number;
   dealer: DealerCreditRowDto;
+  /** Where focus goes when the dialog closes: the row's Actions button. */
+  returnFocusTo: ReturnFocusTo;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -60,7 +64,7 @@ export function DealerCreditDialog({
         if (!isOpen) onClose();
       }}
     >
-      <DialogContent closeLabel={common('close')}>
+      <DialogContent closeLabel={common('close')} returnFocusTo={returnFocusTo}>
         {kind === 'terms' ? (
           <TermsForm entityId={entityId} dealer={dealer} onClose={onClose} onSaved={onSaved} />
         ) : kind === 'outstanding' ? (
