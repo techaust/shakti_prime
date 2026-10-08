@@ -170,6 +170,12 @@ export const continueFileCheck = defineCommand({
     if (row.purpose !== 'knowledge' || (row.status !== 'scanned' && row.status !== 'not_scanned')) {
       return toFileDto(row);
     }
+    // Recorded with the file, in the same transaction as the event: a delivery that finds more
+    // pages kept than were sent on knows the one that kept them died before it got here.
+    const sent = scanResultOf(row).maskedPagesSent ?? 0;
+    await writeFile(ctx, row, {
+      scanResult: { ...scanResultOf(row), maskedPagesSent: Math.max(sent, input.maskedPages) },
+    });
     ctx.emit({
       type: 'files.file.uploaded',
       entityId: row.entityId,

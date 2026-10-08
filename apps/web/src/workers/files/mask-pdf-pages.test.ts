@@ -36,11 +36,32 @@ function setup(masker: DocumentMasker = coveringMasker(), extra: Partial<MaskSte
   return { store, deps };
 }
 
-const input = (bytes: Uint8Array, maskedPages?: number) => ({
+const input = (bytes: Uint8Array, maskedPages?: number, maskedPagesSent?: number) => ({
   bytes,
   uploadKey: KEY,
   maskedPages,
+  maskedPagesSent: maskedPagesSent ?? maskedPages,
 });
+
+/** A masking step that, like the real one, takes one mask at a time and says when a turn begins. */
+function queuedMasker(workMs: number, order: string[] = []): DocumentMasker {
+  const inner = coveringMasker();
+  let turn: Promise<unknown> = Promise.resolve();
+  return {
+    mask(photo, request) {
+      const result = turn.then(async () => {
+        request?.onTurn?.();
+        order.push('start');
+        await new Promise((resolve) => setTimeout(resolve, workMs));
+        order.push('end');
+        return inner.mask(photo, request);
+      });
+      turn = result.catch(() => undefined);
+      return result;
+    },
+    close: () => Promise.resolve(),
+  };
+}
 
 describe('masking a vault PDF one page per delivery', () => {
   it('masks a 3-page PDF over three deliveries and keeps the masked PDF only at the last', async () => {
@@ -82,8 +103,9 @@ describe('masking a vault PDF one page per delivery', () => {
     await maskNextPdfPage(input(original, 1), deps);
     expect(seen).toHaveLength(2);
 
-    // The delivery for the first page arrives again, as QStash does when an answer is lost.
-    expect(await maskNextPdfPage(input(original, 1), deps)).toEqual({
+    // The delivery for the first page arrives again, as QStash does when an answer is lost; the
+    // file records two pages sent on.
+    expect(await maskNextPdfPage(input(original, 1, 2), deps)).toEqual({
       kind: 'stale',
       done: 2,
       pages: 3,
@@ -129,7 +151,10 @@ describe('masking a vault PDF one page per delivery', () => {
     const original = await pdfOf(['One', 'Two']);
     const discard = vi.fn(() => Promise.resolve());
     const slow: DocumentMasker = {
-      mask: () => new Promise<MaskOutcome>(() => undefined),
+      mask: (_photo, request) => {
+        request?.onTurn?.();
+        return new Promise<MaskOutcome>(() => undefined);
+      },
       close: () => Promise.resolve(),
     };
     const { deps } = setup(slow, {
@@ -143,6 +168,69 @@ describe('masking a vault PDF one page per delivery', () => {
     });
     expect(Date.now() - started).toBeLessThan(5_000);
     expect(discard).toHaveBeenCalledTimes(1);
+    expect(discard).toHaveBeenCalledWith(slow);
+  });
+
+  it('counts a page time from its turn: a second PDF waits behind the first and is not refused', async () => {
+    const first = await pdfOf(['One']);
+    const second = await pdfOf(['Two']);
+    const order: string[] = [];
+    const shared = queuedMasker(150, order);
+    // The mask limit is shorter than the two masks together, but longer than one.
+    const limits = { startMs: 5_000, maskMs: 250, turnMs: 5_000 };
+    const a = setup(shared, { limits });
+    const b = setup(shared, { limits });
+    const [one, two] = await Promise.all([
+      maskNextPdfPage(input(first), a.deps),
+      maskNextPdfPage(input(second), b.deps),
+    ]);
+    expect(one.kind).toBe('complete');
+    expect(two.kind).toBe('complete');
+    expect(order).toEqual(['start', 'end', 'start', 'end']);
+  });
+
+  it('delivers again, keeping what is kept, when a page cannot get its turn in time', async () => {
+    const original = await pdfOf(['One', 'Two']);
+    const { store, deps } = setup(coveringMasker());
+    await maskNextPdfPage(input(original), deps);
+    const kept = store.objects.size;
+    const waiting: DocumentMasker = {
+      mask: () => new Promise<MaskOutcome>(() => undefined),
+      close: () => Promise.resolve(),
+    };
+    const discard = vi.fn(() => Promise.resolve());
+    const busy = setup(waiting, {
+      limits: { startMs: 5_000, maskMs: 5_000, turnMs: 60 },
+      discardMasker: discard,
+    });
+    await expect(
+      maskNextPdfPage(input(original, 1, 1), { ...busy.deps, store }),
+    ).rejects.toMatchObject({ code: 'integration_unavailable' });
+    expect(store.objects.size).toBe(kept);
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it('sends the chain on itself when a delivery died after keeping a page and before sending on', async () => {
+    const original = await pdfOf(['One', 'Two', 'Three']);
+    const seen: Buffer[] = [];
+    const { deps } = setup(coveringMasker(seen));
+    // Page 1 is kept (the file records no page sent on), then the delivery dies.
+    expect(await maskNextPdfPage(input(original), deps)).toMatchObject({ kind: 'more', done: 1 });
+    // The same event comes again: the page is not masked again, the chain is sent on.
+    const redelivered = await maskNextPdfPage(input(original, undefined, 0), deps);
+    expect(redelivered).toMatchObject({ kind: 'more', done: 1, pages: 3 });
+    expect(seen).toHaveLength(1);
+    // Page 2 is kept and the delivery dies once more; the retry of the event for page 1 sends on from 2.
+    await maskNextPdfPage(input(original, 1, 1), deps);
+    expect(await maskNextPdfPage(input(original, 1, 1), deps)).toMatchObject({
+      kind: 'more',
+      done: 2,
+    });
+    expect(seen).toHaveLength(2);
+    // The chain then completes.
+    const last = await maskNextPdfPage(input(original, 2, 2), deps);
+    expect(last.kind).toBe('complete');
+    expect(seen).toHaveLength(3);
   });
 
   it('refuses a page that is not even drawn in time without masking it', async () => {

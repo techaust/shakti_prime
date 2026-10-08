@@ -5,6 +5,7 @@
 // nothing here writes to disk or to a log.
 import sharp from 'sharp';
 import { createWorker, PSM, type Page, type Worker } from 'tesseract.js';
+import { DomainError } from '@shakti/contracts';
 import type { MaskedText } from '@shakti/domain';
 import { planMasks, scrubHiddenDigits, type Box, type MaskPlan, type OcrLine } from './plan-masks';
 import { scanQrCodes, SMALL_PHOTO_PX } from './qr-cover';
@@ -25,6 +26,13 @@ export interface MaskRequest {
    * them is not found, nothing is kept. Leave empty for a photo of unknown kind (WhatsApp).
    */
   expect?: ExpectedNumber[];
+  /**
+   * Called when this mask's turn begins (masks run one at a time, so it may wait behind others).
+   * The caller starts its time limit then, not when it asked.
+   */
+  onTurn?: () => void;
+  /** A mask still waiting for its turn when this is aborted never runs; its photo is wiped. */
+  signal?: AbortSignal;
 }
 
 export type MaskOutcome =
@@ -153,8 +161,27 @@ export async function createDocumentMasker(
   // The one OCR worker keeps a page mode between `setParameters` and `recognize`, so two masks in
   // one process (several file checks share an instance) wait their turn rather than interleave.
   let turn: Promise<unknown> = Promise.resolve();
-  function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
-    const result = turn.then(work, work);
+  // Closing the masker answers every mask waiting on it or running (the OCR engine never settles a
+  // read it was closed under), so nobody waits on an instance that is gone.
+  let closing: Promise<void> | undefined;
+  let closed = false;
+  let rejectPending: (error: Error) => void = () => undefined;
+  const closedSignal = new Promise<never>((_, reject) => {
+    rejectPending = reject;
+  });
+  closedSignal.catch(() => undefined);
+  const gone = () => new DomainError('integration_unavailable', 'the masking step was closed');
+  function oneAtATime<T>(work: () => Promise<T>, request: MaskRequest): Promise<T> {
+    if (closed) return Promise.reject(gone());
+    const turnWork = async () => {
+      if (closed) throw gone();
+      if (request.signal?.aborted === true) {
+        throw new DomainError('integration_unavailable', 'the mask gave up waiting for its turn');
+      }
+      request.onTurn?.();
+      return work();
+    };
+    const result = Promise.race([turn.then(turnWork, turnWork), closedSignal]);
     turn = result.catch(() => undefined);
     return result;
   }
@@ -298,11 +325,22 @@ export async function createDocumentMasker(
   }
 
   return {
-    mask(photo, request = {}) {
-      return oneAtATime(() => maskNow(photo, request));
+    async mask(photo, request = {}) {
+      try {
+        return await oneAtATime(() => maskNow(photo, request), request);
+      } catch (error) {
+        // A mask that never ran still wipes the bytes it was handed.
+        photo.fill(0);
+        throw error;
+      }
     },
-    async close() {
-      await worker.terminate();
+    close() {
+      if (closing === undefined) {
+        closed = true;
+        rejectPending(gone());
+        closing = worker.terminate().then(() => undefined);
+      }
+      return closing;
     },
   };
 }

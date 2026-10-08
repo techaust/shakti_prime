@@ -27,6 +27,8 @@ export interface ScanResult {
    * what is still there on every delivery, so a deletion that failed is tried again.
    */
   originalKey?: string;
+  /** How many pages of a vault PDF the worker has sent the next delivery on from (`files.file.continue_check`). */
+  maskedPagesSent?: number;
 }
 
 export function scanResultOf(row: Pick<FileRow, 'scanResult'>): ScanResult {

@@ -16,14 +16,16 @@ export function maskingConfigured(): boolean {
 }
 
 /**
- * Closes the masking step and forgets it, so the next use opens a new one. Used when a page ran
- * out of time: the engine is still busy with it and would hold up every check after it.
+ * Closes the masking step `used`, the one a page ran out of time on, and forgets it when it is
+ * still the current one, so the next use opens a new one. A newer masking step, opened since, is
+ * left alone: an older page's timeout never closes what other checks are using. Closing answers
+ * every mask still waiting on `used`.
  */
-export async function discardVaultMasker(): Promise<void> {
-  const current = opened;
-  opened = undefined;
-  if (current === undefined) return;
-  await (await current.catch(() => undefined))?.close();
+export async function discardVaultMasker(used: DocumentMasker): Promise<void> {
+  const pending = opened;
+  const current = await pending?.catch(() => undefined);
+  if (pending !== undefined && current === used && opened === pending) opened = undefined;
+  await used.close();
 }
 
 export function vaultMasker(): Promise<DocumentMasker> {

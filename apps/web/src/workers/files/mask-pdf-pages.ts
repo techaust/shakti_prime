@@ -1,6 +1,7 @@
 import { KNOWLEDGE_PDF_MAX_PAGES, type FileRejectReason } from '@shakti/contracts';
 import type { FileStore } from '@shakti/domain';
 import type { DocumentMasker } from '../ocr/mask-document';
+import { maskInTime } from './timed-mask';
 import { countPdfPages, jpegsToPdf, renderPdfPages } from './pdf-pages';
 
 // A vault PDF is masked one page per delivery (docs/03-roadmap-appendix/phase1.md §8.4,
@@ -15,12 +16,18 @@ import { countPdfPages, jpegsToPdf, renderPdfPages } from './pdf-pages';
 
 /** After this long into a delivery a page that has not even been drawn is given up on. */
 export const PAGE_START_LIMIT_MS = 15_000;
-/** A page whose masking is still running this long into the delivery is given up on. */
+/** A page whose masking is still running this long after its turn began is given up on. */
 export const PAGE_MASK_LIMIT_MS = 45_000;
+/**
+ * By this long into the delivery a page's turn in the masking queue must have begun, or the page
+ * waits for a later delivery (a page that begins any later cannot finish before the route ends).
+ */
+export const PAGE_TURN_LIMIT_MS = 25_000;
 
 export interface PageLimits {
   startMs: number;
   maskMs: number;
+  turnMs?: number | undefined;
 }
 
 /** The folder, in the store, where the masked pages of one upload wait. */
@@ -77,13 +84,15 @@ export interface MaskStepInput {
   uploadKey: string;
   /** The pages kept when the event that started this delivery was sent; absent for the first. */
   maskedPages?: number | undefined;
+  /** The pages the file records as sent on (`files.file.continue_check`); 0 or absent before the first. */
+  maskedPagesSent?: number | undefined;
 }
 
 export interface MaskStepDeps {
   store: FileStore;
   masker: () => Promise<DocumentMasker>;
   /** Closes the masking step a page that ran out of time left busy, so the next one opens afresh. */
-  discardMasker?: (() => Promise<void>) | undefined;
+  discardMasker?: ((used: DocumentMasker) => Promise<void>) | undefined;
   limits?: PageLimits | undefined;
   /** Milliseconds since the delivery began. */
   elapsed: () => number;
@@ -93,9 +102,15 @@ export interface MaskStepDeps {
  * Masks the next page of a vault PDF and keeps it, or, when that was the last page, answers the
  * masked PDF of them all. A PDF of more than `KNOWLEDGE_PDF_MAX_PAGES` pages, or one that will not
  * open, is refused at once; a page whose numbers cannot be found refuses the file
- * (`file_mask_failed`); a page that is not drawn within `startMs` or masked within `maskMs` of the
- * delivery's start refuses it (`file_pdf_page_too_dense`). A masking step that itself fails is
- * thrown, not blamed on the file.
+ * (`file_mask_failed`); a page that is not drawn within `startMs` of the delivery's start, or whose
+ * masking runs past `maskMs` once its turn has begun, refuses it (`file_pdf_page_too_dense`). A page
+ * that cannot get its turn in the masking queue by `turnMs` is not refused: the delivery throws
+ * `integration_unavailable` and is delivered again. A masking step that itself fails is thrown, not
+ * blamed on the file.
+ *
+ * A delivery that finds more pages kept than the file records as sent on (the delivery that kept
+ * the page died before it sent the next) sends the chain on itself, `more` without masking; one for
+ * a page below the recorded count is stale.
  */
 export async function maskNextPdfPage(input: MaskStepInput, deps: MaskStepDeps): Promise<MaskStep> {
   const limits = deps.limits ?? { startMs: PAGE_START_LIMIT_MS, maskMs: PAGE_MASK_LIMIT_MS };
@@ -113,10 +128,17 @@ export async function maskNextPdfPage(input: MaskStepInput, deps: MaskStepDeps):
   // The pages kept so far: those whose record exists, in order.
   let done = 0;
   while (done < pages && (await deps.store.get(recordKey(prefix, done))) !== undefined) done += 1;
-  // Every page kept means the last delivery died before the masked PDF was kept: carry on from there.
-  if (done < pages && input.maskedPages !== undefined && input.maskedPages < done) {
+  const sent = input.maskedPagesSent ?? 0;
+  // The chain has moved past this delivery's event.
+  if (done < pages && input.maskedPages !== undefined && input.maskedPages < sent) {
     return { kind: 'stale', done, pages };
   }
+  // A page was kept but the delivery that kept it died before sending on: send on from here. The
+  // kept page stays, so there is nothing to undo.
+  if (done < pages && done > sent) {
+    return { kind: 'more', done, pages, undo: () => Promise.resolve() };
+  }
+  // Every page kept means the last delivery died before the masked PDF was kept: carry on from there.
   if (done < pages) {
     const step = await maskPage(input.bytes, done, prefix, deps, limits);
     if (step !== undefined) return step;
@@ -159,29 +181,20 @@ async function maskPage(
     return tooDense;
   }
 
-  let timer: NodeJS.Timeout | undefined;
-  const timedOut = Symbol('timed out');
-  const masking = (async () => (await deps.masker()).mask(Buffer.from(image), { expect: [] }))();
-  // A mask that outlives its deadline is closed down below and fails on its own; nobody waits for it.
-  masking.catch(() => undefined);
-  const outcome = await Promise.race([
-    masking,
-    new Promise<typeof timedOut>((resolve) => {
-      timer = setTimeout(
-        () => {
-          resolve(timedOut);
-        },
-        Math.max(0, limits.maskMs - deps.elapsed()),
-      );
-    }),
-  ]).finally(() => {
-    clearTimeout(timer);
+  let timed;
+  try {
+    timed = await maskInTime(Buffer.from(image), {
+      masker: deps.masker,
+      discardMasker: deps.discardMasker,
+      maskMs: limits.maskMs,
+      turnMs: limits.turnMs ?? PAGE_TURN_LIMIT_MS,
+      elapsed: deps.elapsed,
+    });
+  } finally {
     image.fill(0);
-  });
-  if (outcome === timedOut) {
-    await deps.discardMasker?.().catch(() => undefined);
-    return tooDense;
   }
+  if (timed.kind === 'too_slow') return tooDense;
+  const { outcome } = timed;
   if (outcome.status === 'needs_review') return { kind: 'refused', reason: 'file_mask_failed' };
 
   const picture = new Uint8Array(outcome.image);

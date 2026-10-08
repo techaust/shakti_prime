@@ -25,6 +25,8 @@ export interface StoredFile {
   originalKey: string | undefined;
   /** What the checks did to the bytes (`masked` for a vault photo or PDF), once they are done. */
   sanitising?: string | undefined;
+  /** Pages of a vault PDF the worker has sent the checks on from; absent before the first. */
+  maskedPagesSent?: number | undefined;
 }
 
 function toStoredFile(row: FileRow): StoredFile {
@@ -42,6 +44,7 @@ function toStoredFile(row: FileRow): StoredFile {
     createdBy: row.createdBy,
     originalKey: scanResultOf(row).originalKey,
     sanitising: scanResultOf(row).sanitising,
+    maskedPagesSent: scanResultOf(row).maskedPagesSent,
   };
 }
 

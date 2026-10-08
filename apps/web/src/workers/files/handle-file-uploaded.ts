@@ -27,8 +27,15 @@ import { logger as appLogger } from '../../log';
 import type { DocumentMasker } from '../ocr/mask-document';
 import { checkOfficeFile, isOfficeType } from './office-check';
 import { checkPdf } from './pdf-check';
-import { deleteMaskedPages, maskNextPdfPage, type PageLimits } from './mask-pdf-pages';
+import {
+  deleteMaskedPages,
+  maskNextPdfPage,
+  PAGE_MASK_LIMIT_MS,
+  PAGE_TURN_LIMIT_MS,
+  type PageLimits,
+} from './mask-pdf-pages';
 import { isImageType, reencodeImage } from './reencode-image';
+import { maskInTime } from './timed-mask';
 
 /** The tag GuardDuty Malware Protection for S3 writes on each object it scans. */
 export const SCAN_TAG = 'GuardDutyMalwareScanStatus';
@@ -48,7 +55,7 @@ export interface FileCheckDeps {
   /** The OCR masking of the Phase 0 spike, for vault photos; opened on first use. */
   masker?: () => Promise<DocumentMasker>;
   /** Closes a masking step a page ran out of time on, so the next one opens afresh. */
-  discardMasker?: () => Promise<void>;
+  discardMasker?: (used: DocumentMasker) => Promise<void>;
   /** Claims a vault PDF while a page of it is masked, so two deliveries never mask it at once. */
   keyValue?: KeyValue;
   /** How long a page may take; the defaults of `mask-pdf-pages.ts` unless a test sets them. */
@@ -261,7 +268,12 @@ async function maskVaultPdf(
   }
   try {
     const step = await maskNextPdfPage(
-      { bytes, uploadKey: file.key, maskedPages: delivery.maskedPages },
+      {
+        bytes,
+        uploadKey: file.key,
+        maskedPages: delivery.maskedPages,
+        maskedPagesSent: file.maskedPagesSent,
+      },
       {
         store: deps.store,
         masker,
@@ -276,8 +288,19 @@ async function maskVaultPdf(
       try {
         await delivery.sendOn(step.done);
       } catch (error) {
-        // Not sent on: take the page back so this delivery, tried again, does it over.
-        await step.undo().catch(() => undefined);
+        // Not sent on: take the page back so this delivery, tried again, does it over. If that
+        // fails too the page stays kept above the pages sent on, which the next delivery sends on
+        // itself; either way the delivery is tried again.
+        try {
+          await step.undo();
+        } catch (undoError) {
+          (deps.logger ?? appLogger).log('error', 'files.check_undo_failed', {
+            requestId: deps.requestId,
+            fileId: file.id,
+            error: undoError instanceof Error ? undoError.message : 'unknown',
+          });
+          throw new DomainError('integration_unavailable', `file ${file.id} could not be sent on`);
+        }
         throw error;
       }
       return { ok: 'more', maskedPages: step.done, pages: step.pages };
@@ -355,8 +378,17 @@ async function check(
     if (deps.masker === undefined) return { ok: false, reason: 'file_masking_unavailable' };
     // The masker reads the photo whatever its format, applies its orientation and answers a JPEG
     // with no metadata, so it re-encodes as well; it wipes the buffer it is given.
-    const masker = await deps.masker();
-    const outcome = await masker.mask(Buffer.from(bytes), { expect: [] });
+    // Under the same limits as a PDF page: a wait for its turn is delivered again, a mask that runs
+    // past its time once it has its turn is refused.
+    const timed = await maskInTime(Buffer.from(bytes), {
+      masker: deps.masker,
+      discardMasker: deps.discardMasker,
+      maskMs: deps.pageLimits?.maskMs ?? PAGE_MASK_LIMIT_MS,
+      turnMs: deps.pageLimits?.turnMs ?? PAGE_TURN_LIMIT_MS,
+      elapsed: delivery.elapsed,
+    });
+    if (timed.kind === 'too_slow') return { ok: false, reason: 'file_mask_failed' };
+    const { outcome } = timed;
     if (outcome.status === 'needs_review') return { ok: false, reason: 'file_mask_failed' };
     return {
       ok: true,
