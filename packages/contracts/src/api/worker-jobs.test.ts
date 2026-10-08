@@ -41,6 +41,16 @@ describe('the worker contracts (docs/06-api.md §3.6)', () => {
       NotifyJob.safeParse({ ...notify, payload: { ...payload, name: 'Ramesh' } }).success,
     ).toBe(false);
     expect(NotifyJob.safeParse({ ...notify, type: 'crm.lead.created' }).success).toBe(false);
+    // A held dealer order notifies too (SAL-07), with the ids and the rule's code only.
+    const held = {
+      ...notify,
+      type: 'sales.order.credit_held',
+      payload: { accountId: IDS.event, createdBy: IDS.event, reason: 'credit_overdue', v: 1 },
+    };
+    expect(NotifyJob.safeParse(held).success).toBe(true);
+    expect(
+      NotifyJob.safeParse({ ...held, payload: { ...held.payload, reason: 'Ramesh owes' } }).success,
+    ).toBe(false);
   });
 
   it('renders a document version or a sheet of 1 to 500 labels', () => {
