@@ -46,7 +46,7 @@ Each holds the detail of the numbered document with the same number.
 | Folder | What it holds |
 |---|---|
 | [adr/](adr/) | Architecture decision records, one file per decision, numbered. The index is in [04-architecture.md](04-architecture.md). |
-| [runbooks/](runbooks/) | Procedures: [DEPLOY](runbooks/deploy.md), [INCIDENTS](runbooks/incidents.md), [slice-integration](runbooks/slice-integration.md), [hybrid](runbooks/hybrid.md) (cloud and PC), [accounts](runbooks/accounts.md), [files-setup](runbooks/files-setup.md), [tooling](runbooks/tooling.md). |
+| [runbooks/](runbooks/) | Procedures: [DEPLOY](runbooks/deploy.md), [INCIDENTS](runbooks/incidents.md), [slice-integration](runbooks/slice-integration.md), [hybrid](runbooks/hybrid.md) (cloud and PC), [models-and-usage](runbooks/models-and-usage.md), [accounts](runbooks/accounts.md), [files-setup](runbooks/files-setup.md), [tooling](runbooks/tooling.md). |
 | [runs/phase1/](runs/phase1/readme.md) | One run file per slice: its brief, the builder's report, the review and the integration notes. |
 
 ## Generated files

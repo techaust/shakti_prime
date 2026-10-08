@@ -5,7 +5,7 @@ Every decision the owner took (and the few the lead took pending the owner), new
 ## Standing rules in force
 The decisions that govern day-to-day work now, each with its row below:
 - **Where work runs:** on the PC only, with Docker Desktop; at most two slice builders at once; heavy commands one at a time through `bash tools/integration/heavy.sh <command>`; cloud sessions are paused (06-10-2026, 07-10-2026).
-- **Models and reporting:** builders on Sonnet, the reviewer on Opus at high effort, the lead on Opus at medium effort; the lead reports on events only (07-10-2026).
+- **Models and usage:** Sonnet builds, Opus reviews, Haiku does mechanical work, each at the effort its slice's tier sets; the lead on Opus at medium, raised for one task at a time; a budget gate before every agent; the lead reports on events only ([models-and-usage](runbooks/models-and-usage.md); 08-10-2026, 07-10-2026).
 - **Session phrases:** the owner starts each day with "start the day" and ends it with "end the day" (07-10-2026).
 - **Merging:** every pull request merges itself when CI passes; nobody merges by hand or pushes to `main` (27-09-2026).
 - **Hosted environments:** the standing go-ahead covers the migration, redeploy and health checks of dev and staging, and their QStash schedules; everything else asks the owner first (29-09-2026, 05-10-2026).
@@ -14,6 +14,7 @@ The decisions that govern day-to-day work now, each with its row below:
 
 | Date | Decision | Decided by | Applied in |
 |---|---|---|---|
+| 08-10-2026 | Models and usage per task: slices in three tiers (A: S2, A1, M1, G1; B: N1, K1, T2, R1; C: L1); builders on Sonnet (high for Tier A, medium otherwise), reviews on Opus (high for Tiers A and B, medium for C), fixes on Sonnet and a re-check of the fix diff only; Haiku agents `code-finder`, `test-runner` and `doc-clerk` for searches, suites and document drafts; the lead on Opus at medium, high for one named task at a time; an early check of a Tier A slice's schema and commands; a budget gate on the weekly pace (14 % a day) and the 5-hour window before every agent; usage measured per run, one agent at a time in the first week, and the plan reviewed once after S2, N1 and K1. This supersedes the models part of the 07-10-2026 row | Owner | [models-and-usage](runbooks/models-and-usage.md), `.claude/agents/`, `CLAUDE.md`, `.claude/skills/start-session/SKILL.md`, `.claude/skills/end-session/SKILL.md` |
 | 07-10-2026 | Every file under `docs/` is lowercase; the root files README.md, CLAUDE.md, AGENTS.md and CHANGELOG.md keep their names | Owner | [00-start-here](00-start-here.md) |
 | 07-10-2026 | The heavy-command lock (`bash /d/shakti-wt/heavy.sh …` and `bash tools/integration/heavy.sh …`) is allowed in the project's local permissions on the PC, so builders run their checks without a refusal | Owner | the local permission settings on the PC (not in the repository) |
 | 07-10-2026 | The documents are restructured into numbered files in reading order (`docs/01-blueprint.md` to `docs/14-reviews/`), with appendix folders and a guide, [00-start-here](00-start-here.md); the approved documents may be restructured for this task | Owner | [00-start-here](00-start-here.md), [CLAUDE.md](../CLAUDE.md#documentation-map) |

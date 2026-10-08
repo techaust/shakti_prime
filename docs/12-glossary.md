@@ -83,7 +83,7 @@ The words the documents, the code and the group use, each in one or two plain se
 |---|---|
 | Baseline (screenshot) | The stored image a journey's screenshot is compared with. It is made only in the pinned Linux Playwright image, on a fresh database, so the check gives the same answer in CI (`pnpm --filter web e2e:snap`, `docs/09-testing.md` §5). |
 | Brief | The written instructions for one session that builds or reviews a slice, kept with its report and review in `docs/runs/phase1/<slice>.md`. |
-| Builder, reviewer | The two agents a slice goes through: the builder (`slice-builder`, on Sonnet) builds it from its run file; the reviewer (`slice-reviewer`, on Opus at high effort) reads the branch with fresh context and reports ranked findings. Neither opens a pull request or touches a hosted service (`.claude/agents/`). |
+| Builder, reviewer | The two agents a slice goes through: the builder (`slice-builder`, on Sonnet) builds it from its run file; the reviewer (`slice-reviewer`, on Opus) reads the branch with fresh context and reports ranked findings. Neither opens a pull request or touches a hosted service (`.claude/agents/`); the effort of each follows the slice's tier ([models-and-usage](runbooks/models-and-usage.md)). |
 | Dead letter | An event that could not be delivered after its attempts. It waits on Integration health until someone sends it again (`integrations.dlq.replay`). |
 | Definer | A database function that runs with its owner's rights (`security definer`) to answer one narrow question the caller's own rights cannot, checking a permission itself (`docs/05-database.md`). |
 | Gate item | One line of a phase's exit-gate checklist in `docs/03-roadmap.md`. A phase closes when every item is met or the owner defers it. |

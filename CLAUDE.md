@@ -25,7 +25,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.
   - A whole-repository lint runs once, as a builder's final check.
   - The cloud procedure waits in [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) for when cloud sessions resume; a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers.
-- **Models and usage:** the `slice-builder` agent runs on Sonnet and the `slice-reviewer` on Opus at high effort (set in their files); the lead session runs on Opus at medium effort, chosen by the owner in the app.
+- **Models and usage:** each task's model and effort, the slice tiers, the Haiku agents and the budget gate the lead checks before starting any agent are in [docs/runbooks/models-and-usage.md](docs/runbooks/models-and-usage.md); the lead session runs on Opus at medium effort, chosen by the owner in the app, and the lead passes each agent the model and effort of its slice's tier.
   - The lead reports on running builders only when one finishes, stalls 20 minutes with the heavy-command lock free, or the PC runs low on memory, with no progress check-ins between.
 
 ## Where things live
@@ -113,7 +113,7 @@ Planned apps (blueprint §5), each created in its phase: `apps/field` (Expo Andr
 |---|---|
 | `tools/integration/` | The scripts those runbooks use: worktree set-up, the heavy-command lock, the integration run, the merge helpers, the migration renumbering, the cloud setup and the document link check (`check-doc-links.py`). |
 | Skills in `.claude/skills/` | [start-session](.claude/skills/start-session/SKILL.md) and [end-session](.claude/skills/end-session/SKILL.md) (a session's start and close), [integrate-slice](.claude/skills/integrate-slice/SKILL.md) and [migrate-hosted](.claude/skills/migrate-hosted/SKILL.md) (a slice onto `main` and the hosted environments), [add-command](.claude/skills/add-command/SKILL.md) and [add-table](.claude/skills/add-table/SKILL.md) (the two recipes' checklists). |
-| Agents in `.claude/agents/` | [slice-builder](.claude/agents/slice-builder.md) (builds a slice from its run file) and [slice-reviewer](.claude/agents/slice-reviewer.md) (reviews a slice before it merges). |
+| Agents in `.claude/agents/` | [slice-builder](.claude/agents/slice-builder.md) (builds a slice from its run file) and [slice-reviewer](.claude/agents/slice-reviewer.md) (reviews a slice before it merges); on Haiku, [code-finder](.claude/agents/code-finder.md), [test-runner](.claude/agents/test-runner.md) and [doc-clerk](.claude/agents/doc-clerk.md) for the lead's searches, suites and document drafts ([models-and-usage](docs/runbooks/models-and-usage.md)). |
 
 Read order for any task: this file → the relevant blueprint section → the module document → the code.
 
