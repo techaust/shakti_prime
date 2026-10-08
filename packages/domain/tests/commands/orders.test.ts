@@ -42,7 +42,6 @@ import {
   listSalesOrders,
 } from '../../src/queries/sales/list-orders';
 import { loadSalesOrderBuilder, previewSalesOrder } from '../../src/queries/sales/order-facts';
-import { commissionAmount } from '../../src/sales/commission';
 
 // Orders are made in company 4 (RCREF): no other command suite numbers orders there, and company 3
 // is kept for the journeys' screenshots.
@@ -916,20 +915,92 @@ describe('the referral commission (CRM-09)', () => {
     await run(lc, confirmSalesOrder, { entityId: E, orderId: order.id });
     const accrual = await accrualOf(order.id);
     expect(accrual).toMatchObject({ basis: 'per_kw', rate: '1000.00', state: 'accrued' });
-    expect(Number(accrual?.measure)).toBeGreaterThan(0);
-    expect(accrual?.amount).toBe(
-      commissionAmount({
-        basis: 'per_kw',
-        rate: '1000.00',
-        taxableValue: '0.00',
-        kw: Number(accrual?.measure),
-        hp: null,
-      })?.amount,
-    );
+    // The rooftop sizing of 300 units a month, a 40 m² roof and 5 kW sanctioned recommends
+    // 2.7 kWp: 2.7 × 1,000.00 a kW.
+    expect(accrual).toMatchObject({ measure: '2.700', amount: '2700.00' });
 
     const none = await acceptedOrder(ids.partnerNone);
     await run(lc, confirmSalesOrder, { entityId: E, orderId: none.id });
     expect(await accrualOf(none.id)).toBeUndefined();
+  });
+
+  /** The database's message for a refused statement (drizzle wraps it as the cause). */
+  async function refusal(promise: Promise<unknown>): Promise<string> {
+    try {
+      await promise;
+    } catch (e) {
+      const cause = e instanceof Error && e.cause instanceof Error ? e.cause : e;
+      return cause instanceof Error ? cause.message : String(cause);
+    }
+    throw new Error('expected the statement to fail');
+  }
+
+  /** Confirms the order, then clears its accrual so the definer can be called again. */
+  async function confirmedWithoutAccrual(partner: string): Promise<SalesOrderDto> {
+    const order = await acceptedOrder(partner);
+    await confirm(order.id);
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        await tx`alter table commission_accruals disable trigger commission_accruals_guard`;
+        await tx`delete from commission_accruals where sales_order_id = ${order.id}`;
+        await tx`alter table commission_accruals enable trigger commission_accruals_guard`;
+      }),
+    );
+    return order;
+  }
+
+  const record = (who: Principal, order: string, rule: string, measure: string, amount: string) =>
+    asPrincipal(who, async ({ tx }) => {
+      const rows = (await tx.execute(
+        sqlTag`select app.record_commission_accrual(${newId()}::uuid, ${order}::uuid, ${rule}::uuid,
+                                                    ${measure}::numeric, ${amount}::numeric) as id`,
+      )) as unknown as { id: string | null }[];
+      return rows[0]?.id ?? null;
+    });
+
+  it('records a commission only for the rule in force and the amount it gives', async () => {
+    const order = await confirmedWithoutAccrual(ids.partnerPercent);
+    // 2.5% of the taxable value 60,855.00 is 1,521.38.
+    expect(await refusal(record(lc, order.id, ids.ruleFuture, '60855.000', '1521.38'))).toMatch(
+      /not the one in force/,
+    );
+    expect(await refusal(record(lc, order.id, ids.rulePercent, '60855.000', '1521.37'))).toMatch(
+      /does not follow its rule/,
+    );
+    expect(await refusal(record(lc, order.id, ids.rulePercent, '1.000', '1521.38'))).toMatch(
+      /does not follow its rule/,
+    );
+    // Only someone who may confirm the order records it.
+    expect(
+      await refusal(record(otherLc, order.id, ids.rulePercent, '60855.000', '1521.38')),
+    ).toMatch(/sales.order.confirm over the order/);
+    expect(await accrualOf(order.id)).toBeUndefined();
+    expect(await record(lc, order.id, ids.rulePercent, '60855.000', '1521.38')).not.toBeNull();
+    expect(await accrualOf(order.id)).toMatchObject({ amount: '1521.38' });
+
+    // A rule that is not yet in force, or has ended, is refused for its own partner.
+    for (const [partner, rule] of [
+      [ids.partnerFuture, ids.ruleFuture],
+      [ids.partnerEnded, ids.ruleEnded],
+    ] as const) {
+      const out = await confirmedWithoutAccrual(partner);
+      expect(await refusal(record(lc, out.id, rule, '1.000', '900.00'))).toMatch(
+        /not the one in force/,
+      );
+    }
+  });
+
+  it('records a per-kW commission only for the size of the lead’s sizing', async () => {
+    const order = await confirmedWithoutAccrual(ids.partnerPerKw);
+    // The sizing recommends 2.7 kWp; a caller's own size is not taken.
+    const wrong = '99.000';
+    expect(await refusal(record(lc, order.id, ids.rulePerKw, wrong, '99000.00'))).toMatch(
+      /not the lead's size/,
+    );
+    expect(await refusal(record(lc, order.id, ids.rulePerKw, '2.700', '1.00'))).toMatch(
+      /does not follow its rule/,
+    );
+    expect(await record(lc, order.id, ids.rulePerKw, '2.700', '2700.00')).not.toBeNull();
   });
 
   it('uses no rule that is not in force on the confirmation date', async () => {

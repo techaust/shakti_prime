@@ -42,6 +42,8 @@ let exec: Principal;
 let accounts: Principal;
 let dealer: string;
 let household: string;
+/** Dealers the merge tests make, cleaned up with the rest. */
+const mergeDealers: string[] = [];
 
 async function customer(type: 'dealer' | 'household', owner: Principal): Promise<string> {
   const id = newId();
@@ -116,8 +118,9 @@ afterAll(async () => {
       await tx`delete from sales_orders where price_list_id = ${LIST}`;
       await tx`alter table dealer_terms disable trigger dealer_terms_append_only`;
       await tx`alter table dealer_outstanding disable trigger dealer_outstanding_append_only`;
-      await tx`delete from dealer_terms where account_id in (${dealer}, ${household})`;
-      await tx`delete from dealer_outstanding where account_id in (${dealer}, ${household})`;
+      const accountIds = [dealer, household, ...mergeDealers];
+      await tx`delete from dealer_terms where account_id in ${tx(accountIds)}`;
+      await tx`delete from dealer_outstanding where account_id in ${tx(accountIds)}`;
       await tx`alter table dealer_terms enable trigger dealer_terms_append_only`;
       await tx`alter table dealer_outstanding enable trigger dealer_outstanding_append_only`;
       await tx`delete from tax_rates where id = ${RATE}`;
@@ -249,6 +252,16 @@ describe('commission accruals and the credit definers (0117)', () => {
     ).toMatch(/permission denied/);
   });
 
+  it('lets no request role execute app.may_confirm_order(), which only the definers call', async () => {
+    const [row] = await asMigrator(
+      (m) => m<{ u: boolean; r: boolean; o: boolean }[]>`
+        select has_function_privilege('app_user', 'app.may_confirm_order(uuid)', 'execute') as u,
+               has_function_privilege('app_reader', 'app.may_confirm_order(uuid)', 'execute') as r,
+               has_function_privilege('readonly_reporter', 'app.may_confirm_order(uuid)', 'execute') as o`,
+    );
+    expect(row).toEqual({ u: false, r: false, o: false });
+  });
+
   it('answers a dealer’s credit position only to Accounts or to whoever may confirm the order', async () => {
     const id = await draftOrder();
     const position = (who: Principal, order: string | null) =>
@@ -278,5 +291,121 @@ describe('commission accruals and the credit definers (0117)', () => {
         ),
       ),
     ).toMatch(/sales.order.cancel over a cancelled order/);
+  });
+});
+
+describe('customer merges move a dealer’s orders, terms and outstanding (0117)', () => {
+  async function mergeDealer(): Promise<string> {
+    const id = await customer('dealer', lc);
+    mergeDealers.push(id);
+    return id;
+  }
+
+  /** A confirmed order of the dealer, made without a lead. */
+  async function confirmedOrder(account: string): Promise<string> {
+    const id = newId();
+    await asMigrator(
+      (
+        m,
+      ) => m`insert into sales_orders (id, entity_id, so_no, fy, account_id, tier_id, price_list_id,
+                  place_of_supply_state, supply_kind, state, confirmed_at, confirmed_by,
+                  subtotal, cgst, sgst, igst, tax_total, round_off, grand_total, created_by)
+               values (${id}, ${E}, ${`ORLS/${newId()}`}, '2098-99', ${account}, ${tierId('dealer')},
+                       ${LIST}, '08', 'intra', 'confirmed', now(), ${lc.id},
+                       0, 0, 0, 0, 0, 0, 0, ${lc.id})`,
+    );
+    return id;
+  }
+
+  async function credit(account: string, limit: string): Promise<void> {
+    await asMigrator(async (m) => {
+      await m`insert into dealer_terms (id, entity_id, account_id, credit_limit, credit_days, created_by)
+              values (${newId()}, ${E}, ${account}, ${limit}, 30, ${accounts.id})`;
+      await m`insert into dealer_outstanding (id, entity_id, account_id, outstanding, as_of, entered_by)
+              values (${newId()}, ${E}, ${account}, ${limit}, '2026-04-01', ${accounts.id})`;
+    });
+  }
+
+  /** Where the dealer's orders, terms and outstanding are, by account. */
+  async function holdings(
+    account: string,
+  ): Promise<{ orders: number; terms: number; out: number }> {
+    const [row] = await asMigrator(
+      (m) => m<{ orders: number; terms: number; out: number }[]>`
+        select (select count(*)::int from sales_orders where account_id = ${account}) as orders,
+               (select count(*)::int from dealer_terms where account_id = ${account}) as terms,
+               (select count(*)::int from dealer_outstanding where account_id = ${account}) as out`,
+    );
+    return row ?? { orders: -1, terms: -1, out: -1 };
+  }
+
+  const merge = (kept: string, merged: string, id: string) =>
+    asPrincipal(exec, async ({ tx }) => {
+      const rows = await tx.execute(
+        sql`select app.merge_customers(${id}::uuid, ${kept}::uuid, ${merged}::uuid, ${E}::smallint, null::uuid) as r`,
+      );
+      return ([...rows][0] as { r: { status: string } }).r;
+    });
+
+  it('moves the merged dealer’s own order, terms and outstanding to the kept dealer, and back on the undo', async () => {
+    const kept = await mergeDealer();
+    const merged = await mergeDealer();
+    await confirmedOrder(merged);
+    await credit(merged, '9000.00');
+    const mergeId = newId();
+    expect((await merge(kept, merged, mergeId)).status).toBe('merged');
+    expect(await holdings(kept)).toEqual({ orders: 1, terms: 1, out: 1 });
+    expect(await holdings(merged)).toEqual({ orders: 0, terms: 0, out: 0 });
+    // The kept dealer's credit position now includes what the merged one had.
+    const position = await asPrincipal(accounts, async ({ tx }) => [
+      ...(await tx.execute(
+        sql`select credit_limit::text as l, outstanding::text as o
+              from app.dealer_credit_position(${E}::smallint, ${kept}::uuid, null::uuid)`,
+      )),
+    ]);
+    expect(position).toEqual([{ l: '9000.00', o: '9000.00' }]);
+
+    const undone = await asPrincipal(exec, async ({ tx }) => {
+      const rows = await tx.execute(sql`select app.unmerge_customers(${mergeId}::uuid) as r`);
+      return ([...rows][0] as { r: { status: string } }).r;
+    });
+    expect(undone.status).toBe('undone');
+    expect(await holdings(kept)).toEqual({ orders: 0, terms: 0, out: 0 });
+    expect(await holdings(merged)).toEqual({ orders: 1, terms: 1, out: 1 });
+  });
+
+  it('keeps the kept dealer’s own terms and outstanding as the current ones', async () => {
+    const kept = await mergeDealer();
+    const merged = await mergeDealer();
+    await credit(kept, '5000.00');
+    await confirmedOrder(merged);
+    await credit(merged, '9000.00');
+    expect((await merge(kept, merged, newId())).status).toBe('merged');
+    // The order moved; the merged dealer's entries stay on it, so the kept dealer's figures stand.
+    expect(await holdings(kept)).toEqual({ orders: 1, terms: 1, out: 1 });
+    expect(await holdings(merged)).toEqual({ orders: 0, terms: 1, out: 1 });
+    const position = await asPrincipal(accounts, async ({ tx }) => [
+      ...(await tx.execute(
+        sql`select credit_limit::text as l, outstanding::text as o
+              from app.dealer_credit_position(${E}::smallint, ${kept}::uuid, null::uuid)`,
+      )),
+    ]);
+    expect(position).toEqual([{ l: '5000.00', o: '5000.00' }]);
+  });
+
+  it('lets no request role change a dealer entry, merge or not', async () => {
+    const dealerId = await mergeDealer();
+    await credit(dealerId, '100.00');
+    for (const table of ['dealer_terms', 'dealer_outstanding']) {
+      expect(
+        await failure(
+          asMigrator((m) =>
+            m.unsafe(
+              `update ${table} set account_id = '${household}' where account_id = '${dealerId}'`,
+            ),
+          ),
+        ),
+      ).toMatch(/append-only/);
+    }
   });
 });
