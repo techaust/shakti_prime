@@ -12,7 +12,7 @@ import { vaultMasker } from '../ocr/vault-masker';
 import { checkPdf } from './pdf-check';
 import { countPdfPages, maskPdf, renderMaskedPages, renderPdfPages } from './pdf-pages';
 
-// The vault's PDF masking (docs/design/phase1.md §8.4): pages drawn by MuPDF, each through the
+// The vault's PDF masking (docs/design/phase1.md §8.4): pages drawn by PDFium, each through the
 // masking step, only the masked pages kept. Every number here is made up.
 
 describe('drawing a PDF as pictures', () => {

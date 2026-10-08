@@ -40,7 +40,7 @@ export interface IndexKnowledgeDeps {
   readWord: (bytes: Uint8Array) => Promise<string>;
   /**
    * Draws the pages of a PDF the file checks have masked (a PDF of pictures) as JPEG images, in
-   * order; throws when it cannot (the web app's MuPDF, which only the web app holds).
+   * order; throws when it cannot (the web app's PDFium, which only the web app holds).
    */
   pdfPages: (bytes: Uint8Array) => Promise<Uint8Array[]>;
   requestId: string;
