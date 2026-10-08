@@ -2735,7 +2735,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 **Check constraints**
 
 - `notification_preferences_quiet_check`: `("notification_preferences"."quiet_from" is null) = ("notification_preferences"."quiet_to" is null) and ("notification_preferences"."quiet_from" is null or "notification_preferences"."quiet_from" <> "notification_preferences"."quiet_to") and ("notification_preferences"."type" is null or "notification_preferences"."quiet_from" is null)`
-- `notification_preferences_type_check`: `"notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')`
+- `notification_preferences_type_check`: `"notification_preferences"."type" is null or "notification_preferences"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')`
 
 **Triggers**
 
@@ -2749,7 +2749,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### notifications
 
-**Catalogue entry** (05-database.md §6.10; created in 0118): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
+**Catalogue entry** (05-database.md §6.10; created in 0118): `user_id`, `entity_id`, `type` (`lead_assigned`, `duplicate_found`, `call_due`, `quote_expiring`, `first_call_late`, `enquiry_routed`, `order_credit_held`), `subject_type` (`opportunity`, `duplicate_candidate`, `task`, `quote`, `inbox_item`, `sales_order`), `subject_id`, `payload_json` (the ids the notice's link is made from: `accountId`, `opportunityId`, `quoteId`; never a name, a number or free text), `dedupe_key` (the reason it was told, unique per person, so a repeated delivery or scan makes one notice), `created_at`, `read_at`, `channel_sent_json` (`inApp`, and `push`: `sent`, `held`, `off`, `none`, `failed` or `pending`); a person's own, in the request's companies; written only by the notify worker (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -2783,8 +2783,8 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 - `notifications_channels_check`: `jsonb_typeof("notifications"."channel_sent_json") = 'object'`
 - `notifications_dedupe_key_check`: `char_length("notifications"."dedupe_key") between 1 and 200`
 - `notifications_payload_check`: `jsonb_typeof("notifications"."payload_json") = 'object'`
-- `notifications_subject_type_check`: `"notifications"."subject_type" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item')`
-- `notifications_type_check`: `"notifications"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed')`
+- `notifications_subject_type_check`: `"notifications"."subject_type" in ('opportunity', 'duplicate_candidate', 'task', 'quote', 'inbox_item', 'sales_order')`
+- `notifications_type_check`: `"notifications"."type" in ('lead_assigned', 'duplicate_found', 'call_due', 'quote_expiring', 'first_call_late', 'enquiry_routed', 'order_credit_held')`
 
 **Indexes**
 
