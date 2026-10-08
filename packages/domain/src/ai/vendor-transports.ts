@@ -28,12 +28,14 @@ function userContent(request: ModelRequest): string | Anthropic.ContentBlockPara
   const documents = request.documents ?? [];
   if (documents.length === 0) return request.user;
   return [
-    ...documents.map(
-      (d): Anthropic.ContentBlockParam => ({
-        type: 'image',
-        source: { type: 'base64', media_type: d.mediaType, data: Buffer.from(d.bytes).toString('base64') },
-      }),
-    ),
+    ...documents.map((d): Anthropic.ContentBlockParam => ({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: d.mediaType,
+        data: Buffer.from(d.bytes).toString('base64'),
+      },
+    })),
     { type: 'text', text: request.user },
   ];
 }

@@ -53,7 +53,9 @@ describe('knowledgePassages', () => {
   });
 
   it('keeps ordinary text and respects the passage size', () => {
-    const passages = knowledgePassages('Warranty covers the motor for five years.\n\nPanels: ten years.');
+    const passages = knowledgePassages(
+      'Warranty covers the motor for five years.\n\nPanels: ten years.',
+    );
     expect(passages).toEqual(['Warranty covers the motor for five years.\n\nPanels: ten years.']);
     const long = knowledgePassages('Sentence about pumps. '.repeat(400));
     expect(long.every((p) => p.length <= KNOWLEDGE_CHUNKING.maxChars)).toBe(true);

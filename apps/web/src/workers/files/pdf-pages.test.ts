@@ -28,7 +28,7 @@ describe('drawing a PDF as pictures', () => {
     expect(drawn).toBe(2);
     const jpegs = await renderMaskedPages(bytes);
     expect(jpegs).toHaveLength(2);
-    expect([...(jpegs[0] ?? []).subarray(0, 2)]).toEqual([0xff, 0xd8]);
+    expect(Array.from((jpegs[0] ?? new Uint8Array()).subarray(0, 2))).toEqual([0xff, 0xd8]);
   });
 
   it('refuses what is not a PDF', async () => {

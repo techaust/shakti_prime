@@ -80,7 +80,10 @@ async function asDocuments(
     return [{ mediaType: file.contentType as ModelDocument['mediaType'], bytes }];
   }
   if (file.contentType !== 'application/pdf') {
-    throw new KnowledgeExtractError('knowledge_unreadable', `the model does not read ${file.contentType}`);
+    throw new KnowledgeExtractError(
+      'knowledge_unreadable',
+      `the model does not read ${file.contentType}`,
+    );
   }
   let pages: Uint8Array[];
   try {

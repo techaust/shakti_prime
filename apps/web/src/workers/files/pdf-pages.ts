@@ -1,4 +1,5 @@
 import { KNOWLEDGE_PDF_MAX_PAGES, type FileRejectReason } from '@shakti/contracts';
+import type * as MupdfModule from 'mupdf';
 import type { DocumentMasker } from '../ocr/mask-document';
 
 // A vault PDF is read as pictures, never as a PDF (docs/design/phase1.md §8.4, docs/SECURITY.md
@@ -14,7 +15,7 @@ const MAX_PAGE_PIXELS = 16_000_000;
 const JPEG_QUALITY = 85;
 const POINTS_PER_INCH = 72;
 
-type Mupdf = typeof import('mupdf');
+type Mupdf = typeof MupdfModule;
 
 async function loadMupdf(): Promise<Mupdf> {
   return import('mupdf');

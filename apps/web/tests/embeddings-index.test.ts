@@ -29,7 +29,6 @@ import {
   runCommand,
   sha256Hex,
   type FakeModelTransport,
-  type FileStore,
 } from '@shakti/domain';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,8 +39,9 @@ import { AADHAAR, AADHAAR_SPACED, coveringMasker, scanOf } from './support/pdf-f
 // The Knowledge Vault's index worker outside a Next.js request: the route, the file checks, the
 // Word reader, the commands and the database are real; the AI vendors are the fake transport and
 // the file store is in memory. Every text is synthetic.
+type MemoryStore = ReturnType<typeof memoryFileStore>;
 interface IndexState {
-  store: FileStore | undefined;
+  store: MemoryStore | undefined;
   /** What the model copies out of a file, and the transport the last index job used. */
   reply: string;
   transport: FakeModelTransport | undefined;
@@ -314,7 +314,11 @@ describe('POST /api/v1/workers/embeddings/index', () => {
     expect(kept?.key).not.toBe(key);
     expect(state.store?.objects.has(key)).toBe(false);
     const stored = state.store?.objects.get(kept?.key ?? '');
-    expect(Buffer.from(stored?.bytes ?? []).subarray(0, 5).toString()).toBe('%PDF-');
+    expect(
+      Buffer.from(stored?.bytes ?? [])
+        .subarray(0, 5)
+        .toString(),
+    ).toBe('%PDF-');
 
     const vault = await asPrincipal(executive, (context) =>
       runCommand(

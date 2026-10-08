@@ -85,10 +85,13 @@ describe('extractWithModel', () => {
 
   it('sends the file with the vault’s own instructions and answers the text', async () => {
     const calls: unknown[] = [];
-    const text = await extractWithModel((call) => {
-      calls.push(call);
-      return Promise.resolve(answer('Warranty: five years on the motor.'));
-    }, [pdf]);
+    const text = await extractWithModel(
+      (call) => {
+        calls.push(call);
+        return Promise.resolve(answer('Warranty: five years on the motor.'));
+      },
+      [pdf],
+    );
     expect(text).toBe('Warranty: five years on the motor.');
     expect(calls).toEqual([
       expect.objectContaining({

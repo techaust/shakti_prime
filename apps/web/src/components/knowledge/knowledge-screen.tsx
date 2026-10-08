@@ -82,10 +82,13 @@ export function KnowledgeScreen({
 
   const waiting = files.some((f) => f.state === 'waiting');
   const reload = read.load;
+  // The time of the last refresh, to tell a file that has waited too long from one being read.
+  const [now, setNow] = useState(0);
   useEffect(() => {
     if (!waiting) return;
     // While a file is being read, the first page is read again until it settles.
     const timer = setInterval(() => {
+      setNow(Date.now());
       reload(
         () => listKnowledgeFiles({}),
         (page) => {
@@ -193,7 +196,7 @@ export function KnowledgeScreen({
                     className="flex flex-wrap gap-2"
                   >
                     {file.state === 'waiting' &&
-                    Date.now() - Date.parse(file.updatedAt) < waitingStaleSeconds * 1000 ? null : (
+                    now - Date.parse(file.updatedAt) < waitingStaleSeconds * 1000 ? null : (
                       <Button
                         size="sm"
                         variant="secondary"
