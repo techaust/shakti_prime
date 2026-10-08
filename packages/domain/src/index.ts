@@ -204,10 +204,7 @@ export {
   listSalesOrders,
   salesOrderListQuery,
 } from './queries/sales/list-orders';
-export {
-  loadSalesOrderBuilder,
-  previewSalesOrder,
-} from './queries/sales/order-facts';
+export { loadSalesOrderBuilder, previewSalesOrder } from './queries/sales/order-facts';
 export {
   dealerCreditHistory,
   dealerCreditQuery,

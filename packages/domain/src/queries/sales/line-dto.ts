@@ -1,9 +1,7 @@
 import type { QuoteLineDto } from '@shakti/contracts';
 import type { schema } from '@shakti/db';
 
-type LineRow =
-  | typeof schema.quoteLines.$inferSelect
-  | typeof schema.salesOrderLines.$inferSelect;
+type LineRow = typeof schema.quoteLines.$inferSelect | typeof schema.salesOrderLines.$inferSelect;
 
 /** A stored quote or order line as the reads and the order copy carry it (`QuoteLineDto`). */
 export function toLineDto(line: LineRow): QuoteLineDto {

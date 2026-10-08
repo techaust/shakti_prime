@@ -494,9 +494,7 @@ const eventCatalogue = {
       "A referral partner's commission was recorded on a confirmed order by the partner's rule in force that day.",
     emittedBy: ['sales.order.confirm'],
     subscribed: false,
-    payload: z
-      .object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema })
-      .strict(),
+    payload: z.object({ orderId: IdSchema, partnerId: IdSchema, ruleId: IdSchema }).strict(),
   },
 } as const satisfies Record<string, CatalogueEntrySpec>;
 

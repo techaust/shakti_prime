@@ -39,7 +39,10 @@ export const releaseCredit = defineCommand({
       aggregateType: 'sales_order',
       aggregateId: row.id,
       entityId: row.entityId,
-      before: { creditHoldReason: row.creditHoldReason, creditReleaseReason: row.creditReleaseReason },
+      before: {
+        creditHoldReason: row.creditHoldReason,
+        creditReleaseReason: row.creditReleaseReason,
+      },
       after: { creditHoldReason: null, creditReleaseReason: input.reason },
     });
     ctx.emit({

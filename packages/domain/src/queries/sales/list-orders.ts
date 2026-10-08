@@ -10,7 +10,14 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { checkPermission } from '../../command/run-command';
-import { keysetOrder, afterCursor, nextCursor, orderTerms, sortText, type SortKeys } from '../keyset-sort';
+import {
+  keysetOrder,
+  afterCursor,
+  nextCursor,
+  orderTerms,
+  sortText,
+  type SortKeys,
+} from '../keyset-sort';
 import { parseQueryInput } from '../parse-input';
 import { readSalesOrder, SALES_ORDER_ROW_COLUMNS, toSalesOrderRow } from './order-dto';
 

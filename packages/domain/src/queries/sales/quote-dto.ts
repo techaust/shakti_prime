@@ -218,7 +218,8 @@ export async function readQuote(
     supersededById: after?.id ?? null,
     supersededByNo: after?.quoteNo ?? null,
     withdrawnReason: quote.withdrawnReason,
-    acceptedVia: quote.acceptedVia === null ? null : QuoteAcceptedViaSchema.parse(quote.acceptedVia),
+    acceptedVia:
+      quote.acceptedVia === null ? null : QuoteAcceptedViaSchema.parse(quote.acceptedVia),
     signedFileId: quote.signedFileId,
     orderId: order?.id ?? null,
     orderNo: order?.soNo ?? null,
