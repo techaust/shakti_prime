@@ -22,6 +22,9 @@ import type {
   FilePurpose,
   FileRejectReason,
   FileSanitising,
+  KnowledgeFileState,
+  KnowledgeSensitivity,
+  KnowledgeSourceType,
   FileScanVerdictInput,
   FileStatus,
   ImportJobSort,
@@ -220,6 +223,30 @@ export const AGENT_RUN_OUTCOME_VALUES = [
   'unavailable',
   'failed',
 ] as const satisfies readonly AgentRunOutcome[];
+
+/** A Knowledge Vault file's status, each named under `knowledge.state`. */
+export const KNOWLEDGE_FILE_STATE_VALUES = [
+  'waiting',
+  'indexed',
+  'failed',
+  'unavailable',
+  'archived',
+] as const satisfies readonly KnowledgeFileState[];
+
+/** Who may find a vault file, each named under `knowledge.sensitivity`. */
+export const KNOWLEDGE_SENSITIVITY_VALUES = [
+  'staff_ai_ok',
+  'management',
+  'exec_only',
+] as const satisfies readonly KnowledgeSensitivity[];
+
+/** What a vault file is, each named under `knowledge.source`. */
+export const KNOWLEDGE_SOURCE_VALUES = [
+  'pdf',
+  'photo',
+  'word',
+  'excel',
+] as const satisfies readonly KnowledgeSourceType[];
 
 /** An agent's role key without its `agent:` prefix: the key of its name under `agents.names`. */
 export function agentNameKey(agent: (typeof AGENT_ROLES)[number]): AgentNameKey {
@@ -656,6 +683,7 @@ export const UPLOAD_CONTENT_TYPES = [
   'application/pdf',
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const satisfies readonly UploadContentType[];
 
 /** Why the checks refused a file; each has a sentence under `errors`. */
@@ -666,7 +694,10 @@ export const FILE_REJECT_REASONS = [
   'file_unreadable',
   'file_image_too_large',
   'file_pdf_active_content',
+  'file_pdf_too_many_pages',
   'file_mask_failed',
+  'file_pdf_page_too_dense',
+  'file_masking_unavailable',
   'file_upload_abandoned',
 ] as const satisfies readonly FileRejectReason[];
 
@@ -689,4 +720,5 @@ export const FILE_SANITISING = [
   'pdf_checked',
   'masked',
   'sheet_checked',
+  'document_checked',
 ] as const satisfies readonly FileSanitising[];

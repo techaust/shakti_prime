@@ -848,6 +848,27 @@
       "when": 1791467956718,
       "tag": "0120_notifications_push_pending",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1791467957718,
+      "tag": "0121_knowledge_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1791467958718,
+      "tag": "0122_knowledge",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1791467959718,
+      "tag": "0123_knowledge_rls",
+      "breakpoints": true
     }
   ]
 }

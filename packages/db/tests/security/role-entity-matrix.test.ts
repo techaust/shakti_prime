@@ -78,10 +78,14 @@ const AGENT_CONTROLS: Rule = {
 };
 const INBOX = grant('agents.inbox.act', 'own');
 
+/** A vault file and its chunks of staff knowledge, which every fixture row is (0123). */
+const STAFF_KNOWLEDGE = grant('knowledge.vault.read.staff', 'all');
+
 /**
  * A file is read by its purpose (0062, `app.file_purpose_grant()`); the matrix acts as the file's
  * uploader, so `own` is the narrowest scope that reads one. A logo and a letterhead are read by
- * every principal of the company; a vault file by no request until K1.
+ * every principal of the company; a vault upload with its vault file, here staff knowledge, or by
+ * its uploader while they hold `knowledge.vault.write` (0123).
  */
 const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   import: IMPORTS,
@@ -89,7 +93,7 @@ const FILE_PURPOSE_READ: Readonly<Record<string, Rule>> = {
   signed_quote: LEAD_READ,
   entity_logo: CONTEXT,
   letterhead: CONTEXT,
-  knowledge: NEVER,
+  knowledge: { kind: 'any', rules: [STAFF_KNOWLEDGE, grant('knowledge.vault.write', 'all')] },
   consent_evidence: grant('crm.account.write', 'own'),
   // A company's proof page prints its bank account: an Executive's alone.
   print_proof: grant('admin.entities.write', 'own'),
@@ -232,6 +236,8 @@ const RULES: Record<MatrixTable, TableRule> = {
     leak: otherCompany,
   },
   inbox_items: { read: INBOX, leak: otherCompany },
+  knowledge_files: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
+  knowledge_chunks: { read: STAFF_KNOWLEDGE, group: STAFF_KNOWLEDGE, leak: otherCompany },
   // A person's own notices in the company they act in, whatever their role; never another's.
   notifications: {
     read: CONTEXT,

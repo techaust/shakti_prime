@@ -5,6 +5,7 @@
 // nothing here writes to disk or to a log.
 import sharp from 'sharp';
 import { createWorker, PSM, type Page, type Worker } from 'tesseract.js';
+import { DomainError } from '@shakti/contracts';
 import type { MaskedText } from '@shakti/domain';
 import { planMasks, scrubHiddenDigits, type Box, type MaskPlan, type OcrLine } from './plan-masks';
 import { scanQrCodes, SMALL_PHOTO_PX } from './qr-cover';
@@ -25,6 +26,13 @@ export interface MaskRequest {
    * them is not found, nothing is kept. Leave empty for a photo of unknown kind (WhatsApp).
    */
   expect?: ExpectedNumber[];
+  /**
+   * Called when this mask's turn begins (masks run one at a time, so it may wait behind others).
+   * The caller starts its time limit then, not when it asked.
+   */
+  onTurn?: () => void;
+  /** A mask still waiting for its turn when this is aborted never runs; its photo is wiped. */
+  signal?: AbortSignal;
 }
 
 export type MaskOutcome =
@@ -150,146 +158,189 @@ export async function createDocumentMasker(
     return toLines(data);
   }
 
-  return {
-    async mask(photo, request = {}) {
-      const started = performance.now();
-      // Upright copy (camera orientation applied) in memory; the caller's bytes are then wiped.
-      const upright = await sharp(photo).rotate().toBuffer({ resolveWithObject: true });
-      photo.fill(0);
-      const { width, height } = upright.info;
-      const scale = Math.min(MAX_SCALE, Math.max(1, MIN_WIDTH / width));
-      const images: Record<Pass['image'], { data: Buffer; scale: number }> = {
-        upscaled: {
-          data: await (
-            scale > 1
-              ? sharp(upright.data)
-                  .resize(Math.round(width * scale), Math.round(height * scale), {
-                    kernel: 'lanczos3',
-                  })
-                  .grayscale()
-                  .sharpen({ sigma: 1 })
-              : sharp(upright.data).grayscale()
-          )
-            .png()
-            .toBuffer(),
-          scale,
-        },
-        native: { data: await sharp(upright.data).grayscale().png().toBuffer(), scale: 1 },
-      };
-      const prepareMs = performance.now() - started;
-
-      // Every QR code on the photo is located and covered, whatever it holds: an Aadhaar QR
-      // code can carry the full number. The decoded pixels are wiped once scanned.
-      const qrStarted = performance.now();
-      const pixels = await sharp(upright.data).ensureAlpha().raw().toBuffer();
-      // A small photo is often a forwarded, blurred one: its code is looked for on an enlarged,
-      // contrast-stretched and sharpened copy as well, where a blurred code can be read.
-      const enhanced =
-        Math.max(width, height) <= SMALL_PHOTO_PX
-          ? await sharp(upright.data)
-              .resize(width * ENHANCE_SCALE, height * ENHANCE_SCALE, { kernel: 'lanczos3' })
-              .grayscale()
-              .normalise()
-              .sharpen({ sigma: 3, m1: 2, m2: 4 })
-              .extractChannel(0)
-              .raw()
-              .toBuffer({ resolveWithObject: true })
-          : undefined;
-      const qr = scanQrCodes(
-        {
-          data: new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.length),
-          width,
-          height,
-        },
-        enhanced
-          ? {
-              gray: {
-                data: new Uint8ClampedArray(
-                  enhanced.data.buffer,
-                  enhanced.data.byteOffset,
-                  enhanced.data.length,
-                ),
-                width: enhanced.info.width,
-                height: enhanced.info.height,
-              },
-              scale: enhanced.info.width / width,
-            }
-          : undefined,
-      );
-      pixels.fill(0);
-      enhanced?.data.fill(0);
-      const qrMs = performance.now() - qrStarted;
-
-      const ocrStarted = performance.now();
-      const plans: MaskPlan[] = [];
-      const rects: Box[] = [];
-      let readText = '';
-      let passes = 0;
-      for (const pass of PASSES) {
-        if (pass.image === 'native' && scale === 1) continue;
-        const source = images[pass.image];
-        const lines = await read(source.data, pass.psm);
-        passes += 1;
-        const plan = planMasks(lines);
-        plans.push(plan);
-        rects.push(...plan.rects.map((r) => scaleBox(r, source.scale)));
-        readText += `${textOf(lines)}\n`;
+  // The one OCR worker keeps a page mode between `setParameters` and `recognize`, so two masks in
+  // one process (several file checks share an instance) wait their turn rather than interleave.
+  let turn: Promise<unknown> = Promise.resolve();
+  // Closing the masker answers every mask waiting on it or running (the OCR engine never settles a
+  // read it was closed under), so nobody waits on an instance that is gone.
+  let closing: Promise<void> | undefined;
+  let closed = false;
+  let rejectPending: (error: Error) => void = () => undefined;
+  const closedSignal = new Promise<never>((_, reject) => {
+    rejectPending = reject;
+  });
+  closedSignal.catch(() => undefined);
+  const gone = () => new DomainError('integration_unavailable', 'the masking step was closed');
+  function oneAtATime<T>(work: () => Promise<T>, request: MaskRequest): Promise<T> {
+    if (closed) return Promise.reject(gone());
+    const turnWork = async () => {
+      if (closed) throw gone();
+      if (request.signal?.aborted === true) {
+        throw new DomainError('integration_unavailable', 'the mask gave up waiting for its turn');
       }
-      images.upscaled.data.fill(0);
-      images.native.data.fill(0);
-      const ocrMs = performance.now() - ocrStarted;
+      request.onTurn?.();
+      return work();
+    };
+    const result = Promise.race([turn.then(turnWork, turnWork), closedSignal]);
+    turn = result.catch(() => undefined);
+    return result;
+  }
 
-      const maskStarted = performance.now();
-      const cause = reviewCause({
-        expect: request.expect ?? [],
-        readText,
-        aadhaarFound: plans.some(
-          (p) => p.masked.counts.aadhaar + p.masked.counts.aadhaar_unverified > 0,
-        ),
-        bankFound: plans.some((p) => p.masked.counts.bank_account > 0),
-        qrUncovered: qr.uncovered,
-      });
-      if (cause) {
-        upright.data.fill(0);
-        const maskMs = performance.now() - maskStarted;
-        return {
-          status: 'needs_review',
-          cause,
-          timings: { prepareMs, qrMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
-        };
-      }
-      rects.push(...qr.boxes);
+  async function maskNow(photo: Buffer, request: MaskRequest): Promise<MaskOutcome> {
+    const started = performance.now();
+    // Upright copy (camera orientation applied) in memory; the caller's bytes are then wiped.
+    const upright = await sharp(photo).rotate().toBuffer({ resolveWithObject: true });
+    photo.fill(0);
+    const { width, height } = upright.info;
+    const scale = Math.min(MAX_SCALE, Math.max(1, MIN_WIDTH / width));
+    const images: Record<Pass['image'], { data: Buffer; scale: number }> = {
+      upscaled: {
+        data: await (
+          scale > 1
+            ? sharp(upright.data)
+                .resize(Math.round(width * scale), Math.round(height * scale), {
+                  kernel: 'lanczos3',
+                })
+                .grayscale()
+                .sharpen({ sigma: 1 })
+            : sharp(upright.data).grayscale()
+        )
+          .png()
+          .toBuffer(),
+        scale,
+      },
+      native: { data: await sharp(upright.data).grayscale().png().toBuffer(), scale: 1 },
+    };
+    const prepareMs = performance.now() - started;
 
-      // The text and the last four digits come from the reading that found the most; digits
-      // another reading found to be hidden are scrubbed from it as well.
-      const best = plans.reduce((a, b) => (score(b) > score(a) ? b : a));
-      const text = scrubHiddenDigits(
-        best.masked.text,
-        plans.flatMap((p) => p.hiddenDigits),
-      );
-      const image = await sharp(upright.data)
-        .composite([{ input: coverSvg(width, height, rects), top: 0, left: 0 }])
-        .jpeg({ quality: 85, mozjpeg: true })
-        .toBuffer();
+    // Every QR code on the photo is located and covered, whatever it holds: an Aadhaar QR
+    // code can carry the full number. The decoded pixels are wiped once scanned.
+    const qrStarted = performance.now();
+    const pixels = await sharp(upright.data).ensureAlpha().raw().toBuffer();
+    // A small photo is often a forwarded, blurred one: its code is looked for on an enlarged,
+    // contrast-stretched and sharpened copy as well, where a blurred code can be read.
+    const enhanced =
+      Math.max(width, height) <= SMALL_PHOTO_PX
+        ? await sharp(upright.data)
+            .resize(width * ENHANCE_SCALE, height * ENHANCE_SCALE, { kernel: 'lanczos3' })
+            .grayscale()
+            .normalise()
+            .sharpen({ sigma: 3, m1: 2, m2: 4 })
+            .extractChannel(0)
+            .raw()
+            .toBuffer({ resolveWithObject: true })
+        : undefined;
+    const qr = scanQrCodes(
+      {
+        data: new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.length),
+        width,
+        height,
+      },
+      enhanced
+        ? {
+            gray: {
+              data: new Uint8ClampedArray(
+                enhanced.data.buffer,
+                enhanced.data.byteOffset,
+                enhanced.data.length,
+              ),
+              width: enhanced.info.width,
+              height: enhanced.info.height,
+            },
+            scale: enhanced.info.width / width,
+          }
+        : undefined,
+    );
+    pixels.fill(0);
+    enhanced?.data.fill(0);
+    const qrMs = performance.now() - qrStarted;
+
+    const ocrStarted = performance.now();
+    const plans: MaskPlan[] = [];
+    const rects: Box[] = [];
+    let readText = '';
+    let passes = 0;
+    for (const pass of PASSES) {
+      if (pass.image === 'native' && scale === 1) continue;
+      const source = images[pass.image];
+      const lines = await read(source.data, pass.psm);
+      passes += 1;
+      const plan = planMasks(lines);
+      plans.push(plan);
+      rects.push(...plan.rects.map((r) => scaleBox(r, source.scale)));
+      readText += `${textOf(lines)}\n`;
+    }
+    images.upscaled.data.fill(0);
+    images.native.data.fill(0);
+    const ocrMs = performance.now() - ocrStarted;
+
+    const maskStarted = performance.now();
+    const cause = reviewCause({
+      expect: request.expect ?? [],
+      readText,
+      aadhaarFound: plans.some(
+        (p) => p.masked.counts.aadhaar + p.masked.counts.aadhaar_unverified > 0,
+      ),
+      bankFound: plans.some((p) => p.masked.counts.bank_account > 0),
+      qrUncovered: qr.uncovered,
+    });
+    if (cause) {
       upright.data.fill(0);
       const maskMs = performance.now() - maskStarted;
       return {
-        status: rects.length > 0 ? 'masked' : 'clean',
-        image,
-        rects: rects.length,
-        qr: {
-          covered: qr.boxes.length,
-          decoded: qr.decoded,
-          estimated: qr.estimated,
-          boxes: qr.boxes,
-        },
-        ...best.masked,
-        text,
+        status: 'needs_review',
+        cause,
         timings: { prepareMs, qrMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
       };
+    }
+    rects.push(...qr.boxes);
+
+    // The text and the last four digits come from the reading that found the most; digits
+    // another reading found to be hidden are scrubbed from it as well.
+    const best = plans.reduce((a, b) => (score(b) > score(a) ? b : a));
+    const text = scrubHiddenDigits(
+      best.masked.text,
+      plans.flatMap((p) => p.hiddenDigits),
+    );
+    const image = await sharp(upright.data)
+      .composite([{ input: coverSvg(width, height, rects), top: 0, left: 0 }])
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+    upright.data.fill(0);
+    const maskMs = performance.now() - maskStarted;
+    return {
+      status: rects.length > 0 ? 'masked' : 'clean',
+      image,
+      rects: rects.length,
+      qr: {
+        covered: qr.boxes.length,
+        decoded: qr.decoded,
+        estimated: qr.estimated,
+        boxes: qr.boxes,
+      },
+      ...best.masked,
+      text,
+      timings: { prepareMs, qrMs, ocrMs, maskMs, totalMs: performance.now() - started, passes },
+    };
+  }
+
+  return {
+    async mask(photo, request = {}) {
+      try {
+        return await oneAtATime(() => maskNow(photo, request), request);
+      } catch (error) {
+        // A mask that never ran still wipes the bytes it was handed.
+        photo.fill(0);
+        throw error;
+      }
     },
-    async close() {
-      await worker.terminate();
+    close() {
+      if (closing === undefined) {
+        closed = true;
+        rejectPending(gone());
+        closing = worker.terminate().then(() => undefined);
+      }
+      return closing;
     },
   };
 }

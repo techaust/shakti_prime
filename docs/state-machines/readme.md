@@ -26,6 +26,7 @@ A machine marked **yes** under *Driven by commands* has commands that call `tran
 | Tally voucher | no | 5 | 7 | 6 | [tally-voucher.md](tally-voucher.md) |
 | Agent action | **yes** | 5 | 5 | 0 | [agent-action.md](agent-action.md) |
 | Inbox item | **yes** | 2 | 4 | 0 | [inbox-item.md](inbox-item.md) |
+| Knowledge Vault file | **yes** | 5 | 6 | 0 | [knowledge-file.md](knowledge-file.md) |
 
 ## Workshop defaults
 

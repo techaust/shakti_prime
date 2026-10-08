@@ -275,7 +275,7 @@ flowchart LR
   C --> D[files.upload.complete: head matches, scanning, emits files.file.uploaded]
   D --> E{GuardDuty tag}
   E -- no tag yet --> E
-  E -- NO_THREATS_FOUND, or not_scanned when not hosted --> F[re-encode image / check PDF / mask vault photo]
+  E -- NO_THREATS_FOUND, or not_scanned when not hosted --> F[re-encode image / check PDF / mask vault photo or PDF pages]
   E -- threat or scan failed --> R[rejected]
   F -- passes --> G[ready]
   F -- refused --> R
@@ -293,7 +293,7 @@ flowchart LR
   - **Malware scan:** GuardDuty's `GuardDutyMalwareScanStatus` tag. `NO_THREATS_FOUND` passes; no tag yet answers `integration_unavailable`, so the queue delivers again; a threat or a scan that could not run rejects the file. With no scanner the file is `not_scanned`, which `files.file.mark_scanned` accepts only when the caller says the runtime is not hosted (`RunOptions.hosted`, taken as hosted unless said otherwise).
   - **Images** are re-encoded with `sharp`: metadata dropped, orientation applied, at most 50 megapixels, the longest side at most 4,096 px.
   - **PDFs** are refused unless they have their header and end marker and name none of `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile`, `/EmbeddedFiles`, `/XFA`, `/RichMedia` and `/AA`, escaped or inside a stream. The check fails closed: a stream other than an image that is not plain or bare Flate without decode parameters, or one that does not unpack or passes the 32 MB budget, refuses the file.
-  - **Vault photos** pass the OCR masking of `apps/web/src/workers/ocr`.
+  - **Vault photos** pass the OCR masking of `apps/web/src/workers/ocr`; a **vault PDF** is drawn page by page (PDFium, WebAssembly, loaded on first use), each page masked the same way, and only a PDF of the masked pictures is kept. A delivery masks one page (about half a minute for a dense one; a delivery lives for a minute): it keeps the page in the store beside the upload and sends the next delivery on (`files.file.continue_check`, which emits `files.file.uploaded` again with the pages kept), and the last page ends in the masked PDF. The masking step reads its language data from the folder `OCR_LANG_PATH` names; without it a vault photo or PDF is refused at once (`file_masking_unavailable`), and a page that takes more than 45 seconds refuses the file (`file_pdf_page_too_dense`).
   - **Bytes kept:** a changed copy is stored under its own key. The key of the upload's own bytes is recorded (`scan_result.originalKey`) before the file is marked `ready` or `rejected`, and those bytes are deleted with every stored version on that delivery and again on every later one while any remain.
   - Only then does `status` become `ready`, and the uploader shows the outcome in words. A file still waiting after ten minutes is listed on Integration Health, where an Executive sends it back to its checks (`files.file.recheck`, which emits `files.file.uploaded` again).
 - **Read:** a pre-signed GET for 15 minutes (`presignGet`, the `openFile` action) of a `ready` file the caller may read under RLS; views of sensitive documents are audited.

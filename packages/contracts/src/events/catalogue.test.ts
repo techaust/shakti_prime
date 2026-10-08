@@ -56,6 +56,7 @@ describe('the event catalogue', () => {
         'crm.enquiry.routed',
         'crm.opportunity.assigned',
         'files.file.uploaded',
+        'knowledge.file.index_requested',
         'platform.probe.requested',
         'print.document.requested',
         'sales.order.credit_held',

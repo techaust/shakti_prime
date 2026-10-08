@@ -93,7 +93,8 @@ export default defineConfig({
           // the runner's stop and leaves the server holding the port.
           command: `next start -p ${port}`,
           url: `${baseURL}/api/v1/health`,
-          env: { BOS_ENVIRONMENT: 'local' },
+          // The stand-in AI transport, so the Knowledge Vault indexes and searches without a key.
+          env: { BOS_ENVIRONMENT: 'local', AI_TRANSPORT: 'fake' },
           reuseExistingServer: process.env.CI === undefined,
           timeout: 120_000,
           stdout: 'pipe',

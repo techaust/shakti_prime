@@ -308,6 +308,10 @@ export const ENTITY_TABLES = [
   'agent_runs',
   'agent_actions',
   'inbox_items',
+  // vault files and their chunks allow entity_id null for the whole group, and are read by
+  // sensitivity as well (docs/03-roadmap-appendix/phase1.md §8.4)
+  'knowledge_files',
+  'knowledge_chunks',
   // a person's own notices in the request's companies (docs/03-roadmap-appendix/phase1.md §8.1)
   'notifications',
 ] as const;

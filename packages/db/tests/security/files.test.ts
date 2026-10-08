@@ -37,8 +37,14 @@ const WRITE: Partial<Record<FilePurpose, { key: PermissionKey; scope: Scope }>> 
   entity_logo: { key: 'admin.entities.write', scope: 'all' },
   letterhead: { key: 'admin.entities.write', scope: 'all' },
   print_proof: { key: 'files.process', scope: 'entity' },
+  knowledge: { key: 'knowledge.vault.write', scope: 'all' },
   consent_evidence: { key: 'crm.account.write', scope: 'own' },
 };
+/**
+ * A vault upload is read with its vault file by sensitivity, or by its uploader while they hold
+ * knowledge.vault.write (files_knowledge_read, 0123; knowledge.test.ts): these files have no
+ * vault file, and the readers below are not their uploader, so none reads them.
+ */
 const READ: Partial<Record<FilePurpose, PermissionKey | 'company'>> = {
   import: 'imports.write',
   quote_pdf: 'crm.lead.read',
@@ -190,9 +196,10 @@ describe('a file is created by the permission its purpose names', () => {
     expect(await tryInsert(executive, 'entity_logo', { entity_id: 2 })).toBe(false);
   });
 
-  it('never lets a request create a vault file or a field photo yet', async () => {
+  it('lets a holder of knowledge.vault.write begin a vault upload, never a field photo yet', async () => {
     const executive = await createTestPrincipal('executive', [1]);
-    for (const purpose of ['knowledge', 'job_photo', 'selfie'] as const) {
+    expect(await tryInsert(executive, 'knowledge')).toBe(true);
+    for (const purpose of ['job_photo', 'selfie'] as const) {
       expect(await tryInsert(executive, purpose)).toBe(false);
     }
   });

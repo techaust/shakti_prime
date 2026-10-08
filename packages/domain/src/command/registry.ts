@@ -51,11 +51,22 @@ import {
   unsubscribePush,
 } from '../commands/notifications/own';
 import { beginUpload } from '../commands/files/begin-upload';
-import { markFileReady, markFileScanned, rejectFile } from '../commands/files/check-file';
+import {
+  continueFileCheck,
+  markFileReady,
+  markFileScanned,
+  rejectFile,
+} from '../commands/files/check-file';
 import { completeUpload } from '../commands/files/complete-upload';
 import { recheckFiles } from '../commands/files/recheck-files';
 import { sweepUploads } from '../commands/files/sweep-uploads';
 import { recordRenderedFile } from '../commands/files/record-rendered';
+import {
+  addKnowledgeFile,
+  archiveKnowledgeFile,
+  reindexKnowledgeFile,
+} from '../commands/knowledge/files';
+import { recordKnowledgeIndex } from '../commands/knowledge/record-index';
 import { commitImportBatch, commitImportJob } from '../commands/imports/commit-job';
 import { createImportJob } from '../commands/imports/create-job';
 import { failImportJob } from '../commands/imports/fail-job';
@@ -179,6 +190,7 @@ export const commands = {
   [markFileReady.name]: markFileReady,
   [rejectFile.name]: rejectFile,
   [recheckFiles.name]: recheckFiles,
+  [continueFileCheck.name]: continueFileCheck,
   [sweepUploads.name]: sweepUploads,
   [recordRenderedFile.name]: recordRenderedFile,
   [requestPrintProof.name]: requestPrintProof,
@@ -203,6 +215,10 @@ export const commands = {
   [dismissInboxItem.name]: dismissInboxItem,
   [setAgentConfig.name]: setAgentConfig,
   [setKillSwitch.name]: setKillSwitch,
+  [addKnowledgeFile.name]: addKnowledgeFile,
+  [reindexKnowledgeFile.name]: reindexKnowledgeFile,
+  [archiveKnowledgeFile.name]: archiveKnowledgeFile,
+  [recordKnowledgeIndex.name]: recordKnowledgeIndex,
   [completeInboxItem.name]: completeInboxItem,
   [routeEnquiry.name]: routeEnquiry,
   [notifyEvent.name]: notifyEvent,

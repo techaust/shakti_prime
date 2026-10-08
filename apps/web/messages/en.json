@@ -6,6 +6,27 @@
     "reference": "Reference: {reference}"
   },
   "errors": {
+    "knowledge_file_transition_not_allowed": "This file can't do that in its current status. Refresh the page to see where it stands.",
+    "knowledge_needs_all_companies": "Choose All companies at the top to change a file for every company.",
+    "knowledge_sensitivity_not_held": "You can only let people find a file if you can find it yourself. Choose who can find it again.",
+    "knowledge_upload_rejected": "This file did not pass its checks, so it cannot be added. Upload another copy.",
+    "knowledge_upload_unfinished": "This file has not finished uploading. Wait for it to finish, then add it.",
+    "knowledge_upload_not_ready": "This file is still being checked. Try again in a minute.",
+    "knowledge_file_missing": "We could not find this file in the Knowledge Vault. It may have been archived. Refresh the page.",
+    "knowledge_file_taken": "This file is already in the Knowledge Vault.",
+    "knowledge_search_cap_reached": "Search has reached its limit for today. It works again tomorrow.",
+    "knowledge_file_rejected": "This file did not pass its checks, so it cannot be read. Upload another copy.",
+    "knowledge_pdf_page_too_dense": "One page of this PDF is too dense for us to check. Take a photo of each page and upload the photos instead.",
+    "knowledge_masking_unavailable": "The Knowledge Vault cannot check scanned pages and photos yet. Ask your administrator to finish setting it up, or upload a Word document or a workbook.",
+    "knowledge_unreadable": "We could not read the text in this file. Check that it opens on your computer, then upload it again.",
+    "knowledge_empty": "We found no text in this file to search.",
+    "knowledge_too_long": "This file is too long to read in one go. Split it into smaller files and add each one.",
+    "knowledge_spend_cap_reached": "Reading files has reached its limit for today. Read this file again tomorrow.",
+    "knowledge_service_missing": "Reading files for search is not switched on yet. Read this file again once it is.",
+    "ai_deadline_exceeded": "The service took too long to answer. Try again in a few minutes.",
+    "knowledge_timed_out": "Reading this file took too long. Read it again in a few minutes.",
+    "knowledge_still_reading": "This file is still being read. Try again in a few minutes.",
+    "knowledge_person_search_cap_reached": "You have used your share of today's searches. It works again tomorrow.",
     "validation_failed": "Some details are missing or incorrect. Please check and try again.",
     "unauthorized": "Please sign in to continue.",
     "forbidden": "You don't have access to this. Ask your manager if you need it.",
@@ -60,11 +81,6 @@
     "database_rejected": "Some details don't fit together. Please check them and try again.",
     "bot_check_unavailable": "We couldn't check that you're a person just now. Please try again in a minute.",
     "customer_held_by_colleague": "A colleague already looks after this customer. Ask your team lead to pass this lead to them.",
-    "enquiry_holder_missing": "We couldn't find who looks after this customer now. Ask your team lead to pass the enquiry on.",
-    "quiet_hours_incomplete": "Enter both quiet hours times, or leave both empty for no quiet hours.",
-    "quiet_hours_empty": "The quiet hours start and end at the same time. Choose two different times.",
-    "push_service_unknown": "This browser can't receive alerts from Shakti Prime. Try another browser.",
-    "push_failed": "We couldn't change alerts for this browser. Please try again.",
     "invite_mail_failed": "The invitation is saved, but the email didn't go out. Send the invitation again in a few minutes.",
     "tax_rate_missing": "The tax rate for this item is not set for this date. Ask Accounts to add it.",
     "composite_rule_missing": "The goods and services split for this kind of job is not set for this date. Ask Accounts to add it.",
@@ -193,7 +209,10 @@
     "file_unreadable": "We could not open this file as the kind it says it is. Save it again and upload the new copy.",
     "file_image_too_large": "This picture is too large to use. Choose a smaller picture, under 50 megapixels.",
     "file_pdf_active_content": "This PDF carries scripts or attached files, which we do not accept. Print it to a new PDF and upload that.",
-    "file_mask_failed": "We could not find the numbers we must cover on this photo, so it was not kept. Take a clearer photo and upload it again.",
+    "file_pdf_too_many_pages": "This PDF has too many pages to read in one go. Split it into files of 12 pages or fewer and upload each one.",
+    "file_pdf_page_too_dense": "One page of this PDF is too dense for us to check. Take a photo of each page and upload the photos instead.",
+    "file_masking_unavailable": "The Knowledge Vault cannot check scanned pages and photos yet. Ask your administrator to finish setting it up, or upload a Word document or a workbook.",
+    "file_mask_failed": "We could not find the numbers we must cover on this photo or page, so it was not kept. Use a clearer copy and upload it again.",
     "catalogue_item_missing": "This item is no longer in the catalogue. Refresh the page to see the current list.",
     "catalogue_kit_missing": "This kit is no longer in the catalogue. Refresh the page to see the current list.",
     "item_sku_taken": "Another item already uses this item code. Choose a different code.",
@@ -277,21 +296,6 @@
     "quote_kit_tax_missing": "This kit can only be quoted as supply and installation for rooftop or project work. Quote its items one by one instead.",
     "quote_missing": "We couldn't find this quote. It may belong to another company or a colleague's lead.",
     "quote_pdf_mismatch": "This quote already has its document. Refresh the page to see it.",
-    "signed_copy_missing": "We couldn't find the signed copy. Upload it again, then record the acceptance.",
-    "signed_copy_used": "This signed copy is already recorded for another quote. Upload the copy that belongs to this quote.",
-    "signed_copy_refused": "The signed copy didn't pass its checks. Scan or photograph it again and upload the new file.",
-    "signed_copy_checking": "The signed copy is still being checked. Wait a moment and try again.",
-    "order_missing": "We couldn't find this order. It may belong to another company or a colleague's customer.",
-    "order_tier_missing": "This dealer has no price tier yet. Ask an Executive to set it on the dealer's page, then make the order.",
-    "order_price_list_missing": "There is no price list in use for this dealer's price tier today. Ask an Executive to approve one.",
-    "order_item_missing": "An item on this order is no longer on sale. Remove it and try again.",
-    "order_price_missing": "An item on this order has no price on the price list. Ask an Executive to add its price, or remove it.",
-    "order_amount_too_large": "An amount on this order is larger than an order can hold. Check the quantities and try again.",
-    "order_kit_tax_missing": "A kit cannot go on a dealer order yet. Add its items one by one instead.",
-    "order_not_held": "This order is not held for credit, so there is nothing to release.",
-    "order_credit_clear": "This order is within the dealer's credit, so it can be confirmed.",
-    "credit_not_dealer": "Credit limits and outstanding are only kept for dealers.",
-    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at.",
     "agent_spend_cap_reached": "This agent has reached its spending limit for today. It starts again tomorrow, or an Executive can raise the limit.",
     "agent_action_unknown": "Agents cannot take this kind of action.",
     "agent_action_not_open": "This agent cannot take this kind of action.",
@@ -307,7 +311,27 @@
     "inbox_item_missing": "This is no longer in your inbox. Someone else may have dealt with it.",
     "inbox_item_transition_not_allowed": "This suggestion has already been decided.",
     "agent_action_transition_not_allowed": "This suggestion has already been decided.",
-    "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action."
+    "spend_cap_per_agent": "Set the spending limit on the agent as a whole, not on one kind of action.",
+    "enquiry_holder_missing": "We couldn't find who looks after this customer now. Ask your team lead to pass the enquiry on.",
+    "quiet_hours_incomplete": "Enter both quiet hours times, or leave both empty for no quiet hours.",
+    "quiet_hours_empty": "The quiet hours start and end at the same time. Choose two different times.",
+    "push_service_unknown": "This browser can't receive alerts from Shakti Prime. Try another browser.",
+    "push_failed": "We couldn't change alerts for this browser. Please try again.",
+    "signed_copy_missing": "We couldn't find the signed copy. Upload it again, then record the acceptance.",
+    "signed_copy_used": "This signed copy is already recorded for another quote. Upload the copy that belongs to this quote.",
+    "signed_copy_refused": "The signed copy didn't pass its checks. Scan or photograph it again and upload the new file.",
+    "signed_copy_checking": "The signed copy is still being checked. Wait a moment and try again.",
+    "order_missing": "We couldn't find this order. It may belong to another company or a colleague's customer.",
+    "order_tier_missing": "This dealer has no price tier yet. Ask an Executive to set it on the dealer's page, then make the order.",
+    "order_price_list_missing": "There is no price list in use for this dealer's price tier today. Ask an Executive to approve one.",
+    "order_item_missing": "An item on this order is no longer on sale. Remove it and try again.",
+    "order_price_missing": "An item on this order has no price on the price list. Ask an Executive to add its price, or remove it.",
+    "order_amount_too_large": "An amount on this order is larger than an order can hold. Check the quantities and try again.",
+    "order_kit_tax_missing": "A kit cannot go on a dealer order yet. Add its items one by one instead.",
+    "order_not_held": "This order is not held for credit, so there is nothing to release.",
+    "order_credit_clear": "This order is within the dealer's credit, so it can be confirmed.",
+    "credit_not_dealer": "Credit limits and outstanding are only kept for dealers.",
+    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at."
   },
   "auth": {
     "signIn": {
@@ -397,10 +421,11 @@
     "walkIn": "Walk-in customer",
     "duplicates": "Duplicates",
     "quotes": "Quotes",
-    "orders": "Orders",
-    "dealerCredit": "Dealer credit",
     "inbox": "Agent Inbox",
-    "adminAgents": "Agents"
+    "adminAgents": "Agents",
+    "knowledge": "Knowledge",
+    "orders": "Orders",
+    "dealerCredit": "Dealer credit"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -442,95 +467,6 @@
     "inboxMoreLabel": "Agent Inbox, 100 or more waiting",
     "notificationSettings": "Notification settings"
   },
-  "notifications": {
-    "bell": "Notifications",
-    "bellUnread": "{count, plural, one {Notifications, # unread} other {Notifications, # unread}}",
-    "bellMore": "99+",
-    "bellMoreLabel": "Notifications, 100 or more unread",
-    "panelTitle": "Notifications",
-    "panelIntro": "What needs you, newest first.",
-    "loading": "Getting your notices",
-    "empty": "Nothing here yet. When a lead is given to you, a call falls due or a quote is about to lapse, it shows here.",
-    "markAllRead": "Mark all as read",
-    "markRead": "Mark as read",
-    "markReadLabel": "Mark as read: {notice}",
-    "allRead": "All notices are marked as read.",
-    "unread": "Not read yet",
-    "loadMore": "Show more",
-    "openSettings": "Settings",
-    "close": "Close",
-    "quoteLine": "Quote {quoteNo}",
-    "orderLine": "Order {orderNo}",
-    "companyLine": "In {company}",
-    "types": {
-      "lead_assigned": "A lead was given to you",
-      "duplicate_found": "A customer or lead of yours may be a duplicate",
-      "call_due": "A call of yours is due",
-      "quote_expiring": "A quote on your lead lapses within a day",
-      "first_call_late": "A new lead was not called in time",
-      "enquiry_routed": "An enquiry from your customer was passed to you",
-      "order_credit_held": "A dealer order is held for credit"
-    },
-    "settings": {
-      "title": "Notification settings",
-      "intro": "Choose which notices you see and which ones also come as alerts on this computer or phone. Everything is on until you change it.",
-      "kindsHeading": "Kinds of notice",
-      "kindsCaption": "Kinds of notice and where they reach you",
-      "kind": "Notice",
-      "inApp": "Show in Notifications",
-      "pushColumn": "Send as an alert",
-      "inAppLabel": "Show “{kind}” in Notifications",
-      "pushLabel": "Send “{kind}” as an alert",
-      "quietHeading": "Quiet hours",
-      "quietIntro": "No alerts are sent in your quiet hours. The notices still wait for you in Notifications. Leave both times empty for no quiet hours.",
-      "quietFrom": "Quiet from",
-      "quietTo": "Quiet until",
-      "quietHelper": "A time in India on the 24-hour clock, such as 21:30.",
-      "save": "Save settings",
-      "saved": "Your notification settings are saved.",
-      "browserHeading": "Alerts on this browser",
-      "browserIntro": "Alerts pop up on this computer or phone even when Shakti Prime is not open. Turn them on in each browser you use.",
-      "browserOn": "Alerts are on for this browser.",
-      "browserOff": "Alerts are off for this browser.",
-      "browserBlocked": "This browser has blocked alerts from Shakti Prime. Allow them in the browser's site settings, then turn them on here.",
-      "browserUnsupported": "This browser cannot show alerts. Notices still reach you in Notifications.",
-      "pushUnavailable": "Alerts are not set up yet. Notices still reach you in Notifications.",
-      "turnOnPush": "Turn on alerts",
-      "turnOffPush": "Turn off alerts",
-      "pushOnDone": "Alerts are on for this browser.",
-      "pushOffDone": "Alerts are off for this browser."
-    }
-  },
-  "pushAlerts": {
-    "lead_assigned": {
-      "title": "A lead was given to you",
-      "body": "Tap to open the customer."
-    },
-    "duplicate_found": {
-      "title": "A possible duplicate",
-      "body": "A customer or lead of yours may be the same as another one. Tap to check."
-    },
-    "call_due": {
-      "title": "A call is due",
-      "body": "Tap to open your calling queue."
-    },
-    "quote_expiring": {
-      "title": "A quote lapses soon",
-      "body": "A quote on your lead lapses within a day. Tap to open it."
-    },
-    "first_call_late": {
-      "title": "A new lead was not called in time",
-      "body": "Tap to open the customer and see who has the lead."
-    },
-    "enquiry_routed": {
-      "title": "An enquiry was passed to you",
-      "body": "A customer you look after asked again. Tap to open your Agent Inbox."
-    },
-    "order_credit_held": {
-      "title": "A dealer order is held for credit",
-      "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
-    }
-  },
   "home": {
     "greeting": "Welcome, {name}",
     "company": "Company: {company}",
@@ -555,10 +491,11 @@
       "calling": "Call your leads in order, save how each call went and see your next calls.",
       "duplicates": "Merge customers and leads that were entered twice, or set them aside.",
       "quotes": "See the quotes of your leads, open their documents and send them.",
-      "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
-      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "inbox": "Approve, change or reject what the agents suggest.",
-      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents."
+      "adminAgents": "Set how far each agent may go, its daily spending limit, and stop agents.",
+      "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
+      "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
+      "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe."
     }
   },
   "profile": {
@@ -1480,6 +1417,7 @@
       "fileScanned": "File checked for harmful content",
       "fileReady": "File ready to use",
       "fileRejected": "File refused",
+      "fileCheckContinued": "File check moved on to its next page",
       "filesRecheck": "Files sent for their checks again",
       "uploadsSweep": "Unfinished uploads cleared",
       "priceListCreate": "Price list started",
@@ -1521,13 +1459,6 @@
       "quoteWithdraw": "Quote withdrawn",
       "quoteExpire": "Quotes past their validity marked as expired",
       "quotePdfAttach": "Quote document attached",
-      "quoteAccept": "Quote accepted with the signed copy",
-      "orderCreate": "Dealer order made",
-      "orderConfirm": "Order confirmed or held for credit",
-      "creditRelease": "Credit hold released",
-      "orderCancel": "Order cancelled",
-      "dealerTermsSet": "Dealer's credit limit and days entered",
-      "dealerOutstandingRecord": "Dealer's outstanding entered",
       "agentRunRecord": "Agent run recorded",
       "inboxApprove": "Suggestion approved",
       "inboxEdit": "Suggestion changed and approved",
@@ -1535,6 +1466,17 @@
       "inboxDismiss": "Suggestion dismissed",
       "agentConfigSet": "Agent settings changed",
       "agentKillSwitchSet": "Agent stopped or let run",
+      "knowledgeFileAdd": "Knowledge Vault file added",
+      "knowledgeFileReindex": "Knowledge Vault file read again",
+      "knowledgeFileArchive": "Knowledge Vault file archived",
+      "knowledgeFileIndexed": "Knowledge Vault file read for search",
+      "quoteAccept": "Quote accepted with the signed copy",
+      "orderCreate": "Dealer order made",
+      "orderConfirm": "Order confirmed or held for credit",
+      "creditRelease": "Credit hold released",
+      "orderCancel": "Order cancelled",
+      "dealerTermsSet": "Dealer's credit limit and days entered",
+      "dealerOutstandingRecord": "Dealer's outstanding entered",
       "inboxComplete": "Passed-on enquiry marked done",
       "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
       "noticesSend": "Notices sent",
@@ -1551,7 +1493,6 @@
       "leadCreated": "Lead added",
       "opportunityStageMoved": "Lead moved to another stage",
       "opportunityAssigned": "Lead handed to someone",
-      "enquiryRouted": "Enquiry passed to a colleague",
       "opportunityNurtured": "Lead set to follow up later",
       "opportunityReopened": "Lead reopened",
       "opportunityWon": "Lead won",
@@ -1588,6 +1529,8 @@
       "quoteSuperseded": "Quote replaced by a new one",
       "quoteWithdrawn": "Quote withdrawn",
       "quoteExpired": "Quote expired",
+      "knowledgeIndexRequested": "Knowledge Vault file sent to be read",
+      "enquiryRouted": "Enquiry passed to a colleague",
       "quoteAccepted": "Quote accepted",
       "orderCreated": "Order made",
       "orderConfirmed": "Order confirmed",
@@ -1780,6 +1723,19 @@
       "grandTotal": "Total",
       "validUntil": "Valid until",
       "withdrawnReason": "Why it was withdrawn",
+      "agent": "Agent",
+      "actionType": "Kind of action",
+      "autonomy": "Autonomy",
+      "edited": "Changed before approving",
+      "dailySpendCap": "Daily spending limit",
+      "enabled": "May run",
+      "sensitivity": "Who can find it",
+      "sourceType": "Kind of file",
+      "wholeGroup": "For every company",
+      "knowledgeState": "Knowledge Vault status",
+      "chunks": "Passages",
+      "replaced": "Passages replaced",
+      "errorReason": "Why it could not be read",
       "acceptedVia": "How it was accepted",
       "soNo": "Order number",
       "orderState": "Order status",
@@ -1796,12 +1752,6 @@
       "oldestUnpaidInvoiceDate": "Date of oldest unpaid invoice",
       "oldestUnpaidInvoiceNo": "Oldest unpaid invoice",
       "asOf": "As of",
-      "agent": "Agent",
-      "actionType": "Kind of action",
-      "autonomy": "Autonomy",
-      "edited": "Changed before approving",
-      "dailySpendCap": "Daily spending limit",
-      "enabled": "May run",
       "note": "Note",
       "notices": "Notices",
       "recorded": "Alerts recorded",
@@ -2567,7 +2517,8 @@
       "webp": "WebP picture",
       "pdf": "PDF document",
       "csv": "CSV file",
-      "xlsx": "Excel workbook"
+      "xlsx": "Excel workbook",
+      "docx": "Word document"
     },
     "shortTypes": {
       "jpeg": "JPEG",
@@ -2575,7 +2526,8 @@
       "webp": "WebP",
       "pdf": "PDF",
       "csv": "CSV",
-      "xlsx": "XLSX"
+      "xlsx": "XLSX",
+      "docx": "DOCX"
     },
     "size": {
       "kb": "{value} KB",
@@ -2589,7 +2541,8 @@
       "re_encoded": "Picture saved again without hidden details",
       "pdf_checked": "PDF checked for scripts and attached files",
       "masked": "Numbers on the photo covered",
-      "sheet_checked": "Spreadsheet checked before reading"
+      "sheet_checked": "Spreadsheet checked before reading",
+      "document_checked": "Word document opened and its text read"
     },
     "scanStatus": {
       "NO_THREATS_FOUND": "No harmful content found",
@@ -2992,7 +2945,6 @@
       "sales_order_confirm": "Confirm sales orders",
       "sales_order_cancel": "Cancel sales orders",
       "sales_credit_release": "Release a dealer credit hold",
-      "sales_credit_write": "Enter dealer credit limits and outstanding",
       "pricing_read": "See price lists",
       "pricing_write": "Change price lists",
       "catalogue_write": "Keep the item list up to date",
@@ -3029,6 +2981,7 @@
       "knowledge_vault_read_staff": "Search staff knowledge",
       "knowledge_vault_read_management": "Search management knowledge",
       "knowledge_vault_read_exec": "Search Executive knowledge",
+      "knowledge_vault_write": "Add and archive Knowledge Vault files",
       "knowledge_playbook_approve": "Approve Playbook guidance",
       "agents_inbox_act": "Act on Agent Inbox items",
       "agents_autonomy_write": "Choose how freely agents act",
@@ -3050,6 +3003,8 @@
       "crm_score_refresh": "Bring lead scores up to date each night",
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
+      "knowledge_index": "Read Knowledge Vault files so they can be searched",
+      "sales_credit_write": "Enter dealer credit limits and outstanding",
       "notifications_send": "Send notices to the people who act on them"
     },
     "empty": "There are no roles to show.",
@@ -3789,6 +3744,163 @@
       "automaticHeld": "Automatic is set here, and works as Needs approval until Automatic is available.",
       "noActionTypes": "This agent has nothing to do yet.",
       "readOnly": "Only an Executive changes autonomy and spending limits."
+    }
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "intro": "Search what the business knows, and see the files it learns from.",
+    "search": {
+      "heading": "Search",
+      "label": "What do you want to know?",
+      "hint": "Type a question or a few words, such as a pump size or a scheme name.",
+      "search": "Search",
+      "notSwitchedOn": "Search is not switched on yet. It will work once it is set up.",
+      "none": "Nothing in the files you can read matches this. Try other words.",
+      "found": "{count, plural, one {# passage found} other {# passages found}}",
+      "from": "From {title}"
+    },
+    "files": {
+      "heading": "Files",
+      "empty": "No files yet. Files added to the Knowledge Vault appear here.",
+      "for": "For",
+      "everyCompany": "Every company",
+      "findBy": "Who can find it",
+      "kind": "Kind",
+      "added": "Added on",
+      "passages": "{count, plural, one {# passage} other {# passages}}",
+      "actions": "Actions for {title}"
+    },
+    "sensitivity": {
+      "staff_ai_ok": "All staff",
+      "management": "Management and Accounts",
+      "exec_only": "Executives only"
+    },
+    "sensitivityHelp": {
+      "staff_ai_ok": "Everyone on the team can find it, and so can the assistants that help callers.",
+      "management": "Executives, General Managers and Accounts can find it.",
+      "exec_only": "Only Executives can find it."
+    },
+    "source": {
+      "pdf": "PDF",
+      "photo": "Photo",
+      "word": "Word document",
+      "excel": "Excel workbook"
+    },
+    "state": {
+      "waiting": "Being read",
+      "indexed": "Ready to search",
+      "failed": "Could not be read",
+      "unavailable": "Waiting for search",
+      "archived": "Archived"
+    },
+    "add": "Add a file",
+    "addTitle": "Add a file to the Knowledge Vault",
+    "addIntro": "Give it a title and choose who can find it, then upload a PDF, a photo, a Word document or an Excel workbook. Numbers on photos are covered before they are read.",
+    "titleLabel": "Title",
+    "titleHint": "A name people will recognise in search results.",
+    "titleMissing": "Give the file a title.",
+    "forLabel": "For",
+    "forHint": "A file for every company can be added only while All companies is chosen at the top.",
+    "findByLabel": "Who can find it",
+    "fileLabel": "File",
+    "uploaded": "Uploaded and checked. Add it to the vault.",
+    "uploadFirst": "Upload the file before you add it.",
+    "addToVault": "Add to the vault",
+    "addedNotice": "Added. The file is being read for search.",
+    "readAgain": "Read again",
+    "readAgainNotice": "The file is being read again.",
+    "archive": "Archive",
+    "archiveTitle": "Archive this file?",
+    "archiveIntro": "{title} will no longer appear in search. This cannot be undone.",
+    "archivedNotice": "Archived. The file no longer appears in search."
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "bellUnread": "{count, plural, one {Notifications, # unread} other {Notifications, # unread}}",
+    "bellMore": "99+",
+    "bellMoreLabel": "Notifications, 100 or more unread",
+    "panelTitle": "Notifications",
+    "panelIntro": "What needs you, newest first.",
+    "loading": "Getting your notices",
+    "empty": "Nothing here yet. When a lead is given to you, a call falls due or a quote is about to lapse, it shows here.",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "markReadLabel": "Mark as read: {notice}",
+    "allRead": "All notices are marked as read.",
+    "unread": "Not read yet",
+    "loadMore": "Show more",
+    "openSettings": "Settings",
+    "close": "Close",
+    "quoteLine": "Quote {quoteNo}",
+    "orderLine": "Order {orderNo}",
+    "companyLine": "In {company}",
+    "types": {
+      "lead_assigned": "A lead was given to you",
+      "duplicate_found": "A customer or lead of yours may be a duplicate",
+      "call_due": "A call of yours is due",
+      "quote_expiring": "A quote on your lead lapses within a day",
+      "first_call_late": "A new lead was not called in time",
+      "enquiry_routed": "An enquiry from your customer was passed to you",
+      "order_credit_held": "A dealer order is held for credit"
+    },
+    "settings": {
+      "title": "Notification settings",
+      "intro": "Choose which notices you see and which ones also come as alerts on this computer or phone. Everything is on until you change it.",
+      "kindsHeading": "Kinds of notice",
+      "kindsCaption": "Kinds of notice and where they reach you",
+      "kind": "Notice",
+      "inApp": "Show in Notifications",
+      "pushColumn": "Send as an alert",
+      "inAppLabel": "Show “{kind}” in Notifications",
+      "pushLabel": "Send “{kind}” as an alert",
+      "quietHeading": "Quiet hours",
+      "quietIntro": "No alerts are sent in your quiet hours. The notices still wait for you in Notifications. Leave both times empty for no quiet hours.",
+      "quietFrom": "Quiet from",
+      "quietTo": "Quiet until",
+      "quietHelper": "A time in India on the 24-hour clock, such as 21:30.",
+      "save": "Save settings",
+      "saved": "Your notification settings are saved.",
+      "browserHeading": "Alerts on this browser",
+      "browserIntro": "Alerts pop up on this computer or phone even when Shakti Prime is not open. Turn them on in each browser you use.",
+      "browserOn": "Alerts are on for this browser.",
+      "browserOff": "Alerts are off for this browser.",
+      "browserBlocked": "This browser has blocked alerts from Shakti Prime. Allow them in the browser's site settings, then turn them on here.",
+      "browserUnsupported": "This browser cannot show alerts. Notices still reach you in Notifications.",
+      "pushUnavailable": "Alerts are not set up yet. Notices still reach you in Notifications.",
+      "turnOnPush": "Turn on alerts",
+      "turnOffPush": "Turn off alerts",
+      "pushOnDone": "Alerts are on for this browser.",
+      "pushOffDone": "Alerts are off for this browser."
+    }
+  },
+  "pushAlerts": {
+    "lead_assigned": {
+      "title": "A lead was given to you",
+      "body": "Tap to open the customer."
+    },
+    "duplicate_found": {
+      "title": "A possible duplicate",
+      "body": "A customer or lead of yours may be the same as another one. Tap to check."
+    },
+    "call_due": {
+      "title": "A call is due",
+      "body": "Tap to open your calling queue."
+    },
+    "quote_expiring": {
+      "title": "A quote lapses soon",
+      "body": "A quote on your lead lapses within a day. Tap to open it."
+    },
+    "first_call_late": {
+      "title": "A new lead was not called in time",
+      "body": "Tap to open the customer and see who has the lead."
+    },
+    "enquiry_routed": {
+      "title": "An enquiry was passed to you",
+      "body": "A customer you look after asked again. Tap to open your Agent Inbox."
+    },
+    "order_credit_held": {
+      "title": "A dealer order is held for credit",
+      "body": "The order waits until its credit is cleared or someone who can release it does so. Tap to open it."
     }
   },
   "orders": {

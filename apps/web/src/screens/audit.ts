@@ -115,6 +115,7 @@ const ACTIONS = {
   'files.file.mark_scanned': 'fileScanned',
   'files.file.mark_ready': 'fileReady',
   'files.file.reject': 'fileRejected',
+  'files.file.continue_check': 'fileCheckContinued',
   'files.file.recheck': 'filesRecheck',
   'files.upload.sweep': 'uploadsSweep',
   'files.document.record': 'fileRendered',
@@ -141,6 +142,10 @@ const ACTIONS = {
   'agents.inbox.dismiss': 'inboxDismiss',
   'agents.config.set': 'agentConfigSet',
   'agents.killswitch.set': 'agentKillSwitchSet',
+  'knowledge.file.add': 'knowledgeFileAdd',
+  'knowledge.file.reindex': 'knowledgeFileReindex',
+  'knowledge.file.archive': 'knowledgeFileArchive',
+  'knowledge.file.record_index': 'knowledgeFileIndexed',
   'agents.inbox.complete': 'inboxComplete',
   'crm.enquiry.route': 'enquiryRoute',
   'notifications.event.notify': 'noticesSend',
@@ -235,6 +240,7 @@ const EVENT_NAMES = {
   'sales.quote.superseded': 'quoteSuperseded',
   'sales.quote.withdrawn': 'quoteWithdrawn',
   'sales.quote.expired': 'quoteExpired',
+  'knowledge.file.index_requested': 'knowledgeIndexRequested',
   'sales.quote.accepted': 'quoteAccepted',
   'sales.order.created': 'orderCreated',
   'sales.order.confirmed': 'orderConfirmed',
@@ -349,6 +355,9 @@ const CODE_GROUPS = [
   'agentAction',
   'autonomy',
   'runOutcome',
+  'knowledgeState',
+  'knowledgeSensitivity',
+  'knowledgeSource',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -579,6 +588,14 @@ const FIELD_KINDS = [
   ['edited', 'yesNo'],
   ['dailySpendCap', 'money'],
   ['enabled', 'yesNo'],
+  // The Knowledge Vault
+  ['sensitivity', 'knowledgeSensitivity'],
+  ['sourceType', 'knowledgeSource'],
+  ['wholeGroup', 'yesNo'],
+  ['knowledgeState', 'knowledgeState'],
+  ['chunks', 'number'],
+  ['replaced', 'number'],
+  ['errorReason', 'errorCode'],
   // Notifications and routed enquiries
   ['note', 'text'],
   ['notices', 'number'],

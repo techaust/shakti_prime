@@ -92,6 +92,12 @@ describe('productionConfigProblems (AUDIT M8, M9)', () => {
     ).toEqual(['FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key']);
   });
 
+  it('refuses the stand-in AI transport', () => {
+    expect(productionConfigProblems({ ...GOOD, AI_TRANSPORT: 'fake' })).toEqual([
+      'AI_TRANSPORT is for development; a hosted environment calls the AI services',
+    ]);
+  });
+
   it('starts without any file storage or key settings', () => {
     const none = { FILES_BUCKET: '', FILES_KMS_KEY_ID: '', AWS_ACCESS_KEY_ID: '' };
     expect(productionConfigProblems({ ...GOOD, ...none })).toEqual([]);

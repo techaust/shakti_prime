@@ -12,7 +12,12 @@ import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { executeCommand } from '../../src/command/execute';
 import { runCommand } from '../../src/command/run-command';
 import { beginUpload } from '../../src/commands/files/begin-upload';
-import { markFileReady, markFileScanned, rejectFile } from '../../src/commands/files/check-file';
+import {
+  continueFileCheck,
+  markFileReady,
+  markFileScanned,
+  rejectFile,
+} from '../../src/commands/files/check-file';
 import { completeUpload } from '../../src/commands/files/complete-upload';
 import { recheckFiles } from '../../src/commands/files/recheck-files';
 import { filePurposeGrant } from '../../src/files/purposes';
@@ -105,8 +110,26 @@ describe('files.upload.begin', () => {
 
   it('never opens a purpose no request may upload', async () => {
     await expect(
-      begin(executive, { purpose: 'knowledge', contentType: 'application/pdf' }),
+      begin(executive, { purpose: 'job_photo', contentType: 'image/jpeg' }),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+
+  it('opens a vault upload to knowledge.vault.write, as a PDF, a photo, a Word file or a workbook', async () => {
+    const word = await begin(executive, {
+      purpose: 'knowledge',
+      name: 'Pump care.docx',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    expect(word.key).toMatch(/^1\/knowledge\/[0-9a-f-]+\.docx$/);
+    await expect(
+      begin(principalFor('tele_caller_cc', [1]), {
+        purpose: 'knowledge',
+        contentType: 'application/pdf',
+      }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    await expect(
+      begin(executive, { purpose: 'knowledge', contentType: 'text/csv' }),
+    ).rejects.toMatchObject({ code: 'validation_failed' });
   });
 
   it('takes an import file only as a spreadsheet, and a spreadsheet only as an import file', async () => {
@@ -428,5 +451,80 @@ describe('files.file.recheck', () => {
       outcome: 'ok',
       after: { fileStatus: 'scanning' },
     });
+  });
+});
+
+describe('files.file.continue_check', () => {
+  /** A vault PDF upload that passed the malware scan, as its masking finds it. */
+  async function scannedVaultPdf(): Promise<string> {
+    const slot = await begin(executive, {
+      purpose: 'knowledge',
+      name: 'Scheme circular.pdf',
+      contentType: 'application/pdf',
+    });
+    await run(executive, completeUpload, {
+      fileId: slot.fileId,
+      purpose: 'knowledge',
+      stored: { size: 2048, sha256: SHA },
+    });
+    await run(worker, markFileScanned, {
+      entityId: 1,
+      fileId: slot.fileId,
+      verdict: 'no_threats_found',
+    });
+    return slot.fileId;
+  }
+
+  const uploadEvents = (fileId: string) =>
+    asOutboxPublisher(
+      (p) => p<{ payload_json: Record<string, unknown> }[]>`
+        select payload_json from outbox_events
+         where type = 'files.file.uploaded' and aggregate_id = ${fileId} order by sequence`,
+    );
+
+  it('is denied to a person, however senior, and to a worker outside the file’s company', async () => {
+    const fileId = await scannedVaultPdf();
+    const input = { entityId: 1, fileId, maskedPages: 1 };
+    await expect(run(executive, continueFileCheck, input)).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(
+      run(principalFor('general_manager', [1]), continueFileCheck, input),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    const workerOfOne = await createTestPrincipal('executive', [1], { permissions: WORKER_GRANTS });
+    await expect(
+      run(workerOfOne, continueFileCheck, { ...input, entityId: 2 }),
+    ).rejects.toMatchObject({ code: 'forbidden' });
+    expect(await uploadEvents(fileId)).toHaveLength(1);
+  });
+
+  it('sends the file’s checks on, carrying the pages kept so far', async () => {
+    const fileId = await scannedVaultPdf();
+    await run(worker, continueFileCheck, { entityId: 1, fileId, maskedPages: 2 });
+    const events = await uploadEvents(fileId);
+    expect(events).toHaveLength(2);
+    expect(events[1]?.payload_json).toMatchObject({ purpose: 'knowledge', maskedPages: 2 });
+    const rows = await auditRows(fileId);
+    expect(rows.at(-1)).toMatchObject({
+      command: 'files.file.continue_check',
+      outcome: 'ok',
+      after: { fileStatus: 'scanned' },
+    });
+  });
+
+  it('sends nothing for a file that is not part way through a vault PDF’s checks', async () => {
+    const slot = await begin();
+    await run(executive, completeUpload, {
+      fileId: slot.fileId,
+      purpose: 'entity_logo',
+      stored: { size: 2048, sha256: SHA },
+    });
+    await run(worker, markFileScanned, {
+      entityId: 1,
+      fileId: slot.fileId,
+      verdict: 'no_threats_found',
+    });
+    await run(worker, continueFileCheck, { entityId: 1, fileId: slot.fileId, maskedPages: 1 });
+    expect(await uploadEvents(slot.fileId)).toHaveLength(1);
   });
 });

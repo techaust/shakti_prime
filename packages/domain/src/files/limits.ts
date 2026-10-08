@@ -17,14 +17,18 @@ const SHEETS: readonly UploadContentType[] = [
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
+const WORD = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const WORKBOOK = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+/** A vault file: a photo, a PDF, a Word document or an Excel workbook (BLUEPRINT §9.1). */
+const VAULT: readonly UploadContentType[] = [...IMAGES_AND_PDF, WORD, WORKBOOK];
 const MB = 1024 * 1024;
 
 /**
  * Limits per purpose (docs/07-security.md §8), checked by `files.upload.begin` and by the uploader
  * before any byte is sent. A logo and a letterhead are images, because documents print them as
  * pictures; a quote's PDF is a PDF; a signed quote, consent evidence or vault file may be a photo
- * or a scan; an import file is a CSV or an Excel workbook within the import's own limit. The
- * vault's Word and Excel files arrive with K1.
+ * or a scan, and a vault file a Word document or an Excel workbook as well; an import file is a
+ * CSV or an Excel workbook within the import's own limit.
  */
 export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> = {
   quote_pdf: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
@@ -32,7 +36,7 @@ export const UPLOAD_LIMITS: Readonly<Partial<Record<FilePurpose, UploadLimit>>> 
   entity_logo: { contentTypes: IMAGES, maxBytes: 2 * MB },
   letterhead: { contentTypes: IMAGES, maxBytes: 5 * MB },
   print_proof: { contentTypes: ['application/pdf'], maxBytes: 10 * MB },
-  knowledge: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
+  knowledge: { contentTypes: VAULT, maxBytes: MAX_UPLOAD_BYTES },
   consent_evidence: { contentTypes: IMAGES_AND_PDF, maxBytes: MAX_UPLOAD_BYTES },
   import: { contentTypes: SHEETS, maxBytes: IMPORT_LIMITS.maxFileBytes },
 };
@@ -61,6 +65,7 @@ export const EXTENSIONS: Readonly<Record<UploadContentType, string>> = {
   'application/pdf': 'pdf',
   'text/csv': 'csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
 };
 
 /** Where an upload's bytes go: `<company>/<purpose>/<file id>.<extension>`. */

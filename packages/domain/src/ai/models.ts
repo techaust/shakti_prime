@@ -10,6 +10,15 @@ export const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 /** The embedding model of the Knowledge Vault: 1,024 dimensions (DATABASE §2, ADR 0011). */
 export const DEFAULT_EMBEDDING_MODEL = 'voyage-3.5';
 
+/**
+ * The most input tokens a call to each chat model can carry (its context window, as the vendor
+ * publishes it). A call with a document or a picture, whose tokens cannot be counted from its
+ * bytes, reserves this many against the caps.
+ */
+export const MODEL_CONTEXT_TOKENS: Readonly<Record<string, number>> = {
+  'claude-haiku-4-5-20251001': 200_000,
+};
+
 export type { ModelPrice };
 
 /**

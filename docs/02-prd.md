@@ -273,7 +273,7 @@ Each requirement states what the product does, then its acceptance criteria (*AC
 ### 4.12 AI (AI)
 - **AI-01 Knowledge Brain.** Vault with sensitivity tags, embeddings with RLS, Playbook directives approved by Executives, extraction per input type.
   - *AC:* only `knowledge.vault.write` uploads; a file is tagged `exec_only`, `management` or `staff_ai_ok`, and retrieval returns only chunks the caller's role and company may read (proved per role in the security suite).
-  - *AC:* PDFs and masked photos are read by Claude, Word and Excel files are parsed on the server (Phase 1), audio by the speech vendor (Phase 2).
+  - *AC:* PDFs (masked page by page first) and masked photos are read by Claude, Word and Excel files are parsed on the server (Phase 1), audio by the speech vendor (Phase 2).
   - *AC:* a Playbook directive takes effect only after an Executive approves it, and a conflict with an existing directive is flagged (Phase 2).
 - **AI-02 Ask the Business** and voice Ask run as the user with citations.
   - *AC:* each answer cites its sources; a question asked by a user without a permission gets no data that permission guards.

@@ -12,12 +12,13 @@ describe('file purposes', () => {
     expect(Object.keys(FILE_PURPOSE_RULES).sort()).toEqual([...FILE_PURPOSES].sort());
   });
 
-  it('opens the upload flow to the purposes with a writer, an import file among them, never the vault yet', () => {
+  it('opens the upload flow to the purposes with a writer, an import file and the vault among them', () => {
     expect([...UPLOADABLE_PURPOSES].sort()).toEqual(
       [
         'consent_evidence',
         'entity_logo',
         'import',
+        'knowledge',
         'letterhead',
         'print_proof',
         'quote_pdf',
@@ -28,7 +29,10 @@ describe('file purposes', () => {
       permission: 'imports.write',
       minScope: 'entity',
     });
-    expect(uploadPermission.of({ purpose: 'knowledge' })).toBeNull();
+    expect(uploadPermission.of({ purpose: 'knowledge' })).toEqual({
+      permission: 'knowledge.vault.write',
+      minScope: 'all',
+    });
     expect(uploadPermission.of({ purpose: 'job_photo' })).toBeNull();
     expect(uploadPermission.of({ purpose: 'entity_logo' })).toEqual({
       permission: 'admin.entities.write',
@@ -43,6 +47,7 @@ describe('file purposes', () => {
         'crm.account.write',
         'files.process',
         'imports.write',
+        'knowledge.vault.write',
         'sales.quote.send',
       ].sort(),
     );
@@ -52,7 +57,9 @@ describe('file purposes', () => {
     expect(filePurposeGrant('import', 'write')).toBe('imports.write:entity');
     expect(filePurposeGrant('import', 'read')).toBe('imports.write');
     expect(filePurposeGrant('letterhead', 'read')).toBe('company');
-    expect(filePurposeGrant('knowledge', 'write')).toBeNull();
+    expect(filePurposeGrant('knowledge', 'write')).toBe('knowledge.vault.write:all');
+    // A vault file is read with its vault entry, by sensitivity (files_knowledge_read), never by
+    // the general rule.
     expect(filePurposeGrant('knowledge', 'read')).toBeNull();
   });
 });

@@ -88,6 +88,20 @@ export const SEND_AGAIN_COMPANY = { entityId: 4, name: 'RCREF' } as const;
 export const SNAPSHOT_IMPORT_FILE = 'agro-solar-hub-leads.csv';
 
 /**
+ * The Knowledge Vault file the seed adds once to the snapshot company and indexes through the fake
+ * transport, as a Word document of staff knowledge (knowledge.spec.ts).
+ */
+export const SNAPSHOT_VAULT = {
+  title: 'Solar pump care',
+  paragraphs: [
+    'Solar pump care',
+    'Clean the solar panels every two weeks with plain water and a soft cloth.',
+    'Before the monsoon, check that the cable joints at the borewell are dry and tight.',
+  ],
+  question: 'how often to clean the panels',
+} as const;
+
+/**
  * The stand-in agent's suggestions (setup/stand-in-agent.ts). Per project, three for the
  * tele-caller on her lead in company 1: one needing approval that she approves as it is, one she
  * edits first, and one under Suggest that she dismisses; the seed files them afresh on every run.

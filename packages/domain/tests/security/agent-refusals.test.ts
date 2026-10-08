@@ -269,6 +269,15 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
     },
   },
   'calls.call.log': { entityId: 1, opportunityId: newId(), dispositionId: newId() },
+  // The Knowledge Vault's files are added, read again and archived by people (docs/03-roadmap-appendix/phase1.md §8.4).
+  'knowledge.file.add': {
+    entityId: 1,
+    fileId: newId(),
+    title: 'Refused vault file',
+    sensitivity: 'staff_ai_ok',
+  },
+  'knowledge.file.reindex': { entityId: 1, knowledgeFileId: newId() },
+  'knowledge.file.archive': { entityId: 1, knowledgeFileId: newId() },
   // Orders, acceptance and dealer credit (docs/03-roadmap-appendix/phase1.md §8.3): a person's decisions.
   'sales.quote.accept': { entityId: 1, quoteId: newId(), signedFileId: newId() },
   'sales.order.create': {
@@ -672,7 +681,14 @@ describe("agent principals cannot run the platform's own work: the file checks, 
         sha256: 'a'.repeat(64),
       },
     },
+    'files.file.continue_check': { entityId: 1, fileId: newId(), maskedPages: 1 },
     'files.file.reject': { entityId: 1, fileId: newId(), reason: 'file_infected' },
+    'knowledge.file.record_index': {
+      entityId: 1,
+      knowledgeFileId: newId(),
+      outcome: 'failed',
+      reason: 'knowledge_unreadable',
+    },
   };
 
   it('no agent in the matrix holds a platform-only permission, which only the worker principal may', () => {

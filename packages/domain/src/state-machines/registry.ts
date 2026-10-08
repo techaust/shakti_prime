@@ -7,6 +7,7 @@ import { documentFilingMachine } from './machines/document-filing';
 import { expenseClaimMachine } from './machines/expense-claim';
 import { fileUploadMachine } from './machines/file-upload';
 import { inboxItemMachine } from './machines/inbox-item';
+import { knowledgeFileMachine } from './machines/knowledge-file';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -41,6 +42,7 @@ export const MACHINES: readonly AnyMachine[] = [
   tallyVoucherMachine,
   agentActionMachine,
   inboxItemMachine,
+  knowledgeFileMachine,
 ];
 
 /**
@@ -57,6 +59,7 @@ export const MACHINES_IN_USE: ReadonlySet<string> = new Set([
   'sales_order',
   'agent_action',
   'inbox_item',
+  'knowledge_file',
 ]);
 
 /** The `<machine>_transition_not_allowed` reasons; each has a sentence in the message catalogue. */

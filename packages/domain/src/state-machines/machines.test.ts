@@ -10,6 +10,7 @@ import { expenseClaimMachine } from './machines/expense-claim';
 import { agentActionMachine } from './machines/agent-action';
 import { fileUploadMachine } from './machines/file-upload';
 import { inboxItemMachine } from './machines/inbox-item';
+import { knowledgeFileMachine } from './machines/knowledge-file';
 import { opportunityMachine } from './machines/opportunity';
 import { playbookDirectiveMachine } from './machines/playbook-directive';
 import { projectStandardMachine } from './machines/project-standard';
@@ -50,6 +51,7 @@ interface Fixture {
 const FIXTURES: Fixture[] = [
   { machine: agentActionMachine, record: {}, params: {} },
   { machine: inboxItemMachine, record: {}, params: {} },
+  { machine: knowledgeFileMachine, record: {}, params: {} },
   { machine: taskMachine, record: {}, params: { dueAt: new Date(NOW.getTime() + HOUR) } },
   { machine: duplicateCandidateMachine, record: {}, params: {} },
   {

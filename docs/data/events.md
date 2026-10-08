@@ -19,6 +19,7 @@ How an event travels (the outbox row written in the command's transaction, the p
   - [Platform](#platform)
   - [Files](#files)
   - [print](#print)
+  - [knowledge](#knowledge)
   - [sales](#sales)
 - [Payloads](#payloads)
 
@@ -45,7 +46,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 ## Event types
 
-48 types, 7 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
+49 types, 8 with a worker, grouped by the module that names them. *Emitted by* lists the commands that emit the type: `emittedBy` in the catalogue, which `packages/domain/src/command/event-emitters.test.ts` checks against the command sources (a command that runs another through `ctx.run` emits what that one emits).
 
 ### Organisation
 
@@ -125,13 +126,19 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
-| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
+| [`files.file.uploaded`](#filesfileuploaded) | An upload landed and waits for its checks; sent again for a file whose checks stalled. | `files.upload.complete`, `files.file.recheck`, `files.file.continue_check` | `POST /api/v1/workers/outbox/files.file.uploaded` (QStash URL group `evt-files.file.uploaded`) |
 
 ### print
 
 | Type | Meaning | Emitted by | Worker |
 |---|---|---|---|
 | [`print.document.requested`](#printdocumentrequested) | A document is to be printed: the render worker loads it, prints it with Chromium and stores the PDF. | `print.proof.request`, `sales.quote.create`, `sales.quote.requote` | `POST /api/v1/workers/outbox/print.document.requested` (QStash URL group `evt-print.document.requested`) |
+
+### knowledge
+
+| Type | Meaning | Emitted by | Worker |
+|---|---|---|---|
+| [`knowledge.file.index_requested`](#knowledgefileindex_requested) | A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again. | `knowledge.file.add`, `knowledge.file.reindex`, `files.file.mark_ready` | `POST /api/v1/workers/outbox/knowledge.file.index_requested` (QStash URL group `evt-knowledge.file.index_requested`) |
 
 ### sales
 
@@ -395,6 +402,7 @@ No fields apart from `v`.
 | Field | Type |
 |---|---|
 | `purpose` | one of `job_photo`, `survey_photo`, `qc_photo`, `receipt`, `signature`, `selfie`, `customer_document`, `import`, `quote_pdf`, `signed_quote`, `entity_logo`, `letterhead`, `print_proof`, `knowledge`, `consent_evidence` |
+| `maskedPages` | whole number from 1 to 12 (optional) |
 
 ### print.document.requested
 
@@ -403,6 +411,13 @@ No fields apart from `v`.
 | `documentType` | one of `quote`, `proforma`, `delivery_challan`, `handover_kit`, `company_letterhead_proof` |
 | `documentId` | id |
 | `version` | whole number from 1 |
+
+### knowledge.file.index_requested
+
+| Field | Type |
+|---|---|
+| `knowledgeEntityId` | whole number from 1 to 32767 or null |
+| `sensitivity` | one of `staff_ai_ok`, `management`, `exec_only` |
 
 ### sales.quote.created
 

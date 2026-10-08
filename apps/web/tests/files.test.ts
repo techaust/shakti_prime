@@ -55,7 +55,10 @@ const { fileStatus, finishUpload, listCompanyBranding, openFile, startUpload } =
 const { localUpload } = await import('../src/files/local-route');
 const { completeRoute, presignRoute, FILE_ROUTE_CAP } = await import('../src/files/routes');
 const { completeUploadFor, presignUpload } = await import('../src/files/uploads');
+const { maskNextPdfPage } = await import('../src/workers/files/mask-pdf-pages');
 const { handleFileUploaded, SCAN_TAG } = await import('../src/workers/files/handle-file-uploaded');
+
+const { coveringMasker, pdfOf } = await import('./support/pdf-fixtures');
 
 const ORIGIN = 'http://localhost:3000';
 let dir: string;
@@ -65,8 +68,13 @@ let worker: Principal;
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'shakti-upload-'));
   executive = await createTestPrincipal('executive', [1, 2]);
+  // The worker principal's grants for the file checks: a vault upload's checks also look for the
+  // vault files waiting on it (knowledge.index, docs/03-roadmap-appendix/phase1.md §8.4).
   worker = await createTestPrincipal('executive', ALL_ENTITY_IDS, {
-    permissions: [{ key: 'files.process', scope: 'all' }],
+    permissions: [
+      { key: 'files.process', scope: 'all' },
+      { key: 'knowledge.index', scope: 'all' },
+    ],
   });
 });
 
@@ -404,7 +412,7 @@ describe('the file checks', () => {
   });
 
   describe('for a vault photo', () => {
-    /** A vault file the worker recorded (no person may upload one until K1). */
+    /** A vault photo the worker recorded, as a vault upload's checks find it. */
     async function vaultPhoto(store: FileStore): Promise<string> {
       const bytes = await png();
       const id = newId();
@@ -447,6 +455,55 @@ describe('the file checks', () => {
       expect(kept.key).toBe(`1/knowledge/${fileId}-checked.jpg`);
       expect(kept.scan_result).toMatchObject({ sanitising: 'masked', regionsMasked: 2 });
       expect(store.objects.has(`1/knowledge/${fileId}.png`)).toBe(false);
+    });
+
+    it('refuses a photo whose mask hangs once it has its turn, within the deadline', async () => {
+      const store = memoryFileStore('test-bucket');
+      const fileId = await vaultPhoto(store);
+      const discard = vi.fn(() => Promise.resolve());
+      const masker = () =>
+        Promise.resolve({
+          mask: (_photo: Buffer, request?: { onTurn?: () => void }) => {
+            request?.onTurn?.();
+            return new Promise<never>(() => undefined);
+          },
+          close: () => Promise.resolve(),
+        });
+      const started = Date.now();
+      expect(
+        await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), {
+          store,
+          principal: worker,
+          hosted: false,
+          masker,
+          discardMasker: discard,
+          pageLimits: { startMs: 10_000, maskMs: 200 },
+        }),
+      ).toEqual({ status: 'rejected' });
+      expect(Date.now() - started).toBeLessThan(10_000);
+      expect((await row(fileId)).scan_result).toMatchObject({ rejectReason: 'file_mask_failed' });
+      expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('delivers a photo again, refusing nothing, when its mask gets no turn in time', async () => {
+      const store = memoryFileStore('test-bucket');
+      const fileId = await vaultPhoto(store);
+      const masker = () =>
+        Promise.resolve({
+          mask: () => new Promise<never>(() => undefined),
+          close: () => Promise.resolve(),
+        });
+      await expect(
+        handleFileUploaded(uploaded(fileId, 1, 'knowledge'), {
+          store,
+          principal: worker,
+          hosted: false,
+          masker,
+          pageLimits: { startMs: 10_000, maskMs: 10_000, turnMs: 100 },
+        }),
+      ).rejects.toMatchObject({ code: 'integration_unavailable' });
+      expect((await row(fileId)).status).toBe('not_scanned');
+      expect(store.objects.has(`1/knowledge/${fileId}.png`)).toBe(true);
     });
 
     it('keeps nothing when the numbers could not be found', async () => {
@@ -495,16 +552,201 @@ describe('the file checks', () => {
       expect(store.objects.has(`1/knowledge/${fileId}-checked.jpg`)).toBe(true);
     });
 
-    it('waits when no masking step is available', async () => {
+    it('refuses the photo at once, with a reason of its own, when no masking step is set up', async () => {
       const store = memoryFileStore('test-bucket');
       const fileId = await vaultPhoto(store);
+      expect(
+        await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), {
+          store,
+          principal: worker,
+          hosted: false,
+        }),
+      ).toEqual({ status: 'rejected' });
+      expect((await row(fileId)).scan_result).toMatchObject({
+        rejectReason: 'file_masking_unavailable',
+      });
+      expect(store.objects.size).toBe(0);
+    });
+  });
+
+  describe('for a vault PDF', () => {
+    /** A vault PDF upload of the given pages, as a vault upload's checks find it. */
+    async function vaultPdf(store: FileStore, pages: number): Promise<string> {
+      const bytes = await pdfOf(Array.from({ length: pages }, (_, i) => `Page ${String(i + 1)}`));
+      const id = newId();
+      const key = `1/knowledge/${id}.pdf`;
+      await store.put(key, bytes, 'application/pdf');
+      await asMigrator(
+        (
+          m,
+        ) => m`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, status, created_by)
+          values (${id}, 1, 'knowledge', ${store.bucket}, ${key}, 'circular.pdf', 'application/pdf', ${bytes.length}, ${sha256Hex(bytes)}, 'scanning', ${worker.id})`,
+      );
+      return id;
+    }
+
+    const continuations = async (fileId: string) =>
+      asMigrator(
+        (m) => m<{ payload_json: { maskedPages?: number } }[]>`
+          select payload_json from outbox_events
+           where type = 'files.file.uploaded' and aggregate_id = ${fileId}
+           order by sequence`,
+      );
+
+    /** The event the worker is sent on after a page: the upload's event with the pages kept. */
+    const sentOn = (fileId: string, maskedPages: number): DeliveredEvent => ({
+      ...uploaded(fileId, 1, 'knowledge'),
+      payload: { purpose: 'knowledge', maskedPages, v: 1 },
+    });
+
+    it('masks a 3-page PDF over three deliveries, each sending the next on', async () => {
+      const store = memoryFileStore('test-bucket');
+      const keyValue = memoryKeyValue();
+      const fileId = await vaultPdf(store, 3);
+      const seen: Buffer[] = [];
+      const masker = () => Promise.resolve(coveringMasker(seen));
+      const deps = { store, principal: worker, hosted: false, masker, keyValue };
+
+      expect(await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), deps)).toEqual({
+        status: 'masking',
+        maskedPages: 1,
+        pages: 3,
+      });
+      expect((await row(fileId)).status).toBe('not_scanned');
+      expect(await handleFileUploaded(sentOn(fileId, 1), deps)).toEqual({
+        status: 'masking',
+        maskedPages: 2,
+        pages: 3,
+      });
+      // A page already kept is not masked again when its delivery comes twice.
+      expect(await handleFileUploaded(sentOn(fileId, 1), deps)).toEqual({
+        status: 'masking',
+        maskedPages: 2,
+        pages: 3,
+      });
+      expect(seen).toHaveLength(2);
+      expect(await handleFileUploaded(sentOn(fileId, 2), deps)).toEqual({ status: 'ready' });
+      expect(seen).toHaveLength(3);
+
+      // The two sent-on events carry the pages kept; the claim is released after each page.
+      const sent = (await continuations(fileId)).map((e) => e.payload_json.maskedPages);
+      expect(sent).toEqual([1, 2]);
+      expect(await keyValue.get(`filecheck:${fileId}`)).toBeNull();
+      const kept = await row(fileId);
+      expect(kept.scan_result).toMatchObject({ sanitising: 'masked', regionsMasked: 3 });
+      expect(kept.key).toBe(`1/knowledge/${fileId}-checked.pdf`);
+      // Only the masked PDF is left: not the upload, and none of the pages that built it.
+      expect([...store.objects.keys()]).toEqual([`1/knowledge/${fileId}-checked.pdf`]);
+    });
+
+    it('sends the chain on from a redelivery when the delivery that kept a page died before sending on', async () => {
+      const store = memoryFileStore('test-bucket');
+      const keyValue = memoryKeyValue();
+      const fileId = await vaultPdf(store, 3);
+      const seen: Buffer[] = [];
+      const masker = () => Promise.resolve(coveringMasker(seen));
+      const deps = { store, principal: worker, hosted: false, masker, keyValue };
+
+      // The first delivery kept page 1 and died before the send-on committed: the page is in the
+      // store, the file records no page sent on and no event is in the outbox.
+      const key = `1/knowledge/${fileId}.pdf`;
+      const bytes = await store.get(key);
+      if (bytes === undefined) throw new Error('the upload is missing');
+      await maskNextPdfPage({ bytes, uploadKey: key }, { store, masker, elapsed: () => 0 });
+      expect(seen).toHaveLength(1);
+
+      // The event comes again: it masks nothing and sends the chain on from page 1.
+      expect(await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), deps)).toEqual({
+        status: 'masking',
+        maskedPages: 1,
+        pages: 3,
+      });
+      expect(seen).toHaveLength(1);
+      expect((await continuations(fileId)).map((e) => e.payload_json.maskedPages)).toEqual([1]);
+      expect((await row(fileId)).scan_result).toMatchObject({ maskedPagesSent: 1 });
+      // The chain goes on from there.
+      expect(await handleFileUploaded(sentOn(fileId, 1), deps)).toMatchObject({
+        status: 'masking',
+        maskedPages: 2,
+      });
+      // The event for page 1 coming once more is behind the chain and does nothing.
+      expect(await handleFileUploaded(sentOn(fileId, 1), deps)).toMatchObject({
+        status: 'masking',
+        maskedPages: 2,
+      });
+      expect(seen).toHaveLength(2);
+      // The last page ends in the masked PDF.
+      expect(await handleFileUploaded(sentOn(fileId, 2), deps)).toEqual({ status: 'ready' });
+      expect(seen).toHaveLength(3);
+    });
+
+    it('delivers again while another delivery holds the file, and masks nothing meanwhile', async () => {
+      const store = memoryFileStore('test-bucket');
+      const keyValue = memoryKeyValue();
+      const fileId = await vaultPdf(store, 2);
+      await keyValue.setIfAbsent(`filecheck:${fileId}`, '1', 60);
+      const seen: Buffer[] = [];
+      const masker = () => Promise.resolve(coveringMasker(seen));
       await expect(
         handleFileUploaded(uploaded(fileId, 1, 'knowledge'), {
           store,
           principal: worker,
           hosted: false,
+          masker,
+          keyValue,
         }),
-      ).rejects.toMatchObject({ code: 'integration_unavailable' });
+      ).rejects.toMatchObject({ code: 'conflict' });
+      expect(seen).toHaveLength(0);
+    });
+
+    it('refuses the file when a page is too dense to check, and deletes the upload and the pages kept', async () => {
+      const store = memoryFileStore('test-bucket');
+      const fileId = await vaultPdf(store, 2);
+      let calls = 0;
+      const discard = vi.fn(() => Promise.resolve());
+      const masker = () =>
+        Promise.resolve({
+          mask: (photo: Buffer, request?: { onTurn?: () => void }) => {
+            calls += 1;
+            if (calls === 1) return coveringMasker().mask(photo);
+            request?.onTurn?.();
+            return new Promise<never>(() => undefined);
+          },
+          close: () => Promise.resolve(),
+        });
+      const deps = {
+        store,
+        principal: worker,
+        hosted: false,
+        masker,
+        discardMasker: discard,
+        pageLimits: { startMs: 10_000, maskMs: 3_000 },
+      };
+      expect(await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), deps)).toMatchObject({
+        status: 'masking',
+      });
+      expect(await handleFileUploaded(sentOn(fileId, 1), deps)).toEqual({ status: 'rejected' });
+      expect((await row(fileId)).scan_result).toMatchObject({
+        rejectReason: 'file_pdf_page_too_dense',
+      });
+      expect(discard).toHaveBeenCalledTimes(1);
+      expect(store.objects.size).toBe(0);
+    });
+
+    it('refuses the PDF at once, with a reason of its own, when no masking step is set up', async () => {
+      const store = memoryFileStore('test-bucket');
+      const fileId = await vaultPdf(store, 1);
+      expect(
+        await handleFileUploaded(uploaded(fileId, 1, 'knowledge'), {
+          store,
+          principal: worker,
+          hosted: false,
+        }),
+      ).toEqual({ status: 'rejected' });
+      expect((await row(fileId)).scan_result).toMatchObject({
+        rejectReason: 'file_masking_unavailable',
+      });
+      expect(store.objects.size).toBe(0);
     });
   });
 

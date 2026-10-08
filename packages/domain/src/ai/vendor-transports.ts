@@ -4,6 +4,7 @@ import {
   type EmbeddingReply,
   type EmbeddingTransport,
   type ModelReply,
+  type ModelRequest,
   type ModelTransport,
 } from './transport';
 
@@ -20,6 +21,23 @@ function anthropicFailure(error: unknown): ModelCallError {
     if (typeof status === 'number') return new ModelCallError('http', { status });
   }
   return new ModelCallError('invalid_response');
+}
+
+/** The turn as the vendor takes it: plain text, or each file first and then the text. */
+function userContent(request: ModelRequest): string | Anthropic.ContentBlockParam[] {
+  const documents = request.documents ?? [];
+  if (documents.length === 0) return request.user;
+  return [
+    ...documents.map((d): Anthropic.ContentBlockParam => ({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: d.mediaType,
+        data: Buffer.from(d.bytes).toString('base64'),
+      },
+    })),
+    { type: 'text', text: request.user },
+  ];
 }
 
 /**
@@ -44,7 +62,7 @@ export function anthropicTransport(
             model: request.model,
             max_tokens: request.maxTokens,
             system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
-            messages: [{ role: 'user', content: request.user }],
+            messages: [{ role: 'user', content: userContent(request) }],
           },
           { signal },
         );

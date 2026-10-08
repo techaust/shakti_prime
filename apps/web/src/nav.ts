@@ -10,6 +10,7 @@ import {
   House,
   Inbox,
   IndianRupee,
+  Library,
   ListTodo,
   Package,
   PhoneCall,
@@ -156,6 +157,16 @@ export const NAV_ITEMS: readonly NavItem[] = [
       { key: 'crm.lead.write', scope: 'own' },
       { key: 'crm.account.write', scope: 'own' },
     ],
+  },
+  {
+    id: 'knowledge',
+    href: '/knowledge',
+    label: 'knowledge',
+    icon: Library,
+    group: 'work',
+    // Every staff role searches staff knowledge; the files a reader sees follow their sensitivity,
+    // and adding, reading again and archiving need knowledge.vault.write, which the commands check.
+    requires: [{ key: 'knowledge.vault.read.staff', scope: 'all' }],
   },
   {
     id: 'price-master',

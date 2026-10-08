@@ -11,6 +11,7 @@ export const FILE_TYPE_KEYS = {
   'application/pdf': 'pdf',
   'text/csv': 'csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
 } as const satisfies Record<UploadContentType, string>;
 export type FileTypeKey = (typeof FILE_TYPE_KEYS)[UploadContentType];
 

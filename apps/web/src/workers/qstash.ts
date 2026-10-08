@@ -2,6 +2,7 @@ import type { DeliveredEvent } from '@shakti/contracts';
 import type { EventPublisher, PublishResult } from '@shakti/domain';
 import { Client, Receiver } from '@upstash/qstash';
 import { logger } from '../log';
+import { indexJobOf } from './knowledge/job';
 import { renderJobOf } from './pdf/job';
 
 /** Where QStash calls the publisher; the schedule and every nudge target it. */
@@ -27,6 +28,8 @@ export const QUOTE_EXPIRE_PATH = '/api/v1/workers/quotes/expire';
 /** Where QStash calls the render worker with a `PdfRenderJob` (ADR 0009). */
 export const PDF_RENDER_PATH = '/api/v1/workers/pdf/render';
 
+/** Where QStash calls the Knowledge Vault's index worker with an `EmbeddingsIndexJob`. */
+export const EMBEDDINGS_INDEX_PATH = '/api/v1/workers/embeddings/index';
 /** Where QStash calls the notify worker with a `NotifyJob` (docs/03-roadmap-appendix/phase1.md §8.1). */
 export const NOTIFY_PATH = '/api/v1/workers/notify';
 
@@ -47,6 +50,10 @@ export const EVENT_JOB_ROUTES: Readonly<
   'print.document.requested': {
     path: PDF_RENDER_PATH,
     body: renderJobOf,
+  },
+  'knowledge.file.index_requested': {
+    path: EMBEDDINGS_INDEX_PATH,
+    body: indexJobOf,
   },
   // A notifying event goes to the notify route as itself (`NotifyJob`).
   'crm.opportunity.assigned': { path: NOTIFY_PATH, body: (event) => event },

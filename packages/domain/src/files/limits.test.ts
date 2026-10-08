@@ -38,6 +38,17 @@ describe('upload limits', () => {
     expect(uploadKey(1, 'import', newId(), 'text/csv')).toMatch(/^1\/import\/[0-9a-f-]+\.csv$/);
   });
 
+  it('takes a vault file as a photo, a PDF, a Word document or a workbook, never a CSV', () => {
+    const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const xlsx = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    for (const type of ['image/jpeg', 'application/pdf', docx, xlsx]) {
+      expect(uploadLimitProblem('knowledge', type, 10)).toBeUndefined();
+    }
+    expect(uploadLimitProblem('knowledge', 'text/csv', 10)).toBe('file_type_not_allowed');
+    expect(uploadLimitProblem('import', docx, 10)).toBe('file_type_not_allowed');
+    expect(uploadKey(1, 'knowledge', newId(), docx)).toMatch(/^1\/knowledge\/[0-9a-f-]+\.docx$/);
+  });
+
   it('makes a safe key per company, purpose and file', () => {
     const id = newId();
     const key = uploadKey(3, 'letterhead', id, 'image/webp');

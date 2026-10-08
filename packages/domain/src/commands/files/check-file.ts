@@ -1,14 +1,20 @@
 import {
+  ContinueFileCheckInput,
   DomainError,
   FileDto,
+  type FileRejectReason,
+  type KnowledgeErrorReason,
+  KnowledgeSensitivitySchema,
   MarkFileReadyInput,
   MarkFileScannedInput,
   RejectFileInput,
 } from '@shakti/contracts';
+import { sql } from 'drizzle-orm';
 import type { CommandContext } from '../../command/context';
 import { defineCommand } from '../../command/define-command';
 import type { FileUploadState } from '../../state-machines/machines/file-upload';
 import { assertEntityInScope } from '../imports/shared';
+import { fireKnowledgeFileAsJob, holdVaultUpload } from '../knowledge/shared';
 import { fireUpload, lockFile, scanResultOf, toFileDto, writeFile, type FileRow } from './shared';
 
 /*
@@ -36,6 +42,24 @@ const record = (row: FileRow) => ({
   state: row.status as FileUploadState,
   storedMatches: null,
 });
+
+/**
+ * The vault files waiting on a vault upload whose checks just ended (docs/03-roadmap-appendix/phase1.md §8.4),
+ * read through `app.knowledge_files_waiting_on()` (`knowledge.index`, which the worker principal
+ * holds) after holding the upload, so a vault file added at the same moment is either seen here
+ * or sees the upload's new status itself (`knowledge.file.add`).
+ */
+async function vaultFilesWaitingOn(
+  ctx: CommandContext,
+  row: FileRow,
+): Promise<{ knowledge_file_id: string; entity_id: number | null; sensitivity: string }[]> {
+  if (row.purpose !== 'knowledge') return [];
+  await holdVaultUpload(ctx.tx, row.id);
+  return (await ctx.tx.execute(
+    sql`select knowledge_file_id, entity_id, sensitivity
+          from app.knowledge_files_waiting_on(${row.id}::uuid)`,
+  )) as unknown as { knowledge_file_id: string; entity_id: number | null; sensitivity: string }[];
+}
 
 /** `files.file.mark_scanned`: the malware scan found nothing, or no scanner exists here. */
 export const markFileScanned = defineCommand({
@@ -98,6 +122,19 @@ export const markFileReady = defineCommand({
         ...(input.stored.key === row.key ? {} : { originalKey: row.key }),
       },
     });
+    // A vault upload's vault files are sent to be read now that the upload is usable.
+    for (const vault of await vaultFilesWaitingOn(ctx, row)) {
+      ctx.emit({
+        type: 'knowledge.file.index_requested',
+        entityId: row.entityId,
+        aggregateType: 'knowledge_file',
+        aggregateId: vault.knowledge_file_id,
+        payload: {
+          knowledgeEntityId: vault.entity_id,
+          sensitivity: KnowledgeSensitivitySchema.parse(vault.sensitivity),
+        },
+      });
+    }
     ctx.audit({
       aggregateType: 'file',
       aggregateId: row.id,
@@ -115,6 +152,53 @@ export const markFileReady = defineCommand({
   },
 });
 
+/**
+ * `files.file.continue_check`: a vault PDF is masked one page per delivery (a page takes about half
+ * a minute, and a delivery lives for a minute), so after each page the worker sends the file's
+ * checks on with this command, which emits `files.file.uploaded` again carrying the pages kept so
+ * far. A file no longer part way through its checks sends nothing.
+ */
+export const continueFileCheck = defineCommand({
+  name: 'files.file.continue_check',
+  permission: 'files.process',
+  minScope: 'entity',
+  input: ContinueFileCheckInput,
+  output: FileDto,
+  auditFields: ['fileStatus'],
+  async handler(ctx, input) {
+    const row = await lockInCompany(ctx, input);
+    if (row.purpose !== 'knowledge' || (row.status !== 'scanned' && row.status !== 'not_scanned')) {
+      return toFileDto(row);
+    }
+    // Recorded with the file, in the same transaction as the event: a delivery that finds more
+    // pages kept than were sent on knows the one that kept them died before it got here.
+    const sent = scanResultOf(row).maskedPagesSent ?? 0;
+    await writeFile(ctx, row, {
+      scanResult: { ...scanResultOf(row), maskedPagesSent: Math.max(sent, input.maskedPages) },
+    });
+    ctx.emit({
+      type: 'files.file.uploaded',
+      entityId: row.entityId,
+      aggregateType: 'file',
+      aggregateId: row.id,
+      payload: { purpose: 'knowledge', maskedPages: input.maskedPages },
+    });
+    ctx.audit({
+      aggregateType: 'file',
+      aggregateId: row.id,
+      entityId: row.entityId,
+      after: { fileStatus: row.status },
+    });
+    return toFileDto(row);
+  },
+});
+
+/** The vault's own sentence for the refusals that have one; any other refusal says the general one. */
+const VAULT_REASON: Partial<Record<FileRejectReason, KnowledgeErrorReason>> = {
+  file_pdf_page_too_dense: 'knowledge_pdf_page_too_dense',
+  file_masking_unavailable: 'knowledge_masking_unavailable',
+};
+
 /** `files.file.reject`: a check refused the file; the uploader sees why. */
 export const rejectFile = defineCommand({
   name: 'files.file.reject',
@@ -122,7 +206,7 @@ export const rejectFile = defineCommand({
   minScope: 'entity',
   input: RejectFileInput,
   output: FileDto,
-  auditFields: ['fileStatus', 'rejectReason', 'scanStatus'],
+  auditFields: ['fileStatus', 'rejectReason', 'scanStatus', 'knowledgeState', 'errorReason'],
   async handler(ctx, input) {
     const row = await lockInCompany(ctx, input);
     const { to } = fireUpload(ctx, record(row), 'reject', { reason: input.reason });
@@ -136,6 +220,22 @@ export const rejectFile = defineCommand({
         originalKey: row.key,
       },
     });
+    // A refused vault upload's vault files can never be read: they fail with that reason.
+    for (const vault of await vaultFilesWaitingOn(ctx, row)) {
+      const failed = fireKnowledgeFileAsJob(ctx, 'waiting', 'fail');
+      const errorReason = VAULT_REASON[input.reason] ?? 'knowledge_file_rejected';
+      await ctx.tx.execute(
+        sql`select app.record_knowledge_index(${vault.knowledge_file_id}::uuid, ${failed},
+                                              ${errorReason}, null)`,
+      );
+      ctx.audit({
+        aggregateType: 'knowledge_file',
+        aggregateId: vault.knowledge_file_id,
+        entityId: vault.entity_id,
+        before: { knowledgeState: 'waiting' },
+        after: { knowledgeState: failed, errorReason },
+      });
+    }
     ctx.audit({
       aggregateType: 'file',
       aggregateId: row.id,

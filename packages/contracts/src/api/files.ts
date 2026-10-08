@@ -39,9 +39,11 @@ export const UPLOAD_CONTENT_TYPES = [
   'image/png',
   'image/webp',
   'application/pdf',
-  // An import file (`import`): a CSV or an Excel workbook.
+  // An import file (`import`): a CSV or an Excel workbook; a Knowledge Vault file may be a workbook.
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  // A Knowledge Vault file (`knowledge`) may be a Word document.
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const;
 export const UploadContentTypeSchema = z.enum(UPLOAD_CONTENT_TYPES);
 export type UploadContentType = z.infer<typeof UploadContentTypeSchema>;
@@ -91,13 +93,28 @@ export function withUploadRules<T extends z.ZodType<{ purpose: FilePurpose; cont
     })
     .refine(
       (v) =>
-        (v.purpose === 'import') ===
-        (v.contentType === 'text/csv' ||
-          v.contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-      {
-        message: 'a CSV or a workbook is an import file, and an import file is one of them',
-        path: ['contentType'],
-      },
+        v.purpose !== 'import' ||
+        v.contentType === 'text/csv' ||
+        v.contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      { message: 'an import file is a CSV or a workbook', path: ['contentType'] },
+    )
+    .refine((v) => v.contentType !== 'text/csv' || v.purpose === 'import', {
+      message: 'a CSV is an import file',
+      path: ['contentType'],
+    })
+    .refine(
+      (v) =>
+        v.contentType !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        v.purpose === 'import' ||
+        v.purpose === 'knowledge',
+      { message: 'a workbook is an import file or a vault file', path: ['contentType'] },
+    )
+    .refine(
+      (v) =>
+        v.contentType !==
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        v.purpose === 'knowledge',
+      { message: 'a Word document is a vault file', path: ['contentType'] },
     );
 }
 

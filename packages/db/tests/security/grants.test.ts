@@ -130,6 +130,10 @@ describe('app_user role (docs/05-database.md §3)', () => {
     agent_runs: { i: true, u: false },
     agent_actions: { i: true, u: false },
     inbox_items: { i: true, u: false },
+    // A vault file changes only its state (indexed again or archived, a column grant, 0123); its
+    // chunks are written only by the index job's definer (knowledge.test.ts).
+    knowledge_files: { i: true, u: false },
+    knowledge_chunks: { i: false, u: false },
     // A notice is written only by the notify worker's definer; a person changes its read time
     // alone (notifications.test.ts).
     notifications: { i: false, u: false },
@@ -444,6 +448,8 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
       'app.user_is_active(uuid)',
+      // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
+      'app.vault_upload_readable(uuid)',
     ]);
   });
 

@@ -234,6 +234,7 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   },
   'knowledge.vault.read.management': { ...EXEC, general_manager: 'all', accounts: 'all' },
   'knowledge.vault.read.exec': { ...EXEC },
+  'knowledge.vault.write': { ...EXEC, general_manager: 'all' },
   'knowledge.playbook.approve': { ...EXEC },
   'agents.inbox.act': {
     ...EXEC,
@@ -289,6 +290,8 @@ export const STAFF_MATRIX: Record<PermissionKey, StaffRow> = {
   'crm.duplicates.scan': {},
   // The platform's daily expiry of lapsed quotes; no person's role holds it (SECURITY §3.3).
   'sales.quote.expire': {},
+  // The platform's reading of Knowledge Vault files; no person's role holds it (SECURITY §3.3).
+  'knowledge.index': {},
   // The platform's notices and their scan; no person's role holds it (SECURITY §3.3).
   'notifications.send': {},
 };

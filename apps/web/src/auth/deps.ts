@@ -125,6 +125,10 @@ export function productionConfigProblems(env: NodeJS.ProcessEnv = process.env): 
   if ((env.FIELD_ENCRYPTION_KEY ?? '') !== '') {
     problems.push('FIELD_ENCRYPTION_KEY is for development; a hosted environment uses its KMS key');
   }
+  // The fake AI transport stands in for the vendors on a developer's machine and in the journeys.
+  if ((env.AI_TRANSPORT ?? '') !== '') {
+    problems.push('AI_TRANSPORT is for development; a hosted environment calls the AI services');
+  }
   return problems;
 }
 

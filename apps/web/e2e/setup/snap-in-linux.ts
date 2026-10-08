@@ -27,9 +27,10 @@ let app: ChildProcess | undefined;
 if (!(await answering())) {
   // One command line through the shell, so Windows finds `next`'s launcher on the script's PATH.
   // Elsewhere the server leads its own process group, so the stop below reaches the shell's child.
+  // The same stand-in AI transport as playwright.config.ts's own server, so the journeys match.
   app = spawn(`next start -p ${port}`, {
     cwd: webDir,
-    env: { ...process.env, BOS_ENVIRONMENT: 'local' },
+    env: { ...process.env, BOS_ENVIRONMENT: 'local', AI_TRANSPORT: 'fake' },
     stdio: 'ignore',
     shell: true,
     detached: process.platform !== 'win32',

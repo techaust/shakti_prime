@@ -1,5 +1,11 @@
-import { createAiProvider, jsonLogger, vendorTransports, type AiProvider } from '@shakti/domain';
-import { defaultAuthDeps } from '../auth/deps';
+import {
+  createAiProvider,
+  fakeModelTransport,
+  jsonLogger,
+  vendorTransports,
+  type AiProvider,
+} from '@shakti/domain';
+import { defaultAuthDeps, hostedRuntime } from '../auth/deps';
 
 let provider: AiProvider | undefined;
 
@@ -11,9 +17,24 @@ let provider: AiProvider | undefined;
  */
 export function aiProvider(): AiProvider {
   provider ??= createAiProvider({
-    ...vendorTransports(process.env),
+    ...transports(),
     keyValue: defaultAuthDeps().keyValue,
     logger: jsonLogger(),
   });
   return provider;
+}
+
+/**
+ * The vendors the keys allow; on a developer's machine or a journey's local run with
+ * `AI_TRANSPORT=fake`, the fake transport instead (its embeddings put texts that share words close
+ * together, and its model answers with nothing), so the Knowledge Vault can be tried end to end
+ * without a key. A hosted runtime never uses it, and refuses to start with it set
+ * (`productionConfigProblems()`).
+ */
+function transports(): ReturnType<typeof vendorTransports> {
+  if (process.env.AI_TRANSPORT === 'fake' && !hostedRuntime()) {
+    const fake = fakeModelTransport();
+    return { claude: fake, voyage: fake };
+  }
+  return vendorTransports(process.env);
 }

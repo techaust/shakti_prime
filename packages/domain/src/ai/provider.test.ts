@@ -105,6 +105,20 @@ describe('createAiProvider', () => {
     expect(sleeps).toEqual([500, 1000]);
   });
 
+  it('stops at a total deadline however many attempts are left, and settles the reservation', async () => {
+    const { provider, transport, keyValue } = setup(['hang']);
+    await expect(
+      provider.complete(call({ timeoutMs: 5_000, totalTimeoutMs: 60 })),
+    ).rejects.toMatchObject({
+      code: 'integration_unavailable',
+      details: { reason: 'ai_deadline_exceeded' },
+    });
+    // The first attempt was cut short by the deadline, not by its own five seconds; no more followed.
+    expect(transport.requests).toHaveLength(1);
+    expect(await keyValue.get(spendKey('agent:copilot', 1, istDay(NOW)))).toBe('0');
+    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+  });
+
   it('does not retry a refused request', async () => {
     const { provider, transport } = setup([new ModelCallError('http', { status: 400 })]);
     await expect(provider.complete(call())).rejects.toBeInstanceOf(DomainError);
@@ -182,6 +196,77 @@ describe('createAiProvider', () => {
     await expect(provider.complete(call({ caps: [] }))).rejects.toMatchObject({
       details: { reason: 'agent_spend_cap_reached' },
     });
+  });
+
+  it('holds one person to their own daily share beside the caps', async () => {
+    const { provider, transport, keyValue } = setup([fakeReply('ok', { outputTokens: 2_000 })]);
+    const text = call({ maxTokens: 10 });
+    const most = maxCostInPaise(DEFAULT_CLAUDE_MODEL, 100, 10);
+    // A share too small for even one call: refused as the person's, nothing sent, nothing held.
+    await expect(
+      provider.complete({ ...text, person: { id: 'person-a', capPaise: 0 } }),
+    ).rejects.toMatchObject({
+      code: 'rate_limited',
+      details: { reason: 'agent_spend_cap_reached', scope: 'person' },
+    });
+    expect(transport.requests).toHaveLength(0);
+    expect(await keyValue.get(spendKey('agent:copilot', null, istDay(NOW)))).toBe('0');
+    // A share that fits one call: the person's second call is refused, another person's is not.
+    const share = { capPaise: most + 1 };
+    await provider.complete({ ...text, person: { id: 'person-a', ...share } });
+    await expect(
+      provider.complete({ ...text, person: { id: 'person-a', ...share } }),
+    ).rejects.toMatchObject({ details: { scope: 'person' } });
+    await provider.complete({ ...text, person: { id: 'person-b', ...share } });
+    expect(transport.requests).toHaveLength(2);
+  });
+
+  it('counts work of the whole group in the group only, against the group cap', async () => {
+    const usage = { inputTokens: 100_000, outputTokens: 0 };
+    const { provider, keyValue } = setup([fakeReply('ok', usage)]);
+    const day = istDay(NOW);
+    await expect(
+      provider.complete(
+        call({
+          agent: 'knowledge:index',
+          entityId: null,
+          caps: [{ paise: 1_060, entityId: null }],
+        }),
+      ),
+    ).resolves.toMatchObject({ costPaise: 1_040 });
+    expect(await keyValue.get(spendKey('knowledge:index', null, day))).toBe('1040');
+    expect(await keyValue.get(spendKey('knowledge:index', 1, day))).toBeNull();
+    await expect(
+      provider.complete(
+        call({
+          agent: 'knowledge:index',
+          entityId: null,
+          caps: [{ paise: 1_060, entityId: null }],
+        }),
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
+  });
+
+  it('sends a document with the question and reserves the model’s whole context for it', async () => {
+    const { provider, transport, keyValue } = setup([fakeReply('read', { outputTokens: 10 })]);
+    const pdf = { mediaType: 'image/jpeg' as const, bytes: new Uint8Array([255, 216, 255, 217]) };
+    const most = maxCostInPaise(DEFAULT_CLAUDE_MODEL, 200_000, 4_000);
+    // One paisa short of the reservation: refused before anything is sent.
+    await expect(
+      provider.complete(
+        call({ documents: [pdf], maxTokens: 4_000, caps: [{ paise: most - 1, entityId: null }] }),
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'agent_spend_cap_reached' } });
+    expect(transport.requests).toHaveLength(0);
+    await expect(
+      provider.complete(
+        call({ documents: [pdf], maxTokens: 4_000, caps: [{ paise: most, entityId: null }] }),
+      ),
+    ).resolves.toMatchObject({ text: 'read' });
+    expect(transport.requests[0]?.documents).toEqual([pdf]);
+    // Settled at what it cost, not at the reservation.
+    const day = istDay(NOW);
+    expect(Number(await keyValue.get(spendKey('agent:copilot', null, day)))).toBeLessThan(most);
   });
 
   it('reserves the most a call can cost before sending it, so two at once cannot both pass', async () => {

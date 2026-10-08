@@ -4,6 +4,15 @@ import { NO_USAGE, type TokenUsage } from './models';
 // wrapper and its tests never touch a network: the Anthropic and Voyage transports implement
 // these, and the fake transport stands in for both in every test.
 
+/**
+ * A picture a chat model reads with the question: a photo, or a PDF's page, that the file checks
+ * have masked (a Knowledge Vault file, docs/03-roadmap-appendix/phase1.md §8.4). A PDF itself is never sent.
+ */
+export interface ModelDocument {
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp';
+  bytes: Uint8Array;
+}
+
 /** One text request to a chat model. Every text here has already been masked by the wrapper. */
 export interface ModelRequest {
   model: string;
@@ -11,6 +20,8 @@ export interface ModelRequest {
   system: string;
   /** The turn: the labelled data and the question. */
   user: string;
+  /** Files read with the turn, before its text. */
+  documents?: readonly ModelDocument[];
   maxTokens: number;
 }
 
@@ -76,9 +87,32 @@ export interface FakeModelTransport extends ModelTransport, EmbeddingTransport {
 }
 
 /**
+ * A text's stand-in embedding: each word (a run of letters or digits, in lower case) counted in
+ * one of 1,024 places chosen by its hash, the counts scaled to length 1, so texts that share words
+ * lie close by cosine distance. A text with no word points one way. Never a real model's vector.
+ */
+export function fakeEmbedding(text: string): number[] {
+  const vector = Array.from({ length: 1024 }, () => 0);
+  for (const word of text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []) {
+    // FNV-1a over the word's UTF-16 units.
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < word.length; i += 1) {
+      hash = Math.imul(hash ^ word.charCodeAt(i), 0x01000193) >>> 0;
+    }
+    vector[hash % 1024] = (vector[hash % 1024] ?? 0) + 1;
+  }
+  const length = Math.hypot(...vector);
+  if (length === 0) {
+    vector[0] = 1;
+    return vector;
+  }
+  return vector.map((v) => v / length);
+}
+
+/**
  * The transport every test uses: answers from a script, in order, and repeats the last step when
  * the script runs out. `'hang'` waits until the wrapper's timeout aborts the call. Embeddings are
- * vectors of 1,024 numbers made from each text's length, one token per four characters.
+ * `fakeEmbedding()`s of the texts, one token per four characters.
  */
 export function fakeModelTransport(script: readonly FakeStep[] = []): FakeModelTransport {
   const requests: ModelRequest[] = [];
@@ -110,9 +144,7 @@ export function fakeModelTransport(script: readonly FakeStep[] = []): FakeModelT
     },
     embed(request) {
       embeddings.push(request);
-      const vectors = request.texts.map((t) =>
-        Array.from({ length: 1024 }, (_v, i) => ((t.length + i) % 7) / 7),
-      );
+      const vectors = request.texts.map(fakeEmbedding);
       const tokens = request.texts.reduce((n, t) => n + Math.ceil(t.length / 4), 0);
       return Promise.resolve({ vectors, tokens });
     },

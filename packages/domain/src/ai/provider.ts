@@ -1,4 +1,5 @@
 import { DomainError, type AgentRoleKey } from '@shakti/contracts';
+import type { AGENT_DEFAULTS } from './agent-defaults';
 import { labelUntrusted, maskForModel } from '../privacy/model-text';
 import type { KeyValue } from '../ports/key-value';
 import type { Logger } from '../ports/logger';
@@ -8,10 +9,12 @@ import {
   DEFAULT_EMBEDDING_MODEL,
   isKnownModel,
   maxCostInPaise,
+  MODEL_CONTEXT_TOKENS,
   type TokenUsage,
 } from './models';
 import {
   ModelCallError,
+  type ModelDocument,
   type EmbeddingTransport,
   type ModelReply,
   type ModelTransport,
@@ -47,22 +50,45 @@ export interface SpendCap {
   entityId: number | null;
 }
 
+/**
+ * Who a call's spend is counted under: an agent, or the Knowledge Vault's own work, which no agent
+ * does (`AGENT_DEFAULTS.knowledge`).
+ */
+export type AiSpender =
+  | AgentRoleKey
+  | (typeof AGENT_DEFAULTS.knowledge)['indexName']
+  | (typeof AGENT_DEFAULTS.knowledge)['searchName'];
+
 interface CallBase {
-  agent: AgentRoleKey;
+  agent: AiSpender;
   /** What the call is for, as a code (`lead_triage`). */
   purpose: string;
-  /** The company the call works for: its spend counts there and in the group. */
-  entityId: number;
+  /**
+   * The company the call works for: its spend counts there and in the group. Null for work of the
+   * whole group (a vault file for every company), counted in the group's total only.
+   */
+  entityId: number | null;
   /**
    * Every cap that applies (the company's, the group's, or both): the call is refused if its
    * reservation would take the spend past either. No cap means no call.
    */
   caps: readonly SpendCap[];
+  /**
+   * One person's daily share of the spend, counted beside the caps: the call is refused, with
+   * `details.scope` `person`, if the person's total for the day would pass `capPaise`.
+   */
+  person?: { id: string; capPaise: number };
+  /**
+   * Milliseconds the whole call may take, every attempt and pause between them included; past
+   * it the call stops with `integration_unavailable` and `details.reason` `ai_deadline_exceeded`,
+   * its reservation settled. Left out, only each attempt's own timeout applies.
+   */
+  totalTimeoutMs?: number;
 }
 
-/** What a call holds against the caps while it runs. */
+/** What a call holds against the caps while it runs: the company's total (if any), then the group's. */
 interface Reservation {
-  keys: readonly [company: string, group: string];
+  keys: readonly string[];
   paise: number;
 }
 
@@ -74,7 +100,18 @@ export interface CompleteCall extends CallBase {
   untrusted?: readonly { source: string; text: string }[];
   /** The question, from the agent's own code. */
   question: string;
+  /**
+   * Files the model reads with the question: a PDF, or a photo the file checks have masked. They
+   * cannot be masked here, so only a vault file that passed its checks is sent; the call reserves
+   * the model's whole context window against the caps, since their tokens cannot be counted first.
+   */
+  documents?: readonly ModelDocument[];
   maxTokens?: number;
+  /**
+   * Milliseconds per attempt, for a call that writes a long answer (copying out a vault file's
+   * text); `AI_CALL_TIMEOUT_MS` when left out.
+   */
+  timeoutMs?: number;
 }
 
 export interface CompleteResult {
@@ -161,9 +198,10 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
     }
   }
 
-  function capReached(call: CallBase): DomainError {
+  function capReached(call: CallBase, scope?: 'person'): DomainError {
     return new DomainError('rate_limited', `${call.agent} reached its daily spend cap`, {
       reason: 'agent_spend_cap_reached',
+      ...(scope === undefined ? {} : { scope }),
     });
   }
 
@@ -186,26 +224,40 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   async function reserve(call: CallBase, paise: number): Promise<Reservation> {
     if (call.caps.length === 0) throw capReached(call);
     const day = istDay(now());
-    const keys = [
-      spendKey(call.agent, call.entityId, day),
-      spendKey(call.agent, null, day),
-    ] as const;
-    const company = await store('the spend could not be reserved', () =>
-      keyValue.incrBy(keys[0], paise, SPEND_TTL_SECONDS),
-    );
-    let group: number;
-    try {
-      group = await keyValue.incrBy(keys[1], paise, SPEND_TTL_SECONDS);
-    } catch (error) {
-      await keyValue.incrBy(keys[0], -paise, SPEND_TTL_SECONDS).catch(() => undefined);
-      throw unavailable('the spend could not be reserved', error);
+    const keys =
+      call.entityId === null
+        ? [spendKey(call.agent, null, day)]
+        : [spendKey(call.agent, call.entityId, day), spendKey(call.agent, null, day)];
+    const personKey =
+      call.person === undefined
+        ? undefined
+        : `ai:spend:${call.agent}:person:${call.person.id}:${day}`;
+    const held: readonly string[] = personKey === undefined ? keys : [...keys, personKey];
+    const totals: number[] = [];
+    for (const key of held) {
+      try {
+        totals.push(await keyValue.incrBy(key, paise, SPEND_TTL_SECONDS));
+      } catch (error) {
+        // Give back what this call already reserved before refusing it.
+        for (const done of held.slice(0, totals.length)) {
+          await keyValue.incrBy(done, -paise, SPEND_TTL_SECONDS).catch(() => undefined);
+        }
+        throw unavailable('the spend could not be reserved', error);
+      }
     }
-    const held: Reservation = { keys, paise };
+    const group = totals[keys.length - 1] ?? 0;
+    // A call of the whole group has no company total: a company's cap is held against the group's.
+    const company = totals[0] ?? group;
+    const reservation: Reservation = { keys: held, paise };
     if (call.caps.some((cap) => (cap.entityId === null ? group : company) > cap.paise)) {
-      await move(call, held, -paise);
+      await move(call, reservation, -paise);
       throw capReached(call);
     }
-    return held;
+    if (call.person !== undefined && (totals[keys.length] ?? 0) > call.person.capPaise) {
+      await move(call, reservation, -paise);
+      throw capReached(call, 'person');
+    }
+    return reservation;
   }
 
   /** Settles a reservation at what the call cost: zero when it failed. */
@@ -214,21 +266,30 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
   }
 
   /** One vendor call with its timeout and retries; the breaker counts what still fails. */
-  async function attempt<T>(vendor: Vendor, send: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  async function attempt<T>(
+    vendor: Vendor,
+    send: (signal: AbortSignal) => Promise<T>,
+    perAttemptMs: number = timeoutMs,
+    totalMs?: number,
+  ): Promise<T> {
     let last: ModelCallError | undefined;
+    const began = Date.now();
+    const remaining = () => (totalMs === undefined ? Infinity : totalMs - (Date.now() - began));
     for (let i = 0; i <= retries; i += 1) {
+      if (remaining() <= 0) break;
       try {
-        const answer = await send(AbortSignal.timeout(timeoutMs));
+        const answer = await send(AbortSignal.timeout(Math.min(perAttemptMs, remaining())));
         await keyValue.del(breakerFailuresKey(vendor)).catch(() => undefined);
         return answer;
       } catch (error) {
         last =
           error instanceof ModelCallError ? error : new ModelCallError('network', { cause: error });
         if (!last.retryable) break;
-        if (i < retries) await sleep(BACKOFF_MS * 2 ** i);
+        if (i < retries) await sleep(Math.min(BACKOFF_MS * 2 ** i, Math.max(0, remaining())));
       }
     }
-    const failed = last ?? new ModelCallError('network');
+    const failed = last ?? new ModelCallError('timeout');
+    const pastDeadline = remaining() <= 0;
     if (failed.retryable) {
       try {
         const failures = await keyValue.incr(breakerFailuresKey(vendor), BREAKER_WINDOW_SECONDS);
@@ -239,6 +300,14 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       } catch (error) {
         logger.log('warn', 'ai.breaker_not_recorded', { vendor, error });
       }
+    }
+    if (pastDeadline) {
+      throw new DomainError(
+        'integration_unavailable',
+        `${vendor} call went past its deadline`,
+        { reason: 'ai_deadline_exceeded' },
+        { cause: failed },
+      );
     }
     throw unavailable(`${vendor} call failed: ${failed.message}`, failed);
   }
@@ -264,15 +333,25 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         maskForModel(call.question),
       ].join('\n\n');
       const maxTokens = call.maxTokens ?? 1024;
-      const held = await reserve(
-        call,
-        maxCostInPaise(model, bytes(system) + bytes(user), maxTokens),
-      );
+      const documents = call.documents ?? [];
+      // A document's tokens cannot be counted from its bytes; the context window bounds them all.
+      const inputBound =
+        documents.length > 0
+          ? (MODEL_CONTEXT_TOKENS[model] ?? Number.MAX_SAFE_INTEGER)
+          : bytes(system) + bytes(user);
+      const held = await reserve(call, maxCostInPaise(model, inputBound, maxTokens));
       const started = now().getTime();
       let reply: ModelReply;
       try {
-        reply = await attempt('anthropic', (signal) =>
-          claude.complete({ model, system, user, maxTokens }, signal),
+        reply = await attempt(
+          'anthropic',
+          (signal) =>
+            claude.complete(
+              { model, system, user, maxTokens, ...(documents.length > 0 ? { documents } : {}) },
+              signal,
+            ),
+          call.timeoutMs ?? timeoutMs,
+          call.totalTimeoutMs,
         );
       } catch (error) {
         await settle(call, held, 0);
@@ -287,6 +366,7 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
         tokensIn:
           reply.usage.inputTokens + reply.usage.cacheReadTokens + reply.usage.cacheWriteTokens,
         tokensOut: reply.usage.outputTokens,
+        documents: documents.length,
         costPaise,
         stopped: reply.stopped,
         durationMs: now().getTime() - started,
@@ -310,8 +390,11 @@ export function createAiProvider(deps: AiProviderDeps): AiProvider {
       );
       let reply: Awaited<ReturnType<EmbeddingTransport['embed']>>;
       try {
-        reply = await attempt('voyage', (signal) =>
-          voyage.embed({ model, texts, inputType: call.inputType }, signal),
+        reply = await attempt(
+          'voyage',
+          (signal) => voyage.embed({ model, texts, inputType: call.inputType }, signal),
+          timeoutMs,
+          call.totalTimeoutMs,
         );
       } catch (error) {
         await settle(call, held, 0);

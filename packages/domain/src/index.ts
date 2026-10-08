@@ -403,7 +403,12 @@ export { completeUpload } from './commands/files/complete-upload';
 export { AWAITING_CHECKS, recheckFiles } from './commands/files/recheck-files';
 export { sweepUploads } from './commands/files/sweep-uploads';
 export { countFilesAwaitingChecks } from './queries/files/file-queries';
-export { markFileReady, markFileScanned, rejectFile } from './commands/files/check-file';
+export {
+  continueFileCheck,
+  markFileReady,
+  markFileScanned,
+  rejectFile,
+} from './commands/files/check-file';
 export { recordRenderedFile } from './commands/files/record-rendered';
 export {
   getFile,
@@ -446,7 +451,7 @@ export type {
   EmbedResult,
   SpendCap,
 } from './ai/provider';
-export { fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
+export { fakeEmbedding, fakeModelTransport, fakeReply, ModelCallError } from './ai/transport';
 export type {
   EmbeddingTransport,
   FakeModelTransport,
@@ -493,3 +498,25 @@ export {
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
+export {
+  addKnowledgeFile,
+  archiveKnowledgeFile,
+  reindexKnowledgeFile,
+} from './commands/knowledge/files';
+export { recordKnowledgeIndex } from './commands/knowledge/record-index';
+export { knowledgeFileForIndex } from './commands/knowledge/shared';
+export {
+  KNOWLEDGE_PAGE_SIZE,
+  listKnowledgeFiles,
+  searchKnowledge,
+} from './queries/knowledge/vault';
+export { chunkText, KNOWLEDGE_CHUNKING } from './knowledge/chunk';
+export {
+  extractWorkbook,
+  KNOWLEDGE_EXTRACT_SYSTEM,
+  knowledgeSourceType,
+} from './knowledge/extract';
+export { EMBED_BATCH, indexKnowledgeFile } from './knowledge/index-file';
+export type { IndexKnowledgeDeps, IndexKnowledgeOutcome } from './knowledge/index-file';
+export { knowledgeQueryVector } from './knowledge/search';
+export { checkZipArchive } from './imports/zip-guard';

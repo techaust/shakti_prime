@@ -7,6 +7,7 @@ import { EntityIdSchema, IdSchema } from '../ids';
 import { FilePurposeSchema } from '../api/files';
 import { PdfDocumentTypeSchema } from '../api/print-documents';
 import { ImportKindSchema } from '../imports/enums';
+import { KNOWLEDGE_PDF_MAX_PAGES, KnowledgeSensitivitySchema } from '../knowledge';
 
 /**
  * The event catalogue (docs/03-roadmap-appendix/backend-weeks-3-5.md §4.3). Names are
@@ -369,9 +370,15 @@ const eventCatalogue = {
   'files.file.uploaded': {
     meaning:
       'An upload landed and waits for its checks; sent again for a file whose checks stalled.',
-    emittedBy: ['files.upload.complete', 'files.file.recheck'],
+    emittedBy: ['files.upload.complete', 'files.file.recheck', 'files.file.continue_check'],
     subscribed: true,
-    payload: z.object({ purpose: FilePurposeSchema }).strict(),
+    payload: z
+      .object({
+        purpose: FilePurposeSchema,
+        // Set when a vault PDF's checks carry on: the pages kept so far.
+        maskedPages: z.number().int().min(1).max(KNOWLEDGE_PDF_MAX_PAGES).optional(),
+      })
+      .strict(),
   },
   /**
    * A document to render (ADR 0009): delivered as a `PdfRenderJob` to `/api/v1/workers/pdf/render`,
@@ -387,6 +394,23 @@ const eventCatalogue = {
         documentType: PdfDocumentTypeSchema,
         documentId: IdSchema,
         version: z.number().int().min(1),
+      })
+      .strict(),
+  },
+  /**
+   * A vault file to read and index (docs/03-roadmap-appendix/phase1.md §8.4): delivered as an
+   * `EmbeddingsIndexJob` to `/api/v1/workers/embeddings/index`. The event's company is the one the
+   * uploaded file is stored in; `knowledgeEntityId` is the vault file's (null for the whole group).
+   */
+  'knowledge.file.index_requested': {
+    meaning:
+      'A Knowledge Vault file is ready to be read, cut into passages and embedded for search: once added with its upload checked, once its upload passes its checks, or when indexed again.',
+    emittedBy: ['knowledge.file.add', 'knowledge.file.reindex', 'files.file.mark_ready'],
+    subscribed: true,
+    payload: z
+      .object({
+        knowledgeEntityId: EntityIdSchema.nullable(),
+        sensitivity: KnowledgeSensitivitySchema,
       })
       .strict(),
   },

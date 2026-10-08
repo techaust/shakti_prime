@@ -56,6 +56,7 @@ export const PERMISSION_KEYS = [
   'knowledge.vault.read.staff',
   'knowledge.vault.read.management',
   'knowledge.vault.read.exec',
+  'knowledge.vault.write',
   'knowledge.playbook.approve',
   'agents.inbox.act',
   'agents.autonomy.write',
@@ -87,6 +88,9 @@ export const PERMISSION_KEYS = [
   // platform's worker principal, which reads the lapsed quotes and marks them expired through two
   // definers, nothing more.
   'sales.quote.expire',
+  // Reading, chunking and embedding Knowledge Vault files (docs/03-roadmap-appendix/phase1.md §8.4): held only
+  // by the platform's worker principal, which reaches the vault tables through definers only.
+  'knowledge.index',
   // The notices of the notify worker and its five-minute scan (docs/03-roadmap-appendix/phase1.md §8.1): held
   // only by the platform's worker principal, which finds who a notice is for and writes it through
   // narrow definers, nothing more.
@@ -152,6 +156,7 @@ export const PLATFORM_ONLY_PERMISSIONS: readonly string[] = [
   'crm.score.refresh',
   'crm.duplicates.scan',
   'sales.quote.expire',
+  'knowledge.index',
   'notifications.send',
 ];
 
@@ -266,6 +271,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'knowledge.vault.read.staff': ['all'],
   'knowledge.vault.read.management': ['all'],
   'knowledge.vault.read.exec': ['all'],
+  'knowledge.vault.write': ['all'],
   'knowledge.playbook.approve': ['all'],
   'agents.inbox.act': ['own', 'team', 'entity', 'all'],
   'agents.autonomy.write': ['all'],
@@ -287,6 +293,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'crm.score.refresh': ['all'],
   'crm.duplicates.scan': ['all'],
   'sales.quote.expire': ['all'],
+  'knowledge.index': ['all'],
   'notifications.send': ['all'],
 };
 
