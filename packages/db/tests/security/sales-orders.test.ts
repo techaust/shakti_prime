@@ -393,7 +393,7 @@ describe('customer merges move a dealer’s orders, terms and outstanding (0117)
     expect(position).toEqual([{ l: '5000.00', o: '5000.00' }]);
   });
 
-  it('lets no request role change a dealer entry, merge or not', async () => {
+  it('refuses even the table owner a change to a dealer entry outside a merge', async () => {
     const dealerId = await mergeDealer();
     await credit(dealerId, '100.00');
     for (const table of ['dealer_terms', 'dealer_outstanding']) {
@@ -406,6 +406,35 @@ describe('customer merges move a dealer’s orders, terms and outstanding (0117)
           ),
         ),
       ).toMatch(/append-only/);
+    }
+  });
+
+  it('lets a merge move a dealer entry and change nothing else', async () => {
+    const dealerId = await mergeDealer();
+    await credit(dealerId, '100.00');
+    const changes = {
+      dealer_terms: 'credit_limit = credit_limit + 1',
+      dealer_outstanding: 'outstanding = outstanding + 1',
+    };
+    for (const [table, change] of Object.entries(changes)) {
+      expect(
+        await failure(
+          asMigrator((m) =>
+            m.begin(async (tx) => {
+              await tx`select set_config('app.customer_merge', ${newId()}, true)`;
+              await tx.unsafe(`update ${table} set ${change} where account_id = '${dealerId}'`);
+            }),
+          ),
+        ),
+      ).toMatch(/append-only/);
+      await asMigrator((m) =>
+        m.begin(async (tx) => {
+          await tx`select set_config('app.customer_merge', ${newId()}, true)`;
+          await tx.unsafe(
+            `update ${table} set account_id = '${household}' where account_id = '${dealerId}'`,
+          );
+        }),
+      );
     }
   });
 });
