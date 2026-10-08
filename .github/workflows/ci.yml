@@ -257,11 +257,12 @@ jobs:
       - name: Migrate and seed
         run: pnpm --filter web e2e:seed
         timeout-minutes: 5
-      # The production build as a local production run (apps/web/src/auth/deps.ts).
+      # The production build as a local production run (apps/web/src/auth/deps.ts), with the
+      # stand-in AI transport, as playwright.config.ts's own server has.
       - name: Start the app
         working-directory: apps/web
         run: |
-          BOS_ENVIRONMENT=local nohup pnpm exec next start -p 3000 > next.log 2>&1 &
+          BOS_ENVIRONMENT=local AI_TRANSPORT=fake nohup pnpm exec next start -p 3000 > next.log 2>&1 &
           node e2e/setup/wait-for-app.mjs http://localhost:3000/api/v1/health 90 next.log
         timeout-minutes: 3
       - name: Journeys, axe and screenshots (${{ matrix.project }})
