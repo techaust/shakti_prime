@@ -69,7 +69,7 @@ const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
  * anything else is refused as having failed its checks.
  */
 async function asDocuments(
-  file: { contentType: string; sanitising: string | undefined },
+  file: { contentType: string; sanitising?: string | undefined },
   bytes: Uint8Array,
   deps: Pick<IndexKnowledgeDeps, 'pdfPages'>,
 ): Promise<ModelDocument[]> {

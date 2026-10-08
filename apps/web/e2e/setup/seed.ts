@@ -30,6 +30,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAuth } from '../../src/auth/create-auth';
 import { fileStore } from '../../src/files/store';
+import { renderMaskedPages } from '../../src/workers/files/pdf-pages';
 import { readWordText } from '../../src/workers/knowledge/read-word';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
@@ -366,6 +367,7 @@ async function ensureSnapshotVault(executiveId: string): Promise<void> {
         logger: memoryLogger(),
       }),
       readWord: readWordText,
+      pdfPages: renderMaskedPages,
       requestId: newId(),
       hosted: false,
       logger: memoryLogger(),

@@ -24,7 +24,7 @@ export interface StoredFile {
   /** The upload's own bytes, once the checks replaced or refused them (`ScanResult`). */
   originalKey: string | undefined;
   /** What the checks did to the bytes (`masked` for a vault photo or PDF), once they are done. */
-  sanitising: string | undefined;
+  sanitising?: string | undefined;
 }
 
 function toStoredFile(row: FileRow): StoredFile {
