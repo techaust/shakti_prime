@@ -5,9 +5,9 @@
 | Branch | `feat/k1-knowledge` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `k1-knowledge`, slot 18: Postgres 54348, app 3048 (`bash tools/integration/setup-worktree.sh k1-knowledge feat/k1-knowledge 54348 3048`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| Usage | fixes (Sonnet, medium, 08-10-2026): 70 % of the week at its start; PDFium swap (Sonnet, medium): 71 % at its start; merge with main (Sonnet, medium): 72 % of the week at its start; re-check fixes (Sonnet, medium, 09-10-2026): 73 % at its start; findings 15 and 16 (Sonnet, medium, 09-10-2026): 73 % at its start |
-| State | main taken (S2, N1), checks pass; re-check findings 10 to 12 and 14 fixed (13 left as a follow-up); awaiting the re-check of those fixes, the Linux baselines and the quiet-machine journeys |
-| Next step | re-check of the fix diff and the merge (Opus, medium); then the Linux baselines and the whole journey set on a quiet machine |
+| Usage | fixes (Sonnet, medium, 08-10-2026): 70 % of the week at its start; PDFium swap (Sonnet, medium): 71 % at its start; merge with main (Sonnet, medium): 72 % of the week at its start; re-check fixes (Sonnet, medium, 09-10-2026): 73 % at its start; findings 15 and 16 (Sonnet, medium, 09-10-2026): 73 % at its start; the lead's integration: 74 % to 75 % |
+| State | integrated 09-10-2026: every check passes; pull request open |
+| Next step | the merge workflow merges it; then `migrate-hosted` for 0121 to 0123 |
 
 ## Brief
 Read first:
@@ -123,3 +123,9 @@ Re-check of the page-by-page masking (Opus, medium): findings 10, 11, 12 and 14 
 - Finding 5, at the merge: redefine `app.platform_only_permissions()` with all seven keys: files.process, imports.process, crm.score.refresh, crm.duplicates.scan, sales.quote.expire, notifications.send, knowledge.index. Renumber K1's migrations after N1's, with journal times after `main`'s. K1's migration for `knowledge_files` now allows the reason `knowledge_timed_out`; its snapshots carry it, so `pnpm db:generate` after the move must show no change.
 - `OCR_LANG_PATH` (the folder holding `eng.traineddata.gz`) is a new variable, in `turbo.json` and `.env.example`; without it a vault photo or PDF is refused in its checks at once, with a sentence of its own. Hosted, the masking step needs its model bundled with the worker (docs/spikes/ocr.md); that deployment is not done here.
 - Third-party licence: `@hyzyla/pdfium` 2.1.13 is MIT (its `LICENSE.md`; no dependencies) and bundles PDFium, Google's PDF library, which is Apache-2.0 with permissive (BSD-style) third-party parts. The repository holds no list of third-party licences, so this line is the record.
+
+### Integration (the lead, 09-10-2026)
+- The lead read the fix for findings 15 and 16. A page whose turn begins late (25 s) can still run past the route's 60 s with its own 45 s; the redelivery starts that page again, and finishes it or refuses it as too dense, so it recovers (follow-up: bound the page's own time by what is left of the delivery).
+- `integrate.sh` on a fresh database: every step passed but the journeys, where the agents journey still expected the missing-service note, which the journeys' stand-in AI transport (`AI_TRANSPORT=fake`, added by the slice) rightly hides; the journey now expects no note.
+- The Linux snapshot run's server (`e2e/setup/snap-in-linux.ts`) lacked `AI_TRANSPORT=fake`, so the Knowledge journeys failed there alone; it now has it, as `playwright.config.ts`'s server does.
+- Baselines: the Knowledge screen is new; the Agents screen (without the note) and the tele-caller's phone home (with Knowledge) are remade. Only screens that failed their comparison were updated. The verification run on a fresh database passed without updating (301 passed, 14 skipped; the orders snapshot journey passed on its retry twice after a page load ran past 60 s on the loaded PC).
