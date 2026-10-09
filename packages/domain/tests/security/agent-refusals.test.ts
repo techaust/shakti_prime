@@ -683,6 +683,12 @@ describe("agent principals cannot run the platform's own work: the file checks, 
     },
     'files.file.continue_check': { entityId: 1, fileId: newId(), maskedPages: 1 },
     'files.file.reject': { entityId: 1, fileId: newId(), reason: 'file_infected' },
+    'crm.opportunity.hand_over': {
+      entityId: 1,
+      opportunityId: newId(),
+      eventId: newId(),
+      cursor: null,
+    },
     'knowledge.file.record_index': {
       entityId: 1,
       knowledgeFileId: newId(),

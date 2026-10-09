@@ -8,6 +8,7 @@ import {
   NOTICE_SUBJECT_TYPES,
   NOTICE_TYPES,
   AccountTypeSchema,
+  CallerPresenceSchema,
   CallDirectionSchema,
   CallNumberSeriesSchema,
   CommissionAccrualStateSchema,
@@ -162,6 +163,9 @@ const PAIRS: Record<string, readonly string[]> = {
   knowledge_files_state_check: KNOWLEDGE_FILE_STATES,
   knowledge_files_error_reason_check: KNOWLEDGE_ERROR_REASONS,
   knowledge_chunks_sensitivity_check: KNOWLEDGE_SENSITIVITIES,
+  caller_profiles_presence_check: CallerPresenceSchema.options,
+  caller_profiles_languages_check: CustomerLanguageSchema.options,
+  caller_profiles_segments_check: SegmentSchema.options,
 };
 
 describe('database value lists and contract enums agree (AUDIT M43)', () => {

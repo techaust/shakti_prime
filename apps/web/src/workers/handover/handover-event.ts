@@ -6,7 +6,8 @@ import type { EventHandlerContext } from '../events/registry';
 const CURSOR_TTL_SECONDS = 90 * 24 * 60 * 60;
 
 /** The key holding the person the round-robin chose last in a company. */
-export const handoverCursorKey = (entityId: number): string => `handover:cursor:${String(entityId)}`;
+export const handoverCursorKey = (entityId: number): string =>
+  `handover:cursor:${String(entityId)}`;
 
 /**
  * The handover worker for one `crm.opportunity.stage_moved` event (docs/03-roadmap-appendix/phase1.md §8.2):

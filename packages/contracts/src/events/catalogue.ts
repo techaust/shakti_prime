@@ -120,7 +120,7 @@ const eventCatalogue = {
   'crm.opportunity.assigned': {
     meaning:
       'A lead was given to an owner and team, locked to them for `lockHours`; `assignedById` is who gave it, so the notify worker tells the new owner unless they took it themselves.',
-    emittedBy: ['crm.opportunity.assign', 'crm.opportunity.hand_over'],
+    emittedBy: ['crm.lead.reassign_all', 'crm.opportunity.assign', 'crm.opportunity.hand_over'],
     // The notify worker tells the new owner (docs/03-roadmap-appendix/phase1.md §8.1).
     subscribed: true,
     payload: z

@@ -95,7 +95,13 @@ export const HandOverLeadInput = z
 export type HandOverLeadInput = z.infer<typeof HandOverLeadInput>;
 
 /** How a handover ended; `already` and `not_open` changed nothing. */
-export const HANDOVER_OUTCOMES = ['converter', 'team_lead', 'already', 'not_open', 'no_one'] as const;
+export const HANDOVER_OUTCOMES = [
+  'converter',
+  'team_lead',
+  'already',
+  'not_open',
+  'no_one',
+] as const;
 export const HandOverLeadDto = z
   .object({
     outcome: z.enum(HANDOVER_OUTCOMES),
