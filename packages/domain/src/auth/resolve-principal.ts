@@ -140,7 +140,8 @@ export function principalForEntity(
 ): Principal | undefined {
   const held = access.entities.find((e) => e.entityId === entityId);
   if (held === undefined || !principal.entityIds.includes(entityId)) return undefined;
-  const { teamId: _teamId, ...rest } = principal;
+  const rest: Principal = { ...principal };
+  delete rest.teamId;
   return {
     ...rest,
     roleKey: RoleKeySchema.parse(held.roleKey),
