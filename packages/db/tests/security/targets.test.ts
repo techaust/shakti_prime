@@ -94,11 +94,21 @@ beforeAll(async () => {
   teamA = await createTestTeam(E, 'targets team A');
   teamB = await createTestTeam(E, 'targets team B');
   const [a1, a2, b, la, lb, g, x, ac] = await Promise.all([
-    createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], { name: 'Target A1' }),
-    createTestUser([{ entityId: E, roleKey: 'tele_caller_lc', teamId: teamA }], { name: 'Target A2' }),
-    createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamB }], { name: 'Target B' }),
-    createTestUser([{ entityId: E, roleKey: 'sales_team_lead', teamId: teamA }], { name: 'Lead A' }),
-    createTestUser([{ entityId: E, roleKey: 'sales_team_lead', teamId: teamB }], { name: 'Lead B' }),
+    createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], {
+      name: 'Target A1',
+    }),
+    createTestUser([{ entityId: E, roleKey: 'tele_caller_lc', teamId: teamA }], {
+      name: 'Target A2',
+    }),
+    createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamB }], {
+      name: 'Target B',
+    }),
+    createTestUser([{ entityId: E, roleKey: 'sales_team_lead', teamId: teamA }], {
+      name: 'Lead A',
+    }),
+    createTestUser([{ entityId: E, roleKey: 'sales_team_lead', teamId: teamB }], {
+      name: 'Lead B',
+    }),
     createTestUser([{ entityId: E, roleKey: 'general_manager' }], { name: 'GM' }),
     createTestUser([{ entityId: E, roleKey: 'executive' }], { name: 'Exec' }),
     createTestUser([{ entityId: E, roleKey: 'accounts' }], { name: 'Accounts' }),
@@ -136,14 +146,18 @@ beforeAll(async () => {
     const id = newId();
     T[name] = id;
     await asMigrator(
-      (mig) => mig`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by)
+      (
+        mig,
+      ) => mig`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by)
         values (${id}, ${E}, ${scope}, ${subject}, ${team}, 'calls', 'day', '2031-04-01', 20, ${exec.id})`,
     );
   }
   const otherCompany = newId();
   T.company2 = otherCompany;
   await asMigrator(
-    (mig) => mig`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by)
+    (
+      mig,
+    ) => mig`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by)
       values (${otherCompany}, 2, 'team', ${teamA}, ${teamA}, 'calls', 'day', '2031-04-01', 20, ${exec.id})`,
   );
 });
@@ -245,9 +259,9 @@ describe('who sets a target', () => {
 describe('the table keeps its shape', () => {
   it('is append-only for every role', async () => {
     const id = T.a1 ?? '';
-    expect(
-      await failure(rows(exec, sql`update targets set value = 1 where id = ${id}`)),
-    ).toMatch(/permission denied|append-only/);
+    expect(await failure(rows(exec, sql`update targets set value = 1 where id = ${id}`))).toMatch(
+      /permission denied|append-only/,
+    );
     expect(await failure(rows(exec, sql`delete from targets where id = ${id}`))).toMatch(
       /permission denied|append-only/,
     );
@@ -308,11 +322,10 @@ describe('app.target_actuals()', () => {
           values (${newId()}, ${E}, ${opportunityId}, ${caller}, 'outbound', 'manual', ${disposition.id}, 1, ${at})`;
       }
       // A1 moved the lead to Qualified twice on the day (counted once) and to another stage.
-      const when = ['2031-04-01T11:00:00+05:30', '2031-04-01T13:00:00+05:30'];
       for (const [key, at] of [
-        ['qualified', when[0]],
-        ['qualified', when[1]],
-        ['quoted', when[1]],
+        ['qualified', '2031-04-01T11:00:00+05:30'],
+        ['qualified', '2031-04-01T13:00:00+05:30'],
+        ['quoted', '2031-04-01T13:00:00+05:30'],
       ] as const) {
         await m`insert into activities (id, entity_id, opportunity_id, account_id, type, actor_principal_id, payload_json, created_at)
           values (${newId()}, ${E}, ${opportunityId}, ${accountId}, 'stage_moved', ${callerA1.id},
@@ -356,7 +369,10 @@ describe('app.target_actuals()', () => {
 
   it('counts for the caller even where they can no longer read the lead', async () => {
     // A2 cannot read A1's lead row by row (own scope), yet has its call counted for them.
-    const lead = await rows(callerA2, sql`select id from opportunities where id = ${opportunityId}`);
+    const lead = await rows(
+      callerA2,
+      sql`select id from opportunities where id = ${opportunityId}`,
+    );
     expect(lead).toHaveLength(0);
     const [hers] = await actuals(callerA2, [callerA2.id]);
     expect(hers?.calls_n).toBe(1);
