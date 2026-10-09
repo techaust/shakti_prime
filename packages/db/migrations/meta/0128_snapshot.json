@@ -1071,7 +1071,7 @@
         },
         "agent_actions_shadow_check": {
           "name": "agent_actions_shadow_check",
-          "value": "(\"agent_actions\".\"state\" = 'shadowed') = (\"agent_actions\".\"autonomy\" = 'shadow')"
+          "value": "(\"agent_actions\".\"state\" <> 'shadowed') = (\"agent_actions\".\"autonomy\" <> 'shadow')"
         },
         "agent_actions_decided_check": {
           "name": "agent_actions_decided_check",
@@ -1595,7 +1595,7 @@
         },
         "agent_runs_filtered_check": {
           "name": "agent_runs_filtered_check",
-          "value": "(\"agent_runs\".\"outcome\" = 'filtered') = (\"agent_runs\".\"filter_reason\" is not null)"
+          "value": "(\"agent_runs\".\"outcome\" <> 'filtered') = (\"agent_runs\".\"filter_reason\" is null)"
         },
         "agent_runs_counts_check": {
           "name": "agent_runs_counts_check",

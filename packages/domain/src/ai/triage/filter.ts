@@ -56,7 +56,7 @@ const IDENTITY_PLACEHOLDERS = ['[number]', '[pan]', '[gstin]'];
  * wrongly refused note costs only the shadowed proposal it came with.
  */
 const INSTRUCTION =
-  /\b(ignore|disregard|forget|override|bypass|jailbreak|pretend|instructions?|prompt|system|assistant|developer|act as|you are|you must|you should|approve|assign|merge|transfer|delete|pay|send|click|execute)\b|https?:|www\.|[<>{}`[\]]/i;
+  /\b(ignore|disregard|forget|override|bypass|jailbreak|pretend|instructions?|prompt|system\s*(?:prompt|message|note)|assistant|developer|act as|you are|you must|you should|approve|assign|merge|transfer|delete|pay|send|click|execute)\b|\bsystem\s*:|https?:|www\.|[<>{}`[\]]/i;
 
 /** Why a note may not be kept, if it may not. */
 export function noteProblem(note: string): AgentFilterReason | undefined {

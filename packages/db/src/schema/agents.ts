@@ -103,10 +103,11 @@ export const agentRuns = pgTable(
       'agent_runs_filter_reason_check',
       sql`${t.filterReason} in ('unreadable_answer', 'unknown_pipeline', 'score_out_of_bounds', 'unknown_candidate', 'unknown_person', 'text_has_phone', 'text_has_identity_number', 'text_has_instruction')`,
     ),
-    // A run the output filter stopped names its reason, and only such a run names one.
+    // A run the output filter stopped names its reason, and only such a run names one. Not-equal
+    // tests only, so the enum pairing does not read them as value lists.
     check(
       'agent_runs_filtered_check',
-      sql`(${t.outcome} = 'filtered') = (${t.filterReason} is not null)`,
+      sql`(${t.outcome} <> 'filtered') = (${t.filterReason} is null)`,
     ),
     check(
       'agent_runs_counts_check',
@@ -162,10 +163,10 @@ export const agentActions = pgTable(
       sql`${t.state} in ('proposed', 'shadowed', 'executed', 'approved', 'rejected', 'dismissed')`,
     ),
     // A shadowed action is one recorded under Shadow, and every action under Shadow is shadowed:
-    // it never acts and never reaches the inbox (A1).
+    // it never acts and never reaches the inbox (A1). Not-equal tests, as above.
     check(
       'agent_actions_shadow_check',
-      sql`(${t.state} = 'shadowed') = (${t.autonomy} = 'shadow')`,
+      sql`(${t.state} <> 'shadowed') = (${t.autonomy} <> 'shadow')`,
     ),
     check(
       'agent_actions_decided_check',

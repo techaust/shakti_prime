@@ -343,3 +343,66 @@ describe('agent_evals', () => {
     expect(privileges).toEqual({ reader: true, reporter: false, u: false });
   });
 });
+
+describe('Shadow (A1)', () => {
+  it('an agent records a shadowed action; the controls read it and nobody decides on it', async () => {
+    const run = newId();
+    const action = newId();
+    await runAs(agent(), insertRun(run));
+    await runAs(agent(), insertAction(action, run, 'shadowed', 'shadow'));
+    expect(await count(agent(), 'agent_actions', action)).toBe(0);
+    expect(await count(caller, 'agent_actions', action)).toBe(0);
+    expect(await count(gm, 'agent_actions', action)).toBe(1);
+    expect(await count(executive, 'agent_actions', action)).toBe(1);
+    expect(await count(principalFor('general_manager', [2]), 'agent_actions', action)).toBe(0);
+    // No inbox item may carry it, even one filed by the agent itself.
+    expect(await failure(runAs(agent(), insertItem(newId(), action, null, null)))).toMatch(
+      /never filed in the inbox/,
+    );
+    // Nobody decides on it: the update policy needs a proposed action, and the owner's trigger
+    // keeps it as recorded.
+    const decided = (await runAs(
+      executive,
+      sql`update agent_actions set state = 'rejected', decided_by = ${executive.id}, decided_at = now()
+           where id = ${action} returning id`,
+    )) as unknown[];
+    expect(decided).toEqual([]);
+    expect(
+      await failure(
+        asMigrator(
+          (m) => m`update agent_actions set state = 'rejected', decided_by = ${executive.id},
+                          decided_at = now() where id = ${action}`,
+        ),
+      ),
+    ).toMatch(/changes only its decision/);
+  });
+
+  it('pairs the shadowed state with the Shadow autonomy, both ways', async () => {
+    const run = newId();
+    await runAs(agent(), insertRun(run));
+    for (const [state, autonomy] of [
+      ['shadowed', 'suggest'],
+      ['proposed', 'shadow'],
+    ] as const) {
+      expect(
+        await failure(runAs(agent(), insertAction(newId(), run, state, autonomy))),
+      ).toMatch(/agent_actions_shadow_check/);
+    }
+  });
+
+  it('a filtered run names its reason, and only a filtered run names one', async () => {
+    const filtered = (outcome: string, reason: string | null) =>
+      sql`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, filter_reason, request_id)
+          values (${newId()}, 1, 'agent:copilot', ${COPILOT}, 'rls_check', 'crm.task.create', ${outcome}, ${reason}, 'rls')`;
+    await runAs(agent(), filtered('filtered', 'unknown_person'));
+    expect(await failure(runAs(agent(), filtered('filtered', null)))).toMatch(
+      /agent_runs_filtered_check/,
+    );
+    expect(await failure(runAs(agent(), filtered('proposed', 'unknown_person')))).toMatch(
+      /agent_runs_filtered_check/,
+    );
+    expect(await failure(runAs(agent(), filtered('filtered', 'made_up')))).toMatch(
+      /agent_runs_filter_reason_check/,
+    );
+  });
+});
