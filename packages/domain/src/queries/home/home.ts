@@ -130,6 +130,7 @@ export function responseTimeSql(entityIds: readonly number[], now: Date) {
       left join lateral (select min(c.started_at) as first_call from calls c
                           where c.opportunity_id = o.id) fc on true
      where o.entity_id = any(${idList(entityIds)}) and o.archived_at is null
+       and (o.state = 'open' or o.created_at >= ${at}::timestamptz - interval '30 days')
      group by o.entity_id`;
 }
 

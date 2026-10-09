@@ -6,6 +6,7 @@ import {
   parseSubject,
   parseTargetValue,
   periodParam,
+  sectionEntities,
   subjectValue,
   targetMet,
 } from './home';
@@ -104,5 +105,18 @@ describe('the Targets form', () => {
     expect(parseTargetValue('2.555')).toBeUndefined();
     expect(parseTargetValue('many')).toBeUndefined();
     expect(parseTargetValue('')).toBeUndefined();
+  });
+});
+
+describe('sectionEntities', () => {
+  it('names the companies where the role gives a section, for a person with different roles', () => {
+    const roles = [
+      { entityId: 1, roleKey: 'tele_caller_cc' },
+      { entityId: 2, roleKey: 'sales_team_lead' },
+      { entityId: 3, roleKey: 'store_manager' },
+    ] as const;
+    expect(sectionEntities(roles, 'lead')).toEqual([2]);
+    expect(sectionEntities(roles, 'caller')).toEqual([1]);
+    expect(sectionEntities(roles, 'executive')).toEqual([]);
   });
 });

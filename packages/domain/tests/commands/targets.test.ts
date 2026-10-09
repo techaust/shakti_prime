@@ -1,4 +1,5 @@
-import { newId, type Principal, type TargetDto } from '@shakti/contracts';
+import { hasGrant, newId, type Principal, type TargetDto } from '@shakti/contracts';
+import { loadUserGrants } from '@shakti/db/grants';
 import {
   asMigrator,
   asOutboxPublisher,
@@ -13,6 +14,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
+import { principalForEntity, resolvePrincipalFromGrants } from '../../src/auth/resolve-principal';
 import { failureOf, runCommand } from '../../src/command/run-command';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { setTarget } from '../../src/commands/sales/set-target';
@@ -402,5 +404,100 @@ describe('progress', () => {
     await expect(
       asPrincipal(progressCaller, (ctx) => targetsScreen(ctx, { entityId: E }, NOW)),
     ).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
+describe('a caller who moves to another team', () => {
+  let mover: Principal;
+
+  beforeAll(async () => {
+    const user = await createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], {
+      name: 'Target Mover',
+    });
+    mover = await createTestPrincipal('tele_caller_cc', [E], { id: user.id, teamId: teamA });
+    await run(leadA, setTarget, input(mover, { value: 33 }));
+    await asMigrator(
+      (m) => m`update user_entity_roles set team_id = ${teamB} where user_id = ${mover.id}`,
+    );
+  });
+
+  const targetOf = (rows: readonly { callerName: string; metrics: { target: number | null }[] }[]) =>
+    rows.find((r) => r.callerName === 'Target Mover')?.metrics[0]?.target;
+
+  it('shows on the new team lead’s leaderboard and Targets page with their target', async () => {
+    const [team] = await asPrincipal(leadB, (ctx) => teamProgress(ctx, { period: 'day' }, NOW));
+    expect(targetOf(team?.leaderboard ?? [])).toBe(33);
+    const screen = await asPrincipal(leadB, (ctx) => targetsScreen(ctx, { entityId: E }, NOW));
+    expect(screen.current.find((t) => t.subjectId === mover.id)).toMatchObject({ value: 33 });
+    const [mine] = await asPrincipal(mover, (ctx) => myProgress(ctx, {}, NOW));
+    expect(mine?.periods.find((p) => p.period === 'day')?.metrics[0]?.target).toBe(33);
+  });
+
+  it('is no longer read by the old team lead', async () => {
+    const [team] = await asPrincipal(leadA, (ctx) => teamProgress(ctx, { period: 'day' }, NOW));
+    expect(team?.leaderboard.map((r) => r.callerName)).not.toContain('Target Mover');
+    const screen = await asPrincipal(leadA, (ctx) => targetsScreen(ctx, { entityId: E }, NOW));
+    expect(screen.current.find((t) => t.subjectId === mover.id)).toBeUndefined();
+    expect(screen.history.find((t) => t.subjectId === mover.id)).toBeUndefined();
+  });
+
+  it('is set from now on by the new team lead alone', async () => {
+    await expect(run(leadB, setTarget, input(mover, { value: 12 }))).resolves.toMatchObject({
+      teamId: teamB,
+    });
+    expect(await failure(leadA, input(mover))).toMatchObject({ reason: 'target_other_team' });
+  });
+});
+
+describe('a target is set only for an active person who logs calls', () => {
+  it('refuses an offboarded person and a person who does not log calls', async () => {
+    const gone = await createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], {
+      name: 'Target Gone',
+      status: 'offboarded',
+    });
+    expect(await failure(leadA, input(gone.id))).toMatchObject({
+      reason: 'target_subject_missing',
+    });
+    const store = await createTestUser([{ entityId: E, roleKey: 'field_engineer', teamId: teamA }], {
+      name: 'Target Field',
+    });
+    expect(await failure(leadA, input(store.id))).toMatchObject({
+      reason: 'target_subject_missing',
+    });
+    expect(await failure(exec, input(store.id))).toMatchObject({
+      reason: 'target_subject_missing',
+    });
+  });
+});
+
+describe('a person with a different role in each company', () => {
+  it('acts as a team lead where they are one, though All companies drops the grant', async () => {
+    const otherTeam = await createTestTeam(1, 'target team elsewhere');
+    const user = await createTestUser(
+      [
+        { entityId: E, roleKey: 'sales_team_lead', teamId: teamA },
+        { entityId: 1, roleKey: 'tele_caller_cc', teamId: otherTeam },
+      ],
+      { name: 'Target Mixed' },
+    );
+    const outcomeOf = resolvePrincipalFromGrants(user.id, await loadUserGrants(user.id));
+    if (outcomeOf.kind !== 'principal') throw new Error(`not a principal: ${outcomeOf.kind}`);
+    const { principal: everywhere, access } = outcomeOf;
+    expect(hasGrant(everywhere.permissions, 'sales.targets.write', 'team')).toBe(false);
+
+    const here = principalForEntity(everywhere, access, E);
+    if (!here) throw new Error('no role in the company');
+    expect(here.entityIds).toEqual([E]);
+    expect(hasGrant(here.permissions, 'sales.targets.write', 'team')).toBe(true);
+    const [team] = await asPrincipal(here, (ctx) =>
+      teamProgress(ctx, { entityId: E, period: 'day' }, NOW),
+    );
+    expect(team).toMatchObject({ teamId: teamA });
+
+    // In the other company they are a caller: no team view there.
+    const there = principalForEntity(everywhere, access, 1);
+    if (!there) throw new Error('no role in the company');
+    expect(hasGrant(there.permissions, 'sales.targets.write', 'team')).toBe(false);
+    expect(principalForEntity(everywhere, access, 3)).toBeUndefined();
   });
 });

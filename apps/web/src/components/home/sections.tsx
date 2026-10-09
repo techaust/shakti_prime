@@ -17,6 +17,7 @@ import { TeamQueues } from '../calling/team-queues';
 import { formatCount, formatDate, formatRupees } from '../../screens/format';
 import { meterPercent, metricNumber, targetMet } from '../../screens/home';
 import { TARGET_METRICS, TARGET_PERIODS } from '../../screens/contract-values';
+import { ScrollTable } from './scroll-table';
 import { HomeBlock, hasTargets, PeriodProgress, ProgressMeter, Stat } from './progress';
 
 /** A company's name above its figures, only where the page shows more than one company. */
@@ -163,12 +164,7 @@ async function Leaderboard({ team }: { team: TeamProgressDto }) {
     period: p(`period.${team.period}`),
   });
   return (
-    <div
-      role="region"
-      aria-label={caption}
-      tabIndex={0}
-      className="border-border bg-surface overflow-x-auto rounded-lg border"
-    >
+    <ScrollTable label={caption}>
       <table className="w-full min-w-xl text-sm">
         <caption className="sr-only">
           {t('leaderboardCaption', { metric: m(team.metric), period: p(`period.${team.period}`) })}
@@ -221,7 +217,7 @@ async function Leaderboard({ team }: { team: TeamProgressDto }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   );
 }
 
@@ -380,12 +376,7 @@ export async function ExecutiveSection({
   return (
     <>
       <HomeBlock id="home-executive-sales" title={t('salesHeading')}>
-        <div
-          role="region"
-          aria-label={t('caption')}
-          tabIndex={0}
-          className="border-border bg-surface overflow-x-auto rounded-lg border"
-        >
+        <ScrollTable label={t('caption')}>
           <table className="w-full min-w-xl text-sm">
             <caption className="sr-only">{t('caption')}</caption>
             <thead className="bg-surface-2 text-text-muted">
@@ -434,7 +425,7 @@ export async function ExecutiveSection({
               </tfoot>
             ) : null}
           </table>
-        </div>
+        </ScrollTable>
       </HomeBlock>
       <HomeBlock id="home-executive-pipeline" title={t('pipelineHeading')}>
         <PipelineBlocks

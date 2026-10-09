@@ -4,7 +4,7 @@
 --
 -- A target is read by its subject (a caller's own, the team's for a member of the team), by the
 -- holders of sales.targets.write in the scope they hold it (a team lead the targets of their
--- team and its callers, the GM those of the company, the Executive all) and by nobody else. It
+-- team and of the callers who are in it now, the GM those of the company, the Executive all) and by nobody else. It
 -- is set by a holder of sales.targets.write, as themselves, for a caller of their team (a team
 -- lead), of the company (the GM) or any (the Executive), or for a team. Append-only: a target is
 -- never changed; setting it again adds a row, and the newest counts.
@@ -12,6 +12,50 @@
 -- 1. Append-only for every role.
 create trigger targets_append_only before update or delete on targets
   for each row execute function app.raise_append_only();
+--> statement-breakpoint
+
+-- Two helpers for the policies below. user_entity_roles and users are not readable by app_reader,
+-- and app_user reads no other person's users row, so the policies ask these definers; each answers
+-- yes or no about the person asked for and only to a holder of sales.targets.write.
+--   target_caller_in_team: the person holds a role in the company in that team now (a caller who
+--     moved to another team is read by the new team lead, no longer by the old one);
+--   target_caller_ok: the same, and the person is active and holds calls.log, so a target is set
+--     only for someone who logs calls.
+create or replace function app.target_caller_in_team(p_user uuid, p_entity smallint, p_team uuid)
+  returns boolean language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_id() is null
+     or not (app.has_perm('sales.targets.write:team') or app.has_perm('sales.targets.write:entity')
+             or app.has_perm('sales.targets.write:all')) then
+    return false;
+  end if;
+  return exists (select 1 from public.user_entity_roles r
+                  where r.user_id = p_user and r.entity_id = p_entity and r.team_id = p_team);
+end
+$$;
+--> statement-breakpoint
+create or replace function app.target_caller_ok(p_user uuid, p_entity smallint, p_team uuid)
+  returns boolean language plpgsql stable security definer set search_path = '' as $$
+begin
+  if app.user_id() is null
+     or not (app.has_perm('sales.targets.write:team') or app.has_perm('sales.targets.write:entity')
+             or app.has_perm('sales.targets.write:all')) then
+    return false;
+  end if;
+  return exists (select 1
+                   from public.user_entity_roles r
+                   join public.role_permissions rp
+                     on rp.role_id = r.role_id and rp.permission_key = 'calls.log'
+                   join public.users u on u.id = r.user_id and u.status = 'active'
+                  where r.user_id = p_user and r.entity_id = p_entity and r.team_id = p_team);
+end
+$$;
+--> statement-breakpoint
+revoke execute on function app.target_caller_in_team(uuid, smallint, uuid),
+  app.target_caller_ok(uuid, smallint, uuid) from public, readonly_reporter;
+--> statement-breakpoint
+grant execute on function app.target_caller_in_team(uuid, smallint, uuid),
+  app.target_caller_ok(uuid, smallint, uuid) to app_user, app_reader;
 --> statement-breakpoint
 
 alter table targets enable row level security;
@@ -24,7 +68,8 @@ create policy targets_read on targets for select to app_user, app_reader using (
     or (scope = 'team' and subject_id = (select app.team_id()))
     or (select app.has_perm('sales.targets.write:entity'))
     or (select app.has_perm('sales.targets.write:all'))
-    or ((select app.has_perm('sales.targets.write:team')) and team_id = (select app.team_id()))));
+    or ((select app.has_perm('sales.targets.write:team')) and scope = 'caller'
+        and app.target_caller_in_team(subject_id, entity_id, (select app.team_id())))));
 --> statement-breakpoint
 -- A target is set by a person as themselves. The subject is a person with a role in the company
 -- whose team is the row's team, or a team of the company (or the whole group); a team lead sets
@@ -37,10 +82,7 @@ create policy targets_insert on targets for insert to app_user with check (
     or (select app.has_perm('sales.targets.write:entity'))
     or ((select app.has_perm('sales.targets.write:team')) and team_id = (select app.team_id())))
   and ((scope = 'caller'
-        and exists (select 1 from user_entity_roles r
-                     where r.user_id = targets.subject_id
-                       and r.entity_id = targets.entity_id
-                       and r.team_id = targets.team_id))
+        and app.target_caller_ok(targets.subject_id, targets.entity_id, targets.team_id))
     or (scope = 'team'
         and exists (select 1 from teams t
                      where t.id = targets.subject_id

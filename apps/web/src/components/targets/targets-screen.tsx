@@ -9,6 +9,7 @@ import { setTarget } from '../../actions/targets';
 import { formatDate, formatDateTime } from '../../screens/format';
 import { TARGET_METRICS, TARGET_PERIODS } from '../../screens/contract-values';
 import { metricNumber, parseSubject, parseTargetValue, subjectValue } from '../../screens/home';
+import { ScrollTable } from '../home/scroll-table';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
 import { useCommand } from '../screens/use-command';
@@ -232,12 +233,7 @@ function Table({
 }) {
   const t = useTranslations('targets.table');
   return (
-    <div
-      role="region"
-      aria-label={caption}
-      tabIndex={0}
-      className="border-border bg-surface overflow-x-auto rounded-lg border"
-    >
+    <ScrollTable label={caption}>
       <table className="w-full min-w-xl text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-2 text-text-muted">
@@ -268,7 +264,7 @@ function Table({
           <TargetRows rows={rows} withSetBy={withSetBy} />
         </tbody>
       </table>
-    </div>
+    </ScrollTable>
   );
 }
 

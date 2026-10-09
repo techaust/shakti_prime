@@ -2,13 +2,20 @@ import { DomainError, IdempotencyKeySchema, newId, type Principal } from '@shakt
 import type { ClientMeta, ExecuteOptions } from '@shakti/domain';
 import { headers } from 'next/headers';
 import { clientMeta, platformRequestId } from '../auth/client-address';
-import { currentPrincipal } from '../auth/current-principal';
+import { currentPrincipal, currentPrincipalIn } from '../auth/current-principal';
 import { nudgeOutbox } from '../workers/outbox';
 
 /** The caller of an action; `unauthorized` when nobody is signed in. */
 export async function signedIn(): Promise<Principal> {
   const principal = await currentPrincipal();
   if (!principal) throw new DomainError('unauthorized');
+  return principal;
+}
+
+/** The caller as they act in one company they hold a role in (their grants and team there). */
+export async function signedInIn(entityId: number): Promise<Principal> {
+  const principal = await currentPrincipalIn(entityId);
+  if (!principal) throw new DomainError('forbidden', `no role in company ${entityId}`);
   return principal;
 }
 

@@ -24,6 +24,18 @@ export function homeSections(roles: readonly StaffRoleKey[]): HomeSection[] {
   return HOME_SECTIONS.filter((section) => held.has(section));
 }
 
+/**
+ * The companies, among those viewed, where a person's role gives them a section: each section's
+ * reads run in these companies, as the person acts in each (their own grants there), so a person
+ * who is a team lead in one company and a caller in another has the lead section for the first.
+ */
+export function sectionEntities(
+  roles: readonly { entityId: number; roleKey: StaffRoleKey }[],
+  section: HomeSection,
+): number[] {
+  return roles.filter((r) => SECTION_OF_ROLE[r.roleKey] === section).map((r) => r.entityId);
+}
+
 /** The period the team view is on, from the address; the day when it is missing or unknown. */
 export function periodParam(raw: string | string[] | undefined): TargetPeriod {
   const value = Array.isArray(raw) ? raw[0] : raw;

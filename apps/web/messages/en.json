@@ -559,13 +559,13 @@
       "overdue": "Dealers with an overdue invoice"
     },
     "executive": {
-      "salesHeading": "Quotes and orders this month",
-      "caption": "Quotes and orders this month, by company",
+      "salesHeading": "Quotes and orders",
+      "caption": "Quotes and orders by company",
       "company": "Company",
       "quotesSent": "Quotes waiting for an answer",
-      "quotesAccepted": "Quotes accepted",
-      "ordersConfirmed": "Orders confirmed",
-      "ordersValue": "Value of orders confirmed",
+      "quotesAccepted": "Quotes accepted this month",
+      "ordersConfirmed": "Orders confirmed this month",
+      "ordersValue": "Value of orders confirmed this month",
       "group": "All companies",
       "pipelineHeading": "Open leads by stage"
     }
@@ -4222,8 +4222,8 @@
       "empty": "No targets are set yet. Choose who it is for and what to count above."
     },
     "history": {
-      "heading": "Everything set so far",
-      "intro": "Every target ever set, newest first. A newer target replaces an older one from its starting date.",
+      "heading": "Recently set",
+      "intro": "The 30 targets set most recently, newest first. A newer target replaces an older one from its starting date.",
       "caption": "Targets set, newest first",
       "empty": "Nothing has been set yet."
     },

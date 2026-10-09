@@ -18,7 +18,7 @@ import {
   teamProgress as teamProgressQuery,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInIn } from './support';
 
 /** A team lead, the GM or an Executive sets a caller's or a team's target. */
 export async function setTarget(
@@ -54,14 +54,24 @@ export async function targetsScreen(rawInput: unknown): Promise<ActionResult<Tar
   });
 }
 
-/** The signed-in person's targets and progress, per company of the request. */
-export async function myProgress(): Promise<ActionResult<MyProgressDto[]>> {
+/** The signed-in person's targets and progress in each company given, as they act there. */
+export async function myProgress(
+  entityIds: readonly number[],
+): Promise<ActionResult<MyProgressDto[]>> {
   return toResult('myProgress', async () => {
-    const principal = await signedIn();
     const { requestId } = await requestMeta();
-    return executeQuery(principal, { requestId }, (context) => myProgressQuery(context, {}), {
-      name: 'myProgress',
-    });
+    const parts = await Promise.all(
+      entityIds.map(async (entityId) => {
+        const principal = await signedInIn(entityId);
+        return executeQuery(
+          principal,
+          { entityIds: [entityId], requestId },
+          (context) => myProgressQuery(context, {}),
+          { name: 'myProgress' },
+        );
+      }),
+    );
+    return parts.flat();
   });
 }
 
@@ -71,8 +81,9 @@ export async function myProgress(): Promise<ActionResult<MyProgressDto[]>> {
  */
 export async function teamProgress(rawInput: unknown): Promise<ActionResult<TeamProgressDto[]>> {
   return toResult('teamProgress', async () => {
-    const principal = await signedIn();
     const input = parseInput(TeamProgressInput, rawInput);
+    const principal =
+      input.entityId === undefined ? await signedIn() : await signedInIn(input.entityId);
     const { requestId } = await requestMeta();
     return executeQuery(
       principal,

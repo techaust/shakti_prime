@@ -25,7 +25,7 @@ import {
   searchLeads,
 } from '@shakti/domain';
 import { toResult, type ActionResult } from './result';
-import { commandOptions, parseInput, requestMeta, signedIn } from './support';
+import { commandOptions, parseInput, requestMeta, signedIn, signedInIn } from './support';
 
 /** The leads the workspace's search shows: a short list the eye takes in. */
 const SEARCH_HITS = 8;
@@ -101,8 +101,9 @@ export async function searchCallLeads(
 /** The team lead's view: each caller of the team and their queue. */
 export async function listTeamQueues(rawInput: unknown): Promise<ActionResult<TeamQueueDto[]>> {
   return toResult('listTeamQueues', async () => {
-    const principal = await signedIn();
     const input = parseInput(ListTeamQueuesInput, rawInput);
+    const principal =
+      input.entityId === undefined ? await signedIn() : await signedInIn(input.entityId);
     const { requestId } = await requestMeta();
     return executeQuery(
       principal,

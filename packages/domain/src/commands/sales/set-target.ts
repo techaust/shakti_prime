@@ -1,6 +1,6 @@
 import { DomainError, hasGrant, newId, SetTargetInput, TargetDto } from '@shakti/contracts';
 import { schema } from '@shakti/db';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { defineCommand } from '../../command/define-command';
 import { teamIn } from '../../queries/crm/list-lead-assignees';
 import { isPeriodStart } from '../../sales/targets';
@@ -54,11 +54,20 @@ export const setTarget = defineCommand({
     } else {
       const uer = schema.userEntityRoles;
       const p = schema.principals;
+      // Only an active person who logs calls is a caller a target can be set for.
+      const rp = schema.rolePermissions;
       const [member] = await ctx.tx
         .select({ teamId: uer.teamId, name: p.displayName })
         .from(uer)
         .innerJoin(p, and(eq(p.id, uer.userId), eq(p.kind, 'user'), isNull(p.archivedAt)))
-        .where(and(eq(uer.userId, input.subjectId), eq(uer.entityId, input.entityId)))
+        .innerJoin(rp, and(eq(rp.roleId, uer.roleId), eq(rp.permissionKey, 'calls.log')))
+        .where(
+          and(
+            eq(uer.userId, input.subjectId),
+            eq(uer.entityId, input.entityId),
+            sql`app.user_is_active(${p.id})`,
+          ),
+        )
         .limit(1);
       if (!member) {
         throw new DomainError('not_found', `person ${input.subjectId} is not visible`, {

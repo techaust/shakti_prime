@@ -187,9 +187,9 @@ test.describe('the Executive’s home', () => {
   }) => {
     await page.goto('/home');
     await expect(
-      page.getByRole('heading', { name: 'Quotes and orders this month', level: 2 }),
+      page.getByRole('heading', { name: 'Quotes and orders', level: 2 }),
     ).toBeVisible();
-    const table = page.getByRole('table', { name: 'Quotes and orders this month, by company' });
+    const table = page.getByRole('table', { name: 'Quotes and orders by company' });
     await expect(table.getByRole('rowheader', { name: 'All companies' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),

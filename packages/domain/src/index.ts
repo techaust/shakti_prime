@@ -171,6 +171,7 @@ export {
   groupUserGrants,
   intersectGrants,
   parseUserAccess,
+  principalForEntity,
   resolvePrincipalFromGrants,
 } from './auth/resolve-principal';
 export type { EntityGrants, ResolveOutcome, UserAccess } from './auth/resolve-principal';

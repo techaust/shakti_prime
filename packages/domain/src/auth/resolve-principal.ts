@@ -127,6 +127,30 @@ export function intersectGrants(entities: readonly EntityGrants[]): PermissionGr
     .sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 
+/**
+ * The principal as it acts in one company of those it holds: that company's role, grants and team,
+ * not the intersection across companies that "All companies" gives. For a read or a command that
+ * is about one company (a team lead's team in one company while viewing all of them). Undefined
+ * when the person holds no role there.
+ */
+export function principalForEntity(
+  principal: Principal,
+  access: UserAccess,
+  entityId: number,
+): Principal | undefined {
+  const held = access.entities.find((e) => e.entityId === entityId);
+  if (held === undefined || !principal.entityIds.includes(entityId)) return undefined;
+  const { teamId: _teamId, ...rest } = principal;
+  return {
+    ...rest,
+    roleKey: RoleKeySchema.parse(held.roleKey),
+    entityIds: [entityId],
+    permissions: held.grants,
+    ...(held.teamId ? { teamId: held.teamId } : {}),
+    entityTeams: held.teamId ? [{ entityId, teamId: held.teamId }] : [],
+  };
+}
+
 export type ResolveOutcome =
   | { kind: 'principal'; principal: Principal; access: UserAccess }
   | { kind: 'totp_required'; access: UserAccess }

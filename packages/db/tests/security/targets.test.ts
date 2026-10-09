@@ -246,11 +246,55 @@ describe('who sets a target', () => {
     ).toMatch(/row-level security/);
   });
 
+  it('a target is for an active person who logs calls, not an offboarded one or a field engineer', async () => {
+    const gone = await createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], {
+      name: 'Target Gone',
+      status: 'offboarded',
+    });
+    const store = await createTestUser([{ entityId: E, roleKey: 'field_engineer', teamId: teamA }], {
+      name: 'Target Field',
+    });
+    for (const who of [leadA, gm, exec]) {
+      expect(await failure(insertTarget(who, { subject: gone.id, team: teamA }))).toMatch(
+        /row-level security/,
+      );
+      expect(await failure(insertTarget(who, { subject: store.id, team: teamA }))).toMatch(
+        /row-level security/,
+      );
+    }
+  });
+
   it('a person must work in the company under that team', async () => {
     expect(await failure(insertTarget(exec, { subject: newId(), team: teamA }))).toMatch(
       /row-level security/,
     );
     expect(await failure(insertTarget(exec, { subject: callerA1.id, team: teamB }))).toMatch(
+      /row-level security/,
+    );
+  });
+});
+
+describe('a caller who moves to another team', () => {
+  it('is read by the new team lead and no longer by the old one, whatever team the row records', async () => {
+    const user = await createTestUser([{ entityId: E, roleKey: 'tele_caller_cc', teamId: teamA }], {
+      name: 'Target Mover',
+    });
+    const mover = principalFor('tele_caller_cc', [E], { id: user.id, teamId: teamA });
+    T.mover = await insertTarget(leadA, { subject: mover.id, team: teamA, value: 33 });
+    expect(await seen(leadA)).toContain('mover');
+    expect(await seen(leadB)).not.toContain('mover');
+    await asMigrator(
+      (m) => m`update user_entity_roles set team_id = ${teamB} where user_id = ${user.id}`,
+    );
+    expect(await seen(leadB)).toContain('mover');
+    expect(await seen(leadA)).not.toContain('mover');
+    expect(await seen(principalFor('tele_caller_cc', [E], { id: user.id, teamId: teamB }))).toEqual([
+      'mover',
+      'teamB',
+    ]);
+    // The new team lead sets the next one under the new team; the old one cannot any more.
+    T.moverNow = await insertTarget(leadB, { subject: mover.id, team: teamB, value: 12 });
+    expect(await failure(insertTarget(leadA, { subject: mover.id, team: teamA }))).toMatch(
       /row-level security/,
     );
   });
@@ -354,6 +398,17 @@ describe('app.target_actuals()', () => {
       await order(newId(), 'confirmed', '2031-04-01T14:00:00+05:30', callerA2.id, true);
       await order(newId(), 'dispatched', '2031-04-01T15:00:00+05:30', callerA2.id, false);
       await order(newId(), 'cancelled', '2031-04-01T16:00:00+05:30', callerA2.id, false);
+      // The period ends at TO, which it excludes: a call, a lead order and a dealer order at that
+      // very instant count in no figure of the day.
+      await m`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series, disposition_id, attempt_no, started_at)
+        values (${newId()}, ${E}, ${opportunityId}, ${callerA1.id}, 'outbound', 'manual', ${disposition.id}, 1, ${TO})`;
+      await order(newId(), 'confirmed', TO, callerA1.id, true);
+      await order(newId(), 'confirmed', TO, callerA2.id, false);
+      // A sizing made after A2 confirmed the lead's order (14:00) is not the one the order was
+      // confirmed on: its 9 kWp does not count.
+      await m`insert into sizings (id, entity_id, opportunity_id, kind, inputs_json, result_json, in_bounds, reasons_json, engine_version, created_by, created_at)
+        values (${newId()}, ${E}, ${opportunityId}, 'rooftop', '{}'::jsonb,
+                ${m.json({ rooftop: { recommendedKwp: 9 } })}, true, '[]'::jsonb, 'test', ${callerA1.id}, '2031-04-01T14:30:00+05:30')`;
       await order(newId(), 'confirmed', '2031-03-31T16:00:00+05:30', callerA1.id, false);
     });
   });
@@ -397,6 +452,8 @@ describe('app.target_actuals()', () => {
   it('refuses a company outside the request, an agent and Accounts for another person', async () => {
     expect(await failure(actuals(callerA1, [callerA1.id], 2))).toMatch(/outside the request/);
     expect(await failure(actuals(agent, [callerA1.id]))).toMatch(/outside the request/);
+    const workers = principalFor('system:workers', [E], { id: callerA1.id });
+    expect(await failure(actuals(workers, [callerA1.id]))).toMatch(/outside the request/);
     expect(await failure(actuals(accounts, [callerA1.id]))).toMatch(/yourself, or for your team/);
   });
 
