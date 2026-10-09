@@ -10,6 +10,9 @@ import {
   AccountTypeSchema,
   CallerPresenceSchema,
   CallDirectionSchema,
+  TargetMetricSchema,
+  TargetPeriodSchema,
+  TargetScopeSchema,
   CallNumberSeriesSchema,
   CommissionAccrualStateSchema,
   CommissionBasisSchema,
@@ -151,6 +154,11 @@ const PAIRS: Record<string, readonly string[]> = {
   // Only a pump sizing names a catalogue pump.
   sizings_item_kind_check: SizingKindSchema.extract(['pump']).options,
   tasks_kind_check: TaskKindSchema.options,
+  targets_scope_check: TargetScopeSchema.options,
+  targets_metric_check: TargetMetricSchema.options,
+  targets_period_check: TargetPeriodSchema.options,
+  // A period starts on its first day: the check names each length of period.
+  targets_starts_on_check: TargetPeriodSchema.options,
   calls_direction_check: CallDirectionSchema.options,
   calls_number_series_check: CallNumberSeriesSchema.options,
   tasks_state_check: TaskStateSchema.options,

@@ -107,6 +107,8 @@ describe('app_user role (docs/05-database.md §3)', () => {
     sizings: { i: true, u: false },
     // A call is append-only: an outcome is never changed, a new call is a new row.
     calls: { i: true, u: false },
+    // A target is append-only: setting it again is a new row.
+    targets: { i: true, u: false },
     // A candidate changes only its state and who decided it; a merge is written only by its
     // definers (DATABASE §4.1).
     duplicate_candidates: { i: true, u: false },
@@ -453,6 +455,11 @@ describe('app_reader role (docs/05-database.md §3, docs/03-roadmap-appendix/pha
       // The sweep of abandoned uploads asks which companies to visit, as the worker
       // (pin-codes.test.ts).
       'app.stale_upload_entities(integer)',
+      // The targets' progress: a caller's own figures, a team lead's team's (0125).
+      'app.target_actuals(smallint,timestamp with time zone,timestamp with time zone,uuid[])',
+      // Whether a person is in a team now and may be set a target (the targets' policies, 0125).
+      'app.target_caller_in_team(uuid,smallint,uuid)',
+      'app.target_caller_ok(uuid,smallint,uuid)',
       'app.user_is_active(uuid)',
       // A vault upload is read with a vault file the reader may read (files_knowledge_read, 0123).
       'app.vault_upload_readable(uuid)',

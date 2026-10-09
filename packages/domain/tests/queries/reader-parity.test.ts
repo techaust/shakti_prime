@@ -86,6 +86,14 @@ import { loadQuoteBuilder, previewQuote } from '../../src/queries/sales/quote-bu
 import { loadQuoteForPrint } from '../../src/queries/sales/quote-print';
 import { listSavedViews } from '../../src/queries/profile/saved-views';
 import { readTaxSettings } from '../../src/queries/tax/tax-settings';
+import {
+  homeCaller,
+  homeCredit,
+  homePipeline,
+  homeResponseTimes,
+  homeSales,
+} from '../../src/queries/home/home';
+import { myProgress, targetsScreen, teamProgress } from '../../src/queries/sales/targets';
 
 afterAll(closeDb);
 
@@ -200,6 +208,15 @@ const OTHER_READS: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   latestSizing: (ctx) => latestSizing(ctx, { entityId: 1, opportunityId: newId() }),
   dialNumber: (ctx) =>
     dialNumber(ctx, { entityId: 1, opportunityId: newId() }, new Date('2026-10-05T06:00:00Z')),
+  // The home pages and the targets (docs/03-roadmap-appendix/phase1.md §9).
+  myProgress: (ctx) => myProgress(ctx, {}, new Date(NOW)),
+  teamProgress: (ctx) => teamProgress(ctx, { entityId: 1, period: 'week' }, new Date(NOW)),
+  targetsScreen: (ctx) => targetsScreen(ctx, { entityId: 1 }, new Date(NOW)),
+  homeCaller: (ctx) => homeCaller(ctx, new Date(NOW)),
+  homePipeline: (ctx) => homePipeline(ctx),
+  homeResponseTimes: (ctx) => homeResponseTimes(ctx, new Date(NOW)),
+  homeSales: (ctx) => homeSales(ctx, new Date(NOW)),
+  homeCredit: (ctx) => homeCredit(ctx),
   accountQuotes: (ctx) => accountQuotes(ctx, newId(), 1, QUOTES_AT),
   accountSalesOrders: (ctx) => accountSalesOrders(ctx, newId(), 1),
   // The answer names the dealer asked for, so both pools are asked for the same one.

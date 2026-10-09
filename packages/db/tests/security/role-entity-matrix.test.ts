@@ -244,11 +244,18 @@ const RULES: Record<MatrixTable, TableRule> = {
     readRow: (row) => (row.othersOwn === true ? NEVER : CONTEXT),
     leak: otherCompany,
   },
-  // A person's own caller profile, whatever their role; another person's only to a manager of the
-  // company (the fixture's other person has no team, so a team-scope manager does not reach them).
+  // A caller's own target and their team's, whatever their role; another caller's only to a
+  // holder of sales.targets.write over the team (a team lead), the company or the group.
+  targets: {
+    read: CONTEXT,
+    readRow: (row) => (row.othersOwn === true ? grant('sales.targets.write', 'team') : CONTEXT),
+    leak: otherCompany,
+  },
+  // A person's own caller profile, whatever their role; another person's to a manager of the
+  // company, or to a team lead of their team (the fixture's other person is in the owner's team).
   caller_profiles: {
     read: CONTEXT,
-    readRow: (row) => (row.othersOwn === true ? grant('crm.lead.assign', 'entity') : CONTEXT),
+    readRow: (row) => (row.othersOwn === true ? grant('crm.lead.assign', 'team') : CONTEXT),
     leak: otherCompany,
   },
   pipelines: { read: CONTEXT, group: CONTEXT, leak: otherCompany },

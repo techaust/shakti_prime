@@ -75,6 +75,7 @@ const ACTIONS = {
   'sales.order.cancel': 'orderCancel',
   'sales.dealer_terms.set': 'dealerTermsSet',
   'sales.dealer_outstanding.record': 'dealerOutstandingRecord',
+  'sales.target.set': 'targetSet',
   'crm.task.create': 'taskCreate',
   'crm.task.complete': 'taskComplete',
   'crm.task.reschedule': 'taskReschedule',
@@ -362,6 +363,9 @@ const CODE_GROUPS = [
   'knowledgeState',
   'knowledgeSensitivity',
   'knowledgeSource',
+  'targetScope',
+  'targetMetric',
+  'targetPeriod',
 ] as const;
 export type CodeGroup = (typeof CODE_GROUPS)[number];
 const IS_CODE: ReadonlySet<string> = new Set(CODE_GROUPS);
@@ -589,6 +593,12 @@ const FIELD_KINDS = [
   ['oldestUnpaidInvoiceDate', 'date'],
   ['oldestUnpaidInvoiceNo', 'text'],
   ['asOf', 'date'],
+  // Targets
+  ['targetScope', 'targetScope'],
+  ['targetMetric', 'targetMetric'],
+  ['targetPeriod', 'targetPeriod'],
+  ['startsOn', 'date'],
+  ['targetValue', 'number'],
   // Agents and the Agent Inbox
   ['agent', 'agent'],
   ['actionType', 'agentAction'],

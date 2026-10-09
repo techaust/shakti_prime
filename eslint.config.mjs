@@ -264,6 +264,20 @@ const fieldButtonAlignment = {
       JSXElement(node) {
         const kids = node.children.filter((c) => c.type === 'JSXElement');
         if (!kids.some((c) => FIELD_ELEMENTS.has(jsxName(c)))) return;
+        // A wrapper beside the Field that holds only buttons and lines them up the same way.
+        for (const w of kids) {
+          const inner = w.children.filter((c) => c.type === 'JSXElement');
+          if (inner.length === 0 || !inner.every((c) => BUTTON_ELEMENTS.has(jsxName(c)))) continue;
+          const cls = classNameOf(w);
+          const found = cls.match(CONTAINER_ALIGN) ?? cls.match(BUTTON_NUDGE);
+          if (found) {
+            context.report({
+              node: w.openingElement,
+              messageId: 'container',
+              data: { cls: found[0].trim() },
+            });
+          }
+        }
         const buttons = kids.filter((c) => BUTTON_ELEMENTS.has(jsxName(c)));
         if (buttons.length === 0) return;
         const container = classNameOf(node).match(CONTAINER_ALIGN);

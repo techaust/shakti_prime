@@ -19,6 +19,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'sales.order.cancel': 'Cancel sales orders',
   'sales.credit.release': 'Release a dealer credit hold',
   'sales.credit.write': 'Enter dealer credit limits and outstanding',
+  'sales.targets.write': 'Set the call, qualified, order and kW targets of callers and teams',
   'pricing.read': 'See price lists',
   'pricing.write': 'Change price lists',
   'catalogue.write': 'Maintain the item list',

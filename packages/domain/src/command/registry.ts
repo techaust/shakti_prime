@@ -95,6 +95,7 @@ import { cancelSalesOrder } from '../commands/sales/cancel-order';
 import { confirmSalesOrder } from '../commands/sales/confirm-order';
 import { createSalesOrder } from '../commands/sales/create-order';
 import { recordDealerOutstanding, setDealerTerms } from '../commands/sales/dealer-credit';
+import { setTarget } from '../commands/sales/set-target';
 import { createQuote } from '../commands/sales/create-quote';
 import { expireQuotes } from '../commands/sales/expire-quotes';
 import { releaseCredit } from '../commands/sales/release-credit';
@@ -215,6 +216,7 @@ export const commands = {
   [cancelSalesOrder.name]: cancelSalesOrder,
   [setDealerTerms.name]: setDealerTerms,
   [recordDealerOutstanding.name]: recordDealerOutstanding,
+  [setTarget.name]: setTarget,
   [recordAgentRun.name]: recordAgentRun,
   [approveInboxItem.name]: approveInboxItem,
   [editInboxItem.name]: editInboxItem,

@@ -174,6 +174,10 @@ export const salesOrders = pgTable(
       .where(sql`${t.state} in ${COUNTED}`),
     index('sales_orders_tier_idx').on(t.tierId),
     index('sales_orders_price_list_idx').on(t.priceListId),
+    // The orders a person confirmed in a period (the targets' orders and kW).
+    index('sales_orders_confirmed_by_idx')
+      .on(t.confirmedBy, t.confirmedAt)
+      .where(sql`${t.confirmedAt} is not null`),
   ],
 );
 

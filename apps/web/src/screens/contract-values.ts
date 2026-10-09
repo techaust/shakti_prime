@@ -49,6 +49,9 @@ import type {
   QuoteAcceptedVia,
   QuoteState,
   SalesOrderState,
+  TargetMetric,
+  TargetPeriod,
+  TargetScope,
   SavedViewScreen,
   Scope,
   ScoreFactor,
@@ -331,6 +334,16 @@ export const SALES_ORDER_STATES = [
   'closed',
   'cancelled',
 ] as const satisfies readonly SalesOrderState[];
+
+/** Whose a target is, what it counts and how long its period is (design §9, TEL-06). */
+export const TARGET_SCOPES = ['caller', 'team'] as const satisfies readonly TargetScope[];
+export const TARGET_METRICS = [
+  'calls',
+  'qualified',
+  'orders',
+  'kw',
+] as const satisfies readonly TargetMetric[];
+export const TARGET_PERIODS = ['day', 'week', 'month'] as const satisfies readonly TargetPeriod[];
 
 /** How a customer accepted a quote (SAL-05). */
 export const QUOTE_ACCEPTED_VIA = [

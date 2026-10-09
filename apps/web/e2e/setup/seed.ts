@@ -528,6 +528,25 @@ await ensureLead(
   '98765 40002',
 );
 
+progress('the tele-caller’s calls today');
+// Two calls the tele-caller logged today on her lead, written as the table owner so they exist
+// whatever the hour: the home page's progress counts them (targets.spec.ts). Calling itself is
+// possible only from 9 AM to 9 PM, so a journey cannot make them.
+await asMigrator(async (m) => {
+  const lead = await leadId(ids.teleCaller ?? '', 1, 'Kavita Saini');
+  const [outcome] = await m<{ id: string }[]>`
+    select id from call_dispositions
+     where entity_id is null and segment is null and archived_at is null
+     order by position limit 1`;
+  if (outcome === undefined) throw new Error('no call outcome seeded');
+  for (let n = 0; n < 2; n += 1) {
+    await m`insert into calls (id, entity_id, opportunity_id, caller_id, direction, number_series,
+                             disposition_id, attempt_no, started_at)
+            values (${newId()}, 1, ${lead}, ${ids.teleCaller ?? ''}, 'outbound', 'manual',
+                    ${outcome.id}, 1, now())`;
+  }
+});
+
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');
 

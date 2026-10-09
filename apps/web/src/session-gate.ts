@@ -26,6 +26,7 @@ export const BOS_PREFIXES = [
   '/quotes',
   '/orders',
   '/dealer-credit',
+  '/targets',
   '/converters',
   '/inbox',
   '/imports',

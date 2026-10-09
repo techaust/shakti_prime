@@ -147,6 +147,7 @@ Numbering: the letters say the area (CRM for leads and customers, CALL for tele-
 **CALL-6 · Targets and leaderboards** — Sales head, Owner
 - *Context:* each caller and team sees live progress against daily, weekly and monthly targets. The same targets later drive incentives.
 - *Needed:* the measures (calls made, leads qualified, orders, kW sold) and the numbers per caller level and team.
+- *Today:* no number is set; the Targets page takes them from the sales head, per caller and team, for a day, a week or a month. The measures are the calls a caller logged, the leads they moved to Qualified, the orders they confirmed and the kW of the leads those orders were for (the recommended kWp of a rooftop sizing, the motor kW of a pump sizing), for the sales head to confirm.
 
 **CALL-7 · Call volumes and team size** — Sales head
 - *Context:* the running-cost estimate assumes about 45 callers making about 4,500 dial attempts a day, about 2,500 of them answered, averaging 3 minutes.

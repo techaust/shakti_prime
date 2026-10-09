@@ -15,7 +15,7 @@ test.describe('as a tele-caller', () => {
     await page.goto('/home');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expectNoAxeViolations(page);
-    await snap(page, 'home-tele-caller');
+    // No screenshot: the page shows figures other journeys make, in an order CI does not fix (STATUS follow-up).
   });
 
   test('a screen the role may not open shows the not-found screen', async ({ page }) => {

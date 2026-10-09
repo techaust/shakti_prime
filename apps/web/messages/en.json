@@ -101,9 +101,6 @@
     "lead_missing": "We couldn't find this lead. It may have moved to a colleague or to another company.",
     "stage_not_open": "To close this lead, mark it as won or lost instead of moving it to that stage.",
     "assignee_not_eligible": "This person doesn't work on leads in this company. Choose someone who does.",
-    "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
-    "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
-    "reassign_same_person": "Choose someone other than the person who is leaving.",
     "sizing_incomplete": "The sizing is not finished. Complete the pump or solar sizing, then make the quote.",
     "pump_curve_out_of_bounds": "This pump can't lift the water at this depth and flow. Choose another pump or check the sizing.",
     "dcr_rule_failed": "This system doesn't meet the sanctioned load or the made-in-India panel rule for the subsidy. Check the sizing and the panels.",
@@ -112,6 +109,10 @@
     "quote_acceptance_missing": "Record how the customer accepted the quote: a WhatsApp reply, a WhatsApp code or a signed copy.",
     "quote_still_valid": "This quote is still valid, so it can't be marked as expired yet.",
     "order_needs_accepted_quote": "An order needs a quote the customer has accepted. Only dealers can order without a quote.",
+    "target_period_start": "A day, a Monday for a week or the 1st for a month starts a target. Choose this period or the next one.",
+    "target_subject_missing": "We could not find this person or team in the company. Refresh the page and choose again.",
+    "target_caller_no_team": "This person is not in a team yet, so a target cannot be set for them. Ask an Executive to add them to a team.",
+    "target_other_team": "You can set targets only for your own team and its callers.",
     "credit_limit_missing": "This dealer has no credit limit yet. Ask Accounts to set one, or ask an Executive to release the order.",
     "credit_limit_exceeded": "This order takes the dealer over their credit limit. Collect a payment first, or ask an Executive to release the order.",
     "credit_overdue": "This dealer has an invoice unpaid beyond their credit days. Collect that payment first, or ask an Executive to release the order.",
@@ -334,7 +335,10 @@
     "order_not_held": "This order is not held for credit, so there is nothing to release.",
     "order_credit_clear": "This order is within the dealer's credit, so it can be confirmed.",
     "credit_not_dealer": "Credit limits and outstanding are only kept for dealers.",
-    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at."
+    "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at.",
+    "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
+    "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
+    "reassign_same_person": "Choose someone other than the person who is leaving."
   },
   "auth": {
     "signIn": {
@@ -429,6 +433,7 @@
     "knowledge": "Knowledge",
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
+    "targets": "Targets",
     "converters": "Lead converters"
   },
   "shell": {
@@ -500,7 +505,74 @@
       "knowledge": "Search what the business knows, from the files in the Knowledge Vault.",
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
+      "targets": "Set what each caller and team is aiming for, and see what was set before.",
       "converters": "Choose who takes qualified leads, how many each person takes and who is present."
+    },
+    "progress": {
+      "period": {
+        "day": "Today",
+        "week": "This week",
+        "month": "This month"
+      },
+      "range": "{from} to {to}",
+      "of": "{actual} of {target}",
+      "ofShort": "of {target} ({percent}%)",
+      "met": "Target met"
+    },
+    "caller": {
+      "queueHeading": "Your calls",
+      "callsToday": "Calls today",
+      "due": "Calls due now",
+      "late": "First calls late",
+      "waiting": "Leads waiting",
+      "openQueue": "Open your calls",
+      "targetsHeading": "Your targets",
+      "targetsEmpty": "No target is set for you yet. Your team lead sets your targets, and they show here with your progress."
+    },
+    "lead": {
+      "teamHeading": "Your team",
+      "periodLabel": "Period",
+      "setTargets": "Set targets",
+      "noTeam": "You are not in a team yet. Ask an Executive to add you to one.",
+      "teamTargets": "Targets of {team}",
+      "teamNoTarget": "No target is set for the team. Set one on the Targets page.",
+      "noCallers": "No callers in this team yet.",
+      "leaderboardCaption": "Callers of your team with their {metric} for {period}, each against their target",
+      "rank": "Rank",
+      "caller": "Caller",
+      "queuesHeading": "Queues of your team"
+    },
+    "manager": {
+      "responseHeading": "First calls",
+      "noLimit": "No time limit for the first call is set. Set one for each pipeline on Pipelines in Settings.",
+      "waitingPastLimit": "Leads still waiting for a first call past the limit",
+      "calledLate": "First calls made late in the last 30 days",
+      "pipelineHeading": "Open leads by stage"
+    },
+    "pipeline": {
+      "empty": "There are no open leads yet.",
+      "caption": "Open leads in each stage of {pipeline}",
+      "pipelineIn": "{pipeline} in {company}",
+      "stage": "Stage",
+      "leads": "Open leads"
+    },
+    "accounts": {
+      "heading": "Dealer credit",
+      "open": "Open dealer credit",
+      "held": "Orders held for credit",
+      "overLimit": "Dealers over their limit",
+      "overdue": "Dealers with an overdue invoice"
+    },
+    "executive": {
+      "salesHeading": "Quotes and orders",
+      "caption": "Quotes and orders by company",
+      "company": "Company",
+      "quotesSent": "Quotes waiting for an answer",
+      "quotesAccepted": "Quotes accepted this month",
+      "ordersConfirmed": "Orders confirmed this month",
+      "ordersValue": "Value of orders confirmed this month",
+      "group": "All companies",
+      "pipelineHeading": "Open leads by stage"
     }
   },
   "profile": {
@@ -1262,20 +1334,6 @@
       "liftLock": "Lift sign-in lock",
       "moveLeads": "Move all leads"
     },
-    "moveLeadsDialog": {
-      "title": "Move all leads from {name}",
-      "intro": "Every open lead and every lead set aside to follow up later goes to the person you choose, with its calls. The customer goes with each lead.",
-      "introInTurn": "Every open lead and every lead set aside to follow up later is shared between the Lead Converters who are present and take it, with its calls. The customer goes with each lead.",
-      "company": "Company",
-      "target": "Give the leads to",
-      "choose": "Choose a person",
-      "inTurn": "Share them between the Lead Converters who are present",
-      "loading": "Finding people",
-      "nobody": "No one else works on leads in this company.",
-      "submit": "Move leads",
-      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}{remaining, plural, =0 {} one { One lead is still with {name}. Run Move all leads again to move it.} other { # leads are still with {name}. Run Move all leads again to move them.}}",
-      "doneTeamOnly": "Leads outside your team stay with {name}."
-    },
     "rolesField": {
       "legend": "Role in each company",
       "helper": "Choose No access for a company this person does not work in.",
@@ -1346,6 +1404,20 @@
         "absolute_expiry": "Signed in for seven days",
         "timedOut": "Not used for a while"
       }
+    },
+    "moveLeadsDialog": {
+      "title": "Move all leads from {name}",
+      "intro": "Every open lead and every lead set aside to follow up later goes to the person you choose, with its calls. The customer goes with each lead.",
+      "introInTurn": "Every open lead and every lead set aside to follow up later is shared between the Lead Converters who are present and take it, with its calls. The customer goes with each lead.",
+      "company": "Company",
+      "target": "Give the leads to",
+      "choose": "Choose a person",
+      "inTurn": "Share them between the Lead Converters who are present",
+      "loading": "Finding people",
+      "nobody": "No one else works on leads in this company.",
+      "submit": "Move leads",
+      "done": "{count, plural, =0 {{name} had no leads to move.} one {# lead moved from {name}.} other {# leads moved from {name}.}}{remaining, plural, =0 {} one { One lead is still with {name}. Run Move all leads again to move it.} other { # leads are still with {name}. Run Move all leads again to move them.}}",
+      "doneTeamOnly": "Leads outside your team stay with {name}."
     }
   },
   "activity": {
@@ -1479,10 +1551,6 @@
       "customerMerge": "Customers merged",
       "customerUnmerge": "Customer merge undone",
       "leadMerge": "Leads merged",
-      "callerProfileSet": "Lead converter settings changed",
-      "callerProfileSetPresence": "Presence changed",
-      "leadHandOver": "Qualified lead given to a Lead Converter",
-      "leadReassignAll": "All leads of a person moved",
       "accountTierSet": "Customer's price tier set",
       "quoteCreate": "Quote made",
       "quoteSend": "Quote marked as sent",
@@ -1508,6 +1576,7 @@
       "orderCancel": "Order cancelled",
       "dealerTermsSet": "Dealer's credit limit and days entered",
       "dealerOutstandingRecord": "Dealer's outstanding entered",
+      "targetSet": "Target set for a caller or a team",
       "inboxComplete": "Passed-on enquiry marked done",
       "enquiryRoute": "Enquiry passed to the colleague who looks after the customer",
       "noticesSend": "Notices sent",
@@ -1517,7 +1586,11 @@
       "noticesReadAll": "All notices marked as read",
       "noticeSettingsSet": "Notification settings changed",
       "pushSubscribe": "Alerts turned on for a browser",
-      "pushUnsubscribe": "Alerts turned off for a browser"
+      "pushUnsubscribe": "Alerts turned off for a browser",
+      "callerProfileSet": "Lead converter settings changed",
+      "callerProfileSetPresence": "Presence changed",
+      "leadHandOver": "Qualified lead given to a Lead Converter",
+      "leadReassignAll": "All leads of a person moved"
     },
     "events": {
       "entityUpdated": "Company details changed",
@@ -1589,11 +1662,6 @@
       "empty": "Not set"
     },
     "fields": {
-      "isConverter": "Takes qualified leads",
-      "presence": "Presence",
-      "maxOpen": "Most open leads",
-      "languages": "Languages",
-      "segments": "Business lines",
       "displayName": "Name",
       "email": "Email",
       "phone": "Phone",
@@ -1796,7 +1864,17 @@
       "centreOff": "Kinds of notice hidden",
       "pushOff": "Kinds of notice not sent as alerts",
       "quietFrom": "Quiet from",
-      "quietTo": "Quiet until"
+      "quietTo": "Quiet until",
+      "targetScope": "Target for",
+      "targetMetric": "What it counts",
+      "targetPeriod": "Period",
+      "startsOn": "From",
+      "targetValue": "Target",
+      "isConverter": "Takes qualified leads",
+      "presence": "Presence",
+      "maxOpen": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines"
     },
     "values": {
       "percent": "{value}%",
@@ -3040,9 +3118,10 @@
       "crm_duplicates_scan": "Look for duplicate customers and leads each night",
       "sales_quote_expire": "Mark quotes past their validity as expired each day",
       "knowledge_index": "Read Knowledge Vault files so they can be searched",
-      "crm_handover_run": "Give a qualified lead to a Lead Converter",
       "sales_credit_write": "Enter dealer credit limits and outstanding",
-      "notifications_send": "Send notices to the people who act on them"
+      "sales_targets_write": "Set the targets of callers and teams",
+      "notifications_send": "Send notices to the people who act on them",
+      "crm_handover_run": "Give a qualified lead to a Lead Converter"
     },
     "empty": "There are no roles to show.",
     "locked": {
@@ -3711,15 +3790,15 @@
       "dueHelper": "Date and time in India.",
       "titleHelper": "Up to {max} characters. Leave it empty for no note.",
       "routedFrom": "Enquiry passed to you",
-      "handoverFrom": "Qualified lead with no Lead Converter free",
-      "handoverFor": "{customer} is ready for a quote",
       "routedFor": "{customer} asked again",
       "routedUnknown": "A customer you look after asked again",
       "routedInterest": "Interested in",
       "routedNote": "Note",
       "routedReceived": "Passed on",
       "routedComplete": "Done",
-      "routedDone": "Marked done."
+      "routedDone": "Marked done.",
+      "handoverFrom": "Qualified lead with no Lead Converter free",
+      "handoverFor": "{customer} is ready for a quote"
     },
     "admin": {
       "title": "Agents",
@@ -4059,55 +4138,6 @@
       "made": "Order {number} made."
     }
   },
-  "converters": {
-    "title": "Lead converters",
-    "intro": "A qualified lead goes to a Lead Converter who is present, has room and takes the customer's language and business line, starting with the one who holds the fewest open leads. If no one qualifies, it goes to the Sales Team Lead.",
-    "caption": "People who work on leads and their part in the handover",
-    "company": "Company",
-    "empty": "No one works on leads in this company yet.",
-    "columns": {
-      "name": "Name",
-      "converter": "Lead Converter",
-      "presence": "Presence",
-      "capacity": "Most open leads",
-      "languages": "Languages",
-      "segments": "Business lines",
-      "actions": "Actions"
-    },
-    "yes": "Yes",
-    "no": "No",
-    "present": "Present",
-    "away": "Away",
-    "noLimit": "No limit",
-    "allLanguages": "All languages",
-    "allSegments": "All business lines",
-    "edit": "Edit",
-    "editLabel": "Edit settings for {name}",
-    "moveLeads": "Move all leads",
-    "moveLeadsLabel": "Move all leads from {name}",
-    "language": {
-      "hinglish": "Hindi and English mixed",
-      "en": "English"
-    },
-    "segment": {
-      "farmer_pumps": "Farmer pumps",
-      "residential_rooftop": "Home rooftop solar",
-      "commercial_epc": "Commercial solar projects",
-      "dealer_wholesale": "Dealers and wholesale"
-    },
-    "dialog": {
-      "title": "Settings for {name}",
-      "intro": "Presence is switched by the person themself on their profile.",
-      "isConverter": "Takes qualified leads",
-      "maxOpen": "Most open leads",
-      "maxOpenHelper": "Leave empty for no limit.",
-      "languages": "Languages taken",
-      "segments": "Business lines taken",
-      "takesAllHelper": "Choose none to take all.",
-      "submit": "Save",
-      "done": "Settings for {name} are saved."
-    }
-  },
   "dealerCredit": {
     "title": "Dealer credit",
     "intro": "Each dealer's credit limit and days, what they owe, and their orders since. Orders over the limit or with an invoice unpaid beyond the credit days are held until paid or released.",
@@ -4174,6 +4204,131 @@
       "noOutstanding": "No outstanding entered yet.",
       "outstandingLine": "{amount} as of {date}",
       "entered": "Entered {time} by {name}"
+    }
+  },
+  "targets": {
+    "title": "Targets",
+    "intro": "Set what each caller and each team is aiming for: calls, leads qualified, orders confirmed and kW sold. Progress shows on their home page as they work.",
+    "introCompany": "Set what each caller and each team of {company} is aiming for. Progress shows on their home page as they work.",
+    "companyLabel": "Company",
+    "metric": {
+      "calls": "Calls",
+      "qualified": "Leads qualified",
+      "orders": "Orders confirmed",
+      "kw": "kW sold"
+    },
+    "period": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "scope": {
+      "caller": "Caller",
+      "team": "Team"
+    },
+    "form": {
+      "heading": "Set a target",
+      "noSubjects": "There are no callers or teams to set a target for yet. Add people to a team in Team members.",
+      "subject": "For",
+      "subjectChoose": "Choose a caller or a team",
+      "subjectMissing": "Choose who the target is for.",
+      "teams": "Teams",
+      "callers": "Callers",
+      "metric": "What to count",
+      "period": "Every",
+      "from": "Starting",
+      "fromHelper": "The target holds for this period and every one after it, until you set a new one.",
+      "thisPeriod": {
+        "day": "Today ({date})",
+        "week": "This week, from {date}",
+        "month": "This month, from {date}"
+      },
+      "nextPeriod": {
+        "day": "Tomorrow ({date})",
+        "week": "Next week, from {date}",
+        "month": "Next month, from {date}"
+      },
+      "value": "Target",
+      "valueHelper": "A number, such as 40 calls or 12.5 kW. Enter 0 to take a target away.",
+      "valueInvalid": "Enter a number with at most two decimals, such as 40 or 12.5.",
+      "save": "Save target",
+      "saved": "The target is saved.",
+      "removed": "The target is taken away."
+    },
+    "current": {
+      "heading": "Targets now",
+      "caption": "Targets in force today",
+      "empty": "No targets are set yet. Choose who it is for and what to count above."
+    },
+    "history": {
+      "heading": "Recently set",
+      "intro": "The 30 targets set most recently, newest first. A newer target replaces an older one from its starting date.",
+      "caption": "Targets set, newest first",
+      "empty": "Nothing has been set yet."
+    },
+    "table": {
+      "subject": "For",
+      "metric": "Counts",
+      "period": "Every",
+      "from": "Starting",
+      "value": "Target",
+      "setByHeading": "Set by",
+      "setBy": "{name}, {time}",
+      "removedValue": "Taken away",
+      "unknownPerson": "Someone no longer here",
+      "scope": {
+        "caller": "Caller",
+        "team": "Team"
+      }
+    }
+  },
+  "converters": {
+    "title": "Lead converters",
+    "intro": "A qualified lead goes to a Lead Converter who is present, has room and takes the customer's language and business line, starting with the one who holds the fewest open leads. If no one qualifies, it goes to the Sales Team Lead.",
+    "caption": "People who work on leads and their part in the handover",
+    "company": "Company",
+    "empty": "No one works on leads in this company yet.",
+    "columns": {
+      "name": "Name",
+      "converter": "Lead Converter",
+      "presence": "Presence",
+      "capacity": "Most open leads",
+      "languages": "Languages",
+      "segments": "Business lines",
+      "actions": "Actions"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "present": "Present",
+    "away": "Away",
+    "noLimit": "No limit",
+    "allLanguages": "All languages",
+    "allSegments": "All business lines",
+    "edit": "Edit",
+    "editLabel": "Edit settings for {name}",
+    "moveLeads": "Move all leads",
+    "moveLeadsLabel": "Move all leads from {name}",
+    "language": {
+      "hinglish": "Hindi and English mixed",
+      "en": "English"
+    },
+    "segment": {
+      "farmer_pumps": "Farmer pumps",
+      "residential_rooftop": "Home rooftop solar",
+      "commercial_epc": "Commercial solar projects",
+      "dealer_wholesale": "Dealers and wholesale"
+    },
+    "dialog": {
+      "title": "Settings for {name}",
+      "intro": "Presence is switched by the person themself on their profile.",
+      "isConverter": "Takes qualified leads",
+      "maxOpen": "Most open leads",
+      "maxOpenHelper": "Leave empty for no limit.",
+      "languages": "Languages taken",
+      "segments": "Business lines taken",
+      "takesAllHelper": "Choose none to take all.",
+      "submit": "Save",
+      "done": "Settings for {name} are saved."
     }
   }
 }
