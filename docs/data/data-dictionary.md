@@ -3028,7 +3028,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_actions
 
-**Catalogue entry** (05-database.md §6.9; created in 0107; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `executed`, `approved`, `rejected`, `dismissed`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
+**Catalogue entry** (05-database.md §6.9; created in 0107; append-only but its decision): `entity_id`, `run_id` (composite key with `entity_id`), `agent`, `action_type`, `input_json`, `autonomy`, `state` (`proposed`, `shadowed`, `executed`, `approved`, `rejected`, `dismissed`, the `agent_action` machine), `edited`, `decided_input_json`, `decided_by`, `decided_at`
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3091,7 +3091,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_configs
 
-**Catalogue entry** (05-database.md §6.9; created in 0107): `agent` (an agent's role key, null for every agent), `action_type` (the command an action runs, null for every one), `entity_id` (null for the group), `autonomy` (`suggest`, `needs_approval`, `automatic`), `daily_spend_cap_paise`, `enabled` (the kill switch); one row per agent, action type and company (§4.4)
+**Catalogue entry** (05-database.md §6.9; created in 0107): `agent` (an agent's role key, null for every agent), `action_type` (the command an action runs, null for every one), `entity_id` (null for the group), `autonomy` (`shadow`, `suggest`, `needs_approval`, `automatic`), `daily_spend_cap_paise`, `enabled` (the kill switch); one row per agent, action type and company (§4.4)
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|
@@ -3185,7 +3185,7 @@ Every table built so far, by module, with its columns, keys, constraints, indexe
 
 ### agent_runs
 
-**Catalogue entry** (05-database.md §6.9; created in 0107; append-only): `entity_id`, `agent`, `principal_id`, `purpose` (a code), `action_type`, `model`, `tokens_in`, `tokens_out`, `cost_paise`, `outcome` (`proposed`, `acted`, `nothing_to_do`, `switched_off`, `cap_reached`, `unavailable`, `failed`), `duration_ms`, `request_id`; no prompt or answer text
+**Catalogue entry** (05-database.md §6.9; created in 0107; append-only): `entity_id`, `agent`, `principal_id`, `purpose` (a code), `action_type`, `model`, `tokens_in`, `tokens_out`, `cost_paise`, `outcome` (`proposed`, `shadowed`, `acted`, `nothing_to_do`, `filtered`, `switched_off`, `cap_reached`, `unavailable`, `failed`), `filter_reason` (A1: why the output filter refused the proposal, a code, only for `filtered`), `duration_ms`, `request_id`; no prompt or answer text
 
 | Column | Type | Null | Default | Key |
 |---|---|---|---|---|

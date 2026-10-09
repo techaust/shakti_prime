@@ -69,7 +69,20 @@ interface Row {
  * The shadowed actions of the period with the lead as it stands, and whether people bore each
  * out. One statement for the page and the summary alike, so the two never disagree.
  */
-export function shadowedSql(entityId: number, from: string, until: string) {
+export function shadowedSql(
+  entityId: number,
+  from: string,
+  until: string,
+  page?: { after: { t: string; id: string } | undefined; limit: number },
+) {
+  // A page takes its rows off `agent_actions_shadow_idx` first, then reads their leads; the
+  // summary reads the whole period.
+  const keyset =
+    page?.after === undefined
+      ? sql``
+      : sql`and (a.created_at, a.id) < (${page.after.t}::timestamptz, ${page.after.id}::uuid)`;
+  const paged =
+    page === undefined ? sql`` : sql`order by a.created_at desc, a.id desc limit ${page.limit}`;
   const assign = TRIAGE_ACTION_TYPES.assignee;
   const pipeline = TRIAGE_ACTION_TYPES.pipeline;
   const score = TRIAGE_ACTION_TYPES.score;
@@ -106,7 +119,12 @@ export function shadowedSql(entityId: number, from: string, until: string) {
                end
              else 'pending'
            end as agreement
-      from agent_actions a
+      from (
+        select a.* from agent_actions a
+         where a.entity_id = ${entityId} and a.agent = 'agent:triage' and a.state = 'shadowed'
+           and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz
+           ${keyset}
+         ${paged}) a
       left join opportunities o
         on o.id = (a.input_json ->> 'opportunityId')::uuid and o.entity_id = a.entity_id
       left join pipelines p on p.id = o.pipeline_id
@@ -123,9 +141,7 @@ export function shadowedSql(entityId: number, from: string, until: string) {
        and d.opportunity_id = least((a.input_json ->> 'opportunityId')::uuid,
                                     (a.input_json ->> 'otherOpportunityId')::uuid)
        and d.other_opportunity_id = greatest((a.input_json ->> 'opportunityId')::uuid,
-                                             (a.input_json ->> 'otherOpportunityId')::uuid)
-     where a.entity_id = ${entityId} and a.agent = 'agent:triage' and a.state = 'shadowed'
-       and a.created_at >= ${from}::timestamptz and a.created_at < ${until}::timestamptz`;
+                                             (a.input_json ->> 'otherOpportunityId')::uuid)`;
 }
 
 const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -186,10 +202,8 @@ export async function shadowReport(ctx: Ctx, rawInput: unknown): Promise<ShadowR
   const base = shadowedSql(input.entityId, from, until);
 
   const page = (await ctx.tx.execute(sql`
-    select * from (${base}) s
-     ${after === undefined ? sql`` : sql`where (s.created_at, s.id) < (${after.t}::timestamptz, ${after.id}::uuid)`}
-     order by s.created_at desc, s.id desc
-     limit ${input.limit + 1}`)) as unknown as Row[];
+    select * from (${shadowedSql(input.entityId, from, until, { after, limit: input.limit + 1 })}) s
+     order by s.created_at desc, s.id desc`)) as unknown as Row[];
 
   const counts = (await ctx.tx.execute(sql`
     select s.action_type, s.agreement, count(*)::int as n from (${base}) s

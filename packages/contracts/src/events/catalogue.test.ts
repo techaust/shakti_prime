@@ -54,6 +54,7 @@ describe('the event catalogue', () => {
       [
         'crm.duplicate.found',
         'crm.enquiry.routed',
+        'crm.lead.created',
         'crm.opportunity.assigned',
         'crm.opportunity.stage_moved',
         'files.file.uploaded',

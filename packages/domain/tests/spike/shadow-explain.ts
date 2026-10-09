@@ -119,7 +119,8 @@ async function main() {
   const from = istStart(monthAgo);
   const until = istEndAfter(today);
   const base = shadowedSql(E, from, until);
-  const page = sql`select * from (${base}) s order by s.created_at desc, s.id desc limit 51`;
+  const page = sql`select * from (${shadowedSql(E, from, until, { after: undefined, limit: 51 })}) s
+                     order by s.created_at desc, s.id desc`;
   const summary = sql`select s.action_type, s.agreement, count(*)::int from (${base}) s
                        group by s.action_type, s.agreement`;
   const refused = sql`select r.action_type, r.filter_reason, count(*)::int from agent_runs r
