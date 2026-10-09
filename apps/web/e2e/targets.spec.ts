@@ -46,7 +46,9 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
     }) => {
       await page.goto('/home');
       await expect(page.getByRole('heading', { name: /^Welcome, / })).toBeVisible();
-      await expect(page.getByRole('heading', { name: 'Your team', level: 2 })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Your team', level: 2, exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByText('No target is set for the team. Set one on the Targets page.'),
       ).toBeVisible();
@@ -136,8 +138,12 @@ test.describe('the General Manager’s home', () => {
     await expect(
       page.getByRole('heading', { name: 'Open leads by stage', level: 2 }),
     ).toBeVisible();
-    // No client limit is given yet, so none is invented: the page says how to set one.
-    await expect(page.getByText(/^No time limit for the first call is set\./)).toBeVisible();
+    // No limit is invented: the page shows the figures when a pipeline sets one, else says so.
+    await expect(
+      page
+        .getByText(/^No time limit for the first call is set./)
+        .or(page.getByText('Leads still waiting for a first call past the limit')),
+    ).toBeVisible();
     await expectNoAxeViolations(page);
     await snap(page, 'home-general-manager', {
       mask: [page.locator('main table'), page.locator('main dl'), page.locator('time')],

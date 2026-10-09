@@ -158,8 +158,17 @@ async function Leaderboard({ team }: { team: TeamProgressDto }) {
   const p = await getTranslations('home.progress');
   if (team.leaderboard.length === 0) return <EmptyState message={t('noCallers')} />;
   const number = 'px-3 py-2 text-right tabular-nums';
+  const caption = t('leaderboardCaption', {
+    metric: m(team.metric),
+    period: p(`period.${team.period}`),
+  });
   return (
-    <div className="border-border bg-surface overflow-x-auto rounded-lg border">
+    <div
+      role="region"
+      aria-label={caption}
+      tabIndex={0}
+      className="border-border bg-surface overflow-x-auto rounded-lg border"
+    >
       <table className="w-full min-w-xl text-sm">
         <caption className="sr-only">
           {t('leaderboardCaption', { metric: m(team.metric), period: p(`period.${team.period}`) })}
@@ -371,7 +380,12 @@ export async function ExecutiveSection({
   return (
     <>
       <HomeBlock id="home-executive-sales" title={t('salesHeading')}>
-        <div className="border-border bg-surface overflow-x-auto rounded-lg border">
+        <div
+          role="region"
+          aria-label={t('caption')}
+          tabIndex={0}
+          className="border-border bg-surface overflow-x-auto rounded-lg border"
+        >
           <table className="w-full min-w-xl text-sm">
             <caption className="sr-only">{t('caption')}</caption>
             <thead className="bg-surface-2 text-text-muted">

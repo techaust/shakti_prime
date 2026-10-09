@@ -230,7 +230,12 @@ function Table({
 }) {
   const t = useTranslations('targets.table');
   return (
-    <div className="border-border bg-surface overflow-x-auto rounded-lg border">
+    <div
+      role="region"
+      aria-label={caption}
+      tabIndex={0}
+      className="border-border bg-surface overflow-x-auto rounded-lg border"
+    >
       <table className="w-full min-w-xl text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-surface-2 text-text-muted">
