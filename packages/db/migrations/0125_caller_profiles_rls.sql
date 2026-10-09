@@ -38,6 +38,10 @@ create or replace function app.caller_profiles_guard() returns trigger
 begin
   new.updated_at := pg_catalog.now();
   new.updated_by := coalesce(app.user_id(), new.updated_by);
+  -- Only a request is held to this; the table owner (the seeds, a repair) is not.
+  if current_user <> 'app_user' then
+    return new;
+  end if;
   if new.user_id is distinct from old.user_id or new.entity_id is distinct from old.entity_id then
     raise exception 'a profile stays with its person and company' using errcode = 'insufficient_privilege';
   end if;
