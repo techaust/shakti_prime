@@ -40,6 +40,48 @@ Not in A1: the Concierge and Co-pilot (Phase 2), any automatic action by Triage,
 
 ## Report
 
+### 09-10-2026, cloud VM (worktree /home/user/shakti-wt/a1-triage, Postgres 54333)
+Skills loaded: `add-command`, `add-table`, `claude-api` (model id check: the wrapper keeps `claude-haiku-4-5-20251001`), `supabase-postgres-best-practices`.
+
+**Built** (design record: `docs/03-roadmap-appendix/phase1.md` §9 "Built (A1)"):
+- Shadow, a rollout level below Suggest: migrations `0128_a1_triage_shadow.sql` (autonomy `shadow`, state `shadowed`, outcomes `shadowed` and `filtered`, `agent_runs.filter_reason` with its checks, `agent_actions_shadow_check`, `agent_actions_shadow_idx`) and `0129_a1_triage_shadow_rls.sql` (insert policy with `shadowed`; trigger definer `app.inbox_item_not_shadowed()`, listed in DATABASE's exceptions); `packages/db/src/schema/agents.ts`; machine `agent_action` (`shadow` from `proposed`, terminal; `machines:docs` regenerated); contracts `packages/contracts/src/agents.ts` (`AGENT_FILTER_REASONS`, `filterReason` on `RecordAgentRunInput`, `shadowOnly` on the settings DTO) and `packages/contracts/src/triage.ts`; `agents.run.record` records Shadow and filtered runs and now checks every permission an action needs; `AGENT_DEFAULTS.startingAutonomy` (Triage in Shadow) and `AGENT_DEFAULTS.triage`; `ai/config.ts` (starting autonomy, shadow-only clamp); `agents.config.set` refuses a non-Shadow autonomy on a shadow-only kind (`agent_action_shadow_only`); Admin › Agents offers Shadow and shows the two shadow-only kinds read-only, with a Triage proposals button.
+- The Triage agent: `packages/domain/src/ai/triage/` (`facts.ts`, `read-facts.ts`, `prompt.ts`, `filter.ts`, `run-triage.ts`, `evaluate.ts`); action types in `ai/action-types.ts` (restructured: `name`, `input`, `requirements`, optional `command`); runtime `decide` may return `{ filtered }`; worker `apps/web/src/workers/triage/triage-event.ts`, registered for `crm.lead.created` (now subscribed).
+- Shadow report: `packages/domain/src/queries/agents/shadow-report.ts` (`loadShadowReport`), action `shadowReport` in `apps/web/src/actions/agents.ts`, page `apps/web/src/app/(bos)/admin/agents/shadow/`, `components/agents/shadow-report-screen.tsx`, `screens/shadow-report.ts`; budget entry in `js-budget.json`.
+- AI spend: `queries/agents/spend.ts` (`readAgentSpend`), `AgentSpend` contract (company, runs, both limits), Integration health section in `components/integrations/integrations-screen.tsx`.
+- Eval and injection sets: `packages/domain/tests/fixtures/triage-sets.ts` (5 eval, 14 injection cases), `scripts/eval-triage.ts` (`pnpm --filter @shakti/domain eval:triage`, by hand only; not run: no key here), plan spike `tests/spike/shadow-explain.ts` (`spike:shadow`).
+- Copy in `en.json`; documents: phase1 §9 Built, DATABASE, SECURITY §3.3 (new "The Triage agent") and §6, API (§3.6 agents row, Integration health row), TESTING, ARCHITECTURE, PRD trace AI-04/AI-05, `db:docs`, `machines:docs`.
+
+**Tests added:** unit `filter.test.ts` (10), `prompt.test.ts` (4), `triage-sets.test.ts` (21: 19 cases + 2), `action-types.test.ts` (+2), `screens/shadow-report.test.ts` (3), contract-values (+3); Postgres `tests/commands/triage.test.ts` (9), `tests/queries/shadow-report.test.ts` (7), reader parity (+3 reads), `db/tests/security/agents.test.ts` Shadow (3), `apps/web/tests/triage.test.ts` (2); journey `e2e/triage.spec.ts` (4 tests × 3 projects).
+
+**Checks** (through the lock, final round unless said):
+- typecheck (turbo, forced): 8 of 8 successful.
+- unit (turbo, forced): tokens 134, copy-lint 17, contracts 181, ui 106, db 130, domain 75 files / 2,041, web 100 files / 741 + 1 skipped — all passed.
+- security suite on 54333: db 40 files / 1,195 passed; domain 70 of 71 files, 920 of 921 (the one failure `import-kinds.test.ts` "adds the different site of a repeated row" matched a customer earlier runs left by name and village on this long-lived database; it passed in the first round and A1 touches no import code); web 21 of 22 files, 301 of 302 (`outbox-event-route.test.ts` used `crm.lead.created` as an unhandled type; fixed to `pricing.price.changed` after the run, **that file not rerun yet**, see below).
+- build passed; js-budget: every page within its budget (45), `/admin/agents/shadow` 235.6 kB of 248, `/admin/agents` 230.0 of 238, `/admin/integrations` 234.3 of 240.
+- journeys `e2e/triage.spec.ts`, `agents.spec.ts`, `integrations.spec.ts` (fresh seed, this VM, not the Playwright image): 43 passed, 2 skipped, 9 failed, every failure a screenshot only: `admin-agents` and `integration-health` (×3 projects: the screens gained the Triage action types and the AI spend section; baselines need remaking), `triage-proposals` (new; the baselines this run wrote were removed from the branch: made outside the Linux image on a database polluted by earlier suite runs), and phone `agent-inbox` (anti-aliasing differences over the whole page in this VM; that screen is unchanged by A1). Axe passed on every new screen.
+- `pnpm lint` (whole repository, final): passed, no warnings. `pnpm format:check` clean. `pnpm copy-lint` clean. `check-doc-links.py`: 0 bad.
+
+**EXPLAIN (ANALYZE)** (`pnpm --filter @shakti/domain spike:shadow`: company 2, 3,000 leads, 12,000 shadowed actions and 3,000 refused runs over 60 days, 20,000 other runs; under RLS): report first page of 30 days as the Executive 16.3 ms and as the GM 11.9 ms (Bitmap Index Scan on `agent_actions_shadow_idx`, page limited before the leads are joined); summary of 30 days 20.4 ms (same index); refused runs 2.7 ms (`agent_runs_agent_day_idx`); AI spend this month 7.4 ms (`agent_runs_entity_created_idx`).
+
+**Unfinished or uncertain:**
+- `apps/web/tests/outbox-event-route.test.ts` after its one-line fix, waiting for L1's run to release the lock (the lead's instruction) — rerun below if it completes in time.
+- Linux baselines `triage-proposals`, `admin-agents`, `integration-health` (×3) to be made at integration on a fresh database.
+- The local database's migration `0128` was edited after it ran (two checks rewritten as not-equal tests for the enum pairing); I applied the same change and its hash to this database by hand with psql. A fresh database applies the file as it is; the lead's fresh-database run is the proof.
+- `eval:triage` against the live model was not run (no key; never in CI).
+- Imports emit `crm.lead.created` per row, so each imported lead is triaged too; with no limit set every run is recorded as stopped by the limit (four `agent_runs` rows a lead). A large import therefore writes many runs; whether imported leads should be triaged at all is for the lead or owner.
+
+**Decisions the brief left open:**
+- Shadow is an autonomy below Suggest (not a flag), with its own action state and run outcome; the Triage agent starts there through `AGENT_DEFAULTS.startingAutonomy`; every other agent still starts at Suggest.
+- No command exists to move a lead between pipelines or to change a score by hand, so the pipeline and score proposals are shadow-only kinds (`triage.pipeline.choose`, `triage.score.adjust`) that run no command and can never leave Shadow; the assignee and duplicate proposals wrap `crm.opportunity.assign` and `crm.duplicate.suggest`. Adding real commands for the two would be a later slice's choice.
+- Score bounds: a change of at most 10 points (`AGENT_DEFAULTS.triage.scoreAdjustmentMax`, flagged for the owner), the result within 0 to 100; a zero change proposes nothing.
+- One model call per lead shared by the four kinds; four runtime steps (one per action type, keyed by the event), the cost on the run that asked.
+- Duplicate links: only D1's open lead-pair cards between this lead and another open lead (the agent reads no customers, so customer-pair cards are out of its sight); at most one duplicate proposal a lead.
+- Eligible assignees: active people whose role in the company holds `crm.lead.write` (as `crm.opportunity.assign` accepts), fewest open leads first, at most 30, by label only. Raised to Suggest or Needs approval, the assignment item is the company's, never the proposed person's.
+- Agreement rules of the report (stated in the design record and the query); filtered proposals are kept as a reason code only, never their content.
+- `AGENT_MATRIX['agent:triage']` unchanged: each of its four grants is needed by a proposal kind.
+- No default daily limit for the Triage agent: as AI0 rules, no limit means no call, so an Executive sets one on Admin › Agents to start it.
+- Two existing sentences changed for Shadow (`agents.admin.automaticUnavailable`, `errors.autonomy_automatic_unavailable`).
+
 ## Review
 | # | Severity | Finding | State |
 |---|---|---|---|
