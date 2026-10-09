@@ -37,6 +37,9 @@ import { SessionsSheet } from './sessions-sheet';
 import {
   InviteForm,
   LiftLockForm,
+  MoveLeadsForm,
+  moveLeadsCompanies,
+  useMoveLeadsNotice,
   ReactivateForm,
   ResetAuthenticatorForm,
   RolesForm,
@@ -58,7 +61,7 @@ const INVITE = 'invite';
 type Open =
   | { kind: 'invite' }
   | {
-      kind: 'roles' | 'suspend' | 'reactivate' | 'reset' | 'liftLock' | 'sessions';
+      kind: 'roles' | 'suspend' | 'reactivate' | 'reset' | 'liftLock' | 'sessions' | 'moveLeads';
       user: UserDto;
     };
 
@@ -85,6 +88,7 @@ export function UsersScreen({
   const t = useTranslations('users');
   const common = useTranslations('common');
   const roles = useTranslations('roles');
+  const moveNotice = useMoveLeadsNotice();
   const [rows, setRows] = useState(initial.items);
   const [nextCursor, setNextCursor] = useState(initial.nextCursor);
   const [open, setOpen] = useState<Open | undefined>(
@@ -303,6 +307,16 @@ export function UsersScreen({
                   toast.success(t('reactivateDialog.done', { name: user.displayName }));
                 }}
               />
+            ) : dialog.kind === 'moveLeads' ? (
+              <MoveLeadsForm
+                user={dialog.user}
+                offered={moveLeadsCompanies(dialog.user, companies)}
+                onCancel={close}
+                onDone={(result) => {
+                  close();
+                  toast.success(moveNotice(result, dialog.user.displayName));
+                }}
+              />
             ) : dialog.kind === 'reset' ? (
               <ResetAuthenticatorForm
                 user={dialog.user}
@@ -384,6 +398,7 @@ function RowMenu({
         {can.changeRoles ? item('roles', t('changeRoles')) : null}
         {item('sessions', t('sessions'))}
         {can.liftLock ? item('liftLock', t('liftLock')) : null}
+        {can.moveLeads ? item('moveLeads', t('moveLeads')) : null}
         {can.resetAuthenticator || can.suspend || can.reactivate ? <DropdownMenuSeparator /> : null}
         {can.resetAuthenticator ? item('reset', t('resetAuthenticator')) : null}
         {can.reactivate ? item('reactivate', t('reactivate')) : null}

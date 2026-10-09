@@ -46,6 +46,7 @@ export * from './commands/crm/customer';
 export * from './commands/crm/calls';
 export * from './crm/duplicates';
 export * from './commands/crm/duplicates';
+export * from './commands/crm/handover';
 export * from './commands/pricing/set-price';
 export * from './commands/pricing/price-lists';
 export * from './commands/catalogue/items';

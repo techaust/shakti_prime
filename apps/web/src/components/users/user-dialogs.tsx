@@ -1,6 +1,6 @@
 'use client';
 
-import type { UserDto } from '@shakti/contracts';
+import type { CallerProfilePersonDto, ReassignAllDto, UserDto } from '@shakti/contracts';
 import {
   Button,
   DialogDescription,
@@ -9,9 +9,10 @@ import {
   DialogTitle,
   Field,
   Input,
+  Select,
 } from '@shakti/ui';
 import { useTranslations } from 'next-intl';
-import { useState, type ReactNode, type SyntheticEvent } from 'react';
+import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react';
 import {
   clearSignInLock,
   inviteUser,
@@ -20,10 +21,11 @@ import {
   setUserRoles,
   suspendUser,
 } from '../../actions/admin';
+import { listCallerProfiles, reassignAllLeads } from '../../actions/handover';
 import { entityRolesFrom, roleChoicesOf, type RoleChoices } from '../../screens/user-roles';
 import { FailureMessage, useFieldFailure } from '../screens/failure';
 import { formText } from '../screens/form-data';
-import { useCommand } from '../screens/use-command';
+import { useCommand, useQuery } from '../screens/use-command';
 import { RolesField } from './roles-field';
 
 type Companies = readonly { id: number; name: string }[];
@@ -321,3 +323,134 @@ export function LiftLockForm(props: {
     />
   );
 }
+
+/**
+ * Move all leads (`crm.lead.reassign_all`): every open lead and every lead set aside of a leaving
+ * person, in one company, to one named person or in turn to the Lead Converters who are present.
+ * The people to choose from load when the dialog opens and again when the company changes.
+ */
+export function MoveLeadsForm({
+  user,
+  offered,
+  onDone,
+  onCancel,
+}: {
+  /** The leaving person. */
+  user: { id: string; displayName: string };
+  /** The companies to choose between: the ones the person works in. */
+  offered: Companies;
+  onDone: (result: ReassignAllDto) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('users.moveLeadsDialog');
+  const [entityId, setEntityId] = useState(offered[0]?.id ?? 0);
+  const [target, setTarget] = useState('');
+  const [people, setPeople] = useState<CallerProfilePersonDto[] | undefined>(undefined);
+  const { run, pending, failure } = useCommand(reassignAllLeads);
+  const { load, pending: loading, failure: loadFailure } = useQuery<CallerProfilePersonDto[]>();
+  const { formFailure } = useFieldFailure(failure, []);
+
+  const fetchPeople = (id: number) => {
+    setPeople(undefined);
+    setTarget('');
+    load(
+      () => listCallerProfiles({ entityId: id }),
+      (list) => {
+        setPeople(list.filter((p) => p.userId !== user.id));
+      },
+    );
+  };
+  // Loaded once when the dialog opens.
+  useEffect(() => {
+    load(
+      () => listCallerProfiles({ entityId }),
+      (list) => {
+        setPeople(list.filter((p) => p.userId !== user.id));
+      },
+    );
+    // First load only; a change of company loads in its own handler.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function submit(e: SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending || target === '') return;
+    run({ entityId, fromUserId: user.id, toUserId: target === TURN ? null : target }, (result) => {
+      onDone(result);
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <DialogHeader>
+        <DialogTitle>{t('title', { name: user.displayName })}</DialogTitle>
+        <DialogDescription>{target === TURN ? t('introInTurn') : t('intro')}</DialogDescription>
+      </DialogHeader>
+      {offered.length > 1 ? (
+        <Field id="move-leads-company" label={t('company')}>
+          <Select
+            value={String(entityId)}
+            onChange={(e) => {
+              const id = Number(e.currentTarget.value);
+              setEntityId(id);
+              fetchPeople(id);
+            }}
+          >
+            {offered.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      ) : null}
+      {people === undefined && loadFailure === undefined ? (
+        <p className="text-text-muted text-sm" role="status">
+          {t('loading')}
+        </p>
+      ) : people?.length === 0 ? (
+        <p className="text-text-muted text-sm">{t('nobody')}</p>
+      ) : (
+        <Field id="move-leads-target" label={t('target')}>
+          <Select
+            value={target}
+            disabled={loading}
+            onChange={(e) => {
+              setTarget(e.currentTarget.value);
+            }}
+          >
+            <option value="">{t('choose')}</option>
+            <option value={TURN}>{t('inTurn')}</option>
+            {(people ?? []).map((p) => (
+              <option key={p.userId} value={p.userId}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      <FailureMessage failure={loadFailure ?? formFailure} />
+      <Footer onCancel={onCancel} pending={pending}>
+        {t('submit')}
+      </Footer>
+    </form>
+  );
+}
+
+/** What to tell a manager once the leads have moved: how many, and what is left behind. */
+export function useMoveLeadsNotice(): (result: ReassignAllDto, name: string) => string {
+  const t = useTranslations('users.moveLeadsDialog');
+  return (result, name) => {
+    const done = t('done', { count: result.moved, remaining: result.remaining, name });
+    return result.teamOnly ? `${done} ${t('doneTeamOnly', { name })}` : done;
+  };
+}
+
+/** The companies a leaving person works in; all of them when they work in none. */
+export function moveLeadsCompanies(user: UserDto, companies: Companies): Companies {
+  const own = companies.filter((c) => user.entityRoles.some((r) => r.entityId === c.id));
+  return own.length === 0 ? companies : own;
+}
+
+/** The choice that shares the leads between the present converters instead of naming a person. */
+const TURN = 'in-turn';

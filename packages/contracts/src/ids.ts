@@ -9,6 +9,11 @@ export function newId(): Id {
   return uuidv7();
 }
 
+/** The time a UUIDv7 id was made: its first 48 bits are Unix milliseconds. */
+export function idTime(id: string): Date {
+  return new Date(Number.parseInt(id.replaceAll('-', '').slice(0, 12), 16));
+}
+
 /** `entities.id` is a small fixed set and stays a smallint (ADR 0006). */
 export const EntityIdSchema = z.number().int().min(1).max(32767);
 export type EntityId = z.infer<typeof EntityIdSchema>;

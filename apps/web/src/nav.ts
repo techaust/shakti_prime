@@ -17,6 +17,7 @@ import {
   Palette,
   Percent,
   ScrollText,
+  Shuffle,
   Store,
   ShieldCheck,
   ShoppingCart,
@@ -133,6 +134,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // Accounts enter dealer terms and outstanding (sales.dealer_terms.set,
     // sales.dealer_outstanding.record) and read the exposure (app.dealer_credit_position()).
     requires: [{ key: 'sales.credit.write', scope: 'entity' }],
+  },
+  {
+    id: 'converters',
+    href: '/converters',
+    label: 'converters',
+    icon: Shuffle,
+    group: 'work',
+    // A team lead and above choose who takes qualified leads (crm.lead.assign, SECURITY §3.2).
+    requires: [{ key: 'crm.lead.assign', scope: 'team' }],
   },
   {
     id: 'leads-new',

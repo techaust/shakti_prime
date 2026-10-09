@@ -46,5 +46,7 @@ export function userActions(user: UserDto, selfId: string) {
     reactivate: !self && user.status === 'suspended',
     resetAuthenticator: !self && !gone && user.twoFactorEnabled,
     liftLock: !self && !gone,
+    // Leads move out of a person who works on them in some company; the screen checks the rest.
+    moveLeads: !self && user.entityRoles.length > 0,
   };
 }

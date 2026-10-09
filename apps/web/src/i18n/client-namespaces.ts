@@ -34,6 +34,8 @@ export const CLIENT_NAMESPACES = [
   'quotes',
   'orders',
   'dealerCredit',
+  'converters',
+  'profile',
   'agents',
   'knowledge',
   'notifications',

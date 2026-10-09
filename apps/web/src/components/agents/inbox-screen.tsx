@@ -469,11 +469,16 @@ function RoutedCard({
       className="border-border bg-surface focus-visible:outline-focus flex flex-col gap-3 rounded-lg border p-4 focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <div className="flex flex-col gap-1">
-        <p className="text-text-muted text-sm">{t('inbox.routedFrom')}</p>
+        {/* A qualified lead no Lead Converter could take names the lead; an enquiry names the customer. */}
+        <p className="text-text-muted text-sm">
+          {item.subjectType === 'opportunity' ? t('inbox.handoverFrom') : t('inbox.routedFrom')}
+        </p>
         <h3 id={titleId} className="text-h3">
           {item.subjectName === null
             ? t('inbox.routedUnknown')
-            : t('inbox.routedFor', { customer: item.subjectName })}
+            : t(item.subjectType === 'opportunity' ? 'inbox.handoverFor' : 'inbox.routedFor', {
+                customer: item.subjectName,
+              })}
         </h3>
       </div>
       {segment === undefined && item.note === null ? null : (
