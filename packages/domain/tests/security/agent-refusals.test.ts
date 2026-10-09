@@ -698,6 +698,8 @@ describe("agent principals cannot run the platform's own work: the file checks, 
       entityId: 1,
       opportunityId: newId(),
       eventId: newId(),
+      stageId: newId(),
+      eventAt: new Date().toISOString(),
       cursor: null,
     },
     'knowledge.file.record_index': {
