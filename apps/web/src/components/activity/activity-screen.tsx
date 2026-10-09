@@ -199,7 +199,7 @@ export function ActivityScreen({
     <div className="flex min-w-0 flex-col gap-4">
       <form
         onSubmit={apply}
-        className="border-border bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-start"
+        className="border-border bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.6fr)] lg:items-start"
         noValidate
       >
         <Field

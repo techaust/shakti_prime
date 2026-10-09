@@ -102,7 +102,7 @@ export function OrderBuilder({ builder }: { builder: SalesOrderBuilderDto }) {
             {lines.map((line, index) => (
               <li
                 key={line.key}
-                className="border-border grid grid-cols-1 items-start gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
+                className="border-border grid grid-cols-1 items-start gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,3fr)_minmax(14rem,1fr)]"
               >
                 <Field id={`order-line-${String(line.key)}-item`} label={t('item')}>
                   <Select

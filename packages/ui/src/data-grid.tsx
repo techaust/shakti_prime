@@ -272,7 +272,11 @@ export function DataGrid<T>({
   const showSkeleton = loading && rows.length === 0;
   if (!showSkeleton && rows.length === 0) return <>{empty}</>;
   const columns = visibleColumns(allColumns, columnChooser?.hidden ?? []);
-  const rowHeight = density === 'compact' ? 'h-row-compact text-body-dense' : 'h-row';
+  // A button in a compact row (32 px) is shorter than the row, so it never fills it edge to edge.
+  const rowHeight =
+    density === 'compact'
+      ? 'h-row-compact text-body-dense [&_button]:h-7 [&_button]:min-h-0'
+      : 'h-row';
   const primary = primaryColumn(columns);
   const placeholders = Array.from({ length: skeletonRows }, (_, i) => i);
   const keys = rows.map(rowKey);
