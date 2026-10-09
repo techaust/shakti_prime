@@ -34,6 +34,8 @@ export async function readAgentSpend(
   const dayStart = `${day}T00:00:00+05:30`;
   const monthStart = `${day.slice(0, 8)}01T00:00:00+05:30`;
   const ids = [...ctx.entityIds];
+  // A Postgres array literal: drizzle would spread a JavaScript array into a list of values.
+  const idList = `{${ids.map(String).join(',')}}`;
   const runs = (await ctx.tx.execute(sql`
     select r.agent, r.entity_id,
            coalesce(sum(r.cost_paise) filter (where r.created_at >= ${dayStart}::timestamptz), 0)::text as today,
@@ -42,7 +44,7 @@ export async function readAgentSpend(
            count(*)::int as runs_month,
            coalesce(bool_or(r.outcome = 'cap_reached' and r.created_at >= ${dayStart}::timestamptz), false) as stopped
       from agent_runs r
-     where r.entity_id = any(${ids}::smallint[]) and r.created_at >= ${monthStart}::timestamptz
+     where r.entity_id = any(${idList}::smallint[]) and r.created_at >= ${monthStart}::timestamptz
      group by r.agent, r.entity_id`)) as unknown as {
     agent: string;
     entity_id: number;
@@ -56,7 +58,7 @@ export async function readAgentSpend(
     select c.agent, c.entity_id, c.daily_spend_cap_paise::text as cap
       from agent_configs c
      where c.agent is not null and c.action_type is null and c.daily_spend_cap_paise is not null
-       and (c.entity_id is null or c.entity_id = any(${ids}::smallint[]))`)) as unknown as {
+       and (c.entity_id is null or c.entity_id = any(${idList}::smallint[]))`)) as unknown as {
     agent: string;
     entity_id: number | null;
     cap: string;

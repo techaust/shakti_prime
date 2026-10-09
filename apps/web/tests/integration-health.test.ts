@@ -93,7 +93,9 @@ describe('GET /api/v1/admin/integrations (docs/06-api.md §3.7)', () => {
       body.outbox.byType.find((t) => t.type === 'admin.user.reactivated')?.deadLettered,
     ).toBeGreaterThanOrEqual(1);
     expect(body.webhooks).toEqual([]);
-    expect(body.aiSpend).toEqual({ today: '0.00', monthToDate: '0.00', byAgent: [] });
+    // The agents' spend, from their runs; the suites' own runs may be in it.
+    expect(body.aiSpend.today).toMatch(/^\d+\.\d{2}$/);
+    expect(body.aiSpend.monthToDate).toMatch(/^\d+\.\d{2}$/);
   });
 
   it('pages the dead letters by the cursor it answers', async () => {

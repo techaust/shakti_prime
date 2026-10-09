@@ -501,6 +501,7 @@ export { buildTriagePrompt, TRIAGE_SYSTEM } from './ai/triage/prompt';
 export { filterTriageAnswer, noteProblem, readTriageAnswer } from './ai/triage/filter';
 export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
 export type { TriageFacts } from './ai/triage/facts';
+export { readTriageFacts } from './ai/triage/read-facts';
 export { maskForModel, labelUntrusted } from './privacy/model-text';
 export { recordAgentRun } from './commands/agents/record-run';
 export {

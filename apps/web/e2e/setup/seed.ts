@@ -37,6 +37,7 @@ import { writePrintPages } from './print-pages';
 import { ensureOrderJourneys } from './orders';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
+import { ensureTriageJourney } from './triage';
 import { totpCode } from '../support/totp';
 import {
   AUTH_DIR,
@@ -663,6 +664,9 @@ await suggestFollowUp({
   dueAt: inThreeDays(),
   assigneeId: ids.executive ?? '',
 });
+
+progress('the Triage agent in shadow');
+await ensureTriageJourney(ids.executive ?? '', ids.snapshotCaller ?? '');
 
 mkdirSync(AUTH_DIR, { recursive: true });
 const seeded: SeededUsers = {

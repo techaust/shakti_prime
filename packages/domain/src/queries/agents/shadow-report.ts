@@ -39,8 +39,8 @@ const Cursor = z.object({ t: z.string().max(40), id: IdSchema }).strict();
 const PG_TIME = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
 /** Midnight IST starting `day`, and the midnight after `last`. */
-const istStart = (day: string): string => `${day}T00:00:00+05:30`;
-function istEndAfter(last: string): string {
+export const istStart = (day: string): string => `${day}T00:00:00+05:30`;
+export function istEndAfter(last: string): string {
   const next = new Date(Date.parse(`${last}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   return istStart(next);
 }
@@ -69,7 +69,7 @@ interface Row {
  * The shadowed actions of the period with the lead as it stands, and whether people bore each
  * out. One statement for the page and the summary alike, so the two never disagree.
  */
-function shadowed(entityId: number, from: string, until: string) {
+export function shadowedSql(entityId: number, from: string, until: string) {
   const assign = TRIAGE_ACTION_TYPES.assignee;
   const pipeline = TRIAGE_ACTION_TYPES.pipeline;
   const score = TRIAGE_ACTION_TYPES.score;
@@ -183,7 +183,7 @@ export async function shadowReport(ctx: Ctx, rawInput: unknown): Promise<ShadowR
   }
   const from = istStart(input.from);
   const until = istEndAfter(input.to);
-  const base = shadowed(input.entityId, from, until);
+  const base = shadowedSql(input.entityId, from, until);
 
   const page = (await ctx.tx.execute(sql`
     select * from (${base}) s
