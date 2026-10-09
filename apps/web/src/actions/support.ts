@@ -49,8 +49,8 @@ export async function requestMeta(): Promise<{ requestId: string; client: Client
 }
 
 /**
- * The instant the journeys set as now for the calling-hours rule, or `undefined` for the server's
- * own clock (always, except on a local runtime; `src/test-clock.ts`).
+ * The time the journeys set as now for the calling-hours rule, or `undefined` for the server's own
+ * clock (always, except on a local runtime; `src/test-clock.ts`).
  */
 export async function testNow(): Promise<Date | undefined> {
   return testClockFrom((await cookies()).get(TEST_CLOCK_COOKIE)?.value);
