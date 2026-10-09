@@ -7,8 +7,8 @@
 | Runs on | PC only, one agent at a time this week, heavy commands through the PC's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | B (state machines, permissions, workers): build Sonnet medium, review Opus |
 | Usage | build (Sonnet, medium, 09-10-2026): 74 % of the week at its start; review fixes (Sonnet, medium, 09-10-2026): 78 % at its start |
-| State | built, checks pass (see the Report for the two not-rerun-safe tests) |
-| Next step | review (Opus) |
+| State | integrated on 09-10-2026: `main` merged in (migrations stay 0124–0125), the integration run passed every step on a fresh database (security suite 2,341: database 1,166, domain 875, web 300; unit tests 3,256), end-to-end 321 passed with one slow-server failure that passed on rerun; Linux baselines on a fresh database (the profile screenshots remade for the converter setting) |
+| Next step | pull request, then `migrate-hosted` (0124–0125) |
 
 ## Brief
 Read first:
