@@ -7,6 +7,8 @@
 # INTEGRATE_STEPS="lint format" runs only the named steps (a cloud session keeps each command under
 # its 30-minute limit); the verdict is then INTEGRATION PARTIAL unless a step failed. A step that reads
 # the database runs with the one that migrates it: "security dbverify" together; e2e seeds for itself.
+# E2E_SPECS="targets.spec.ts access.spec.ts" runs only those journeys (a PC day: the slice's own;
+# CI runs every journey on the pull request).
 set -u
 . "$(dirname "$0")/lib.sh"
 WT="$1"; LOG="$2"; : > "$LOG"
@@ -54,7 +56,7 @@ step gitleaks env MSYS_NO_PATHCONV=1 docker run --rm -v "$(docker_path "$MAIN"):
 
 # The journeys get the fresh database back.
 export_db_urls 54340
-step e2e pnpm --filter web e2e
+step e2e bash -c 'pnpm --filter web e2e:seed && pnpm --filter web exec playwright test ${E2E_SPECS:-}'
 
 docker rm -f shakti-pg-int >/dev/null 2>&1
 if grep -qE "rc=[1-9]" "$LOG"; then

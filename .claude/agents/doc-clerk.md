@@ -2,8 +2,8 @@
 name: doc-clerk
 description: Drafts the mechanical document updates of Shakti Prime BOS for the lead session: CHANGELOG lines from merged pull requests, the status page's tables, the run files' list, and fixes for links the link check reports. On Haiku. The lead checks the draft before it is committed; it never commits, pushes or opens a pull request.
 tools: Read, Edit, Write, Grep, Glob, Bash
-model: haiku
-effort: medium
+model: claude-haiku-5-5
+effort: max
 omitClaudeMd: true
 ---
 

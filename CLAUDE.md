@@ -18,7 +18,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
 - Record a deferred gate item as it closes where its document says (the workshop answers in the workshop pack, the CA's golden set in ADR 0007, each spike's numbers in `docs/04-architecture-appendix/`).
 - At the end of a session, follow the `end-session` skill: replace 10-status.md and add one CHANGELOG entry per merged pull request; never append status or history to this file.
 - A slice goes from its run file (`docs/runs/phase1/<slug>.md`) to `main` and the hosted environments as [docs/runbooks/slice-integration.md](docs/runbooks/slice-integration.md) says, with the `integrate-slice` and `migrate-hosted` skills and the `slice-builder` and `slice-reviewer` agents.
-- **Where work runs: the PC only.** Cloud sessions are paused ([DECISIONS](docs/11-decisions.md#standing-rules-in-force)).
+- **Where work runs: the PC or a cloud session, whichever the owner chooses for the session, never a mix within one** ([DECISIONS](docs/11-decisions.md#standing-rules-in-force)). A cloud day follows [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) for the whole session, with up to three builders; the rules below are the PC day's.
   - Every slice is built, reviewed, merged with `main`, integrated and given its Linux baselines on the PC. Docker Desktop runs only the slices' databases and the Playwright image.
   - The lead session opens the pull requests and runs the hosted steps.
   - At most two slice builders run at once; while two run, every lint, typecheck and test of both, folder-level ones too, goes through the lock, since two builders' checks beside a journey run used up the 8 GB on 09-10-2026.
@@ -27,7 +27,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.
   - A whole-repository lint runs once, as a builder's final check.
   - The cloud procedure waits in [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) for when cloud sessions resume; a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers.
-- **Models and usage:** each task's model and effort, the slice tiers, the Haiku agents and the budget gate the lead checks before starting any agent are in [docs/runbooks/models-and-usage.md](docs/runbooks/models-and-usage.md); the lead session runs on Opus at medium effort, chosen by the owner in the app, and the lead passes each agent the model and effort of its slice's tier.
+- **Models and usage:** each task's model and effort, the slice tiers, the Haiku agents and the budget gate the lead checks before starting any agent are in [docs/runbooks/models-and-usage.md](docs/runbooks/models-and-usage.md); every model is its latest 5.5 version, pinned in the agent files; the lead session runs on Opus 5.5 at medium effort, chosen by the owner in the app, and the lead passes each agent the model and effort of its slice's tier.
   - The lead reports on running builders only when one finishes, stalls 20 minutes with the heavy-command lock free, or the PC runs low on memory, with no progress check-ins between.
 
 ## Where things live
