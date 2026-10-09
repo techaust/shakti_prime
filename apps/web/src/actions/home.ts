@@ -2,6 +2,7 @@
 
 import {
   DomainError,
+  type Principal,
   type CallerHomeDto,
   type CreditHomeDto,
   type PipelineStagesDto,
@@ -31,20 +32,18 @@ import { requestMeta, sessionSectionEntities, signedInIn } from './support';
  * in that company (their grants and team there, not the intersection of "All companies"), and puts
  * the answers together: every read answers one entry per company. The companies come from the
  * session, never from the caller's arguments, so no call opens more transactions than the person
- * holds companies. `name` is the section's own query name for the slow-query log.
+ * holds companies. Each section's `run` names its own query for the slow-query log.
  */
 async function inEach<T>(
   section: HomeSection,
-  name: string,
-  query: (context: Parameters<Parameters<typeof executeQuery>[2]>[0]) => Promise<T[]>,
+  run: (principal: Principal, scope: { entityIds: number[]; requestId: string }) => Promise<T[]>,
 ): Promise<T[]> {
   const entityIds = await sessionSectionEntities(section);
   const { requestId } = await requestMeta();
   const parts = await Promise.all(
-    entityIds.map(async (entityId) => {
-      const principal = await signedInIn(entityId);
-      return executeQuery(principal, { entityIds: [entityId], requestId }, query, { name });
-    }),
+    entityIds.map(async (entityId) =>
+      run(await signedInIn(entityId), { entityIds: [entityId], requestId }),
+    ),
   );
   return parts.flat();
 }
@@ -52,7 +51,11 @@ async function inEach<T>(
 /** The caller's queue summary and calls today, in the companies where the person is a caller. */
 export async function homeCaller(): Promise<ActionResult<CallerHomeDto[]>> {
   return toResult('homeCaller', () =>
-    inEach('caller', 'homeCaller', (context) => homeCallerQuery(context)),
+    inEach('caller', (principal, scope) =>
+      executeQuery(principal, scope, (context) => homeCallerQuery(context), {
+        name: 'homeCaller',
+      }),
+    ),
   );
 }
 
@@ -65,27 +68,43 @@ export async function homePipeline(section: unknown): Promise<ActionResult<Pipel
     if (section !== 'manager' && section !== 'executive') {
       throw new DomainError('validation_failed', 'invalid section');
     }
-    return inEach(section, 'homePipeline', (context) => homePipelineQuery(context));
+    return inEach(section, (principal, scope) =>
+      executeQuery(principal, scope, (context) => homePipelineQuery(context), {
+        name: 'homePipeline',
+      }),
+    );
   });
 }
 
 /** First calls past their limit, per company of the General Manager. */
 export async function homeResponseTimes(): Promise<ActionResult<ResponseTimeDto[]>> {
   return toResult('homeResponseTimes', () =>
-    inEach('manager', 'homeResponseTimes', (context) => homeResponseTimesQuery(context)),
+    inEach('manager', (principal, scope) =>
+      executeQuery(principal, scope, (context) => homeResponseTimesQuery(context), {
+        name: 'homeResponseTimes',
+      }),
+    ),
   );
 }
 
 /** Quotes and orders this month, per company of the Executive. */
 export async function homeSales(): Promise<ActionResult<SalesHomeDto[]>> {
   return toResult('homeSales', () =>
-    inEach('executive', 'homeSales', (context) => homeSalesQuery(context)),
+    inEach('executive', (principal, scope) =>
+      executeQuery(principal, scope, (context) => homeSalesQuery(context), {
+        name: 'homeSales',
+      }),
+    ),
   );
 }
 
 /** Dealer credit, per company of Accounts. */
 export async function homeCredit(): Promise<ActionResult<CreditHomeDto[]>> {
   return toResult('homeCredit', () =>
-    inEach('accounts', 'homeCredit', (context) => homeCreditQuery(context)),
+    inEach('accounts', (principal, scope) =>
+      executeQuery(principal, scope, (context) => homeCreditQuery(context), {
+        name: 'homeCredit',
+      }),
+    ),
   );
 }
