@@ -38,7 +38,11 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
         history.getByRole('row', { name: /Neha Saini.*Calls.*Day.*40/ }).first(),
       ).toBeVisible();
       await expectNoAxeViolations(page);
-      await snap(page, 'targets', { mask: [page.getByRole('table'), page.locator('time')] });
+      // The saved notice gone, and the starting date (today's) masked, so the picture holds every day.
+      await expect(page.getByText('The target is saved.')).toBeHidden();
+      await snap(page, 'targets', {
+        mask: [page.getByRole('table'), page.locator('time'), page.getByLabel('Starting')],
+      });
     });
 
     test('sees the team on the home page: its targets, the leaderboard and the queues', async ({
@@ -94,7 +98,13 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       ).toHaveCount(0);
       await expectNoAxeViolations(page);
       await snap(page, 'home-caller-with-target', {
-        mask: [page.locator('main dl'), page.getByRole('progressbar'), page.locator('time')],
+        // The count of calls includes any a calling journey saved, so it is masked with the bar.
+        mask: [
+          page.locator('main dl'),
+          page.getByRole('progressbar'),
+          page.locator('time'),
+          page.getByText(/ of 40$/),
+        ],
       });
     });
 

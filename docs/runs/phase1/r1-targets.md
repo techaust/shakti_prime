@@ -7,8 +7,8 @@
 | Runs on | PC only, beside T2 (owner, 09-10-2026: two builders this run), heavy commands through the PC's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | B (permissions, home pages over existing commands): build Sonnet medium, review Opus |
 | Usage | build (Sonnet, medium, 09-10-2026): 75 % of the week at its start; review fixes (Sonnet, medium, 09-10-2026): 81 % at its start; re-check fixes (Sonnet, medium, 09-10-2026): 82 % at its start |
-| State | built, reviewed, review fixes done; Linux baselines not made |
-| Next step | review (Opus) |
+| State | integrated on 09-10-2026: `main` (T2, the alignment fix) merged in, migrations renumbered to 0126–0127; the integration run on a fresh database passed lint, typecheck, the build, the budget and the secret scan, and after two merge fixes (DATABASE's migration numbers; the matrix rule for a team member's caller profile) the security suite 2,397 (database 1,192, domain 905, web 300) and the unit tests; end-to-end 344 passed with the known slow-server flakes; Linux baselines remade in a full run on a fresh database (the Targets menu item, the new screens), the targets screenshot's date and the caller's call count masked |
+| Next step | pull request, then `migrate-hosted` (0126–0127) |
 
 ## Brief
 Read first:
