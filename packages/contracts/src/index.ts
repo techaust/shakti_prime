@@ -31,6 +31,7 @@ export * from './dto/search';
 export * from './dto/sizing';
 export * from './dto/quote';
 export * from './dto/sales-order';
+export * from './dto/home';
 export * from './commands/org/update-entity';
 export * from './commands/crm/create-lead';
 export * from './commands/crm/opportunity';

@@ -18,12 +18,7 @@ import {
 import { schema, type RequestContext } from '@shakti/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { checkPermission, isAgent } from '../../command/run-command';
-import {
-  periodBounds,
-  periodEndOn,
-  periodStartOn,
-  progressFraction,
-} from '../../sales/targets';
+import { periodBounds, periodEndOn, periodStartOn, progressFraction } from '../../sales/targets';
 import { teamIn } from '../crm/list-lead-assignees';
 import { parseQueryInput } from '../parse-input';
 
@@ -153,9 +148,7 @@ async function actualsOf(
   const out = new Map<string, Actuals>();
   if (userIds.length === 0) return out;
   const { from, to } = periodBounds(period, startsOn);
-  const rows = (await ctx.tx.execute(
-    targetActualsSql(entityId, from, to, userIds),
-  )) as unknown as {
+  const rows = (await ctx.tx.execute(targetActualsSql(entityId, from, to, userIds))) as unknown as {
     subject_id: string;
     calls_n: number;
     qualified_n: number;
@@ -210,7 +203,7 @@ export async function myProgress(
       const startsOn = starts[period];
       const hasTarget = METRICS.some((m) => targets.has(keyOf(me, m, period)));
       const actual = hasTarget
-        ? (await actualsOf(ctx, entityId, period, startsOn, [me])).get(me) ?? NONE
+        ? ((await actualsOf(ctx, entityId, period, startsOn, [me])).get(me) ?? NONE)
         : NONE;
       periods.push({
         period,
@@ -402,7 +395,9 @@ export async function targetsScreen(
           .where(
             and(
               isNull(t.archivedAt),
-              wide ? sql`(${t.entityId} is null or ${t.entityId} = ${entityId})` : eq(t.id, ownTeam ?? ''),
+              wide
+                ? sql`(${t.entityId} is null or ${t.entityId} = ${entityId})`
+                : eq(t.id, ownTeam ?? ''),
             ),
           )
           .orderBy(asc(t.name), asc(t.id));

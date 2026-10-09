@@ -50,6 +50,13 @@ export { cancelSalesOrder } from './commands/sales/cancel-order';
 export { recordDealerOutstanding, setDealerTerms } from './commands/sales/dealer-credit';
 export { setTarget } from './commands/sales/set-target';
 export { myProgress, targetsScreen, teamProgress, currentStarts } from './queries/sales/targets';
+export {
+  homeCaller,
+  homeCredit,
+  homePipeline,
+  homeResponseTimes,
+  homeSales,
+} from './queries/home/home';
 export { isPeriodStart, periodBounds, periodEndOn, periodStartOn, progressFraction } from './sales/targets';
 export { refreshLeadScores, rescoreLead, setScoreRules } from './commands/crm/score-rules';
 export { dismissDuplicate, scanDuplicates, suggestDuplicate } from './commands/crm/duplicates';

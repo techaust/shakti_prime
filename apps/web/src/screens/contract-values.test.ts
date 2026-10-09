@@ -70,6 +70,9 @@ import {
   QuoteStateSchema,
   QuoteAcceptedViaSchema,
   SalesOrderStateSchema,
+  TargetMetricSchema,
+  TargetPeriodSchema,
+  TargetScopeSchema,
   CommissionAccrualStateSchema,
   SubsidySchemeSchema,
   SizingReasonSchema,
@@ -145,6 +148,9 @@ import {
   SIZING_KINDS,
   QUOTE_STATES,
   SALES_ORDER_STATES,
+  TARGET_METRICS,
+  TARGET_PERIODS,
+  TARGET_SCOPES,
   QUOTE_ACCEPTED_VIA,
   COMMISSION_ACCRUAL_STATES,
   SUBSIDY_SCHEMES,
@@ -189,6 +195,9 @@ describe('the contract values copied for the browser', () => {
     expect(SIZING_KINDS).toEqual(SizingKindSchema.options);
     expect(QUOTE_STATES).toEqual(QuoteStateSchema.options);
     expect(SALES_ORDER_STATES).toEqual(SalesOrderStateSchema.options);
+    expect(TARGET_SCOPES).toEqual(TargetScopeSchema.options);
+    expect(TARGET_METRICS).toEqual(TargetMetricSchema.options);
+    expect(TARGET_PERIODS).toEqual(TargetPeriodSchema.options);
     expect(QUOTE_ACCEPTED_VIA).toEqual(QuoteAcceptedViaSchema.options);
     expect(COMMISSION_ACCRUAL_STATES).toEqual(CommissionAccrualStateSchema.options);
     expect(SUBSIDY_SCHEMES).toEqual(SubsidySchemeSchema.options);
