@@ -37,6 +37,7 @@ import { readWordText } from '../../src/workers/knowledge/read-word';
 import { wordDocument } from '../support/docx';
 import { writePrintPages } from './print-pages';
 import { ensureOrderJourneys } from './orders';
+import { resetPipelineStages } from './pipelines';
 import { ensureQuoteJourneys } from './quotes';
 import { suggestFollowUp } from './stand-in-agent';
 import { totpCode } from '../support/totp';
@@ -621,6 +622,9 @@ await seedCalls('tele-caller', {
   opportunityId: await leadId(ids.teleCaller ?? '', 1, 'Kavita Saini'),
   count: 2,
 });
+
+progress('the pipelines’ stages');
+await resetPipelineStages(ids.executive ?? '');
 
 progress('the referral partner');
 await ensureReferralPartner(ids.executive ?? '');

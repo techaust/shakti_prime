@@ -109,6 +109,7 @@
         "BOS_JWT_CURRENT_KEY",
         "BOS_JWT_NEXT_KEY",
         "E2E_BASE_URL",
+        "E2E_CPU_THROTTLE",
         "E2E_EXTERNAL_APP",
         "ANTHROPIC_API_KEY",
         "VOYAGE_API_KEY",

@@ -16,6 +16,17 @@ export const test = base.extend({
     if (process.env.E2E_REAL_TURNSTILE !== '1') await standInForTurnstile(context);
     await provide(context);
   },
+  // `E2E_CPU_THROTTLE=6` slows the browser's own work six times, as a machine short of memory and
+  // processors does: the way to reproduce a journey that fails only on a loaded machine (a click
+  // before the page has hydrated, a wait that is too short).
+  page: async ({ page }, provide) => {
+    const rate = Number(process.env.E2E_CPU_THROTTLE ?? '1');
+    if (rate > 1) {
+      const session = await page.context().newCDPSession(page);
+      await session.send('Emulation.setCPUThrottlingRate', { rate });
+    }
+    await provide(page);
+  },
 });
 
 /** The running project (desktop light, desktop dark, phone), for the per-project people of the seed. */
@@ -40,6 +51,22 @@ export function dataGrid(page: Page, caption: string): Locator {
     .getByRole('table', { name: caption })
     .or(page.getByRole('list', { name: caption }))
     .filter({ visible: true });
+}
+
+/**
+ * Waits until React has taken over an element. Before that, a click on it does nothing and text
+ * typed into it is lost when the page hydrates; on a machine short of processors the gap between
+ * the page showing and the page working is seconds long. React marks each host element it hydrates
+ * with an internal key (`__reactProps$...`), which is what this waits for.
+ */
+export async function hydrated(locator: Locator): Promise<Locator> {
+  await locator.waitFor();
+  await expect
+    .poll(() =>
+      locator.evaluate((el) => Object.keys(el).some((key) => key.startsWith('__reactProps$'))),
+    )
+    .toBe(true);
+  return locator;
 }
 
 /**

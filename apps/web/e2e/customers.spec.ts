@@ -3,12 +3,21 @@ import {
   dataGrid,
   expect,
   expectNoAxeViolations,
+  hydrated,
   signedInAs,
   snap,
   test,
 } from './support/fixtures';
 import { solidPng } from './support/png';
 import { SNAPSHOT_LEADS, storageStatePath } from './support/users';
+
+/**
+ * Axe checks the page as it stands before a dialog opens. With the dialog open Radix hides the rest
+ * of the page from assistive technology, so only the dialog is checked then: scanning the whole
+ * account page again behind each dialog is what made these journeys outlast their time limit on a
+ * machine short of processors.
+ */
+const DIALOG_ONLY = { include: '[role="dialog"]' };
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
@@ -28,6 +37,8 @@ async function addCustomer(
 ): Promise<{ name: string; url: string }> {
   const name = `${first} ${String(Date.now()).slice(-6)}`;
   await page.goto('/leads/new');
+  // The form works once the page has hydrated; text typed before then is lost.
+  await hydrated(page.getByLabel('Customer name'));
   await page.getByLabel('Customer name').fill(name);
   await page.getByLabel('Mobile number').fill(freshMobile());
   const companies = page.getByLabel('Company', { exact: true });
@@ -40,6 +51,7 @@ async function addCustomer(
   await expect(page.getByText(`Lead saved for ${name}.`)).toBeVisible({ timeout: 30_000 });
 
   await page.goto('/customers');
+  await hydrated(page.getByRole('searchbox', { name: 'Find a customer' }));
   await page.getByRole('searchbox', { name: 'Find a customer' }).fill(name);
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await dataGrid(page, 'Customers').getByRole('link', { name }).click();
@@ -60,6 +72,9 @@ test.describe('customers as an Executive', () => {
   });
 
   test('records a consent with its proof, then withdraws it', async ({ page }) => {
+    // The longest journey here: a customer made through the lead form, an upload with its checks,
+    // two dialogs and four reads by axe, one step after another.
+    test.slow();
     await addCustomer(page, 'Suresh Choudhary');
     await expectNoAxeViolations(page);
     // An Executive changes the customer's details.
@@ -70,7 +85,7 @@ test.describe('customers as an Executive', () => {
     await consents.getByRole('button', { name: 'Record consent' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Record consent' })).toBeVisible();
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
     await dialog.getByLabel('Version of the consent text').fill('v2');
     await dialog.locator('input[type="file"]').setInputFiles({
       name: 'Signed consent form.png',
@@ -81,7 +96,7 @@ test.describe('customers as an Executive', () => {
     await expect(
       dialog.getByText('Uploaded and checked. It is kept with this consent.'),
     ).toBeVisible({ timeout: 45_000 });
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
     await dialog.getByRole('button', { name: 'Record consent' }).click();
     await expect(dialog).toBeHidden();
     await expect(consents.getByText('In force')).toBeVisible();
@@ -89,7 +104,7 @@ test.describe('customers as an Executive', () => {
 
     await consents.getByRole('button', { name: 'Withdraw', exact: true }).click();
     await expect(dialog.getByRole('heading', { name: 'Withdraw this consent' })).toBeVisible();
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
     await dialog.getByRole('button', { name: 'Withdraw consent' }).click();
     await expect(page.getByText('Consent withdrawn.')).toBeVisible();
     await expect(consents.getByText('Withdrawn', { exact: true })).toBeVisible();
@@ -105,7 +120,7 @@ test.describe('customers as an Executive', () => {
     await tasks.getByRole('button', { name: 'Add task' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Add a task' })).toBeVisible();
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
     await dialog.getByLabel('What to do').selectOption({ label: 'Call back' });
     await dialog.getByLabel('Short note').fill('Ask about the borewell depth');
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
@@ -122,7 +137,7 @@ test.describe('customers as an Executive', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('heading', { name: 'Add a tag' })).toBeVisible();
     await expect(dialog.getByLabel('Or make a new tag')).toBeVisible();
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
   });
 });
 
@@ -171,7 +186,7 @@ test.describe('customers as a tele-caller', () => {
     await section(page, 'Leads').getByRole('button', { name: 'Add tag' }).click();
     await expect(dialog.getByRole('heading', { name: 'Add a tag' })).toBeVisible();
     await expect(dialog.getByLabel('Or make a new tag')).toHaveCount(0);
-    await expectNoAxeViolations(page);
+    await expectNoAxeViolations(page, DIALOG_ONLY);
   });
 
   test('sizes a lead from Account 360 and sees it in the history', async ({ page }) => {
