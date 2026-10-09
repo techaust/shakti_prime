@@ -23,7 +23,12 @@ import type { RoleNameKey } from '../../../i18n/types';
 import { navRequires } from '../../../nav';
 import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
 import { TARGET_METRICS } from '../../../screens/contract-values';
-import { homeSections, periodParam, sectionEntities, type HomeSection } from '../../../screens/home';
+import {
+  homeSections,
+  periodParam,
+  sectionEntities,
+  type HomeSection,
+} from '../../../screens/home';
 import { visibleNav } from '../../../screens/menu-access';
 import { firstFailure } from '../../../screens/result';
 
@@ -163,7 +168,12 @@ export default async function HomePage({
   const part: Record<HomeSection, React.ReactNode> = {
     caller: <CallerPart companies={companies} entityIds={entitiesOf('caller')} />,
     lead: (
-      <LeadPart companies={companies} entityIds={entitiesOf('lead')} period={period} metric={metric} />
+      <LeadPart
+        companies={companies}
+        entityIds={entitiesOf('lead')}
+        period={period}
+        metric={metric}
+      />
     ),
     manager: <ManagerPart companies={companies} entityIds={entitiesOf('manager')} />,
     accounts: <AccountsPart companies={companies} entityIds={entitiesOf('accounts')} />,

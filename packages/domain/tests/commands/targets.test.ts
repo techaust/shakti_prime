@@ -421,8 +421,9 @@ describe('a caller who moves to another team', () => {
     );
   });
 
-  const targetOf = (rows: readonly { callerName: string; metrics: { target: number | null }[] }[]) =>
-    rows.find((r) => r.callerName === 'Target Mover')?.metrics[0]?.target;
+  const targetOf = (
+    rows: readonly { callerName: string; metrics: { target: number | null }[] }[],
+  ) => rows.find((r) => r.callerName === 'Target Mover')?.metrics[0]?.target;
 
   it('shows on the new team lead’s leaderboard and Targets page with their target', async () => {
     const [team] = await asPrincipal(leadB, (ctx) => teamProgress(ctx, { period: 'day' }, NOW));
@@ -458,9 +459,12 @@ describe('a target is set only for an active person who logs calls', () => {
     expect(await failure(leadA, input(gone.id))).toMatchObject({
       reason: 'target_subject_missing',
     });
-    const store = await createTestUser([{ entityId: E, roleKey: 'field_engineer', teamId: teamA }], {
-      name: 'Target Field',
-    });
+    const store = await createTestUser(
+      [{ entityId: E, roleKey: 'field_engineer', teamId: teamA }],
+      {
+        name: 'Target Field',
+      },
+    );
     expect(await failure(leadA, input(store.id))).toMatchObject({
       reason: 'target_subject_missing',
     });

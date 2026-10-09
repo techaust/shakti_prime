@@ -45,26 +45,46 @@ async function inEach<T>(
 }
 
 /** The caller's queue summary and calls today. */
-export async function homeCaller(entityIds: readonly number[]): Promise<ActionResult<CallerHomeDto[]>> {
-  return toResult('homeCaller', () => inEach('homeCaller', entityIds, (context) => homeCallerQuery(context)));
+export async function homeCaller(
+  entityIds: readonly number[],
+): Promise<ActionResult<CallerHomeDto[]>> {
+  return toResult('homeCaller', () =>
+    inEach('homeCaller', entityIds, (context) => homeCallerQuery(context)),
+  );
 }
 
 /** The open leads by stage of each pipeline. */
-export async function homePipeline(entityIds: readonly number[]): Promise<ActionResult<PipelineStagesDto[]>> {
-  return toResult('homePipeline', () => inEach('homePipeline', entityIds, (context) => homePipelineQuery(context)));
+export async function homePipeline(
+  entityIds: readonly number[],
+): Promise<ActionResult<PipelineStagesDto[]>> {
+  return toResult('homePipeline', () =>
+    inEach('homePipeline', entityIds, (context) => homePipelineQuery(context)),
+  );
 }
 
 /** First calls past their limit, per company. */
-export async function homeResponseTimes(entityIds: readonly number[]): Promise<ActionResult<ResponseTimeDto[]>> {
-  return toResult('homeResponseTimes', () => inEach('homeResponseTimes', entityIds, (context) => homeResponseTimesQuery(context)));
+export async function homeResponseTimes(
+  entityIds: readonly number[],
+): Promise<ActionResult<ResponseTimeDto[]>> {
+  return toResult('homeResponseTimes', () =>
+    inEach('homeResponseTimes', entityIds, (context) => homeResponseTimesQuery(context)),
+  );
 }
 
 /** Quotes and orders this month, per company. */
-export async function homeSales(entityIds: readonly number[]): Promise<ActionResult<SalesHomeDto[]>> {
-  return toResult('homeSales', () => inEach('homeSales', entityIds, (context) => homeSalesQuery(context)));
+export async function homeSales(
+  entityIds: readonly number[],
+): Promise<ActionResult<SalesHomeDto[]>> {
+  return toResult('homeSales', () =>
+    inEach('homeSales', entityIds, (context) => homeSalesQuery(context)),
+  );
 }
 
 /** Dealer credit, per company. */
-export async function homeCredit(entityIds: readonly number[]): Promise<ActionResult<CreditHomeDto[]>> {
-  return toResult('homeCredit', () => inEach('homeCredit', entityIds, (context) => homeCreditQuery(context)));
+export async function homeCredit(
+  entityIds: readonly number[],
+): Promise<ActionResult<CreditHomeDto[]>> {
+  return toResult('homeCredit', () =>
+    inEach('homeCredit', entityIds, (context) => homeCreditQuery(context)),
+  );
 }

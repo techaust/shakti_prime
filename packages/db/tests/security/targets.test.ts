@@ -251,9 +251,12 @@ describe('who sets a target', () => {
       name: 'Target Gone',
       status: 'offboarded',
     });
-    const store = await createTestUser([{ entityId: E, roleKey: 'field_engineer', teamId: teamA }], {
-      name: 'Target Field',
-    });
+    const store = await createTestUser(
+      [{ entityId: E, roleKey: 'field_engineer', teamId: teamA }],
+      {
+        name: 'Target Field',
+      },
+    );
     for (const who of [leadA, gm, exec]) {
       expect(await failure(insertTarget(who, { subject: gone.id, team: teamA }))).toMatch(
         /row-level security/,
@@ -288,10 +291,9 @@ describe('a caller who moves to another team', () => {
     );
     expect(await seen(leadB)).toContain('mover');
     expect(await seen(leadA)).not.toContain('mover');
-    expect(await seen(principalFor('tele_caller_cc', [E], { id: user.id, teamId: teamB }))).toEqual([
-      'mover',
-      'teamB',
-    ]);
+    expect(await seen(principalFor('tele_caller_cc', [E], { id: user.id, teamId: teamB }))).toEqual(
+      ['mover', 'teamB'],
+    );
     // The new team lead sets the next one under the new team; the old one cannot any more.
     T.moverNow = await insertTarget(leadB, { subject: mover.id, team: teamB, value: 12 });
     expect(await failure(insertTarget(leadA, { subject: mover.id, team: teamA }))).toMatch(
