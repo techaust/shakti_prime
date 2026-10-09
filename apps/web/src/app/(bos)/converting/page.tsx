@@ -9,7 +9,7 @@ import { FailureMessage } from '../../../components/screens/failure';
 import { Page } from '../../../components/shell/page';
 import { navRequires } from '../../../nav';
 import { companyNames, screenAccess, screenTitle } from '../../../screens/access';
-import { converterHref } from '../../../screens/converting';
+import { boardInput, converterHref } from '../../../screens/converting';
 import { companyParam } from '../../../screens/customers';
 import { firstFailure } from '../../../screens/result';
 
@@ -108,10 +108,7 @@ export default async function ConvertingPage({
   }
 
   const [board, members] = await Promise.all([
-    loadConvertingBoard({
-      ...(ownerId === undefined ? {} : { ownerId }),
-      ...(entityId === undefined ? {} : { entityId }),
-    }),
+    loadConvertingBoard(boardInput({ ownerId, entityId })),
     ownerId === undefined ? undefined : listTeamQueues({}),
   ]);
   const ownerName =
@@ -135,6 +132,7 @@ export default async function ConvertingPage({
           initialBoard={board.data}
           canWrite={can('crm.lead.write', 'own')}
           {...(ownerId === undefined ? {} : { ownerId })}
+          {...(entityId === undefined ? {} : { entityId })}
         />
       ) : (
         <FailureMessage failure={firstFailure(board)} />

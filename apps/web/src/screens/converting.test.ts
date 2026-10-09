@@ -1,6 +1,7 @@
 import type { ConvertingLeadDto } from '@shakti/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  boardInput,
   converterHref,
   convertingShortcut,
   groupByStage,
@@ -133,5 +134,14 @@ describe('sizingKindFor', () => {
     expect(sizingKindFor('residential_rooftop')).toBe('rooftop');
     expect(sizingKindFor('commercial_epc')).toBe('rooftop');
     expect(sizingKindFor('dealer_wholesale')).toBe('pump');
+  });
+});
+
+describe('boardInput', () => {
+  it('keeps the person and the company the page was opened on, and only those', () => {
+    expect(boardInput({})).toEqual({});
+    expect(boardInput({ ownerId: 'p1' })).toEqual({ ownerId: 'p1' });
+    expect(boardInput({ entityId: 2 })).toEqual({ entityId: 2 });
+    expect(boardInput({ ownerId: 'p1', entityId: 2 })).toEqual({ ownerId: 'p1', entityId: 2 });
   });
 });

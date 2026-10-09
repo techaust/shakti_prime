@@ -1,4 +1,4 @@
-import { newId, type Principal } from '@shakti/contracts';
+import { CONVERTING_BOARD_LIMIT, newId, type Principal } from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -35,6 +35,14 @@ afterAll(async () => {
       await tx`delete from quotes where price_list_id = ${LIST}`;
       await tx`alter table quote_lines enable trigger quote_lines_append_only`;
       await tx`alter table quote_versions enable trigger quote_versions_append_only`;
+    }),
+  );
+  await asMigrator((m) =>
+    m.begin(async (tx) => {
+      const crowd = tx`select id from accounts where name like ${`CNV crowd ${tag} %`}`;
+      await tx`delete from opportunities where account_id in (${crowd})`;
+      await tx`delete from account_entities where account_id in (${crowd})`;
+      await tx`delete from accounts where name like ${`CNV crowd ${tag} %`}`;
     }),
   );
   await closeDb();
@@ -286,7 +294,57 @@ describe('loadConvertingBoard (PRD TEL-03)', () => {
     expect(shown.leads).toEqual([]);
   });
 
-  it('narrows to one company when asked', async () => {
-    expect((await board(converter, { entityId: ENTITY })).leads).toHaveLength(6);
+  it('narrows to one company when asked, for a person who works in two', async () => {
+    const both = await createTestPrincipal('tele_caller_lc', [ENTITY, 3]);
+    const here = await newLead(both, 'Two companies here');
+    const there = (await run(both, createLead, {
+      entityId: 3,
+      pipelineKey: 'farmer_pumps',
+      contact: { name: `Two companies there ${tag}`, phone: phone() },
+      account: { type: 'farm' },
+      site: { type: 'borewell', village: `Converting village ${tag}`, pin: '422001' },
+    })) as { id: string };
+    const ids = (shown: { leads: { opportunityId: string }[] }) =>
+      shown.leads.map((l) => l.opportunityId).sort();
+    expect(ids(await board(both))).toEqual([here, there.id].sort());
+    expect(ids(await board(both, { entityId: ENTITY }))).toEqual([here]);
+    expect(ids(await board(both, { entityId: 3 }))).toEqual([there.id]);
+  });
+
+  it('says when there are more leads than the board reads, and shows the newest', async () => {
+    const crowd = await createTestPrincipal('tele_caller_lc', [ENTITY], { teamId: team });
+    const over = CONVERTING_BOARD_LIMIT + 1;
+    await asMigrator((m) =>
+      m.begin(async (tx) => {
+        const [pipeline] = await tx<{ id: string; stage: string }[]>`
+          select p.id, (select s.id from pipeline_stages s where s.pipeline_id = p.id
+                         order by s.position limit 1) as stage
+            from pipelines p where p.key = 'farmer_pumps' and p.entity_id is null`;
+        if (pipeline === undefined) throw new Error('no farmer_pumps pipeline');
+        await tx`insert into accounts (id, type, name, created_by)
+                 select app.uuid_v7(), 'farm', ${`CNV crowd ${tag} `} || g, ${crowd.id}
+                   from generate_series(1, ${over}::int) g`;
+        await tx`insert into account_entities (id, account_id, entity_id, owner_id, team_id, created_by)
+                 select app.uuid_v7(), a.id, ${ENTITY}, ${crowd.id}, ${team}, ${crowd.id}
+                   from accounts a where a.name like ${`CNV crowd ${tag} %`}`;
+        await tx`insert into opportunities (id, entity_id, account_id, pipeline_id, stage_id, owner_id, team_id, created_by)
+                 select app.uuid_v7(), ${ENTITY}, ae.account_id, ${pipeline.id}, ${pipeline.stage},
+                        ${crowd.id}, ${team}, ${crowd.id}
+                   from account_entities ae join accounts a on a.id = ae.account_id
+                  where a.name like ${`CNV crowd ${tag} %`}`;
+      }),
+    );
+    const shown = await board(crowd);
+    expect(shown.leads).toHaveLength(CONVERTING_BOARD_LIMIT);
+    expect(shown.truncated).toBe(true);
+    // One lead fewer is a full board and no more.
+    await asMigrator(
+      (m) => m`update opportunities set archived_at = now() where id = (
+                 select o.id from opportunities o join accounts a on a.id = o.account_id
+                  where a.name like ${`CNV crowd ${tag} %`} and o.owner_id = ${crowd.id} limit 1)`,
+    );
+    const exact = await board(crowd);
+    expect(exact.leads).toHaveLength(CONVERTING_BOARD_LIMIT);
+    expect(exact.truncated).toBe(false);
   });
 });

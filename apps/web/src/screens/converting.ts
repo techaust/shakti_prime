@@ -131,3 +131,17 @@ export function converterHref(ownerId: string, entityId: number): Route {
 export function sizingKindFor(segment: Segment): SizingKind {
   return segment === 'residential_rooftop' || segment === 'commercial_epc' ? 'rooftop' : 'pump';
 }
+
+/**
+ * What the board is read with, at the first read and at every read after a change: the person and
+ * the company the page was opened on, so a refresh shows the same leads as the page did.
+ */
+export function boardInput(page: { ownerId?: string | undefined; entityId?: number | undefined }): {
+  ownerId?: string;
+  entityId?: number;
+} {
+  return {
+    ...(page.ownerId === undefined ? {} : { ownerId: page.ownerId }),
+    ...(page.entityId === undefined ? {} : { entityId: page.entityId }),
+  };
+}

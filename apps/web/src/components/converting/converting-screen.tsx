@@ -12,7 +12,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadCallLead } from '../../actions/calling';
 import { loadConvertingBoard } from '../../actions/converting';
 import { isTypingTarget, outcomeForKey } from '../../screens/calling';
-import { convertingShortcut, leadKey, movedIndex, groupByStage } from '../../screens/converting';
+import {
+  boardInput,
+  convertingShortcut,
+  leadKey,
+  movedIndex,
+  groupByStage,
+} from '../../screens/converting';
 import { Search } from '../calling/calling-parts';
 import { FailureMessage } from '../screens/failure';
 import { useQuery } from '../screens/use-command';
@@ -46,11 +52,14 @@ function focusSoon(root: HTMLElement | null, selector: string): void {
 export function ConvertingScreen({
   initialBoard,
   ownerId,
+  entityId,
   canWrite,
 }: {
   initialBoard: ConvertingBoardDto;
   /** A person of the caller's team whose leads a team lead is viewing; absent for the caller's own. */
   ownerId?: string;
+  /** The company the page was opened on (`?company=`), kept when the board is read again. */
+  entityId?: number;
   /** The caller holds `crm.lead.write`, so the sizing form is offered. */
   canWrite: boolean;
 }) {
@@ -70,8 +79,8 @@ export function ConvertingScreen({
   const leadQuery = useQuery<CallLeadDto>();
 
   const refreshBoard = useCallback(() => {
-    boardQuery.load(() => loadConvertingBoard(ownerId === undefined ? {} : { ownerId }), setBoard);
-  }, [boardQuery, ownerId]);
+    boardQuery.load(() => loadConvertingBoard(boardInput({ ownerId, entityId })), setBoard);
+  }, [boardQuery, ownerId, entityId]);
 
   const openLead = useCallback(
     (ref: { entityId: number; opportunityId: string }, to: ConvertingPanel = 'calls') => {

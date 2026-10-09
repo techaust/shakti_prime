@@ -87,8 +87,8 @@
       "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the upload form. Measured 190.9 kB on 29-09-2026, plus 5 %."
     },
     "/leads": {
-      "maxKb": 243,
-      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the leads grid and saved views. Measured 226.9 kB on 29-09-2026, plus 5 %; 240.2 kB on 09-10-2026, after later work on main and the Converting menu item in the shell."
+      "maxKb": 252,
+      "reason": "Staff screen: the framework (about 158 kB), the app shell every staff page shares (about 20 kB: the menu, the top bar, tailwind-merge and the buttons of the company switcher and profile menu, whose Radix menus, like the toasts and the search palette, load after the page), and the leads grid and saved views. Measured 226.9 kB on 29-09-2026, plus 5 %; 240.2 kB on 09-10-2026, plus 5 % (252): the growth since 29-09-2026 is mostly main's own work (the bell and notification centre among it) and, from L1, the Converting menu item and its icon in the shell, well under 1 kB."
     },
     "/leads/board": {
       "maxKb": 235,
