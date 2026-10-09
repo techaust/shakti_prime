@@ -53,7 +53,10 @@ export const callerProfiles = pgTable(
       'caller_profiles_max_open_check',
       sql`${t.maxOpen} is null or ${t.maxOpen} between 1 and 1000`,
     ),
-    check('caller_profiles_languages_check', sql`${t.languages} <@ array['hinglish', 'en']::text[]`),
+    check(
+      'caller_profiles_languages_check',
+      sql`${t.languages} <@ array['hinglish', 'en']::text[]`,
+    ),
     check(
       'caller_profiles_segments_check',
       sql`${t.segments} <@ array['farmer_pumps', 'residential_rooftop', 'commercial_epc', 'dealer_wholesale']::text[]`,
