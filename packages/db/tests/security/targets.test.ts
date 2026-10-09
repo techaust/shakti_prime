@@ -141,7 +141,7 @@ beforeAll(async () => {
     );
   }
   const otherCompany = newId();
-  T['company2'] = otherCompany;
+  T.company2 = otherCompany;
   await asMigrator(
     (mig) => mig`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by)
       values (${otherCompany}, 2, 'team', ${teamA}, ${teamA}, 'calls', 'day', '2031-04-01', 20, ${exec.id})`,
@@ -178,7 +178,7 @@ describe('who reads a target', () => {
 
   it('nobody reads a target without a context', async () => {
     const found = await withoutContext<{ id: string }>(
-      sql`select id from targets where id = ${T['a1'] ?? ''}`,
+      sql`select id from targets where id = ${T.a1 ?? ''}`,
     );
     expect(found).toHaveLength(0);
   });
@@ -186,8 +186,8 @@ describe('who reads a target', () => {
 
 describe('who sets a target', () => {
   it('a team lead sets a caller’s target and the team’s, for their own team', async () => {
-    T['setA1'] = await insertTarget(leadA, { subject: callerA1.id, team: teamA, metric: 'qualified' });
-    T['setTeamA'] = await insertTarget(leadA, {
+    T.setA1 = await insertTarget(leadA, { subject: callerA1.id, team: teamA, metric: 'qualified' });
+    T.setTeamA = await insertTarget(leadA, {
       scope: 'team',
       subject: teamA,
       team: teamA,
@@ -210,8 +210,8 @@ describe('who sets a target', () => {
   });
 
   it('the GM sets the target of any caller of the company, the Executive of any company they act in', async () => {
-    T['gmB'] = await insertTarget(gm, { subject: callerB.id, team: teamB, metric: 'orders' });
-    T['execB'] = await insertTarget(exec, { subject: callerB.id, team: teamB, metric: 'kw' });
+    T.gmB = await insertTarget(gm, { subject: callerB.id, team: teamB, metric: 'orders' });
+    T.execB = await insertTarget(exec, { subject: callerB.id, team: teamB, metric: 'kw' });
     expect(await seen(callerB)).toEqual(expect.arrayContaining(['gmB', 'execB']));
   });
 
@@ -244,7 +244,7 @@ describe('who sets a target', () => {
 
 describe('the table keeps its shape', () => {
   it('is append-only for every role', async () => {
-    const id = T['a1'] ?? '';
+    const id = T.a1 ?? '';
     expect(
       await failure(rows(exec, sql`update targets set value = 1 where id = ${id}`)),
     ).toMatch(/permission denied|append-only/);
