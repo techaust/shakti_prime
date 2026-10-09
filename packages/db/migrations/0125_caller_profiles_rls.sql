@@ -278,7 +278,9 @@ grant execute on function app.handover_team_lead(smallint, uuid) to app_user;
 --    to them (a new task at the same time, or now when it is due; the old one cancelled), and
 --    writes the lead's timeline rows. A handover already made for the event (its id is in the
 --    lead's timeline row) answers 'already' and changes nothing; a lead no longer open answers
---    'not_open'; a lead that has left the stage of the event (p_stage), whose lock still runs,
+--    'not_open'; a lead that has left the stage of the event (p_stage), whose lock still runs
+--    and whose owner is a Lead Converter of the company (a lock a person's assignment set on a
+--    non-converter never keeps it),
 --    that was given to someone after the event (p_event_at), or whose owner the command found to
 --    qualify as a converter (p_keep) answers 'kept' and stays where it is. The lock hours are the
 --    pipeline's, else p_default_hours (the workshop default, passed by the command). The customer relationship is moved by app.hand_over_customer() after it.
@@ -320,7 +322,9 @@ begin
   end if;
   if v_lead.stage_id is distinct from p_stage
      or p_keep
-     or (v_lead.owner_id is not null and v_lead.locked_until is not null and v_lead.locked_until > pg_catalog.now())
+     or (v_lead.locked_until is not null and v_lead.locked_until > pg_catalog.now()
+         and exists (select 1 from public.caller_profiles cp
+                      where cp.user_id = v_lead.owner_id and cp.entity_id = p_entity and cp.is_converter))
      or exists (select 1 from public.activities a
                  where a.opportunity_id = p_opportunity and a.type = 'assigned'
                    and a.created_at > p_event_at) then

@@ -101,7 +101,7 @@ export async function loadCandidates(
  *   decision of 09-10-2026, `app.hand_over_customer()`); the new owner is told by the notify worker.
  *
  * The handover made for an event is made once: a repeat answers `already`, a lead no longer open
- * `not_open`; a lead that has left the event's stage, is locked, was given to someone after the
+ * `not_open`; a lead that has left the event's stage, is locked to a converter, was given to someone after the
  * event, or belongs to a converter who qualifies for it answers `kept`; none of them changes
  * anything. The lock hours are the pipeline's, else the workshop default.
  */
@@ -150,7 +150,7 @@ export const handOverLead = defineCommand({
       ownerId = teamLead.user_id;
     }
 
-    // The machine's `assign`, fired as the platform: the lock never stops a handover.
+    // The machine's `assign`, fired as the platform: a lock keeps a lead only with a Lead Converter (the definer answers `kept`).
     transition(
       opportunityMachine,
       {

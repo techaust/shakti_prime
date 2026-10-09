@@ -597,15 +597,29 @@ describe('the handover leaves a lead that has moved on', () => {
     await run(teamLead, assignOpportunity, {
       entityId: CO,
       opportunityId: lead.id,
-      ownerId: converterY.id,
+      ownerId: teamLead.id,
     });
-    // The lock the assignment set is lifted, so only the assignment after the event stops the handover.
-    await asMigrator((m) => m`update opportunities set locked_until = null where id = ${lead.id}`);
+    // The assignment's lock runs, but the owner is no converter: only the assignment after the
+    // event stops this handover.
     const late = await handOver(lead, newId(), null, { eventAt });
     expect(late.outcome).toBe('kept');
-    expect((await leadState(lead)).owner_id).toBe(converterY.id);
-    // For an event made after the assignment the lead is handed over.
+    expect((await leadState(lead)).owner_id).toBe(teamLead.id);
+    // For an event made after the assignment the lead is handed over, lock or not.
     expect((await handOver(lead, newId())).outcome).toBe('converter');
+    expect((await leadState(lead)).owner_id).toBe(converterX.id);
+  });
+
+  it('hands a qualified lead over though a person locked it to a caller who is no converter', async () => {
+    await onlyPresent(converterX);
+    const lead = await newLead();
+    await run(teamLead, assignOpportunity, {
+      entityId: CO,
+      opportunityId: lead.id,
+      ownerId: caller.id,
+    });
+    expect((await leadState(lead)).locked_until?.getTime() ?? 0).toBeGreaterThan(Date.now());
+    const result = await handOver(lead);
+    expect(result).toMatchObject({ outcome: 'converter', ownerId: converterX.id });
     expect((await leadState(lead)).owner_id).toBe(converterX.id);
   });
 
@@ -632,8 +646,7 @@ describe('the handover leaves a lead that has moved on', () => {
       opportunityId: lead.id,
       ownerId: converterX.id,
     });
-    // The lock is over; Y may hold fewer leads, yet X keeps the lead they qualify for.
-    await asMigrator((m) => m`update opportunities set locked_until = null where id = ${lead.id}`);
+    // Y may hold fewer leads, yet X keeps the lead they qualify for.
     const result = await handOver(lead);
     expect(result).toMatchObject({ outcome: 'kept', ownerId: converterX.id });
     expect((await leadState(lead)).owner_id).toBe(converterX.id);

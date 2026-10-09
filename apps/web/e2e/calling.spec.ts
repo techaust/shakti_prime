@@ -1,6 +1,13 @@
 import type { Page } from '@playwright/test';
-import { expect, expectNoAxeViolations, signedInAs, snap, test } from './support/fixtures';
-import { SNAPSHOT_LEADS } from './support/users';
+import {
+  dataGrid,
+  expect,
+  expectNoAxeViolations,
+  signedInAs,
+  snap,
+  test,
+} from './support/fixtures';
+import { SNAPSHOT_LEADS, storageStatePath } from './support/users';
 
 /** A mobile number no earlier run used, typed the way a caller types it. */
 function freshMobile(): string {
@@ -70,6 +77,7 @@ test.describe('calling as a tele-caller', () => {
 
   test('works leads from the keyboard: an unanswered call, a callback and a qualified lead', async ({
     page,
+    browser,
   }) => {
     test.setTimeout(180_000);
     const unanswered = await addLead(page, 'Mohan Lal Saini');
@@ -142,11 +150,22 @@ test.describe('calling as a tele-caller', () => {
     await findLead(page, qualified);
     await page.keyboard.press('8');
     await toast(page, 'Call saved. The lead moved to Qualified.');
-    // A present Lead Converter takes a qualified lead within a moment (handover.spec.ts), so the
-    // page shows the lead at Qualified or already says it has moved to a colleague.
-    await expect(
-      page.getByText(/Farmer Pumps, Qualified/).or(page.getByText(/We couldn't find this lead/)),
-    ).toBeVisible();
+    // The handover (T2): the present Lead Converter takes the qualified lead and its customer
+    // within a moment, so the customer is in her list and the page here may already say the lead
+    // moved on. The converter's own list is what is asserted.
+    const converterContext = await browser.newContext({
+      storageState: storageStatePath('converter'),
+    });
+    const converter = await converterContext.newPage();
+    await expect(async () => {
+      await converter.goto('/customers');
+      await converter.getByRole('searchbox', { name: 'Find a customer' }).fill(qualified);
+      await converter.getByRole('button', { name: 'Search', exact: true }).click();
+      await expect(
+        dataGrid(converter, 'Customers').getByRole('link', { name: qualified }),
+      ).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 60_000 });
+    await converterContext.close();
 
     // N opens the next lead of the queue.
     await page.keyboard.press('n');
