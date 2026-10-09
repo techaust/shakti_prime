@@ -7,8 +7,8 @@
 | Runs on | PC only, beside T2 (owner, 09-10-2026: two builders this run), heavy commands through the PC's lock (`bash tools/integration/heavy.sh <command>`) |
 | Tier | B (permissions, home pages over existing commands): build Sonnet medium, review Opus |
 | Usage | build (Sonnet, medium, 09-10-2026): 75 % of the week at its start |
-| State | building |
-| Next step | the builder builds the slice from this brief |
+| State | built, checks pass; Linux baselines not made |
+| Next step | review (Opus) |
 
 ## Brief
 Read first:
