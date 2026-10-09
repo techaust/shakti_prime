@@ -6,8 +6,8 @@
 | PC worktree | `k1-knowledge`, slot 18: Postgres 54348, app 3048 (`bash tools/integration/setup-worktree.sh k1-knowledge feat/k1-knowledge 54348 3048`) |
 | Runs on | PC only (owner, 06-10-2026), beside N1 and the other wave 4 builder; heavy commands one at a time through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
 | Usage | fixes (Sonnet, medium, 08-10-2026): 70 % of the week at its start; PDFium swap (Sonnet, medium): 71 % at its start; merge with main (Sonnet, medium): 72 % of the week at its start; re-check fixes (Sonnet, medium, 09-10-2026): 73 % at its start; findings 15 and 16 (Sonnet, medium, 09-10-2026): 73 % at its start; the lead's integration: 74 % to 75 % |
-| State | integrated 09-10-2026: every check passes; pull request open |
-| Next step | the merge workflow merges it; then `migrate-hosted` for 0121 to 0123 |
+| State | merged (#135) on 09-10-2026; migrations 0121 to 0123 on dev and staging the same day |
+| Next step | none |
 
 ## Brief
 Read first:

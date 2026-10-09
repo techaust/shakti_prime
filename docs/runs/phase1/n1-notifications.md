@@ -5,9 +5,9 @@
 | Branch | `feat/n1-notifications` on GitHub, from `main` at f74caff0 (#121) |
 | PC worktree | `n1-notifications`, slot 16: Postgres 54346, app 3046 (`bash tools/integration/setup-worktree.sh n1-notifications feat/n1-notifications 54346 3046`) |
 | Runs on | PC only (owner, 06-10-2026), at most two builders, heavy commands through the PC's lock: build, review, fixes, the merge with `main`, integration, baselines, the pull request and the hosted steps |
-| Usage | merge and wiring (Sonnet, medium, 08-10-2026): 69 % of the week at its start; review (Opus, medium): 69 % to its end figure as the lead records; fixes (Sonnet, medium): 69 % at its start; L5 fix (Sonnet, medium): 70 % of the week at its start |; L5 fix: 70 % at its end; the lead's integration: 70 % to 71 % |
-| State | integrated 08-10-2026: every check passes; pull request open |
-| Next step | the merge workflow merges it; then `migrate-hosted` for 0118 to 0120; K1 takes `main` after it |
+| Usage | merge and wiring (Sonnet, medium, 08-10-2026): 69 % of the week at its start; review (Opus, medium): 69 % to 69 %; fixes (Sonnet, medium): 69 % to 70 %; L5 fix (Sonnet, medium): 70 % to 70 %; the lead's integration: 70 % to 71 % |
+| State | merged (#134) on 08-10-2026; migrations 0118 to 0120 on dev and staging the same day |
+| Next step | none |
 
 ## Brief
 Read first:

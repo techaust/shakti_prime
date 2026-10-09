@@ -25,7 +25,8 @@ You are a building agent on Shakti Prime BOS. The lead session (on the owner's P
 - Open or merge pull requests, push to `main`, force-push, or delete a remote branch.
 - **PC:** push at all; the lead session pushes. **Cloud:** push only your own branch (see Rhythm).
 - Install or remove packages, run `npx` or `pnpm dlx`, or edit `pnpm-lock.yaml`; if a package is missing, stop and report. Reach no site beyond the package registries the session already uses; in particular no hosted service of this project.
-- **PC:** run `docker` (your database is already running) or touch another worktree.
+- **PC:** run `docker` or `tools/integration/fresh-db.sh` (your database is already running; when you need a fresh one, commit and stop with a report saying so, and the lead recreates it), or touch another worktree.
+- Leave a background wait running: any `until` loop or watcher you start has a time limit (`timeout` or a counter), and you stop it before you report.
 - Touch any hosted service (Supabase, Vercel, Upstash, AWS, Sentry, the GitHub workflows).
 - Weaken, skip or delete a test to make it pass; disable a lint rule, RLS, a policy or a check; add `eslint-disable` without a written reason the lead session would accept.
 - Invent client data (tax rates, prices, numbering, scripts, targets). A client input becomes a named default in `packages/domain/src/workshop-defaults.ts` only when your brief says so.
