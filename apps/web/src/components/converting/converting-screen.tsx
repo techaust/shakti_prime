@@ -59,6 +59,8 @@ export function ConvertingScreen({
   const [lead, setLead] = useState<CallLeadDto | null>(null);
   const [panel, setPanel] = useState<ConvertingPanel>('calls');
   const [help, setHelp] = useState(false);
+  // Counts the leads opened; the heading takes the keyboard once it is on the page.
+  const [opened, setOpened] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -80,12 +82,17 @@ export function ConvertingScreen({
         (loaded) => {
           setLead(loaded);
           setPanel(to);
-          headingRef.current?.focus();
+          setOpened((n) => n + 1);
         },
       );
     },
     [leadQuery],
   );
+
+  // The workspace takes the keyboard back once a lead is open, so the next key is the workspace's.
+  useEffect(() => {
+    if (opened > 0) headingRef.current?.focus();
+  }, [opened]);
 
   // A call saved, a sizing saved or a quote made: the lead and the board are read again, and the
   // list changes with them.
