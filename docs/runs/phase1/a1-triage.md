@@ -108,4 +108,12 @@ Skills loaded: `add-command`, `add-table`, `claude-api` (model id check: the wra
 
 **Not checked:** the screenshots (the `triage-proposals`, `admin-agents` and `integration-health` baselines are to be made in the Linux image at integration; none is on the branch), a fresh-database migration run (no docker here), `eval:triage` against the live model (no key), the whole journeys.
 
+### Fix round, 09-10-2026, cloud VM
+- 1: `commit-leads.ts` marks an import batch's `crm.lead.created` with `imported: true` (optional in the catalogue payload); `handleTriageEvent()` records nothing for it. `runTriage()` resolves the agent's settings (first kind) before reading the lead; switched off or without a limit it records one stopped run and returns, so no facts read and no other step. Tests: `imports.test.ts` (the marker on committed rows), `apps/web/tests/triage.test.ts` (an imported lead gives no run and no model call under a set limit), `triage.test.ts` (one stopped run when off or uncapped; a lead that does not exist still gets the one stopped run, so nothing of the lead was read).
+- 2: `stoppedByCap` only when a company or group limit exists; `shadow-report.test.ts` adds the no-limit case.
+- 4: the assignee test now assigns through `crm.opportunity.assign`: to the proposed person (agree) and to someone else (disagree).
+- 5: the period message sits on the field it names (To for an end before the start, both for too long, the empty one for a missing date), with `aria-invalid` on the same box; the journey checks both.
+- Design §9 Built and SECURITY §3.3 say the two new rules; `db:docs` regenerated.
+- Checks (through the lock): typecheck contracts, domain, web 4 of 4; eslint on the touched folders clean; contracts 181, domain `src/ai` 87, web `src/workers` + `src/screens` 352 + 1 skipped passed; Postgres: domain `triage`, `shadow-report`, `imports`, `reader-parity` 4 files / 46, web `triage`, `integration-health`, `outbox-event-route` 3 / 36, db `enum-sync`, `agents` 2 / 20, all passed; build passed; `e2e/triage.spec.ts` on a fresh seed: 21 passed (the `triage-proposals` baselines it wrote here were removed again; they are made in the Linux image at integration).
+
 ## Integration notes
