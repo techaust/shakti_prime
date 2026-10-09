@@ -90,11 +90,23 @@ test.describe('a team lead sets a caller’s target and the caller sees the prog
       await expect(page.getByRole('heading', { name: 'Today', level: 3 })).toBeVisible();
       const meter = page.getByRole('progressbar', { name: /^Calls: \d+ of 40$/ });
       await expect(meter).toBeVisible();
-      const label = (await meter.getAttribute('aria-label')) ?? '';
-      const done = Number(/: (\d+) of/.exec(label)?.[1] ?? '-1');
-      // The two calls the seed logged today, and any a calling journey saved.
-      expect(done).toBeGreaterThanOrEqual(2);
-      await expect(meter).toHaveAttribute('aria-valuenow', String(Math.round((done / 40) * 100)));
+      // The two calls the seed logged today, and any a calling journey saved; the bar stops at full
+      // once the day's calls pass the target, as they do on a database several runs have used.
+      // The label and the bar are read together, since a calling journey may save a call between.
+      const read = () =>
+        meter.evaluate((el) => ({
+          label: el.getAttribute('aria-label') ?? '',
+          now: el.getAttribute('aria-valuenow') ?? '',
+        }));
+      const { label } = await read();
+      expect(Number(/: (\d+) of/.exec(label)?.[1] ?? '-1')).toBeGreaterThanOrEqual(2);
+      await expect
+        .poll(async () => {
+          const { label: seen, now } = await read();
+          const done = Number(/: (\d+) of/.exec(seen)?.[1] ?? '-1');
+          return now === String(Math.min(100, Math.round((done / 40) * 100)));
+        })
+        .toBe(true);
       await expect(
         page.getByText('Your team lead sets your targets', { exact: false }),
       ).toHaveCount(0);
