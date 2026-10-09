@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { baseFacts, PERSON_1 } from '../../../tests/fixtures/triage-sets';
 import { AGENT_DEFAULTS } from '../agent-defaults';
-import { filterTriageAnswer, kindOfActionType, noteProblem, readTriageAnswer } from './filter';
+import { filterTriageAnswer, kindOfActionType, noteProblem, parseTriageAnswer } from './filter';
 
 // The Triage agent's output filter (A1): pure, deterministic, and the last word on what the model
 // proposes before it is recorded.
 
 const max = AGENT_DEFAULTS.triage.scoreAdjustmentMax;
 
-describe('readTriageAnswer', () => {
+describe('parseTriageAnswer', () => {
   it('reads one JSON object, with or without a fence, and nothing else', () => {
-    expect(readTriageAnswer('{"pipeline":null}')).toEqual({ pipeline: null });
-    expect(readTriageAnswer('```json\n{"score":{"change":2}}\n```')).toEqual({
+    expect(parseTriageAnswer('{"pipeline":null}')).toEqual({ pipeline: null });
+    expect(parseTriageAnswer('```json\n{"score":{"change":2}}\n```')).toEqual({
       score: { change: 2 },
     });
-    expect(readTriageAnswer('Sure! {"pipeline":null}')).toBeUndefined();
-    expect(readTriageAnswer('[1,2]')).toBeUndefined();
-    expect(readTriageAnswer('')).toBeUndefined();
-    expect(readTriageAnswer('{"pipeline":"farmer_pumps"}')).toBeUndefined();
+    expect(parseTriageAnswer('Sure! {"pipeline":null}')).toBeUndefined();
+    expect(parseTriageAnswer('[1,2]')).toBeUndefined();
+    expect(parseTriageAnswer('')).toBeUndefined();
+    expect(parseTriageAnswer('{"pipeline":"farmer_pumps"}')).toBeUndefined();
   });
 });
 

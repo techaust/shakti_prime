@@ -498,7 +498,7 @@ export type { AgentDecision, AgentStep, AgentStepDeps, RunModel } from './ai/run
 export { runTriage, TRIAGE_PURPOSE } from './ai/triage/run-triage';
 export type { TriageLead, TriageResult } from './ai/triage/run-triage';
 export { buildTriagePrompt, TRIAGE_SYSTEM } from './ai/triage/prompt';
-export { filterTriageAnswer, noteProblem, readTriageAnswer } from './ai/triage/filter';
+export { filterTriageAnswer, noteProblem, parseTriageAnswer } from './ai/triage/filter';
 export type { TriageDecision, TriageVerdicts } from './ai/triage/filter';
 export type { TriageFacts } from './ai/triage/facts';
 export { readTriageFacts } from './ai/triage/read-facts';
@@ -533,7 +533,7 @@ export {
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
-export { shadowReport } from './queries/agents/shadow-report';
+export { loadShadowReport } from './queries/agents/shadow-report';
 export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,

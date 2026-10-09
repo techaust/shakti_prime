@@ -190,7 +190,7 @@ function checkReader(ctx: Ctx, entityId: number): void {
   }
 }
 
-export async function shadowReport(ctx: Ctx, rawInput: unknown): Promise<ShadowReportDto> {
+export async function loadShadowReport(ctx: Ctx, rawInput: unknown): Promise<ShadowReportDto> {
   const input = parseQueryInput(ShadowReportInput, rawInput, 'agents.shadow.report');
   checkReader(ctx, input.entityId);
   const after = input.cursor === undefined ? undefined : decodeCursor(Cursor, input.cursor);

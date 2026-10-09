@@ -19,7 +19,7 @@ import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
 import { memoryKeyValue } from '../../src/ports/key-value';
 import { memoryLogger } from '../../src/ports/logger';
-import { shadowReport } from '../../src/queries/agents/shadow-report';
+import { loadShadowReport } from '../../src/queries/agents/shadow-report';
 import { readAgentSpend } from '../../src/queries/agents/spend';
 
 // The shadow report and the AI spend per agent (A1) on Postgres, company 3: the Triage agent
@@ -65,7 +65,7 @@ async function newLead(): Promise<string> {
 
 const report = (who: Principal, input: Record<string, unknown>, entityIds = [ENTITY]) =>
   asPrincipal({ ...who, entityIds }, (context) =>
-    shadowReport(context, { entityId: ENTITY, from: today, to: today, limit: 100, ...input }),
+    loadShadowReport(context, { entityId: ENTITY, from: today, to: today, limit: 100, ...input }),
   );
 
 async function allItems(who: Principal): Promise<ShadowReportDto['items']> {

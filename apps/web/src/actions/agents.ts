@@ -30,7 +30,7 @@ import {
   rejectInboxItem as rejectCommand,
   setAgentConfig as setAgentConfigCommand,
   setKillSwitch as setKillSwitchCommand,
-  shadowReport as shadowReportQuery,
+  loadShadowReport as shadowReportQuery,
   type AnyCommand,
 } from '@shakti/domain';
 import { inboxCountKey, inboxCounts } from './inbox-count-cache';

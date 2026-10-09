@@ -6,6 +6,9 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { executeQuery } from '../../src/command/execute';
 import { countInbox, listInbox } from '../../src/queries/agents/inbox';
 import { loadAgentSettings } from '../../src/queries/agents/settings';
+import { loadShadowReport } from '../../src/queries/agents/shadow-report';
+import { readAgentSpend } from '../../src/queries/agents/spend';
+import { readTriageFacts } from '../../src/ai/triage/read-facts';
 import { fakeEmbedding } from '../../src/ai/transport';
 import { listKnowledgeFiles, searchKnowledge } from '../../src/queries/knowledge/vault';
 import { countNotices, listNotices } from '../../src/queries/notifications/notices';
@@ -180,6 +183,15 @@ const QUERIES: Record<string, (ctx: RequestContext) => Promise<unknown>> = {
   listCallerProfiles: (ctx) => listCallerProfiles(ctx, { entityId: 1 }),
   loadOwnPresence: (ctx) => loadOwnPresence(ctx, { entityId: 1 }),
   loadAgentSettings: (ctx) => loadAgentSettings(ctx, { now: new Date(NOW) }),
+  loadShadowReport: (ctx) =>
+    loadShadowReport(ctx, { entityId: 1, from: '2026-09-01', to: '2026-09-30', limit: 20 }),
+  readAgentSpend: (ctx) => readAgentSpend(ctx, new Date(NOW)),
+  readTriageFacts: (ctx) =>
+    readTriageFacts(
+      ctx.tx,
+      { entityId: 1, opportunityId: newId(), existingCustomer: false },
+      new Date(NOW),
+    ),
   listKnowledgeFiles: (ctx) => listKnowledgeFiles(ctx, {}),
   searchKnowledge: (ctx) => searchKnowledge(ctx, fakeEmbedding('solar pump care')),
   listSizingPumps: (ctx) => listSizingPumps(ctx),

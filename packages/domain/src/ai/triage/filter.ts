@@ -33,7 +33,7 @@ const Answer = z.object({
 type Answer = z.infer<typeof Answer>;
 
 /** The JSON object in the answer, allowing for a fence around it; undefined when there is none. */
-export function readTriageAnswer(text: string): Answer | undefined {
+export function parseTriageAnswer(text: string): Answer | undefined {
   const trimmed = text
     .trim()
     .replace(/^```(?:json)?\s*/i, '')
@@ -167,7 +167,7 @@ const CHECKS: Record<TriageProposalKind, (a: Answer, f: TriageFacts) => TriageDe
 
 /** Each kind's verdict on the model's answer; an answer that cannot be read refuses all four. */
 export function filterTriageAnswer(text: string, facts: TriageFacts): TriageVerdicts {
-  const answer = readTriageAnswer(text);
+  const answer = parseTriageAnswer(text);
   return Object.fromEntries(
     TRIAGE_PROPOSAL_KINDS.map((kind) => [
       kind,
