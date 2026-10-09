@@ -226,8 +226,8 @@ describe('POST /api/v1/workers/outbox/:type (docs/03-roadmap-appendix/phase1.md 
   });
 
   it('answers not_found, not retried, for a type no worker handles', async () => {
-    const event = probe({ type: 'crm.lead.created' });
-    const response = await call('crm.lead.created', JSON.stringify(event));
+    const event = probe({ type: 'pricing.price.changed' });
+    const response = await call('pricing.price.changed', JSON.stringify(event));
     expect(response.status).toBe(404);
     expect(response.headers.get('upstash-nonretryable-error')).toBe('true');
     const unknown = await call('crm.lead.vanished', JSON.stringify(event));
