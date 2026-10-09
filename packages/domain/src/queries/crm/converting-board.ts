@@ -48,51 +48,7 @@ export async function loadConvertingBoard(
   }
   const entityIds = input.entityId === undefined ? [...ctx.entityIds] : [input.entityId];
 
-  const o = schema.opportunities;
-  const ps = schema.pipelineStages;
-  const pl = schema.pipelines;
-  const a = schema.accounts;
-  const cs = schema.customerSites;
-  // A pipeline has at most one live stage keyed qualified, so this join keeps one row per lead.
-  const qualified = ctx.tx
-    .select({ pipelineId: ps.pipelineId, position: ps.position })
-    .from(ps)
-    .where(and(eq(ps.key, 'qualified'), isNull(ps.archivedAt)))
-    .as('qualified');
-  const rows = await ctx.tx
-    .select({
-      id: o.id,
-      entityId: o.entityId,
-      accountId: o.accountId,
-      state: o.state,
-      score: o.score,
-      createdAt: o.createdAt,
-      customerName: a.name,
-      village: cs.village,
-      segment: pl.segment,
-      pipelineName: pl.name,
-      stageId: ps.id,
-      stageKey: ps.key,
-      stageName: ps.name,
-      stagePosition: ps.position,
-      qualifiedPosition: qualified.position,
-    })
-    .from(o)
-    .innerJoin(ps, eq(ps.id, o.stageId))
-    .innerJoin(pl, eq(pl.id, o.pipelineId))
-    .innerJoin(a, eq(a.id, o.accountId))
-    .leftJoin(cs, eq(cs.id, o.siteId))
-    .leftJoin(qualified, eq(qualified.pipelineId, o.pipelineId))
-    .where(
-      and(
-        eq(o.ownerId, ownerId),
-        inArray(o.entityId, entityIds),
-        eq(o.state, 'open'),
-        isNull(o.archivedAt),
-      ),
-    )
-    .orderBy(desc(o.updatedAt), desc(o.id))
-    .limit(CONVERTING_BOARD_LIMIT + 1);
+  const rows = await convertingLeadsQuery(ctx, ownerId, entityIds);
   const shown = rows.slice(0, CONVERTING_BOARD_LIMIT);
   const ids = shown.map((r) => r.id);
 
@@ -140,17 +96,74 @@ export async function loadConvertingBoard(
   });
 }
 
+/**
+ * The query that finds the board's leads, unexecuted so the plan can be read
+ * (`tests/spike/converting-explain.ts`): the owner's open leads, newest change first, one past the
+ * limit to say whether there are more.
+ */
+export function convertingLeadsQuery(ctx: Ctx, ownerId: string, entityIds: readonly number[]) {
+  const o = schema.opportunities;
+  const ps = schema.pipelineStages;
+  const pl = schema.pipelines;
+  const a = schema.accounts;
+  const cs = schema.customerSites;
+  // A pipeline has at most one live stage keyed qualified, so this join keeps one row per lead.
+  const qualified = ctx.tx
+    .select({ pipelineId: ps.pipelineId, position: ps.position })
+    .from(ps)
+    .where(and(eq(ps.key, 'qualified'), isNull(ps.archivedAt)))
+    .as('qualified');
+  return ctx.tx
+    .select({
+      id: o.id,
+      entityId: o.entityId,
+      accountId: o.accountId,
+      state: o.state,
+      score: o.score,
+      createdAt: o.createdAt,
+      customerName: a.name,
+      village: cs.village,
+      segment: pl.segment,
+      pipelineName: pl.name,
+      stageId: ps.id,
+      stageKey: ps.key,
+      stageName: ps.name,
+      stagePosition: ps.position,
+      qualifiedPosition: qualified.position,
+    })
+    .from(o)
+    .innerJoin(ps, eq(ps.id, o.stageId))
+    .innerJoin(pl, eq(pl.id, o.pipelineId))
+    .innerJoin(a, eq(a.id, o.accountId))
+    .leftJoin(cs, eq(cs.id, o.siteId))
+    .leftJoin(qualified, eq(qualified.pipelineId, o.pipelineId))
+    .where(
+      and(
+        eq(o.ownerId, ownerId),
+        inArray(o.entityId, [...entityIds]),
+        eq(o.state, 'open'),
+        isNull(o.archivedAt),
+      ),
+    )
+    .orderBy(desc(o.updatedAt), desc(o.id))
+    .limit(CONVERTING_BOARD_LIMIT + 1);
+}
+
 /** The leads with a sizing a person recorded, of any engine (`sizesOf` finds today's). */
 async function sizedLeads(ctx: Ctx, ids: readonly string[]): Promise<Set<string>> {
   if (ids.length === 0) return new Set();
+  return new Set((await sizedLeadsQuery(ctx, ids)).map((r) => r.id));
+}
+
+/** The query `sizedLeads` runs, unexecuted, so the plan can be read. */
+export function sizedLeadsQuery(ctx: Ctx, ids: readonly string[]) {
   const s = schema.sizings;
   const p = schema.principals;
-  const rows = await ctx.tx
+  return ctx.tx
     .selectDistinct({ id: s.opportunityId })
     .from(s)
     .innerJoin(p, and(eq(p.id, s.createdBy), eq(p.kind, 'user')))
     .where(inArray(s.opportunityId, [...ids]));
-  return new Set(rows.map((r) => r.id));
 }
 
 /** The owner's earliest open callback on each lead, due or not, as the call queue reads it. */
@@ -160,8 +173,16 @@ async function callbacksOf(
   ownerId: string,
 ): Promise<Map<string, NonNullable<ConvertingLeadDto['nextCall']>>> {
   if (ids.length === 0) return new Map();
+  const rows = await callbacksQuery(ctx, ids, ownerId);
+  return new Map(
+    rows.map((r) => [r.id, { kind: 'callback' as const, dueAt: r.dueAt.toISOString() }]),
+  );
+}
+
+/** The query `callbacksOf` runs, unexecuted, so the plan can be read. */
+export function callbacksQuery(ctx: Ctx, ids: readonly string[], ownerId: string) {
   const t = schema.tasks;
-  const rows = await ctx.tx
+  return ctx.tx
     .select({ id: t.opportunityId, dueAt: sql<Date>`min(${t.dueAt})`.mapWith(t.dueAt) })
     .from(t)
     .where(
@@ -173,9 +194,6 @@ async function callbacksOf(
       ),
     )
     .groupBy(t.opportunityId);
-  return new Map(
-    rows.map((r) => [r.id, { kind: 'callback' as const, dueAt: r.dueAt.toISOString() }]),
-  );
 }
 
 /**
@@ -188,8 +206,25 @@ async function quotesOf(
   now: Date,
 ): Promise<Map<string, NonNullable<ConvertingLeadDto['quote']>>> {
   if (ids.length === 0) return new Map();
+  const rows = await quotesQuery(ctx, ids);
+  return new Map(
+    rows.map((r) => [
+      r.opportunityId,
+      {
+        id: r.id,
+        quoteNo: r.quoteNo,
+        state: shownQuoteState(r.state, r.validUntil, now),
+        validUntil: r.validUntil.toISOString(),
+        grandTotal: r.grandTotal,
+      },
+    ]),
+  );
+}
+
+/** The query `quotesOf` runs, unexecuted, so the plan can be read. */
+export function quotesQuery(ctx: Ctx, ids: readonly string[]) {
   const q = schema.quotes;
-  const rows = await ctx.tx
+  return ctx.tx
     .selectDistinctOn([q.opportunityId], {
       opportunityId: q.opportunityId,
       id: q.id,
@@ -206,18 +241,6 @@ async function quotesOf(
       desc(q.createdAt),
       desc(q.id),
     );
-  return new Map(
-    rows.map((r) => [
-      r.opportunityId,
-      {
-        id: r.id,
-        quoteNo: r.quoteNo,
-        state: shownQuoteState(r.state, r.validUntil, now),
-        validUntil: r.validUntil.toISOString(),
-        grandTotal: r.grandTotal,
-      },
-    ]),
-  );
 }
 
 /** The order of each lead that the dealer credit check holds, newest hold first. */
@@ -226,20 +249,7 @@ async function heldOrdersOf(
   ids: readonly string[],
 ): Promise<Map<string, NonNullable<ConvertingLeadDto['heldOrder']>>> {
   if (ids.length === 0) return new Map();
-  const so = schema.salesOrders;
-  const rows = await ctx.tx
-    .selectDistinctOn([so.opportunityId], {
-      opportunityId: so.opportunityId,
-      id: so.id,
-      soNo: so.soNo,
-      heldAt: so.creditHeldAt,
-      grandTotal: so.grandTotal,
-    })
-    .from(so)
-    .where(
-      and(inArray(so.opportunityId, [...ids]), eq(so.state, 'draft'), isNotNull(so.creditHeldAt)),
-    )
-    .orderBy(so.opportunityId, desc(so.creditHeldAt), desc(so.id));
+  const rows = await heldOrdersQuery(ctx, ids);
   return new Map(
     rows.flatMap((r) =>
       r.opportunityId === null || r.heldAt === null
@@ -252,4 +262,22 @@ async function heldOrdersOf(
           ],
     ),
   );
+}
+
+/** The query `heldOrdersOf` runs, unexecuted, so the plan can be read. */
+export function heldOrdersQuery(ctx: Ctx, ids: readonly string[]) {
+  const so = schema.salesOrders;
+  return ctx.tx
+    .selectDistinctOn([so.opportunityId], {
+      opportunityId: so.opportunityId,
+      id: so.id,
+      soNo: so.soNo,
+      heldAt: so.creditHeldAt,
+      grandTotal: so.grandTotal,
+    })
+    .from(so)
+    .where(
+      and(inArray(so.opportunityId, [...ids]), eq(so.state, 'draft'), isNotNull(so.creditHeldAt)),
+    )
+    .orderBy(so.opportunityId, desc(so.creditHeldAt), desc(so.id));
 }
