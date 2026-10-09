@@ -20,6 +20,7 @@ export const PERMISSION_KEYS = [
   'sales.order.cancel',
   'sales.credit.release',
   'sales.credit.write',
+  'sales.targets.write',
   'pricing.read',
   'pricing.write',
   'catalogue.write',
@@ -136,6 +137,8 @@ export const AGENT_FORBIDDEN_PERMISSIONS = [
   'sales.credit.release',
   // Dealer credit limits, credit days and outstanding decide which orders are held (SAL-07).
   'sales.credit.write',
+  // Targets are what people are held to (design §9): a person sets them, never an agent.
+  'sales.targets.write',
   // The second approval of an expense claim is a person's check (FIN-07), and replaying a dead
   // letter re-sends a message outside the agent's own work.
   'finance.expense.verify',
@@ -235,6 +238,7 @@ export const PERMISSION_SCOPES: Record<PermissionKey, readonly Scope[]> = {
   'sales.order.cancel': ['entity', 'all'],
   'sales.credit.release': ['all'],
   'sales.credit.write': ['entity', 'all'],
+  'sales.targets.write': ['team', 'entity', 'all'],
   'pricing.read': ['entity', 'all'],
   'pricing.write': ['all'],
   'catalogue.write': ['entity', 'all'],

@@ -60,6 +60,7 @@ export * from './commands/platform/probe';
 export * from './commands/print/print';
 export * from './commands/sales/quotes';
 export * from './commands/sales/orders';
+export * from './commands/sales/targets';
 export * from './imports/enums';
 export * from './commands/imports/jobs';
 export * from './commands/imports/rows';

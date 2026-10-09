@@ -87,6 +87,7 @@ export const MATRIX_ROW_KEY: Record<MatrixTable, string> = {
   knowledge_files: 'x.id::text',
   knowledge_chunks: 'x.id::text',
   notifications: 'x.id::text',
+  targets: 'x.id::text',
   pipelines: 'x.id::text',
   pipeline_stages: 'x.id::text',
   price_lists: 'x.id::text',
@@ -177,6 +178,9 @@ export async function removeEntityMatrixFixture(): Promise<void> {
       // inbox items naming them are removed, so no screen shows a fixture's suggestion.
       await tx`delete from inbox_items where id::text like ${like}`;
       await tx`delete from notifications where id::text like ${like}`;
+      await tx`alter table targets disable trigger targets_append_only`;
+      await tx`delete from targets where id::text like ${like}`;
+      await tx`alter table targets enable trigger targets_append_only`;
       await tx`delete from agent_configs where id::text like ${like}`;
       await tx`delete from user_entity_roles where id::text like ${like}`;
       await tx`delete from users where id::text like ${like}`;
@@ -302,6 +306,7 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
     knowledge_files: [],
     knowledge_chunks: [],
     notifications: [],
+    targets: [],
     pipelines: [{ key: groupPipeline, entities: null }],
     pipeline_stages: [{ key: groupStage, entities: null }],
     price_lists: [{ key: groupPriceList, entities: null }],
@@ -427,6 +432,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         const dealerOrderLine = per(e, 0x34);
         const terms = per(e, 0x35);
         const outstanding = per(e, 0x36);
+        // The owner's target, another person's and the team's.
+        const ownTarget = per(e, 0x46);
+        const othersTarget = per(e, 0x47);
+        const teamTarget = per(e, 0x48);
         const commissionRule = per(e, 0x37);
         const commission = per(e, 0x38);
         // A second customer of the company with the first one's name, put forward as its
@@ -492,6 +501,10 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         await tx`insert into notifications (id, user_id, entity_id, type, subject_type, subject_id, dedupe_key) values
           (${ownNotice}, ${ownerId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${ownNotice}`}),
           (${othersNotice}, ${otherUserId}, ${e}, 'lead_assigned', 'opportunity', ${opportunity}, ${`matrix:${othersNotice}`})`;
+        await tx`insert into targets (id, entity_id, scope, subject_id, team_id, metric, period, starts_on, value, set_by) values
+          (${ownTarget}, ${e}, 'caller', ${ownerId}, ${team}, 'calls', 'day', '2026-01-01', 10, ${ownerId}),
+          (${othersTarget}, ${e}, 'caller', ${otherUserId}, ${team}, 'calls', 'day', '2026-01-01', 12, ${ownerId}),
+          (${teamTarget}, ${e}, 'team', ${team}, ${team}, 'calls', 'week', '2025-12-29', 80, ${ownerId})`;
         await tx`insert into files (id, entity_id, purpose, bucket, key, name, content_type, size, sha256, created_by)
           values (${file}, ${e}, 'import', 'matrix', ${`matrix/${file}`}, 'matrix.csv', 'text/csv', 1, ${sha}, ${ownerId})`;
         for (const [purpose, fileId, type] of purposeFiles) {
@@ -638,6 +651,11 @@ export async function entityMatrixFixture(): Promise<EntityMatrixFixture> {
         rows.inbox_items.push({ key: inboxItem, entities: only });
         rows.knowledge_files.push({ key: vaultFile, entities: only });
         rows.knowledge_chunks.push({ key: vaultChunk, entities: only });
+        rows.targets.push(
+          { key: ownTarget, entities: only },
+          { key: othersTarget, entities: only, othersOwn: true },
+          { key: teamTarget, entities: only },
+        );
         rows.notifications.push(
           { key: ownNotice, entities: only },
           { key: othersNotice, entities: only, othersOwn: true },

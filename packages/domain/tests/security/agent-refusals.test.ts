@@ -220,6 +220,16 @@ const INPUTS: Record<string, unknown> = {
     oldestUnpaidInvoiceNo: null,
     asOf: '2026-04-01',
   },
+  // Targets are what people are held to: a person sets them, never an agent.
+  'sales.target.set': {
+    entityId: 1,
+    scope: 'caller',
+    subjectId: newId(),
+    metric: 'calls',
+    period: 'day',
+    startsOn: '2031-04-01',
+    value: 20,
+  },
 };
 
 /** The commands only people may call (`peopleOnly`), read from the registry. */
@@ -288,9 +298,12 @@ const PEOPLE_ONLY_INPUTS: Record<string, unknown> = {
   'sales.order.confirm': { entityId: 1, orderId: newId() },
   'sales.order.cancel': { entityId: 1, orderId: newId(), reason: 'Refused cancel' },
   ...Object.fromEntries(
-    ['sales.credit.release', 'sales.dealer_terms.set', 'sales.dealer_outstanding.record'].map(
-      (name) => [name, INPUTS[name]],
-    ),
+    [
+      'sales.credit.release',
+      'sales.dealer_terms.set',
+      'sales.dealer_outstanding.record',
+      'sales.target.set',
+    ].map((name) => [name, INPUTS[name]]),
   ),
 };
 

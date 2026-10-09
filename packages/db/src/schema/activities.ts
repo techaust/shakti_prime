@@ -58,6 +58,11 @@ export const activities = pgTable(
       t.createdAt.desc().nullsFirst(),
       t.id.desc().nullsFirst(),
     ),
+    // What a person moved to a stage in a period (the targets' qualified count): only the stage
+    // moves are indexed.
+    index('activities_stage_actor_idx')
+      .on(t.actorPrincipalId, t.createdAt)
+      .where(sql`${t.type} = 'stage_moved'`),
     index('activities_opportunity_created_idx').on(
       t.opportunityId,
       t.createdAt.desc().nullsFirst(),
