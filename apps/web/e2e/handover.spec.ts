@@ -48,8 +48,9 @@ async function openCustomer(page: Page, name: string): Promise<void> {
 }
 
 /** Moves the lead to Qualified from the board, which asks for the handover. */
-async function qualify(page: Page, name: string): Promise<void> {
-  await page.goto('/leads/board?pipeline=farmer_pumps');
+async function qualify(page: Page, name: string, company = 1): Promise<void> {
+  // The board shows one company at a time, named in the address.
+  await page.goto(`/leads/board?company=${String(company)}&pipeline=farmer_pumps`);
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   await page.getByRole('menuitem', { name: 'Move to…' }).click();
   const dialog = page.getByRole('dialog', { name: `Move ${name}` });
@@ -127,7 +128,7 @@ test.describe('a qualified lead with no Lead Converter in its company', () => {
   test('reaches the Sales Team Lead through the Agent Inbox', async ({ page, browser }) => {
     test.slow();
     const name = await addLead(page, 'Mangilal Prajapat', 'Shakti Motor Pumps');
-    await qualify(page, name);
+    await qualify(page, name, 2);
 
     const context = await browser.newContext({ storageState: storageStatePath('teamLead') });
     const lead = await context.newPage();
