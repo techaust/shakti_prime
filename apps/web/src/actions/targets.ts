@@ -29,13 +29,13 @@ export async function setTarget(
     const principal = await signedIn();
     const input = parseInput(SetTargetInput, rawInput);
     const meta = await requestMeta();
-    return (await executeCommand(
+    return executeCommand(
       principal,
       { entityIds: [input.entityId], requestId: meta.requestId },
       setTargetCommand,
       input,
       commandOptions(meta, idempotencyKey),
-    )) as TargetDto;
+    );
   });
 }
 

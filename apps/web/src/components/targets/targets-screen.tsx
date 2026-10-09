@@ -140,7 +140,9 @@ function SetTargetForm({ data }: { data: TargetsScreenDto }) {
           <Select
             name="period"
             value={period}
-            onChange={(e) => setPeriod(e.target.value as TargetPeriod)}
+            onChange={(e) => {
+              setPeriod(e.target.value as TargetPeriod);
+            }}
           >
             {TARGET_PERIODS.map((p) => (
               <option key={p} value={p}>

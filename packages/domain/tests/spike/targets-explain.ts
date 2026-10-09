@@ -159,7 +159,8 @@ async function main() {
   const starts = currentStarts(NOW);
   const day = periodBounds('day', periodStartOn('day', NOW));
   const month = periodBounds('month', periodStartOn('month', NOW));
-  const caller = callers[0] as Principal;
+  const [caller] = callers;
+  if (caller === undefined) throw new Error('no callers');
   await explain(
     'target_actuals, a caller for themselves, today',
     caller,
