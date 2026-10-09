@@ -319,12 +319,17 @@ function SearchSection() {
       <h2 id="knowledge-search" className="text-h3">
         {t('search.heading')}
       </h2>
-      <form role="search" onSubmit={submit} className="flex flex-wrap items-end gap-3">
+      <form role="search" onSubmit={submit} className="flex">
         <Field
           id="knowledge-query"
           label={t('search.label')}
           helper={t('search.hint')}
           className="min-w-0 grow"
+          actions={
+            <Button type="submit" pending={search.pending}>
+              {t('search.search')}
+            </Button>
+          }
         >
           <Input
             type="search"
@@ -336,9 +341,6 @@ function SearchSection() {
             }}
           />
         </Field>
-        <Button type="submit" pending={search.pending}>
-          {t('search.search')}
-        </Button>
       </form>
       <FailureMessage failure={search.failure} />
       <div aria-live="polite" className="flex flex-col gap-3">

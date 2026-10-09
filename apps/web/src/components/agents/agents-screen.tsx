@@ -344,24 +344,24 @@ function CapForm({
 
   return (
     <form onSubmit={submit} className="flex min-w-56 flex-col gap-1" noValidate>
-      <div className="flex items-end gap-2">
-        <Field
-          id={id}
-          label={t('admin.capLabel', { agent: name })}
-          error={invalid ? t('admin.capInvalid') : undefined}
-          className="flex-1 [&>label]:sr-only"
-        >
-          <Input
-            name="cap"
-            inputMode="decimal"
-            defaultValue={rupeesFromPaise(row.dailySpendCapPaise)}
-            autoComplete="off"
-          />
-        </Field>
-        <Button type="submit" size="sm" variant="secondary" pending={pending}>
-          {t('admin.saveCap')}
-        </Button>
-      </div>
+      <Field
+        id={id}
+        label={t('admin.capLabel', { agent: name })}
+        error={invalid ? t('admin.capInvalid') : undefined}
+        className="[&>label]:sr-only"
+        actions={
+          <Button type="submit" size="sm" variant="secondary" pending={pending}>
+            {t('admin.saveCap')}
+          </Button>
+        }
+      >
+        <Input
+          name="cap"
+          inputMode="decimal"
+          defaultValue={rupeesFromPaise(row.dailySpendCapPaise)}
+          autoComplete="off"
+        />
+      </Field>
       <CapNote row={row} />
       <FailureMessage failure={failure} />
     </form>
