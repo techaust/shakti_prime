@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // The home actions are public endpoints: the companies they read come from the session, never
 // from the caller's arguments, and a missing session is `unauthorized`.
 const state = vi.hoisted(() => ({
-  principal: undefined as unknown,
-  session: undefined as unknown,
+  principal: undefined,
+  session: undefined,
   calls: [] as { entityIds: readonly number[] | undefined; name: string | undefined }[],
 }));
 
@@ -38,7 +38,7 @@ const { homeCaller, homeCredit, homePipeline, homeResponseTimes } = await import
 const { myProgress } = await import('./targets');
 
 function signIn(roles: { entityId: number; roleKey: string }[], viewed: number[]): void {
-  state.principal = { id: 'u1', entityIds: viewed } as unknown as Principal;
+  state.principal = { id: 'u1', entityIds: viewed } as unknown;
   state.session = { access: { entities: roles.map((r) => ({ ...r, entityName: 'Company' })) } };
 }
 
