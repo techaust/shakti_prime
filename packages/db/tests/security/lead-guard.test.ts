@@ -4,6 +4,7 @@ import { sql, type SQL } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   AGENT_PRINCIPAL_SEED,
+  asMigrator,
   asPrincipal,
   closeDb,
   createTestUser,
@@ -49,6 +50,15 @@ async function status(principal: Principal, phone: string, entityId = 1): Promis
   return asPrincipal(principal, async ({ tx }) => {
     return await tx.execute(statusCall(phone, entityId));
   });
+}
+
+/** The lead's stage, read outside any request (the worker's own request cannot read leads). */
+async function stageOf(lead: string): Promise<string> {
+  const [row] = await asMigrator(
+    (m) => m<{ stage_id: string }[]>`select stage_id from opportunities where id = ${lead}`,
+  );
+  if (!row) throw new Error('no lead');
+  return row.stage_id;
 }
 
 const rollback = new Error('rollback');
@@ -249,7 +259,7 @@ describe('app.hand_over_customer(): who may call it and what it moves', () => {
       permissions: handover,
     });
     const taker = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc' }]);
-    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, (select stage_id from opportunities where id = ${lead}::uuid), now() - interval '1 minute', false, 48)`;
+    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, ${await stageOf(lead)}::uuid, now() + interval '1 day', false, 48)`;
     const [moved] = await inRollback(worker, [give, handOverFull]);
     expect(moved).toMatchObject({ status: 'moved' });
   });
@@ -284,7 +294,7 @@ describe('app.hand_over_customer(): who may call it and what it moves', () => {
       permissions: [...assign, { key: 'crm.handover.run' as const, scope: 'all' as const }],
     });
     const taker = await createTestUser([{ entityId: 1, roleKey: 'tele_caller_lc' }]);
-    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, (select stage_id from opportunities where id = ${lead}::uuid), now() - interval '1 minute', false, 48)`;
+    const give = sql`select status from app.handover_assign(1::smallint, ${lead}::uuid, ${taker.id}::uuid, ${newId()}::uuid, ${await stageOf(lead)}::uuid, now() + interval '1 day', false, 48)`;
     const [result] = await inRollback(withPermission, [give, handOverFull]);
     expect(result).toMatchObject({ status: 'moved' });
   });

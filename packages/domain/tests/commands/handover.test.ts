@@ -16,7 +16,6 @@ import {
 } from '@shakti/db/testing';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { WORKSHOP_DEFAULTS } from '../../src/workshop-defaults';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import type { AnyCommand } from '../../src/command/define-command';
 import { runCommand } from '../../src/command/run-command';
@@ -601,9 +600,7 @@ describe('the handover leaves a lead that has moved on', () => {
       ownerId: converterY.id,
     });
     // The lock the assignment set is lifted, so only the assignment after the event stops the handover.
-    await asMigrator(
-      (m) => m`update opportunities set locked_until = null where id = ${lead.id}`,
-    );
+    await asMigrator((m) => m`update opportunities set locked_until = null where id = ${lead.id}`);
     const late = await handOver(lead, newId(), null, { eventAt });
     expect(late.outcome).toBe('kept');
     expect((await leadState(lead)).owner_id).toBe(converterY.id);
@@ -618,7 +615,7 @@ describe('the handover leaves a lead that has moved on', () => {
     const stageId = (await leadState(lead)).stage_id;
     await asMigrator(
       (m) => m`update opportunities set stage_id = (
-                 select s.id from stages s join opportunities o on o.pipeline_id = s.pipeline_id
+                 select s.id from pipeline_stages s join opportunities o on o.pipeline_id = s.pipeline_id
                   where o.id = ${lead.id} and s.id <> ${stageId} order by s.position limit 1)
                where id = ${lead.id}`,
     );
@@ -636,37 +633,34 @@ describe('the handover leaves a lead that has moved on', () => {
       ownerId: converterX.id,
     });
     // The lock is over; Y may hold fewer leads, yet X keeps the lead they qualify for.
-    await asMigrator(
-      (m) => m`update opportunities set locked_until = null where id = ${lead.id}`,
-    );
+    await asMigrator((m) => m`update opportunities set locked_until = null where id = ${lead.id}`);
     const result = await handOver(lead);
     expect(result).toMatchObject({ outcome: 'kept', ownerId: converterX.id });
     expect((await leadState(lead)).owner_id).toBe(converterX.id);
     expect(await relationshipOwner(lead)).toBe(converterX.id);
   });
 
-  it('locks a handover for the workshop default hours, and a change of the default changes the lock', async () => {
+  it('locks a handover for the pipeline hours, which the workshop default only stands in for', async () => {
+    // The pipeline's column is not null (its own default is 48), so the lock follows the pipeline
+    // and no hours are written into the command or the definer.
     await onlyPresent(converterX);
-    const defaults = WORKSHOP_DEFAULTS.opportunity as { handoverLockHours: number };
-    const original = defaults.handoverLockHours;
-    try {
-      defaults.handoverLockHours = original / 2;
-      const lead = await newLead();
-      const before = Date.now();
-      await handOver(lead);
-      const hours = (((await leadState(lead)).locked_until?.getTime() ?? 0) - before) / 3_600_000;
-      expect(hours).toBeGreaterThan(original / 2 - 0.1);
-      expect(hours).toBeLessThan(original / 2 + 0.1);
-    } finally {
-      defaults.handoverLockHours = original;
-    }
+    const lead = await newLead();
+    const before = Date.now();
+    await handOver(lead);
+    const [pipeline] = await asMigrator(
+      (m) => m<{ lock_hours: number }[]>`
+        select p.lock_hours from pipelines p join opportunities o on o.pipeline_id = p.id
+         where o.id = ${lead.id}`,
+    );
+    const hours = (((await leadState(lead)).locked_until?.getTime() ?? 0) - before) / 3_600_000;
+    expect(hours).toBeGreaterThan((pipeline?.lock_hours ?? 0) - 0.1);
+    expect(hours).toBeLessThan((pipeline?.lock_hours ?? 0) + 0.1);
   });
 
   it('queues two handovers of one company, so a converter with one place left takes one', async () => {
-    const solo = await createTestUser(
-      [{ entityId: CO, roleKey: 'tele_caller_lc', teamId: team }],
-      { name: 'Zara Solo Converter' },
-    );
+    const solo = await createTestUser([{ entityId: CO, roleKey: 'tele_caller_lc', teamId: team }], {
+      name: 'Zara Solo Converter',
+    });
     const soloPrincipal = principalFor('tele_caller_lc', [CO], { id: solo.id, teamId: team });
     await onlyPresent();
     await profile(solo.id, { maxOpen: 1 });

@@ -105,6 +105,10 @@ describe('who reads a caller profile', () => {
   });
 
   it('lets the reader pool read what a person may read', async () => {
+    await rows(
+      person,
+      sql`update caller_profiles set presence = 'present' where id = ${profiles.person}::uuid`,
+    );
     const [row] = (await asMigrator(
       (m) => m`select presence from caller_profiles where id = ${profiles.person ?? ''}`,
     )) as { presence: string }[];

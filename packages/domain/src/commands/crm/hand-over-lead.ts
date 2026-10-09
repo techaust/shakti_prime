@@ -136,7 +136,8 @@ export const handOverLead = defineCommand({
     // A converter who already holds the lead and qualifies for it keeps it (their count includes it).
     const holder = candidates.find((c) => c.userId === facts.owner_id);
     const keep =
-      holder !== undefined && qualifiesAsConverter({ ...holder, openLeads: holder.openLeads - 1 }, lead);
+      holder !== undefined &&
+      qualifiesAsConverter({ ...holder, openLeads: holder.openLeads - 1 }, lead);
     const pick = keep ? facts.owner_id : pickConverter(candidates, lead, input.cursor);
     let ownerId = pick;
     if (ownerId === null) {
