@@ -147,4 +147,27 @@ describe('the Triage agent’s event worker', () => {
     );
     expect(after).toEqual(before);
   });
+
+  it('leaves a lead of an import batch alone, with no run recorded', async () => {
+    const event = await leadEvent();
+    const imported = {
+      ...event,
+      payload: { ...event.payload, imported: true },
+    } as unknown as DeliveredEvent;
+    const transport = fakeModelTransport([fakeReply('{}')]);
+    const deps = {
+      provider: createAiProvider({
+        claude: transport,
+        voyage: undefined,
+        keyValue: memoryKeyValue(),
+        logger: memoryLogger(),
+      }),
+      logger: memoryLogger(),
+    };
+    const ctx = {} as Parameters<typeof handleTriageEvent>[1];
+    expect(await handleTriageEvent(imported, ctx, deps)).toEqual({ runs: {} });
+    expect(transport.requests).toEqual([]);
+    // The same lead not marked as imported is triaged, under the same limit.
+    expect(Object.keys((await handleTriageEvent(event, ctx, deps)).runs)).toHaveLength(4);
+  });
 });

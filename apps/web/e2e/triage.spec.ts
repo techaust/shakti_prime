@@ -65,7 +65,12 @@ test.describe('as an Executive', () => {
     // A period the report refuses is named under the dates, not sent.
     await page.getByLabel('From').fill('01-01-2026');
     await page.getByRole('button', { name: 'Show', exact: true }).click();
-    await expect(page.getByText('Choose a period of 92 days or less.')).toBeVisible();
+    // Too long a period is named under both dates; an end before the start under the end.
+    await expect(page.getByText('Choose a period of 92 days or less.')).toHaveCount(2);
+    await page.getByLabel('From').fill('01-01-2099');
+    await page.getByRole('button', { name: 'Show', exact: true }).click();
+    await expect(page.getByText('The end date is before the start date.')).toHaveCount(1);
+    await expect(page.getByLabel('To')).toHaveAttribute('aria-invalid', 'true');
 
     // Nothing of it reached the Agent Inbox.
     await page.goto('/inbox');

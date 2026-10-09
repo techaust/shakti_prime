@@ -10,13 +10,15 @@ import type { EventHandlerContext } from '../events/registry';
  * inbox. It runs as the agent's own principal, never as `system:workers`, whose principal the
  * delivery is given. The event's id keys every step, so a repeat delivery records nothing twice.
  * Without a spending limit, with a switch off or without `ANTHROPIC_API_KEY`, each run is recorded
- * as stopped or unavailable and no model is called.
+ * as stopped or unavailable and no model is called. A lead of an import batch (`imported`) is
+ * history brought in, not new intake: nothing runs and nothing is recorded for it.
  */
 export async function handleTriageEvent(
   event: DeliveredEvent,
   _ctx: EventHandlerContext,
   deps: AgentStepDeps = { provider: aiProvider() },
 ): Promise<TriageResult> {
+  if (event.payload.imported === true) return { runs: {} };
   return runTriage(
     {
       eventId: event.id,

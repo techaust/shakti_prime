@@ -6,6 +6,7 @@ import {
 } from '@shakti/contracts';
 import { executeQuery } from '../../command/execute';
 import { AGENT_DEFAULTS } from '../agent-defaults';
+import { loadAgentConfig } from '../config';
 import type { CompleteResult } from '../provider';
 import { agentPrincipal, runAgentStep, type AgentStepDeps, type RunModel } from '../runtime';
 import { filterTriageAnswer, type TriageVerdicts } from './filter';
@@ -40,6 +41,30 @@ export interface TriageResult {
 export async function runTriage(lead: TriageLead, deps: AgentStepDeps): Promise<TriageResult> {
   const now = deps.now ?? (() => new Date());
   const principal = agentPrincipal('agent:triage', lead.entityId);
+  // The agent's settings first: switched off or with no spending limit, the agent cannot call the
+  // model for any kind, so one stopped run is recorded (the first kind's) and the lead is not read.
+  const first: TriageProposalKind = 'pipeline';
+  const config = await executeQuery(
+    principal,
+    { entityIds: [lead.entityId] },
+    ({ tx }) => loadAgentConfig(tx, 'agent:triage', TRIAGE_ACTION_TYPES[first], lead.entityId),
+    { name: 'agents.triage.settings' },
+  );
+  if (!config.enabled || config.caps.length === 0 || config.caps.some((c) => c.paise === 0)) {
+    const stopped = await runAgentStep(
+      {
+        agent: 'agent:triage',
+        entityId: lead.entityId,
+        eventId: lead.eventId,
+        purpose: TRIAGE_PURPOSE,
+        actionType: TRIAGE_ACTION_TYPES[first],
+        // The step records the stop itself and never asks for a decision.
+        decide: () => Promise.resolve(null),
+      },
+      deps,
+    );
+    return { runs: { [first]: stopped } };
+  }
   const facts = await executeQuery(
     principal,
     { entityIds: [lead.entityId] },

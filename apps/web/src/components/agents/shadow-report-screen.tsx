@@ -68,6 +68,15 @@ export function ShadowReportScreen({
   // The answer for the filters last applied; an older answer is dropped.
   const wanted = useRef(0);
 
+  // The message goes on the field it names: an end before the start on To, a period too long on
+  // both, a missing date on the one left empty.
+  const [problemFrom, setProblemFrom] = useState<string | undefined>(initial.from);
+  const fromProblem =
+    problem === 'periodTooLong' || (problem === 'periodMissing' && problemFrom === undefined);
+  const toProblem =
+    problem === 'periodTooLong' ||
+    problem === 'periodReversed' ||
+    (problem === 'periodMissing' && problemFrom !== undefined);
   const kindName = (kind: TriageProposalKind) => t(`kinds.${kind}`);
   const pipelineName = (key: string | null) =>
     key !== null && oneOf(SEGMENTS, key) ? activity(`values.segment.${key}`) : t('otherPipeline');
@@ -76,6 +85,7 @@ export function ShadowReportScreen({
     e.preventDefault();
     const found = periodProblem(from, to);
     setProblem(found);
+    setProblemFrom(from);
     if (found !== undefined || from === undefined || to === undefined) return;
     const entityId = Number(formText(new FormData(e.currentTarget), 'company'));
     const ask = (wanted.current += 1);
@@ -214,14 +224,19 @@ export function ShadowReportScreen({
           id="shadow-from"
           label={t('filters.from')}
           helper={t('filters.dateHelper')}
-          error={problem === undefined ? undefined : t(`filters.${problem}`)}
+          error={fromProblem ? t(`filters.${problem ?? 'periodMissing'}`) : undefined}
         >
-          <DateInput defaultValue={initial.from} onValueChange={setFrom} />
+          <DateInput
+            defaultValue={initial.from}
+            onValueChange={setFrom}
+            invalid={fromProblem ? true : undefined}
+          />
         </Field>
         <Field
           id="shadow-to"
           label={t('filters.to')}
           helper={t('filters.dateHelper')}
+          error={toProblem ? t(`filters.${problem ?? 'periodMissing'}`) : undefined}
           actions={
             <Button type="submit" pending={reader.pending}>
               {t('filters.apply')}
@@ -231,7 +246,7 @@ export function ShadowReportScreen({
           <DateInput
             defaultValue={initial.to}
             onValueChange={setTo}
-            invalid={problem === undefined ? undefined : true}
+            invalid={toProblem ? true : undefined}
           />
         </Field>
       </form>

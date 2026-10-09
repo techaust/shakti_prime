@@ -172,6 +172,7 @@ What the publisher sends a worker for one event (`DeliveredEvent`).
 | `pipelineKey` | text from 1 to 40 characters |
 | `sourceCode` | text from 1 to 40 characters or null |
 | `existingAccount` | true or false |
+| `imported` | always `?` (optional) |
 
 ### crm.lead.attached
 

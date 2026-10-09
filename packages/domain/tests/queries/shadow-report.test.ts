@@ -1,4 +1,9 @@
-import { newId, type Principal, type ShadowReportDto } from '@shakti/contracts';
+import {
+  AGENT_PRINCIPAL_IDS,
+  newId,
+  type Principal,
+  type ShadowReportDto,
+} from '@shakti/contracts';
 import {
   asMigrator,
   asPrincipal,
@@ -14,6 +19,7 @@ import { fakeModelTransport, fakeReply } from '../../src/ai/transport';
 import { runTriage } from '../../src/ai/triage/run-triage';
 import { databaseAuditSink as audit } from '../../src/audit/sink';
 import { runCommand } from '../../src/command/run-command';
+import { assignOpportunity } from '../../src/commands/crm/assign-opportunity';
 import { createLead } from '../../src/commands/crm/create-lead';
 import { loseOpportunity } from '../../src/commands/crm/lose-opportunity';
 import { databaseOutboxSink as outbox } from '../../src/outbox/sink';
@@ -34,6 +40,8 @@ let executive: Principal;
 let gm: Principal;
 let kept: string;
 let lost: string;
+let other: string;
+let second: Principal;
 
 afterAll(async () => {
   await asMigrator(async (m) => {
@@ -84,6 +92,8 @@ beforeAll(async () => {
   caller = await createTestPrincipal('tele_caller_cc', [ENTITY], { id: user.id });
   executive = await createTestPrincipal('executive', [1, 2, 3, 4]);
   gm = await createTestPrincipal('general_manager', [ENTITY]);
+  const secondUser = await createTestUser([{ entityId: ENTITY, roleKey: 'tele_caller_cc' }]);
+  second = await createTestPrincipal('tele_caller_cc', [ENTITY], { id: secondUser.id });
   const cap = newId();
   madeConfigs.push(cap);
   await asMigrator(async (m) => {
@@ -98,7 +108,8 @@ beforeAll(async () => {
     score: { change: 6, note: 'Pump enquiry from a farm.' },
     assignee: { person: 'P1' },
   });
-  for (const lead of [kept, lost]) {
+  other = await newLead();
+  for (const lead of [kept, lost, other]) {
     const provider = createAiProvider({
       claude: fakeModelTransport([fakeReply(answer)]),
       voyage: undefined,
@@ -151,16 +162,37 @@ describe('shadowReport', () => {
     });
     // A raise for a lead people lost: they did not bear it out.
     expect(of(lost, 'score')).toMatchObject({ leadState: 'lost', agreement: 'disagree' });
-    const assignee = of(kept, 'assignee');
-    expect(assignee?.proposedOwnerId).not.toBeNull();
-    expect(assignee?.agreement).toBe(
-      assignee?.ownerId === assignee?.proposedOwnerId ? 'agree' : 'disagree',
-    );
+    expect(of(kept, 'assignee')?.proposedOwnerId).not.toBeNull();
     expect(of(kept, 'duplicate')).toBeUndefined();
     // Newest first, each once.
     const times = items.map((i) => i.createdAt);
     expect([...times].sort().reverse()).toEqual(times);
     expect(new Set(items.map((i) => i.actionId)).size).toBe(items.length);
+  });
+
+  it('agrees on the assignee when people give the lead to the person proposed, and not otherwise', async () => {
+    const before = await allItems(executive);
+    const proposedFor = (lead: string) =>
+      before.find((i) => i.opportunityId === lead && i.kind === 'assignee')?.proposedOwnerId;
+    const keptTo = proposedFor(kept);
+    const otherProposed = proposedFor(other);
+    if (keptTo == null || otherProposed == null) throw new Error('no assignee proposals');
+    const elsewhere = otherProposed === caller.id ? second.id : caller.id;
+    const assign = (opportunityId: string, ownerId: string) =>
+      asPrincipal({ ...executive, entityIds: [ENTITY] }, (context) =>
+        runCommand(
+          assignOpportunity,
+          { context, audit, outbox },
+          { entityId: ENTITY, opportunityId, ownerId },
+        ),
+      );
+    await assign(kept, keptTo);
+    await assign(other, elsewhere);
+    const after = await allItems(executive);
+    const of = (lead: string) =>
+      after.find((i) => i.opportunityId === lead && i.kind === 'assignee');
+    expect(of(kept)).toMatchObject({ ownerId: keptTo, agreement: 'agree' });
+    expect(of(other)).toMatchObject({ ownerId: elsewhere, agreement: 'disagree' });
   });
 
   it('counts agreement and the refused runs kind by kind', async () => {
@@ -213,6 +245,21 @@ describe('readAgentSpend', () => {
     expect(triage?.runsToday).toBeGreaterThanOrEqual(12);
     expect(Number(triage?.today)).toBeGreaterThan(0);
     expect(Number(spend.today)).toBeGreaterThanOrEqual(Number(triage?.today));
+  });
+
+  it('never says a limit stopped an agent that has no limit', async () => {
+    // A run stopped because the agent has no limit at all, of an agent with none set here.
+    await asMigrator(async (m) => {
+      await m`delete from agent_configs where agent = 'agent:sizing' and action_type is null
+                and (entity_id = ${ENTITY} or entity_id is null)`;
+      await m`insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome, request_id)
+               values (${newId()}, ${ENTITY}, 'agent:sizing', ${AGENT_PRINCIPAL_IDS['agent:sizing']},
+                       'spend_check', 'sales.quote.create', 'cap_reached', 'spend-check')`;
+    });
+    const spend = await asPrincipal(executive, (context) => readAgentSpend(context));
+    const sizing = spend.byAgent.find((s) => s.agent === 'sizing' && s.entityId === ENTITY);
+    expect(sizing).toMatchObject({ dailyCap: null, groupDailyCap: null, stoppedByCap: false });
+    expect(sizing?.runsToday).toBeGreaterThanOrEqual(1);
   });
 
   it('shows nothing of the runs to a person without the agent controls', async () => {

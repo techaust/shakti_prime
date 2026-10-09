@@ -326,16 +326,18 @@ describe('the Triage agent in shadow', () => {
 
   it('makes no call without a spending limit, with a switch off, or without the key', async () => {
     const lead = await newLead();
+    // No limit: one stopped run, for the first kind, and nothing else.
     const none = provider([fakeReply(GOOD)]);
     const capped = await runTriage(triage(lead.id), none.deps);
-    expect(Object.values(capped.runs).map((r) => r.outcome)).toEqual(Array(4).fill('cap_reached'));
+    expect(Object.keys(capped.runs)).toEqual(['pipeline']);
+    expect(capped.runs.pipeline).toMatchObject({ outcome: 'cap_reached', actionId: null });
     expect(none.transport.requests).toEqual([]);
 
     const off = await setting({ cap: 100_000, enabled: false });
     try {
       const stopped = provider([fakeReply(GOOD)]);
       const { runs } = await runTriage(triage(lead.id), stopped.deps);
-      expect(Object.values(runs).map((r) => r.outcome)).toEqual(Array(4).fill('switched_off'));
+      expect(Object.values(runs).map((r) => r.outcome)).toEqual(['switched_off']);
       expect(stopped.transport.requests).toEqual([]);
     } finally {
       await drop(off);
@@ -349,6 +351,21 @@ describe('the Triage agent in shadow', () => {
     } finally {
       await drop(cap);
     }
+  });
+
+  it('decides on the settings before it reads the lead', async () => {
+    // A lead that does not exist: read, it would answer no runs at all; stopped by the missing
+    // limit first, it records the one stopped run without reading anything of the lead.
+    const { transport, deps } = provider([fakeReply(GOOD)]);
+    const { runs } = await runTriage(triage(newId()), deps);
+    expect(Object.keys(runs)).toEqual(['pipeline']);
+    expect(runs.pipeline?.outcome).toBe('cap_reached');
+    const [row] = await asMigrator(
+      (m) => m<{ n: number }[]>`
+        select count(*)::int as n from agent_runs where id = ${runs.pipeline?.runId ?? ''}`,
+    );
+    expect(row?.n).toBe(1);
+    expect(transport.requests).toEqual([]);
   });
 
   it('leaves a lead that is no longer open alone', async () => {

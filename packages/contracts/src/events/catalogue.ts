@@ -72,6 +72,8 @@ const eventCatalogue = {
         pipelineKey: Code,
         sourceCode: Code.nullable(),
         existingAccount: z.boolean(),
+        /** A row of an import batch: history brought in, not new intake, so no agent triages it. */
+        imported: z.literal(true).optional(),
       })
       .strict(),
   },

@@ -85,7 +85,9 @@ export async function readAgentSpend(
         runsMonthToDate: run?.runs_month ?? 0,
         dailyCap: cap === undefined ? null : rupees(cap),
         groupDailyCap: groupCap === undefined ? null : rupees(groupCap),
-        stoppedByCap: run?.stopped ?? false,
+        // With no limit at all the agent makes no call and its runs read as stopped; that is not
+        // a limit reached.
+        stoppedByCap: (run?.stopped ?? false) && (cap !== undefined || groupCap !== undefined),
       });
     }
   }
