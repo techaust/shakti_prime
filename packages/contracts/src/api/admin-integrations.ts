@@ -99,13 +99,21 @@ export const WhatsAppNumberHealth = z
   .strict();
 export type WhatsAppNumberHealth = z.infer<typeof WhatsAppNumberHealth>;
 
-/** One agent's model spend in rupees against its daily cap (`agent_configs.daily_spend_cap`). */
+/**
+ * One agent's model spend in one company, in rupees, from its runs (`agent_runs`): today's and the
+ * month's so far (IST), with the runs, beside the caps that apply there (`agent_configs`): the
+ * company's and the group's, null for none. `stoppedByCap` when a run was stopped by a cap today.
+ */
 export const AgentSpend = z
   .object({
     agent: AgentNameSchema,
+    entityId: EntityIdSchema,
     today: MoneySchema,
     monthToDate: MoneySchema,
-    dailyCap: MoneySchema,
+    runsToday: Count,
+    runsMonthToDate: Count,
+    dailyCap: MoneySchema.nullable(),
+    groupDailyCap: MoneySchema.nullable(),
     stoppedByCap: z.boolean(),
   })
   .strict();

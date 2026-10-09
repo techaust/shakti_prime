@@ -81,7 +81,7 @@ async function newLead(
           }
         : { entityId: ENTITY, pipelineKey, existingAccountId },
     ),
-  )) as { id: string; accountId: string };
+  )) as unknown as { id: string; accountId: string };
   return { id: made.id, accountId: made.accountId, phone };
 }
 

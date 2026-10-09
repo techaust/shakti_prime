@@ -7,6 +7,7 @@ import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
 import { handleHandoverEvent } from '../handover/handover-event';
 import { handleNoticeEvent } from '../notify/notify-event';
+import { handleTriageEvent } from '../triage/triage-event';
 import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
 
@@ -97,6 +98,14 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
     ordering: 'every',
     handle: async (event, ctx) => {
       await handleHandoverEvent(event, ctx);
+    },
+  },
+  // The Triage agent on each new lead (docs/03-roadmap-appendix/phase1.md §9, A1): in Shadow it
+  // records what it would propose and changes nothing. A repeat records nothing twice.
+  'crm.lead.created': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleTriageEvent(event, ctx);
     },
   },
   // The notices people act on (docs/03-roadmap-appendix/phase1.md §8.1). Hosted, the publisher sends these

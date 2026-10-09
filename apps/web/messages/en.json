@@ -307,7 +307,7 @@
     "agent_field_not_editable": "That part of the suggestion cannot be changed. Reject it if it is wrong.",
     "agent_switched_off": "This agent is stopped, so its suggestions cannot be approved now. Reject it, or ask an Executive or General Manager to let the agent run again.",
     "autonomy_not_earned": "Automatic needs at least 200 decisions of this kind in one company in the last 90 days, with 95 in 100 approved without changes.",
-    "autonomy_automatic_unavailable": "Agents cannot act on their own yet. Choose Suggest or Needs approval.",
+    "autonomy_automatic_unavailable": "Agents cannot act on their own yet. Choose Shadow, Suggest or Needs approval.",
     "agent_suggestion_only": "This suggestion is for you to act on yourself. Open the customer to act on it, or dismiss it.",
     "agent_needs_decision": "This suggestion needs a decision. Approve it, change it or reject it.",
     "nothing_to_change": "Choose a setting to change.",
@@ -338,7 +338,8 @@
     "outstanding_date_future": "The date of the outstanding cannot be after today. Enter the date the figure stands at.",
     "profile_person_missing": "This person is not on your team in this company, so you can't change their settings.",
     "reassign_no_converter": "No Lead Converter is present to take these leads. Choose a person instead.",
-    "reassign_same_person": "Choose someone other than the person who is leaving."
+    "reassign_same_person": "Choose someone other than the person who is leaving.",
+    "agent_action_shadow_only": "There is no action for this proposal yet, so it stays in Shadow."
   },
   "auth": {
     "signIn": {
@@ -1874,7 +1875,8 @@
       "presence": "Presence",
       "maxOpen": "Most open leads",
       "languages": "Languages",
-      "segments": "Business lines"
+      "segments": "Business lines",
+      "filterReason": "Why the checks refused it"
     },
     "values": {
       "percent": "{value}%",
@@ -2556,7 +2558,14 @@
       "tries": "Tries",
       "reason": "What went wrong",
       "heldAt": "Held back at",
-      "actions": "Actions"
+      "actions": "Actions",
+      "agent": "Agent",
+      "spentToday": "Spent today",
+      "runsToday": "Runs today",
+      "spentMonth": "This month",
+      "runsMonth": "Runs this month",
+      "dailyLimit": "Daily limit",
+      "limitReached": "Limit today"
     },
     "lastRun": {
       "heading": "Last sending round",
@@ -2596,6 +2605,18 @@
       "waiting": "{count, plural, =0 {No file is waiting for its checks.} one {# file has been waiting for its checks for more than ten minutes.} other {# files have been waiting for their checks for more than ten minutes.}}",
       "recheck": "Check files again",
       "done": "{count, plural, =0 {No file needed checking again.} one {# file was sent for its checks again.} other {# files were sent for their checks again.}}"
+    },
+    "aiSpend": {
+      "heading": "AI spend",
+      "caption": "AI spend by agent and company",
+      "total": "Spent today: {today}. This month so far: {month}.",
+      "empty": "No agent has run this month, and no agent has a spending limit.",
+      "bothLimits": "{company}, and the group’s {group}",
+      "groupLimit": "The group’s {amount}",
+      "noLimit": "No limit, so it makes no calls",
+      "reached": "Reached",
+      "notReached": "Not reached",
+      "otherCompany": "Another company"
     }
   },
   "files": {
@@ -3730,21 +3751,28 @@
       "chief": "Chief of Staff"
     },
     "actionTypes": {
-      "taskCreate": "Add a follow-up task"
+      "taskCreate": "Add a follow-up task",
+      "leadAssign": "Choose who takes a new lead",
+      "duplicateSuggest": "Link a repeat enquiry to its open lead",
+      "pipelineChoose": "Choose the pipeline of a new lead",
+      "scoreAdjust": "Adjust the score of a new lead"
     },
     "fields": {
       "dueAt": "Due",
       "title": "Note on the task"
     },
     "autonomy": {
+      "shadow": "Shadow",
       "suggest": "Suggest",
       "needs_approval": "Needs approval",
       "automatic": "Automatic"
     },
     "outcome": {
       "proposed": "Suggested",
+      "shadowed": "Recorded in shadow",
       "acted": "Acted on its own",
       "nothing_to_do": "Nothing to do",
+      "filtered": "Refused by the checks",
       "switched_off": "Stopped by a switch",
       "cap_reached": "Daily spending limit reached",
       "unavailable": "AI service not available",
@@ -3752,6 +3780,7 @@
     },
     "actionState": {
       "proposed": "Waiting for a decision",
+      "shadowed": "Recorded in shadow",
       "executed": "Done by the agent",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -3766,7 +3795,8 @@
       "actYourself": "For you to act on yourself. Nothing is carried out from here.",
       "summary": {
         "assigneeId": "Task for",
-        "kind": "Kind of task"
+        "kind": "Kind of task",
+        "ownerId": "Lead for"
       },
       "someone": "Someone you cannot see",
       "dismiss": "Dismiss",
@@ -3858,10 +3888,87 @@
       "actionTypesHeading": "What {agent} may do",
       "actionTypeLabel": "Autonomy of {agent} for {action}",
       "decisions": "In the last 90 days, {approved} of {decided} decisions approved without changes",
-      "automaticUnavailable": "Automatic is not available yet: agents suggest, or wait for approval, until a later phase.",
+      "automaticUnavailable": "Automatic is not available yet: agents work in shadow, suggest, or wait for approval, until a later phase.",
       "automaticHeld": "Automatic is set here, and works as Needs approval until Automatic is available.",
       "noActionTypes": "This agent has nothing to do yet.",
-      "readOnly": "Only an Executive changes autonomy and spending limits."
+      "readOnly": "Only an Executive changes autonomy and spending limits.",
+      "shadowOnly": "Shadow only. There is no action for this yet, so it is only recorded for the report of proposals.",
+      "view": "Triage proposals"
+    },
+    "filterReason": {
+      "unreadable_answer": "Its answer could not be read",
+      "unknown_pipeline": "It named a pipeline that was not offered",
+      "score_out_of_bounds": "It changed the score by more than allowed",
+      "unknown_candidate": "It named a lead that was not offered",
+      "unknown_person": "It named a person who was not offered",
+      "text_has_phone": "Its note had a phone number or contact detail",
+      "text_has_identity_number": "Its note had an identity number",
+      "text_has_instruction": "Its note had an instruction or a link"
+    },
+    "shadow": {
+      "title": "What the Triage agent proposed",
+      "intro": "Each proposal the Triage agent recorded in shadow, beside what people did with the lead. Nothing it proposed was carried out.",
+      "filters": {
+        "company": "Company",
+        "from": "From",
+        "to": "To",
+        "dateHelper": "As DD-MM-YYYY.",
+        "apply": "Show",
+        "periodMissing": "Enter both dates as DD-MM-YYYY.",
+        "periodReversed": "The end date is before the start date.",
+        "periodTooLong": "Choose a period of 92 days or less."
+      },
+      "summaryHeading": "How often people agreed",
+      "kinds": {
+        "pipeline": "Pipeline",
+        "score": "Score",
+        "duplicate": "Repeat enquiry",
+        "assignee": "Who takes the lead"
+      },
+      "agreed": "{agreed} of {decided} agreed",
+      "noneDecided": "Nothing decided yet",
+      "waiting": "{count, plural, =0 {None waiting for people to act} one {# waiting for people to act} other {# waiting for people to act}}",
+      "refused": "{count, plural, =0 {None refused by the checks} one {# refused by the checks} other {# refused by the checks}}",
+      "refusedReason": "{reason}: {count, number}",
+      "caption": "Proposals recorded in shadow, newest first",
+      "empty": "No proposals in this period. The agent records them for each new lead once it has a daily spending limit.",
+      "columns": {
+        "when": "When",
+        "kind": "Proposal",
+        "customer": "Customer",
+        "proposed": "Proposed",
+        "happened": "What people did",
+        "agreement": "Agreed"
+      },
+      "proposed": {
+        "score": "{change} points, to {score}",
+        "duplicate": "The same enquiry as an open lead of this customer"
+      },
+      "note": "Note: {note}",
+      "otherPipeline": "Another pipeline",
+      "someone": "Someone you cannot see",
+      "unknownCustomer": "A customer you cannot see",
+      "happened": {
+        "pipeline": "In {pipeline}",
+        "won": "Won, score {score}",
+        "qualified": "Reached Qualified, score {score}",
+        "lost": "Lost, score {score}",
+        "nurture": "In nurture, score {score}",
+        "open": "Still open, score {score}",
+        "merged": "Merged as one",
+        "dismissed": "Set aside as not the same",
+        "openCard": "Not decided yet",
+        "owner": "With {person}",
+        "noOwner": "No one yet",
+        "hidden": "A lead you cannot open"
+      },
+      "agreement": {
+        "agree": "Agreed",
+        "disagree": "Differed",
+        "pending": "Not known yet"
+      },
+      "loadMore": "Show more",
+      "back": "Back to agents"
     }
   },
   "knowledge": {

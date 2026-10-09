@@ -532,6 +532,8 @@ export {
 export { setAgentConfig, setKillSwitch } from './commands/agents/config';
 export { countInbox, listInbox } from './queries/agents/inbox';
 export { loadAgentSettings } from './queries/agents/settings';
+export { shadowReport } from './queries/agents/shadow-report';
+export { readAgentSpend } from './queries/agents/spend';
 export {
   addKnowledgeFile,
   archiveKnowledgeFile,
