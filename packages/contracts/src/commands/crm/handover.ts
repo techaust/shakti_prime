@@ -101,7 +101,7 @@ export const HandOverLeadInput = z
     opportunityId: IdSchema,
     eventId: IdSchema,
     stageId: IdSchema,
-    eventAt: z.string().datetime(),
+    eventAt: z.iso.datetime(),
     cursor: IdSchema.nullable(),
   })
   .strict();
