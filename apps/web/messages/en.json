@@ -434,7 +434,8 @@
     "orders": "Orders",
     "dealerCredit": "Dealer credit",
     "targets": "Targets",
-    "converters": "Lead converters"
+    "converters": "Lead converters",
+    "converting": "Converting"
   },
   "shell": {
     "skipToContent": "Skip to main content",
@@ -506,7 +507,8 @@
       "orders": "See orders from accepted quotes and dealers, and confirm, release or cancel them.",
       "dealerCredit": "Enter each dealer's credit limit, days and outstanding, and see what they owe.",
       "targets": "Set what each caller and team is aiming for, and see what was set before.",
-      "converters": "Choose who takes qualified leads, how many each person takes and who is present."
+      "converters": "Choose who takes qualified leads, how many each person takes and who is present.",
+      "converting": "Work your qualified leads: what to do next, the call, the sizing and the quote, all on one screen."
     },
     "progress": {
       "period": {
@@ -4329,6 +4331,111 @@
       "takesAllHelper": "Choose none to take all.",
       "submit": "Save",
       "done": "Settings for {name} are saved."
+    }
+  },
+  "converting": {
+    "title": "Converting",
+    "intro": "Your leads by stage, what to do next, and the calls, sizing and quote of the lead you open. Press / to find a lead, J and K to move, ? to see every key.",
+    "pageTitle": "Converting",
+    "myLeads": "My leads",
+    "myTeam": "My team",
+    "viewLabel": "Leads shown",
+    "viewing": "{name}'s leads",
+    "backToTeam": "Back to my team",
+    "teamIntro": "Choose a person of your team to see their leads and what they should do next.",
+    "teamCaption": "People of your team",
+    "teamEmpty": "Nobody on your team takes calls on leads yet.",
+    "teamOpen": "Open {name}'s leads",
+    "teamWaiting": "{count, plural, =0 {No leads waiting to be called} one {# lead waiting to be called} other {# leads waiting to be called}}",
+    "board": {
+      "title": "Your leads",
+      "count": "{count, plural, =0 {No open leads} one {# open lead} other {# open leads}}",
+      "asOf": "As of",
+      "refresh": "Refresh",
+      "empty": "No leads are with you right now. Qualified leads are given to you as they come in.",
+      "truncated": "Showing the 200 leads that changed most recently.",
+      "notSized": "Not sized",
+      "callDue": "Call back due",
+      "orderHeld": "Order held",
+      "open": "Open"
+    },
+    "size": {
+      "hp": "{hp} HP",
+      "kwp": "{kwp} kWp"
+    },
+    "next": {
+      "title": "What to do next",
+      "empty": "Nothing needs you right now.",
+      "rule": {
+        "callback_due": "Call back due {when}",
+        "quote_expiring": "Quote runs out {when}",
+        "order_held": "Order held for credit since {when}",
+        "sizing_missing": "Sizing needed before a quote"
+      }
+    },
+    "lead": {
+      "empty": "Choose a lead from the board, or press N for the first thing to do.",
+      "parts": "Parts of this lead",
+      "summary": "Where this lead stands",
+      "stage": "Stage",
+      "nextCall": "Next call back",
+      "noNextCall": "None set",
+      "sizing": "Sizing",
+      "quote": "Quote",
+      "order": "Order",
+      "noQuote": "No quote yet",
+      "quoteLine": "{number}, {state}, valid until {date}",
+      "noOrder": "None held",
+      "orderHeld": "{number} is held for credit",
+      "sizingNone": "Not sized yet",
+      "sizingStale": "Needs sizing again",
+      "openCustomer": "Open customer",
+      "loading": "Loading this lead"
+    },
+    "panel": {
+      "calls": "Calls",
+      "sizing": "Sizing",
+      "quote": "Quote",
+      "order": "Order"
+    },
+    "quote": {
+      "loading": "Loading the quote form",
+      "made": "Quote {number} is made.",
+      "open": "Open quote",
+      "another": "Make another",
+      "cannot": "You can see this lead but quotes on it are made by its owner."
+    },
+    "order": {
+      "held": "The credit check is holding order {number} for {amount}. It was held on {when}. An Executive can release it.",
+      "open": "Open order"
+    },
+    "keys": {
+      "title": "Keyboard shortcuts",
+      "hint": "Press ? to show or hide this list.",
+      "search": "/",
+      "move": "J and K",
+      "next": "N",
+      "log": "L",
+      "callback": "C",
+      "sizing": "S",
+      "quote": "Q",
+      "dial": "D",
+      "outcome": "1 to 9",
+      "enter": "Enter",
+      "help": "?",
+      "what": {
+        "search": "Find a lead",
+        "move": "Move down and up the leads",
+        "enter": "Open the lead you are on",
+        "next": "Open the first thing to do",
+        "log": "Log a call",
+        "callback": "Set a callback",
+        "sizing": "Open the sizing",
+        "quote": "Open the quote",
+        "dial": "Show the number to dial",
+        "outcome": "Save the call with that outcome",
+        "help": "Show or hide this list"
+      }
     }
   }
 }

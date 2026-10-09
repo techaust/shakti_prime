@@ -2,6 +2,7 @@
 
 import type {
   QuoteBuilderDto,
+  QuoteDto,
   QuoteLineInput,
   QuotePreviewDto,
   SubsidyScheme,
@@ -65,7 +66,14 @@ function linesOf(draft: readonly DraftLine[]): QuoteLineInput[] | undefined {
  * makes it (`createQuote`) with the prices of the list and the tax of the engine. No amount is
  * typed or worked out here.
  */
-export function QuoteBuilder({ builder }: { builder: QuoteBuilderDto }) {
+export function QuoteBuilder({
+  builder,
+  onCreated,
+}: {
+  builder: QuoteBuilderDto;
+  /** Told of the quote made, for a screen that stays where it is; the default opens the quote. */
+  onCreated?: (quote: QuoteDto) => void;
+}) {
   const t = useTranslations('quotes.builder');
   const router = useRouter();
   const [lines, setLines] = useState<DraftLine[]>([
@@ -107,7 +115,8 @@ export function QuoteBuilder({ builder }: { builder: QuoteBuilderDto }) {
     if (wanted === undefined || make.pending) return;
     make.run(wanted, (quote) => {
       toast.success(t('made', { number: quote.quoteNo }));
-      router.push(quoteHref(quote.entityId, quote.id));
+      if (onCreated === undefined) router.push(quoteHref(quote.entityId, quote.id));
+      else onCreated(quote);
     });
   }
 
