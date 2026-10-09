@@ -123,9 +123,14 @@ function newLead(owner: Principal = caller, pipelineKey = 'farmer_pumps'): Promi
   return run<Lead>(owner, createLead, {
     entityId: CO,
     pipelineKey,
-    contact: { name: `Handover customer ${RUN}`, phone: phone() },
+    // Each customer has a name and a village of its own, so the duplicate search finds no pair.
+    contact: { name: `Handover customer ${RUN} ${String(numbers + 1)}`, phone: phone() },
     account: { type: 'farm' },
-    site: { type: 'borewell', village: 'Handover village', pin: '422001' },
+    site: {
+      type: 'borewell',
+      village: `Handover village ${RUN} ${String(numbers)}`,
+      pin: '422001',
+    },
   });
 }
 

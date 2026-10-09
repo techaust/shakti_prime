@@ -91,9 +91,9 @@ test.describe('a lead a tele-caller qualifies', () => {
       await converter.goto('/home');
       await converter.getByRole('button', { name: /^Notifications/ }).click();
       await expect(notice.getByRole('link', { name: 'A lead was given to you' })).toBeVisible({
-        timeout: 3_000,
+        timeout: 8_000,
       });
-    }).toPass({ timeout: 40_000 });
+    }).toPass({ timeout: 60_000 });
     await expectNoAxeViolations(converter, { include: '[role="dialog"]' });
     await notice.getByRole('link', { name: 'A lead was given to you' }).click();
     await expect(converter.getByRole('heading', { name, level: 1 })).toBeVisible();

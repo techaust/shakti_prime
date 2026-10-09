@@ -96,9 +96,9 @@ const newLead = () =>
   run<Lead>(caller, createLead as never, {
     entityId: CO,
     pipelineKey: 'farmer_pumps',
-    contact: { name: `Worker customer ${RUN}`, phone: phone() },
+    contact: { name: `Worker customer ${RUN} ${String(numbers + 1)}`, phone: phone() },
     account: { type: 'farm' },
-    site: { type: 'borewell', village: 'Worker village', pin: '422001' },
+    site: { type: 'borewell', village: `Worker village ${RUN} ${String(numbers)}`, pin: '422001' },
   });
 
 async function stageId(lead: Lead, key: string): Promise<string> {
