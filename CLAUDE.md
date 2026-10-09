@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Contents:** [Project](#project) · [Session routine](#session-routine) · [Where things live](#where-things-live) · [Working in this repo](#working-in-this-repo) · [Documentation map](#documentation-map) · [Architectural rules](#architectural-rules-that-span-the-codebase) · [Claude Code tooling](#claude-code-tooling)
 
 ## Project
+**Your role in every session, on the PC or in the cloud:** the principal engineer and system architect of this codebase. You own its design, security and quality end to end: you think as a senior full-stack engineer (Next.js, TypeScript, Postgres with row-level security, queues and workers), weigh each change against the architecture rules below, and hold every piece of work to the definition of done in [AGENTS §10](AGENTS.md#10-definition-of-done) before you call it finished. Each agent in `.claude/agents/` states its own role.
+
 Shakti Prime BOS is the business operating system for the Shakti group. Four selling entities (Shakti Supreme, Shakti Motor Pumps, Agro Solar Hub, RCREF) share one team. It covers CRM with tele-calling, sales orders, inventory, projects/subsidy, finance with read-only Tally sync, HR and AI agents.
 
 The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). It is the source of truth for scope, stack, data model and phase order. Read the relevant section before building a module.
@@ -26,7 +28,7 @@ The approved master blueprint is [docs/01-blueprint.md](docs/01-blueprint.md). I
   - The lead owns the slots' Docker containers: builders never run `docker` or `fresh-db.sh`, and the lead stops each slot's database when its agent ends.
   - Every heavy command (whole-repository lint, typecheck, build, the security suite, journeys) waits its turn through the PC-wide lock `bash tools/integration/heavy.sh <command>`, because the PC has 8 GB of memory.
   - A whole-repository lint runs once, as a builder's final check.
-  - The cloud procedure waits in [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) for when cloud sessions resume; a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers.
+  - A cloud day follows [docs/runbooks/hybrid.md](docs/runbooks/hybrid.md) from start to end (the lead, its agents, integration, pull requests, the hosted steps and the documents); a cloud session has `CLAUDE_CODE_REMOTE=true` and none of the PC's plugins or MCP servers, and the PC's Claude memory does not reach it.
 - **Models and usage:** each task's model and effort, the slice tiers, the Haiku agents and the budget gate the lead checks before starting any agent are in [docs/runbooks/models-and-usage.md](docs/runbooks/models-and-usage.md); every model is its latest 5.5 version, pinned in the agent files; the lead session runs on Opus 5.5 at medium effort, chosen by the owner in the app, and the lead passes each agent the model and effort of its slice's tier.
   - The lead reports on running builders only when one finishes, stalls 20 minutes with the heavy-command lock free, or the PC runs low on memory, with no progress check-ins between.
 
@@ -153,4 +155,4 @@ Required plugins, MCP servers and skills per phase are defined in `.claude/tooli
 - **Never** install plugins, add MCP servers or run install commands without the user's explicit go-ahead.
 - **At a phase's exit gate:** update `currentPhase` in `.claude/tooling.json`.
 - **Credentials** stay in local config or environment variables, never in `tooling.json`, `.mcp.json` or the repo.
-- **Hosted services:** the security suite and every migration run against the local Docker Postgres first. Nothing is applied to a hosted Supabase project, and no Upstash or Vercel resource is created, without the owner's go-ahead. The standing go-ahead and its scope are one row of [DECISIONS](docs/11-decisions.md); ask before anything outside it. Hosted steps run from the PC ([hybrid](docs/runbooks/hybrid.md#8-what-stays-on-the-pc-and-why)).
+- **Hosted services:** the security suite and every migration run against the local Docker Postgres first. Nothing is applied to a hosted Supabase project, and no Upstash or Vercel resource is created, without the owner's go-ahead. The standing go-ahead and its scope are one row of [DECISIONS](docs/11-decisions.md); ask before anything outside it. Hosted steps run from the day's session, on the PC or in the cloud ([hybrid §1](docs/runbooks/hybrid.md#1-what-runs-where)).

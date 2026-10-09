@@ -18,7 +18,7 @@ When the slice merges, its file stays on `main` as the record of the run, with t
 |---|---|
 | Branch | `feat/<...>` on GitHub |
 | PC worktree | `<slug>`, slot <n>: Postgres <port>, app <port> |
-| Runs on | PC (cloud sessions are paused), or cloud |
+| Runs on | PC or cloud, as the owner chose for the day |
 | Tier | A, B or C ([models-and-usage §2](../../runbooks/models-and-usage.md#2-slice-tiers)) |
 | Usage | weekly % at each agent run's start and end, for example `build 67→72, review 72→75` |
 | State | brief / building / built / reviewed / fixed / integrating / merged (#N) |
@@ -39,7 +39,7 @@ Done when: the slice-specific checks beyond AGENTS §10.
 ```
 
 ## Ports on the PC
-Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. A cloud session, when they resume, uses the defaults of its own VM (Postgres 54322, app 3000).
+Each slice on the PC takes a slot, and the slot gives its Postgres and app ports ([slice-integration §1](../../runbooks/slice-integration.md#1-machines-and-ports)); the run file's header records it. On a cloud day the lead's VM uses the same slots for its worktrees; a builder started as its own cloud session uses its VM's defaults (Postgres 54322, app 3000).
 
 ## Slices in flight
 None.
