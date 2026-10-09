@@ -46,6 +46,15 @@ export const SIGNED_IN_ROLES = [
     entityIds: [1],
     twoFactor: false,
   },
+  // A Lead Converter in company 1, present and taking every language and business line: the
+  // handover journeys give qualified leads to her (handover.spec.ts).
+  {
+    key: 'converter',
+    name: 'Kishan Verma',
+    roleKey: 'tele_caller_lc',
+    entityIds: [1],
+    twoFactor: false,
+  },
   // The one person in the snapshot company besides the Executive (below).
   {
     key: 'snapshotCaller',

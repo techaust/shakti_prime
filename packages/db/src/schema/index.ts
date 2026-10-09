@@ -40,6 +40,7 @@ export {
 export { quotes, quoteLines, quoteVersions } from './quotes';
 export { knowledgeFiles, knowledgeChunks } from './knowledge';
 export { notifications, notificationPreferences, pushSubscriptions } from './notifications';
+export { callerProfiles } from './caller-profiles';
 export {
   salesOrders,
   salesOrderLines,

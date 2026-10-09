@@ -115,7 +115,7 @@ export const opportunityMachine = defineMachine<
   stateNotes: {
     open: 'Being worked; stage moves and assignment happen here.',
     nurture:
-      'Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); `crm.opportunity.reopen` brings it back to open.',
+      'Parked on a nurture cadence with a reason (`crm.opportunity.nurture`); it can be assigned to another owner and stays here; `crm.opportunity.reopen` brings it back to open.',
     won: 'Closed with an accepted quote or a confirmed order.',
     lost: 'Closed without a sale; may be reopened for a limited time.',
   },
@@ -163,8 +163,28 @@ export const opportunityMachine = defineMachine<
         },
         {
           key: 'move_call_tasks',
-          description:
-            "the open lead's callbacks go to the new owner; a nurtured lead's owner and nurture calls are T2's to settle",
+          description: "the open lead's callbacks go to the new owner",
+        },
+      ],
+    },
+    {
+      from: ['nurture'],
+      event: 'assign',
+      to: 'nurture',
+      permission: 'crm.lead.assign',
+      system: true,
+      guard: lockFree,
+      emits: 'crm.opportunity.assigned',
+      note: "A leaving caller's nurtured leads move with their open ones (`crm.lead.reassign_all`); the lead stays in nurture.",
+      effects: [
+        { key: 'set_owner', description: 'set `owner_id` and `team_id`' },
+        {
+          key: 'lock_owner',
+          description: `set \`locked_until\` = now + the pipeline's \`lock_hours\` (${String(WORKSHOP_DEFAULTS.opportunity.handoverLockHours)} h, the workshop default, when the pipeline has none)`,
+        },
+        {
+          key: 'move_call_tasks',
+          description: "the lead's nurture calls go to the new owner",
         },
       ],
     },

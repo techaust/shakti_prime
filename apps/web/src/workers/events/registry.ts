@@ -5,6 +5,7 @@ import { requireFileStore } from '../../files/uploads';
 import { handleFileUploaded } from '../files/handle-file-uploaded';
 import { indexJobOf } from '../knowledge/job';
 import { discardVaultMasker, maskingConfigured, vaultMasker } from '../ocr/vault-masker';
+import { handleHandoverEvent } from '../handover/handover-event';
 import { handleNoticeEvent } from '../notify/notify-event';
 import { renderJobOf } from '../pdf/job';
 import { recordProbeArrival } from './probe';
@@ -87,6 +88,15 @@ export const EVENT_WORKERS: Partial<Record<EventType, EventWorker>> = {
       // Loaded on first use, so the Word reader stays out of every other worker's start.
       const { indexDeps } = await import('../knowledge/index-deps');
       await indexKnowledgeFile(indexJobOf(event), indexDeps(ctx.principal, ctx.requestId));
+    },
+  },
+  // A lead that reached Qualified goes to a Lead Converter, or to the Sales Team Lead when none
+  // qualifies (docs/03-roadmap-appendix/phase1.md §8.2). Handled in this route's own process, within
+  // seconds of the event; an event whose lead did not reach Qualified is left alone.
+  'crm.opportunity.stage_moved': {
+    ordering: 'every',
+    handle: async (event, ctx) => {
+      await handleHandoverEvent(event, ctx);
     },
   },
   // The notices people act on (docs/03-roadmap-appendix/phase1.md §8.1). Hosted, the publisher sends these

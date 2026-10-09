@@ -148,7 +148,7 @@ describe('the opportunity commands (design §7.2)', () => {
   describe('refuse every move the machine does not have', () => {
     const allowed: Record<string, readonly string[]> = {
       open: ['stage.move', 'assign', 'nurture', 'win', 'lose'],
-      nurture: ['reopen', 'lose'],
+      nurture: ['assign', 'reopen', 'lose'],
       lost: ['reopen'],
       won: [],
     };

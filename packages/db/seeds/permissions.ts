@@ -78,6 +78,7 @@ const DESCRIPTIONS: Record<PermissionKey, string> = {
   'sales.quote.expire': 'Mark quotes past their validity as expired each day',
   'knowledge.index': 'Read Knowledge Vault files so they can be searched',
   'notifications.send': 'Send notices to the people who act on them',
+  'crm.handover.run': 'Give a qualified lead to a Lead Converter',
 };
 
 export const PERMISSION_SEED = PERMISSION_KEYS.map((key) => ({
