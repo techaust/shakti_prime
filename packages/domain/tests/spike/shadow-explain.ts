@@ -87,7 +87,7 @@ async function main() {
       runs as (
         insert into agent_runs (id, entity_id, agent, principal_id, purpose, action_type, outcome,
                                 filter_reason, cost_paise, request_id, created_at)
-        select gen_random_uuid(), ${E}, 'agent:triage', ${TRIAGE}, ${PURPOSE}, k.action_type,
+        select gen_random_uuid(), ${E}::smallint, 'agent:triage', ${TRIAGE}::uuid, ${PURPOSE}::text, k.action_type,
                case when k.kind = 4 then 'filtered' else 'shadowed' end,
                case when k.kind = 4 then 'unknown_candidate' end,
                case when k.kind = 1 then 15 else 0 end, 'explain', l.created_at
@@ -95,13 +95,13 @@ async function main() {
         returning id, action_type, created_at)
       insert into agent_actions (id, entity_id, run_id, agent, action_type, input_json, autonomy,
                                  state, created_by, created_at)
-      select gen_random_uuid(), ${E}, r.id, 'agent:triage', r.action_type,
-             jsonb_build_object('entityId', ${E}, 'opportunityId', l.id)
+      select gen_random_uuid(), ${E}::smallint, r.id, 'agent:triage', r.action_type,
+             jsonb_build_object('entityId', ${E}::int, 'opportunityId', l.id)
                || case r.action_type
                     when 'triage.pipeline.choose' then jsonb_build_object('pipelineKey', 'farmer_pumps')
                     when 'triage.score.adjust' then jsonb_build_object('adjustment', 5, 'score', 55)
-                    else jsonb_build_object('ownerId', ${exec.id}) end,
-             'shadow', 'shadowed', ${TRIAGE}, r.created_at
+                    else jsonb_build_object('ownerId', ${exec.id}::uuid) end,
+             'shadow', 'shadowed', ${TRIAGE}::uuid, r.created_at
         from runs r join leads l on l.created_at = r.created_at
        where r.action_type <> 'crm.duplicate.suggest'`;
     // Another agent's runs in the same months, which the spend reads and the report never does.
